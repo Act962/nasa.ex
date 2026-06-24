@@ -2,11 +2,11 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { tool } from "ai";
 import { z } from "zod";
-import { sendLinkToLead } from "@/features/executions/lib/send-link-to-lead";
+import { sendLinkToLead } from "@/features/tracking-executions/lib/send-link-to-lead";
 import {
   applyVariables,
   buildLeadVariables,
-} from "@/features/executions/lib/interpolate-message";
+} from "@/features/tracking-executions/lib/interpolate-message";
 
 /**
  * Tools de envio de links pra lead via WhatsApp — auto-agent invoca

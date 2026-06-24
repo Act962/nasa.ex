@@ -880,7 +880,7 @@ export function WokaCustomizer({ avatarConfig, onChange, onClose, externalTab }:
           Voltar ao personagem padrão
         </button>
         <button
-          onClick={handleFinish}
+          onClick={() => handleFinish()}
           className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition-all shadow-lg shadow-indigo-900/40"
         >
           Terminar

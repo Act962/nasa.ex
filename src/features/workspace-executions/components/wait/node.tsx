@@ -5,7 +5,7 @@ import { memo, useState } from "react";
 import { TimerIcon } from "lucide-react";
 import { WsBaseExecutionNode } from "../base-execution-node";
 import { WsWaitDialog, WsWaitFormValues } from "./dialog";
-import { useNodeStatus } from "@/features/executions/hook/use-node-status";
+import { useNodeStatus } from "@/features/tracking-executions/hook/use-node-status";
 import { WS_WAIT_CHANNEL_NAME } from "@/inngest/channels/workspace";
 import { fetchWsWaitToken } from "../../lib/realtime-tokens";
 

@@ -15,6 +15,7 @@ import {
   recordLeadEvent,
   type RecordLeadEventInput,
 } from "@/features/leads/lib/history";
+import { publishLeadCreated } from "@/features/leads/realtime/publish";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
 import { eventBus } from "@/features/alerts/lib/event-bus";
@@ -54,7 +55,15 @@ export const submitResponse = base
 
       const pendingLeadEvents: RecordLeadEventInput[] = [];
 
-      const { formMeta } = await prisma.$transaction(async (tx) => {
+      const { formMeta, createdLeadForBoard } = await prisma.$transaction(async (tx) => {
+        // Lead novo criado nesta submissão (cai no board). Retornado da tx e
+        // publicado no realtime APÓS o commit, pra o board refetchar a coluna
+        // e o card aparecer ao vivo.
+        let createdLeadForBoard: {
+          leadId: string;
+          trackingId: string;
+          statusId: string;
+        } | null = null;
         const rawForm = await tx.form.findUnique({
           where: {
             id,
@@ -210,6 +219,12 @@ export const submitResponse = base
             outLeadName = newLead.name;
             outLeadEmail = newLead.email;
             outLeadPhone = newLead.phone;
+            // trackingId/statusId garantidos não-nulos por este `else if`.
+            createdLeadForBoard = {
+              leadId: newLead.id,
+              trackingId: trackingId!,
+              statusId: statusId!,
+            };
             outLeadPublicToken =
               (newLead as unknown as { publicToken?: string | null })
                 .publicToken ?? null;
@@ -398,13 +413,19 @@ export const submitResponse = base
           }
         }
 
-        return { formMeta: form };
+        return { formMeta: form, createdLeadForBoard };
       });
 
       // Dispara Pusher/journey FORA da tx — recordLeadEvent chama Pusher e
       // não pode rodar dentro do $transaction (causa timeout).
       if (pendingLeadEvents.length > 0) {
         await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
+      }
+
+      // Realtime do board: lead novo entrou no tracking → board refetcha a
+      // coluna e o card aparece ao vivo. Best-effort (helper isola erro).
+      if (createdLeadForBoard) {
+        await publishLeadCreated({ ...createdLeadForBoard, source: "form" });
       }
 
       // Propaga labels → Lead.description (textareas card + observações).

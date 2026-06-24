@@ -7,8 +7,9 @@ import { ecosystemSyncComments } from "@/http/ecosystem-sync/comments";
  * Replica um `User` do NASA no NERP e no comments-app (best-effort, retry/backoff).
  * Evento: `sync/user.upsert` — emitido pelo hook `user.create.after`.
  *
- * Fan-out: cada alvo em sua própria `step.run` → retries independentes (uma
- * falha no comments não re-dispara o NERP já aplicado, e vice-versa).
+ * Fan-out: os dois alvos rodam em paralelo via `Promise.all`, cada um em sua
+ * própria `step.run` → independentes entre si. Um destino fora do ar (falha
+ * permanente após retries) não bloqueia nem re-dispara o outro já aplicado.
  */
 export const replicateUserToNerp = inngest.createFunction(
   { id: "sync-replicate-user-to-nerp", retries: 5 },
@@ -36,10 +37,12 @@ export const replicateUserToNerp = inngest.createFunction(
     });
     if (!payload) return { skipped: "user_not_found", userId };
 
-    await step.run("upsert-to-nerp", () => syncNerpClient.upsertUser(payload));
-    await step.run("upsert-to-comments", () =>
-      ecosystemSyncComments.upsertUser(payload),
-    );
+    await Promise.all([
+      step.run("upsert-to-nerp", () => syncNerpClient.upsertUser(payload)),
+      step.run("upsert-to-comments", () =>
+        ecosystemSyncComments.upsertUser(payload),
+      ),
+    ]);
     return { ok: true, userId };
   },
 );

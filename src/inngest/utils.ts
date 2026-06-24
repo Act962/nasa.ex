@@ -67,6 +67,7 @@ export type WorkflowTriggerType =
   | "LEAD_TAGGED"
   | "AI_FINISHED"
   | "FIRST_CHAT_INTERACTION"
+  | "FIRST_INTERACTION_OF_DAY"
   | "LAST_INBOUND_TIMEOUT"
   | "PAYMENT_RECEIVED"
   | "MESSAGE_INCOMING"
@@ -156,6 +157,21 @@ export const dispatchFirstChatInteraction = async (args: {
   sendWorkflowExecution({
     workflowId: args.workflowId,
     triggerType: "FIRST_CHAT_INTERACTION",
+    leadId: args.lead.id,
+    initialData: { lead: args.lead },
+  });
+
+/**
+ * Trigger FIRST_INTERACTION_OF_DAY — lead já existente volta a mandar mensagem
+ * pela primeira vez no "dia lógico" (corte configurável, fuso SP).
+ */
+export const dispatchFirstInteractionOfDay = async (args: {
+  workflowId: string;
+  lead: WorkflowDispatchLead;
+}) =>
+  sendWorkflowExecution({
+    workflowId: args.workflowId,
+    triggerType: "FIRST_INTERACTION_OF_DAY",
     leadId: args.lead.id,
     initialData: { lead: args.lead },
   });

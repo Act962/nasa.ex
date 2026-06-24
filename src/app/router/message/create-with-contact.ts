@@ -4,7 +4,6 @@ import {
   CreatedMessageProps,
   MessageStatus,
 } from "@/features/tracking-chat/types";
-import { sendContact } from "@/http/uazapi/send-contact";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { MessageChannel } from "@/generated/prisma/enums";
@@ -21,6 +20,7 @@ import {
   shouldSkipUazapiForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import { v4 as uuidv4 } from "uuid";
 
 export const createContactMessage = base
@@ -34,7 +34,11 @@ export const createContactMessage = base
     z.object({
       conversationId: z.string(),
       leadPhone: z.string(),
-      token: z.string(),
+      /**
+       * @deprecated Ignorado pelo servidor desde Fase 6 — provider
+       * resolvido server-side via `resolveOutboundProvider(trackingId)`.
+       */
+      token: z.string().nullish(),
       contactName: z.string().min(1),
       contactPhone: z.string().min(1),
       replyId: z.string().optional(),
@@ -55,7 +59,22 @@ export const createContactMessage = base
       const channel = conversation?.channel ?? MessageChannel.WHATSAPP;
       const organizationId = conversation?.tracking?.organizationId;
 
-      // Cobra 1★ antes de chamar uazapi — evita custo de API sem saldo.
+      // ── In-Chat Fallback ─────────────────────────────────────────────
+      const inChatMode =
+        channel === MessageChannel.WHATSAPP &&
+        (await shouldSkipUazapiForConversation(input.conversationId));
+
+      // Resolve provider ANTES de cobrar ★ (Fix #2).
+      let resolvedWhatsapp: Awaited<ReturnType<typeof resolveOutboundProvider>> | null = null;
+      if (channel === MessageChannel.WHATSAPP && !inChatMode) {
+        if (!conversation?.trackingId) {
+          throw new Error(
+            "Conversation sem trackingId — não é possível resolver provider.",
+          );
+        }
+        resolvedWhatsapp = await resolveOutboundProvider(conversation.trackingId);
+      }
+
       if (organizationId) {
         await chargeMessageOutbound({
           organizationId,
@@ -70,36 +89,34 @@ export const createContactMessage = base
         });
       }
 
-      // ── In-Chat Fallback ─────────────────────────────────────────────
-      const inChatMode =
-        channel === MessageChannel.WHATSAPP &&
-        (await shouldSkipUazapiForConversation(input.conversationId));
-
       let messageid = uuidv4();
       if (!inChatMode) {
+        // Provider já resolvido lá em cima — reusa.
+        const resolved = resolvedWhatsapp!;
         try {
-          const response = await sendContact(input.token, {
-            number: input.leadPhone,
+          const response = await resolved.provider.sendContact({
+            kind: "contact",
+            to: input.leadPhone,
             fullName: input.contactName,
             phoneNumber: input.contactPhone,
-            replyid: input.replyId,
-            readmessages: true,
-            readchat: true,
+            replyToExternalMessageId: input.replyId,
           });
-          messageid = response.messageid;
+          messageid = response.externalMessageId;
         } catch (err: any) {
-          const msg = String(err?.message ?? "");
-          const isLikelyBan =
-            msg.includes("status 401") ||
-            msg.includes("status 403") ||
-            msg.includes("status 500") ||
-            msg.toLowerCase().includes("invalid token") ||
-            msg.toLowerCase().includes("timeout");
-          if (isLikelyBan) {
-            markInstanceConnectionFailure({
-              apiKey: input.token,
-              source: "send_failure",
-            }).catch(() => {});
+          if (resolved.providerId === "uazapi" && resolved.uazapiToken) {
+            const msg = String(err?.message ?? "");
+            const isLikelyBan =
+              msg.includes("status 401") ||
+              msg.includes("status 403") ||
+              msg.includes("status 500") ||
+              msg.toLowerCase().includes("invalid token") ||
+              msg.toLowerCase().includes("timeout");
+            if (isLikelyBan) {
+              markInstanceConnectionFailure({
+                apiKey: resolved.uazapiToken,
+                source: "send_failure",
+              }).catch(() => {});
+            }
           }
           throw err;
         }

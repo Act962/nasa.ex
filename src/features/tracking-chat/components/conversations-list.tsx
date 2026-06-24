@@ -217,7 +217,7 @@ export function ConversationsList() {
 
   const instance: Instance | undefined = whatsappInstance
     ? {
-        token: whatsappInstance.apiKey,
+        token: whatsappInstance.apiKey ?? "",
         isBusiness: whatsappInstance.isBusiness,
         phoneNumber: whatsappInstance.phoneNumber,
       }

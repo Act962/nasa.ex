@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { managementLabels } from "@/http/uazapi/management-labels";
+import { requireUazapiBaseUrl } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
 import {
@@ -165,7 +166,7 @@ export const updateWhatsappTagsLead = base
 
           await managementLabels({
             token: input.apiKey,
-            baseUrl: WhatsAppInstance.baseUrl,
+            baseUrl: requireUazapiBaseUrl(WhatsAppInstance.baseUrl),
             data: {
               number: targetNumber,
               add_labelid: !alreadyHas ? labelId : undefined,

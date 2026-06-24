@@ -186,6 +186,18 @@ src/features/<dominio>/
       - Parâmetro genérico de origem/contexto → nomeie o domínio: `sourceApp` (não `source`).
     - **Ao mexer em arquivo existente**, renomeie nomes ruins que tocar (boy-scout rule) — mas mantenha o escopo da renomeação dentro do que está sendo editado, sem PRs gigantes de rename.
 
+13. **Comentários e tipagem (OBRIGATÓRIO)**
+    - **Comentários**: nunca adicione blocos massivos de comentários inline nas implementações. Permita apenas um comentário curto no topo do arquivo quando o propósito não for óbvio pelo nome. Dentro de funções/componentes, comente somente o "por quê" quando for realmente não-óbvio — sem comentar o "o quê".
+    - **Tipagem**: evite `any` ao máximo nas propriedades e assinaturas de funções. Prefira tipos explícitos, `unknown` + narrowing, generics ou `Record<string, ...>`. Use `any` somente quando a origem for verdadeiramente não-tipável (ex.: integrações externas sem tipos) e, nesses casos, isole com um alias explícito (`type RawWebhookPayload = Record<string, unknown>`).
+
+14. **Documentação do WhatsApp Oficial (Meta Cloud API)** — sempre que criar ou atualizar qualquer coisa dentro de `src/http/whats-oficial/`, `src/features/tracking-chat/lib/providers/`, o webhook oficial (`src/app/api/chat/webhook/official/`), ou modelos Prisma relacionados ao provider de WhatsApp (ex.: `WhatsAppInstance.provider`, credenciais `meta*` cifradas, novos enums `WhatsAppProvider`), **atualize também [`docs/whatsapp-oficial-overview.md`](docs/whatsapp-oficial-overview.md)** na mesma sessão. Aplica-se a: novos clients HTTP, mudanças na PORT/adapters, novo handler de webhook, mudanças no pipeline canônico de inbound, schema/migrations, env vars, decisões de roadmap, novas fases concluídas. Mantenha tabelas de arquivos, roadmap/status (✅/🚧/⬜), contrato Meta API e changelog sincronizados com o código — o documento é a fonte de verdade do domínio e o canal de acompanhamento entre sessões. Espelha a mesma regra do item 10 (NASA Route).
+
+15. **Branch de integração do WhatsApp Oficial (OBRIGATÓRIO)** — todas as fases do roadmap (1 → 6, ver `docs/whatsapp-oficial-overview.md`) são empilhadas em **`feature/whatsapp-oficial-integration`**, NÃO em `main` diretamente. PRs de fase tem base `feature/whatsapp-oficial-integration`; a integração só mergeia em `main` quando todas as fases estiverem verdes ponta-a-ponta. Operacionalmente:
+    - **Ao abrir o PR de uma fase com `/ship`**, use `gh pr create --base feature/whatsapp-oficial-integration ...` (NÃO `--base main`). Se `/ship` abrir contra `main` por padrão, retargete IMEDIATAMENTE com `gh pr edit <num> --base feature/whatsapp-oficial-integration` antes de avisar o usuário.
+    - **Branch de fase nasce a partir da integração**: `git fetch origin && git checkout -b feature/<app>-<desc>-<YYYYMMDD> origin/feature/whatsapp-oficial-integration` (NÃO a partir de `main`). Assim a fase nova já enxerga as anteriores.
+    - **Aplica-se SÓ a fases do WhatsApp Oficial.** Trabalho não-relacionado segue o fluxo normal (`main` → branch → PR contra `main`).
+    - **Quando estiver tudo pronto**, abrir um único PR final `feature/whatsapp-oficial-integration` → `main` cobrindo o release inteiro.
+
 ## Obsidian
 
 Vault: `NASA Agents` em `/Users/weydsonlima/Documents/NASA Agents/`

@@ -1,6 +1,7 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
@@ -104,9 +105,9 @@ export const bookingNotification = inngest.createFunction(
     }
 
     await sendText(
-      instance.apiKey,
+      requireUazapiToken(instance.apiKey),
       { number: appointment.lead.phone, text: message },
-      instance.baseUrl,
+      instance.baseUrl ?? undefined,
     );
 
     return { sent: true, to: appointment.lead.phone, type };

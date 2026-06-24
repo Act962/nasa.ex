@@ -1,4 +1,4 @@
-import { NodeExecutor } from "@/features/executions/types";
+import { NodeExecutor } from "@/features/tracking-executions/types";
 import { ManualTriggerFormValues } from "./dialog";
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";

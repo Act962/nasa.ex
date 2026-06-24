@@ -5,7 +5,7 @@ import { memo, useState } from "react";
 import { BaseTriggerNode } from "../base-trigger-node";
 import { MousePointerIcon } from "lucide-react";
 import { ManualTriggerDialog, ManualTriggerFormValues } from "./dialog";
-import { useNodeStatus } from "@/features/executions/hook/use-node-status";
+import { useNodeStatus } from "@/features/tracking-executions/hook/use-node-status";
 import { MANUAL_TRIGGER_CHANNEL_NAME } from "@/inngest/channels/manual-trigger";
 import { fetchManualTriggerRealtimeToken } from "./actions";
 

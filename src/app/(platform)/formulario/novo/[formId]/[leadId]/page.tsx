@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useMutation } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -20,6 +21,14 @@ import type { FormBlockInstance } from "@/features/form/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { buildResponseSlug } from "@/features/form/lib/response-slug";
 import { orpc } from "@/lib/orpc";
+
+const FormPrintButton = dynamic(
+  () =>
+    import("@/features/form/components/pdf/form-print-button").then(
+      (module_) => ({ default: module_.FormPrintButton }),
+    ),
+  { ssr: false },
+);
 
 /**
  * Página interna pra um consultor (ex: a Jessica) preencher um formulário em
@@ -173,6 +182,12 @@ export default function Page() {
             <Link2 className="size-4" />
             <span className="hidden sm:inline">Link do cliente</span>
           </Button>
+
+          <FormPrintButton
+            blocks={blocks}
+            formName={form.name}
+            leadName={lead.name ?? undefined}
+          />
 
           {status && (
             <div

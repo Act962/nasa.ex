@@ -100,8 +100,8 @@ export function Footer({
   useEffect(() => {
     if (instance.instance) {
       setInstanceData({
-        token: instance.instance.apiKey,
-        baseUrl: instance.instance.baseUrl,
+        token: instance.instance.apiKey ?? "",
+        baseUrl: instance.instance.baseUrl ?? "",
       });
     }
   }, [instance.instance, setInstanceData]);
@@ -200,7 +200,7 @@ export function Footer({
     mutationAudio.mutate({
       blob: blob,
       leadPhone: lead.phone!,
-      token: instance.instance.apiKey,
+      token: instance.instance.apiKey ?? "",
       nameAudio: nameAudio,
       mimetype: blob.type,
       conversationId,
@@ -220,7 +220,7 @@ export function Footer({
       mutation.mutate({
         body: messageBody,
         leadPhone: lead.phone!,
-        token: instance.instance.apiKey,
+        token: instance.instance.apiKey ?? "",
         conversationId: conversationId,
         replyId: messageSelected?.messageId,
         replyIdInternal: messageSelected?.id,
@@ -264,7 +264,7 @@ export function Footer({
     mutationLocation.mutate({
       conversationId,
       leadPhone: lead.phone!,
-      token: instance.instance.apiKey,
+      token: instance.instance.apiKey ?? "",
       latitude: pendingLocation.latitude,
       longitude: pendingLocation.longitude,
       replyId: messageSelected?.messageId,
@@ -287,7 +287,7 @@ export function Footer({
     mutationContact.mutate({
       conversationId,
       leadPhone: lead.phone,
-      token: instance.instance.apiKey,
+      token: instance.instance.apiKey ?? "",
       contactName: name,
       contactPhone: phone,
       replyId: messageSelected?.messageId,
@@ -442,7 +442,7 @@ export function Footer({
               leadId={lead.id}
               leadName={lead.name}
               leadPhone={lead.phone}
-              whatsappToken={instance.instance.apiKey}
+              whatsappToken={instance.instance.apiKey ?? ""}
               onInsertMessage={(text) => {
                 setMessage((prev) => (prev ? prev + "\n" + text : text));
                 setShowBudget(false);
@@ -714,7 +714,7 @@ export function Footer({
                         mutationSticker.mutate({
                           conversationId,
                           leadPhone: lead.phone,
-                          token: instance.instance.apiKey,
+                          token: instance.instance.apiKey ?? "",
                           mediaUrl: url,
                           mimetype,
                           quotedMessageId: messageSelected?.messageId,
@@ -845,7 +845,7 @@ export function Footer({
             closeMessageSelected();
           }}
           leadPhone={lead.phone!}
-          token={instance.instance?.apiKey}
+          token={instance.instance?.apiKey ?? ""}
           fileType={selectedFileType}
           fileName={fileName}
           messageSelected={messageSelected}

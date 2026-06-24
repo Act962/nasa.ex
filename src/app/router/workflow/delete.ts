@@ -29,6 +29,15 @@ export const deleteWorkflow = base
       where: { id: input.id },
     });
 
+    // Deletou — invalida o cache do gatilho FIRST_INTERACTION_OF_DAY pra não
+    // tentar despachar pra um workflow inexistente.
+    if (workflow.trackingId) {
+      const { invalidateReturningTriggerCache } = await import(
+        "@/features/triggers/components/first-interaction-of-day/dispatch"
+      );
+      invalidateReturningTriggerCache(workflow.trackingId);
+    }
+
     if (workflow.tracking) {
       await logActivity({
         organizationId: workflow.tracking.organizationId,

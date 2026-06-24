@@ -5,7 +5,7 @@ import { memo, useState } from "react";
 import { MousePointerIcon } from "lucide-react";
 import { useParams } from "next/navigation";
 import { WsBaseTriggerNode } from "@/features/workspace-triggers/components/base-trigger-node";
-import { useNodeStatus } from "@/features/executions/hook/use-node-status";
+import { useNodeStatus } from "@/features/tracking-executions/hook/use-node-status";
 import { WS_MANUAL_TRIGGER_CHANNEL_NAME } from "@/inngest/channels/workspace";
 import { fetchWsManualTriggerToken } from "@/features/workspace-executions/lib/realtime-tokens";
 import {

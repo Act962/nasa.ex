@@ -964,6 +964,7 @@ model Lead {
   paymentEntries            PaymentEntry[]
   // NASA Auto Agent — sessões abertas pra este lead
   agentSessions             LeadAgentSession[]
+  dailyTriggerClaims        LeadDailyTriggerClaim[]
 
   @@unique([phone, trackingId])
   @@index([trackingId])
@@ -1641,9 +1642,10 @@ model Workflow {
   folder    WorkflowFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   agent     Agent?          @relation("AgentWorkflow", fields: [agentId], references: [id], onDelete: SetNull)
 
-  nodes       Node[]
-  connections Connection[]
-  runs        WorkflowRun[]
+  nodes             Node[]
+  connections       Connection[]
+  runs              WorkflowRun[]
+  dailyTriggerClaims LeadDailyTriggerClaim[]
 
   @@index([trackingId])
   @@index([workspaceId])
@@ -1744,6 +1746,11 @@ enum NodeType {
   // Gatilho time-based: dispara quando o lead fica X minutos sem mandar
   // mensagem nova (computado a partir de `Lead.lastInboundAt`).
   LAST_INBOUND_TIMEOUT
+  // Dispara na primeira interação (inbound) do lead num "dia lógico" que
+  // vira numa hora configurável (default 08:00, fuso America/Sao_Paulo).
+  // Para lead que JÁ está na base e volta a mandar mensagem após dias
+  // inativo — complementa o NEW_LEAD (que cobre só lead recém-criado).
+  FIRST_INTERACTION_OF_DAY
   // LEAD_UNTAGGED
 
   // Execuções
@@ -1849,7 +1856,32 @@ model Node {
   outputConnections Connection[] @relation("FromNode")
   inputConnections  Connection[] @relation("ToNode")
 
+  // Acelera o lookup de workflows por tipo de gatilho — `nodes: { some: { type } }`
+  // roda no hot path de TODO inbound (FIRST_INTERACTION_OF_DAY) e na criação de
+  // lead (NEW_LEAD), além de first-chat/lead-tagged. Sem isso o EXISTS varre `nodes`.
+  @@index([workflowId, type])
   @@map("nodes")
+}
+
+/// Idempotência do gatilho FIRST_INTERACTION_OF_DAY. Guarda, por (lead, workflow),
+/// a chave do "dia lógico" (YYYY-MM-DD no fuso configurado) em que o gatilho
+/// disparou pela última vez. O claim atômico (unique + create) garante que, mesmo
+/// sob mensagens concorrentes do mesmo lead, o fluxo dispare no máximo 1x por dia.
+/// Uma linha por (lead, workflow) — `dayKey` é sobrescrito a cada novo dia, então
+/// o crescimento é limitado a (#leads × #workflows com o gatilho).
+model LeadDailyTriggerClaim {
+  id         String   @id @default(cuid())
+  leadId     String   @map("lead_id")
+  workflowId String   @map("workflow_id")
+  dayKey     String   @map("day_key")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, workflowId])
+  @@index([workflowId])
+  @@map("lead_daily_trigger_claim")
 }
 
 model Connection {
@@ -2058,6 +2090,7 @@ model Message {
   // Útil pra distinguir no histórico mensagens que tiveram trajeto
   // diferente — em Insights, por ex., separar "via WA" vs "via In-Chat".
   viaInChat Boolean @default(false) @map("via_in_chat")
+  metadata  Json?   @map("metadata")
 
   conversation Conversation  @relation("Messages", fields: [conversationId], references: [id], onDelete: Cascade)
   LastMessage  Conversation?
@@ -2100,12 +2133,31 @@ enum WhatsAppInstanceStatus {
   DISCONNECTED
 }
 
+// ── WhatsApp Provider (Fase 4 — Roadmap WhatsApp Oficial) ────────────────
+// Cada `WhatsAppInstance` declara qual provider concreto fala WhatsApp
+// para o tracking. Default `UAZAPI` mantém todo tracking existente intacto
+// — a Fase 6 conecta `META_CLOUD` no caminho de envio/recebimento via
+// factory por-tracking. Adicionar novo provider amanhã = adicionar um
+// valor aqui + um adapter em `src/features/tracking-chat/lib/providers/`.
+enum WhatsAppProvider {
+  UAZAPI
+  META_CLOUD
+}
+
 model WhatsAppInstance {
-  id             String                 @id @default(cuid())
-  instanceName   String                 @map("instance_name")
-  instanceId     String                 @unique @map("instance_id")
-  apiKey         String                 @unique @map("api_key") // Token
-  baseUrl        String                 @map("base_url") // URL
+  id           String @id @default(cuid())
+  instanceName String @map("instance_name")
+  // ── Credenciais Uazapi (legado) ──────────────────────────────────────
+  // NULLABLE desde que o provider passou a ser escolhido na criação: uma
+  // instância `META_CLOUD` nasce sem essas 3 colunas (não há instância
+  // Uazapi por trás). Para `provider == UAZAPI` continuam sempre
+  // preenchidas. Code-paths Uazapi devem narrowar via
+  // `requireUazapiCredentials(instance)` antes de usá-las. `@unique`
+  // segue válido: Postgres permite múltiplos NULL na mesma coluna unique.
+  instanceId String?          @unique @map("instance_id")
+  apiKey     String?          @unique @map("api_key") // Token
+  baseUrl    String?          @map("base_url") // URL
+  provider   WhatsAppProvider @default(UAZAPI)
   status         WhatsAppInstanceStatus @default(DISCONNECTED)
   qrCode         String?                @map("qr_code") // Base64 do QR Code
   phoneNumber    String?                @map("phone_number") // Número conectado
@@ -2119,6 +2171,26 @@ model WhatsAppInstance {
   createdAt      DateTime               @default(now()) @map("created_at")
   updatedAt      DateTime               @updatedAt @map("updated_at")
   isBusiness     Boolean                @default(false) @map("is_business")
+
+  // ── Credenciais Meta Cloud API (Fase 4) ──────────────────────────────
+  // Só preenchidos quando `provider == META_CLOUD`.
+  //
+  // **Cifrados** (AES-256-GCM via `@/lib/crypto` + `AI_SECRETS_KEY`; nunca
+  // logar em claro — usar `last4(...)` pra exibir parcial):
+  //  - `metaAccessToken`  — System User access token (long-lived).
+  //  - `metaAppSecret`    — App Secret pra validar HMAC `x-hub-signature-256`.
+  //  - `metaVerifyToken`  — `hub.verify_token` do GET de subscription.
+  //
+  // **Plaintext** (identificadores públicos, aparecem em todo webhook Meta
+  // e na URL de envio do Graph — cifrar só atrapalhava o lookup):
+  //  - `metaPhoneNumberId`     — Phone Number ID do número (chave de lookup
+  //    no webhook oficial; `@unique` faz `findUnique` constant-time).
+  //  - `metaBusinessAccountId` — WhatsApp Business Account ID (WABA).
+  metaAccessToken       String? @map("meta_access_token")
+  metaPhoneNumberId     String? @unique @map("meta_phone_number_id")
+  metaAppSecret         String? @map("meta_app_secret")
+  metaVerifyToken       String? @map("meta_verify_token")
+  metaBusinessAccountId String? @map("meta_business_account_id")
 
   // ── In-Chat Fallback (anti-ban) ──────────────────────────────────────
   // `inChatModeActive` = true quando o cron `detect-whatsapp-ban` detecta
@@ -2158,6 +2230,7 @@ model WhatsAppInstance {
   @@index([status])
   @@index([inChatModeActive])
   @@index([inChatModeManual])
+  @@index([provider])
   @@map("whatsapp_instances")
 }
 

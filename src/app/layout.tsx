@@ -45,8 +45,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   ),
-  title: "Nasa.ex",
-  description: "Suas ideias e Seus Planos. Bem-vindo ao N.A.S.A",
+  title: "Órbita Hub",
+  description: "Suas ideias e Seus Planos. Bem-vindo ao Órbita Hub",
   icons: {
     icon: [
       {
@@ -57,15 +57,15 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    title: "Nasa.ex",
-    description: "Suas ideias e Seus Planos. Bem-vindo ao N.A.S.A",
+    title: "Órbita Hub",
+    description: "Suas ideias e Seus Planos. Bem-vindo ao Órbita Hub",
     locale: "pt_BR",
     images: [
       {
         url: "/background.png",
         width: 1918,
         height: 850,
-        alt: "Nasa.ex",
+        alt: "Órbita Hub",
       },
     ],
   },

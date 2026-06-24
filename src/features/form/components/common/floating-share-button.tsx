@@ -42,7 +42,7 @@ export function FloatingShareButton(props: { isSidebarOpen: boolean }) {
         aria-label="Copy Shareable Link"
       >
         <Copy className="size-5" />
-        Share Link
+        Compartilhar Link
       </Button>
       <CopyLinkWithUtm
         baseUrl={shareableLink}

@@ -9,7 +9,9 @@ import { ecosystemSyncComments } from "@/http/ecosystem-sync/comments";
  * `Account.password` replicado loga no destino sem reset.
  * Evento: `sync/account.upsert` — emitido pelo hook `account.create.after`.
  *
- * Fan-out: cada alvo em sua própria `step.run` → retries independentes.
+ * Fan-out: os dois alvos rodam em paralelo via `Promise.all`, cada um em sua
+ * própria `step.run` → independentes entre si. Um destino fora do ar não
+ * bloqueia o outro.
  */
 export const replicateAccountToNerp = inngest.createFunction(
   { id: "sync-replicate-account-to-nerp", retries: 5 },
@@ -45,12 +47,12 @@ export const replicateAccountToNerp = inngest.createFunction(
     });
     if (!payload) return { skipped: "account_not_found", accountId };
 
-    await step.run("upsert-to-nerp", () =>
-      syncNerpClient.upsertAccount(payload),
-    );
-    await step.run("upsert-to-comments", () =>
-      ecosystemSyncComments.upsertAccount(payload),
-    );
+    await Promise.all([
+      step.run("upsert-to-nerp", () => syncNerpClient.upsertAccount(payload)),
+      step.run("upsert-to-comments", () =>
+        ecosystemSyncComments.upsertAccount(payload),
+      ),
+    ]);
     return { ok: true, accountId };
   },
 );

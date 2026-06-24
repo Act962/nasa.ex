@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { invalidateOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { disconnectInstance } from "@/http/uazapi/disconnect-instance";
 import prisma from "@/lib/prisma";
@@ -38,8 +39,14 @@ export const disconnectInstanceUazapi = base
         instanceName: true,
         phoneNumber: true,
         organizationId: true,
+        trackingId: true,
       },
     });
+
+    // Invalida cache outbound (Fix #4). O `apiKey` em si não muda no
+    // disconnect, mas mantemos por segurança — se o user disconnect+
+    // reconnect rapidamente, evitamos qualquer race com o cache.
+    invalidateOutboundProvider(instance.trackingId);
 
     if (instance.organizationId) {
       await logActivity({

@@ -19,7 +19,7 @@ import {
   executionNodes,
   triggerNodes,
   NodeTypeOption,
-} from "@/features/executions/lib/node-options";
+} from "@/features/tracking-executions/lib/node-options";
 import { toast } from "sonner";
 import { useUpdateWorkflow } from "@/features/workflows/hooks/use-workflows";
 import { PlusIcon, SaveIcon, WorkflowIcon } from "lucide-react";
