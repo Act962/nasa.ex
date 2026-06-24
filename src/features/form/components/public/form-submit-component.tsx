@@ -150,6 +150,7 @@ export function FormSubmitComponent({
   // Dedupe: evita disparos paralelos do mesmo save quando o user clica
   // Próximo várias vezes rápido. NÃO bloqueia tipping no formulário.
   const savingPartialRef = useRef(false);
+  const dbSaveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const formVals = useRef<{ [key: string]: FieldValue }>(
     // Inicializa com valores existentes no fluxo edit. No fluxo público fica vazio.
@@ -338,6 +339,12 @@ export function FormSubmitComponent({
     // Persiste imediatamente no localStorage — garante que fechar a aba
     // antes de clicar "Próximo" não perde os dados do step atual.
     saveDraftToLocalStorage();
+    // Salva no banco 1.5s após o último blur — cobre stepMode=off onde não
+    // há "Próximo" explícito e garante que o lead apareça no painel cedo.
+    if (dbSaveDebounceRef.current) clearTimeout(dbSaveDebounceRef.current);
+    dbSaveDebounceRef.current = setTimeout(() => {
+      void persistPartial();
+    }, 1500);
   };
 
   /**
@@ -358,6 +365,11 @@ export function FormSubmitComponent({
     // do consultor já passa por updateResponse. Sem onPartialSave externo,
     // skipamos pra evitar criar respostas paralelas.
     if (onSubmitOverride && !onPartialSave) return;
+    // Cancela debounce pendente — "Próximo" salva imediatamente, sem double-save.
+    if (dbSaveDebounceRef.current) {
+      clearTimeout(dbSaveDebounceRef.current);
+      dbSaveDebounceRef.current = null;
+    }
     if (savingPartialRef.current) return; // dedupe parallel calls
     savingPartialRef.current = true;
     try {
@@ -599,6 +611,12 @@ export function FormSubmitComponent({
       /* JSON inválido ou localStorage indisponível — ignorar */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (dbSaveDebounceRef.current) clearTimeout(dbSaveDebounceRef.current);
+    };
   }, []);
 
   // Limpa quaisquer backups de sessionStorage de submissions anteriores
@@ -1098,30 +1116,11 @@ function StepBlocks({
   const [currentStep, setCurrentStep] = useState(0);
   const [tick, setTick] = useState(0); // re-render quando formVals muda
 
-  // Auto-save com debounce de 1.5s: salva o estado parcial 1.5s depois
-  // do ÚLTIMO blur (cada novo blur reinicia o timer). Cobre o cenário
-  // "user preenche vários campos e fecha o tab antes de clicar Próximo".
-  // Aplicado SOMENTE em stepMode='manual' — onde o Próximo é explícito.
-  // Em 'auto' o avanço já dispara persist; em 'off' o submit final cobre.
-  const blurDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    return () => {
-      if (blurDebounceRef.current) clearTimeout(blurDebounceRef.current);
-    };
-  }, []);
-
   // re-render automático ao receber preenchimento — pra que o auto-advance e
   // o botão habilitado/desabilitado reflitam o estado atual de `formValsRef`.
   const wrappedHandleBlur: HandleBlurFunc = (key, value) => {
     handleBlur(key, value);
     setTick((t) => t + 1);
-    if (stepMode === "manual" && onStepAdvance) {
-      if (blurDebounceRef.current) clearTimeout(blurDebounceRef.current);
-      blurDebounceRef.current = setTimeout(() => {
-        // fire-and-forget — falha não impacta UX.
-        onStepAdvance();
-      }, 1500);
-    }
   };
 
   // Scroll-to-top sempre que muda de passo (Próximo OU Voltar). Sem isso,
