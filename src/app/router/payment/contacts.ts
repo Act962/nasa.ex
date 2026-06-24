@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requirePaymentAccess } from "@/app/middlewares/payment-access";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -22,6 +23,7 @@ const contactShape = z.object({
 export const listPaymentContacts = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("contacts", "view"))
   .route({ method: "GET", summary: "List payment contacts", tags: ["Payment"] })
   .input(z.object({
     search: z.string().optional(),
@@ -54,6 +56,7 @@ export const listPaymentContacts = base
 export const createPaymentContact = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("contacts", "create"))
   .route({ method: "POST", summary: "Create payment contact", tags: ["Payment"] })
   .input(z.object({
     name: z.string(),
@@ -80,6 +83,7 @@ export const createPaymentContact = base
 export const updatePaymentContact = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("contacts", "edit"))
   .route({ method: "PATCH", summary: "Update payment contact", tags: ["Payment"] })
   .input(z.object({
     id: z.string(),
@@ -108,6 +112,7 @@ export const updatePaymentContact = base
 export const deletePaymentContact = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("contacts", "delete"))
   .route({ method: "DELETE", summary: "Delete payment contact", tags: ["Payment"] })
   .input(z.object({ id: z.string() }))
   .output(z.object({ ok: z.boolean() }))
