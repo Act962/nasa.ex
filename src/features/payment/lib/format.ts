@@ -14,6 +14,7 @@ export function formatDate(date: Date | string): string {
 
 /** Status label */
 export const STATUS_LABELS: Record<string, string> = {
+  PENDING_APPROVAL: "Aguardando aprovação",
   PENDING: "Pendente",
   PARTIAL: "Parcial",
   PAID: "Pago",
@@ -22,6 +23,7 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 export const STATUS_COLORS: Record<string, string> = {
+  PENDING_APPROVAL: "bg-amber-500/10 text-amber-500 border-amber-500/30",
   PENDING: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
   PARTIAL: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   PAID: "bg-green-500/10 text-green-400 border-green-500/20",
