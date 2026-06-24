@@ -34,6 +34,8 @@ export function GovernanceSettingsTab() {
   const [thresholdReais, setThresholdReais] = useState<string>("");
   const [payableRequired, setPayableRequired] = useState(false);
   const [notifyHours, setNotifyHours] = useState<number>(24);
+  const [sessionTimeoutMin, setSessionTimeoutMin] = useState<number>(30);
+  const [otpEveryN, setOtpEveryN] = useState<number>(10);
 
   useEffect(() => {
     if (!data?.config) return;
@@ -44,6 +46,8 @@ export function GovernanceSettingsTab() {
     );
     setPayableRequired(data.config.payableRequiresApproval);
     setNotifyHours(data.config.notifyApproversAfterHours);
+    setSessionTimeoutMin(data.config.sessionTimeoutMinutes);
+    setOtpEveryN(data.config.otpEveryNSessions);
   }, [data]);
 
   function handleSave() {
@@ -60,6 +64,8 @@ export function GovernanceSettingsTab() {
         autoApprovalThresholdCents: cents,
         payableRequiresApproval: payableRequired,
         notifyApproversAfterHours: notifyHours,
+        sessionTimeoutMinutes: sessionTimeoutMin,
+        otpEveryNSessions: otpEveryN,
       },
       {
         onSuccess: () => toast.success("Configuração de governança salva"),
@@ -151,6 +157,54 @@ export function GovernanceSettingsTab() {
           Se o pedido continuar pendente após X horas, os aprovadores recebem
           notificação de lembrete (entre 1h e 1 semana).
         </p>
+      </div>
+
+      <div className="rounded-md border border-[#1E90FF]/30 bg-[#1E90FF]/5 p-3 space-y-3">
+        <p className="text-xs font-medium text-[#1E90FF]">
+          Segurança de Acesso (NASA Payment Gate)
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="session-timeout" className="text-xs">
+              Auto-lock por inatividade (min)
+            </Label>
+            <Input
+              id="session-timeout"
+              type="number"
+              min={1}
+              max={720}
+              value={sessionTimeoutMin}
+              onChange={(event) =>
+                setSessionTimeoutMin(parseInt(event.target.value || "30", 10))
+              }
+              disabled={!isMaster}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Após X min sem atividade, fecha o módulo e pede senha de novo.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="otp-every" className="text-xs">
+              OTP WhatsApp a cada N sessões
+            </Label>
+            <Input
+              id="otp-every"
+              type="number"
+              min={0}
+              max={100}
+              value={otpEveryN}
+              onChange={(event) =>
+                setOtpEveryN(parseInt(event.target.value || "10", 10))
+              }
+              disabled={!isMaster}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              0 desliga. 10 = a cada 10 logins pede código WhatsApp extra.
+            </p>
+          </div>
+        </div>
       </div>
 
       {isMaster && (

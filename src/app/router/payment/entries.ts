@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requirePaymentAccess } from "@/app/middlewares/payment-access";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -71,6 +72,7 @@ const entryInclude = {
 export const listPaymentEntries = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("entries", "view"))
   .route({ method: "GET", summary: "List payment entries", tags: ["Payment"] })
   .input(z.object({
     type: z.enum(["RECEIVABLE", "PAYABLE"]).optional(),
@@ -131,6 +133,7 @@ export const listPaymentEntries = base
 export const createPaymentEntry = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("entries", "create"))
   .route({ method: "POST", summary: "Create payment entry", tags: ["Payment"] })
   .input(z.object({
     type: z.enum(["RECEIVABLE", "PAYABLE"]),
@@ -318,6 +321,7 @@ export const createPaymentEntry = base
 export const updatePaymentEntry = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("entries", "edit"))
   .route({ method: "PATCH", summary: "Update payment entry", tags: ["Payment"] })
   .input(z.object({
     id: z.string(),
@@ -356,6 +360,7 @@ export const updatePaymentEntry = base
 export const payPaymentEntry = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("entries", "edit"))
   .route({ method: "POST", summary: "Pay payment entry", tags: ["Payment"] })
   .input(z.object({
     id: z.string(),
@@ -412,6 +417,7 @@ export const payPaymentEntry = base
 export const deletePaymentEntry = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("entries", "delete"))
   .route({ method: "DELETE", summary: "Delete payment entry", tags: ["Payment"] })
   .input(z.object({ id: z.string() }))
   .output(z.object({ ok: z.boolean() }))

@@ -345,6 +345,8 @@ export const getPaymentGovernanceConfig = base
       autoApprovalThresholdCents: z.number().nullable(),
       payableRequiresApproval:    z.boolean(),
       notifyApproversAfterHours:  z.number(),
+      sessionTimeoutMinutes:      z.number(),
+      otpEveryNSessions:          z.number(),
     }),
   }))
   .handler(async ({ context }) => {
@@ -354,6 +356,8 @@ export const getPaymentGovernanceConfig = base
         autoApprovalThresholdCents: true,
         payableRequiresApproval:    true,
         notifyApproversAfterHours:  true,
+        sessionTimeoutMinutes:      true,
+        otpEveryNSessions:          true,
       },
     });
     return {
@@ -361,6 +365,8 @@ export const getPaymentGovernanceConfig = base
         autoApprovalThresholdCents: null,
         payableRequiresApproval:    false,
         notifyApproversAfterHours:  24,
+        sessionTimeoutMinutes:      30,
+        otpEveryNSessions:          10,
       },
     };
   });
@@ -373,6 +379,8 @@ export const updatePaymentGovernanceConfig = base
     autoApprovalThresholdCents: z.number().nullable(),
     payableRequiresApproval:    z.boolean(),
     notifyApproversAfterHours:  z.number().min(1).max(168), // 1h até 1 semana
+    sessionTimeoutMinutes:      z.number().min(1).max(720).default(30),
+    otpEveryNSessions:          z.number().min(0).max(100).default(10),
   }))
   .output(z.object({ success: z.boolean() }))
   .handler(async ({ input, context }) => {
@@ -394,11 +402,15 @@ export const updatePaymentGovernanceConfig = base
         autoApprovalThresholdCents: input.autoApprovalThresholdCents,
         payableRequiresApproval:    input.payableRequiresApproval,
         notifyApproversAfterHours:  input.notifyApproversAfterHours,
+        sessionTimeoutMinutes:      input.sessionTimeoutMinutes,
+        otpEveryNSessions:          input.otpEveryNSessions,
       },
       update: {
         autoApprovalThresholdCents: input.autoApprovalThresholdCents,
         payableRequiresApproval:    input.payableRequiresApproval,
         notifyApproversAfterHours:  input.notifyApproversAfterHours,
+        sessionTimeoutMinutes:      input.sessionTimeoutMinutes,
+        otpEveryNSessions:          input.otpEveryNSessions,
       },
     });
 

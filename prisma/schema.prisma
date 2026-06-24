@@ -4047,15 +4047,33 @@ model PaymentContact {
 }
 
 model PaymentAccess {
-  id             String   @id @default(cuid())
-  userId         String   @map("user_id")
-  organizationId String   @map("organization_id")
-  passwordHash   String   @map("password_hash")
-  isAuthorized   Boolean  @default(false) @map("is_authorized")
-  phone          String? // para envio de PIN via WhatsApp
-  authorizedById String?  @map("authorized_by_id")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id             String      @id @default(cuid())
+  userId         String      @map("user_id")
+  organizationId String      @map("organization_id")
+  passwordHash   String      @map("password_hash")
+  isAuthorized   Boolean     @default(false) @map("is_authorized")
+  phone          String? // para envio de PIN/OTP via WhatsApp (fallback do User.phone)
+  authorizedById String?     @map("authorized_by_id")
+  // Role base. `permissions` (JSON) sobrescreve por recurso quando preenchido.
+  role           PaymentRole @default(VIEWER)
+  // Override granular por recurso. Estrutura:
+  //   { entries:{view,create,edit,delete}, accounts:{...}, categories:{...},
+  //     contacts:{...}, dashboard:{...}, settings:{...} }
+  // null/ausente = usa default da role.
+  permissions    Json?
+  // Contador de sessões abertas. Incrementa a cada login bem-sucedido. Quando
+  // sessionCount % governance.otpEveryNSessions === 0, exige OTP WhatsApp.
+  sessionCount   Int         @default(0) @map("session_count")
+  lastOtpAt      DateTime?   @map("last_otp_at")
+  // OTP corrente (6 dígitos, hash bcrypt). Setado no requestPaymentOtp e
+  // limpo no verifyPaymentOtp bem-sucedido.
+  pendingOtpHash      String?   @map("pending_otp_hash")
+  pendingOtpExpiresAt DateTime? @map("pending_otp_expires_at")
+  // Credenciais WebAuthn (Face ID, Touch ID, Windows Hello, passkeys). Array:
+  //   [{ credentialId, publicKey, counter, transports[], createdAt, label }]
+  webauthnCredentials Json?    @map("webauthn_credentials")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
 
   user         User         @relation("PaymentAccessUser", fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -4160,6 +4178,16 @@ enum PaymentApprovalDecisionKind {
   REJECT
 }
 
+// Roles do PaymentAccess. Ordem de poder: OWNER > ADMIN > EDITOR > VIEWER.
+// VIEWER: só lê. EDITOR: cria/edita. ADMIN: também exclui. OWNER: também
+// concede/revoga acesso de outros usuários.
+enum PaymentRole {
+  VIEWER
+  EDITOR
+  ADMIN
+  OWNER
+}
+
 // Config global por org pra aprovação de pagamento. Tabela dedicada (não inflando
 // Organization) — segue padrão de PaymentAccess. 1:1 com Organization via @unique.
 model PaymentGovernanceConfig {
@@ -4171,6 +4199,10 @@ model PaymentGovernanceConfig {
   payableRequiresApproval     Boolean  @default(false) @map("payable_requires_approval")
   // Após X horas sem decisão, cron `payment-approval-reminder` re-notifica aprovadores.
   notifyApproversAfterHours   Int      @default(24) @map("notify_approvers_after_hours")
+  // Tempo (em minutos) de inatividade no PaymentGate antes de auto-lock.
+  sessionTimeoutMinutes       Int      @default(30) @map("session_timeout_minutes")
+  // A cada N sessões abertas, exige OTP novo via WhatsApp (em vez de só senha).
+  otpEveryNSessions           Int      @default(10) @map("otp_every_n_sessions")
   createdAt                   DateTime @default(now()) @map("created_at")
   updatedAt                   DateTime @updatedAt @map("updated_at")
 

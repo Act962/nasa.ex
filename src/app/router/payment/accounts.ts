@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requirePaymentAccess } from "@/app/middlewares/payment-access";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -24,6 +25,7 @@ const accountShape = z.object({
 export const listPaymentAccounts = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("accounts", "view"))
   .route({ method: "GET", summary: "List payment bank accounts", tags: ["Payment"] })
   .input(z.object({}))
   .output(z.object({ accounts: z.array(accountShape) }))
@@ -42,6 +44,7 @@ export const listPaymentAccounts = base
 export const createPaymentAccount = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("accounts", "create"))
   .route({ method: "POST", summary: "Create payment bank account", tags: ["Payment"] })
   .input(z.object({
     name: z.string(),
@@ -75,6 +78,7 @@ export const createPaymentAccount = base
 export const updatePaymentAccount = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("accounts", "edit"))
   .route({ method: "PATCH", summary: "Update payment bank account", tags: ["Payment"] })
   .input(z.object({
     id: z.string(),
@@ -112,6 +116,7 @@ export const updatePaymentAccount = base
 export const deletePaymentAccount = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("accounts", "delete"))
   .route({ method: "DELETE", summary: "Delete payment bank account", tags: ["Payment"] })
   .input(z.object({ id: z.string() }))
   .output(z.object({ ok: z.boolean() }))
