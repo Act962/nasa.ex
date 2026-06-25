@@ -394,6 +394,8 @@ export const sendMessageExecutor: NodeExecutor = async ({
     let bodyText = "";
     let footerText: string | undefined;
     let buttons: Array<{ text: string; id: string; tagId?: string }> = [];
+    let menuFormat: "BUTTON" | "LIST" = "BUTTON";
+    let listButton: string | undefined;
 
     if (payload.mode === "preset" && typeof payload.presetId === "string") {
       const { default: prisma } = await import("@/lib/prisma");
@@ -403,6 +405,8 @@ export const sendMessageExecutor: NodeExecutor = async ({
           bodyText: true,
           footerText: true,
           buttons: true,
+          menuFormat: true,
+          listButton: true,
           isActive: true,
         },
       });
@@ -415,6 +419,8 @@ export const sendMessageExecutor: NodeExecutor = async ({
       }
       bodyText = preset.bodyText ?? "";
       footerText = preset.footerText ?? undefined;
+      menuFormat = preset.menuFormat === "LIST" ? "LIST" : "BUTTON";
+      listButton = preset.listButton ?? undefined;
       const raw = preset.buttons as unknown;
       buttons = Array.isArray(raw)
         ? raw
@@ -432,6 +438,9 @@ export const sendMessageExecutor: NodeExecutor = async ({
     } else {
       bodyText = String(payload.bodyText ?? "");
       footerText = payload.footerText ? String(payload.footerText) : undefined;
+      menuFormat = payload.menuFormat === "LIST" ? "LIST" : "BUTTON";
+      listButton =
+        typeof payload.listButton === "string" ? payload.listButton : undefined;
       buttons = Array.isArray(payload.buttons)
         ? (payload.buttons as Array<unknown>)
             .filter(
@@ -483,6 +492,8 @@ export const sendMessageExecutor: NodeExecutor = async ({
         bodyText,
         footerText,
         buttons,
+        menuFormat,
+        listButton,
       });
       return {
         output: {

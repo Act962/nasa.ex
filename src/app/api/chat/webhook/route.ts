@@ -236,7 +236,11 @@ export async function POST(request: NextRequest) {
             interactiveContent.selectedButtonId ||
             interactiveContent.selectedID ||
             interactiveContent.selectedRowId ||
+            interactiveContent.singleSelectReply?.selectedRowID ||
             interactiveContent.singleSelectReply?.selectedRowId ||
+            (typeof json.message.buttonOrListid === "string"
+              ? json.message.buttonOrListid
+              : undefined) ||
             interactiveContent.buttonReply?.id ||
             undefined;
 

@@ -6,7 +6,7 @@ import { LeadContext } from "../../schemas";
 import { sendTextMessage } from "./message/send-text-message";
 import { sendImageMessage } from "./message/send-image";
 import { sendDocumentMessage } from "./message/send-document";
-import { sendButtonsOrList } from "@/http/uazapi/send-menu";
+import { sendButtonsOrList, sendItemsAsList } from "@/http/uazapi/send-menu";
 import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { sendMessageChannel } from "@/inngest/channels/send-message";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
@@ -224,11 +224,15 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             presetId?: string;
             bodyText?: string;
             footerText?: string;
+            menuFormat?: "BUTTON" | "LIST";
+            listButton?: string;
             buttons?: Array<{ text: string; id: string; tagId?: string }>;
           };
 
           let bodyText = "";
           let footerText: string | undefined;
+          let menuFormat: "BUTTON" | "LIST" = "BUTTON";
+          let listButton: string | undefined;
           let buttons: Array<{ text: string; id: string; tagId?: string }> = [];
 
           if (payload?.mode === "preset" && payload.presetId) {
@@ -238,6 +242,8 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
                 bodyText: true,
                 footerText: true,
                 buttons: true,
+                menuFormat: true,
+                listButton: true,
                 isActive: true,
               },
             });
@@ -248,6 +254,8 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             }
             bodyText = preset.bodyText;
             footerText = preset.footerText ?? undefined;
+            menuFormat = preset.menuFormat === "LIST" ? "LIST" : "BUTTON";
+            listButton = preset.listButton ?? undefined;
             const rawButtons = preset.buttons as unknown;
             buttons = Array.isArray(rawButtons)
               ? rawButtons
@@ -265,6 +273,8 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
           } else {
             bodyText = payload?.bodyText ?? "";
             footerText = payload?.footerText || undefined;
+            menuFormat = payload?.menuFormat === "LIST" ? "LIST" : "BUTTON";
+            listButton = payload?.listButton || undefined;
             buttons = Array.isArray(payload?.buttons) ? payload.buttons : [];
           }
 
@@ -281,32 +291,49 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             throw new NonRetriableError("Menu sem botões válidos");
           }
 
-          // Mesma chamada uazapi do tool de produção em
-          // `tracking-chat-ai/server/tools/send-buttons.ts`, mas via
-          // wrapper `sendButtonsOrList` que auto-degrada pra `sendList`
-          // se buttons.length > 3 (limite nativo do WhatsApp).
-          const buttonsResponse = await sendButtonsOrList(
-            requireUazapiToken(instance.apiKey),
-            {
-              number: phone,
-              text: bodyText,
-              buttons,
-              footer: footerText,
-              readchat: true,
-              readmessages: true,
-              delay: 2000,
-            },
-            instance.baseUrl ?? undefined,
-          );
+          // Envia como botões OU lista conforme `menuFormat`. Lista reusa a
+          // mesma composição de itens (`sendItemsAsList` embrulha numa seção).
+          const asList = menuFormat === "LIST";
+          const buttonsResponse = asList
+            ? await sendItemsAsList(
+                requireUazapiToken(instance.apiKey),
+                {
+                  number: phone,
+                  text: bodyText,
+                  items: buttons,
+                  footer: footerText,
+                  button: listButton,
+                  readchat: true,
+                  readmessages: true,
+                  delay: 2000,
+                },
+                instance.baseUrl ?? undefined,
+              )
+            : await sendButtonsOrList(
+                requireUazapiToken(instance.apiKey),
+                {
+                  number: phone,
+                  text: bodyText,
+                  buttons,
+                  footer: footerText,
+                  readchat: true,
+                  readmessages: true,
+                  delay: 2000,
+                },
+                instance.baseUrl ?? undefined,
+              );
 
           // Persiste Message no banco com format espelhado da produção
           // (tool do Chatbot IA → lib/persist linha 57-58). Garante que o
           // histórico do chat fica idêntico independente do canal (IA vs
           // automação).
           const summary = buttons.map((b) => `• ${b.text}`).join("\n");
+          const menuHeader = asList
+            ? `[Lista: ${listButton?.trim() || "Ver opções"}]`
+            : "[Botões]";
           const persistedBody = footerText
-            ? `${bodyText}\n\n[Botões]\n${summary}\n\n${footerText}`
-            : `${bodyText}\n\n[Botões]\n${summary}`;
+            ? `${bodyText}\n\n${menuHeader}\n${summary}\n\n${footerText}`
+            : `${bodyText}\n\n${menuHeader}\n${summary}`;
 
           // Mapa buttonId→tagId para disparar automações LEAD_TAGGED quando
           // o lead clicar num botão com tag associada. Montado a partir dos
