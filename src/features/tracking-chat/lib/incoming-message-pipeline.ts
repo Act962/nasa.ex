@@ -206,6 +206,25 @@ export async function firePostInboundAutomations(
     }
   }
 
+  // ── 5b. Primeira interação do dia (só inbound) ───────────────────────
+  // Usa `params.lead.lastInboundAt` = valor ANTERIOR (snapshot carregado
+  // antes do update da etapa 1) pra detectar lead que volta após dias.
+  if (!params.fromMe) {
+    try {
+      const { dispatchFirstInteractionOfDayIfReturning } = await import(
+        "@/features/triggers/components/first-interaction-of-day/dispatch"
+      );
+      await dispatchFirstInteractionOfDayIfReturning({
+        leadId: params.lead.id,
+        trackingId: params.trackingId,
+        previousLastInboundAt: params.lead.lastInboundAt,
+        interactionAt: now,
+      });
+    } catch (err) {
+      console.error("[pipeline] first_interaction_of_day_gate_failed", err);
+    }
+  }
+
   // ── 6. Pusher (per-tracking + per-conversation) ──────────────────────
   try {
     if (params.conversationPayload) {

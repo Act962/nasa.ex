@@ -1,11 +1,9 @@
 import { MessageStatus } from "@/features/tracking-chat/types";
-import { sendContact } from "@/http/uazapi/send-contact";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import type { ContactPayload } from "./build-payload";
 import {
   MESSAGE_SELECT,
-  type ForwardContext,
   type ForwardedMessage,
   type ForwardStrategy,
 } from "./types";
@@ -20,18 +18,17 @@ export const contactStrategy: ForwardStrategy<ContactPayload> = {
   kind: "contact",
   schema: contactSchema,
   async execute(payload, ctx) {
-    const response = await sendContact(ctx.token, {
-      number: ctx.number,
+    const response = await ctx.provider.sendContact({
+      kind: "contact",
+      to: ctx.number,
       fullName: payload.contactName,
       phoneNumber: payload.contactPhone,
-      readchat: true,
-      readmessages: true,
     });
     const message = await prisma.message.create({
       data: {
         conversationId: ctx.conversationId,
         body: payload.contactName,
-        messageId: response.messageid,
+        messageId: response.externalMessageId,
         fromMe: true,
         status: MessageStatus.SEEN,
         senderName: ctx.senderName,

@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { sendMedia } from "@/http/uazapi/send-media";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { persistOutboundMessage } from "../../lib/persist";
 import type { AgentContext } from "../../lib/context";
 
@@ -25,7 +26,7 @@ export const makeSendDocumentTool = (ctx: AgentContext) =>
       if (!ctx.lead.phone) return { error: "Lead has no phone" };
 
       const result = await sendMedia(
-        ctx.instance.apiKey,
+        requireUazapiToken(ctx.instance.apiKey),
         {
           number: ctx.lead.phone,
           type: "document",
@@ -33,7 +34,7 @@ export const makeSendDocumentTool = (ctx: AgentContext) =>
           docName: fileName,
           text: caption,
         },
-        ctx.instance.baseUrl,
+        ctx.instance.baseUrl ?? undefined,
       );
 
       await persistOutboundMessage({

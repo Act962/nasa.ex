@@ -1,11 +1,9 @@
 import { MessageStatus } from "@/features/tracking-chat/types";
-import { sendLocation } from "@/http/uazapi/send-location";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import type { LocationPayload } from "./build-payload";
 import {
   MESSAGE_SELECT,
-  type ForwardContext,
   type ForwardedMessage,
   type ForwardStrategy,
 } from "./types";
@@ -22,14 +20,13 @@ export const locationStrategy: ForwardStrategy<LocationPayload> = {
   kind: "location",
   schema: locationSchema,
   async execute(payload, ctx) {
-    const response = await sendLocation(ctx.token, {
-      number: ctx.number,
+    const response = await ctx.provider.sendLocation({
+      kind: "location",
+      to: ctx.number,
       latitude: payload.latitude,
       longitude: payload.longitude,
       name: payload.name,
       address: payload.address,
-      readchat: true,
-      readmessages: true,
     });
     const bodyText =
       [payload.name, payload.address].filter(Boolean).join(" — ") || null;
@@ -37,7 +34,7 @@ export const locationStrategy: ForwardStrategy<LocationPayload> = {
       data: {
         conversationId: ctx.conversationId,
         body: bodyText,
-        messageId: response.messageid,
+        messageId: response.externalMessageId,
         fromMe: true,
         status: MessageStatus.SEEN,
         senderName: ctx.senderName,

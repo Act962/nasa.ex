@@ -71,6 +71,9 @@ import {
   agentTriggerMessageIncomingFn,
   agentTriggerWebhookExternalFn,
 } from "@/inngest/functions/agent-workflow-triggers";
+// ── NASA Payment Fase 2 (governança + cobrança event-driven) ──
+import { paymentDunningFire } from "@/inngest/functions/payment/dunning-fire";
+import { paymentApprovalReminder } from "@/inngest/functions/payment/approval-reminder";
 import { nfseStatusSync } from "@/inngest/functions/fiscal/nfse-status-sync";
 
 export const { GET, POST, PUT } = serve({
@@ -148,8 +151,6 @@ export const { GET, POST, PUT } = serve({
     agentTriggerPaymentReceivedFn,
     agentTriggerMessageIncomingFn,
     agentTriggerWebhookExternalFn,
-    // ── Fiscal (NFS-e Focus NFe) ──
-    nfseStatusSync,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

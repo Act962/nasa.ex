@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { useMutationButtonsMessage } from "../hooks/use-messages";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
 import { useAiButtonPresets } from "@/features/tracking-settings/hooks/use-ai-button-presets";
+import { useTags } from "@/features/tags/hooks/use-tags";
 
 interface ButtonsPanelProps {
   onClose: () => void;
@@ -38,11 +39,13 @@ type Tab = "buttons" | "list";
 interface ButtonItem {
   text: string;
   id: string;
+  tagId?: string;
 }
 interface ListRow {
   id: string;
   title: string;
   description: string;
+  tagId?: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -63,6 +66,7 @@ function parsePresetButtons(raw: unknown): ButtonItem[] {
     .map((b, idx) => ({
       text: typeof b.text === "string" ? b.text : "",
       id: typeof b.id === "string" && b.id ? b.id : `btn_${idx}_${Date.now()}`,
+      tagId: typeof b.tagId === "string" ? b.tagId : undefined,
     }));
 }
 
@@ -88,6 +92,7 @@ export function ButtonsPanel({
   const instance = useQueryInstances(trackingId);
   const mutation = useMutationButtonsMessage({ conversationId });
   const { presets } = useAiButtonPresets(trackingId);
+  const { tags } = useTags({ trackingId });
   const activePresets = presets.filter((p) => p.isActive);
   const [selectedPresetId, setSelectedPresetId] = useState<string>("");
 
@@ -127,13 +132,14 @@ export function ButtonsPanel({
         type: "buttons",
         conversationId,
         leadPhone: lead.phone,
-        token: instance.instance!.apiKey,
-        baseUrl: instance.instance!.baseUrl,
+        token: instance.instance!.apiKey ?? "",
+        baseUrl: instance.instance!.baseUrl ?? "",
         text: text.trim(),
         footer: footer.trim() || undefined,
         buttons: validButtons.map((b) => ({
           text: b.text.trim().slice(0, 20),
           id: b.id,
+          tagId: b.tagId,
         })),
       },
       { onSuccess: onClose },
@@ -150,8 +156,8 @@ export function ButtonsPanel({
         type: "list",
         conversationId,
         leadPhone: lead.phone,
-        token: instance.instance!.apiKey,
-        baseUrl: instance.instance!.baseUrl,
+        token: instance.instance!.apiKey ?? "",
+        baseUrl: instance.instance!.baseUrl ?? "",
         text: text.trim(),
         footer: footer.trim() || undefined,
         button: listButtonLabel.trim().slice(0, 20) || "Ver opções",
@@ -161,6 +167,7 @@ export function ButtonsPanel({
               id: r.id,
               title: r.title.trim().slice(0, 24),
               description: r.description.trim().slice(0, 72) || undefined,
+              tagId: r.tagId,
             })),
           },
         ],
@@ -313,6 +320,37 @@ export function ButtonsPanel({
                       {btn.text.length}/20
                     </span>
                   </div>
+                  <Select
+                    value={btn.tagId ?? ""}
+                    onValueChange={(value) =>
+                      setButtons((prev) =>
+                        prev.map((b, idx) =>
+                          idx === i
+                            ? {
+                                ...b,
+                                tagId: value === "__none__" ? undefined : value,
+                              }
+                            : b,
+                        ),
+                      )
+                    }
+                  >
+                    <SelectTrigger className="h-9 w-36 text-xs">
+                      <SelectValue placeholder="Tag (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem tag</SelectItem>
+                      {tags.map((tag) => (
+                        <SelectItem key={tag.id} value={tag.id}>
+                          <span
+                            className="inline-block w-2 h-2 rounded-full mr-1 shrink-0"
+                            style={{ backgroundColor: tag.color ?? "#1447e6" }}
+                          />
+                          {tag.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {buttons.length > 1 && (
                     <button
                       onClick={() =>
@@ -412,6 +450,40 @@ export function ButtonsPanel({
                         )
                       }
                     />
+                    <Select
+                      value={row.tagId ?? ""}
+                      onValueChange={(value) =>
+                        setRows((prev) =>
+                          prev.map((r, idx) =>
+                            idx === i
+                              ? {
+                                  ...r,
+                                  tagId:
+                                    value === "__none__" ? undefined : value,
+                                }
+                              : r,
+                          ),
+                        )
+                      }
+                    >
+                      <SelectTrigger className="h-8 w-full text-xs">
+                        <SelectValue placeholder="Tag (opcional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Sem tag</SelectItem>
+                        {tags.map((tag) => (
+                          <SelectItem key={tag.id} value={tag.id}>
+                            <span
+                              className="inline-block w-2 h-2 rounded-full mr-1 shrink-0"
+                              style={{
+                                backgroundColor: tag.color ?? "#1447e6",
+                              }}
+                            />
+                            {tag.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 ))}
                 {rows.length < 10 && (

@@ -6,6 +6,7 @@ import {
   trackingToLeadData,
 } from "@/lib/tracking/tracking-params";
 import { recordLeadEvent } from "@/features/leads/lib/history";
+import { publishLeadCreated } from "@/features/leads/realtime/publish";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
 
@@ -132,6 +133,9 @@ export const savePartialResponse = base
 
       const { trackingId, statusId } = form.settings ?? {};
       let leadId: string | null = null;
+      // Só publicamos `lead-created` no board quando ESTE save criou o lead
+      // (não quando reaproveitou um existente pelo telefone).
+      let didCreateLead = false;
 
       // Acha lead existente pelo phone (dentro do tracking) ou cria novo.
       // Mesma lógica do submitResponse, mas isolada numa transação separada
@@ -162,6 +166,7 @@ export const savePartialResponse = base
           select: { id: true },
         });
         leadId = newLead.id;
+        didCreateLead = true;
       }
 
       // Cria a FormResponses + incrementa contador (1x só, mesmo se
@@ -191,6 +196,12 @@ export const savePartialResponse = base
 
       // Propaga labels → Lead.description (textareas card + observações)
       syncFormLabelsToLeadDescription(prisma, created.leadId).catch(() => {});
+
+      // Realtime do board: lead recém-criado neste auto-save → aparece ao
+      // vivo na coluna do tracking. Best-effort (helper isola erro).
+      if (didCreateLead && leadId && trackingId && statusId) {
+        await publishLeadCreated({ leadId, trackingId, statusId, source: "form" });
+      }
 
       // Timeline: FORM_STARTED (não FORM_SUBMITTED — só o submit final).
       if (created.leadId) {

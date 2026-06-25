@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -12,6 +13,14 @@ import { FormLeadProvider } from "@/features/form/context/form-lead-context";
 import type { FieldValue, FormBlockInstance } from "@/features/form/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { Lock } from "lucide-react";
+
+const FormPrintButton = dynamic(
+  () =>
+    import("@/features/form/components/pdf/form-print-button").then(
+      (module_) => ({ default: module_.FormPrintButton }),
+    ),
+  { ssr: false },
+);
 
 /**
  * Página PÚBLICA para o cliente final visualizar uma resposta de form
@@ -149,6 +158,13 @@ export default function Page() {
               Olá, {response.lead?.name ?? "—"}
             </div>
           </div>
+          <FormPrintButton
+            blocks={blocks}
+            formName={response.form.name}
+            leadName={response.lead?.name ?? undefined}
+            responseValues={initialResponseValues}
+          />
+
           {status && (
             <div
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0"

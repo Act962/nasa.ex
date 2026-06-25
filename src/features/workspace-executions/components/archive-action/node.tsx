@@ -4,7 +4,7 @@ import { Node, NodeProps } from "@xyflow/react";
 import { memo } from "react";
 import { ArchiveIcon } from "lucide-react";
 import { WsBaseExecutionNode } from "../base-execution-node";
-import { useNodeStatus } from "@/features/executions/hook/use-node-status";
+import { useNodeStatus } from "@/features/tracking-executions/hook/use-node-status";
 import { WS_ARCHIVE_ACTION_CHANNEL_NAME } from "@/inngest/channels/workspace";
 import { fetchWsArchiveActionToken } from "../../lib/realtime-tokens";
 

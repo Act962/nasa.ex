@@ -35,6 +35,9 @@ export function BuilderCanvas() {
     onDragStart: (event) => {
       setActiveBlock(event.active);
     },
+    onDragCancel: () => {
+      setActiveBlock(null);
+    },
     onDragEnd: (event: DragEndEvent) => {
       const { active, over } = event;
       if (!over || !active) return;

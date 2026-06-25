@@ -8,7 +8,7 @@ import {
   SetResponsibleDialog,
   SetResponsibleFormValues,
 } from "./dialog";
-import { useNodeStatus } from "@/features/executions/hook/use-node-status";
+import { useNodeStatus } from "@/features/tracking-executions/hook/use-node-status";
 import { WS_SET_RESPONSIBLE_CHANNEL_NAME } from "@/inngest/channels/workspace";
 import { fetchWsSetResponsibleToken } from "../../lib/realtime-tokens";
 

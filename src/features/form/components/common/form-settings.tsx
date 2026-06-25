@@ -44,8 +44,8 @@ import {
   type NextButtonActionType,
 } from "@/features/form/lib/next-button-action";
 import { SendMessageDialog } from "./send-whatsapp-message";
-import { VariablePicker } from "@/features/executions/components/send-message/variable-picker";
-import { useVariableAutocomplete } from "@/features/executions/components/send-message/use-variable-autocomplete";
+import { VariablePicker } from "@/features/tracking-executions/components/send-message/variable-picker";
+import { useVariableAutocomplete } from "@/features/tracking-executions/components/send-message/use-variable-autocomplete";
 
 export function FormSettings() {
   const { formData, updateSettings } = useBuilderStore();

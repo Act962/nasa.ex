@@ -133,6 +133,7 @@ async function main() {
 main()
   .then(() => process.exit(0))
   .catch((e) => {
-    console.error("❌ Erro no seed:", e.message);
+    console.error("❌ Erro no seed:");
+    console.error(e);
     process.exit(1);
   });

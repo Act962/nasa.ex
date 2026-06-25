@@ -38,7 +38,7 @@ import { NodeType } from "@/generated/prisma/enums";
 import { ExecuteWorkflowButton } from "./execute-workflow-button";
 import { NodeSelector } from "@/components/node-selector";
 import { MenuOptions } from "../../../components/menu-options";
-import { triggerNodes } from "@/features/executions/lib/node-options";
+import { triggerNodes } from "@/features/tracking-executions/lib/node-options";
 import { WorkflowAgentModeProvider } from "@/features/workflows/lib/agent-mode-context";
 import { DryRunButton } from "@/features/workflows/components/dry-run-button";
 import { AgentDetailButton } from "@/features/workflows/components/agent-detail-button";

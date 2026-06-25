@@ -12,10 +12,12 @@ interface CardSpaceStationProps {
 }
 
 /**
- * Porta para /station/[nick] com gating (§7.4).
+ * Porta para /station/[nick]/world (World 2D) com gating (§7.4).
  * - Não logado ⇒ "Fazer login para entrar"
  * - Logado + membro ⇒ "Entrar na Space Station"
  * - Logado + não-membro ⇒ "Solicitar acesso" (cria StationAccessRequest)
+ *
+ * A página intermediária /station/[nick] foi removida — botão vai direto pro World.
  */
 export function CardSpaceStation({
   nick,
@@ -57,7 +59,7 @@ export function CardSpaceStation({
             asChild
             className="bg-orange-500 hover:bg-orange-600"
           >
-            <Link href={`/station/${nick}`}>Entrar na Space Station</Link>
+            <Link href={`/station/${nick}/world`}>Entrar na Space Station</Link>
           </Button>
         ) : (
           <Button

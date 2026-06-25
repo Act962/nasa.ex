@@ -26,6 +26,7 @@ export const getIntegration = base
         instanceName: true,
         profileName: true,
         status: true,
+        provider: true,
         apiKey: true,
         isBusiness: true,
         phoneNumber: true,

@@ -54,6 +54,7 @@ function EventCard({ appt, color, selected, onSelect }: EventCardProps) {
     appt.orgProject?.avatar && !coverFailed ? imgSrc(appt.orgProject.avatar) : null;
 
   const isCancelled = appt.status === "CANCELLED";
+  const isDone = appt.status === "DONE";
 
   return (
     <button
@@ -96,7 +97,7 @@ function EventCard({ appt, color, selected, onSelect }: EventCardProps) {
         <div
           className={cn(
             "truncate text-sm font-semibold leading-tight",
-            isCancelled && "line-through",
+            (isCancelled || isDone) && "line-through",
           )}
         >
           {clientName}

@@ -18,8 +18,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { RECURRENCE_LABELS } from "./data";
 import { useCreateReminder } from "../../hooks/use-remimber";
 import { phoneMaskFull, normalizePhone } from "@/utils/format-phone";
-import { VariablePicker } from "@/features/executions/components/send-message/variable-picker";
-import { useVariableAutocomplete } from "@/features/executions/components/send-message/use-variable-autocomplete";
+import { VariablePicker } from "@/features/tracking-executions/components/send-message/variable-picker";
+import { useVariableAutocomplete } from "@/features/tracking-executions/components/send-message/use-variable-autocomplete";
 
 const VariableTextarea = ({ value, onChange, ...props }: any) => {
   const {
@@ -257,7 +257,9 @@ export function ReminderCreateTab({
         <Label htmlFor="notifyPhone">
           WhatsApp para notificar{" "}
           <span className="text-muted-foreground text-xs">
-            {phoneOptional ? "(opcional — vazio = só notificação no app)" : "(DDI + número)"}
+            {phoneOptional
+              ? "(opcional — vazio = só notificação no app)"
+              : "(DDI + número)"}
           </span>
         </Label>
         <Input

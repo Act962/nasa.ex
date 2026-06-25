@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import {
   useMutation,
@@ -19,6 +20,15 @@ import {
   PlusCircle,
   X,
 } from "lucide-react";
+import type { FormBlockInstance } from "@/features/form/types";
+
+const FormPrintButton = dynamic(
+  () =>
+    import("@/features/form/components/pdf/form-print-button").then(
+      (module_) => ({ default: module_.FormPrintButton }),
+    ),
+  { ssr: false },
+);
 import { orpc } from "@/lib/orpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,6 +86,15 @@ export default function Page() {
     }),
   );
 
+  const blocks = useMemo<FormBlockInstance[]>(() => {
+    if (!data?.form.jsonBlock) return [];
+    try {
+      return JSON.parse(data.form.jsonBlock as unknown as string) as FormBlockInstance[];
+    } catch {
+      return [];
+    }
+  }, [data?.form.jsonBlock]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -121,6 +140,11 @@ export default function Page() {
             {responses.length === 1 ? "resposta" : "respostas"}
           </p>
         </div>
+        <FormPrintButton
+          blocks={blocks}
+          formName={data.form.name}
+          leadName={data.lead.name ?? undefined}
+        />
         <Button
           size="sm"
           onClick={() =>

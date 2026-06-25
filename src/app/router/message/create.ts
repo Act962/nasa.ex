@@ -4,7 +4,6 @@ import {
   CreatedMessageProps,
   MessageStatus,
 } from "@/features/tracking-chat/types";
-import { sendText } from "@/http/uazapi/send-text";
 import { sendInstagramDm } from "@/http/meta/send-instagram-dm";
 import { sendFacebookMessage } from "@/http/meta/send-facebook-message";
 import prisma from "@/lib/prisma";
@@ -24,6 +23,7 @@ import {
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 
 export const createTextMessage = base
   .use(requiredAuthMiddleware)
@@ -37,7 +37,12 @@ export const createTextMessage = base
       conversationId: z.string(),
       body: z.string(),
       leadPhone: z.string(),
-      token: z.string(),
+      /**
+       * @deprecated Ignorado pelo servidor desde Fase 6 — provider
+       * resolvido server-side via `resolveOutboundProvider(trackingId)`.
+       * Mantido opcional pra clients antigos.
+       */
+      token: z.string().nullish(),
       mediaUrl: z.string().optional(),
       replyId: z.string().optional(),
       replyIdInternal: z.string().optional(),
@@ -57,6 +62,7 @@ export const createTextMessage = base
 
       const channel = conversation?.channel ?? MessageChannel.WHATSAPP;
       const organizationId = conversation?.tracking?.organizationId;
+      const trackingId = conversation?.trackingId;
 
       // ── In-Chat Fallback ─────────────────────────────────────────────
       // Quando a instância está banida/offline (detectado pelo cron
@@ -67,7 +73,26 @@ export const createTextMessage = base
       const inChatMode =
         channel === MessageChannel.WHATSAPP &&
         (await shouldSkipUazapiForConversation(input.conversationId));
-      // Cobra 1★ antes de chamar uazapi/Meta — evita custo de API sem saldo.
+
+      // ── Provider resolve ANTES do charge (Fix #2) ────────────────────
+      // resolveOutboundProvider pode lançar (instância deletada,
+      // credenciais Meta incompletas, AES-GCM corrompido). Se chamarmos
+      // chargeMessageOutbound antes, o cliente paga ★ e a mensagem nunca
+      // sai — sem refund. Resolvendo primeiro, falha do resolver vira
+      // erro pro caller sem custo. Para canais não-WhatsApp e In-Chat,
+      // não passamos pelo resolver — charge mantém o lugar.
+      let resolvedWhatsapp: Awaited<ReturnType<typeof resolveOutboundProvider>> | null = null;
+      if (channel === MessageChannel.WHATSAPP && !inChatMode) {
+        if (!trackingId) {
+          throw new Error(
+            "Conversation sem trackingId — não é possível resolver provider.",
+          );
+        }
+        resolvedWhatsapp = await resolveOutboundProvider(trackingId);
+      }
+
+      // Cobra 1★ depois do resolve (pra WhatsApp não-InChat) ou direto
+      // (IG/FB/InChat) — evita custo de API sem saldo.
       if (organizationId) {
         await chargeMessageOutbound({
           organizationId,
@@ -124,50 +149,52 @@ export const createTextMessage = base
         // `externalMessageId` fica como `uuidv4()` (gerado acima), o que
         // é OK porque In-Chat não precisa de tracking external.
       } else {
+        // ── Provider dispatch (Fase 6) ─────────────────────────────────
+        // Provider já resolvido lá em cima (antes do charge). Reusamos
+        // `resolvedWhatsapp` em vez de chamar de novo — `input.token`
+        // segue no schema por backward compat mas é ignorado.
+        const resolved = resolvedWhatsapp!;
         try {
-          const response = await sendText(input.token, {
-            text: input.body,
-            number: input.leadPhone,
-            replyid: input.replyId,
-            readmessages: true,
-            readchat: true,
+          const response = await resolved.provider.sendText({
+            kind: "text",
+            to: input.leadPhone,
+            body: input.body,
+            replyToExternalMessageId: input.replyId,
           });
-          externalMessageId = response.messageid;
+          externalMessageId = response.externalMessageId;
         } catch (err: any) {
-          // Lazy detection do ban: se a uazapi rejeitou por auth/erro
-          // de servidor, incrementa o contador. Quando passar do
-          // threshold (3 falhas), ativa modo In-Chat — próximas
-          // mensagens pulam o uazapi automaticamente.
           const msg = String(err?.message ?? "");
-          const isLikelyBan =
-            msg.includes("status 401") ||
-            msg.includes("status 403") ||
-            msg.includes("status 500") ||
-            msg.toLowerCase().includes("invalid token") ||
-            msg.toLowerCase().includes("timeout");
-          if (isLikelyBan) {
-            markInstanceConnectionFailure({
-              apiKey: input.token,
-              source: "send_failure",
-            }).catch(() => {});
-          }
-          // Erro específico de sessão WhatsApp caída — devolve um BAD_REQUEST
-          // com código semântico pro frontend mostrar UI de reconexão em vez
-          // do toast genérico "Erro ao enviar mensagem".
-          const isWhatsappDown =
-            msg.includes("session is not reconnectable") ||
-            msg.includes("status 503") ||
-            msg.toLowerCase().includes("whatsapp disconnected");
-          if (isWhatsappDown) {
-            throw errors.BAD_REQUEST({
-              message: "WHATSAPP_DISCONNECTED",
-              data: {
-                code: "WHATSAPP_DISCONNECTED",
-                detail:
-                  "A sessão do WhatsApp caiu. Reconecte a instância em Configurações → Instâncias → Gerar novo QR.",
-                originalMessage: msg,
-              } as never,
-            });
+          // ── Uazapi-only: detecção lazy de ban + In-Chat trigger ────
+          // Meta não bana o número, então só rodamos esse branch quando
+          // o provider ativo é Uazapi. `uazapiToken` vem do resolver.
+          if (resolved.providerId === "uazapi" && resolved.uazapiToken) {
+            const isLikelyBan =
+              msg.includes("status 401") ||
+              msg.includes("status 403") ||
+              msg.includes("status 500") ||
+              msg.toLowerCase().includes("invalid token") ||
+              msg.toLowerCase().includes("timeout");
+            if (isLikelyBan) {
+              markInstanceConnectionFailure({
+                apiKey: resolved.uazapiToken,
+                source: "send_failure",
+              }).catch(() => {});
+            }
+            const isWhatsappDown =
+              msg.includes("session is not reconnectable") ||
+              msg.includes("status 503") ||
+              msg.toLowerCase().includes("whatsapp disconnected");
+            if (isWhatsappDown) {
+              throw errors.BAD_REQUEST({
+                message: "WHATSAPP_DISCONNECTED",
+                data: {
+                  code: "WHATSAPP_DISCONNECTED",
+                  detail:
+                    "A sessão do WhatsApp caiu. Reconecte a instância em Configurações → Instâncias → Gerar novo QR.",
+                  originalMessage: msg,
+                } as never,
+              });
+            }
           }
           throw err;
         }

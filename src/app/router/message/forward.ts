@@ -6,6 +6,7 @@ import {
 } from "@/features/tracking-chat/lib/forward-strategies";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 import { MessageChannel } from "@/generated/prisma/enums";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -38,7 +39,11 @@ export const forwardMessageHandler = base
   .input(
     z.object({
       conversationIds: z.array(z.string()).min(1),
-      token: z.string(),
+      /**
+       * @deprecated Ignorado pelo servidor desde Fase 6 — provider
+       * resolvido server-side via `resolveOutboundProvider(trackingId)`.
+       */
+      token: z.string().nullish(),
       payload: forwardPayloadSchema,
     }),
   )
@@ -50,6 +55,7 @@ export const forwardMessageHandler = base
           select: {
             remoteJid: true,
             channel: true,
+            trackingId: true,
             lead: { select: { phone: true } },
             tracking: { select: { organizationId: true } },
           },
@@ -68,6 +74,11 @@ export const forwardMessageHandler = base
           conversation.lead.phone ??
           conversation.remoteJid.replace("@s.whatsapp.net", "");
 
+        // Resolve provider ANTES de cobrar ★ (Fix #2). `input.token`
+        // mantido no schema por backward compat mas ignorado — source of
+        // truth é o banco.
+        const resolved = await resolveOutboundProvider(conversation.trackingId);
+
         await chargeMessageOutbound({
           organizationId: conversation.tracking.organizationId,
           userId: context.user.id,
@@ -78,7 +89,7 @@ export const forwardMessageHandler = base
         const ctx = {
           conversationId,
           number,
-          token: input.token,
+          provider: resolved.provider,
           senderName: context.user.name,
         };
 

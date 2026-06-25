@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useMutation } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -16,6 +17,14 @@ import { FormLeadProvider } from "@/features/form/context/form-lead-context";
 import type { FieldValue, FormBlockInstance } from "@/features/form/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { orpc } from "@/lib/orpc";
+
+const FormPrintButton = dynamic(
+  () =>
+    import("@/features/form/components/pdf/form-print-button").then(
+      (module_) => ({ default: module_.FormPrintButton }),
+    ),
+  { ssr: false },
+);
 
 /**
  * Página de "continuar preenchimento" de uma resposta de formulário, acessada
@@ -202,6 +211,13 @@ export default function Page() {
               <span className="hidden sm:inline">Link do cliente</span>
             </Button>
           )}
+
+          <FormPrintButton
+            blocks={blocks}
+            formName={response.form.name}
+            leadName={response.lead?.name ?? undefined}
+            responseValues={initialResponseValues}
+          />
 
           {/* Status atual do lead com cor */}
           {status && (

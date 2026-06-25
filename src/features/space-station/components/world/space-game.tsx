@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 const EmpresasPanel = dynamic(() => import("./empresas-panel"), { ssr: false });
 import { X, Globe, Settings, ZoomIn, ZoomOut, Maximize2, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,10 @@ import { VideoOverlay } from "./video-overlay";
 import { BubbleAppsPanel, type BubbleApp } from "./bubble-apps-panel";
 import { BubbleChatPanel } from "./bubble-chat-panel";
 import { CutucarPopover } from "./cutucar-popover";
+import { PokesPanel, type ReceivedPoke } from "./pokes-panel";
 import { StationChatPanel } from "./station-chat-panel";
+import { MobileJoystick } from "./mobile-joystick";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useStationChat } from "../../hooks/use-station-chat";
 import { toast } from "sonner";
 import { ProximityBar } from "./proximity-bar";
@@ -88,6 +92,11 @@ export function SpaceGame({
   });
   const userId = effectiveUserId;
 
+  // Detecta mobile pra renderizar o joystick virtual visível (canto inferior-
+  // esquerdo). No desktop usa teclado (← ↑ ↓ →) e WASD; no mobile a navegação
+  // por setas não existe, então o joystick é o controle primário.
+  const isMobile = useIsMobile();
+
   // ID estável por aba (persistido em sessionStorage). Vira o sufixo da identity
   // do LiveKit pro usuário logado (`${userId}:${tabSessionId}`, montado no
   // servidor) — assim duas abas do mesmo usuário são participantes distintos e o
@@ -114,6 +123,11 @@ export function SpaceGame({
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<import("phaser").Game | null>(null);
   const [loading, setLoading] = useState(true);
+  // Banner visual de erro do Phaser init — sem isso, falhas no setup do
+  // game (import, scene boot, WebGL context) deixavam a tela 100% preta
+  // sem feedback. Render abaixo do loading overlay quando `gameError` é
+  // preenchido.
+  const [gameError, setGameError] = useState<string | null>(null);
   const [galaxyOpen, setGalaxyOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [worldConfig, setWorldConfig] = useState(initialWorldConfig);
@@ -174,6 +188,10 @@ export function SpaceGame({
   } | null>(null);
   // Chat geral da Station (drawer + botão flutuante com badge unread).
   const [stationChatOpen, setStationChatOpen] = useState(false);
+  // Lista de cutucadas RECEBIDAS pelo user atual (efêmero: zera ao recarregar).
+  // Cada nova cutucada vai pro topo da lista (mais recente primeiro). Só sai
+  // quando o user dispensa manualmente ou clica "Cutucar de volta".
+  const [receivedPokes, setReceivedPokes] = useState<ReceivedPoke[]>([]);
   const [areaToast, setAreaToast] = useState<{
     id: string;
     type: AreaType;
@@ -254,12 +272,44 @@ export function SpaceGame({
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Quando o useEffect re-roda por dep changed (worldConfig nova ref após
+    // router.refresh, strict-mode double-mount, HMR), o init anterior podia
+    // deixar canvas órfão E iniciar um SEGUNDO canvas vazio (cena montando
+    // assíncrona). Antes de criar novo, destrói o game atual e limpa
+    // qualquer canvas que tenha sobrado.
+    if (gameRef.current) {
+      try { gameRef.current.destroy(true); } catch { /* ignore */ }
+      gameRef.current = null;
+    }
+    {
+      const container = containerRef.current;
+      container.querySelectorAll("canvas").forEach((c) => c.remove());
+    }
+
     let game: import("phaser").Game | null = null;
+    // Cancelation token — se o useEffect for cleaned-up (dep changed, unmount)
+    // antes do initGame() async terminar, descartamos o resultado pra não criar
+    // canvas órfão. Sem isso, dois initGame() simultâneos resultam em 2 canvas.
+    let cancelled = false;
     setLoading(true);
+    setGameError(null);
 
     async function initGame() {
       const PhaserModule = await import("phaser");
+      if (cancelled) return;
       const Phaser = PhaserModule.default ?? PhaserModule;
+      // CRÍTICO: garantir que globalThis.Phaser esteja populado ANTES dos
+      // scenes serem importados — eles usam o pattern
+      // `extends (globalThis.Phaser?.Scene ?? class {})` pra SSR-safety,
+      // e se Phaser não estiver no globalThis na hora da avaliação do módulo
+      // da scene, o fallback `class {}` é usado → `super({ key: "..." })`
+      // vira no-op → ambas scenes registram com key "default" → colide →
+      // só uma vence o registro → WorldScene nunca inicia → tela preta.
+      // Esse bug aparecia intermitentemente em mobile/HMR quando a ordem
+      // de avaliação dos módulos era invertida pelo Turbopack.
+      if (typeof globalThis !== "undefined" && !(globalThis as { Phaser?: unknown }).Phaser) {
+        (globalThis as { Phaser: unknown }).Phaser = Phaser;
+      }
       const { PreloadScene } = await import("./scenes/preload-scene");
       const { WorldScene } = await import("./scenes/world-scene");
       const { buildGameConfig } = await import("./game-config");
@@ -322,12 +372,25 @@ export function SpaceGame({
         PreloadScene,
         worldSceneWithData,
       ]);
+      if (cancelled) return; // checked again after async imports
       game = new Phaser.Game(config);
       gameRef.current = game;
+      // Expor pra debug — leitura via DevTools/console: window.__phaserGame
+      if (typeof window !== "undefined") {
+        (window as unknown as { __phaserGame?: import("phaser").Game }).__phaserGame = game;
+      }
       setLoading(false);
     }
 
-    initGame();
+    // Wrap pra capturar TODOS os erros (import falhou, scene boot crashou,
+    // WebGL não disponível, etc.) e mostrar pro user em vez de tela preta.
+    initGame().catch((err: unknown) => {
+      if (cancelled) return;
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[SpaceGame] initGame failed:", err);
+      setGameError(message);
+      setLoading(false);
+    });
 
     const onGalaxy = () => setGalaxyOpen(true);
     const onCredits = () => setCreditsOpen(true);
@@ -502,13 +565,28 @@ export function SpaceGame({
       window.removeEventListener("space-station:zoom-changed", onZoomChanged);
       window.removeEventListener("space-station:area-enter", onAreaEnter);
       window.removeEventListener("space-station:area-leave", onAreaLeave);
+      // Marca o token primeiro pra interromper initGame() que ainda esteja
+      // entre `await`s — evita criar Phaser.Game depois do unmount.
+      cancelled = true;
       // Destroy whichever instance is current (game may still be null if initGame didn't finish)
       const toDestroy = gameRef.current ?? game;
       toDestroy?.destroy(true);
       gameRef.current = null;
+      // Segurança extra contra canvas órfão (Phaser.destroy normalmente já
+      // remove, mas em race conditions de hot-reload às vezes sobra um).
+      const container = containerRef.current;
+      if (container) {
+        container.querySelectorAll("canvas").forEach((c) => c.remove());
+      }
     };
+    // Só re-monta o Phaser se a STATION mudar. worldConfig e avatarConfig
+    // mudam de identidade a cada router.refresh()/setState (são objetos
+    // novos vindos do server) — re-montar Phaser por causa deles causava
+    // canvas duplicado / Phaser pausado (race entre destroy assíncrono e
+    // novo init). As atualizações de worldConfig/avatar continuam chegando
+    // no scene via CustomEvent (onApply) e via Pusher (`world:config-updated`).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [worldConfig, avatarConfig, stationId]);
+  }, [stationId]);
 
   // Feature Cutucar: WorldScene dispara `space-station:peer-click` quando o
   // user clica num sprite remoto. Capturamos as coords (já em screen-space) e
@@ -532,6 +610,102 @@ export function SpaceGame({
     return () =>
       window.removeEventListener("space-station:peer-click", onPeerClick);
   }, []);
+
+  // ── Cutucada recebida pra mim ─────────────────────────────────────────
+  // 1) Toast curto (3s) só pra chamar atenção visual
+  // 2) Acrescenta na lista `receivedPokes` (fica FIXA até o user dispensar
+  //    ou cutucar de volta no PokesPanel)
+  // 3) O ícone 👋 acima do meu avatar é renderizado pelo WorldScene
+  //    (visível pra todos no World).
+  useEffect(() => {
+    function onPoked(e: Event) {
+      const detail = (e as CustomEvent).detail as {
+        fromUserId: string;
+        fromName: string;
+        toUserId: string;
+        action: string;
+        preview: string | null;
+        at: string;
+      };
+      if (detail.toUserId !== rawUserId) return; // não sou eu
+
+      // Toast rápido — só "ping" visual; o conteúdo persiste no PokesPanel.
+      toast.info(`👋 ${detail.fromName} te cutucou`, {
+        description: "Veja em 'Cutucadas' no canto inferior",
+        duration: 3000,
+      });
+
+      // Persiste na lista do painel. Idempotente por (fromUserId, action, at)
+      // pra cobrir reentrega Pusher em redes flaky.
+      const pokeId = `${detail.fromUserId}-${detail.action}-${detail.at}`;
+      setReceivedPokes((prev) => {
+        if (prev.some((p) => p.id === pokeId)) return prev;
+        return [
+          {
+            id: pokeId,
+            fromUserId: detail.fromUserId,
+            fromName: detail.fromName,
+            action: detail.action,
+            preview: detail.preview,
+            at: detail.at,
+          },
+          ...prev,
+        ];
+      });
+    }
+    window.addEventListener("space-station:peer-poked", onPoked);
+    return () =>
+      window.removeEventListener("space-station:peer-poked", onPoked);
+  }, [rawUserId]);
+
+  // ── Sync de mapa entre owner e peers ──────────────────────────────────
+  // Quando o owner salva `updateWorld`, o server dispara `world:config-updated`
+  // no channel `presence-world-<stationId>`. Aqui subscreve a esse evento e
+  // chama `router.refresh()` pra puxar o worldConfig fresco do banco (server
+  // component refaz a query). O cliente que SALVOU ignora o próprio event
+  // (savedBy === meu userId) — ele já tem a versão atualizada localmente.
+  //
+  // Sem isso, o owner via mudanças instantâneo (via onApply) mas os outros
+  // peers só viam após F5 manual — exatamente o bug reportado em prod.
+  const router = useRouter();
+  useEffect(() => {
+    if (!stationId) return;
+    let ch: import("pusher-js").Channel | null = null;
+    let pusherInstance: import("pusher-js").default | null = null;
+
+    async function setup() {
+      const PusherClient = (await import("pusher-js")).default;
+      pusherInstance = new PusherClient(
+        process.env.NEXT_PUBLIC_PUSHER_APP_KEY!,
+        {
+          cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+          authEndpoint: `/api/pusher/auth?uid=${encodeURIComponent(rawUserId)}`,
+        },
+      );
+      ch = pusherInstance.subscribe(`presence-world-${stationId}`);
+      ch.bind(
+        "world:config-updated",
+        (data: { savedBy: string; savedAt: string; changedFields: string[] }) => {
+          if (data.savedBy === rawUserId) return; // sou eu, ignora
+          // Pequeno delay pra dar tempo do Neon propagar replicas read-only.
+          setTimeout(() => router.refresh(), 600);
+        },
+      );
+    }
+    setup();
+
+    return () => {
+      try {
+        ch?.unbind("world:config-updated");
+        if (pusherInstance && stationId) {
+          pusherInstance.unsubscribe(`presence-world-${stationId}`);
+        }
+        pusherInstance?.disconnect();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [stationId, rawUserId, router]);
 
   function handleApply(
     newWorldConfig: StationWorldConfig,
@@ -581,6 +755,28 @@ export function SpaceGame({
               style={{ width: "0%" }}
             />
           </div>
+        </div>
+      )}
+      {/* ── Error banner (Phaser init falhou) ──
+          Substitui a tela 100% preta por um banner com a mensagem real do erro
+          e botão pra recarregar. Útil quando WebGL não disponível, módulo phaser
+          falha em importar, ou scene boot dispara exceção. */}
+      {gameError && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950 px-6">
+          <div className="text-4xl mb-4">⚠️</div>
+          <p className="text-white text-base font-medium mb-2">
+            Erro ao carregar o mundo virtual
+          </p>
+          <p className="text-slate-400 text-xs text-center max-w-md mb-4 font-mono">
+            {gameError}
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium transition-colors"
+          >
+            Recarregar
+          </button>
         </div>
       )}
 
@@ -844,6 +1040,7 @@ export function SpaceGame({
           peerName={cutucar.peerName}
           anchorX={cutucar.anchorX}
           anchorY={cutucar.anchorY}
+          stationId={stationId}
           onClose={() => setCutucar(null)}
         />
       )}
@@ -854,6 +1051,25 @@ export function SpaceGame({
         open={stationChatOpen}
         onOpen={() => setStationChatOpen(true)}
         onClose={() => setStationChatOpen(false)}
+      />
+
+      {/* ── Painel de cutucadas recebidas (fixo até dispensar) ── */}
+      <PokesPanel
+        pokes={receivedPokes}
+        onDismiss={(pokeId) =>
+          setReceivedPokes((prev) => prev.filter((p) => p.id !== pokeId))
+        }
+        onDismissAll={() => setReceivedPokes([])}
+        onPokeBack={(fromUserId, fromName) => {
+          // Abre o CutucarPopover centralizado pra responder o cutucador.
+          // Sem coords ancoradas: usa o centro da tela como anchor.
+          setCutucar({
+            peerId: fromUserId,
+            peerName: fromName,
+            anchorX: window.innerWidth / 2,
+            anchorY: window.innerHeight / 2,
+          });
+        }}
       />
 
 
@@ -898,9 +1114,12 @@ export function SpaceGame({
           </div>
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
             <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-slate-400 text-center">
-              ← ↑ ↓ → para mover
+              {isMobile ? "Arraste o joystick para mover" : "← ↑ ↓ → para mover"}
             </div>
           </div>
+          {/* Joystick virtual — só no mobile. Dispara CustomEvent
+              `space-station:virtual-joystick`, capturado pelo WorldScene. */}
+          <MobileJoystick visible={isMobile} />
         </>
       )}
 
@@ -911,7 +1130,7 @@ export function SpaceGame({
         <button
           type="button"
           className="h-[52px] flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-2xl px-4 text-xs font-medium text-white hover:bg-black/60 transition-all"
-          onClick={() => (window.location.href = `/station/${nick}`)}
+          onClick={() => (window.location.href = `/space/${nick}`)}
         >
           <X className="h-4 w-4" />
           Sair

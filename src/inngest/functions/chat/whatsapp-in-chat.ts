@@ -17,6 +17,7 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { getInstanceStatus } from "@/http/uazapi/get-instance-status";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import {
   activateInChatMode,
   markInstanceConnectionHealthy,
@@ -143,7 +144,7 @@ export const checkInChatRecovery = inngest.createFunction(
       if (!instance || !instance.inChatModeActive) return false;
       try {
         const currentStatus = await fetchInstanceConnectionStatus(
-          instance.apiKey,
+          requireUazapiToken(instance.apiKey),
           instance.baseUrl,
         );
         return currentStatus.connected && currentStatus.loggedIn;

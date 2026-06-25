@@ -8,7 +8,7 @@ import {
   AddParticipantDialog,
   AddParticipantFormValues,
 } from "./dialog";
-import { useNodeStatus } from "@/features/executions/hook/use-node-status";
+import { useNodeStatus } from "@/features/tracking-executions/hook/use-node-status";
 import { WS_ADD_PARTICIPANT_CHANNEL_NAME } from "@/inngest/channels/workspace";
 import { fetchWsAddParticipantToken } from "../../lib/realtime-tokens";
 

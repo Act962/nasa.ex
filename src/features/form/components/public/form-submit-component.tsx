@@ -56,48 +56,17 @@ import { cn } from "@/lib/utils";
 import { countries } from "@/types/some";
 import { normalizePhone, phoneMask } from "@/utils/format-phone";
 
+const LOCAL_DRAFT_EXPIRY_MS = 24 * 60 * 60 * 1000;
+
 type FormSubmitProps = {
   id: string;
   blocks: FormBlockInstance[];
   settings?: FormSettings | FormSettingsTyped | null;
   initialLead?: { name?: string; email?: string; phone?: string };
-  /**
-   * Modo edição (`/formulario/[slug]/[responseId]`): valores iniciais que
-   * serão usados pra pré-preencher os blocos e o `formVals` antes do
-   * primeiro render. Cada chave deve ser o `blockInstance.id`.
-   */
   initialResponseValues?: Record<string, FieldValue>;
-  /**
-   * Override do submit. Se passado, é chamado em vez do `submitResponse`
-   * público — usado pelo fluxo de edição para chamar
-   * `form.updateResponse` em vez de criar nova resposta.
-   */
   onSubmitOverride?: (responseJson: string) => Promise<void> | void;
-  /**
-   * Texto do botão final no modo edição (default: "Enviar"). Quando em
-   * edit, usamos "Salvar" pra deixar claro que está atualizando.
-   */
   submitLabel?: string;
-  /**
-   * Modo somente-leitura: usado na rota pública pra cliente final (`/lead/
-   * [token]/formulario/[responseId]`). Bloqueia interação em todos os
-   * inputs via CSS, EXCETO blocos marcados com `[data-allow-interaction]`
-   * (atualmente: SignatureClient). Quando ligado, o submit chama o
-   * `onSubmitOverride` apenas com as alterações de assinatura.
-   */
   readOnly?: boolean;
-  /**
-   * Callback de auto-save chamado a cada transição de step (Próximo OU
-   * auto-advance). Quando presente, sobrescreve o auto-save padrão que
-   * usa `form.savePartialResponse` (fluxo público). Usado pelo fluxo
-   * INTERNO (`/formulario/novo/<formId>/<leadId>`) pra criar/atualizar
-   * via `createResponseForLead`/`updateResponse` — sem isso, consultor
-   * preenchendo internamente só persistia no submit final.
-   *
-   * Recebe o JSON da resposta atual e o id do draft (null na 1ª chamada).
-   * Deve devolver `{ responseId }` pra que o componente guarde o id
-   * pras chamadas seguintes. Erro propaga — componente ignora silenciosamente.
-   */
   onPartialSave?: (
     responseJson: string,
     currentResponseId: string | null,
@@ -117,59 +86,62 @@ export function FormSubmitComponent({
 }: FormSubmitProps) {
   const submitResponse = useMutationSubmitResponse();
   const savePartialResponse = useMutationSavePartialResponse();
-
-  // Cross-device resume: ao digitar o telefone na etapa 1, busca um draft
-  // existente desse lead pra esse form. Se achar, hidrata o prefillMap e
-  // o responseIdRef ANTES de montar a etapa 2 → user continua de onde
-  // parou em qualquer dispositivo. Mutation (não query) porque queremos
-  // disparar uma vez no clique de "Continuar", não auto-fetch.
   const findDraft = useMutation(orpc.form.findDraftByPhone.mutationOptions({}));
-  // Valida, na etapa 1, se o telefone digitado é um WhatsApp válido — usando
-  // a instância do tracking vinculado ao form. Mutation (não query) porque
-  // disparamos no clique de "Continuar", não em auto-fetch.
   const validateLeadPhone = useMutationValidateLeadPhone();
   const [resumeLoading, setResumeLoading] = useState(false);
 
-  // Id do draft de FormResponses criado pelo primeiro "Próximo" via
-  // savePartialResponse. Reusado nas chamadas seguintes (modo update) e
-  // passado pro submit final (modo "finalize" — atualiza em vez de criar
-  // duplicata, mantém o counter intacto).
-  //
-  // Backup em sessionStorage permite "continuar de onde parou" após
-  // refresh ou queda de conexão no mesmo tab. Key inclui o formId pra
-  // não embaralhar drafts de forms diferentes.
   const responseIdStorageKey = `nasa.form.draft.${id}`;
+  const localStorageDraftKey = `nasa.form.ls.${id}`;
+
+  const pendingLocalDraftRef = useRef<{
+    fv: Record<string, FieldValue>;
+    contact?: { phone?: string; ddi?: string; email?: string };
+  } | null>(null);
+
   const responseIdRef = useRef<string | null>(
     typeof window !== "undefined" && !initialResponseValues
       ? sessionStorage.getItem(responseIdStorageKey)
       : null,
   );
-  // Dedupe: evita disparos paralelos do mesmo save quando o user clica
-  // Próximo várias vezes rápido. NÃO bloqueia tipping no formulário.
   const savingPartialRef = useRef(false);
+  const dbSaveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const formVals = useRef<{ [key: string]: FieldValue }>(
-    // Inicializa com valores existentes no fluxo edit. No fluxo público fica vazio.
     initialResponseValues ? { ...initialResponseValues } : {},
   );
 
-  // Chave única por montagem (id do form + epoch ms). Propagada via
-  // FormPrefillProvider; blocos que persistem em sessionStorage (ImageUpload)
-  // a usam como prefixo, isolando cada submission. Sem isso, abrir um form
-  // novo após submeter uma resposta restaurava as imagens da resposta
-  // anterior (mesmo `block.id`).
+  const saveDraftToLocalStorage = () => {
+    if (typeof window === "undefined") return;
+    if (initialResponseValues) return;
+    try {
+      localStorage.setItem(
+        localStorageDraftKey,
+        JSON.stringify({
+          fv: formVals.current,
+          savedAt: Date.now(),
+          contact: {
+            phone: leadInfo.phone,
+            ddi: selectedCountry.ddi,
+            email: leadInfo.email,
+          },
+        }),
+      );
+    } catch {
+      /* quota ou modo privado — ignorar */
+    }
+  };
+
+  const clearLocalStorageDraft = () => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.removeItem(localStorageDraftKey);
+    } catch {
+      /* ignorar */
+    }
+  };
+
   const sessionKeyRef = useRef<string>(`form-${id}-${Date.now()}`);
 
-  // Mapa de prefill (FieldValue completo: value + meta) pra o contexto que
-  // alimenta os blocos. Blocos simples consomem só `.value` via
-  // `usePrefillValue`; blocos compostos (UserSelect, FileUpload, Signature)
-  // leem o FieldValue inteiro via `usePrefillFieldValue` pra extrair IDs,
-  // URLs S3, dataURLs etc. salvos em `meta`.
-  //
-  // É state (não const) pra permitir hidratação dinâmica: quando o user
-  // digita o telefone na etapa 1, consultamos o servidor por drafts em
-  // aberto (cross-device resume) e injetamos aqui ANTES da etapa 2
-  // montar — os blocos pegam os valores via usePrefillValue no mount.
   const [prefillMap, setPrefillMap] = useState<PrefillFieldMap>(() => {
     if (!initialResponseValues) return {};
     const map: PrefillFieldMap = {};
@@ -184,10 +156,8 @@ export function FormSubmitComponent({
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setSubmitted] = useState(false);
 
-  // ─── Phone DDI ─────────────────────────────────────────────
   const [selectedCountry, setSelectedCountry] = useState(countries[0]);
 
-  // ─── Settings ──────────────────────────────────────────────
   const showName = settings?.showName ?? true;
   const showEmail = settings?.showEmail ?? true;
   const showPhone = settings?.showPhone ?? true;
@@ -198,13 +168,6 @@ export function FormSubmitComponent({
   const backgroundImage = settings?.backgroundImage ?? undefined;
   const redirectUrl = settings?.redirectUrl ?? undefined;
 
-  // Pixel e Google Tag Manager agora são renderizados pelas pages que carregam
-  // este componente (via <FormTrackingScripts />). Mantemos esse caminho fora
-  // do client component pra usar next/script + @next/third-parties/google
-  // (carregamento mais cedo, noscript fallback, sem reinjeção em remount).
-
-  // No modo edição (override presente), o lead já existe — pulamos a etapa
-  // de coleta de dados pessoais e vamos direto pros blocos do formulário.
   const isEditMode = !!onSubmitOverride;
   const showLeadFields =
     !isEditMode && needLogin && (showName || showEmail || showPhone);
@@ -213,14 +176,12 @@ export function FormSubmitComponent({
     ? getContrastColor(backgroundColor)
     : undefined;
 
-  // ─── Lead info ─────────────────────────────────────────────
   const [leadInfo, setLeadInfo] = useState({
     name: initialLead?.name ?? "",
     email: initialLead?.email ?? "",
     phone: initialLead?.phone ?? "",
   });
 
-  // Reaplica quando o prefill chega via prop assíncrona (ex.: token query)
   useEffect(() => {
     if (!initialLead) return;
     setLeadInfo((prev) => ({
@@ -230,8 +191,6 @@ export function FormSubmitComponent({
     }));
   }, [initialLead?.name, initialLead?.email, initialLead?.phone]);
 
-  // Prefill via query string (origem: outro form com action="form" ou
-  // "external_link" com passLeadData ligado). Lê uma vez no mount.
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -265,9 +224,6 @@ export function FormSubmitComponent({
     return Object.keys(errors).length === 0;
   };
 
-  // Helper que funciona pra string, array, dataURL etc. Antes, `.trim()`
-  // direto no value crashava quando o valor não era string (assinatura
-  // canvas dataURL, upload array, etc.).
   const isFieldFilled = (v: FieldValue | undefined): boolean => {
     if (!v) return false;
     const val = v.value as unknown;
@@ -298,8 +254,6 @@ export function FormSubmitComponent({
 
   const handleBlur = (key: string, value: FieldValue) => {
     formVals.current[key] = { value: value.value, meta: value.meta };
-    // StepBlocks tem seu próprio `tick` (incrementado via wrappedHandleBlur)
-    // que dispara re-render pra barra de progresso + mascote atualizarem.
     if (
       formErrors[key] &&
       isFieldFilled({ value: value.value, meta: value.meta })
@@ -310,27 +264,20 @@ export function FormSubmitComponent({
         return updated;
       });
     }
+    saveDraftToLocalStorage();
+    if (dbSaveDebounceRef.current) clearTimeout(dbSaveDebounceRef.current);
+    dbSaveDebounceRef.current = setTimeout(() => {
+      void persistPartial();
+    }, 1500);
   };
 
-  /**
-   * Auto-save: persiste o estado atual do form no servidor. Chamado nas
-   * transições de step (Próximo). Cria o `FormResponses` na primeira chamada
-   * (e o lead se necessário) — daí em diante atualiza. O `responseIdRef`
-   * guarda o id pra reusar nas chamadas seguintes e no submit final.
-   *
-   * Best-effort: falhas NÃO bloqueiam a navegação. Se rede cair, o user
-   * continua no form e o próximo Próximo tenta de novo.
-   *
-   * Não roda no modo edição (`onSubmitOverride` presente) — esse fluxo
-   * já tem seu próprio mecanismo de salvar (createResponseForLead/
-   * updateResponse no submit final).
-   */
   const persistPartial = async () => {
-    // Fluxo edit (responseId fixo da URL) NÃO faz auto-save — o save final
-    // do consultor já passa por updateResponse. Sem onPartialSave externo,
-    // skipamos pra evitar criar respostas paralelas.
     if (onSubmitOverride && !onPartialSave) return;
-    if (savingPartialRef.current) return; // dedupe parallel calls
+    if (dbSaveDebounceRef.current) {
+      clearTimeout(dbSaveDebounceRef.current);
+      dbSaveDebounceRef.current = null;
+    }
+    if (savingPartialRef.current) return;
     savingPartialRef.current = true;
     try {
       const responseJson = JSON.stringify({
@@ -346,9 +293,6 @@ export function FormSubmitComponent({
         }),
       });
 
-      // Fluxo INTERNO (consultor): parent forneceu onPartialSave que
-      // decide qual procedure usar (createResponseForLead na 1ª chamada,
-      // updateResponse nas seguintes). Aqui só passamos os dados.
       if (onPartialSave) {
         const result = await onPartialSave(responseJson, responseIdRef.current);
         if (result?.responseId) {
@@ -357,7 +301,6 @@ export function FormSubmitComponent({
         return;
       }
 
-      // Fluxo PÚBLICO: usa a procedure pública savePartialResponse.
       const tracking = getTrackingParamsClient();
       const result = await savePartialResponse.mutateAsync({
         id,
@@ -374,8 +317,6 @@ export function FormSubmitComponent({
         }
       }
     } catch (err) {
-      // Falha silenciosa pra não atrapalhar UX. O submit final ainda
-      // funciona (cria do zero se responseIdRef nunca foi setado).
       console.warn("[form] auto-save falhou", err);
     } finally {
       savingPartialRef.current = false;
@@ -393,7 +334,6 @@ export function FormSubmitComponent({
       ...(needLogin && {
         ...(showName && { user_name: leadInfo.name }),
         ...(showEmail && { user_email: leadInfo.email }),
-        // Salva o telefone já com DDI
         ...(showPhone && {
           user_phone: normalizePhone(
             `${selectedCountry.ddi} ${leadInfo.phone}`,
@@ -401,16 +341,8 @@ export function FormSubmitComponent({
         }),
       }),
     });
-    // Captura UTMs/origem do session storage (preenchidos pelo middleware
-    // ou pela primeira navegação do usuário). Best-effort: nada quebra se vazio.
     const tracking = getTrackingParamsClient();
 
-    // Modo edição/interno: chama o override (form.updateResponse ou
-    // form.createResponseForLead). NÃO setamos `isSubmitted=true` — o
-    // form continua editável pra o consultor poder salvar várias vezes.
-    // O toast de sucesso/erro é responsabilidade do override (na página
-    // /formulario/...), assim como o eventual redirect pra URL canônica
-    // de edição (após criar a resposta no fluxo "novo").
     if (onSubmitOverride) {
       try {
         await onSubmitOverride(responseJson);
@@ -422,10 +354,6 @@ export function FormSubmitComponent({
       return;
     }
 
-    // Configuração da ação do botão "Próximo" no último passo (manual mode).
-    // Se for "add_tag", anexa tagId ao request pra ser aplicado server-side.
-    // Se for "form" / "external_link", usa o leadId/token retornado pra
-    // redirecionar com dados do lead.
     const nextAction = resolveNextButtonAction(
       (settings as { nextButtonAction?: unknown } | null | undefined)
         ?.nextButtonAction,
@@ -436,9 +364,6 @@ export function FormSubmitComponent({
         id,
         response: responseJson,
         tracking,
-        // Quando houve auto-save via savePartialResponse, passa o id do
-        // draft pro servidor "finalizar" em vez de criar nova FormResponses.
-        // Sem isso, cada submit final criaria 2 rows (draft + final).
         ...(responseIdRef.current ? { responseId: responseIdRef.current } : {}),
         ...(nextAction.type === "add_tag" && nextAction.tagId
           ? { nextActionTagId: nextAction.tagId }
@@ -447,9 +372,7 @@ export function FormSubmitComponent({
       {
         onSuccess: (res) => {
           setSubmitted(true);
-          // Limpa o backup em sessionStorage agora que a submissão foi
-          // persistida no servidor — evita que o "redirect pra mesma rota"
-          // ou "abrir form novamente" inicialize com dados velhos.
+          clearLocalStorageDraft();
           try {
             const keys: string[] = [];
             for (let i = 0; i < sessionStorage.length; i++) {
@@ -481,35 +404,6 @@ export function FormSubmitComponent({
               }
             )?.lead ?? null;
 
-          // Redireciona pra outro form
-          // if (nextAction.type === "form" && nextAction.formId) {
-          //   const url = `/submit-form/${nextAction.formId}`;
-          //   const target =
-          //     nextAction.passLeadData !== false && leadInfoOut
-          //       ? appendLeadParams(url, leadInfoOut)
-          //       : url;
-          //   setTimeout(() => {
-          //     window.location.href = target;
-          //   }, 1200);
-          //   return;
-          // }
-
-          // Redireciona pra link externo
-          // if (nextAction.type === "external_link" && nextAction.externalUrl) {
-          //   const target =
-          //     nextAction.passLeadData !== false && leadInfoOut
-          //       ? appendLeadParams(nextAction.externalUrl, leadInfoOut)
-          //       : nextAction.externalUrl;
-          //   setTimeout(() => {
-          //     window.location.href = target;
-          //   }, 1200);
-          //   return;
-          // }
-
-          // Redirecionamento legado (Settings > Integrações > URL de
-          // redirecionamento) — só se não houver ação configurada.
-          // normalizeRedirectUrl garante protocolo absoluto: "google.com"
-          // salvo no banco vira "https://google.com", não path relativo.
           const normalizedRedirect = normalizeRedirectUrl(redirectUrl);
           if (normalizedRedirect) {
             setTimeout(() => {
@@ -525,17 +419,60 @@ export function FormSubmitComponent({
     );
   };
 
-  // ─── Button style helper ───────────────────────────────────
   const primaryBtnStyle = {
     backgroundColor: primaryColor || undefined,
     borderColor: primaryColor || undefined,
     color: primaryColor ? getContrastColor(primaryColor) : undefined,
   };
 
-  // Limpa quaisquer backups de sessionStorage de submissions anteriores
-  // (chaves com prefixo `nasa.form.image-upload.`) ao montar uma NOVA
-  // resposta (sem initialResponseValues). Em modo edição preservamos —
-  // o prefill já cobre o restore via `meta.images`.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (initialResponseValues) return;
+    try {
+      const raw = localStorage.getItem(localStorageDraftKey);
+      if (!raw) return;
+      const localDraft = JSON.parse(raw) as {
+        fv?: Record<string, FieldValue>;
+        savedAt?: number;
+        contact?: { phone?: string; ddi?: string; email?: string };
+      };
+      if (!localDraft.fv || !localDraft.savedAt) return;
+      if (Date.now() - localDraft.savedAt > LOCAL_DRAFT_EXPIRY_MS) {
+        localStorage.removeItem(localStorageDraftKey);
+        return;
+      }
+      if (showLeadFields) {
+        pendingLocalDraftRef.current = {
+          fv: localDraft.fv,
+          contact: localDraft.contact,
+        };
+        return;
+      }
+      const hydratedMap: PrefillFieldMap = {};
+      for (const [k, v] of Object.entries(localDraft.fv)) {
+        if (v && typeof v === "object" && typeof v.value === "string") {
+          formVals.current[k] = v;
+          hydratedMap[k] = v;
+        }
+      }
+      if (Object.keys(hydratedMap).length > 0) {
+        setPrefillMap(hydratedMap);
+        toast.success("Retomando onde você parou", {
+          description: "Seus respostas foram restauradas automaticamente.",
+        });
+      }
+    } catch {
+      /* JSON inválido ou localStorage indisponível — ignorar */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (dbSaveDebounceRef.current) clearTimeout(dbSaveDebounceRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (initialResponseValues) return;
@@ -563,9 +500,6 @@ export function FormSubmitComponent({
       <style>{`
         #lead_name::placeholder  { color: ${textColor}; }
         #lead_email::placeholder { color: ${textColor}; }
-        /* Modo read-only (cliente final visualiza form): trava interação em
-           todos os inputs/selects/checkboxes EXCETO em elementos marcados
-           com [data-allow-interaction] (Signature do cliente). */
         [data-form-readonly="true"] input:not([data-allow-interaction] input),
         [data-form-readonly="true"] textarea:not([data-allow-interaction] textarea),
         [data-form-readonly="true"] select,
@@ -579,8 +513,6 @@ export function FormSubmitComponent({
           pointer-events: none !important;
           opacity: 0.85;
         }
-        /* Botões de ação dos blocos (limpar assinatura, etc) ficam OK
-           dentro de [data-allow-interaction]. Demais buttons travados. */
         [data-form-readonly="true"] button:not([data-allow-interaction] button):not([data-form-submit]) {
           pointer-events: none !important;
           opacity: 0.6;
@@ -608,10 +540,6 @@ export function FormSubmitComponent({
           color: textColor || undefined,
         }}
       >
-        {/* Largura: até desktop real (xl = 1280px+), o form ocupa a tela
-            toda respeitando seu próprio padding interno. Só em desktop
-            (≥ 1280px, laptops 13"+/monitores) limita a 650px centralizado.
-            iPad Pro (1194px) e tudo abaixo agora usa full-width. */}
         <div className="w-full h-full mx-auto max-w-full xl:max-w-162.5">
           <div className="w-full relative bg-transparent px-4 sm:px-6 md:px-8 xl:px-2 flex flex-col items-center justify-start pt-1 pb-14">
             <div className="w-full h-auto">
@@ -650,16 +578,12 @@ export function FormSubmitComponent({
                 blocks.length > 0 && (
                   <div
                     className={cn(
-                      // Contorno único do formulário: vive AQUI no container
-                      // externo (não em cada grupo). Os RowLayout públicos
-                      // ficam transparentes — visual limpo, sem card-em-card.
                       "flex flex-col w-full gap-3 xl:gap-4 p-3 xl:p-4 rounded-md border shadow-sm",
                       backgroundImage
                         ? "bg-white/20 backdrop-blur-md border-white/30"
                         : "bg-foreground/10 border-foreground/15",
                     )}
                   >
-                    {/* ── Etapa 1: dados do lead ── */}
                     {step === 1 && showLeadFields && (
                       <>
                         <Card
@@ -722,7 +646,6 @@ export function FormSubmitComponent({
                               </Field>
                             )}
 
-                            {/* ── Telefone com InputGroup + DDI ── */}
                             {showPhone && (
                               <Field>
                                 <FieldLabel htmlFor="lead_phone">
@@ -811,13 +734,13 @@ export function FormSubmitComponent({
                               toast("Campos obrigatórios não preenchidos");
                               return;
                             }
-                            // Validação de WhatsApp (etapa 1): se o dono do
-                            // form habilitou e o tracking tem instância
-                            // conectada, confere se o número existe no
-                            // WhatsApp. Fail-open: qualquer cenário que não
-                            // seja "invalid" (sem instância, desconectada,
-                            // erro de rede, validação desligada) deixa passar.
-                            // Não roda no modo edição (lead já existe).
+                            responseIdRef.current = null;
+                            try {
+                              sessionStorage.removeItem(responseIdStorageKey);
+                            } catch {
+                              /* ignore */
+                            }
+
                             if (
                               showPhone &&
                               leadInfo.phone.trim() &&
@@ -844,7 +767,6 @@ export function FormSubmitComponent({
                                   return;
                                 }
                               } catch (err) {
-                                // Falha na validação não bloqueia (fail-open).
                                 console.warn(
                                   "[form] validateLeadPhone failed",
                                   err,
@@ -853,9 +775,7 @@ export function FormSubmitComponent({
                                 setResumeLoading(false);
                               }
                             }
-                            // Cross-device resume: tenta achar draft pelo
-                            // telefone+formId. Best-effort — qualquer erro
-                            // não bloqueia o fluxo (apenas avança fresh).
+
                             if (
                               showPhone &&
                               leadInfo.phone.trim() &&
@@ -880,10 +800,6 @@ export function FormSubmitComponent({
                                   } | null
                                 )?.draft;
                                 if (draft) {
-                                  // Parse jsonResponse → FieldValue map.
-                                  // Hidrata formVals.current (pra submit) +
-                                  // setPrefillMap (pra blocks renderizarem
-                                  // com os valores antigos).
                                   let parsed: Record<string, unknown> = {};
                                   try {
                                     parsed =
@@ -927,6 +843,8 @@ export function FormSubmitComponent({
                                     } catch {
                                       /* ignore */
                                     }
+                                    clearLocalStorageDraft();
+                                    pendingLocalDraftRef.current = null;
                                     toast.success(
                                       "Continuando rascunho salvo",
                                       {
@@ -942,6 +860,64 @@ export function FormSubmitComponent({
                                 setResumeLoading(false);
                               }
                             }
+
+                            if (pendingLocalDraftRef.current) {
+                              const pendingDraft = pendingLocalDraftRef.current;
+                              pendingLocalDraftRef.current = null;
+
+                              const savedPhone =
+                                pendingDraft.contact?.phone ?? "";
+                              const savedDdi =
+                                pendingDraft.contact?.ddi ?? "";
+                              const savedEmail =
+                                pendingDraft.contact?.email ?? "";
+
+                              const savedNormalized = normalizePhone(
+                                `${savedDdi} ${savedPhone}`,
+                              );
+                              const enteredNormalized = normalizePhone(
+                                `${selectedCountry.ddi} ${leadInfo.phone}`,
+                              );
+
+                              const phoneMatches =
+                                showPhone &&
+                                !!savedNormalized &&
+                                savedNormalized === enteredNormalized;
+
+                              const emailMatches =
+                                !showPhone &&
+                                showEmail &&
+                                !!savedEmail &&
+                                !!leadInfo.email &&
+                                savedEmail.trim().toLowerCase() ===
+                                  leadInfo.email.trim().toLowerCase();
+
+                              if (phoneMatches || emailMatches) {
+                                const hydratedMap: PrefillFieldMap = {};
+                                for (const [k, v] of Object.entries(
+                                  pendingDraft.fv,
+                                )) {
+                                  if (
+                                    v &&
+                                    typeof v === "object" &&
+                                    typeof v.value === "string"
+                                  ) {
+                                    formVals.current[k] = v;
+                                    hydratedMap[k] = v;
+                                  }
+                                }
+                                if (Object.keys(hydratedMap).length > 0) {
+                                  setPrefillMap(hydratedMap);
+                                  toast.success("Retomando onde você parou", {
+                                    description:
+                                      "Suas respostas foram restauradas automaticamente.",
+                                  });
+                                }
+                              } else {
+                                clearLocalStorageDraft();
+                              }
+                            }
+
                             setStep(2);
                           }}
                         >
@@ -950,7 +926,6 @@ export function FormSubmitComponent({
                       </>
                     )}
 
-                    {/* ── Etapa 2: blocos do formulário ── */}
                     {step === 2 && (
                       <StepBlocks
                         blocks={blocks}
@@ -1009,12 +984,6 @@ function StepBlocks({
   onBack: () => void;
   onSubmit: () => void;
   submitLabel?: string;
-  /**
-   * Callback opcional invocado SEMPRE que o user avança um passo (Próximo
-   * em manual mode OU auto-advance quando o grupo fica completo). O parent
-   * usa pra persistir o estado parcial no servidor (savePartialResponse).
-   * Falhas não bloqueiam — é fire-and-forget.
-   */
   onStepAdvance?: () => Promise<void> | void;
 }) {
   const stepMode = ((settings as unknown as { stepMode?: string })?.stepMode ??
@@ -1024,39 +993,13 @@ function StepBlocks({
     "Próximo";
 
   const [currentStep, setCurrentStep] = useState(0);
-  const [tick, setTick] = useState(0); // re-render quando formVals muda
+  const [tick, setTick] = useState(0);
 
-  // Auto-save com debounce de 1.5s: salva o estado parcial 1.5s depois
-  // do ÚLTIMO blur (cada novo blur reinicia o timer). Cobre o cenário
-  // "user preenche vários campos e fecha o tab antes de clicar Próximo".
-  // Aplicado SOMENTE em stepMode='manual' — onde o Próximo é explícito.
-  // Em 'auto' o avanço já dispara persist; em 'off' o submit final cobre.
-  const blurDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    return () => {
-      if (blurDebounceRef.current) clearTimeout(blurDebounceRef.current);
-    };
-  }, []);
-
-  // re-render automático ao receber preenchimento — pra que o auto-advance e
-  // o botão habilitado/desabilitado reflitam o estado atual de `formValsRef`.
   const wrappedHandleBlur: HandleBlurFunc = (key, value) => {
     handleBlur(key, value);
     setTick((t) => t + 1);
-    if (stepMode === "manual" && onStepAdvance) {
-      if (blurDebounceRef.current) clearTimeout(blurDebounceRef.current);
-      blurDebounceRef.current = setTimeout(() => {
-        // fire-and-forget — falha não impacta UX.
-        onStepAdvance();
-      }, 1500);
-    }
   };
 
-  // Scroll-to-top sempre que muda de passo (Próximo OU Voltar). Sem isso,
-  // o user clicava em "Próximo" e ficava no scroll do passo anterior,
-  // tendo que rolar de volta pro topo manualmente. Tenta primeiro o
-  // container interno do form (`[data-form-scroll-container]`); se não
-  // encontrar (form embedado em outro layout), cai pro window.scrollTo.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const scrollEl = document.querySelector(
@@ -1069,11 +1012,7 @@ function StepBlocks({
     }
   }, [currentStep]);
 
-  // ─── Progresso de preenchimento (computado em TODOS os modos) ───
-  // Comum: % de campos preenchíveis (Heading/Paragraph/ImageDisplay
-  // ficam fora via isFillableBlock). Atualiza em tempo real graças ao
-  // tick incrementado em wrappedHandleBlur.
-  void tick; // referenciar pra evitar dead-state warning + forçar re-render
+  void tick;
   const allChildrenAll = blocks
     .flatMap((b) => b.childblocks ?? [])
     .filter((c) =>
@@ -1093,9 +1032,6 @@ function StepBlocks({
   );
   const currentMascotAll = getCurrentMascot(mascotsAll, progressPctAll);
 
-  // ─── Header de progresso + mascote — único, reutilizado em ambos modos ───
-  // Mobile/tablet/iPad Pro: barra ocupa toda largura, texto em cima.
-  // Desktop (xl+): texto à esquerda + barra ocupando max 60%.
   const ProgressHeader = (
     <div className="w-full max-w-[80%] mx-auto flex flex-col gap-1.5 px-1 xl:flex-row xl:items-center xl:justify-between xl:gap-3">
       <span className="text-[11px] xl:text-xs text-muted-foreground/80 shrink-0">
@@ -1128,7 +1064,6 @@ function StepBlocks({
     </div>
   );
 
-  // Modo "tudo de uma vez"
   if (stepMode === "off") {
     return (
       <>
@@ -1159,12 +1094,10 @@ function StepBlocks({
     );
   }
 
-  // Helpers pra checar se um grupo está completo (todos os campos required preenchidos)
   const isGroupComplete = (group: FormBlockInstance) => {
     const childs = group.childblocks ?? [];
     if (childs.length === 0) return true;
     for (const child of childs) {
-      // Pula blocos não-preenchíveis (Heading, Paragraph, ImageDisplay, etc.)
       if (
         !isFillableBlock(
           child.blockType,
@@ -1173,9 +1106,6 @@ function StepBlocks({
       )
         continue;
 
-      // SignatureUser com responsável pré-cadastrado vira um GATE: o
-      // botão "Próximo" trava até essa assinatura existir, mesmo que o
-      // bloco não esteja marcado como `required`.
       const isSignatureGate =
         child.blockType === "SignatureUser" &&
         !!child.attributes?.assigneeUserId;
@@ -1188,10 +1118,6 @@ function StepBlocks({
     return true;
   };
 
-  // Marca o id do grupo (RowLayout) que o lead acabou de entrar. Lido
-  // pelo server pra cruzar com `resetTriggers.nextGroupIds` dos
-  // DatePickers — quando o lead alcança um grupo configurado como
-  // trigger, o cronômetro vira "cumprido" e o badge some.
   const markGroupReached = (groupId: string | undefined) => {
     if (!groupId) return;
     const existing = formValsRef.current["__groupsReached"] as
@@ -1207,18 +1133,13 @@ function StepBlocks({
     };
   };
 
-  // Auto-advance: quando o grupo atual fica completo, avança sozinho
   if (
     stepMode === "auto" &&
     currentStep < blocks.length - 1 &&
     isGroupComplete(blocks[currentStep])
   ) {
-    // setTimeout pra evitar update durante render
     setTimeout(() => {
-      // Marca o próximo grupo como alcançado (trigger "Próximo Grupo").
       markGroupReached(blocks[currentStep + 1]?.id);
-      // Auto-save: persiste o estado do grupo atual antes de avançar.
-      // fire-and-forget — falha não bloqueia o auto-advance.
       onStepAdvance?.();
       setCurrentStep((s) => Math.min(s + 1, blocks.length - 1));
     }, 0);
@@ -1233,11 +1154,6 @@ function StepBlocks({
   return (
     <>
       {ProgressHeader}
-      {/* Mantém TODOS os passos montados, escondendo os que não são o atual.
-          Isso preserva o estado local (texto digitado, escolhas, etc.) quando
-          o usuário navega entre passos com Próximo/Voltar — o componente não
-          é desmontado, então `formValsRef` e o estado interno do bloco ficam
-          intactos. Resolve "ao clicar em próximo, os dados não são salvos". */}
       {blocks.map((block, idx) => {
         const Comp = FormBlocks[block.blockType].formComponent;
         const visible = idx === currentStep;
@@ -1301,8 +1217,6 @@ function StepBlocks({
           stepMode === "manual" && (
             <Button
               className="w-full xl:flex-1"
-              // Visual de disabled mas continua clicável pra mostrar
-              // a mensagem de gate (assinatura faltando ou não autorizada).
               aria-disabled={!canAdvance}
               style={{
                 ...primaryBtnStyle,
@@ -1311,19 +1225,11 @@ function StepBlocks({
               }}
               onClick={() => {
                 if (canAdvance) {
-                  // Marca o próximo grupo como alcançado (trigger
-                  // "Próximo Grupo" do DatePicker resetTriggers).
                   markGroupReached(blocks[currentStep + 1]?.id);
-                  // Auto-save antes de avançar: fire-and-forget.
-                  // O primeiro Próximo cria o FormResponses no servidor —
-                  // o lead já aparece em "Detalhes do lead > Formulários"
-                  // com o botão "Abrir" liberado.
                   onStepAdvance?.();
                   setCurrentStep((s) => Math.min(s + 1, blocks.length - 1));
                   return;
                 }
-                // Detecta se há assinatura-gate não satisfeita no passo
-                // atual e devolve mensagem específica pro user.
                 const gate = (currentBlock.childblocks ?? []).find((c) => {
                   if (c.blockType !== "SignatureUser") return false;
                   if (!c.attributes?.assigneeUserId) return false;
@@ -1369,10 +1275,6 @@ function SubmitButtons({
   submitLabel?: string;
 }) {
   return (
-    // Mobile/tablet: empilha (full-width buttons, mais tappáveis).
-    // Desktop (lg+): inline lado a lado.
-    // Botões ficam centralizados a 80% da largura disponível, conforme
-    // requisito de UX (não esticar borda-a-borda no tablet/desktop).
     <div className="w-full max-w-[80%] mx-auto flex flex-col-reverse xl:flex-row justify-between gap-3 xl:gap-4">
       {showLeadFields && (
         <Button
