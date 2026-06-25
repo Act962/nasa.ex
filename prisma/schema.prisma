@@ -2011,7 +2011,9 @@ model Conversation {
 
 enum MessageStatus {
   SENT
+  DELIVERED
   SEEN
+  FAILED
   DELETED
 }
 

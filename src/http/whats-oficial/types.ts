@@ -155,3 +155,79 @@ export interface WabaInfo {
   message_template_namespace?: string;
   account_review_status?: string;
 }
+
+// ─── Templates HSM (Fase 9) ──────────────────────────────────────────────
+
+/** Status do template no fluxo de aprovação da Meta. */
+export type MessageTemplateStatus =
+  | "APPROVED"
+  | "PENDING"
+  | "REJECTED"
+  | "PAUSED"
+  | "DISABLED"
+  | "IN_APPEAL"
+  | "PENDING_DELETION"
+  | "DELETED"
+  | "LIMIT_EXCEEDED"
+  | "ARCHIVED";
+
+export type MessageTemplateCategory =
+  | "MARKETING"
+  | "UTILITY"
+  | "AUTHENTICATION"
+  | "FREE_SERVICE";
+
+/**
+ * Um componente do template como a Meta devolve na listagem. `HEADER`/`BODY`
+ * têm `text`; `HEADER` de mídia carrega `format` != TEXT; `BUTTONS` traz
+ * `buttons[]`. `example.body_text` lista os valores de exemplo das variáveis
+ * `{{n}}` (uma linha por amostra), usado pra inferir a contagem de variáveis.
+ */
+export interface TemplateComponent {
+  type: "HEADER" | "BODY" | "FOOTER" | "BUTTONS" | "CAROUSEL" | "LIMITED_TIME_OFFER";
+  format?: "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "LOCATION";
+  text?: string;
+  buttons?: Array<{ type: string; text?: string }>;
+  example?: {
+    header_text?: string[];
+    body_text?: string[][];
+  };
+}
+
+export interface MessageTemplate {
+  id: string;
+  name: string;
+  /** Código do idioma, ex. `pt_BR`, `en_US`. */
+  language: string;
+  status: MessageTemplateStatus;
+  category: MessageTemplateCategory;
+  sub_category?: string;
+  components: TemplateComponent[];
+  quality_score?: { score?: string; reason?: string };
+}
+
+export interface MessageTemplatesResponse {
+  data: MessageTemplate[];
+  paging?: {
+    cursors?: { before?: string; after?: string };
+    next?: string;
+    previous?: string;
+  };
+}
+
+/**
+ * Input canônico de envio de template. Nesta fase cobrimos variáveis de
+ * **body** e header de **texto** — uma string por placeholder `{{n}}`, na
+ * ordem. Header de mídia / botões dinâmicos ficam pra Fase 10.
+ */
+export interface SendTemplateInput {
+  to: E164DigitsOnly;
+  templateName: string;
+  /** Código do idioma exato do template aprovado (ex.: `pt_BR`). */
+  languageCode: string;
+  /** Valores das variáveis do corpo (`{{1}}…{{n}}`), na ordem. */
+  bodyParameters?: string[];
+  /** Valores das variáveis do header de texto, na ordem. */
+  headerParameters?: string[];
+  replyToWamid?: Wamid;
+}

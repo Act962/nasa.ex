@@ -2,7 +2,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
-import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
+import {
+  WhatsAppInstanceStatus,
+  WhatsAppProvider,
+} from "@/generated/prisma/enums";
 import { MessageStatus } from "@/features/tracking-chat/types";
 import { WA_COLORS } from "@/utils/whatsapp-utils";
 import {
@@ -66,6 +69,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: "Tracking context not found" },
           { status: 400 },
+        );
+      }
+
+      // ── Gate de provider (#9) ──────────────────────────────────────
+      // Se o tracking migrou pra Meta Cloud, mas o webhook Uazapi externo
+      // ainda aponta pra cá, ignoramos o inbound — senão a mesma mensagem
+      // seria gravada duas vezes (uma via Meta, outra via Uazapi). 200 (não
+      // 4xx) porque a Uazapi externa retenta em não-2xx; não queremos
+      // amplificar. O caminho correto é o cliente remover o webhook na
+      // Uazapi, mas a maioria esquece — este gate é a rede de segurança.
+      if (tracking.whatsappProvider === WhatsAppProvider.META_CLOUD) {
+        console.log("[webhook:chat] provider_mismatch", {
+          trackingId,
+          provider: tracking.whatsappProvider,
+        });
+        return NextResponse.json(
+          { ok: true, skipped: "provider_mismatch" },
+          { status: 200 },
         );
       }
 
