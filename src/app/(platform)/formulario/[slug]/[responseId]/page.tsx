@@ -12,7 +12,7 @@ import {
   useQueryFormResponseById,
   useMutationUpdateResponse,
 } from "@/features/form/hooks/use-form";
-import { FormSubmitComponent } from "@/features/form/components/public/form-submit-component";
+import { FormSubmitComponent } from "@/features/form/components/public/form-submit/form-submit-component";
 import { FormLeadProvider } from "@/features/form/context/form-lead-context";
 import type { FieldValue, FormBlockInstance } from "@/features/form/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
@@ -45,7 +45,8 @@ export default function Page() {
   const responseId = params.responseId;
   const router = useRouter();
 
-  const { response, isLoading, isError, error } = useQueryFormResponseById(responseId);
+  const { response, isLoading, isError, error } =
+    useQueryFormResponseById(responseId);
   const updateMutation = useMutationUpdateResponse();
 
   // Valores iniciais convertidos pra `FieldValue` (a estrutura interna que o
@@ -226,9 +227,7 @@ export default function Page() {
               style={{
                 borderColor: status.color || undefined,
                 color: status.color || undefined,
-                background: status.color
-                  ? `${status.color}15`
-                  : undefined,
+                background: status.color ? `${status.color}15` : undefined,
               }}
               title="Status atual do lead"
             >
