@@ -26,6 +26,9 @@ export function useBoardRealtimeSync({ trackingId }: { trackingId: string }) {
 
   const pendingStatusRef = useRef<Set<string>>(new Set());
   const pendingLeadDetailRef = useRef<Set<string>>(new Set());
+  // Leads cujas tags mudaram — o badge de tags do card vem de uma query
+  // própria (`tags.getTagByLead`, keyed por leadId), não de listLeadsByStatus.
+  const pendingTagLeadRef = useRef<Set<string>>(new Set());
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -37,8 +40,10 @@ export function useBoardRealtimeSync({ trackingId }: { trackingId: string }) {
 
     const statusSnapshot = new Set(pendingStatusRef.current);
     const leadDetailSnapshot = new Set(pendingLeadDetailRef.current);
+    const tagLeadSnapshot = new Set(pendingTagLeadRef.current);
     pendingStatusRef.current = new Set();
     pendingLeadDetailRef.current = new Set();
+    pendingTagLeadRef.current = new Set();
 
     if (statusSnapshot.size) {
       queryClient.invalidateQueries({
@@ -60,6 +65,12 @@ export function useBoardRealtimeSync({ trackingId }: { trackingId: string }) {
       });
       queryClient.invalidateQueries({
         queryKey: orpc.leads.listHistoric.queryKey({ input: { leadId } }),
+      });
+    }
+
+    for (const leadId of tagLeadSnapshot) {
+      queryClient.invalidateQueries({
+        queryKey: orpc.tags.getTagByLead.queryKey({ input: { leadId } }),
       });
     }
   }, [queryClient, trackingId]);
@@ -92,6 +103,9 @@ export function useBoardRealtimeSync({ trackingId }: { trackingId: string }) {
         const data = raw as BoardLeadsEvents["lead-changed"];
         pendingStatusRef.current.add(data.statusId);
         pendingLeadDetailRef.current.add(data.leadId);
+        if (data.fields.includes("tag")) {
+          pendingTagLeadRef.current.add(data.leadId);
+        }
         scheduleFlush();
       },
       "lead-closed": (raw: unknown) => {
