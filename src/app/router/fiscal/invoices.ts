@@ -5,9 +5,9 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import {
   emitirNfse,
-  consultarNfse,
-  cancelarNfse,
-} from "@/http/focus-nfe/operations";
+} from "@/http/focus-nfe/emitir-nfse";
+import { consultarNfse } from "@/http/focus-nfe/consultar-nfse";
+import { cancelarNfse } from "@/http/focus-nfe/cancelar-nfse";
 import {
   buildNfsePayload,
   validateBeforeEmit,

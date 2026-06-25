@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { uploadCertificadoFocus } from "@/http/focus-nfe/operations";
+import { atualizarEmpresa } from "@/http/focus-nfe/atualizar-empresa";
 import { FocusNfeHttpError } from "@/http/focus-nfe/client";
 import type { FiscalEnvironment } from "@/generated/prisma/enums";
 
@@ -51,9 +51,10 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  if (!arquivoEntry.name.toLowerCase().endsWith(".pfx")) {
+  const fileName = arquivoEntry.name.toLowerCase();
+  if (!fileName.endsWith(".pfx") && !fileName.endsWith(".p12")) {
     return NextResponse.json(
-      { error: "O arquivo deve ter extensão .pfx" },
+      { error: "O arquivo deve ter extensão .pfx ou .p12" },
       { status: 400 },
     );
   }
@@ -64,13 +65,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const pfxBuffer = Buffer.from(await arquivoEntry.arrayBuffer());
+  const pfxBytes = await arquivoEntry.arrayBuffer();
+  const arquivo_certificado_base64 = Buffer.from(pfxBytes).toString("base64");
 
   try {
-    await uploadCertificadoFocus(
+    await atualizarEmpresa(
       profile.cnpj,
-      pfxBuffer,
-      senha.trim(),
+      { arquivo_certificado_base64, senha_certificado: senha.trim() },
       profile.environment as FiscalEnvironment,
     );
   } catch (err) {

@@ -1,6 +1,6 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { consultarNfse } from "@/http/focus-nfe/operations";
+import { consultarNfse } from "@/http/focus-nfe/consultar-nfse";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { S3 } from "@/lib/s3-client";
 import { PutObjectCommand } from "@aws-sdk/client-s3";

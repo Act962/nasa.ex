@@ -7229,6 +7229,7 @@ model FiscalCompanyProfile {
 
   cnpj                     String
   razaoSocial              String  @map("razao_social")
+  municipio                String? @map("municipio")
   inscricaoMunicipal       String  @map("inscricao_municipal")
   codigoMunicipio          String  @map("codigo_municipio")
   optanteSimplesNacional   Boolean @default(false) @map("optante_simples_nacional")

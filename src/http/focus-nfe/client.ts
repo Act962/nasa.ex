@@ -38,8 +38,32 @@ function buildBasicAuth(environment: FiscalEnvironment): string {
   return `Basic ${Buffer.from(`${token}:`).toString("base64")}`;
 }
 
+type FocusErrorBody = {
+  mensagem_erros?: string[];
+  msg?: string;
+  mensagem?: string;
+  erros?: Array<{ mensagem?: string }>;
+};
+
+function extractFocusErrorMessage(text: string, status: number): string {
+  let parsed: FocusErrorBody | null = null;
+  try {
+    parsed = text ? (JSON.parse(text) as FocusErrorBody) : null;
+  } catch {
+    parsed = null;
+  }
+  return (
+    parsed?.mensagem_erros?.[0] ??
+    parsed?.erros?.[0]?.mensagem ??
+    parsed?.mensagem ??
+    parsed?.msg ??
+    text ??
+    `Focus NFe HTTP ${status}`
+  );
+}
+
 export type FocusFetchOptions = {
-  method: "GET" | "POST" | "DELETE";
+  method: "GET" | "POST" | "PUT" | "DELETE";
   path: string;
   body?: unknown;
   environment: FiscalEnvironment;
@@ -80,19 +104,10 @@ export async function focusFetch<T>(opts: FocusFetchOptions): Promise<T> {
 
   if (!response.ok) {
     const text = await response.text().catch(() => "");
-    let parsed: { mensagem_erros?: string[]; msg?: string } | null = null;
-    try {
-      parsed = text ? JSON.parse(text) : null;
-    } catch {
-      parsed = null;
-    }
-    const message =
-      (parsed?.mensagem_erros?.[0] ?? parsed?.msg ?? text) ||
-      `Focus NFe HTTP ${response.status}`;
     throw new FocusNfeHttpError(
       response.status,
       null,
-      message,
+      extractFocusErrorMessage(text, response.status),
       text.slice(0, 500),
     );
   }
@@ -101,53 +116,3 @@ export async function focusFetch<T>(opts: FocusFetchOptions): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function focusFetchMultipart(
-  path: string,
-  formData: FormData,
-  environment: FiscalEnvironment,
-): Promise<void> {
-  const baseUrl = BASE_URLS[environment];
-  const url = `${baseUrl}${path}`;
-
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: "POST",
-      headers: { Authorization: buildBasicAuth(environment) },
-      body: formData,
-      signal: AbortSignal.timeout(30_000),
-    });
-  } catch (err) {
-    if (err instanceof Error && err.name === "TimeoutError") {
-      throw new FocusNfeHttpError(
-        0,
-        "TIMEOUT",
-        `Focus NFe multipart timed out`,
-      );
-    }
-    throw new FocusNfeHttpError(
-      0,
-      "NETWORK",
-      err instanceof Error ? err.message : "network error",
-    );
-  }
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    let parsed: { mensagem_erros?: string[]; msg?: string } | null = null;
-    try {
-      parsed = text ? JSON.parse(text) : null;
-    } catch {
-      parsed = null;
-    }
-    const message =
-      (parsed?.mensagem_erros?.[0] ?? parsed?.msg ?? text) ||
-      `Focus NFe HTTP ${response.status}`;
-    throw new FocusNfeHttpError(
-      response.status,
-      null,
-      message,
-      text.slice(0, 500),
-    );
-  }
-}
