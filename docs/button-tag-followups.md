@@ -1,27 +1,50 @@
-# Tag por clique em botão — follow-ups e riscos residuais
+# Tag por clique em botão/lista — follow-ups e riscos residuais
 
-> Contexto: tag aplicada ao lead quando ele clica num botão/linha de menu do WhatsApp.
-> O envio grava `metadata.buttonTagMap` (`buttonId → tagId`) na `Message`; o webhook
-> (`src/app/api/chat/webhook/route.ts`, bloco `[btn-tag]`) resolve a tag no clique e
-> chama `applyTagsByAi`.
+> Contexto: tag aplicada ao lead quando ele clica num botão OU seleciona uma linha
+> de lista de menu do WhatsApp. Os dois formatos compartilham a MESMA composição de
+> itens (`text` / `id` / `tagId`) e o MESMO mapa `metadata.buttonTagMap`
+> (`id → tagId`) na `Message`; o webhook (`src/app/api/chat/webhook/route.ts`, bloco
+> `[btn-tag]`) resolve a tag no clique/seleção e chama `applyTagsByAi`.
 >
-> Fluxo Uazapi-only (no provider Meta Cloud, botões são gateados como
+> Fluxo Uazapi-only (no provider Meta Cloud, botões/listas são gateados como
 > `META_FEATURE_UNSUPPORTED`).
+
+## Botões vs Lista (mesmo pipeline de tag)
+
+A escolha botão/lista é só um formato de envio — a indexação de tag é idêntica:
+
+- **Envio**: `sendButtons` (`type: "button"`) vs `sendList`/`sendItemsAsList`
+  (`type: "list"`), ambos em `src/http/uazapi/send-menu.ts`. `sendItemsAsList`
+  embrulha a lista plana de itens numa única seção (`text → title`), reusando a
+  composição dos botões. `listButton` é o rótulo que abre a lista (default "Ver opções").
+- **Resposta**: botão volta como `ButtonsResponseMessage` com `content.selectedButtonId`;
+  lista volta como `ListResponseMessage` com o id aninhado em
+  `content.singleSelectReply.selectedRowID` (note o `ID` maiúsculo no payload real) e/ou
+  plano em `message.buttonOrListid`. O adapter
+  (`src/features/tracking-chat/lib/providers/adapters/uazapi/provider.ts`) normaliza os
+  dois para `interactive_reply` com o mesmo `replyId`, então `buttonTagMap[replyId]`
+  casa para ambos.
+
+> Antes deste trabalho, listas quebravam a tag-por-clique porque o adapter só lia o
+> `selectedButtonId` plano. A correção estendeu a extração de `replyId` para cobrir
+> `singleSelectReply.selectedRowID`/`selectedRowId` e `message.buttonOrListid`.
 
 ## Estado atual (já corrigido)
 
-Os 4 caminhos de envio gravam o `buttonTagMap`:
+Os caminhos de envio gravam o `buttonTagMap` e suportam **botão E lista**:
 
-| Caminho | Arquivo |
-| --- | --- |
-| Automação clássica (nó send-message) | `src/features/tracking-executions/components/send-message/executor.ts` |
-| Automação agent-mode | `src/features/workflows/lib/agent-executors/apps.ts` + `src/features/tracking-executions/lib/send-buttons-to-lead.ts` |
-| Tool da IA (chatbot) | `src/features/tracking-chat-ai/server/tools/send-buttons.ts` |
-| Envio manual pelo chat | `src/app/router/message/create-with-buttons.ts` + `src/features/tracking-chat/components/buttons-panel.tsx` |
+| Caminho | Arquivo | Lista? |
+| --- | --- | --- |
+| Automação clássica (nó send-message) | `src/features/tracking-executions/components/send-message/executor.ts` + `.../send-message/dialog.tsx` | ✅ select Botões/Lista no modo inline; preset herda o formato |
+| Automação agent-mode | `src/features/workflows/lib/agent-executors/apps.ts` + `src/features/tracking-executions/lib/send-buttons-to-lead.ts` | ✅ via `menuFormat`/`listButton` |
+| Tool da IA (chatbot) | `src/features/tracking-chat-ai/server/tools/send-buttons.ts` | ✅ lê `preset.menuFormat` |
+| Envio manual pelo chat | `src/app/router/message/create-with-buttons.ts` + `src/features/tracking-chat/components/buttons-panel.tsx` | ✅ (já existia) |
 
-Presets (aba Chatbot IA → Presets de botões) ganharam campo `tagId` por botão
+Presets (aba Chatbot IA → Presets de botões) têm campo `tagId` por botão e, agora,
+`menuFormat` (`BUTTON`/`LIST`) + `listButton` por preset
 (`src/features/tracking-settings/components/chatbot-ia-buttons-tab.tsx` + routers
-`create/update-ai-button-preset.ts`).
+`create/update-ai-button-preset.ts`; modelo `AiButtonPreset` + enum `MenuFormat` no
+`prisma/schema.prisma`).
 
 Causas sistemáticas já eliminadas no webhook:
 - **Short-circuit**: parava no primeiro metadata achado mesmo sem o botão clicado → agora só aceita candidato cujo `buttonTagMap` contém exatamente o `clickedButtonId`.

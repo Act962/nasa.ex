@@ -648,6 +648,14 @@ enum AiProvider {
   GOOGLE
 }
 
+// Formato de renderização de um menu interativo no WhatsApp. BUTTON = botões
+// rápidos; LIST = lista com seções abertas por um botão. Mesma composição de
+// itens (text/id/tagId) nos dois — só muda o envio (sendButtons vs sendList).
+enum MenuFormat {
+  BUTTON
+  LIST
+}
+
 // Telemetria de execuções do chat-ai (uma linha por chamada ao modelo).
 // `provider` null = default NASA (chave/modelo da plataforma); preenchido
 // quando o tracking está usando BYO. Custo não persistido nesta fase.
@@ -680,6 +688,10 @@ model AiButtonPreset {
   bodyText    String   @map("body_text")
   footerText  String?  @map("footer_text")
   buttons     Json
+  // Formato de envio do preset. LIST reusa `buttons` como linhas da lista.
+  menuFormat  MenuFormat @default(BUTTON) @map("menu_format")
+  // Rótulo do botão que abre a lista (só usado quando menuFormat = LIST).
+  listButton  String?    @map("list_button")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

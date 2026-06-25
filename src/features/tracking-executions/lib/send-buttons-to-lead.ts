@@ -15,7 +15,7 @@
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
-import { sendButtonsOrList } from "@/http/uazapi/send-menu";
+import { sendButtonsOrList, sendItemsAsList } from "@/http/uazapi/send-menu";
 import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import {
   type CreatedMessageProps,
@@ -32,12 +32,17 @@ export interface SendButtonsToLeadParams {
   // tagId opcional por botão — quando presente, grava buttonTagMap no
   // metadata da Message pra o webhook aplicar a tag no clique do lead.
   buttons: Array<{ text: string; id: string; tagId?: string }>;
+  // LIST envia a mesma composição de itens como lista; BUTTON (default) como
+  // botões. `listButton` é o rótulo que abre a lista (default "Ver opções").
+  menuFormat?: "BUTTON" | "LIST";
+  listButton?: string;
 }
 
 export async function sendButtonsToLead(
   params: SendButtonsToLeadParams,
 ): Promise<{ messageId: string; viaInChat: boolean }> {
   const { leadId, trackingId, bodyText, footerText, buttons } = params;
+  const asList = params.menuFormat === "LIST";
 
   if (buttons.length === 0) {
     throw new NonRetriableError("Menu de botões sem opções");
@@ -81,27 +86,44 @@ export async function sendButtonsToLead(
     if (!instance) {
       throw new NonRetriableError("WhatsApp instance not found for tracking");
     }
-    // Wrapper auto-degrada pra `sendList` se buttons.length > 3 (WhatsApp
-    // só aceita 3 botões nativos; acima disso vira menu de lista com o
-    // mesmo UX de seleção pro lead).
-    const response = await sendButtonsOrList(
-      requireUazapiToken(instance.apiKey),
-      {
-        number: lead.phone,
-        text: bodyText,
-        buttons,
-        footer: footerText || undefined,
-        readchat: true,
-        readmessages: true,
-        delay: 2000,
-      },
-      instance.baseUrl ?? undefined,
-    );
+    const response = asList
+      ? await sendItemsAsList(
+          requireUazapiToken(instance.apiKey),
+          {
+            number: lead.phone,
+            text: bodyText,
+            items: buttons,
+            footer: footerText || undefined,
+            button: params.listButton,
+            readchat: true,
+            readmessages: true,
+            delay: 2000,
+          },
+          instance.baseUrl ?? undefined,
+        )
+      : await sendButtonsOrList(
+          requireUazapiToken(instance.apiKey),
+          {
+            number: lead.phone,
+            text: bodyText,
+            buttons,
+            footer: footerText || undefined,
+            readchat: true,
+            readmessages: true,
+            delay: 2000,
+          },
+          instance.baseUrl ?? undefined,
+        );
     externalMessageId = response.messageid ?? externalMessageId;
   }
 
   // 5. Persiste Message — body inclui texto + opções pro histórico
-  const bodyFormatted = formatBodyWithButtons(bodyText, footerText, buttons);
+  const bodyFormatted = formatBodyWithButtons(
+    bodyText,
+    footerText,
+    buttons,
+    asList ? (params.listButton?.trim() || "Ver opções") : null,
+  );
   // buttonTagMap (buttonId→tagId) — grava no metadata pra o webhook aplicar
   // a tag quando o lead clicar num botão com tag associada.
   const buttonTagMap: Record<string, string> = {};
@@ -150,8 +172,10 @@ function formatBodyWithButtons(
   bodyText: string,
   footerText: string | undefined,
   buttons: Array<{ text: string; id: string }>,
+  listLabel: string | null,
 ): string {
   const summary = buttons.map((b) => `• ${b.text}`).join("\n");
-  const body = `${bodyText.trim()}\n\n[Botões]\n${summary}`;
+  const header = listLabel ? `[Lista: ${listLabel}]` : "[Botões]";
+  const body = `${bodyText.trim()}\n\n${header}\n${summary}`;
   return footerText?.trim() ? `${body}\n\n${footerText.trim()}` : body;
 }

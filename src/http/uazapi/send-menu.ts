@@ -76,6 +76,49 @@ export async function sendList(
   });
 }
 
+/**
+ * Envia a MESMA composição de itens dos botões (`{text,id}`) como uma LISTA
+ * interativa, embrulhando-os numa única seção (`text → title`). Reusa
+ * `sendList` para não duplicar a serialização do payload. `button` é o rótulo
+ * que abre a lista no WhatsApp (default "Ver opções").
+ */
+export async function sendItemsAsList(
+  token: string,
+  data: {
+    number: string;
+    text: string;
+    footer?: string;
+    button?: string;
+    items: Array<{ text: string; id: string }>;
+    readchat?: boolean;
+    readmessages?: boolean;
+    delay?: number;
+  },
+  baseUrl?: string,
+) {
+  return sendList(
+    token,
+    {
+      number: data.number,
+      text: data.text,
+      footer: data.footer,
+      button: data.button?.trim() || "Ver opções",
+      sections: [
+        {
+          rows: data.items.map((item) => ({
+            id: item.id,
+            title: item.text,
+          })),
+        },
+      ],
+      readchat: data.readchat,
+      readmessages: data.readmessages,
+      delay: data.delay,
+    },
+    baseUrl,
+  );
+}
+
 export async function sendMenu(
   token: string,
   data: SendMenuPayload,
