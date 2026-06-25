@@ -63,7 +63,7 @@ import { replicateAccountToNerp } from "@/inngest/functions/sync/replicate-accou
 import { replicateOrgToNerp } from "@/inngest/functions/sync/replicate-org-to-nerp";
 import { replicateMemberToNerp } from "@/inngest/functions/sync/replicate-member-to-nerp";
 import {
-  autoAgentTickScheduledFn,
+  // autoAgentTickScheduledFn,
   autoAgentOnLeadReplyFn,
 } from "@/inngest/functions/auto-agent-scheduler";
 import {
@@ -144,7 +144,7 @@ export const { GET, POST, PUT } = serve({
     replicateOrgToNerp,
     replicateMemberToNerp,
     // ── NASA Auto Agent — scheduler de turns assíncronos ──
-    autoAgentTickScheduledFn,
+    // autoAgentTickScheduledFn,
     autoAgentOnLeadReplyFn,
     // ── Modo Agente IA Visual — disparadores dos triggers novos ──
     agentTriggerPaymentReceivedFn,
