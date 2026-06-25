@@ -14,7 +14,7 @@ import {
   useMutationUpdateResponse,
 } from "@/features/form/hooks/use-form";
 import { useQueryLead } from "@/features/leads/hooks/use-lead";
-import { FormSubmitComponent } from "@/features/form/components/public/form-submit-component";
+import { FormSubmitComponent } from "@/features/form/components/public/form-submit/form-submit-component";
 import { FormLeadProvider } from "@/features/form/context/form-lead-context";
 import { NotAvaliable } from "@/features/form/components/public/not-avaliable";
 import type { FormBlockInstance } from "@/features/form/types";
@@ -82,14 +82,14 @@ export default function Page() {
   const responsible = lead?.responsible as
     | { id?: string; name?: string; image?: string | null }
     | undefined;
-  const tracking = lead?.tracking as
-    | { id?: string; name?: string }
-    | undefined;
+  const tracking = lead?.tracking as { id?: string; name?: string } | undefined;
 
   const blocks = useMemo<FormBlockInstance[]>(() => {
     if (!form?.jsonBlock) return [];
     try {
-      return JSON.parse(form.jsonBlock as unknown as string) as FormBlockInstance[];
+      return JSON.parse(
+        form.jsonBlock as unknown as string,
+      ) as FormBlockInstance[];
     } catch {
       return [];
     }
@@ -243,110 +243,111 @@ export default function Page() {
             formId,
           }}
         >
-        <FormSubmitComponent
-          id={form.id}
-          blocks={blocks}
-          settings={form.settings}
-          // Pré-preenche o "user_*" caso o form tenha needLogin: como já
-          // estamos em modo edit (override presente), os campos pessoais do
-          // form serão pulados de qualquer forma — esses dados ficam só pra
-          // referência futura caso a estrutura mude.
-          initialLead={{
-            name: lead.name ?? "",
-            email: lead.email ?? "",
-            phone: lead.phone ?? "",
-          }}
-          submitLabel="Enviar"
-          // Auto-save no fluxo interno: a cada Próximo, cria (1ª) ou
-          // atualiza (próximas) a FormResponses. Resultado: assim que o
-          // consultor clica o primeiro Próximo, o lead já aparece em
-          // "Detalhes do lead > Formulários" com o botão "Abrir" liberado,
-          // permitindo acompanhamento em tempo real (Pusher).
-          onPartialSave={async (responseJson, currentResponseId) => {
-            try {
-              const existingId = currentResponseId ?? autoSavedResponseIdRef.current;
-              if (existingId) {
-                await updateMutation.mutateAsync({
-                  id: existingId,
+          <FormSubmitComponent
+            id={form.id}
+            blocks={blocks}
+            settings={form.settings}
+            // Pré-preenche o "user_*" caso o form tenha needLogin: como já
+            // estamos em modo edit (override presente), os campos pessoais do
+            // form serão pulados de qualquer forma — esses dados ficam só pra
+            // referência futura caso a estrutura mude.
+            initialLead={{
+              name: lead.name ?? "",
+              email: lead.email ?? "",
+              phone: lead.phone ?? "",
+            }}
+            submitLabel="Enviar"
+            // Auto-save no fluxo interno: a cada Próximo, cria (1ª) ou
+            // atualiza (próximas) a FormResponses. Resultado: assim que o
+            // consultor clica o primeiro Próximo, o lead já aparece em
+            // "Detalhes do lead > Formulários" com o botão "Abrir" liberado,
+            // permitindo acompanhamento em tempo real (Pusher).
+            onPartialSave={async (responseJson, currentResponseId) => {
+              try {
+                const existingId =
+                  currentResponseId ?? autoSavedResponseIdRef.current;
+                if (existingId) {
+                  await updateMutation.mutateAsync({
+                    id: existingId,
+                    response: responseJson,
+                  });
+                  return { responseId: existingId };
+                }
+                const res = await createMutation.mutateAsync({
+                  formId,
+                  leadId,
                   response: responseJson,
                 });
-                return { responseId: existingId };
+                const newId = (
+                  res as { response?: { id?: string } } | null | undefined
+                )?.response?.id;
+                if (newId) autoSavedResponseIdRef.current = newId;
+                return newId ? { responseId: newId } : null;
+              } catch (err) {
+                // Falha silenciosa: usuário continua preenchendo. O submit
+                // final ainda funciona porque persistPartial ignora erros.
+                console.warn("[formulario/novo] auto-save falhou", err);
+                return null;
               }
-              const res = await createMutation.mutateAsync({
-                formId,
-                leadId,
-                response: responseJson,
-              });
-              const newId = (
-                res as { response?: { id?: string } } | null | undefined
-              )?.response?.id;
-              if (newId) autoSavedResponseIdRef.current = newId;
-              return newId ? { responseId: newId } : null;
-            } catch (err) {
-              // Falha silenciosa: usuário continua preenchendo. O submit
-              // final ainda funciona porque persistPartial ignora erros.
-              console.warn("[formulario/novo] auto-save falhou", err);
-              return null;
-            }
-          }}
-          onSubmitOverride={async (responseJson) => {
-            try {
-              // Se já existe draft criado pelo auto-save, ATUALIZA em vez de
-              // criar duplicata. Sem isso o submit final criaria uma 2ª
-              // FormResponses (incrementando contador errado, gerando 2
-              // entradas na timeline, etc.). `isFinal: true` aciona o
-              // "Direcionamento" (move o lead pro tracking/status do form).
-              const draftId = autoSavedResponseIdRef.current;
-              if (draftId) {
-                await updateMutation.mutateAsync({
-                  id: draftId,
+            }}
+            onSubmitOverride={async (responseJson) => {
+              try {
+                // Se já existe draft criado pelo auto-save, ATUALIZA em vez de
+                // criar duplicata. Sem isso o submit final criaria uma 2ª
+                // FormResponses (incrementando contador errado, gerando 2
+                // entradas na timeline, etc.). `isFinal: true` aciona o
+                // "Direcionamento" (move o lead pro tracking/status do form).
+                const draftId = autoSavedResponseIdRef.current;
+                if (draftId) {
+                  await updateMutation.mutateAsync({
+                    id: draftId,
+                    response: responseJson,
+                    isFinal: true,
+                  });
+                  toast.success("Resposta enviada");
+                  const slug = buildResponseSlug(form.name, new Date());
+                  router.replace(`/formulario/${slug}/${draftId}`);
+                  return;
+                }
+                // Caminho original (consultor clicou direto em Enviar sem
+                // passar por nenhum Próximo): cria a resposta normalmente.
+                // `isFinal: true` aciona o "Direcionamento" do form.
+                const res = await createMutation.mutateAsync({
+                  formId,
+                  leadId,
                   response: responseJson,
                   isFinal: true,
                 });
                 toast.success("Resposta enviada");
-                const slug = buildResponseSlug(form.name, new Date());
-                router.replace(`/formulario/${slug}/${draftId}`);
-                return;
-              }
-              // Caminho original (consultor clicou direto em Enviar sem
-              // passar por nenhum Próximo): cria a resposta normalmente.
-              // `isFinal: true` aciona o "Direcionamento" do form.
-              const res = await createMutation.mutateAsync({
-                formId,
-                leadId,
-                response: responseJson,
-                isFinal: true,
-              });
-              toast.success("Resposta enviada");
-              const newResponseId = (
-                res as {
-                  response?: { id?: string; createdAt?: string | Date };
+                const newResponseId = (
+                  res as {
+                    response?: { id?: string; createdAt?: string | Date };
+                  }
+                )?.response?.id;
+                const createdAt = (
+                  res as { response?: { createdAt?: string | Date } }
+                )?.response?.createdAt;
+                if (newResponseId) {
+                  const slug = buildResponseSlug(
+                    form.name,
+                    createdAt ? new Date(createdAt) : new Date(),
+                  );
+                  // Redireciona pra URL canônica de edição (replace pra não
+                  // empilhar a URL "novo" no histórico do navegador).
+                  router.replace(`/formulario/${slug}/${newResponseId}`);
                 }
-              )?.response?.id;
-              const createdAt = (
-                res as { response?: { createdAt?: string | Date } }
-              )?.response?.createdAt;
-              if (newResponseId) {
-                const slug = buildResponseSlug(
-                  form.name,
-                  createdAt ? new Date(createdAt) : new Date(),
-                );
-                // Redireciona pra URL canônica de edição (replace pra não
-                // empilhar a URL "novo" no histórico do navegador).
-                router.replace(`/formulario/${slug}/${newResponseId}`);
+              } catch (err) {
+                // Quando o erro é FORBIDDEN (user não é participante do
+                // tracking atual do lead), mostra a mensagem específica
+                // — útil pra o consultor entender o motivo do bloqueio.
+                const msg =
+                  (err as { message?: string } | null | undefined)?.message ??
+                  "Falha ao enviar a resposta";
+                toast.error(msg);
+                throw err;
               }
-            } catch (err) {
-              // Quando o erro é FORBIDDEN (user não é participante do
-              // tracking atual do lead), mostra a mensagem específica
-              // — útil pra o consultor entender o motivo do bloqueio.
-              const msg =
-                (err as { message?: string } | null | undefined)?.message ??
-                "Falha ao enviar a resposta";
-              toast.error(msg);
-              throw err;
-            }
-          }}
-        />
+            }}
+          />
         </FormLeadProvider>
       </main>
     </div>

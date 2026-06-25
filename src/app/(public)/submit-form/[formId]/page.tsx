@@ -3,7 +3,7 @@
 import { useQueryPublicForm } from "@/features/form/hooks/use-form";
 import { NotAvaliable } from "@/features/form/components/public/not-avaliable";
 import { FormBlockInstance } from "@/features/form/types";
-import { FormSubmitComponent } from "@/features/form/components/public/form-submit-component";
+import { FormSubmitComponent } from "@/features/form/components/public/form-submit/form-submit-component";
 import { FormTrackingScripts } from "@/features/form/components/public/form-tracking-scripts";
 import { useParams, useSearchParams } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
