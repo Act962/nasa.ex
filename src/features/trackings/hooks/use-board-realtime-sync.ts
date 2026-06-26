@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useInngestSubscription } from "@inngest/realtime/hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  boardLeadsChannelName,
+  type BoardLeadsEvents,
+} from "@/features/leads/realtime/board-leads-channel";
+import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
 import { orpc } from "@/lib/orpc";
-import { fetchBoardLeadsRealtimeToken } from "../realtime/actions";
 
 const COALESCE_MS = 250;
 const MAX_DELAY_MS = 2000;
@@ -21,9 +24,11 @@ export function useBoardRealtimeSync({ trackingId }: { trackingId: string }) {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
-  const lastSeenIdxRef = useRef<number>(0);
   const pendingStatusRef = useRef<Set<string>>(new Set());
   const pendingLeadDetailRef = useRef<Set<string>>(new Set());
+  // Leads cujas tags mudaram — o badge de tags do card vem de uma query
+  // própria (`tags.getTagByLead`, keyed por leadId), não de listLeadsByStatus.
+  const pendingTagLeadRef = useRef<Set<string>>(new Set());
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -35,8 +40,10 @@ export function useBoardRealtimeSync({ trackingId }: { trackingId: string }) {
 
     const statusSnapshot = new Set(pendingStatusRef.current);
     const leadDetailSnapshot = new Set(pendingLeadDetailRef.current);
+    const tagLeadSnapshot = new Set(pendingTagLeadRef.current);
     pendingStatusRef.current = new Set();
     pendingLeadDetailRef.current = new Set();
+    pendingTagLeadRef.current = new Set();
 
     if (statusSnapshot.size) {
       queryClient.invalidateQueries({
@@ -60,61 +67,71 @@ export function useBoardRealtimeSync({ trackingId }: { trackingId: string }) {
         queryKey: orpc.leads.listHistoric.queryKey({ input: { leadId } }),
       });
     }
+
+    for (const leadId of tagLeadSnapshot) {
+      queryClient.invalidateQueries({
+        queryKey: orpc.tags.getTagByLead.queryKey({ input: { leadId } }),
+      });
+    }
   }, [queryClient, trackingId]);
 
-  const refreshToken = useCallback(
-    () => fetchBoardLeadsRealtimeToken(trackingId),
-    [trackingId],
+  const scheduleFlush = useCallback(() => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(flush, COALESCE_MS);
+    if (!maxDelayTimerRef.current) {
+      maxDelayTimerRef.current = setTimeout(flush, MAX_DELAY_MS);
+    }
+  }, [flush]);
+
+  // Handlers estáveis: só acumulam nos refs e agendam o flush coalescido.
+  // Mantêm a mesma semântica do loop sobre `data` da versão Inngest.
+  const handlers = useMemo(
+    () => ({
+      "lead-created": (raw: unknown) => {
+        const data = raw as BoardLeadsEvents["lead-created"];
+        pendingStatusRef.current.add(data.statusId);
+        scheduleFlush();
+      },
+      "lead-moved": (raw: unknown) => {
+        const data = raw as BoardLeadsEvents["lead-moved"];
+        if (data.fromStatusId) pendingStatusRef.current.add(data.fromStatusId);
+        pendingStatusRef.current.add(data.toStatusId);
+        pendingLeadDetailRef.current.add(data.leadId);
+        scheduleFlush();
+      },
+      "lead-changed": (raw: unknown) => {
+        const data = raw as BoardLeadsEvents["lead-changed"];
+        pendingStatusRef.current.add(data.statusId);
+        pendingLeadDetailRef.current.add(data.leadId);
+        if (data.fields.includes("tag")) {
+          pendingTagLeadRef.current.add(data.leadId);
+        }
+        scheduleFlush();
+      },
+      "lead-closed": (raw: unknown) => {
+        const data = raw as BoardLeadsEvents["lead-closed"];
+        pendingStatusRef.current.add(data.statusId);
+        pendingLeadDetailRef.current.add(data.leadId);
+        scheduleFlush();
+      },
+    }),
+    [scheduleFlush],
   );
 
-  const { data } = useInngestSubscription({
-    refreshToken,
-    enabled: !!trackingId && isVisible,
-  });
+  useRealtimeChannel(
+    trackingId ? boardLeadsChannelName(trackingId) : null,
+    handlers,
+    { enabled: !!trackingId && isVisible },
+  );
 
+  // Ao voltar a aba a ficar visível, revalida o board (perdemos eventos
+  // enquanto a subscription estava desligada).
   useEffect(() => {
     if (!isVisible) return;
     queryClient.invalidateQueries({
       queryKey: orpc.status.getMany.queryKey({ input: { trackingId } }),
     });
   }, [isVisible, queryClient, trackingId]);
-
-  useEffect(() => {
-    if (!data.length) return;
-    if (data.length <= lastSeenIdxRef.current) return;
-
-    const slice = data.slice(lastSeenIdxRef.current);
-    lastSeenIdxRef.current = data.length;
-
-    let added = false;
-    for (const m of slice) {
-      if (m.kind !== "data") continue;
-
-      if (m.topic === "lead-moved") {
-        const d = m.data as {
-          fromStatusId: string | null;
-          toStatusId: string;
-          leadId: string;
-        };
-        if (d.fromStatusId) pendingStatusRef.current.add(d.fromStatusId);
-        pendingStatusRef.current.add(d.toStatusId);
-        pendingLeadDetailRef.current.add(d.leadId);
-        added = true;
-      } else if (m.topic === "lead-changed" || m.topic === "lead-closed") {
-        const d = m.data as { statusId: string; leadId: string };
-        pendingStatusRef.current.add(d.statusId);
-        pendingLeadDetailRef.current.add(d.leadId);
-        added = true;
-      }
-    }
-    if (!added) return;
-
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    debounceTimerRef.current = setTimeout(flush, COALESCE_MS);
-    if (!maxDelayTimerRef.current) {
-      maxDelayTimerRef.current = setTimeout(flush, MAX_DELAY_MS);
-    }
-  }, [data, flush]);
 
   useEffect(() => {
     return () => {

@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { dispatchLeadTagged, broadcastAgentWorkflowEvent } from "@/inngest/utils";
 import { eventBus } from "@/features/alerts/lib/event-bus";
 import { findLeadTaggedMatchingWorkflows } from "@/features/triggers/components/lead-tagged/find-matching-workflows";
+import { publishLeadChanged } from "@/features/leads/realtime/publish";
 
 export interface ApplyTagsByAiInput {
   leadId: string;
@@ -54,6 +55,19 @@ export async function applyTagsByAi(
 
     return { count: created.count, workflows };
   });
+
+  // Broadcast pro board (kanban) e lead-box do tracking-chat — tag aplicada
+  // por clique em botão (webhook Uazapi) ou pela IA aparece em tempo real
+  // nos clients que assinam o canal do board. O helper isola falha de
+  // transporte, então não precisa de try/catch aqui.
+  if (result.count > 0) {
+    await publishLeadChanged({
+      leadId: lead.id,
+      trackingId: lead.trackingId,
+      statusId: lead.statusId,
+      fields: ["tag"],
+    });
+  }
 
   if (result.workflows.length > 0) {
     await Promise.all(

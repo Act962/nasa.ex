@@ -31,6 +31,54 @@ export function useRevokePaymentAccess() {
   });
 }
 
+export function useVerifyPaymentOtp() {
+  return useMutation(orpc.payment.access.verifyOtp.mutationOptions());
+}
+
+export function useRequestPaymentOtp() {
+  return useMutation(orpc.payment.access.requestOtp.mutationOptions());
+}
+
+export function useMyPaymentAccess() {
+  return useQuery(orpc.payment.access.getMy.queryOptions({ input: {} }));
+}
+
+export function useUpdatePaymentRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    ...orpc.payment.access.updateRole.mutationOptions(),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+  });
+}
+
+export function useUpdatePaymentPermissions() {
+  const qc = useQueryClient();
+  return useMutation({
+    ...orpc.payment.access.updatePermissions.mutationOptions(),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+  });
+}
+
+export function useStartWebauthnRegistration() {
+  return useMutation(orpc.payment.access.startWebauthnReg.mutationOptions());
+}
+
+export function useFinishWebauthnRegistration() {
+  const qc = useQueryClient();
+  return useMutation({
+    ...orpc.payment.access.finishWebauthnReg.mutationOptions(),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+  });
+}
+
+export function useStartWebauthnAuth() {
+  return useMutation(orpc.payment.access.startWebauthnAuth.mutationOptions());
+}
+
+export function useFinishWebauthnAuth() {
+  return useMutation(orpc.payment.access.finishWebauthnAuth.mutationOptions());
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
 export function usePaymentDashboard(month?: number, year?: number) {
@@ -49,7 +97,7 @@ export function useCashflow(month?: number, year?: number) {
 
 export function usePaymentEntries(params: {
   type?: "RECEIVABLE" | "PAYABLE";
-  status?: "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED";
+  status?: "PENDING_APPROVAL" | "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED";
   search?: string;
   page?: number;
   perPage?: number;

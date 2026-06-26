@@ -31,7 +31,7 @@ src/features/space-station/
 │       ├── map-editor/     # Editor de mapas (objetos, áreas, tiles)
 │       └── scenes/         # Phaser scenes (PreloadScene, WorldScene)
 ├── hooks/                  # use-station, use-world-presence,
-│                           # use-webrtc (legacy), use-sfu-room (novo),
+│                           # use-sfu-room (mídia LiveKit),
 │                           # use-station-world
 ├── lib/                    # (placeholder p/ services de domínio — fase 2+)
 ├── utils/                  # Pipeline de sprites (Pipoya/LPC/visor)
@@ -48,8 +48,7 @@ seguindo a convenção dominante do projeto. Infra de mídia compartilhada vive 
 | Camada            | Tecnologia                                       |
 | ----------------- | ------------------------------------------------ |
 | Motor 2D          | Phaser 4 (arcade physics)                        |
-| Mídia (SFU)       | **LiveKit Cloud** + `livekit-client@^2.16`       |
-| Mídia (fallback)  | WebRTC mesh caseiro (sai na Fase 4)              |
+| Mídia             | **LiveKit Cloud** + `livekit-client@^2.19` + `@livekit/components-react` |
 | Presença/posição  | Pusher Channels (presence + private)             |
 | RPC               | oRPC + TanStack Query                            |
 | Persistência      | Prisma 7 + PostgreSQL                            |
@@ -75,29 +74,51 @@ agrupadas por função:
 
 Mutações validam ownership (USER pelo `userId`, ORG por `member` da organização ativa).
 
-### 2. Mídia — LiveKit SFU + fallback mesh (transição em curso)
+### 2. Mídia — LiveKit SFU (único transporte)
 
-Implementação atual em [`src/features/space-station/hooks/`](./hooks/):
+Implementação em [`src/features/space-station/hooks/`](./hooks/):
 
-- **[`use-sfu-room.ts`](./hooks/use-sfu-room.ts)** — hook alvo. Substitui o mesh com a
-  **mesma fachada** (`peers`, `localStream`, `micOn/camOn/screenOn`,
-  `toggleMic/Cam/Screen`, devices, bubble, …) usando LiveKit. Toggles mapeiam para
-  `room.localParticipant.setMicrophoneEnabled / setCameraEnabled / setScreenShareEnabled`
-  — adeus renegociação manual, glare e perfect-negotiation.
+- **[`use-sfu-room.ts`](./hooks/use-sfu-room.ts)** — **único** hook de mídia (o mesh P2P
+  caseiro `use-webrtc.ts` foi **removido**). Expõe `peers`, `localStream`,
+  `micOn/camOn/screenOn`, `toggleMic/Cam/Screen`, devices, bubble e a `room` LiveKit.
+  Toggles mapeiam para `room.localParticipant.setMicrophoneEnabled / setCameraEnabled /
+  setScreenShareEnabled` — adeus renegociação manual, glare e perfect-negotiation.
+  Define a forma canônica **`RemotePeer`** (que vivia no mesh). Logados **E convidados**
+  entram no SFU; todos na sala se ouvem (proximidade real fica pra Fase 2).
 - **[`use-station-world.ts`](./hooks/use-station-world.ts)** — `useJoinWorld()` busca o
   token LiveKit via oRPC ([`join-world.ts`](../../app/router/space-station/join-world.ts)).
-- **[`use-webrtc.ts`](./hooks/use-webrtc.ts)** — mesh P2P legacy. Permanece como fallback
-  controlado por feature flag `NEXT_PUBLIC_USE_SFU`. Sai na Fase 4.
+  Aceita `sessionId` (sufixo por aba pro logado), `guestId` e `guestName` (convidado).
+- **Áudio remoto:** o **`<RoomAudioRenderer>`** (`@livekit/components-react`) faz
+  `track.attach()` de todo áudio remoto e integra com `room.startAudio()` (autoplay) —
+  o mesmo caminho do POC. Montado em `space-game.tsx` só com `webrtc.room` já conectada.
+- **Vídeo remoto:** os tiles do `VideoOverlay` usam o **`<VideoTrack>`** (componente
+  pronto) → `track.attach()` com `adaptiveStream`/`dynacast` ligados (economiza banda,
+  menos "tela preta"). O preview local segue por `srcObject`.
+  Ver [`MIGRACAO-LIVEKIT-COMPONENTES.md`](./MIGRACAO-LIVEKIT-COMPONENTES.md).
 
-A escolha do transporte está em [`space-game.tsx:159`](./components/world/space-game.tsx):
+**Identidade (anti-kick do LiveKit):** o LiveKit derruba conexões que compartilham
+a mesma `identity` numa sala. Pra duas abas do mesmo usuário coexistirem, o token é
+mintado com um sufixo por aba — `identity: ${userId}:${tabSessionId}` (logado) — e o
+`use-sfu-room` remove o sufixo (`toAccountId`) ao casar participantes com a presença
+do Pusher (que segue por usuário). Convidado usa `identity: effectiveUserId`
+(já único por aba). Veja [`join-world.ts`](../../app/router/space-station/join-world.ts).
+
+A escolha do transporte está em [`space-game.tsx`](./components/world/space-game.tsx):
 
 ```ts
 const isLoggedIn = !rawUserId.startsWith("guest");
-const joinWorldQuery = useJoinWorld(stationId, { enabled: USE_SFU && isLoggedIn });
-const sfuReady = USE_SFU && isLoggedIn && Boolean(joinWorldQuery.data?.sfuToken);
-const sfu  = useSfuRoom({ token: sfuReady ? ... : null, ... });
-const mesh = useWebRTC({ ..., enabled: !sfuReady });
-const webrtc = sfuReady ? sfu : mesh;
+// Logados E convidados entram no SFU. Logado: identity `${userId}:${tabSessionId}`.
+// Convidado: identity = effectiveUserId, token só em station OPEN/pública.
+const joinWorldQuery = useJoinWorld(stationId, {
+  enabled: true,
+  sessionId: tabSessionId,
+  guestId: isLoggedIn ? undefined : effectiveUserId,
+  guestName: userName,
+});
+const sfuReady = Boolean(joinWorldQuery.data?.sfuToken && joinWorldQuery.data?.sfuWsUrl);
+// LiveKit é o ÚNICO transporte. Sem token (LiveKit off), o mundo segue
+// funcionando para movimento, só sem áudio/vídeo — não há mais fallback.
+const webrtc = useSfuRoom({ token: sfuReady ? ... : null, ... });
 ```
 
 Util transversal de mídia em [`src/lib/media/`](../../lib/media/):
@@ -117,8 +138,11 @@ LiveKit Cloud configurado via variáveis em `.env`:
 Esta camada permanece em Pusher mesmo após a migração para LiveKit (Pusher trata da
 presença global do mundo; LiveKit trata da mídia da sala/proximidade).
 
-Convidados anônimos (sem login) vêem o mundo e os avatares via Pusher, mas **não
-entram no SFU** (não publicam nem recebem mídia).
+Convidados anônimos (sem login) **também entram no SFU** em stations OPEN/públicas —
+falam e ouvem como qualquer um. O [`/api/pusher/auth`](../../app/api/pusher/auth/route.ts)
+autoriza a presença do guest usando o `?uid=` do cliente (validado, prefixo `guest`)
+para que `member.id === effectiveUserId === identity do LiveKit` — sem isso o guest
+ganhava um id derivado do socket e aparecia como avatar duplicado.
 
 ### 4. Motor — Phaser
 
@@ -167,10 +191,11 @@ são organizados por stations e usam o mesmo conceito de mapa (`mapData`, `zones
 - Lojas/templates de mundo e avatar (publicar/aplicar).
 - Acesso restrito por `accessMode` (OPEN/MEMBERS_ONLY/REQUEST) + pedidos.
 
-### O que está atrás de feature flag
-- **Transporte de mídia LiveKit** (`NEXT_PUBLIC_USE_SFU`, default ON). Sem credenciais
-  LiveKit ou para convidados, cai automaticamente no mesh.
-- Banner "clique para ativar áudio" / "reconectando" só aparece no caminho LiveKit.
+### Notas de mídia
+- **LiveKit é o único transporte** (mesh removido). Sem credenciais LiveKit, o mundo
+  funciona para movimento mas sem áudio/vídeo — não há fallback.
+- Áudio destravado pelo `<RoomAudioRenderer>` + `audio-unlock.ts` (gesto → `startAudio`),
+  **sem banner**. Banner de "reconectando" segue ativo.
 
 ### O que é placeholder
 - **Áreas NASA**: handlers de `n-box`, `balcao`, `auditorio`, `prateleira`,
@@ -202,8 +227,9 @@ Faseamento detalhado em
 `.claude/plans/precisamos-concertar-esse-app-temporal-meadow.md`. Resumo:
 
 ### Fase 1 — Estabilizar a mídia (entregue)
-LiveKit SFU substitui o mesh por trás de feature flag; autoplay tratado; banners de
-reconexão/áudio bloqueado. Movimento e UI inalterados. **Pronto.**
+LiveKit SFU como transporte único; áudio remoto via `<RoomAudioRenderer>` (componente
+pronto, mesmo caminho do POC); autoplay tratado; banner de reconexão. Mesh P2P, sua
+sinalização (`/api/pusher/rtc`) e a flag `NEXT_PUBLIC_USE_SFU` **removidos**. **Pronto.**
 
 ### Fase 2 — Zonas, proximidade e unificação com `world-events`
 - `src/features/space-station/lib/zones.ts` deriva zonas das `MapArea` já
@@ -224,7 +250,7 @@ reconexão/áudio bloqueado. Movimento e UI inalterados. **Pronto.**
 - Pelo menos `n-box`, `auditorio` e `prateleira` abrindo telas reais.
 
 ### Fase 4 — Limpeza arquitetural
-- Remover `use-webrtc.ts`, `/api/pusher/rtc`, flag `NEXT_PUBLIC_USE_SFU`.
+- ~~Remover `use-webrtc.ts`, `/api/pusher/rtc`, flag `NEXT_PUBLIC_USE_SFU`.~~ ✅ **Feito.**
 - Arquivar/excluir `communication-bubble.tsx`.
 - Quebrar `world-scene.ts` em sistemas (`proximity-system`, `area-system`,
   `remote-players`, `map-editor-system`, `zoom-camera`) com a scene como
@@ -311,9 +337,9 @@ Lista não-ordenada, sem compromisso de prazo:
    [`CLAUDE.md`](../../../CLAUDE.md)): `pnpm dev` + Docker do Postgres + Inngest.
 2. **Variáveis críticas** específicas do mundo:
    - `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_WS_URL`,
-     `NEXT_PUBLIC_LIVEKIT_URL` — sem isso, cai no mesh.
+     `NEXT_PUBLIC_LIVEKIT_URL` — sem isso, o mundo funciona sem áudio/vídeo (não há
+     mais fallback mesh).
    - `NEXT_PUBLIC_PUSHER_*`, `PUSHER_APP_ID`, `PUSHER_SECRET`.
-   - `NEXT_PUBLIC_USE_SFU=false` para forçar o mesh durante debug.
 3. **Onde começar a ler**:
    - Para mídia: [`use-sfu-room.ts`](./hooks/use-sfu-room.ts) +
      [`join-world.ts`](../../app/router/space-station/join-world.ts) +

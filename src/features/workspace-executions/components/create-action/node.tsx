@@ -8,7 +8,7 @@ import {
   CreateActionDialog,
   CreateActionFormValues,
 } from "./dialog";
-import { useNodeStatus } from "@/features/executions/hook/use-node-status";
+import { useNodeStatus } from "@/features/tracking-executions/hook/use-node-status";
 import { WS_CREATE_ACTION_CHANNEL_NAME } from "@/inngest/channels/workspace";
 import { fetchWsCreateActionToken } from "../../lib/realtime-tokens";
 

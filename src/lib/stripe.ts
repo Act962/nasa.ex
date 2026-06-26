@@ -69,11 +69,16 @@ export function getStripe(): Stripe {
 
 export interface CreateCheckoutParams {
   priceId: string;
-  mode: "subscription" | "payment";
+  /**
+   * Subscriptions vivem no fluxo do better-auth (não passam por aqui).
+   * Este helper é só pra one-shot (topup de Stars). Ver
+   * [docs/subscription-org-model.md].
+   */
+  mode: "payment";
   successUrl: string;
   cancelUrl: string;
   organizationId: string;
-  itemType: "plan" | "topup";
+  itemType: "topup";
   itemSlug: string;
   customerId?: string;
   customerEmail?: string;
@@ -93,6 +98,10 @@ export interface CreateCheckoutParams {
 export async function createCheckoutSession(
   params: CreateCheckoutParams,
 ): Promise<{ url: string; sessionId: string }> {
+  // Subscriptions vivem 100% no fluxo do better-auth
+  // (`authClient.subscription.upgrade()` / `billingPortal()`); o tipo de
+  // `CreateCheckoutParams.mode` já restringe a `"payment"`. Este helper
+  // serve só pra one-shot de topup de Stars.
   const stripe = getStripe();
 
   const hourBucket = Math.floor(Date.now() / (60 * 60 * 1000));

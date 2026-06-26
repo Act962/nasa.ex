@@ -13,7 +13,7 @@ export default function MarketingLayout({
   // e exibe "Entrar no NASA" em vez dos botões de cadastro.
 
   return (
-    <div className="relative bg-black min-h-screen overflow-x-hidden">
+    <div className="dark relative bg-black min-h-screen overflow-x-hidden">
       <Navbar />
       <main className="relative z-10">{children}</main>
       {/* Fixed star background */}

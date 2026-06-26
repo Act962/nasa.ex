@@ -9,7 +9,6 @@ import {
   Trash2,
   Sparkles,
   CheckCircle2,
-  Star,
   FileText,
   Link2,
   Loader2,
@@ -195,12 +194,20 @@ export function PlansManager({ courseId, lessons, modules }: Props) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 text-amber-700 dark:text-amber-300">
-                  <Star className="size-4 fill-current" />
-                  <span className="text-lg font-bold">
-                    {plan.priceStars === 0
+                <div className="flex items-baseline gap-1">
+                  <span
+                    className={
+                      plan.priceBrlCents === 0
+                        ? "text-lg font-bold text-emerald-700 dark:text-emerald-300"
+                        : "text-lg font-bold text-foreground"
+                    }
+                  >
+                    {plan.priceBrlCents === 0
                       ? "Grátis"
-                      : `${plan.priceStars.toLocaleString("pt-BR")} ★`}
+                      : (plan.priceBrlCents / 100).toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })}
                   </span>
                 </div>
 

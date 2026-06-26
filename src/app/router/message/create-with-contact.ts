@@ -34,7 +34,11 @@ export const createContactMessage = base
     z.object({
       conversationId: z.string(),
       leadPhone: z.string(),
-      token: z.string(),
+      /**
+       * @deprecated Ignorado pelo servidor desde Fase 6 — provider
+       * resolvido server-side via `resolveOutboundProvider(trackingId)`.
+       */
+      token: z.string().nullish(),
       contactName: z.string().min(1),
       contactPhone: z.string().min(1),
       replyId: z.string().optional(),
@@ -55,7 +59,22 @@ export const createContactMessage = base
       const channel = conversation?.channel ?? MessageChannel.WHATSAPP;
       const organizationId = conversation?.tracking?.organizationId;
 
-      // Cobra 1★ antes de chamar uazapi — evita custo de API sem saldo.
+      // ── In-Chat Fallback ─────────────────────────────────────────────
+      const inChatMode =
+        channel === MessageChannel.WHATSAPP &&
+        (await shouldSkipUazapiForConversation(input.conversationId));
+
+      // Resolve provider ANTES de cobrar ★ (Fix #2).
+      let resolvedWhatsapp: Awaited<ReturnType<typeof resolveOutboundProvider>> | null = null;
+      if (channel === MessageChannel.WHATSAPP && !inChatMode) {
+        if (!conversation?.trackingId) {
+          throw new Error(
+            "Conversation sem trackingId — não é possível resolver provider.",
+          );
+        }
+        resolvedWhatsapp = await resolveOutboundProvider(conversation.trackingId);
+      }
+
       if (organizationId) {
         await chargeMessageOutbound({
           organizationId,
@@ -70,20 +89,10 @@ export const createContactMessage = base
         });
       }
 
-      // ── In-Chat Fallback ─────────────────────────────────────────────
-      const inChatMode =
-        channel === MessageChannel.WHATSAPP &&
-        (await shouldSkipUazapiForConversation(input.conversationId));
-
       let messageid = uuidv4();
       if (!inChatMode) {
-        // Provider dispatch (Fase 6).
-        if (!conversation?.trackingId) {
-          throw new Error(
-            "Conversation sem trackingId — não é possível resolver provider.",
-          );
-        }
-        const resolved = await resolveOutboundProvider(conversation.trackingId);
+        // Provider já resolvido lá em cima — reusa.
+        const resolved = resolvedWhatsapp!;
         try {
           const response = await resolved.provider.sendContact({
             kind: "contact",

@@ -5,7 +5,7 @@
  *
  * Wrapper minimalista pra conectar numa Room SFU, publicar tracks locais
  * e receber tracks remotas. O hook `use-sfu-room` consome essas funções
- * pra expor um modelo análogo ao `useWebRTC` (mesh).
+ * pra expor a fachada `RemotePeer` que os overlays do mundo consomem.
  *
  * Import dinâmico do `livekit-client` (lazy load) — evita inflar o bundle
  * inicial quando o user não está num World/SFU room.

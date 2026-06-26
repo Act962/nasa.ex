@@ -26,7 +26,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   Popover,
@@ -46,8 +45,6 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 export function TokenMeter() {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -93,40 +90,35 @@ export function TokenMeter() {
             <PopoverTrigger asChild>
               <SidebarMenuButton
                 tooltip={`Tokens IA: ${formatTokens(tokens)} (${formatBrl(cost)}) no ciclo`}
-                className={cn(
-                  "data-[state=open]:bg-accent",
-                  collapsed && "justify-center",
-                )}
+                className="data-[state=open]:bg-accent"
               >
                 <Brain className="size-4 shrink-0" />
-                {!collapsed && (
-                  <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                    <div className="flex items-center justify-between gap-2 text-[11px]">
-                      <span className="text-foreground/80 font-medium truncate">
-                        Tokens IA
-                      </span>
-                      <span className="tabular-nums text-foreground/90">
-                        {formatTokens(tokens)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2 text-[10px]">
-                      <span className="text-muted-foreground tabular-nums">
-                        {formatBrl(cost)}
-                      </span>
-                      {trendTokens !== null && (
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-0.5 tabular-nums",
-                            trendColor,
-                          )}
-                        >
-                          {trendIcon}
-                          {Math.abs(Math.round(trendTokens))}%
-                        </span>
-                      )}
-                    </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-0.5 group-data-[collapsible=icon]:hidden">
+                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                    <span className="text-foreground/80 font-medium truncate">
+                      Tokens IA
+                    </span>
+                    <span className="tabular-nums text-foreground/90">
+                      {formatTokens(tokens)}
+                    </span>
                   </div>
-                )}
+                  <div className="flex items-center justify-between gap-2 text-[10px]">
+                    <span className="text-muted-foreground tabular-nums">
+                      {formatBrl(cost)}
+                    </span>
+                    {trendTokens !== null && (
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-0.5 tabular-nums",
+                          trendColor,
+                        )}
+                      >
+                        {trendIcon}
+                        {Math.abs(Math.round(trendTokens))}%
+                      </span>
+                    )}
+                  </div>
+                </div>
               </SidebarMenuButton>
             </PopoverTrigger>
             <PopoverContent

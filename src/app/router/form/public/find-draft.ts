@@ -61,11 +61,11 @@ export const findDraftByPhone = base
       });
       if (!lead) return { draft: null };
 
-      // Último FormResponses do lead pra esse form. Não filtramos por
-      // estado — UI decide se vale a pena retomar baseado no
-      // `jsonResponse` (vazio = nada salvo).
+      // Último rascunho incompleto do lead pra esse form.
+      // completedAt: null garante que só drafts ainda em aberto são retomados
+      // — respostas já finalizadas (enviadas via submitResponse) são ignoradas.
       const draft = await prisma.formResponses.findFirst({
-        where: { leadId: lead.id, formId: form.id },
+        where: { leadId: lead.id, formId: form.id, completedAt: null },
         orderBy: { createdAt: "desc" },
         select: {
           id: true,

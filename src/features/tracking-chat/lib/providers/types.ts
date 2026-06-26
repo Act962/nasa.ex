@@ -198,6 +198,22 @@ interface SendBase {
   readonly to: string;
   /** Reply: external id da mensagem que estamos respondendo. */
   readonly replyToExternalMessageId?: string;
+  /**
+   * Quando `true` (default), peça ao provider pra marcar as mensagens
+   * anteriores do chat/lead como lidas no celular do destinatário ao
+   * enviar — isto é, exibir o "tick azul" pro lead assim que o atendente
+   * responde.
+   *
+   * Uazapi mapeia direto pra `readmessages: true, readchat: true` no
+   * payload de envio (todos os endpoints `/send/*`). Meta Cloud API não
+   * tem flag equivalente outbound — o adapter ignora.
+   *
+   * Default `true` preserva o comportamento que o chat Uazapi sempre teve
+   * pré-Fase 6 (e que foi acidentalmente perdido na refactor de
+   * `router/message/*` que passou a despachar via PORT canônica sem o
+   * flag).
+   */
+  readonly markPreviousAsRead?: boolean;
 }
 
 export interface SendCanonicalText extends SendBase {

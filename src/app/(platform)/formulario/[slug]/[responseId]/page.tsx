@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useMutation } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -11,11 +12,19 @@ import {
   useQueryFormResponseById,
   useMutationUpdateResponse,
 } from "@/features/form/hooks/use-form";
-import { FormSubmitComponent } from "@/features/form/components/public/form-submit-component";
+import { FormSubmitComponent } from "@/features/form/components/public/form-submit/form-submit-component";
 import { FormLeadProvider } from "@/features/form/context/form-lead-context";
 import type { FieldValue, FormBlockInstance } from "@/features/form/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { orpc } from "@/lib/orpc";
+
+const FormPrintButton = dynamic(
+  () =>
+    import("@/features/form/components/pdf/form-print-button").then(
+      (module_) => ({ default: module_.FormPrintButton }),
+    ),
+  { ssr: false },
+);
 
 /**
  * Página de "continuar preenchimento" de uma resposta de formulário, acessada
@@ -36,7 +45,8 @@ export default function Page() {
   const responseId = params.responseId;
   const router = useRouter();
 
-  const { response, isLoading, isError, error } = useQueryFormResponseById(responseId);
+  const { response, isLoading, isError, error } =
+    useQueryFormResponseById(responseId);
   const updateMutation = useMutationUpdateResponse();
 
   // Valores iniciais convertidos pra `FieldValue` (a estrutura interna que o
@@ -203,6 +213,13 @@ export default function Page() {
             </Button>
           )}
 
+          <FormPrintButton
+            blocks={blocks}
+            formName={response.form.name}
+            leadName={response.lead?.name ?? undefined}
+            responseValues={initialResponseValues}
+          />
+
           {/* Status atual do lead com cor */}
           {status && (
             <div
@@ -210,9 +227,7 @@ export default function Page() {
               style={{
                 borderColor: status.color || undefined,
                 color: status.color || undefined,
-                background: status.color
-                  ? `${status.color}15`
-                  : undefined,
+                background: status.color ? `${status.color}15` : undefined,
               }}
               title="Status atual do lead"
             >

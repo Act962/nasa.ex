@@ -1,5 +1,5 @@
-import { leadContext } from "@/features/executions/schemas";
-import { NodeExecutor } from "@/features/executions/types";
+import { leadContext } from "@/features/tracking-executions/schemas";
+import { NodeExecutor } from "@/features/tracking-executions/types";
 import prisma from "@/lib/prisma";
 import { NonRetriableError } from "inngest";
 import { LeadTaggedTriggerFormValues } from "./dialog";

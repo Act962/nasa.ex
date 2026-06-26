@@ -252,6 +252,7 @@ export class UazapiProvider implements WhatsAppChatProvider {
   constructor(private readonly config: UazapiProviderConfig) {}
 
   async sendText(input: SendCanonicalText): Promise<SendResult> {
+    const markRead = input.markPreviousAsRead ?? true;
     const response = await sendText(
       this.config.token,
       {
@@ -259,6 +260,8 @@ export class UazapiProvider implements WhatsAppChatProvider {
         text: input.body,
         linkPreview: input.previewUrl ?? false,
         replyid: input.replyToExternalMessageId,
+        readmessages: markRead,
+        readchat: markRead,
       },
       this.config.baseUrl,
     );
@@ -275,6 +278,7 @@ export class UazapiProvider implements WhatsAppChatProvider {
         "UazapiProvider.sendMedia: `mediaUrl` é obrigatório (Uazapi não suporta `mediaId`).",
       );
     }
+    const markRead = input.markPreviousAsRead ?? true;
     const response = await sendMedia(
       this.config.token,
       {
@@ -285,6 +289,8 @@ export class UazapiProvider implements WhatsAppChatProvider {
         docName: input.fileName,
         mimetype: input.mimetype,
         replyid: input.replyToExternalMessageId,
+        readmessages: markRead,
+        readchat: markRead,
       },
       this.config.baseUrl,
     );
@@ -295,6 +301,7 @@ export class UazapiProvider implements WhatsAppChatProvider {
   }
 
   async sendLocation(input: SendCanonicalLocation): Promise<SendResult> {
+    const markRead = input.markPreviousAsRead ?? true;
     const response = await sendLocation(
       this.config.token,
       {
@@ -304,6 +311,8 @@ export class UazapiProvider implements WhatsAppChatProvider {
         name: input.name,
         address: input.address,
         replyid: input.replyToExternalMessageId,
+        readmessages: markRead,
+        readchat: markRead,
       },
       this.config.baseUrl,
     );
@@ -314,6 +323,7 @@ export class UazapiProvider implements WhatsAppChatProvider {
   }
 
   async sendContact(input: SendCanonicalContact): Promise<SendResult> {
+    const markRead = input.markPreviousAsRead ?? true;
     const response = await sendContact(
       this.config.token,
       {
@@ -323,6 +333,8 @@ export class UazapiProvider implements WhatsAppChatProvider {
         organization: input.organization,
         email: input.email,
         replyid: input.replyToExternalMessageId,
+        readmessages: markRead,
+        readchat: markRead,
       },
       this.config.baseUrl,
     );
@@ -436,9 +448,18 @@ export class UazapiProvider implements WhatsAppChatProvider {
         pickString(content, "title") ||
         pickString(message, "vote") ||
         "";
+      // Resposta de lista (ListResponseMessage) traz o id da linha aninhado
+      // em `content.singleSelectReply.selectedRowID` (note o `ID` maiúsculo no
+      // payload real da uazapi) e/ou plano em `message.buttonOrListid`. Resposta
+      // de botão usa `content.selectedButtonId`. Cobrir os dois shapes mantém o
+      // `buttonTagMap[replyId]` casando para botões E listas.
+      const singleSelectReply = pick(content, "singleSelectReply");
       const replyId =
         pickString(content, "selectedButtonId") ??
         pickString(content, "selectedRowId") ??
+        pickString(singleSelectReply, "selectedRowID") ??
+        pickString(singleSelectReply, "selectedRowId") ??
+        pickString(message, "buttonOrListid") ??
         pickString(content, "id");
       const interactive: CanonicalInboundInteractiveReply = {
         ...base,

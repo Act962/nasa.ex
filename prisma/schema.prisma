@@ -66,6 +66,8 @@ model User {
   paymentEntriesCreated              PaymentEntry[]               @relation("PaymentEntryCreatedBy")
   paymentAccess                      PaymentAccess[]              @relation("PaymentAccessUser")
   paymentAccessGranted               PaymentAccess[]              @relation("PaymentAccessAuthorizer")
+  paymentApprovalsRequested          PaymentApprovalRequest[]     @relation("PaymentApprovalRequester")
+  paymentApprovalDecisions           PaymentApprovalDecision[]    @relation("PaymentApprovalDecider")
   nasaCampaignPlannersCreated        NasaCampaignPlanner[]        @relation("NasaCampaignPlannerCreatedBy")
   nasaCampaignOnboardingsResponsible NasaCampaignOnboarding[]     @relation("NasaCampaignOnboardingResponsible")
   nasaCampaignTasksAssigned          NasaCampaignTask[]           @relation("NasaCampaignTaskAssignee")
@@ -255,6 +257,12 @@ model Organization {
   verifiedAt DateTime? @map("verified_at")
   verifiedBy String?   @map("verified_by") // userId do admin que verificou
 
+  // ── Integração NERP — Financeiro (placeholder Fase 2) ─────
+  // Toggle pra deixar a org "pronta" pra receber sync de faturas/recebimentos
+  // com NERP quando a API financeira do NERP estiver disponível. Hoje a flag
+  // só é persistida e exibida em Settings; nenhum sync acontece ainda.
+  nerpFinancialEnabled Boolean @default(false) @map("nerp_financial_enabled")
+
   members                Member[]
   invitations            Invitation[]
   inviteLinks            OrganizationInviteLink[]
@@ -299,12 +307,15 @@ model Organization {
   spacePointPrizes       SpacePointRankingPrize[]
 
   // NASA Payment
-  paymentBankAccounts PaymentBankAccount[]
-  paymentCategories   PaymentCategory[]
-  paymentCostCenters  PaymentCostCenter[]
-  paymentContacts     PaymentContact[]
-  paymentEntries      PaymentEntry[]
-  paymentAccess       PaymentAccess[]
+  paymentBankAccounts      PaymentBankAccount[]
+  paymentCategories        PaymentCategory[]
+  paymentCostCenters       PaymentCostCenter[]
+  paymentContacts          PaymentContact[]
+  paymentEntries           PaymentEntry[]
+  paymentAccess            PaymentAccess[]
+  paymentApprovalRequests  PaymentApprovalRequest[]
+  paymentGovernanceConfig  PaymentGovernanceConfig?
+  paymentDunningRules      PaymentDunningRule[]
 
   // NASA Campaign Planner
   nasaCampaignPlanners NasaCampaignPlanner[]
@@ -637,6 +648,14 @@ enum AiProvider {
   GOOGLE
 }
 
+// Formato de renderização de um menu interativo no WhatsApp. BUTTON = botões
+// rápidos; LIST = lista com seções abertas por um botão. Mesma composição de
+// itens (text/id/tagId) nos dois — só muda o envio (sendButtons vs sendList).
+enum MenuFormat {
+  BUTTON
+  LIST
+}
+
 // Telemetria de execuções do chat-ai (uma linha por chamada ao modelo).
 // `provider` null = default NASA (chave/modelo da plataforma); preenchido
 // quando o tracking está usando BYO. Custo não persistido nesta fase.
@@ -669,6 +688,10 @@ model AiButtonPreset {
   bodyText    String   @map("body_text")
   footerText  String?  @map("footer_text")
   buttons     Json
+  // Formato de envio do preset. LIST reusa `buttons` como linhas da lista.
+  menuFormat  MenuFormat @default(BUTTON) @map("menu_format")
+  // Rótulo do botão que abre a lista (só usado quando menuFormat = LIST).
+  listButton  String?    @map("list_button")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -953,6 +976,7 @@ model Lead {
   paymentEntries            PaymentEntry[]
   // NASA Auto Agent — sessões abertas pra este lead
   agentSessions             LeadAgentSession[]
+  dailyTriggerClaims        LeadDailyTriggerClaim[]
 
   @@unique([phone, trackingId])
   @@index([trackingId])
@@ -1630,9 +1654,10 @@ model Workflow {
   folder    WorkflowFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   agent     Agent?          @relation("AgentWorkflow", fields: [agentId], references: [id], onDelete: SetNull)
 
-  nodes       Node[]
-  connections Connection[]
-  runs        WorkflowRun[]
+  nodes             Node[]
+  connections       Connection[]
+  runs              WorkflowRun[]
+  dailyTriggerClaims LeadDailyTriggerClaim[]
 
   @@index([trackingId])
   @@index([workspaceId])
@@ -1733,6 +1758,11 @@ enum NodeType {
   // Gatilho time-based: dispara quando o lead fica X minutos sem mandar
   // mensagem nova (computado a partir de `Lead.lastInboundAt`).
   LAST_INBOUND_TIMEOUT
+  // Dispara na primeira interação (inbound) do lead num "dia lógico" que
+  // vira numa hora configurável (default 08:00, fuso America/Sao_Paulo).
+  // Para lead que JÁ está na base e volta a mandar mensagem após dias
+  // inativo — complementa o NEW_LEAD (que cobre só lead recém-criado).
+  FIRST_INTERACTION_OF_DAY
   // LEAD_UNTAGGED
 
   // Execuções
@@ -1838,7 +1868,32 @@ model Node {
   outputConnections Connection[] @relation("FromNode")
   inputConnections  Connection[] @relation("ToNode")
 
+  // Acelera o lookup de workflows por tipo de gatilho — `nodes: { some: { type } }`
+  // roda no hot path de TODO inbound (FIRST_INTERACTION_OF_DAY) e na criação de
+  // lead (NEW_LEAD), além de first-chat/lead-tagged. Sem isso o EXISTS varre `nodes`.
+  @@index([workflowId, type])
   @@map("nodes")
+}
+
+/// Idempotência do gatilho FIRST_INTERACTION_OF_DAY. Guarda, por (lead, workflow),
+/// a chave do "dia lógico" (YYYY-MM-DD no fuso configurado) em que o gatilho
+/// disparou pela última vez. O claim atômico (unique + create) garante que, mesmo
+/// sob mensagens concorrentes do mesmo lead, o fluxo dispare no máximo 1x por dia.
+/// Uma linha por (lead, workflow) — `dayKey` é sobrescrito a cada novo dia, então
+/// o crescimento é limitado a (#leads × #workflows com o gatilho).
+model LeadDailyTriggerClaim {
+  id         String   @id @default(cuid())
+  leadId     String   @map("lead_id")
+  workflowId String   @map("workflow_id")
+  dayKey     String   @map("day_key")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, workflowId])
+  @@index([workflowId])
+  @@map("lead_daily_trigger_claim")
 }
 
 model Connection {
@@ -2049,6 +2104,7 @@ model Message {
   // Útil pra distinguir no histórico mensagens que tiveram trajeto
   // diferente — em Insights, por ex., separar "via WA" vs "via In-Chat".
   viaInChat Boolean @default(false) @map("via_in_chat")
+  metadata  Json?   @map("metadata")
 
   conversation Conversation  @relation("Messages", fields: [conversationId], references: [id], onDelete: Cascade)
   LastMessage  Conversation?
@@ -2764,6 +2820,7 @@ model Plan {
   sortOrder       Int      @default(0) @map("sort_order")
   monthlyStars    Int      @map("monthly_stars")
   priceMonthly    Decimal  @map("price_monthly") @db.Decimal(10, 2)
+  priceLabel      String?  @map("price_label") // override do texto no canto direito do card (ex: "Gratuito", "Sob consulta"). Quando nulo cai no default ("R$ X" ou "Consultar" se price=0).
   billingType     String   @default("monthly") @map("billing_type") // monthly | annual | weekly
   maxUsers        Int      @default(3) @map("max_users")
   rolloverPct     Int      @default(30) @map("rollover_pct")
@@ -3251,6 +3308,10 @@ model OrgPermission {
   canCreate      Boolean      @default(true) @map("can_create")
   canEdit        Boolean      @default(false) @map("can_edit")
   canDelete      Boolean      @default(false) @map("can_delete")
+  // Actions financeiras (só interpretadas quando appKey = "financeiro").
+  // owner/admin default true; member/moderador default false.
+  canApprove     Boolean      @default(false) @map("can_approve")
+  canPay         Boolean      @default(false) @map("can_pay")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
@@ -3965,6 +4026,7 @@ model ProcessedStripeEvent {
 // ─────────────────────────────────────────────
 
 enum FinancialEntryStatus {
+  PENDING_APPROVAL // Aguardando aprovação (apenas pra entries com governança ativada)
   PENDING // Pendente
   PARTIAL // Pago Parcial
   PAID // Pago
@@ -4072,15 +4134,33 @@ model PaymentContact {
 }
 
 model PaymentAccess {
-  id             String   @id @default(cuid())
-  userId         String   @map("user_id")
-  organizationId String   @map("organization_id")
-  passwordHash   String   @map("password_hash")
-  isAuthorized   Boolean  @default(false) @map("is_authorized")
-  phone          String? // para envio de PIN via WhatsApp
-  authorizedById String?  @map("authorized_by_id")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id             String      @id @default(cuid())
+  userId         String      @map("user_id")
+  organizationId String      @map("organization_id")
+  passwordHash   String      @map("password_hash")
+  isAuthorized   Boolean     @default(false) @map("is_authorized")
+  phone          String? // para envio de PIN/OTP via WhatsApp (fallback do User.phone)
+  authorizedById String?     @map("authorized_by_id")
+  // Role base. `permissions` (JSON) sobrescreve por recurso quando preenchido.
+  role           PaymentRole @default(VIEWER)
+  // Override granular por recurso. Estrutura:
+  //   { entries:{view,create,edit,delete}, accounts:{...}, categories:{...},
+  //     contacts:{...}, dashboard:{...}, settings:{...} }
+  // null/ausente = usa default da role.
+  permissions    Json?
+  // Contador de sessões abertas. Incrementa a cada login bem-sucedido. Quando
+  // sessionCount % governance.otpEveryNSessions === 0, exige OTP WhatsApp.
+  sessionCount   Int         @default(0) @map("session_count")
+  lastOtpAt      DateTime?   @map("last_otp_at")
+  // OTP corrente (6 dígitos, hash bcrypt). Setado no requestPaymentOtp e
+  // limpo no verifyPaymentOtp bem-sucedido.
+  pendingOtpHash      String?   @map("pending_otp_hash")
+  pendingOtpExpiresAt DateTime? @map("pending_otp_expires_at")
+  // Credenciais WebAuthn (Face ID, Touch ID, Windows Hello, passkeys). Array:
+  //   [{ credentialId, publicKey, counter, transports[], createdAt, label }]
+  webauthnCredentials Json?    @map("webauthn_credentials")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
 
   user         User         @relation("PaymentAccessUser", fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -4126,18 +4206,35 @@ model PaymentEntry {
   isRecurring    Boolean @default(false) @map("is_recurring")
   recurrenceType String? @map("recurrence_type") // daily, weekly, monthly, yearly
 
+  // ── Governança (Fase 2) ────────────────────────────────────
+  // `requiresApproval`: flag manual no form ("Exigir aprovação").
+  // `approvalThresholdAmountCents`: snapshot do threshold de `PaymentGovernanceConfig`
+  // no momento da criação — preserva história se a config global mudar.
+  // Trigger pra criar `PaymentApprovalRequest`: requiresApproval=true OU
+  // (payableRequiresApproval && type=PAYABLE) OU (amount >= approvalThresholdAmountCents).
+  requiresApproval             Boolean @default(false) @map("requires_approval")
+  approvalThresholdAmountCents Int?    @map("approval_threshold_amount_cents")
+
+  // ── Régua de cobrança (Fase 2) ─────────────────────────────
+  // Régua atribuída a esta entry (só faz sentido em RECEIVABLE). Quando setado,
+  // o cron `payment-dunning-runner` dispara steps conforme `dueDate + step.daysOffset`.
+  dunningRuleId String? @map("dunning_rule_id")
+
   createdById String?  @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  category     PaymentCategory?    @relation(fields: [categoryId], references: [id])
-  costCenter   PaymentCostCenter?  @relation(fields: [costCenterId], references: [id])
-  contact      PaymentContact?     @relation(fields: [contactId], references: [id])
-  account      PaymentBankAccount? @relation(fields: [accountId], references: [id])
-  tracking     Tracking?           @relation(fields: [trackingId], references: [id], onDelete: SetNull)
-  lead         Lead?               @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  createdBy    User?               @relation("PaymentEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  organization      Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category          PaymentCategory?           @relation(fields: [categoryId], references: [id])
+  costCenter        PaymentCostCenter?         @relation(fields: [costCenterId], references: [id])
+  contact           PaymentContact?            @relation(fields: [contactId], references: [id])
+  account           PaymentBankAccount?        @relation(fields: [accountId], references: [id])
+  tracking          Tracking?                  @relation(fields: [trackingId], references: [id], onDelete: SetNull)
+  lead              Lead?                      @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  createdBy         User?                      @relation("PaymentEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  approvalRequest   PaymentApprovalRequest?
+  dunningRule       PaymentDunningRule?        @relation(fields: [dunningRuleId], references: [id], onDelete: SetNull)
+  dunningExecutions PaymentDunningExecution[]
 
   @@index([organizationId])
   @@index([type])
@@ -4148,7 +4245,186 @@ model PaymentEntry {
   @@index([installmentGroupId])
   @@index([trackingId])
   @@index([leadId])
+  @@index([dunningRuleId])
   @@map("payment_entries")
+}
+
+// ─────────────────────────────────────────────
+// NASA PAYMENT — GOVERNANÇA (Fase 2)
+// ─────────────────────────────────────────────
+
+enum PaymentApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PaymentApprovalDecisionKind {
+  APPROVE
+  REJECT
+}
+
+// Roles do PaymentAccess. Ordem de poder: OWNER > ADMIN > EDITOR > VIEWER.
+// VIEWER: só lê. EDITOR: cria/edita. ADMIN: também exclui. OWNER: também
+// concede/revoga acesso de outros usuários.
+enum PaymentRole {
+  VIEWER
+  EDITOR
+  ADMIN
+  OWNER
+}
+
+// Config global por org pra aprovação de pagamento. Tabela dedicada (não inflando
+// Organization) — segue padrão de PaymentAccess. 1:1 com Organization via @unique.
+model PaymentGovernanceConfig {
+  id                          String   @id @default(cuid())
+  organizationId              String   @unique @map("organization_id")
+  // Threshold em centavos: PAYABLE >= esse valor exige aprovação. null = sem threshold.
+  autoApprovalThresholdCents  Int?     @map("auto_approval_threshold_cents")
+  // Se true, TODO PAYABLE exige aprovação (independente do valor).
+  payableRequiresApproval     Boolean  @default(false) @map("payable_requires_approval")
+  // Após X horas sem decisão, cron `payment-approval-reminder` re-notifica aprovadores.
+  notifyApproversAfterHours   Int      @default(24) @map("notify_approvers_after_hours")
+  // Tempo (em minutos) de inatividade no PaymentGate antes de auto-lock.
+  sessionTimeoutMinutes       Int      @default(30) @map("session_timeout_minutes")
+  // A cada N sessões abertas, exige OTP novo via WhatsApp (em vez de só senha).
+  otpEveryNSessions           Int      @default(10) @map("otp_every_n_sessions")
+  createdAt                   DateTime @default(now()) @map("created_at")
+  updatedAt                   DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("payment_governance_config")
+}
+
+// Pedido de aprovação de um PaymentEntry. 1:1 com PaymentEntry (entryId @unique).
+// `decidedAt`/`lastNotifiedAt` são derivados — `decidedAt` é o timestamp da decisão
+// que mudou o status (último APPROVE/REJECT); `lastNotifiedAt` é gerenciado pelo
+// cron de reminder pra evitar spam de notificações.
+model PaymentApprovalRequest {
+  id              String                @id @default(cuid())
+  organizationId  String                @map("organization_id")
+  entryId         String                @unique @map("entry_id")
+  requestedById   String                @map("requested_by_id")
+  requestedAt     DateTime              @default(now()) @map("requested_at")
+  status          PaymentApprovalStatus @default(PENDING)
+  // Quórum mínimo de aprovações pra status virar APPROVED. MVP sempre 1;
+  // estrutura já preparada pra Fase 2.5 com quórum >1 sem migration nova.
+  minApprovers    Int                   @default(1) @map("min_approvers")
+  decidedAt       DateTime?             @map("decided_at")
+  lastNotifiedAt  DateTime?             @map("last_notified_at")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  organization Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entry        PaymentEntry                @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  requestedBy  User                        @relation("PaymentApprovalRequester", fields: [requestedById], references: [id])
+  decisions    PaymentApprovalDecision[]
+
+  @@index([organizationId, status])
+  @@index([requestedById])
+  @@map("payment_approval_requests")
+}
+
+// Trilha de auditoria — cada clique de aprovar/rejeitar gera 1 row. Permite
+// quórum N>1 no futuro sem migration: a request vira APPROVED quando o número
+// de APPROVE únicos atinge `minApprovers`, e REJECTED no primeiro REJECT.
+model PaymentApprovalDecision {
+  id          String                       @id @default(cuid())
+  requestId   String                       @map("request_id")
+  userId      String                       @map("user_id")
+  decision    PaymentApprovalDecisionKind
+  reason      String?
+  decidedAt   DateTime                     @default(now()) @map("decided_at")
+
+  request PaymentApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User                   @relation("PaymentApprovalDecider", fields: [userId], references: [id])
+
+  @@index([requestId])
+  @@index([userId])
+  @@map("payment_approval_decisions")
+}
+
+// ─────────────────────────────────────────────
+// NASA PAYMENT — RÉGUA DE COBRANÇA (Fase 2)
+// ─────────────────────────────────────────────
+
+enum PaymentDunningChannel {
+  EMAIL
+  WHATSAPP
+  SMS // marcado SKIPPED no MVP; reservado pra Fase 2.5
+}
+
+enum PaymentDunningExecutionStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+// Régua de cobrança configurável por org. Org pode ter N réguas; uma marcada
+// como `isDefault` é usada como sugestão no EntryForm pra novos RECEIVABLE.
+model PaymentDunningRule {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  name           String
+  isActive       Boolean  @default(true) @map("is_active")
+  isDefault      Boolean  @default(false) @map("is_default")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  steps        PaymentDunningStep[]
+  entries      PaymentEntry[]
+
+  @@index([organizationId])
+  @@map("payment_dunning_rules")
+}
+
+// Passo de uma régua. `daysOffset`: negativo = antes do vencimento, 0 = no dia,
+// positivo = após. `templateBody` aceita placeholders: {{contato}}, {{valor}},
+// {{vencimento}}, {{boleto_link}} (interpolados em runtime).
+model PaymentDunningStep {
+  id              String                @id @default(cuid())
+  ruleId          String                @map("rule_id")
+  order           Int                   @default(0)
+  daysOffset      Int                   @map("days_offset")
+  channel         PaymentDunningChannel
+  templateSubject String?               @map("template_subject")
+  templateBody    String                @map("template_body")
+  enabled         Boolean               @default(true)
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  rule       PaymentDunningRule        @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  executions PaymentDunningExecution[]
+
+  @@index([ruleId])
+  @@map("payment_dunning_steps")
+}
+
+// Execução de 1 step pra 1 entry. Constraint `@@unique([entryId, stepId])`
+// garante idempotência — cron pode rodar várias vezes/dia sem duplicar envio.
+model PaymentDunningExecution {
+  id            String                        @id @default(cuid())
+  entryId       String                        @map("entry_id")
+  stepId        String                        @map("step_id")
+  scheduledFor  DateTime                      @map("scheduled_for")
+  executedAt    DateTime?                     @map("executed_at")
+  status        PaymentDunningExecutionStatus @default(PENDING)
+  channel       PaymentDunningChannel
+  errorMessage  String?                       @map("error_message")
+  messageId     String?                       @map("message_id") // id retornado pelo provider (email message-id, WA msg id)
+  createdAt     DateTime                      @default(now()) @map("created_at")
+  updatedAt     DateTime                      @updatedAt @map("updated_at")
+
+  entry PaymentEntry       @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  step  PaymentDunningStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, stepId])
+  @@index([status, scheduledFor])
+  @@map("payment_dunning_executions")
 }
 
 // ─── ORG PROJECTS / CLIENTES ────────────────────────────────────────────────
@@ -4671,8 +4947,26 @@ model SpaceStation {
   publicModules  StationPublicModule[]
   accessRequests StationAccessRequest[]
   worldEvents    WorldEvent[]
+  chatMessages   StationMessage[]
 
   @@map("space_stations")
+}
+
+/// Chat geral do World: mensagens broadcast pra todos os participantes da
+/// Station. Separado totalmente de LeadMessage (que serve o chat 1:1 do
+/// Cutucar via resolvePeerAsLead → WhatsApp).
+model StationMessage {
+  id          String       @id @default(cuid())
+  stationId   String       @map("station_id")
+  station     SpaceStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  senderId    String       @map("sender_id")
+  senderName  String       @map("sender_name")
+  senderImage String?      @map("sender_image")
+  body        String       @db.Text
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  @@index([stationId, createdAt])
+  @@map("station_messages")
 }
 
 model StationAccessRequest {

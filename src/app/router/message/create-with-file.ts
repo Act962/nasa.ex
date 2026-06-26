@@ -36,7 +36,11 @@ export const createMessageWithFile = base
       conversationId: z.string(),
       body: z.string().optional(),
       leadPhone: z.string(),
-      token: z.string(),
+      /**
+       * @deprecated Ignorado pelo servidor desde Fase 6 — provider
+       * resolvido server-side via `resolveOutboundProvider(trackingId)`.
+       */
+      token: z.string().nullish(),
       mediaUrl: z.string(),
       fileName: z.string(),
       mimetype: z.string(),
@@ -46,7 +50,6 @@ export const createMessageWithFile = base
   )
   .handler(async ({ input, context }) => {
     try {
-      // Cobra 1★ antes de chamar uazapi — evita custo de API sem saldo.
       const conv = await prisma.conversation.findUnique({
         where: { id: input.conversationId },
         select: {
@@ -55,6 +58,23 @@ export const createMessageWithFile = base
           tracking: { select: { organizationId: true } },
         },
       });
+
+      // ── In-Chat Fallback ─────────────────────────────────────────────
+      const inChatMode =
+        (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP &&
+        (await shouldSkipUazapiForConversation(input.conversationId));
+
+      // Resolve provider ANTES de cobrar ★ (Fix #2).
+      let resolvedWhatsapp: Awaited<ReturnType<typeof resolveOutboundProvider>> | null = null;
+      if (!inChatMode && (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP) {
+        if (!conv?.trackingId) {
+          throw new Error(
+            "Conversation sem trackingId — não é possível resolver provider.",
+          );
+        }
+        resolvedWhatsapp = await resolveOutboundProvider(conv.trackingId);
+      }
+
       if (conv?.tracking?.organizationId) {
         await chargeMessageOutbound({
           organizationId: conv.tracking.organizationId,
@@ -69,22 +89,10 @@ export const createMessageWithFile = base
         });
       }
 
-      // ── In-Chat Fallback ─────────────────────────────────────────────
-      const inChatMode =
-        (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP &&
-        (await shouldSkipUazapiForConversation(input.conversationId));
-
       let externalMessageId = uuidv4();
       if (!inChatMode) {
-        // Provider dispatch (Fase 6) — Uazapi vs Meta resolvido por
-        // `trackingId`. `input.token` mantido por backward compat mas
-        // ignorado.
-        if (!conv?.trackingId) {
-          throw new Error(
-            "Conversation sem trackingId — não é possível resolver provider.",
-          );
-        }
-        const resolved = await resolveOutboundProvider(conv.trackingId);
+        // Provider já resolvido lá em cima — reusa.
+        const resolved = resolvedWhatsapp!;
         try {
           const response = await resolved.provider.sendMedia({
             kind: "media",

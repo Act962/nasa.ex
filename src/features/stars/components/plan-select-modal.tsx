@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
+import { authClient } from "@/lib/auth-client";
 import {
   Dialog,
   DialogContent,
@@ -13,10 +15,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { StarIcon } from "./star-icon";
 import { Loader2, Sparkles, Users, ExternalLink, Zap } from "lucide-react";
+import { toast } from "sonner";
 
 interface PlanSelectModalProps {
   open: boolean;
   onClose: () => void;
+  currentPlanSlug?: string;
 }
 
 const BILLING_LABEL: Record<string, string> = {
@@ -25,7 +29,12 @@ const BILLING_LABEL: Record<string, string> = {
   weekly: "/sem",
 };
 
-export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
+export function PlanSelectModal({
+  open,
+  onClose,
+  currentPlanSlug,
+}: PlanSelectModalProps) {
+  const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -34,6 +43,7 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
   });
 
   const plans = data?.plans ?? [];
+  const orgHasPlan = !!currentPlanSlug && currentPlanSlug !== "free";
 
   const handleChoose = async (plan: (typeof plans)[number]) => {
     if (loadingId) return;
@@ -43,39 +53,29 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
       return;
     }
 
-    if (plan.ctaGatewayId) {
-      setLoadingId(plan.id);
-      try {
-        const res = await fetch("/api/stripe/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            planId: plan.id,
-            planSlug: plan.slug,
-            mode: "subscription",
-            itemType: "plan",
-            itemSlug: plan.slug,
-          }),
-        });
-        const json = await res.json();
-        if (json.url) {
-          window.location.href = json.url;
-        } else {
-          alert("Gateway de pagamento não configurado. Contate o suporte.");
+    setLoadingId(plan.id);
+    try {
+      if (orgHasPlan) {
+        const { data: portalData, error } =
+          await authClient.subscription.billingPortal({
+            returnUrl: window.location.origin + "/home",
+          });
+        if (error) throw new Error(error.message || "Falha ao abrir portal");
+        if (portalData?.url) {
+          window.location.href = portalData.url;
         }
-      } finally {
-        setLoadingId(null);
+        return;
       }
-      return;
-    }
 
-    window.open(
-      "mailto:vendas@nasaex.com.br?subject=Plano " + plan.name,
-      "_blank",
-    );
+      onClose();
+      router.push(`/subscription/confirm?plan=${plan.slug}`);
+    } catch (err) {
+      console.error("Plan select error:", err);
+      toast.error("Não foi possível iniciar o checkout agora.");
+      setLoadingId(null);
+    }
   };
 
-  // Determine grid columns based on plan count
   const colClass =
     plans.length <= 1
       ? "grid-cols-1 max-w-xs mx-auto"
@@ -93,7 +93,6 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
       }}
     >
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0a0a14] border-white/10">
-        {/* Header */}
         <DialogHeader className="pb-1">
           <div className="flex items-start gap-3">
             <div className="size-10 rounded-xl bg-linear-to-br from-[#7C3AED] to-[#a855f7] flex items-center justify-center shrink-0">
@@ -111,12 +110,11 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
           </div>
         </DialogHeader>
 
-        {/* Plans grid */}
         {isLoading ? (
           <div className="grid grid-cols-3 gap-3 py-3">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3].map((index) => (
               <div
-                key={i}
+                key={index}
                 className="h-52 rounded-xl bg-white/5 animate-pulse"
               />
             ))}
@@ -131,6 +129,7 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
               const busy = loadingId === plan.id;
               const billingLabel = BILLING_LABEL[plan.billingType] ?? "/mês";
               const isFree = plan.priceMonthly === 0;
+              const isCurrent = currentPlanSlug === plan.slug;
 
               return (
                 <div
@@ -142,7 +141,6 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
                       : "border-white/10 bg-white/4 hover:border-white/20 hover:bg-white/6",
                   )}
                 >
-                  {/* Popular badge */}
                   {plan.highlighted && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                       <span className="bg-[#7C3AED] text-white text-[10px] font-bold px-3 py-0.5 rounded-full whitespace-nowrap shadow-lg">
@@ -151,12 +149,10 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
                     </div>
                   )}
 
-                  {/* Plan name */}
                   <p className="text-sm font-bold text-white text-center mb-3 mt-1">
                     {plan.name}
                   </p>
 
-                  {/* Price */}
                   <div className="text-center mb-3">
                     {isFree ? (
                       <div className="text-2xl font-extrabold text-white">
@@ -182,7 +178,6 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
                     )}
                   </div>
 
-                  {/* Stars */}
                   <div className="flex items-center justify-center gap-1.5 mb-1.5">
                     <StarIcon className="size-3.5 shrink-0" />
                     <span
@@ -195,7 +190,6 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
                     </span>
                   </div>
 
-                  {/* Users */}
                   <div className="flex items-center justify-center gap-1.5 mb-4">
                     <Users className="size-3 text-white/30 shrink-0" />
                     <span className="text-[11px] text-white/40">
@@ -205,10 +199,9 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
                     </span>
                   </div>
 
-                  {/* CTA */}
                   <Button
                     size="sm"
-                    disabled={!!loadingId}
+                    disabled={!!loadingId || isCurrent}
                     onClick={() => handleChoose(plan)}
                     className={cn(
                       "w-full mt-auto gap-1.5 font-semibold text-xs rounded-lg h-8",
@@ -221,6 +214,8 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
                       <>
                         <Loader2 className="size-3.5 animate-spin" /> Aguarde...
                       </>
+                    ) : isCurrent ? (
+                      "Plano atual"
                     ) : plan.ctaLink ? (
                       <>
                         <ExternalLink className="size-3.5" /> {plan.ctaLabel}
@@ -237,9 +232,8 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
           </div>
         )}
 
-        {/* Footer */}
         <p className="text-center text-[11px] text-white/25 pt-1 pb-0.5">
-          🔒 Pagamento seguro — cancele quando quiser, sem multas
+          🔒 Pagamento seguro via Stripe — cancele quando quiser, sem multas
         </p>
       </DialogContent>
     </Dialog>

@@ -44,6 +44,8 @@ export const publicSearch = base
         durationMin: true,
         format: true,
         priceStars: true,
+        priceBrlCents: true,
+        isFree: true,
         studentsCount: true,
         // Datas UNIFICADAS — válidas pra qualquer formato. UI mostra
         // badge na capa do card quando preenchidas.
@@ -56,6 +58,14 @@ export const publicSearch = base
         eventTimezone: true,
         creatorOrg: { select: { id: true, name: true, slug: true, logo: true } },
         category: { select: { id: true, slug: true, name: true } },
+        // Planos pra derivar o `displayPriceBrlCents` exibido no card.
+        // Cursos antigos podem ter `course.priceBrlCents=0` enquanto o
+        // plano padrão tem preço real — o badge deve refletir o que o
+        // aluno paga, não o snapshot legado do curso.
+        plans: {
+          select: { priceBrlCents: true, isDefault: true, order: true },
+          orderBy: [{ isDefault: "desc" }, { order: "asc" }],
+        },
       },
     });
 
@@ -65,5 +75,16 @@ export const publicSearch = base
       select: { id: true, slug: true, name: true, iconKey: true, description: true },
     });
 
-    return { courses, categories };
+    return {
+      courses: courses.map((c) => {
+        const planPrice =
+          c.plans.find((p) => p.isDefault && p.priceBrlCents > 0)
+            ?.priceBrlCents ??
+          c.plans.find((p) => p.priceBrlCents > 0)?.priceBrlCents ??
+          0;
+        const displayPriceBrlCents = planPrice > 0 ? planPrice : c.priceBrlCents;
+        return { ...c, displayPriceBrlCents };
+      }),
+      categories,
+    };
   });

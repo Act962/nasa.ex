@@ -1,5 +1,5 @@
-import { NodeExecutor } from "@/features/executions/types";
-import { leadContext } from "@/features/executions/schemas";
+import { NodeExecutor } from "@/features/tracking-executions/types";
+import { leadContext } from "@/features/tracking-executions/schemas";
 import { NonRetriableError } from "inngest";
 
 type NewLeadTriggerData = Record<string, unknown>;

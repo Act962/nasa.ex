@@ -37,6 +37,7 @@ const PUBLIC_PLANS = [
     slogan:
       "Pra tirar o processo do WhatsApp e da planilha e ver tudo num lugar só.",
     price: 0,
+    priceLabel: "Consultar" as string | null,
     billingLabel: "/mês",
     stars: 0,
     rollover: 0,
@@ -59,6 +60,7 @@ const PUBLIC_PLANS = [
     name: "Earth",
     slogan: "Pra quando o comercial e o atendimento já precisam conversar.",
     price: 197,
+    priceLabel: null as string | null,
     billingLabel: "/mês",
     stars: 1000,
     rollover: 20,
@@ -80,6 +82,7 @@ const PUBLIC_PLANS = [
     name: "Explore",
     slogan: "Pra rodar o processo entre vários setores.",
     price: 397,
+    priceLabel: null as string | null,
     billingLabel: "/mês",
     stars: 3000,
     rollover: 25,
@@ -103,6 +106,7 @@ const PUBLIC_PLANS = [
     name: "Constellation",
     slogan: "Pra operação grande que precisa medir tudo de ponta a ponta.",
     price: 797,
+    priceLabel: null as string | null,
     billingLabel: "/mês",
     stars: 20000,
     rollover: 30,
@@ -160,6 +164,7 @@ function PublicPlanCard({
     name: plan.name,
     slogan: plan.slogan,
     price: plan.price,
+    priceLabel: plan.priceLabel,
     stars: plan.stars,
     rollover: plan.rollover,
     highlighted: plan.highlighted,
@@ -230,7 +235,16 @@ function PublicPlanCard({
             <p className="text-xs text-white/40 mt-0.5">{plan.slogan}</p>
           </div>
           <div className="text-right shrink-0">
-            {plan.price === 0 ? (
+            {plan.priceLabel ? (
+              <p
+                className={cn(
+                  "text-xl font-bold",
+                  plan.price === 0 ? "text-emerald-400" : "text-white",
+                )}
+              >
+                {plan.priceLabel}
+              </p>
+            ) : plan.price === 0 ? (
               <p className="text-xl font-bold text-emerald-400">Consultar</p>
             ) : (
               <p className="text-xl font-bold text-white">
@@ -415,6 +429,7 @@ export function PlansPublicSection({ isLoggedIn }: { isLoggedIn: boolean }) {
           name: p.name,
           stars: p.monthlyStars,
           price: p.priceMonthly,
+          priceLabel: p.priceLabel,
           billingLabel: "/mês",
           rollover: p.rolloverPct,
           highlighted: p.highlighted,

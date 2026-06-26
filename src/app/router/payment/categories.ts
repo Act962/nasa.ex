@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requirePaymentAccess } from "@/app/middlewares/payment-access";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -20,6 +21,7 @@ const categoryShape = z.object({
 export const listPaymentCategories = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("categories", "view"))
   .route({ method: "GET", summary: "List payment categories", tags: ["Payment"] })
   .input(z.object({ type: z.enum(["REVENUE", "EXPENSE", "COST"]).optional() }))
   .output(z.object({ categories: z.array(categoryShape) }))
@@ -42,6 +44,7 @@ export const listPaymentCategories = base
 export const createPaymentCategory = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("categories", "create"))
   .route({ method: "POST", summary: "Create payment category", tags: ["Payment"] })
   .input(z.object({
     name: z.string(),
@@ -65,6 +68,7 @@ export const createPaymentCategory = base
 export const updatePaymentCategory = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("categories", "edit"))
   .route({ method: "PATCH", summary: "Update payment category", tags: ["Payment"] })
   .input(z.object({
     id: z.string(),
@@ -90,6 +94,7 @@ export const updatePaymentCategory = base
 export const deletePaymentCategory = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("categories", "delete"))
   .route({ method: "DELETE", summary: "Delete payment category", tags: ["Payment"] })
   .input(z.object({ id: z.string() }))
   .output(z.object({ ok: z.boolean() }))

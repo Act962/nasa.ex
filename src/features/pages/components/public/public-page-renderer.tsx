@@ -18,6 +18,7 @@ import {
 import { PageAnalytics } from "./page-analytics";
 import { PageTracker } from "./page-tracker";
 import { PageRenderContextProvider } from "./page-context";
+import { resolvePageBackground } from "../../lib/page-background";
 
 interface Props {
   layout: PageLayout;
@@ -81,10 +82,7 @@ export function PublicPageRenderer({
     maxWidth: renderMode === "landing" ? "100%" : containerWidth,
     minHeight: renderMode === "landing" ? "100vh" : layout.artboard.minHeight,
     margin: "0 auto",
-    background:
-      (palette?.bg as string | undefined) ??
-      layout.artboard.background ??
-      "#ffffff",
+    background: resolvePageBackground(layout, palette),
     fontFamily: fontFamily ?? "Inter, system-ui, sans-serif",
     color: (palette?.fg as string | undefined) ?? "#0f172a",
     overflow: renderMode === "landing" ? undefined : "hidden",
@@ -103,6 +101,8 @@ export function PublicPageRenderer({
       utmCampaign?: string;
       utmContent?: string;
       utmTerm?: string;
+      inChatTrackingId?: string;
+      inChatStatusId?: string;
     };
 
   // Detecta os nomes dos planos em qualquer section-pricing presente na
@@ -127,6 +127,8 @@ export function PublicPageRenderer({
     rootSlug,
     siblingPages,
     availablePlans,
+    inChatTrackingId: pageMeta.inChatTrackingId,
+    inChatStatusId: pageMeta.inChatStatusId,
   };
 
   if (layout.mode === "single") {

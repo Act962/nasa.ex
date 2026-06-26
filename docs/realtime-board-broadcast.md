@@ -8,7 +8,11 @@ Pipeline que mantém os boards de Tracking (leads) e Workspace (actions) sincron
 
 Antes deste pipeline, automações Inngest (mover lead, mudar tag, etc.) atualizavam o banco mas o board aberto no navegador não enxergava a mudança até o usuário dar refresh. Resultado: percepção de que a automação não funcionou, ciclo de F5.
 
-Hoje: cada automação publica num canal Inngest realtime, o board assina o canal e dispara `queryClient.invalidateQueries` escopado às colunas/cards afetados. UI atualiza em ~1s sem refresh, sem mexer em estado otimista.
+Hoje: cada automação publica num canal de realtime, o board assina o canal e dispara `queryClient.invalidateQueries` escopado às colunas/cards afetados. UI atualiza em ~1s sem refresh, sem mexer em estado otimista.
+
+> ⚠️ **Transporte por board (importante):**
+> - **Board de leads (tracking)** → migrado para **Pusher**, via a camada de abstração de realtime (`src/lib/realtime/`). O Inngest realtime não funcionava em produção. O domínio depende da **porta** `RealtimePublisher`/`RealtimeSubscriber`; o Pusher é só o adapter, plugado no composition root `src/lib/realtime/index.ts` (trocar de lib = trocar esse arquivo).
+> - **Board de actions (workspace)** → ainda em **Inngest realtime** (token + `useInngestSubscription`). As seções abaixo que falam de token/`getSubscriptionToken`/watermark valem só para actions.
 
 ---
 
@@ -29,21 +33,22 @@ executor.ts                            useBoardRealtimeSync (lead)
 
 ### Canais (1 por board, N tópicos)
 
-| Canal | Parametrizado por | Tópicos |
-|---|---|---|
-| `boardLeadsChannel` | `trackingId` | `lead-moved`, `lead-changed`, `lead-closed` |
-| `boardActionsChannel` | `workspaceId` | `action-moved`, `action-changed`, `action-archived`, `sub-action-created` |
+| Canal | Transporte | Parametrizado por | Tópicos |
+|---|---|---|---|
+| `private-board-leads-{trackingId}` | Pusher | `trackingId` | `lead-created`, `lead-moved`, `lead-changed`, `lead-closed` |
+| `boardActionsChannel` | Inngest | `workspaceId` | `action-moved`, `action-changed`, `action-archived`, `sub-action-created` |
 
-Definição: [src/inngest/channels/board-leads.ts](../src/inngest/channels/board-leads.ts), [src/inngest/channels/board-actions.ts](../src/inngest/channels/board-actions.ts).
+Definição: [src/features/leads/realtime/board-leads-channel.ts](../src/features/leads/realtime/board-leads-channel.ts) (leads/Pusher — nome do canal + contrato tipado `BoardLeadsEvents`), [src/inngest/channels/board-actions.ts](../src/inngest/channels/board-actions.ts) (actions/Inngest).
 
 **Por que um canal por board e não um por automação?** Cada cliente assina **um** WebSocket por board aberto, não N. Adicionar uma nova automação não cria mais conexões — só mais tópicos no mesmo canal.
 
 ### Helpers de publish
 
-[src/features/leads/realtime/publish.ts](../src/features/leads/realtime/publish.ts):
-- `publishLeadMoved(publish, payload)` — cross-tracking, publica em ambos canais (origem + destino).
-- `publishLeadChanged(publish, { leadId, trackingId, statusId, fields })` — `fields` é union fechada (`"tag" | "temperature" | "responsible"`).
-- `publishLeadClosed(publish, { leadId, trackingId, statusId, outcome })`.
+[src/features/leads/realtime/publish.ts](../src/features/leads/realtime/publish.ts) — publicam pela **porta** `realtimePublisher` (`@/lib/realtime`), sem arg `publish` do Inngest:
+- `publishLeadCreated({ leadId, trackingId, statusId, source? })` — lead novo entrou no board. `source` default `"form"`. Disparado pelas procedures públicas de formulário (ver abaixo), não pelos executors.
+- `publishLeadMoved(payload)` — cross-tracking, publica em ambos canais (origem + destino).
+- `publishLeadChanged({ leadId, trackingId, statusId, fields })` — `fields` é union fechada (`"tag" | "temperature" | "responsible"`). Além dos executors, também é disparado com `fields: ["tag"]` por: `applyTagsByAi` ([src/features/tracking-chat-ai/lib/apply-tags-by-ai.ts](../src/features/tracking-chat-ai/lib/apply-tags-by-ai.ts)) — tag por clique em botão (webhook Uazapi) e pela IA — e pelas rotas oRPC manuais [leads.addTags](../src/app/router/leads/add-tags.ts) / [leads.removeTags](../src/app/router/leads/remove-tags-from-lead.ts) (só quando `count > 0`).
+- `publishLeadClosed({ leadId, trackingId, statusId, outcome })`.
 
 [src/features/actions/realtime/publish.ts](../src/features/actions/realtime/publish.ts):
 - `publishActionMoved(publish, payload)` — cross-workspace, publica em ambos canais.
@@ -52,25 +57,28 @@ Definição: [src/inngest/channels/board-leads.ts](../src/inngest/channels/board
 - `publishSubActionCreated(publish, { actionId, columnId, workspaceId, count })`.
 
 **Todos** os helpers:
-1. Encapsulam `try/catch` com `console.error("[board-realtime] ...")` — falha de Inngest realtime nunca quebra o passo Prisma.
-2. Skipam silenciosamente quando ID requerido vem null/empty.
-3. Adicionam `source: "workflow"` e `at`/`movedAt` ISO automaticamente.
+1. Skipam silenciosamente quando ID requerido vem null/empty.
+2. Adicionam `source: "workflow"` e `at`/`movedAt` ISO automaticamente.
+3. Isolam falha de transporte: nos de **leads**, o try/catch + log vive no adapter (`PusherRealtimePublisher`); nos de **actions**, no `safePublish` do próprio helper. Em ambos, falha de realtime nunca quebra o passo Prisma.
 
-### Server actions de token
+### Autorização da subscription
 
-[src/features/trackings/realtime/actions.ts](../src/features/trackings/realtime/actions.ts) e [src/features/actions/realtime/actions.ts](../src/features/actions/realtime/actions.ts) emitem token via `getSubscriptionToken(inngest, { channel, topics })` assinando todos os tópicos do canal.
-
-**Authz aplicado:** ambos validam sessão (`auth.api.getSession`), org ativa (`auth.api.getFullOrganization`) e membership do `trackingId`/`workspaceId` no `organizationId` da org antes de emitir o token. Sem isso, qualquer usuário autenticado conseguiria assinar qualquer board cross-tenant. Falha lança `Error("Unauthorized" | "Forbidden")` — o `useInngestSubscription` não conecta.
+- **Leads (Pusher):** canal privado autorizado em [src/app/api/pusher/auth/route.ts](../src/app/api/pusher/auth/route.ts) via o registry de authorizers (`src/lib/realtime/channel-authorizers.ts` → `boardLeadsAuthorizer`). Regra: membership na org dona do `trackingId` (não autoria). Falha → 403, o client não assina.
+- **Actions (Inngest):** [src/features/actions/realtime/actions.ts](../src/features/actions/realtime/actions.ts) emite token via `getSubscriptionToken(inngest, { channel, topics })`, validando sessão (`auth.api.getSession`), org ativa (`auth.api.getFullOrganization`) e membership do `workspaceId`. Falha lança `Error("Unauthorized" | "Forbidden")` — o `useInngestSubscription` não conecta.
 
 ### Hooks subscribers
 
-[src/features/trackings/hooks/use-board-realtime-sync.ts](../src/features/trackings/hooks/use-board-realtime-sync.ts) e [src/features/actions/hooks/use-board-actions-realtime-sync.ts](../src/features/actions/hooks/use-board-actions-realtime-sync.ts):
+[src/features/trackings/hooks/use-board-realtime-sync.ts](../src/features/trackings/hooks/use-board-realtime-sync.ts) (leads/board do kanban, Pusher) e [src/features/actions/hooks/use-board-actions-realtime-sync.ts](../src/features/actions/hooks/use-board-actions-realtime-sync.ts) (actions/Inngest):
 
-- **Coalescência:** acumulam mensagens em janela de 250ms (debounce) com flush forçado a cada 2s. 1 invalidação por janela cobre N eventos heterogêneos.
+> A lista de conversas do Tracking Chat (lead-box) tem um subscriber **leve** próprio — [src/features/tracking-chat/hooks/use-tracking-chat-realtime-sync.ts](../src/features/tracking-chat/hooks/use-tracking-chat-realtime-sync.ts), montado em `ConversationsList` com o `selectedTracking`. Assina o **mesmo** canal Pusher do board (`private-board-leads-{trackingId}`) e só reage a `lead-changed` com `fields.includes("tag")`, invalidando `tags.getTagByLead` (mesma query do badge). Não duplica conexão: pusher-js dedupe a subscription do canal entre componentes.
+
+- **Subscription (leads):** via hook genérico [`useRealtimeChannel`](../src/lib/realtime/use-realtime-channel.ts) — `bind` por evento + cleanup (`unbind`/`unsubscribe`). Como o Pusher entrega evento a evento (push), **não há watermark**: cada handler acumula nos refs e agenda o flush.
+- **Subscription (actions):** `useInngestSubscription` entrega um array crescente; usa **watermark** `lastSeenIdxRef` para não reprocessar em re-renders.
+- **Coalescência (ambos):** acumulam em janela de 250ms (debounce) com flush forçado a cada 2s. 1 invalidação por janela cobre N eventos heterogêneos.
 - **Escopo da invalidação:** `pendingStatusRef`/`pendingColumnRef` agregam status/coluna afetados → invalidação por predicate apenas dos queries dessas IDs (não invalida o board inteiro).
-- **Detalhes abertos:** `pendingLeadDetailRef`/`pendingActionDetailRef` agregam IDs de detalhe → invalida `orpc.{leads,action}.get` para sincronizar sheets/modais abertas.
-- **Watermark:** `lastSeenIdxRef` evita reprocessar o array crescente do `useInngestSubscription` em re-renders.
-- **Page Visibility API:** pausa subscription com aba oculta (`enabled: !!id && isVisible`); ao voltar, força refetch leve dos headers das colunas para reconciliar eventos perdidos.
+- **Detalhes abertos:** `pendingLeadDetailRef`/`pendingActionDetailRef` agregam IDs de detalhe → invalida `orpc.{leads,action}.get`/`listHistoric` para sincronizar sheets/modais abertas.
+- **Tags (leads):** badges de tag do card vêm de uma query própria (`orpc.tags.getTagByLead`, keyed por `leadId`, com `staleTime` longo) — não de `listLeadsByStatus`. Por isso, em `lead-changed` com `fields.includes("tag")`, o hook agrega o `leadId` em `pendingTagLeadRef` e invalida `getTagByLead` desses leads no flush. Cobre add **e** remove de tag.
+- **Page Visibility API:** desliga subscription com aba oculta (`enabled: !!id && isVisible`); ao voltar, força refetch leve dos headers das colunas para reconciliar eventos perdidos.
 
 ### Zustand stores — unicidade cross-column
 
@@ -84,6 +92,7 @@ Definição: [src/inngest/channels/board-leads.ts](../src/inngest/channels/board
 
 | Efeito | Use o tópico |
 |---|---|
+| Cria/insere card novo no board | `lead-created` (leads) |
 | Move entre colunas/status | `lead-moved` / `action-moved` |
 | Atualiza conteúdo do card sem trocar coluna | `lead-changed` / `action-changed` |
 | Tira do board (closed/archived) | `lead-closed` / `action-archived` |
@@ -103,9 +112,9 @@ Em `src/features/{executions,workspace-executions}/components/<nome>/executor.ts
    - **Lead:** `LeadContext` já carrega `trackingId` e `statusId` — sem query extra.
    - **Action:** `ActionContext` só tem `id`. Faça `prisma.action.findUnique({ select: { columnId: true, workspaceId: true } })` antes da mutação.
 
-3. Chame o helper **após** a mutação Prisma e **antes** do `publish(...success)` do canal de status (este último serve aos indicadores do editor de workflow, é coisa separada):
+3. Chame o helper **após** a mutação Prisma e **antes** do `publish(...success)` do canal de status (este último serve aos indicadores do editor de workflow, é coisa separada). Helpers de **leads** não recebem mais o arg `publish`:
    ```ts
-   await publishLeadChanged(publish, {
+   await publishLeadChanged({
      leadId: lead.id,
      trackingId: lead.trackingId,
      statusId: lead.statusId,
@@ -117,20 +126,19 @@ Em `src/features/{executions,workspace-executions}/components/<nome>/executor.ts
 
 ### Passo 3 — Se for um `*-changed` com novo `field`
 
-Adicione o literal ao type union em `src/inngest/channels/board-{leads,actions}.ts` (`LeadChangedField` ou `ActionChangedField`). O hook **não precisa mudar** — ele só usa `statusId`/`columnId` para invalidar.
+Adicione o literal ao type union: leads em [`src/features/leads/realtime/board-leads-channel.ts`](../src/features/leads/realtime/board-leads-channel.ts) (`LeadChangedField`), actions em `src/inngest/channels/board-actions.ts` (`ActionChangedField`). O hook **não precisa mudar** — ele só usa `statusId`/`columnId` para invalidar.
 
 ### Passo 4 — Se for um tópico novo
 
-1. `addTopic(...)` no canal.
-2. Adicione ao array `topics` da server action de token (`topics: [...]`).
-3. Atualize o tipo `BoardLeadsToken`/`BoardActionsToken` no mesmo arquivo.
-4. Adicione um `case` no switch do hook (`flush` continua igual; só precisa decidir o que entra em `pendingStatusRef`/`pendingColumnRef`/`pendingDetailRef`).
+- **Leads (Pusher):** adicione a entrada evento→payload em `BoardLeadsEvents` (`board-leads-channel.ts`), publique pelo helper e adicione um handler em `useBoardRealtimeSync`. Sem token/`topics` — Pusher entrega todo evento do canal assinado.
+- **Actions (Inngest):** `addTopic(...)` no canal, inclua no array `topics: [...]` da server action de token, atualize `BoardActionsToken`, e adicione um `case` no switch do hook.
+- Em ambos, `flush` continua igual; só decida o que entra em `pendingStatusRef`/`pendingColumnRef`/`pendingDetailRef`.
 
 ### Passo 5 — Verificação
 
 1. 2 abas abertas no mesmo board.
 2. Disparar workflow numa, observar a outra atualizar em ~1s sem refresh.
-3. DevTools Network: SSE em `/api/inngest`, mensagem com `topic` correto.
+3. DevTools Network: **leads** → frames WebSocket do Pusher (ou o Debug Console do dashboard Pusher mostrando o evento no canal `private-board-leads-{trackingId}`); **actions** → SSE em `/api/inngest` com `topic` correto.
 4. React Query Devtools: apenas as queries do status/coluna afetado refetcham — **nunca** o board inteiro.
 
 ---
@@ -161,7 +169,7 @@ Em produção, preocupar-se apenas se: alto volume de WRN (proxy/CDN com timeout
 
 Itens que ainda **não** estão cobertos pelo pipeline (e que precisam de extensão deliberada quando virarem prioridade):
 
-- **Mutações manuais** (drag de outro usuário, edição via UI) — hoje só execuções por automação publicam. Para multi-user real-time ao vivo, replicar o publish nas rotas oRPC `move-action`/`move-lead`/`update-lead`/etc.
+- **Mutações manuais** (drag de outro usuário, edição via UI) — além de execuções por automação, as procedures públicas de formulário ([submut-response.ts](../src/app/router/form/public/submut-response.ts) e [save-partial-response.ts](../src/app/router/form/public/save-partial-response.ts)) publicam `lead-created` quando criam um lead. Para multi-user real-time nas demais mutações, replicar o publish nas rotas oRPC `move-action`/`move-lead`/`update-lead`/etc. **Tags** já são exceção completa: publicam `lead-changed` (`fields: ["tag"]`) por todos os caminhos — automação (`tagExecutor`), botão/IA (`applyTagsByAi`) e as rotas oRPC manuais (`leads.addTags` / `leads.removeTags`). Os caminhos manuais ainda fazem update otimista no client que dispara; o publish serve para os **demais** clients/superfícies (ex.: tag adicionada no chat aparece no kanban).
 - **UX de "card piscou"** — payload já carrega `source: "workflow"`; basta consumir do lado do componente.
 - **Entidades filhas além de sub-action** — comentários, files, atividades não disparam broadcast.
 

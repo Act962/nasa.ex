@@ -20,4 +20,5 @@ export {
   TrackingIcon,
   NasaPlannerIcon,
   NasaRouteIcon,
+  SpaceStationIcon,
 } from "./app-icons-b";

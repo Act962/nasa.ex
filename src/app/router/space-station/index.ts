@@ -32,6 +32,9 @@ import { listAvatarTemplates } from "./list-avatar-templates";
 import { createUserConnection } from "./create-user-connection";
 import { listMyConnections } from "./list-my-connections";
 import { joinWorld } from "./join-world";
+import { sendStationMessage } from "./send-station-message";
+import { listStationMessages } from "./list-station-messages";
+import { pokePeer } from "./poke-peer";
 
 export const spaceStationRouter = {
   create: createStation,
@@ -71,4 +74,7 @@ export const spaceStationRouter = {
   createUserConnection,
   listMyConnections,
   joinWorld,
+  sendStationMessage,
+  listStationMessages,
+  pokePeer,
 };

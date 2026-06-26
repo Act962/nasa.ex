@@ -3,7 +3,8 @@
 /**
  * Hook de mídia (áudio/vídeo/tela) do mundo via LiveKit SFU.
  *
- * Substitui `use-webrtc.ts` (mesh P2P), expondo a MESMA fachada para que
+ * Único transporte de mídia do mundo (o mesh P2P `use-webrtc.ts` foi removido).
+ * Expõe a fachada `RemotePeer` para que
  * `space-game.tsx` e os overlays (MediaBar, VideoOverlay, ProximityBar,
  * ScreenShareOverlay, MediaSettingsPanel, BubbleAppsPanel) não precisem
  * conhecer o transporte.
@@ -28,9 +29,41 @@ import {
   type RemoteParticipant,
   type RemoteTrackPublication,
 } from "@/lib/livekit/client";
+import type { TrackReference } from "@livekit/components-react";
 import { attachAudioUnlock, type AudioUnlockState } from "@/lib/media/audio-unlock";
 import { resolveRemoteSpriteUrl } from "../utils/sprite-defaults";
-import type { RemotePeer } from "./use-webrtc";
+import {
+  isDeviceUnavailableError,
+  resolvePreferredDeviceId,
+} from "../utils/media-devices";
+import { useMediaDeviceStore } from "./use-media-device-store";
+import { useMediaDevices, type EnumeratedDevices } from "./use-media-devices";
+
+/**
+ * Forma canônica de um peer remoto no mundo (mic/cam/tela + streams agregadas).
+ * Vivia em `use-webrtc.ts` (mesh) — migrou pra cá quando o mesh saiu e o LiveKit
+ * virou o único transporte. Os overlays (VideoOverlay, ProximityBar, MediaBar,
+ * etc.) consomem este tipo, agnósticos de onde os streams vêm.
+ */
+export interface RemotePeer {
+  userId: string;
+  name: string;
+  nick?: string | null;
+  image: string | null;
+  spriteUrl?: string | null;
+  stream: MediaStream | null;
+  screenStream?: MediaStream | null;
+  /**
+   * Referência da track de câmera p/ o componente pronto `<VideoTrack>` (que faz
+   * `track.attach()` — habilita o adaptiveStream a observar a visibilidade).
+   * Só nos peers REMOTOS; o tile local segue por MediaStream (`srcObject`).
+   * Ausente → o tile cai pro avatar.
+   */
+  cameraTrackRef?: TrackReference;
+  micOn: boolean;
+  camOn: boolean;
+  screenOn?: boolean;
+}
 
 interface UseSfuRoomOptions {
   /** Quando vazio, o hook fica idle (não conecta). */
@@ -55,12 +88,8 @@ export interface UseSfuRoomReturn {
   // Peers remotos
   peers: Map<string, RemotePeer>;
 
-  // Devices
-  devices: {
-    audio: MediaDeviceInfo[];
-    video: MediaDeviceInfo[];
-    output: MediaDeviceInfo[];
-  };
+  // Devices — seleção persistida em useMediaDeviceStore (localStorage)
+  devices: EnumeratedDevices;
   selectedAudio: string;
   selectedVideo: string;
   selectedOutput: string;
@@ -68,6 +97,8 @@ export interface UseSfuRoomReturn {
   setSelectedVideo: (id: string) => void;
   setSelectedOutput: (id: string) => void;
   applyDeviceChange: () => Promise<void>;
+  /** Prime de permissão pra liberar labels/saídas no painel (clique explícito). */
+  requestDevicePermissions: () => Promise<void>;
 
   // Toggles
   toggleMic: () => Promise<void>;
@@ -86,6 +117,15 @@ export interface UseSfuRoomReturn {
   // Sinais de saúde da conexão
   audioBlocked: boolean;
   connectionState: "idle" | "connecting" | "connected" | "reconnecting" | "disconnected";
+
+  /**
+   * Room LiveKit já conectada (null enquanto idle/conectando). Exposta pro
+   * `<RoomAudioRenderer room={...}>` renderizar o áudio remoto via
+   * `track.attach()` — o caminho do POC, que integra com
+   * `room.canPlaybackAudio`/`startAudio()` (autoplay). O VÍDEO dos overlays
+   * segue por MediaStream (mesma fachada do mesh); só o ÁUDIO migra pra cá.
+   */
+  room: Room | null;
 }
 
 const PIXEL_ASTRONAUT_SENTINEL = "pixel_astronaut";
@@ -105,23 +145,29 @@ export function useSfuRoom({
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [peers, setPeers] = useState<Map<string, RemotePeer>>(new Map());
-  const [devices, setDevices] = useState<UseSfuRoomReturn["devices"]>({
-    audio: [],
-    video: [],
-    output: [],
-  });
-  const [selectedAudio, setSelectedAudio] = useState("");
-  const [selectedVideo, setSelectedVideo] = useState("");
-  const [selectedOutput, setSelectedOutput] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [bubbleLocked, setBubbleLocked] = useState(false);
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [connectionState, setConnectionState] =
     useState<UseSfuRoomReturn["connectionState"]>("idle");
+  // Room exposta como ESTADO (não só ref): o <RoomAudioRenderer> precisa
+  // re-renderizar quando a Room (re)conecta pra (re)assinar os tracks de áudio.
+  const [room, setRoom] = useState<Room | null>(null);
 
   // Bubble = todos os peers conectados, na Fase 1 (sem proximidade).
   // Derivada de `peers` via useEffect abaixo.
   const [bubblePeers, setBubblePeers] = useState<Set<string>>(new Set());
+
+  // ── Seleção de devices — persistida (localStorage) e compartilhada com o
+  // transporte mesh, então sobrevive a reload e à troca SFU↔mesh.
+  const audioInputId = useMediaDeviceStore((state) => state.audioInputId);
+  const videoInputId = useMediaDeviceStore((state) => state.videoInputId);
+  const audioOutputId = useMediaDeviceStore((state) => state.audioOutputId);
+  const setAudioInputId = useMediaDeviceStore((state) => state.setAudioInputId);
+  const setVideoInputId = useMediaDeviceStore((state) => state.setVideoInputId);
+  const setAudioOutputId = useMediaDeviceStore((state) => state.setAudioOutputId);
+  const { devices, refreshDevices, getCurrentDevices, requestDevicePermissions } =
+    useMediaDevices();
 
   // ── Refs (evitar closures estale e re-renders) ──────────────────────────
   const roomRef = useRef<Room | null>(null);
@@ -129,9 +175,6 @@ export function useSfuRoom({
   const micOnRef = useRef(false);
   const camOnRef = useRef(false);
   const screenOnRef = useRef(false);
-  const selectedAudioRef = useRef("");
-  const selectedVideoRef = useRef("");
-  const selectedOutputRef = useRef("");
   // Ids que já estiveram na sala SFU — pra remover quem saiu sem apagar peers
   // que vieram só do Pusher (guests / presence antes de entrar no SFU).
   const sfuIdsRef = useRef<Set<string>>(new Set());
@@ -145,29 +188,6 @@ export function useSfuRoom({
   useEffect(() => {
     screenOnRef.current = screenOn;
   }, [screenOn]);
-  useEffect(() => {
-    selectedAudioRef.current = selectedAudio;
-  }, [selectedAudio]);
-  useEffect(() => {
-    selectedVideoRef.current = selectedVideo;
-  }, [selectedVideo]);
-  useEffect(() => {
-    selectedOutputRef.current = selectedOutput;
-  }, [selectedOutput]);
-
-  // ── Enumera devices (precisa de permissão prévia pra labels) ────────────
-  const refreshDevices = useCallback(async () => {
-    try {
-      const all = await navigator.mediaDevices.enumerateDevices();
-      setDevices({
-        audio: all.filter((d) => d.kind === "audioinput"),
-        video: all.filter((d) => d.kind === "videoinput"),
-        output: all.filter((d) => d.kind === "audiooutput"),
-      });
-    } catch {
-      /* permissão ainda não concedida */
-    }
-  }, []);
 
   // ── Reconstrução dos peers a partir do estado atual da Room ─────────────
   const rebuildPeers = useCallback(() => {
@@ -175,9 +195,15 @@ export function useSfuRoom({
     if (!room) return;
     const currentSfuIds = new Set<string>();
     const snapshots = new Map<string, RemotePeer>();
-    room.remoteParticipants.forEach((p: RemoteParticipant) => {
-      currentSfuIds.add(p.identity);
-      snapshots.set(p.identity, snapshotRemotePeer(p));
+    room.remoteParticipants.forEach((participant: RemoteParticipant) => {
+      // A identity vem com sufixo por aba (`${accountId}:${sessionId}`), mas a
+      // presença (Pusher) e os sprites são por usuário — casamos pelo accountId.
+      // Duas abas do próprio usuário aparecem aqui; ignoramos a nossa (mesmo
+      // accountId) pra não virar um "peer fantasma" de nós mesmos.
+      const accountId = toAccountId(participant.identity);
+      if (accountId === userId) return;
+      currentSfuIds.add(accountId);
+      snapshots.set(accountId, snapshotRemotePeer(participant, accountId));
     });
     setPeers((prev) => {
       // Mantém peers que vieram só do Pusher (presence) e ainda não entraram no
@@ -202,7 +228,7 @@ export function useSfuRoom({
       return merged;
     });
     sfuIdsRef.current = currentSfuIds;
-  }, []);
+  }, [userId]);
 
   // ── Conexão à Room ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -222,13 +248,14 @@ export function useSfuRoom({
           token,
           url: wsUrl,
           roomOptions: {
-            // adaptiveStream/dynacast exigem track.attach() pro LiveKit
-            // observar a visibilidade dos elementos de vídeo. Os overlays
-            // renderizam via `el.srcObject` (sem attach), então deixá-los ON
-            // faz o SFU pausar o vídeo remoto (ninguém é "visto") → tela preta.
-            // Mantemos OFF até migrar os overlays pra track.attach() (Fase 2+).
-            adaptiveStream: false,
-            dynacast: false,
+            // adaptiveStream: o LiveKit pausa/baixa a qualidade do vídeo remoto
+            // conforme a visibilidade do elemento — exige `track.attach()`. Os
+            // tiles REMOTOS agora renderizam via `<VideoTrack>` (componente
+            // pronto, que faz o attach), então isto é seguro e economiza banda.
+            // dynacast: o servidor dropa camadas simulcast sem consumidor. O
+            // tile LOCAL segue via `srcObject` (não é afetado por adaptiveStream).
+            adaptiveStream: true,
+            dynacast: true,
           },
         });
         if (cancelled) {
@@ -237,6 +264,8 @@ export function useSfuRoom({
         }
         activeRoom = room;
         roomRef.current = room;
+        // Publica a Room no estado pro <RoomAudioRenderer> assinar o áudio.
+        setRoom(room);
 
         // ── Audio unlock (fix "não ouço" autoplay bloqueado) ───────────────
         audioUnlockDisposeRef.current = attachAudioUnlock(
@@ -291,6 +320,46 @@ export function useSfuRoom({
         };
         room.on("mediaDevicesChanged" as never, onDevicesChange as never);
         await refreshDevices();
+
+        // ── Reaplica o intent de mídia após (re)conectar ──────────────────
+        // Numa reconexão (token/wsUrl mudaram → Room nova) o mic/cam precisam
+        // voltar ao estado que o usuário deixou. Sem isto a track ficava
+        // despublicada apesar do botão na MediaBar continuar "ligado" — o
+        // usuário falava no mudo. Só restauramos mic/cam; screen-share exige
+        // novo gesto/seletor, então não é restaurado. No 1º connect os refs
+        // são `false`, então isto é no-op (não forçamos mic ligado na entrada).
+        if (!cancelled && (micOnRef.current || camOnRef.current)) {
+          const storedPreferences = useMediaDeviceStore.getState();
+          const currentDevices = getCurrentDevices();
+          try {
+            if (micOnRef.current) {
+              await enableMicrophone(
+                room,
+                true,
+                resolvePreferredDeviceId(
+                  storedPreferences.audioInputId,
+                  currentDevices.audio,
+                ),
+              );
+            }
+            if (camOnRef.current) {
+              await enableCamera(
+                room,
+                true,
+                resolvePreferredDeviceId(
+                  storedPreferences.videoInputId,
+                  currentDevices.video,
+                ),
+              );
+            }
+            if (!cancelled) setLocalStream(buildLocalStream(room));
+          } catch (err) {
+            console.error(
+              "[use-sfu-room] restaurar intent de mídia falhou:",
+              err,
+            );
+          }
+        }
       } catch (err) {
         if (!cancelled) {
           console.error("[use-sfu-room] connect failed:", err);
@@ -312,14 +381,23 @@ export function useSfuRoom({
         activeRoom.disconnect();
       }
       roomRef.current = null;
-      setPeers(new Map());
+      setRoom(null);
+      // NÃO zeramos `peers` aqui: numa reconexão (token/wsUrl novos) isso apagava
+      // os peers vindos só da presença (Pusher) — guests/usuários que ainda não
+      // publicaram no SFU — e eles só reapareceriam no próximo `peer-sprite`
+      // (emitido em join, não periodicamente), sumindo do mapa/overlays. O
+      // `rebuildPeers` reconcilia sozinho: upserta os participantes atuais e
+      // remove os que saíram do SFU via `sfuIdsRef`, preservando os só-presença.
       setLocalStream(null);
       setScreenStream(null);
-      setMicOn(false);
-      setCamOn(false);
+      // NÃO resetamos micOn/camOn: o intent do usuário é preservado (refs) e
+      // reaplicado após reconectar (bloco "reaplica o intent" acima). Resetar
+      // aqui fazia o botão da MediaBar voltar pra "desligado" numa reconexão e
+      // o usuário falava com o mic mudo achando que estava ligado. Screen-share
+      // não sobrevive a uma Room nova (exige novo gesto), então segue resetado.
       setScreenOn(false);
     };
-  }, [token, wsUrl, rebuildPeers, refreshDevices]);
+  }, [token, wsUrl, rebuildPeers, refreshDevices, getCurrentDevices]);
 
   // ── Sincroniza bubblePeers com peers (Fase 1: bubble = todos) ───────────
   // Depende de `bubbleLocked` (estado, não ref) pra re-sincronizar ao destravar.
@@ -328,18 +406,80 @@ export function useSfuRoom({
     setBubblePeers(new Set(peers.keys()));
   }, [peers, bubbleLocked]);
 
+  // ── Áudio gating por proximidade (Fase 2) ────────────────────────────────
+  // Peers fora da bolha física (raio do WorldScene) NÃO ouvem os de dentro
+  // e vice-versa. Implementado via `RemoteTrackPublication.setSubscribed` —
+  // API nativa do LiveKit, ZERO mudança em env/connect/init.
+  //
+  // O WorldScene (world-scene.ts:checkProximity) já dispara os eventos
+  // `space-station:proximity-enter/leave` com o `peerId` do peer alvo.
+  // Aqui apenas escutamos e mantemos o Set autoritativo, depois sincronizamos
+  // o estado de subscription dos audio tracks em sync.
+  const [nearbyPeerIds, setNearbyPeerIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const onEnter = (e: Event) => {
+      const { peerId } = (e as CustomEvent).detail as { peerId: string };
+      if (!peerId) return;
+      setNearbyPeerIds((prev) => {
+        if (prev.has(peerId)) return prev;
+        const next = new Set(prev);
+        next.add(peerId);
+        return next;
+      });
+    };
+    const onLeave = (e: Event) => {
+      const { peerId } = (e as CustomEvent).detail as { peerId: string };
+      if (!peerId) return;
+      setNearbyPeerIds((prev) => {
+        if (!prev.has(peerId)) return prev;
+        const next = new Set(prev);
+        next.delete(peerId);
+        return next;
+      });
+    };
+    window.addEventListener("space-station:proximity-enter", onEnter);
+    window.addEventListener("space-station:proximity-leave", onLeave);
+    return () => {
+      window.removeEventListener("space-station:proximity-enter", onEnter);
+      window.removeEventListener("space-station:proximity-leave", onLeave);
+    };
+  }, []);
+
+  // Sincroniza subscriptions: peer próximo → subscribe audio; longe → unsubscribe.
+  // Roda em todo cliente, então é recíproco (A não ouve B se B não está perto
+  // de A localmente; B também não ouve A pelo mesmo motivo em B).
+  // Vídeo e screen-share NÃO são afetados — só audio tracks.
+  // Depende também de `peers` pra cobrir o caso de peer novo entrando: o
+  // join dispara rebuildPeers, que muda `peers`, e o effect reaplica o
+  // estado correto na track de áudio recém-publicada.
+  useEffect(() => {
+    const room = roomRef.current;
+    if (!room) return;
+    room.remoteParticipants.forEach((participant: RemoteParticipant) => {
+      const accountId = toAccountId(participant.identity);
+      const isNearby = nearbyPeerIds.has(accountId);
+      participant.audioTrackPublications.forEach((pub) => {
+        if (pub.isSubscribed !== isNearby) {
+          pub.setSubscribed(isNearby);
+        }
+      });
+    });
+  }, [nearbyPeerIds, peers]);
+
   // ── Toggle Mic ──────────────────────────────────────────────────────────
   const toggleMic = useCallback(async () => {
     const room = roomRef.current;
     if (!room) return;
     const next = !micOnRef.current;
+    // Só usa `exact` se o device persistido está na enumeração atual; se ele
+    // sumiu (headset desconectado), cai no default sem apagar a preferência.
+    const preferredAudioInputId = resolvePreferredDeviceId(
+      useMediaDeviceStore.getState().audioInputId,
+      getCurrentDevices().audio,
+    );
     try {
-      await room.localParticipant.setMicrophoneEnabled(
-        next,
-        selectedAudioRef.current
-          ? { deviceId: { exact: selectedAudioRef.current } }
-          : undefined,
-      );
+      await enableMicrophone(room, next, preferredAudioInputId);
       setMicOn(next);
       setCamError(null);
       void refreshDevices();
@@ -349,20 +489,19 @@ export function useSfuRoom({
       console.error("[use-sfu-room] toggleMic:", err);
       setCamError(humanizeMediaError(err));
     }
-  }, [refreshDevices]);
+  }, [refreshDevices, getCurrentDevices]);
 
   // ── Toggle Cam ──────────────────────────────────────────────────────────
   const toggleCam = useCallback(async () => {
     const room = roomRef.current;
     if (!room) return;
     const next = !camOnRef.current;
+    const preferredVideoInputId = resolvePreferredDeviceId(
+      useMediaDeviceStore.getState().videoInputId,
+      getCurrentDevices().video,
+    );
     try {
-      await room.localParticipant.setCameraEnabled(
-        next,
-        selectedVideoRef.current
-          ? { deviceId: { exact: selectedVideoRef.current } }
-          : undefined,
-      );
+      await enableCamera(room, next, preferredVideoInputId);
       setCamOn(next);
       setCamError(null);
       void refreshDevices();
@@ -371,7 +510,7 @@ export function useSfuRoom({
       console.error("[use-sfu-room] toggleCam:", err);
       setCamError(humanizeMediaError(err));
     }
-  }, [refreshDevices]);
+  }, [refreshDevices, getCurrentDevices]);
 
   // ── Toggle Screen Share ─────────────────────────────────────────────────
   const toggleScreen = useCallback(async () => {
@@ -388,26 +527,54 @@ export function useSfuRoom({
     }
   }, []);
 
-  // ── Apply device change (input/output) ──────────────────────────────────
+  // ── Apply device change (inputs) ─────────────────────────────────────────
+  // Lê direto do store (getState é síncrono) — o padrão antigo de refs
+  // espelhadas via useEffect fazia o PRIMEIRO apply usar o device anterior.
   const applyDeviceChange = useCallback(async () => {
     const room = roomRef.current;
     if (!room) return;
+    const storedPreferences = useMediaDeviceStore.getState();
+    const currentDevices = getCurrentDevices();
+    const preferredAudioInputId = resolvePreferredDeviceId(
+      storedPreferences.audioInputId,
+      currentDevices.audio,
+    );
+    const preferredVideoInputId = resolvePreferredDeviceId(
+      storedPreferences.videoInputId,
+      currentDevices.video,
+    );
     try {
-      if (selectedAudioRef.current) {
-        await room.switchActiveDevice("audioinput", selectedAudioRef.current);
+      if (preferredAudioInputId) {
+        await room.switchActiveDevice("audioinput", preferredAudioInputId);
       }
-      if (selectedVideoRef.current) {
-        await room.switchActiveDevice("videoinput", selectedVideoRef.current);
-      }
-      if (selectedOutputRef.current) {
-        await room.switchActiveDevice("audiooutput", selectedOutputRef.current);
+      if (preferredVideoInputId) {
+        await room.switchActiveDevice("videoinput", preferredVideoInputId);
       }
       setLocalStream(buildLocalStream(room));
     } catch (err) {
       console.error("[use-sfu-room] applyDeviceChange:", err);
       setCamError(humanizeMediaError(err));
     }
-  }, []);
+  }, [getCurrentDevices]);
+
+  // ── Saída de áudio (reativa) ─────────────────────────────────────────────
+  // Hoje o LiveKit só aplica sinkId em elementos anexados via track.attach(),
+  // que os overlays NÃO usam (renderizam via el.srcObject — ver comentário em
+  // connectRoom). Quem garante a saída audível é o setSinkId do VideoOverlay.
+  // Mantemos o switchActiveDevice como future-proofing pra quando a Fase 2+
+  // migrar os overlays pro attach().
+  useEffect(() => {
+    const room = roomRef.current;
+    if (!room || connectionState !== "connected") return;
+    const preferredOutputId = resolvePreferredDeviceId(
+      audioOutputId,
+      getCurrentDevices().output,
+    );
+    if (!preferredOutputId) return;
+    room.switchActiveDevice("audiooutput", preferredOutputId).catch(() => {
+      /* device stale/sem suporte — saída efetiva segue via setSinkId */
+    });
+  }, [audioOutputId, connectionState, getCurrentDevices]);
 
   const toggleBubbleLock = useCallback(() => {
     setBubbleLocked((v) => !v);
@@ -441,6 +608,9 @@ export function useSfuRoom({
           spriteUrl: resolvedSprite,
           stream: existing?.stream ?? null,
           screenStream: existing?.screenStream,
+          // Preserva a ref de vídeo vinda do SFU — senão um peer-sprite (Pusher)
+          // re-emitido apagaria o <VideoTrack> até o próximo rebuildPeers.
+          cameraTrackRef: existing?.cameraTrackRef,
           micOn: existing?.micOn ?? false,
           camOn: existing?.camOn ?? false,
           screenOn: existing?.screenOn ?? false,
@@ -490,13 +660,14 @@ export function useSfuRoom({
     screenStream,
     peers,
     devices,
-    selectedAudio,
-    selectedVideo,
-    selectedOutput,
-    setSelectedAudio,
-    setSelectedVideo,
-    setSelectedOutput,
+    selectedAudio: audioInputId,
+    selectedVideo: videoInputId,
+    selectedOutput: audioOutputId,
+    setSelectedAudio: setAudioInputId,
+    setSelectedVideo: setVideoInputId,
+    setSelectedOutput: setAudioOutputId,
     applyDeviceChange,
+    requestDevicePermissions,
     toggleMic,
     toggleCam,
     toggleScreen,
@@ -507,10 +678,64 @@ export function useSfuRoom({
     toggleBubbleLock,
     audioBlocked,
     connectionState,
+    room,
   };
 }
 
 // ─── Helpers internos ───────────────────────────────────────────────────────
+
+/**
+ * Remove o sufixo de sessão da identity do LiveKit (`${accountId}:${sessionId}`
+ * — ver join-world.ts) pra obter o id por usuário usado pela presença (Pusher)
+ * e pelos sprites. Sem sufixo (convidado, token legado), devolve a string toda.
+ */
+function toAccountId(identity: string): string {
+  const separatorIndex = identity.indexOf(":");
+  return separatorIndex === -1 ? identity : identity.slice(0, separatorIndex);
+}
+
+/**
+ * Liga/desliga o microfone honrando o device preferido, com fallback pro device
+ * padrão quando o preferido sumiu (corrida enumeração×unplug). Compartilhado
+ * pelo toggle e pela reaplicação de intent após reconectar.
+ */
+async function enableMicrophone(
+  room: Room,
+  enabled: boolean,
+  preferredDeviceId: string | null,
+): Promise<void> {
+  try {
+    await room.localParticipant.setMicrophoneEnabled(
+      enabled,
+      preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : undefined,
+    );
+  } catch (err) {
+    // Corrida enumeração×unplug: device saiu depois da última enumeração.
+    if (!enabled || !preferredDeviceId || !isDeviceUnavailableError(err)) {
+      throw err;
+    }
+    await room.localParticipant.setMicrophoneEnabled(enabled);
+  }
+}
+
+/** Igual a `enableMicrophone`, pra câmera. */
+async function enableCamera(
+  room: Room,
+  enabled: boolean,
+  preferredDeviceId: string | null,
+): Promise<void> {
+  try {
+    await room.localParticipant.setCameraEnabled(
+      enabled,
+      preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : undefined,
+    );
+  } catch (err) {
+    if (!enabled || !preferredDeviceId || !isDeviceUnavailableError(err)) {
+      throw err;
+    }
+    await room.localParticipant.setCameraEnabled(enabled);
+  }
+}
 
 /**
  * Constrói um MediaStream agregando as tracks de mic+cam publicadas pelo
@@ -550,10 +775,14 @@ function buildLocalScreenStream(room: Room): MediaStream | null {
  * derivam das publicações; nome cai pra `name` do LiveKit (vem do token).
  * Os campos de sprite/image são preenchidos via Pusher noutro effect.
  */
-function snapshotRemotePeer(p: RemoteParticipant): RemotePeer {
+function snapshotRemotePeer(
+  p: RemoteParticipant,
+  peerUserId: string,
+): RemotePeer {
   let micOn = false;
   let camOn = false;
   let screenOn = false;
+  let cameraTrackRef: TrackReference | undefined;
   const mediaTracks: MediaStreamTrack[] = [];
   const screenTracks: MediaStreamTrack[] = [];
 
@@ -564,7 +793,13 @@ function snapshotRemotePeer(p: RemoteParticipant): RemotePeer {
       sourceStr === "screen_share" || sourceStr === "screen_share_audio";
 
     if (sourceStr === "microphone") micOn = !rpub.isMuted && rpub.isSubscribed;
-    if (sourceStr === "camera") camOn = !rpub.isMuted && rpub.isSubscribed;
+    if (sourceStr === "camera") {
+      camOn = !rpub.isMuted && rpub.isSubscribed;
+      // TrackReference pro <VideoTrack>. `rpub.source` já é o enum Track.Source
+      // correto — evita importar o valor `Track` do livekit-client (mantém o
+      // lazy-load do SDK). O <VideoTrack> cuida do attach quando a track chega.
+      cameraTrackRef = { participant: p, publication: rpub, source: rpub.source };
+    }
     if (isScreen) screenOn = !rpub.isMuted && rpub.isSubscribed;
 
     const t = rpub.track?.mediaStreamTrack;
@@ -578,13 +813,14 @@ function snapshotRemotePeer(p: RemoteParticipant): RemotePeer {
     screenTracks.length > 0 ? new MediaStream(screenTracks) : null;
 
   return {
-    userId: p.identity,
-    name: p.name || p.identity,
+    userId: peerUserId,
+    name: p.name || peerUserId,
     nick: null,
     image: null,
     spriteUrl: null,
     stream,
     screenStream,
+    cameraTrackRef,
     micOn,
     camOn,
     screenOn,

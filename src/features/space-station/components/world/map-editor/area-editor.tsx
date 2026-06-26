@@ -235,9 +235,12 @@ export function AreaEditor({ areas, onChange }: Props) {
         })}
       </div>
 
-      {/* Inspetor */}
+      {/* Inspetor — altura limitada + scroll próprio pra não invadir o footer
+          "Fechar/Salvar" do MapEditor pai. Antes ficava expandindo livre e
+          empurrava as configurações de áreas grandes (ex: info com mensagem
+          longa, website com URL) por trás dos botões fixos. */}
       {selected && (
-        <div className="border-t border-white/5 p-4 space-y-3">
+        <div className="flex-shrink-0 border-t border-white/5 p-4 space-y-3 max-h-[45vh] overflow-y-auto">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-white flex-1 truncate">{selected.name}</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"

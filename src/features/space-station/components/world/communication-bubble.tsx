@@ -6,7 +6,7 @@
  */
 
 import { Lock, LockOpen, Users } from "lucide-react";
-import type { RemotePeer } from "../../hooks/use-webrtc";
+import type { RemotePeer } from "../../hooks/use-sfu-room";
 import Image from "next/image";
 
 interface Props {

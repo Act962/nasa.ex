@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { usePaymentCategories, usePaymentContacts, usePaymentAccounts } from "../../hooks/use-payment";
+import { useDunningRules } from "../../hooks/use-payment-dunning";
 import { parseCurrencyToCents } from "../../lib/format";
 import { toast } from "sonner";
 
@@ -29,6 +30,8 @@ interface EntryFormProps {
     notes?: string;
     documentNumber?: string;
     installments: number;
+    requiresApproval?: boolean;
+    dunningRuleId?: string;
   }) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
@@ -44,12 +47,20 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
   const [notes, setNotes] = useState("");
   const [documentNumber, setDocumentNumber] = useState("");
   const [installments, setInstallments] = useState(1);
+  const [requiresApproval, setRequiresApproval] = useState(false);
+  const [dunningRuleId, setDunningRuleId] = useState<string>("__none__");
 
   const { data: categoriesData } = usePaymentCategories(
     type === "RECEIVABLE" ? "REVENUE" : "EXPENSE"
   );
   const { data: contactsData } = usePaymentContacts();
   const { data: accountsData } = usePaymentAccounts();
+  // Régua só faz sentido em RECEIVABLE — pedimos só nesse caso pra economizar
+  // 1 request/render quando o user tá cadastrando A pagar.
+  const { data: dunningData } = useDunningRules();
+  const availableRules = type === "RECEIVABLE"
+    ? (dunningData?.rules ?? []).filter((r) => r.isActive)
+    : [];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,6 +78,8 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
       notes: notes || undefined,
       documentNumber: documentNumber || undefined,
       installments,
+      requiresApproval,
+      dunningRuleId: dunningRuleId === "__none__" ? undefined : dunningRuleId,
     });
   }
 
@@ -162,6 +175,46 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
         <Label>Observações</Label>
         <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
+
+      {type === "RECEIVABLE" && availableRules.length > 0 && (
+        <div className="space-y-2">
+          <Label>Régua de cobrança</Label>
+          <Select value={dunningRuleId} onValueChange={setDunningRuleId}>
+            <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Sem régua</SelectItem>
+              {availableRules.map((r) => (
+                <SelectItem key={r.id} value={r.id}>
+                  {r.name}{r.isDefault ? " (padrão)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground">
+            Steps disparam via Inngest event-driven nos dias configurados em Settings → Régua de Cobrança.
+          </p>
+        </div>
+      )}
+
+      <label
+        className="flex items-start gap-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 cursor-pointer hover:bg-amber-500/10 transition-colors"
+        title="Marca esse lançamento como exigindo aprovação manual antes de virar PENDENTE no fluxo de pagamento"
+      >
+        <input
+          type="checkbox"
+          checked={requiresApproval}
+          onChange={(e) => setRequiresApproval(e.target.checked)}
+          className="mt-0.5 size-4 accent-amber-500"
+        />
+        <div className="space-y-0.5">
+          <p className="text-xs font-medium">Exigir aprovação manual</p>
+          <p className="text-[11px] text-muted-foreground">
+            Vai pra aba "Aprovações" e só entra em PENDENTE depois que um aprovador
+            (Master, Adm ou usuário permissionado) liberar. Configuração de threshold
+            automático fica em Settings → Governança.
+          </p>
+        </div>
+      </label>
 
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={onCancel} className="flex-1">Cancelar</Button>

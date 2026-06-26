@@ -1,6 +1,14 @@
 "use client";
 import React, { useState } from "react";
-import { DndContext, MouseSensor, useSensor, useSensors } from "@dnd-kit/core";
+import {
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useBuilderStore } from "../../context/builder-form-provider";
 import { Builder } from "@/features/form/components/build/builder";
@@ -24,12 +32,25 @@ export function FormBuilder({ formId }: { formId: string }) {
     },
   });
 
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 500,
+      tolerance: 10,
+    },
+  });
+
+  const keyboardSensor = useSensor(KeyboardSensor, {
+    coordinateGetter: sortableKeyboardCoordinates,
+  });
+
+  const sensors = useSensors(mouseSensor, touchSensor, keyboardSensor);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(
     isPublished ? false : true,
   );
   return (
     <div className="w-full">
-      <DndContext sensors={useSensors(mouseSensor)}>
+      <DndContext sensors={sensors}>
         <BuilderDragOverlay />
 
         <SidebarProvider

@@ -1,5 +1,8 @@
 import type { Connection, Node } from "@/generated/prisma/client";
-import { triggerNodes, executionNodes } from "@/features/executions/lib/node-options";
+import {
+  triggerNodes,
+  executionNodes,
+} from "@/features/tracking-executions/lib/node-options";
 
 const NODE_LABELS = new Map(
   [...triggerNodes, ...executionNodes].map((n) => [n.type, n.label]),
@@ -24,9 +27,7 @@ export function getWorkflowStepsPreview(
 
   const startCandidates = nodes.filter((n) => !incomingIds.has(n.id));
   const start =
-    startCandidates.find((n) =>
-      triggerNodes.some((t) => t.type === n.type),
-    ) ??
+    startCandidates.find((n) => triggerNodes.some((t) => t.type === n.type)) ??
     startCandidates[0] ??
     nodes[0];
 

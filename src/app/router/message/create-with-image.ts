@@ -36,7 +36,11 @@ export const createMessageWithImage = base
       conversationId: z.string(),
       body: z.string().optional(),
       leadPhone: z.string(),
-      token: z.string(),
+      /**
+       * @deprecated Ignorado pelo servidor desde Fase 6 — provider
+       * resolvido server-side via `resolveOutboundProvider(trackingId)`.
+       */
+      token: z.string().nullish(),
       mediaUrl: z.string(),
       id: z.string().optional(),
       quotedMessageId: z.string().optional(),
@@ -44,7 +48,6 @@ export const createMessageWithImage = base
   )
   .handler(async ({ input, context }) => {
     try {
-      // Cobra 1★ antes de chamar uazapi — evita custo de API sem saldo.
       const conv = await prisma.conversation.findUnique({
         where: { id: input.conversationId },
         select: {
@@ -53,6 +56,28 @@ export const createMessageWithImage = base
           tracking: { select: { organizationId: true } },
         },
       });
+
+      // ── In-Chat Fallback ─────────────────────────────────────────────
+      // Quando a instância está banida/offline, pula a uazapi e marca
+      // `viaInChat: true` — o lead vê via `/whatsapp/[orgSlug]`.
+      const inChatMode =
+        (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP &&
+        (await shouldSkipUazapiForConversation(input.conversationId));
+
+      // Resolve provider ANTES de cobrar ★ (Fix #2). Se o resolver lança
+      // (instância deletada, credenciais Meta incompletas, etc.) o cliente
+      // não paga ★ por mensagem que nunca sairá. In-Chat e canais não-
+      // WhatsApp não passam pelo resolver.
+      let resolvedWhatsapp: Awaited<ReturnType<typeof resolveOutboundProvider>> | null = null;
+      if (!inChatMode && (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP) {
+        if (!conv?.trackingId) {
+          throw new Error(
+            "Conversation sem trackingId — não é possível resolver provider.",
+          );
+        }
+        resolvedWhatsapp = await resolveOutboundProvider(conv.trackingId);
+      }
+
       if (conv?.tracking?.organizationId) {
         await chargeMessageOutbound({
           organizationId: conv.tracking.organizationId,
@@ -67,24 +92,11 @@ export const createMessageWithImage = base
         });
       }
 
-      // ── In-Chat Fallback ─────────────────────────────────────────────
-      // Quando a instância está banida/offline, pula a uazapi e marca
-      // `viaInChat: true` — o lead vê via `/whatsapp/[orgSlug]`.
-      const inChatMode =
-        (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP &&
-        (await shouldSkipUazapiForConversation(input.conversationId));
-
       let externalMessageId = uuidv4();
       if (!inChatMode) {
-        // Provider dispatch (Fase 6) — Uazapi vs Meta resolvido por
-        // `trackingId`. `input.token` mantido por backward compat mas
-        // ignorado.
-        if (!conv?.trackingId) {
-          throw new Error(
-            "Conversation sem trackingId — não é possível resolver provider.",
-          );
-        }
-        const resolved = await resolveOutboundProvider(conv.trackingId);
+        // Provider já resolvido lá em cima — reusa pra não pagar Prisma+
+        // decifragem AES de novo. `input.token` ignorado (backward compat).
+        const resolved = resolvedWhatsapp!;
         try {
           const response = await resolved.provider.sendMedia({
             kind: "media",

@@ -63,6 +63,11 @@ export const metaSchema = z
     utmCampaign: z.string().optional(),
     utmContent: z.string().optional(),
     utmTerm: z.string().optional(),
+    // Destino do lead no In-Chat: tracking + status escolhidos nas
+    // Configurações da Página. Quando definidos, a rota /identify cria
+    // o lead nesse tracking/status (em vez do primeiro status do funil).
+    inChatTrackingId: z.string().optional(),
+    inChatStatusId: z.string().optional(),
   })
   .default({});
 

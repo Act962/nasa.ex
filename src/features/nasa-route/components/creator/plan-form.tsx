@@ -11,6 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
+  centsToBrlInput,
+  parseBrlInputToCents,
+} from "@/features/nasa-route/lib/price-input";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -44,9 +48,7 @@ export function PlanForm({ open, onClose, courseId, initial }: Props) {
     initial?.priceStars?.toString() ?? "0",
   );
   const [priceBrl, setPriceBrl] = useState<string>(
-    initial?.priceBrlCents != null
-      ? (initial.priceBrlCents / 100).toFixed(2)
-      : "",
+    centsToBrlInput(initial?.priceBrlCents),
   );
   const [isDefault, setIsDefault] = useState(initial?.isDefault ?? false);
 
@@ -71,7 +73,7 @@ export function PlanForm({ open, onClose, courseId, initial }: Props) {
       toast.error("Nome é obrigatório.");
       return;
     }
-    const priceBrlCents = Math.round((Number(priceBrl) || 0) * 100);
+    const priceBrlCents = parseBrlInputToCents(priceBrl);
     if (priceBrlCents > 0 && priceBrlCents < 50) {
       toast.error("Valor mínimo aceito pelo gateway é R$ 0,50.");
       return;
@@ -118,9 +120,8 @@ export function PlanForm({ open, onClose, courseId, initial }: Props) {
             <Label htmlFor="plan-price-brl">Preço (R$)</Label>
             <Input
               id="plan-price-brl"
-              type="number"
-              min={0}
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               value={priceBrl}
               onChange={(e) => setPriceBrl(e.target.value)}
               placeholder="Ex: 49,90"

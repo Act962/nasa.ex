@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
+import { pusherServer } from "@/lib/pusher";
 import z from "zod";
 
 const avatarConfigSchema = z.object({
@@ -78,6 +79,29 @@ export const updateWorld = base
         create: { stationId, ...data } as Prisma.SpaceStationWorldUncheckedCreateInput,
         update: data,
       });
+
+      // Broadcast mudança pros outros clients conectados no mesmo channel
+      // da presença. Cada client ouve `world:config-updated` e re-renderiza
+      // a página (router.refresh()) pra puxar o worldConfig fresco do banco.
+      // `savedBy` permite o cliente que SALVOU ignorar o próprio event e
+      // evitar refresh redundante. Os campos atualizados vão no payload
+      // pra debug, mas o client confia só no banco depois do refresh.
+      const changedFields = (Object.keys(data) as Array<keyof typeof data>).filter(
+        (k) => data[k] !== undefined,
+      );
+      await pusherServer
+        .trigger(`presence-world-${stationId}`, "world:config-updated", {
+          savedBy: userId,
+          savedAt: new Date().toISOString(),
+          changedFields,
+        })
+        .catch((pusherErr) => {
+          // Best-effort: se Pusher falhar (key inválida, network), o save
+          // já foi feito. Próxima vez que outro user der F5 vai pegar a
+          // mudança. Não derrubamos o request por causa disso.
+          console.error("[updateWorld] Pusher broadcast falhou:", pusherErr);
+        });
+
       return { world };
     } catch (err) {
       console.error("[updateWorld] Prisma error:", err);

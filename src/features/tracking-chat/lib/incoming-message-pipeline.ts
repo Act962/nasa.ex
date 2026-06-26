@@ -206,6 +206,25 @@ export async function firePostInboundAutomations(
     }
   }
 
+  // ── 5b. Primeira interação do dia (só inbound) ───────────────────────
+  // Usa `params.lead.lastInboundAt` = valor ANTERIOR (snapshot carregado
+  // antes do update da etapa 1) pra detectar lead que volta após dias.
+  if (!params.fromMe) {
+    try {
+      const { dispatchFirstInteractionOfDayIfReturning } = await import(
+        "@/features/triggers/components/first-interaction-of-day/dispatch"
+      );
+      await dispatchFirstInteractionOfDayIfReturning({
+        leadId: params.lead.id,
+        trackingId: params.trackingId,
+        previousLastInboundAt: params.lead.lastInboundAt,
+        interactionAt: now,
+      });
+    } catch (err) {
+      console.error("[pipeline] first_interaction_of_day_gate_failed", err);
+    }
+  }
+
   // ── 6. Pusher (per-tracking + per-conversation) ──────────────────────
   try {
     if (params.conversationPayload) {
@@ -238,6 +257,10 @@ export async function firePostInboundAutomations(
 
 export interface CreateInChatLeadParams {
   trackingId: string;
+  /** Status de destino dentro do tracking (configurado nas Configurações
+   *  da Página). Validado contra o tracking; se ausente/inválido, cai no
+   *  primeiro status do funil (order asc). */
+  statusId?: string;
   /** Telefone normalizado (só dígitos). Unique per tracking. */
   phone: string;
   /** Nome do lead (do form de identify). */
@@ -291,12 +314,22 @@ export async function createInChatLead(
     throw new Error("tracking_not_found");
   }
 
-  // Pega o primeiro status do funil (order asc).
-  const status = await prisma.status.findFirst({
-    where: { trackingId: params.trackingId },
-    select: { id: true },
-    orderBy: { order: "asc" },
-  });
+  // Status de destino: se a página configurou um `statusId`, valida que
+  // pertence a este tracking e usa. Senão (ausente/inválido), cai no
+  // primeiro status do funil (order asc) — comportamento legado.
+  let status = params.statusId
+    ? await prisma.status.findFirst({
+        where: { id: params.statusId, trackingId: params.trackingId },
+        select: { id: true },
+      })
+    : null;
+  if (!status) {
+    status = await prisma.status.findFirst({
+      where: { trackingId: params.trackingId },
+      select: { id: true },
+      orderBy: { order: "asc" },
+    });
+  }
   if (!status) {
     throw new Error("status_not_configured");
   }

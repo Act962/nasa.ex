@@ -1,39 +1,81 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Mic, Video, Volume2, RefreshCw, Check, ChevronRight, Clock } from "lucide-react";
+import {
+  Mic,
+  Video,
+  Volume2,
+  RefreshCw,
+  Check,
+  ChevronRight,
+  Clock,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  selectAudioOutputViaPicker,
+  supportsAudioOutputSelection,
+  supportsSelectAudioOutput,
+} from "../../utils/media-devices";
 
 interface Props {
-  open:              boolean;
-  onClose:           () => void;
-  micOn:             boolean;
-  camOn:             boolean;
-  camError?:         string | null;
-  onToggleMic:       () => void;
-  onToggleCam:       () => void;
-  localStream:       MediaStream | null;
-  devices:           { audio: MediaDeviceInfo[]; video: MediaDeviceInfo[]; output: MediaDeviceInfo[] };
-  selectedAudio:     string;
-  setSelectedAudio:  (id: string) => void;
-  selectedVideo:     string;
-  setSelectedVideo:  (id: string) => void;
-  selectedOutput:    string;
+  open: boolean;
+  onClose: () => void;
+  micOn: boolean;
+  camOn: boolean;
+  camError?: string | null;
+  onToggleMic: () => void;
+  onToggleCam: () => void;
+  localStream: MediaStream | null;
+  devices: {
+    audio: MediaDeviceInfo[];
+    video: MediaDeviceInfo[];
+    output: MediaDeviceInfo[];
+  };
+  selectedAudio: string;
+  setSelectedAudio: (id: string) => void;
+  selectedVideo: string;
+  setSelectedVideo: (id: string) => void;
+  selectedOutput: string;
   setSelectedOutput: (id: string) => void;
-  onApplyDevices:    () => void;
+  onApplyDevices: () => void;
+  /** Prime de permissão: libera labels e a lista de saídas sem ligar o mic. */
+  onRequestPermissions: () => void;
 }
 
 export function MediaSettingsPanel({
-  open, onClose, micOn, camOn, camError, onToggleMic, onToggleCam,
-  localStream, devices, selectedAudio, setSelectedAudio,
-  selectedVideo, setSelectedVideo, selectedOutput, setSelectedOutput,
+  open,
+  onClose,
+  micOn,
+  camOn,
+  camError,
+  onToggleMic,
+  onToggleCam,
+  localStream,
+  devices,
+  selectedAudio,
+  setSelectedAudio,
+  selectedVideo,
+  setSelectedVideo,
+  selectedOutput,
+  setSelectedOutput,
   onApplyDevices,
+  onRequestPermissions,
 }: Props) {
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
-  const [micDialogOpen,    setMicDialogOpen]    = useState(false);
+  const [micDialogOpen, setMicDialogOpen] = useState(false);
   const [outputDialogOpen, setOutputDialogOpen] = useState(false);
+
+  const pickOutputWithNativePicker = async () => {
+    const pickedOutput = await selectAudioOutputViaPicker();
+    if (pickedOutput) setSelectedOutput(pickedOutput.deviceId);
+  };
 
   useEffect(() => {
     const el = videoPreviewRef.current;
@@ -49,7 +91,7 @@ export function MediaSettingsPanel({
   return (
     <>
       {/* ── Dialog principal ── */}
-      <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
         <DialogContent className="bg-slate-900 border-white/10 text-white max-w-sm p-0 gap-0 overflow-hidden z-[51]">
           <DialogHeader className="px-5 pt-5 pb-0">
             <DialogTitle className="text-white text-base font-semibold">
@@ -79,13 +121,17 @@ export function MediaSettingsPanel({
             </TabsList>
 
             {/* ── Aba: Configurações ── */}
-            <TabsContent value="settings" className="p-5 flex flex-col gap-5 mt-0">
-
+            <TabsContent
+              value="settings"
+              className="p-5 flex flex-col gap-5 mt-0"
+            >
               {/* Erro de permissão */}
               {camError && (
                 <div className="flex items-start gap-2 bg-rose-500/15 border border-rose-500/30 rounded-xl px-3 py-2.5">
                   <span className="text-rose-400 mt-0.5 shrink-0">⚠️</span>
-                  <p className="text-xs text-rose-300 leading-snug">{camError}</p>
+                  <p className="text-xs text-rose-300 leading-snug">
+                    {camError}
+                  </p>
                 </div>
               )}
 
@@ -98,7 +144,9 @@ export function MediaSettingsPanel({
                   {camOn && localStream ? (
                     <video
                       ref={videoPreviewRef}
-                      muted autoPlay playsInline
+                      muted
+                      autoPlay
+                      playsInline
                       className="w-full h-full object-cover scale-x-[-1]"
                     />
                   ) : (
@@ -110,7 +158,9 @@ export function MediaSettingsPanel({
                 </div>
                 {!camOn ? (
                   <>
-                    <p className="text-xs text-slate-400 italic text-center mb-2">Sua câmera está desabilitada</p>
+                    <p className="text-xs text-slate-400 italic text-center mb-2">
+                      Sua câmera está desabilitada
+                    </p>
                     <Button
                       className="w-full bg-rose-500 hover:bg-rose-400 text-white rounded-xl h-9 text-sm font-semibold"
                       onClick={onToggleCam}
@@ -122,12 +172,16 @@ export function MediaSettingsPanel({
                   <div className="flex gap-2">
                     <select
                       value={selectedVideo}
-                      onChange={e => setSelectedVideo(e.target.value)}
+                      onChange={(e) => setSelectedVideo(e.target.value)}
                       className="flex-1 bg-slate-800 text-slate-200 text-xs rounded-lg px-2 py-1.5 border border-white/10 focus:outline-none"
                     >
-                      {devices.video.length === 0 && <option value="">Câmera padrão</option>}
-                      {devices.video.map(d => (
-                        <option key={d.deviceId} value={d.deviceId}>{d.label || "Câmera"}</option>
+                      {devices.video.length === 0 && (
+                        <option value="">Câmera padrão</option>
+                      )}
+                      {devices.video.map((d) => (
+                        <option key={d.deviceId} value={d.deviceId}>
+                          {d.label || "Câmera"}
+                        </option>
                       ))}
                     </select>
                     <button
@@ -154,13 +208,23 @@ export function MediaSettingsPanel({
                 </label>
                 {!micOn ? (
                   <>
-                    <p className="text-xs text-slate-400 italic text-center mb-2">Seu microfone está desabilitado</p>
+                    <p className="text-xs text-slate-400 italic text-center mb-2">
+                      Seu microfone está desabilitado
+                    </p>
                     <Button
                       className="w-full bg-rose-500 hover:bg-rose-400 text-white rounded-xl h-9 text-sm font-semibold"
                       onClick={onToggleMic}
                     >
                       Ativar seu microfone
                     </Button>
+                    {devices.audio.length === 0 && (
+                      <button
+                        onClick={onRequestPermissions}
+                        className="w-full mt-2 text-[11px] text-slate-400 hover:text-slate-200 underline-offset-2 hover:underline transition-colors"
+                      >
+                        Só listar dispositivos (sem ativar o microfone)
+                      </button>
+                    )}
                   </>
                 ) : (
                   <div className="flex gap-2 items-center">
@@ -170,7 +234,8 @@ export function MediaSettingsPanel({
                     >
                       <Mic className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                       <span className="flex-1 text-left text-xs text-slate-200 truncate">
-                        {devices.audio.find(d => d.deviceId === selectedAudio)?.label || "Microfone padrão"}
+                        {devices.audio.find((d) => d.deviceId === selectedAudio)
+                          ?.label || "Microfone padrão"}
                       </span>
                       <ChevronRight className="h-3.5 w-3.5 text-slate-500 shrink-0" />
                     </button>
@@ -189,24 +254,48 @@ export function MediaSettingsPanel({
                 <label className="text-[10px] font-semibold text-slate-400 tracking-widest uppercase mb-2 block">
                   Saída de áudio
                 </label>
-                <button
-                  onClick={() => devices.output.length > 0 && setOutputDialogOpen(true)}
-                  disabled={devices.output.length === 0}
-                  className="w-full flex items-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed border border-white/10 rounded-lg px-3 py-2 transition-colors"
-                >
-                  <Volume2 className="h-3.5 w-3.5 text-sky-400 shrink-0" />
-                  <span className="flex-1 text-left text-xs text-slate-200 truncate">
-                    {devices.output.find(d => d.deviceId === selectedOutput)?.label || "Alto-falante padrão"}
-                  </span>
-                  <ChevronRight className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                </button>
-                {devices.output.length === 0 && (
-                  <p className="text-[10px] text-slate-500 mt-1.5 leading-snug">
-                    Ative o microfone para liberar a seleção de alto-falante.
+                {!supportsAudioOutputSelection() ? (
+                  // Safari: sem setSinkId — não há o que escolher.
+                  <p className="text-xs text-slate-400 italic">
+                    Seu navegador usa a saída padrão do sistema.
                   </p>
+                ) : devices.output.length === 0 ? (
+                  <>
+                    <Button
+                      className="w-full bg-slate-700 hover:bg-slate-600 text-white rounded-xl h-9 text-sm font-semibold"
+                      onClick={onRequestPermissions}
+                    >
+                      Permitir acesso aos dispositivos
+                    </Button>
+                    <p className="text-[10px] text-slate-500 mt-1.5 leading-snug">
+                      O navegador só lista os alto-falantes depois da permissão
+                      de microfone.
+                    </p>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setOutputDialogOpen(true)}
+                    className="w-full flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-lg px-3 py-2 transition-colors"
+                  >
+                    <Volume2 className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+                    <span className="flex-1 text-left text-xs text-slate-200 truncate">
+                      {devices.output.find(
+                        (deviceInfo) => deviceInfo.deviceId === selectedOutput,
+                      )?.label || "Alto-falante padrão"}
+                    </span>
+                    <ChevronRight className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                  </button>
+                )}
+                {supportsSelectAudioOutput() && (
+                  // Firefox: a lista completa de saídas só vem via picker nativo.
+                  <button
+                    onClick={pickOutputWithNativePicker}
+                    className="w-full mt-2 text-[11px] text-slate-400 hover:text-slate-200 underline-offset-2 hover:underline transition-colors"
+                  >
+                    Escolher pelo seletor do navegador…
+                  </button>
                 )}
               </section>
-
             </TabsContent>
 
             {/* ── Aba: Fundo da câmera ── */}
@@ -238,20 +327,34 @@ export function MediaSettingsPanel({
           </DialogHeader>
           <div className="flex flex-col gap-1 mt-1">
             {devices.audio.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-4">Nenhum microfone encontrado.</p>
+              <p className="text-xs text-slate-400 text-center py-4">
+                Nenhum microfone encontrado.
+              </p>
             ) : (
-              devices.audio.map(d => {
-                const active = selectedAudio === d.deviceId || (!selectedAudio && d.deviceId === "default");
+              devices.audio.map((d) => {
+                const active =
+                  selectedAudio === d.deviceId ||
+                  (!selectedAudio && d.deviceId === "default");
                 return (
                   <button
                     key={d.deviceId}
-                    onClick={() => { setSelectedAudio(d.deviceId); onApplyDevices(); setMicDialogOpen(false); }}
+                    onClick={() => {
+                      setSelectedAudio(d.deviceId);
+                      onApplyDevices();
+                      setMicDialogOpen(false);
+                    }}
                     className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-left transition-colors ${
-                      active ? "bg-emerald-500/20 border border-emerald-500/30" : "hover:bg-white/5 border border-transparent"
+                      active
+                        ? "bg-emerald-500/20 border border-emerald-500/30"
+                        : "hover:bg-white/5 border border-transparent"
                     }`}
                   >
-                    <span className="flex-1 text-sm text-slate-200 truncate">{d.label || "Microfone"}</span>
-                    {active && <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />}
+                    <span className="flex-1 text-sm text-slate-200 truncate">
+                      {d.label || "Microfone"}
+                    </span>
+                    {active && (
+                      <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    )}
                   </button>
                 );
               })
@@ -270,18 +373,29 @@ export function MediaSettingsPanel({
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-1 mt-1">
-            {devices.output.map(d => {
-              const active = selectedOutput === d.deviceId || (!selectedOutput && d.deviceId === "default");
+            {devices.output.map((deviceInfo) => {
+              const active =
+                selectedOutput === deviceInfo.deviceId ||
+                (!selectedOutput && deviceInfo.deviceId === "default");
               return (
                 <button
-                  key={d.deviceId}
-                  onClick={() => { setSelectedOutput(d.deviceId); setOutputDialogOpen(false); }}
+                  key={deviceInfo.deviceId}
+                  onClick={() => {
+                    setSelectedOutput(deviceInfo.deviceId);
+                    setOutputDialogOpen(false);
+                  }}
                   className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-left transition-colors ${
-                    active ? "bg-sky-500/20 border border-sky-500/30" : "hover:bg-white/5 border border-transparent"
+                    active
+                      ? "bg-sky-500/20 border border-sky-500/30"
+                      : "hover:bg-white/5 border border-transparent"
                   }`}
                 >
-                  <span className="flex-1 text-sm text-slate-200 truncate">{d.label || "Alto-falante"}</span>
-                  {active && <Check className="h-3.5 w-3.5 text-sky-400 shrink-0" />}
+                  <span className="flex-1 text-sm text-slate-200 truncate">
+                    {deviceInfo.label || "Alto-falante"}
+                  </span>
+                  {active && (
+                    <Check className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+                  )}
                 </button>
               );
             })}

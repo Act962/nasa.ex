@@ -70,10 +70,10 @@ export function NerpConnectCard() {
           {conn.connected ? (
             <>
               <Button asChild size="sm">
-                <Link href="/nerp">
+                <a href="https://www.nasaerp.com/dashboard" target="_blank" rel="noopener noreferrer">
                   Abrir nerp
                   <ArrowRight className="size-3.5" />
-                </Link>
+                </a>
               </Button>
               <Button
                 variant="outline"

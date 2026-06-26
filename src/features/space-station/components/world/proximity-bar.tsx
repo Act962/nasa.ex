@@ -7,7 +7,7 @@
 
 import { useEffect, useRef } from "react";
 import { Mic, MicOff, X } from "lucide-react";
-import type { RemotePeer } from "../../hooks/use-webrtc";
+import type { RemotePeer } from "../../hooks/use-sfu-room";
 
 interface TileProps {
   name:      string;
@@ -99,7 +99,9 @@ interface Props {
   localNick?:      string;
   localMicOn:      boolean;
   localSpriteUrl?: string | null;
-  onLeave:         () => void;
+  /** Opcional: no modo full-mesh (todos na sala se ouvem) não há "bolha" pra
+   *  sair, então o botão de sair fica oculto quando não passado. */
+  onLeave?:        () => void;
 }
 
 export function ProximityBar({ bubblePeers, peers, localName, localNick, localMicOn, localSpriteUrl, onLeave }: Props) {
@@ -141,18 +143,23 @@ export function ProximityBar({ bubblePeers, peers, localName, localNick, localMi
           />
         ))}
 
-        {/* Separator + leave */}
-        <div className="w-px h-14 bg-white/10 mx-1" />
-        <div className="flex flex-col items-center gap-1 self-center">
-          <button
-            onClick={onLeave}
-            title="Sair da bolha"
-            className="w-8 h-8 rounded-xl bg-rose-500/20 hover:bg-rose-500/40 border border-rose-500/30 text-rose-400 flex items-center justify-center transition-all"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-          <span className="text-[9px] text-slate-500">Sair</span>
-        </div>
+        {/* Separator + leave — só no modo bolha (proximidade). No full-mesh,
+            todos na sala se ouvem e o mute fica no microfone do MediaBar. */}
+        {onLeave && (
+          <>
+            <div className="w-px h-14 bg-white/10 mx-1" />
+            <div className="flex flex-col items-center gap-1 self-center">
+              <button
+                onClick={onLeave}
+                title="Sair da bolha"
+                className="w-8 h-8 rounded-xl bg-rose-500/20 hover:bg-rose-500/40 border border-rose-500/30 text-rose-400 flex items-center justify-center transition-all"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+              <span className="text-[9px] text-slate-500">Sair</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

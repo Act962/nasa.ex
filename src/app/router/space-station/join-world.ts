@@ -1,5 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { base } from "@/app/middlewares/base";
-import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { optionalAuthMiddleware } from "@/app/middlewares/auth";
 import prisma from "@/lib/prisma";
 import { mintLiveKitToken, isLiveKitConfigured } from "@/lib/livekit/server";
 import z from "zod";
@@ -11,22 +12,45 @@ import z from "zod";
  * LiveKit (SFU) pra sala default da station. Aqui não há ingresso — o acesso
  * vem do `accessMode` da station (mesma regra do `checkStationAccess`).
  *
- * Convidados anônimos (sem sessão) não chegam até aqui — o middleware exige
- * auth. Eles continuam vendo avatares pelo Pusher (presence), só não publicam
- * nem recebem mídia.
+ * Dois perfis de entrada (auth é OPCIONAL — `optionalAuthMiddleware`):
+ *   - Logado: autorização completa (dono/membro/conexão/aprovado). Identity do
+ *     LiveKit recebe um sufixo por aba (`${userId}:${sessionId}`) pra que duas
+ *     abas do mesmo usuário NÃO colidam — sem isso o LiveKit derruba a conexão
+ *     mais antiga ("kick-the-zombie") e gera o loop "funciona e some". O cliente
+ *     remove o sufixo ao casar com a presença (Pusher), que segue por usuário.
+ *   - Guest (sem sessão): só entra em station OPEN + pública. Identity é o
+ *     `guestId` auto-atribuído pelo cliente (por aba), validado por formato pra
+ *     não virar vetor de impersonação. Role `speaker` — guest fala no mundo.
  *
  * Role:
  *   - dono (USER) / membro da org dona (ORG) → "moderator" (admin do palco).
  *   - demais usuários com acesso → "speaker" (publica mic/cam).
+ *   - guest → "speaker".
  */
 export const joinWorld = base
-  .use(requiredAuthMiddleware)
+  .use(optionalAuthMiddleware)
   .route({
     method: "POST",
     path: "/space-station/join-world",
     summary: "Obtém token SFU pra entrar no mundo da station",
   })
-  .input(z.object({ stationId: z.string().min(1) }))
+  .input(
+    z.object({
+      stationId: z.string().min(1),
+      // Sufixo estável por aba (gerado no cliente, persistido em sessionStorage).
+      // Torna a `identity` do LiveKit única por aba mesmo pro mesmo usuário.
+      sessionId: z.string().min(1).max(64).optional(),
+      // Identidade do convidado (sem sessão). Gerada e persistida por aba no
+      // cliente (`_nasa_world_uid_*`). Regex força o prefixo `guest` pra um
+      // convidado não conseguir mintar um token com a identity de outra pessoa.
+      guestId: z
+        .string()
+        .regex(/^guest[a-zA-Z0-9_-]*$/)
+        .max(64)
+        .optional(),
+      guestName: z.string().max(80).optional(),
+    }),
+  )
   .output(
     z.object({
       stationId: z.string(),
@@ -52,14 +76,85 @@ export const joinWorld = base
     });
     if (!station) throw errors.NOT_FOUND({ message: "Station não encontrada." });
 
-    const userId = context.user.id;
-    const activeOrgId = context.session.activeOrganizationId ?? null;
+    const user = context.user; // pode ser null (convidado)
+    const session = context.session; // pode ser null (convidado)
+    const presenceChannel = `presence-world-${station.id}`;
+    // `isLiveKitConfigured()` só checa API key/secret; sem a WS URL o cliente
+    // não consegue conectar. Incluímos a URL aqui pra não reportar
+    // sfuConfigured=true e mintar um token inútil (cliente cairia no mesh).
+    const wsUrl =
+      process.env.LIVEKIT_WS_URL ?? process.env.NEXT_PUBLIC_LIVEKIT_URL ?? null;
+    const sfuConfigured = isLiveKitConfigured() && Boolean(wsUrl);
+    const sfuRoom = sfuConfigured ? `station:${station.id}:world` : null;
+    const sfuWsUrl = sfuConfigured ? wsUrl : null;
+
+    // ── Caminho convidado (sem sessão) ───────────────────────────────────────
+    if (!user) {
+      // Convidado só entra em station OPEN e pública. Qualquer outro modo
+      // (privada / MEMBERS_ONLY / REQUEST) exige login — espelha o gate
+      // `checkStationAccess` pra não-donos.
+      if (!station.isPublic || station.accessMode !== "OPEN") {
+        throw errors.FORBIDDEN({
+          message: "Entre na sua conta para acessar o mundo desta station.",
+        });
+      }
+      // Sem `guestId` não dá pra casar o participante do LiveKit com o avatar da
+      // presença (Pusher) — recusamos em vez de mintar um token órfão.
+      if (!input.guestId) {
+        throw errors.BAD_REQUEST({
+          message: "Identificação de convidado ausente.",
+        });
+      }
+
+      let guestToken: string | null = null;
+      if (sfuConfigured && sfuRoom) {
+        try {
+          // Sufixo aleatório gerado no servidor. O `guestId` é client-controlled
+          // e trafega em claro pela presença (Pusher), então é "adivinhável".
+          // Sem o sufixo, um convidado mal-intencionado mintava um token com a
+          // identity de outro convidado e o LiveKit derrubava a vítima (colisão
+          // de identity → kick). Com o sufixo, cada mint é uma identity única e
+          // não-colidível. O cliente remove o sufixo (`toAccountId`, no 1º `:`)
+          // ao casar com a presença, então a chave por-usuário se mantém.
+          // (Spoof do avatar via presence ainda é possível — hardening completo
+          // exige identity de convidado emitida pelo servidor; ver follow-up.)
+          const guestIdentity = `${input.guestId}:${randomUUID()}`;
+          guestToken = await mintLiveKitToken({
+            roomName: sfuRoom,
+            identity: guestIdentity,
+            name: input.guestName ?? "Convidado",
+            role: "speaker",
+            metadata: { stationId: station.id, guest: true },
+          });
+        } catch (err) {
+          console.error(
+            "[space-station/join-world] LiveKit mint (guest) falhou:",
+            err,
+          );
+          throw err;
+        }
+      }
+
+      return {
+        stationId: station.id,
+        sfuToken: guestToken,
+        sfuRoom,
+        sfuWsUrl,
+        role: "speaker" as const,
+        presenceChannel,
+        sfuConfigured,
+      };
+    }
+
+    // ── Caminho autenticado ──────────────────────────────────────────────────
+    const userId = user.id;
+    const activeOrgId = session?.activeOrganizationId ?? null;
 
     // ── Autorização (mesma lógica do checkStationAccess) ───────────────────
     const isUserOwner = station.type === "USER" && station.userId === userId;
     let isOrgMember = false;
     if (station.type === "ORG" && station.orgId) {
-      const m = await prisma.member.findUnique({
+      const member = await prisma.member.findUnique({
         where: {
           userId_organizationId: {
             userId,
@@ -68,7 +163,7 @@ export const joinWorld = base
         },
         select: { id: true },
       });
-      isOrgMember = Boolean(m);
+      isOrgMember = Boolean(member);
     }
     const isOwner = isUserOwner || isOrgMember;
 
@@ -98,13 +193,13 @@ export const joinWorld = base
         if (connection) allowed = true;
       }
       if (!allowed && station.accessMode === "REQUEST") {
-        const req = await prisma.stationAccessRequest.findUnique({
+        const accessRequest = await prisma.stationAccessRequest.findUnique({
           where: {
             stationId_userId: { stationId: station.id, userId },
           },
           select: { status: true },
         });
-        if (req?.status === "APPROVED") allowed = true;
+        if (accessRequest?.status === "APPROVED") allowed = true;
       }
       if (!allowed) {
         throw errors.FORBIDDEN({
@@ -119,25 +214,15 @@ export const joinWorld = base
       : "speaker";
 
     // ── Token SFU (LiveKit) ────────────────────────────────────────────────
-    const presenceChannel = `presence-world-${station.id}`;
-    // `isLiveKitConfigured()` só checa API key/secret; sem a WS URL o cliente
-    // não consegue conectar. Incluímos a URL aqui pra não reportar
-    // sfuConfigured=true e mintar um token inútil (cliente cairia no mesh).
-    const wsUrl =
-      process.env.LIVEKIT_WS_URL ?? process.env.NEXT_PUBLIC_LIVEKIT_URL ?? null;
-    const sfuConfigured = isLiveKitConfigured() && Boolean(wsUrl);
     let sfuToken: string | null = null;
-    let sfuRoom: string | null = null;
-    let sfuWsUrl: string | null = null;
-
-    if (sfuConfigured) {
-      sfuRoom = `station:${station.id}:world`;
-      sfuWsUrl = wsUrl;
+    if (sfuConfigured && sfuRoom) {
       try {
         sfuToken = await mintLiveKitToken({
           roomName: sfuRoom,
-          identity: userId,
-          name: context.user.name ?? undefined,
+          // Sufixo por aba — ver doc no topo. Sem `sessionId` cai pra `userId`
+          // puro (compat: clientes antigos sem o campo).
+          identity: input.sessionId ? `${userId}:${input.sessionId}` : userId,
+          name: user.name ?? undefined,
           role,
           metadata: {
             stationId: station.id,
