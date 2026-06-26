@@ -1,4 +1,6 @@
-import { fiscalProfileGet, fiscalProfileUpsert } from "./profile";
+import { fiscalProfileGet } from "./profile-get";
+import { fiscalProfileUpsert } from "./profile-upsert";
+import { fiscalProfileDelete } from "./profile-delete";
 import {
   issueFiscalInvoice,
   listFiscalInvoicesByContract,
@@ -11,6 +13,7 @@ export const fiscalRouter = {
   profile: {
     get: fiscalProfileGet,
     upsert: fiscalProfileUpsert,
+    delete: fiscalProfileDelete,
   },
   invoices: {
     issueFromContract: issueFiscalInvoice,

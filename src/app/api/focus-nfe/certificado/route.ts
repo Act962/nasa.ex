@@ -4,7 +4,6 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { atualizarEmpresa } from "@/http/focus-nfe/atualizar-empresa";
 import { FocusNfeHttpError } from "@/http/focus-nfe/client";
-import type { FiscalEnvironment } from "@/generated/prisma/enums";
 
 export const runtime = "nodejs";
 
@@ -20,12 +19,18 @@ export async function POST(req: NextRequest) {
 
   const profile = await prisma.fiscalCompanyProfile.findUnique({
     where: { organizationId },
-    select: { id: true, cnpj: true, environment: true },
+    select: { id: true, focusEmpresaId: true },
   });
   if (!profile) {
     return NextResponse.json(
       { error: "Perfil fiscal não configurado para esta organização" },
       { status: 404 },
+    );
+  }
+  if (!profile.focusEmpresaId) {
+    return NextResponse.json(
+      { error: "Empresa ainda não cadastrada na Focus NFe. Salve o perfil fiscal primeiro." },
+      { status: 422 },
     );
   }
 
@@ -69,11 +74,10 @@ export async function POST(req: NextRequest) {
   const arquivo_certificado_base64 = Buffer.from(pfxBytes).toString("base64");
 
   try {
-    await atualizarEmpresa(
-      profile.cnpj,
-      { arquivo_certificado_base64, senha_certificado: senha.trim() },
-      profile.environment as FiscalEnvironment,
-    );
+    await atualizarEmpresa(profile.focusEmpresaId, {
+      arquivo_certificado_base64,
+      senha_certificado: senha.trim(),
+    });
   } catch (err) {
     if (err instanceof FocusNfeHttpError) {
       return NextResponse.json(

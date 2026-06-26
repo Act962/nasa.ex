@@ -40,7 +40,7 @@ export function MunicipioCombobox({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const showDropdown = open && query.length >= 2;
+  const showDropdown = open && query.length >= 2 && query !== displayValue;
 
   return (
     <div ref={containerRef} className="relative">

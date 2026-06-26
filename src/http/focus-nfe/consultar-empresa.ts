@@ -1,14 +1,13 @@
-import type { FiscalEnvironment } from "@/generated/prisma/enums";
 import { focusFetch } from "./client";
 import type { FocusEmpresaResponse } from "./types";
 
+// Gerenciamento de empresa é sempre no ambiente de produção da Focus NFe.
 export async function consultarEmpresa(
-  cnpj: string,
-  environment: FiscalEnvironment,
+  focusEmpresaId: number,
 ): Promise<FocusEmpresaResponse> {
   return focusFetch<FocusEmpresaResponse>({
     method: "GET",
-    path: `/empresas/${cnpj.replace(/\D/g, "")}`,
-    environment,
+    path: `/empresas/${focusEmpresaId}`,
+    environment: "PRODUCAO",
   });
 }

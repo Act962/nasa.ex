@@ -22,10 +22,10 @@ export async function GET(req: NextRequest) {
   };
 
   try {
-    const municipios = await listarMunicipios(params, "HOMOLOGACAO");
-    console.log("municipios:", municipios);
+    const municipios = await listarMunicipios(params, "PRODUCAO");
     return NextResponse.json(municipios);
-  } catch {
+  } catch (error) {
+    console.error("[focus-nfe/municipios] error:", error);
     return NextResponse.json([], { status: 200 });
   }
 }

@@ -75,12 +75,16 @@ export async function focusFetch<T>(opts: FocusFetchOptions): Promise<T> {
   const bodyJson =
     opts.body !== undefined ? JSON.stringify(opts.body) : undefined;
 
+  // Resolve auth before the try/catch so token errors propagate as MISSING_TOKEN,
+  // not as false NETWORK errors.
+  const authHeader = buildBasicAuth(opts.environment);
+
   let response: Response;
   try {
     response = await fetch(url, {
       method: opts.method,
       headers: {
-        Authorization: buildBasicAuth(opts.environment),
+        Authorization: authHeader,
         ...(bodyJson ? { "Content-Type": "application/json" } : {}),
         Accept: "application/json",
       },

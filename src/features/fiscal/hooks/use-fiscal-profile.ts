@@ -13,7 +13,17 @@ export function useUpsertFiscalProfile() {
   return useMutation({
     ...orpc.fiscal.profile.upsert.mutationOptions(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fiscal"] });
+      queryClient.invalidateQueries(orpc.fiscal.profile.get.queryOptions({ input: {} }));
+    },
+  });
+}
+
+export function useDeleteFiscalProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...orpc.fiscal.profile.delete.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries(orpc.fiscal.profile.get.queryOptions({ input: {} }));
     },
   });
 }

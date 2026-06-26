@@ -69,8 +69,11 @@ export type FocusNfseResponse = {
 };
 
 export type FocusEmpresaResponse = {
+  id: number;
   cnpj: string;
   nome: string;
+  token_producao?: string | null;
+  token_homologacao?: string | null;
   [key: string]: unknown;
 };
 

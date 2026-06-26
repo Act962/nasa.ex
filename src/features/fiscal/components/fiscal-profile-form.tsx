@@ -8,21 +8,14 @@ import { toast } from "sonner";
 import {
   useFiscalProfile,
   useUpsertFiscalProfile,
+  useDeleteFiscalProfile,
 } from "../hooks/use-fiscal-profile";
 import { MunicipioCombobox } from "./municipio-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -33,8 +26,19 @@ import {
   Upload,
   KeyRound,
   Loader2,
+  Trash2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import type { CnpjWsResponse } from "@/http/cnpj-ws/client";
+import { maskCnpj, maskCpf } from "../utils/document-masks";
 
 const schema = z
   .object({
@@ -42,7 +46,8 @@ const schema = z
     cnpj: z.string().optional(),
     cpf: z.string().optional(),
     razaoSocial: z.string().min(1, "Razão social obrigatória"),
-    municipio: z.string().optional(),
+    nomeFantasia: z.string().optional(),
+    municipio: z.string(),
     inscricaoMunicipal: z.string().min(1, "Inscrição municipal obrigatória"),
     codigoMunicipio: z
       .string()
@@ -61,7 +66,6 @@ const schema = z
     defaultAliquotaIss: z.string().min(1, "Alíquota ISS obrigatória"),
     defaultIssRetido: z.boolean(),
     defaultDiscriminacao: z.string().optional(),
-    environment: z.enum(["HOMOLOGACAO", "PRODUCAO"]),
     supportedByFocus: z.boolean(),
     senhaCertificado: z.string().optional(),
   })
@@ -92,6 +96,9 @@ type FormValues = z.infer<typeof schema>;
 export function FiscalProfileForm() {
   const { data, isLoading } = useFiscalProfile();
   const upsert = useUpsertFiscalProfile();
+  const deleteMutation = useDeleteFiscalProfile();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
   const profile = data?.profile;
 
   const [certFile, setCertFile] = useState<File | null>(null);
@@ -110,6 +117,7 @@ export function FiscalProfileForm() {
       cnpj: "",
       cpf: "",
       razaoSocial: "",
+      nomeFantasia: "",
       municipio: "",
       inscricaoMunicipal: "",
       codigoMunicipio: "",
@@ -125,7 +133,6 @@ export function FiscalProfileForm() {
       defaultAliquotaIss: "",
       defaultIssRetido: false,
       defaultDiscriminacao: "",
-      environment: "HOMOLOGACAO",
       supportedByFocus: false,
       senhaCertificado: "",
     },
@@ -197,11 +204,9 @@ export function FiscalProfileForm() {
             shouldDirty: true,
           });
         if (ibgeId)
-          form.setValue(
-            "codigoMunicipio",
-            String(ibgeId).padStart(7, "0"),
-            { shouldDirty: true },
-          );
+          form.setValue("codigoMunicipio", String(ibgeId).padStart(7, "0"), {
+            shouldDirty: true,
+          });
         if (
           responseData.simples?.simples !== undefined &&
           responseData.simples?.simples !== null
@@ -229,11 +234,13 @@ export function FiscalProfileForm() {
     const storedDigits = (profile.cnpj ?? "").replace(/\D/g, "");
     const detectedTipo: "cnpj" | "cpf" =
       storedDigits.length <= 11 ? "cpf" : "cnpj";
+    lastFetchedCnpjRef.current = storedDigits;
     form.reset({
       documentoTipo: detectedTipo,
-      cnpj: detectedTipo === "cnpj" ? profile.cnpj : "",
-      cpf: detectedTipo === "cpf" ? profile.cnpj : "",
+      cnpj: detectedTipo === "cnpj" ? maskCnpj(profile.cnpj ?? "") : "",
+      cpf: detectedTipo === "cpf" ? maskCpf(profile.cnpj ?? "") : "",
       razaoSocial: profile.razaoSocial,
+      nomeFantasia: profile.nomeFantasia ?? "",
       municipio: profile.municipio ?? "",
       inscricaoMunicipal: profile.inscricaoMunicipal,
       codigoMunicipio: profile.codigoMunicipio,
@@ -249,7 +256,6 @@ export function FiscalProfileForm() {
       defaultAliquotaIss: profile.defaultAliquotaIss,
       defaultIssRetido: profile.defaultIssRetido,
       defaultDiscriminacao: profile.defaultDiscriminacao ?? "",
-      environment: profile.environment as "HOMOLOGACAO" | "PRODUCAO",
       supportedByFocus: profile.supportedByFocus,
       senhaCertificado: "",
     });
@@ -265,28 +271,30 @@ export function FiscalProfileForm() {
       );
     }
 
-    try {
-      const result = await upsert.mutateAsync({
-        ...values,
-        arquivoCertificadoBase64,
-      });
-
-      if (certFile) {
-        setCertFile(null);
-        form.setValue("senhaCertificado", "");
-        if (certFileInputRef.current) certFileInputRef.current.value = "";
-      }
-
-      if (result.focusEmpresaRegistered) {
-        toast.success("Perfil fiscal salvo. Empresa cadastrada na Focus NFe.");
-      } else {
-        toast.warning(
-          "Perfil fiscal salvo. Empresa não encontrada na Focus — cadastre o certificado A1 no painel da Focus.",
-        );
-      }
-    } catch {
-      toast.error("Erro ao salvar perfil fiscal");
-    }
+    upsert.mutate(
+      { ...values, arquivoCertificadoBase64 },
+      {
+        onSuccess: (result) => {
+          if (certFile) {
+            setCertFile(null);
+            form.setValue("senhaCertificado", "");
+            if (certFileInputRef.current) certFileInputRef.current.value = "";
+          }
+          if (result.focusEmpresaRegistered) {
+            toast.success(
+              "Perfil fiscal salvo. Empresa cadastrada na Focus NFe.",
+            );
+          } else {
+            toast.warning(
+              "Perfil fiscal salvo. Empresa não encontrada na Focus — cadastre o certificado A1 no painel da Focus.",
+            );
+          }
+        },
+        onError: () => {
+          toast.error("Erro ao salvar perfil fiscal");
+        },
+      },
+    );
   };
 
   if (isLoading)
@@ -299,17 +307,105 @@ export function FiscalProfileForm() {
     );
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      {profile?.focusEmpresaRegistered && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2 text-sm text-emerald-700 dark:text-emerald-300">
-          <CheckCircle2 className="size-4 shrink-0" />
-          Empresa cadastrada na Focus NFe
-        </div>
-      )}
-      {profile && !profile.focusEmpresaRegistered && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
-          <AlertTriangle className="size-4 shrink-0" />
-          Empresa ainda não cadastrada na Focus NFe.
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 px-4">
+      {profile !== undefined && (
+        <div className="flex items-center justify-end gap-2">
+          {profile?.focusEmpresaRegistered ? (
+            <span className="flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+              <CheckCircle2 className="size-3 shrink-0" />
+              Sincronizada
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+              <AlertTriangle className="size-3 shrink-0" />
+              Dessincronizada
+            </span>
+          )}
+
+          {profile && (
+            <Dialog
+              open={deleteDialogOpen}
+              onOpenChange={(open) => {
+                setDeleteDialogOpen(open);
+                if (!open) setDeleteConfirmInput("");
+              }}
+            >
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Deletar perfil fiscal</DialogTitle>
+                  <DialogDescription>
+                    Isso irá remover o perfil fiscal e desvincular a empresa da
+                    SEFAZ. Essa ação não pode ser desfeita.
+                  </DialogDescription>
+                </DialogHeader>
+
+                {(() => {
+                  const confirmWord = profile.nomeFantasia?.trim() || "Confirmar";
+                  return (
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground">
+                        Digite{" "}
+                        <span className="font-semibold text-foreground">
+                          {confirmWord}
+                        </span>{" "}
+                        para confirmar
+                      </Label>
+                      <Input
+                        value={deleteConfirmInput}
+                        onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                        placeholder={confirmWord}
+                        autoComplete="off"
+                      />
+                    </div>
+                  );
+                })()}
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDeleteDialogOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={
+                      deleteMutation.isPending ||
+                      deleteConfirmInput.trim() !==
+                        (profile.nomeFantasia?.trim() || "Confirmar")
+                    }
+                    onClick={() =>
+                      deleteMutation.mutate(
+                        {},
+                        {
+                          onSuccess: () => {
+                            setDeleteDialogOpen(false);
+                            setDeleteConfirmInput("");
+                            toast.success("Perfil fiscal deletado.");
+                          },
+                          onError: () => {
+                            toast.error("Erro ao deletar perfil fiscal.");
+                          },
+                        },
+                      )
+                    }
+                  >
+                    {deleteMutation.isPending ? "Deletando..." : "Deletar"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       )}
 
@@ -352,11 +448,17 @@ export function FiscalProfileForm() {
           {/* CNPJ ou CPF */}
           {documentoTipo === "cnpj" ? (
             <div className="space-y-1.5">
-              <Label>CNPJ</Label>
+              <Label>CNPJ <span className="text-destructive">*</span></Label>
               <div className="relative">
                 <Input
                   {...form.register("cnpj")}
+                  onChange={(e) => {
+                    const masked = maskCnpj(e.target.value);
+                    e.target.value = masked;
+                    form.setValue("cnpj", masked, { shouldDirty: true });
+                  }}
                   placeholder="XX.XXX.XXX/XXXX-XX"
+                  maxLength={18}
                   className="pr-8"
                 />
                 {cnpjLookupStatus === "loading" && (
@@ -389,11 +491,17 @@ export function FiscalProfileForm() {
             </div>
           ) : (
             <div className="space-y-1.5">
-              <Label>CPF</Label>
+              <Label>CPF <span className="text-destructive">*</span></Label>
               <Input
-                {...form.register("cpf")}
-                placeholder="XXX.XXX.XXX-XX"
-              />
+              {...form.register("cpf")}
+              onChange={(e) => {
+                const masked = maskCpf(e.target.value);
+                e.target.value = masked;
+                form.setValue("cpf", masked, { shouldDirty: true });
+              }}
+              placeholder="XXX.XXX.XXX-XX"
+              maxLength={14}
+            />
               {form.formState.errors.cpf && (
                 <p className="text-xs text-destructive">
                   {form.formState.errors.cpf.message}
@@ -403,7 +511,7 @@ export function FiscalProfileForm() {
           )}
 
           <div className="space-y-1.5">
-            <Label>Nome / Razão Social</Label>
+            <Label>Razão Social <span className="text-destructive">*</span></Label>
             <Input
               {...form.register("razaoSocial")}
               placeholder="Nome da empresa"
@@ -416,11 +524,16 @@ export function FiscalProfileForm() {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Inscrição Municipal</Label>
+            <Label>Nome Fantasia</Label>
             <Input
-              {...form.register("inscricaoMunicipal")}
-              placeholder="IM"
+              {...form.register("nomeFantasia")}
+              placeholder="Nome fantasia (opcional)"
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Inscrição Municipal <span className="text-destructive">*</span></Label>
+            <Input {...form.register("inscricaoMunicipal")} placeholder="IM" />
           </div>
 
           <div className="flex items-center gap-3">
@@ -450,11 +563,11 @@ export function FiscalProfileForm() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2 space-y-1.5">
-            <Label>Logradouro</Label>
+            <Label>Logradouro <span className="text-destructive">*</span></Label>
             <Input {...form.register("logradouro")} placeholder="Rua / Av." />
           </div>
           <div className="space-y-1.5">
-            <Label>Número</Label>
+            <Label>Número <span className="text-destructive">*</span></Label>
             <Input {...form.register("numero")} placeholder="123" />
           </div>
           <div className="space-y-1.5">
@@ -462,15 +575,15 @@ export function FiscalProfileForm() {
             <Input {...form.register("complemento")} placeholder="Sala 1" />
           </div>
           <div className="space-y-1.5">
-            <Label>Bairro</Label>
+            <Label>Bairro <span className="text-destructive">*</span></Label>
             <Input {...form.register("bairro")} placeholder="Centro" />
           </div>
           <div className="space-y-1.5">
-            <Label>CEP</Label>
+            <Label>CEP <span className="text-destructive">*</span></Label>
             <Input {...form.register("cep")} placeholder="00000-000" />
           </div>
           <div className="sm:col-span-2 space-y-1.5">
-            <Label>Município</Label>
+            <Label>Município <span className="text-destructive">*</span></Label>
             <MunicipioCombobox
               displayValue={
                 form.watch("municipio") && form.watch("uf")
@@ -478,13 +591,22 @@ export function FiscalProfileForm() {
                   : (form.watch("municipio") ?? "")
               }
               onSelect={(municipio) => {
-                form.setValue("municipio", municipio.nome, { shouldValidate: true });
+                form.setValue("municipio", municipio.nome, {
+                  shouldValidate: true,
+                });
                 form.setValue("uf", municipio.uf, { shouldValidate: true });
-                form.setValue("codigoMunicipio", municipio.codigo_ibge, { shouldValidate: true });
+                form.setValue("codigoMunicipio", municipio.codigo_ibge, {
+                  shouldValidate: true,
+                });
+                form.setValue(
+                  "supportedByFocus",
+                  municipio.habilita_nfse ?? false,
+                );
               }}
             />
             <p className="text-xs text-muted-foreground">
-              Digite o nome para buscar — estado e código IBGE preenchidos automaticamente.
+              Digite o nome para buscar — estado e código IBGE preenchidos
+              automaticamente.
             </p>
           </div>
           <div className="space-y-1.5">
@@ -521,14 +643,14 @@ export function FiscalProfileForm() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label>Item da Lista de Serviço (LC 116)</Label>
+            <Label>Item da Lista de Serviço (LC 116) <span className="text-destructive">*</span></Label>
             <Input
               {...form.register("defaultItemListaServico")}
               placeholder="Ex: 17.09"
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Alíquota ISS (%)</Label>
+            <Label>Alíquota ISS (%) <span className="text-destructive">*</span></Label>
             <Input
               {...form.register("defaultAliquotaIss")}
               type="number"
@@ -554,56 +676,6 @@ export function FiscalProfileForm() {
         </CardContent>
       </Card>
 
-      {/* Configurações Focus NFe */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Configurações Focus NFe</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Ambiente</Label>
-            <Select
-              value={form.watch("environment")}
-              onValueChange={(v) =>
-                form.setValue("environment", v as "HOMOLOGACAO" | "PRODUCAO")
-              }
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="HOMOLOGACAO">
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px]">
-                      Homologação
-                    </Badge>
-                  </div>
-                </SelectItem>
-                <SelectItem value="PRODUCAO">
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]">
-                      Produção
-                    </Badge>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-3">
-            <Switch
-              checked={form.watch("supportedByFocus")}
-              onCheckedChange={(v) => form.setValue("supportedByFocus", v)}
-            />
-            <div>
-              <Label>Município suportado pela Focus NFe</Label>
-              <p className="text-xs text-muted-foreground">
-                Apenas municípios integrados na Focus NFe podem emitir notas.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Certificado A1 */}
       <Card>
         <CardHeader className="pb-3">
@@ -617,13 +689,14 @@ export function FiscalProfileForm() {
             <div className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2 text-sm text-emerald-700 dark:text-emerald-300">
               <CheckCircle2 className="size-4 shrink-0" />
               Certificado enviado em{" "}
-              {new Date(
-                profile.focusCertificadoUploadedAt,
-              ).toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })}
+              {new Date(profile.focusCertificadoUploadedAt).toLocaleDateString(
+                "pt-BR",
+                {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                },
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">

@@ -7229,6 +7229,7 @@ model FiscalCompanyProfile {
 
   cnpj                     String
   razaoSocial              String  @map("razao_social")
+  nomeFantasia             String? @map("nome_fantasia")
   municipio                String? @map("municipio")
   inscricaoMunicipal       String  @map("inscricao_municipal")
   codigoMunicipio          String  @map("codigo_municipio")
@@ -7249,6 +7250,9 @@ model FiscalCompanyProfile {
 
   environment                 FiscalEnvironment @default(HOMOLOGACAO)
   focusEmpresaRegistered      Boolean           @default(false) @map("focus_empresa_registered")
+  focusEmpresaId              Int?              @map("focus_empresa_id")
+  focusTokenProducao          String?           @map("focus_token_producao")
+  focusTokenHomologacao       String?           @map("focus_token_homologacao")
   supportedByFocus            Boolean           @default(false) @map("supported_by_focus")
   focusCertificadoUploadedAt  DateTime?         @map("focus_certificado_uploaded_at")
 
