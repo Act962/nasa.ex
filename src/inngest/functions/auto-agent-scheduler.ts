@@ -40,7 +40,7 @@ interface LeadRepliedData {
 export const autoAgentTickScheduledFn = inngest.createFunction(
   {
     id: "auto-agent-tick-scheduled",
-    concurrency: { limit: 100 },
+    concurrency: { limit: 5 },
     // Cancela sleep se o lead responder antes do horário
     cancelOn: [
       {
@@ -175,7 +175,7 @@ export const autoAgentTickScheduledFn = inngest.createFunction(
 // B) On lead reply — roda turn imediato com a mensagem como contexto
 // ─────────────────────────────────────────────────────────────────────────
 export const autoAgentOnLeadReplyFn = inngest.createFunction(
-  { id: "auto-agent-on-lead-reply", concurrency: { limit: 100 } },
+  { id: "auto-agent-on-lead-reply", concurrency: { limit: 5 } },
   { event: "auto-agent/lead-replied" },
   async ({ event, step }) => {
     const { sessionId, message } = event.data as LeadRepliedData;
