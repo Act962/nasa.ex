@@ -9,6 +9,7 @@
     "typecheck": "node --max-old-space-size=8192 ./node_modules/typescript/bin/tsc --noEmit"
   },
   "dependencies": {
+    "@nasa/db": "workspace:*",
     "@fastify/cors": "^11.1.0",
     "@fastify/swagger": "^9.5.1",
     "@orpc/client": "^1.13.5",

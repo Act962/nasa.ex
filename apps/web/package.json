@@ -11,6 +11,7 @@
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@nasa/db": "workspace:*",
     "@ai-sdk/anthropic": "^3.0.64",
     "@ai-sdk/google": "^3.0.43",
     "@ai-sdk/openai": "^3.0.41",

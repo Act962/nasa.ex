@@ -4,20 +4,21 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --filter @nasa/web dev",
-    "build": "pnpm --filter @nasa/db generate && pnpm --filter @nasa/web build",
+    "build": "turbo run build",
     "start": "pnpm --filter @nasa/web start",
-    "lint": "pnpm --filter @nasa/web lint",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
     "inngest:dev": "pnpm --filter @nasa/web inngest:dev",
     "db:generate": "pnpm --filter @nasa/db generate",
     "db:migrate": "pnpm --filter @nasa/db migrate",
     "db:seed": "pnpm --filter @nasa/web db:seed",
     "db:studio": "pnpm --filter @nasa/db studio",
     "api:dev": "pnpm --filter @nasa/api dev",
-    "api:typecheck": "pnpm --filter @nasa/api typecheck",
     "dev:all": "mprocs"
   },
   "devDependencies": {
-    "mprocs": "^0.8.3"
+    "mprocs": "^0.8.3",
+    "turbo": "^2.5.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
