@@ -14,6 +14,7 @@ import { allowedOrigins } from "./cors";
 import { healthRoute } from "./routes/health";
 import { authPlugin } from "./auth";
 import { rpcPlugin } from "./rpc";
+import { inngestPlugin } from "./inngest";
 
 const app = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -38,6 +39,7 @@ await app.register(ScalarApiReference, { routePrefix: "/docs" });
 await app.register(healthRoute);
 await app.register(authPlugin, { prefix: "/api/auth" });
 await app.register(rpcPlugin, { prefix: "/api/rpc" });
+await app.register(inngestPlugin);
 
 app
   .listen({ port: env.PORT, host: "0.0.0.0" })
