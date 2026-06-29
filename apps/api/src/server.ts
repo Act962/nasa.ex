@@ -17,6 +17,7 @@ import { rpcPlugin } from "./rpc";
 import { inngestPlugin } from "./inngest";
 import { stripeWebhookPlugin } from "./stripe-webhook";
 import { paymentsWebhooksPlugin } from "./webhooks-payments";
+import { metaWebhooksPlugin } from "./webhooks-meta";
 
 const app = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -44,6 +45,7 @@ await app.register(rpcPlugin, { prefix: "/api/rpc" });
 await app.register(inngestPlugin);
 await app.register(stripeWebhookPlugin);
 await app.register(paymentsWebhooksPlugin);
+await app.register(metaWebhooksPlugin);
 
 app
   .listen({ port: env.PORT, host: "0.0.0.0" })
