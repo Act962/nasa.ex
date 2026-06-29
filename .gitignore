@@ -18,9 +18,12 @@
 # next.js
 /.next/
 /out/
+**/.next/
+**/out/
 
 # production
 /build
+**/build
 
 # misc
 .DS_Store
@@ -45,8 +48,10 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+**/src/generated/prisma
 /.claude/public/uploads/
 /public/uploads/
+**/public/uploads/
 .claude
 .cursor/
 .env.local

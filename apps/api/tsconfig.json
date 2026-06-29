@@ -14,7 +14,7 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["../../src/*"],
+      "@/*": ["../web/src/*"],
       "server-only": ["./src/shims/server-only.ts"]
     }
   },
