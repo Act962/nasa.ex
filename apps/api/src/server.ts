@@ -18,6 +18,7 @@ import { inngestPlugin } from "./inngest";
 import { stripeWebhookPlugin } from "./stripe-webhook";
 import { paymentsWebhooksPlugin } from "./webhooks-payments";
 import { metaWebhooksPlugin } from "./webhooks-meta";
+import { miscWebhooksPlugin } from "./webhooks-misc";
 
 const app = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -46,6 +47,7 @@ await app.register(inngestPlugin);
 await app.register(stripeWebhookPlugin);
 await app.register(paymentsWebhooksPlugin);
 await app.register(metaWebhooksPlugin);
+await app.register(miscWebhooksPlugin);
 
 app
   .listen({ port: env.PORT, host: "0.0.0.0" })
