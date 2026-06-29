@@ -4,16 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "next build",
     "start": "next start",
-    "migrate": "prisma migrate deploy",
-    "dev:setup": "prisma migrate dev && prisma generate && pnpm install",
     "lint": "eslint",
     "inngest:dev": "inngest-cli dev",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.64",

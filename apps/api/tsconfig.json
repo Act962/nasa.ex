@@ -14,6 +14,8 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
+      "@/lib/prisma": ["../../packages/db/src/client.ts"],
+      "@/generated/prisma/*": ["../../packages/db/generated/prisma/*"],
       "@/*": ["../web/src/*"],
       "server-only": ["./src/shims/server-only.ts"]
     }

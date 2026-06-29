@@ -6,7 +6,7 @@ import { resend } from "./email/resend";
 import { reactInvitationEmail } from "./email/invitation";
 import { reactResetPasswordEmail } from "./email/reset-password";
 import { stripeClient } from "./stripe";
-import prisma from "./prisma";
+import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
 import {
   resolvePlanFromSubscription,

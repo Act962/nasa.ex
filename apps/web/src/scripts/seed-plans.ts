@@ -15,7 +15,7 @@
  * Ver: docs/subscription-org-model.md
  */
 
-import prisma from "../lib/prisma";
+import prisma from "@/lib/prisma";
 
 interface PlanSeed {
   slug: string;

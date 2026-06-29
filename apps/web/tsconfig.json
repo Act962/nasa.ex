@@ -19,6 +19,8 @@
       }
     ],
     "paths": {
+      "@/lib/prisma": ["../../packages/db/src/client.ts"],
+      "@/generated/prisma/*": ["../../packages/db/generated/prisma/*"],
       "@/*": ["./src/*"]
     }
   },

@@ -4,14 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --filter @nasa/web dev",
-    "build": "pnpm --filter @nasa/web build",
+    "build": "pnpm --filter @nasa/db generate && pnpm --filter @nasa/web build",
     "start": "pnpm --filter @nasa/web start",
     "lint": "pnpm --filter @nasa/web lint",
     "inngest:dev": "pnpm --filter @nasa/web inngest:dev",
-    "db:generate": "pnpm --filter @nasa/web db:generate",
-    "db:migrate": "pnpm --filter @nasa/web db:migrate",
+    "db:generate": "pnpm --filter @nasa/db generate",
+    "db:migrate": "pnpm --filter @nasa/db migrate",
     "db:seed": "pnpm --filter @nasa/web db:seed",
-    "db:studio": "pnpm --filter @nasa/web db:studio",
+    "db:studio": "pnpm --filter @nasa/db studio",
     "api:dev": "pnpm --filter @nasa/api dev",
     "api:typecheck": "pnpm --filter @nasa/api typecheck",
     "dev:all": "mprocs"
