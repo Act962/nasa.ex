@@ -12,34 +12,34 @@ export const getBotConfig = base
     const config = await prisma.organizationBotConfig.findUnique({
       where: { organizationId: context.org.id },
       include: {
-        uazapiInstance: {
-          select: {
-            id: true,
-            instanceName: true,
-            phoneNumber: true,
-            status: true,
-            profileName: true,
-          },
-        },
+        enabledTrackings: { select: { trackingId: true } },
         _count: { select: { bindings: true } },
       },
     });
 
-    return {
-      config,
-      // Lista de instâncias disponíveis pra o owner escolher qual dedica
-      // pro bot (separadas das de atendimento). Mostramos todas — UI
-      // alerta se for instância já em uso por tracking.
-      availableInstances: await prisma.whatsAppInstance.findMany({
-        where: { organizationId: context.org.id },
-        select: {
-          id: true,
-          instanceName: true,
-          phoneNumber: true,
-          status: true,
-          trackingId: true,
+    // Trackings da org disponíveis pra habilitar — o Astro responde pelo
+    // número da própria tracking, usando o provider ATIVO dela (Uazapi/Meta).
+    const trackings = await prisma.tracking.findMany({
+      where: { organizationId: context.org.id, isArchived: false },
+      select: {
+        id: true,
+        name: true,
+        whatsappInstance: {
+          select: { provider: true, phoneNumber: true, status: true },
         },
-        orderBy: { createdAt: "desc" },
-      }),
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return {
+      config: config
+        ? {
+            ...config,
+            enabledTrackingIds: config.enabledTrackings.map(
+              (enabled) => enabled.trackingId,
+            ),
+          }
+        : null,
+      availableTrackings: trackings,
     };
   });
