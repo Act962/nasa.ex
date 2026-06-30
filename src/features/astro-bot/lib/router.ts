@@ -1,15 +1,15 @@
 /**
- * Router principal do Astro Bot via WhatsApp.
+ * Router principal do Astro Bot via WhatsApp (Insights pelo WhatsApp).
  *
  * Pipeline pra cada mensagem recebida:
- *   1. Identifica binding pelo phoneE164 (já passa pelo /api/chat/webhook
- *      hook que detecta isso antes do fluxo normal de atendimento)
- *   2. Verifica rate limit + quiet hours
- *   3. Auth: PIN no 1º cmd do dia + sempre PIN em destrutivo
- *   4. Chama Astro orchestrator com contexto restrito (whitelist tools)
- *   5. Converte saída pra WhatsApp-friendly
- *   6. Envia resposta via channel
- *   7. Loga em WhatsappBotCommand pra audit + telemetria
+ *   1. Identifica binding pelo phoneE164 (allow-list) — feito no webhook-handler
+ *   2. Verifica binding ativo, rate limit + quiet hours
+ *   3. Chama Astro orchestrator em modo INSIGHTS (read-only)
+ *   4. Converte saída pra WhatsApp-friendly
+ *   5. Loga em WhatsappBotCommand pra audit + telemetria
+ *
+ * Sem PIN/sessão: o fluxo confia no número allow-listado pelo admin. Como o
+ * escopo é read-only (`toolScope: "insights"`), não há ação destrutiva possível.
  *
  * Cada erro tem reply user-friendly em PT-BR — bot NUNCA mostra stack
  * trace ou JSON cru pro user.
@@ -22,28 +22,14 @@ import type {
 import prisma from "@/lib/prisma";
 import { streamAstro } from "@/features/astro/server/orchestrator";
 import type { AgentContext } from "@/features/astro/server/agents/types";
-import {
-  isSessionActive,
-  isLocked,
-  isDestructiveTool,
-  tryAuthenticateWithPin,
-} from "./auth";
 import { isWithinRateLimit, isWithinQuietHours } from "./rate-limit";
+import { loadRecentBotHistory } from "./conversation-history";
 import {
+  cleanWhatsappReply,
   markdownToWhatsapp,
   summarizeStructuredPayload,
 } from "./output-formatter";
 import type { BotCommandResult, WhatsappBotChannel } from "./types";
-
-// ── Padrões de comando ─────────────────────────────────────────
-// User pode mandar "1234" (só PIN), "PIN 1234", "auth 1234" pra ativar
-// sessão; ou texto normal pra comando.
-const PIN_ONLY_REGEX = /^\s*(?:pin|auth|c[oó]digo)?\s*[:\s]?\s*(\d{4,6})\s*$/i;
-
-function extractPin(text: string): string | null {
-  const m = text.match(PIN_ONLY_REGEX);
-  return m ? m[1]! : null;
-}
 
 interface RouteContext {
   binding: UserWhatsappBinding;
@@ -68,16 +54,7 @@ export async function handleBotCommand(
     });
   }
 
-  // ── 2. Locked? ─────────────────────────────────────────────
-  if (isLocked(binding)) {
-    return logAndReturn(binding, messageText, {
-      status: "pin_locked",
-      reply:
-        "🔐 Acesso temporariamente bloqueado por excesso de tentativas. Tente novamente em 1 hora.",
-    });
-  }
-
-  // ── 3. Quiet hours ─────────────────────────────────────────
+  // ── 2. Quiet hours ─────────────────────────────────────────
   if (isWithinQuietHours(botConfig.quietHoursStart, botConfig.quietHoursEnd)) {
     return logAndReturn(binding, messageText, {
       status: "quiet_hours",
@@ -85,7 +62,7 @@ export async function handleBotCommand(
     });
   }
 
-  // ── 4. Rate limit ──────────────────────────────────────────
+  // ── 3. Rate limit ──────────────────────────────────────────
   const rate = await isWithinRateLimit(binding.id, botConfig.maxCmdsPerHour);
   if (!rate.allowed) {
     return logAndReturn(binding, messageText, {
@@ -94,48 +71,7 @@ export async function handleBotCommand(
     });
   }
 
-  // ── 5. Auth ─────────────────────────────────────────────────
-  const sessionActive = isSessionActive(binding);
-  const pinCandidate = extractPin(messageText);
-
-  // 5a. Sem sessão ativa E user mandou PIN → tenta autenticar
-  if (!sessionActive && pinCandidate) {
-    const auth = await tryAuthenticateWithPin(
-      binding.id,
-      pinCandidate,
-      ctx.deviceId,
-    );
-    if (auth.ok) {
-      return logAndReturn(binding, messageText, {
-        status: "ok",
-        reply:
-          "✅ Sessão ativada por 8h. Pode mandar seu comando.\n_Ex: 'liste leads de hoje', 'resumo do João Silva', 'gráfico de propostas'._",
-      });
-    }
-    if (auth.reason === "locked") {
-      return logAndReturn(binding, messageText, {
-        status: "pin_locked",
-        reply:
-          "🔐 PIN errado várias vezes — acesso bloqueado por 1 hora.",
-      });
-    }
-    return logAndReturn(binding, messageText, {
-      status: "pin_required",
-      reply: "🔐 PIN incorreto. Tente novamente.",
-    });
-  }
-
-  // 5b. Sem sessão e SEM PIN → pede PIN
-  if (!sessionActive) {
-    return logAndReturn(binding, messageText, {
-      status: "pin_required",
-      reply:
-        "🔐 Manda seu código de acesso pra ativar a sessão.\n_Ex: 1234_",
-    });
-  }
-
-  // ── 6. Chama Astro orchestrator ───────────────────────────
-  // (auth ok, pode rodar)
+  // ── 4. Chama Astro orchestrator em modo INSIGHTS (read-only) ──
   try {
     const agentCtx: AgentContext = {
       userId: binding.userId,
@@ -147,9 +83,19 @@ export async function handleBotCommand(
       } as never,
     };
 
+    // Histórico curto por número — dá memória conversacional ("qual o nome
+    // desse lead?" depois de "quantos leads tenho?"). Os turnos anteriores
+    // entram antes da mensagem atual.
+    const history = await loadRecentBotHistory(binding.id);
+
     const stream = await streamAstro({
       ctx: agentCtx,
+      toolScope: "insights",
+      // gpt-4o-mini hesita/alucina em list_* pelo WhatsApp — força o gpt-4o.
+      forceComplexModel: true,
+      outputStyle: "whatsapp",
       uiMessages: [
+        ...history,
         {
           id: "bot-cmd",
           role: "user",
@@ -159,39 +105,38 @@ export async function handleBotCommand(
     });
 
     const finalText = await stream.text;
-    const toolCalls = await stream.toolCalls;
     const usage = await stream.usage;
-    const toolNames = (toolCalls ?? []).map(
-      (t: { toolName?: string }) => t.toolName ?? "?",
-    );
 
-    // ── 6b. Bloqueia se alguma tool destrutiva foi usada sem PIN fresco ──
-    // O bot deveria intercepta ANTES de executar — mas como o stream já
-    // rodou, marcamos e respondemos. Tools destrutivas só passam quando
-    // o user manda PIN no MESMO comando (não vale só ter sessão).
-    const destructiveToolCalled = toolNames.some(isDestructiveTool);
-    if (destructiveToolCalled && !pinCandidate) {
-      return logAndReturn(binding, messageText, {
-        status: "tool_denied",
-        reply:
-          "⚠️ Esse comando envolve ação destrutiva. Manda seu PIN no mesmo recado pra confirmar.\n_Ex: 'deleta lead João 1234'_",
-        toolsCalled: toolNames,
-      });
-    }
+    // `stream.toolCalls` traz só o ÚLTIMO step — as tools rodam em steps
+    // anteriores. Agregamos de TODOS os steps pra logar certo e pra resumir
+    // os payloads estruturados (astro_table/astro_chart).
+    const steps = (await stream.steps) as Array<{
+      toolCalls?: Array<{ toolName?: string }>;
+      toolResults?: Array<{ toolName?: string; output?: unknown; result?: unknown }>;
+    }>;
+    const toolNames = steps
+      .flatMap((step) => step.toolCalls ?? [])
+      .map((call) => call.toolName ?? "?");
 
-    // ── 7. Coleta payloads estruturados pro resumo ─────────────
-    // Tools que retornam astro_chart/astro_table viram resumo curto;
-    // Fase 3 vai mandar como imagem.
+    // ── 5. Coleta payloads estruturados pro resumo ─────────────
+    // Tools que retornam astro_chart/astro_table viram resumo textual (no
+    // WhatsApp não dá pra renderizar a tabela/clicar).
     const structuredSummaries: string[] = [];
-    for (const tc of toolCalls ?? []) {
-      const result = (tc as { result?: unknown }).result;
-      const summary = summarizeStructuredPayload(result);
-      if (summary) structuredSummaries.push(summary);
+    for (const step of steps) {
+      for (const toolResult of step.toolResults ?? []) {
+        const result = toolResult.output ?? toolResult.result;
+        const summary = summarizeStructuredPayload(result);
+        if (summary) structuredSummaries.push(summary);
+      }
     }
 
-    const formatted = markdownToWhatsapp(finalText ?? "");
+    // Corta firula e — quando há resumo estruturado logo abaixo — a lista que o
+    // modelo repetiu em prosa (senão ela aparece duas vezes).
+    const formatted = cleanWhatsappReply(markdownToWhatsapp(finalText ?? ""), {
+      hasStructured: structuredSummaries.length > 0,
+    });
     const reply = [
-      formatted,
+      formatted || null,
       structuredSummaries.length > 0 ? structuredSummaries.join("\n\n") : null,
     ]
       .filter(Boolean)

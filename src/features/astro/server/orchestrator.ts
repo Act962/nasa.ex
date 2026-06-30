@@ -41,6 +41,23 @@ import { buildWorkflowTools } from "@/features/astro/server/tools/workflows";
  *
  * Override via env: `ASTRO_DEFAULT_MODEL=...` força o mesmo pra tudo.
  */
+/**
+ * Diretriz de estilo pro Astro via WhatsApp. Injetada no fim do system prompt
+ * quando `outputStyle === "whatsapp"`. Mantém respostas diretas e sem a firula
+ * de copiloto in-app (que fica estranha num chat de WhatsApp).
+ */
+const WHATSAPP_STYLE_PROMPT = `
+
+[ESTILO WHATSAPP — OBRIGATÓRIO]
+Você responde por WhatsApp. Tom DIRETO, objetivo e curto.
+- Vá direto ao fato/número pedido. Sem rodeios, sem introduções ("Aqui está...", "Claro!").
+- PROIBIDO encerrar com oferta de ajuda ou firula: nada de "se precisar, é só avisar", "espero ter ajudado", "qualquer dúvida estou à disposição", "quer que eu...". Termine na informação.
+- NÃO sugira telas, rotas ou links do app (ex: "veja em /contatos") a menos que peçam explicitamente.
+- Formatação WhatsApp: *negrito* com UM asterisco só. NUNCA use markdown (#, **, tabelas com |, blocos de código).
+- Quando uma tool retornar lista/tabela, a lista JÁ é anexada automaticamente logo abaixo da sua resposta. NUNCA reescreva os itens (nada de "• Maria", "1. Pedro", nem rótulos tipo "Leads ativos:"). Responda no MÁXIMO uma frase curta de contexto — ou nada, se a lista fala por si.
+- NÃO abra com saudação/lead-in ("Aqui estão...", "Segue...", "Claro!") e NÃO feche com oferta de ajuda. A última palavra deve ser a informação.
+- Emojis: no máximo um, só quando agregar. Nada de setas decorativas (⬇️) apontando pra lista.`;
+
 function modelFor(complexity: "simple" | "complex") {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error(
@@ -210,8 +227,29 @@ async function runSubAgent(opts: {
 export function streamAstro(opts: {
   ctx: AgentContext;
   uiMessages: UIMessage[];
+  /**
+   * Escopo de tools expostas ao orquestrador.
+   *   - "full" (default): comportamento in-app — leitura + mutação + sub-agents.
+   *   - "insights": somente leitura (analytics/list/search/chart). Sem mutations,
+   *     actions, workflows ou routing pra sub-agents (que escrevem). Usado pelo
+   *     Astro via WhatsApp (Insights pelo WhatsApp), garantindo read-only de fato.
+   */
+  toolScope?: "full" | "insights";
+  /**
+   * Força o modelo "complex" (gpt-4o) ignorando a heurística de complexidade.
+   * Usado pelo Astro via WhatsApp: o gpt-4o-mini hesita/alucina em tool-calls
+   * ("não consegui acessar") em perguntas que exigem `list_*`. Volume baixo,
+   * então priorizamos confiabilidade sobre custo de token.
+   */
+  forceComplexModel?: boolean;
+  /**
+   * Estilo de saída. "whatsapp" injeta diretriz de tom (direto, sem firula,
+   * formatação WhatsApp, sem repetir listas que já vão anexadas).
+   */
+  outputStyle?: "default" | "whatsapp";
 }) {
   const { ctx, uiMessages } = opts;
+  const toolScope = opts.toolScope ?? "full";
 
   return (async () => {
     const enabled = await loadAgentEnabledMap(ctx.organizationId);
@@ -250,7 +288,10 @@ export function streamAstro(opts: {
       }
     }
 
-    const routingTools = buildRoutingTools({ ctx, enabled });
+    // Modo insights (WhatsApp): só leitura — sem routing pra sub-agents
+    // (closer/task/automation escrevem). Modo full: routing normal.
+    const routingTools =
+      toolScope === "insights" ? {} : buildRoutingTools({ ctx, enabled });
     // Tools expostas direto no orchestrator (não passam por sub-agent).
     // Motivos:
     //   1. Sub-agent (generateText interno) consome outputs e devolve
@@ -272,24 +313,33 @@ export function streamAstro(opts: {
     //   - automation-agent (regra de alerta com cascata de slots)
     //   - search_entities encadeado complexo (task-agent ainda útil
     //     pra criar lead onde precisa procurar tracking, etc).
-    const directTools: ToolSet = {
+    // Modo insights: apenas tools de LEITURA (analytics + list + search +
+    // chart). Mutations/actions/workflows ficam de fora — é o enforcement
+    // real do read-only do Astro via WhatsApp (não um gate pós-execução).
+    const readOnlyTools: ToolSet = {
       ...buildAnalyticsTools(ctx),
       ...buildListTools(ctx),
-      ...buildActionTools(ctx),
-      ...buildMutationTools(ctx),
       // search_entities resolve nomes naturais ("Hulk", "agenda do Wey")
-      // em IDs. Indispensável antes de create_appointment / create_lead
-      // / move_lead / etc — sem isso o LLM "não acessa" leads.
+      // em IDs — também útil em leitura pra escopar listas/analytics.
       ...buildSearchTools(ctx),
       // chart_* — gráficos recharts (bar/line/pie) renderizados no client.
       ...buildChartTools(ctx),
-      // workflow_* — IA generativa de workflows agent-mode + apply preset
-      // por slug. Use quando o user pede "cria uma automação que ..." ou
-      // "aplica o preset de boas-vindas". Workflow nasce INATIVO no
-      // canvas — Astro retorna link `editorUrl` pra user abrir e revisar.
-      ...buildWorkflowTools(ctx),
     };
-    const systemSuffix = buildAgentsBriefing(enabled);
+    const directTools: ToolSet =
+      toolScope === "insights"
+        ? readOnlyTools
+        : {
+            ...readOnlyTools,
+            ...buildActionTools(ctx),
+            ...buildMutationTools(ctx),
+            // workflow_* — IA generativa de workflows agent-mode + apply preset
+            // por slug. Use quando o user pede "cria uma automação que ..." ou
+            // "aplica o preset de boas-vindas". Workflow nasce INATIVO no
+            // canvas — Astro retorna link `editorUrl` pra user abrir e revisar.
+            ...buildWorkflowTools(ctx),
+          };
+    const systemSuffix =
+      toolScope === "insights" ? "" : buildAgentsBriefing(enabled);
     // Injeta a data/hora atual no system prompt pra o LLM resolver datas
     // relativas ("amanhã", "sexta") corretamente. GPT-4o-mini tem
     // knowledge cutoff antigo (2023) e tava inventando ano errado.
@@ -326,14 +376,19 @@ export function streamAstro(opts: {
       }
       return "";
     })();
-    const complexity = classifyComplexity(lastUserText);
+    const complexity = opts.forceComplexModel
+      ? "complex"
+      : classifyComplexity(lastUserText);
     console.log(
-      `[ASTRO/orchestrator] model=${complexity === "complex" ? "gpt-4o" : "gpt-4o-mini"} (heur="${complexity}", text="${lastUserText.slice(0, 80)}")`,
+      `[ASTRO/orchestrator] model=${complexity === "complex" ? "gpt-4o" : "gpt-4o-mini"} (heur="${complexity}", forced=${opts.forceComplexModel ?? false}, text="${lastUserText.slice(0, 80)}")`,
     );
+
+    const styleBlock =
+      opts.outputStyle === "whatsapp" ? WHATSAPP_STYLE_PROMPT : "";
 
     return streamText({
       model: modelFor(complexity),
-      system: `${ASTRO_ORCHESTRATOR_PROMPT}\n\n${systemSuffix}${buildRouteContextBlock(ctx.route)}${dateContext}`,
+      system: `${ASTRO_ORCHESTRATOR_PROMPT}\n\n${systemSuffix}${buildRouteContextBlock(ctx.route)}${dateContext}${styleBlock}`,
       tools: { ...directTools, ...routingTools },
       messages: modelMessages,
       // Mais steps: orchestrator pode chamar várias tools de leitura

@@ -81,8 +81,16 @@ export async function POST(request: NextRequest) {
       // pro bot, não lead novo. Texto puro só — mídia ainda cai no fluxo
       // normal. Roda ANTES da normalização canônica pra escopar o binding
       // por org e evitar criar Lead/Message indevidos.
+      // Uazapi manda texto puro como "Conversation"/"ExtendedTextMessage"
+      // (espelha o `mapUazapiMessageType` do normalizador canônico). O antigo
+      // "TextMessage" não casava com payload real — por isso o bot não disparava.
       const bodyForBot = (json.message.text ?? "").trim();
-      if (!fromMe && bodyForBot && json.message.messageType === "TextMessage") {
+      const botMessageType = json.message.messageType ?? "";
+      const isTextForBot =
+        botMessageType === "Conversation" ||
+        botMessageType === "ExtendedTextMessage" ||
+        botMessageType === "TextMessage";
+      if (!fromMe && bodyForBot && isTextForBot) {
         try {
           const { maybeHandleBotMessage } = await import(
             "@/features/astro-bot/lib/webhook-handler"
@@ -90,7 +98,7 @@ export async function POST(request: NextRequest) {
           const botResult = await maybeHandleBotMessage({
             fromPhone: phone,
             messageText: bodyForBot,
-            receivingInstanceToken: json.token,
+            trackingId,
             deviceId: json.deviceId ?? undefined,
             trackingOrganizationId: tracking.organizationId,
           });

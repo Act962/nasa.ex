@@ -341,12 +341,7 @@ export async function POST(request: NextRequest) {
           const botResult = await maybeHandleBotMessage({
             fromPhone: candidate.sender.phone,
             messageText: bodyForBot,
-            // Meta não tem `token` no shape do Uazapi; passamos o
-            // `accessToken` decifrado como "token da instância que
-            // recebeu". O branch META_CLOUD do webhook-handler hoje
-            // devolve `handled=true, status="provider_not_implemented"`
-            // (suprime phantom lead) — Fase 6+ refina lá.
-            receivingInstanceToken: instance.accessToken,
+            trackingId: instance.trackingId,
             trackingOrganizationId: tracking.organizationId,
           });
           if (botResult.handled) {
