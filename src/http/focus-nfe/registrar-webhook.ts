@@ -1,12 +1,12 @@
 import type { FiscalEnvironment } from "@/generated/prisma/enums";
 import { focusFetch } from "./client";
-import type { FocusWebhookRegistration } from "./types";
+import type { FocusHookResponse, FocusWebhookRegistration } from "./types";
 
 export async function registrarWebhook(
   registration: FocusWebhookRegistration,
   environment: FiscalEnvironment,
-): Promise<void> {
-  await focusFetch<void>({
+): Promise<FocusHookResponse> {
+  return focusFetch<FocusHookResponse>({
     method: "POST",
     path: "/hooks",
     body: registration,

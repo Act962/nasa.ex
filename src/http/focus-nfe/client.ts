@@ -19,7 +19,7 @@ export class FocusNfeHttpError extends Error {
   }
 }
 
-function resolveToken(environment: FiscalEnvironment): string {
+function resolveMasterToken(environment: FiscalEnvironment): string {
   const token =
     environment === "HOMOLOGACAO"
       ? process.env.FOCUS_NFE_TOKEN_HOMOLOGACAO
@@ -33,9 +33,9 @@ function resolveToken(environment: FiscalEnvironment): string {
   return token;
 }
 
-function buildBasicAuth(environment: FiscalEnvironment): string {
-  const token = resolveToken(environment);
-  return `Basic ${Buffer.from(`${token}:`).toString("base64")}`;
+function buildBasicAuth(environment: FiscalEnvironment, token?: string): string {
+  const resolved = token ?? resolveMasterToken(environment);
+  return `Basic ${Buffer.from(`${resolved}:`).toString("base64")}`;
 }
 
 type FocusErrorBody = {
@@ -67,6 +67,8 @@ export type FocusFetchOptions = {
   path: string;
   body?: unknown;
   environment: FiscalEnvironment;
+  /** Per-company token. When omitted, falls back to the master env token. */
+  token?: string;
 };
 
 export async function focusFetch<T>(opts: FocusFetchOptions): Promise<T> {
@@ -77,7 +79,7 @@ export async function focusFetch<T>(opts: FocusFetchOptions): Promise<T> {
 
   // Resolve auth before the try/catch so token errors propagate as MISSING_TOKEN,
   // not as false NETWORK errors.
-  const authHeader = buildBasicAuth(opts.environment);
+  const authHeader = buildBasicAuth(opts.environment, opts.token);
 
   let response: Response;
   try {

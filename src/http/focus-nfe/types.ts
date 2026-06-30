@@ -22,7 +22,7 @@ export type NfseTomadorPJ = {
 
 export type NfseTomadorPF = {
   cpf: string;
-  nome_completo: string;
+  razao_social: string;
   email?: string;
   telefone?: string;
 };
@@ -41,7 +41,7 @@ export type NfseServico = {
 export type NfsePayload = {
   data_emissao: string;
   data_competencia?: string;
-  natureza_operacao: number;
+  natureza_operacao: string;
   optante_simples_nacional: boolean;
   regime_especial_tributacao?: number;
   prestador: NfsePrestador;
@@ -55,16 +55,27 @@ export type FocusNfseStatus =
   | "erro_autorizacao"
   | "cancelado";
 
+export type FocusNfseErro = {
+  codigo: string;
+  mensagem: string;
+  correcao?: string;
+};
+
 export type FocusNfseResponse = {
-  status: FocusNfseStatus;
+  cnpj_prestador?: string;
   ref: string;
+  numero_rps?: string;
+  serie_rps?: string;
+  tipo_rps?: string;
+  status: FocusNfseStatus;
   numero?: string;
   codigo_verificacao?: string;
+  data_emissao?: string;
   url?: string;
   url_danfse?: string;
   caminho_xml_nota_fiscal?: string;
-  mensagem_erro?: string;
-  mensagem_erros?: string[];
+  caminho_xml_cancelamento?: string;
+  erros?: FocusNfseErro[];
   [key: string]: unknown;
 };
 
@@ -77,10 +88,27 @@ export type FocusEmpresaResponse = {
   [key: string]: unknown;
 };
 
+export type FocusCancelResponse =
+  | { status: "cancelado" }
+  | { status: "erro_cancelamento"; erros: FocusNfseErro[] };
+
 export type FocusWebhookRegistration = {
   event: "nfse";
   url: string;
+  cnpj?: string;
+  cpf?: string;
   authorization?: string;
+  authorization_header?: string;
+};
+
+export type FocusHookResponse = {
+  id: string;
+  url: string;
+  authorization: string | null;
+  authorization_header: string | null;
+  event: string;
+  cnpj?: string;
+  cpf?: string;
 };
 
 export type FocusMunicipioParams = {

@@ -2,6 +2,7 @@ import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { consultarNfse } from "@/http/focus-nfe/consultar-nfse";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
+import { decryptSecret } from "@/lib/crypto";
 import { S3 } from "@/lib/s3-client";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import type { FiscalEnvironment } from "@/generated/prisma/enums";
@@ -27,9 +28,17 @@ export const nfseStatusSync = inngest.createFunction(
     if (invoice.status === "AUTORIZADO" || invoice.status === "CANCELADO")
       return;
 
-    const focusData = await step.run("consult-focus", async () =>
-      consultarNfse(ref, invoice.environment as FiscalEnvironment),
-    );
+    const focusData = await step.run("consult-focus", async () => {
+      const fiscalEnvironment = invoice.environment as FiscalEnvironment;
+      const encryptedToken =
+        fiscalEnvironment === "HOMOLOGACAO"
+          ? invoice.profile.focusTokenHomologacao
+          : invoice.profile.focusTokenProducao;
+      if (!encryptedToken)
+        throw new Error(`Token Focus NFe ausente no perfil para ref=${ref}`);
+      const companyToken = decryptSecret(encryptedToken);
+      return consultarNfse(ref, fiscalEnvironment, companyToken);
+    });
 
     if (focusData.status === "processando_autorizacao") return;
 
@@ -111,9 +120,7 @@ export const nfseStatusSync = inngest.createFunction(
           data: {
             status: "ERRO",
             errorMessage:
-              focusData.mensagem_erro ??
-              focusData.mensagem_erros?.[0] ??
-              "Erro desconhecido",
+              focusData.erros?.[0]?.mensagem ?? "Erro desconhecido",
             focusResponse: focusData as never,
           },
         }),

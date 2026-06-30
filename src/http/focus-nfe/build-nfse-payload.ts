@@ -9,6 +9,8 @@ export type IssueOverrides = {
   tipoTomador: TomadorType;
   discriminacao?: string;
   dataCompetencia: Date;
+  naturezaOperacao?: string;
+  regimeEspecialTributacao?: number;
   tomadorCnpj?: string;
   tomadorCpf?: string;
   tomadorRazaoSocial?: string;
@@ -90,18 +92,20 @@ export function buildNfsePayload(
         }
       : {
           cpf: (overrides.tomadorCpf ?? "").replace(/\D/g, ""),
-          nome_completo: overrides.tomadorNome!,
+          razao_social: overrides.tomadorNome!,
           email: overrides.tomadorEmail,
         };
 
   return {
     data_emissao: new Date().toISOString(),
     data_competencia: overrides.dataCompetencia.toISOString(),
-    natureza_operacao: 1,
+    natureza_operacao: overrides.naturezaOperacao ?? "1",
     optante_simples_nacional: profile.optanteSimplesNacional,
-    regime_especial_tributacao: profile.regimeEspecialTributacao
-      ? Number(profile.regimeEspecialTributacao)
-      : undefined,
+    regime_especial_tributacao:
+      overrides.regimeEspecialTributacao ??
+      (profile.regimeEspecialTributacao
+        ? Number(profile.regimeEspecialTributacao)
+        : undefined),
     prestador: {
       cnpj: profile.cnpj.replace(/\D/g, ""),
       inscricao_municipal: profile.inscricaoMunicipal,
@@ -116,7 +120,7 @@ export function buildNfsePayload(
         overrides.discriminacao ??
         profile.defaultDiscriminacao ??
         `Serviços conforme contrato #${contract.number}`,
-      codigo_municipio: profile.codigoMunicipio,
+      codigo_municipio: overrides.tomadorCodigoMunicipio ?? profile.codigoMunicipio,
       valor_servicos: Number(contract.value),
     },
   };
