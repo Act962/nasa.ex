@@ -23,7 +23,11 @@ import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-l
  *  - **Com `responseId`**: faz `update` do `jsonResponse`. Sem mexer em
  *    lead, sem incrementar contador, sem registrar novo evento. Só
  *    persiste o estado atual e re-deriva o `label` automático (se ainda
- *    não foi editado manualmente).
+ *    não foi editado manualmente). Exige `completedAt: null` — uma
+ *    resposta já finalizada (via `submitResponse`) não aceita mais
+ *    autosave, mesmo que o client ainda tenha o `responseId` em mãos (ex:
+ *    aba antiga que não recebeu o ack do submit). Retorna `NOT_FOUND`
+ *    nesse caso.
  *
  * Diferente de `submitResponse`: NÃO dispara workflows do botão "Próximo",
  * NÃO dispara onboarding Inngest, NÃO marca conclusão. A submissão final
@@ -60,7 +64,7 @@ export const savePartialResponse = base
       // ── Modo UPDATE ────────────────────────────────────────────────
       if (responseId) {
         const existing = await prisma.formResponses.findFirst({
-          where: { id: responseId, formId: id },
+          where: { id: responseId, formId: id, completedAt: null },
           select: {
             id: true,
             leadId: true,

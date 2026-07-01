@@ -21,7 +21,6 @@ type UseFormDraftParams = {
   selectedCountryDdi: string;
   showPhone: boolean;
   showEmail: boolean;
-  onPrefillMapChange: (map: PrefillFieldMap) => void;
 };
 
 export function useFormDraft({
@@ -33,7 +32,6 @@ export function useFormDraft({
   selectedCountryDdi,
   showPhone,
   showEmail,
-  onPrefillMapChange,
 }: UseFormDraftParams) {
   const responseIdStorageKey = `nasa.form.draft.${formId}`;
   const localStorageDraftKey = `nasa.form.ls.${formId}`;
@@ -49,6 +47,8 @@ export function useFormDraft({
   const saveDraftToLocalStorage = () => {
     if (typeof window === "undefined") return;
     if (initialResponseValues) return;
+    // Sem etapa de lead não há telefone/e-mail pra validar identidade no restore — nunca persiste.
+    if (!showLeadFields) return;
     try {
       localStorage.setItem(
         localStorageDraftKey,
@@ -97,6 +97,16 @@ export function useFormDraft({
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (initialResponseValues) return;
+    if (!showLeadFields) {
+      // Sem telefone/e-mail pra validar identidade: nunca restaura — e descarta
+      // qualquer rascunho legado salvo antes dessa trava existir.
+      try {
+        localStorage.removeItem(localStorageDraftKey);
+      } catch {
+        /* ignorar */
+      }
+      return;
+    }
     try {
       const raw = localStorage.getItem(localStorageDraftKey);
       if (!raw) return;
@@ -118,26 +128,10 @@ export function useFormDraft({
         localStorage.removeItem(localStorageDraftKey);
         return;
       }
-      if (showLeadFields) {
-        pendingLocalDraftRef.current = {
-          fv: localDraft.fv,
-          contact: localDraft.contact,
-        };
-        return;
-      }
-      const hydratedMap: PrefillFieldMap = {};
-      for (const [key, value] of Object.entries(localDraft.fv)) {
-        if (value && typeof value === "object" && typeof value.value === "string") {
-          formValsRef.current[key] = value;
-          hydratedMap[key] = value;
-        }
-      }
-      if (Object.keys(hydratedMap).length > 0) {
-        onPrefillMapChange(hydratedMap);
-        toast.success("Retomando onde você parou", {
-          description: "Suas respostas foram restauradas automaticamente.",
-        });
-      }
+      pendingLocalDraftRef.current = {
+        fv: localDraft.fv,
+        contact: localDraft.contact,
+      };
     } catch {
       /* JSON inválido ou localStorage indisponível — ignorar */
     }

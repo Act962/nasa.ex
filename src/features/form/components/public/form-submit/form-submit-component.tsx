@@ -14,10 +14,9 @@ import {
   useMutationSubmitResponse,
   useMutationSavePartialResponse,
   useMutationValidateLeadPhone,
+  useMutationFindDraftByPhone,
 } from "../../../hooks/use-form";
 import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
-import { useMutation } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormSettings } from "@/generated/prisma/client";
 import type { FormSettingsTyped } from "@/features/form/types";
@@ -59,7 +58,7 @@ export function FormSubmitComponent({
 }: FormSubmitProps) {
   const submitResponse = useMutationSubmitResponse();
   const savePartialResponse = useMutationSavePartialResponse();
-  const findDraft = useMutation(orpc.form.findDraftByPhone.mutationOptions({}));
+  const findDraft = useMutationFindDraftByPhone();
   const validateLeadPhone = useMutationValidateLeadPhone();
 
   const [resumeLoading, setResumeLoading] = useState(false);
@@ -114,7 +113,6 @@ export function FormSubmitComponent({
     selectedCountryDdi: selectedCountry.ddi,
     showPhone,
     showEmail,
-    onPrefillMapChange: setPrefillMap,
   });
 
   useEffect(() => {
@@ -201,6 +199,13 @@ export function FormSubmitComponent({
         draft.persistResponseId(result.responseId);
       }
     } catch (error) {
+      // NOT_FOUND aqui = o responseId já não é elegível pra autosave (ex:
+      // resposta já foi completada por outra aba/retry, ver save-partial-response.ts).
+      // Limpa o id morto pra parar de tentar salvar nele a cada blur.
+      const code = (error as { code?: string } | null)?.code;
+      if (code === "NOT_FOUND") {
+        draft.clearResponseId();
+      }
       console.warn("[form] auto-save falhou", error);
     } finally {
       savingPartialRef.current = false;
@@ -319,23 +324,23 @@ export function FormSubmitComponent({
       try {
         const phoneNormalized = normalizePhone(`${selectedCountry.ddi} ${leadInfo.phone}`);
         const result = await findDraft.mutateAsync({ formId: id, phone: phoneNormalized });
-        const serverDraft = (
-          result as {
-            draft?: {
-              responseId: string;
-              jsonResponse: unknown;
-              createdAt: string | Date;
-            } | null;
-          } | null
-        )?.draft;
+        const latestResponse = result.response;
 
-        if (serverDraft) {
+        if (latestResponse?.completedAt) {
+          // Resposta mais recente desse lead pra esse form já foi enviada —
+          // não hidrata nem daqui nem do rascunho local (mesma lógica do
+          // tombstone do `use-form-draft`: depois de enviar, nunca mais
+          // auto-hidrata). Cobre o caso em que o ack do submit anterior se
+          // perdeu e o rascunho local ficou "vivo" sem o tombstone.
+          draft.clearLocalStorageDraft();
+          draft.pendingLocalDraftRef.current = null;
+        } else if (latestResponse) {
           let parsed: Record<string, unknown> = {};
           try {
             parsed =
-              typeof serverDraft.jsonResponse === "string"
-                ? JSON.parse(serverDraft.jsonResponse)
-                : (serverDraft.jsonResponse as Record<string, unknown>);
+              typeof latestResponse.jsonResponse === "string"
+                ? JSON.parse(latestResponse.jsonResponse)
+                : (latestResponse.jsonResponse as Record<string, unknown>);
           } catch {
             /* ignore parse error */
           }
@@ -353,7 +358,7 @@ export function FormSubmitComponent({
           }
           if (Object.keys(hydrated).length > 0) {
             setPrefillMap(hydrated);
-            draft.persistResponseId(serverDraft.responseId);
+            draft.persistResponseId(latestResponse.responseId);
             draft.clearLocalStorageDraft();
             draft.pendingLocalDraftRef.current = null;
             toast.success("Continuando rascunho salvo", {

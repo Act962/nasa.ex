@@ -3,27 +3,31 @@ import prisma from "@/lib/prisma";
 import z from "zod";
 
 /**
- * Busca um draft (FormResponses em preenchimento) existente pelo telefone
- * do lead + formId. Usado pelo fluxo público de "Continuar preenchimento"
+ * Busca a FormResponses mais recente do lead pra esse formId, pelo
+ * telefone. Usado pelo fluxo público de "Continuar preenchimento"
  * cross-device:
  *
  *   - Lead começa form no celular, fecha o navegador antes de submeter.
  *   - Depois abre o mesmo form no computador (URL pública).
  *   - Após digitar o telefone na etapa 1, o client chama essa procedure.
- *   - Se encontrar draft em aberto pra esse telefone + formId, devolve
- *     o `responseId` + `jsonResponse` pra hidratar os campos do form.
+ *   - Se a resposta mais recente estiver aberta, o client hidrata os
+ *     campos com `jsonResponse`. Se já estiver completa (`completedAt`
+ *     preenchido), o client NÃO hidrata — nem daqui, nem do rascunho
+ *     local — pra não reviver dados de um formulário já enviado quando o
+ *     ack do submit se perdeu (tela travada, conexão caiu).
  *
  * Critérios:
  *   - lead identificado pela combinação (phone + trackingId), igual ao
  *     `submitResponse` e `savePartialResponse`.
- *   - "em aberto" = qualquer FormResponses do lead pra esse form,
- *     ordenado pelo `createdAt DESC` (último draft prevalece). Não
- *     filtramos por estado — o user decide se quer continuar ou começar
- *     de novo (pode editar/limpar campos depois de carregar).
+ *   - devolve a FormResponses mais recente do lead pra esse form,
+ *     ordenada por `createdAt DESC`, independente do status — a
+ *     procedure não filtra por `completedAt`; quem decide o que fazer
+ *     com isso (hidratar ou bloquear) é o client, com base no campo
+ *     `completedAt` do retorno.
  *
  * Privacidade: a procedure é PÚBLICA. Só devolve `jsonResponse` quando o
  * telefone bate exatamente — atua como "chave secreta" do user. Se mudou
- * o número, o draft não é exposto.
+ * o número, a resposta não é exposta.
  */
 export const findDraftByPhone = base
   .route({
@@ -49,9 +53,9 @@ export const findDraftByPhone = base
           settings: { select: { trackingId: true } },
         },
       });
-      if (!form) return { draft: null };
+      if (!form) return { response: null };
       const trackingId = form.settings?.trackingId;
-      if (!trackingId) return { draft: null };
+      if (!trackingId) return { response: null };
 
       const lead = await prisma.lead.findUnique({
         where: {
@@ -59,27 +63,29 @@ export const findDraftByPhone = base
         },
         select: { id: true, name: true, email: true, phone: true },
       });
-      if (!lead) return { draft: null };
+      if (!lead) return { response: null };
 
-      // Último rascunho incompleto do lead pra esse form.
-      // completedAt: null garante que só drafts ainda em aberto são retomados
-      // — respostas já finalizadas (enviadas via submitResponse) são ignoradas.
-      const draft = await prisma.formResponses.findFirst({
-        where: { leadId: lead.id, formId: form.id, completedAt: null },
+      // Resposta mais recente do lead pra esse form, independente do status.
+      // O client decide o que fazer com base em `completedAt`: aberta hidrata,
+      // completa bloqueia hidratação (mesmo daqui, mesmo do rascunho local).
+      const latestResponse = await prisma.formResponses.findFirst({
+        where: { leadId: lead.id, formId: form.id },
         orderBy: { createdAt: "desc" },
         select: {
           id: true,
           createdAt: true,
+          completedAt: true,
           jsonResponse: true,
         },
       });
-      if (!draft) return { draft: null };
+      if (!latestResponse) return { response: null };
 
       return {
-        draft: {
-          responseId: draft.id,
-          createdAt: draft.createdAt,
-          jsonResponse: draft.jsonResponse,
+        response: {
+          responseId: latestResponse.id,
+          createdAt: latestResponse.createdAt,
+          completedAt: latestResponse.completedAt,
+          jsonResponse: latestResponse.jsonResponse,
           lead: {
             id: lead.id,
             name: lead.name,
