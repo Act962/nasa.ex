@@ -7,6 +7,7 @@ import type {
   AstroTablePayload,
   AstroTableRow,
 } from "@/features/astro/lib/astro-table";
+import { resolveTargetOrgs } from "@/features/astro/server/tools/shared/resolve-target-orgs";
 
 /**
  * Tools de LISTAGEM — retornam payloads de tabela renderizáveis pelo
@@ -52,15 +53,7 @@ export function buildListTools(ctx: AgentContext) {
         search,
         limit,
       }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -148,6 +141,11 @@ export function buildListTools(ctx: AgentContext) {
             amount: Math.round(Number(l.amount ?? 0) * 100),
             currentAction: l.currentAction,
             createdAt: l.createdAt.toISOString(),
+            // Contato fica nas linhas (não nas colunas): a UI in-app só renderiza
+            // as `columns`, mas o modelo/WhatsApp leem o row pra responder
+            // "nome e contato". `phone`/`email` também alimentam a URL de detalhe.
+            phone: l.phone ?? "",
+            email: l.email ?? "",
           })),
         };
         return payload;
@@ -194,15 +192,7 @@ export function buildListTools(ctx: AgentContext) {
         search,
         limit,
       }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -363,15 +353,7 @@ export function buildListTools(ctx: AgentContext) {
         search,
         limit,
       }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -493,15 +475,7 @@ export function buildListTools(ctx: AgentContext) {
         search,
         limit,
       }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -609,15 +583,7 @@ export function buildListTools(ctx: AgentContext) {
         responsibleIds,
         limit,
       }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -699,15 +665,7 @@ export function buildListTools(ctx: AgentContext) {
         limit: z.number().int().min(1).max(50).optional(),
       }),
       execute: async ({ orgIds, limit }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -758,15 +716,7 @@ export function buildListTools(ctx: AgentContext) {
         limit: z.number().int().min(1).max(50).optional(),
       }),
       execute: async ({ orgIds, limit }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -873,15 +823,7 @@ export function buildListTools(ctx: AgentContext) {
         installmentTotal,
         limit,
       }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -1001,18 +943,14 @@ export function buildListTools(ctx: AgentContext) {
           .describe("Filtra por tipo. Sem isso, retorna todas."),
       }),
       execute: async ({ type }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        if (myOrgIds.length === 0) {
+        const targetOrgs = await resolveTargetOrgs(ctx);
+        if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
 
         const categories = await prisma.paymentCategory.findMany({
           where: {
-            organizationId: { in: myOrgIds },
+            organizationId: { in: targetOrgs },
             isActive: true,
             ...(type ? { type } : {}),
           },
@@ -1078,15 +1016,7 @@ export function buildListTools(ctx: AgentContext) {
         trackingIds,
         limit,
       }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -1186,15 +1116,7 @@ export function buildListTools(ctx: AgentContext) {
         createdByIds,
         limit,
       }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }

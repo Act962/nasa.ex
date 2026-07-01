@@ -59,6 +59,7 @@ import { getTrackingByMetaPhoneNumberId } from "@/features/tracking-chat/lib/get
 import { getCachedTrackingContext } from "@/features/tracking-chat/lib/get-cached-tracking-context";
 import { createProvider } from "@/features/tracking-chat/lib/providers";
 import { persistCanonicalInbound } from "@/features/tracking-chat/lib/inbound/persist-canonical-inbound";
+import { applyStatusUpdates } from "@/features/tracking-chat/lib/inbound/apply-status-updates";
 import {
   buildMetaDownloadInboundMedia,
   buildMetaFetchProfilePicture,
@@ -295,14 +296,21 @@ export async function POST(request: NextRequest) {
   });
 
   const normalized = provider.normalizeInbound(parsed);
-  if (!normalized || normalized.messages.length === 0) {
-    // Webhook traz só statuses (sent/delivered/read/failed) — pipeline
-    // canônica ainda não persiste statuses (Fase 6+). Log estruturado
-    // pra dimensionar o volume antes de implementar.
-    console.log("[webhook:official:POST] skipped_status_updates", {
-      phoneNumberId,
-      count: normalized?.statusUpdates?.length ?? 0,
+
+  // ── Status updates (Fase 9 / #4) ────────────────────────────────────
+  // Persiste sent/delivered/read/failed no Message.status (ticks). Roda
+  // ANTES do early-return de "só statuses" pra cobrir os dois casos: POST
+  // só com statuses E POST com mensagens + statuses no mesmo envelope.
+  if (normalized?.statusUpdates?.length) {
+    await applyStatusUpdates(normalized.statusUpdates).catch((error) => {
+      console.error("[webhook:official:POST] apply_status_updates_failed", {
+        phoneNumberId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     });
+  }
+
+  if (!normalized || normalized.messages.length === 0) {
     return NextResponse.json(
       { ok: true, skipped: "no_canonical_messages" },
       { status: 200 },
@@ -341,12 +349,7 @@ export async function POST(request: NextRequest) {
           const botResult = await maybeHandleBotMessage({
             fromPhone: candidate.sender.phone,
             messageText: bodyForBot,
-            // Meta não tem `token` no shape do Uazapi; passamos o
-            // `accessToken` decifrado como "token da instância que
-            // recebeu". O branch META_CLOUD do webhook-handler hoje
-            // devolve `handled=true, status="provider_not_implemented"`
-            // (suprime phantom lead) — Fase 6+ refina lá.
-            receivingInstanceToken: instance.accessToken,
+            trackingId: instance.trackingId,
             trackingOrganizationId: tracking.organizationId,
           });
           if (botResult.handled) {

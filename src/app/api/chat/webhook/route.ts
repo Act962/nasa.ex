@@ -2,7 +2,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
-import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
+import {
+  WhatsAppInstanceStatus,
+  WhatsAppProvider,
+} from "@/generated/prisma/enums";
 import { Prisma } from "@/generated/prisma/client";
 import { MessageStatus } from "@/features/tracking-chat/types";
 import { WA_COLORS } from "@/utils/whatsapp-utils";
@@ -74,6 +77,24 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // ── Gate de provider (#9) ──────────────────────────────────────
+      // Se o tracking migrou pra Meta Cloud, mas o webhook Uazapi externo
+      // ainda aponta pra cá, ignoramos o inbound — senão a mesma mensagem
+      // seria gravada duas vezes (uma via Meta, outra via Uazapi). 200 (não
+      // 4xx) porque a Uazapi externa retenta em não-2xx; não queremos
+      // amplificar. O caminho correto é o cliente remover o webhook na
+      // Uazapi, mas a maioria esquece — este gate é a rede de segurança.
+      if (tracking.whatsappProvider === WhatsAppProvider.META_CLOUD) {
+        console.log("[webhook:chat] provider_mismatch", {
+          trackingId,
+          provider: tracking.whatsappProvider,
+        });
+        return NextResponse.json(
+          { ok: true, skipped: "provider_mismatch" },
+          { status: 200 },
+        );
+      }
+
       // ── Astro Bot via WhatsApp ─────────────────────────────────
       // Se o remetente (não-fromMe) é um membro com UserWhatsappBinding
       // ativo NA ORG DESTE TRACKING, intercepta e roteia pro orchestrator
@@ -81,8 +102,16 @@ export async function POST(request: NextRequest) {
       // pro bot, não lead novo. Texto puro só — mídia ainda cai no fluxo
       // normal. Roda ANTES da normalização canônica pra escopar o binding
       // por org e evitar criar Lead/Message indevidos.
+      // Uazapi manda texto puro como "Conversation"/"ExtendedTextMessage"
+      // (espelha o `mapUazapiMessageType` do normalizador canônico). O antigo
+      // "TextMessage" não casava com payload real — por isso o bot não disparava.
       const bodyForBot = (json.message.text ?? "").trim();
-      if (!fromMe && bodyForBot && json.message.messageType === "TextMessage") {
+      const botMessageType = json.message.messageType ?? "";
+      const isTextForBot =
+        botMessageType === "Conversation" ||
+        botMessageType === "ExtendedTextMessage" ||
+        botMessageType === "TextMessage";
+      if (!fromMe && bodyForBot && isTextForBot) {
         try {
           const { maybeHandleBotMessage } = await import(
             "@/features/astro-bot/lib/webhook-handler"
@@ -90,7 +119,7 @@ export async function POST(request: NextRequest) {
           const botResult = await maybeHandleBotMessage({
             fromPhone: phone,
             messageText: bodyForBot,
-            receivingInstanceToken: json.token,
+            trackingId,
             deviceId: json.deviceId ?? undefined,
             trackingOrganizationId: tracking.organizationId,
           });
@@ -108,6 +137,38 @@ export async function POST(request: NextRequest) {
         } catch (err) {
           console.error(
             "[webhook:chat] astro-bot handler failed — fallback to atendimento normal",
+            err,
+          );
+        }
+      }
+
+      // ── Supressão do echo do Astro Bot (só Uazapi) ─────────────
+      // A resposta do bot sai pelo número da PRÓPRIA tracking; o Uazapi a
+      // ecoa de volta como webhook `fromMe:true`. Sem este guard, o echo cai
+      // no `persistCanonicalInbound` e cria Lead/Conversation/Message fantasma
+      // pro número do membro — além de persistir a resposta do bot (que pode
+      // citar nome/telefone/e-mail de outros leads) como mensagem de CRM.
+      // Só texto: evita suprimir mídia legítima de um operador. Meta não ecoa
+      // mensagens próprias, então não há branch equivalente no webhook oficial.
+      if (fromMe && bodyForBot && isTextForBot) {
+        try {
+          const { shouldSuppressBotEcho } = await import(
+            "@/features/astro-bot/lib/webhook-handler"
+          );
+          const suppress = await shouldSuppressBotEcho({
+            phone,
+            trackingId,
+            trackingOrganizationId: tracking.organizationId,
+          });
+          if (suppress) {
+            return NextResponse.json(
+              { ok: true, ignored: "astro-bot-echo" },
+              { status: 200 },
+            );
+          }
+        } catch (err) {
+          console.error(
+            "[webhook:chat] astro-bot echo-suppression check failed — segue pipeline normal",
             err,
           );
         }

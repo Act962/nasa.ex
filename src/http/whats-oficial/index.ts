@@ -29,6 +29,9 @@ export { sendOfficialMedia } from "./send-media";
 export { sendOfficialLocation } from "./send-location";
 export { sendOfficialContact } from "./send-contact";
 
+export { sendOfficialTemplate } from "./send-template";
+export { getMessageTemplates } from "./get-message-templates";
+
 export { uploadOfficialMedia } from "./upload-media";
 export {
   getOfficialMediaUrl,
@@ -74,7 +77,14 @@ export type {
   SendMediaInput,
   SendLocationInput,
   SendContactInput,
+  SendTemplateInput,
   UploadMediaInput,
+  // Templates HSM (Fase 9)
+  MessageTemplate,
+  MessageTemplateStatus,
+  MessageTemplateCategory,
+  TemplateComponent,
+  MessageTemplatesResponse,
   // Embedded Signup (Fase 7)
   OAuthExchangeResponse,
   SubscribeAppResponse,

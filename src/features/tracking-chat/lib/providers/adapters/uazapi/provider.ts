@@ -27,7 +27,10 @@ import type { MediaType } from "@/http/uazapi/types";
 import { messagesEventSchema } from "@/http/uazapi/webhook-schema";
 
 import { registerProvider } from "../../factory";
-import { ProviderSendInvalidResponseError } from "../../outbound-errors";
+import {
+  ProviderFeatureUnsupportedError,
+  ProviderSendInvalidResponseError,
+} from "../../outbound-errors";
 import type {
   CanonicalInboundContact,
   CanonicalInboundInteractiveReply,
@@ -45,6 +48,7 @@ import type {
   SendCanonicalContact,
   SendCanonicalLocation,
   SendCanonicalMedia,
+  SendCanonicalTemplate,
   SendCanonicalText,
   SendResult,
   WhatsAppChatProvider,
@@ -338,6 +342,12 @@ export class UazapiProvider implements WhatsAppChatProvider {
       externalMessageId: extractUazapiId(response, "sendContact"),
       raw: response,
     };
+  }
+
+  async sendTemplate(_input: SendCanonicalTemplate): Promise<SendResult> {
+    // Templates HSM são conceito exclusivo da Meta Cloud API. A Uazapi não
+    // tem equivalente — falhamos com erro estruturado pro handler mapear.
+    throw new ProviderFeatureUnsupportedError("uazapi", "template");
   }
 
   verifyWebhook(_rawBody: string, _headers: ProviderWebhookHeaders): boolean {
