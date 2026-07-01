@@ -568,6 +568,9 @@ model Tracking {
   // NASA Auto Agent — agentes específicos deste tracking
   autoAgents Agent[]
 
+  // Astro Bot (Insights pelo WhatsApp) — trackings habilitadas pra responder o Astro
+  astroBotEnabledOn AstroBotTracking[]
+
   @@map("tracking")
 }
 
@@ -7089,15 +7092,16 @@ enum BotProvider {
 model OrganizationBotConfig {
   id             String      @id @default(cuid())
   organizationId String      @unique @map("organization_id")
+  /// LEGADO: o canal não é mais escolhido por aqui — o Astro usa o provider
+  /// ATIVO da tracking (resolveOutboundProvider). Mantido só por histórico.
   provider       BotProvider @default(UAZAPI)
 
-  // ── UAZAPI fields ────────────────────────────────────────
-  /// FK pra `WhatsAppInstance.id` — instância DEDICADA pro bot,
-  /// SEPARADA da instância de atendimento da org. Isolamento garante
-  /// que ban da instância do bot NÃO afeta atendimento ao cliente.
+  // ── LEGADO (instância dedicada) ──────────────────────────
+  /// LEGADO: antes apontava pra uma `WhatsAppInstance` dedicada. Hoje o Astro
+  /// responde pelo número da própria tracking (ver `enabledTrackings`).
   uazapiInstanceId String? @map("uazapi_instance_id")
 
-  // ── Meta Cloud fields ────────────────────────────────────
+  // ── LEGADO (Meta Cloud dedicado) ─────────────────────────
   metaPhoneId     String? @map("meta_phone_id")
   /// Criptografado com AI_SECRETS_KEY (AES-256-GCM via @/lib/crypto).
   metaAccessToken String? @map("meta_access_token")
@@ -7114,13 +7118,32 @@ model OrganizationBotConfig {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  uazapiInstance WhatsAppInstance?     @relation("BotConfigInstance", fields: [uazapiInstanceId], references: [id], onDelete: SetNull)
-  bindings       UserWhatsappBinding[]
+  organization     Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uazapiInstance   WhatsAppInstance?     @relation("BotConfigInstance", fields: [uazapiInstanceId], references: [id], onDelete: SetNull)
+  bindings         UserWhatsappBinding[]
+  enabledTrackings AstroBotTracking[]
 
   @@index([organizationId])
   @@index([uazapiInstanceId])
   @@map("organization_bot_config")
+}
+
+/// Trackings cujo número responde o Astro (Insights pelo WhatsApp). O admin
+/// seleciona explicitamente quais trackings ficam habilitadas — só mensagens
+/// que chegam numa tracking habilitada (e de um número allow-listado) caem no
+/// fluxo do Astro; o resto segue o atendimento normal.
+model AstroBotTracking {
+  id          String   @id @default(cuid())
+  botConfigId String   @map("bot_config_id")
+  trackingId  String   @map("tracking_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  botConfig OrganizationBotConfig @relation(fields: [botConfigId], references: [id], onDelete: Cascade)
+  tracking  Tracking              @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+
+  @@unique([botConfigId, trackingId])
+  @@index([trackingId])
+  @@map("astro_bot_tracking")
 }
 
 model UserWhatsappBinding {
@@ -7134,9 +7157,11 @@ model UserWhatsappBinding {
   phoneE164  String    @unique @map("phone_e164")
   verifiedAt DateTime? @map("verified_at")
 
-  // ── Auth: PIN + sessão diária ──────────────────────────────
+  // ── LEGADO — Auth por PIN + sessão diária ──────────────────
+  /// LEGADO: o fluxo simplificado confia no número allow-listado e não exige
+  /// mais PIN/sessão. Coluna mantida (nullable) pra histórico; não é enforçada.
   /// bcrypt do PIN (4-6 dígitos) — never store raw.
-  pinHash        String    @map("pin_hash")
+  pinHash        String?   @map("pin_hash")
   pinFailures    Int       @default(0) @map("pin_failures")
   /// Lockout temporário após 3 PINs errados — 1h.
   pinLockedUntil DateTime? @map("pin_locked_until")

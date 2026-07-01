@@ -148,6 +148,11 @@ export function buildListTools(ctx: AgentContext) {
             amount: Math.round(Number(l.amount ?? 0) * 100),
             currentAction: l.currentAction,
             createdAt: l.createdAt.toISOString(),
+            // Contato fica nas linhas (não nas colunas): a UI in-app só renderiza
+            // as `columns`, mas o modelo/WhatsApp leem o row pra responder
+            // "nome e contato". `phone`/`email` também alimentam a URL de detalhe.
+            phone: l.phone ?? "",
+            email: l.email ?? "",
           })),
         };
         return payload;

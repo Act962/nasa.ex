@@ -192,3 +192,19 @@ A fundação backend está pronta e commitada. **A próxima sessão deve focar e
 (use esta seção para anotar qualquer ponto que surgir e precisar de input do usuário)
 
 - (nenhuma no momento)
+
+## 2026-06-30 — Insights pelo WhatsApp (rework do astro-bot)
+
+O Astro pelo WhatsApp foi reworked pra responder **insights** (read-only) pelo
+**número da própria tracking**, usando o **provider ativo** dela. Detalhes e fonte de
+verdade em [`docs/astro-bot-whatsapp.md`](astro-bot-whatsapp.md) §Rework 2026-06-30.
+
+- `streamAstro` ganhou `toolScope: "full" | "insights"`. Modo `insights` expõe só
+  analytics/list/search/chart (sem mutations/actions/workflows, sem routing pra
+  sub-agents). É o enforcement real do read-only.
+- Canal provider-agnóstico: `src/features/astro-bot/lib/tracking-provider-channel.ts`
+  (usa `resolveOutboundProvider(trackingId)`). `UazapiBotChannel` ficou desativado.
+- Schema: novo `AstroBotTracking` (trackings habilitadas); `UserWhatsappBinding.pinHash`
+  virou nullable (PIN/sessão são legado, não enforçados).
+- Auth simplificada: admin adiciona número + escolhe membro (`binding/create`), sem
+  OTP/PIN. Gestão é owner/admin only.
