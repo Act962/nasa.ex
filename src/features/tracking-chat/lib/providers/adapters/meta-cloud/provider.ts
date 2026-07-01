@@ -392,6 +392,7 @@ export class OfficialProvider implements WhatsAppChatProvider {
         mediaIdOrLink,
         caption: input.caption,
         filename: input.fileName,
+        voice: input.isVoice,
         replyToWamid: input.replyToExternalMessageId,
       },
     ).catch(rethrowWindowClosed);

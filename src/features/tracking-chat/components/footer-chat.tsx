@@ -208,16 +208,45 @@ export function Footer({
 
   const isDisabled = !instance.instance;
 
-  const handleSubmitAudio = (blob: Blob) => {
-    const nameAudio = `audio-${Date.now()}-${blob.size}`;
+  const handleSubmitAudio = async (blob: Blob) => {
     if (!instance.instance) return toast.error("Instância não encontrada");
 
+    let audioBlob = blob;
+    let mimetype = blob.type;
+    let extension = "";
+
+    // A Meta Cloud não aceita WebM (formato do gravador). Remuxa pra OGG/Opus
+    // na hora de enviar (sem re-encode). A Uazapi transcodifica sozinha, então
+    // mantém o WebM original — zero regressão.
+    if (isMeta) {
+      const toastId = toast.loading("Preparando áudio...");
+      try {
+        // Import dinâmico: a mediabunny só é baixada no caminho Meta —
+        // quem usa Uazapi não carrega esse chunk.
+        const { convertWebmToOggOpus } = await import(
+          "../lib/audio/webm-to-ogg"
+        );
+        audioBlob = await convertWebmToOggOpus(blob);
+        mimetype = "audio/ogg";
+        extension = ".ogg";
+      } catch (error) {
+        console.error("[footer-chat] audio conversion failed", error);
+        toast.error("Falha ao preparar o áudio para a API Oficial.");
+        return;
+      } finally {
+        toast.dismiss(toastId);
+      }
+    }
+
+    const nameAudio = `audio-${Date.now()}-${audioBlob.size}${extension}`;
+
     mutationAudio.mutate({
-      blob: blob,
+      blob: audioBlob,
       leadPhone: lead.phone!,
       token: instance.instance.apiKey ?? "",
       nameAudio: nameAudio,
-      mimetype: blob.type,
+      mimetype: mimetype,
+      isVoice: isMeta,
       conversationId,
       replyId: messageSelected?.messageId || undefined,
       id: messageSelected?.id,
