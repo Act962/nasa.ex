@@ -56,6 +56,21 @@ a incluir `phone`/`email` nas linhas (não nas colunas — UI in-app intacta) pr
 "nome e contato". O bot força `gpt-4o` (`forceComplexModel: true`): o `gpt-4o-mini`
 alucinava "não consegui acessar" em perguntas com `list_*`.
 
+**Paridade com `/insights` (2026-06-30):** o Astro agora expõe os mesmos números da
+página `/insights` como tools read-only, começando por **funil de conversão**,
+**ganhos/perdidos + vendidos no mês** e **canais de aquisição + tags**. Arquitetura de
+fonte de verdade única: o cálculo de cada bloco vive em
+[`src/features/insights/lib/metrics/`](../src/features/insights/lib/metrics/)
+(`funnel.ts`, `won-leads.ts`, `sold-this-month.ts`, `acquisition-channels.ts`,
+`leads-by-tags.ts`) e é consumido **tanto pela procedure oRPC** (página) **quanto pela
+tool do Astro** — página e bot nunca divergem. As tools ficam em
+[`tools/insights-reports/`](../src/features/astro/server/tools/insights-reports/index.ts)
+(`get_funnel`, `get_won_lost_leads`, `get_sold_this_month`, `get_leads_by_channel`,
+`get_leads_by_tags`), entram no `readOnlyTools` e são **single-org**: usam
+`ctx.organizationId` (a org do número no WhatsApp) + `userBelongsToOrg`, nunca agregam
+multi-org. `get_funnel` pede o tracking quando a empresa tem mais de um. Próximos blocos
+candidatos: leads por atendente, performance por tracking, tráfego Meta, resgate de leads.
+
 O restante deste documento é o design original (2026-05-30), mantido por histórico.
 
 ---
@@ -67,61 +82,71 @@ bloqueou o merge inicial, mas devem ser endereçadas antes de escalar o uso.
 
 ### Correção / segurança
 
-1. **Lead-fantasma + vazamento via echo do Uazapi (mais grave).** 🚧 **EM ANDAMENTO —
-   CONTINUAR.** A resposta do bot sai pelo número da própria tracking; o Uazapi ecoa essa
-   mensagem enviada como webhook `fromMe:true`. O intercept do Astro só roda em `!fromMe`,
-   então o echo cai em `persistCanonicalInbound`, que **não tem guard de `fromMe` antes de
-   `createLeadFromInbound`**
-   ([persist-canonical-inbound.ts:186](../src/features/tracking-chat/lib/inbound/persist-canonical-inbound.ts)).
-   Resultado: cria um Lead+Conversation fantasma pro número do membro, roda round-robin,
-   dispara o workflow NEW_LEAD e **persiste a resposta do Astro (que pode conter nome/telefone/
-   e-mail de outros leads) como mensagem de CRM**. Só Uazapi (Meta não ecoa mensagens próprias
-   via webhook — `providers/types.ts:49-50`).
+1. **Lead-fantasma + vazamento via echo do Uazapi (mais grave).** ✅ **RESOLVIDO
+   (2026-06-30).** A resposta do bot sai pelo número da própria tracking; o Uazapi ecoa essa
+   mensagem enviada como webhook `fromMe:true`. Sem guard, o echo caía em
+   `persistCanonicalInbound` e criava Lead+Conversation fantasma pro número do membro,
+   rodava round-robin, disparava NEW_LEAD e persistia a resposta do Astro (com dados de
+   outros leads) como mensagem de CRM. Só Uazapi (Meta não ecoa mensagens próprias).
 
-   **Abordagem decidida (implementar na próxima sessão):**
-   - Suprimir o echo do bot no **webhook do Uazapi** ([route.ts](../src/app/api/chat/webhook/route.ts)),
-     **antes** do `persistCanonicalInbound`. Meta não precisa (não ecoa) — não adicionar lá
-     pra não criar código morto.
-   - Extrair a gate de allow-list (`binding` + `botConfig.organizationId` == org + `botConfig.isActive`
-     + `AstroBotTracking` habilitada) num helper interno compartilhado em
-     [`webhook-handler.ts`](../src/features/astro-bot/lib/webhook-handler.ts) — ex.: `resolveBotGate({ phone, trackingId, trackingOrganizationId })` — reutilizado por `maybeHandleBotMessage`
-     (dedup) e por um novo export `shouldSuppressBotEcho(input)`.
-   - No route, no ramo `fromMe && bodyForBot && isTextForBot`, chamar `shouldSuppressBotEcho`
-     com `phone = chatid` (o `extractPhoneFromChatId` já dá o número da contraparte = o membro
-     allow-listado, tanto pra inbound quanto pro echo). Se `true` → `return 200 { ignored: "astro-bot-echo" }`
-     sem persistir.
-   - **Escopo:** só echo de **texto** (`isTextForBot`) — evita suprimir resposta de mídia de
-     operador. Tradeoff aceito: uma resposta de **texto** legítima de operador pra um número
-     allow-listado também seria suprimida; ok porque número allow-listado é usuário-bot, não lead.
-   - Cobre de quebra o echo da resposta "acesso desativado" (a gate não checa `binding.isActive`,
-     igual `maybeHandleBotMessage`).
+   **Implementado:**
+   - Gate de allow-list extraído em `resolveBotGate({ phone, trackingId, trackingOrganizationId })`
+     (helper interno de [`webhook-handler.ts`](../src/features/astro-bot/lib/webhook-handler.ts)),
+     reutilizado por `maybeHandleBotMessage` (inbound) e pelo novo export
+     `shouldSuppressBotEcho(input)`. Mesma fonte de verdade → o echo é suprimido exatamente
+     nos casos em que o inbound foi interceptado.
+   - No webhook Uazapi ([route.ts](../src/app/api/chat/webhook/route.ts)), novo ramo
+     `fromMe && bodyForBot && isTextForBot` chama `shouldSuppressBotEcho({ phone, ... })`
+     **antes** do `persistCanonicalInbound`; se `true` → `return 200 { ignored: "astro-bot-echo" }`.
+   - **Escopo:** só echo de **texto** — não suprime mídia de operador. Tradeoff aceito: texto
+     legítimo de operador pra número allow-listado também seria suprimido (ok: número
+     allow-listado é usuário-bot, não lead). Meta não tem branch equivalente (não ecoa).
 
-2. **Escopo das tools é o usuário, não a tracking.** No modo insights, `list_leads` e cia.
-   filtram pelas **memberships do `ctx.userId`** (default = todas as orgs do membro), não pela
-   org/tracking que recebeu a mensagem ([lists/index.ts:55-63](../src/features/astro/server/tools/lists/index.ts)).
-   Um número allow-listado consulta dados de **qualquer org que aquele membro participe**.
-   _Fix candidato:_ forçar `organizationId`/`trackingId` do `AgentContext` como filtro no modo
-   insights, em vez de deixar o default pegar todas as memberships.
+2. **Escopo das tools é o usuário, não a tracking.** ✅ **RESOLVIDO (2026-06-30).** No modo
+   insights, `list_leads`/analytics/charts filtravam pelas **memberships do `ctx.userId`**
+   (default = todas as orgs do membro) — um número allow-listado consultava dados de qualquer
+   org que o membro participasse. Decisão de produto: **single-org** (o número responde só pela
+   empresa dele). Implementado com:
+   - `AgentContext.restrictToOrgId` (novo, opcional) — o router do bot seta
+     `restrictToOrgId = binding.organizationId`; o Cmd+K in-app não seta (multi-org intacto).
+   - Helper único [`resolveTargetOrgs(ctx, requestedOrgIds?)`](../src/features/astro/server/tools/shared/resolve-target-orgs.ts)
+     que trava nas orgs permitidas (intersecção com memberships; quando `restrictToOrgId`,
+     trava só nela). Substituiu ~30 blocos duplicados de `myOrgIds`/`targetOrgs` em
+     `lists`/`charts`/`analytics`. `search` já usava `ctx.organizationId` (single-org).
+   - Sintoma corrigido: "Quantos trackings temos" passa a contar só a empresa do número.
 
-3. **`binding.isActive` não é checado no webhook.** O gate olha `botConfig.isActive` mas nunca
-   `binding.isActive` ([webhook-handler.ts:63](../src/features/astro-bot/lib/webhook-handler.ts)).
-   Número revogado ainda é interceptado (`handled:true`) e recebe "acesso desativado" — como o
-   número é compartilhado com o atendimento, esse membro/cliente fica em limbo (nem bot nem
-   atendimento humano). _Fix candidato:_ `!binding.isActive` → `handled:false` (cai no atendimento).
+   **Bônus desta sessão (qualidade do fluxo, fora das 7 pendências):**
+   - Fallback `"✅ Feito."` removido — reply vazio em read-only não pode virar confirmação de
+     ação (causava "quais empresas vc vê? → ✅ Feito."). Agora vira mensagem de não-resposta
+     clara + status `empty_reply` no audit ([router.ts](../src/features/astro-bot/lib/router.ts)).
+   - `INSIGHTS_SCOPE_PROMPT` injetado no system (antes `systemSuffix` era `""` em insights):
+     instrui o modelo a sempre responder em texto, nunca confirmar ação, e responder só sobre a
+     empresa do número ([orchestrator.ts](../src/features/astro/server/orchestrator.ts)).
 
-4. **Provider sem credencial = drop silencioso.** Se a tracking habilitada está desconectada,
-   `resolveOutboundProvider` lança dentro do `sendText`, que é engolido pelo try/catch interno.
-   O membro não recebe resposta **e** a mensagem some do atendimento. _Fix candidato:_ validar
-   provider resolvível antes de marcar `handled:true`.
+3. **`binding.isActive` não é checado no webhook.** ✅ **RESOLVIDO (2026-06-30).** O gate olhava
+   só `botConfig.isActive`. Agora `resolveBotGate` também checa `binding.isActive`; binding
+   revogado → `allowed:false` → `maybeHandleBotMessage` devolve `handled:false` e a mensagem cai
+   no atendimento normal (não fica em limbo recebendo "acesso desativado" num número
+   compartilhado). Cobre de quebra a supressão de echo: número revogado deixa de ser tratado
+   como usuário-bot.
+
+4. **Provider sem credencial = drop silencioso.** ✅ **RESOLVIDO (2026-06-30).** Antes, se a
+   tracking habilitada estava desconectada, `resolveOutboundProvider` lançava dentro do
+   `sendText` (engolido pelo try/catch) — o membro não recebia resposta **e** a mensagem sumia.
+   Agora `maybeHandleBotMessage` resolve o provider **antes** de marcar `handled:true`; se
+   lançar, devolve `handled:false` e a mensagem segue pro atendimento (não some). O resultado
+   fica em cache (TTL 30s), então o `sendText` reusa sem novo lookup.
 
 5. **`config.get` sem gate de admin expõe segredos.** `getBotConfig` usa só `requiredAuth`+`requireOrg`
    e retorna `{ ...config }`, espalhando colunas legadas cifradas (`metaAccessToken`/`metaPhoneId`/
    `metaWabaId`) pra qualquer membro ([config/get.ts:37](../src/app/router/astro-bot/config/get.ts)).
    _Fix candidato:_ `assertOrgAdmin` + `select` explícito dos campos usados.
 
-6. **Tracking arquivada continua respondendo.** `availableTrackings` filtra `isArchived:false`,
-   mas `enabledTrackingIds` mantém a arquivada — sem checkbox pra desmarcar, ela é reenviada a
-   cada save e segue interceptando ([bot-config-section.tsx](../src/features/astro-bot/components/bot-config-section.tsx)).
+6. **Tracking arquivada continua respondendo.** ✅ **RESOLVIDO (2026-06-30).** O gate
+   (`resolveBotGate`) agora exige `tracking.isArchived === false` na lookup de `AstroBotTracking`
+   — tracking arquivada não responde mais, mesmo que a linha de habilitação persista.
+   Além disso, `config.get` filtra trackings arquivadas do `enabledTrackingIds` retornado, então
+   o próximo save (replace-all) descarta as linhas órfãs. Sem mudança de schema.
 
 7. **`allowedTools` por binding é código morto.** O `binding/create` grava/exibe `allowedTools`,
    mas o router passa um `toolScope:"insights"` global e nunca lê o campo. Permissão exibida é
