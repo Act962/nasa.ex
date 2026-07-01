@@ -1,5 +1,6 @@
 import "server-only";
 import prisma from "@/lib/prisma";
+import type { WhatsAppProvider } from "@/generated/prisma/enums";
 
 /**
  * Cache in-process do contexto mínimo do Tracking usado pelos webhooks de chat
@@ -23,6 +24,13 @@ interface CachedTrackingContext {
   id: string;
   organizationId: string;
   globalAiActive: boolean;
+  /**
+   * Provider WhatsApp da instância 1:1 deste tracking (`null` se não há
+   * instância). Usado pelo webhook Uazapi pra gatear inbound: se o tracking
+   * está em `META_CLOUD`, o POST Uazapi é ignorado (#9 — evita mensagens
+   * duplicadas quando o webhook Uazapi externo segue ativo após a migração).
+   */
+  whatsappProvider: WhatsAppProvider | null;
 }
 
 interface CacheEntry extends CachedTrackingContext {
@@ -41,14 +49,27 @@ export async function getCachedTrackingContext(
       id: cached.id,
       organizationId: cached.organizationId,
       globalAiActive: cached.globalAiActive,
+      whatsappProvider: cached.whatsappProvider,
     };
   }
 
-  const fresh = await prisma.tracking.findUnique({
+  const row = await prisma.tracking.findUnique({
     where: { id: trackingId },
-    select: { id: true, organizationId: true, globalAiActive: true },
+    select: {
+      id: true,
+      organizationId: true,
+      globalAiActive: true,
+      whatsappInstance: { select: { provider: true } },
+    },
   });
-  if (!fresh) return null;
+  if (!row) return null;
+
+  const fresh: CachedTrackingContext = {
+    id: row.id,
+    organizationId: row.organizationId,
+    globalAiActive: row.globalAiActive,
+    whatsappProvider: row.whatsappInstance?.provider ?? null,
+  };
 
   cache.set(trackingId, { ...fresh, expiresAt: now + TTL_MS });
   return fresh;

@@ -24,6 +24,7 @@ import {
   completeWhatsAppEmbeddedSignup,
   getMetaPhoneStatus,
 } from "./whatsapp-embedded-signup";
+import { listWhatsAppTemplates } from "./list-whatsapp-templates";
 
 export const integrationsRouter = {
   create: createInstanceUazapi,
@@ -49,4 +50,5 @@ export const integrationsRouter = {
   setProviderSettings,
   completeWhatsAppEmbeddedSignup,
   getMetaPhoneStatus,
+  listWhatsAppTemplates,
 };

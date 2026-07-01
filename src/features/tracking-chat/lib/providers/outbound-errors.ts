@@ -121,3 +121,44 @@ export class MetaFeatureUnsupportedError extends OutboundProviderError {
     this.feature = feature;
   }
 }
+
+/**
+ * Inverso do `MetaFeatureUnsupportedError`: lançado quando a feature só
+ * existe num provider e o ativo é outro. O primeiro caso é **template HSM**,
+ * que é conceito exclusivo da Meta Cloud API — `UazapiProvider.sendTemplate`
+ * lança isso. Mantemos genérico (`feature: string`) pra cobrir futuros casos.
+ */
+export class ProviderFeatureUnsupportedError extends OutboundProviderError {
+  readonly providerId: string;
+  readonly feature: string;
+  constructor(providerId: string, feature: string) {
+    super(
+      "PROVIDER_FEATURE_UNSUPPORTED",
+      `O provider ativo (${providerId}) não suporta "${feature}". Templates HSM exigem a API Oficial (Meta Cloud).`,
+    );
+    this.providerId = providerId;
+    this.feature = feature;
+  }
+}
+
+/**
+ * Lançado quando a Meta recusa o envio porque a **janela de 24h** de
+ * atendimento fechou (a última mensagem do lead foi há mais de 24h). Códigos
+ * Meta: `131047` (re-engagement) / `131051` (unsupported message type fora da
+ * janela). Texto livre/mídia só são aceitos dentro da janela — fora dela é
+ * preciso enviar um template aprovado.
+ *
+ * Defense-in-depth: a UI já bloqueia o composer fora da janela
+ * (`useCustomerWindow`), mas a janela pode fechar entre o fetch e o envio.
+ * Frontend trata o `code` mostrando CTA de template.
+ */
+export class OutboundWindowClosedError extends OutboundProviderError {
+  constructor(detail?: string) {
+    super(
+      "META_WINDOW_CLOSED",
+      `A janela de 24h de atendimento da Meta fechou. Envie um template aprovado pra reabrir a conversa.${
+        detail ? ` ${detail}` : ""
+      }`,
+    );
+  }
+}
