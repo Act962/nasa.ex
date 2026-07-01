@@ -3,6 +3,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
+import { resolveTargetOrgs } from "@/features/astro/server/tools/shared/resolve-target-orgs";
 
 /**
  * Tools de ANALYTICS pro Astro responder perguntas sobre indicadores
@@ -51,15 +52,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           ),
       }),
       execute: async ({ fromIso, toIso, orgIds, userIds, appSlugs }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -215,15 +208,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         tagIds,
         responsibleIds,
       }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -452,15 +437,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         responsibleIds,
         tagIds,
       }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -654,15 +631,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           .describe("Filtra propostas de leads específicos"),
       }),
       execute: async ({ fromIso, toIso, orgIds, responsibleIds, leadIds }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -944,15 +913,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         priorities,
         orgProjectIds,
       }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -1085,15 +1046,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         trackingIds,
         orgProjectIds,
       }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -1241,15 +1194,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           ),
       }),
       execute: async ({ fromIso, toIso, orgIds, formIds, trackingIds }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -1372,15 +1317,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         courseIds: z.array(z.string()).optional(),
       }),
       execute: async ({ fromIso, toIso, orgIds, courseIds }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -1508,15 +1445,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         orgIds: z.array(z.string()).optional(),
       }),
       execute: async ({ fromIso, toIso, orgIds }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -1617,15 +1546,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           .describe("Filtra itens/pastas criados por users específicos"),
       }),
       execute: async ({ fromIso, toIso, orgIds, createdByIds }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -1717,15 +1638,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         orgIds: z.array(z.string()).optional(),
       }),
       execute: async ({ fromIso, toIso, orgIds }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -1895,15 +1808,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         orgIds: z.array(z.string()).optional(),
       }),
       execute: async ({ fromIso, toIso, orgIds }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -1980,15 +1885,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         categoryIds,
         accountIds,
       }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }

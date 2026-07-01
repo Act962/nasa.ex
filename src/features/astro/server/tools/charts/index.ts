@@ -4,6 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import type { AstroChartPayload } from "@/features/astro/lib/astro-chart";
+import { resolveTargetOrgs } from "@/features/astro/server/tools/shared/resolve-target-orgs";
 
 /**
  * Tools de GRÁFICO — retornam payloads `kind:"astro_chart"` que o cliente
@@ -26,15 +27,7 @@ export function buildChartTools(ctx: AgentContext) {
         limit: z.number().int().min(2).max(15).optional(),
       }),
       execute: async ({ orgIds, fromIso, toIso, limit }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -142,15 +135,7 @@ export function buildChartTools(ctx: AgentContext) {
         toIso: z.string().optional(),
       }),
       execute: async ({ orgIds, fromIso, toIso }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -205,15 +190,7 @@ export function buildChartTools(ctx: AgentContext) {
         toIso: z.string().optional(),
       }),
       execute: async ({ orgIds, fromIso, toIso }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -266,15 +243,7 @@ export function buildChartTools(ctx: AgentContext) {
         trackingIds: z.array(z.string()).optional(),
       }),
       execute: async ({ orgIds, trackingIds }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }
@@ -359,15 +328,7 @@ export function buildChartTools(ctx: AgentContext) {
         orgIds: z.array(z.string()).optional(),
       }),
       execute: async ({ orgIds }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
+        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
         }

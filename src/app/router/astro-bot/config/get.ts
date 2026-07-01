@@ -12,7 +12,12 @@ export const getBotConfig = base
     const config = await prisma.organizationBotConfig.findUnique({
       where: { organizationId: context.org.id },
       include: {
-        enabledTrackings: { select: { trackingId: true } },
+        enabledTrackings: {
+          select: {
+            trackingId: true,
+            tracking: { select: { isArchived: true } },
+          },
+        },
         _count: { select: { bindings: true } },
       },
     });
@@ -35,9 +40,12 @@ export const getBotConfig = base
       config: config
         ? {
             ...config,
-            enabledTrackingIds: config.enabledTrackings.map(
-              (enabled) => enabled.trackingId,
-            ),
+            // Filtra trackings arquivadas: o webhook não responde mais nelas
+            // (gate checa isArchived), e tirá-las daqui faz o próximo save
+            // descartar as linhas órfãs (upsert é replace-all).
+            enabledTrackingIds: config.enabledTrackings
+              .filter((enabled) => !enabled.tracking.isArchived)
+              .map((enabled) => enabled.trackingId),
           }
         : null,
       availableTrackings: trackings,
