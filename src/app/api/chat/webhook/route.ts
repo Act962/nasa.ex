@@ -121,6 +121,38 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // ── Supressão do echo do Astro Bot (só Uazapi) ─────────────
+      // A resposta do bot sai pelo número da PRÓPRIA tracking; o Uazapi a
+      // ecoa de volta como webhook `fromMe:true`. Sem este guard, o echo cai
+      // no `persistCanonicalInbound` e cria Lead/Conversation/Message fantasma
+      // pro número do membro — além de persistir a resposta do bot (que pode
+      // citar nome/telefone/e-mail de outros leads) como mensagem de CRM.
+      // Só texto: evita suprimir mídia legítima de um operador. Meta não ecoa
+      // mensagens próprias, então não há branch equivalente no webhook oficial.
+      if (fromMe && bodyForBot && isTextForBot) {
+        try {
+          const { shouldSuppressBotEcho } = await import(
+            "@/features/astro-bot/lib/webhook-handler"
+          );
+          const suppress = await shouldSuppressBotEcho({
+            phone,
+            trackingId,
+            trackingOrganizationId: tracking.organizationId,
+          });
+          if (suppress) {
+            return NextResponse.json(
+              { ok: true, ignored: "astro-bot-echo" },
+              { status: 200 },
+            );
+          }
+        } catch (err) {
+          console.error(
+            "[webhook:chat] astro-bot echo-suppression check failed — segue pipeline normal",
+            err,
+          );
+        }
+      }
+
       // ── Pipeline canônica ─────────────────────────────────────────────
       // Fase 3: o webhook não mais persiste mensagens diretamente. Ele
       // normaliza o payload via `UazapiProvider.normalizeInbound` e delega

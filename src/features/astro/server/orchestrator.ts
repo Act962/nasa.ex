@@ -25,6 +25,7 @@ import { buildActionTools } from "@/features/astro/server/tools/actions";
 import { buildMutationTools } from "@/features/astro/server/tools/mutations";
 import { buildSearchTools } from "@/features/astro/server/tools/search";
 import { buildChartTools } from "@/features/astro/server/tools/charts";
+import { buildInsightsReportTools } from "@/features/astro/server/tools/insights-reports";
 import { buildWorkflowTools } from "@/features/astro/server/tools/workflows";
 
 /**
@@ -57,6 +58,15 @@ Você responde por WhatsApp. Tom DIRETO, objetivo e curto.
 - Quando uma tool retornar lista/tabela, a lista JÁ é anexada automaticamente logo abaixo da sua resposta. NUNCA reescreva os itens (nada de "• Maria", "1. Pedro", nem rótulos tipo "Leads ativos:"). Responda no MÁXIMO uma frase curta de contexto — ou nada, se a lista fala por si.
 - NÃO abra com saudação/lead-in ("Aqui estão...", "Segue...", "Claro!") e NÃO feche com oferta de ajuda. A última palavra deve ser a informação.
 - Emojis: no máximo um, só quando agregar. Nada de setas decorativas (⬇️) apontando pra lista.`;
+
+const INSIGHTS_SCOPE_PROMPT = `
+
+[MODO INSIGHTS — SOMENTE LEITURA, UMA EMPRESA]
+Você está respondendo pelo número de WhatsApp de UMA empresa. Você só enxerga e responde sobre os dados DESSA empresa (leads, conversões, agenda, atividade, listas) — nunca de outras organizações, mesmo que existam.
+- Você NÃO executa ações (não cria/edita/move nada). Toda resposta é informação de leitura.
+- SEMPRE responda em texto. NUNCA responda só com uma confirmação tipo "Feito", "✅ Feito" ou "Pronto" — não há ação a confirmar.
+- Se a pergunta for sobre "quais empresas você vê", trocar de empresa, ou algo fora da leitura desta empresa: explique em uma frase que você responde só sobre os dados desta empresa, e ofereça o que CONSEGUE (ex.: contagem de leads, conversões, agenda).
+- Se não houver dado pra responder, diga isso claramente — não invente nem responda vazio.`;
 
 function modelFor(complexity: "simple" | "complex") {
   if (!process.env.OPENAI_API_KEY) {
@@ -324,6 +334,9 @@ export function streamAstro(opts: {
       ...buildSearchTools(ctx),
       // chart_* — gráficos recharts (bar/line/pie) renderizados no client.
       ...buildChartTools(ctx),
+      // Relatórios de /insights (funil, ganhos/perdas, vendidos, canais, tags)
+      // — single-org, mesmo cálculo da página via insights/lib/metrics.
+      ...buildInsightsReportTools(ctx),
     };
     const directTools: ToolSet =
       toolScope === "insights"
@@ -339,7 +352,9 @@ export function streamAstro(opts: {
             ...buildWorkflowTools(ctx),
           };
     const systemSuffix =
-      toolScope === "insights" ? "" : buildAgentsBriefing(enabled);
+      toolScope === "insights"
+        ? INSIGHTS_SCOPE_PROMPT
+        : buildAgentsBriefing(enabled);
     // Injeta a data/hora atual no system prompt pra o LLM resolver datas
     // relativas ("amanhã", "sexta") corretamente. GPT-4o-mini tem
     // knowledge cutoff antigo (2023) e tava inventando ano errado.

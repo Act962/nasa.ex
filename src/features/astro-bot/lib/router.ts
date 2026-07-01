@@ -76,6 +76,10 @@ export async function handleBotCommand(
     const agentCtx: AgentContext = {
       userId: binding.userId,
       organizationId: binding.organizationId,
+      // Trava as tools de leitura na org deste número — o Astro pelo WhatsApp
+      // responde por UMA tracking, então não pode vazar dados de outras orgs
+      // que o membro participe (ver resolveTargetOrgs).
+      restrictToOrgId: binding.organizationId,
       route: {
         // Bot WhatsApp não tem rota — passa snapshot vazio. Tools que
         // dependem de leadId/conversationId precisarão extrair do texto
@@ -143,9 +147,17 @@ export async function handleBotCommand(
       .join("\n\n")
       .trim();
 
+    // Insights é read-only — nunca "completa uma ação", então um reply vazio
+    // NÃO pode virar "✅ Feito." (confirmação de ação que confunde o usuário,
+    // como em "quais empresas vc vê? → ✅ Feito."). Resposta vazia = o modelo
+    // não montou texto (pergunta fora do escopo de leitura ou sem dados):
+    // devolve uma mensagem de não-resposta clara.
+    const fallbackReply =
+      "Não consegui montar uma resposta pra isso 🤔 Eu respondo só com base nos dados desta empresa (leads, conversões, agenda, listas). Tenta reformular ou me diz qual indicador você quer.";
+
     return logAndReturn(binding, messageText, {
-      status: "ok",
-      reply: reply || "✅ Feito.",
+      status: reply ? "ok" : "empty_reply",
+      reply: reply || fallbackReply,
       toolsCalled: toolNames,
       tokensUsed: usage?.totalTokens ?? undefined,
     });
