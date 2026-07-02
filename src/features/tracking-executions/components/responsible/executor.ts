@@ -54,7 +54,7 @@ export const responsibleExecutor: NodeExecutor<ResponsibleNodeData> = async ({
               previousResponsibleId: before?.responsibleId ?? null,
               newResponsibleId: responsibleId,
             });
-            await publishLeadChanged(publish, {
+            await publishLeadChanged({
               leadId: lead.id,
               trackingId: lead.trackingId,
               statusId: lead.statusId,
@@ -83,7 +83,7 @@ export const responsibleExecutor: NodeExecutor<ResponsibleNodeData> = async ({
               previousResponsibleId: idToRemove,
               newResponsibleId: null,
             });
-            await publishLeadChanged(publish, {
+            await publishLeadChanged({
               leadId: lead.id,
               trackingId: lead.trackingId,
               statusId: lead.statusId,

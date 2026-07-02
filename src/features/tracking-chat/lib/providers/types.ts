@@ -243,6 +243,11 @@ export interface SendCanonicalMedia extends SendBase {
   readonly mimetype?: string;
   readonly fileName?: string;
   readonly caption?: string;
+  /**
+   * Áudio como nota de voz (PTT). Só a Meta usa (`audio.voice=true`, exige
+   * OGG/Opus); a Uazapi ignora. Sem isso, OGG/Opus chega como áudio comum.
+   */
+  readonly isVoice?: boolean;
 }
 
 export interface SendCanonicalLocation extends SendBase {
@@ -261,11 +266,27 @@ export interface SendCanonicalContact extends SendBase {
   readonly email?: string;
 }
 
+/**
+ * Envio de template HSM (Fase 9) — abre conversa fora da janela de 24h.
+ * Conceito exclusivo da Meta Cloud API; `UazapiProvider.sendTemplate` lança
+ * `ProviderFeatureUnsupportedError`. Nesta fase só preenchemos variáveis de
+ * body e header de texto (uma string por placeholder `{{n}}`, na ordem).
+ */
+export interface SendCanonicalTemplate extends SendBase {
+  readonly kind: "template";
+  readonly templateName: string;
+  /** Código do idioma exato do template aprovado (ex.: `pt_BR`). */
+  readonly languageCode: string;
+  readonly bodyParameters?: string[];
+  readonly headerParameters?: string[];
+}
+
 export type SendCanonicalInput =
   | SendCanonicalText
   | SendCanonicalMedia
   | SendCanonicalLocation
-  | SendCanonicalContact;
+  | SendCanonicalContact
+  | SendCanonicalTemplate;
 
 export interface SendResult {
   /** `wamid` (Meta) ou `messageid` (Uazapi) — o que vai pra Message.messageId. */
@@ -305,6 +326,11 @@ export interface WhatsAppChatProvider {
   sendMedia(input: SendCanonicalMedia): Promise<SendResult>;
   sendLocation(input: SendCanonicalLocation): Promise<SendResult>;
   sendContact(input: SendCanonicalContact): Promise<SendResult>;
+  /**
+   * Envia um template HSM aprovado. Só faz sentido na Meta Cloud API —
+   * `UazapiProvider` lança `ProviderFeatureUnsupportedError`.
+   */
+  sendTemplate(input: SendCanonicalTemplate): Promise<SendResult>;
 
   // ── Webhook inbound ─────────────────────────────────────────────────────
 

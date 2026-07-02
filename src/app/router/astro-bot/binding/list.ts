@@ -3,11 +3,11 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { assertOrgAdmin } from "../_require-admin";
 
 /**
- * Lista bindings do user atual (membro normal) OU TODOS da org (admin
- * via `scope: 'org'`). Filtro feito no handler — middleware de role
- * adicional seria mais robusto mas o MVP confia no front.
+ * Lista os números da allow-list do Astro. `scope: "org"` (todos da org) é
+ * restrito a owner/admin; `scope: "mine"` lista os do próprio usuário.
  */
 export const listBindings = base
   .use(requiredAuthMiddleware)
@@ -17,7 +17,15 @@ export const listBindings = base
       scope: z.enum(["mine", "org"]).default("mine"),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
+    if (input.scope === "org") {
+      await assertOrgAdmin({
+        organizationId: context.org.id,
+        userId: context.user.id,
+        errors,
+      });
+    }
+
     const where =
       input.scope === "org"
         ? { organizationId: context.org.id }
@@ -33,9 +41,6 @@ export const listBindings = base
         isActive: true,
         allowedTools: true,
         lastSeenAt: true,
-        pinFailures: true,
-        pinLockedUntil: true,
-        sessionExpiresAt: true,
         createdAt: true,
         user:
           input.scope === "org"

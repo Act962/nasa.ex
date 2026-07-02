@@ -1,12 +1,14 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requirePaymentAccess } from "@/app/middlewares/payment-access";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
 export const getPaymentDashboard = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("dashboard", "view"))
   .route({ method: "GET", summary: "Get payment dashboard summary", tags: ["Payment"] })
   .input(z.object({
     month: z.number().optional(),
@@ -209,6 +211,7 @@ export const getPaymentDashboard = base
 export const getCashflow = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("dashboard", "view"))
   .route({ method: "GET", summary: "Get cashflow", tags: ["Payment"] })
   .input(z.object({
     year: z.number().optional(),

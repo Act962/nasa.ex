@@ -27,7 +27,10 @@ import type { MediaType } from "@/http/uazapi/types";
 import { messagesEventSchema } from "@/http/uazapi/webhook-schema";
 
 import { registerProvider } from "../../factory";
-import { ProviderSendInvalidResponseError } from "../../outbound-errors";
+import {
+  ProviderFeatureUnsupportedError,
+  ProviderSendInvalidResponseError,
+} from "../../outbound-errors";
 import type {
   CanonicalInboundContact,
   CanonicalInboundInteractiveReply,
@@ -45,6 +48,7 @@ import type {
   SendCanonicalContact,
   SendCanonicalLocation,
   SendCanonicalMedia,
+  SendCanonicalTemplate,
   SendCanonicalText,
   SendResult,
   WhatsAppChatProvider,
@@ -340,6 +344,12 @@ export class UazapiProvider implements WhatsAppChatProvider {
     };
   }
 
+  async sendTemplate(_input: SendCanonicalTemplate): Promise<SendResult> {
+    // Templates HSM são conceito exclusivo da Meta Cloud API. A Uazapi não
+    // tem equivalente — falhamos com erro estruturado pro handler mapear.
+    throw new ProviderFeatureUnsupportedError("uazapi", "template");
+  }
+
   verifyWebhook(_rawBody: string, _headers: ProviderWebhookHeaders): boolean {
     // Uazapi não assina o webhook hoje — autenticação é pelo `token` do
     // body. Phase 5 vai validar `token === expected` no handler; aqui a
@@ -438,9 +448,18 @@ export class UazapiProvider implements WhatsAppChatProvider {
         pickString(content, "title") ||
         pickString(message, "vote") ||
         "";
+      // Resposta de lista (ListResponseMessage) traz o id da linha aninhado
+      // em `content.singleSelectReply.selectedRowID` (note o `ID` maiúsculo no
+      // payload real da uazapi) e/ou plano em `message.buttonOrListid`. Resposta
+      // de botão usa `content.selectedButtonId`. Cobrir os dois shapes mantém o
+      // `buttonTagMap[replyId]` casando para botões E listas.
+      const singleSelectReply = pick(content, "singleSelectReply");
       const replyId =
         pickString(content, "selectedButtonId") ??
         pickString(content, "selectedRowId") ??
+        pickString(singleSelectReply, "selectedRowID") ??
+        pickString(singleSelectReply, "selectedRowId") ??
+        pickString(message, "buttonOrListid") ??
         pickString(content, "id");
       const interactive: CanonicalInboundInteractiveReply = {
         ...base,

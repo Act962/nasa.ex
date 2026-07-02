@@ -223,7 +223,7 @@ export async function runWorkflow(
     const availableTriggers = [
       ...new Set(
         workflow.nodes
-          .filter((n) => /TRIGGER|NEW_LEAD|LEAD_TAGGED|MOVE_LEAD_STATUS|AI_FINISHED|FIRST_CHAT_INTERACTION|LAST_INBOUND_TIMEOUT|PAYMENT_RECEIVED|MESSAGE_INCOMING|WEBHOOK_EXTERNAL|INITIAL|WS_/.test(n.type))
+          .filter((n) => /TRIGGER|NEW_LEAD|LEAD_TAGGED|MOVE_LEAD_STATUS|AI_FINISHED|FIRST_CHAT_INTERACTION|FIRST_INTERACTION_OF_DAY|LAST_INBOUND_TIMEOUT|PAYMENT_RECEIVED|MESSAGE_INCOMING|WEBHOOK_EXTERNAL|INITIAL|WS_/.test(n.type))
           .map((n) => n.type),
       ),
     ];
@@ -502,6 +502,7 @@ async function executeNode(params: {
     node.type === "LEAD_TAGGED" ||
     node.type === "AI_FINISHED" ||
     node.type === "FIRST_CHAT_INTERACTION" ||
+    node.type === "FIRST_INTERACTION_OF_DAY" ||
     node.type === "LAST_INBOUND_TIMEOUT" ||
     node.type === "PAYMENT_RECEIVED" ||
     node.type === "MESSAGE_INCOMING" ||

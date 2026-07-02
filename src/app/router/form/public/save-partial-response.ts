@@ -6,6 +6,7 @@ import {
   trackingToLeadData,
 } from "@/lib/tracking/tracking-params";
 import { recordLeadEvent } from "@/features/leads/lib/history";
+import { publishLeadCreated } from "@/features/leads/realtime/publish";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
 
@@ -22,7 +23,11 @@ import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-l
  *  - **Com `responseId`**: faz `update` do `jsonResponse`. Sem mexer em
  *    lead, sem incrementar contador, sem registrar novo evento. Só
  *    persiste o estado atual e re-deriva o `label` automático (se ainda
- *    não foi editado manualmente).
+ *    não foi editado manualmente). Exige `completedAt: null` — uma
+ *    resposta já finalizada (via `submitResponse`) não aceita mais
+ *    autosave, mesmo que o client ainda tenha o `responseId` em mãos (ex:
+ *    aba antiga que não recebeu o ack do submit). Retorna `NOT_FOUND`
+ *    nesse caso.
  *
  * Diferente de `submitResponse`: NÃO dispara workflows do botão "Próximo",
  * NÃO dispara onboarding Inngest, NÃO marca conclusão. A submissão final
@@ -59,7 +64,7 @@ export const savePartialResponse = base
       // ── Modo UPDATE ────────────────────────────────────────────────
       if (responseId) {
         const existing = await prisma.formResponses.findFirst({
-          where: { id: responseId, formId: id },
+          where: { id: responseId, formId: id, completedAt: null },
           select: {
             id: true,
             leadId: true,
@@ -132,6 +137,9 @@ export const savePartialResponse = base
 
       const { trackingId, statusId } = form.settings ?? {};
       let leadId: string | null = null;
+      // Só publicamos `lead-created` no board quando ESTE save criou o lead
+      // (não quando reaproveitou um existente pelo telefone).
+      let didCreateLead = false;
 
       // Acha lead existente pelo phone (dentro do tracking) ou cria novo.
       // Mesma lógica do submitResponse, mas isolada numa transação separada
@@ -162,6 +170,7 @@ export const savePartialResponse = base
           select: { id: true },
         });
         leadId = newLead.id;
+        didCreateLead = true;
       }
 
       // Cria a FormResponses + incrementa contador (1x só, mesmo se
@@ -191,6 +200,12 @@ export const savePartialResponse = base
 
       // Propaga labels → Lead.description (textareas card + observações)
       syncFormLabelsToLeadDescription(prisma, created.leadId).catch(() => {});
+
+      // Realtime do board: lead recém-criado neste auto-save → aparece ao
+      // vivo na coluna do tracking. Best-effort (helper isola erro).
+      if (didCreateLead && leadId && trackingId && statusId) {
+        await publishLeadCreated({ leadId, trackingId, statusId, source: "form" });
+      }
 
       // Timeline: FORM_STARTED (não FORM_SUBMITTED — só o submit final).
       if (created.leadId) {

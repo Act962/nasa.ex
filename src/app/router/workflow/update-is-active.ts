@@ -60,6 +60,7 @@ export const updateIsActive = base
             "MOVE_LEAD_STATUS",
             "AI_FINISHED",
             "FIRST_CHAT_INTERACTION",
+            "FIRST_INTERACTION_OF_DAY",
             "LAST_INBOUND_TIMEOUT",
             "PAYMENT_RECEIVED",
             "MESSAGE_INCOMING",
@@ -92,6 +93,14 @@ export const updateIsActive = base
       where: { id: input.workflowId },
       data: { isActive: input.isActive },
     });
+
+    // Ativou/desativou — invalida o cache do gatilho FIRST_INTERACTION_OF_DAY.
+    if (workflow.trackingId) {
+      const { invalidateReturningTriggerCache } = await import(
+        "@/features/triggers/components/first-interaction-of-day/dispatch"
+      );
+      invalidateReturningTriggerCache(workflow.trackingId);
+    }
 
     if (
       workflow.tracking?.organizationId &&

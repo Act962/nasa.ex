@@ -43,6 +43,7 @@ export type {
   SendCanonicalInput,
   SendCanonicalLocation,
   SendCanonicalMedia,
+  SendCanonicalTemplate,
   SendCanonicalText,
   SendResult,
   WhatsAppChatProvider,
@@ -100,5 +101,7 @@ export {
   InstanceNotFoundError,
   MetaCredentialsIncompleteError,
   MetaFeatureUnsupportedError,
+  ProviderFeatureUnsupportedError,
   ProviderSendInvalidResponseError,
+  OutboundWindowClosedError,
 } from "./outbound-errors";

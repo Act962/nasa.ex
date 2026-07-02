@@ -33,7 +33,9 @@ export interface CreatedMessageProps extends MessageBodyProps {
 export enum MessageStatus {
   PENDING = "PENDING", // client-only: mensagem otimista em trânsito (1 check cinza)
   SENT = "SENT",
-  SEEN = "SEEN",
+  DELIVERED = "DELIVERED", // entregue no aparelho (2 checks cinza)
+  SEEN = "SEEN", // lida (2 checks azuis)
+  FAILED = "FAILED", // falha de entrega reportada pelo provider
   DELETED = "DELETED",
 }
 

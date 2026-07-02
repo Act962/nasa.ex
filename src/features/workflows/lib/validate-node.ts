@@ -100,6 +100,8 @@ export function validateNode(
     case "MANUAL_TRIGGER":
     case "NEW_LEAD":
     case "FIRST_CHAT_INTERACTION":
+    // FIRST_INTERACTION_OF_DAY tem default 08:00 — válido mesmo sem config.
+    case "FIRST_INTERACTION_OF_DAY":
     case "AI_FINISHED":
       return { valid: true, errors: [], skip: true };
 
@@ -431,6 +433,7 @@ export function isTriggerNode(type: string): boolean {
     "LEAD_TAGGED",
     "AI_FINISHED",
     "FIRST_CHAT_INTERACTION",
+    "FIRST_INTERACTION_OF_DAY",
     "LAST_INBOUND_TIMEOUT",
     // Triggers do Modo Agente IA
     "PAYMENT_RECEIVED",

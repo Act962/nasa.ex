@@ -6,6 +6,9 @@ import z from "zod";
 const buttonSchema = z.object({
   text: z.string(),
   id: z.string(),
+  // tagId opcional: ao clicar no botão, o webhook aplica esta tag ao lead
+  // (buttonTagMap = buttonId→tagId). Mesma semântica do modo inline.
+  tagId: z.string().optional(),
 });
 
 export const updateAiButtonPreset = base
@@ -18,6 +21,8 @@ export const updateAiButtonPreset = base
       bodyText: z.string().optional(),
       footerText: z.string().optional().nullable(),
       buttons: z.array(buttonSchema).optional(),
+      menuFormat: z.enum(["BUTTON", "LIST"]).optional(),
+      listButton: z.string().optional().nullable(),
       isActive: z.boolean().optional(),
     }),
   )
@@ -30,6 +35,8 @@ export const updateAiButtonPreset = base
     if (rest.bodyText !== undefined) data.bodyText = rest.bodyText;
     if (rest.footerText !== undefined) data.footerText = rest.footerText;
     if (rest.buttons !== undefined) data.buttons = rest.buttons;
+    if (rest.menuFormat !== undefined) data.menuFormat = rest.menuFormat;
+    if (rest.listButton !== undefined) data.listButton = rest.listButton;
     if (rest.isActive !== undefined) data.isActive = rest.isActive;
 
     try {

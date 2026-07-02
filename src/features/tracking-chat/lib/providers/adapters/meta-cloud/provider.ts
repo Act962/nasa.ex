@@ -27,14 +27,19 @@ import {
   sendOfficialContact,
   sendOfficialLocation,
   sendOfficialMedia,
+  sendOfficialTemplate,
   sendOfficialText,
+  type MetaApiError,
   type WhatsAppOfficialInboundMessage,
   type WhatsAppOfficialMetadata,
   type WhatsAppOfficialStatus,
 } from "@/http/whats-oficial";
 
 import { registerProvider } from "../../factory";
-import { ProviderSendInvalidResponseError } from "../../outbound-errors";
+import {
+  OutboundWindowClosedError,
+  ProviderSendInvalidResponseError,
+} from "../../outbound-errors";
 import { normalizePhoneToMetaE164 } from "./normalize-phone";
 import type {
   CanonicalInboundMessage,
@@ -47,10 +52,32 @@ import type {
   SendCanonicalContact,
   SendCanonicalLocation,
   SendCanonicalMedia,
+  SendCanonicalTemplate,
   SendCanonicalText,
   SendResult,
   WhatsAppChatProvider,
 } from "../../types";
+
+/**
+ * Códigos da Graph API que indicam que a janela de 24h de atendimento
+ * fechou (texto livre/mídia só são aceitos dentro dela):
+ *  - 131047: re-engagement message — usar template.
+ *  - 131051: unsupported message type fora da janela.
+ */
+const META_WINDOW_CLOSED_CODES = new Set([131047, 131051]);
+
+/**
+ * Remapeia o erro genérico do `graphFetch` (que anexa `metaError`) pra
+ * `OutboundWindowClosedError` quando o código indica janela fechada. Mantém
+ * o erro original em qualquer outro caso.
+ */
+function rethrowWindowClosed(error: unknown): never {
+  const metaError = (error as { metaError?: MetaApiError["error"] })?.metaError;
+  if (metaError?.code && META_WINDOW_CLOSED_CODES.has(metaError.code)) {
+    throw new OutboundWindowClosedError(metaError.message);
+  }
+  throw error;
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Config concreta da Meta Cloud
@@ -341,7 +368,7 @@ export class OfficialProvider implements WhatsAppChatProvider {
         previewUrl: input.previewUrl,
         replyToWamid: input.replyToExternalMessageId,
       },
-    );
+    ).catch(rethrowWindowClosed);
     return {
       externalMessageId: extractWamid(response, "sendText"),
       raw: response,
@@ -365,11 +392,31 @@ export class OfficialProvider implements WhatsAppChatProvider {
         mediaIdOrLink,
         caption: input.caption,
         filename: input.fileName,
+        voice: input.isVoice,
+        replyToWamid: input.replyToExternalMessageId,
+      },
+    ).catch(rethrowWindowClosed);
+    return {
+      externalMessageId: extractWamid(response, "sendMedia"),
+      raw: response,
+    };
+  }
+
+  async sendTemplate(input: SendCanonicalTemplate): Promise<SendResult> {
+    const response = await sendOfficialTemplate(
+      this.config.accessToken,
+      this.config.phoneNumberId,
+      {
+        to: normalizePhoneToMetaE164(input.to),
+        templateName: input.templateName,
+        languageCode: input.languageCode,
+        bodyParameters: input.bodyParameters,
+        headerParameters: input.headerParameters,
         replyToWamid: input.replyToExternalMessageId,
       },
     );
     return {
-      externalMessageId: extractWamid(response, "sendMedia"),
+      externalMessageId: extractWamid(response, "sendTemplate"),
       raw: response,
     };
   }

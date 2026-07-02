@@ -98,6 +98,11 @@ export async function tryAuthenticateWithPin(
   if (isLocked(binding)) {
     return { ok: false, reason: "locked", binding };
   }
+  // pinHash é legado e nullable — sem hash não há PIN configurado (auth por PIN
+  // foi desativada no rework "Insights pelo WhatsApp").
+  if (!binding.pinHash) {
+    return { ok: false, reason: "binding_inactive" };
+  }
   const valid = await verifyPin(rawPin, binding.pinHash);
   if (!valid) {
     const newFailures = binding.pinFailures + 1;
