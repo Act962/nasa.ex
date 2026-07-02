@@ -24,6 +24,7 @@ export interface WhatsappBotChannel {
 
 export type BotCommandStatus =
   | "ok"
+  | "empty_reply"
   | "rate_limited"
   | "quiet_hours"
   | "pin_required"

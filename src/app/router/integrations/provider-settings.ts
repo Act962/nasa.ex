@@ -11,6 +11,7 @@ import {
   type MetaCredentialsInput,
 } from "@/features/tracking-chat/lib/providers/meta-credentials";
 import { invalidateOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
+import { invalidateTrackingContext } from "@/features/tracking-chat/lib/get-cached-tracking-context";
 import { createInstance } from "@/http/uazapi/admin/create-instance";
 import { configureWebhook } from "@/http/uazapi/configure-webhook";
 import { deleteInstance } from "@/http/uazapi/delete-instance";
@@ -355,6 +356,12 @@ export const setProviderSettings = base
     );
     if (touchedAnyCredential) {
       invalidateOutboundProvider(input.trackingId);
+    }
+    // Propaga a troca de provider pro gate do webhook Uazapi (#9) — sem
+    // isso, o cache de tracking-context entregaria o provider antigo por
+    // até 30s e o gate não bloquearia inbound duplicado imediatamente.
+    if (input.provider) {
+      invalidateTrackingContext(input.trackingId);
     }
 
     // ── Audit log (sem segredos!) ──────────────────────────────────────

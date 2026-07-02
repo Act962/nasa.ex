@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useInfinityConversation } from "../hooks/use-conversation";
+import { useTrackingChatRealtimeSync } from "../hooks/use-tracking-chat-realtime-sync";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Empty,
@@ -95,6 +96,10 @@ export function ConversationsList() {
     selectedTagIds,
     favoritesOnly,
   );
+
+  // Realtime das tags na lista de conversas — reflete add/remove de tag
+  // (automação ou webhook do botão Uazapi) sem refresh.
+  useTrackingChatRealtimeSync({ trackingId: selectedTracking });
 
   const infinitiOptions = orpc.conversation.list.infiniteOptions({
     input: (pageParam: string | undefined) => ({

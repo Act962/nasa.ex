@@ -14,6 +14,13 @@ export interface AgentContext {
   route: AstroRouteContext;
   /** Sub-agente fixado em embeds (`pinnedAgentKey` no body). */
   pinnedAgentKey?: AgentKey;
+  /**
+   * Trava as tools de leitura nesta org (e só nela), em vez do default
+   * "todas as memberships do usuário". Setado pelo Astro pelo WhatsApp, que
+   * responde pelo número de UMA tracking — evita vazar dados de outras orgs do
+   * membro. Ver `resolveTargetOrgs`. Ausente no Cmd+K in-app (multi-org).
+   */
+  restrictToOrgId?: string;
 }
 
 /**

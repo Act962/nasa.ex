@@ -122,8 +122,13 @@ export const submitResponse = base
         const { trackingId, statusId } = form.settings ?? {};
 
         if (finalizingResponseId) {
+          // completedAt: null evita reexecutar a finalização inteira (e
+          // duplicar efeitos não-idempotentes — WhatsApp, eventos de
+          // jornada, alertas) quando o client reenvia o mesmo
+          // finalizingResponseId num retry fantasma (ack do submit
+          // anterior se perdeu, mas o servidor já tinha processado).
           const draft = await tx.formResponses.findFirst({
-            where: { id: finalizingResponseId, formId: id },
+            where: { id: finalizingResponseId, formId: id, completedAt: null },
             select: { id: true, leadId: true },
           });
           if (!draft) {

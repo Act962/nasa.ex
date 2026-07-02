@@ -120,6 +120,9 @@ const buttonsPayloadSchema = z
     presetId: z.string().optional(),
     bodyText: z.string().optional(),
     footerText: z.string().optional(),
+    // Formato do menu no modo inline. No modo preset, o formato vem do preset.
+    menuFormat: z.enum(["BUTTON", "LIST"]).default("BUTTON"),
+    listButton: z.string().optional(),
     buttons: z.array(buttonItemSchema).optional(),
   })
   .superRefine((val, ctx) => {
@@ -289,6 +292,9 @@ function ButtonsPayloadFields({
   const mode: "preset" | "inline" =
     modeWatched === "inline" ? "inline" : "preset";
 
+  const menuFormatWatched = form.watch("payload.menuFormat");
+  const isListFormat = menuFormatWatched === "LIST";
+
   const addButton = () => {
     if (fields.length >= MAX_BUTTONS) return;
     append({
@@ -411,9 +417,51 @@ function ButtonsPayloadFields({
               </Field>
             )}
           />
+          <Controller
+            control={form.control}
+            name="payload.menuFormat"
+            render={({ field }) => (
+              <Field>
+                <FieldLabel>Formato</FieldLabel>
+                <Select
+                  value={field.value ?? "BUTTON"}
+                  onValueChange={field.onChange}
+                >
+                  <SelectTrigger className="w-56">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BUTTON">Botões</SelectItem>
+                    <SelectItem value="LIST">Lista</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  Lista: menu aberto por um botão (bom para muitas opções). A
+                  tag por clique funciona nos dois formatos.
+                </FieldDescription>
+              </Field>
+            )}
+          />
+          {isListFormat && (
+            <Controller
+              control={form.control}
+              name="payload.listButton"
+              render={({ field }) => (
+                <Field>
+                  <FieldLabel>Rótulo do botão da lista</FieldLabel>
+                  <Input
+                    {...field}
+                    value={field.value ?? ""}
+                    placeholder="Ver opções"
+                  />
+                </Field>
+              )}
+            />
+          )}
           <Field>
             <FieldLabel>
-              Botões ({fields.length}/{MAX_BUTTONS})
+              {isListFormat ? "Itens da lista" : "Botões"} ({fields.length}/
+              {MAX_BUTTONS})
             </FieldLabel>
             <div className="space-y-2">
               {fields.map((fieldItem, i) => (

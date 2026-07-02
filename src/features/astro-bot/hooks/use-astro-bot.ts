@@ -2,7 +2,7 @@ import { orpc } from "@/lib/orpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 /**
- * Hooks oRPC do Astro Bot via WhatsApp. Mutations invalidam o cache
+ * Hooks oRPC do Astro pelo WhatsApp (Insights). Mutations invalidam o cache
  * relevante automaticamente; toasts/redirects ficam no componente.
  */
 
@@ -10,7 +10,7 @@ export function useBotConfig() {
   const query = useQuery(orpc.astroBot.config.get.queryOptions({ input: {} }));
   return {
     config: query.data?.config ?? null,
-    availableInstances: query.data?.availableInstances ?? [],
+    availableTrackings: query.data?.availableTrackings ?? [],
     isLoading: query.isLoading,
     refetch: query.refetch,
   };
@@ -38,18 +38,12 @@ export function useBindings(scope: "mine" | "org" = "mine") {
   };
 }
 
-export function useStartBindingOtp() {
-  return useMutation(orpc.astroBot.binding.startOtp.mutationOptions());
-}
-
-export function useVerifyBindingOtp() {
+export function useCreateBinding() {
   const qc = useQueryClient();
   return useMutation(
-    orpc.astroBot.binding.verifyOtp.mutationOptions({
+    orpc.astroBot.binding.create.mutationOptions({
       onSuccess: () => {
-        qc.invalidateQueries({
-          queryKey: orpc.astroBot.binding.list.key(),
-        });
+        qc.invalidateQueries({ queryKey: orpc.astroBot.binding.list.key() });
       },
     }),
   );
@@ -60,14 +54,17 @@ export function useRevokeBinding() {
   return useMutation(
     orpc.astroBot.binding.revoke.mutationOptions({
       onSuccess: () => {
-        qc.invalidateQueries({
-          queryKey: orpc.astroBot.binding.list.key(),
-        });
+        qc.invalidateQueries({ queryKey: orpc.astroBot.binding.list.key() });
       },
     }),
   );
 }
 
-export function useResetBindingPin() {
-  return useMutation(orpc.astroBot.binding.resetPin.mutationOptions());
+/** Membros da org pra mapear um número a um usuário (reusa permissions). */
+export function useOrgMembers() {
+  const query = useQuery(orpc.permissions.getPermissions.queryOptions());
+  return {
+    members: query.data?.members ?? [],
+    isLoading: query.isLoading,
+  };
 }

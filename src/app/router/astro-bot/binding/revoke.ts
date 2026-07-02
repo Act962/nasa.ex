@@ -4,20 +4,23 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { assertOrgAdmin } from "../_require-admin";
 
 /**
- * Revoga binding: marca `isActive: false` + apaga sessão. Comandos
- * subsequentes pelo phone retornam "binding_inactive" no Astro Bot.
- *
- * Permissões: user pode revogar próprios; admin pode revogar de qualquer
- * membro da org. Middleware de role TODO — MVP confia que UI só expõe
- * "Revogar de outros" pra admin.
+ * Revoga um número da allow-list: marca `isActive: false`. Comandos
+ * subsequentes por esse número retornam "binding_inactive". Só owner/admin.
  */
 export const revokeBinding = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .input(z.object({ bindingId: z.string() }))
   .handler(async ({ input, context, errors }) => {
+    await assertOrgAdmin({
+      organizationId: context.org.id,
+      userId: context.user.id,
+      errors,
+    });
+
     const binding = await prisma.userWhatsappBinding.findUnique({
       where: { id: input.bindingId },
       select: {

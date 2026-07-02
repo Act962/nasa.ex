@@ -103,6 +103,8 @@ export async function loadAgentContext(data: AgentEventData) {
         bodyText: true,
         footerText: true,
         buttons: true,
+        menuFormat: true,
+        listButton: true,
       },
       orderBy: { createdAt: "asc" },
     }),

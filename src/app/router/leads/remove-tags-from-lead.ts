@@ -9,6 +9,7 @@ import {
   type RecordLeadEventInput,
 } from "@/features/leads/lib/history";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { publishLeadChanged } from "@/features/leads/realtime/publish";
 
 export const removeTagsFromLead = base
   .use(requiredAuthMiddleware)
@@ -83,6 +84,17 @@ export const removeTagsFromLead = base
 
     if (pendingLeadEvents.length > 0) {
       await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
+    }
+
+    // Realtime — reflete a remoção da tag no board (kanban) e no lead-box do
+    // tracking-chat sem refresh. O helper isola falha de transporte.
+    if (result.count > 0) {
+      await publishLeadChanged({
+        leadId: lead.id,
+        trackingId: lead.trackingId,
+        statusId: lead.statusId,
+        fields: ["tag"],
+      });
     }
 
     const tracking = await prisma.tracking.findUnique({
