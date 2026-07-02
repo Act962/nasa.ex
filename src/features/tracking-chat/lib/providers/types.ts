@@ -243,6 +243,11 @@ export interface SendCanonicalMedia extends SendBase {
   readonly mimetype?: string;
   readonly fileName?: string;
   readonly caption?: string;
+  /**
+   * Áudio como nota de voz (PTT). Só a Meta usa (`audio.voice=true`, exige
+   * OGG/Opus); a Uazapi ignora. Sem isso, OGG/Opus chega como áudio comum.
+   */
+  readonly isVoice?: boolean;
 }
 
 export interface SendCanonicalLocation extends SendBase {

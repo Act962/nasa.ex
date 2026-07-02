@@ -70,6 +70,8 @@ export interface SendMediaInput {
   mediaIdOrLink: MediaId | string;
   caption?: string;
   filename?: string;
+  /** Só para `kind: "audio"`: marca como nota de voz (PTT). Exige OGG/Opus. */
+  voice?: boolean;
   replyToWamid?: Wamid;
 }
 

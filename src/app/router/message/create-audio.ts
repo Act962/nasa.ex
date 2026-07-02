@@ -45,6 +45,8 @@ export const createMessageWithAudio = base
       blob: z.instanceof(Blob),
       nameAudio: z.string(),
       mimetype: z.string(),
+      /** Nota de voz (PTT) — só honrado pela Meta (exige OGG/Opus). */
+      isVoice: z.boolean().optional(),
       replyId: z.string().optional(),
       id: z.string().optional(),
     }),
@@ -121,6 +123,7 @@ export const createMessageWithAudio = base
             to: input.leadPhone,
             mediaUrl: useConstructUrl(input.nameAudio),
             mimetype: input.mimetype,
+            isVoice: input.isVoice,
             replyToExternalMessageId: input.replyId,
           });
           externalMessageId = response.externalMessageId;
