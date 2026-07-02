@@ -34,6 +34,16 @@ import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Package, Link2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import {
+  maskNumber,
+  sanitizeNumericString,
+  parseNumericString,
+  formatNumericForInput,
+} from "@/utils/mask-number";
+import {
+  maskMoney,
+  formatDecimalToMoney,
+} from "@/utils/mask-money";
 import { TemplatePicker } from "./template-picker";
 import { type TemplateId } from "../public/proposal-templates";
 
@@ -128,22 +138,28 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
         ? (savedTemplate as typeof VALID_TEMPLATES[number])
         : "modern";
 
+      const discountType = (p.discountType as "PERCENTUAL" | "FIXO") ?? "PERCENTUAL";
+
       form.reset({
         title: p.title,
         clientId: p.clientId ?? undefined,
         responsibleId: p.responsibleId,
         validUntil: p.validUntil ? new Date(p.validUntil).toISOString().split("T")[0] : undefined,
         description: p.description ?? undefined,
-        discount: p.discount ?? undefined,
-        discountType: (p.discountType as "PERCENTUAL" | "FIXO") ?? "PERCENTUAL",
+        discount: p.discount
+          ? discountType === "FIXO"
+            ? formatDecimalToMoney(p.discount)
+            : formatNumericForInput(p.discount)
+          : undefined,
+        discountType,
         paymentLink: p.paymentLink ?? undefined,
         paymentGateway: p.paymentGateway ?? undefined,
         template,
         products: p.products.map((pp: { productId: string; quantity: string; unitValue: string; discount: string | null; description: string | null; order: number }) => ({
           productId: pp.productId,
-          quantity: pp.quantity,
-          unitValue: pp.unitValue,
-          discount: pp.discount ?? undefined,
+          quantity: formatNumericForInput(pp.quantity),
+          unitValue: formatDecimalToMoney(pp.unitValue),
+          discount: pp.discount ? formatDecimalToMoney(pp.discount) : undefined,
           description: pp.description ?? undefined,
           order: pp.order,
         })),
@@ -157,13 +173,17 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
   const watchedDiscountType = form.watch("discountType");
 
   const subtotal = watchedProducts.reduce((sum, pp) => {
-    return sum + Number(pp.quantity) * Number(pp.unitValue) - Number(pp.discount ?? 0);
+    return (
+      sum +
+      parseNumericString(pp.quantity) * parseNumericString(pp.unitValue) -
+      parseNumericString(pp.discount)
+    );
   }, 0);
 
   const discountAmount = watchedDiscount
     ? watchedDiscountType === "PERCENTUAL"
-      ? subtotal * (Number(watchedDiscount) / 100)
-      : Number(watchedDiscount)
+      ? subtotal * (parseNumericString(watchedDiscount) / 100)
+      : parseNumericString(watchedDiscount)
     : 0;
 
   const total = subtotal - discountAmount;
@@ -176,11 +196,24 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
       const headerConfig = { template: data.template ?? "modern" };
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { template: _tpl, ...rest } = data;
+      // Garante que valores numéricos (quantidade, valor unit., descontos)
+      // cheguem ao backend sem caracteres especiais — os campos Decimal do
+      // Prisma quebram em runtime se receberem algo além de dígitos/ponto.
+      const sanitized = {
+        ...rest,
+        discount: rest.discount ? sanitizeNumericString(rest.discount) : rest.discount,
+        products: rest.products.map((product) => ({
+          ...product,
+          quantity: sanitizeNumericString(product.quantity),
+          unitValue: sanitizeNumericString(product.unitValue),
+          discount: product.discount ? sanitizeNumericString(product.discount) : product.discount,
+        })),
+      };
       if (proposalId) {
-        await update.mutateAsync({ id: proposalId, ...rest, headerConfig });
+        await update.mutateAsync({ id: proposalId, ...sanitized, headerConfig });
         toast.success("Proposta atualizada");
       } else {
-        await create.mutateAsync({ ...rest, headerConfig } as Parameters<typeof create.mutateAsync>[0]);
+        await create.mutateAsync({ ...sanitized, headerConfig } as Parameters<typeof create.mutateAsync>[0]);
         toast.success("Proposta criada");
       }
       onClose();
@@ -228,25 +261,44 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
   };
 
   const handleAddProduct = () => {
-    append({ productId: "", quantity: "1", unitValue: "0", order: fields.length });
+    append({ productId: "", quantity: "1", unitValue: "", order: fields.length });
   };
 
   const handleSelectProduct = (index: number, productId: string) => {
     const product = products.find((p) => p.id === productId);
     if (product) {
       form.setValue(`products.${index}.productId`, productId);
-      form.setValue(`products.${index}.unitValue`, product.value);
+      form.setValue(
+        `products.${index}.unitValue`,
+        formatDecimalToMoney(product.value),
+      );
     }
+  };
+
+  // Desconto geral alterna entre valor fixo (R$) e percentual (%). Ao trocar o
+  // tipo, reinterpreta o número já digitado no formato correto.
+  const handleDiscountTypeChange = (nextType: "PERCENTUAL" | "FIXO") => {
+    const currentDiscount = form.getValues("discount");
+    form.setValue("discountType", nextType);
+    if (!currentDiscount) return;
+    const numericDiscount = parseNumericString(currentDiscount);
+    form.setValue(
+      "discount",
+      nextType === "FIXO"
+        ? formatDecimalToMoney(numericDiscount)
+        : formatNumericForInput(String(numericDiscount)),
+      { shouldDirty: true },
+    );
   };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{proposalId ? "Editar Proposta" : "Nova Proposta"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 min-w-0">
           {/* Identificação */}
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Identificação</h3>
@@ -295,6 +347,7 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
               {...form.register("description")}
               placeholder="Descreva os detalhes da proposta..."
               rows={3}
+              className="min-h-[80px] max-h-48 overflow-y-auto resize-none"
             />
           </div>
 
@@ -326,17 +379,23 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
               <div className="space-y-2">
                 {fields.map((field, index) => (
                   <div key={field.id} className="grid grid-cols-[1fr_80px_100px_80px_32px] gap-2 items-start">
-                    <div>
+                    <div className="min-w-0">
                       <Select
                         value={form.watch(`products.${index}.productId`)}
                         onValueChange={(v) => handleSelectProduct(index, v)}
                       >
-                        <SelectTrigger className="text-xs h-8">
+                        <SelectTrigger className="text-xs h-8 w-full min-w-0 *:data-[slot=select-value]:min-w-0">
                           <SelectValue placeholder="Produto..." />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-w-[min(20rem,var(--radix-select-content-available-width))]">
                           {products.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            <SelectItem
+                              key={p.id}
+                              value={p.id}
+                              className="[&>span:last-child]:block [&>span:last-child]:min-w-0 [&>span:last-child]:truncate"
+                            >
+                              {p.name}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -350,26 +409,41 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
                     </div>
                     <Input
                       {...form.register(`products.${index}.quantity`)}
+                      value={form.watch(`products.${index}.quantity`) ?? ""}
+                      onChange={(e) =>
+                        form.setValue(`products.${index}.quantity`, maskNumber(e.target.value), {
+                          shouldDirty: true,
+                        })
+                      }
                       placeholder="Qtd"
-                      type="number"
-                      step="0.01"
-                      min="0"
+                      type="text"
+                      inputMode="decimal"
                       className="text-xs h-8"
                     />
                     <Input
                       {...form.register(`products.${index}.unitValue`)}
-                      placeholder="Valor unit."
-                      type="number"
-                      step="0.01"
-                      min="0"
+                      value={form.watch(`products.${index}.unitValue`) ?? ""}
+                      onChange={(e) =>
+                        form.setValue(`products.${index}.unitValue`, maskMoney(e.target.value), {
+                          shouldDirty: true,
+                        })
+                      }
+                      placeholder="R$ 0,00"
+                      type="text"
+                      inputMode="numeric"
                       className="text-xs h-8"
                     />
                     <Input
                       {...form.register(`products.${index}.discount`)}
-                      placeholder="Desc."
-                      type="number"
-                      step="0.01"
-                      min="0"
+                      value={form.watch(`products.${index}.discount`) ?? ""}
+                      onChange={(e) =>
+                        form.setValue(`products.${index}.discount`, maskMoney(e.target.value), {
+                          shouldDirty: true,
+                        })
+                      }
+                      placeholder="R$ 0,00"
+                      type="text"
+                      inputMode="numeric"
                       className="text-xs h-8"
                     />
                     <Button type="button" size="icon" variant="ghost" className="size-8 text-destructive" onClick={() => remove(index)}>
@@ -385,35 +459,46 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
 
                 {/* Totals */}
                 <div className="border-t pt-3 space-y-1 text-sm">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Subtotal</span><span>{fmt(subtotal)}</span>
+                  <div className="flex justify-between gap-2 text-muted-foreground">
+                    <span className="shrink-0">Subtotal</span>
+                    <span className="min-w-0 truncate text-right">{fmt(subtotal)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground flex-1">Desconto geral</span>
                     <div className="flex gap-1 items-center">
                       <button
                         type="button"
-                        onClick={() => form.setValue("discountType", "PERCENTUAL")}
+                        onClick={() => handleDiscountTypeChange("PERCENTUAL")}
                         className={cn("px-2 py-0.5 rounded text-[11px] border", form.watch("discountType") === "PERCENTUAL" ? "bg-[#7C3AED] text-white border-[#7C3AED]" : "border-border")}
                       >%</button>
                       <button
                         type="button"
-                        onClick={() => form.setValue("discountType", "FIXO")}
+                        onClick={() => handleDiscountTypeChange("FIXO")}
                         className={cn("px-2 py-0.5 rounded text-[11px] border", form.watch("discountType") === "FIXO" ? "bg-[#7C3AED] text-white border-[#7C3AED]" : "border-border")}
                       >R$</button>
                       <Input
                         {...form.register("discount")}
-                        type="number"
-                        step="0.01"
-                        min="0"
+                        value={form.watch("discount") ?? ""}
+                        onChange={(e) =>
+                          form.setValue(
+                            "discount",
+                            form.getValues("discountType") === "FIXO"
+                              ? maskMoney(e.target.value)
+                              : maskNumber(e.target.value),
+                            { shouldDirty: true },
+                          )
+                        }
+                        type="text"
+                        inputMode="numeric"
                         className="w-24 h-7 text-xs"
-                        placeholder="0"
+                        placeholder={form.watch("discountType") === "FIXO" ? "R$ 0,00" : "0%"}
                       />
                     </div>
-                    <span>{fmt(discountAmount)}</span>
+                    <span className="max-w-[7rem] shrink-0 truncate text-right">{fmt(discountAmount)}</span>
                   </div>
-                  <div className="flex justify-between font-bold text-[#7C3AED] text-base border-t pt-1">
-                    <span>Total</span><span>{fmt(total)}</span>
+                  <div className="flex justify-between gap-2 font-bold text-[#7C3AED] text-base border-t pt-1">
+                    <span className="shrink-0">Total</span>
+                    <span className="min-w-0 truncate text-right">{fmt(total)}</span>
                   </div>
                 </div>
               </div>
