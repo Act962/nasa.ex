@@ -84,7 +84,7 @@ function KanbanMinimapComponent({ scrollRef, columns }: KanbanMinimapProps) {
       className={cn(
         "absolute bottom-3 left-3 z-30 h-9 rounded-md border border-border",
         "bg-background/80 p-1 shadow-sm backdrop-blur-sm",
-        "select-none",
+        "select-none opacity-30 transition-opacity duration-200 hover:opacity-100",
       )}
       aria-hidden
     >
@@ -100,7 +100,7 @@ function KanbanMinimapComponent({ scrollRef, columns }: KanbanMinimapProps) {
             key={column.id}
             className="h-full flex-1 rounded-[2px]"
             style={{
-              backgroundColor: column.color ?? "var(--muted-foreground)",
+              backgroundColor: "var(--muted-foreground)",
               opacity: 0.35,
             }}
           />
