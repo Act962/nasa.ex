@@ -97,8 +97,8 @@ export type FocusWebhookRegistration = {
   url: string;
   cnpj?: string;
   cpf?: string;
-  authorization?: string;
   authorization_header?: string;
+  authorization?: string;
 };
 
 export type FocusHookResponse = {

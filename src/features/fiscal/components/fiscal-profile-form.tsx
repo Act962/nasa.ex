@@ -62,7 +62,15 @@ const schema = z
     uf: z.string().length(2, "UF deve ter 2 letras"),
     defaultItemListaServico: z
       .string()
-      .min(1, "Item da lista de serviço obrigatório"),
+      .transform((value) => value.replace(/\D/g, ""))
+      .pipe(
+        z
+          .string()
+          .regex(
+            /^\d{6}$/,
+            "Deve ter 6 dígitos numéricos (2 para item, 2 para subitem e 2 para desdobro nacional)",
+          ),
+      ),
     defaultAliquotaIss: z.string().min(1, "Alíquota ISS obrigatória"),
     defaultIssRetido: z.boolean(),
     defaultDiscriminacao: z.string().optional(),
@@ -348,14 +356,15 @@ export function FiscalProfileForm() {
                 </DialogHeader>
 
                 {(() => {
-                  const confirmWord = profile.nomeFantasia?.trim() || "Confirmar";
+                  const confirmWord =
+                    profile.nomeFantasia?.trim() || "Confirmar";
                   return (
                     <div className="space-y-2">
-                      <Label className="text-sm text-muted-foreground">
-                        Digite{" "}
+                      <Label className="text-sm text-muted-foreground gap-1">
+                        Digite
                         <span className="font-semibold text-foreground">
                           {confirmWord}
-                        </span>{" "}
+                        </span>
                         para confirmar
                       </Label>
                       <Input
@@ -448,7 +457,9 @@ export function FiscalProfileForm() {
           {/* CNPJ ou CPF */}
           {documentoTipo === "cnpj" ? (
             <div className="space-y-1.5">
-              <Label>CNPJ <span className="text-destructive">*</span></Label>
+              <Label>
+                CNPJ <span className="text-destructive">*</span>
+              </Label>
               <div className="relative">
                 <Input
                   {...form.register("cnpj")}
@@ -491,17 +502,19 @@ export function FiscalProfileForm() {
             </div>
           ) : (
             <div className="space-y-1.5">
-              <Label>CPF <span className="text-destructive">*</span></Label>
+              <Label>
+                CPF <span className="text-destructive">*</span>
+              </Label>
               <Input
-              {...form.register("cpf")}
-              onChange={(e) => {
-                const masked = maskCpf(e.target.value);
-                e.target.value = masked;
-                form.setValue("cpf", masked, { shouldDirty: true });
-              }}
-              placeholder="XXX.XXX.XXX-XX"
-              maxLength={14}
-            />
+                {...form.register("cpf")}
+                onChange={(e) => {
+                  const masked = maskCpf(e.target.value);
+                  e.target.value = masked;
+                  form.setValue("cpf", masked, { shouldDirty: true });
+                }}
+                placeholder="XXX.XXX.XXX-XX"
+                maxLength={14}
+              />
               {form.formState.errors.cpf && (
                 <p className="text-xs text-destructive">
                   {form.formState.errors.cpf.message}
@@ -511,7 +524,9 @@ export function FiscalProfileForm() {
           )}
 
           <div className="space-y-1.5">
-            <Label>Razão Social <span className="text-destructive">*</span></Label>
+            <Label>
+              Razão Social <span className="text-destructive">*</span>
+            </Label>
             <Input
               {...form.register("razaoSocial")}
               placeholder="Nome da empresa"
@@ -532,7 +547,9 @@ export function FiscalProfileForm() {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Inscrição Municipal <span className="text-destructive">*</span></Label>
+            <Label>
+              Inscrição Municipal <span className="text-destructive">*</span>
+            </Label>
             <Input {...form.register("inscricaoMunicipal")} placeholder="IM" />
           </div>
 
@@ -563,11 +580,15 @@ export function FiscalProfileForm() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2 space-y-1.5">
-            <Label>Logradouro <span className="text-destructive">*</span></Label>
+            <Label>
+              Logradouro <span className="text-destructive">*</span>
+            </Label>
             <Input {...form.register("logradouro")} placeholder="Rua / Av." />
           </div>
           <div className="space-y-1.5">
-            <Label>Número <span className="text-destructive">*</span></Label>
+            <Label>
+              Número <span className="text-destructive">*</span>
+            </Label>
             <Input {...form.register("numero")} placeholder="123" />
           </div>
           <div className="space-y-1.5">
@@ -575,15 +596,21 @@ export function FiscalProfileForm() {
             <Input {...form.register("complemento")} placeholder="Sala 1" />
           </div>
           <div className="space-y-1.5">
-            <Label>Bairro <span className="text-destructive">*</span></Label>
+            <Label>
+              Bairro <span className="text-destructive">*</span>
+            </Label>
             <Input {...form.register("bairro")} placeholder="Centro" />
           </div>
           <div className="space-y-1.5">
-            <Label>CEP <span className="text-destructive">*</span></Label>
+            <Label>
+              CEP <span className="text-destructive">*</span>
+            </Label>
             <Input {...form.register("cep")} placeholder="00000-000" />
           </div>
           <div className="sm:col-span-2 space-y-1.5">
-            <Label>Município <span className="text-destructive">*</span></Label>
+            <Label>
+              Município <span className="text-destructive">*</span>
+            </Label>
             <MunicipioCombobox
               displayValue={
                 form.watch("municipio") && form.watch("uf")
@@ -643,14 +670,28 @@ export function FiscalProfileForm() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label>Item da Lista de Serviço (LC 116) <span className="text-destructive">*</span></Label>
+            <Label>
+              Item da Lista de Serviço (Código Nacional NFS-e){" "}
+              <span className="text-destructive">*</span>
+            </Label>
             <Input
               {...form.register("defaultItemListaServico")}
-              placeholder="Ex: 17.09"
+              placeholder="Ex: 170601"
             />
+            <p className="text-xs text-muted-foreground">
+              6 dígitos numéricos: 2 para item, 2 para subitem (LC 116/2003) e
+              2 para desdobro nacional.
+            </p>
+            {form.formState.errors.defaultItemListaServico && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.defaultItemListaServico.message}
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
-            <Label>Alíquota ISS (%) <span className="text-destructive">*</span></Label>
+            <Label>
+              Alíquota ISS (%) <span className="text-destructive">*</span>
+            </Label>
             <Input
               {...form.register("defaultAliquotaIss")}
               type="number"

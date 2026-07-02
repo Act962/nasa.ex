@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -36,12 +36,15 @@ import {
   ChevronDown,
   ArrowLeft,
   ArrowRight,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIssueFiscalInvoice } from "../hooks/use-fiscal-invoices";
 import { useFiscalProfile } from "../hooks/use-fiscal-profile";
 import { maskCnpj, maskCpf } from "../utils/document-masks";
 import { MunicipioCombobox } from "./municipio-combobox";
+import type { CnpjWsResponse } from "@/http/cnpj-ws/client";
 
 const UF_OPTIONS = [
   "AC",
@@ -134,6 +137,36 @@ const schema = z
           code: z.ZodIssueCode.custom,
           message: "Código do município obrigatório",
           path: ["tomadorCodigoMunicipio"],
+        });
+      if (!values.tomadorUf)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "UF obrigatória",
+          path: ["tomadorUf"],
+        });
+      if (!values.tomadorLogradouro)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Logradouro obrigatório",
+          path: ["tomadorLogradouro"],
+        });
+      if (!values.tomadorNumero)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Número obrigatório",
+          path: ["tomadorNumero"],
+        });
+      if (!values.tomadorBairro)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Bairro obrigatório",
+          path: ["tomadorBairro"],
+        });
+      if ((values.tomadorCep ?? "").replace(/\D/g, "").length !== 8)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "CEP inválido (deve ter 8 dígitos)",
+          path: ["tomadorCep"],
         });
     } else {
       const cpf = (values.tomadorCpf ?? "").replace(/\D/g, "");
@@ -266,6 +299,101 @@ export function IssueInvoiceDialog({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [preflightErrors, setPreflightErrors] = useState<string[]>([]);
   const [municipioDisplay, setMunicipioDisplay] = useState("");
+
+  const [tomadorCnpjLookupStatus, setTomadorCnpjLookupStatus] = useState<
+    "idle" | "loading" | "found" | "not-found" | "rate-limited" | "error"
+  >("idle");
+  const lastFetchedTomadorCnpjRef = useRef<string>("");
+  const tomadorCnpjDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const tomadorCnpjValue = form.watch("tomadorCnpj");
+
+  useEffect(() => {
+    if (tipoTomador !== "PJ") return;
+
+    const digits = (tomadorCnpjValue ?? "").replace(/\D/g, "");
+    if (digits.length !== 14 || digits === lastFetchedTomadorCnpjRef.current)
+      return;
+
+    if (tomadorCnpjDebounceRef.current)
+      clearTimeout(tomadorCnpjDebounceRef.current);
+
+    tomadorCnpjDebounceRef.current = setTimeout(async () => {
+      setTomadorCnpjLookupStatus("loading");
+      try {
+        const response = await fetch(`/api/cnpj-ws/${digits}`);
+        if (response.status === 404) {
+          setTomadorCnpjLookupStatus("not-found");
+          return;
+        }
+        if (response.status === 429) {
+          setTomadorCnpjLookupStatus("rate-limited");
+          return;
+        }
+        if (!response.ok) {
+          setTomadorCnpjLookupStatus("error");
+          return;
+        }
+
+        const responseData: CnpjWsResponse = await response.json();
+        lastFetchedTomadorCnpjRef.current = digits;
+
+        const estabelecimento = responseData.estabelecimento;
+        const ibgeId = estabelecimento.cidade?.ibge_id;
+
+        form.setValue("tomadorRazaoSocial", responseData.razao_social ?? "", {
+          shouldValidate: true,
+        });
+        if (estabelecimento.logradouro)
+          form.setValue("tomadorLogradouro", estabelecimento.logradouro, {
+            shouldValidate: true,
+          });
+        if (estabelecimento.numero)
+          form.setValue("tomadorNumero", estabelecimento.numero, {
+            shouldValidate: true,
+          });
+        if (estabelecimento.complemento)
+          form.setValue("tomadorComplemento", estabelecimento.complemento, {
+            shouldValidate: true,
+          });
+        if (estabelecimento.bairro)
+          form.setValue("tomadorBairro", estabelecimento.bairro, {
+            shouldValidate: true,
+          });
+        if (estabelecimento.cep)
+          form.setValue(
+            "tomadorCep",
+            estabelecimento.cep.replace(/\D/g, ""),
+            { shouldValidate: true },
+          );
+        if (estabelecimento.estado?.sigla)
+          form.setValue("tomadorUf", estabelecimento.estado.sigla, {
+            shouldValidate: true,
+          });
+        if (ibgeId) {
+          form.setValue(
+            "tomadorCodigoMunicipio",
+            String(ibgeId).padStart(7, "0"),
+            { shouldValidate: true },
+          );
+          if (estabelecimento.cidade?.nome)
+            setMunicipioDisplay(
+              `${estabelecimento.cidade.nome} — ${estabelecimento.estado?.sigla ?? ""}`,
+            );
+        }
+
+        setTomadorCnpjLookupStatus("found");
+      } catch {
+        setTomadorCnpjLookupStatus("error");
+      }
+    }, 700);
+
+    return () => {
+      if (tomadorCnpjDebounceRef.current)
+        clearTimeout(tomadorCnpjDebounceRef.current);
+    };
+  }, [tomadorCnpjValue, tipoTomador, form]);
 
   useEffect(() => {
     if (!profile) return;
@@ -453,17 +581,44 @@ export function IssueInvoiceDialog({
                   <Label>
                     CNPJ <span className="text-destructive">*</span>
                   </Label>
-                  <Input
-                    {...form.register("tomadorCnpj")}
-                    onChange={(e) => {
-                      const masked = maskCnpj(e.target.value);
-                      form.setValue("tomadorCnpj", masked, {
-                        shouldValidate: form.formState.isSubmitted,
-                      });
-                    }}
-                    placeholder="XX.XXX.XXX/XXXX-XX"
-                  />
+                  <div className="relative">
+                    <Input
+                      {...form.register("tomadorCnpj")}
+                      onChange={(e) => {
+                        const masked = maskCnpj(e.target.value);
+                        form.setValue("tomadorCnpj", masked, {
+                          shouldValidate: form.formState.isSubmitted,
+                        });
+                      }}
+                      placeholder="XX.XXX.XXX/XXXX-XX"
+                      className="pr-8"
+                    />
+                    {tomadorCnpjLookupStatus === "loading" && (
+                      <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+                    )}
+                    {tomadorCnpjLookupStatus === "found" && (
+                      <CheckCircle2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-emerald-600" />
+                    )}
+                  </div>
                   <FieldError message={formErrors.tomadorCnpj?.message} />
+                  {tomadorCnpjLookupStatus === "not-found" && (
+                    <p className="text-xs text-amber-600">
+                      CNPJ não encontrado na base da Receita Federal —
+                      preencha o endereço manualmente.
+                    </p>
+                  )}
+                  {tomadorCnpjLookupStatus === "rate-limited" && (
+                    <p className="text-xs text-amber-600">
+                      Limite de consultas atingido. Aguarde 1 minuto ou
+                      preencha o endereço manualmente.
+                    </p>
+                  )}
+                  {tomadorCnpjLookupStatus === "error" && (
+                    <p className="text-xs text-muted-foreground">
+                      Não foi possível consultar o CNPJ automaticamente —
+                      preencha o endereço manualmente.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>
@@ -505,7 +660,9 @@ export function IssueInvoiceDialog({
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label>UF</Label>
+                  <Label>
+                    UF <span className="text-destructive">*</span>
+                  </Label>
                   <Controller
                     control={form.control}
                     name="tomadorUf"
@@ -527,6 +684,46 @@ export function IssueInvoiceDialog({
                       </Select>
                     )}
                   />
+                  <FieldError message={formErrors.tomadorUf?.message} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>
+                    Logradouro <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    {...form.register("tomadorLogradouro")}
+                    placeholder="Rua Exemplo"
+                  />
+                  <FieldError
+                    message={formErrors.tomadorLogradouro?.message}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>
+                    Número <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    {...form.register("tomadorNumero")}
+                    placeholder="100"
+                  />
+                  <FieldError message={formErrors.tomadorNumero?.message} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>
+                    Bairro <span className="text-destructive">*</span>
+                  </Label>
+                  <Input {...form.register("tomadorBairro")} />
+                  <FieldError message={formErrors.tomadorBairro?.message} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>
+                    CEP <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    {...form.register("tomadorCep")}
+                    placeholder="00000-000"
+                  />
+                  <FieldError message={formErrors.tomadorCep?.message} />
                 </div>
               </div>
             ) : (
@@ -657,7 +854,7 @@ export function IssueInvoiceDialog({
                 <Separator />
 
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Contato e endereço do tomador
+                  Contato do tomador
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
@@ -670,40 +867,13 @@ export function IssueInvoiceDialog({
                   </div>
 
                   {tipoTomador === "PJ" && (
-                    <>
-                      <div className="space-y-1.5">
-                        <Label>Logradouro</Label>
-                        <Input
-                          {...form.register("tomadorLogradouro")}
-                          placeholder="Rua Exemplo"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Número</Label>
-                        <Input
-                          {...form.register("tomadorNumero")}
-                          placeholder="100"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Complemento</Label>
-                        <Input
-                          {...form.register("tomadorComplemento")}
-                          placeholder="Sala 201"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Bairro</Label>
-                        <Input {...form.register("tomadorBairro")} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>CEP</Label>
-                        <Input
-                          {...form.register("tomadorCep")}
-                          placeholder="00000-000"
-                        />
-                      </div>
-                    </>
+                    <div className="space-y-1.5">
+                      <Label>Complemento</Label>
+                      <Input
+                        {...form.register("tomadorComplemento")}
+                        placeholder="Sala 201"
+                      />
+                    </div>
                   )}
                 </div>
               </CollapsibleContent>

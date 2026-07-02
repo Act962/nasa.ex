@@ -47,6 +47,10 @@ export function validateBeforeEmit(
     errors.push("Código IBGE do município inválido (deve ter 7 dígitos).");
   if (!profile.defaultItemListaServico)
     errors.push("Item da lista de serviço (LC 116) não configurado.");
+  else if (!/^\d{6}$/.test(profile.defaultItemListaServico))
+    errors.push(
+      "Item da lista de serviço deve ter 6 dígitos numéricos (2 para item, 2 para subitem e 2 para desdobro nacional). Atualize o cadastro da empresa.",
+    );
   if (Number(profile.defaultAliquotaIss) <= 0)
     errors.push("Alíquota ISS inválida.");
   if (Number(contract.value) <= 0)
@@ -59,6 +63,17 @@ export function validateBeforeEmit(
       errors.push("Razão social do tomador obrigatória para PJ.");
     if (!overrides.tomadorCodigoMunicipio)
       errors.push("Código de município do tomador obrigatório para PJ.");
+    if (!overrides.tomadorLogradouro)
+      errors.push("Logradouro do tomador obrigatório para PJ.");
+    if (!overrides.tomadorNumero)
+      errors.push("Número do endereço do tomador obrigatório para PJ.");
+    if (!overrides.tomadorBairro)
+      errors.push("Bairro do tomador obrigatório para PJ.");
+    const tomadorCepDigits = (overrides.tomadorCep ?? "").replace(/\D/g, "");
+    if (tomadorCepDigits.length !== 8)
+      errors.push("CEP do tomador obrigatório para PJ (deve ter 8 dígitos).");
+    if (!overrides.tomadorUf)
+      errors.push("UF do tomador obrigatória para PJ.");
   } else {
     const cpf = (overrides.tomadorCpf ?? "").replace(/\D/g, "");
     if (cpf.length !== 11) errors.push("CPF do tomador inválido.");
@@ -79,11 +94,15 @@ export function buildNfsePayload(
       ? {
           cnpj: (overrides.tomadorCnpj ?? "").replace(/\D/g, ""),
           razao_social: overrides.tomadorRazaoSocial!,
-          email: overrides.tomadorEmail,
+          ...(overrides.tomadorEmail?.trim()
+            ? { email: overrides.tomadorEmail.trim() }
+            : {}),
           endereco: {
             logradouro: overrides.tomadorLogradouro!,
             numero: overrides.tomadorNumero!,
-            complemento: overrides.tomadorComplemento,
+            ...(overrides.tomadorComplemento?.trim()
+              ? { complemento: overrides.tomadorComplemento.trim() }
+              : {}),
             bairro: overrides.tomadorBairro!,
             codigo_municipio: overrides.tomadorCodigoMunicipio!,
             uf: overrides.tomadorUf!,
@@ -93,7 +112,9 @@ export function buildNfsePayload(
       : {
           cpf: (overrides.tomadorCpf ?? "").replace(/\D/g, ""),
           razao_social: overrides.tomadorNome!,
-          email: overrides.tomadorEmail,
+          ...(overrides.tomadorEmail?.trim()
+            ? { email: overrides.tomadorEmail.trim() }
+            : {}),
         };
 
   return {
@@ -117,8 +138,8 @@ export function buildNfsePayload(
       iss_retido: profile.defaultIssRetido,
       item_lista_servico: profile.defaultItemListaServico,
       discriminacao:
-        overrides.discriminacao ??
-        profile.defaultDiscriminacao ??
+        overrides.discriminacao?.trim() ||
+        profile.defaultDiscriminacao?.trim() ||
         `Serviços conforme contrato #${contract.number}`,
       codigo_municipio: overrides.tomadorCodigoMunicipio ?? profile.codigoMunicipio,
       valor_servicos: Number(contract.value),

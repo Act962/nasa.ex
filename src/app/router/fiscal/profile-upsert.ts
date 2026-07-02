@@ -10,7 +10,7 @@ import { buscarEmpresasPorCnpj } from "@/http/focus-nfe/buscar-empresa-por-cnpj"
 import { listarMunicipios } from "@/http/focus-nfe/listar-municipios";
 import { registrarWebhook } from "@/http/focus-nfe/registrar-webhook";
 import { FocusNfeHttpError } from "@/http/focus-nfe/client";
-import { encryptSecret } from "@/lib/crypto";
+import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import type { FocusEmpresaResponse } from "@/http/focus-nfe/types";
 
 function encryptFocusTokens(empresa: FocusEmpresaResponse): {
@@ -52,7 +52,17 @@ const upsertProfileInput = z
     bairro: z.string(),
     cep: z.string(),
     uf: z.string().length(2),
-    defaultItemListaServico: z.string(),
+    defaultItemListaServico: z
+      .string()
+      .transform((value) => value.replace(/\D/g, ""))
+      .pipe(
+        z
+          .string()
+          .regex(
+            /^\d{6}$/,
+            "Item da lista de serviço deve ter 6 dígitos numéricos (2 para item, 2 para subitem e 2 para desdobro nacional)",
+          ),
+      ),
     defaultAliquotaIss: z.string(),
     defaultIssRetido: z.boolean(),
     defaultDiscriminacao: z.string().optional(),
@@ -84,7 +94,11 @@ export const fiscalProfileUpsert = base
       // Busca o ID Focus já salvo para não usar CNPJ como identificador
       const existingProfile = await prisma.fiscalCompanyProfile.findUnique({
         where: { organizationId: context.org.id },
-        select: { focusEmpresaId: true, focusWebhookId: true, environment: true },
+        select: {
+          focusEmpresaId: true,
+          focusWebhookIdProducao: true,
+          focusWebhookIdHomologacao: true,
+        },
       });
 
       let focusEmpresaId: number | null =
@@ -283,31 +297,88 @@ export const fiscalProfileUpsert = base
         },
       });
 
-      const alreadyHasHook = existingProfile?.focusWebhookId ?? null;
+      const needsProducaoHook =
+        focusEmpresaRegistered && !existingProfile?.focusWebhookIdProducao;
+      const needsHomologacaoHook =
+        focusEmpresaRegistered && !existingProfile?.focusWebhookIdHomologacao;
 
-      if (focusEmpresaRegistered && !alreadyHasHook) {
-        const webhookBaseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "";
-        const webhookUrl = `${webhookBaseUrl}/api/focus-nfe/webhook?fiscalCompanyId=${savedProfile.id}`;
+      if (needsProducaoHook || needsHomologacaoHook) {
+        const webhookBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
         const webhookSecret = process.env.FOCUS_NFE_WEBHOOK_SECRET;
-        const profileEnvironment = existingProfile?.environment ?? "HOMOLOGACAO";
+        const webhookUrl = `${webhookBaseUrl}/api/focus-nfe/webhook?fiscalCompanyId=${savedProfile.id}${webhookSecret ? `&secret-key=${encodeURIComponent(webhookSecret)}` : ""}`;
 
-        try {
-          const hook = await registrarWebhook(
-            {
-              event: "nfse",
-              url: webhookUrl,
-              ...(cnpjDigits ? { cnpj: cnpjDigits } : { cpf: cpfDigits }),
-              ...(webhookSecret ? { authorization: webhookSecret } : {}),
-            },
-            profileEnvironment,
+        const registration = {
+          event: "nfse" as const,
+          url: webhookUrl,
+          ...(cnpjDigits ? { cnpj: cnpjDigits } : { cpf: cpfDigits }),
+        };
+
+        // Gatilho é operação por-empresa na Focus — usa sempre o token da empresa,
+        // nunca o token master (esse é só pra CRUD de /empresas).
+        const producaoCompanyToken =
+          needsProducaoHook && focusTokenProducao
+            ? decryptSecret(focusTokenProducao)
+            : null;
+        const homologacaoCompanyToken =
+          needsHomologacaoHook && focusTokenHomologacao
+            ? decryptSecret(focusTokenHomologacao)
+            : null;
+
+        if (needsProducaoHook && !producaoCompanyToken) {
+          console.error(
+            "[fiscal/upsert] registrarWebhook (PRODUCAO) pulado — token da empresa ausente",
           );
+        }
+        if (needsHomologacaoHook && !homologacaoCompanyToken) {
+          console.error(
+            "[fiscal/upsert] registrarWebhook (HOMOLOGACAO) pulado — token da empresa ausente",
+          );
+        }
+
+        const [producaoResult, homologacaoResult] = await Promise.allSettled([
+          producaoCompanyToken
+            ? registrarWebhook(registration, "PRODUCAO", producaoCompanyToken)
+            : Promise.resolve(null),
+          homologacaoCompanyToken
+            ? registrarWebhook(
+                registration,
+                "HOMOLOGACAO",
+                homologacaoCompanyToken,
+              )
+            : Promise.resolve(null),
+        ]);
+
+        const webhookUpdate: Record<string, string> = {};
+
+        if (producaoResult.status === "fulfilled" && producaoResult.value) {
+          webhookUpdate.focusWebhookIdProducao = producaoResult.value.id;
+        } else if (producaoResult.status === "rejected") {
+          console.error("[fiscal/upsert] registrarWebhook (PRODUCAO) falhou", {
+            message:
+              producaoResult.reason instanceof Error
+                ? producaoResult.reason.message
+                : producaoResult.reason,
+          });
+        }
+
+        if (homologacaoResult.status === "fulfilled" && homologacaoResult.value) {
+          webhookUpdate.focusWebhookIdHomologacao = homologacaoResult.value.id;
+        } else if (homologacaoResult.status === "rejected") {
+          console.error(
+            "[fiscal/upsert] registrarWebhook (HOMOLOGACAO) falhou",
+            {
+              message:
+                homologacaoResult.reason instanceof Error
+                  ? homologacaoResult.reason.message
+                  : homologacaoResult.reason,
+            },
+          );
+        }
+
+        if (Object.keys(webhookUpdate).length > 0) {
           await prisma.fiscalCompanyProfile.update({
             where: { id: savedProfile.id },
-            data: { focusWebhookId: hook.id },
-          });
-        } catch (hookErr) {
-          console.error("[fiscal/upsert] registrarWebhook falhou", {
-            message: hookErr instanceof Error ? hookErr.message : hookErr,
+            data: webhookUpdate,
           });
         }
       }

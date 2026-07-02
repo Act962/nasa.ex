@@ -140,15 +140,10 @@ export const issueFiscalInvoice = base
     const fiscalEnvironment = input.environment as FiscalEnvironment;
 
     console.log("[fiscal/issue] ambiente Focus NFe:", fiscalEnvironment);
-    console.log("[fiscal/issue] payload:", JSON.stringify(payload, null, 2));
 
     let companyToken;
     try {
       companyToken = resolveCompanyToken(profile, fiscalEnvironment);
-      console.log(
-        "[fiscal/issue] token Focus NFe desencriptografado:",
-        companyToken,
-      );
     } catch (err) {
       console.error(
         "[fiscal/invoices/issue] erro ao resolver token Focus NFe:",

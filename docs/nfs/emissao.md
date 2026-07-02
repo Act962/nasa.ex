@@ -55,7 +55,7 @@ Novos modelos + enums:
 
 ### 2. Env vars (`.env.local` + doc no CLAUDE.md)
 
-- `FOCUS_NFE_TOKEN_HOMOLOGACAO`, `FOCUS_NFE_TOKEN_PRODUCAO` — tokens master por ambiente.
+- `FOCUS_ADMIN_TOKEN` — token master da conta, usado somente em CRUD de `/empresas` (endpoint só existe em produção). Emissão/consulta/cancelamento de NFS-e e registro de webhook usam sempre o token por-empresa (`focusTokenProducao`/`focusTokenHomologacao`, criptografados no banco).
 - `FOCUS_NFE_WEBHOOK_SECRET` — valor enviado como `authorization` no registro do hook e validado na entrada.
 
 ### 3. HTTP client — `src/http/focus-nfe/`

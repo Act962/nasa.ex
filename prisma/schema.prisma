@@ -7255,7 +7255,8 @@ model FiscalCompanyProfile {
   focusTokenHomologacao       String?           @map("focus_token_homologacao")
   supportedByFocus            Boolean           @default(false) @map("supported_by_focus")
   focusCertificadoUploadedAt  DateTime?         @map("focus_certificado_uploaded_at")
-  focusWebhookId              String?           @map("focus_webhook_id")
+  focusWebhookIdProducao      String?           @map("focus_webhook_id_producao")
+  focusWebhookIdHomologacao   String?           @map("focus_webhook_id_homologacao")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

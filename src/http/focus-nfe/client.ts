@@ -19,22 +19,17 @@ export class FocusNfeHttpError extends Error {
   }
 }
 
-function resolveMasterToken(environment: FiscalEnvironment): string {
-  const token =
-    environment === "HOMOLOGACAO"
-      ? process.env.FOCUS_NFE_TOKEN_HOMOLOGACAO
-      : process.env.FOCUS_NFE_TOKEN_PRODUCAO;
+// Token admin da conta Focus — usado SOMENTE em CRUD de /empresas (o endpoint
+// não existe em homologação, então esse token é sempre de produção).
+function resolveAdminToken(): string {
+  const token = process.env.FOCUS_ADMIN_TOKEN;
   if (!token)
-    throw new FocusNfeHttpError(
-      0,
-      "MISSING_TOKEN",
-      `FOCUS_NFE_TOKEN_${environment} ausente`,
-    );
+    throw new FocusNfeHttpError(0, "MISSING_TOKEN", "FOCUS_ADMIN_TOKEN ausente");
   return token;
 }
 
-function buildBasicAuth(environment: FiscalEnvironment, token?: string): string {
-  const resolved = token ?? resolveMasterToken(environment);
+function buildBasicAuth(token?: string): string {
+  const resolved = token ?? resolveAdminToken();
   return `Basic ${Buffer.from(`${resolved}:`).toString("base64")}`;
 }
 
@@ -79,7 +74,7 @@ export async function focusFetch<T>(opts: FocusFetchOptions): Promise<T> {
 
   // Resolve auth before the try/catch so token errors propagate as MISSING_TOKEN,
   // not as false NETWORK errors.
-  const authHeader = buildBasicAuth(opts.environment, opts.token);
+  const authHeader = buildBasicAuth(opts.token);
 
   let response: Response;
   try {

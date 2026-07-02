@@ -11,7 +11,10 @@ export const nfseStatusSync = inngest.createFunction(
   { id: "fiscal-nfse-status-sync", retries: 5 },
   { event: "fiscal/nfse.status-changed" },
   async ({ event, step }) => {
-    const { ref } = event.data as { ref: string };
+    const { ref } = event.data as {
+      ref: string;
+      mode: "homologacao" | "producao" | null;
+    };
 
     const invoice = await step.run("load-invoice", async () =>
       prisma.fiscalInvoice.findUnique({
