@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Lock, ShieldCheck, ExternalLink } from "lucide-react";
+import { Loader2, Lock, ShieldCheck, ExternalLink, BarChart3Icon } from "lucide-react";
+import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -213,6 +214,15 @@ export function WhatsAppProviderSettings({
             codeVerificationStatus={phoneStatus.codeVerificationStatus}
             messagingLimitTier={phoneStatus.messagingLimitTier}
           />
+        )}
+
+        {data.provider === "META_CLOUD" && (
+          <Button asChild variant="outline" size="sm" className="w-full">
+            <Link href={`/tracking/${trackingId}/whatsapp-analytics`}>
+              <BarChart3Icon className="size-3.5" />
+              Ver Analytics do WhatsApp
+            </Link>
+          </Button>
         )}
 
         <RadioGroup

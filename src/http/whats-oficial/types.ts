@@ -231,3 +231,63 @@ export interface SendTemplateInput {
   headerParameters?: string[];
   replyToWamid?: Wamid;
 }
+
+// ─── Analytics (Fase 10) ─────────────────────────────────────────────────
+
+/** Granularidade aceita por `GET /{waba_id}?fields=analytics...`. */
+export type MessageAnalyticsGranularity = "HALF_HOUR" | "DAY" | "MONTH";
+
+export interface MessageAnalyticsDataPoint {
+  start: number;
+  end: number;
+  sent: number;
+  delivered: number;
+}
+
+export interface MessageAnalyticsResponse {
+  id: string;
+  analytics?: {
+    data_points: MessageAnalyticsDataPoint[];
+    granularity: MessageAnalyticsGranularity;
+    phone_numbers?: string[];
+  };
+}
+
+/** Granularidade aceita por `GET /{waba_id}?fields=conversation_analytics...`. */
+export type ConversationAnalyticsGranularity =
+  | "HALF_HOUR"
+  | "DAILY"
+  | "MONTHLY";
+
+export type ConversationCategory =
+  | "AUTHENTICATION"
+  | "AUTHENTICATION_INTERNATIONAL"
+  | "MARKETING"
+  | "UTILITY"
+  | "SERVICE";
+
+export type ConversationType = "FREE_TIER" | "REGULAR" | "FREE_ENTRY_POINT";
+
+export type ConversationDirection =
+  | "BUSINESS_INITIATED"
+  | "USER_INITIATED"
+  | "UNKNOWN";
+
+export interface ConversationAnalyticsDataPoint {
+  start: number;
+  end: number;
+  conversation: number;
+  cost?: number;
+  phone_number?: string;
+  country?: string;
+  conversation_type?: ConversationType;
+  conversation_direction?: ConversationDirection;
+  conversation_category?: ConversationCategory;
+}
+
+export interface ConversationAnalyticsResponse {
+  id: string;
+  conversation_analytics?: {
+    data: Array<{ data_points: ConversationAnalyticsDataPoint[] }>;
+  };
+}
