@@ -188,6 +188,25 @@ input::placeholder {
   scrollbar-color: #555 transparent;
 }
 
+/* Esconde a barra de rolagem horizontal nativa mantendo o scroll funcional.
+   Usada no `<ol>` das colunas do kanban, substituída pelo KanbanMinimap. */
+.scroll-hidden-x {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-hidden-x::-webkit-scrollbar {
+  display: none;
+}
+
+/* Enquanto o usuário arrasta a board (grab scroll), força cursor de "mão
+   fechada" e bloqueia seleção de texto em toda a página. Necessário porque
+   os cards têm `cursor-pointer` próprio que sobrescreveria o `grabbing`. */
+body.is-grab-scrolling,
+body.is-grab-scrolling * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
 .sketch-picker {
   background-color: transparent !important;
   color: var(--foreground) !important;

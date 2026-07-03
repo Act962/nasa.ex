@@ -40,6 +40,8 @@ import { useQueryState } from "nuqs";
 import dayjs from "dayjs";
 import { useLeadSoundAlert } from "@/hooks/use-lead-sound-alert";
 import { useBoardRealtimeSync } from "../hooks/use-board-realtime-sync";
+import { KanbanMinimap } from "./kanban-minimap";
+import { useGrabScroll } from "../hooks/use-grab-scroll";
 
 
 interface BoardContainerProps {
@@ -141,6 +143,13 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
   const sensors = useSensors(mouseSensor, touchSensor, keyboardSensor);
 
   const columnIds = useMemo(() => columnList.map((s) => s.id), [columnList]);
+
+  // Scroller horizontal das colunas — alimenta o minimapa (KanbanMinimap)
+  // e o "arrastar para rolar" (useGrabScroll).
+  const scrollContainerRef = useRef<HTMLOListElement>(null);
+  // `!isLoading` garante que o efeito religue ao `<ol>` real assim que ele
+  // monta (durante o skeleton de carregamento o ref ainda é null).
+  useGrabScroll(scrollContainerRef, !isLoading);
 
   const onDragStart = useCallback(
     (event: DragStartEvent) => {
@@ -420,8 +429,11 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
             (`KanbanCanvas`) pra que a barra de filtros COMPARTILHE o
             mesmo bg — sem isso, recolher a barra deixava um vazio com
             `bg-background` do tema entre o NavTracking e o kanban. */}
-        <div className="grid grid-rows-[1fr_auto] h-full">
-          <ol className="flex gap-x-3 overflow-x-auto">
+        <div className="relative grid grid-rows-[1fr_auto] h-full">
+          <ol
+            ref={scrollContainerRef}
+            className="flex gap-x-3 overflow-x-auto scroll-hidden-x cursor-grab"
+          >
             <SortableContext items={columnIds}>
               {columnList.map((s, index) => (
                 <StatusColumn
@@ -436,6 +448,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
             <div className="shrink-0 w-1" />
           </ol>
           <Footer />
+          <KanbanMinimap scrollRef={scrollContainerRef} columns={columnList} />
         </div>
 
         {typeof window !== "undefined" &&
