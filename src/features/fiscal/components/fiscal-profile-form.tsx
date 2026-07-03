@@ -15,8 +15,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Building2,
@@ -53,6 +66,7 @@ const schema = z
       .string()
       .regex(/^\d{7}$/, "Código IBGE deve ter 7 dígitos"),
     optanteSimplesNacional: z.boolean(),
+    simplesNacionalMei: z.boolean(),
     regimeEspecialTributacao: z.string().optional(),
     logradouro: z.string().min(1, "Logradouro obrigatório"),
     numero: z.string().min(1, "Número obrigatório"),
@@ -73,8 +87,21 @@ const schema = z
       ),
     defaultAliquotaIss: z.string().min(1, "Alíquota ISS obrigatória"),
     defaultIssRetido: z.boolean(),
+    defaultTributacaoIssqn: z.number().int().min(1).max(4),
     defaultDiscriminacao: z.string().optional(),
+    ibsCbsSituacaoTributaria: z
+      .string()
+      .regex(/^\d{1,3}$/, "CST deve ter 1 a 3 dígitos")
+      .optional()
+      .or(z.literal("")),
+    ibsCbsClassificacaoTributaria: z
+      .string()
+      .regex(/^\d{6}$/, "Classificação deve ter 6 dígitos")
+      .optional()
+      .or(z.literal("")),
+    defaultConsumidorFinal: z.boolean(),
     supportedByFocus: z.boolean(),
+    nfseStandard: z.enum(["MUNICIPAL", "NACIONAL"]).default("MUNICIPAL"),
     senhaCertificado: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -130,6 +157,7 @@ export function FiscalProfileForm() {
       inscricaoMunicipal: "",
       codigoMunicipio: "",
       optanteSimplesNacional: false,
+      simplesNacionalMei: false,
       regimeEspecialTributacao: "",
       logradouro: "",
       numero: "",
@@ -140,8 +168,13 @@ export function FiscalProfileForm() {
       defaultItemListaServico: "",
       defaultAliquotaIss: "",
       defaultIssRetido: false,
+      defaultTributacaoIssqn: 1,
       defaultDiscriminacao: "",
+      ibsCbsSituacaoTributaria: "",
+      ibsCbsClassificacaoTributaria: "",
+      defaultConsumidorFinal: false,
       supportedByFocus: false,
+      nfseStandard: "MUNICIPAL",
       senhaCertificado: "",
     },
   });
@@ -253,6 +286,7 @@ export function FiscalProfileForm() {
       inscricaoMunicipal: profile.inscricaoMunicipal,
       codigoMunicipio: profile.codigoMunicipio,
       optanteSimplesNacional: profile.optanteSimplesNacional,
+      simplesNacionalMei: profile.simplesNacionalMei ?? false,
       regimeEspecialTributacao: profile.regimeEspecialTributacao ?? "",
       logradouro: profile.logradouro,
       numero: profile.numero,
@@ -263,8 +297,14 @@ export function FiscalProfileForm() {
       defaultItemListaServico: profile.defaultItemListaServico,
       defaultAliquotaIss: profile.defaultAliquotaIss,
       defaultIssRetido: profile.defaultIssRetido,
+      defaultTributacaoIssqn: profile.defaultTributacaoIssqn ?? 1,
       defaultDiscriminacao: profile.defaultDiscriminacao ?? "",
+      ibsCbsSituacaoTributaria: profile.ibsCbsSituacaoTributaria ?? "",
+      ibsCbsClassificacaoTributaria:
+        profile.ibsCbsClassificacaoTributaria ?? "",
+      defaultConsumidorFinal: profile.defaultConsumidorFinal ?? false,
       supportedByFocus: profile.supportedByFocus,
+      nfseStandard: profile.nfseStandard,
       senhaCertificado: "",
     });
   }, [profile, form]);
@@ -280,7 +320,13 @@ export function FiscalProfileForm() {
     }
 
     upsert.mutate(
-      { ...values, arquivoCertificadoBase64 },
+      {
+        ...values,
+        ibsCbsSituacaoTributaria: values.ibsCbsSituacaoTributaria || null,
+        ibsCbsClassificacaoTributaria:
+          values.ibsCbsClassificacaoTributaria || null,
+        arquivoCertificadoBase64,
+      },
       {
         onSuccess: (result) => {
           if (certFile) {
@@ -563,6 +609,14 @@ export function FiscalProfileForm() {
             <Label>Optante Simples Nacional</Label>
           </div>
 
+          <div className="flex items-center gap-3">
+            <Switch
+              checked={form.watch("simplesNacionalMei")}
+              onCheckedChange={(v) => form.setValue("simplesNacionalMei", v)}
+            />
+            <Label>Microempreendedor Individual (MEI)</Label>
+          </div>
+
           <div className="space-y-1.5">
             <Label>Regime Especial de Tributação (opcional)</Label>
             <Input
@@ -625,9 +679,11 @@ export function FiscalProfileForm() {
                 form.setValue("codigoMunicipio", municipio.codigo_ibge, {
                   shouldValidate: true,
                 });
+                const habilitaMunicipal = municipio.habilita_nfse ?? false;
+                form.setValue("supportedByFocus", habilitaMunicipal);
                 form.setValue(
-                  "supportedByFocus",
-                  municipio.habilita_nfse ?? false,
+                  "nfseStandard",
+                  habilitaMunicipal ? "MUNICIPAL" : "NACIONAL",
                 );
               }}
             />
@@ -663,6 +719,49 @@ export function FiscalProfileForm() {
         </CardContent>
       </Card>
 
+      {/* Padrão da NFS-e (Municipal x Nacional) */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Padrão da NFS-e</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            {(
+              [
+                { value: "MUNICIPAL", label: "NFS-e Municipal" },
+                { value: "NACIONAL", label: "NFS-e Nacional" },
+              ] as const
+            ).map((option) => {
+              const isSelected = form.watch("nfseStandard") === option.value;
+              // Município sem NFS-e municipal integrada: municipal fica bloqueado
+              // (já migrou para o nacional) — espelha a guarda do profile-upsert.
+              const isDisabled =
+                option.value === "MUNICIPAL" && !form.watch("supportedByFocus");
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  disabled={isDisabled}
+                  onClick={() => form.setValue("nfseStandard", option.value)}
+                  className={`px-4 py-1.5 rounded-md border text-sm font-medium transition-colors ${
+                    isSelected
+                      ? "bg-[#7C3AED] text-white border-[#7C3AED]"
+                      : "bg-background text-muted-foreground border-border hover:border-[#7C3AED]"
+                  } ${isDisabled ? "opacity-50 cursor-not-allowed hover:border-border" : ""}`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {form.watch("supportedByFocus")
+              ? "O município selecionado tem NFS-e municipal integrada. Você pode manter o padrão municipal ou usar o padrão nacional."
+              : "O município selecionado não tem NFS-e municipal integrada — o padrão nacional foi selecionado automaticamente."}
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Defaults do Serviço */}
       <Card>
         <CardHeader className="pb-3">
@@ -670,7 +769,7 @@ export function FiscalProfileForm() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label>
+            <Label className="sm:min-h-10 items-start">
               Item da Lista de Serviço (Código Nacional NFS-e){" "}
               <span className="text-destructive">*</span>
             </Label>
@@ -689,7 +788,7 @@ export function FiscalProfileForm() {
             )}
           </div>
           <div className="space-y-1.5">
-            <Label>
+            <Label className="sm:min-h-10 items-start">
               Alíquota ISS (%) <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -698,6 +797,27 @@ export function FiscalProfileForm() {
               step="0.01"
               placeholder="5.00"
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="sm:min-h-10 items-start">
+              Tributação do ISSQN <span className="text-destructive">*</span>
+            </Label>
+            <Select
+              value={String(form.watch("defaultTributacaoIssqn"))}
+              onValueChange={(value) =>
+                form.setValue("defaultTributacaoIssqn", Number(value))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 — Operação tributável</SelectItem>
+                <SelectItem value="2">2 — Imunidade</SelectItem>
+                <SelectItem value="3">3 — Exportação de serviços</SelectItem>
+                <SelectItem value="4">4 — Não incidência</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center gap-3">
             <Switch
@@ -716,6 +836,59 @@ export function FiscalProfileForm() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Reforma Tributária (IBS/CBS) — aplicável à NFS-e Nacional */}
+      {form.watch("nfseStandard") === "NACIONAL" && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">
+              Reforma Tributária (IBS/CBS)
+            </CardTitle>
+            <CardDescription>
+              Opcional. Quando preenchidos, os campos IBS/CBS são enviados na
+              emissão da NFS-e Nacional. Deixe em branco enquanto o município
+              não exigir.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Situação Tributária (CST)</Label>
+              <Input
+                {...form.register("ibsCbsSituacaoTributaria")}
+                inputMode="numeric"
+                placeholder="Ex: 000"
+              />
+              {form.formState.errors.ibsCbsSituacaoTributaria && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.ibsCbsSituacaoTributaria.message}
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Classificação Tributária (cClassTrib)</Label>
+              <Input
+                {...form.register("ibsCbsClassificacaoTributaria")}
+                inputMode="numeric"
+                placeholder="Ex: 000001"
+              />
+              {form.formState.errors.ibsCbsClassificacaoTributaria && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.ibsCbsClassificacaoTributaria.message}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-3 sm:col-span-2">
+              <Switch
+                checked={form.watch("defaultConsumidorFinal")}
+                onCheckedChange={(v) =>
+                  form.setValue("defaultConsumidorFinal", v)
+                }
+              />
+              <Label>Tomador é consumidor final (padrão)</Label>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Certificado A1 */}
       <Card>

@@ -27,7 +27,7 @@ export function useIssueFiscalInvoice() {
   return useMutation({
     ...orpc.fiscal.invoices.issueFromContract.mutationOptions(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fiscal"] });
+      queryClient.invalidateQueries({ queryKey: orpc.fiscal.invoices.key() });
     },
   });
 }
@@ -37,7 +37,7 @@ export function useRefreshFiscalInvoiceStatus() {
   return useMutation({
     ...orpc.fiscal.invoices.refreshStatus.mutationOptions(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fiscal"] });
+      queryClient.invalidateQueries({ queryKey: orpc.fiscal.invoices.key() });
     },
   });
 }
@@ -47,7 +47,7 @@ export function useCancelFiscalInvoice() {
   return useMutation({
     ...orpc.fiscal.invoices.cancel.mutationOptions(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fiscal"] });
+      queryClient.invalidateQueries({ queryKey: orpc.fiscal.invoices.key() });
     },
   });
 }

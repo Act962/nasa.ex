@@ -11,6 +11,10 @@ export type IssueOverrides = {
   dataCompetencia: Date;
   naturezaOperacao?: string;
   regimeEspecialTributacao?: number;
+  // Reforma Tributária (IBS/CBS) — override por nota; ausência = usa padrão do perfil.
+  ibsCbsSituacaoTributaria?: string;
+  ibsCbsClassificacaoTributaria?: string;
+  consumidorFinal?: boolean;
   tomadorCnpj?: string;
   tomadorCpf?: string;
   tomadorRazaoSocial?: string;

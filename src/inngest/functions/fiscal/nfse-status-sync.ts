@@ -1,20 +1,24 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { consultarNfse } from "@/http/focus-nfe/consultar-nfse";
+import { resolveNfseProviderByInvoiceType } from "@/features/fiscal/lib/providers/resolve-nfse-provider";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { decryptSecret } from "@/lib/crypto";
 import { S3 } from "@/lib/s3-client";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import type { FiscalEnvironment } from "@/generated/prisma/enums";
+import type { FocusNfseErro, FocusNfseStatus } from "@/http/focus-nfe/types";
 
 export const nfseStatusSync = inngest.createFunction(
   { id: "fiscal-nfse-status-sync", retries: 5 },
   { event: "fiscal/nfse.status-changed" },
   async ({ event, step }) => {
-    const { ref } = event.data as {
-      ref: string;
-      mode: "homologacao" | "producao" | null;
-    };
+    const { ref, status: webhookStatus, erros: webhookErros } =
+      event.data as {
+        ref: string;
+        mode: "homologacao" | "producao" | null;
+        status?: FocusNfseStatus | null;
+        erros?: FocusNfseErro[] | null;
+      };
 
     const invoice = await step.run("load-invoice", async () =>
       prisma.fiscalInvoice.findUnique({
@@ -40,10 +44,26 @@ export const nfseStatusSync = inngest.createFunction(
       if (!encryptedToken)
         throw new Error(`Token Focus NFe ausente no perfil para ref=${ref}`);
       const companyToken = decryptSecret(encryptedToken);
-      return consultarNfse(ref, fiscalEnvironment, companyToken);
+      const provider = resolveNfseProviderByInvoiceType(invoice.type);
+      return provider.consultar(ref, fiscalEnvironment, companyToken);
     });
 
-    if (focusData.status === "processando_autorizacao") return;
+    if (focusData.status === "processando_autorizacao") {
+      if (webhookStatus === "erro_autorizacao") {
+        await step.run("update-error-from-webhook", async () =>
+          prisma.fiscalInvoice.update({
+            where: { ref },
+            data: {
+              status: "ERRO",
+              errorMessage:
+                webhookErros?.[0]?.mensagem ?? "Erro desconhecido",
+              focusResponse: focusData as never,
+            },
+          }),
+        );
+      }
+      return;
+    }
 
     if (focusData.status === "autorizado") {
       const xmlStorageUrl = await step.run("download-xml", async () => {
@@ -117,13 +137,16 @@ export const nfseStatusSync = inngest.createFunction(
         }
       });
     } else if (focusData.status === "erro_autorizacao") {
+      const errorMessage =
+        focusData.erros?.[0]?.mensagem ??
+        webhookErros?.[0]?.mensagem ??
+        "Erro desconhecido";
       await step.run("update-error", async () =>
         prisma.fiscalInvoice.update({
           where: { ref },
           data: {
             status: "ERRO",
-            errorMessage:
-              focusData.erros?.[0]?.mensagem ?? "Erro desconhecido",
+            errorMessage,
             focusResponse: focusData as never,
           },
         }),

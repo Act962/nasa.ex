@@ -3,9 +3,9 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { consultarNfse } from "@/http/focus-nfe/consultar-nfse";
 import { FocusNfeHttpError } from "@/http/focus-nfe/client";
 import type { FiscalEnvironment } from "@/generated/prisma/enums";
+import { resolveNfseProviderByInvoiceType } from "@/features/fiscal/lib/providers/resolve-nfse-provider";
 import { resolveCompanyToken, focusStatusToDb } from "./utils";
 
 export const refreshFiscalInvoiceStatus = base
@@ -56,9 +56,15 @@ export const refreshFiscalInvoiceStatus = base
       });
     }
 
+    const provider = resolveNfseProviderByInvoiceType(invoice.type);
+
     let focusData;
     try {
-      focusData = await consultarNfse(invoice.ref, invoiceEnvironment, companyToken);
+      focusData = await provider.consultar(
+        invoice.ref,
+        invoiceEnvironment,
+        companyToken,
+      );
     } catch (err) {
       console.error("[fiscal/invoices/refresh-status] erro ao consultar Focus NFe:", err);
       if (err instanceof FocusNfeHttpError) {

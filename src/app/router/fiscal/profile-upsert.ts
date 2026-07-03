@@ -12,6 +12,8 @@ import { registrarWebhook } from "@/http/focus-nfe/registrar-webhook";
 import { FocusNfeHttpError } from "@/http/focus-nfe/client";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import type { FocusEmpresaResponse } from "@/http/focus-nfe/types";
+import { resolveNfseProvider } from "@/features/fiscal/lib/providers/resolve-nfse-provider";
+import type { NfseStandard } from "@/features/fiscal/lib/providers/nfse-provider";
 
 function encryptFocusTokens(empresa: FocusEmpresaResponse): {
   focusTokenProducao: string | null;
@@ -45,6 +47,7 @@ const upsertProfileInput = z
       .string()
       .regex(/^\d{7}$/, "Código IBGE deve ter 7 dígitos"),
     optanteSimplesNacional: z.boolean(),
+    simplesNacionalMei: z.boolean().optional(),
     regimeEspecialTributacao: z.string().nullable().optional(),
     logradouro: z.string(),
     numero: z.string(),
@@ -65,8 +68,21 @@ const upsertProfileInput = z
       ),
     defaultAliquotaIss: z.string(),
     defaultIssRetido: z.boolean(),
+    defaultTributacaoIssqn: z.number().int().min(1).max(4).default(1),
     defaultDiscriminacao: z.string().optional(),
+    ibsCbsSituacaoTributaria: z
+      .string()
+      .regex(/^\d{1,3}$/, "CST IBS/CBS deve ter 1 a 3 dígitos")
+      .nullable()
+      .optional(),
+    ibsCbsClassificacaoTributaria: z
+      .string()
+      .regex(/^\d{6}$/, "Classificação tributária deve ter 6 dígitos")
+      .nullable()
+      .optional(),
+    defaultConsumidorFinal: z.boolean().optional(),
     supportedByFocus: z.boolean(),
+    nfseStandard: z.enum(["MUNICIPAL", "NACIONAL"]).optional(),
     arquivoCertificadoBase64: z.string().optional(),
     senhaCertificado: z.string().optional(),
   })
@@ -98,6 +114,8 @@ export const fiscalProfileUpsert = base
           focusEmpresaId: true,
           focusWebhookIdProducao: true,
           focusWebhookIdHomologacao: true,
+          focusWebhookIdNfsenProducao: true,
+          focusWebhookIdNfsenHomologacao: true,
         },
       });
 
@@ -123,6 +141,36 @@ export const fiscalProfileUpsert = base
         supportedByFocus = input.supportedByFocus;
       }
 
+      // Município é a autoridade: a Focus reportando ausência de NFS-e municipal
+      // é restrição dura — o usuário não pode forçar MUNICIPAL num município que
+      // já migrou para o padrão nacional (a emissão falharia na prefeitura).
+      if (input.nfseStandard === "MUNICIPAL" && !supportedByFocus) {
+        throw errors.BAD_REQUEST({
+          message:
+            "Este município já migrou para o padrão NFS-e Nacional. Não é possível selecionar o padrão municipal.",
+        });
+      }
+
+      // Padrão derivado da Focus (município sem NFS-e municipal → nacional),
+      // respeitando override explícito vindo do formulário.
+      const nfseStandard: NfseStandard =
+        input.nfseStandard ?? (supportedByFocus ? "MUNICIPAL" : "NACIONAL");
+      const provider = resolveNfseProvider(nfseStandard);
+      // Focus rejeita habilita_nfse e habilita_nfsen_* ligados juntos — os padrões
+      // são mutuamente exclusivos. Sempre desligamos o lado oposto explicitamente.
+      const habilitacoesFocus: Record<string, boolean> =
+        nfseStandard === "NACIONAL"
+          ? {
+              habilita_nfsen_producao: true,
+              habilita_nfsen_homologacao: true,
+              habilita_nfse: false,
+            }
+          : {
+              habilita_nfse: true,
+              habilita_nfsen_producao: false,
+              habilita_nfsen_homologacao: false,
+            };
+
       if (focusEmpresaId !== null) {
         // Empresa já conhecida — confirma existência e verifica se município ainda bate
         try {
@@ -139,7 +187,9 @@ export const fiscalProfileUpsert = base
             ({ focusTokenProducao, focusTokenHomologacao } =
               encryptFocusTokens(empresa));
 
-            const updatePayload: Record<string, unknown> = { habilita_nfse: true };
+            const updatePayload: Record<string, unknown> = {
+              ...habilitacoesFocus,
+            };
             if (hasCertificado) {
               updatePayload.arquivo_certificado_base64 =
                 input.arquivoCertificadoBase64;
@@ -189,7 +239,9 @@ export const fiscalProfileUpsert = base
             ({ focusTokenProducao, focusTokenHomologacao } =
               encryptFocusTokens(empresaExistente));
 
-            const updatePayload: Record<string, unknown> = { habilita_nfse: true };
+            const updatePayload: Record<string, unknown> = {
+              ...habilitacoesFocus,
+            };
             if (hasCertificado) {
               updatePayload.arquivo_certificado_base64 =
                 input.arquivoCertificadoBase64;
@@ -225,7 +277,7 @@ export const fiscalProfileUpsert = base
               bairro: input.bairro,
               cep: parseInt(input.cep.replace(/\D/g, "")),
               uf: input.uf,
-              habilita_nfse: true,
+              ...habilitacoesFocus,
               ...(hasCertificado
                 ? {
                     arquivo_certificado_base64: input.arquivoCertificadoBase64,
@@ -269,6 +321,7 @@ export const fiscalProfileUpsert = base
         cnpj: _cnpj,
         cpf: _cpf,
         supportedByFocus: _supportedByFocusFromClient,
+        nfseStandard: _nfseStandardFromClient,
         ...profileData
       } = input;
 
@@ -279,6 +332,7 @@ export const fiscalProfileUpsert = base
           ...profileData,
           cnpj: documentoDigits,
           supportedByFocus,
+          nfseStandard,
           focusEmpresaRegistered,
           ...(focusEmpresaId !== null ? { focusEmpresaId } : {}),
           ...(focusTokenProducao !== null ? { focusTokenProducao } : {}),
@@ -289,6 +343,7 @@ export const fiscalProfileUpsert = base
           ...profileData,
           cnpj: documentoDigits,
           supportedByFocus,
+          nfseStandard,
           focusEmpresaRegistered,
           ...(focusEmpresaId !== null ? { focusEmpresaId } : {}),
           ...(focusTokenProducao !== null ? { focusTokenProducao } : {}),
@@ -297,10 +352,20 @@ export const fiscalProfileUpsert = base
         },
       });
 
+      // O gatilho registrado depende do padrão: evento "nfse" (municipal) ou
+      // "nfsen" (nacional), com IDs guardados em colunas separadas.
+      const isNacionalHook = provider.webhookEvent === "nfsen";
+      const producaoHookField = isNacionalHook
+        ? "focusWebhookIdNfsenProducao"
+        : "focusWebhookIdProducao";
+      const homologacaoHookField = isNacionalHook
+        ? "focusWebhookIdNfsenHomologacao"
+        : "focusWebhookIdHomologacao";
+
       const needsProducaoHook =
-        focusEmpresaRegistered && !existingProfile?.focusWebhookIdProducao;
+        focusEmpresaRegistered && !existingProfile?.[producaoHookField];
       const needsHomologacaoHook =
-        focusEmpresaRegistered && !existingProfile?.focusWebhookIdHomologacao;
+        focusEmpresaRegistered && !existingProfile?.[homologacaoHookField];
 
       if (needsProducaoHook || needsHomologacaoHook) {
         const webhookBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
@@ -308,7 +373,7 @@ export const fiscalProfileUpsert = base
         const webhookUrl = `${webhookBaseUrl}/api/focus-nfe/webhook?fiscalCompanyId=${savedProfile.id}${webhookSecret ? `&secret-key=${encodeURIComponent(webhookSecret)}` : ""}`;
 
         const registration = {
-          event: "nfse" as const,
+          event: provider.webhookEvent,
           url: webhookUrl,
           ...(cnpjDigits ? { cnpj: cnpjDigits } : { cpf: cpfDigits }),
         };
@@ -351,7 +416,7 @@ export const fiscalProfileUpsert = base
         const webhookUpdate: Record<string, string> = {};
 
         if (producaoResult.status === "fulfilled" && producaoResult.value) {
-          webhookUpdate.focusWebhookIdProducao = producaoResult.value.id;
+          webhookUpdate[producaoHookField] = producaoResult.value.id;
         } else if (producaoResult.status === "rejected") {
           console.error("[fiscal/upsert] registrarWebhook (PRODUCAO) falhou", {
             message:
@@ -362,7 +427,7 @@ export const fiscalProfileUpsert = base
         }
 
         if (homologacaoResult.status === "fulfilled" && homologacaoResult.value) {
-          webhookUpdate.focusWebhookIdHomologacao = homologacaoResult.value.id;
+          webhookUpdate[homologacaoHookField] = homologacaoResult.value.id;
         } else if (homologacaoResult.status === "rejected") {
           console.error(
             "[fiscal/upsert] registrarWebhook (HOMOLOGACAO) falhou",
@@ -385,6 +450,9 @@ export const fiscalProfileUpsert = base
 
       return { ok: true, focusEmpresaRegistered };
     } catch (err) {
+      // Erros oRPC intencionais (ex.: validação do padrão NFS-e) passam direto,
+      // sem virar INTERNAL_SERVER_ERROR.
+      if (err instanceof Error && err.name === "ORPCError") throw err;
       if (err instanceof FocusNfeHttpError) {
         console.error("[fiscal/upsert] FocusNfeHttpError", {
           status: err.status,

@@ -3,13 +3,9 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { emitirNfse } from "@/http/focus-nfe/emitir-nfse";
-import {
-  buildNfsePayload,
-  validateBeforeEmit,
-} from "@/http/focus-nfe/build-nfse-payload";
 import { FocusNfeHttpError } from "@/http/focus-nfe/client";
 import type { FiscalEnvironment } from "@/generated/prisma/enums";
+import { resolveNfseProvider } from "@/features/fiscal/lib/providers/resolve-nfse-provider";
 import { resolveCompanyToken, focusStatusToDb } from "./utils";
 
 export const issueFiscalInvoice = base
@@ -39,7 +35,11 @@ export const issueFiscalInvoice = base
       tomadorCep: z.string().optional(),
       discriminacao: z.string().optional(),
       naturezaOperacao: z.string().optional(),
-      regimeEspecialTributacao: z.number().int().min(1).max(6).optional(),
+      // enum da doc: 0=Nenhum,1,2,3,4,5,6,9.
+      regimeEspecialTributacao: z.number().int().min(0).max(9).optional(),
+      ibsCbsSituacaoTributaria: z.string().optional(),
+      ibsCbsClassificacaoTributaria: z.string().optional(),
+      consumidorFinal: z.boolean().optional(),
       environment: z.enum(["HOMOLOGACAO", "PRODUCAO"]).default("HOMOLOGACAO"),
     }),
   )
@@ -115,9 +115,14 @@ export const issueFiscalInvoice = base
       tomadorCep: input.tomadorCep,
       naturezaOperacao: input.naturezaOperacao,
       regimeEspecialTributacao: input.regimeEspecialTributacao,
+      ibsCbsSituacaoTributaria: input.ibsCbsSituacaoTributaria,
+      ibsCbsClassificacaoTributaria: input.ibsCbsClassificacaoTributaria,
+      consumidorFinal: input.consumidorFinal,
     };
 
-    const preflight = validateBeforeEmit(contract, profile, overrides);
+    const provider = resolveNfseProvider(profile.nfseStandard);
+
+    const preflight = provider.validate(contract, profile, overrides);
     if (!preflight.valid) {
       throw errors.BAD_REQUEST({ message: preflight.errors.join("; ") });
     }
@@ -136,10 +141,14 @@ export const issueFiscalInvoice = base
     }
     const ref = `forge-${contract.id}-${invoiceCount + 1}`;
 
-    const payload = buildNfsePayload(contract, profile, overrides);
     const fiscalEnvironment = input.environment as FiscalEnvironment;
 
-    console.log("[fiscal/issue] ambiente Focus NFe:", fiscalEnvironment);
+    console.log(
+      "[fiscal/issue] ambiente Focus NFe:",
+      fiscalEnvironment,
+      "padrão:",
+      provider.standard,
+    );
 
     let companyToken;
     try {
@@ -158,13 +167,16 @@ export const issueFiscalInvoice = base
     }
 
     let focusResponse;
+    let payload: unknown;
     try {
-      focusResponse = await emitirNfse(
+      ({ response: focusResponse, payload } = await provider.emitir({
         ref,
-        payload,
-        fiscalEnvironment,
+        contract,
+        profile,
+        overrides,
+        environment: fiscalEnvironment,
         companyToken,
-      );
+      }));
     } catch (err) {
       console.error(
         "[fiscal/invoices/issue] erro ao chamar Focus NFe (emitir):",
@@ -196,7 +208,7 @@ export const issueFiscalInvoice = base
           profileId: profile.id,
           contractId: contract.id,
           ref,
-          type: "NFSE",
+          type: provider.invoiceType,
           status: dbStatus,
           environment: fiscalEnvironment,
           valorServicos: contract.value,
@@ -218,7 +230,7 @@ export const issueFiscalInvoice = base
           }),
           errorMessage:
             dbStatus === "ERRO"
-              ? (String(focusResponse.mensagem_erro) ?? null)
+              ? (focusResponse.erros?.[0]?.mensagem ?? "Erro desconhecido")
               : null,
         },
       });

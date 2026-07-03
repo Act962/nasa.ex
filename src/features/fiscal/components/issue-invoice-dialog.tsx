@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -18,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -43,149 +43,17 @@ import { cn } from "@/lib/utils";
 import { useIssueFiscalInvoice } from "../hooks/use-fiscal-invoices";
 import { useFiscalProfile } from "../hooks/use-fiscal-profile";
 import { maskCnpj, maskCpf } from "../utils/document-masks";
+import {
+  UF_OPTIONS,
+  NATUREZA_OPERACAO_OPTIONS,
+  REGIME_ESPECIAL_OPTIONS,
+} from "../lib/issue-invoice-options";
+import {
+  issueInvoiceSchema,
+  type IssueInvoiceFormValues,
+} from "../schemas/issue-invoice-schema";
 import { MunicipioCombobox } from "./municipio-combobox";
 import type { CnpjWsResponse } from "@/http/cnpj-ws/client";
-
-const UF_OPTIONS = [
-  "AC",
-  "AL",
-  "AP",
-  "AM",
-  "BA",
-  "CE",
-  "DF",
-  "ES",
-  "GO",
-  "MA",
-  "MT",
-  "MS",
-  "MG",
-  "PA",
-  "PB",
-  "PR",
-  "PE",
-  "PI",
-  "RJ",
-  "RN",
-  "RS",
-  "RO",
-  "RR",
-  "SC",
-  "SP",
-  "SE",
-  "TO",
-] as const;
-
-const NATUREZA_OPERACAO_OPTIONS = [
-  { value: "1", label: "1 – Tributação no município" },
-  { value: "2", label: "2 – Tributação fora do município" },
-  { value: "3", label: "3 – Isenção" },
-  { value: "4", label: "4 – Imune" },
-  { value: "5", label: "5 – Exigibilidade suspensa por decisão judicial" },
-  { value: "6", label: "6 – Exigibilidade suspensa por proc. administrativo" },
-] as const;
-
-const REGIME_ESPECIAL_OPTIONS = [
-  { value: "1", label: "1 – Microempresa municipal" },
-  { value: "2", label: "2 – Estimativa" },
-  { value: "3", label: "3 – Sociedade de profissionais" },
-  { value: "4", label: "4 – Cooperativa" },
-  { value: "5", label: "5 – Microempresário individual (MEI)" },
-  { value: "6", label: "6 – Microempresário e EPP (ME EPP)" },
-] as const;
-
-const schema = z
-  .object({
-    tipoTomador: z.enum(["PF", "PJ"]),
-    environment: z.enum(["HOMOLOGACAO", "PRODUCAO"]),
-    dataCompetencia: z.string().min(1, "Competência obrigatória"),
-    discriminacao: z.string().optional(),
-    naturezaOperacao: z.string(),
-    regimeEspecialTributacao: z.string().optional(),
-    // PJ
-    tomadorCnpj: z.string().optional(),
-    tomadorRazaoSocial: z.string().optional(),
-    tomadorEmail: z.string().optional(),
-    tomadorLogradouro: z.string().optional(),
-    tomadorNumero: z.string().optional(),
-    tomadorComplemento: z.string().optional(),
-    tomadorBairro: z.string().optional(),
-    tomadorCodigoMunicipio: z.string().optional(),
-    tomadorUf: z.string().optional(),
-    tomadorCep: z.string().optional(),
-    // PF
-    tomadorCpf: z.string().optional(),
-    tomadorNome: z.string().optional(),
-  })
-  .superRefine((values, ctx) => {
-    if (values.tipoTomador === "PJ") {
-      const cnpj = (values.tomadorCnpj ?? "").replace(/\D/g, "");
-      if (cnpj.length !== 14)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "CNPJ do tomador inválido",
-          path: ["tomadorCnpj"],
-        });
-      if (!values.tomadorRazaoSocial)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Razão social obrigatória",
-          path: ["tomadorRazaoSocial"],
-        });
-      if (!values.tomadorCodigoMunicipio)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Código do município obrigatório",
-          path: ["tomadorCodigoMunicipio"],
-        });
-      if (!values.tomadorUf)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "UF obrigatória",
-          path: ["tomadorUf"],
-        });
-      if (!values.tomadorLogradouro)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Logradouro obrigatório",
-          path: ["tomadorLogradouro"],
-        });
-      if (!values.tomadorNumero)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Número obrigatório",
-          path: ["tomadorNumero"],
-        });
-      if (!values.tomadorBairro)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Bairro obrigatório",
-          path: ["tomadorBairro"],
-        });
-      if ((values.tomadorCep ?? "").replace(/\D/g, "").length !== 8)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "CEP inválido (deve ter 8 dígitos)",
-          path: ["tomadorCep"],
-        });
-    } else {
-      const cpf = (values.tomadorCpf ?? "").replace(/\D/g, "");
-      if (cpf.length !== 11)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "CPF do tomador inválido",
-          path: ["tomadorCpf"],
-        });
-      if (!values.tomadorNome)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Nome obrigatório",
-          path: ["tomadorNome"],
-        });
-    }
-  });
-
-type FormValues = z.infer<typeof schema>;
 
 interface ClientData {
   name?: string | null;
@@ -269,11 +137,12 @@ export function IssueInvoiceDialog({
 
   const detectedTipo = detectTipoTomador(clientData?.document);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  const form = useForm<IssueInvoiceFormValues>({
+    resolver: zodResolver(issueInvoiceSchema),
     defaultValues: {
       tipoTomador: detectedTipo,
       environment: "HOMOLOGACAO" as const,
+      nfseStandard: undefined,
       dataCompetencia: currentMonthValue(),
       discriminacao: "",
       naturezaOperacao: "1",
@@ -295,6 +164,7 @@ export function IssueInvoiceDialog({
 
   const tipoTomador = form.watch("tipoTomador");
   const environment = form.watch("environment");
+  const isNacional = profile?.nfseStandard === "NACIONAL";
   const [step, setStep] = useState<"form" | "preview">("form");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [preflightErrors, setPreflightErrors] = useState<string[]>([]);
@@ -397,12 +267,23 @@ export function IssueInvoiceDialog({
 
   useEffect(() => {
     if (!profile) return;
+    form.setValue("nfseStandard", profile.nfseStandard);
+    form.setValue(
+      "ibsCbsSituacaoTributaria",
+      profile.ibsCbsSituacaoTributaria ?? "",
+    );
+    form.setValue(
+      "ibsCbsClassificacaoTributaria",
+      profile.ibsCbsClassificacaoTributaria ?? "",
+    );
+    form.setValue("consumidorFinal", profile.defaultConsumidorFinal ?? false);
+    const nacional = profile.nfseStandard === "NACIONAL";
     const errors: string[] = [];
-    if (!profile.supportedByFocus)
+    if (!nacional && !profile.supportedByFocus)
       errors.push("Município do prestador não integrado na Focus NFe.");
     if (!profile.focusEmpresaRegistered)
       errors.push("Empresa não cadastrada na Focus NFe.");
-    if (!profile.inscricaoMunicipal)
+    if (!nacional && !profile.inscricaoMunicipal)
       errors.push("Inscrição municipal não configurada.");
     if (!profile.defaultItemListaServico)
       errors.push("Item lista de serviço não configurado.");
@@ -411,14 +292,14 @@ export function IssueInvoiceDialog({
     if (Number(contractValue) <= 0)
       errors.push("Valor do contrato deve ser maior que zero.");
     setPreflightErrors(errors);
-  }, [profile, contractValue]);
+  }, [profile, contractValue, form]);
 
   const handleReview = async () => {
     const isValid = await form.trigger();
     if (isValid) setStep("preview");
   };
 
-  const onSubmit = async (values: FormValues) => {
+  const onSubmit = async (values: IssueInvoiceFormValues) => {
     try {
       const result = await issue.mutateAsync({
         contractId,
@@ -430,6 +311,11 @@ export function IssueInvoiceDialog({
         regimeEspecialTributacao: values.regimeEspecialTributacao
           ? Number(values.regimeEspecialTributacao)
           : undefined,
+        ibsCbsSituacaoTributaria:
+          values.ibsCbsSituacaoTributaria?.trim() || undefined,
+        ibsCbsClassificacaoTributaria:
+          values.ibsCbsClassificacaoTributaria?.trim() || undefined,
+        consumidorFinal: values.consumidorFinal,
         tomadorCnpj: values.tomadorCnpj,
         tomadorCpf: values.tomadorCpf,
         tomadorRazaoSocial: values.tomadorRazaoSocial,
@@ -500,7 +386,8 @@ export function IssueInvoiceDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="size-5 text-[#7C3AED]" />
-            Emitir NFS-e — Contrato #{String(contractNumber).padStart(4, "0")}
+            Emitir NFS-e {isNacional ? "Nacional " : ""}— Contrato #
+            {String(contractNumber).padStart(4, "0")}
           </DialogTitle>
           <p className="text-xs text-muted-foreground pt-0.5">
             {step === "form"
@@ -629,6 +516,8 @@ export function IssueInvoiceDialog({
                     message={formErrors.tomadorRazaoSocial?.message}
                   />
                 </div>
+                {!isNacional && (
+                <>
                 <div className="sm:col-span-2 space-y-1.5">
                   <Label>
                     Município <span className="text-destructive">*</span>
@@ -725,6 +614,14 @@ export function IssueInvoiceDialog({
                   />
                   <FieldError message={formErrors.tomadorCep?.message} />
                 </div>
+                </>
+                )}
+                {isNacional && (
+                  <p className="sm:col-span-2 text-xs text-muted-foreground">
+                    NFS-e Nacional: o endereço do tomador não é necessário —
+                    apenas o CNPJ.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -850,6 +747,52 @@ export function IssueInvoiceDialog({
                     />
                   </div>
                 </div>
+
+                {isNacional && (
+                  <>
+                    <Separator />
+
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Reforma Tributária (IBS/CBS)
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>Situação Tributária (CST)</Label>
+                        <Input
+                          {...form.register("ibsCbsSituacaoTributaria")}
+                          inputMode="numeric"
+                          placeholder="Padrão do perfil"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Classificação Tributária (cClassTrib)</Label>
+                        <Input
+                          {...form.register("ibsCbsClassificacaoTributaria")}
+                          inputMode="numeric"
+                          placeholder="Padrão do perfil"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between rounded-md border p-3">
+                      <div className="space-y-0.5">
+                        <Label>Consumidor final</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Marque quando o tomador é consumidor final do serviço.
+                        </p>
+                      </div>
+                      <Controller
+                        control={form.control}
+                        name="consumidorFinal"
+                        render={({ field }) => (
+                          <Switch
+                            checked={field.value ?? false}
+                            onCheckedChange={field.onChange}
+                          />
+                        )}
+                      />
+                    </div>
+                  </>
+                )}
 
                 <Separator />
 

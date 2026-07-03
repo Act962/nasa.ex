@@ -1,7 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { inngest } from "@/inngest/client";
+import type { FocusNfseErro, FocusNfseStatus } from "@/http/focus-nfe/types";
 
 export const runtime = "nodejs";
+
+const FOCUS_NFSE_STATUSES: readonly FocusNfseStatus[] = [
+  "processando_autorizacao",
+  "autorizado",
+  "erro_autorizacao",
+  "cancelado",
+];
+
+function parseWebhookStatus(value: unknown): FocusNfseStatus | null {
+  return typeof value === "string" &&
+    (FOCUS_NFSE_STATUSES as readonly string[]).includes(value)
+    ? (value as FocusNfseStatus)
+    : null;
+}
+
+function parseWebhookErros(value: unknown): FocusNfseErro[] | null {
+  if (!Array.isArray(value)) return null;
+  const erros = value.flatMap((erro) => {
+    if (typeof erro !== "object" || erro === null) return [];
+    const { codigo, mensagem, correcao } = erro as Record<string, unknown>;
+    if (typeof mensagem !== "string") return [];
+    return [
+      {
+        codigo: typeof codigo === "string" ? codigo : null,
+        mensagem,
+        correcao: typeof correcao === "string" ? correcao : null,
+      } satisfies FocusNfseErro,
+    ];
+  });
+  return erros.length > 0 ? erros : null;
+}
 
 export async function POST(req: NextRequest) {
   const webhookSecret = process.env.FOCUS_NFE_WEBHOOK_SECRET;
@@ -13,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   let body: Record<string, unknown>;
   try {
-    body = await JSON.parse(await req.text());
+    body = JSON.parse(await req.text());
     console.log(body);
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
@@ -28,10 +60,13 @@ export async function POST(req: NextRequest) {
   const mode =
     modeParam === "homologacao" || modeParam === "producao" ? modeParam : null;
 
+  const status = parseWebhookStatus(body.status);
+  const erros = parseWebhookErros(body.erros);
+
   try {
     await inngest.send({
       name: "fiscal/nfse.status-changed",
-      data: { ref, mode },
+      data: { ref, mode, status, erros },
     });
   } catch (err) {
     console.error("[focus-nfe/webhook] failed to dispatch inngest event", err);

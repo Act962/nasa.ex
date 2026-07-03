@@ -62,6 +62,7 @@ interface FiscalInvoiceItem {
   id: string;
   ref: string;
   status: keyof typeof STATUS_CONFIG;
+  type: "NFSE" | "NFSE_NACIONAL";
   numero: string | null;
   valorServicos: string;
   dataCompetencia: string;
@@ -225,6 +226,14 @@ export function FiscalInvoiceCard({ contract }: FiscalInvoiceCardProps) {
                         </p>
                         <Badge className={cn("text-[10px]", statusConfig.className)}>
                           {statusConfig.label}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] font-normal"
+                        >
+                          {invoice.type === "NFSE_NACIONAL"
+                            ? "Nacional"
+                            : "Municipal"}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">

@@ -49,6 +49,49 @@ export type NfsePayload = {
   servico: NfseServico;
 };
 
+export type NfseNacionalTomador =
+  | { cnpj_tomador: string; cpf_tomador?: never }
+  | { cpf_tomador: string; cnpj_tomador?: never };
+
+export type NfseNacionalPayload = {
+  data_emissao: string;
+  serie_dps: number;
+  numero_dps?: number;
+  data_competencia?: string;
+  emitente_dps: number;
+  codigo_municipio_emissora: number;
+  cnpj_prestador?: string;
+  cpf_prestador?: string;
+  codigo_opcao_simples_nacional: number;
+  regime_especial_tributacao?: number;
+  cnpj_tomador?: string;
+  cpf_tomador?: string;
+  codigo_municipio_prestacao: number;
+  // razao_social_tomador → xNome: nome/razão social do tomador (obrigatório no bloco toma).
+  razao_social_tomador: string;
+  codigo_tributacao_nacional_iss: string;
+  descricao_servico: string;
+  valor_servico: number;
+  // tributacao_iss = situação tributária do ISSQN (tribISSQN, enum 1–4).
+  tributacao_iss: number;
+  // aliquota = percentual do ISS (pAliq) — campo separado da situação tributária.
+  aliquota: number;
+  // tipo_retencao_iss → tpRetISSQN: 1=Não retido, 2=Retido pelo tomador, 3=Retido pelo intermediário.
+  tipo_retencao_iss: number;
+
+  // Reforma Tributária (IBS/CBS) — só presentes quando a empresa configurou o grupo.
+  // finalidade_emissao: 0 = NFS-e regular.
+  finalidade_emissao?: number;
+  // consumidor_final: 0 = não, 1 = sim.
+  consumidor_final?: number;
+  // indicador_destinatario: 0 = destinatário é o adquirente (único caso suportado hoje).
+  indicador_destinatario?: number;
+  // ibs_cbs_situacao_tributaria → CST do IBS/CBS.
+  ibs_cbs_situacao_tributaria?: string;
+  // ibs_cbs_classificacao_tributaria → cClassTrib do IBS/CBS.
+  ibs_cbs_classificacao_tributaria?: string;
+};
+
 export type FocusNfseStatus =
   | "processando_autorizacao"
   | "autorizado"
@@ -56,9 +99,9 @@ export type FocusNfseStatus =
   | "cancelado";
 
 export type FocusNfseErro = {
-  codigo: string;
+  codigo: string | null;
   mensagem: string;
-  correcao?: string;
+  correcao?: string | null;
 };
 
 export type FocusNfseResponse = {
@@ -93,7 +136,7 @@ export type FocusCancelResponse =
   | { status: "erro_cancelamento"; erros: FocusNfseErro[] };
 
 export type FocusWebhookRegistration = {
-  event: "nfse";
+  event: "nfse" | "nfsen";
   url: string;
   cnpj?: string;
   cpf?: string;

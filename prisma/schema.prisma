@@ -7254,6 +7254,12 @@ enum FiscalInvoiceStatus {
 
 enum FiscalInvoiceType {
   NFSE
+  NFSE_NACIONAL
+}
+
+enum NfseStandard {
+  MUNICIPAL
+  NACIONAL
 }
 
 enum TomadorType {
@@ -7273,7 +7279,12 @@ model FiscalCompanyProfile {
   inscricaoMunicipal       String  @map("inscricao_municipal")
   codigoMunicipio          String  @map("codigo_municipio")
   optanteSimplesNacional   Boolean @default(false) @map("optante_simples_nacional")
+  // MEI: codigo_opcao_simples_nacional = 2 (distinto de ME/EPP = 3) na DPS nacional.
+  simplesNacionalMei       Boolean @default(false) @map("simples_nacional_mei")
   regimeEspecialTributacao String? @map("regime_especial_tributacao")
+
+  nfseStandard    NfseStandard @default(MUNICIPAL) @map("nfse_standard")
+  defaultSerieDps Int?         @default(1) @map("default_serie_dps")
 
   logradouro  String
   numero      String
@@ -7285,7 +7296,14 @@ model FiscalCompanyProfile {
   defaultItemListaServico String  @map("default_item_lista_servico")
   defaultAliquotaIss      Decimal @map("default_aliquota_iss") @db.Decimal(5, 4)
   defaultIssRetido        Boolean @default(false) @map("default_iss_retido")
+  // tribISSQN (DPS nacional): 1=Operação tributável, 2=Imunidade, 3=Exportação, 4=Não incidência.
+  defaultTributacaoIssqn  Int     @default(1) @map("default_tributacao_issqn")
   defaultDiscriminacao    String? @map("default_discriminacao")
+
+  // Reforma Tributária (IBS/CBS) — só entram na DPS nacional quando CST + classificação preenchidos.
+  ibsCbsSituacaoTributaria      String?  @map("ibs_cbs_situacao_tributaria")
+  ibsCbsClassificacaoTributaria String?  @map("ibs_cbs_classificacao_tributaria")
+  defaultConsumidorFinal        Boolean  @default(false) @map("default_consumidor_final")
 
   environment                 FiscalEnvironment @default(HOMOLOGACAO)
   focusEmpresaRegistered      Boolean           @default(false) @map("focus_empresa_registered")
@@ -7296,6 +7314,8 @@ model FiscalCompanyProfile {
   focusCertificadoUploadedAt  DateTime?         @map("focus_certificado_uploaded_at")
   focusWebhookIdProducao      String?           @map("focus_webhook_id_producao")
   focusWebhookIdHomologacao   String?           @map("focus_webhook_id_homologacao")
+  focusWebhookIdNfsenProducao    String?        @map("focus_webhook_id_nfsen_producao")
+  focusWebhookIdNfsenHomologacao String?        @map("focus_webhook_id_nfsen_homologacao")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

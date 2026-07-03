@@ -107,7 +107,7 @@ A maioria dos documentos (NFe, NFSe, etc) é **assíncrona**. O padrão é:
 **Emissão / documentos**
 - `POST /v2/nfse?ref=...` · `GET /v2/nfse/{ref}` · `POST /v2/nfse/{ref}/cancelamento` · `POST /v2/nfse/{ref}/email`
 - `POST /v2/nfe?ref=...` · `GET /v2/nfe/{ref}` · `POST /v2/nfe/{ref}/cancelamento` · `POST /v2/nfe/{ref}/carta_correcao`
-- `POST /v2/nfse_nacional?ref=...` · `GET /v2/nfse_nacional/{ref}` · `POST /v2/nfse_nacional/{ref}/cancelamento`
+- **NFS-e Nacional** (padrão nacional, endpoint `nfsen`): `POST /v2/nfsen?ref=...` · `GET /v2/nfsen/{ref}` · `DELETE /v2/nfsen/{ref}` (cancelamento, body `{ justificativa }`)
 
 **Cadastro de empresa (emitente)**
 - `POST /v2/empresas` · `GET /v2/empresas/{id}` · `PUT /v2/empresas/{id}` · `DELETE /v2/empresas/{id}`
@@ -239,8 +239,93 @@ Isso espelha o padrão "BYO" (bring-your-own) que já existe pra IA e pros gatew
 
 ---
 
+## 8. Implementação atual — Municipal x Nacional (padrão nacional / `nfsen`)
+
+A feature `fiscal` suporta os dois padrões de NFS-e, selecionados por empresa:
+
+- **`NfseStandard` (enum Prisma)**: `MUNICIPAL` | `NACIONAL`, guardado em `FiscalCompanyProfile.nfseStandard`.
+  Derivado no `profile-upsert` a partir do `habilita_nfse` que a Focus reporta para o município
+  (município com NFS-e municipal integrada → `MUNICIPAL`; caso contrário → `NACIONAL`), com **override manual**
+  no formulário (`fiscal-profile-form`).
+  - **Restrição dura (município é a autoridade)**: o override respeita a Focus só num sentido. Forçar
+    `MUNICIPAL` quando `habilita_nfse = false` (município já migrou para o nacional) é **rejeitado** no
+    `profile-upsert` com `BAD_REQUEST` ("Este município já migrou para o padrão NFS-e Nacional..."), pois a
+    emissão municipal falharia na prefeitura. O formulário espelha isso **desabilitando** o botão `MUNICIPAL`
+    quando `supportedByFocus` é falso. Override para `NACIONAL` continua livre (válido em convivência).
+- **`FiscalInvoiceType`**: `NFSE` (municipal) | `NFSE_NACIONAL` (nacional) — gravado em cada `FiscalInvoice`.
+
+### Injeção de dependência (strategy)
+Os handlers não ramificam por padrão inline. Cada operação resolve um `NfseProvider`
+(`src/features/fiscal/lib/providers/`):
+
+- `nfse-provider.ts` — interface (`validate`, `emitir`, `consultar`, `cancelar`, `webhookEvent`, `invoiceType`).
+- `municipal-nfse-provider.ts` — endpoints `/nfse`, evento de webhook `nfse`.
+- `nacional-nfse-provider.ts` — endpoints `/nfsen`, evento de webhook `nfsen`.
+- `resolve-nfse-provider.ts` — `resolveNfseProvider(standard)` (emissão, por `profile.nfseStandard`) e
+  `resolveNfseProviderByInvoiceType(type)` (consulta/cancel/sync, por `invoice.type`).
+
+`issue.ts`, `cancel.ts`, `refresh-status.ts` e o Inngest `nfse-status-sync` delegam ao provider resolvido.
+
+### Habilitação e webhook por padrão
+No `profile-upsert`, o cadastro/atualização da empresa na Focus envia `habilita_nfse` (municipal) **ou**
+`habilita_nfsen_producao/homologacao` (nacional). Os gatilhos são registrados pelo `provider.webhookEvent`
+correspondente e os IDs guardados em colunas separadas: `focusWebhookId{Producao,Homologacao}` (nfse) e
+`focusWebhookIdNfsen{Producao,Homologacao}` (nfsen). O receiver (`/api/focus-nfe/webhook`) e o `?mode=`
+dual-ambiente são compartilhados — o `nfse-status-sync` decide o endpoint de consulta pelo `invoice.type`.
+
+### Campos do DPS nacional (`/nfsen`) reaproveitados do perfil
+`codigo_tributacao_nacional_iss` ← `defaultItemListaServico`; **`tributacao_iss` ← `defaultTributacaoIssqn`**
+(situação tributária do ISSQN → `tribISSQN`, enum **1–4**: 1=Operação tributável, 2=Imunidade, 3=Exportação,
+4=Não incidência — selecionável por dropdown no formulário, default 1); **`aliquota` ← `defaultAliquotaIss`**
+(percentual do ISS → `pAliq`, campo **separado** da situação — não confundir: enfiar a alíquota no
+`tributacao_iss` gera `erro_validacao_schema` "value '5' is not an element of the set {1,2,3,4}");
+`codigo_municipio_emissora` ← `codigoMunicipio`; `serie_dps` ← `defaultSerieDps` (numeração do `numero_dps`
+delegada à config da empresa na Focus via `serie_nfsen_*`/`proximo_numero_nfsen_*`).
+- **`razao_social_tomador` ← `tomadorRazaoSocial` (PJ) / `tomadorNome` (PF)** → `xNome`. Obrigatório: o bloco
+  `toma` do schema SPED exige ao menos `CAEPF`/`IM`/`xNome`. Validado no preflight (`validateNacionalBeforeEmit`).
+- **`tipo_retencao_iss` ← `defaultIssRetido`** → `tpRetISSQN` (1=Não retido, 2=Retido pelo tomador,
+  3=Retido pelo intermediário). O bloco `tribMun` exige esse filho; hoje mapeamos `false→1`, `true→2`.
+- **`data_competencia` ← `overrides.dataCompetencia`** → `dCompet`, formatado como **`YYYY-MM-DD`** (o schema
+  recusa datetime ISO completo). O tomador nacional dispensa endereço completo (só documento + nome).
+
+### Reforma Tributária (IBS/CBS) — bloco novo do DPS nacional
+
+A referência de campos da Focus (`campos.focusnfe.com.br/nfse_nacional/EmissaoDPSXml.html`) trouxe o
+grupo da Reforma Tributária. Implementado em `buildReformaTributaria` (`build-nfse-nacional-payload.ts`),
+**enviado só quando configurado** (rollout seguro — perfis sem IBS/CBS emitem exatamente como antes):
+
+- Config no perfil (`FiscalCompanyProfile`): `ibsCbsSituacaoTributaria` (CST), `ibsCbsClassificacaoTributaria`
+  (cClassTrib) e `defaultConsumidorFinal`. Editáveis no card **"Reforma Tributária (IBS/CBS)"** do
+  formulário de perfil (só aparece quando `nfseStandard = NACIONAL`).
+- Override por nota: bloco **Avançado** do `issue-invoice-dialog` (CST, cClassTrib e switch "Consumidor final").
+  Vazio ⇒ usa o padrão do perfil.
+- Payload: quando **CST e cClassTrib** estão presentes, o builder inclui `ibs_cbs_situacao_tributaria`,
+  `ibs_cbs_classificacao_tributaria`, `finalidade_emissao: 0`, `indicador_destinatario: 0` e
+  `consumidor_final` (0/1). Preflight valida consistência (os dois juntos; CST 1–3 díg., cClassTrib 6 díg.).
+
+### Correções de conformidade (mesma frente)
+
+- **`codigo_opcao_simples_nacional`** agora distingue **MEI** (`2`) via `simplesNacionalMei` no perfil
+  (`1`=não optante, `2`=MEI, `3`=ME/EPP). Antes MEI saía como `3`.
+- **`regime_especial_tributacao`** passou a ter default `0` (Nenhum) quando não configurado — a doc marca
+  o campo como obrigatório. Enum ampliado no issue router para `0–9`.
+- **`errorMessage`** em `invoices/issue.ts` lê `focusResponse.erros?.[0]?.mensagem` (antes usava
+  `mensagem_erro`, campo inexistente em `FocusNfseResponse` → gravava `"undefined"`).
+- ⚠️ **Pendência (verificar em homologação):** a doc nomeia a alíquota do ISS como
+  `percentual_aliquota_relativa_municipio`, mas ainda enviamos `aliquota`. Marcado com `TODO` no builder —
+  confirmar via emissão de teste antes de renomear (evita zerar o ISS).
+
+### Fora de escopo (extensões futuras)
+
+`ibs/cbs_*_diferimento`, `documentos_referenciados`, grupo PIS/COFINS/CST e campos de imóvel/obra.
+
+---
+
 ### Referências
 - Documentação FocusNFe: https://doc.focusnfe.com.br/
+- NFS-e Nacional (emitir): https://doc.focusnfe.com.br/reference/emitir_dps_nacional
+- NFS-e Nacional (consultar): https://doc.focusnfe.com.br/reference/consultar_nfse_nacional
+- NFS-e Nacional (cancelar): https://doc.focusnfe.com.br/reference/cancelar_nfse_nacional
 - Índice machine-readable (p/ agentes): https://doc.focusnfe.com.br/llms.txt
 - Autenticação: https://doc.focusnfe.com.br/reference/autenticacao.md
 - NFSe: https://doc.focusnfe.com.br/reference/nfse.md
