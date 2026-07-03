@@ -23,7 +23,10 @@ import {
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
-import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  resolveOutboundProvider,
+  mapOutboundError,
+} from "@/features/tracking-chat/lib/providers";
 
 export const createTextMessage = base
   .use(requiredAuthMiddleware)
@@ -313,6 +316,9 @@ export const createTextMessage = base
       };
     } catch (e) {
       console.log(e);
-      throw e;
+      // Erros do caminho outbound (instância ausente, credenciais Meta
+      // incompletas, resposta inválida do provider, janela 24h) viram
+      // BAD_REQUEST estruturado com `data.code` (followup #14).
+      throw mapOutboundError(e, errors);
     }
   });

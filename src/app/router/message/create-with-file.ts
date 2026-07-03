@@ -21,7 +21,10 @@ import {
   shouldSkipUazapiForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
-import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  resolveOutboundProvider,
+  mapOutboundError,
+} from "@/features/tracking-chat/lib/providers";
 import { v4 as uuidv4 } from "uuid";
 
 export const createMessageWithFile = base
@@ -48,7 +51,7 @@ export const createMessageWithFile = base
       quotedMessageId: z.string().optional(),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
     try {
       const conv = await prisma.conversation.findUnique({
         where: { id: input.conversationId },
@@ -234,6 +237,6 @@ export const createMessageWithFile = base
       };
     } catch (e) {
       console.log(e);
-      throw e;
+      throw mapOutboundError(e, errors);
     }
   });

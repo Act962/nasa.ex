@@ -24,12 +24,16 @@ export const useMetaPhoneStatus = (trackingId: string, enabled = true) => {
  * e/ou credenciais cifradas). Sem segredo em claro no client.
  */
 
-export const useWhatsAppProviderSettings = (trackingId: string) => {
-  return useQuery(
-    orpc.integrations.getProviderSettings.queryOptions({
+export const useWhatsAppProviderSettings = (
+  trackingId: string,
+  options?: { enabled?: boolean },
+) => {
+  return useQuery({
+    ...orpc.integrations.getProviderSettings.queryOptions({
       input: { trackingId },
     }),
-  );
+    enabled: options?.enabled ?? true,
+  });
 };
 
 export const useUpdateWhatsAppProviderSettings = (trackingId: string) => {

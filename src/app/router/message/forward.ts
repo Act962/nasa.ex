@@ -6,7 +6,10 @@ import {
 } from "@/features/tracking-chat/lib/forward-strategies";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 import { MessageChannel } from "@/generated/prisma/enums";
-import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  resolveOutboundProvider,
+  serializeOutboundError,
+} from "@/features/tracking-chat/lib/providers";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -110,14 +113,18 @@ export const forwardMessageHandler = base
     );
 
     return {
-      results: results.map((result, i) =>
-        result.status === "fulfilled"
-          ? result.value
-          : {
-              conversationId: input.conversationIds[i],
-              success: false,
-              error: String((result as PromiseRejectedResult).reason),
-            },
-      ),
+      results: results.map((result, i) => {
+        if (result.status === "fulfilled") return result.value;
+        // Preserva code/feature do OutboundProviderError por destino
+        // (followup #15) — frontend renderiza conforme o motivo.
+        const serialized = serializeOutboundError(result.reason);
+        return {
+          conversationId: input.conversationIds[i],
+          success: false as const,
+          error: serialized.message,
+          code: serialized.code,
+          feature: serialized.feature,
+        };
+      }),
     };
   });
