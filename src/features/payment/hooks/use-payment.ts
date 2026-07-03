@@ -81,15 +81,23 @@ export function useFinishWebauthnAuth() {
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
-export function usePaymentDashboard(month?: number, year?: number) {
-  return useQuery(
-    orpc.payment.dashboard.get.queryOptions({ input: { month, year } })
-  );
+export function usePaymentDashboard(params: {
+  month?: number;
+  year?: number;
+  dateFrom?: string;
+  dateTo?: string;
+}) {
+  return useQuery(orpc.payment.dashboard.get.queryOptions({ input: params }));
 }
 
-export function useCashflow(month?: number, year?: number) {
+export function useCashflow(params: {
+  month?: number;
+  year?: number;
+  dateFrom?: string;
+  dateTo?: string;
+}) {
   return useQuery(
-    orpc.payment.dashboard.cashflow.queryOptions({ input: { month, year } })
+    orpc.payment.dashboard.cashflow.queryOptions({ input: params }),
   );
 }
 
@@ -98,15 +106,23 @@ export function useCashflow(month?: number, year?: number) {
 export function usePaymentEntries(params: {
   type?: "RECEIVABLE" | "PAYABLE";
   status?: "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED";
+  statuses?: Array<
+    "PENDING_APPROVAL" | "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED"
+  >;
   search?: string;
   page?: number;
   perPage?: number;
   dateFrom?: string;
   dateTo?: string;
+  paidFrom?: string;
+  paidTo?: string;
+  enabled?: boolean;
 }) {
-  return useQuery(
-    orpc.payment.entries.list.queryOptions({ input: params })
-  );
+  const { enabled = true, ...rest } = params;
+  return useQuery({
+    ...orpc.payment.entries.list.queryOptions({ input: rest }),
+    enabled,
+  });
 }
 
 export function useCreatePaymentEntry() {

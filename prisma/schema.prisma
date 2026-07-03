@@ -613,6 +613,19 @@ model TrackingCardConfig {
   trackingId   String   @unique @map("tracking_id")
   fields       Json     @default("[]")
   showSlaTimer Boolean  @default(true) @map("show_sla_timer")
+
+  // Cesta de compra do lead — ícone colorido no card indicando quando foi a
+  // última compra (Payment RECEIVABLE pago OU ForgeContract ativo).
+  //   basketRecentDays  → verde (comprou até N dias atrás)
+  //   basketMediumDays  → amarelo (entre recent e medium)
+  //   basketLongDays    → laranja (entre medium e long)
+  //   > long           → vermelho (compra antiga)
+  //   sem compra       → cinza
+  showPurchaseBasket  Boolean @default(true) @map("show_purchase_basket")
+  basketRecentDays    Int     @default(30) @map("basket_recent_days")
+  basketMediumDays    Int     @default(60) @map("basket_medium_days")
+  basketLongDays      Int     @default(90) @map("basket_long_days")
+
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
