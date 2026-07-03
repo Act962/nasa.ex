@@ -172,9 +172,9 @@ function MiniCard({
   });
 
   const time = dayjs(appt.startsAt).format("HH:mm");
-  const clientName =
+  const displayTitle =
+    (appt.title ?? "").replace(/^agendamento:\s*/i, "").trim() ||
     appt.lead?.name ||
-    (appt.title ?? "").replace(/^agendamento:\s*/i, "") ||
     "Agendamento";
 
   const cover =
@@ -208,7 +208,7 @@ function MiniCard({
         isCancelled && !drag.isDragging && "opacity-50",
       )}
       style={{ backgroundColor: color, height: `${CARD_HEIGHT}px` }}
-      title={`${time} ${clientName}${appt.agenda?.name ? ` · ${appt.agenda.name}` : ""}`}
+      title={`${time} ${displayTitle}${appt.agenda?.name ? ` · ${appt.agenda.name}` : ""}`}
     >
       <div
         className="absolute inset-0"
@@ -240,7 +240,7 @@ function MiniCard({
             (isCancelled || isDone) && "line-through decoration-white/80 decoration-[1px]",
           )}
         >
-          {clientName}
+          {displayTitle}
         </div>
         <div className="flex w-full items-center justify-center gap-1.5 leading-none">
           <span className="text-[9px] font-semibold text-white/95">{time}</span>
@@ -750,11 +750,10 @@ export function AgendaMonthCalendar({
                               {dayAppts.slice(MAX_VISIBLE).map((a) => {
                                 const t = dayjs(a.startsAt).format("HH:mm");
                                 const name =
+                                  (a.title ?? "")
+                                    .replace(/^agendamento:\s*/i, "")
+                                    .trim() ||
                                   a.lead?.name ||
-                                  (a.title ?? "").replace(
-                                    /^agendamento:\s*/i,
-                                    "",
-                                  ) ||
                                   "Agendamento";
                                 return (
                                   <button
