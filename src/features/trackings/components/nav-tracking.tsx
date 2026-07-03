@@ -71,7 +71,6 @@ export function NavTracking() {
       href: `/tracking/${params.trackingId}/workflows`,
       icon: <ZapIcon />,
     },
-
     {
       label: "Configurações",
       href: `/tracking/${params.trackingId}/settings`,
