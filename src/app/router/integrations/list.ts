@@ -20,6 +20,9 @@ export const getIntegration = base
       where: {
         trackingId: input.trackingId,
       },
+      // Sem `apiKey`/`baseUrl`: são segredos e não podem trafegar pelo
+      // front do chat. Quem precisa deles (fluxo de conexão de instância)
+      // usa a procedure dedicada `integrations.getConnectionSecrets`.
       select: {
         id: true,
         instanceId: true,
@@ -27,10 +30,8 @@ export const getIntegration = base
         profileName: true,
         status: true,
         provider: true,
-        apiKey: true,
         isBusiness: true,
         phoneNumber: true,
-        baseUrl: true,
       },
     });
     return instances;

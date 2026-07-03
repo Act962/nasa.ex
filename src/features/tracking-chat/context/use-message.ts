@@ -1,10 +1,18 @@
 import { create } from "zustand";
 import { Message } from "../types";
+import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 
+// Sinais não-sensíveis da instância — o token Uazapi NÃO vive mais no
+// front. `instanceId`/`status` servem só de proxy pra "instância
+// configurada/conectada" nas condicionais de UI. Credenciais são
+// resolvidas server-side (`resolveOutboundProvider`).
 interface MessageState {
-  token: string | null;
-  baseUrl: string | null;
-  setInstance: (data: { token: string | null; baseUrl: string | null }) => void;
+  instanceId: string | null;
+  status: WhatsAppInstanceStatus | null;
+  setInstance: (data: {
+    instanceId: string | null;
+    status: WhatsAppInstanceStatus | null;
+  }) => void;
 
   // Edit Message
   isEditing: boolean;
@@ -16,9 +24,10 @@ interface MessageState {
 }
 
 export const useMessageStore = create<MessageState>((set) => ({
-  token: null,
-  baseUrl: null,
-  setInstance: (data) => set({ token: data.token, baseUrl: data.baseUrl }),
+  instanceId: null,
+  status: null,
+  setInstance: (data) =>
+    set({ instanceId: data.instanceId, status: data.status }),
 
   isEditing: false,
   messageToEdit: null,

@@ -29,11 +29,14 @@ export const listTrackings = base
         },
         include: {
           whatsappInstance: {
+            // Sem `apiKey`: o token Uazapi é segredo e não pode trafegar
+            // pelo front. O chat resolve credenciais server-side via
+            // `resolveOutboundProvider`. Só campos não-sensíveis aqui.
             select: {
               id: true,
               instanceId: true,
               status: true,
-              apiKey: true,
+              provider: true,
               phoneNumber: true,
               isBusiness: true,
             },

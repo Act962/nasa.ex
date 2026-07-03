@@ -27,7 +27,6 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   message: Message;
   trackingId: string;
-  token: string;
 }
 
 export function ForwardMessageDialog({
@@ -35,7 +34,6 @@ export function ForwardMessageDialog({
   onOpenChange,
   message,
   trackingId,
-  token,
 }: Props) {
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -67,7 +65,6 @@ export function ForwardMessageDialog({
     forward.mutate(
       {
         conversationIds: selectedIds,
-        token,
         payload: buildForwardPayload(message),
       },
       {

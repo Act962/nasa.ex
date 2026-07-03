@@ -14,8 +14,10 @@ export const markReadMessageHandler = base
   .input(
     z.object({
       conversationId: z.string(),
-      remoteJid: z.string(),
-      token: z.string(),
+      /** @deprecated Não usado — mark-read é só update local no banco. */
+      remoteJid: z.string().nullish(),
+      /** @deprecated Não usado — mark-read não chama Uazapi. */
+      token: z.string().nullish(),
     }),
   )
   .handler(async ({ input }) => {
