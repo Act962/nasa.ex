@@ -162,6 +162,7 @@ export const StatusHeader = ({
           className="w-full flex items-center justify-start text-sm py-1 h-7 font-medium border-transparent truncate"
         >
           <Button
+            data-dnd-handle
             variant="ghost"
             size="icon-sm"
             className="touch-none active:cursor-grabbing cursor-grab focus-visible:ring-0"
