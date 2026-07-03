@@ -20,7 +20,11 @@ import {
   shouldSkipUazapiForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
-import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  resolveOutboundProvider,
+  mapOutboundError,
+} from "@/features/tracking-chat/lib/providers";
+import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 import { v4 as uuidv4 } from "uuid";
 
 /**
@@ -58,27 +62,47 @@ export const createMessageWithSticker = base
       id: z.string().optional(),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
     // ── In-Chat Fallback ───────────────────────────────────────────────
     const inChatMode = await shouldSkipUazapiForConversation(
       input.conversationId,
     );
 
-    // Sticker não cobra ★ hoje (followup #18), mas o resolver pode lançar
-    // — mantemos o resolve no topo do bloco WhatsApp por simetria com os
-    // demais handlers (Fix #2).
     let externalMessageId = uuidv4();
     if (!inChatMode) {
       const conv = await prisma.conversation.findUnique({
         where: { id: input.conversationId },
-        select: { trackingId: true },
+        select: {
+          trackingId: true,
+          tracking: { select: { organizationId: true } },
+        },
       });
       if (!conv?.trackingId) {
         throw new Error(
           "Conversation sem trackingId — não é possível resolver provider.",
         );
       }
-      const resolved = await resolveOutboundProvider(conv.trackingId);
+      // Resolve provider ANTES de cobrar ★ (Fix #2): se o resolver lança
+      // (instância deletada / credenciais Meta incompletas), o cliente não
+      // paga por figurinha que nunca sairá. Erros viram BAD_REQUEST
+      // estruturado (followup #14).
+      let resolved: Awaited<ReturnType<typeof resolveOutboundProvider>>;
+      try {
+        resolved = await resolveOutboundProvider(conv.trackingId);
+      } catch (err) {
+        throw mapOutboundError(err, errors);
+      }
+
+      // Cobra ★ pelo envio (followup #18 — sticker antes era grátis). Usa
+      // mediaType "image" pra alinhar com a categorização de insights.
+      if (conv.tracking?.organizationId) {
+        await chargeMessageOutbound({
+          organizationId: conv.tracking.organizationId,
+          userId: context.user.id,
+          channel: "whatsapp",
+          mediaType: "image",
+        });
+      }
       try {
         const response = await resolved.provider.sendMedia({
           kind: "media",
@@ -105,7 +129,7 @@ export const createMessageWithSticker = base
             }).catch(() => {});
           }
         }
-        throw err;
+        throw mapOutboundError(err, errors);
       }
     }
 

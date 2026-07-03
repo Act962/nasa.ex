@@ -20,7 +20,10 @@ import {
   shouldSkipUazapiForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
-import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  resolveOutboundProvider,
+  mapOutboundError,
+} from "@/features/tracking-chat/lib/providers";
 import { v4 as uuidv4 } from "uuid";
 
 export const createContactMessage = base
@@ -45,7 +48,7 @@ export const createContactMessage = base
       id: z.string().optional(),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
     try {
       const conversation = await prisma.conversation.findUnique({
         where: { id: input.conversationId },
@@ -226,6 +229,6 @@ export const createContactMessage = base
       };
     } catch (e) {
       console.log(e);
-      throw e;
+      throw mapOutboundError(e, errors);
     }
   });

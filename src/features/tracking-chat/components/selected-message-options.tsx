@@ -61,6 +61,15 @@ interface Props {
   isGroup?: boolean;
   onChange: (open: boolean) => void;
   disabled?: boolean;
+  /**
+   * True quando o tracking está em `provider=META_CLOUD` — a Meta Cloud
+   * API não suporta editar/apagar mensagem outbound. Editar/Apagar
+   * aparecem desabilitados com o motivo (followup #10), em vez de falhar
+   * com toast após o clique.
+   */
+  metaUnsupported?: boolean;
+  /** Texto do motivo mostrado nos itens desabilitados. */
+  unsupportedReason?: string;
 }
 
 /**
@@ -99,9 +108,12 @@ function useMenuItems(props: Props) {
     onAddSenderAsLead,
     onDeleteMessage,
     isGroup,
+    metaUnsupported,
+    unsupportedReason,
   } = props;
 
   const startEditing = useMessageStore((state) => state.startEditing);
+  const reason = unsupportedReason ?? "Indisponível na API Oficial.";
   const canEdit =
     message.fromMe &&
     differenceInMinutes(new Date(), new Date(message.createdAt)) < 4 &&
@@ -169,17 +181,19 @@ function useMenuItems(props: Props) {
         : null,
       edit: canEdit
         ? {
-            label: "Editar",
+            label: metaUnsupported ? `Editar — ${reason}` : "Editar",
             icon: PencilIcon,
             onClick: () => startEditing(message),
+            disabled: metaUnsupported,
           }
         : null,
       delete: message.fromMe
         ? {
-            label: "Apagar",
+            label: metaUnsupported ? `Apagar — ${reason}` : "Apagar",
             icon: Trash2Icon,
             onClick: onDeleteMessage,
-            destructive: true,
+            destructive: !metaUnsupported,
+            disabled: metaUnsupported,
           }
         : null,
     },
@@ -191,6 +205,7 @@ type MenuItem = {
   icon: React.ComponentType<{ className?: string }>;
   onClick: () => void;
   destructive?: boolean;
+  disabled?: boolean;
 };
 
 export function SelectedMessageOptions(props: Props) {
@@ -233,12 +248,13 @@ export function SelectedMessageOptions(props: Props) {
           {secondary.map((item) => (
             <ContextMenuItem
               key={item.label}
+              disabled={item.disabled}
               className={
                 item.destructive
                   ? "flex w-full justify-between focus:bg-destructive/10 focus:text-destructive"
                   : "flex w-full justify-between"
               }
-              onClick={item.onClick}
+              onClick={item.disabled ? undefined : item.onClick}
               variant={item.destructive ? "destructive" : undefined}
             >
               <span className={item.destructive ? "font-semibold" : undefined}>
@@ -290,12 +306,13 @@ export function SelectedMessageDropdown(props: Props) {
           {secondary.map((item) => (
             <DropdownMenuItem
               key={item.label}
+              disabled={item.disabled}
               className={
                 item.destructive
                   ? "flex w-full justify-between focus:bg-destructive/10 focus:text-destructive"
                   : "flex w-full justify-between"
               }
-              onClick={item.onClick}
+              onClick={item.disabled ? undefined : item.onClick}
               variant={item.destructive ? "destructive" : undefined}
             >
               <span className={item.destructive ? "font-semibold" : undefined}>

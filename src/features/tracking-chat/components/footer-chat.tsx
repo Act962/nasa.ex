@@ -542,22 +542,27 @@ export function Footer({
                         <PlusIcon className="cursor-pointer size-4" />
                       </PopoverTrigger>
                       <PopoverContent className="w-fit h-fit p-0">
-                        <div
-                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                          onClick={() => {
-                            setShowButtons((v) => !v);
-                            setShowNBox(false);
-                            setShowForms(false);
-                            setShowAgenda(false);
-                            setShowScripts(false);
-                            setShowReminder(false);
-                            setShowContact(false);
-                            setOpen(false);
-                          }}
-                        >
-                          <LayoutListIcon className="size-4" />
-                          <p className="text-sm">Botões</p>
-                        </div>
+                        {/* Botões interativos ad-hoc não existem na Meta
+                            Cloud API (exigem template HSM) — escondido pra
+                            META_CLOUD (followup #10). */}
+                        {!isMeta && (
+                          <div
+                            className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
+                            onClick={() => {
+                              setShowButtons((v) => !v);
+                              setShowNBox(false);
+                              setShowForms(false);
+                              setShowAgenda(false);
+                              setShowScripts(false);
+                              setShowReminder(false);
+                              setShowContact(false);
+                              setOpen(false);
+                            }}
+                          >
+                            <LayoutListIcon className="size-4" />
+                            <p className="text-sm">Botões</p>
+                          </div>
+                        )}
                         <div
                           className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
                           onClick={() => {

@@ -28,6 +28,7 @@ import {
 } from "./selected-message-options";
 import { MessageReactionPicker } from "./message-reaction-picker";
 import { useMutationDeleteMessage } from "../hooks/use-messages";
+import { useWhatsAppFeatureGate } from "../hooks/use-whatsapp-feature-gate";
 
 import { useMessageStore } from "../context/use-message";
 import { toast } from "sonner";
@@ -63,6 +64,11 @@ export function MessageBox({
   const deleteMessage = useMutationDeleteMessage({
     conversationId,
   });
+
+  // Gate preventivo de features Meta-unsupported (followup #10): quando o
+  // tracking está em META_CLOUD, editar/apagar aparecem desabilitados.
+  const { isMeta: metaUnsupported, unsupportedReason } =
+    useWhatsAppFeatureGate(trackingId);
 
   const [open, setOpen] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
@@ -247,6 +253,8 @@ export function MessageBox({
         isGroup={isGroup}
         onChange={setOpen}
         disabled={showImageViewer}
+        metaUnsupported={metaUnsupported}
+        unsupportedReason={unsupportedReason}
       >
         <div
           id={`message-${message.id}`}
@@ -516,6 +524,8 @@ export function MessageBox({
                   }
                   isGroup={isGroup}
                   onChange={setOpen}
+                  metaUnsupported={metaUnsupported}
+                  unsupportedReason={unsupportedReason}
                 >
                   <Button
                     variant="ghost"

@@ -104,4 +104,7 @@ export {
   ProviderFeatureUnsupportedError,
   ProviderSendInvalidResponseError,
   OutboundWindowClosedError,
+  mapOutboundError,
+  serializeOutboundError,
 } from "./outbound-errors";
+export type { SerializedOutboundError } from "./outbound-errors";

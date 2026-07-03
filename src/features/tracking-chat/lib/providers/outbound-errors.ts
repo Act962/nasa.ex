@@ -162,3 +162,80 @@ export class OutboundWindowClosedError extends OutboundProviderError {
     );
   }
 }
+
+/**
+ * Constrói o `data` estruturado de um `OutboundProviderError` — inclui os
+ * campos extras específicos de cada subclasse (`feature`, `fields`) além do
+ * `code` base, pra o frontend decidir a UI sem parsear `message`.
+ */
+function buildOutboundErrorData(
+  error: OutboundProviderError,
+): Record<string, unknown> {
+  const data: Record<string, unknown> = { code: error.code };
+  if (
+    error instanceof MetaFeatureUnsupportedError ||
+    error instanceof ProviderFeatureUnsupportedError
+  ) {
+    data.feature = error.feature;
+  }
+  if (error instanceof MetaCredentialsIncompleteError) {
+    data.fields = error.fields;
+  }
+  return data;
+}
+
+/**
+ * Estrutura mínima do objeto `errors` injetado nos handlers oRPC — evita
+ * acoplar esse módulo (`server-only`) ao pacote inteiro do oRPC.
+ */
+type OrpcBadRequest = {
+  BAD_REQUEST: (options: { message?: string; data?: unknown }) => Error;
+};
+
+/**
+ * Traduz um erro do caminho outbound (followup #14) num `BAD_REQUEST`
+ * estruturado do oRPC quando ele é um `OutboundProviderError` — assim o
+ * frontend recebe `data.code` (e `feature`/`fields`) em vez de um 500 opaco.
+ * Qualquer outro erro (ORPCError já construído, falha de Prisma, etc.) é
+ * repassado sem alteração. Sempre lança — tipado `never` pra fluir em
+ * `catch (error) { throw mapOutboundError(error, errors); }`.
+ */
+export function mapOutboundError(
+  error: unknown,
+  errors: OrpcBadRequest,
+): never {
+  if (error instanceof OutboundProviderError) {
+    throw errors.BAD_REQUEST({
+      message: error.message,
+      data: buildOutboundErrorData(error) as never,
+    });
+  }
+  throw error;
+}
+
+export type SerializedOutboundError = {
+  message: string;
+  code?: string;
+  feature?: string;
+};
+
+/**
+ * Serializa um erro pra devolver em respostas de **sucesso parcial** (ex.:
+ * `forward` pra múltiplas conversas via `Promise.allSettled`), onde não dá
+ * pra lançar um `BAD_REQUEST` global. Preserva `code`/`feature` do
+ * `OutboundProviderError` (followup #15) em vez de achatar tudo em
+ * `String(err)`, pra o frontend renderizar por destino conforme o motivo.
+ */
+export function serializeOutboundError(error: unknown): SerializedOutboundError {
+  if (error instanceof OutboundProviderError) {
+    const data = buildOutboundErrorData(error);
+    return {
+      message: error.message,
+      code: error.code,
+      feature: typeof data.feature === "string" ? data.feature : undefined,
+    };
+  }
+  return {
+    message: error instanceof Error ? error.message : String(error),
+  };
+}
