@@ -44,6 +44,10 @@ import {
 import { EntryForm } from "./entry-form";
 import { toast } from "sonner";
 import { usePaymentAccounts } from "../../hooks/use-payment";
+import {
+  PaymentPeriodPicker,
+  currentMonthRange,
+} from "../shared/payment-period-picker";
 
 interface EntriesTableProps {
   type: "RECEIVABLE" | "PAYABLE";
@@ -52,6 +56,9 @@ interface EntriesTableProps {
 export function EntriesTable({ type }: EntriesTableProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [period, setPeriod] = useState<{ from?: Date; to?: Date }>(
+    currentMonthRange(),
+  );
   const [showForm, setShowForm] = useState(false);
   const [payDialog, setPayDialog] = useState<{ id: string; amount: number } | null>(null);
   const [payAmount, setPayAmount] = useState("");
@@ -63,6 +70,8 @@ export function EntriesTable({ type }: EntriesTableProps) {
     type,
     search: search || undefined,
     status: (statusFilter as "PENDING_APPROVAL" | "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED") || undefined,
+    dateFrom: period.from?.toISOString(),
+    dateTo: period.to?.toISOString(),
   });
 
   const { data: accountsData } = usePaymentAccounts();
@@ -150,6 +159,11 @@ export function EntriesTable({ type }: EntriesTableProps) {
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
+        <PaymentPeriodPicker
+          from={period.from}
+          to={period.to}
+          onChange={setPeriod}
+        />
       </div>
 
       {/* Table */}

@@ -17,6 +17,7 @@ import { TrackingDangerZone } from "@/features/tracking-settings/components/dang
 import { Personalization } from "@/features/tracking-settings/components/personalization";
 import { Interactions } from "@/features/tracking-settings/components/interactions";
 import { TimeOfStatus } from "@/features/tracking-settings/components/time-of-status";
+import { LeadsSettings } from "@/features/tracking-settings/components/leads-settings";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
@@ -120,6 +121,11 @@ export default async function Page({
       name: "Personalização",
       value: "personalization",
       content: <Personalization trackingId={trackingId} />,
+    },
+    {
+      name: "Leads",
+      value: "leads",
+      content: <LeadsSettings trackingId={trackingId} />,
     },
   ];
 

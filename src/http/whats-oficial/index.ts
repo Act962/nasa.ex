@@ -64,6 +64,10 @@ export { registerPhone } from "./register-phone";
 export { getPhoneNumbers } from "./get-phone-numbers";
 export { getWaba } from "./get-waba";
 
+// Analytics (Fase 10) — mensagens, conversas e custo.
+export { getMessageAnalytics } from "./get-message-analytics";
+export { getConversationAnalytics } from "./get-conversation-analytics";
+
 export type {
   MetaApiError,
   SendMessageResponse,
@@ -94,4 +98,14 @@ export type {
   CodeVerificationStatus,
   QualityRating,
   WabaInfo,
+  // Analytics (Fase 10)
+  MessageAnalyticsGranularity,
+  MessageAnalyticsDataPoint,
+  MessageAnalyticsResponse,
+  ConversationAnalyticsGranularity,
+  ConversationCategory,
+  ConversationType,
+  ConversationDirection,
+  ConversationAnalyticsDataPoint,
+  ConversationAnalyticsResponse,
 } from "./types";

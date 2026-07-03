@@ -12,6 +12,12 @@ services:
     # buff/cache e disputa memória com o `next dev`. 1 GB é folgado pra dev.
     mem_limit: 1g
     shm_size: 256m
+    # Volume nomeado — sem ele, cada `docker compose up` que recria o
+    # container APAGA todo o banco (perdeu-se PaymentAccess do Duas-Caras
+    # exatamente por isso).
+    volumes:
+      - nasa_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
 
   # ─────────────────────────────────────────────────────────────────────
   # Piper TTS HTTP — voz natural pt-BR (Faber, VITS open source).
@@ -46,3 +52,4 @@ services:
 
 volumes:
   piper_voices:
+  nasa_db_data:
