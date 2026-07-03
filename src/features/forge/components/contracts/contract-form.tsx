@@ -289,7 +289,7 @@ export function ContractForm({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6 min-w-0">
           {isFullySigned && (
             <div className="rounded-lg border border-neutral-300 bg-neutral-50 dark:bg-neutral-900/40 dark:border-neutral-700 px-4 py-3 text-xs">
               <p className="font-semibold text-neutral-700 dark:text-neutral-200">
@@ -479,7 +479,7 @@ export function ContractForm({
                 {...form.register("content")}
                 placeholder="Conteúdo do contrato... Use variáveis como {{cliente_nome}}, {{empresa_nome}}, {{valor}}, {{inicio}}, {{termino}}"
                 rows={8}
-                className="font-mono text-xs"
+                className="font-mono text-xs max-h-80 overflow-y-auto resize-none"
                 disabled={isLocked}
               />
               {form.formState.errors.content && (

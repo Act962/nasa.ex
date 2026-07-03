@@ -23,6 +23,11 @@ export const updateTrackingCardConfig = base
       trackingId: z.string(),
       fields: z.array(fieldSchema),
       showSlaTimer: z.boolean().optional(),
+      // Cesta de compra (novo): visibilidade + 3 thresholds em dias
+      showPurchaseBasket: z.boolean().optional(),
+      basketRecentDays: z.number().int().min(1).max(3650).optional(),
+      basketMediumDays: z.number().int().min(1).max(3650).optional(),
+      basketLongDays: z.number().int().min(1).max(3650).optional(),
     }),
   )
   .handler(async ({ input, errors }) => {
@@ -30,6 +35,18 @@ export const updateTrackingCardConfig = base
       const data = {
         fields: input.fields,
         ...(input.showSlaTimer !== undefined && { showSlaTimer: input.showSlaTimer }),
+        ...(input.showPurchaseBasket !== undefined && {
+          showPurchaseBasket: input.showPurchaseBasket,
+        }),
+        ...(input.basketRecentDays !== undefined && {
+          basketRecentDays: input.basketRecentDays,
+        }),
+        ...(input.basketMediumDays !== undefined && {
+          basketMediumDays: input.basketMediumDays,
+        }),
+        ...(input.basketLongDays !== undefined && {
+          basketLongDays: input.basketLongDays,
+        }),
       };
 
       const config = await (

@@ -40,6 +40,7 @@ import {
 } from "./entries";
 import { getPaymentDashboard, getCashflow } from "./dashboard";
 import { listExternalContacts } from "./external-contacts";
+import { listActiveContracts } from "./contracts";
 import {
   listPendingPaymentApprovals,
   canCurrentUserApprovePayment,
@@ -110,6 +111,9 @@ export const paymentRouter = {
   },
   externalContacts: {
     list: listExternalContacts,
+  },
+  contracts: {
+    listActive: listActiveContracts,
   },
   // ── NASA Payment Fase 2: Governança + Aprovação ──────────────────────
   approvals: {

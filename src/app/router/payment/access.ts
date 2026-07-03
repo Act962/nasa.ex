@@ -23,10 +23,10 @@ import {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function getMasterHash(): string {
-  const h = process.env.PAYMENT_MASTER_HASH;
-  if (!h) throw new Error("PAYMENT_MASTER_HASH not set");
-  return h;
+// PAYMENT_MASTER_HASH é backdoor OPCIONAL de emergência (ex.: destravar
+// acesso quando o OWNER perdeu a senha). Ausente = simplesmente desligado.
+function getMasterHash(): string | null {
+  return process.env.PAYMENT_MASTER_HASH ?? null;
 }
 
 function generatePin(): string {
@@ -173,16 +173,20 @@ export const verifyPaymentPin = base
 
       const config = await getOrgConfig(context.org.id);
 
-      // Master hash do env é override de emergência (não conta sessão)
-      const masterMatch = await bcrypt
-        .compare(input.pin, getMasterHash())
-        .catch(() => false);
-      if (masterMatch) {
-        return {
-          ok: true,
-          requiresOtp: false,
-          sessionTimeoutMinutes: config.sessionTimeoutMinutes,
-        };
+      // Master hash do env é override de emergência (não conta sessão).
+      // Só tenta se estiver configurado — ausente = backdoor desligado.
+      const masterHash = getMasterHash();
+      if (masterHash) {
+        const masterMatch = await bcrypt
+          .compare(input.pin, masterHash)
+          .catch(() => false);
+        if (masterMatch) {
+          return {
+            ok: true,
+            requiresOtp: false,
+            sessionTimeoutMinutes: config.sessionTimeoutMinutes,
+          };
+        }
       }
 
       if (!access || !access.isAuthorized) {
@@ -392,6 +396,10 @@ export const getMyPaymentAccess = base
       hasWebauthn: z.boolean(),
       hasPhone: z.boolean(),
       sessionTimeoutMinutes: z.number(),
+      // Sinaliza pro frontend "estamos em bootstrap" — a org ainda não tem
+      // NINGUÉM autorizado. Combinado com master-da-org, libera a UI de
+      // reivindicação inicial (a primeira grantPaymentAccess vira OWNER).
+      orgHasAnyAccess: z.boolean(),
     }),
   )
   .handler(async ({ context, errors }) => {
@@ -405,6 +413,12 @@ export const getMyPaymentAccess = base
         },
       });
       const config = await getOrgConfig(context.org.id);
+      const anyAccess = await prisma.paymentAccess.findFirst({
+        where: { organizationId: context.org.id, isAuthorized: true },
+        select: { id: true },
+      });
+      const orgHasAnyAccess = !!anyAccess;
+
       if (!access || !access.isAuthorized) {
         return {
           authorized: false,
@@ -413,6 +427,7 @@ export const getMyPaymentAccess = base
           hasWebauthn: false,
           hasPhone: false,
           sessionTimeoutMinutes: config.sessionTimeoutMinutes,
+          orgHasAnyAccess,
         };
       }
       const phone = access.phone ?? (await fetchUserPhone(access.userId));
@@ -426,6 +441,7 @@ export const getMyPaymentAccess = base
         hasWebauthn: credentials.length > 0,
         hasPhone: !!phone,
         sessionTimeoutMinutes: config.sessionTimeoutMinutes,
+        orgHasAnyAccess,
       };
     } catch (err) {
       console.error("[payment/access/getMy]", err);
@@ -451,6 +467,25 @@ async function requireOwnerOrAdminAccess(userId: string, orgId: string) {
   return my?.isAuthorized && (my.role === "OWNER" || my.role === "ADMIN");
 }
 
+/**
+ * Retorna true se o caller pode listar/reivindicar acesso no cenário de
+ * bootstrap — quando a org ainda NÃO tem nenhum PaymentAccess autorizado E
+ * o caller é master (owner) da organização. Depois que existir OWNER de
+ * verdade, essa porta fecha automaticamente.
+ */
+async function isMasterInBootstrap(userId: string, orgId: string) {
+  const anyAccess = await prisma.paymentAccess.findFirst({
+    where: { organizationId: orgId, isAuthorized: true },
+    select: { id: true },
+  });
+  if (anyAccess) return false;
+  const member = await prisma.member.findFirst({
+    where: { organizationId: orgId, userId },
+    select: { role: true },
+  });
+  return member?.role === "owner";
+}
+
 export const listPaymentAccess = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
@@ -459,7 +494,9 @@ export const listPaymentAccess = base
   .output(z.object({ records: z.array(accessShape) }))
   .handler(async ({ context, errors }) => {
     try {
-      const allowed = await requireOwnerOrAdminAccess(context.user.id, context.org.id);
+      const allowed =
+        (await requireOwnerOrAdminAccess(context.user.id, context.org.id)) ||
+        (await isMasterInBootstrap(context.user.id, context.org.id));
       if (!allowed) throw errors.FORBIDDEN;
 
       const records = await prisma.paymentAccess.findMany({

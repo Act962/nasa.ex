@@ -13,7 +13,13 @@ import {
   Wallet,
   Clock,
   BarChart3,
+  ListChecks,
 } from "lucide-react";
+import { KpiEntriesDialog, type KpiEntriesFilter } from "./kpi-entries-dialog";
+import {
+  PaymentPeriodPicker,
+  currentMonthRange,
+} from "../shared/payment-period-picker";
 import {
   AreaChart,
   Area,
@@ -32,8 +38,6 @@ import {
 
 const PIE_COLORS = ["#1E90FF", "#00FF87", "#FF6B6B", "#FFD93D", "#C77DFF", "#06BEE1"];
 
-const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-
 function fmt(cents: number) {
   return formatCurrency(cents);
 }
@@ -44,38 +48,70 @@ function KpiCard({
   icon: Icon,
   color,
   subtitle,
+  filter,
+  useSumOfPaid,
 }: {
   title: string;
   value: string;
   icon: React.ElementType;
   color: string;
   subtitle?: string;
+  // Passar `filter` habilita o ícone de lista no canto superior. Clicar abre
+  // um dialog com as entries que compõem esse KPI.
+  filter?: KpiEntriesFilter;
+  useSumOfPaid?: boolean;
 }) {
+  const [dialogOpen, setDialogOpen] = useState(false);
   return (
-    <Card className="bg-card border-border/50">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground font-medium truncate">{title}</p>
-            <p className={`text-xl font-black mt-1 ${color}`}>{value}</p>
-            {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+    <>
+      <Card className="bg-card border-border/50 relative">
+        {filter && (
+          <button
+            type="button"
+            onClick={() => setDialogOpen(true)}
+            className="absolute top-2 right-2 size-6 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={`Ver lançamentos de ${title}`}
+            title="Ver lançamentos"
+          >
+            <ListChecks className="size-3.5" />
+          </button>
+        )}
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium truncate">{title}</p>
+              <p className={`text-xl font-black mt-1 ${color}`}>{value}</p>
+              {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+            </div>
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ml-3 ${color === "text-green-400" ? "bg-green-500/10" : color === "text-red-400" ? "bg-red-500/10" : color === "text-blue-400" ? "bg-blue-500/10" : "bg-yellow-500/10"}`}>
+              <Icon className={`size-4 ${color}`} />
+            </div>
           </div>
-          <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ml-3 ${color === "text-green-400" ? "bg-green-500/10" : color === "text-red-400" ? "bg-red-500/10" : color === "text-blue-400" ? "bg-blue-500/10" : "bg-yellow-500/10"}`}>
-            <Icon className={`size-4 ${color}`} />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      {filter && (
+        <KpiEntriesDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          title={title}
+          filter={filter}
+          accentClassName={color}
+          useSumOfPaid={useSumOfPaid}
+        />
+      )}
+    </>
   );
 }
 
 export function PaymentDashboard() {
-  const now = new Date();
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear] = useState(now.getFullYear());
+  const initial = currentMonthRange();
+  const [period, setPeriod] = useState<{ from?: Date; to?: Date }>(initial);
 
-  const { data, isLoading } = usePaymentDashboard(month, year);
-  const { data: cashflowData } = useCashflow(month, year);
+  const dateFrom = period.from?.toISOString();
+  const dateTo = period.to?.toISOString();
+
+  const { data, isLoading } = usePaymentDashboard({ dateFrom, dateTo });
+  const { data: cashflowData } = useCashflow({ dateFrom, dateTo });
 
   if (isLoading) {
     return (
@@ -88,8 +124,6 @@ export function PaymentDashboard() {
   }
 
   if (!data) return null;
-
-  const monthLabel = `${MONTH_NAMES[month - 1]}/${year}`;
 
   const chartData = data.monthlyChart.map((m) => ({
     name: m.month.slice(5),
@@ -110,29 +144,27 @@ export function PaymentDashboard() {
     .slice(0, 6)
     .map((c) => ({ name: c.categoryName, value: c.total / 100 }));
 
+  // Intervalo escolhido pelo PaymentPeriodPicker — usado nos drill-downs dos KPIs
+  const monthStartISO = dateFrom;
+  const monthEndISO = dateTo;
+
+  const today = new Date();
+  const in7 = new Date(today);
+  in7.setDate(in7.getDate() + 7);
+  const in30 = new Date(today);
+  in30.setDate(in30.getDate() + 30);
+
+  const OPEN_STATUSES = ["PENDING", "PARTIAL", "OVERDUE"] as const;
+
   return (
     <div className="space-y-6">
       {/* Period selector */}
       <div className="flex items-center gap-3">
-        <select
-          className="text-sm bg-muted border border-border rounded-lg px-3 py-1.5 focus:outline-none"
-          value={month}
-          onChange={(e) => setMonth(Number(e.target.value))}
-        >
-          {MONTH_NAMES.map((m, i) => (
-            <option key={i} value={i + 1}>{m}</option>
-          ))}
-        </select>
-        <select
-          className="text-sm bg-muted border border-border rounded-lg px-3 py-1.5 focus:outline-none"
-          value={year}
-          onChange={(e) => setYear(Number(e.target.value))}
-        >
-          {[year - 2, year - 1, year, year + 1].map((y) => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
-        <span className="text-sm text-muted-foreground">{monthLabel}</span>
+        <PaymentPeriodPicker
+          from={period.from}
+          to={period.to}
+          onChange={setPeriod}
+        />
       </div>
 
       {/* KPI Cards */}
@@ -143,6 +175,12 @@ export function PaymentDashboard() {
           icon={ArrowDownCircle}
           color="text-green-400"
           subtitle="No mês"
+          filter={{
+            type: "RECEIVABLE",
+            statuses: [...OPEN_STATUSES],
+            dateFrom: monthStartISO,
+            dateTo: monthEndISO,
+          }}
         />
         <KpiCard
           title="A Pagar"
@@ -150,6 +188,12 @@ export function PaymentDashboard() {
           icon={ArrowUpCircle}
           color="text-red-400"
           subtitle="No mês"
+          filter={{
+            type: "PAYABLE",
+            statuses: [...OPEN_STATUSES],
+            dateFrom: monthStartISO,
+            dateTo: monthEndISO,
+          }}
         />
         <KpiCard
           title="Recebido"
@@ -157,6 +201,13 @@ export function PaymentDashboard() {
           icon={TrendingUp}
           color="text-blue-400"
           subtitle="Confirmado"
+          filter={{
+            type: "RECEIVABLE",
+            statuses: ["PAID", "PARTIAL"],
+            paidFrom: monthStartISO,
+            paidTo: monthEndISO,
+          }}
+          useSumOfPaid
         />
         <KpiCard
           title="Resultado"
@@ -177,6 +228,10 @@ export function PaymentDashboard() {
           icon={AlertTriangle}
           color="text-yellow-400"
           subtitle="A receber vencido"
+          filter={{
+            type: "RECEIVABLE",
+            statuses: ["OVERDUE"],
+          }}
         />
         <KpiCard
           title="Próx. 7 dias"
@@ -184,6 +239,12 @@ export function PaymentDashboard() {
           icon={Clock}
           color="text-green-400"
           subtitle="Entradas previstas"
+          filter={{
+            type: "RECEIVABLE",
+            statuses: ["PENDING", "PARTIAL"],
+            dateFrom: today.toISOString(),
+            dateTo: in7.toISOString(),
+          }}
         />
         <KpiCard
           title="Próx. 30 dias"
@@ -191,6 +252,12 @@ export function PaymentDashboard() {
           icon={Clock}
           color="text-red-400"
           subtitle="Saídas previstas"
+          filter={{
+            type: "PAYABLE",
+            statuses: ["PENDING", "PARTIAL"],
+            dateFrom: today.toISOString(),
+            dateTo: in30.toISOString(),
+          }}
         />
       </div>
 
@@ -226,7 +293,7 @@ export function PaymentDashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <TrendingUp className="size-4 text-blue-400" />
-              Fluxo de Caixa — {monthLabel}
+              Fluxo de Caixa
             </CardTitle>
           </CardHeader>
           <CardContent>

@@ -25,6 +25,11 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Uploader } from "@/components/file-uploader/uploader";
 import {
+  maskMoney,
+  moneyToDecimalString,
+  formatDecimalToMoney,
+} from "@/utils/mask-money";
+import {
   useCreateForgeProduct,
   useUpdateForgeProduct,
 } from "../../hooks/use-forge";
@@ -36,7 +41,10 @@ export const productSchema = z.object({
   sku: z.string().min(1, "SKU obrigatório"),
   unit: z.string().default("un"),
   description: z.string().optional(),
-  value: z.string().min(1, "Valor obrigatório"),
+  value: z
+    .string()
+    .min(1, "Valor obrigatório")
+    .refine((value) => Number(moneyToDecimalString(value)) > 0, "Valor inválido"),
   imageUrl: z.string().optional(),
 });
 
@@ -87,7 +95,7 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
       sku: product?.sku ?? "",
       unit: product?.unit ?? "un",
       description: product?.description ?? "",
-      value: product?.value ?? "",
+      value: product ? formatDecimalToMoney(product.value) : "",
       imageUrl: product?.imageUrl ?? "",
     },
   });
@@ -103,7 +111,7 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
       sku: product?.sku ?? "",
       unit: product?.unit ?? "un",
       description: product?.description ?? "",
-      value: product?.value ?? "",
+      value: product ? formatDecimalToMoney(product.value) : "",
       imageUrl: product?.imageUrl ?? "",
     });
     setImageKey(product?.imageUrl ?? "");
@@ -111,7 +119,11 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
 
   const onSubmit = async (data: ProductFormData) => {
     try {
-      const payload = { ...data, imageUrl: imageKey || undefined };
+      const payload = {
+        ...data,
+        value: moneyToDecimalString(data.value),
+        imageUrl: imageKey || undefined,
+      };
       if (product) {
         await update.mutateAsync({ id: product.id, ...payload });
         toast.success("Produto atualizado");
@@ -183,10 +195,15 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
               <Label>Valor *</Label>
               <Input
                 {...form.register("value")}
-                placeholder="0,00"
-                type="number"
-                step="0.01"
-                min="0"
+                value={form.watch("value") ?? ""}
+                onChange={(e) =>
+                  form.setValue("value", maskMoney(e.target.value), {
+                    shouldDirty: true,
+                  })
+                }
+                placeholder="R$ 0,00"
+                type="text"
+                inputMode="numeric"
               />
               {form.formState.errors.value && (
                 <p className="text-xs text-destructive">

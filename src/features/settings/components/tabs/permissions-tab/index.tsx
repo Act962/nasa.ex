@@ -42,14 +42,7 @@ export function PermissionsTab() {
     ...orpc.permissions.getPermissions.queryOptions(),
   });
 
-  // Acesso financeiro: visível só pra OWNER/ADMIN do Payment (org-owner sem
-  // PaymentAccess autorizado NÃO vê — esse é o ponto da feature)
   const myPaymentAccess = useMyPaymentAccess();
-  const paymentRole = myPaymentAccess.data?.authorized
-    ? myPaymentAccess.data.role
-    : null;
-  const canSeePaymentAccess = paymentRole === "OWNER" || paymentRole === "ADMIN";
-  const canEditPaymentAccess = paymentRole === "OWNER";
 
   const { updatePerm, updateRole, removeMember, addMember } =
     usePermissionsMutations();
@@ -69,6 +62,19 @@ export function PermissionsTab() {
   const isMaster = currentMember?.role === "owner";
   const isModerador = currentMember?.role === "moderador";
   const canManage = isMaster || isModerador;
+
+  // Acesso financeiro: visível pra OWNER/ADMIN do Payment. Exceção bootstrap:
+  // se a org ainda não tem NINGUÉM autorizado E o caller é master da org,
+  // libera a aba pra ele criar o primeiro OWNER. Assim que existir OWNER de
+  // verdade, o master perde a visibilidade (se não for ele mesmo o OWNER).
+  const paymentRole = myPaymentAccess.data?.authorized
+    ? myPaymentAccess.data.role
+    : null;
+  const orgHasAnyAccess = myPaymentAccess.data?.orgHasAnyAccess ?? true;
+  const isBootstrapPhase = isMaster && !orgHasAnyAccess;
+  const canSeePaymentAccess =
+    paymentRole === "OWNER" || paymentRole === "ADMIN" || isBootstrapPhase;
+  const canEditPaymentAccess = paymentRole === "OWNER" || isBootstrapPhase;
 
   const handlePermUpdate = (
     role: string,
@@ -255,7 +261,12 @@ export function PermissionsTab() {
           >
             <Landmark className="size-4 text-[#1E90FF]" />
             Acesso Financeiro
-            {!canEditPaymentAccess && (
+            {isBootstrapPhase && (
+              <span className="text-[10px] font-normal text-amber-600 border border-amber-400/50 bg-amber-50 rounded-sm px-1.5">
+                bootstrap — defina o primeiro OWNER
+              </span>
+            )}
+            {!canEditPaymentAccess && !isBootstrapPhase && (
               <span className="text-[10px] font-normal text-muted-foreground border rounded-sm px-1.5">
                 somente leitura
               </span>

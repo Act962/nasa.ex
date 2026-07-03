@@ -13,6 +13,10 @@ export const getPaymentDashboard = base
   .input(z.object({
     month: z.number().optional(),
     year: z.number().optional(),
+    // Range explícito (ISO string). Tem precedência sobre month/year quando
+    // ambos vêm — usado pelo PaymentPeriodPicker do frontend.
+    dateFrom: z.string().optional(),
+    dateTo: z.string().optional(),
   }))
   .output(z.object({
     totalReceivable: z.number(),
@@ -43,8 +47,13 @@ export const getPaymentDashboard = base
       const now = new Date();
       const year = input.year ?? now.getFullYear();
       const month = input.month ?? now.getMonth() + 1;
-      const monthStart = new Date(year, month - 1, 1);
-      const monthEnd = new Date(year, month, 0, 23, 59, 59);
+      // Se veio range explícito, usa ele; senão cai no cálculo por mês/ano.
+      const monthStart = input.dateFrom
+        ? new Date(input.dateFrom)
+        : new Date(year, month - 1, 1);
+      const monthEnd = input.dateTo
+        ? new Date(input.dateTo)
+        : new Date(year, month, 0, 23, 59, 59);
       const today = new Date();
       const in7 = new Date(today); in7.setDate(today.getDate() + 7);
       const in30 = new Date(today); in30.setDate(today.getDate() + 30);
@@ -216,6 +225,8 @@ export const getCashflow = base
   .input(z.object({
     year: z.number().optional(),
     month: z.number().optional(),
+    dateFrom: z.string().optional(),
+    dateTo: z.string().optional(),
   }))
   .output(z.object({
     rows: z.array(z.object({
@@ -230,8 +241,12 @@ export const getCashflow = base
       const now = new Date();
       const year = input.year ?? now.getFullYear();
       const month = input.month ?? now.getMonth() + 1;
-      const monthStart = new Date(year, month - 1, 1);
-      const monthEnd = new Date(year, month, 0, 23, 59, 59);
+      const monthStart = input.dateFrom
+        ? new Date(input.dateFrom)
+        : new Date(year, month - 1, 1);
+      const monthEnd = input.dateTo
+        ? new Date(input.dateTo)
+        : new Date(year, month, 0, 23, 59, 59);
 
       const entries = await prisma.paymentEntry.findMany({
         where: {
