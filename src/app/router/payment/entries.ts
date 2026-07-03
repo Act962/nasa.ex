@@ -77,6 +77,9 @@ export const listPaymentEntries = base
   .input(z.object({
     type: z.enum(["RECEIVABLE", "PAYABLE"]).optional(),
     status: z.enum(["PENDING_APPROVAL", "PENDING", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"]).optional(),
+    // Filtro por múltiplos statuses — usado pelo drill-down do dashboard
+    // (ex.: "A Receber" = PENDING + PARTIAL + OVERDUE)
+    statuses: z.array(z.enum(["PENDING_APPROVAL", "PENDING", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"])).optional(),
     contactId: z.string().optional(),
     categoryId: z.string().optional(),
     accountId: z.string().optional(),
@@ -85,6 +88,9 @@ export const listPaymentEntries = base
     trackingId: z.string().optional(),
     dateFrom: z.string().optional(),
     dateTo: z.string().optional(),
+    // Filtro pela data de pagamento (usado em cards "Recebido" / "Pago no mês")
+    paidFrom: z.string().optional(),
+    paidTo: z.string().optional(),
     search: z.string().optional(),
     page: z.number().default(1),
     perPage: z.number().default(50),
@@ -99,6 +105,9 @@ export const listPaymentEntries = base
         organizationId: context.org.id,
         ...(input.type ? { type: input.type } : {}),
         ...(input.status ? { status: input.status } : {}),
+        ...(input.statuses && input.statuses.length > 0
+          ? { status: { in: input.statuses } }
+          : {}),
         ...(input.contactId ? { contactId: input.contactId } : {}),
         ...(input.categoryId ? { categoryId: input.categoryId } : {}),
         ...(input.accountId ? { accountId: input.accountId } : {}),
@@ -110,6 +119,14 @@ export const listPaymentEntries = base
               dueDate: {
                 ...(input.dateFrom ? { gte: new Date(input.dateFrom) } : {}),
                 ...(input.dateTo ? { lte: new Date(input.dateTo) } : {}),
+              },
+            }
+          : {}),
+        ...(input.paidFrom || input.paidTo
+          ? {
+              paidAt: {
+                ...(input.paidFrom ? { gte: new Date(input.paidFrom) } : {}),
+                ...(input.paidTo ? { lte: new Date(input.paidTo) } : {}),
               },
             }
           : {}),

@@ -16,6 +16,7 @@ import { PaymentDashboard } from "./dashboard/payment-dashboard";
 import { EntriesTable } from "./entries/entries-table";
 import { CashflowTab } from "./cashflow/cashflow-tab";
 import { ContactsTab } from "./contacts/contacts-tab";
+import { ContractsTab } from "./contracts/contracts-tab";
 import { PaymentSettings } from "./settings/payment-settings";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
 import { ApprovalsTab } from "./approvals/approvals-tab";
@@ -85,6 +86,9 @@ export function PaymentPage() {
             <TabsTrigger value="contacts" className="text-xs gap-1.5">
               👥 Contatos
             </TabsTrigger>
+            <TabsTrigger value="contracts" className="text-xs gap-1.5">
+              📝 Contratos Ativos
+            </TabsTrigger>
             {showApprovalsTab && (
               <TabsTrigger value="approvals" className="text-xs gap-1.5">
                 🛡️ Aprovações
@@ -113,6 +117,9 @@ export function PaymentPage() {
           </TabsContent>
           <TabsContent value="contacts" className="px-6 py-6 mt-0">
             <ContactsTab />
+          </TabsContent>
+          <TabsContent value="contracts" className="px-6 py-6 mt-0">
+            <ContractsTab />
           </TabsContent>
           {showApprovalsTab && (
             <TabsContent value="approvals" className="px-6 py-6 mt-0">
