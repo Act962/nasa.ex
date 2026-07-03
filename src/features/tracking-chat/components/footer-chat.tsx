@@ -70,6 +70,10 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { useExtractBudget } from "../hooks/use-extract-budget";
 import { formatCurrency } from "@/features/payment/lib/format";
+import { useWhatsAppProviderSettings } from "@/features/tracking-settings/hooks/use-whatsapp-provider";
+import { useCustomerWindow } from "../hooks/use-customer-window";
+import { TemplatePicker } from "./template-picker";
+import { FileBadgeIcon } from "lucide-react";
 
 interface FooterProps {
   conversationId: string;
@@ -96,6 +100,17 @@ export function Footer({
   const route = useRouter();
   const { data: session } = authClient.useSession();
   const { data: activeOrg } = authClient.useActiveOrganization();
+
+  // ── Provider + janela de 24h (Fase 9) ──────────────────────────────
+  // Templates HSM e o gating de janela só valem pra trackings META_CLOUD.
+  const providerSettings = useWhatsAppProviderSettings(trackingId);
+  const isMeta = providerSettings.data?.provider === "META_CLOUD";
+  const customerWindow = useCustomerWindow(conversationId, { enabled: isMeta });
+  const outsideWindow =
+    isMeta &&
+    customerWindow.data?.applicable === true &&
+    customerWindow.data.withinWindow === false;
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
 
   useEffect(() => {
     if (instance.instance) {
@@ -193,16 +208,45 @@ export function Footer({
 
   const isDisabled = !instance.instance;
 
-  const handleSubmitAudio = (blob: Blob) => {
-    const nameAudio = `audio-${Date.now()}-${blob.size}`;
+  const handleSubmitAudio = async (blob: Blob) => {
     if (!instance.instance) return toast.error("Instância não encontrada");
 
+    let audioBlob = blob;
+    let mimetype = blob.type;
+    let extension = "";
+
+    // A Meta Cloud não aceita WebM (formato do gravador). Remuxa pra OGG/Opus
+    // na hora de enviar (sem re-encode). A Uazapi transcodifica sozinha, então
+    // mantém o WebM original — zero regressão.
+    if (isMeta) {
+      const toastId = toast.loading("Preparando áudio...");
+      try {
+        // Import dinâmico: a mediabunny só é baixada no caminho Meta —
+        // quem usa Uazapi não carrega esse chunk.
+        const { convertWebmToOggOpus } = await import(
+          "../lib/audio/webm-to-ogg"
+        );
+        audioBlob = await convertWebmToOggOpus(blob);
+        mimetype = "audio/ogg";
+        extension = ".ogg";
+      } catch (error) {
+        console.error("[footer-chat] audio conversion failed", error);
+        toast.error("Falha ao preparar o áudio para a API Oficial.");
+        return;
+      } finally {
+        toast.dismiss(toastId);
+      }
+    }
+
+    const nameAudio = `audio-${Date.now()}-${audioBlob.size}${extension}`;
+
     mutationAudio.mutate({
-      blob: blob,
+      blob: audioBlob,
       leadPhone: lead.phone!,
       token: instance.instance.apiKey ?? "",
       nameAudio: nameAudio,
-      mimetype: blob.type,
+      mimetype: mimetype,
+      isVoice: isMeta,
       conversationId,
       replyId: messageSelected?.messageId || undefined,
       id: messageSelected?.id,
@@ -369,6 +413,26 @@ export function Footer({
             messageSelected={messageSelected}
             closeMessageSelected={closeMessageSelected}
           />
+        )}
+
+        {/* Banner de janela de 24h (Fase 9) — só META_CLOUD fora da janela.
+            Texto livre é bloqueado abaixo; aqui oferecemos o caminho válido
+            (template aprovado). */}
+        {outsideWindow && (
+          <div className="w-full flex items-center justify-between gap-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 px-3 py-2">
+            <p className="text-xs text-amber-800 dark:text-amber-200">
+              Fora da janela de 24h da Meta. Envie um template aprovado pra
+              reabrir a conversa.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setShowTemplatePicker(true)}
+            >
+              <FileBadgeIcon className="size-4" />
+              Enviar template
+            </Button>
+          </div>
         )}
 
         <div className="w-full h-full flex items-center gap-2 lg:gap-4 relative">
@@ -634,6 +698,18 @@ export function Footer({
                           <UserPlusIcon className="size-4" />
                           <p className="text-sm">Contato</p>
                         </div>
+                        {isMeta && (
+                          <div
+                            className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
+                            onClick={() => {
+                              setShowTemplatePicker(true);
+                              setOpen(false);
+                            }}
+                          >
+                            <FileBadgeIcon className="size-4" />
+                            <p className="text-sm">Template</p>
+                          </div>
+                        )}
                         <div className="relative w-full h-full cursor-pointer overflow-hidden">
                           <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4">
                             <FileIcon className="size-4" />
@@ -742,8 +818,14 @@ export function Footer({
                 ref={inputRef as any}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder={isDisabled ? "" : "Digite sua mensagem"}
-                disabled={isDisabled}
+                placeholder={
+                  outsideWindow
+                    ? "Fora da janela de 24h — envie um template"
+                    : isDisabled
+                      ? ""
+                      : "Digite sua mensagem"
+                }
+                disabled={isDisabled || outsideWindow}
                 className="resize-none min-h-0 py-2.5 text-sm max-h-50"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -778,7 +860,7 @@ export function Footer({
                     type="submit"
                     size="icon"
                     className="rounded-full "
-                    disabled={isDisabled}
+                    disabled={isDisabled || outsideWindow}
                   >
                     <SendIcon className="size-4 " />
                   </Button>
@@ -788,7 +870,7 @@ export function Footer({
                     variant="ghost"
                     size="icon"
                     className="rounded-full"
-                    disabled={isDisabled}
+                    disabled={isDisabled || outsideWindow}
                     onClick={() => setShowAudioRecorder(true)}
                   >
                     <MicIcon className="size-4" />
@@ -834,6 +916,14 @@ export function Footer({
           }}
         />
       )}
+      <TemplatePicker
+        open={showTemplatePicker}
+        onOpenChange={setShowTemplatePicker}
+        trackingId={trackingId}
+        conversationId={conversationId}
+        leadPhone={lead.phone}
+        onSent={closeMessageSelected}
+      />
       {sendImage && instance.instance && (
         <SendFile
           conversationId={conversationId}

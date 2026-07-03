@@ -17,6 +17,7 @@ import {
   BanIcon,
   CheckCheckIcon,
   CheckIcon,
+  CircleAlertIcon,
   EllipsisVerticalIcon,
   LucideIcon,
 } from "lucide-react";
@@ -461,9 +462,11 @@ export function MessageBox({
                         color:
                           message.status === MessageStatus.SEEN
                             ? "#53bdeb" // azul WhatsApp pra "visualizado"
-                            : isOwn
-                              ? "var(--chat-own-muted, var(--chat-own-muted-default, rgba(63,63,70,0.7)))"
-                              : "var(--chat-their-muted, var(--chat-their-muted-default, rgba(63,63,70,0.7)))",
+                            : message.status === MessageStatus.FAILED
+                              ? "#ef4444" // vermelho pra falha de entrega
+                              : isOwn
+                                ? "var(--chat-own-muted, var(--chat-own-muted-default, rgba(63,63,70,0.7)))"
+                                : "var(--chat-their-muted, var(--chat-their-muted-default, rgba(63,63,70,0.7)))",
                       }}
                     />
                   )}
@@ -540,7 +543,9 @@ export function MessageBox({
 const IconsStatus: Partial<Record<MessageStatus, LucideIcon>> = {
   [MessageStatus.PENDING]: CheckIcon, // 1 check  — indo
   [MessageStatus.SENT]: CheckCheckIcon, // 2 checks — enviada
+  [MessageStatus.DELIVERED]: CheckCheckIcon, // 2 checks — entregue (cinza)
   [MessageStatus.SEEN]: CheckCheckIcon, // 2 checks — visualizada (azul)
+  [MessageStatus.FAILED]: CircleAlertIcon, // erro de entrega (vermelho)
 };
 
 /**

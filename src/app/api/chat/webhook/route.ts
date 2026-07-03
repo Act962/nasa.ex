@@ -2,7 +2,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
-import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
+import {
+  WhatsAppInstanceStatus,
+  WhatsAppProvider,
+} from "@/generated/prisma/enums";
 import { Prisma } from "@/generated/prisma/client";
 import { MessageStatus } from "@/features/tracking-chat/types";
 import { WA_COLORS } from "@/utils/whatsapp-utils";
@@ -17,6 +20,7 @@ import {
   createProvider,
   invalidateOutboundProvider,
 } from "@/features/tracking-chat/lib/providers";
+import type { CanonicalInboundInteractiveReply } from "@/features/tracking-chat/lib/providers";
 import { persistCanonicalInbound } from "@/features/tracking-chat/lib/inbound/persist-canonical-inbound";
 import {
   buildUazapiDownloadInboundMedia,
@@ -73,6 +77,24 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // ── Gate de provider (#9) ──────────────────────────────────────
+      // Se o tracking migrou pra Meta Cloud, mas o webhook Uazapi externo
+      // ainda aponta pra cá, ignoramos o inbound — senão a mesma mensagem
+      // seria gravada duas vezes (uma via Meta, outra via Uazapi). 200 (não
+      // 4xx) porque a Uazapi externa retenta em não-2xx; não queremos
+      // amplificar. O caminho correto é o cliente remover o webhook na
+      // Uazapi, mas a maioria esquece — este gate é a rede de segurança.
+      if (tracking.whatsappProvider === WhatsAppProvider.META_CLOUD) {
+        console.log("[webhook:chat] provider_mismatch", {
+          trackingId,
+          provider: tracking.whatsappProvider,
+        });
+        return NextResponse.json(
+          { ok: true, skipped: "provider_mismatch" },
+          { status: 200 },
+        );
+      }
+
       // ── Astro Bot via WhatsApp ─────────────────────────────────
       // Se o remetente (não-fromMe) é um membro com UserWhatsappBinding
       // ativo NA ORG DESTE TRACKING, intercepta e roteia pro orchestrator
@@ -80,8 +102,16 @@ export async function POST(request: NextRequest) {
       // pro bot, não lead novo. Texto puro só — mídia ainda cai no fluxo
       // normal. Roda ANTES da normalização canônica pra escopar o binding
       // por org e evitar criar Lead/Message indevidos.
+      // Uazapi manda texto puro como "Conversation"/"ExtendedTextMessage"
+      // (espelha o `mapUazapiMessageType` do normalizador canônico). O antigo
+      // "TextMessage" não casava com payload real — por isso o bot não disparava.
       const bodyForBot = (json.message.text ?? "").trim();
-      if (!fromMe && bodyForBot && json.message.messageType === "TextMessage") {
+      const botMessageType = json.message.messageType ?? "";
+      const isTextForBot =
+        botMessageType === "Conversation" ||
+        botMessageType === "ExtendedTextMessage" ||
+        botMessageType === "TextMessage";
+      if (!fromMe && bodyForBot && isTextForBot) {
         try {
           const { maybeHandleBotMessage } = await import(
             "@/features/astro-bot/lib/webhook-handler"
@@ -89,7 +119,7 @@ export async function POST(request: NextRequest) {
           const botResult = await maybeHandleBotMessage({
             fromPhone: phone,
             messageText: bodyForBot,
-            receivingInstanceToken: json.token,
+            trackingId,
             deviceId: json.deviceId ?? undefined,
             trackingOrganizationId: tracking.organizationId,
           });
@@ -107,6 +137,38 @@ export async function POST(request: NextRequest) {
         } catch (err) {
           console.error(
             "[webhook:chat] astro-bot handler failed — fallback to atendimento normal",
+            err,
+          );
+        }
+      }
+
+      // ── Supressão do echo do Astro Bot (só Uazapi) ─────────────
+      // A resposta do bot sai pelo número da PRÓPRIA tracking; o Uazapi a
+      // ecoa de volta como webhook `fromMe:true`. Sem este guard, o echo cai
+      // no `persistCanonicalInbound` e cria Lead/Conversation/Message fantasma
+      // pro número do membro — além de persistir a resposta do bot (que pode
+      // citar nome/telefone/e-mail de outros leads) como mensagem de CRM.
+      // Só texto: evita suprimir mídia legítima de um operador. Meta não ecoa
+      // mensagens próprias, então não há branch equivalente no webhook oficial.
+      if (fromMe && bodyForBot && isTextForBot) {
+        try {
+          const { shouldSuppressBotEcho } = await import(
+            "@/features/astro-bot/lib/webhook-handler"
+          );
+          const suppress = await shouldSuppressBotEcho({
+            phone,
+            trackingId,
+            trackingOrganizationId: tracking.organizationId,
+          });
+          if (suppress) {
+            return NextResponse.json(
+              { ok: true, ignored: "astro-bot-echo" },
+              { status: 200 },
+            );
+          }
+        } catch (err) {
+          console.error(
+            "[webhook:chat] astro-bot echo-suppression check failed — segue pipeline normal",
             err,
           );
         }
@@ -194,16 +256,23 @@ export async function POST(request: NextRequest) {
       // metadata.buttonTagMap com o mapa buttonId→tagId.
       // 3 estratégias para localizar a mensagem original: o uazapi não
       // garante json.message.quoted em respostas de botão.
-      const messageType = json.message.messageType as string | undefined;
-      console.log("[btn-tag] messageType:", messageType, "fromMe:", fromMe);
-      if (
-        !fromMe &&
-        normalized.messages.length > 0 &&
-        (messageType === "ButtonsResponseMessage" ||
-          messageType === "TemplateButtonReplyMessage" ||
-          messageType === "ListResponseMessage" ||
-          messageType === "InteractiveResponseMessage")
-      ) {
+      // Gate por mensagem canônica, não por string de messageType: o adapter
+      // Uazapi já classifica os 4 tipos de resposta interativa
+      // (Buttons/TemplateButtonReply/ListResponse/InteractiveResponse) como
+      // `interactive_reply`. Gatear na presença dessa mensagem mantém o
+      // webhook em sincronia com o adapter — se ele passar a reconhecer um
+      // novo tipo, o webhook segue junto sem editar esta lista.
+      const interactiveReply = normalized.messages.find(
+        (message): message is CanonicalInboundInteractiveReply =>
+          message.type === "interactive_reply",
+      );
+      console.log(
+        "[btn-tag] interactiveReply:",
+        interactiveReply ? interactiveReply.replyId : null,
+        "fromMe:",
+        fromMe,
+      );
+      if (!fromMe && interactiveReply) {
         const buttonTagLead = await prisma.lead.findUnique({
           where: { phone_trackingId: { phone, trackingId } },
           select: { id: true, conversation: { select: { id: true } } },
@@ -219,11 +288,20 @@ export async function POST(request: NextRequest) {
           console.log("[btn-tag] quoted:", json.message.quoted);
           console.log("[btn-tag] conversation:", buttonTagLead.conversation?.id);
 
+          // Fonte primária: o `replyId` que o adapter já extraiu (single
+          // source of truth — cobre selectedButtonId/selectedRowId/content.id).
+          // Os campos extras abaixo são fallback defensivo pra formatos que o
+          // adapter ainda não cobre (selectedID, singleSelectReply, buttonReply).
           const clickedButtonId: string | undefined =
+            interactiveReply.replyId ||
             interactiveContent.selectedButtonId ||
             interactiveContent.selectedID ||
             interactiveContent.selectedRowId ||
+            interactiveContent.singleSelectReply?.selectedRowID ||
             interactiveContent.singleSelectReply?.selectedRowId ||
+            (typeof json.message.buttonOrListid === "string"
+              ? json.message.buttonOrListid
+              : undefined) ||
             interactiveContent.buttonReply?.id ||
             undefined;
 
@@ -231,20 +309,48 @@ export async function POST(request: NextRequest) {
 
           if (clickedButtonId) {
             try {
-              // Estratégia 1: quotedMessageData (quando json.message.quoted foi populado)
-              let originalMeta: unknown = null;
+              // Resolve o tagId associado AO BOTÃO CLICADO a partir do
+              // metadata da mensagem original (buttonTagMap = buttonId→tagId).
+              // Só aceitamos um candidato quando seu buttonTagMap contém
+              // EXATAMENTE o botão clicado. Isso conserta dois bugs do fluxo
+              // antigo que causavam falha intermitente em produção:
+              //  1. short-circuit: parava na primeira mensagem com metadata
+              //     achada (ex.: quoted apontando pra outro menu) e nunca
+              //     chegava no menu certo;
+              //  2. fallback frágil: pegava a outbound MAIS RECENTE com
+              //     metadata — se outro menu/automação tivesse sido enviado
+              //     depois, aplicava a tag errada ou nenhuma.
+              const resolveTagIdFromMeta = (
+                meta: unknown,
+              ): string | undefined => {
+                if (
+                  meta &&
+                  typeof meta === "object" &&
+                  "buttonTagMap" in (meta as object)
+                ) {
+                  const map = (
+                    meta as { buttonTagMap?: Record<string, string> }
+                  ).buttonTagMap;
+                  return map?.[clickedButtonId];
+                }
+                return undefined;
+              };
+
+              let resolvedTagId: string | undefined;
+
+              // Estratégia 1: mensagem citada (json.message.quoted)
               const quotedMsgId = (json.message.quoted as any)?.messageId;
               if (quotedMsgId) {
                 const quotedMsg = await prisma.message.findUnique({
                   where: { messageId: String(quotedMsgId) },
                   select: { metadata: true },
                 });
-                originalMeta = quotedMsg?.metadata ?? null;
+                resolvedTagId = resolveTagIdFromMeta(quotedMsg?.metadata);
+                console.log("[btn-tag] strategy1 resolvedTagId:", resolvedTagId);
               }
-              console.log("[btn-tag] strategy1 originalMeta:", originalMeta);
 
               // Estratégia 2: contextInfo.stanzaId (formato alternativo do uazapi)
-              if (!originalMeta) {
+              if (!resolvedTagId) {
                 const contextStanzaId =
                   interactiveContent.contextInfo?.stanzaId ||
                   interactiveContent.contextInfo?.quotedMessageKey?.id;
@@ -254,61 +360,62 @@ export async function POST(request: NextRequest) {
                     where: { messageId: String(contextStanzaId) },
                     select: { metadata: true },
                   });
-                  originalMeta = contextMsg?.metadata ?? null;
-                  console.log("[btn-tag] strategy2 result:", originalMeta);
+                  resolvedTagId = resolveTagIdFromMeta(contextMsg?.metadata);
+                  console.log("[btn-tag] strategy2 resolvedTagId:", resolvedTagId);
                 }
               }
 
-              // Estratégia 3: mensagem outbound mais recente com buttonTagMap
-              // nesta conversa (fallback quando quoted não está disponível)
-              if (!originalMeta && buttonTagLead.conversation?.id) {
-                const lastButtonMsg = await prisma.message.findFirst({
+              // Estratégia 3 (fallback robusto): varre as outbound recentes
+              // desta conversa e pega a primeira cujo buttonTagMap contém o
+              // botão clicado — não mais "a mais recente com qualquer metadata".
+              if (!resolvedTagId && buttonTagLead.conversation?.id) {
+                const recentOutbound = await prisma.message.findMany({
                   where: {
                     conversationId: buttonTagLead.conversation.id,
                     fromMe: true,
                     metadata: { not: Prisma.DbNull },
                   },
                   orderBy: { createdAt: "desc" },
+                  take: 20,
                   select: { metadata: true },
                 });
-                originalMeta = lastButtonMsg?.metadata ?? null;
-                console.log("[btn-tag] strategy3 result:", originalMeta);
-              }
-
-              if (
-                originalMeta &&
-                typeof originalMeta === "object" &&
-                "buttonTagMap" in (originalMeta as object)
-              ) {
-                const buttonTagMap = (
-                  originalMeta as { buttonTagMap: Record<string, string> }
-                ).buttonTagMap;
-                const resolvedTagId = buttonTagMap[clickedButtonId];
-                console.log("[btn-tag] buttonTagMap:", buttonTagMap, "resolvedTagId:", resolvedTagId);
-
-                if (resolvedTagId) {
-                  const activeTag = await prisma.tag.findFirst({
-                    where: { id: resolvedTagId, archivedAt: null },
-                    select: { id: true },
-                  });
-                  console.log("[btn-tag] activeTag:", activeTag);
-
-                  if (activeTag) {
-                    const { applyTagsByAi } = await import(
-                      "@/features/tracking-chat-ai/lib/apply-tags-by-ai"
-                    );
-                    await applyTagsByAi({
-                      leadId: buttonTagLead.id,
-                      tagIds: [resolvedTagId],
-                    });
-                    await pusherServer.trigger(trackingId, "lead:updated", {
-                      leadId: buttonTagLead.id,
-                    });
-                    console.log("[btn-tag] tag applied successfully:", resolvedTagId);
+                for (const outboundMessage of recentOutbound) {
+                  const candidateTagId = resolveTagIdFromMeta(
+                    outboundMessage.metadata,
+                  );
+                  if (candidateTagId) {
+                    resolvedTagId = candidateTagId;
+                    break;
                   }
                 }
+                console.log("[btn-tag] strategy3 resolvedTagId:", resolvedTagId);
+              }
+
+              if (resolvedTagId) {
+                const activeTag = await prisma.tag.findFirst({
+                  where: { id: resolvedTagId, archivedAt: null },
+                  select: { id: true },
+                });
+                console.log("[btn-tag] activeTag:", activeTag);
+
+                if (activeTag) {
+                  const { applyTagsByAi } = await import(
+                    "@/features/tracking-chat-ai/lib/apply-tags-by-ai"
+                  );
+                  await applyTagsByAi({
+                    leadId: buttonTagLead.id,
+                    tagIds: [resolvedTagId],
+                  });
+                  await pusherServer.trigger(trackingId, "lead:updated", {
+                    leadId: buttonTagLead.id,
+                  });
+                  console.log("[btn-tag] tag applied successfully:", resolvedTagId);
+                }
               } else {
-                console.log("[btn-tag] no buttonTagMap found in originalMeta:", originalMeta);
+                console.log(
+                  "[btn-tag] no tag resolved for clickedButtonId:",
+                  clickedButtonId,
+                );
               }
             } catch (err) {
               console.error("[webhook:chat] button-tag-apply failed", err);

@@ -76,6 +76,49 @@ export async function sendList(
   });
 }
 
+/**
+ * Envia a MESMA composição de itens dos botões (`{text,id}`) como uma LISTA
+ * interativa, embrulhando-os numa única seção (`text → title`). Reusa
+ * `sendList` para não duplicar a serialização do payload. `button` é o rótulo
+ * que abre a lista no WhatsApp (default "Ver opções").
+ */
+export async function sendItemsAsList(
+  token: string,
+  data: {
+    number: string;
+    text: string;
+    footer?: string;
+    button?: string;
+    items: Array<{ text: string; id: string }>;
+    readchat?: boolean;
+    readmessages?: boolean;
+    delay?: number;
+  },
+  baseUrl?: string,
+) {
+  return sendList(
+    token,
+    {
+      number: data.number,
+      text: data.text,
+      footer: data.footer,
+      button: data.button?.trim() || "Ver opções",
+      sections: [
+        {
+          rows: data.items.map((item) => ({
+            id: item.id,
+            title: item.text,
+          })),
+        },
+      ],
+      readchat: data.readchat,
+      readmessages: data.readmessages,
+      delay: data.delay,
+    },
+    baseUrl,
+  );
+}
+
 export async function sendMenu(
   token: string,
   data: SendMenuPayload,
@@ -90,39 +133,26 @@ export async function sendMenu(
 }
 
 /**
- * Wrapper que escolhe `sendButtons` (até 3 botões) ou `sendList` (4+)
- * automaticamente. WhatsApp nativo só aceita 3 botões interativos —
- * acima disso a uazapi recusa. Esta função degrada pra lista (mesma UX
- * de "menu suspenso") quando passa de 3.
+ * Wrapper de envio de menu de botões usado em qualquer call-site com
+ * quantidade variável de opções (executor de automação, tool de IA, etc).
  *
- * Use isso em qualquer call-site que receba quantidade variável de
- * opções (executor de automação, tool de IA, etc).
+ * Antes, este wrapper degradava pra `sendList` quando passava de 3 botões
+ * (limite nativo histórico do WhatsApp). A uazapi hoje renderiza N botões
+ * como botões de verdade (testado com 10), então o degrade virou legado —
+ * e ele quebrava a indexação de tag por clique: a resposta de lista volta
+ * com o id aninhado em `singleSelectReply.selectedRowId`, enquanto o adapter
+ * lê o `selectedButtonId` plano da resposta de botão. Mandando sempre
+ * `type: "button"`, o clique volta como `ButtonsResponseMessage` e o
+ * `buttonTagMap[clickedButtonId]` casa.
  *
- * `listButton` = label do CTA que abre a lista (até 20 chars). Default
- * "Ver opções" cabe na maioria dos casos.
+ * `listButton` é aceito por compatibilidade de assinatura mas é ignorado
+ * (não há mais lista). `sendList`/`sendMenu` seguem disponíveis pra quem
+ * quiser lista de propósito.
  */
 export async function sendButtonsOrList(
   token: string,
   data: SendButtonsPayload & { listButton?: string },
   baseUrl?: string,
 ) {
-  if (data.buttons.length <= 3) {
-    return sendButtons(token, data, baseUrl);
-  }
-  // Degrada pra lista — single section com todos os botões como linhas.
-  const listPayload: SendListPayload = {
-    number: data.number,
-    text: data.text,
-    footer: data.footer,
-    button: (data.listButton ?? "Ver opções").slice(0, 20),
-    sections: [
-      {
-        rows: data.buttons.map((b) => ({ id: b.id, title: b.text })),
-      },
-    ],
-    readchat: data.readchat,
-    readmessages: data.readmessages,
-    delay: data.delay,
-  };
-  return sendList(token, listPayload, baseUrl);
+  return sendButtons(token, data, baseUrl);
 }

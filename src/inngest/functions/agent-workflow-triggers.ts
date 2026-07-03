@@ -83,7 +83,7 @@ async function dispatchToMatchingWorkflows(params: {
 export const agentTriggerPaymentReceivedFn = inngest.createFunction(
   {
     id: "agent-trigger-payment-received",
-    concurrency: { limit: 50 },
+    concurrency: { limit: 5 },
   },
   { event: "agent-workflow/payment-received" },
   async ({ event, step }) => {
@@ -139,7 +139,7 @@ export const agentTriggerPaymentReceivedFn = inngest.createFunction(
 export const agentTriggerMessageIncomingFn = inngest.createFunction(
   {
     id: "agent-trigger-message-incoming",
-    concurrency: { limit: 100 },
+    concurrency: { limit: 5 },
   },
   { event: "agent-workflow/message-incoming" },
   async ({ event, step }) => {
@@ -174,7 +174,7 @@ export const agentTriggerMessageIncomingFn = inngest.createFunction(
 export const agentTriggerWebhookExternalFn = inngest.createFunction(
   {
     id: "agent-trigger-webhook-external",
-    concurrency: { limit: 50 },
+    concurrency: { limit: 5 },
   },
   { event: "agent-workflow/webhook-external" },
   async ({ event, step }) => {

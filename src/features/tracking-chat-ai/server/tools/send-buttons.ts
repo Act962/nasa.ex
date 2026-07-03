@@ -1,11 +1,15 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { sendButtons } from "@/http/uazapi/send-menu";
+import { sendButtons, sendItemsAsList } from "@/http/uazapi/send-menu";
 import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { persistOutboundMessage } from "../../lib/persist";
 import type { AgentContext } from "../../lib/context";
 
-const buttonShape = z.object({ text: z.string(), id: z.string() });
+const buttonShape = z.object({
+  text: z.string(),
+  id: z.string(),
+  tagId: z.string().optional(),
+});
 
 function parsePresetButtons(raw: unknown) {
   if (!Array.isArray(raw)) return [];
@@ -18,10 +22,11 @@ function parsePresetButtons(raw: unknown) {
 export const makeSendButtonsTool = (ctx: AgentContext) =>
   tool({
     description:
-      "Envia uma mensagem interativa com BOTÕES pré-cadastrada (preset). " +
-      "Use quando a resposta couber em opções rápidas e existir um preset " +
-      "no catálogo cuja descrição case com a situação. O lead vê os botões " +
-      "no WhatsApp e pode clicar.",
+      "Envia uma mensagem interativa pré-cadastrada (preset). Renderiza como " +
+      "BOTÕES ou como LISTA conforme o formato configurado no preset. Use " +
+      "quando a resposta couber em opções e existir um preset no catálogo " +
+      "cuja descrição case com a situação. O lead vê as opções no WhatsApp e " +
+      "pode clicar/selecionar.",
     inputSchema: z.object({
       presetId: z
         .string()
@@ -39,24 +44,50 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
         return { error: "preset_has_no_buttons", presetId };
       }
 
+      const asList = preset.menuFormat === "LIST";
       try {
-        const result = await sendButtons(
-          requireUazapiToken(ctx.instance.apiKey),
-          {
-            number: ctx.lead.phone,
-            text: preset.bodyText,
-            footer: preset.footerText ?? undefined,
-            // Não trunca — se >3, Uazapi recusa e o catch devolve erro
-            // pro modelo. Decisão consciente: a UI permite N botões.
-            buttons,
-            readchat: true,
-            readmessages: true,
-          },
-          ctx.instance.baseUrl ?? undefined,
-        );
+        const result = asList
+          ? await sendItemsAsList(
+              requireUazapiToken(ctx.instance.apiKey),
+              {
+                number: ctx.lead.phone,
+                text: preset.bodyText,
+                footer: preset.footerText ?? undefined,
+                button: preset.listButton ?? undefined,
+                items: buttons,
+                readchat: true,
+                readmessages: true,
+              },
+              ctx.instance.baseUrl ?? undefined,
+            )
+          : await sendButtons(
+              requireUazapiToken(ctx.instance.apiKey),
+              {
+                number: ctx.lead.phone,
+                text: preset.bodyText,
+                footer: preset.footerText ?? undefined,
+                // Não trunca — se >3, Uazapi recusa e o catch devolve erro
+                // pro modelo. Decisão consciente: a UI permite N botões.
+                buttons,
+                readchat: true,
+                readmessages: true,
+              },
+              ctx.instance.baseUrl ?? undefined,
+            );
 
         const summary = buttons.map((b) => `• ${b.text}`).join("\n");
-        const body = `${preset.bodyText}\n\n[Botões]\n${summary}`;
+        const body = asList
+          ? `${preset.bodyText}\n\n[Lista: ${preset.listButton ?? "Ver opções"}]\n${summary}`
+          : `${preset.bodyText}\n\n[Botões]\n${summary}`;
+
+        // buttonTagMap (buttonId→tagId) — grava no metadata pra o webhook
+        // aplicar a tag quando o lead clicar num botão com tag associada.
+        const buttonTagMap: Record<string, string> = {};
+        for (const button of buttons) {
+          if (button.id && button.tagId) {
+            buttonTagMap[button.id] = button.tagId;
+          }
+        }
 
         await persistOutboundMessage({
           conversationId: ctx.conversation.id,
@@ -65,6 +96,8 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
           body,
           senderName: ctx.settings?.assistantName ?? "IA",
           externalMessageId: result.messageid,
+          metadata:
+            Object.keys(buttonTagMap).length > 0 ? { buttonTagMap } : null,
         });
 
         return { ok: true, presetName: preset.name };

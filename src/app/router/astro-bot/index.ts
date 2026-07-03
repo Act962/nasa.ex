@@ -1,21 +1,20 @@
 import { getBotConfig } from "./config/get";
 import { upsertBotConfig } from "./config/upsert";
-import { startBindingOtp } from "./binding/start-otp";
-import { verifyBindingOtp } from "./binding/verify-otp";
+import { createBinding } from "./binding/create";
 import { listBindings } from "./binding/list";
 import { revokeBinding } from "./binding/revoke";
-import { resetBindingPin } from "./binding/reset-pin";
 
+// Procedures de OTP/PIN (binding/start-otp, binding/verify-otp,
+// binding/reset-pin) foram DESATIVADAS no fluxo simplificado — os arquivos
+// permanecem, mas não são mais registrados aqui.
 export const astroBotRouter = {
   config: {
     get: getBotConfig,
     upsert: upsertBotConfig,
   },
   binding: {
-    startOtp: startBindingOtp,
-    verifyOtp: verifyBindingOtp,
+    create: createBinding,
     list: listBindings,
     revoke: revokeBinding,
-    resetPin: resetBindingPin,
   },
 };
