@@ -14,6 +14,7 @@ import { getCardAppearance } from "./get-card-appearance";
 import { getTrackingIdleAutomation } from "./get-idle-automation";
 import { updateTrackingIdleAutomation } from "./update-idle-automation";
 import { getKanbanAppearance } from "./get-kanban-appearance";
+import { getLeadPurchases } from "./get-lead-purchases";
 
 export const trackingRoutes = {
   list: listTrackings,
@@ -32,4 +33,5 @@ export const trackingRoutes = {
   updateCardConfig: updateTrackingCardConfig,
   getIdleAutomation: getTrackingIdleAutomation,
   updateIdleAutomation: updateTrackingIdleAutomation,
+  getLeadPurchases,
 };

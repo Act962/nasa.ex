@@ -15,14 +15,19 @@ import {
   Legend,
 } from "recharts";
 import { TrendingUp, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
-
-const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+import {
+  PaymentPeriodPicker,
+  currentMonthRange,
+} from "../shared/payment-period-picker";
 
 export function CashflowTab() {
-  const now = new Date();
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear] = useState(now.getFullYear());
-  const { data, isLoading } = useCashflow(month, year);
+  const [period, setPeriod] = useState<{ from?: Date; to?: Date }>(
+    currentMonthRange(),
+  );
+  const { data, isLoading } = useCashflow({
+    dateFrom: period.from?.toISOString(),
+    dateTo: period.to?.toISOString(),
+  });
 
   const rows = data?.rows ?? [];
 
@@ -41,24 +46,11 @@ export function CashflowTab() {
     <div className="space-y-6">
       {/* Period selector */}
       <div className="flex items-center gap-3">
-        <select
-          className="text-sm bg-muted border border-border rounded-lg px-3 py-1.5"
-          value={month}
-          onChange={(e) => setMonth(Number(e.target.value))}
-        >
-          {MONTH_NAMES.map((m, i) => (
-            <option key={i} value={i + 1}>{m}</option>
-          ))}
-        </select>
-        <select
-          className="text-sm bg-muted border border-border rounded-lg px-3 py-1.5"
-          value={year}
-          onChange={(e) => setYear(Number(e.target.value))}
-        >
-          {[year - 1, year, year + 1].map((y) => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
+        <PaymentPeriodPicker
+          from={period.from}
+          to={period.to}
+          onChange={setPeriod}
+        />
       </div>
 
       {/* KPIs */}

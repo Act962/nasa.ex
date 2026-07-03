@@ -1,6 +1,12 @@
 import { config } from "dotenv";
+
+// Se DATABASE_URL veio como env var externo (ex.: `DATABASE_URL=<prod>
+// tsx scripts/grant-payment.ts`), respeitamos ele — não deixa o .env.local
+// local sobrescrever. Útil pra bootstrap em produção.
+const externalDbUrl = process.env.DATABASE_URL;
 config({ path: ".env" });
 config({ path: ".env.local", override: true });
+if (externalDbUrl) process.env.DATABASE_URL = externalDbUrl;
 
 import bcrypt from "bcryptjs";
 

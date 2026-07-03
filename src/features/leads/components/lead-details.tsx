@@ -12,9 +12,11 @@ import {
   ClipboardListIcon,
   EditIcon,
   FileIcon,
+  FileSignature,
   RouteIcon,
   StickyNoteIcon,
 } from "lucide-react";
+import { LeadContracts } from "./lead-contracts";
 import { TabNotes } from "./notes";
 import { LeadAttachmentsByFolder } from "./lead-files/lead-attachments-by-folder";
 import { ObservationLead } from "./observations";
@@ -97,6 +99,12 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
           trackingId={initialData.lead.trackingId}
         />
       ),
+    },
+    {
+      name: "Contratos",
+      value: "contracts",
+      icon: FileSignature,
+      content: <LeadContracts leadId={initialData.lead.id} />,
     },
   ];
 

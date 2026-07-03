@@ -33,6 +33,10 @@ import { useConstructUrl } from "@/hooks/use-construct-url";
 import { useLeadStore } from "../contexts/use-lead";
 import { useKanbanStore } from "../lib/kanban-store";
 import { useKanbanAppearance } from "../hooks/use-kanban-appearance";
+import { useLeadPurchasesByTracking } from "../hooks/use-lead-purchases";
+import { LeadPurchaseBasket } from "./lead-purchase-basket";
+import { useQuery } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
 import { hexToRgba } from "@/utils/hex-to-rgba";
 import {
   Popover,
@@ -141,6 +145,22 @@ export const LeadItem = memo(
     // Cores customizadas do card no kanban (Configurações → Personalização).
     // Hook cacheia 5min e dedupa entre cards/colunas — sem custo de rede.
     const { data: appearance } = useKanbanAppearance(data.trackingId);
+    // Cesta de compra: dedupa via React Query — 1 request por tracking.
+    const { data: purchasesData } = useLeadPurchasesByTracking(data.trackingId);
+    const { data: cardConfigData } = useQuery(
+      orpc.trackings.getCardConfig.queryOptions({
+        input: { trackingId: data.trackingId },
+      }),
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cardConfig = (cardConfigData as any)?.config;
+    const basketThresholds = {
+      recentDays: cardConfig?.basketRecentDays ?? 30,
+      mediumDays: cardConfig?.basketMediumDays ?? 60,
+      longDays: cardConfig?.basketLongDays ?? 90,
+    };
+    const showBasket = cardConfig?.showPurchaseBasket !== false;
+    const leadPurchase = purchasesData?.purchases?.[data.id];
     const [description, setDescription] = useState(data.description);
 
     const debouncedDescription = useDebouncedValue(description, 1000);
@@ -316,6 +336,12 @@ export const LeadItem = memo(
               leadId={data.id}
               trackingId={data.trackingId}
             />
+            {showBasket && (
+              <LeadPurchaseBasket
+                purchase={leadPurchase}
+                thresholds={basketThresholds}
+              />
+            )}
           </div>
         </div>
         <Separator />
