@@ -6,7 +6,11 @@ import { z } from "zod";
 import { FocusNfeHttpError } from "@/http/focus-nfe/client";
 import type { FiscalEnvironment } from "@/generated/prisma/enums";
 import { resolveNfseProviderByInvoiceType } from "@/features/fiscal/lib/providers/resolve-nfse-provider";
-import { resolveCompanyToken, focusStatusToDb } from "./utils";
+import {
+  resolveCompanyToken,
+  focusStatusToDb,
+  formatFocusErrorMessage,
+} from "./utils";
 
 export const refreshFiscalInvoiceStatus = base
   .use(requiredAuthMiddleware)
@@ -91,7 +95,7 @@ export const refreshFiscalInvoiceStatus = base
             authorizedAt: new Date(),
           }),
           errorMessage:
-            dbStatus === "ERRO" ? (focusData.mensagem_erro ?? null) : null,
+            dbStatus === "ERRO" ? formatFocusErrorMessage(focusData) : null,
         },
       });
     } catch (err) {

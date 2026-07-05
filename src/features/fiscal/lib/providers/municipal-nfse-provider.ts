@@ -5,6 +5,7 @@ import {
 import { emitirNfse } from "@/http/focus-nfe/emitir-nfse";
 import { consultarNfse } from "@/http/focus-nfe/consultar-nfse";
 import { cancelarNfse } from "@/http/focus-nfe/cancelar-nfse";
+import { resolveMunicipioRequirements } from "../municipio-requirements";
 import type { EmitParams, EmitResult, NfseProvider } from "./nfse-provider";
 
 export const municipalNfseProvider: NfseProvider = {
@@ -12,7 +13,13 @@ export const municipalNfseProvider: NfseProvider = {
   invoiceType: "NFSE",
   webhookEvent: "nfse",
 
-  validate: validateBeforeEmit,
+  validate: (contract, profile, overrides) =>
+    validateBeforeEmit(
+      contract,
+      profile,
+      overrides,
+      resolveMunicipioRequirements(profile.codigoMunicipio),
+    ),
 
   async emitir({
     ref,
@@ -22,7 +29,12 @@ export const municipalNfseProvider: NfseProvider = {
     environment,
     companyToken,
   }: EmitParams): Promise<EmitResult> {
-    const payload = buildNfsePayload(contract, profile, overrides);
+    const payload = buildNfsePayload(
+      contract,
+      profile,
+      overrides,
+      resolveMunicipioRequirements(profile.codigoMunicipio),
+    );
     const response = await emitirNfse(ref, payload, environment, companyToken);
     return { response, payload };
   },

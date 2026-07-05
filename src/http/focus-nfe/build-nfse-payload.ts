@@ -3,7 +3,8 @@ import type {
   ForgeContract,
   TomadorType,
 } from "@/generated/prisma/client";
-import type { NfsePayload } from "./types";
+import type { MunicipioNfseRequirements } from "@/features/fiscal/lib/municipio-requirements";
+import type { NfsePayload, NfseTomadorPJ } from "./types";
 
 export type IssueOverrides = {
   tipoTomador: TomadorType;
@@ -38,6 +39,7 @@ export function validateBeforeEmit(
   contract: ForgeContract,
   profile: FiscalCompanyProfile,
   overrides: IssueOverrides,
+  requirements: MunicipioNfseRequirements,
 ): PreflightResult {
   const errors: string[] = [];
 
@@ -45,7 +47,7 @@ export function validateBeforeEmit(
     errors.push("Município do prestador não está integrado na Focus NFe.");
   if (!profile.focusEmpresaRegistered)
     errors.push("Empresa não está cadastrada na Focus NFe.");
-  if (!profile.inscricaoMunicipal)
+  if (requirements.requiresInscricaoMunicipalPrestador && !profile.inscricaoMunicipal)
     errors.push("Inscrição municipal do prestador não configurada.");
   if (!/^\d{7}$/.test(profile.codigoMunicipio))
     errors.push("Código IBGE do município inválido (deve ter 7 dígitos).");
@@ -54,6 +56,24 @@ export function validateBeforeEmit(
   else if (!/^\d{6}$/.test(profile.defaultItemListaServico))
     errors.push(
       "Item da lista de serviço deve ter 6 dígitos numéricos (2 para item, 2 para subitem e 2 para desdobro nacional). Atualize o cadastro da empresa.",
+    );
+  if (requirements.requiresCodigoCnae) {
+    const cnaeDigits = requirements.requiresCodigoCnae.digits;
+    if (!profile.defaultCodigoCnae)
+      errors.push(
+        `Este município exige o código CNAE do serviço (${cnaeDigits} dígitos). Configure no perfil fiscal.`,
+      );
+    else if (profile.defaultCodigoCnae.length !== cnaeDigits)
+      errors.push(
+        `Este município exige CNAE com ${cnaeDigits} dígitos — o configurado tem ${profile.defaultCodigoCnae.length}. Atualize o perfil fiscal.`,
+      );
+  }
+  if (
+    requirements.requiresCodigoTributarioMunicipio &&
+    !profile.defaultCodigoTributarioMunicipio
+  )
+    errors.push(
+      "Este município exige o código tributário municipal do serviço. Configure no perfil fiscal.",
     );
   if (Number(profile.defaultAliquotaIss) <= 0)
     errors.push("Alíquota ISS inválida.");
@@ -65,19 +85,21 @@ export function validateBeforeEmit(
     if (cnpj.length !== 14) errors.push("CNPJ do tomador inválido.");
     if (!overrides.tomadorRazaoSocial)
       errors.push("Razão social do tomador obrigatória para PJ.");
-    if (!overrides.tomadorCodigoMunicipio)
-      errors.push("Código de município do tomador obrigatório para PJ.");
-    if (!overrides.tomadorLogradouro)
-      errors.push("Logradouro do tomador obrigatório para PJ.");
-    if (!overrides.tomadorNumero)
-      errors.push("Número do endereço do tomador obrigatório para PJ.");
-    if (!overrides.tomadorBairro)
-      errors.push("Bairro do tomador obrigatório para PJ.");
-    const tomadorCepDigits = (overrides.tomadorCep ?? "").replace(/\D/g, "");
-    if (tomadorCepDigits.length !== 8)
-      errors.push("CEP do tomador obrigatório para PJ (deve ter 8 dígitos).");
-    if (!overrides.tomadorUf)
-      errors.push("UF do tomador obrigatória para PJ.");
+    if (requirements.requiresTomadorEndereco) {
+      if (!overrides.tomadorCodigoMunicipio)
+        errors.push("Código de município do tomador obrigatório para PJ.");
+      if (!overrides.tomadorLogradouro)
+        errors.push("Logradouro do tomador obrigatório para PJ.");
+      if (!overrides.tomadorNumero)
+        errors.push("Número do endereço do tomador obrigatório para PJ.");
+      if (!overrides.tomadorBairro)
+        errors.push("Bairro do tomador obrigatório para PJ.");
+      const tomadorCepDigits = (overrides.tomadorCep ?? "").replace(/\D/g, "");
+      if (tomadorCepDigits.length !== 8)
+        errors.push("CEP do tomador obrigatório para PJ (deve ter 8 dígitos).");
+      if (!overrides.tomadorUf)
+        errors.push("UF do tomador obrigatória para PJ.");
+    }
   } else {
     const cpf = (overrides.tomadorCpf ?? "").replace(/\D/g, "");
     if (cpf.length !== 11) errors.push("CPF do tomador inválido.");
@@ -92,7 +114,31 @@ export function buildNfsePayload(
   contract: ForgeContract,
   profile: FiscalCompanyProfile,
   overrides: IssueOverrides,
+  requirements: MunicipioNfseRequirements,
 ): NfsePayload {
+  // Filosofia superset: endereço entra sempre que os dados existirem, mesmo quando
+  // o município não exige — prefeituras ignoram campos que não usam.
+  const hasEnderecoTomador = Boolean(
+    overrides.tomadorLogradouro &&
+      overrides.tomadorNumero &&
+      overrides.tomadorBairro &&
+      overrides.tomadorCodigoMunicipio &&
+      overrides.tomadorUf,
+  );
+  const enderecoTomador: NfseTomadorPJ["endereco"] = hasEnderecoTomador
+    ? {
+        logradouro: overrides.tomadorLogradouro!,
+        numero: overrides.tomadorNumero!,
+        ...(overrides.tomadorComplemento?.trim()
+          ? { complemento: overrides.tomadorComplemento.trim() }
+          : {}),
+        bairro: overrides.tomadorBairro!,
+        codigo_municipio: overrides.tomadorCodigoMunicipio!,
+        uf: overrides.tomadorUf!,
+        cep: (overrides.tomadorCep ?? "").replace(/\D/g, ""),
+      }
+    : undefined;
+
   const tomador =
     overrides.tipoTomador === "PJ"
       ? {
@@ -101,17 +147,7 @@ export function buildNfsePayload(
           ...(overrides.tomadorEmail?.trim()
             ? { email: overrides.tomadorEmail.trim() }
             : {}),
-          endereco: {
-            logradouro: overrides.tomadorLogradouro!,
-            numero: overrides.tomadorNumero!,
-            ...(overrides.tomadorComplemento?.trim()
-              ? { complemento: overrides.tomadorComplemento.trim() }
-              : {}),
-            bairro: overrides.tomadorBairro!,
-            codigo_municipio: overrides.tomadorCodigoMunicipio!,
-            uf: overrides.tomadorUf!,
-            cep: (overrides.tomadorCep ?? "").replace(/\D/g, ""),
-          },
+          ...(enderecoTomador ? { endereco: enderecoTomador } : {}),
         }
       : {
           cpf: (overrides.tomadorCpf ?? "").replace(/\D/g, ""),
@@ -138,9 +174,21 @@ export function buildNfsePayload(
     },
     tomador,
     servico: {
-      aliquota: Number(profile.defaultAliquotaIss),
+      aliquota: Number(
+        Number(profile.defaultAliquotaIss).toFixed(requirements.aliquotaDecimals),
+      ),
       iss_retido: profile.defaultIssRetido,
       item_lista_servico: profile.defaultItemListaServico,
+      ...(profile.defaultCodigoCnae
+        ? { codigo_cnae: profile.defaultCodigoCnae }
+        : {}),
+      ...(requirements.usesCodigoTributarioMunicipio &&
+      profile.defaultCodigoTributarioMunicipio
+        ? {
+            codigo_tributario_municipio:
+              profile.defaultCodigoTributarioMunicipio,
+          }
+        : {}),
       discriminacao:
         overrides.discriminacao?.trim() ||
         profile.defaultDiscriminacao?.trim() ||

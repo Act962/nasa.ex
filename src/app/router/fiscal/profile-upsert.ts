@@ -70,6 +70,12 @@ const upsertProfileInput = z
     defaultIssRetido: z.boolean(),
     defaultTributacaoIssqn: z.number().int().min(1).max(4).default(1),
     defaultDiscriminacao: z.string().optional(),
+    defaultCodigoCnae: z
+      .string()
+      .regex(/^\d{7}$|^\d{9}$/, "CNAE deve ter 7 ou 9 dígitos numéricos")
+      .nullable()
+      .optional(),
+    defaultCodigoTributarioMunicipio: z.string().nullable().optional(),
     ibsCbsSituacaoTributaria: z
       .string()
       .regex(/^\d{1,3}$/, "CST IBS/CBS deve ter 1 a 3 dígitos")

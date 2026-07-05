@@ -6,7 +6,11 @@ import { z } from "zod";
 import { FocusNfeHttpError } from "@/http/focus-nfe/client";
 import type { FiscalEnvironment } from "@/generated/prisma/enums";
 import { resolveNfseProvider } from "@/features/fiscal/lib/providers/resolve-nfse-provider";
-import { resolveCompanyToken, focusStatusToDb } from "./utils";
+import {
+  resolveCompanyToken,
+  focusStatusToDb,
+  formatFocusErrorMessage,
+} from "./utils";
 
 export const issueFiscalInvoice = base
   .use(requiredAuthMiddleware)
@@ -230,7 +234,7 @@ export const issueFiscalInvoice = base
           }),
           errorMessage:
             dbStatus === "ERRO"
-              ? (focusResponse.erros?.[0]?.mensagem ?? "Erro desconhecido")
+              ? (formatFocusErrorMessage(focusResponse) ?? "Erro desconhecido")
               : null,
         },
       });

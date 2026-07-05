@@ -9,7 +9,7 @@ const globalForPrisma = global as unknown as {
 // Schema version hash — bump this string whenever `prisma generate` runs to
 // force a new client instance and avoid stale model issues in hot-reload.
 // We derive it from a known model that may or may not exist in the old client.
-const SCHEMA_VERSION = "v50-fiscal-reforma-tributaria-ibs-cbs-lead-purchase-basket";
+const SCHEMA_VERSION = "v51-fiscal-default-cnae-codigo-tributario";
 
 const createClient = () => {
   const adapter = new PrismaPg({

@@ -7312,6 +7312,10 @@ model FiscalCompanyProfile {
   // tribISSQN (DPS nacional): 1=Operação tributável, 2=Imunidade, 3=Exportação, 4=Não incidência.
   defaultTributacaoIssqn  Int     @default(1) @map("default_tributacao_issqn")
   defaultDiscriminacao    String? @map("default_discriminacao")
+  // Requisitos que variam por município (ver docs/nfs/municipios-requirements.md):
+  // CNAE do serviço (7 ou 9 dígitos) e código tributário municipal.
+  defaultCodigoCnae                String? @map("default_codigo_cnae")
+  defaultCodigoTributarioMunicipio String? @map("default_codigo_tributario_municipio")
 
   // Reforma Tributária (IBS/CBS) — só entram na DPS nacional quando CST + classificação preenchidos.
   ibsCbsSituacaoTributaria      String?  @map("ibs_cbs_situacao_tributaria")

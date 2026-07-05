@@ -9,7 +9,8 @@ export type NfseTomadorPJ = {
   razao_social: string;
   email?: string;
   telefone?: string;
-  endereco: {
+  // Opcional: municípios cujo registry dispensa endereço do tomador emitem só com CNPJ.
+  endereco?: {
     logradouro: string;
     numero: string;
     complemento?: string;
@@ -31,6 +32,9 @@ export type NfseServico = {
   aliquota: number;
   iss_retido: boolean;
   item_lista_servico: string;
+  // Enviados conforme o registry de requisitos do município (docs/nfs/municipios-requirements.md).
+  codigo_cnae?: string;
+  codigo_tributario_municipio?: string;
   discriminacao: string;
   codigo_municipio: string;
   valor_servicos: number;

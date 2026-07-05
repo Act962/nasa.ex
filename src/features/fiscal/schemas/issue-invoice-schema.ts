@@ -5,6 +5,9 @@ export const issueInvoiceSchema = z
     tipoTomador: z.enum(["PF", "PJ"]),
     environment: z.enum(["HOMOLOGACAO", "PRODUCAO"]),
     nfseStandard: z.enum(["MUNICIPAL", "NACIONAL"]).optional(),
+    // Flag derivada do registry de requisitos do município do prestador
+    // (resolveMunicipioRequirements) — setada pelo dialog, não pelo usuário.
+    requiresTomadorEndereco: z.boolean().optional(),
     dataCompetencia: z.string().min(1, "Competência obrigatória"),
     discriminacao: z.string().optional(),
     naturezaOperacao: z.string(),
@@ -43,8 +46,11 @@ export const issueInvoiceSchema = z
           message: "Razão social obrigatória",
           path: ["tomadorRazaoSocial"],
         });
-      // NFS-e Nacional dispensa o endereço completo do tomador (basta o CNPJ/CPF).
-      if (values.nfseStandard !== "NACIONAL") {
+      // NFS-e Nacional dispensa o endereço completo do tomador (basta o CNPJ/CPF);
+      // no padrão municipal, a exigência vem do registry de requisitos do município.
+      const shouldValidateEndereco =
+        values.requiresTomadorEndereco ?? values.nfseStandard !== "NACIONAL";
+      if (values.nfseStandard !== "NACIONAL" && shouldValidateEndereco) {
         if (!values.tomadorCodigoMunicipio)
           ctx.addIssue({
             code: z.ZodIssueCode.custom,

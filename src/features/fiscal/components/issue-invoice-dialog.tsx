@@ -48,6 +48,7 @@ import {
   NATUREZA_OPERACAO_OPTIONS,
   REGIME_ESPECIAL_OPTIONS,
 } from "../lib/issue-invoice-options";
+import { resolveMunicipioRequirements } from "../lib/municipio-requirements";
 import {
   issueInvoiceSchema,
   type IssueInvoiceFormValues,
@@ -165,6 +166,12 @@ export function IssueInvoiceDialog({
   const tipoTomador = form.watch("tipoTomador");
   const environment = form.watch("environment");
   const isNacional = profile?.nfseStandard === "NACIONAL";
+  const municipioRequirements = resolveMunicipioRequirements(
+    profile?.codigoMunicipio,
+  );
+  // Nacional dispensa endereço por padrão do layout DPS; municipal segue o registry.
+  const requiresTomadorEndereco =
+    !isNacional && municipioRequirements.requiresTomadorEndereco;
   const [step, setStep] = useState<"form" | "preview">("form");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [preflightErrors, setPreflightErrors] = useState<string[]>([]);
@@ -278,15 +285,43 @@ export function IssueInvoiceDialog({
     );
     form.setValue("consumidorFinal", profile.defaultConsumidorFinal ?? false);
     const nacional = profile.nfseStandard === "NACIONAL";
+    const requirements = resolveMunicipioRequirements(profile.codigoMunicipio);
+    form.setValue(
+      "requiresTomadorEndereco",
+      !nacional && requirements.requiresTomadorEndereco,
+    );
     const errors: string[] = [];
     if (!nacional && !profile.supportedByFocus)
       errors.push("Município do prestador não integrado na Focus NFe.");
     if (!profile.focusEmpresaRegistered)
       errors.push("Empresa não cadastrada na Focus NFe.");
-    if (!nacional && !profile.inscricaoMunicipal)
+    if (
+      !nacional &&
+      requirements.requiresInscricaoMunicipalPrestador &&
+      !profile.inscricaoMunicipal
+    )
       errors.push("Inscrição municipal não configurada.");
     if (!profile.defaultItemListaServico)
       errors.push("Item lista de serviço não configurado.");
+    if (!nacional && requirements.requiresCodigoCnae) {
+      const cnaeDigits = requirements.requiresCodigoCnae.digits;
+      if (!profile.defaultCodigoCnae)
+        errors.push(
+          `Seu município exige o código CNAE do serviço (${cnaeDigits} dígitos) — configure no perfil fiscal.`,
+        );
+      else if (profile.defaultCodigoCnae.length !== cnaeDigits)
+        errors.push(
+          `Seu município exige CNAE com ${cnaeDigits} dígitos — atualize o perfil fiscal.`,
+        );
+    }
+    if (
+      !nacional &&
+      requirements.requiresCodigoTributarioMunicipio &&
+      !profile.defaultCodigoTributarioMunicipio
+    )
+      errors.push(
+        "Seu município exige o código tributário municipal — configure no perfil fiscal.",
+      );
     if (Number(profile.defaultAliquotaIss) <= 0)
       errors.push("Alíquota ISS inválida.");
     if (Number(contractValue) <= 0)
@@ -516,7 +551,7 @@ export function IssueInvoiceDialog({
                     message={formErrors.tomadorRazaoSocial?.message}
                   />
                 </div>
-                {!isNacional && (
+                {requiresTomadorEndereco && (
                 <>
                 <div className="sm:col-span-2 space-y-1.5">
                   <Label>
@@ -616,10 +651,11 @@ export function IssueInvoiceDialog({
                 </div>
                 </>
                 )}
-                {isNacional && (
+                {!requiresTomadorEndereco && (
                   <p className="sm:col-span-2 text-xs text-muted-foreground">
-                    NFS-e Nacional: o endereço do tomador não é necessário —
-                    apenas o CNPJ.
+                    {isNacional
+                      ? "NFS-e Nacional: o endereço do tomador não é necessário — apenas o CNPJ."
+                      : "Seu município não exige o endereço do tomador — apenas o CNPJ."}
                   </p>
                 )}
               </div>

@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/dialog";
 import type { CnpjWsResponse } from "@/http/cnpj-ws/client";
 import { maskCnpj, maskCpf } from "../utils/document-masks";
+import { resolveMunicipioRequirements } from "../lib/municipio-requirements";
 
 const schema = z
   .object({
@@ -89,6 +90,12 @@ const schema = z
     defaultIssRetido: z.boolean(),
     defaultTributacaoIssqn: z.number().int().min(1).max(4),
     defaultDiscriminacao: z.string().optional(),
+    defaultCodigoCnae: z
+      .string()
+      .regex(/^\d{7}$|^\d{9}$/, "CNAE deve ter 7 ou 9 dígitos numéricos")
+      .optional()
+      .or(z.literal("")),
+    defaultCodigoTributarioMunicipio: z.string().optional(),
     ibsCbsSituacaoTributaria: z
       .string()
       .regex(/^\d{1,3}$/, "CST deve ter 1 a 3 dígitos")
@@ -101,7 +108,7 @@ const schema = z
       .or(z.literal("")),
     defaultConsumidorFinal: z.boolean(),
     supportedByFocus: z.boolean(),
-    nfseStandard: z.enum(["MUNICIPAL", "NACIONAL"]).default("MUNICIPAL"),
+    nfseStandard: z.enum(["MUNICIPAL", "NACIONAL"]),
     senhaCertificado: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -170,6 +177,8 @@ export function FiscalProfileForm() {
       defaultIssRetido: false,
       defaultTributacaoIssqn: 1,
       defaultDiscriminacao: "",
+      defaultCodigoCnae: "",
+      defaultCodigoTributarioMunicipio: "",
       ibsCbsSituacaoTributaria: "",
       ibsCbsClassificacaoTributaria: "",
       defaultConsumidorFinal: false,
@@ -299,6 +308,9 @@ export function FiscalProfileForm() {
       defaultIssRetido: profile.defaultIssRetido,
       defaultTributacaoIssqn: profile.defaultTributacaoIssqn ?? 1,
       defaultDiscriminacao: profile.defaultDiscriminacao ?? "",
+      defaultCodigoCnae: profile.defaultCodigoCnae ?? "",
+      defaultCodigoTributarioMunicipio:
+        profile.defaultCodigoTributarioMunicipio ?? "",
       ibsCbsSituacaoTributaria: profile.ibsCbsSituacaoTributaria ?? "",
       ibsCbsClassificacaoTributaria:
         profile.ibsCbsClassificacaoTributaria ?? "",
@@ -325,6 +337,9 @@ export function FiscalProfileForm() {
         ibsCbsSituacaoTributaria: values.ibsCbsSituacaoTributaria || null,
         ibsCbsClassificacaoTributaria:
           values.ibsCbsClassificacaoTributaria || null,
+        defaultCodigoCnae: values.defaultCodigoCnae || null,
+        defaultCodigoTributarioMunicipio:
+          values.defaultCodigoTributarioMunicipio || null,
         arquivoCertificadoBase64,
       },
       {
@@ -826,6 +841,57 @@ export function FiscalProfileForm() {
             />
             <Label>ISS Retido na Fonte</Label>
           </div>
+          {form.watch("nfseStandard") === "MUNICIPAL" &&
+            (() => {
+              const municipioRequirements = resolveMunicipioRequirements(
+                form.watch("codigoMunicipio"),
+              );
+              return (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="sm:min-h-10 items-start">
+                      Código CNAE do serviço{" "}
+                      {municipioRequirements.requiresCodigoCnae && (
+                        <span className="text-destructive">*</span>
+                      )}
+                    </Label>
+                    <Input
+                      {...form.register("defaultCodigoCnae")}
+                      inputMode="numeric"
+                      placeholder="Ex: 620910000"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {municipioRequirements.requiresCodigoCnae
+                        ? `Seu município exige CNAE de ${municipioRequirements.requiresCodigoCnae.digits} dígitos na emissão.`
+                        : "Opcional — alguns municípios exigem o CNAE na emissão."}
+                    </p>
+                    {form.formState.errors.defaultCodigoCnae && (
+                      <p className="text-xs text-destructive">
+                        {form.formState.errors.defaultCodigoCnae.message}
+                      </p>
+                    )}
+                  </div>
+                  {municipioRequirements.usesCodigoTributarioMunicipio && (
+                    <div className="space-y-1.5">
+                      <Label className="sm:min-h-10 items-start">
+                        Código Tributário do Município{" "}
+                        {municipioRequirements.requiresCodigoTributarioMunicipio && (
+                          <span className="text-destructive">*</span>
+                        )}
+                      </Label>
+                      <Input
+                        {...form.register("defaultCodigoTributarioMunicipio")}
+                        placeholder="Código da tabela da prefeitura"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Consulte a tabela de códigos de serviço da sua
+                        prefeitura.
+                      </p>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           <div className="sm:col-span-2 space-y-1.5">
             <Label>Discriminação padrão do serviço</Label>
             <Textarea
