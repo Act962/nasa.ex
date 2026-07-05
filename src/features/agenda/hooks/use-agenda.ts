@@ -448,6 +448,34 @@ export const useSyncAppointmentToGoogleCalendar = () => {
   );
 };
 
+export const useRenameAppointment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.appointments.rename.mutationOptions({
+      onSuccess: (data) => {
+        toast.success("Título atualizado");
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.get.queryOptions({
+            input: { appointmentId: data.appointment.id },
+          }),
+        );
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByOrg.queryOptions({ input: {} }),
+        );
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByTracking.queryOptions({
+            input: { trackingId: data.appointment.trackingId ?? "" },
+          }),
+        );
+      },
+      onError: (error) => {
+        toast.error("Erro ao renomear: " + error.message);
+      },
+    }),
+  );
+};
+
 export const useSetAppointmentMeetingType = () => {
   const queryClient = useQueryClient();
 

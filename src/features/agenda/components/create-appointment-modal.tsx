@@ -55,6 +55,7 @@ import {
   PhoneIcon,
   MailIcon,
   StickyNoteIcon,
+  TypeIcon,
 } from "lucide-react";
 import { z } from "zod";
 import { Controller, useForm } from "react-hook-form";
@@ -72,6 +73,7 @@ interface Props {
 }
 
 const formSchema = z.object({
+  title: z.string().optional(),
   name: z.string().min(1, "Nome é obrigatório"),
   code: z.string().optional(),
   phone: z.string().min(1, "Telefone é obrigatório"),
@@ -125,6 +127,7 @@ export function CreateAppointmentModal({
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      title: "",
       name: initialName ?? "",
       phone: initialPhoneMasked,
       code: "55",
@@ -148,6 +151,7 @@ export function CreateAppointmentModal({
         : "";
       const maskedPhone = rawPhone ? phoneMask(rawPhone) : "";
       form.reset({
+        title: "",
         name: initialName ?? "",
         phone: maskedPhone,
         code: "55",
@@ -231,6 +235,7 @@ export function CreateAppointmentModal({
         agendaId: selectedAgendaId,
         date: dateStr,
         time: effectiveTime,
+        title: data.title?.trim() || undefined,
         name: data.name,
         phone,
         email: data.email,
@@ -452,6 +457,27 @@ export function CreateAppointmentModal({
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Dados do cliente
               </p>
+
+              {/* Título do compromisso */}
+              <Field className="gap-y-1.5">
+                <FieldLabel
+                  htmlFor="title"
+                  className="flex items-center gap-1.5"
+                >
+                  <TypeIcon className="size-3.5 text-muted-foreground" />
+                  Título do compromisso
+                </FieldLabel>
+                <Input
+                  id="title"
+                  placeholder="Ex.: Reunião de proposta"
+                  disabled={isSubmitting}
+                  {...form.register("title")}
+                />
+                <FieldDescription>
+                  Deixe em branco para usar o padrão “Agendamento: nome do
+                  cliente”.
+                </FieldDescription>
+              </Field>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Nome */}
