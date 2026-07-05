@@ -28,7 +28,6 @@ interface BudgetCreateViewProps {
   leadId: string;
   leadName: string;
   leadPhone: string;
-  whatsappToken: string;
   onSuccess: () => void;
   /**
    * Dados de pré-preenchimento — usados quando o painel é aberto a
@@ -67,7 +66,6 @@ export function BudgetCreateView({
   leadId,
   leadName,
   leadPhone,
-  whatsappToken,
   onSuccess,
   initialAttach,
 }: BudgetCreateViewProps) {
@@ -224,7 +222,6 @@ export function BudgetCreateView({
           conversationId,
           body: `💰 Orçamento: ${formatCurrency(cents)}\n${description.trim()}`,
           leadPhone,
-          token: whatsappToken,
           mediaUrl: attachKey,
           fileName: attachName ?? "orcamento.pdf",
           mimetype: attachMime ?? "application/pdf",
@@ -235,7 +232,6 @@ export function BudgetCreateView({
           conversationId,
           body: messageBody,
           leadPhone,
-          token: whatsappToken,
         });
       }
       await createReceivable.mutateAsync({

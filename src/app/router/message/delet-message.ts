@@ -4,9 +4,12 @@ import z from "zod";
 import { deleteMessage } from "@/http/uazapi/delete-message";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
-import { MessageStatus, WhatsAppProvider } from "@/generated/prisma/enums";
+import { MessageStatus } from "@/generated/prisma/enums";
 import { pusherServer } from "@/lib/pusher";
-import { MetaFeatureUnsupportedError } from "@/features/tracking-chat/lib/providers";
+import {
+  MetaFeatureUnsupportedError,
+  resolveOutboundProvider,
+} from "@/features/tracking-chat/lib/providers";
 
 export const deleteMessageHandler = base
   .use(requiredAuthMiddleware)
@@ -18,7 +21,12 @@ export const deleteMessageHandler = base
   .input(
     z.object({
       id: z.string(),
-      token: z.string(),
+      /**
+       * @deprecated Ignorado pelo servidor — o token Uazapi é resolvido
+       * via `resolveOutboundProvider(trackingId)`. Mantido por backward
+       * compat com clients antigos.
+       */
+      token: z.string().nullish(),
       messageId: z.string(),
     }),
   )
@@ -42,26 +50,31 @@ export const deleteMessageHandler = base
         },
       });
 
+      const trackingId = messageBefore?.conversation?.trackingId;
+      if (!trackingId) {
+        throw errors.BAD_REQUEST({
+          message: "Mensagem sem trackingId — não é possível apagar.",
+        });
+      }
+
+      // Resolve credenciais server-side (source of truth é o banco) — o
+      // client não trafega mais o token Uazapi. `input.token` é ignorado.
+      const resolved = await resolveOutboundProvider(trackingId);
+
       // ── Gate Meta unsupported (Fase 6) ─────────────────────────────────
       // Meta Cloud API não tem endpoint pra apagar mensagem outbound (só
       // recebe revoke via webhook). Recusamos antes de chamar Uazapi.
-      if (messageBefore?.conversation?.trackingId) {
-        const instance = await prisma.whatsAppInstance.findUnique({
-          where: { trackingId: messageBefore.conversation.trackingId },
-          select: { provider: true },
+      if (resolved.providerId !== "uazapi" || !resolved.uazapiToken) {
+        const err = new MetaFeatureUnsupportedError("delete");
+        throw errors.BAD_REQUEST({
+          message: err.message,
+          data: { code: err.code, feature: err.feature } as never,
         });
-        if (instance?.provider === WhatsAppProvider.META_CLOUD) {
-          const err = new MetaFeatureUnsupportedError("delete");
-          throw errors.BAD_REQUEST({
-            message: err.message,
-            data: { code: err.code, feature: err.feature } as never,
-          });
-        }
       }
 
       const response = await deleteMessage({
         id: input.id,
-        token: input.token,
+        token: resolved.uazapiToken,
       });
 
       if (!response) {

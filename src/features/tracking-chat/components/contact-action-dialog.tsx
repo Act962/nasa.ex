@@ -21,7 +21,6 @@ interface ContactActionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   trackingId: string;
-  token: string;
   contactName: string;
   contactPhone: string;
 }
@@ -30,7 +29,6 @@ export function ContactActionDialog({
   open,
   onOpenChange,
   trackingId,
-  token,
   contactName,
   contactPhone,
 }: ContactActionDialogProps) {
@@ -76,7 +74,6 @@ export function ContactActionDialog({
       trackingId,
       phone: contactPhone,
       name: contactName,
-      token,
     });
   };
 

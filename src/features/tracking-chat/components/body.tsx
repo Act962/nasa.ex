@@ -441,31 +441,18 @@ export function Body({ messageSelected, onSelectMessage, conversationId: convers
     };
   }, [conversationId, queryClient, session.data?.user.id]);
 
-  const { isEditing, messageToEdit, setIsEditing, cancelEditing, token } =
+  const { isEditing, messageToEdit, setIsEditing, cancelEditing, instanceId } =
     useMessageStore();
 
   const mutationEdit = useMutationEditMessage({ conversationId });
 
-  const remoteJid = data?.pages[0].remoteJid;
-
-  // useEffect(() => {
-  //   if (conversationId && remoteJid && token) {
-  //     markRead.mutate({
-  //       conversationId,
-  //       remoteJid,
-  //       token,
-  //     });
-  //   }
-  // }, [conversationId, remoteJid, token, items]);
-
   const isEmpty = !error && !isLoading && items.length === 0;
 
   function handleEditMessage(text: string, messageId: string) {
-    if (!token) return;
+    if (!instanceId) return;
     mutationEdit.mutate({
       id: messageId,
       text,
-      token,
     });
     setIsEditing(false);
   }

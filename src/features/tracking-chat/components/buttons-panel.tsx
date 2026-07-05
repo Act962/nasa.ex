@@ -132,8 +132,6 @@ export function ButtonsPanel({
         type: "buttons",
         conversationId,
         leadPhone: lead.phone,
-        token: instance.instance!.apiKey ?? "",
-        baseUrl: instance.instance!.baseUrl ?? "",
         text: text.trim(),
         footer: footer.trim() || undefined,
         buttons: validButtons.map((b) => ({
@@ -156,8 +154,6 @@ export function ButtonsPanel({
         type: "list",
         conversationId,
         leadPhone: lead.phone,
-        token: instance.instance!.apiKey ?? "",
-        baseUrl: instance.instance!.baseUrl ?? "",
         text: text.trim(),
         footer: footer.trim() || undefined,
         button: listButtonLabel.trim().slice(0, 20) || "Ver opções",

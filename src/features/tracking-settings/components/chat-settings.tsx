@@ -35,6 +35,7 @@ import {
 } from "@/generated/prisma/enums";
 import {
   useQueryInstances,
+  useConnectionSecrets,
   useDisconnectIntegrationStatus,
 } from "../hooks/use-integration";
 import { useParams } from "next/navigation";
@@ -126,6 +127,15 @@ export function ChatSettings() {
   const { instanceLoading, instance: instanceData } =
     useQueryInstances(trackingId);
 
+  // Segredos Uazapi (apiKey/baseUrl) NÃO vêm mais no payload geral —
+  // buscamos sob demanda via procedure dedicada, só quando existe uma
+  // instância Uazapi (as ações que os consomem são gateadas a Uazapi).
+  const isMetaInstance =
+    instanceData?.provider === WhatsAppProvider.META_CLOUD;
+  const { secrets } = useConnectionSecrets(trackingId, {
+    enabled: !!instanceData && !isMetaInstance,
+  });
+
   // Normaliza o dado da query pro tipo Instance (UI). As credenciais Uazapi
   // (apiKey/baseUrl/instanceId) vêm null quando provider=META_CLOUD — coalesce
   // pra "" porque as ações que as consomem (QR connect / status / disconnect)
@@ -134,8 +144,8 @@ export function ChatSettings() {
     ? {
         id: instanceData.id,
         instanceName: instanceData.instanceName,
-        baseUrl: instanceData.baseUrl ?? "",
-        apiKey: instanceData.apiKey ?? "",
+        baseUrl: secrets?.baseUrl ?? "",
+        apiKey: secrets?.apiKey ?? "",
         status: instanceData.status,
         instanceId: instanceData.instanceId ?? "",
         provider: instanceData.provider,

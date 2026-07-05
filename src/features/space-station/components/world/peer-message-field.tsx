@@ -26,6 +26,7 @@ import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
+import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { useMutationTextMessage } from "@/features/tracking-chat/hooks/use-messages";
 
 interface Props {
@@ -68,10 +69,12 @@ export function PeerMessageField({ peerId, peerName, stationId, onSent }: Props)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peerId]);
 
-  // 2) Instância WhatsApp do user (pra obter token de send). Hook condicional
-  //    via flag — chamado SEMPRE mas só usa quando resolved.trackingId existe.
+  // 2) Instância WhatsApp do user — só pra gatear o envio pela conexão.
+  //    O token NÃO trafega mais no front; é resolvido server-side. Usamos
+  //    `status` como sinal não-sensível de "conectado".
   const instance = useQueryInstances(resolved?.trackingId ?? "");
-  const apiKey = instance.instance?.apiKey;
+  const hasConnectedInstance =
+    instance.instance?.status === WhatsAppInstanceStatus.CONNECTED;
 
   // 3) Mutation de send — só usa quando resolved+apiKey disponíveis.
   const sendMutation = useMutationTextMessage({
@@ -83,7 +86,11 @@ export function PeerMessageField({ peerId, peerName, stationId, onSent }: Props)
     },
   });
 
-  const canSend = !!resolved && !!apiKey && message.trim().length > 0 && !sendMutation.isPending;
+  const canSend =
+    !!resolved &&
+    hasConnectedInstance &&
+    message.trim().length > 0 &&
+    !sendMutation.isPending;
 
   // Auto-focus quando o resolve termina (UX: user já pode digitar).
   useEffect(() => {
@@ -93,14 +100,13 @@ export function PeerMessageField({ peerId, peerName, stationId, onSent }: Props)
   }, [resolved]);
 
   function handleSend() {
-    if (!canSend || !resolved || !apiKey) return;
+    if (!canSend || !resolved) return;
     const trimmedMessage = message.trim();
     const body = `*${session?.user.name ?? "Usuário"}*\n${trimmedMessage}`;
     sendMutation.mutate(
       {
         body,
         leadPhone: resolved.leadPhone,
-        token: apiKey,
         conversationId: resolved.conversationId,
       },
       {
@@ -167,8 +173,8 @@ export function PeerMessageField({ peerId, peerName, stationId, onSent }: Props)
     );
   }
 
-  // Estado: resolved mas sem instância WhatsApp configurada
-  if (resolved && !instance.instanceLoading && !apiKey) {
+  // Estado: resolved mas sem instância WhatsApp conectada
+  if (resolved && !instance.instanceLoading && !hasConnectedInstance) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 p-4 text-center">
         <AlertTriangle className="h-5 w-5 text-amber-400" />

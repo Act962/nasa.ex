@@ -1,4 +1,7 @@
-import { LeadSource } from "@/generated/prisma/enums";
+import {
+  LeadSource,
+  WhatsAppInstanceStatus,
+} from "@/generated/prisma/enums";
 import { InfiniteData } from "@tanstack/react-query";
 
 export interface MessageBodyProps {
@@ -115,7 +118,8 @@ export type ConversationPage = {
 export type InfiniteConversations = InfiniteData<ConversationPage>;
 
 export interface Instance {
-  token: string;
+  id: string;
+  status: WhatsAppInstanceStatus | null;
   isBusiness: boolean;
   phoneNumber: string | null;
 }
