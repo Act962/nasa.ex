@@ -84,6 +84,26 @@ export const useQueryInstances = (trackingId: string) => {
   return { instance: data ?? null, instanceLoading: isLoading };
 };
 
+/**
+ * Segredos de conexão Uazapi (`apiKey`/`baseUrl`) — SÓ para o fluxo de
+ * conexão/status/exclusão de instância nas Configurações, onde o browser
+ * fala HTTP direto com a Uazapi. Buscar sob demanda (`enabled`) para o
+ * token não ficar em cache à toa. Não usar no chat.
+ */
+export const useConnectionSecrets = (
+  trackingId: string,
+  options?: { enabled?: boolean },
+) => {
+  const { data, isLoading } = useQuery({
+    ...orpc.integrations.getConnectionSecrets.queryOptions({
+      input: { trackingId },
+    }),
+    enabled: options?.enabled ?? true,
+  });
+
+  return { secrets: data ?? null, secretsLoading: isLoading };
+};
+
 export const useDeleteIntegration = ({
   trackingId,
 }: {

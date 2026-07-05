@@ -9,17 +9,19 @@ interface ContactMessageBoxProps {
   name: string | null | undefined;
   phone: string | null | undefined;
   trackingId?: string;
-  token?: string;
+  /** Instância configurada — habilita o botão "Conversar". O token
+   *  Uazapi não trafega mais no front; é resolvido server-side. */
+  canChat?: boolean;
 }
 
 export function ContactMessageBox({
   name,
   phone,
   trackingId,
-  token,
+  canChat: canChatProp,
 }: ContactMessageBoxProps) {
   const [open, setOpen] = useState(false);
-  const canChat = !!phone && !!trackingId && !!token;
+  const canChat = !!phone && !!trackingId && !!canChatProp;
 
   return (
     <>
@@ -60,7 +62,6 @@ export function ContactMessageBox({
           open={open}
           onOpenChange={setOpen}
           trackingId={trackingId!}
-          token={token!}
           contactName={name || "Contato"}
           contactPhone={phone!}
         />

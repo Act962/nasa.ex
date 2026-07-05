@@ -27,6 +27,7 @@ import {
   useCancelAppointment,
   useCompleteAppointment,
   useDeleteAppointment,
+  useRenameAppointment,
   useRescheduleAppointment,
   useSetAppointmentMeetingType,
   useSyncAppointmentToGoogleCalendar,
@@ -35,6 +36,7 @@ import { useQueryPublicAgendaTimeSlots } from "@/features/agenda/hooks/use-publi
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/features/agenda/components/external-link/calendar";
@@ -130,10 +132,25 @@ export const ViewAppointment = ({
   const [completeOpen, setCompleteOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
 
   const cancelMutation = useCancelAppointment();
   const completeMutation = useCompleteAppointment();
   const deleteMutation = useDeleteAppointment();
+  const renameMutation = useRenameAppointment();
+
+  const startEditingTitle = () => {
+    setTitleDraft(appointment?.title ?? "");
+    setIsEditingTitle(true);
+  };
+
+  const commitTitle = () => {
+    const nextTitle = titleDraft.trim();
+    setIsEditingTitle(false);
+    if (!appointment || !nextTitle || nextTitle === appointment.title) return;
+    renameMutation.mutate({ appointmentId, title: nextTitle });
+  };
 
   const handleConfirmCancel = () => {
     cancelMutation.mutate(
@@ -210,9 +227,38 @@ export const ViewAppointment = ({
               {/* ── Header ── */}
               <div className="flex flex-col gap-2 px-1">
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="text-base font-semibold leading-tight flex-1">
-                    {appointment.title}
-                  </h2>
+                  {isEditingTitle ? (
+                    <Input
+                      autoFocus
+                      value={titleDraft}
+                      onChange={(event) => setTitleDraft(event.target.value)}
+                      onBlur={commitTitle}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          commitTitle();
+                        } else if (event.key === "Escape") {
+                          event.preventDefault();
+                          setIsEditingTitle(false);
+                        }
+                      }}
+                      disabled={renameMutation.isPending}
+                      className="h-8 flex-1 text-base font-semibold"
+                    />
+                  ) : (
+                    <h2
+                      role="button"
+                      tabIndex={0}
+                      onClick={startEditingTitle}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") startEditingTitle();
+                      }}
+                      title="Clique para editar o título"
+                      className="text-base font-semibold leading-tight flex-1 cursor-text rounded-sm px-1 -mx-1 hover:bg-muted/60 transition-colors"
+                    >
+                      {appointment.title}
+                    </h2>
+                  )}
                   <Badge
                     variant="outline"
                     className={cn(

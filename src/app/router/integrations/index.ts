@@ -3,6 +3,7 @@ import { createInstanceUazapi } from "./create";
 import { deleteInstanceUazapi } from "./delet";
 import { disconnectInstanceUazapi } from "./disconect";
 import { getIntegration } from "./list";
+import { getConnectionSecrets } from "./get-connection-secrets";
 import { newNasaIntegration } from "./new-nasa-total";
 import { newNasaIntegrationPartial } from "./new-nasa-partial";
 import { setupMetaIntegration, getMetaIntegration } from "./setup-meta";
@@ -31,6 +32,7 @@ export const integrationsRouter = {
   connect: connectInstanceUazapi,
   disconnect: disconnectInstanceUazapi,
   get: getIntegration,
+  getConnectionSecrets,
   delete: deleteInstanceUazapi,
   newNasa: newNasaIntegration,
   newNasaPartial: newNasaIntegrationPartial,

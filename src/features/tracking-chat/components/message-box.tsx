@@ -59,7 +59,7 @@ export function MessageBox({
   isGroup?: boolean;
 }) {
   const isOwn = message.fromMe;
-  const token = useMessageStore((state) => state.token);
+  const instanceId = useMessageStore((state) => state.instanceId);
   const deleteMessage = useMutationDeleteMessage({
     conversationId,
   });
@@ -113,10 +113,9 @@ export function MessageBox({
   const router = useRouter();
 
   const onDeleteMessage = () => {
-    if (!token) return;
+    if (!instanceId) return;
     deleteMessage.mutate({
       messageId: message.id,
-      token: token,
       id: message.messageId,
     });
   };
@@ -201,13 +200,12 @@ export function MessageBox({
 
   return (
     <>
-      {trackingId && token && (
+      {trackingId && instanceId && (
         <ForwardMessageDialog
           open={forwardOpen}
           onOpenChange={setForwardOpen}
           message={message}
           trackingId={trackingId}
-          token={token}
         />
       )}
       <SelectedMessageOptions
@@ -372,7 +370,7 @@ export function MessageBox({
                         name={message.body}
                         phone={message.fileName}
                         trackingId={trackingId}
-                        token={token ?? undefined}
+                        canChat={!!instanceId}
                       />
                     )}
                     {isPendingMedia && (

@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import z from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "../leads/utils/history";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 
 export const createConversation = base
   .use(requiredAuthMiddleware)
@@ -17,15 +18,29 @@ export const createConversation = base
     z.object({
       trackingId: z.string(),
       phone: z.array(z.string()),
-      token: z.string(),
+      /**
+       * @deprecated Ignorado — o token Uazapi é resolvido server-side via
+       * `resolveOutboundProvider(trackingId)`.
+       */
+      token: z.string().nullish(),
     }),
   )
   .handler(async ({ input, context }) => {
     try {
-      const { trackingId, phone, token } = input;
+      const { trackingId, phone } = input;
+
+      // Token Uazapi resolvido server-side — o client não trafega mais o token.
+      const resolved = await resolveOutboundProvider(trackingId);
+      if (resolved.providerId !== "uazapi" || !resolved.uazapiToken) {
+        return {
+          message: "Validação de número indisponível para este provider.",
+          contactsInvalids: [],
+          leadIds: [],
+        };
+      }
 
       const validPhones = await validWhatsappPhone({
-        token,
+        token: resolved.uazapiToken,
         data: { numbers: phone },
       });
 

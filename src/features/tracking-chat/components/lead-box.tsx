@@ -146,11 +146,9 @@ export function LeadBox({
     const basePath = trackingId ? item.id : `/tracking-chat/${item.id}`;
     const target = qs ? `${basePath}?${qs}` : basePath;
     router.push(target);
-    if (unreadCount && unreadCount > 0 && instance?.token) {
+    if (unreadCount && unreadCount > 0 && instance) {
       markRead.mutate({
         conversationId: item.id,
-        remoteJid: item.remoteJid,
-        token: instance.token,
       });
     }
   }, [router, item, unreadCount, instance, markRead, searchParams, trackingId]);

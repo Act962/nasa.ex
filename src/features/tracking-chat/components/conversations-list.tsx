@@ -222,7 +222,8 @@ export function ConversationsList() {
 
   const instance: Instance | undefined = whatsappInstance
     ? {
-        token: whatsappInstance.apiKey ?? "",
+        id: whatsappInstance.id,
+        status: whatsappInstance.status,
         isBusiness: whatsappInstance.isBusiness,
         phoneNumber: whatsappInstance.phoneNumber,
       }
@@ -485,7 +486,6 @@ export function ConversationsList() {
       </aside>
       <CreateChatDialog
         trackingId={selectedTracking}
-        token={whatsappInstance?.apiKey!}
         isOpen={open}
         onOpenChange={setOpen}
       />

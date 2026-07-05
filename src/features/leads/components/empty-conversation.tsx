@@ -18,13 +18,11 @@ interface EmptyConversationProps {
     phone: string;
   };
   trackingId: string;
-  apikey: string;
 }
 
 export function EmptyConversation({
   lead,
   trackingId,
-  apikey,
 }: EmptyConversationProps) {
   const mutation = useCreateConversation({ trackingId });
 
@@ -32,7 +30,6 @@ export function EmptyConversation({
     mutation.mutate({
       phone: [lead.phone],
       trackingId: trackingId,
-      token: apikey,
     });
   }
   return (

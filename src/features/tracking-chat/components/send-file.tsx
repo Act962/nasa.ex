@@ -22,7 +22,6 @@ interface sendFileProps {
   file: string;
   onClose: () => void;
   leadPhone: string;
-  token: string;
   fileType: "image" | "pdf";
   fileName?: string;
   messageSelected?: MarkedMessage;
@@ -34,7 +33,6 @@ export function SendFile({
   file,
   onClose,
   leadPhone,
-  token,
   fileType,
   fileName,
   messageSelected,
@@ -78,7 +76,6 @@ export function SendFile({
         mediaUrl: file,
         conversationId,
         leadPhone,
-        token,
         id: messageSelected?.id,
         quotedMessageId: messageSelected?.messageId,
       });
@@ -90,7 +87,6 @@ export function SendFile({
         mimetype: `application/${fileType}`,
         conversationId,
         leadPhone,
-        token,
         id: messageSelected?.id,
         quotedMessageId: messageSelected?.messageId,
       });

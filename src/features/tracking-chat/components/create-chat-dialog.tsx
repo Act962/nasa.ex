@@ -19,14 +19,12 @@ interface CreateChatProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trackingId: string;
-  token: string;
 }
 
 export function CreateChatDialog({
   isOpen,
   onOpenChange,
   trackingId,
-  token,
 }: CreateChatProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<string[]>([]);
@@ -56,7 +54,6 @@ export function CreateChatDialog({
     const data = {
       phone: selectedCustomer,
       trackingId,
-      token,
     };
     createConversation.mutate(data, {
       onSuccess: () => {
