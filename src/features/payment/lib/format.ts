@@ -56,6 +56,13 @@ export function parseCurrencyToCents(value: string): number {
   return Math.round(parseFloat(cleaned) * 100) || 0;
 }
 
+/** Máscara progressiva de moeda: só dígitos → "R$ 1.234,56" (trata como centavos) */
+export function maskCurrency(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  return formatCurrency(parseInt(digits, 10));
+}
+
 /** Verifica se uma data está vencida */
 export function isOverdue(dueDate: Date | string, status: string): boolean {
   if (status === "PAID" || status === "CANCELLED") return false;

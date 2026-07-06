@@ -5,6 +5,7 @@ import {
   getMyPaymentAccess,
   listPaymentAccess,
   grantPaymentAccess,
+  setupOwnerPaymentAccess,
   revokePaymentAccess,
   updatePaymentRole,
   updatePaymentPermissions,
@@ -37,6 +38,7 @@ import {
   updatePaymentEntry,
   payPaymentEntry,
   deletePaymentEntry,
+  removePaymentEntry,
 } from "./entries";
 import { getPaymentDashboard, getCashflow } from "./dashboard";
 import { listExternalContacts } from "./external-contacts";
@@ -72,6 +74,7 @@ export const paymentRouter = {
     getMy:              getMyPaymentAccess,
     list:               listPaymentAccess,
     grant:              grantPaymentAccess,
+    setupOwner:         setupOwnerPaymentAccess,
     revoke:             revokePaymentAccess,
     updateRole:         updatePaymentRole,
     updatePermissions:  updatePaymentPermissions,
@@ -104,6 +107,7 @@ export const paymentRouter = {
     update: updatePaymentEntry,
     pay: payPaymentEntry,
     delete: deletePaymentEntry,
+    remove: removePaymentEntry,
   },
   dashboard: {
     get: getPaymentDashboard,

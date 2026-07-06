@@ -29,6 +29,7 @@ import {
   Plus,
   Search,
   MoreHorizontal,
+  Pencil,
   Trash2,
   Users,
   Zap,
@@ -37,8 +38,18 @@ import {
   Loader2,
 } from "lucide-react";
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import {
   usePaymentContacts,
   useCreatePaymentContact,
+  useUpdatePaymentContact,
   useDeletePaymentContact,
   useExternalContacts,
 } from "../../hooks/use-payment";
@@ -82,19 +93,47 @@ function validateCNPJ(cnpj: string): boolean {
   );
 }
 
-function maskDocument(value: string): string {
-  const digits = value.replace(/\D/g, "");
-  if (digits.length <= 11) {
-    return digits
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-  }
-  return digits
+type DocType = "CPF" | "CNPJ";
+
+function maskCPF(value: string): string {
+  return value
+    .replace(/\D/g, "")
+    .slice(0, 11)
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
+function maskCNPJ(value: string): string {
+  return value
+    .replace(/\D/g, "")
+    .slice(0, 14)
     .replace(/(\d{2})(\d)/, "$1.$2")
     .replace(/(\d{3})(\d)/, "$1.$2")
     .replace(/(\d{3})(\d)/, "$1/$2")
     .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+}
+
+function maskDocument(value: string, type: DocType): string {
+  return type === "CPF" ? maskCPF(value) : maskCNPJ(value);
+}
+
+/** Detecta o tipo a partir da qtd de dígitos (usado ao importar contatos). */
+function detectDocType(value: string): DocType {
+  return value.replace(/\D/g, "").length > 11 ? "CNPJ" : "CPF";
+}
+
+/** Máscara de telefone BR: fixo (00) 0000-0000 ou celular (00) 00000-0000. */
+function maskPhone(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 10) {
+    return digits
+      .replace(/(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{4})(\d{1,4})$/, "$1-$2");
+  }
+  return digits
+    .replace(/(\d{2})(\d)/, "($1) $2")
+    .replace(/(\d{5})(\d{1,4})$/, "$1-$2");
 }
 
 type DocStatus = "idle" | "valid" | "invalid" | "loading";
@@ -222,10 +261,12 @@ function ImportCombobox({
 
 function DocumentInput({
   value,
+  docType,
   onChange,
   onNameFromCNPJ,
 }: {
   value: string;
+  docType: DocType;
   onChange: (v: string) => void;
   onNameFromCNPJ?: (name: string) => void;
 }) {
@@ -235,34 +276,34 @@ function DocumentInput({
 
   const validate = useCallback(async (d: string) => {
     if (d.length === 0) { setStatus("idle"); return; }
-    if (d.length === 11) {
+    if (docType === "CPF") {
+      if (d.length < 11) { setStatus("idle"); return; }
       setStatus(validateCPF(d) ? "valid" : "invalid");
-    } else if (d.length === 14) {
-      if (!validateCNPJ(d)) { setStatus("invalid"); return; }
-      setStatus("loading");
-      try {
-        const res = await fetch(`https://receitaws.com.br/v1/cnpj/${d}`, {
-          headers: { Accept: "application/json" },
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.status === "ERROR") {
-            setStatus("invalid");
-          } else {
-            setStatus("valid");
-            if (json.nome && onNameFromCNPJ) onNameFromCNPJ(json.nome);
-          }
+      return;
+    }
+    if (d.length < 14) { setStatus("idle"); return; }
+    if (!validateCNPJ(d)) { setStatus("invalid"); return; }
+    setStatus("loading");
+    try {
+      const res = await fetch(`https://receitaws.com.br/v1/cnpj/${d}`, {
+        headers: { Accept: "application/json" },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.status === "ERROR") {
+          setStatus("invalid");
         } else {
-          // API indisponível — aceita se estrutura válida
           setStatus("valid");
+          if (json.nome && onNameFromCNPJ) onNameFromCNPJ(json.nome);
         }
-      } catch {
+      } else {
+        // API indisponível — aceita se estrutura válida
         setStatus("valid");
       }
-    } else {
-      setStatus("idle");
+    } catch {
+      setStatus("valid");
     }
-  }, [onNameFromCNPJ]);
+  }, [onNameFromCNPJ, docType]);
 
   useEffect(() => {
     validate(debouncedDigits);
@@ -271,12 +312,10 @@ function DocumentInput({
   return (
     <div className="relative">
       <Input
-        placeholder="000.000.000-00 ou 00.000.000/0001-00"
+        placeholder={docType === "CPF" ? "000.000.000-00" : "00.000.000/0001-00"}
+        inputMode="numeric"
         value={value}
-        onChange={(e) => {
-          const masked = maskDocument(e.target.value);
-          onChange(masked);
-        }}
+        onChange={(e) => onChange(maskDocument(e.target.value, docType))}
         className={cn(
           "pr-8",
           status === "valid" && "border-green-500 focus-visible:ring-green-500/30",
@@ -300,11 +339,24 @@ function DocumentInput({
 
 // ── ContactsTab ───────────────────────────────────────────────────────────────
 
+type ContactRow = {
+  id: string;
+  name: string;
+  document?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  contactType?: string | null;
+  notes?: string | null;
+};
+
 export function ContactsTab() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [name, setName] = useState("");
   const [document, setDocument] = useState("");
+  const [docType, setDocType] = useState<DocType>("CPF");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [contactType, setContactType] = useState("BOTH");
@@ -312,7 +364,10 @@ export function ContactsTab() {
 
   const { data, isLoading } = usePaymentContacts(search || undefined);
   const createContact = useCreatePaymentContact();
+  const updateContact = useUpdatePaymentContact();
   const deleteContact = useDeletePaymentContact();
+
+  const isEditing = editingId !== null;
 
   function openFormWithData(c: {
     name: string;
@@ -320,62 +375,99 @@ export function ContactsTab() {
     phone?: string | null;
     document?: string | null;
   }) {
+    const type = detectDocType(c.document ?? "");
+    setEditingId(null);
     setName(c.name);
     setEmail(c.email ?? "");
-    setPhone(c.phone ?? "");
-    setDocument(c.document ? maskDocument(c.document) : "");
+    setPhone(c.phone ? maskPhone(c.phone) : "");
+    setDocType(type);
+    setDocument(c.document ? maskDocument(c.document, type) : "");
     setContactType("CUSTOMER");
     setNotes("");
     setShowForm(true);
   }
 
+  function openEdit(contact: ContactRow) {
+    const type = detectDocType(contact.document ?? "");
+    setEditingId(contact.id);
+    setName(contact.name);
+    setEmail(contact.email ?? "");
+    setPhone(contact.phone ? maskPhone(contact.phone) : "");
+    setDocType(type);
+    setDocument(contact.document ? maskDocument(contact.document, type) : "");
+    setContactType(contact.contactType ?? "BOTH");
+    setNotes(contact.notes ?? "");
+    setShowForm(true);
+  }
+
   function resetForm() {
+    setEditingId(null);
     setName("");
     setDocument("");
+    setDocType("CPF");
     setEmail("");
     setPhone("");
     setNotes("");
     setContactType("BOTH");
   }
 
-  async function handleCreate(e: React.FormEvent) {
+  // Troca de tipo re-aplica a máscara correta ao valor já digitado (trunca dígitos
+  // excedentes quando muda CNPJ→CPF).
+  function handleDocTypeChange(type: DocType) {
+    setDocType(type);
+    setDocument((prev) => maskDocument(prev, type));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return toast.error("Nome obrigatório");
 
     const digits = document.replace(/\D/g, "");
     if (digits.length > 0) {
-      if (digits.length === 11 && !validateCPF(digits)) {
+      if (docType === "CPF" && !validateCPF(digits)) {
         return toast.error("CPF inválido");
       }
-      if (digits.length === 14 && !validateCNPJ(digits)) {
+      if (docType === "CNPJ" && !validateCNPJ(digits)) {
         return toast.error("CNPJ inválido");
-      }
-      if (digits.length !== 11 && digits.length !== 14) {
-        return toast.error("CPF deve ter 11 dígitos ou CNPJ 14 dígitos");
       }
     }
 
     try {
-      await createContact.mutateAsync({
-        name,
-        document: digits || undefined,
-        email: email || undefined,
-        phone: phone || undefined,
-        contactType,
-        notes: notes || undefined,
-      });
+      if (editingId !== null) {
+        await updateContact.mutateAsync({
+          id: editingId,
+          name,
+          document: digits || null,
+          email: email || null,
+          phone: phone || null,
+          contactType,
+          notes: notes || null,
+        });
+        toast.success("Contato atualizado!");
+      } else {
+        await createContact.mutateAsync({
+          name,
+          document: digits || undefined,
+          email: email || undefined,
+          phone: phone || undefined,
+          contactType,
+          notes: notes || undefined,
+        });
+        toast.success("Contato criado!");
+      }
       setShowForm(false);
       resetForm();
-      toast.success("Contato criado!");
     } catch {
-      toast.error("Erro ao criar contato");
+      toast.error(isEditing ? "Erro ao atualizar contato" : "Erro ao criar contato");
     }
   }
 
-  async function handleDelete(id: string) {
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
     try {
-      await deleteContact.mutateAsync({ id });
+      await deleteContact.mutateAsync({ id: deleteTarget.id });
       toast.success("Contato removido");
+      setDeleteTarget(null);
     } catch {
       toast.error("Erro ao remover");
     }
@@ -471,7 +563,13 @@ export function ContactsTab() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => handleDelete(c.id)}
+                          onClick={() => openEdit(c)}
+                          className="gap-2"
+                        >
+                          <Pencil className="size-4" /> Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setDeleteTarget({ id: c.id, name: c.name })}
                           className="gap-2 text-red-400"
                         >
                           <Trash2 className="size-4" /> Remover
@@ -487,12 +585,18 @@ export function ContactsTab() {
       </div>
 
       {/* Dialog de criação */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-md">
+      <Dialog
+        open={showForm}
+        onOpenChange={(open) => {
+          setShowForm(open);
+          if (!open) resetForm();
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto scroll-cols-tracking">
           <DialogHeader>
-            <DialogTitle>Novo Contato</DialogTitle>
+            <DialogTitle>{isEditing ? "Editar Contato" : "Novo Contato"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>Nome *</Label>
               <Input
@@ -517,9 +621,29 @@ export function ContactsTab() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>CPF / CNPJ</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label>{docType === "CPF" ? "CPF" : "CNPJ"}</Label>
+                  <div className="inline-flex rounded-md border border-border p-0.5 text-[11px] font-medium">
+                    {(["CPF", "CNPJ"] as const).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => handleDocTypeChange(type)}
+                        className={cn(
+                          "px-2 py-0.5 rounded-[5px] transition-colors",
+                          docType === type
+                            ? "bg-[#1E90FF] text-white"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <DocumentInput
                   value={document}
+                  docType={docType}
                   onChange={setDocument}
                   onNameFromCNPJ={(n) => {
                     if (!name.trim()) setName(n);
@@ -539,8 +663,10 @@ export function ContactsTab() {
               <div className="space-y-2">
                 <Label>Telefone</Label>
                 <Input
+                  placeholder="(00) 00000-0000"
+                  inputMode="numeric"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(maskPhone(e.target.value))}
                 />
               </div>
             </div>
@@ -550,28 +676,67 @@ export function ContactsTab() {
                 rows={2}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                className="max-h-32 overflow-y-auto scroll-cols-tracking resize-none"
               />
             </div>
             <div className="flex gap-2">
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false);
+                  resetForm();
+                }}
                 className="flex-1"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                disabled={createContact.isPending}
+                disabled={createContact.isPending || updateContact.isPending}
                 className="flex-1 bg-[#1E90FF] hover:bg-[#1E90FF]/90 text-white"
               >
-                {createContact.isPending ? "Salvando..." : "Criar Contato"}
+                {createContact.isPending || updateContact.isPending
+                  ? "Salvando..."
+                  : isEditing
+                    ? "Salvar Alterações"
+                    : "Criar Contato"}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmação de exclusão */}
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteContact.isPending) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover contato</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover
+              {deleteTarget ? ` "${deleteTarget.name}"` : ""}? Essa ação pode ser
+              desfeita reativando o contato.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteContact.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={deleteContact.isPending}
+              onClick={handleConfirmDelete}
+            >
+              {deleteContact.isPending ? "Removendo..." : "Remover"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
