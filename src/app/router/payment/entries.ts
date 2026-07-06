@@ -435,7 +435,7 @@ export const deletePaymentEntry = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .use(requirePaymentAccess("entries", "delete"))
-  .route({ method: "DELETE", summary: "Delete payment entry", tags: ["Payment"] })
+  .route({ method: "DELETE", summary: "Cancel payment entry (soft)", tags: ["Payment"] })
   .input(z.object({ id: z.string() }))
   .output(z.object({ ok: z.boolean() }))
   .handler(async ({ input, context, errors }) => {
@@ -444,6 +444,50 @@ export const deletePaymentEntry = base
         where: { id: input.id, organizationId: context.org.id },
         data: { status: "CANCELLED" },
       });
+      return { ok: true };
+    } catch {
+      throw errors.INTERNAL_SERVER_ERROR;
+    }
+  });
+
+// Hard delete — remove a entry do banco de vez. As relações filhas
+// (PaymentApprovalRequest, PaymentDunningExecution) são onDelete: Cascade,
+// então o Prisma limpa os filhos automaticamente. Diferente do soft-cancel,
+// aqui registramos activity log por ser destrutivo/irreversível.
+export const removePaymentEntry = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("entries", "delete"))
+  .route({ method: "DELETE", summary: "Hard-delete payment entry", tags: ["Payment"] })
+  .input(z.object({ id: z.string() }))
+  .output(z.object({ ok: z.boolean() }))
+  .handler(async ({ input, context, errors }) => {
+    const existing = await prisma.paymentEntry.findFirst({
+      where: { id: input.id, organizationId: context.org.id },
+    });
+    if (!existing) throw errors.NOT_FOUND;
+
+    try {
+      await prisma.paymentEntry.delete({
+        where: { id: input.id, organizationId: context.org.id },
+      });
+
+      await logActivity({
+        organizationId: context.org.id,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "payment",
+        subAppSlug: "payment-entries",
+        featureKey: "payment.entry.deleted",
+        action: "payment.entry.deleted",
+        actionLabel: `Excluiu "${existing.description}" (R$ ${(existing.amount / 100).toFixed(2)})`,
+        resource: existing.description,
+        resourceId: existing.id,
+        metadata: { amount: existing.amount, type: existing.type },
+      });
+
       return { ok: true };
     } catch {
       throw errors.INTERNAL_SERVER_ERROR;

@@ -14,7 +14,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { usePaymentCategories, usePaymentContacts, usePaymentAccounts } from "../../hooks/use-payment";
 import { useDunningRules } from "../../hooks/use-payment-dunning";
-import { parseCurrencyToCents } from "../../lib/format";
+import { parseCurrencyToCents, maskCurrency } from "../../lib/format";
 import { toast } from "sonner";
 
 interface EntryFormProps {
@@ -36,6 +36,18 @@ interface EntryFormProps {
   onCancel: () => void;
   isLoading?: boolean;
 }
+
+// Dropdown travado na largura do campo; texto longo trunca com reticências em
+// vez de quebrar linha (o span do label é forçado a block + min-w-0 + truncate).
+const dropdownContentClass =
+  "max-h-60 w-[var(--radix-select-trigger-width)] scroll-cols-tracking " +
+  "[&_[data-slot=select-item]>span:last-child]:block " +
+  "[&_[data-slot=select-item]>span:last-child]:min-w-0 " +
+  "[&_[data-slot=select-item]>span:last-child]:truncate";
+
+// Trigger ocupa toda a coluna (shadcn usa w-fit por padrão) e encolhe (min-w-0)
+// pra que o valor selecionado longo trunque com line-clamp-1 em vez de vazar.
+const selectTriggerClass = "w-full min-w-0";
 
 export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProps) {
   const [description, setDescription] = useState("");
@@ -99,8 +111,9 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
           <Label>Valor *</Label>
           <Input
             placeholder="R$ 0,00"
+            inputMode="numeric"
             value={amountStr}
-            onChange={(e) => setAmountStr(e.target.value)}
+            onChange={(e) => setAmountStr(maskCurrency(e.target.value))}
           />
         </div>
         <div className="space-y-2">
@@ -117,8 +130,8 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
         <div className="space-y-2">
           <Label>Categoria</Label>
           <Select value={categoryId} onValueChange={setCategoryId}>
-            <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-            <SelectContent>
+            <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+            <SelectContent position="popper" className={dropdownContentClass}>
               <SelectItem value="__none__">Sem categoria</SelectItem>
               {categoriesData?.categories.map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -129,8 +142,8 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
         <div className="space-y-2">
           <Label>{type === "RECEIVABLE" ? "Cliente" : "Fornecedor"}</Label>
           <Select value={contactId} onValueChange={setContactId}>
-            <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-            <SelectContent>
+            <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+            <SelectContent position="popper" className={dropdownContentClass}>
               <SelectItem value="__none__">Sem contato</SelectItem>
               {contactsData?.contacts.map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -144,8 +157,8 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
         <div className="space-y-2">
           <Label>Conta Bancária</Label>
           <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-            <SelectContent>
+            <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+            <SelectContent position="popper" className={dropdownContentClass}>
               <SelectItem value="__none__">Sem conta</SelectItem>
               {accountsData?.accounts.map((a) => (
                 <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
@@ -156,8 +169,8 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
         <div className="space-y-2">
           <Label>Parcelas</Label>
           <Select value={String(installments)} onValueChange={(v) => setInstallments(Number(v))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
+            <SelectTrigger className={selectTriggerClass}><SelectValue /></SelectTrigger>
+            <SelectContent position="popper" className={dropdownContentClass}>
               {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
                 <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
               ))}
@@ -173,15 +186,20 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
 
       <div className="space-y-2">
         <Label>Observações</Label>
-        <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <Textarea
+          rows={2}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="max-h-32 overflow-y-auto scroll-cols-tracking resize-none"
+        />
       </div>
 
       {type === "RECEIVABLE" && availableRules.length > 0 && (
         <div className="space-y-2">
           <Label>Régua de cobrança</Label>
           <Select value={dunningRuleId} onValueChange={setDunningRuleId}>
-            <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-            <SelectContent>
+            <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+            <SelectContent position="popper" className={dropdownContentClass}>
               <SelectItem value="__none__">Sem régua</SelectItem>
               {availableRules.map((r) => (
                 <SelectItem key={r.id} value={r.id}>

@@ -114,10 +114,7 @@ const permissionResource = z.enum(PAYMENT_RESOURCES);
 const permissionAction = z.enum(PAYMENT_ACTIONS);
 
 const permissionsOverrideSchema = z
-  .record(
-    permissionResource,
-    z.record(permissionAction, z.boolean()),
-  )
+  .record(permissionResource, z.record(permissionAction, z.boolean()))
   .nullable();
 
 const accessShape = z.object({
@@ -285,12 +282,18 @@ export const verifyPaymentOtp = base
         !access.pendingOtpExpiresAt ||
         access.pendingOtpExpiresAt < new Date()
       ) {
-        return { ok: false, sessionTimeoutMinutes: config.sessionTimeoutMinutes };
+        return {
+          ok: false,
+          sessionTimeoutMinutes: config.sessionTimeoutMinutes,
+        };
       }
 
       const match = await bcrypt.compare(input.otp, access.pendingOtpHash);
       if (!match) {
-        return { ok: false, sessionTimeoutMinutes: config.sessionTimeoutMinutes };
+        return {
+          ok: false,
+          sessionTimeoutMinutes: config.sessionTimeoutMinutes,
+        };
       }
 
       await prisma.paymentAccess.update({
@@ -400,6 +403,12 @@ export const getMyPaymentAccess = base
       // NINGUÉM autorizado. Combinado com master-da-org, libera a UI de
       // reivindicação inicial (a primeira grantPaymentAccess vira OWNER).
       orgHasAnyAccess: z.boolean(),
+      // True quando o caller ainda não tem acesso autorizado MAS é owner da
+      // empresa (Member.role === "owner"). O gate usa isso pra mostrar o
+      // formulário de auto-cadastro (define o próprio PIN e vira OWNER), em
+      // vez da tela de bloqueio. Independe de orgHasAnyAccess: o owner nunca
+      // deve ficar trancado pra fora do próprio financeiro.
+      canSelfSetup: z.boolean(),
     }),
   )
   .handler(async ({ context, errors }) => {
@@ -428,6 +437,7 @@ export const getMyPaymentAccess = base
           hasPhone: false,
           sessionTimeoutMinutes: config.sessionTimeoutMinutes,
           orgHasAnyAccess,
+          canSelfSetup: await isOrgOwner(context.user.id, context.org.id),
         };
       }
       const phone = access.phone ?? (await fetchUserPhone(access.userId));
@@ -442,6 +452,7 @@ export const getMyPaymentAccess = base
         hasPhone: !!phone,
         sessionTimeoutMinutes: config.sessionTimeoutMinutes,
         orgHasAnyAccess,
+        canSelfSetup: false,
       };
     } catch (err) {
       console.error("[payment/access/getMy]", err);
@@ -467,6 +478,15 @@ async function requireOwnerOrAdminAccess(userId: string, orgId: string) {
   return my?.isAuthorized && (my.role === "OWNER" || my.role === "ADMIN");
 }
 
+/** Owner (criador) da organização no better-auth — Member.role === "owner". */
+async function isOrgOwner(userId: string, orgId: string) {
+  const member = await prisma.member.findFirst({
+    where: { organizationId: orgId, userId },
+    select: { role: true },
+  });
+  return member?.role === "owner";
+}
+
 /**
  * Retorna true se o caller pode listar/reivindicar acesso no cenário de
  * bootstrap — quando a org ainda NÃO tem nenhum PaymentAccess autorizado E
@@ -479,17 +499,17 @@ async function isMasterInBootstrap(userId: string, orgId: string) {
     select: { id: true },
   });
   if (anyAccess) return false;
-  const member = await prisma.member.findFirst({
-    where: { organizationId: orgId, userId },
-    select: { role: true },
-  });
-  return member?.role === "owner";
+  return isOrgOwner(userId, orgId);
 }
 
 export const listPaymentAccess = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
-  .route({ method: "GET", summary: "List payment access records", tags: ["Payment"] })
+  .route({
+    method: "GET",
+    summary: "List payment access records",
+    tags: ["Payment"],
+  })
   .input(z.object({}))
   .output(z.object({ records: z.array(accessShape) }))
   .handler(async ({ context, errors }) => {
@@ -535,7 +555,11 @@ export const listPaymentAccess = base
 export const grantPaymentAccess = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
-  .route({ method: "POST", summary: "Grant payment access and send PIN", tags: ["Payment"] })
+  .route({
+    method: "POST",
+    summary: "Grant payment access and send PIN",
+    tags: ["Payment"],
+  })
   .input(
     z.object({
       userId: z.string(),
@@ -567,7 +591,7 @@ export const grantPaymentAccess = base
       }
 
       const pin = generatePin();
-      const hash = await bcrypt.hash(pin, 12);
+      const hash = await bcrypt.hash(pin, 8);
 
       // Aceita ID OU email — se não bate por ID, tenta por email
       let targetUser = await prisma.user.findUnique({
@@ -694,10 +718,92 @@ export const grantPaymentAccess = base
     }
   });
 
+// Auto-cadastro do owner da empresa. Diferente de grantPaymentAccess (um OWNER
+// libera outra pessoa), aqui o próprio owner da org define seu PIN e vira OWNER
+// do módulo — sem depender de ninguém autorizá-lo. É o caminho que destrava o
+// "primeiro usuário não consegue acessar o financeiro".
+export const setupOwnerPaymentAccess = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .route({
+    method: "POST",
+    summary: "Owner self-provisions payment access",
+    tags: ["Payment"],
+  })
+  .input(
+    z.object({
+      pin: z.string().min(4).max(32),
+      phone: z.string().optional(),
+    }),
+  )
+  .output(z.object({ ok: z.boolean() }))
+  .handler(async ({ input, context, errors }) => {
+    try {
+      const isOwner = await isOrgOwner(context.user.id, context.org.id);
+      if (!isOwner) throw errors.FORBIDDEN;
+
+      const existing = await prisma.paymentAccess.findUnique({
+        where: {
+          userId_organizationId: {
+            userId: context.user.id,
+            organizationId: context.org.id,
+          },
+        },
+      });
+      // Já autorizado: este fluxo é só pra criar o acesso inicial, não pra
+      // resetar PIN de quem já tem acesso.
+      if (existing?.isAuthorized) throw errors.FORBIDDEN;
+
+      const user = await prisma.user.findUnique({
+        where: { id: context.user.id },
+        select: { phone: true },
+      });
+      const phone = input.phone ?? user?.phone ?? null;
+      const hash = await bcrypt.hash(input.pin, 12);
+
+      await prisma.paymentAccess.upsert({
+        where: {
+          userId_organizationId: {
+            userId: context.user.id,
+            organizationId: context.org.id,
+          },
+        },
+        create: {
+          userId: context.user.id,
+          organizationId: context.org.id,
+          passwordHash: hash,
+          isAuthorized: true,
+          phone,
+          role: "OWNER",
+          authorizedById: context.user.id,
+        },
+        update: {
+          passwordHash: hash,
+          isAuthorized: true,
+          phone: phone ?? undefined,
+          role: "OWNER",
+          authorizedById: context.user.id,
+        },
+      });
+
+      return { ok: true };
+    } catch (err) {
+      if ((err as { code?: string }).code === "FORBIDDEN") throw err;
+      console.error("[payment/access/setupOwner]", err);
+      throw errors.INTERNAL_SERVER_ERROR({
+        message: (err as Error).message ?? "Falha ao configurar acesso",
+      });
+    }
+  });
+
 export const revokePaymentAccess = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
-  .route({ method: "DELETE", summary: "Revoke payment access", tags: ["Payment"] })
+  .route({
+    method: "DELETE",
+    summary: "Revoke payment access",
+    tags: ["Payment"],
+  })
   .input(z.object({ userId: z.string() }))
   .output(z.object({ ok: z.boolean() }))
   .handler(async ({ input, context, errors }) => {
@@ -746,7 +852,11 @@ export const updatePaymentRole = base
 export const updatePaymentPermissions = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
-  .route({ method: "POST", summary: "Update payment permissions override", tags: ["Payment"] })
+  .route({
+    method: "POST",
+    summary: "Update payment permissions override",
+    tags: ["Payment"],
+  })
   .input(
     z.object({
       userId: z.string(),
@@ -791,7 +901,11 @@ function parseCredentials(value: unknown): StoredCredential[] {
 export const startWebauthnRegistration = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
-  .route({ method: "POST", summary: "Start WebAuthn registration", tags: ["Payment"] })
+  .route({
+    method: "POST",
+    summary: "Start WebAuthn registration",
+    tags: ["Payment"],
+  })
   .input(z.object({}))
   .output(z.object({ options: z.unknown() }))
   .handler(async ({ context, errors }) => {
@@ -836,7 +950,11 @@ export const startWebauthnRegistration = base
 export const finishWebauthnRegistration = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
-  .route({ method: "POST", summary: "Finish WebAuthn registration", tags: ["Payment"] })
+  .route({
+    method: "POST",
+    summary: "Finish WebAuthn registration",
+    tags: ["Payment"],
+  })
   .input(z.object({ response: z.unknown(), label: z.string().optional() }))
   .output(z.object({ ok: z.boolean() }))
   .handler(async ({ input, context, errors }) => {
@@ -852,7 +970,8 @@ export const finishWebauthnRegistration = base
       if (!access || !access.isAuthorized) throw errors.FORBIDDEN;
 
       const challenge = popChallenge(context.user.id, context.org.id);
-      if (!challenge) throw errors.BAD_REQUEST({ message: "Challenge expirado" });
+      if (!challenge)
+        throw errors.BAD_REQUEST({ message: "Challenge expirado" });
 
       const { rpID, origin } = getRpIdAndOrigin();
       const verification = await verifyRegistrationResponse({
@@ -959,9 +1078,14 @@ export const finishWebauthnAuth = base
       const credentials = parseCredentials(access.webauthnCredentials);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const responseAny = input.response as any;
-      const credential = credentials.find((c) => c.credentialId === responseAny?.id);
+      const credential = credentials.find(
+        (c) => c.credentialId === responseAny?.id,
+      );
       if (!credential) {
-        return { ok: false, sessionTimeoutMinutes: config.sessionTimeoutMinutes };
+        return {
+          ok: false,
+          sessionTimeoutMinutes: config.sessionTimeoutMinutes,
+        };
       }
 
       const { rpID, origin } = getRpIdAndOrigin();
@@ -978,7 +1102,10 @@ export const finishWebauthnAuth = base
         },
       });
       if (!verification.verified) {
-        return { ok: false, sessionTimeoutMinutes: config.sessionTimeoutMinutes };
+        return {
+          ok: false,
+          sessionTimeoutMinutes: config.sessionTimeoutMinutes,
+        };
       }
 
       // Atualiza counter + sessão
