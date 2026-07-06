@@ -57,7 +57,7 @@ export function LeadsSettings({ trackingId }: Props) {
     ...orpc.tracking.updateCardConfig.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["trackings", "getCardConfig"],
+        queryKey: ["tracking", "getCardConfig"],
       });
     },
   });
