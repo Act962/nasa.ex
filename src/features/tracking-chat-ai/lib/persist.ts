@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { pusherServer } from "@/lib/pusher";
 import { MessageStatus } from "@/features/tracking-chat/types";
 
@@ -14,6 +15,9 @@ interface PersistArgs {
   mediaCaption?: string | null;
   mimetype?: string | null;
   fileName?: string | null;
+  // metadata JSON da mensagem — usado pra gravar buttonTagMap (buttonId→tagId)
+  // quando um menu de botões é enviado, pra o webhook aplicar a tag no clique.
+  metadata?: Prisma.InputJsonValue | null;
 }
 
 export async function persistOutboundMessage(args: PersistArgs) {
@@ -32,6 +36,7 @@ export async function persistOutboundMessage(args: PersistArgs) {
       mediaCaption: args.mediaCaption ?? null,
       mimetype: args.mimetype ?? null,
       fileName: args.fileName ?? null,
+      ...(args.metadata != null ? { metadata: args.metadata } : {}),
       createdAt: now,
     },
     include: {

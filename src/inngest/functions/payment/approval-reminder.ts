@@ -28,7 +28,7 @@ const MAX_RETRIES = 10;
 export const paymentApprovalReminder = inngest.createFunction(
   {
     id: "payment-approval-reminder",
-    concurrency: { limit: 20, key: "event.data.organizationId" },
+    concurrency: { limit: 5, key: "event.data.organizationId" },
   },
   { event: "payment/approval.reminder" },
   async ({ event, step, logger }) => {

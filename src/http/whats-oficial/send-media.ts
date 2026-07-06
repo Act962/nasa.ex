@@ -13,6 +13,7 @@ import type { SendMediaInput, SendMessageResponse } from "./types";
  * Regras do contrato Meta refletidas aqui:
  *   - `audio` e `sticker` NÃO aceitam `caption`.
  *   - `document` aceita `filename`.
+ *   - `audio` aceita `voice: true` (nota de voz/PTT) — exige OGG/Opus.
  */
 export async function sendOfficialMedia(
   accessToken: string,
@@ -33,6 +34,10 @@ export async function sendOfficialMedia(
 
   if (input.kind === "document" && input.filename) {
     mediaObject.filename = input.filename;
+  }
+
+  if (input.kind === "audio" && input.voice) {
+    mediaObject.voice = true;
   }
 
   const body: Record<string, unknown> = {

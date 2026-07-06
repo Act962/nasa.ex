@@ -32,16 +32,9 @@ export async function sendWhatsAppText(opts: {
     orderBy: { createdAt: "asc" },
   });
 
-  if (!instance) {
+  if (!instance || !instance.apiKey) {
     console.warn(
       `[sendWhatsAppText] no CONNECTED WhatsAppInstance for org ${opts.organizationId}`,
-    );
-    return null;
-  }
-
-  if (!instance.apiKey) {
-    console.warn(
-      `[sendWhatsAppText] CONNECTED WhatsAppInstance without apiKey for org ${opts.organizationId}`,
     );
     return null;
   }

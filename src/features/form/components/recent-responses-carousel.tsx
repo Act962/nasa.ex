@@ -68,7 +68,7 @@ export function RecentResponsesCarousel() {
   const responses = (data?.responses ?? []) as ResponseItem[];
 
   return (
-    <section className="w-full pt-7 pb-6">
+    <section className="w-full min-w-0 pt-7 pb-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h5 className="text-xl font-semibold tracking-tight">
           Últimos formulários preenchidos
@@ -97,7 +97,7 @@ export function RecentResponsesCarousel() {
             : "Nenhum formulário foi preenchido ainda."}
         </p>
       ) : (
-        <div className="flex w-full gap-3 overflow-x-auto pb-3 [-ms-overflow-style:none] [scrollbar-width:thin]">
+        <div className="flex gap-3 overflow-x-auto scroll-cols-tracking pb-2">
           {responses.map((r) => (
             <ResponseCard key={r.id} response={r} />
           ))}
@@ -108,9 +108,14 @@ export function RecentResponsesCarousel() {
 }
 
 function ResponseCard({ response }: { response: ResponseItem }) {
-  const createdAt = useMemo(() => new Date(response.createdAt), [response.createdAt]);
+  const createdAt = useMemo(
+    () => new Date(response.createdAt),
+    [response.createdAt],
+  );
   const formTitle = truncate(response.form.name, 14);
-  const responsibleImg = useConstructUrl(response.lead?.responsible?.image || "");
+  const responsibleImg = useConstructUrl(
+    response.lead?.responsible?.image || "",
+  );
   const status = response.lead?.status ?? null;
   const tracking = response.lead?.tracking ?? null;
   const responsible = response.lead?.responsible ?? null;
@@ -202,20 +207,22 @@ function ResponseCard({ response }: { response: ResponseItem }) {
 
 function CarouselSkeleton() {
   return (
-    <div className="flex w-full gap-3 overflow-hidden pb-3">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div
-          key={i}
-          className={cn(
-            "flex w-72 shrink-0 flex-col gap-2 rounded-xl border border-border bg-card p-3",
-          )}
-        >
-          <Skeleton className="aspect-[2/1] w-full rounded-lg" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-3 w-1/2" />
-          <Skeleton className="h-3 w-2/3" />
-        </div>
-      ))}
+    <div className="max-w-full overflow-hidden pb-3">
+      <div className="flex gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className={cn(
+              "flex w-72 shrink-0 flex-col gap-2 rounded-xl border border-border bg-card p-3",
+            )}
+          >
+            <Skeleton className="aspect-[2/1] w-full rounded-lg" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="h-3 w-2/3" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

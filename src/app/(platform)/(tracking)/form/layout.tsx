@@ -1,7 +1,5 @@
+import { SidebarInset } from "@/components/ui/sidebar";
+
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-screen w-full flex-col ">
-      <div className="w-full flex-1">{children}</div>
-    </div>
-  );
+  return <SidebarInset className="min-w-0 overflow-x-hidden">{children}</SidebarInset>;
 }

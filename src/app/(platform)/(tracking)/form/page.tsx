@@ -5,7 +5,7 @@ export default function Page() {
   return (
     <div className="h-full w-full">
       <HeaderTracking />
-      <div className="mx-auto md:px-10">
+      <div className="mx-auto md:px-6">
         <FormPage />
       </div>
     </div>

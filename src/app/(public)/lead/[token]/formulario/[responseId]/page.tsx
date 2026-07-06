@@ -7,7 +7,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { orpc } from "@/lib/orpc";
-import { FormSubmitComponent } from "@/features/form/components/public/form-submit-component";
+import { FormSubmitComponent } from "@/features/form/components/public/form-submit/form-submit-component";
 import { FormTrackingScripts } from "@/features/form/components/public/form-tracking-scripts";
 import { FormLeadProvider } from "@/features/form/context/form-lead-context";
 import type { FieldValue, FormBlockInstance } from "@/features/form/types";
@@ -223,53 +223,51 @@ export default function Page() {
             formId: response.form.id,
           }}
         >
-        <FormSubmitComponent
-          id={response.form.id}
-          blocks={blocks}
-          settings={response.form.settings}
-          initialResponseValues={initialResponseValues}
-          readOnly
-          submitLabel="Enviar assinatura"
-          onSubmitOverride={async (responseJson) => {
-            try {
-              const parsed = JSON.parse(responseJson) as Record<
-                string,
-                FieldValue
-              >;
-              // Filtra só o que é SignatureClient (o que o cliente pode
-              // alterar). A procedure server-side faz a mesma checagem
-              // como defesa em profundidade.
-              const signatures: Record<
-                string,
-                { value: string; meta?: Record<string, unknown> }
-              > = {};
-              for (const [k, v] of Object.entries(parsed)) {
-                if (!signatureClientIds.has(k)) continue;
-                if (!v || typeof v.value !== "string") continue;
-                if (!v.value) continue;
-                signatures[k] = {
-                  value: v.value,
-                  meta: v.meta as Record<string, unknown> | undefined,
-                };
+          <FormSubmitComponent
+            id={response.form.id}
+            blocks={blocks}
+            settings={response.form.settings}
+            initialResponseValues={initialResponseValues}
+            readOnly
+            submitLabel="Enviar assinatura"
+            onSubmitOverride={async (responseJson) => {
+              try {
+                const parsed = JSON.parse(responseJson) as Record<
+                  string,
+                  FieldValue
+                >;
+                // Filtra só o que é SignatureClient (o que o cliente pode
+                // alterar). A procedure server-side faz a mesma checagem
+                // como defesa em profundidade.
+                const signatures: Record<
+                  string,
+                  { value: string; meta?: Record<string, unknown> }
+                > = {};
+                for (const [k, v] of Object.entries(parsed)) {
+                  if (!signatureClientIds.has(k)) continue;
+                  if (!v || typeof v.value !== "string") continue;
+                  if (!v.value) continue;
+                  signatures[k] = {
+                    value: v.value,
+                    meta: v.meta as Record<string, unknown> | undefined,
+                  };
+                }
+                if (Object.keys(signatures).length === 0) {
+                  toast.info("Assine ao menos um campo antes de enviar.");
+                  return;
+                }
+                await updateMutation.mutateAsync({
+                  token,
+                  responseId,
+                  signatures,
+                });
+                toast.success("Assinatura registrada. Obrigado!");
+              } catch (err) {
+                toast.error("Falha ao enviar a assinatura");
+                throw err;
               }
-              if (Object.keys(signatures).length === 0) {
-                toast.info(
-                  "Assine ao menos um campo antes de enviar.",
-                );
-                return;
-              }
-              await updateMutation.mutateAsync({
-                token,
-                responseId,
-                signatures,
-              });
-              toast.success("Assinatura registrada. Obrigado!");
-            } catch (err) {
-              toast.error("Falha ao enviar a assinatura");
-              throw err;
-            }
-          }}
-        />
+            }}
+          />
         </FormLeadProvider>
       </main>
     </div>

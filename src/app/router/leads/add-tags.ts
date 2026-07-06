@@ -12,6 +12,7 @@ import { dispatchLeadTagged, broadcastAgentWorkflowEvent } from "@/inngest/utils
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { eventBus } from "@/features/alerts/lib/event-bus";
 import { findLeadTaggedMatchingWorkflows } from "@/features/triggers/components/lead-tagged/find-matching-workflows";
+import { publishLeadChanged } from "@/features/leads/realtime/publish";
 
 export const addTagsToLead = base
   .use(requiredAuthMiddleware)
@@ -94,6 +95,17 @@ export const addTagsToLead = base
 
     if (pendingLeadEvents.length > 0) {
       await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
+    }
+
+    // Realtime — reflete a tag no board (kanban) e no lead-box do tracking-chat
+    // sem refresh. O helper isola falha de transporte (sem try/catch aqui).
+    if (result.count > 0) {
+      await publishLeadChanged({
+        leadId: lead.id,
+        trackingId: lead.trackingId,
+        statusId: lead.statusId,
+        fields: ["tag"],
+      });
     }
 
     // ── Jornada do lead (LeadJourneyEvent) ──────────────────────────

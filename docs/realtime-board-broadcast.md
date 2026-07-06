@@ -47,7 +47,7 @@ Definição: [src/features/leads/realtime/board-leads-channel.ts](../src/feature
 [src/features/leads/realtime/publish.ts](../src/features/leads/realtime/publish.ts) — publicam pela **porta** `realtimePublisher` (`@/lib/realtime`), sem arg `publish` do Inngest:
 - `publishLeadCreated({ leadId, trackingId, statusId, source? })` — lead novo entrou no board. `source` default `"form"`. Disparado pelas procedures públicas de formulário (ver abaixo), não pelos executors.
 - `publishLeadMoved(payload)` — cross-tracking, publica em ambos canais (origem + destino).
-- `publishLeadChanged({ leadId, trackingId, statusId, fields })` — `fields` é union fechada (`"tag" | "temperature" | "responsible"`).
+- `publishLeadChanged({ leadId, trackingId, statusId, fields })` — `fields` é union fechada (`"tag" | "temperature" | "responsible"`). Além dos executors, também é disparado com `fields: ["tag"]` por: `applyTagsByAi` ([src/features/tracking-chat-ai/lib/apply-tags-by-ai.ts](../src/features/tracking-chat-ai/lib/apply-tags-by-ai.ts)) — tag por clique em botão (webhook Uazapi) e pela IA — e pelas rotas oRPC manuais [leads.addTags](../src/app/router/leads/add-tags.ts) / [leads.removeTags](../src/app/router/leads/remove-tags-from-lead.ts) (só quando `count > 0`).
 - `publishLeadClosed({ leadId, trackingId, statusId, outcome })`.
 
 [src/features/actions/realtime/publish.ts](../src/features/actions/realtime/publish.ts):
@@ -68,13 +68,16 @@ Definição: [src/features/leads/realtime/board-leads-channel.ts](../src/feature
 
 ### Hooks subscribers
 
-[src/features/trackings/hooks/use-board-realtime-sync.ts](../src/features/trackings/hooks/use-board-realtime-sync.ts) (leads/Pusher) e [src/features/actions/hooks/use-board-actions-realtime-sync.ts](../src/features/actions/hooks/use-board-actions-realtime-sync.ts) (actions/Inngest):
+[src/features/trackings/hooks/use-board-realtime-sync.ts](../src/features/trackings/hooks/use-board-realtime-sync.ts) (leads/board do kanban, Pusher) e [src/features/actions/hooks/use-board-actions-realtime-sync.ts](../src/features/actions/hooks/use-board-actions-realtime-sync.ts) (actions/Inngest):
+
+> A lista de conversas do Tracking Chat (lead-box) tem um subscriber **leve** próprio — [src/features/tracking-chat/hooks/use-tracking-chat-realtime-sync.ts](../src/features/tracking-chat/hooks/use-tracking-chat-realtime-sync.ts), montado em `ConversationsList` com o `selectedTracking`. Assina o **mesmo** canal Pusher do board (`private-board-leads-{trackingId}`) e só reage a `lead-changed` com `fields.includes("tag")`, invalidando `tags.getTagByLead` (mesma query do badge). Não duplica conexão: pusher-js dedupe a subscription do canal entre componentes.
 
 - **Subscription (leads):** via hook genérico [`useRealtimeChannel`](../src/lib/realtime/use-realtime-channel.ts) — `bind` por evento + cleanup (`unbind`/`unsubscribe`). Como o Pusher entrega evento a evento (push), **não há watermark**: cada handler acumula nos refs e agenda o flush.
 - **Subscription (actions):** `useInngestSubscription` entrega um array crescente; usa **watermark** `lastSeenIdxRef` para não reprocessar em re-renders.
 - **Coalescência (ambos):** acumulam em janela de 250ms (debounce) com flush forçado a cada 2s. 1 invalidação por janela cobre N eventos heterogêneos.
 - **Escopo da invalidação:** `pendingStatusRef`/`pendingColumnRef` agregam status/coluna afetados → invalidação por predicate apenas dos queries dessas IDs (não invalida o board inteiro).
 - **Detalhes abertos:** `pendingLeadDetailRef`/`pendingActionDetailRef` agregam IDs de detalhe → invalida `orpc.{leads,action}.get`/`listHistoric` para sincronizar sheets/modais abertas.
+- **Tags (leads):** badges de tag do card vêm de uma query própria (`orpc.tags.getTagByLead`, keyed por `leadId`, com `staleTime` longo) — não de `listLeadsByStatus`. Por isso, em `lead-changed` com `fields.includes("tag")`, o hook agrega o `leadId` em `pendingTagLeadRef` e invalida `getTagByLead` desses leads no flush. Cobre add **e** remove de tag.
 - **Page Visibility API:** desliga subscription com aba oculta (`enabled: !!id && isVisible`); ao voltar, força refetch leve dos headers das colunas para reconciliar eventos perdidos.
 
 ### Zustand stores — unicidade cross-column
@@ -166,7 +169,7 @@ Em produção, preocupar-se apenas se: alto volume de WRN (proxy/CDN com timeout
 
 Itens que ainda **não** estão cobertos pelo pipeline (e que precisam de extensão deliberada quando virarem prioridade):
 
-- **Mutações manuais** (drag de outro usuário, edição via UI) — além de execuções por automação, as procedures públicas de formulário ([submut-response.ts](../src/app/router/form/public/submut-response.ts) e [save-partial-response.ts](../src/app/router/form/public/save-partial-response.ts)) publicam `lead-created` quando criam um lead. Para multi-user real-time nas demais mutações, replicar o publish nas rotas oRPC `move-action`/`move-lead`/`update-lead`/etc.
+- **Mutações manuais** (drag de outro usuário, edição via UI) — além de execuções por automação, as procedures públicas de formulário ([submut-response.ts](../src/app/router/form/public/submut-response.ts) e [save-partial-response.ts](../src/app/router/form/public/save-partial-response.ts)) publicam `lead-created` quando criam um lead. Para multi-user real-time nas demais mutações, replicar o publish nas rotas oRPC `move-action`/`move-lead`/`update-lead`/etc. **Tags** já são exceção completa: publicam `lead-changed` (`fields: ["tag"]`) por todos os caminhos — automação (`tagExecutor`), botão/IA (`applyTagsByAi`) e as rotas oRPC manuais (`leads.addTags` / `leads.removeTags`). Os caminhos manuais ainda fazem update otimista no client que dispara; o publish serve para os **demais** clients/superfícies (ex.: tag adicionada no chat aparece no kanban).
 - **UX de "card piscou"** — payload já carrega `source: "workflow"`; basta consumir do lado do componente.
 - **Entidades filhas além de sub-action** — comentários, files, atividades não disparam broadcast.
 

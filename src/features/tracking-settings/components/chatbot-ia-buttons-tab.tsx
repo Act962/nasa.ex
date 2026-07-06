@@ -31,9 +31,17 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useTags } from "@/features/tags/hooks/use-tags";
 
 import {
   useAiButtonPresets,
@@ -45,6 +53,9 @@ import {
 const buttonItemSchema = z.object({
   text: z.string().min(1, "Texto do botão é obrigatório"),
   id: z.string().min(1, "Identificador é obrigatório"),
+  // tagId opcional: ao clicar no botão, o lead recebe esta tag (e dispara
+  // automações LEAD_TAGGED). Resolvido no webhook via buttonTagMap.
+  tagId: z.string().optional(),
 });
 
 const presetFormSchema = z.object({
@@ -55,7 +66,11 @@ const presetFormSchema = z.object({
   description: z.string(),
   bodyText: z.string().min(1, "Informe o texto da mensagem"),
   footerText: z.string(),
-  buttons: z.array(buttonItemSchema).min(1, "Adicione pelo menos um botão"),
+  // BUTTON = botões rápidos; LIST = lista aberta por um botão. Mesma
+  // composição de itens nos dois — só muda o envio (sendButtons/sendList).
+  menuFormat: z.enum(["BUTTON", "LIST"]),
+  listButton: z.string(),
+  buttons: z.array(buttonItemSchema).min(1, "Adicione pelo menos uma opção"),
 });
 
 type PresetFormData = z.infer<typeof presetFormSchema>;
@@ -71,6 +86,7 @@ function parseButtons(raw: unknown): ButtonItem[] {
     .map((b) => ({
       text: typeof b.text === "string" ? b.text : "",
       id: typeof b.id === "string" ? b.id : crypto.randomUUID(),
+      tagId: typeof b.tagId === "string" ? b.tagId : undefined,
     }));
 }
 
@@ -177,6 +193,7 @@ function PresetRow({
 }) {
   const updatePreset = useUpdateAiButtonPreset(trackingId);
   const deletePreset = useDeleteAiButtonPreset(trackingId);
+  const { tags } = useTags({ trackingId });
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const form = useForm<PresetFormData>({
@@ -186,9 +203,14 @@ function PresetRow({
       description: preset.description ?? "",
       bodyText: preset.bodyText,
       footerText: preset.footerText ?? "",
+      menuFormat: preset.menuFormat ?? "BUTTON",
+      listButton: preset.listButton ?? "",
       buttons: parseButtons(preset.buttons),
     },
   });
+
+  const menuFormat = form.watch("menuFormat");
+  const isList = menuFormat === "LIST";
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -203,6 +225,11 @@ function PresetRow({
         description: data.description ?? "",
         bodyText: data.bodyText,
         footerText: data.footerText ? data.footerText : null,
+        menuFormat: data.menuFormat,
+        listButton:
+          data.menuFormat === "LIST" && data.listButton
+            ? data.listButton
+            : null,
         buttons: data.buttons,
       },
       {
@@ -244,7 +271,8 @@ function PresetRow({
           <div className="flex flex-col items-start gap-0.5">
             <span className="font-medium">{preset.name || "Sem nome"}</span>
             <span className="text-xs text-muted-foreground">
-              {parseButtons(preset.buttons).length} botão(ões)
+              {parseButtons(preset.buttons).length}{" "}
+              {preset.menuFormat === "LIST" ? "opção(ões) · lista" : "botão(ões)"}
               {!preset.isActive && " · pausado"}
             </span>
           </div>
@@ -315,7 +343,47 @@ function PresetRow({
             </Field>
 
             <Field>
-              <FieldLabel>Botões</FieldLabel>
+              <FieldLabel>Formato</FieldLabel>
+              <Controller
+                control={form.control}
+                name="menuFormat"
+                render={({ field: formatField }) => (
+                  <Select
+                    value={formatField.value}
+                    onValueChange={formatField.onChange}
+                  >
+                    <SelectTrigger className="w-56">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BUTTON">Botões</SelectItem>
+                      <SelectItem value="LIST">Lista</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <FieldDescription>
+                Botões: opções rápidas. Lista: menu aberto por um botão (bom
+                para muitas opções). A tag por clique funciona nos dois.
+              </FieldDescription>
+            </Field>
+
+            {isList && (
+              <Field>
+                <FieldLabel>Rótulo do botão da lista</FieldLabel>
+                <Input
+                  placeholder="Ver opções"
+                  {...form.register("listButton")}
+                />
+                <FieldDescription>
+                  Texto do botão que o lead toca para abrir a lista. Padrão:
+                  &quot;Ver opções&quot;.
+                </FieldDescription>
+              </Field>
+            )}
+
+            <Field>
+              <FieldLabel>{isList ? "Itens da lista" : "Botões"}</FieldLabel>
               <div className="space-y-2">
                 {fields.map((field, index) => (
                   <div key={field.id} className="flex items-start gap-2">
@@ -324,10 +392,42 @@ function PresetRow({
                       name={`buttons.${index}.text`}
                       render={({ field: f }) => (
                         <Input
-                          placeholder="Texto do botão"
+                          placeholder={isList ? "Texto da opção" : "Texto do botão"}
                           className="flex-1"
                           {...f}
                         />
+                      )}
+                    />
+                    <Controller
+                      control={form.control}
+                      name={`buttons.${index}.tagId`}
+                      render={({ field: tagField }) => (
+                        <Select
+                          value={tagField.value ?? ""}
+                          onValueChange={(value) =>
+                            tagField.onChange(
+                              value === "__none__" ? undefined : value,
+                            )
+                          }
+                        >
+                          <SelectTrigger className="w-44">
+                            <SelectValue placeholder="Tag (opcional)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Sem tag</SelectItem>
+                            {tags.map((tag) => (
+                              <SelectItem key={tag.id} value={tag.id}>
+                                <span
+                                  className="inline-block w-2 h-2 rounded-full mr-1 shrink-0"
+                                  style={{
+                                    backgroundColor: tag.color ?? "#1447e6",
+                                  }}
+                                />
+                                {tag.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       )}
                     />
                     <input
@@ -360,12 +460,13 @@ function PresetRow({
                   }
                 >
                   <Plus />
-                  Adicionar botão
+                  {isList ? "Adicionar opção" : "Adicionar botão"}
                 </Button>
               </div>
               <FieldDescription>
                 Texto exibido ao lead no WhatsApp. O identificador interno é
-                gerado automaticamente.
+                gerado automaticamente. A tag (opcional) é aplicada ao lead
+                quando ele {isList ? "seleciona a opção" : "clica no botão"}.
               </FieldDescription>
             </Field>
           </FieldGroup>
