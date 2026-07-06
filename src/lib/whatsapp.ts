@@ -39,6 +39,13 @@ export async function sendWhatsAppText(opts: {
     return null;
   }
 
+  if (!instance.apiKey) {
+    console.warn(
+      `[sendWhatsAppText] CONNECTED WhatsAppInstance without apiKey for org ${opts.organizationId}`,
+    );
+    return null;
+  }
+
   const response = await sendText(
     instance.apiKey,
     {

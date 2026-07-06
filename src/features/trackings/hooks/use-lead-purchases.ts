@@ -12,7 +12,7 @@ import { orpc } from "@/lib/orpc";
  */
 export function useLeadPurchasesByTracking(trackingId: string | null) {
   return useQuery({
-    ...orpc.trackings.getLeadPurchases.queryOptions({
+    ...orpc.tracking.getLeadPurchases.queryOptions({
       input: { trackingId: trackingId ?? "" },
     }),
     enabled: !!trackingId,

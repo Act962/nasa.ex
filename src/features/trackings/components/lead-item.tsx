@@ -148,7 +148,7 @@ export const LeadItem = memo(
     // Cesta de compra: dedupa via React Query — 1 request por tracking.
     const { data: purchasesData } = useLeadPurchasesByTracking(data.trackingId);
     const { data: cardConfigData } = useQuery(
-      orpc.trackings.getCardConfig.queryOptions({
+      orpc.tracking.getCardConfig.queryOptions({
         input: { trackingId: data.trackingId },
       }),
     );

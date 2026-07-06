@@ -25,7 +25,7 @@ export function LeadsSettings({ trackingId }: Props) {
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery(
-    orpc.trackings.getCardConfig.queryOptions({ input: { trackingId } }),
+    orpc.tracking.getCardConfig.queryOptions({ input: { trackingId } }),
   );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,10 +54,10 @@ export function LeadsSettings({ trackingId }: Props) {
   }, [cfg]);
 
   const updateMutation = useMutation({
-    ...orpc.trackings.updateCardConfig.mutationOptions(),
+    ...orpc.tracking.updateCardConfig.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["trackings", "getCardConfig"],
+        queryKey: ["tracking", "getCardConfig"],
       });
     },
   });

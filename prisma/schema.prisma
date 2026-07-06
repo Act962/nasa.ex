@@ -432,6 +432,10 @@ model Organization {
   botConfig        OrganizationBotConfig?
   whatsappBindings UserWhatsappBinding[]
 
+  // ── Ranking de Vendas com Metas (import Winthor/Totvs) ──────
+  salesGoalPeriods         SalesGoalPeriod[]
+  salesGoalRankingSettings SalesGoalRankingSettings?
+
   @@unique([slug])
   @@map("organization")
 }
@@ -445,6 +449,8 @@ model Member {
   role           String
   cargo          String?      @map("cargo")
   createdAt      DateTime
+
+  salesGoalEntries SalesGoalEntry[]
 
   @@unique([userId, organizationId])
   @@index([organizationId])
@@ -2586,6 +2592,119 @@ model PlatformIntegration {
   @@unique([organizationId, platform])
   @@index([organizationId])
   @@map("platform_integrations")
+}
+
+// ─────────────────────────────────────────────
+// RANKING DE VENDAS COM METAS (import Winthor/Totvs — módulo NERP)
+// Fase 1: dados importados manualmente de planilha. Fase 2 (futura):
+// conector direto ao banco Winthor populando `achievedAmount` via cron,
+// usando `externalCode` como chave de correlação — ver PlatformIntegration
+// acima para o padrão de credenciais cifradas a ser reaproveitado.
+// ─────────────────────────────────────────────
+
+enum SalesGoalPeriodType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+}
+
+enum SalesGoalEntryKind {
+  SELLER // vendedor real (código de vendedor no Winthor)
+  BUCKET // linha não-pessoa: treinamento, checkout, etc.
+}
+
+enum SalesGoalRankingTheme {
+  GAMING
+  LIGHT
+  DARK
+  GALAXY
+}
+
+model SalesGoalPeriod {
+  id               String              @id @default(cuid())
+  organizationId   String              @map("organization_id")
+  periodType       SalesGoalPeriodType @map("period_type")
+  periodStart      DateTime            @map("period_start")
+  periodEnd        DateTime            @map("period_end")
+  label            String?
+  sourceFileName   String?             @map("source_file_name")
+  importedAt       DateTime            @default(now()) @map("imported_at")
+  importedByUserId String?             @map("imported_by_user_id")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branches     SalesGoalBranch[]
+
+  @@unique([organizationId, periodType, periodStart])
+  @@index([organizationId])
+  @@map("sales_goal_periods")
+}
+
+model SalesGoalBranch {
+  id        String   @id @default(cuid())
+  periodId  String   @map("period_id")
+  name      String
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  period  SalesGoalPeriod  @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  entries SalesGoalEntry[]
+
+  @@unique([periodId, name])
+  @@index([periodId])
+  @@map("sales_goal_branches")
+}
+
+// Configuração de exibição do Ranking de Equipes (1 por organização):
+// tema visual, sons de pontuação/ultrapassagem, premiações e quais
+// granularidades de período ficam disponíveis nas tabs da tela.
+model SalesGoalRankingSettings {
+  id                String                @id @default(cuid())
+  organizationId    String                @unique @map("organization_id")
+  displayName       String                @default("Ranking de Equipes") @map("display_name")
+  theme             SalesGoalRankingTheme @default(GAMING)
+  activePeriodTypes SalesGoalPeriodType[] @map("active_period_types")
+  soundEnabled      Boolean               @default(true) @map("sound_enabled")
+  scoreSoundUrl     String?               @map("score_sound_url")
+  overtakeSoundUrl  String?               @map("overtake_sound_url")
+  victorySoundUrl   String?               @map("victory_sound_url")
+  soundVolume       Float                 @default(0.6) @map("sound_volume")
+  prizes            Json                  @default("[]") // [{ position, label, imageUrl? }]
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("sales_goal_ranking_settings")
+}
+
+model SalesGoalEntry {
+  id             String             @id @default(cuid())
+  branchId       String             @map("branch_id")
+  externalCode   String             @map("external_code")
+  goalName       String             @map("goal_name")
+  sellerName     String             @map("seller_name")
+  entryKind      SalesGoalEntryKind @default(SELLER) @map("entry_kind")
+  goalAmount     Decimal            @db.Decimal(15, 2) @map("goal_amount")
+  achievedAmount Decimal?           @db.Decimal(15, 2) @map("achieved_amount")
+  memberId       String?            @map("member_id")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  branch SalesGoalBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  member Member?         @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@unique([branchId, externalCode])
+  @@index([branchId])
+  @@index([memberId])
+  @@map("sales_goal_entries")
 }
 
 // ─────────────────────────────────────────────

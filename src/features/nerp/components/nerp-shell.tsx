@@ -13,6 +13,7 @@ import {
   Receipt,
   LayoutDashboard,
   PlugZap,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,7 @@ const NAV = [
   { href: "/nerp/stocks", label: "Estoque", icon: Boxes },
   { href: "/nerp/customer", label: "Clientes", icon: Users },
   { href: "/nerp/sales", label: "Vendas", icon: Receipt },
+  { href: "/nerp/ranking", label: "Ranking de Equipes", icon: Trophy },
 ];
 
 export function NerpShell({
