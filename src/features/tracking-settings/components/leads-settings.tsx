@@ -7,8 +7,10 @@
  */
 
 import { useEffect, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
+import {
+  useCardConfig,
+  useUpdateCardConfig,
+} from "@/features/trackings/hooks/use-card-config";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -22,23 +24,7 @@ interface Props {
 }
 
 export function LeadsSettings({ trackingId }: Props) {
-  const queryClient = useQueryClient();
-
-  const { data, isLoading } = useQuery(
-    orpc.tracking.getCardConfig.queryOptions({ input: { trackingId } }),
-  );
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cfg = (data as any)?.config as
-    | {
-        showPurchaseBasket?: boolean;
-        basketRecentDays?: number;
-        basketMediumDays?: number;
-        basketLongDays?: number;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        fields?: any[];
-      }
-    | undefined;
+  const { data: cfg, isLoading } = useCardConfig(trackingId);
 
   const [showBasket, setShowBasket] = useState(true);
   const [recent, setRecent] = useState(30);
@@ -53,14 +39,7 @@ export function LeadsSettings({ trackingId }: Props) {
     setLong(cfg.basketLongDays ?? 90);
   }, [cfg]);
 
-  const updateMutation = useMutation({
-    ...orpc.tracking.updateCardConfig.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["trackings", "getCardConfig"],
-      });
-    },
-  });
+  const updateMutation = useUpdateCardConfig();
 
   function handleSave() {
     if (!(recent < medium && medium < long)) {
@@ -72,7 +51,7 @@ export function LeadsSettings({ trackingId }: Props) {
     updateMutation.mutate(
       {
         trackingId,
-        fields: cfg?.fields ?? [],
+        fields: (cfg?.fields as never[]) ?? [],
         showPurchaseBasket: showBasket,
         basketRecentDays: recent,
         basketMediumDays: medium,

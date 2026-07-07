@@ -177,12 +177,14 @@ export const listLeadsByStatus = base
         phone: true,
         order: true,
         statusId: true,
+        trackingId: true,
         createdAt: true,
         updatedAt: true,
         description: true,
         temperature: true,
         statusFlow: true,
         profile: true,
+        amount: true,
         // Campos novos: existem no client após `prisma generate` rodar pós-migration
         ...({ slaDeadline: true, statusEnteredAt: true } as any),
         responsible: {
@@ -424,6 +426,7 @@ export const listLeadsByStatus = base
         return {
           ...rest,
           order: lead.order.toString(),
+          amount: lead.amount.toString(),
           forms: responses,
           deadlineHint,
           nextAppointment,

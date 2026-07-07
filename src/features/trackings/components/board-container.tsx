@@ -14,6 +14,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import {
+  useOptimisticColumnValue,
   useQueryStatus,
   useUpdateColumnOrder,
   useUpdateLeadOrder,
@@ -124,6 +125,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
   const { onOpen: onOpenDeleteLead } = useDeletLead();
   const updateColumnOrder = useUpdateColumnOrder();
   const updateLeadOrder = useUpdateLeadOrder();
+  const optimisticColumnValue = useOptimisticColumnValue();
 
   const mouseSensor = useSensor(MouseSensor, {
     activationConstraint: {
@@ -285,6 +287,12 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
             targetColumnId,
             overLeadId,
           );
+          // Total da coluna acompanha o card na hora (sem esperar refetch).
+          optimisticColumnValue(
+            currentColumnId ?? lead.statusId,
+            targetColumnId,
+            Number(lead.amount),
+          );
         } else if (overLeadId && overLeadId !== lead.id) {
           // Within-column: reordena baseado em onde foi solto.
           moveLeadInColumn(targetColumnId, lead.id, overLeadId);
@@ -314,6 +322,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
     [
       moveLeadInColumn,
       moveLeadToColumn,
+      optimisticColumnValue,
       onOpen,
       onOpenDeleteLead,
       originalNeighbors,
