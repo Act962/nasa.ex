@@ -46,48 +46,6 @@ export const issueInvoiceSchema = z
           message: "Razão social obrigatória",
           path: ["tomadorRazaoSocial"],
         });
-      // NFS-e Nacional dispensa o endereço completo do tomador (basta o CNPJ/CPF);
-      // no padrão municipal, a exigência vem do registry de requisitos do município.
-      const shouldValidateEndereco =
-        values.requiresTomadorEndereco ?? values.nfseStandard !== "NACIONAL";
-      if (values.nfseStandard !== "NACIONAL" && shouldValidateEndereco) {
-        if (!values.tomadorCodigoMunicipio)
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Código do município obrigatório",
-            path: ["tomadorCodigoMunicipio"],
-          });
-        if (!values.tomadorUf)
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "UF obrigatória",
-            path: ["tomadorUf"],
-          });
-        if (!values.tomadorLogradouro)
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Logradouro obrigatório",
-            path: ["tomadorLogradouro"],
-          });
-        if (!values.tomadorNumero)
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Número obrigatório",
-            path: ["tomadorNumero"],
-          });
-        if (!values.tomadorBairro)
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Bairro obrigatório",
-            path: ["tomadorBairro"],
-          });
-        if ((values.tomadorCep ?? "").replace(/\D/g, "").length !== 8)
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "CEP inválido (deve ter 8 dígitos)",
-            path: ["tomadorCep"],
-          });
-      }
     } else {
       const cpf = (values.tomadorCpf ?? "").replace(/\D/g, "");
       if (cpf.length !== 11)
@@ -101,6 +59,51 @@ export const issueInvoiceSchema = z
           code: z.ZodIssueCode.custom,
           message: "Nome obrigatório",
           path: ["tomadorNome"],
+        });
+    }
+
+    // NFS-e Nacional dispensa o endereço completo do tomador (basta o CNPJ/CPF);
+    // no padrão municipal, a exigência vem do registry de requisitos do município.
+    // Vale para PF e PJ — o endereço agora é coletado nos dois fluxos.
+    const shouldValidateEndereco =
+      values.nfseStandard !== "NACIONAL" &&
+      (values.requiresTomadorEndereco ?? values.nfseStandard !== "NACIONAL");
+    if (shouldValidateEndereco) {
+      if (!values.tomadorCodigoMunicipio)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Código do município obrigatório",
+          path: ["tomadorCodigoMunicipio"],
+        });
+      if (!values.tomadorUf)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "UF obrigatória",
+          path: ["tomadorUf"],
+        });
+      if (!values.tomadorLogradouro)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Logradouro obrigatório",
+          path: ["tomadorLogradouro"],
+        });
+      if (!values.tomadorNumero)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Número obrigatório",
+          path: ["tomadorNumero"],
+        });
+      if (!values.tomadorBairro)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Bairro obrigatório",
+          path: ["tomadorBairro"],
+        });
+      if ((values.tomadorCep ?? "").replace(/\D/g, "").length !== 8)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "CEP inválido (deve ter 8 dígitos)",
+          path: ["tomadorCep"],
         });
     }
   });

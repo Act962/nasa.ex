@@ -4,21 +4,23 @@ export type NfsePrestador = {
   codigo_municipio: string;
 };
 
+export type NfseEndereco = {
+  logradouro: string;
+  numero: string;
+  complemento?: string;
+  bairro: string;
+  codigo_municipio: string;
+  uf: string;
+  cep: string;
+};
+
 export type NfseTomadorPJ = {
   cnpj: string;
   razao_social: string;
   email?: string;
   telefone?: string;
   // Opcional: municípios cujo registry dispensa endereço do tomador emitem só com CNPJ.
-  endereco?: {
-    logradouro: string;
-    numero: string;
-    complemento?: string;
-    bairro: string;
-    codigo_municipio: string;
-    uf: string;
-    cep: string;
-  };
+  endereco?: NfseEndereco;
 };
 
 export type NfseTomadorPF = {
@@ -26,6 +28,8 @@ export type NfseTomadorPF = {
   razao_social: string;
   email?: string;
   telefone?: string;
+  // Opcional: municípios cujo registry dispensa endereço do tomador emitem só com CPF.
+  endereco?: NfseEndereco;
 };
 
 export type NfseServico = {

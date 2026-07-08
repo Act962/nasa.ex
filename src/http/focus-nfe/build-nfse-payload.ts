@@ -1,10 +1,19 @@
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import type {
   FiscalCompanyProfile,
   ForgeContract,
   TomadorType,
 } from "@/generated/prisma/client";
+import type { FiscalEnvironment } from "@/generated/prisma/enums";
 import type { MunicipioNfseRequirements } from "@/features/fiscal/lib/municipio-requirements";
-import type { NfsePayload, NfseTomadorPJ } from "./types";
+import type { NfseEndereco, NfsePayload } from "./types";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const TIMEZONE = "America/Sao_Paulo";
 
 export type IssueOverrides = {
   tipoTomador: TomadorType;
@@ -40,14 +49,25 @@ export function validateBeforeEmit(
   profile: FiscalCompanyProfile,
   overrides: IssueOverrides,
   requirements: MunicipioNfseRequirements,
+  environment: FiscalEnvironment,
 ): PreflightResult {
   const errors: string[] = [];
 
-  if (!profile.supportedByFocus)
+  // supportedByFocus é resolvido contra a lista de municípios da Focus em
+  // PRODUCAO (profile-upsert.ts) — municípios com homologação disponível mas
+  // sem portal de acesso (ex.: Teresina-PI) podem não refletir isso ali, então
+  // o registry dispensa a checagem quando emitindo em homologação.
+  const skipsSupportedByFocusCheck =
+    environment === "HOMOLOGACAO" &&
+    requirements.skipsSupportedByFocusInHomologacao;
+  if (!profile.supportedByFocus && !skipsSupportedByFocusCheck)
     errors.push("Município do prestador não está integrado na Focus NFe.");
   if (!profile.focusEmpresaRegistered)
     errors.push("Empresa não está cadastrada na Focus NFe.");
-  if (requirements.requiresInscricaoMunicipalPrestador && !profile.inscricaoMunicipal)
+  if (
+    requirements.requiresInscricaoMunicipalPrestador &&
+    !profile.inscricaoMunicipal
+  )
     errors.push("Inscrição municipal do prestador não configurada.");
   if (!/^\d{7}$/.test(profile.codigoMunicipio))
     errors.push("Código IBGE do município inválido (deve ter 7 dígitos).");
@@ -85,26 +105,26 @@ export function validateBeforeEmit(
     if (cnpj.length !== 14) errors.push("CNPJ do tomador inválido.");
     if (!overrides.tomadorRazaoSocial)
       errors.push("Razão social do tomador obrigatória para PJ.");
-    if (requirements.requiresTomadorEndereco) {
-      if (!overrides.tomadorCodigoMunicipio)
-        errors.push("Código de município do tomador obrigatório para PJ.");
-      if (!overrides.tomadorLogradouro)
-        errors.push("Logradouro do tomador obrigatório para PJ.");
-      if (!overrides.tomadorNumero)
-        errors.push("Número do endereço do tomador obrigatório para PJ.");
-      if (!overrides.tomadorBairro)
-        errors.push("Bairro do tomador obrigatório para PJ.");
-      const tomadorCepDigits = (overrides.tomadorCep ?? "").replace(/\D/g, "");
-      if (tomadorCepDigits.length !== 8)
-        errors.push("CEP do tomador obrigatório para PJ (deve ter 8 dígitos).");
-      if (!overrides.tomadorUf)
-        errors.push("UF do tomador obrigatória para PJ.");
-    }
   } else {
     const cpf = (overrides.tomadorCpf ?? "").replace(/\D/g, "");
     if (cpf.length !== 11) errors.push("CPF do tomador inválido.");
     if (!overrides.tomadorNome)
       errors.push("Nome do tomador obrigatório para PF.");
+  }
+
+  if (requirements.requiresTomadorEndereco) {
+    if (!overrides.tomadorCodigoMunicipio)
+      errors.push("Código de município do tomador obrigatório.");
+    if (!overrides.tomadorLogradouro)
+      errors.push("Logradouro do tomador obrigatório.");
+    if (!overrides.tomadorNumero)
+      errors.push("Número do endereço do tomador obrigatório.");
+    if (!overrides.tomadorBairro)
+      errors.push("Bairro do tomador obrigatório.");
+    const tomadorCepDigits = (overrides.tomadorCep ?? "").replace(/\D/g, "");
+    if (tomadorCepDigits.length !== 8)
+      errors.push("CEP do tomador obrigatório (deve ter 8 dígitos).");
+    if (!overrides.tomadorUf) errors.push("UF do tomador obrigatória.");
   }
 
   return { valid: errors.length === 0, errors };
@@ -120,12 +140,12 @@ export function buildNfsePayload(
   // o município não exige — prefeituras ignoram campos que não usam.
   const hasEnderecoTomador = Boolean(
     overrides.tomadorLogradouro &&
-      overrides.tomadorNumero &&
-      overrides.tomadorBairro &&
-      overrides.tomadorCodigoMunicipio &&
-      overrides.tomadorUf,
+    overrides.tomadorNumero &&
+    overrides.tomadorBairro &&
+    overrides.tomadorCodigoMunicipio &&
+    overrides.tomadorUf,
   );
-  const enderecoTomador: NfseTomadorPJ["endereco"] = hasEnderecoTomador
+  const enderecoTomador: NfseEndereco | undefined = hasEnderecoTomador
     ? {
         logradouro: overrides.tomadorLogradouro!,
         numero: overrides.tomadorNumero!,
@@ -155,10 +175,11 @@ export function buildNfsePayload(
           ...(overrides.tomadorEmail?.trim()
             ? { email: overrides.tomadorEmail.trim() }
             : {}),
+          ...(enderecoTomador ? { endereco: enderecoTomador } : {}),
         };
 
   return {
-    data_emissao: new Date().toISOString(),
+    data_emissao: dayjs().tz(TIMEZONE).format(),
     data_competencia: overrides.dataCompetencia.toISOString(),
     natureza_operacao: overrides.naturezaOperacao ?? "1",
     optante_simples_nacional: profile.optanteSimplesNacional,
@@ -175,7 +196,9 @@ export function buildNfsePayload(
     tomador,
     servico: {
       aliquota: Number(
-        Number(profile.defaultAliquotaIss).toFixed(requirements.aliquotaDecimals),
+        Number(profile.defaultAliquotaIss).toFixed(
+          requirements.aliquotaDecimals,
+        ),
       ),
       iss_retido: profile.defaultIssRetido,
       item_lista_servico: profile.defaultItemListaServico,
@@ -193,7 +216,8 @@ export function buildNfsePayload(
         overrides.discriminacao?.trim() ||
         profile.defaultDiscriminacao?.trim() ||
         `Serviços conforme contrato #${contract.number}`,
-      codigo_municipio: overrides.tomadorCodigoMunicipio ?? profile.codigoMunicipio,
+      codigo_municipio:
+        overrides.tomadorCodigoMunicipio ?? profile.codigoMunicipio,
       valor_servicos: Number(contract.value),
     },
   };

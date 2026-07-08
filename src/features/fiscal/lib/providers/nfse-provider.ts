@@ -39,6 +39,7 @@ export interface NfseProvider {
     contract: ForgeContract,
     profile: FiscalCompanyProfile,
     overrides: IssueOverrides,
+    environment: FiscalEnvironment,
   ): PreflightResult;
 
   emitir(params: EmitParams): Promise<EmitResult>;

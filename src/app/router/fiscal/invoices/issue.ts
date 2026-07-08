@@ -3,6 +3,9 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import { FocusNfeHttpError } from "@/http/focus-nfe/client";
 import type { FiscalEnvironment } from "@/generated/prisma/enums";
 import { resolveNfseProvider } from "@/features/fiscal/lib/providers/resolve-nfse-provider";
@@ -11,6 +14,11 @@ import {
   focusStatusToDb,
   formatFocusErrorMessage,
 } from "./utils";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const TIMEZONE = "America/Sao_Paulo";
 
 export const issueFiscalInvoice = base
   .use(requiredAuthMiddleware)
@@ -103,7 +111,13 @@ export const issueFiscalInvoice = base
 
     const overrides = {
       tipoTomador: input.tipoTomador as "PF" | "PJ",
-      dataCompetencia: new Date(input.dataCompetencia),
+      // Data enviada pelo dialog é "YYYY-MM-DD"; ancoramos explicitamente em
+      // horário de Brasília em vez de deixar o parser nativo assumir meia-noite
+      // UTC, que equivale a 21h do dia anterior em Brasília (data errada ao formatar).
+      dataCompetencia: dayjs
+        .tz(input.dataCompetencia, TIMEZONE)
+        .startOf("day")
+        .toDate(),
       discriminacao: input.discriminacao,
       tomadorCnpj: input.tomadorCnpj,
       tomadorCpf: input.tomadorCpf,
@@ -125,8 +139,14 @@ export const issueFiscalInvoice = base
     };
 
     const provider = resolveNfseProvider(profile.nfseStandard);
+    const fiscalEnvironment = input.environment as FiscalEnvironment;
 
-    const preflight = provider.validate(contract, profile, overrides);
+    const preflight = provider.validate(
+      contract,
+      profile,
+      overrides,
+      fiscalEnvironment,
+    );
     if (!preflight.valid) {
       throw errors.BAD_REQUEST({ message: preflight.errors.join("; ") });
     }
@@ -144,8 +164,6 @@ export const issueFiscalInvoice = base
       throw errors.INTERNAL_SERVER_ERROR;
     }
     const ref = `forge-${contract.id}-${invoiceCount + 1}`;
-
-    const fiscalEnvironment = input.environment as FiscalEnvironment;
 
     console.log(
       "[fiscal/issue] ambiente Focus NFe:",

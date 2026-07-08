@@ -1,9 +1,17 @@
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import type {
   FiscalCompanyProfile,
   ForgeContract,
 } from "@/generated/prisma/client";
 import type { NfseNacionalPayload } from "./types";
 import type { IssueOverrides, PreflightResult } from "./build-nfse-payload";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const TIMEZONE = "America/Sao_Paulo";
 
 // codigo_opcao_simples_nacional (DPS nacional): 1 = Não Optante, 2 = MEI, 3 = Optante ME/EPP.
 function toCodigoOpcaoSimplesNacional(optante: boolean, mei: boolean): number {
@@ -143,11 +151,8 @@ export function buildNfseNacionalPayload(
       ? { cnpj_tomador: (overrides.tomadorCnpj ?? "").replace(/\D/g, "") }
       : { cpf_tomador: (overrides.tomadorCpf ?? "").replace(/\D/g, "") };
 
-  const codigoMunicipioPrestacao =
-    overrides.tomadorCodigoMunicipio ?? profile.codigoMunicipio;
-
   return {
-    data_emissao: new Date().toISOString(),
+    data_emissao: dayjs().tz(TIMEZONE).format(),
     serie_dps: profile.defaultSerieDps ?? 1,
     ...(overrides.dataCompetencia
       ? { data_competencia: toCompetenciaDate(overrides.dataCompetencia) }
@@ -166,7 +171,8 @@ export function buildNfseNacionalPayload(
         : REGIME_ESPECIAL_TRIBUTACAO_NENHUM),
     ...tomador,
     razao_social_tomador: resolveNomeTomador(overrides),
-    codigo_municipio_prestacao: Number(codigoMunicipioPrestacao),
+    // ISS devido no local do estabelecimento prestador (LC 116/2003, art. 3º caput).
+    codigo_municipio_prestacao: Number(profile.codigoMunicipio),
     codigo_tributacao_nacional_iss: profile.defaultItemListaServico,
     descricao_servico:
       overrides.discriminacao?.trim() ||

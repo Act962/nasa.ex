@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +59,11 @@ import {
 import { MunicipioCombobox } from "./municipio-combobox";
 import type { CnpjWsResponse } from "@/http/cnpj-ws/client";
 
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const TIMEZONE = "America/Sao_Paulo";
+
 interface ClientData {
   name?: string | null;
   document?: string | null;
@@ -72,9 +80,10 @@ interface IssueInvoiceDialogProps {
   clientData: ClientData | null;
 }
 
-function currentMonthValue() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+// Data-mês-ano (dia+mês+ano) da competência, sempre ancorada em horário de
+// Brasília — evita que o dia mude por conta do fuso da máquina renderizando.
+function currentCompetenciaValue() {
+  return dayjs().tz(TIMEZONE).format("YYYY-MM-DD");
 }
 
 function detectTipoTomador(document?: string | null): "PF" | "PJ" {
@@ -83,8 +92,8 @@ function detectTipoTomador(document?: string | null): "PF" | "PJ" {
 }
 
 function formatCompetencia(value: string) {
-  const [year, month] = value.split("-");
-  return month && year ? `${month}/${year}` : value;
+  const competencia = dayjs.tz(value, TIMEZONE);
+  return competencia.isValid() ? competencia.format("DD/MM/YYYY") : value;
 }
 
 function FieldError({ message }: { message?: string }) {
@@ -124,6 +133,100 @@ function PreviewCard({
   );
 }
 
+function TomadorEnderecoFields({
+  form,
+  municipioDisplay,
+  onMunicipioDisplayChange,
+  required,
+}: {
+  form: UseFormReturn<IssueInvoiceFormValues>;
+  municipioDisplay: string;
+  onMunicipioDisplayChange: (value: string) => void;
+  required: boolean;
+}) {
+  const formErrors = form.formState.errors;
+  const requiredMark = required ? (
+    <span className="text-destructive">*</span>
+  ) : null;
+
+  return (
+    <>
+      <div className="sm:col-span-2 space-y-1.5">
+        <Label>Município {requiredMark}</Label>
+        <MunicipioCombobox
+          displayValue={municipioDisplay}
+          onSelect={(municipio) => {
+            form.setValue("tomadorCodigoMunicipio", municipio.codigo_ibge, {
+              shouldValidate: true,
+            });
+            form.setValue("tomadorUf", municipio.uf);
+            onMunicipioDisplayChange(`${municipio.nome} — ${municipio.uf}`);
+          }}
+          placeholder="Buscar município pelo nome..."
+        />
+        <FieldError message={formErrors.tomadorCodigoMunicipio?.message} />
+        {form.watch("tomadorCodigoMunicipio") && (
+          <p className="text-xs text-muted-foreground">
+            Código IBGE: {form.watch("tomadorCodigoMunicipio")}
+          </p>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        <Label>UF {requiredMark}</Label>
+        <Controller
+          control={form.control}
+          name="tomadorUf"
+          render={({ field }) => (
+            <Select value={field.value ?? ""} onValueChange={field.onChange}>
+              <SelectTrigger className="w-28">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {UF_OPTIONS.map((uf) => (
+                  <SelectItem key={uf} value={uf}>
+                    {uf}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        <FieldError message={formErrors.tomadorUf?.message} />
+      </div>
+      <div className="space-y-1.5">
+        <Label>Logradouro {requiredMark}</Label>
+        <Input
+          {...form.register("tomadorLogradouro")}
+          placeholder="Rua Exemplo"
+        />
+        <FieldError message={formErrors.tomadorLogradouro?.message} />
+      </div>
+      <div className="space-y-1.5">
+        <Label>Número {requiredMark}</Label>
+        <Input {...form.register("tomadorNumero")} placeholder="100" />
+        <FieldError message={formErrors.tomadorNumero?.message} />
+      </div>
+      <div className="space-y-1.5">
+        <Label>Complemento</Label>
+        <Input
+          {...form.register("tomadorComplemento")}
+          placeholder="Sala 201"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label>Bairro {requiredMark}</Label>
+        <Input {...form.register("tomadorBairro")} />
+        <FieldError message={formErrors.tomadorBairro?.message} />
+      </div>
+      <div className="space-y-1.5">
+        <Label>CEP {requiredMark}</Label>
+        <Input {...form.register("tomadorCep")} placeholder="00000-000" />
+        <FieldError message={formErrors.tomadorCep?.message} />
+      </div>
+    </>
+  );
+}
+
 export function IssueInvoiceDialog({
   open,
   onClose,
@@ -144,7 +247,7 @@ export function IssueInvoiceDialog({
       tipoTomador: detectedTipo,
       environment: "HOMOLOGACAO" as const,
       nfseStandard: undefined,
-      dataCompetencia: currentMonthValue(),
+      dataCompetencia: currentCompetenciaValue(),
       discriminacao: "",
       naturezaOperacao: "1",
       regimeEspecialTributacao: undefined,
@@ -291,7 +394,10 @@ export function IssueInvoiceDialog({
       !nacional && requirements.requiresTomadorEndereco,
     );
     const errors: string[] = [];
-    if (!nacional && !profile.supportedByFocus)
+    const skipsSupportedByFocusCheck =
+      environment === "HOMOLOGACAO" &&
+      requirements.skipsSupportedByFocusInHomologacao;
+    if (!nacional && !profile.supportedByFocus && !skipsSupportedByFocusCheck)
       errors.push("Município do prestador não integrado na Focus NFe.");
     if (!profile.focusEmpresaRegistered)
       errors.push("Empresa não cadastrada na Focus NFe.");
@@ -327,7 +433,7 @@ export function IssueInvoiceDialog({
     if (Number(contractValue) <= 0)
       errors.push("Valor do contrato deve ser maior que zero.");
     setPreflightErrors(errors);
-  }, [profile, contractValue, form]);
+  }, [profile, contractValue, environment, form]);
 
   const handleReview = async () => {
     const isValid = await form.trigger();
@@ -340,7 +446,7 @@ export function IssueInvoiceDialog({
         contractId,
         tipoTomador: values.tipoTomador,
         environment: values.environment,
-        dataCompetencia: `${values.dataCompetencia}-01`,
+        dataCompetencia: values.dataCompetencia,
         discriminacao: values.discriminacao || undefined,
         naturezaOperacao: values.naturezaOperacao,
         regimeEspecialTributacao: values.regimeEspecialTributacao
@@ -551,111 +657,17 @@ export function IssueInvoiceDialog({
                     message={formErrors.tomadorRazaoSocial?.message}
                   />
                 </div>
-                {requiresTomadorEndereco && (
-                <>
-                <div className="sm:col-span-2 space-y-1.5">
-                  <Label>
-                    Município <span className="text-destructive">*</span>
-                  </Label>
-                  <MunicipioCombobox
-                    displayValue={municipioDisplay}
-                    onSelect={(municipio) => {
-                      form.setValue(
-                        "tomadorCodigoMunicipio",
-                        municipio.codigo_ibge,
-                        {
-                          shouldValidate: true,
-                        },
-                      );
-                      form.setValue("tomadorUf", municipio.uf);
-                      setMunicipioDisplay(
-                        `${municipio.nome} — ${municipio.uf}`,
-                      );
-                    }}
-                    placeholder="Buscar município pelo nome..."
-                  />
-                  <FieldError
-                    message={formErrors.tomadorCodigoMunicipio?.message}
-                  />
-                  {form.watch("tomadorCodigoMunicipio") && (
-                    <p className="text-xs text-muted-foreground">
-                      Código IBGE: {form.watch("tomadorCodigoMunicipio")}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label>
-                    UF <span className="text-destructive">*</span>
-                  </Label>
-                  <Controller
-                    control={form.control}
-                    name="tomadorUf"
-                    render={({ field }) => (
-                      <Select
-                        value={field.value ?? ""}
-                        onValueChange={field.onChange}
-                      >
-                        <SelectTrigger className="w-28">
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {UF_OPTIONS.map((uf) => (
-                            <SelectItem key={uf} value={uf}>
-                              {uf}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  <FieldError message={formErrors.tomadorUf?.message} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>
-                    Logradouro <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    {...form.register("tomadorLogradouro")}
-                    placeholder="Rua Exemplo"
-                  />
-                  <FieldError
-                    message={formErrors.tomadorLogradouro?.message}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>
-                    Número <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    {...form.register("tomadorNumero")}
-                    placeholder="100"
-                  />
-                  <FieldError message={formErrors.tomadorNumero?.message} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>
-                    Bairro <span className="text-destructive">*</span>
-                  </Label>
-                  <Input {...form.register("tomadorBairro")} />
-                  <FieldError message={formErrors.tomadorBairro?.message} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>
-                    CEP <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    {...form.register("tomadorCep")}
-                    placeholder="00000-000"
-                  />
-                  <FieldError message={formErrors.tomadorCep?.message} />
-                </div>
-                </>
-                )}
+                <TomadorEnderecoFields
+                  form={form}
+                  municipioDisplay={municipioDisplay}
+                  onMunicipioDisplayChange={setMunicipioDisplay}
+                  required={requiresTomadorEndereco}
+                />
                 {!requiresTomadorEndereco && (
                   <p className="sm:col-span-2 text-xs text-muted-foreground">
                     {isNacional
-                      ? "NFS-e Nacional: o endereço do tomador não é necessário — apenas o CNPJ."
-                      : "Seu município não exige o endereço do tomador — apenas o CNPJ."}
+                      ? "NFS-e Nacional: o endereço do tomador não é obrigatório, mas pode ser preenchido."
+                      : "Seu município não exige o endereço do tomador, mas você pode preenchê-lo."}
                   </p>
                 )}
               </div>
@@ -684,6 +696,19 @@ export function IssueInvoiceDialog({
                   <Input {...form.register("tomadorNome")} />
                   <FieldError message={formErrors.tomadorNome?.message} />
                 </div>
+                <TomadorEnderecoFields
+                  form={form}
+                  municipioDisplay={municipioDisplay}
+                  onMunicipioDisplayChange={setMunicipioDisplay}
+                  required={requiresTomadorEndereco}
+                />
+                {!requiresTomadorEndereco && (
+                  <p className="sm:col-span-2 text-xs text-muted-foreground">
+                    {isNacional
+                      ? "NFS-e Nacional: o endereço do tomador não é obrigatório, mas pode ser preenchido."
+                      : "Seu município não exige o endereço do tomador, mas você pode preenchê-lo."}
+                  </p>
+                )}
               </div>
             )}
 
@@ -695,7 +720,7 @@ export function IssueInvoiceDialog({
                 <Label>
                   Competência <span className="text-destructive">*</span>
                 </Label>
-                <Input {...form.register("dataCompetencia")} type="month" />
+                <Input {...form.register("dataCompetencia")} type="date" />
                 <FieldError message={formErrors.dataCompetencia?.message} />
               </div>
               <div className="sm:col-span-2 space-y-1.5">
@@ -844,16 +869,6 @@ export function IssueInvoiceDialog({
                       placeholder="tomador@exemplo.com"
                     />
                   </div>
-
-                  {tipoTomador === "PJ" && (
-                    <div className="space-y-1.5">
-                      <Label>Complemento</Label>
-                      <Input
-                        {...form.register("tomadorComplemento")}
-                        placeholder="Sala 201"
-                      />
-                    </div>
-                  )}
                 </div>
               </CollapsibleContent>
             </Collapsible>
@@ -941,8 +956,23 @@ export function IssueInvoiceDialog({
                     <PreviewRow label="Tipo" value="Pessoa Física" />
                     <PreviewRow label="Nome" value={values.tomadorNome} />
                     <PreviewRow label="CPF" value={values.tomadorCpf} />
+                    <PreviewRow
+                      label="Município"
+                      value={
+                        municipioDisplay ||
+                        (values.tomadorCodigoMunicipio
+                          ? `Cód. ${values.tomadorCodigoMunicipio}`
+                          : undefined)
+                      }
+                    />
                     {values.tomadorEmail && (
                       <PreviewRow label="E-mail" value={values.tomadorEmail} />
+                    )}
+                    {tomadorEnderecoCompleto && (
+                      <PreviewRow
+                        label="Endereço"
+                        value={tomadorEnderecoCompleto}
+                      />
                     )}
                   </>
                 )}

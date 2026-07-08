@@ -13,12 +13,13 @@ export const municipalNfseProvider: NfseProvider = {
   invoiceType: "NFSE",
   webhookEvent: "nfse",
 
-  validate: (contract, profile, overrides) =>
+  validate: (contract, profile, overrides, environment) =>
     validateBeforeEmit(
       contract,
       profile,
       overrides,
       resolveMunicipioRequirements(profile.codigoMunicipio),
+      environment,
     ),
 
   async emitir({
