@@ -250,6 +250,10 @@ export const useMutationValidateLeadPhone = () => {
   return useMutation(orpc.form.validateLeadPhone.mutationOptions({}));
 };
 
+export const useMutationValidateCep = () => {
+  return useMutation(orpc.form.validateCep.mutationOptions({}));
+};
+
 export const useMutationFindDraftByPhone = () => {
   return useMutation(orpc.form.findDraftByPhone.mutationOptions({}));
 };
