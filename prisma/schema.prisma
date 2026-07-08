@@ -615,6 +615,10 @@ model TrackingCardConfig {
   id           String   @id @default(cuid())
   trackingId   String   @unique @map("tracking_id")
   fields       Json     @default("[]")
+  // Visibilidade dos campos do card/coluna no Kanban. Mapa `fieldId → boolean`
+  // (ex.: { "phone": false, "leadCount": false }). Ausência de chave = visível
+  // (default true), então `{}` mantém tudo visível — compatível com o legado.
+  cardVisibility Json   @default("{}") @map("card_visibility")
   showSlaTimer Boolean  @default(true) @map("show_sla_timer")
 
   // Cesta de compra do lead — ícone colorido no card indicando quando foi a

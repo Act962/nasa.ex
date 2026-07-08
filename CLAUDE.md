@@ -194,6 +194,16 @@ src/features/<dominio>/
 
 15. **WhatsApp Oficial — fluxo normal via `main` (fases já integradas)** — as fases do roadmap (ver `docs/whatsapp-oficial-overview.md`) **já estão na `main`**. A branch de integração `feature/whatsapp-oficial-integration` foi aposentada; **não é mais usada**. Novas fases e ajustes do WhatsApp Oficial seguem o fluxo padrão do projeto (item Git Workflow): branch de fase nasce a partir da **`main`** atualizada (`/start`) e o PR da fase tem base **`main`** (`--base main`). Não retargete PRs para a branch de integração nem crie branches a partir dela.
 
+16. **Visibilidade de campos no Kanban (OBRIGATÓRIO)** — todo **novo campo** exibido no card do lead (`src/features/trackings/components/lead-item.tsx`) ou na coluna (`src/features/trackings/components/status-header.tsx`) **deve** entrar no sistema de visibilidade personalizável, salvo se for realmente obrigatório (ex.: nome do lead — sempre visível). Ao adicionar um campo:
+
+    a. **Registrar em `CARD_FIELDS`** (`src/features/trackings/lib/card-visibility.ts`) — adicionar `{ id, label, group: "card" | "column" }`. Isso automaticamente cria o toggle no Sheet "Personalizar board" (`components/modal/board-customize-sheet.tsx`), que itera sobre `CARD_FIELDS` — **não** é preciso editar o Sheet manualmente.
+
+    b. **Envolver o render** do campo com `isFieldVisible(visibility, "<id>")` no componente correspondente (`lead-item.tsx` ou `status-header.tsx`), usando a mesma `visibility` já computada (`visibilityPreview` do tracking OU `cardConfig.cardVisibility`). Default ausente = visível (compat com trackings sem config).
+
+    c. **Campos obrigatórios** (não-ocultáveis) ficam **fora** de `CARD_FIELDS` — não recebem toggle e renderizam sempre.
+
+    Objetivo: nenhum campo novo pode voltar a poluir o board sem o usuário poder desligá-lo. Ver [`src/features/trackings/README.md`](src/features/trackings/README.md) para o fluxo completo.
+
 ## Obsidian
 
 Vault: `NASA Agents` em `/Users/weydsonlima/Documents/NASA Agents/`
