@@ -8,10 +8,15 @@ import { addRecipientsFromLeads } from "./add-recipients-from-leads";
 import { addRecipientsFromCsv } from "./add-recipients-from-csv";
 import { listRecipients } from "./list-recipients";
 import { removeRecipient } from "./remove-recipient";
+import { listTemplates } from "./list-templates";
+import { createTemplate } from "./create-template";
+import { uploadTemplateSample } from "./upload-template-sample";
 
 /**
- * App "Campanhas" (disparos WhatsApp API Oficial). Fase 1: fundação +
- * audiência. Ver `docs/campanhas-overview.md`.
+ * App "Campanhas" (disparos WhatsApp API Oficial).
+ *  - Fase 1: fundação + audiência.
+ *  - Fase 2: criação de templates de marketing (Meta).
+ * Ver `docs/campanhas-overview.md`.
  */
 export const campanhasRouter = {
   listSendingNumbers,
@@ -24,4 +29,7 @@ export const campanhasRouter = {
   addRecipientsFromCsv,
   listRecipients,
   removeRecipient,
+  listTemplates,
+  createTemplate,
+  uploadTemplateSample,
 };

@@ -16,13 +16,15 @@ import {
 import { useBroadcasts } from "../hooks/use-broadcasts";
 import { BROADCAST_STATUS_LABEL } from "../lib/broadcast-status";
 import { CreateBroadcastDialog } from "./create-broadcast-dialog";
+import { CampanhasNav } from "./campanhas-nav";
 
 export function BroadcastsList() {
   const { data: broadcasts, isLoading } = useBroadcasts();
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8">
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <CampanhasNav />
+      <div className="mb-6 mt-6 flex items-center justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold">
             <Send className="size-5" /> Campanhas

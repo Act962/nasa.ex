@@ -272,6 +272,74 @@ export interface SendMarketingMessageInput {
   messageActivitySharing?: boolean;
 }
 
+// ─── Criação de templates (Campanhas — Fase 2) ───────────────────────────
+
+/** Formato do header no momento da CRIAÇÃO do template. */
+export type TemplateHeaderFormat =
+  | "TEXT"
+  | "IMAGE"
+  | "VIDEO"
+  | "DOCUMENT"
+  | "LOCATION";
+
+/**
+ * Um componente do template no payload de **criação**
+ * (`POST /{waba_id}/message_templates`). Difere de `TemplateComponent`
+ * (leitura) porque os `example` seguem o shape exato exigido pela Meta:
+ *  - HEADER texto → `example.header_text: string[]`
+ *  - HEADER mídia → `example.header_handle: string[]` (handle do resumable upload)
+ *  - BODY → `example.body_text: string[][]` (uma linha de exemplos por conjunto)
+ *  - Botão URL dinâmico → `example: string[]`; COPY_CODE → `example: string`
+ */
+export interface CreateTemplateButton {
+  type: "QUICK_REPLY" | "URL" | "PHONE_NUMBER" | "COPY_CODE";
+  text?: string;
+  url?: string;
+  phone_number?: string;
+  example?: string[] | string;
+}
+
+export interface CreateTemplateComponent {
+  type: "HEADER" | "BODY" | "FOOTER" | "BUTTONS";
+  format?: TemplateHeaderFormat;
+  text?: string;
+  buttons?: CreateTemplateButton[];
+  example?: {
+    header_text?: string[];
+    header_handle?: string[];
+    body_text?: string[][];
+  };
+}
+
+/** Payload canônico de criação de um message template. */
+export interface CreateMessageTemplateRequest {
+  name: string;
+  /** Código do idioma (ex.: `pt_BR`, `en_US`). */
+  language: string;
+  category: MessageTemplateCategory;
+  components: CreateTemplateComponent[];
+}
+
+/** Resposta de `POST /{waba_id}/message_templates`. */
+export interface CreateMessageTemplateResponse {
+  id: string;
+  status: MessageTemplateStatus;
+  category: MessageTemplateCategory;
+}
+
+/**
+ * Resposta do 1º passo do Resumable Upload (`POST /{app_id}/uploads`).
+ * O `id` é a sessão de upload (`upload:...`) usada no 2º passo.
+ */
+export interface ResumableUploadSessionResponse {
+  id: string;
+}
+
+/** Resposta do 2º passo do Resumable Upload — `h` é o header handle. */
+export interface ResumableUploadFileResponse {
+  h: string;
+}
+
 // ─── Analytics (Fase 10) ─────────────────────────────────────────────────
 
 /** Granularidade aceita por `GET /{waba_id}?fields=analytics...`. */

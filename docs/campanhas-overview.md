@@ -1,6 +1,6 @@
 # App "Campanhas" (Disparos WhatsApp API Oficial) — Planejamento
 
-> Documento de planejamento do novo app de **campanhas de disparo em massa** via **API Oficial do WhatsApp (Meta Cloud API)**. Status: **Fase 1 implementada (2026-07-08) — aguardando `pnpm db:migrate` + ritual pós-migration.** Criado em 2026-07-07.
+> Documento de planejamento do novo app de **campanhas de disparo em massa** via **API Oficial do WhatsApp (Meta Cloud API)**. Status: **Fase 1 + Fase 2 implementadas (2026-07-08).** Criado em 2026-07-07.
 >
 > Base da integração Oficial já existente: ver [`docs/whatsapp-oficial-overview.md`](whatsapp-oficial-overview.md).
 
@@ -173,7 +173,7 @@ Fase 1 é **fundação + audiência** e é deliberadamente **inócua do ponto de
 
 ## 8. Roadmap das fases seguintes (encaixam nesta arquitetura)
 
-- **Fase 2 — Criação de templates na Meta.** Novo client `create-message-template.ts` (`POST /{waba_id}/message_templates`), procedure `campanhas.createTemplate`, UI de builder (HEADER/BODY/FOOTER/BUTTONS + `example` + categoria MARKETING + idioma), acompanhamento de status de aprovação. **Depende dos docs de criação de template** (a enviar).
+- **Fase 2 — Criação de templates na Meta. ✅ Implementada (2026-07-08).** Builder de modelos de **marketing** estilo Meta/ManyChat (form à esquerda + prévia WhatsApp ao vivo à direita). Ver §12.
 - **Fase 3 — Disparo ao vivo.** `provider.sendMarketing` na PORT/`OfficialProvider`, `campanhas.send` → Inngest handler com throttle, cobrança Stars, persistência de wamid/status, extensão do webhook de status pra `BroadcastRecipient`.
 - **Fase 4 — Agendamento.** Usa `scheduledAt` + cron scanner `dispatch-due-broadcasts.ts`.
 - **Fase 5 — Fundos/saldo.** Ler saldo (billing/credit-line API), alerta de saldo baixo (Inngest cron + notificação), atalho de recarga. **Depende dos docs de billing** (a enviar).
@@ -206,3 +206,54 @@ Fase 1 é **fundação + audiência** e é deliberadamente **inócua do ponto de
 - **Send-only:** MM API não recebe mensagens; inbound continua pelo Cloud API/webhook oficial já existente.
 - **Restrições geográficas:** EUA bloqueia marketing a usuários locais (erro 131049); EEA/UK/Japão/Coreia/etc. sem otimização de entrega nem métricas de clique; Cuba/Irã/etc. bloqueados.
 - **BSUID:** pode enviar por telefone ou BSUID; `bid_spec` não suportado com BSUID (erro 131062). Preferir telefone (mantém `wa_id` nos webhooks).
+
+## 12. Fase 2 — Criação de templates (implementada 2026-07-08)
+
+Builder de modelos de **marketing** (só marketing nesta fase, decisão do dono) espelhando o Gerenciador do WhatsApp / ManyChat: formulário estruturado à esquerda, **prévia WhatsApp ao vivo** à direita. Envia o modelo pra análise da Meta (`PENDING` → `APPROVED`/`REJECTED`); **não dispara nada** (disparo é Fase 3).
+
+### 12.1 Fluxo
+
+```
+/campanhas → nav "Modelos" → /campanhas/templates?trackingId=…
+  ├─ seletor de número (WABA de origem) → campanhas.listTemplates (fetch ao vivo, marketing)
+  └─ "Novo modelo" → /campanhas/templates/new?trackingId=…
+        builder (categoria Marketing • nome+idioma • cabeçalho • corpo+variáveis • rodapé • botões)
+        → upload de amostra de mídia (se header IMAGE/VIDEO/DOCUMENT) → campanhas.uploadTemplateSample → header_handle
+        → "Enviar para análise" → campanhas.createTemplate → POST /{waba}/message_templates
+```
+
+### 12.2 Arquivos
+
+| Camada | Arquivo | Papel |
+| --- | --- | --- |
+| HTTP | `src/http/whats-oficial/create-message-template.ts` | `createMessageTemplate` → `POST /{waba_id}/message_templates`. |
+| HTTP | `src/http/whats-oficial/upload-resumable-media.ts` | `uploadResumableMedia` — Resumable Upload API (App node, `Authorization: OAuth`), devolve `header_handle`. |
+| oRPC | `src/app/router/campanhas/list-templates.ts` | Lista templates **marketing** (todos os status) da WABA do número. |
+| oRPC | `src/app/router/campanhas/create-template.ts` | Valida (`validateTemplateInput`), monta payload (`buildCreateTemplateRequest`), cria na Meta, `logActivity`. |
+| oRPC | `src/app/router/campanhas/upload-template-sample.ts` | Recebe base64, sobe amostra via resumable upload (`META_APP_ID/SECRET`), devolve `handle`. |
+| Domínio | `src/features/campanhas/server/lib/broadcast-access.ts` | `resolveCampaignMetaCredentials(trackingId, orgId)` → `{ accessToken, wabaId, phoneNumberId }` (tenancy + decifra). |
+| Schema | `src/features/campanhas/schema/template-schemas.ts` | Zods (`header`/`body`/`footer`/`buttons` discriminated unions, nome regex Meta). |
+| Lib | `src/features/campanhas/lib/build-template-components.ts` | Builder puro estruturado→`components[]`+`example` + `validateTemplateInput` + extração de variáveis. |
+| Lib | `src/features/campanhas/lib/template-constants.ts` | Limites Meta, idiomas, categorias, accepts de mídia. |
+| Hooks | `src/features/campanhas/hooks/use-templates.ts` | `useTemplates`, `useCreateTemplate`, `useUploadTemplateSample`. |
+| UI | `src/features/campanhas/components/templates/{template-builder,whatsapp-preview,templates-list,new-template-view,template-status-badge}.tsx` | Builder + prévia ao vivo + lista + wrapper da rota + badge de status. |
+| UI | `src/features/campanhas/components/campanhas-nav.tsx` | Nav "Campanhas" ↔ "Modelos". |
+| Rota | `src/app/(platform)/(tracking)/campanhas/templates/page.tsx` + `templates/new/page.tsx` | Telas de listagem e criação. |
+
+### 12.3 Suporte de conteúdo
+
+- **Cabeçalho:** Nenhum · Texto (com até 1 variável `{{1}}` + exemplo) · Imagem/Vídeo/Documento (amostra via resumable upload → `header_handle`) · Localização.
+- **Corpo:** texto (≤1024) com variáveis `{{1}}…{{n}}` sequenciais + exemplos obrigatórios por variável.
+- **Rodapé:** texto opcional (≤60).
+- **Botões:** até 10 — Resposta rápida (`QUICK_REPLY`), Acessar site (`URL` estática/dinâmica, dinâmica com `{{1}}`+exemplo), Ligar (`PHONE_NUMBER`), Copiar código (`COPY_CODE`). Limites: ≤2 URL, ≤1 telefone, ≤1 copiar código. **Renderização (regra Meta):** com **>3 botões**, a mensagem mostra só os **2 primeiros** inline + linha **"Ver todas as opções"** (lista); com ≤3, todos inline. A prévia (`whatsapp-preview.tsx`) reflete isso.
+
+### 12.4 Decisões
+
+- **Só marketing.** Categoria travada em `MARKETING`; o enum já suporta Utilidade/Autenticação pra não reescrever contrato depois.
+- **Fetch ao vivo (sem modelo Prisma).** A listagem vem da Graph a cada abertura (TanStack `staleTime` 15s); o recém-criado aparece `PENDING`. Persistência local fica pra quando o disparo (Fase 3) precisar de índice/estado próprio.
+- **Amostra de mídia ≠ mídia do disparo.** O `header_handle` é só pra análise da Meta. No disparo (Fase 3), cada contato pode receber uma mídia própria via parâmetro de header.
+- **Validação em duas camadas.** `validateTemplateInput` roda no client (desabilita/erros inline) e no server (`createTemplate` → `BAD_REQUEST`), garantindo payload íntegro antes da Graph.
+
+### 12.5 Env
+
+- `META_APP_ID` / `META_APP_SECRET` — já usados pelo Embedded Signup; o upload de amostra monta o app access token `{id}|{secret}` pro Resumable Upload.
