@@ -76,15 +76,19 @@ export function CreateBroadcastDialog() {
 
         {!loadingNumbers && !hasNumbers ? (
           <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            Nenhum número WhatsApp Oficial (Meta Cloud) configurado nesta
-            organização. Conecte um número em{" "}
+            Nenhum número WhatsApp Oficial (Meta) configurado nesta
+            organização. O número da API Oficial fica dentro de um{" "}
             <Link
-              href="/integrations"
+              href="/tracking"
               className="font-medium text-foreground underline"
             >
-              Integrações
-            </Link>{" "}
-            para criar campanhas.
+              tracking
+            </Link>
+            : abra as configurações do tracking → aba{" "}
+            <span className="font-medium text-foreground">Integrações</span>,
+            crie uma instância escolhendo <span className="font-medium text-foreground">API Oficial</span>{" "}
+            e conclua com <span className="font-medium text-foreground">Conectar via Meta</span>. Feito
+            isso, o número aparece aqui.
           </div>
         ) : (
           <div className="flex flex-col gap-4 py-2">
