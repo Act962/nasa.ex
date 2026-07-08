@@ -153,6 +153,30 @@ export function FormSubmitComponent({
           errors[block.id] = "Este campo é obrigatório";
         }
       }
+      // CEP com validação de existência ligada: só passa se o ViaCEP confirmou
+      // (meta.cepExists === true). Barra CEP inexistente ou ainda não verificado.
+      if (
+        block.blockType === "MaskedField" &&
+        block.attributes?.format === "cep" &&
+        block.attributes?.validateCep
+      ) {
+        const fieldValue = formVals.current?.[block.id];
+        if (isFieldFilled(fieldValue) && fieldValue?.meta?.cepExists !== true) {
+          errors[block.id] = "CEP não encontrado ou não validado";
+        }
+      }
+      // CPF com validação ligada: só passa se o dígito verificador bate
+      // (meta.cpfExists === true). Barra CPF inválido, independente de `required`.
+      if (
+        block.blockType === "MaskedField" &&
+        block.attributes?.format === "cpf" &&
+        block.attributes?.validateCpf
+      ) {
+        const fieldValue = formVals.current?.[block.id];
+        if (isFieldFilled(fieldValue) && fieldValue?.meta?.cpfExists !== true) {
+          errors[block.id] = "CPF inválido";
+        }
+      }
       block.childblocks?.forEach(walkBlock);
     };
     blocks.forEach(walkBlock);

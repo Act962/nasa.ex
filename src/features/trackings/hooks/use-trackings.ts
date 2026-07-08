@@ -7,7 +7,9 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { useQueryState } from "nuqs";
+import dayjs from "dayjs";
 import { Decimal } from "@prisma/client/runtime/client";
 
 export const useQueryTrackings = () => {
@@ -273,8 +275,125 @@ export const useUpdateLeadOrder = () => {
         queryClient.invalidateQueries({
           queryKey: ["leads.listLeadsByStatus"],
         });
+        // Desfaz o patch otimista do total da coluna (useOptimisticColumnValue):
+        // o refetch traz de volta os valores corretos do servidor.
+        queryClient.invalidateQueries({ queryKey: orpc.status.getMany.key() });
       },
     }),
+  );
+};
+
+type StatusColumnRow = {
+  id: string;
+  _count?: { leads: number };
+  valueTotal?: string;
+};
+
+export type StatusColumnMeta = { count: number; valueTotal: string };
+
+// Monta o input de `status.getMany` a partir dos filtros da URL (nuqs). Fonte
+// única — antes duplicada em cada leaf do header (StatusLeadsCount/Total).
+function useStatusGetManyInput(trackingId: string) {
+  const [dateInit] = useQueryState("date_init");
+  const [dateEnd] = useQueryState("date_end");
+  const [participantFilter] = useQueryState("participant");
+  const [tagsFilter] = useQueryState("tags");
+  const [temperatureFilter] = useQueryState("temperature");
+  const [actionFilter] = useQueryState("filter");
+
+  return useMemo(
+    () => ({
+      trackingId,
+      dateInit: dateInit
+        ? dayjs(dateInit).startOf("day").toDate().toISOString()
+        : undefined,
+      dateEnd: dateEnd
+        ? dayjs(dateEnd).endOf("day").toDate().toISOString()
+        : undefined,
+      participantFilter: participantFilter || undefined,
+      tagsFilter: tagsFilter ? tagsFilter.split(",") : undefined,
+      temperatureFilter: temperatureFilter
+        ? temperatureFilter.split(",")
+        : undefined,
+      actionFilter: (actionFilter || "ACTIVE") as
+        | "ACTIVE"
+        | "WON"
+        | "LOST"
+        | "DELETED",
+    }),
+    [
+      trackingId,
+      dateInit,
+      dateEnd,
+      participantFilter,
+      tagsFilter,
+      temperatureFilter,
+      actionFilter,
+    ],
+  );
+}
+
+/**
+ * Meta (contagem + soma de valores) de UMA coluna do board. `select` per-column
+ * garante que só o leaf da coluna que mudou re-renderize (sem cascatear pro
+ * StatusColumn memoizado). Um único observer por coluna cobre count + total.
+ */
+export function useStatusColumnMeta(
+  trackingId: string,
+  columnId: string,
+  fallbackCount: number,
+) {
+  const input = useStatusGetManyInput(trackingId);
+  return useQuery({
+    ...orpc.status.getMany.queryOptions({ input }),
+    select: (columns: StatusColumnRow[]): StatusColumnMeta => {
+      const column = columns?.find((status) => status.id === columnId);
+      return {
+        count: column?._count?.leads ?? fallbackCount,
+        valueTotal: column?.valueTotal ?? "0",
+      };
+    },
+  });
+}
+
+/**
+ * Move otimista do total de valores (`valueTotal`) entre colunas no cache de
+ * `status.getMany`, aplicado no drop antes da persistência. Mantém o número
+ * do header em sincronia imediata com o card arrastado, sem esperar a
+ * invalidação/refetch. `amount` está em centavos (mesma unidade do `valueTotal`).
+ */
+export const useOptimisticColumnValue = () => {
+  const queryClient = useQueryClient();
+  return useCallback(
+    (sourceColumnId: string, targetColumnId: string, amount: number) => {
+      if (sourceColumnId === targetColumnId || !amount) return;
+      // Só o cache ATIVO (a view que o usuário está vendo) — que sempre contém
+      // o lead arrastado. Variantes filtradas inativas podem não somar esse
+      // lead; deixá-las pro refetch evita totais errados em outros filtros.
+      queryClient.setQueriesData(
+        { queryKey: orpc.status.getMany.key(), type: "active" },
+        (old: unknown) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((column: { id: string; valueTotal?: string }) => {
+            const currentTotal = Number(column.valueTotal ?? 0);
+            if (column.id === sourceColumnId) {
+              return {
+                ...column,
+                valueTotal: Math.max(0, currentTotal - amount).toString(),
+              };
+            }
+            if (column.id === targetColumnId) {
+              return {
+                ...column,
+                valueTotal: (currentTotal + amount).toString(),
+              };
+            }
+            return column;
+          });
+        },
+      );
+    },
+    [queryClient],
   );
 };
 

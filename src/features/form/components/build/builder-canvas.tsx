@@ -19,7 +19,6 @@ export function BuilderCanvas() {
     addBlockLayout,
     repositionBlockLayout,
     insertBlockLayoutAtIndex,
-    handleSelectedLayout,
   } = useBuilderStore();
 
   const [activeBlock, setActiveBlock] = useState<Active | null>(null);
