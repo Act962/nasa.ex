@@ -30,6 +30,7 @@ export { sendOfficialLocation } from "./send-location";
 export { sendOfficialContact } from "./send-contact";
 
 export { sendOfficialTemplate } from "./send-template";
+export { sendMarketingMessage } from "./send-marketing-message";
 export { getMessageTemplates } from "./get-message-templates";
 
 export { uploadOfficialMedia } from "./upload-media";
@@ -82,6 +83,8 @@ export type {
   SendLocationInput,
   SendContactInput,
   SendTemplateInput,
+  SendMarketingMessageInput,
+  MarketingMessageProductPolicy,
   UploadMediaInput,
   // Templates HSM (Fase 9)
   MessageTemplate,

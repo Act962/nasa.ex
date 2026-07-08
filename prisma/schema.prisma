@@ -34,6 +34,7 @@ model User {
   actions                            Action[]
   responsibleOnSubActions            SubActionUserResponsible[]
   responsibleOnLeads                 Lead[]                       @relation("LeadResponsible")
+  broadcasts                         Broadcast[]
   worflows                           Workflow[]
   workflowFolders                    WorkflowFolder[]
   archivedTags                       Tag[]                        @relation("TagArchiver")
@@ -270,6 +271,7 @@ model Organization {
   tags                   Tag[]
   tagGroups              TagGroup[]
   whatsappInstances      WhatsAppInstance[]
+  broadcasts             Broadcast[]
   actions                Action[]
   insightShares          InsightShares[]
   agendas                Agenda[]
@@ -548,6 +550,7 @@ model Tracking {
   workflowFolders     WorkflowFolder[]
   forms               FormSettings[]
   whatsappInstance    WhatsAppInstance?
+  broadcasts          Broadcast[]
   conversations       Conversation[]
   agendas             Agenda[]
   appointments        Appointment[]
@@ -993,6 +996,7 @@ model Lead {
   // NASA Auto Agent — sessões abertas pra este lead
   agentSessions             LeadAgentSession[]
   dailyTriggerClaims        LeadDailyTriggerClaim[]
+  broadcastRecipients       BroadcastRecipient[]
 
   @@unique([phone, trackingId])
   @@index([trackingId])
@@ -2262,6 +2266,98 @@ model WhatsAppInstance {
   @@index([inChatModeManual])
   @@index([provider])
   @@map("whatsapp_instances")
+}
+
+// ─────────────────────────────────────────────
+// CAMPANHAS (Disparos WhatsApp API Oficial — MM API)
+// Ver docs/campanhas-overview.md. Fase 1: fundação + audiência.
+// ─────────────────────────────────────────────
+
+enum BroadcastStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  PAUSED
+  FAILED
+  CANCELLED
+}
+
+enum BroadcastRecipientStatus {
+  PENDING
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  SKIPPED
+}
+
+model Broadcast {
+  id             String          @id @default(cuid())
+  name           String
+  organizationId String          @map("organization_id")
+  trackingId     String          @map("tracking_id") // número/instância META_CLOUD de origem
+  createdById    String          @map("created_by_id")
+  status         BroadcastStatus @default(DRAFT)
+
+  // Template (preenchido na Fase 2/3 — nullable na Fase 1)
+  templateName      String? @map("template_name")
+  templateLanguage  String? @map("template_language")
+  templateVariables Json?   @map("template_variables") // config de mapeamento var→campo
+
+  // Agendamento (Fase 4 — colunas já existem, inertes na Fase 1)
+  scheduledAt DateTime? @map("scheduled_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  // Contadores denormalizados p/ UI (sem COUNT scans; alimentados pelo
+  // webhook de status na Fase 3).
+  totalRecipients Int @default(0) @map("total_recipients")
+  sentCount       Int @default(0) @map("sent_count")
+  deliveredCount  Int @default(0) @map("delivered_count")
+  readCount       Int @default(0) @map("read_count")
+  failedCount     Int @default(0) @map("failed_count")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tracking     Tracking             @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  createdBy    User                 @relation(fields: [createdById], references: [id])
+  recipients   BroadcastRecipient[]
+
+  @@index([organizationId])
+  @@index([trackingId])
+  @@index([status])
+  @@map("broadcasts")
+}
+
+model BroadcastRecipient {
+  id                String                   @id @default(cuid())
+  broadcastId       String                   @map("broadcast_id")
+  leadId            String?                  @map("lead_id") // null quando origem é CSV cru
+  name              String?
+  phone             String // E.164 só-dígitos (normalizePhone)
+  variables         Json? // valores das variáveis do template p/ este destinatário
+  status            BroadcastRecipientStatus @default(PENDING)
+  externalMessageId String?                  @map("external_message_id") // wamid
+  errorCode         String?                  @map("error_code")
+  errorMessage      String?                  @map("error_message")
+  sentAt            DateTime?                @map("sent_at")
+  deliveredAt       DateTime?                @map("delivered_at")
+  readAt            DateTime?                @map("read_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  lead      Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@unique([broadcastId, phone]) // dedupe dentro da campanha
+  @@index([broadcastId, status])
+  @@index([externalMessageId])
+  @@map("broadcast_recipients")
 }
 
 // ─────────────────────────────────────────────

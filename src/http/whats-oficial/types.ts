@@ -234,6 +234,44 @@ export interface SendTemplateInput {
   replyToWamid?: Wamid;
 }
 
+// ─── Marketing Messages API (Campanhas — disparo em massa) ───────────────
+
+/**
+ * Política de fallback do `/marketing_messages`.
+ *  - `CLOUD_API_FALLBACK` (default): cai pra Cloud API se o onboarding MM
+ *    não estiver completo.
+ *  - `STRICT`: sem fallback (erro se MM não disponível).
+ */
+export type MarketingMessageProductPolicy =
+  | "CLOUD_API_FALLBACK"
+  | "STRICT";
+
+/**
+ * Input canônico de envio via **Marketing Messages API**
+ * (`POST /{phone_number_id}/marketing_messages`). Só aceita templates de
+ * **marketing aprovados** — mesma forma de variáveis do `SendTemplateInput`.
+ *
+ * Usado pelo app de Campanhas (disparo em massa). Nesta fase é apenas
+ * contrato — o wiring real acontece na Fase 3.
+ */
+export interface SendMarketingMessageInput {
+  to: E164DigitsOnly;
+  templateName: string;
+  /** Código do idioma exato do template de marketing aprovado (ex.: `pt_BR`). */
+  languageCode: string;
+  /** Valores das variáveis do corpo (`{{1}}…{{n}}`), na ordem. */
+  bodyParameters?: string[];
+  /** Valores das variáveis do header de texto, na ordem. */
+  headerParameters?: string[];
+  /** Default `CLOUD_API_FALLBACK` quando omitido. */
+  productPolicy?: MarketingMessageProductPolicy;
+  /**
+   * Compartilha atividade da mensagem (ex.: read) pra otimização de entrega.
+   * Quando omitido, usa a config default da WABA.
+   */
+  messageActivitySharing?: boolean;
+}
+
 // ─── Analytics (Fase 10) ─────────────────────────────────────────────────
 
 /** Granularidade aceita por `GET /{waba_id}?fields=analytics...`. */
