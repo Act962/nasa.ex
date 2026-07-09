@@ -58,6 +58,16 @@ function fmtCompetencia(dateStr: string) {
   return date.toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" });
 }
 
+const FLOW_STATUS_LABELS: Record<string, string> = {
+  PullFromCityHall: "Aguardando prefeitura",
+  WaitingCalculateTaxes: "Calculando tributos",
+  WaitingDefineRpsNumber: "Definindo numeração",
+  WaitingSend: "Enviando para a prefeitura",
+  WaitingSendCancel: "Enviando cancelamento",
+  WaitingReturn: "Aguardando retorno",
+  WaitingDownload: "Preparando download",
+};
+
 interface FiscalInvoiceItem {
   id: string;
   ref: string;
@@ -66,9 +76,7 @@ interface FiscalInvoiceItem {
   numero: string | null;
   valorServicos: string;
   dataCompetencia: string;
-  urlDanfse: string | null;
-  caminhoXmlStorage: string | null;
-  caminhoXmlFocus: string | null;
+  flowStatus: string | null;
   errorMessage: string | null;
   contractId: string | null;
 }
@@ -210,8 +218,10 @@ export function FiscalInvoiceCard({ contract }: FiscalInvoiceCardProps) {
             invoices.map((invoice) => {
               const statusConfig =
                 STATUS_CONFIG[invoice.status] ?? STATUS_CONFIG.PROCESSANDO;
-              const xmlUrl =
-                invoice.caminhoXmlStorage ?? invoice.caminhoXmlFocus;
+              const flowStatusLabel =
+                invoice.status === "PROCESSANDO" && invoice.flowStatus
+                  ? FLOW_STATUS_LABELS[invoice.flowStatus]
+                  : null;
 
               return (
                 <div
@@ -242,6 +252,11 @@ export function FiscalInvoiceCard({ contract }: FiscalInvoiceCardProps) {
                       <p className="text-xs text-muted-foreground">
                         Valor: {fmtCurrency(invoice.valorServicos)}
                       </p>
+                      {flowStatusLabel && (
+                        <p className="text-xs text-muted-foreground">
+                          {flowStatusLabel}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -252,9 +267,9 @@ export function FiscalInvoiceCard({ contract }: FiscalInvoiceCardProps) {
                   )}
 
                   <div className="flex flex-wrap gap-2">
-                    {invoice.status === "AUTORIZADO" && invoice.urlDanfse && (
+                    {invoice.status === "AUTORIZADO" && (
                       <a
-                        href={invoice.urlDanfse}
+                        href={`/api/fiscal/invoices/${invoice.id}/pdf`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
@@ -263,9 +278,9 @@ export function FiscalInvoiceCard({ contract }: FiscalInvoiceCardProps) {
                         </Button>
                       </a>
                     )}
-                    {invoice.status === "AUTORIZADO" && xmlUrl && (
+                    {invoice.status === "AUTORIZADO" && (
                       <a
-                        href={xmlUrl}
+                        href={`/api/fiscal/invoices/${invoice.id}/xml`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >

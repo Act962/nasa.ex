@@ -7280,10 +7280,17 @@ enum TomadorType {
   PJ
 }
 
+enum FiscalGateway {
+  NFE_IO
+  FOCUS_NFE
+}
+
 model FiscalCompanyProfile {
   id             String       @id @default(cuid())
   organizationId String       @unique @map("organization_id")
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  fiscalGateway FiscalGateway @default(NFE_IO) @map("fiscal_gateway")
 
   cnpj                     String
   razaoSocial              String  @map("razao_social")
@@ -7322,6 +7329,32 @@ model FiscalCompanyProfile {
   ibsCbsClassificacaoTributaria String?  @map("ibs_cbs_classificacao_tributaria")
   defaultConsumidorFinal        Boolean  @default(false) @map("default_consumidor_final")
 
+  // Padrões financeiros da nota — armazenados como PERCENTUAL (ex.: 4.65 = 4,65%);
+  // na emissão o valor em R$ é calculado sobre o valor do serviço. Todos opcionais (0 = não envia).
+  defaultIrPercent                   Decimal @default(0) @map("default_ir_percent") @db.Decimal(5, 2)
+  defaultPisPercent                  Decimal @default(0) @map("default_pis_percent") @db.Decimal(5, 2)
+  defaultCofinsPercent               Decimal @default(0) @map("default_cofins_percent") @db.Decimal(5, 2)
+  defaultCsllPercent                 Decimal @default(0) @map("default_csll_percent") @db.Decimal(5, 2)
+  defaultInssPercent                 Decimal @default(0) @map("default_inss_percent") @db.Decimal(5, 2)
+  defaultOutrasRetencoesPercent      Decimal @default(0) @map("default_outras_retencoes_percent") @db.Decimal(5, 2)
+  defaultDeducoesPercent             Decimal @default(0) @map("default_deducoes_percent") @db.Decimal(5, 2)
+  defaultDescontoIncondicionadoPercent Decimal @default(0) @map("default_desconto_incondicionado_percent") @db.Decimal(5, 2)
+  defaultDescontoCondicionadoPercent   Decimal @default(0) @map("default_desconto_condicionado_percent") @db.Decimal(5, 2)
+  defaultInformacoesAdicionais       String? @map("default_informacoes_adicionais")
+
+  // Cadastro NFE.io (CompanyResource): email/abertura/natureza jurídica/regime são
+  // obrigatórios na API; cityServiceCode é o código de serviço municipal (≠ item LC116).
+  email                  String?   @map("email")
+  openingDate            DateTime? @map("opening_date")
+  legalNature            String?   @map("legal_nature")
+  taxRegime              String?   @map("tax_regime")
+  defaultCityServiceCode String?   @map("default_city_service_code")
+
+  nfeIoCompanyId            String?   @map("nfe_io_company_id")
+  nfeIoFiscalStatus         String?   @map("nfe_io_fiscal_status")
+  nfeIoCertificateStatus    String?   @map("nfe_io_certificate_status")
+  nfeIoCertificateExpiresOn DateTime? @map("nfe_io_certificate_expires_on")
+
   environment                 FiscalEnvironment @default(HOMOLOGACAO)
   focusEmpresaRegistered      Boolean           @default(false) @map("focus_empresa_registered")
   focusEmpresaId              Int?              @map("focus_empresa_id")
@@ -7356,6 +7389,9 @@ model FiscalInvoice {
   type        FiscalInvoiceType   @default(NFSE)
   status      FiscalInvoiceStatus @default(PROCESSANDO)
   environment FiscalEnvironment
+  gateway     FiscalGateway       @default(FOCUS_NFE)
+  externalId  String?             @map("external_id")
+  flowStatus  String?             @map("flow_status")
 
   valorServicos  Decimal  @map("valor_servicos") @db.Decimal(14, 2)
   aliquotaIss    Decimal  @map("aliquota_iss") @db.Decimal(5, 4)
@@ -7395,5 +7431,6 @@ model FiscalInvoice {
   @@index([contractId])
   @@index([status, createdAt])
   @@index([ref])
+  @@index([externalId])
   @@map("fiscal_invoice")
 }

@@ -12,10 +12,27 @@ export const issueInvoiceSchema = z
     discriminacao: z.string().optional(),
     naturezaOperacao: z.string(),
     regimeEspecialTributacao: z.string().optional(),
-    // Reforma Tributária (IBS/CBS)
+    // Reforma Tributária (IBS/CBS) — Focus/DPS nacional apenas
     ibsCbsSituacaoTributaria: z.string().optional(),
     ibsCbsClassificacaoTributaria: z.string().optional(),
     consumidorFinal: z.boolean().optional(),
+    // NFE.io: código de serviço no formato do município (≠ item LC116) e tipo
+    // de tributação (WithinCity/OutsideCity/...).
+    cityServiceCode: z.string().optional(),
+    taxationType: z.string().optional(),
+    // Financeiros por nota — percentuais como string de input (convertidos no submit).
+    issRetido: z.boolean().optional(),
+    irPercent: z.string().optional(),
+    pisPercent: z.string().optional(),
+    cofinsPercent: z.string().optional(),
+    csllPercent: z.string().optional(),
+    inssPercent: z.string().optional(),
+    outrasRetencoesPercent: z.string().optional(),
+    deducoesPercent: z.string().optional(),
+    descontoIncondicionadoPercent: z.string().optional(),
+    descontoCondicionadoPercent: z.string().optional(),
+    informacoesAdicionais: z.string().optional(),
+    tomadorInscricaoMunicipal: z.string().optional(),
     // PJ
     tomadorCnpj: z.string().optional(),
     tomadorRazaoSocial: z.string().optional(),
@@ -25,6 +42,7 @@ export const issueInvoiceSchema = z
     tomadorComplemento: z.string().optional(),
     tomadorBairro: z.string().optional(),
     tomadorCodigoMunicipio: z.string().optional(),
+    tomadorMunicipio: z.string().optional(),
     tomadorUf: z.string().optional(),
     tomadorCep: z.string().optional(),
     // PF
@@ -67,7 +85,7 @@ export const issueInvoiceSchema = z
     // Vale para PF e PJ — o endereço agora é coletado nos dois fluxos.
     const shouldValidateEndereco =
       values.nfseStandard !== "NACIONAL" &&
-      (values.requiresTomadorEndereco ?? values.nfseStandard !== "NACIONAL");
+      (values.requiresTomadorEndereco ?? true);
     if (shouldValidateEndereco) {
       if (!values.tomadorCodigoMunicipio)
         ctx.addIssue({

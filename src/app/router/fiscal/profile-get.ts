@@ -19,6 +19,19 @@ export const fiscalProfileGet = base
           ? {
               ...profile,
               defaultAliquotaIss: profile.defaultAliquotaIss.toString(),
+              // Prisma Decimal não serializa direto pelo oRPC — expõe como string.
+              defaultIrPercent: profile.defaultIrPercent.toString(),
+              defaultPisPercent: profile.defaultPisPercent.toString(),
+              defaultCofinsPercent: profile.defaultCofinsPercent.toString(),
+              defaultCsllPercent: profile.defaultCsllPercent.toString(),
+              defaultInssPercent: profile.defaultInssPercent.toString(),
+              defaultOutrasRetencoesPercent:
+                profile.defaultOutrasRetencoesPercent.toString(),
+              defaultDeducoesPercent: profile.defaultDeducoesPercent.toString(),
+              defaultDescontoIncondicionadoPercent:
+                profile.defaultDescontoIncondicionadoPercent.toString(),
+              defaultDescontoCondicionadoPercent:
+                profile.defaultDescontoCondicionadoPercent.toString(),
             }
           : null,
       };

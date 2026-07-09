@@ -151,6 +151,8 @@ export const { GET, POST, PUT } = serve({
     agentTriggerPaymentReceivedFn,
     agentTriggerMessageIncomingFn,
     agentTriggerWebhookExternalFn,
+    // ── Fiscal (NFS-e): sync de status via webhook do gateway ──
+    nfseStatusSync,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

@@ -1,9 +1,11 @@
 import { decryptSecret } from "@/lib/crypto";
-import type { FiscalEnvironment, FiscalInvoiceStatus } from "@/generated/prisma/enums";
-import type { FocusNfseResponse } from "@/http/focus-nfe/types";
+import type { FiscalEnvironment } from "@/generated/prisma/enums";
 
 export function resolveCompanyToken(
-  profile: { focusTokenHomologacao: string | null; focusTokenProducao: string | null },
+  profile: {
+    focusTokenHomologacao: string | null;
+    focusTokenProducao: string | null;
+  },
   environment: FiscalEnvironment,
 ): string {
   const encrypted =
@@ -19,9 +21,14 @@ export function resolveCompanyToken(
 
 // Mensagem crua da prefeitura é a rede de segurança do registry de municípios
 // (docs/nfs/municipios-requirements.md) — erro recorrente vira override novo.
-export function formatFocusErrorMessage(
-  response: FocusNfseResponse,
-): string | null {
+export function formatFocusErrorMessage(response: {
+  erros?: Array<{
+    codigo: string | null;
+    mensagem: string;
+    correcao?: string | null;
+  }>;
+  mensagem_erro?: unknown;
+}): string | null {
   if (response.erros?.length) {
     return response.erros
       .map((erro) => {
@@ -33,17 +40,4 @@ export function formatFocusErrorMessage(
   }
   const mensagemErro = response.mensagem_erro;
   return typeof mensagemErro === "string" && mensagemErro ? mensagemErro : null;
-}
-
-export function focusStatusToDb(focusStatus: string): FiscalInvoiceStatus {
-  switch (focusStatus) {
-    case "autorizado":
-      return "AUTORIZADO";
-    case "erro_autorizacao":
-      return "ERRO";
-    case "cancelado":
-      return "CANCELADO";
-    default:
-      return "PROCESSANDO";
-  }
 }

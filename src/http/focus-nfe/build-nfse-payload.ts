@@ -25,6 +25,20 @@ export type IssueOverrides = {
   ibsCbsSituacaoTributaria?: string;
   ibsCbsClassificacaoTributaria?: string;
   consumidorFinal?: boolean;
+  // Overrides financeiros por nota — percentuais (0–100) sobre o valor do serviço;
+  // ausência = usa o padrão do perfil. issRetido sobrescreve o boolean do perfil.
+  issRetido?: boolean;
+  irPercent?: number;
+  pisPercent?: number;
+  cofinsPercent?: number;
+  csllPercent?: number;
+  inssPercent?: number;
+  outrasRetencoesPercent?: number;
+  deducoesPercent?: number;
+  descontoIncondicionadoPercent?: number;
+  descontoCondicionadoPercent?: number;
+  informacoesAdicionais?: string;
+  tomadorInscricaoMunicipal?: string;
   tomadorCnpj?: string;
   tomadorCpf?: string;
   tomadorRazaoSocial?: string;
@@ -35,6 +49,7 @@ export type IssueOverrides = {
   tomadorComplemento?: string;
   tomadorBairro?: string;
   tomadorCodigoMunicipio?: string;
+  tomadorMunicipio?: string;
   tomadorUf?: string;
   tomadorCep?: string;
 };

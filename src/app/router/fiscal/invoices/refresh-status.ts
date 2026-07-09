@@ -3,21 +3,16 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { NfeError } from "nfe-io";
 import { FocusNfeHttpError } from "@/http/focus-nfe/client";
-import type { FiscalEnvironment } from "@/generated/prisma/enums";
-import { resolveNfseProviderByInvoiceType } from "@/features/fiscal/lib/providers/resolve-nfse-provider";
-import {
-  resolveCompanyToken,
-  focusStatusToDb,
-  formatFocusErrorMessage,
-} from "./utils";
+import { resolveGatewayForInvoice } from "@/features/fiscal/lib/gateways";
 
 export const refreshFiscalInvoiceStatus = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .route({
     method: "POST",
-    summary: "Refresh fiscal invoice status from Focus",
+    summary: "Refresh fiscal invoice status from gateway",
     tags: ["Fiscal"],
   })
   .input(z.object({ id: z.string() }))
@@ -27,81 +22,69 @@ export const refreshFiscalInvoiceStatus = base
     try {
       invoice = await prisma.fiscalInvoice.findUnique({
         where: { id: input.id, organizationId: context.org.id },
+        include: { profile: true },
       });
     } catch (err) {
-      console.error("[fiscal/invoices/refresh-status] erro ao buscar nota fiscal:", err);
+      console.error(
+        "[fiscal/invoices/refresh-status] erro ao buscar nota fiscal:",
+        err,
+      );
       throw errors.INTERNAL_SERVER_ERROR;
     }
     if (!invoice)
       throw errors.NOT_FOUND({ message: "Nota fiscal não encontrada" });
     if (invoice.status !== "PROCESSANDO") return { status: invoice.status };
 
-    const invoiceEnvironment = invoice.environment as FiscalEnvironment;
+    const gateway = resolveGatewayForInvoice(invoice);
 
-    let invoiceProfile;
+    let snapshot;
     try {
-      invoiceProfile = await prisma.fiscalCompanyProfile.findUnique({
-        where: { organizationId: context.org.id },
-        select: { focusTokenHomologacao: true, focusTokenProducao: true },
+      snapshot = await gateway.getInvoice({
+        invoice,
+        profile: invoice.profile,
       });
     } catch (err) {
-      console.error("[fiscal/invoices/refresh-status] erro ao buscar perfil fiscal:", err);
-      throw errors.INTERNAL_SERVER_ERROR;
-    }
-    if (!invoiceProfile) throw errors.INTERNAL_SERVER_ERROR;
-
-    let companyToken;
-    try {
-      companyToken = resolveCompanyToken(invoiceProfile, invoiceEnvironment);
-    } catch (err) {
-      console.error("[fiscal/invoices/refresh-status] erro ao resolver token Focus NFe:", err);
-      throw errors.BAD_REQUEST({
-        message: err instanceof Error ? err.message : "Token Focus NFe não configurado",
-      });
-    }
-
-    const provider = resolveNfseProviderByInvoiceType(invoice.type);
-
-    let focusData;
-    try {
-      focusData = await provider.consultar(
-        invoice.ref,
-        invoiceEnvironment,
-        companyToken,
+      console.error(
+        "[fiscal/invoices/refresh-status] erro ao consultar gateway:",
+        err,
       );
-    } catch (err) {
-      console.error("[fiscal/invoices/refresh-status] erro ao consultar Focus NFe:", err);
       if (err instanceof FocusNfeHttpError) {
         throw errors.BAD_REQUEST({ message: `Focus NFe: ${err.message}` });
+      }
+      if (err instanceof NfeError) {
+        throw errors.BAD_REQUEST({ message: `NFE.io: ${err.message}` });
       }
       throw errors.INTERNAL_SERVER_ERROR;
     }
 
-    const dbStatus = focusStatusToDb(focusData.status);
-    const isAuthorized = dbStatus === "AUTORIZADO";
+    const isAuthorized = snapshot.status === "AUTORIZADO";
 
     try {
       await prisma.fiscalInvoice.update({
         where: { id: invoice.id },
         data: {
-          status: dbStatus,
-          focusResponse: focusData as never,
+          status: snapshot.status,
+          flowStatus: snapshot.rawStatus,
+          ...(snapshot.externalId ? { externalId: snapshot.externalId } : {}),
+          focusResponse: snapshot.providerResponse as never,
           ...(isAuthorized && {
-            numero: focusData.numero,
-            codigoVerificacao: focusData.codigo_verificacao,
-            urlEspelho: focusData.url,
-            urlDanfse: focusData.url_danfse,
-            caminhoXmlFocus: focusData.caminho_xml_nota_fiscal,
+            numero: snapshot.numero,
+            codigoVerificacao: snapshot.codigoVerificacao,
+            urlEspelho: snapshot.urlEspelho,
+            urlDanfse: snapshot.urlDanfse,
+            caminhoXmlFocus: snapshot.caminhoXml,
             authorizedAt: new Date(),
           }),
-          errorMessage:
-            dbStatus === "ERRO" ? formatFocusErrorMessage(focusData) : null,
+          errorMessage: snapshot.errorMessage,
         },
       });
     } catch (err) {
-      console.error("[fiscal/invoices/refresh-status] erro ao atualizar nota no banco:", err);
+      console.error(
+        "[fiscal/invoices/refresh-status] erro ao atualizar nota no banco:",
+        err,
+      );
       throw errors.INTERNAL_SERVER_ERROR;
     }
 
-    return { status: dbStatus };
+    return { status: snapshot.status };
   });

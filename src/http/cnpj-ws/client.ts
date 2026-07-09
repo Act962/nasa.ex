@@ -13,7 +13,11 @@ export class CnpjWsError extends Error {
 
 export type CnpjWsResponse = {
   razao_social: string;
-  simples: { simples: "Sim" | "Não" | null } | null;
+  natureza_juridica: { id: string; descricao: string } | null;
+  simples: {
+    simples: "Sim" | "Não" | null;
+    mei: "Sim" | "Não" | null;
+  } | null;
   estabelecimento: {
     logradouro: string | null;
     numero: string | null;
@@ -22,6 +26,8 @@ export type CnpjWsResponse = {
     cep: string | null;
     estado: { sigla: string } | null;
     cidade: { ibge_id: number; nome: string } | null;
+    // `id` é o CNAE em 7 dígitos (ex.: "6422100"); `subclasse` é o formatado.
+    atividade_principal: { id: string; descricao: string } | null;
   };
 };
 

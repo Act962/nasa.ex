@@ -3,8 +3,9 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { deletarEmpresa } from "@/http/focus-nfe/deletar-empresa";
+import { NfeError } from "nfe-io";
 import { FocusNfeHttpError } from "@/http/focus-nfe/client";
+import { resolveGateway } from "@/features/fiscal/lib/gateways";
 
 export const fiscalProfileDelete = base
   .use(requiredAuthMiddleware)
@@ -16,19 +17,12 @@ export const fiscalProfileDelete = base
     try {
       const profile = await prisma.fiscalCompanyProfile.findUnique({
         where: { organizationId: context.org.id },
-        select: { focusEmpresaId: true },
       });
 
-      if (!profile) throw errors.NOT_FOUND({ message: "Perfil fiscal não encontrado" });
+      if (!profile)
+        throw errors.NOT_FOUND({ message: "Perfil fiscal não encontrado" });
 
-      if (profile.focusEmpresaId !== null) {
-        try {
-          await deletarEmpresa(profile.focusEmpresaId);
-        } catch (err) {
-          // 404 significa que a empresa já não existe na Focus — prossegue com a limpeza local
-          if (!(err instanceof FocusNfeHttpError && err.status === 404)) throw err;
-        }
-      }
+      await resolveGateway(profile.fiscalGateway).deleteCompany(profile);
 
       await prisma.fiscalCompanyProfile.delete({
         where: { organizationId: context.org.id },
@@ -36,9 +30,15 @@ export const fiscalProfileDelete = base
 
       return { ok: true };
     } catch (err) {
+      if (err instanceof Error && err.name === "ORPCError") throw err;
       if (err instanceof FocusNfeHttpError) {
         throw errors.BAD_REQUEST({
           message: `Erro ao deletar empresa na Focus: ${err.message}`,
+        });
+      }
+      if (err instanceof NfeError) {
+        throw errors.BAD_REQUEST({
+          message: `Erro ao deletar empresa na NFE.io: ${err.message}`,
         });
       }
       throw errors.INTERNAL_SERVER_ERROR;

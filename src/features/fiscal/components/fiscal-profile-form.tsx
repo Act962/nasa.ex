@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -10,18 +10,13 @@ import {
   useUpsertFiscalProfile,
   useDeleteFiscalProfile,
 } from "../hooks/use-fiscal-profile";
+import { useSyncFiscalCompanyStatus } from "../hooks/use-fiscal-company-status";
 import { MunicipioCombobox } from "./municipio-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -30,6 +25,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Building2,
@@ -40,7 +42,10 @@ import {
   KeyRound,
   Loader2,
   Trash2,
+  RefreshCw,
+  ChevronDown,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +58,68 @@ import {
 import type { CnpjWsResponse } from "@/http/cnpj-ws/client";
 import { maskCnpj, maskCpf } from "../utils/document-masks";
 import { resolveMunicipioRequirements } from "../lib/municipio-requirements";
+import {
+  LEGAL_NATURE_OPTIONS,
+  resolveLegalNatureFromReceitaCode,
+  resolveTaxRegimeFromSimples,
+  resolveCnaeFromAtividadePrincipal,
+} from "../lib/cnpj-hydration";
+
+const TAX_REGIME_OPTIONS = [
+  { value: "MicroempreendedorIndividual", label: "MEI" },
+  { value: "SimplesNacional", label: "Simples Nacional" },
+  { value: "LucroPresumido", label: "Lucro Presumido" },
+  { value: "LucroReal", label: "Lucro Real" },
+  { value: "Isento", label: "Isento" },
+] as const;
+
+// Dropdown de seleção única baseado em DropdownMenu (não em Radix Select): o
+// label do gatilho é resolvido direto do array de opções pelo value, então
+// exibe corretamente mesmo com valor setado programaticamente (o Radix Select
+// só resolve o label quando os itens estão montados, o que falhava na hidratação).
+function OptionDropdown({
+  value,
+  onChange,
+  options,
+  placeholder = "Selecione",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly { value: string; label: string }[];
+  placeholder?: string;
+}) {
+  const selected = options.find((option) => option.value === value);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full justify-between font-normal"
+        >
+          <span
+            className={cn("truncate", !selected && "text-muted-foreground")}
+          >
+            {selected?.label ?? placeholder}
+          </span>
+          <ChevronDown className="size-4 opacity-50 shrink-0" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="max-h-72 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
+      >
+        <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
+          {options.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value}>
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 const schema = z
   .object({
@@ -61,6 +128,10 @@ const schema = z
     cpf: z.string().optional(),
     razaoSocial: z.string().min(1, "Razão social obrigatória"),
     nomeFantasia: z.string().optional(),
+    email: z.string().email("E-mail inválido"),
+    openingDate: z.string().min(1, "Data de abertura obrigatória"),
+    legalNature: z.string().min(1, "Natureza jurídica obrigatória"),
+    taxRegime: z.string().min(1, "Regime tributário obrigatório"),
     municipio: z.string(),
     inscricaoMunicipal: z.string().min(1, "Inscrição municipal obrigatória"),
     codigoMunicipio: z
@@ -86,7 +157,14 @@ const schema = z
             "Deve ter 6 dígitos numéricos (2 para item, 2 para subitem e 2 para desdobro nacional)",
           ),
       ),
-    defaultAliquotaIss: z.string().min(1, "Alíquota ISS obrigatória"),
+    defaultCityServiceCode: z.string().optional(),
+    defaultAliquotaIss: z
+      .string()
+      .min(1, "Alíquota ISS obrigatória")
+      .refine((value) => {
+        const aliquota = Number(value);
+        return Number.isFinite(aliquota) && aliquota >= 2 && aliquota <= 5;
+      }, "Alíquota ISS deve estar entre 2% e 5% (limite legal — LC 116/2003)"),
     defaultIssRetido: z.boolean(),
     defaultTributacaoIssqn: z.number().int().min(1).max(4),
     defaultDiscriminacao: z.string().optional(),
@@ -107,8 +185,19 @@ const schema = z
       .optional()
       .or(z.literal("")),
     defaultConsumidorFinal: z.boolean(),
+    // Padrões financeiros percentuais (0–100) — string de input, coeridos no servidor.
+    defaultIrPercent: z.string().optional(),
+    defaultPisPercent: z.string().optional(),
+    defaultCofinsPercent: z.string().optional(),
+    defaultCsllPercent: z.string().optional(),
+    defaultInssPercent: z.string().optional(),
+    defaultOutrasRetencoesPercent: z.string().optional(),
+    defaultDeducoesPercent: z.string().optional(),
+    defaultDescontoIncondicionadoPercent: z.string().optional(),
+    defaultDescontoCondicionadoPercent: z.string().optional(),
+    defaultInformacoesAdicionais: z.string().optional(),
     supportedByFocus: z.boolean(),
-    nfseStandard: z.enum(["MUNICIPAL", "NACIONAL"]),
+    nfseStandard: z.enum(["MUNICIPAL", "NACIONAL"]).optional(),
     senhaCertificado: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -139,6 +228,7 @@ export function FiscalProfileForm() {
   const { data, isLoading } = useFiscalProfile();
   const upsert = useUpsertFiscalProfile();
   const deleteMutation = useDeleteFiscalProfile();
+  const syncStatus = useSyncFiscalCompanyStatus();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
   const profile = data?.profile;
@@ -160,6 +250,10 @@ export function FiscalProfileForm() {
       cpf: "",
       razaoSocial: "",
       nomeFantasia: "",
+      email: "",
+      openingDate: "",
+      legalNature: "",
+      taxRegime: "",
       municipio: "",
       inscricaoMunicipal: "",
       codigoMunicipio: "",
@@ -173,6 +267,7 @@ export function FiscalProfileForm() {
       cep: "",
       uf: "",
       defaultItemListaServico: "",
+      defaultCityServiceCode: "",
       defaultAliquotaIss: "",
       defaultIssRetido: false,
       defaultTributacaoIssqn: 1,
@@ -182,6 +277,16 @@ export function FiscalProfileForm() {
       ibsCbsSituacaoTributaria: "",
       ibsCbsClassificacaoTributaria: "",
       defaultConsumidorFinal: false,
+      defaultIrPercent: "0",
+      defaultPisPercent: "0",
+      defaultCofinsPercent: "0",
+      defaultCsllPercent: "0",
+      defaultInssPercent: "0",
+      defaultOutrasRetencoesPercent: "0",
+      defaultDeducoesPercent: "0",
+      defaultDescontoIncondicionadoPercent: "0",
+      defaultDescontoCondicionadoPercent: "0",
+      defaultInformacoesAdicionais: "",
       supportedByFocus: false,
       nfseStandard: "MUNICIPAL",
       senhaCertificado: "",
@@ -268,6 +373,30 @@ export function FiscalProfileForm() {
           );
         }
 
+        const legalNature = resolveLegalNatureFromReceitaCode(
+          responseData.natureza_juridica?.id,
+        );
+        if (legalNature)
+          form.setValue("legalNature", legalNature, { shouldDirty: true });
+
+        const taxRegime = resolveTaxRegimeFromSimples(responseData.simples);
+        if (taxRegime) {
+          form.setValue("taxRegime", taxRegime, { shouldDirty: true });
+          form.setValue(
+            "simplesNacionalMei",
+            taxRegime === "MicroempreendedorIndividual",
+            { shouldDirty: true },
+          );
+        }
+
+        // Só hidrata o CNAE se ainda estiver vazio — não sobrescreve um valor
+        // que o usuário já ajustou (ex.: complemento de 9 dígitos do município).
+        const cnae = resolveCnaeFromAtividadePrincipal(
+          estabelecimento.atividade_principal,
+        );
+        if (cnae && !form.getValues("defaultCodigoCnae"))
+          form.setValue("defaultCodigoCnae", cnae, { shouldDirty: true });
+
         setCnpjLookupStatus("found");
       } catch {
         setCnpjLookupStatus("error");
@@ -291,6 +420,12 @@ export function FiscalProfileForm() {
       cpf: detectedTipo === "cpf" ? maskCpf(profile.cnpj ?? "") : "",
       razaoSocial: profile.razaoSocial,
       nomeFantasia: profile.nomeFantasia ?? "",
+      email: profile.email ?? "",
+      openingDate: profile.openingDate
+        ? new Date(profile.openingDate).toISOString().slice(0, 10)
+        : "",
+      legalNature: profile.legalNature ?? "",
+      taxRegime: profile.taxRegime ?? "",
       municipio: profile.municipio ?? "",
       inscricaoMunicipal: profile.inscricaoMunicipal,
       codigoMunicipio: profile.codigoMunicipio,
@@ -304,6 +439,7 @@ export function FiscalProfileForm() {
       cep: profile.cep,
       uf: profile.uf,
       defaultItemListaServico: profile.defaultItemListaServico,
+      defaultCityServiceCode: profile.defaultCityServiceCode ?? "",
       defaultAliquotaIss: profile.defaultAliquotaIss,
       defaultIssRetido: profile.defaultIssRetido,
       defaultTributacaoIssqn: profile.defaultTributacaoIssqn ?? 1,
@@ -315,6 +451,19 @@ export function FiscalProfileForm() {
       ibsCbsClassificacaoTributaria:
         profile.ibsCbsClassificacaoTributaria ?? "",
       defaultConsumidorFinal: profile.defaultConsumidorFinal ?? false,
+      defaultIrPercent: profile.defaultIrPercent ?? "0",
+      defaultPisPercent: profile.defaultPisPercent ?? "0",
+      defaultCofinsPercent: profile.defaultCofinsPercent ?? "0",
+      defaultCsllPercent: profile.defaultCsllPercent ?? "0",
+      defaultInssPercent: profile.defaultInssPercent ?? "0",
+      defaultOutrasRetencoesPercent:
+        profile.defaultOutrasRetencoesPercent ?? "0",
+      defaultDeducoesPercent: profile.defaultDeducoesPercent ?? "0",
+      defaultDescontoIncondicionadoPercent:
+        profile.defaultDescontoIncondicionadoPercent ?? "0",
+      defaultDescontoCondicionadoPercent:
+        profile.defaultDescontoCondicionadoPercent ?? "0",
+      defaultInformacoesAdicionais: profile.defaultInformacoesAdicionais ?? "",
       supportedByFocus: profile.supportedByFocus,
       nfseStandard: profile.nfseStandard,
       senhaCertificado: "",
@@ -340,6 +489,8 @@ export function FiscalProfileForm() {
         defaultCodigoCnae: values.defaultCodigoCnae || null,
         defaultCodigoTributarioMunicipio:
           values.defaultCodigoTributarioMunicipio || null,
+        defaultInformacoesAdicionais:
+          values.defaultInformacoesAdicionais?.trim() || null,
         arquivoCertificadoBase64,
       },
       {
@@ -349,13 +500,13 @@ export function FiscalProfileForm() {
             form.setValue("senhaCertificado", "");
             if (certFileInputRef.current) certFileInputRef.current.value = "";
           }
-          if (result.focusEmpresaRegistered) {
+          if (result.companyRegistered) {
             toast.success(
-              "Perfil fiscal salvo. Empresa cadastrada na Focus NFe.",
+              "Perfil fiscal salvo. Empresa sincronizada na NFE.io.",
             );
           } else {
             toast.warning(
-              "Perfil fiscal salvo. Empresa não encontrada na Focus — cadastre o certificado A1 no painel da Focus.",
+              "Perfil fiscal salvo, mas a empresa não foi sincronizada na NFE.io. Revise os dados e salve novamente.",
             );
           }
         },
@@ -376,19 +527,48 @@ export function FiscalProfileForm() {
     );
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 px-4">
+    <form
+      onSubmit={form.handleSubmit(onSubmit)}
+      className="w-full space-y-6 px-4 sm:px-6"
+    >
       {profile !== undefined && (
-        <div className="flex items-center justify-end gap-2">
-          {profile?.focusEmpresaRegistered ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {profile?.nfeIoCompanyId ? (
             <span className="flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
               <CheckCircle2 className="size-3 shrink-0" />
-              Sincronizada
+              {profile.nfeIoFiscalStatus
+                ? `NFE.io: ${profile.nfeIoFiscalStatus}`
+                : "Sincronizada na NFE.io"}
             </span>
           ) : (
             <span className="flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
               <AlertTriangle className="size-3 shrink-0" />
-              Dessincronizada
+              Não sincronizada na NFE.io
             </span>
+          )}
+
+          {profile?.nfeIoCompanyId && (
+            <button
+              type="button"
+              onClick={() => {
+                syncStatus.mutate(
+                  {},
+                  {
+                    onSuccess: () =>
+                      toast.success("Status sincronizado com a NFE.io."),
+                    onError: () =>
+                      toast.error("Erro ao sincronizar status na NFE.io."),
+                  },
+                );
+              }}
+              disabled={syncStatus.isPending}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              title="Sincronizar status"
+            >
+              <RefreshCw
+                className={`size-3.5 ${syncStatus.isPending ? "animate-spin" : ""}`}
+              />
+            </button>
           )}
 
           {profile && (
@@ -479,11 +659,12 @@ export function FiscalProfileForm() {
         </div>
       )}
 
+      <div className="space-y-6">
       {/* Dados do Prestador */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Building2 className="size-4 text-[#7C3AED]" /> Prestador de
+            <Building2 className="size-4 text-[#7C3AED] shrink-0" /> Prestador de
             Serviços
           </CardTitle>
         </CardHeader>
@@ -614,6 +795,78 @@ export function FiscalProfileForm() {
             <Input {...form.register("inscricaoMunicipal")} placeholder="IM" />
           </div>
 
+          <div className="space-y-1.5">
+            <Label>
+              E-mail da empresa <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              {...form.register("email")}
+              type="email"
+              placeholder="contato@empresa.com.br"
+            />
+            {form.formState.errors.email && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.email.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>
+              Data de abertura <span className="text-destructive">*</span>
+            </Label>
+            <Input {...form.register("openingDate")} type="date" />
+            {form.formState.errors.openingDate && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.openingDate.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>
+              Natureza Jurídica <span className="text-destructive">*</span>
+            </Label>
+            <Controller
+              control={form.control}
+              name="legalNature"
+              render={({ field }) => (
+                <OptionDropdown
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={LEGAL_NATURE_OPTIONS}
+                />
+              )}
+            />
+            {form.formState.errors.legalNature && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.legalNature.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>
+              Regime Tributário <span className="text-destructive">*</span>
+            </Label>
+            <Controller
+              control={form.control}
+              name="taxRegime"
+              render={({ field }) => (
+                <OptionDropdown
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={TAX_REGIME_OPTIONS}
+                />
+              )}
+            />
+            {form.formState.errors.taxRegime && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.taxRegime.message}
+              </p>
+            )}
+          </div>
+
           <div className="flex items-center gap-3">
             <Switch
               checked={form.watch("optanteSimplesNacional")}
@@ -694,12 +947,6 @@ export function FiscalProfileForm() {
                 form.setValue("codigoMunicipio", municipio.codigo_ibge, {
                   shouldValidate: true,
                 });
-                const habilitaMunicipal = municipio.habilita_nfse ?? false;
-                form.setValue("supportedByFocus", habilitaMunicipal);
-                form.setValue(
-                  "nfseStandard",
-                  habilitaMunicipal ? "MUNICIPAL" : "NACIONAL",
-                );
               }}
             />
             <p className="text-xs text-muted-foreground">
@@ -734,49 +981,6 @@ export function FiscalProfileForm() {
         </CardContent>
       </Card>
 
-      {/* Padrão da NFS-e (Municipal x Nacional) */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Padrão da NFS-e</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex gap-2">
-            {(
-              [
-                { value: "MUNICIPAL", label: "NFS-e Municipal" },
-                { value: "NACIONAL", label: "NFS-e Nacional" },
-              ] as const
-            ).map((option) => {
-              const isSelected = form.watch("nfseStandard") === option.value;
-              // Município sem NFS-e municipal integrada: municipal fica bloqueado
-              // (já migrou para o nacional) — espelha a guarda do profile-upsert.
-              const isDisabled =
-                option.value === "MUNICIPAL" && !form.watch("supportedByFocus");
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  disabled={isDisabled}
-                  onClick={() => form.setValue("nfseStandard", option.value)}
-                  className={`px-4 py-1.5 rounded-md border text-sm font-medium transition-colors ${
-                    isSelected
-                      ? "bg-[#7C3AED] text-white border-[#7C3AED]"
-                      : "bg-background text-muted-foreground border-border hover:border-[#7C3AED]"
-                  } ${isDisabled ? "opacity-50 cursor-not-allowed hover:border-border" : ""}`}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {form.watch("supportedByFocus")
-              ? "O município selecionado tem NFS-e municipal integrada. Você pode manter o padrão municipal ou usar o padrão nacional."
-              : "O município selecionado não tem NFS-e municipal integrada — o padrão nacional foi selecionado automaticamente."}
-          </p>
-        </CardContent>
-      </Card>
-
       {/* Defaults do Serviço */}
       <Card>
         <CardHeader className="pb-3">
@@ -793,8 +997,8 @@ export function FiscalProfileForm() {
               placeholder="Ex: 170601"
             />
             <p className="text-xs text-muted-foreground">
-              6 dígitos numéricos: 2 para item, 2 para subitem (LC 116/2003) e
-              2 para desdobro nacional.
+              6 dígitos numéricos: 2 para item, 2 para subitem (LC 116/2003) e 2
+              para desdobro nacional.
             </p>
             {form.formState.errors.defaultItemListaServico && (
               <p className="text-xs text-destructive">
@@ -804,14 +1008,38 @@ export function FiscalProfileForm() {
           </div>
           <div className="space-y-1.5">
             <Label className="sm:min-h-10 items-start">
+              Código de Serviço Municipal (NFE.io)
+            </Label>
+            <Input
+              {...form.register("defaultCityServiceCode")}
+              placeholder="Ex: 0101"
+            />
+            <p className="text-xs text-muted-foreground">
+              Código do serviço no formato da prefeitura — diferente do item da
+              lista LC 116 acima. Consulte o contador ou a tabela da prefeitura.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="sm:min-h-10 items-start">
               Alíquota ISS (%) <span className="text-destructive">*</span>
             </Label>
             <Input
               {...form.register("defaultAliquotaIss")}
               type="number"
+              min="2"
+              max="5"
               step="0.01"
               placeholder="5.00"
             />
+            <p className="text-xs text-muted-foreground">
+              Percentual entre 2% e 5% (limite legal — LC 116/2003). Ex: 5 para
+              5%.
+            </p>
+            {form.formState.errors.defaultAliquotaIss && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.defaultAliquotaIss.message}
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label className="sm:min-h-10 items-start">
@@ -841,57 +1069,36 @@ export function FiscalProfileForm() {
             />
             <Label>ISS Retido na Fonte</Label>
           </div>
-          {form.watch("nfseStandard") === "MUNICIPAL" &&
-            (() => {
-              const municipioRequirements = resolveMunicipioRequirements(
-                form.watch("codigoMunicipio"),
-              );
-              return (
-                <>
-                  <div className="space-y-1.5">
-                    <Label className="sm:min-h-10 items-start">
-                      Código CNAE do serviço{" "}
-                      {municipioRequirements.requiresCodigoCnae && (
-                        <span className="text-destructive">*</span>
-                      )}
-                    </Label>
-                    <Input
-                      {...form.register("defaultCodigoCnae")}
-                      inputMode="numeric"
-                      placeholder="Ex: 620910000"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {municipioRequirements.requiresCodigoCnae
-                        ? `Seu município exige CNAE de ${municipioRequirements.requiresCodigoCnae.digits} dígitos na emissão.`
-                        : "Opcional — alguns municípios exigem o CNAE na emissão."}
-                    </p>
-                    {form.formState.errors.defaultCodigoCnae && (
-                      <p className="text-xs text-destructive">
-                        {form.formState.errors.defaultCodigoCnae.message}
-                      </p>
-                    )}
-                  </div>
-                  {municipioRequirements.usesCodigoTributarioMunicipio && (
-                    <div className="space-y-1.5">
-                      <Label className="sm:min-h-10 items-start">
-                        Código Tributário do Município{" "}
-                        {municipioRequirements.requiresCodigoTributarioMunicipio && (
-                          <span className="text-destructive">*</span>
-                        )}
-                      </Label>
-                      <Input
-                        {...form.register("defaultCodigoTributarioMunicipio")}
-                        placeholder="Código da tabela da prefeitura"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Consulte a tabela de códigos de serviço da sua
-                        prefeitura.
-                      </p>
-                    </div>
+          {(() => {
+            const municipioRequirements = resolveMunicipioRequirements(
+              form.watch("codigoMunicipio"),
+            );
+            return (
+              <div className="space-y-1.5">
+                <Label className="sm:min-h-10 items-start">
+                  Código CNAE do serviço{" "}
+                  {municipioRequirements.requiresCodigoCnae && (
+                    <span className="text-destructive">*</span>
                   )}
-                </>
-              );
-            })()}
+                </Label>
+                <Input
+                  {...form.register("defaultCodigoCnae")}
+                  inputMode="numeric"
+                  placeholder="Ex: 620910000"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {municipioRequirements.requiresCodigoCnae
+                    ? `Seu município exige CNAE de ${municipioRequirements.requiresCodigoCnae.digits} dígitos na emissão.`
+                    : "Opcional — alguns municípios exigem o CNAE na emissão."}
+                </p>
+                {form.formState.errors.defaultCodigoCnae && (
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.defaultCodigoCnae.message}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
           <div className="sm:col-span-2 space-y-1.5">
             <Label>Discriminação padrão do serviço</Label>
             <Textarea
@@ -903,85 +1110,90 @@ export function FiscalProfileForm() {
         </CardContent>
       </Card>
 
-      {/* Reforma Tributária (IBS/CBS) — aplicável à NFS-e Nacional */}
-      {form.watch("nfseStandard") === "NACIONAL" && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">
-              Reforma Tributária (IBS/CBS)
-            </CardTitle>
-            <CardDescription>
-              Opcional. Quando preenchidos, os campos IBS/CBS são enviados na
-              emissão da NFS-e Nacional. Deixe em branco enquanto o município
-              não exigir.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Situação Tributária (CST)</Label>
+      {/* Retenções e descontos padrão */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">
+            Retenções e descontos padrão
+          </CardTitle>
+          <p className="text-xs text-muted-foreground pt-1">
+            Percentuais aplicados sobre o valor do serviço na emissão. Deixe 0
+            quando não houver. Podem ser sobrescritos por nota.
+          </p>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {(
+            [
+              { name: "defaultIrPercent", label: "IR (%)" },
+              { name: "defaultPisPercent", label: "PIS (%)" },
+              { name: "defaultCofinsPercent", label: "COFINS (%)" },
+              { name: "defaultCsllPercent", label: "CSLL (%)" },
+              { name: "defaultInssPercent", label: "INSS (%)" },
+              {
+                name: "defaultOutrasRetencoesPercent",
+                label: "Outras ret. (%)",
+              },
+              { name: "defaultDeducoesPercent", label: "Deduções (%)" },
+              {
+                name: "defaultDescontoIncondicionadoPercent",
+                label: "Desc. incondicionado (%)",
+              },
+              {
+                name: "defaultDescontoCondicionadoPercent",
+                label: "Desc. condicionado (%)",
+              },
+            ] as const
+          ).map((percentField) => (
+            <div key={percentField.name} className="space-y-1.5">
+              <Label className="text-xs">{percentField.label}</Label>
               <Input
-                {...form.register("ibsCbsSituacaoTributaria")}
-                inputMode="numeric"
-                placeholder="Ex: 000"
+                {...form.register(percentField.name)}
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                placeholder="0"
               />
-              {form.formState.errors.ibsCbsSituacaoTributaria && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.ibsCbsSituacaoTributaria.message}
-                </p>
-              )}
             </div>
-            <div className="space-y-1.5">
-              <Label>Classificação Tributária (cClassTrib)</Label>
-              <Input
-                {...form.register("ibsCbsClassificacaoTributaria")}
-                inputMode="numeric"
-                placeholder="Ex: 000001"
-              />
-              {form.formState.errors.ibsCbsClassificacaoTributaria && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.ibsCbsClassificacaoTributaria.message}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-3 sm:col-span-2">
-              <Switch
-                checked={form.watch("defaultConsumidorFinal")}
-                onCheckedChange={(v) =>
-                  form.setValue("defaultConsumidorFinal", v)
-                }
-              />
-              <Label>Tomador é consumidor final (padrão)</Label>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          ))}
+          <div className="col-span-2 sm:col-span-3 space-y-1.5">
+            <Label>Informações adicionais padrão</Label>
+            <Textarea
+              {...form.register("defaultInformacoesAdicionais")}
+              placeholder="Texto livre impresso na nota (ex.: dados bancários, observações)"
+              rows={2}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Certificado A1 */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <ShieldCheck className="size-4 text-[#7C3AED]" /> Certificado A1
-            Digital
+            <ShieldCheck className="size-4 text-[#7C3AED] shrink-0" />{" "}
+            Certificado A1 Digital
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {profile?.focusCertificadoUploadedAt ? (
+          {profile?.nfeIoCertificateStatus === "Active" ? (
             <div className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2 text-sm text-emerald-700 dark:text-emerald-300">
               <CheckCircle2 className="size-4 shrink-0" />
-              Certificado enviado em{" "}
-              {new Date(profile.focusCertificadoUploadedAt).toLocaleDateString(
-                "pt-BR",
-                {
+              Certificado ativo na NFE.io
+              {profile.nfeIoCertificateExpiresOn &&
+                ` — expira em ${new Date(
+                  profile.nfeIoCertificateExpiresOn,
+                ).toLocaleDateString("pt-BR", {
                   day: "2-digit",
                   month: "2-digit",
                   year: "numeric",
-                },
-              )}
+                })}`}
             </div>
           ) : (
             <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
               <AlertTriangle className="size-4 shrink-0" />
-              Nenhum certificado enviado. A emissão de notas requer o A1.
+              Nenhum certificado ativo na NFE.io. A emissão de notas requer o
+              A1.
             </div>
           )}
 
@@ -1015,12 +1227,13 @@ export function FiscalProfileForm() {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              O arquivo não é armazenado — é enviado diretamente à Focus NFe
-              junto com o cadastro da empresa.
+              O arquivo não é armazenado — é enviado diretamente à NFE.io junto
+              com o cadastro da empresa.
             </p>
           </div>
         </CardContent>
       </Card>
+      </div>
 
       <Button
         type="submit"

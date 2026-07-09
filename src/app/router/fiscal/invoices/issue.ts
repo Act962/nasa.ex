@@ -6,14 +6,14 @@ import { z } from "zod";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import { NfeError } from "nfe-io";
+import { describeNfeIoError } from "@/lib/nfe-io";
 import { FocusNfeHttpError } from "@/http/focus-nfe/client";
 import type { FiscalEnvironment } from "@/generated/prisma/enums";
-import { resolveNfseProvider } from "@/features/fiscal/lib/providers/resolve-nfse-provider";
 import {
-  resolveCompanyToken,
-  focusStatusToDb,
-  formatFocusErrorMessage,
-} from "./utils";
+  resolveGateway,
+  type FiscalIssueOverrides,
+} from "@/features/fiscal/lib/gateways";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -43,6 +43,7 @@ export const issueFiscalInvoice = base
       tomadorComplemento: z.string().optional(),
       tomadorBairro: z.string().optional(),
       tomadorCodigoMunicipio: z.string().optional(),
+      tomadorMunicipio: z.string().optional(),
       tomadorUf: z.string().optional(),
       tomadorCep: z.string().optional(),
       discriminacao: z.string().optional(),
@@ -52,6 +53,21 @@ export const issueFiscalInvoice = base
       ibsCbsSituacaoTributaria: z.string().optional(),
       ibsCbsClassificacaoTributaria: z.string().optional(),
       consumidorFinal: z.boolean().optional(),
+      cityServiceCode: z.string().optional(),
+      taxationType: z.string().optional(),
+      // Overrides financeiros por nota — percentuais (0–100) sobre o valor do serviço.
+      issRetido: z.boolean().optional(),
+      irPercent: z.number().min(0).max(100).optional(),
+      pisPercent: z.number().min(0).max(100).optional(),
+      cofinsPercent: z.number().min(0).max(100).optional(),
+      csllPercent: z.number().min(0).max(100).optional(),
+      inssPercent: z.number().min(0).max(100).optional(),
+      outrasRetencoesPercent: z.number().min(0).max(100).optional(),
+      deducoesPercent: z.number().min(0).max(100).optional(),
+      descontoIncondicionadoPercent: z.number().min(0).max(100).optional(),
+      descontoCondicionadoPercent: z.number().min(0).max(100).optional(),
+      informacoesAdicionais: z.string().optional(),
+      tomadorInscricaoMunicipal: z.string().optional(),
       environment: z.enum(["HOMOLOGACAO", "PRODUCAO"]).default("HOMOLOGACAO"),
     }),
   )
@@ -109,7 +125,7 @@ export const issueFiscalInvoice = base
       });
     }
 
-    const overrides = {
+    const overrides: FiscalIssueOverrides = {
       tipoTomador: input.tipoTomador as "PF" | "PJ",
       // Data enviada pelo dialog é "YYYY-MM-DD"; ancoramos explicitamente em
       // horário de Brasília em vez de deixar o parser nativo assumir meia-noite
@@ -129,6 +145,7 @@ export const issueFiscalInvoice = base
       tomadorComplemento: input.tomadorComplemento,
       tomadorBairro: input.tomadorBairro,
       tomadorCodigoMunicipio: input.tomadorCodigoMunicipio,
+      tomadorMunicipio: input.tomadorMunicipio,
       tomadorUf: input.tomadorUf,
       tomadorCep: input.tomadorCep,
       naturezaOperacao: input.naturezaOperacao,
@@ -136,17 +153,32 @@ export const issueFiscalInvoice = base
       ibsCbsSituacaoTributaria: input.ibsCbsSituacaoTributaria,
       ibsCbsClassificacaoTributaria: input.ibsCbsClassificacaoTributaria,
       consumidorFinal: input.consumidorFinal,
+      cityServiceCode: input.cityServiceCode,
+      taxationType: input.taxationType,
+      issRetido: input.issRetido,
+      irPercent: input.irPercent,
+      pisPercent: input.pisPercent,
+      cofinsPercent: input.cofinsPercent,
+      csllPercent: input.csllPercent,
+      inssPercent: input.inssPercent,
+      outrasRetencoesPercent: input.outrasRetencoesPercent,
+      deducoesPercent: input.deducoesPercent,
+      descontoIncondicionadoPercent: input.descontoIncondicionadoPercent,
+      descontoCondicionadoPercent: input.descontoCondicionadoPercent,
+      informacoesAdicionais: input.informacoesAdicionais,
+      tomadorInscricaoMunicipal: input.tomadorInscricaoMunicipal,
     };
 
-    const provider = resolveNfseProvider(profile.nfseStandard);
+    const gateway = resolveGateway(profile.fiscalGateway);
     const fiscalEnvironment = input.environment as FiscalEnvironment;
 
-    const preflight = provider.validate(
+    const preflight = gateway.validateBeforeIssue({
+      ref: "",
       contract,
       profile,
       overrides,
-      fiscalEnvironment,
-    );
+      environment: fiscalEnvironment,
+    });
     if (!preflight.valid) {
       throw errors.BAD_REQUEST({ message: preflight.errors.join("; ") });
     }
@@ -166,52 +198,39 @@ export const issueFiscalInvoice = base
     const ref = `forge-${contract.id}-${invoiceCount + 1}`;
 
     console.log(
-      "[fiscal/issue] ambiente Focus NFe:",
+      "[fiscal/issue] gateway:",
+      gateway.id,
+      "ambiente:",
       fiscalEnvironment,
-      "padrão:",
-      provider.standard,
     );
 
-    let companyToken;
+    let issueResult;
     try {
-      companyToken = resolveCompanyToken(profile, fiscalEnvironment);
-    } catch (err) {
-      console.error(
-        "[fiscal/invoices/issue] erro ao resolver token Focus NFe:",
-        err,
-      );
-      throw errors.BAD_REQUEST({
-        message:
-          err instanceof Error
-            ? err.message
-            : "Token Focus NFe não configurado",
-      });
-    }
-
-    let focusResponse;
-    let payload: unknown;
-    try {
-      ({ response: focusResponse, payload } = await provider.emitir({
+      issueResult = await gateway.issueInvoice({
         ref,
         contract,
         profile,
         overrides,
         environment: fiscalEnvironment,
-        companyToken,
-      }));
+      });
     } catch (err) {
       console.error(
-        "[fiscal/invoices/issue] erro ao chamar Focus NFe (emitir):",
+        "[fiscal/invoices/issue] erro ao emitir no gateway:",
         err,
       );
       if (err instanceof FocusNfeHttpError) {
         throw errors.BAD_REQUEST({ message: `Focus NFe: ${err.message}` });
       }
+      if (err instanceof NfeError) {
+        const nfeDetail = describeNfeIoError(err.details ?? err.raw);
+        throw errors.BAD_REQUEST({
+          message: `NFE.io: ${nfeDetail ?? err.message}`,
+        });
+      }
       throw errors.INTERNAL_SERVER_ERROR;
     }
 
-    const dbStatus = focusStatusToDb(focusResponse.status);
-    const isAuthorized = dbStatus === "AUTORIZADO";
+    const isAuthorized = issueResult.status === "AUTORIZADO";
 
     const tomadorSnapshot =
       input.tipoTomador === "PJ"
@@ -230,30 +249,30 @@ export const issueFiscalInvoice = base
           profileId: profile.id,
           contractId: contract.id,
           ref,
-          type: provider.invoiceType,
-          status: dbStatus,
+          type: issueResult.invoiceType,
+          status: issueResult.status,
           environment: fiscalEnvironment,
+          gateway: gateway.id,
+          externalId: issueResult.externalId,
+          flowStatus: issueResult.rawStatus,
           valorServicos: contract.value,
           aliquotaIss: profile.defaultAliquotaIss,
           issRetido: profile.defaultIssRetido,
           dataCompetencia: overrides.dataCompetencia,
-          requestPayload: payload as never,
-          focusResponse: focusResponse as never,
+          requestPayload: issueResult.requestPayload as never,
+          focusResponse: issueResult.providerResponse as never,
           tomadorSnapshot: tomadorSnapshot as never,
           tipoTomador: input.tipoTomador as "PF" | "PJ",
           issuedById: context.user.id,
           ...(isAuthorized && {
-            numero: focusResponse.numero,
-            codigoVerificacao: focusResponse.codigo_verificacao,
-            urlEspelho: focusResponse.url,
-            urlDanfse: focusResponse.url_danfse,
-            caminhoXmlFocus: focusResponse.caminho_xml_nota_fiscal,
+            numero: issueResult.numero,
+            codigoVerificacao: issueResult.codigoVerificacao,
+            urlEspelho: issueResult.urlEspelho,
+            urlDanfse: issueResult.urlDanfse,
+            caminhoXmlFocus: issueResult.caminhoXml,
             authorizedAt: new Date(),
           }),
-          errorMessage:
-            dbStatus === "ERRO"
-              ? (formatFocusErrorMessage(focusResponse) ?? "Erro desconhecido")
-              : null,
+          errorMessage: issueResult.errorMessage,
         },
       });
     } catch (err) {

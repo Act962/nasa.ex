@@ -12,6 +12,7 @@ import {
   GraduationCap,
   Sparkles,
   MessageCircle,
+  Receipt,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -64,6 +65,12 @@ const tabsLink = [
     label: "Assinatura",
     href: "/billing",
     icon: CreditCard,
+    singleAllowed: true,
+  },
+  {
+    label: "Fiscal",
+    href: "/fiscal",
+    icon: Receipt,
     singleAllowed: true,
   },
   {

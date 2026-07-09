@@ -46,7 +46,6 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
   try {
     body = JSON.parse(await req.text());
-    console.log(body);
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
@@ -56,17 +55,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  const modeParam = req.nextUrl.searchParams.get("mode");
-  const mode =
-    modeParam === "homologacao" || modeParam === "producao" ? modeParam : null;
-
   const status = parseWebhookStatus(body.status);
   const erros = parseWebhookErros(body.erros);
+  const webhookErrorMessages =
+    status === "erro_autorizacao" && erros?.length
+      ? erros.map((erro) => erro.mensagem)
+      : null;
 
   try {
     await inngest.send({
       name: "fiscal/nfse.status-changed",
-      data: { ref, mode, status, erros },
+      data: {
+        gateway: "FOCUS_NFE",
+        ref,
+        externalId: null,
+        webhookErrorMessages,
+      },
     });
   } catch (err) {
     console.error("[focus-nfe/webhook] failed to dispatch inngest event", err);

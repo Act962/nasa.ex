@@ -16,7 +16,7 @@ export function useUploadFiscalCertificate() {
       formData.append("arquivo", arquivo);
       formData.append("senha", senha);
 
-      const response = await fetch("/api/focus-nfe/certificado", {
+      const response = await fetch("/api/fiscal/certificado", {
         method: "POST",
         body: formData,
       });

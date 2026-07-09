@@ -19,8 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -48,6 +48,7 @@ import { useFiscalProfile } from "../hooks/use-fiscal-profile";
 import { maskCnpj, maskCpf } from "../utils/document-masks";
 import {
   UF_OPTIONS,
+  TAXATION_TYPE_OPTIONS,
   NATUREZA_OPERACAO_OPTIONS,
   REGIME_ESPECIAL_OPTIONS,
 } from "../lib/issue-invoice-options";
@@ -63,6 +64,10 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const TIMEZONE = "America/Sao_Paulo";
+
+// Sentinel do Select de regime especial: "usar o que está cadastrado no perfil"
+// (Radix Select não aceita valor vazio, então precisamos de um marcador explícito).
+const REGIME_PROFILE_DEFAULT = "__profile__";
 
 interface ClientData {
   name?: string | null;
@@ -89,6 +94,13 @@ function currentCompetenciaValue() {
 function detectTipoTomador(document?: string | null): "PF" | "PJ" {
   const digits = (document ?? "").replace(/\D/g, "");
   return digits.length === 11 ? "PF" : "PJ";
+}
+
+// Converte o input percentual (string) em número; 0/ausente/invalido → undefined
+// para não sobrescrever o padrão do perfil com um valor vazio.
+function toPercentNumber(value?: string): number | undefined {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function formatCompetencia(value: string) {
@@ -159,6 +171,7 @@ function TomadorEnderecoFields({
             form.setValue("tomadorCodigoMunicipio", municipio.codigo_ibge, {
               shouldValidate: true,
             });
+            form.setValue("tomadorMunicipio", municipio.nome);
             form.setValue("tomadorUf", municipio.uf);
             onMunicipioDisplayChange(`${municipio.nome} — ${municipio.uf}`);
           }}
@@ -250,7 +263,24 @@ export function IssueInvoiceDialog({
       dataCompetencia: currentCompetenciaValue(),
       discriminacao: "",
       naturezaOperacao: "1",
-      regimeEspecialTributacao: undefined,
+      regimeEspecialTributacao: REGIME_PROFILE_DEFAULT,
+      ibsCbsSituacaoTributaria: "",
+      ibsCbsClassificacaoTributaria: "",
+      consumidorFinal: false,
+      issRetido: false,
+      irPercent: "0",
+      pisPercent: "0",
+      cofinsPercent: "0",
+      csllPercent: "0",
+      inssPercent: "0",
+      outrasRetencoesPercent: "0",
+      deducoesPercent: "0",
+      descontoIncondicionadoPercent: "0",
+      descontoCondicionadoPercent: "0",
+      informacoesAdicionais: "",
+      tomadorInscricaoMunicipal: "",
+      cityServiceCode: "",
+      taxationType: "WithinCity",
       tomadorCnpj: detectedTipo === "PJ" ? (clientData?.document ?? "") : "",
       tomadorRazaoSocial: detectedTipo === "PJ" ? (clientData?.name ?? "") : "",
       tomadorEmail: clientData?.email ?? "",
@@ -259,6 +289,7 @@ export function IssueInvoiceDialog({
       tomadorComplemento: "",
       tomadorBairro: "",
       tomadorCodigoMunicipio: "",
+      tomadorMunicipio: "",
       tomadorUf: "",
       tomadorCep: "",
       tomadorCpf: detectedTipo === "PF" ? (clientData?.document ?? "") : "",
@@ -268,13 +299,10 @@ export function IssueInvoiceDialog({
 
   const tipoTomador = form.watch("tipoTomador");
   const environment = form.watch("environment");
-  const isNacional = profile?.nfseStandard === "NACIONAL";
   const municipioRequirements = resolveMunicipioRequirements(
     profile?.codigoMunicipio,
   );
-  // Nacional dispensa endereço por padrão do layout DPS; municipal segue o registry.
-  const requiresTomadorEndereco =
-    !isNacional && municipioRequirements.requiresTomadorEndereco;
+  const requiresTomadorEndereco = municipioRequirements.requiresTomadorEndereco;
   const [step, setStep] = useState<"form" | "preview">("form");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [preflightErrors, setPreflightErrors] = useState<string[]>([]);
@@ -357,10 +385,12 @@ export function IssueInvoiceDialog({
             String(ibgeId).padStart(7, "0"),
             { shouldValidate: true },
           );
-          if (estabelecimento.cidade?.nome)
+          if (estabelecimento.cidade?.nome) {
+            form.setValue("tomadorMunicipio", estabelecimento.cidade.nome);
             setMunicipioDisplay(
               `${estabelecimento.cidade.nome} — ${estabelecimento.estado?.sigla ?? ""}`,
             );
+          }
         }
 
         setTomadorCnpjLookupStatus("found");
@@ -377,39 +407,53 @@ export function IssueInvoiceDialog({
 
   useEffect(() => {
     if (!profile) return;
-    form.setValue("nfseStandard", profile.nfseStandard);
+    // Ambiente é da empresa na NFE.io (Development/Production) — a emissão
+    // trava no ambiente cadastrado no perfil, sem escolha por nota.
+    form.setValue("environment", profile.environment);
     form.setValue(
-      "ibsCbsSituacaoTributaria",
-      profile.ibsCbsSituacaoTributaria ?? "",
+      "cityServiceCode",
+      form.getValues("cityServiceCode") || (profile.defaultCityServiceCode ?? ""),
     );
-    form.setValue(
-      "ibsCbsClassificacaoTributaria",
-      profile.ibsCbsClassificacaoTributaria ?? "",
-    );
+    // Autopreenche o toggle de consumidor final com o padrão cadastrado no perfil
+    // (o emitente ainda pode sobrescrever por nota na seção avançada).
     form.setValue("consumidorFinal", profile.defaultConsumidorFinal ?? false);
-    const nacional = profile.nfseStandard === "NACIONAL";
-    const requirements = resolveMunicipioRequirements(profile.codigoMunicipio);
+    // Autopreenche retenções/descontos e ISS retido com os padrões salvos no perfil.
+    form.setValue("issRetido", profile.defaultIssRetido ?? false);
+    form.setValue("irPercent", profile.defaultIrPercent ?? "0");
+    form.setValue("pisPercent", profile.defaultPisPercent ?? "0");
+    form.setValue("cofinsPercent", profile.defaultCofinsPercent ?? "0");
+    form.setValue("csllPercent", profile.defaultCsllPercent ?? "0");
+    form.setValue("inssPercent", profile.defaultInssPercent ?? "0");
     form.setValue(
-      "requiresTomadorEndereco",
-      !nacional && requirements.requiresTomadorEndereco,
+      "outrasRetencoesPercent",
+      profile.defaultOutrasRetencoesPercent ?? "0",
     );
+    form.setValue("deducoesPercent", profile.defaultDeducoesPercent ?? "0");
+    form.setValue(
+      "descontoIncondicionadoPercent",
+      profile.defaultDescontoIncondicionadoPercent ?? "0",
+    );
+    form.setValue(
+      "descontoCondicionadoPercent",
+      profile.defaultDescontoCondicionadoPercent ?? "0",
+    );
+    form.setValue(
+      "informacoesAdicionais",
+      profile.defaultInformacoesAdicionais ?? "",
+    );
+    const requirements = resolveMunicipioRequirements(profile.codigoMunicipio);
+    form.setValue("requiresTomadorEndereco", requirements.requiresTomadorEndereco);
+
     const errors: string[] = [];
-    const skipsSupportedByFocusCheck =
-      environment === "HOMOLOGACAO" &&
-      requirements.skipsSupportedByFocusInHomologacao;
-    if (!nacional && !profile.supportedByFocus && !skipsSupportedByFocusCheck)
-      errors.push("Município do prestador não integrado na Focus NFe.");
-    if (!profile.focusEmpresaRegistered)
-      errors.push("Empresa não cadastrada na Focus NFe.");
-    if (
-      !nacional &&
-      requirements.requiresInscricaoMunicipalPrestador &&
-      !profile.inscricaoMunicipal
-    )
+    if (!profile.nfeIoCompanyId)
+      errors.push("Empresa não sincronizada na NFE.io — salve o perfil fiscal.");
+    if (!profile.defaultCityServiceCode)
+      errors.push(
+        "Código de serviço municipal (NFE.io) não configurado no perfil fiscal.",
+      );
+    if (requirements.requiresInscricaoMunicipalPrestador && !profile.inscricaoMunicipal)
       errors.push("Inscrição municipal não configurada.");
-    if (!profile.defaultItemListaServico)
-      errors.push("Item lista de serviço não configurado.");
-    if (!nacional && requirements.requiresCodigoCnae) {
+    if (requirements.requiresCodigoCnae) {
       const cnaeDigits = requirements.requiresCodigoCnae.digits;
       if (!profile.defaultCodigoCnae)
         errors.push(
@@ -420,20 +464,12 @@ export function IssueInvoiceDialog({
           `Seu município exige CNAE com ${cnaeDigits} dígitos — atualize o perfil fiscal.`,
         );
     }
-    if (
-      !nacional &&
-      requirements.requiresCodigoTributarioMunicipio &&
-      !profile.defaultCodigoTributarioMunicipio
-    )
-      errors.push(
-        "Seu município exige o código tributário municipal — configure no perfil fiscal.",
-      );
     if (Number(profile.defaultAliquotaIss) <= 0)
       errors.push("Alíquota ISS inválida.");
     if (Number(contractValue) <= 0)
       errors.push("Valor do contrato deve ser maior que zero.");
     setPreflightErrors(errors);
-  }, [profile, contractValue, environment, form]);
+  }, [profile, contractValue, form]);
 
   const handleReview = async () => {
     const isValid = await form.trigger();
@@ -449,14 +485,35 @@ export function IssueInvoiceDialog({
         dataCompetencia: values.dataCompetencia,
         discriminacao: values.discriminacao || undefined,
         naturezaOperacao: values.naturezaOperacao,
-        regimeEspecialTributacao: values.regimeEspecialTributacao
-          ? Number(values.regimeEspecialTributacao)
-          : undefined,
+        regimeEspecialTributacao:
+          values.regimeEspecialTributacao &&
+          values.regimeEspecialTributacao !== REGIME_PROFILE_DEFAULT
+            ? Number(values.regimeEspecialTributacao)
+            : undefined,
         ibsCbsSituacaoTributaria:
           values.ibsCbsSituacaoTributaria?.trim() || undefined,
         ibsCbsClassificacaoTributaria:
           values.ibsCbsClassificacaoTributaria?.trim() || undefined,
         consumidorFinal: values.consumidorFinal,
+        cityServiceCode: values.cityServiceCode?.trim() || undefined,
+        taxationType: values.taxationType || undefined,
+        issRetido: values.issRetido,
+        irPercent: toPercentNumber(values.irPercent),
+        pisPercent: toPercentNumber(values.pisPercent),
+        cofinsPercent: toPercentNumber(values.cofinsPercent),
+        csllPercent: toPercentNumber(values.csllPercent),
+        inssPercent: toPercentNumber(values.inssPercent),
+        outrasRetencoesPercent: toPercentNumber(values.outrasRetencoesPercent),
+        deducoesPercent: toPercentNumber(values.deducoesPercent),
+        descontoIncondicionadoPercent: toPercentNumber(
+          values.descontoIncondicionadoPercent,
+        ),
+        descontoCondicionadoPercent: toPercentNumber(
+          values.descontoCondicionadoPercent,
+        ),
+        informacoesAdicionais: values.informacoesAdicionais?.trim() || undefined,
+        tomadorInscricaoMunicipal:
+          values.tomadorInscricaoMunicipal?.trim() || undefined,
         tomadorCnpj: values.tomadorCnpj,
         tomadorCpf: values.tomadorCpf,
         tomadorRazaoSocial: values.tomadorRazaoSocial,
@@ -467,6 +524,7 @@ export function IssueInvoiceDialog({
         tomadorComplemento: values.tomadorComplemento,
         tomadorBairro: values.tomadorBairro,
         tomadorCodigoMunicipio: values.tomadorCodigoMunicipio,
+        tomadorMunicipio: values.tomadorMunicipio,
         tomadorUf: values.tomadorUf,
         tomadorCep: values.tomadorCep,
       });
@@ -491,15 +549,23 @@ export function IssueInvoiceDialog({
 
   const formErrors = form.formState.errors;
 
-  const naturezaLabel =
+  const taxationTypeLabel =
+    TAXATION_TYPE_OPTIONS.find(
+      (opt) => opt.value === form.watch("taxationType"),
+    )?.label ?? "—";
+
+  const naturezaOperacaoLabel =
     NATUREZA_OPERACAO_OPTIONS.find(
       (opt) => opt.value === form.watch("naturezaOperacao"),
     )?.label ?? "—";
 
-  const regimeLabel =
-    REGIME_ESPECIAL_OPTIONS.find(
-      (opt) => opt.value === form.watch("regimeEspecialTributacao"),
-    )?.label ?? "Nenhum";
+  const regimeEspecialValue = form.watch("regimeEspecialTributacao");
+  const regimeEspecialLabel =
+    !regimeEspecialValue || regimeEspecialValue === REGIME_PROFILE_DEFAULT
+      ? "Padrão do perfil"
+      : (REGIME_ESPECIAL_OPTIONS.find(
+          (opt) => opt.value === regimeEspecialValue,
+        )?.label ?? regimeEspecialValue);
 
   const values = form.getValues();
 
@@ -527,8 +593,7 @@ export function IssueInvoiceDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="size-5 text-[#7C3AED]" />
-            Emitir NFS-e {isNacional ? "Nacional " : ""}— Contrato #
-            {String(contractNumber).padStart(4, "0")}
+            Emitir NFS-e — Contrato #{String(contractNumber).padStart(4, "0")}
           </DialogTitle>
           <p className="text-xs text-muted-foreground pt-0.5">
             {step === "form"
@@ -553,25 +618,18 @@ export function IssueInvoiceDialog({
         {/* ── STEP 1: Formulário ─────────────────────────────────────── */}
         {step === "form" && (
           <form onSubmit={(e) => e.preventDefault()} className="space-y-5">
-            {/* Ambiente de emissão */}
+            {/* Ambiente de emissão — travado no ambiente da empresa na NFE.io */}
             <div className="space-y-2">
-              <Label>Tipo de nota</Label>
-              <RadioGroup
-                value={environment}
-                onValueChange={(v) =>
-                  form.setValue("environment", v as "HOMOLOGACAO" | "PRODUCAO")
-                }
-                className="flex gap-4"
-              >
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="HOMOLOGACAO" id="env-homologacao" />
-                  <Label htmlFor="env-homologacao">Homologação</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="PRODUCAO" id="env-producao" />
-                  <Label htmlFor="env-producao">Produção (fiscal)</Label>
-                </div>
-              </RadioGroup>
+              <Label>Ambiente</Label>
+              <p className="text-sm font-medium">
+                {environment === "PRODUCAO"
+                  ? "Produção (fiscal)"
+                  : "Homologação"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Definido pelo ambiente cadastrado da empresa na NFE.io — altere
+                no perfil fiscal se precisar mudar.
+              </p>
               {environment === "PRODUCAO" && (
                 <p className="text-xs text-amber-600 font-medium">
                   Atenção: notas em produção têm validade fiscal real.
@@ -665,9 +723,8 @@ export function IssueInvoiceDialog({
                 />
                 {!requiresTomadorEndereco && (
                   <p className="sm:col-span-2 text-xs text-muted-foreground">
-                    {isNacional
-                      ? "NFS-e Nacional: o endereço do tomador não é obrigatório, mas pode ser preenchido."
-                      : "Seu município não exige o endereço do tomador, mas você pode preenchê-lo."}
+                    Seu município não exige o endereço do tomador, mas você
+                    pode preenchê-lo.
                   </p>
                 )}
               </div>
@@ -704,9 +761,8 @@ export function IssueInvoiceDialog({
                 />
                 {!requiresTomadorEndereco && (
                   <p className="sm:col-span-2 text-xs text-muted-foreground">
-                    {isNacional
-                      ? "NFS-e Nacional: o endereço do tomador não é obrigatório, mas pode ser preenchido."
-                      : "Seu município não exige o endereço do tomador, mas você pode preenchê-lo."}
+                    Seu município não exige o endereço do tomador, mas você
+                    pode preenchê-lo.
                   </p>
                 )}
               </div>
@@ -755,13 +811,55 @@ export function IssueInvoiceDialog({
               <CollapsibleContent className="pt-4 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
+                    <Label>Código de Serviço Municipal</Label>
+                    <Input
+                      {...form.register("cityServiceCode")}
+                      placeholder={
+                        profile?.defaultCityServiceCode || "Padrão do perfil"
+                      }
+                    />
+                    <FieldError message={formErrors.cityServiceCode?.message} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Tipo de Tributação</Label>
+                    <Controller
+                      control={form.control}
+                      name="taxationType"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value ?? "WithinCity"}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TAXATION_TYPE_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Dados fiscais da nota
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
                     <Label>Natureza da Operação</Label>
                     <Controller
                       control={form.control}
                       name="naturezaOperacao"
                       render={({ field }) => (
                         <Select
-                          value={field.value}
+                          value={field.value ?? "1"}
                           onValueChange={field.onChange}
                         >
                           <SelectTrigger>
@@ -785,17 +883,15 @@ export function IssueInvoiceDialog({
                       name="regimeEspecialTributacao"
                       render={({ field }) => (
                         <Select
-                          value={field.value ?? "_none"}
-                          onValueChange={(v) =>
-                            field.onChange(v === "_none" ? undefined : v)
-                          }
+                          value={field.value ?? REGIME_PROFILE_DEFAULT}
+                          onValueChange={field.onChange}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Nenhum (padrão do perfil)" />
+                            <SelectValue placeholder="Selecione..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="_none">
-                              Nenhum (padrão do perfil)
+                            <SelectItem value={REGIME_PROFILE_DEFAULT}>
+                              Padrão do perfil
                             </SelectItem>
                             {REGIME_ESPECIAL_OPTIONS.map((opt) => (
                               <SelectItem key={opt.value} value={opt.value}>
@@ -809,57 +905,141 @@ export function IssueInvoiceDialog({
                   </div>
                 </div>
 
-                {isNacional && (
-                  <>
-                    <Separator />
+                <Separator />
 
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Reforma Tributária (IBS/CBS)
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label>Situação Tributária (CST)</Label>
-                        <Input
-                          {...form.register("ibsCbsSituacaoTributaria")}
-                          inputMode="numeric"
-                          placeholder="Padrão do perfil"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Classificação Tributária (cClassTrib)</Label>
-                        <Input
-                          {...form.register("ibsCbsClassificacaoTributaria")}
-                          inputMode="numeric"
-                          placeholder="Padrão do perfil"
-                        />
-                      </div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Reforma tributária (IBS/CBS)
+                </p>
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Aplicável à NFS-e nacional. Deixe em branco para usar o padrão
+                  do perfil fiscal.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Situação Tributária (CST)</Label>
+                    <Input
+                      {...form.register("ibsCbsSituacaoTributaria")}
+                      placeholder={
+                        profile?.ibsCbsSituacaoTributaria ?? "Ex.: 000"
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Classificação Tributária</Label>
+                    <Input
+                      {...form.register("ibsCbsClassificacaoTributaria")}
+                      placeholder={
+                        profile?.ibsCbsClassificacaoTributaria ?? "Ex.: 000001"
+                      }
+                    />
+                  </div>
+                  <div className="sm:col-span-2 flex items-center justify-between rounded-lg border px-4 py-2.5">
+                    <div className="space-y-0.5">
+                      <Label>Consumidor final</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Marque quando o tomador é o consumidor final do serviço.
+                      </p>
                     </div>
-                    <div className="flex items-center justify-between rounded-md border p-3">
-                      <div className="space-y-0.5">
-                        <Label>Consumidor final</Label>
-                        <p className="text-xs text-muted-foreground">
-                          Marque quando o tomador é consumidor final do serviço.
-                        </p>
-                      </div>
-                      <Controller
-                        control={form.control}
-                        name="consumidorFinal"
-                        render={({ field }) => (
-                          <Switch
-                            checked={field.value ?? false}
-                            onCheckedChange={field.onChange}
-                          />
-                        )}
+                    <Controller
+                      control={form.control}
+                      name="consumidorFinal"
+                      render={({ field }) => (
+                        <Switch
+                          checked={field.value ?? false}
+                          onCheckedChange={field.onChange}
+                        />
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Retenções, deduções e descontos
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    % sobre o valor do serviço
+                  </p>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border px-4 py-2.5">
+                  <div className="space-y-0.5">
+                    <Label>ISS retido na fonte</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Retém o ISS na nota (valor calculado pela alíquota).
+                    </p>
+                  </div>
+                  <Controller
+                    control={form.control}
+                    name="issRetido"
+                    render={({ field }) => (
+                      <Switch
+                        checked={field.value ?? false}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {(
+                    [
+                      { name: "irPercent", label: "IR (%)" },
+                      { name: "pisPercent", label: "PIS (%)" },
+                      { name: "cofinsPercent", label: "COFINS (%)" },
+                      { name: "csllPercent", label: "CSLL (%)" },
+                      { name: "inssPercent", label: "INSS (%)" },
+                      { name: "outrasRetencoesPercent", label: "Outras ret. (%)" },
+                      { name: "deducoesPercent", label: "Deduções (%)" },
+                      {
+                        name: "descontoIncondicionadoPercent",
+                        label: "Desc. incond. (%)",
+                      },
+                      {
+                        name: "descontoCondicionadoPercent",
+                        label: "Desc. cond. (%)",
+                      },
+                    ] as const
+                  ).map((percentField) => (
+                    <div key={percentField.name} className="space-y-1.5">
+                      <Label className="text-xs">{percentField.label}</Label>
+                      <Input
+                        {...form.register(percentField.name)}
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        placeholder="0"
                       />
                     </div>
-                  </>
-                )}
+                  ))}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Informações adicionais</Label>
+                  <Textarea
+                    {...form.register("informacoesAdicionais")}
+                    placeholder={
+                      profile?.defaultInformacoesAdicionais ??
+                      "Texto livre impresso na nota (opcional)..."
+                    }
+                    rows={2}
+                  />
+                </div>
 
                 <Separator />
 
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Contato do tomador
                 </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Inscrição Municipal do tomador</Label>
+                    <Input
+                      {...form.register("tomadorInscricaoMunicipal")}
+                      placeholder="IM do tomador (opcional)"
+                    />
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label>E-mail</Label>
@@ -1004,16 +1184,35 @@ export function IssueInvoiceDialog({
                     value={profile?.defaultIssRetido ? "Sim" : "Não"}
                   />
                   <PreviewRow
-                    label="Item lista serviço"
-                    value={profile?.defaultItemListaServico ?? undefined}
+                    label="Código de serviço municipal"
+                    value={values.cityServiceCode || profile?.defaultCityServiceCode}
                   />
                 </div>
                 <div>
                   <PreviewRow
-                    label="Natureza da Operação"
-                    value={naturezaLabel}
+                    label="Tipo de Tributação"
+                    value={taxationTypeLabel}
                   />
-                  <PreviewRow label="Regime Especial" value={regimeLabel} />
+                  <PreviewRow
+                    label="Natureza da Operação"
+                    value={naturezaOperacaoLabel}
+                  />
+                  <PreviewRow
+                    label="Regime Especial"
+                    value={regimeEspecialLabel}
+                  />
+                  {values.ibsCbsSituacaoTributaria && (
+                    <PreviewRow
+                      label="CST (IBS/CBS)"
+                      value={values.ibsCbsSituacaoTributaria}
+                    />
+                  )}
+                  {values.ibsCbsClassificacaoTributaria && (
+                    <PreviewRow
+                      label="Classif. Trib."
+                      value={values.ibsCbsClassificacaoTributaria}
+                    />
+                  )}
                   <PreviewRow
                     label="Ambiente"
                     value={

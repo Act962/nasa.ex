@@ -45,3 +45,17 @@ export const REGIME_ESPECIAL_OPTIONS = [
   { value: "5", label: "5 – Microempresário individual (MEI)" },
   { value: "6", label: "6 – Microempresário e EPP (ME EPP)" },
 ] as const;
+
+// taxationType do ServiceInvoice na NFE.io (enum da API).
+export const TAXATION_TYPE_OPTIONS = [
+  { value: "WithinCity", label: "Tributado no município" },
+  { value: "OutsideCity", label: "Tributado fora do município" },
+  { value: "Export", label: "Exportação de serviço" },
+  { value: "Free", label: "Isento" },
+  { value: "Immune", label: "Imune" },
+  { value: "SuspendedCourtDecision", label: "Suspenso por decisão judicial" },
+  {
+    value: "SuspendedAdministrativeProcedure",
+    label: "Suspenso por processo administrativo",
+  },
+] as const;

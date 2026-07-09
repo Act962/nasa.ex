@@ -3,10 +3,9 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { NfeError } from "nfe-io";
 import { FocusNfeHttpError } from "@/http/focus-nfe/client";
-import type { FiscalEnvironment } from "@/generated/prisma/enums";
-import { resolveNfseProviderByInvoiceType } from "@/features/fiscal/lib/providers/resolve-nfse-provider";
-import { resolveCompanyToken } from "./utils";
+import { resolveGatewayForInvoice } from "@/features/fiscal/lib/gateways";
 
 export const cancelFiscalInvoice = base
   .use(requiredAuthMiddleware)
@@ -19,6 +18,7 @@ export const cancelFiscalInvoice = base
     try {
       invoice = await prisma.fiscalInvoice.findUnique({
         where: { id: input.id, organizationId: context.org.id },
+        include: { profile: true },
       });
     } catch (err) {
       console.error("[fiscal/invoices/cancel] erro ao buscar nota fiscal:", err);
@@ -32,54 +32,39 @@ export const cancelFiscalInvoice = base
       });
     }
 
-    const cancelEnvironment = invoice.environment as FiscalEnvironment;
-
-    let cancelProfile;
-    try {
-      cancelProfile = await prisma.fiscalCompanyProfile.findUnique({
-        where: { organizationId: context.org.id },
-        select: { focusTokenHomologacao: true, focusTokenProducao: true },
-      });
-    } catch (err) {
-      console.error("[fiscal/invoices/cancel] erro ao buscar perfil fiscal:", err);
-      throw errors.INTERNAL_SERVER_ERROR;
-    }
-    if (!cancelProfile) throw errors.INTERNAL_SERVER_ERROR;
-
-    let cancelToken;
-    try {
-      cancelToken = resolveCompanyToken(cancelProfile, cancelEnvironment);
-    } catch (err) {
-      console.error("[fiscal/invoices/cancel] erro ao resolver token Focus NFe:", err);
-      throw errors.BAD_REQUEST({
-        message: err instanceof Error ? err.message : "Token Focus NFe não configurado",
-      });
-    }
-
-    const provider = resolveNfseProviderByInvoiceType(invoice.type);
+    const gateway = resolveGatewayForInvoice(invoice);
 
     try {
-      await provider.cancelar(
-        invoice.ref,
+      await gateway.cancelInvoice(
+        { invoice, profile: invoice.profile },
         input.justificativa,
-        cancelEnvironment,
-        cancelToken,
       );
     } catch (err) {
-      console.error("[fiscal/invoices/cancel] erro ao cancelar na Focus NFe:", err);
+      console.error(
+        "[fiscal/invoices/cancel] erro ao cancelar no gateway:",
+        err,
+      );
       if (err instanceof FocusNfeHttpError) {
         throw errors.BAD_REQUEST({ message: `Focus NFe: ${err.message}` });
+      }
+      if (err instanceof NfeError) {
+        throw errors.BAD_REQUEST({ message: `NFE.io: ${err.message}` });
       }
       throw errors.INTERNAL_SERVER_ERROR;
     }
 
+    // NFE.io cancela de forma assíncrona (WaitingSendCancel → Cancelled); o
+    // webhook/refresh confirma. Marcamos CANCELADO otimista como no fluxo Focus.
     try {
       await prisma.fiscalInvoice.update({
         where: { id: invoice.id },
         data: { status: "CANCELADO" },
       });
     } catch (err) {
-      console.error("[fiscal/invoices/cancel] erro ao atualizar status no banco:", err);
+      console.error(
+        "[fiscal/invoices/cancel] erro ao atualizar status no banco:",
+        err,
+      );
       throw errors.INTERNAL_SERVER_ERROR;
     }
 
