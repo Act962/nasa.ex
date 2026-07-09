@@ -30,6 +30,7 @@ export const listRecipients = base
         name: true,
         phone: true,
         status: true,
+        errorCode: true,
         errorMessage: true,
         sentAt: true,
         deliveredAt: true,

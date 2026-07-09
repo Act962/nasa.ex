@@ -10,10 +10,14 @@ export const useBroadcasts = () => {
   return useQuery(orpc.campanhas.list.queryOptions());
 };
 
-export const useBroadcast = (id: string, options?: { enabled?: boolean }) => {
+export const useBroadcast = (
+  id: string,
+  options?: { enabled?: boolean; refetchInterval?: number | false },
+) => {
   return useQuery({
     ...orpc.campanhas.get.queryOptions({ input: { id } }),
     enabled: options?.enabled ?? true,
+    refetchInterval: options?.refetchInterval,
   });
 };
 
@@ -47,6 +51,47 @@ export const useDeleteBroadcast = () => {
   return useMutation(
     orpc.campanhas.delete.mutationOptions({
       onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: orpc.campanhas.list.key() });
+      },
+    }),
+  );
+};
+
+export const useSetBroadcastTemplate = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.campanhas.setTemplate.mutationOptions({
+      onSuccess: (updated) => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.campanhas.get.key({ input: { id: updated.id } }),
+        });
+      },
+    }),
+  );
+};
+
+export const useSendBroadcast = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.campanhas.send.mutationOptions({
+      onSuccess: (updated) => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.campanhas.get.key({ input: { id: updated.id } }),
+        });
+        queryClient.invalidateQueries({ queryKey: orpc.campanhas.list.key() });
+      },
+    }),
+  );
+};
+
+export const useReopenBroadcast = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.campanhas.reopen.mutationOptions({
+      onSuccess: (updated) => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.campanhas.get.key({ input: { id: updated.id } }),
+        });
         queryClient.invalidateQueries({ queryKey: orpc.campanhas.list.key() });
       },
     }),

@@ -2297,6 +2297,14 @@ enum BroadcastRecipientStatus {
   SKIPPED
 }
 
+// Categoria do template Meta usado num broadcast. Espelha as categorias da
+// Cloud API; AUTHENTICATION ainda não tem builder próprio, mas fica reservada.
+enum WhatsAppTemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
 model Broadcast {
   id             String          @id @default(cuid())
   name           String
@@ -2306,9 +2314,10 @@ model Broadcast {
   status         BroadcastStatus @default(DRAFT)
 
   // Template (preenchido na Fase 2/3 — nullable na Fase 1)
-  templateName      String? @map("template_name")
-  templateLanguage  String? @map("template_language")
-  templateVariables Json?   @map("template_variables") // config de mapeamento var→campo
+  templateName      String?           @map("template_name")
+  templateLanguage  String?           @map("template_language")
+  templateCategory  WhatsAppTemplateCategory? @map("template_category") // define o endpoint de envio (marketing vs messages)
+  templateVariables Json?             @map("template_variables") // config de mapeamento var→campo
 
   // Agendamento (Fase 4 — colunas já existem, inertes na Fase 1)
   scheduledAt DateTime? @map("scheduled_at")

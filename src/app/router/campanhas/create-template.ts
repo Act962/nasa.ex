@@ -11,10 +11,16 @@ import {
 } from "@/features/campanhas/lib/build-template-components";
 
 /**
- * Cria um template de **marketing** na WABA do número de origem e o envia pra
- * análise da Meta (fica `PENDING` até aprovação). Só monta/valida/persiste na
- * Meta — não dispara nada. O disparo em massa entra na Fase 3.
+ * Cria um template de **marketing** ou **utilidade** na WABA do número de origem
+ * e o envia pra análise da Meta (fica `PENDING` até aprovação). Só
+ * monta/valida/persiste na Meta — não dispara nada. O disparo em massa entra na
+ * Fase 3.
  */
+const CATEGORY_LABEL: Record<"MARKETING" | "UTILITY", string> = {
+  MARKETING: "marketing",
+  UTILITY: "utilidade",
+};
+
 export const createTemplate = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
@@ -47,7 +53,7 @@ export const createTemplate = base
       userImage: user.image,
       appSlug: "campanhas",
       action: "broadcast_template.created",
-      actionLabel: `Criou um modelo de marketing (${template.name})`,
+      actionLabel: `Criou um modelo de ${CATEGORY_LABEL[template.category]} (${template.name})`,
       resource: "broadcast_template",
       resourceId: created.id,
       metadata: {

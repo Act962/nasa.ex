@@ -1,5 +1,6 @@
 import { SidebarInset } from "@/components/ui/sidebar";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
+import { CampanhasShell, CampanhasContent } from "@/features/campanhas/components/campanhas-shell";
 import { NewTemplateView } from "@/features/campanhas/components/templates/new-template-view";
 
 type NewTemplatePageProps = {
@@ -12,11 +13,13 @@ export default async function NewCampanhaTemplatePage({
   const { trackingId } = await searchParams;
 
   return (
-    <SidebarInset className="min-h-full pb-8">
+    <SidebarInset className="min-h-full">
       <HeaderTracking title="Campanhas" />
-      <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8">
-        <NewTemplateView trackingId={trackingId} />
-      </div>
+      <CampanhasShell>
+        <CampanhasContent>
+          <NewTemplateView trackingId={trackingId} />
+        </CampanhasContent>
+      </CampanhasShell>
     </SidebarInset>
   );
 }

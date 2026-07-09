@@ -81,3 +81,90 @@ export const removeRecipientSchema = z.object({
   recipientId: z.string().min(1),
 });
 export type RemoveRecipientInput = z.infer<typeof removeRecipientSchema>;
+
+/**
+ * Origem do valor de uma variável `{{n}}` do template, resolvida por
+ * destinatário no momento do disparo:
+ *  - `static`        → texto fixo igual pra todos (`value`)
+ *  - `recipientName` → nome do destinatário (fallback `value` se vazio)
+ *  - `recipientPhone`→ telefone do destinatário
+ *  - `customField`   → chave em `BroadcastRecipient.variables` (`value` = chave)
+ */
+export const broadcastTemplateParamSchema = z.object({
+  source: z.enum(["static", "recipientName", "recipientPhone", "customField"]),
+  value: z.string().default(""),
+});
+export type BroadcastTemplateParam = z.infer<typeof broadcastTemplateParamSchema>;
+
+/** Mapa var→origem persistido em `Broadcast.templateVariables`. */
+export const broadcastTemplateMappingSchema = z.object({
+  header: z.array(broadcastTemplateParamSchema).default([]),
+  body: z.array(broadcastTemplateParamSchema).default([]),
+});
+export type BroadcastTemplateMapping = z.infer<
+  typeof broadcastTemplateMappingSchema
+>;
+
+export const setBroadcastTemplateSchema = z.object({
+  broadcastId: z.string().min(1),
+  templateName: z.string().min(1),
+  templateLanguage: z.string().min(1),
+  templateCategory: z.enum(["MARKETING", "UTILITY", "AUTHENTICATION"]),
+  mapping: broadcastTemplateMappingSchema.default({ header: [], body: [] }),
+});
+export type SetBroadcastTemplateInput = z.infer<
+  typeof setBroadcastTemplateSchema
+>;
+
+export const sendBroadcastSchema = z.object({
+  broadcastId: z.string().min(1),
+});
+export type SendBroadcastInput = z.infer<typeof sendBroadcastSchema>;
+
+export const reopenBroadcastSchema = z.object({
+  broadcastId: z.string().min(1),
+});
+export type ReopenBroadcastInput = z.infer<typeof reopenBroadcastSchema>;
+
+/**
+ * Filtros da base unificada de contatos (Campanhas → Contatos). Cross-tracking:
+ * `trackingId` é opcional (omitido = todos os trackings da org).
+ */
+export const contactFiltersSchema = z.object({
+  trackingId: z.string().optional(),
+  statusIds: z.array(z.string()).optional(),
+  tagsFilter: z.array(z.string()).optional(),
+  temperatureFilter: z
+    .array(z.enum(["COLD", "WARM", "HOT", "VERY_HOT"]))
+    .optional(),
+  actionFilter: z.enum(["ACTIVE", "WON", "LOST"]).optional(),
+  participantFilter: z.string().optional(),
+  dateInit: z.string().optional(),
+  dateEnd: z.string().optional(),
+  search: z.string().trim().optional(),
+});
+export type ContactFiltersInput = z.infer<typeof contactFiltersSchema>;
+
+export const listContactsSchema = contactFiltersSchema.extend({
+  page: z.number().min(0).default(0),
+  pageSize: z.number().min(1).max(100).default(30),
+});
+export type ListContactsInput = z.infer<typeof listContactsSchema>;
+
+/**
+ * Atrela contatos a uma campanha como destinatários. Ou uma seleção explícita
+ * (`leadIds`) ou "todos os que casam com o filtro" (`allMatching`).
+ */
+export const addRecipientsFromContactsSchema = z
+  .object({
+    broadcastId: z.string().min(1),
+    leadIds: z.array(z.string()).optional(),
+    allMatching: contactFiltersSchema.optional(),
+  })
+  .refine(
+    (value) => (value.leadIds && value.leadIds.length > 0) || value.allMatching,
+    { message: "Selecione contatos ou use 'todos que casam com o filtro'." },
+  );
+export type AddRecipientsFromContactsInput = z.infer<
+  typeof addRecipientsFromContactsSchema
+>;

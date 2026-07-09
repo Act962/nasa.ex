@@ -1,94 +1,106 @@
 "use client";
 
 import Link from "next/link";
-import { Send, Users } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ChevronRight, Send, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useBroadcasts } from "../hooks/use-broadcasts";
-import { BROADCAST_STATUS_LABEL } from "../lib/broadcast-status";
+import {
+  BROADCAST_STATUS_LABEL,
+  BROADCAST_STATUS_STYLE,
+} from "../lib/broadcast-status";
+import { PageHeader } from "./page-header";
 import { CreateBroadcastDialog } from "./create-broadcast-dialog";
-import { CampanhasNav } from "./campanhas-nav";
+
+function StatusPill({ status }: { status: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        BROADCAST_STATUS_STYLE[status] ?? "bg-muted text-muted-foreground",
+      )}
+    >
+      {BROADCAST_STATUS_LABEL[status] ?? status}
+    </span>
+  );
+}
 
 export function BroadcastsList() {
   const { data: broadcasts, isLoading } = useBroadcasts();
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8">
-      <CampanhasNav />
-      <div className="mb-6 mt-6 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold">
-            <Send className="size-5" /> Campanhas
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Disparos em massa via WhatsApp API Oficial.
-          </p>
-        </div>
-        <CreateBroadcastDialog />
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        icon={Send}
+        title="Campanhas"
+        description="Disparos em massa via WhatsApp API Oficial."
+        action={<CreateBroadcastDialog />}
+      />
 
       {isLoading ? (
-        <div className="flex justify-center py-16">
+        <div className="flex justify-center py-20">
           <Spinner />
         </div>
       ) : !broadcasts || broadcasts.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed py-16 text-center">
-          <Users className="size-8 text-muted-foreground" />
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-20 text-center">
+          <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+            <Send className="size-5 text-muted-foreground" />
+          </div>
           <div>
             <p className="font-medium">Nenhuma campanha ainda</p>
-            <p className="text-sm text-muted-foreground">
-              Crie sua primeira campanha para montar uma audiência.
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Crie sua primeira campanha para montar uma audiência e disparar.
             </p>
           </div>
           <CreateBroadcastDialog />
         </div>
       ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Número</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Destinatários</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {broadcasts.map((broadcast) => (
-                <TableRow key={broadcast.id} className="cursor-pointer">
-                  <TableCell>
-                    <Link
-                      href={`/campanhas/${broadcast.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {broadcast.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
+        <div className="flex flex-col gap-2">
+          {broadcasts.map((broadcast) => {
+            const total = broadcast.totalRecipients;
+            const sent = broadcast.sentCount;
+            const progress = total > 0 ? Math.round((sent / total) * 100) : 0;
+            return (
+              <Link
+                key={broadcast.id}
+                href={`/campanhas/${broadcast.id}`}
+                className="group flex items-center gap-4 rounded-xl border bg-card p-4 transition-colors hover:border-foreground/20 hover:bg-accent/40"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-medium">{broadcast.name}</p>
+                    <StatusPill status={broadcast.status} />
+                  </div>
+                  <p className="mt-0.5 truncate text-sm text-muted-foreground">
                     {broadcast.tracking.name}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">
-                      {BROADCAST_STATUS_LABEL[broadcast.status] ??
-                        broadcast.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {broadcast.totalRecipients}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </p>
+                </div>
+
+                <div className="hidden w-40 shrink-0 sm:block">
+                  {total > 0 && (
+                    <>
+                      <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{progress}% enviado</span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-emerald-500 transition-all"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
+                  <Users className="size-4" />
+                  <span className="tabular-nums">{total}</span>
+                </div>
+
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

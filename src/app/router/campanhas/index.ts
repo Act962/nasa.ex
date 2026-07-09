@@ -11,11 +11,19 @@ import { removeRecipient } from "./remove-recipient";
 import { listTemplates } from "./list-templates";
 import { createTemplate } from "./create-template";
 import { uploadTemplateSample } from "./upload-template-sample";
+import { setTemplate } from "./set-template";
+import { send } from "./send";
+import { reopen } from "./reopen";
+import { listContacts } from "./list-contacts";
+import { contactFilterOptions } from "./contact-filter-options";
+import { addRecipientsFromContacts } from "./add-recipients-from-contacts";
+import { analytics } from "./analytics";
 
 /**
  * App "Campanhas" (disparos WhatsApp API Oficial).
  *  - Fase 1: fundação + audiência.
- *  - Fase 2: criação de templates de marketing (Meta).
+ *  - Fase 2: criação de templates de marketing/utilidade (Meta).
+ *  - Fase 3: anexar template + disparo ao vivo (`setTemplate`, `send`).
  * Ver `docs/campanhas-overview.md`.
  */
 export const campanhasRouter = {
@@ -32,4 +40,11 @@ export const campanhasRouter = {
   listTemplates,
   createTemplate,
   uploadTemplateSample,
+  setTemplate,
+  send,
+  reopen,
+  listContacts,
+  contactFilterOptions,
+  addRecipientsFromContacts,
+  analytics,
 };

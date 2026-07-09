@@ -49,7 +49,7 @@ export function NewTemplateView({ trackingId }: { trackingId?: string }) {
             <ArrowLeft className="size-4" /> Modelos
           </Link>
         </Button>
-        <h1 className="mt-1 text-2xl font-semibold">Novo modelo de marketing</h1>
+        <h1 className="mt-1 text-2xl font-semibold">Novo modelo</h1>
       </div>
       <TemplateBuilder trackingId={trackingId} trackingName={number.trackingName} />
     </div>

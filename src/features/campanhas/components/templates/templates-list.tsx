@@ -16,6 +16,7 @@ import {
 import { useSendingNumbers } from "../../hooks/use-sending-numbers";
 import { useTemplates } from "../../hooks/use-templates";
 import { languageLabel } from "../../lib/template-constants";
+import { PageHeader } from "../page-header";
 import { TemplateStatusBadge } from "./template-status-badge";
 
 export function TemplatesList({ initialTrackingId }: { initialTrackingId?: string }) {
@@ -29,23 +30,20 @@ export function TemplatesList({ initialTrackingId }: { initialTrackingId?: strin
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold">
-            <LayoutTemplate className="size-5" /> Modelos
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Modelos de marketing aprovados pela Meta para usar nos disparos.
-          </p>
-        </div>
-        {trackingId && (
-          <Button asChild>
-            <Link href={`/campanhas/templates/new?trackingId=${trackingId}`}>
-              <Plus className="size-4" /> Novo modelo
-            </Link>
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        icon={LayoutTemplate}
+        title="Modelos"
+        description="Templates de marketing e utilidade aprovados pela Meta."
+        action={
+          trackingId ? (
+            <Button asChild>
+              <Link href={`/campanhas/templates/new?trackingId=${trackingId}`}>
+                <Plus className="size-4" /> Novo modelo
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
 
       {hasNumbers && (
         <div className="flex items-center gap-2">
@@ -84,7 +82,8 @@ export function TemplatesList({ initialTrackingId }: { initialTrackingId?: strin
           <div>
             <p className="font-medium">Nenhum modelo ainda</p>
             <p className="text-sm text-muted-foreground">
-              Crie seu primeiro modelo de marketing para disparar campanhas.
+              Crie seu primeiro modelo de marketing ou utilidade para disparar
+              campanhas.
             </p>
           </div>
           <Button asChild>
@@ -102,7 +101,10 @@ export function TemplatesList({ initialTrackingId }: { initialTrackingId?: strin
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate font-medium">{template.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-medium">{template.name}</p>
+                    <CategoryBadge category={template.category} />
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     {languageLabel(template.language)}
                   </p>
@@ -126,6 +128,24 @@ export function TemplatesList({ initialTrackingId }: { initialTrackingId?: strin
         </div>
       )}
     </div>
+  );
+}
+
+function CategoryBadge({ category }: { category: string }) {
+  const label =
+    category === "MARKETING"
+      ? "Marketing"
+      : category === "UTILITY"
+        ? "Utilidade"
+        : category === "AUTHENTICATION"
+          ? "Autenticação"
+          : category;
+  const className =
+    category === "UTILITY"
+      ? "border-0 bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+      : "border-0 bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300";
+  return (
+    <Badge className={`shrink-0 text-[10px] ${className}`}>{label}</Badge>
   );
 }
 

@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -35,8 +36,10 @@ import {
 import {
   DEFAULT_TEMPLATE_LANGUAGE,
   HEADER_MEDIA_ACCEPT,
+  TEMPLATE_CATEGORIES,
   TEMPLATE_LANGUAGES,
   TEMPLATE_LIMITS,
+  type TemplateCategory,
 } from "../../lib/template-constants";
 import {
   countVariables,
@@ -106,6 +109,7 @@ export function TemplateBuilder({
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [category, setCategory] = useState<TemplateCategory>("MARKETING");
   const [name, setName] = useState("");
   const [language, setLanguage] = useState<string>(DEFAULT_TEMPLATE_LANGUAGE);
   const [header, setHeader] = useState<HeaderState>({ type: "NONE" });
@@ -210,13 +214,13 @@ export function TemplateBuilder({
     return {
       name,
       language,
-      category: "MARKETING",
+      category,
       header: schemaHeader,
       body: { text: bodyText, examples: bodyExamples },
       footer: footer.trim() || undefined,
       buttons: buttons.map((button) => ({ ...button })) as CreateTemplateInput["buttons"],
     };
-  }, [name, language, header, bodyText, bodyExamples, footer, buttons]);
+  }, [name, language, category, header, bodyText, bodyExamples, footer, buttons]);
 
   const validationErrors = useMemo(() => {
     const errors = validateTemplateInput(input);
@@ -280,18 +284,33 @@ export function TemplateBuilder({
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div className="flex flex-col gap-6">
         {/* Categoria + número */}
-        <section className="rounded-lg border p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className="border-0 bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
-              Marketing
-            </Badge>
+        <section className="flex flex-col gap-3 rounded-lg border p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Categoria</h2>
             <span className="text-sm text-muted-foreground">
               via {trackingName}
             </span>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Modelos de marketing servem pra promoções, ofertas e novidades.
-            Requer opt-in do contato e passa por análise da Meta.
+          <div className="grid grid-cols-2 gap-2">
+            {TEMPLATE_CATEGORIES.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setCategory(option.value)}
+                className={cn(
+                  "rounded-lg border p-3 text-left transition-colors",
+                  category === option.value
+                    ? "border-primary bg-primary/5 ring-1 ring-primary"
+                    : "hover:bg-muted/50",
+                )}
+              >
+                <span className="text-sm font-medium">{option.label}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {TEMPLATE_CATEGORIES.find((option) => option.value === category)
+              ?.description}
           </p>
         </section>
 

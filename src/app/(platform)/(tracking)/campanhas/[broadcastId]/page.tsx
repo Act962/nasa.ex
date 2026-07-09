@@ -1,5 +1,6 @@
 import { SidebarInset } from "@/components/ui/sidebar";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
+import { CampanhasShell, CampanhasContent } from "@/features/campanhas/components/campanhas-shell";
 import { BroadcastDetail } from "@/features/campanhas/components/broadcast-detail";
 
 export default async function BroadcastDetailPage({
@@ -9,9 +10,13 @@ export default async function BroadcastDetailPage({
 }) {
   const { broadcastId } = await params;
   return (
-    <SidebarInset className="min-h-full pb-8">
+    <SidebarInset className="min-h-full">
       <HeaderTracking title="Campanhas" />
-      <BroadcastDetail broadcastId={broadcastId} />
+      <CampanhasShell>
+        <CampanhasContent>
+          <BroadcastDetail broadcastId={broadcastId} />
+        </CampanhasContent>
+      </CampanhasShell>
     </SidebarInset>
   );
 }

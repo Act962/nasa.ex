@@ -7,9 +7,9 @@ import { listTemplatesSchema } from "@/features/campanhas/schema/template-schema
 import { resolveCampaignMetaCredentials } from "@/features/campanhas/server/lib/broadcast-access";
 
 /**
- * Lista os templates de **marketing** da WABA do número de origem — todos os
- * status (o recém-criado aparece como `PENDING`). Alimenta a tela de Modelos
- * do app de Campanhas.
+ * Lista os templates de **marketing** e **utilidade** da WABA do número de
+ * origem — todos os status (o recém-criado aparece como `PENDING`). Alimenta a
+ * tela de Modelos do app de Campanhas.
  */
 
 export interface CampaignTemplateSummary {
@@ -78,7 +78,10 @@ export const listTemplates = base
     );
 
     const templates = response.data
-      .filter((template) => template.category === "MARKETING")
+      .filter(
+        (template) =>
+          template.category === "MARKETING" || template.category === "UTILITY",
+      )
       .map(summarize);
 
     return { templates };

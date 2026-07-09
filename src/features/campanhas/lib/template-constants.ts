@@ -22,8 +22,9 @@ export const TEMPLATE_LIMITS = {
 } as const;
 
 /**
- * Só marketing nesta fase (decisão do dono). Utilidade/autenticação ficam
- * pra depois — o enum já existe pra não reescrever o contrato quando entrarem.
+ * Marketing + Utilidade. Autenticação fica pra depois — o contrato já aceita
+ * novas categorias sem reescrever. Utilidade tem regras de conteúdo estritas:
+ * material promocional faz a Meta re-categorizar como marketing.
  */
 export const TEMPLATE_CATEGORIES = [
   {
@@ -32,7 +33,15 @@ export const TEMPLATE_CATEGORIES = [
     description:
       "Promoções, ofertas, novidades e anúncios. Requer opt-in do contato.",
   },
+  {
+    value: "UTILITY",
+    label: "Utilidade",
+    description:
+      "Mensagens sobre uma conta ou pedido existente: confirmações, status, recibos e lembretes. Não pode ter material promocional.",
+  },
 ] as const;
+
+export type TemplateCategory = (typeof TEMPLATE_CATEGORIES)[number]["value"];
 
 /** Idiomas mais usados no WhatsApp — `pt_BR` primeiro (default do produto). */
 export const TEMPLATE_LANGUAGES = [

@@ -4,6 +4,9 @@ CREATE TYPE "BroadcastStatus" AS ENUM ('DRAFT', 'SCHEDULED', 'SENDING', 'SENT', 
 -- CreateEnum
 CREATE TYPE "BroadcastRecipientStatus" AS ENUM ('PENDING', 'QUEUED', 'SENT', 'DELIVERED', 'READ', 'FAILED', 'SKIPPED');
 
+-- CreateEnum
+CREATE TYPE "WhatsAppTemplateCategory" AS ENUM ('MARKETING', 'UTILITY', 'AUTHENTICATION');
+
 -- CreateTable
 CREATE TABLE "broadcasts" (
     "id" TEXT NOT NULL,
@@ -14,6 +17,7 @@ CREATE TABLE "broadcasts" (
     "status" "BroadcastStatus" NOT NULL DEFAULT 'DRAFT',
     "template_name" TEXT,
     "template_language" TEXT,
+    "template_category" "WhatsAppTemplateCategory",
     "template_variables" JSONB,
     "scheduled_at" TIMESTAMP(3),
     "started_at" TIMESTAMP(3),

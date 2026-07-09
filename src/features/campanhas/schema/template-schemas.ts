@@ -67,7 +67,7 @@ export const templateButtonSchema = z.discriminatedUnion("type", [
 export const createTemplateInputSchema = z.object({
   name: templateNameSchema,
   language: z.string().min(1),
-  category: z.literal("MARKETING"),
+  category: z.enum(["MARKETING", "UTILITY"]),
   header: templateHeaderSchema.default({ type: "NONE" }),
   body: templateBodySchema,
   footer: z.string().max(TEMPLATE_LIMITS.footerText).optional(),

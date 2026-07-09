@@ -74,6 +74,8 @@ import {
 // ── NASA Payment Fase 2 (governança + cobrança event-driven) ──
 import { paymentDunningFire }      from "@/inngest/functions/payment/dunning-fire";
 import { paymentApprovalReminder } from "@/inngest/functions/payment/approval-reminder";
+// ── Campanhas (disparo em massa WhatsApp Oficial — Fase 3) ──
+import { dispatchBroadcast } from "@/inngest/functions/campanhas/dispatch-broadcast";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -153,6 +155,8 @@ export const { GET, POST, PUT } = serve({
     // ── NASA Payment Fase 2 — event-driven, sem cron ──
     paymentDunningFire,
     paymentApprovalReminder,
+    // ── Campanhas — disparo em massa (Fase 3) ──
+    dispatchBroadcast,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

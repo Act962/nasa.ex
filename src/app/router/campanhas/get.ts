@@ -22,6 +22,8 @@ export const get = base
         trackingId: true,
         templateName: true,
         templateLanguage: true,
+        templateCategory: true,
+        templateVariables: true,
         scheduledAt: true,
         startedAt: true,
         completedAt: true,

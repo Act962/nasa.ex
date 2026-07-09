@@ -43,7 +43,8 @@ export function RecipientsTable({ broadcastId }: { broadcastId: string }) {
   if (recipients.length === 0) {
     return (
       <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
-        Nenhum destinatário ainda. Adicione via aba Leads ou CSV.
+        Nenhum destinatário ainda. Vá em Contatos, selecione os leads e atrele a
+        esta campanha.
       </div>
     );
   }
@@ -78,10 +79,28 @@ export function RecipientsTable({ broadcastId }: { broadcastId: string }) {
                   {phoneMaskFull(recipient.phone)}
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary">
-                    {RECIPIENT_STATUS_LABEL[recipient.status] ??
-                      recipient.status}
-                  </Badge>
+                  <div className="flex flex-col gap-1">
+                    <Badge
+                      variant={
+                        recipient.status === "FAILED"
+                          ? "destructive"
+                          : "secondary"
+                      }
+                      className="w-fit"
+                    >
+                      {RECIPIENT_STATUS_LABEL[recipient.status] ??
+                        recipient.status}
+                    </Badge>
+                    {recipient.errorMessage && (
+                      <span
+                        className="max-w-md text-xs text-red-600 dark:text-red-400"
+                        title={recipient.errorMessage}
+                      >
+                        {recipient.errorCode ? `[${recipient.errorCode}] ` : ""}
+                        {recipient.errorMessage}
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Button
