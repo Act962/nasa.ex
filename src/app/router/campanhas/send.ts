@@ -1,21 +1,18 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import prisma from "@/lib/prisma";
-import { inngest } from "@/inngest/client";
-import { getMessageTemplates } from "@/http/whats-oficial";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { sendBroadcastSchema } from "@/features/campanhas/schema/broadcast-schemas";
-import {
-  loadBroadcastForOrg,
-  resolveCampaignMetaCredentials,
-} from "@/features/campanhas/server/lib/broadcast-access";
+import { loadBroadcastForOrg } from "@/features/campanhas/server/lib/broadcast-access";
+import { assertBroadcastSendable } from "@/features/campanhas/server/lib/assert-broadcast-sendable";
+import { beginBroadcastDispatch } from "@/features/campanhas/server/lib/begin-broadcast-dispatch";
 
 /**
- * Dispara a campanha: valida rascunho + template aprovado + destinatários
- * pendentes, marca `SENDING` e delega o envio em massa ao handler Inngest
- * `campanhas/broadcast.send` (throttle + persistência de wamid). A procedure
- * não envia nada — só orquestra.
+ * Dispara a campanha AGORA: valida rascunho/agendada + template aprovado +
+ * destinatários pendentes, reivindica a campanha pra `SENDING` e delega o envio
+ * em massa ao handler Inngest `campanhas/broadcast.send`. Aceita `DRAFT` ou
+ * `SCHEDULED` (o "Disparar agora" antecipa um agendamento). A procedure não
+ * envia nada — só orquestra.
  */
 export const send = base
   .use(requiredAuthMiddleware)
@@ -25,57 +22,18 @@ export const send = base
     const { org, user } = context;
     const broadcast = await loadBroadcastForOrg(input.broadcastId, org.id);
 
-    if (broadcast.status !== "DRAFT") {
-      throw errors.BAD_REQUEST({
-        message: "Esta campanha já foi disparada ou não está em rascunho.",
-      });
-    }
-    if (!broadcast.templateName || !broadcast.templateLanguage || !broadcast.templateCategory) {
-      throw errors.BAD_REQUEST({
-        message: "Escolha um template antes de disparar.",
-      });
-    }
+    const pendingCount = await assertBroadcastSendable(broadcast, org.id);
 
-    const pendingCount = await prisma.broadcastRecipient.count({
-      where: { broadcastId: broadcast.id, status: "PENDING" },
+    const claimed = await beginBroadcastDispatch({
+      broadcastId: broadcast.id,
+      organizationId: org.id,
+      fromStatuses: ["DRAFT", "SCHEDULED"],
     });
-    if (pendingCount === 0) {
+    if (!claimed) {
       throw errors.BAD_REQUEST({
-        message: "Nenhum destinatário pendente para disparar.",
+        message: "Esta campanha já está sendo disparada.",
       });
     }
-
-    const credentials = await resolveCampaignMetaCredentials(
-      broadcast.trackingId,
-      org.id,
-    );
-    const { data: templates } = await getMessageTemplates(
-      credentials.accessToken,
-      credentials.wabaId,
-    );
-    const approved = templates.find(
-      (template) =>
-        template.name === broadcast.templateName &&
-        template.language === broadcast.templateLanguage &&
-        template.status === "APPROVED",
-    );
-    if (!approved) {
-      throw errors.BAD_REQUEST({
-        message:
-          "O template selecionado não está aprovado pela Meta. Aguarde a aprovação ou escolha outro.",
-      });
-    }
-
-    const updated = await prisma.broadcast.update({
-      where: { id: broadcast.id },
-      data: { status: "SENDING", startedAt: new Date() },
-      select: { id: true, status: true, startedAt: true },
-    });
-
-    await inngest.send({
-      name: "campanhas/broadcast.send",
-      data: { broadcastId: broadcast.id, organizationId: org.id },
-    });
 
     await logActivity({
       organizationId: org.id,
@@ -94,5 +52,5 @@ export const send = base
       },
     }).catch(() => {});
 
-    return updated;
+    return { id: broadcast.id, status: "SENDING" as const };
   });

@@ -121,6 +121,24 @@ export const sendBroadcastSchema = z.object({
 });
 export type SendBroadcastInput = z.infer<typeof sendBroadcastSchema>;
 
+/**
+ * Agendamento (Fase 4). `scheduledAt` é ISO-8601 (o client converte o
+ * `datetime-local` pra ISO). A validação de "futuro" é feita no server contra
+ * o relógio dele, não só no schema.
+ */
+export const scheduleBroadcastSchema = z.object({
+  broadcastId: z.string().min(1),
+  scheduledAt: z.string().datetime({ offset: true }),
+});
+export type ScheduleBroadcastInput = z.infer<typeof scheduleBroadcastSchema>;
+
+export const unscheduleBroadcastSchema = z.object({
+  broadcastId: z.string().min(1),
+});
+export type UnscheduleBroadcastInput = z.infer<
+  typeof unscheduleBroadcastSchema
+>;
+
 export const reopenBroadcastSchema = z.object({
   broadcastId: z.string().min(1),
 });

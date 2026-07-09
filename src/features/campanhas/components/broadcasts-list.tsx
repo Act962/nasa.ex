@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Send, Users } from "lucide-react";
+import { CalendarClock, ChevronRight, Send, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 import { useBroadcasts } from "../hooks/use-broadcasts";
@@ -71,8 +71,27 @@ export function BroadcastsList() {
                     <p className="truncate font-medium">{broadcast.name}</p>
                     <StatusPill status={broadcast.status} />
                   </div>
-                  <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                    {broadcast.tracking.name}
+                  <p className="mt-0.5 flex items-center gap-1.5 truncate text-sm text-muted-foreground">
+                    {broadcast.status === "SCHEDULED" && broadcast.scheduledAt ? (
+                      <>
+                        <CalendarClock className="size-3.5 shrink-0" />
+                        <span>
+                          {new Date(broadcast.scheduledAt).toLocaleString(
+                            "pt-BR",
+                            {
+                              day: "2-digit",
+                              month: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </span>
+                        <span aria-hidden>·</span>
+                        <span className="truncate">{broadcast.tracking.name}</span>
+                      </>
+                    ) : (
+                      broadcast.tracking.name
+                    )}
                   </p>
                 </div>
 

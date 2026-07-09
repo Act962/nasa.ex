@@ -1,6 +1,6 @@
 # App "Campanhas" (Disparos WhatsApp API Oficial) — Planejamento
 
-> Documento de planejamento do novo app de **campanhas de disparo em massa** via **API Oficial do WhatsApp (Meta Cloud API)**. Status: **Fases 1 + 2 + 3 implementadas (2026-07-08).** Criado em 2026-07-07.
+> Documento de planejamento do novo app de **campanhas de disparo em massa** via **API Oficial do WhatsApp (Meta Cloud API)**. Status: **Fases 1 + 2 + 3 implementadas (2026-07-08); Fase 4 (Agendamento) implementada (2026-07-09).** Criado em 2026-07-07.
 >
 > Base da integração Oficial já existente: ver [`docs/whatsapp-oficial-overview.md`](whatsapp-oficial-overview.md).
 
@@ -175,7 +175,7 @@ Fase 1 é **fundação + audiência** e é deliberadamente **inócua do ponto de
 
 - **Fase 2 — Criação de templates na Meta. ✅ Implementada (2026-07-08).** Builder de modelos de **marketing + utilidade** estilo Meta/ManyChat (form à esquerda + prévia WhatsApp ao vivo à direita). Ver §12.
 - **Fase 3 — Disparo ao vivo. ✅ Implementada (2026-07-08).** `campanhas.setTemplate`/`campanhas.send` → Inngest `campanhas/broadcast.send` (throttle por org, lotes duráveis, wamid/erro por destinatário, contadores recomputados), split de endpoint por categoria (marketing → `/marketing_messages`, utilidade → `/messages`) e extensão do webhook de status pra `BroadcastRecipient`. **Sem cobrança de Stars nesta fase** (adiado). Ver §13.
-- **Fase 4 — Agendamento.** Usa `scheduledAt` + cron scanner `dispatch-due-broadcasts.ts`.
+- **Fase 4 — Agendamento. ✅ Implementada (2026-07-09).** `campanhas.schedule`/`unschedule` gravam `scheduledAt` + status `SCHEDULED`; o cron `dispatch-due-broadcasts` (a cada minuto) reivindicação atômica → `SENDING` + evento Inngest. Ver §16.
 - **Fase 5 — Fundos/saldo.** Ler saldo (billing/credit-line API), alerta de saldo baixo (Inngest cron + notificação), atalho de recarga. **Depende dos docs de billing** (a enviar).
 
 ## 9. Verificação (Fase 1)
@@ -371,3 +371,46 @@ Fluxo de recuperação: campanha falhou → **Reabrir** (ou atrelar novos contat
 - `dispatch-broadcast` ganhou `onFailure`: se a função esgotar os retries, marca os destinatários pendentes como `FAILED` com `DISPATCH_FAILED` + motivo e finaliza o broadcast como `FAILED` — não fica preso em `SENDING`. (Se o Inngest não estiver rodando, o evento não é consumido: rode `pnpm inngest:dev`.)
 
 **9º dígito BR (deliverability).** Causa comum de falha: leads gravados como `55 + DDD + 8 dígitos` (sem o 9), que a Meta rejeita. `lib/whatsapp-phone.ts` (`toWhatsAppBrazilPhone`) insere o 9 em celulares BR sem ele (prefixo local 6–9); fixos, números que já têm o 9 e não-BR ficam intactos (idempotente, testado). Aplicado ao **atrelar** (`add-recipients-from-contacts` — armazenamento canônico) e no **envio** (`broadcast-sender` — rede de segurança pra destinatários gravados antes). Ex.: `558688923098 → 5586988923098`.
+
+## 16. Fase 4 — Agendamento (implementada 2026-07-09)
+
+Agenda o disparo de uma campanha para uma data/hora futura em vez de disparar na hora. Reaproveita a coluna `scheduledAt` e o status `SCHEDULED` já criados na Fase 1 — **sem migration**. Um cron do Inngest varre as campanhas cuja hora chegou e as coloca em disparo pelo mesmo caminho da Fase 3.
+
+### 16.1 Fluxo
+
+```
+Rascunho (DRAFT) + template + destinatários (Fases 1–3)
+  → "Agendar" (detalhe): escolhe data/hora → campanhas.schedule
+        valida igual ao disparo (template APROVADO + destinatários PENDING) + hora futura
+        → status SCHEDULED + scheduledAt (NÃO enfileira nada ainda)
+  → Cron dispatchDueBroadcasts (a cada minuto):
+        SELECT status=SCHEDULED AND scheduledAt <= now  (take 100)
+        para cada → beginBroadcastDispatch(fromStatuses:["SCHEDULED"])
+          updateMany guardado (SCHEDULED→SENDING) reivindica atomicamente (anti-duplo)
+          → inngest.send("campanhas/broadcast.send")  → mesmo dispatchBroadcast da Fase 3
+  → "Cancelar agendamento" → campanhas.unschedule (SCHEDULED→DRAFT, limpa scheduledAt)
+  → "Disparar agora" → campanhas.send (aceita DRAFT ou SCHEDULED — antecipa o agendamento)
+  → "Reagendar" → campanhas.schedule de novo (aceita SCHEDULED, troca a hora)
+```
+
+### 16.2 Arquivos
+
+| Arquivo | Papel |
+| --- | --- |
+| `schema/broadcast-schemas.ts` | `scheduleBroadcastSchema` (`scheduledAt` ISO), `unscheduleBroadcastSchema` |
+| `server/lib/assert-broadcast-sendable.ts` | validação compartilhada (rascunho/agendada + template aprovado + pendentes) — usada por `send` e `schedule` |
+| `server/lib/begin-broadcast-dispatch.ts` | `beginBroadcastDispatch` — transição atômica `→ SENDING` (updateMany guardado) + `inngest.send`, retorna se reivindicou |
+| `router/campanhas/schedule.ts` / `unschedule.ts` | procedures oRPC (agendar/reagendar / cancelar) |
+| `router/campanhas/send.ts` | refatorado: usa `assertBroadcastSendable` + `beginBroadcastDispatch`, aceita `DRAFT` **ou** `SCHEDULED` |
+| `inngest/functions/campanhas/dispatch-due-broadcasts.ts` | cron `* * * * *` — varre agendadas vencidas e dispara |
+| `hooks/use-broadcasts.ts` | `useScheduleBroadcast`, `useUnscheduleBroadcast` |
+| `components/broadcast-detail.tsx` | botão **Agendar** (rascunho); banner + **Disparar agora**/**Reagendar**/**Cancelar agendamento** (agendada); diálogo `datetime-local` |
+| `components/broadcasts-list.tsx` | card mostra a data agendada quando `SCHEDULED` |
+
+### 16.3 Decisões
+
+- **Sem migration.** `scheduledAt` e `SCHEDULED` já existiam (Fase 1, "colunas já existem, cautela"). Fase 4 é 100% código.
+- **Reivindicação atômica anti-duplo.** `beginBroadcastDispatch` faz `updateMany({ where:{ status:{ in:fromStatuses } }, data:{ status:"SENDING" } })` e só enfileira se `count===1`. Protege contra sobreposição de execuções do cron e contra "Disparar agora" concorrente com o cron.
+- **Validação no agendar (fail fast).** `schedule` roda a mesma checagem de aprovação Meta do `send`, evitando agendar um disparo que nasceria quebrado. O `dispatchBroadcast` (Fase 3) ainda revalida `status===SENDING` + campos do template.
+- **Cron de minuto.** Precisão de ~1 min (query leve, index em `status`). O evento só é consumido com o Inngest rodando (`pnpm inngest:dev`) — igual ao disparo imediato.
+- **Fuso local.** O `datetime-local` é interpretado no fuso do operador e convertido pra ISO (UTC) no client antes de enviar; o server valida "futuro" contra o próprio relógio.

@@ -84,6 +84,34 @@ export const useSendBroadcast = () => {
   );
 };
 
+export const useScheduleBroadcast = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.campanhas.schedule.mutationOptions({
+      onSuccess: (updated) => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.campanhas.get.key({ input: { id: updated.id } }),
+        });
+        queryClient.invalidateQueries({ queryKey: orpc.campanhas.list.key() });
+      },
+    }),
+  );
+};
+
+export const useUnscheduleBroadcast = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.campanhas.unschedule.mutationOptions({
+      onSuccess: (updated) => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.campanhas.get.key({ input: { id: updated.id } }),
+        });
+        queryClient.invalidateQueries({ queryKey: orpc.campanhas.list.key() });
+      },
+    }),
+  );
+};
+
 export const useReopenBroadcast = () => {
   const queryClient = useQueryClient();
   return useMutation(

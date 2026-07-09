@@ -13,6 +13,8 @@ import { createTemplate } from "./create-template";
 import { uploadTemplateSample } from "./upload-template-sample";
 import { setTemplate } from "./set-template";
 import { send } from "./send";
+import { schedule } from "./schedule";
+import { unschedule } from "./unschedule";
 import { reopen } from "./reopen";
 import { listContacts } from "./list-contacts";
 import { contactFilterOptions } from "./contact-filter-options";
@@ -42,6 +44,8 @@ export const campanhasRouter = {
   uploadTemplateSample,
   setTemplate,
   send,
+  schedule,
+  unschedule,
   reopen,
   listContacts,
   contactFilterOptions,

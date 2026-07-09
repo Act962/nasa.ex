@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  CalendarClock,
+  CalendarX,
   MoreVertical,
   Pencil,
   RotateCcw,
@@ -14,6 +16,12 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
@@ -47,12 +55,38 @@ import {
   useBroadcast,
   useDeleteBroadcast,
   useReopenBroadcast,
+  useScheduleBroadcast,
   useSendBroadcast,
+  useUnscheduleBroadcast,
   useUpdateBroadcast,
 } from "../hooks/use-broadcasts";
 import { BROADCAST_STATUS_LABEL } from "../lib/broadcast-status";
 import { RecipientsTable } from "./recipients-table";
 import { TemplateConfigTab } from "./template-config-tab";
+
+/** Date → valor de `<input type="time">` (HH:mm local). */
+function toTimeValue(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Combina a data escolhida no calendário com o horário "HH:mm". */
+function combineDateAndTime(date: Date, time: string): Date {
+  const [hours, minutes] = time.split(":").map(Number);
+  const result = new Date(date);
+  result.setHours(hours ?? 0, minutes ?? 0, 0, 0);
+  return result;
+}
+
+function formatScheduledAt(value: Date | string): string {
+  return new Date(value).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 function CounterCard({ label, value }: { label: string; value: number }) {
   return (
@@ -75,6 +109,8 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
   });
 
   const sendBroadcast = useSendBroadcast();
+  const scheduleBroadcast = useScheduleBroadcast();
+  const unscheduleBroadcast = useUnscheduleBroadcast();
   const updateBroadcast = useUpdateBroadcast();
   const deleteBroadcast = useDeleteBroadcast();
   const reopenBroadcast = useReopenBroadcast();
@@ -82,6 +118,10 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
   const [renameOpen, setRenameOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
+  const [scheduleTime, setScheduleTime] = useState("");
 
   if (isLoading) {
     return (
@@ -105,10 +145,10 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
   const number =
     broadcast.tracking.whatsappInstance?.phoneNumber ?? broadcast.tracking.name;
 
-  const canSend =
-    broadcast.status === "DRAFT" &&
-    Boolean(broadcast.templateName) &&
-    broadcast.totalRecipients > 0;
+  const isScheduled = broadcast.status === "SCHEDULED";
+  const isReady =
+    Boolean(broadcast.templateName) && broadcast.totalRecipients > 0;
+  const canSend = broadcast.status === "DRAFT" && isReady;
 
   function handleSend() {
     sendBroadcast.mutate(
@@ -116,6 +156,47 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
       {
         onSuccess: () => toast.success("Disparo iniciado."),
         onError: (error) => toast.error(error.message ?? "Falha ao disparar."),
+      },
+    );
+  }
+
+  function openSchedule() {
+    if (!broadcast) return;
+    const suggestion = broadcast.scheduledAt
+      ? new Date(broadcast.scheduledAt)
+      : new Date(Date.now() + 60 * 60 * 1000);
+    setScheduleDate(suggestion);
+    setScheduleTime(toTimeValue(suggestion));
+    setScheduleOpen(true);
+  }
+
+  function handleSchedule() {
+    if (!scheduleDate || !scheduleTime) return;
+    const scheduledAt = combineDateAndTime(scheduleDate, scheduleTime);
+    if (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now()) {
+      toast.error("Escolha uma data e hora futura.");
+      return;
+    }
+    scheduleBroadcast.mutate(
+      { broadcastId, scheduledAt: scheduledAt.toISOString() },
+      {
+        onSuccess: () => {
+          toast.success("Campanha agendada.");
+          setScheduleOpen(false);
+        },
+        onError: (error) => toast.error(error.message ?? "Falha ao agendar."),
+      },
+    );
+  }
+
+  function handleUnschedule() {
+    unscheduleBroadcast.mutate(
+      { broadcastId },
+      {
+        onSuccess: () =>
+          toast.success("Agendamento cancelado. A campanha voltou a rascunho."),
+        onError: (error) =>
+          toast.error(error.message ?? "Falha ao cancelar o agendamento."),
       },
     );
   }
@@ -197,30 +278,83 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
           )}
 
           {broadcast.status === "DRAFT" && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button disabled={!canSend || sendBroadcast.isPending}>
-                  <Send className="size-4" /> Disparar
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Disparar campanha?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Serão enviadas mensagens para {broadcast.totalRecipients}{" "}
-                    destinatário(s) usando o modelo{" "}
-                    <strong>{broadcast.templateName}</strong>. Esta ação não
-                    pode ser desfeita.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleSend}>
-                    Disparar agora
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <>
+              <Button
+                variant="outline"
+                onClick={openSchedule}
+                disabled={!canSend || scheduleBroadcast.isPending}
+              >
+                <CalendarClock className="size-4" /> Agendar
+              </Button>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button disabled={!canSend || sendBroadcast.isPending}>
+                    <Send className="size-4" /> Disparar
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Disparar campanha?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Serão enviadas mensagens para {broadcast.totalRecipients}{" "}
+                      destinatário(s) usando o modelo{" "}
+                      <strong>{broadcast.templateName}</strong>. Esta ação não
+                      pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSend}>
+                      Disparar agora
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
+
+          {isScheduled && (
+            <>
+              <Button
+                variant="outline"
+                onClick={handleUnschedule}
+                disabled={unscheduleBroadcast.isPending}
+              >
+                <CalendarX className="size-4" /> Cancelar agendamento
+              </Button>
+              <Button
+                variant="outline"
+                onClick={openSchedule}
+                disabled={scheduleBroadcast.isPending}
+              >
+                <CalendarClock className="size-4" /> Reagendar
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button disabled={sendBroadcast.isPending}>
+                    <Send className="size-4" /> Disparar agora
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Disparar agora?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Isto antecipa o agendamento e envia já para{" "}
+                      {broadcast.totalRecipients} destinatário(s) usando o modelo{" "}
+                      <strong>{broadcast.templateName}</strong>. Esta ação não
+                      pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSend}>
+                      Disparar agora
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
           )}
 
           {isSending && (
@@ -259,6 +393,17 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
           Para disparar: escolha um modelo na aba{" "}
           <span className="font-medium text-foreground">Modelo</span> e adicione
           destinatários.
+        </p>
+      )}
+
+      {isScheduled && broadcast.scheduledAt && (
+        <p className="mb-6 flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+          <CalendarClock className="size-4 shrink-0" />
+          Disparo agendado para{" "}
+          <span className="font-medium">
+            {formatScheduledAt(broadcast.scheduledAt)}
+          </span>
+          . O envio inicia automaticamente na hora marcada.
         </p>
       )}
 
@@ -345,6 +490,97 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
               disabled={!nameDraft.trim() || updateBroadcast.isPending}
             >
               {updateBroadcast.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Agendar / Reagendar ── */}
+      <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {isScheduled ? "Reagendar disparo" : "Agendar disparo"}
+            </DialogTitle>
+            <DialogDescription>
+              A campanha será disparada automaticamente na data e hora
+              escolhidas (seu fuso local).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="schedule-date">Data e horário</Label>
+              <div className="flex gap-2">
+                <Popover
+                  open={datePopoverOpen}
+                  onOpenChange={setDatePopoverOpen}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="schedule-date"
+                      variant="outline"
+                      className="flex-1 justify-start gap-2 font-normal"
+                    >
+                      <CalendarClock className="size-4 text-muted-foreground" />
+                      {scheduleDate ? (
+                        scheduleDate.toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })
+                      ) : (
+                        <span className="text-muted-foreground">
+                          Escolha a data
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={scheduleDate}
+                      onSelect={(date) => {
+                        setScheduleDate(date);
+                        setDatePopoverOpen(false);
+                      }}
+                      disabled={{
+                        before: new Date(new Date().setHours(0, 0, 0, 0)),
+                      }}
+                      autoFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Input
+                  type="time"
+                  value={scheduleTime}
+                  onChange={(event) => setScheduleTime(event.target.value)}
+                  className="w-32"
+                  aria-label="Horário"
+                />
+              </div>
+            </div>
+            {scheduleDate && scheduleTime && (
+              <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+                Disparo em{" "}
+                <span className="font-medium text-foreground">
+                  {formatScheduledAt(
+                    combineDateAndTime(scheduleDate, scheduleTime),
+                  )}
+                </span>
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setScheduleOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSchedule}
+              disabled={
+                !scheduleDate || !scheduleTime || scheduleBroadcast.isPending
+              }
+            >
+              {scheduleBroadcast.isPending ? "Salvando…" : "Agendar"}
             </Button>
           </DialogFooter>
         </DialogContent>
