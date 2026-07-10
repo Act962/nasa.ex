@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { beginBroadcastDispatch } from "@/features/campanhas/server/lib/begin-broadcast-dispatch";
 
 /**
- * Scanner de campanhas agendadas (Fase 4). A cada minuto pega as campanhas
+ * Scanner de campanhas agendadas (Fase 4). A cada hora pega as campanhas
  * `SCHEDULED` cuja hora chegou (`scheduledAt <= agora`) e as coloca em disparo
  * (`SENDING` + evento `campanhas/broadcast.send`), reivindicando cada uma
  * atomicamente (`beginBroadcastDispatch`) pra evitar disparo duplo caso duas
@@ -11,7 +11,7 @@ import { beginBroadcastDispatch } from "@/features/campanhas/server/lib/begin-br
  */
 export const dispatchDueBroadcasts = inngest.createFunction(
   { id: "campanhas-dispatch-due-broadcasts", retries: 1 },
-  { cron: "* * * * *" },
+  { cron: "0 * * * *" },
   async ({ step }) => {
     const dueBroadcasts = await step.run("fetch-due-broadcasts", async () => {
       return prisma.broadcast.findMany({

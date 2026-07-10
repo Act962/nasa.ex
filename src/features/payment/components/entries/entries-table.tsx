@@ -37,9 +37,11 @@ import {
   Plus,
   Bell,
   History,
+  FileText,
 } from "lucide-react";
 import { DunningAssignDialog } from "../dunning/dunning-assign-dialog";
 import { DunningHistoryDrawer } from "../dunning/dunning-history-drawer";
+import { FiscalInvoiceCard } from "@/features/fiscal/components/fiscal-invoice-card";
 import {
   usePaymentEntries,
   useCreatePaymentEntry,
@@ -88,6 +90,8 @@ export function EntriesTable({ type }: EntriesTableProps) {
   // ── Dunning (Fase 2) — atribuir régua + ver histórico de execuções.
   const [assignDunning, setAssignDunning] = useState<{ id: string; ruleId: string | null; name: string } | null>(null);
   const [historyDunning, setHistoryDunning] = useState<{ id: string; name: string } | null>(null);
+  // Nota fiscal (NFS-e) — emissão/listagem a partir de um lançamento a receber.
+  const [fiscalEntry, setFiscalEntry] = useState<PaymentEntryRow | null>(null);
 
   const { data, isLoading } = usePaymentEntries({
     type,
@@ -294,6 +298,15 @@ export function EntriesTable({ type }: EntriesTableProps) {
                           <Pencil className="size-4 text-blue-400" />
                           Editar
                         </DropdownMenuItem>
+                        {entry.type === "RECEIVABLE" && entry.status !== "CANCELLED" && (
+                          <DropdownMenuItem
+                            onClick={() => setFiscalEntry(entry)}
+                            className="gap-2"
+                          >
+                            <FileText className="size-4 text-[#7C3AED]" />
+                            Notas fiscais (NFS-e)
+                          </DropdownMenuItem>
+                        )}
                         {entry.type === "RECEIVABLE" && (
                           <>
                             <DropdownMenuItem
@@ -438,6 +451,37 @@ export function EntriesTable({ type }: EntriesTableProps) {
 
       {/* Editar lançamento */}
       <EntryEditDialog entry={editEntry} onClose={() => setEditEntry(null)} />
+
+      {/* Notas fiscais (NFS-e) do lançamento */}
+      <Dialog open={!!fiscalEntry} onOpenChange={(open) => !open && setFiscalEntry(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="size-4 text-[#7C3AED]" />
+              Notas Fiscais — {fiscalEntry?.description}
+            </DialogTitle>
+          </DialogHeader>
+          {fiscalEntry && (
+            <FiscalInvoiceCard
+              target={{
+                kind: "payment-entry",
+                paymentEntryId: fiscalEntry.id,
+                label: fiscalEntry.description,
+              }}
+              serviceValue={(fiscalEntry.amount / 100).toFixed(2)}
+              clientData={
+                fiscalEntry.contact
+                  ? {
+                      name: fiscalEntry.contact.name,
+                      document: fiscalEntry.contact.document,
+                      email: fiscalEntry.contact.email,
+                    }
+                  : null
+              }
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmação de cancelar (soft) / excluir (hard) */}
       <AlertDialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}>

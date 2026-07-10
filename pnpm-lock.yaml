@@ -374,6 +374,9 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      nfe-io:
+        specifier: ^5.1.0
+        version: 5.1.0
       node-vibrant:
         specifier: ^4.0.4
         version: 4.0.4
@@ -9327,6 +9330,10 @@ packages:
         optional: true
       sass:
         optional: true
+
+  nfe-io@5.1.0:
+    resolution: {integrity: sha512-7F9KozsMA5SkM+2UHz52TmwpDATIf+qD8M7faYwPSsIwJdsC/6yTfzMh7nuRa3qgtXqtfQwCQP+cRrjio7O4hw==}
+    engines: {node: '>=22.0.0'}
 
   node-domexception@1.0.0:
     resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
@@ -21699,6 +21706,8 @@ snapshots:
     transitivePeerDependencies:
       - '@babel/core'
       - babel-plugin-macros
+
+  nfe-io@5.1.0: {}
 
   node-domexception@1.0.0: {}
 

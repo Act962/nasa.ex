@@ -101,7 +101,9 @@ export function ForgePage() {
               <Settings className="size-4" /> Configurações do FORGE
             </SheetTitle>
           </SheetHeader>
-          <ForgeSettingsPanel />
+          <div className="mt-4">
+            <ForgeSettingsPanel />
+          </div>
         </SheetContent>
       </Sheet>
     </div>
