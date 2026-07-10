@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useForm, Controller, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -43,7 +44,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useIssueFiscalInvoice } from "../hooks/use-fiscal-invoices";
+import {
+  useIssueFiscalInvoice,
+  useIssueFiscalInvoiceFromPaymentEntry,
+} from "../hooks/use-fiscal-invoices";
 import { useFiscalProfile } from "../hooks/use-fiscal-profile";
 import { maskCnpj, maskCpf } from "../utils/document-masks";
 import {
@@ -76,12 +80,17 @@ interface ClientData {
   address?: string | null;
 }
 
+// Origem da emissão — o dialog é agnóstico de domínio; contract e payment-entry
+// só diferem na mutation chamada e no título exibido.
+export type FiscalIssueTarget =
+  | { kind: "contract"; contractId: string; contractNumber: number }
+  | { kind: "payment-entry"; paymentEntryId: string; label: string };
+
 interface IssueInvoiceDialogProps {
   open: boolean;
   onClose: () => void;
-  contractId: string;
-  contractNumber: number;
-  contractValue: string;
+  target: FiscalIssueTarget;
+  serviceValue: string;
   clientData: ClientData | null;
 }
 
@@ -243,14 +252,16 @@ function TomadorEnderecoFields({
 export function IssueInvoiceDialog({
   open,
   onClose,
-  contractId,
-  contractNumber,
-  contractValue,
+  target,
+  serviceValue,
   clientData,
 }: IssueInvoiceDialogProps) {
   const { data: profileData } = useFiscalProfile();
   const profile = profileData?.profile;
-  const issue = useIssueFiscalInvoice();
+  const issueFromContract = useIssueFiscalInvoice();
+  const issueFromPaymentEntry = useIssueFiscalInvoiceFromPaymentEntry();
+  const issue =
+    target.kind === "contract" ? issueFromContract : issueFromPaymentEntry;
 
   const detectedTipo = detectTipoTomador(clientData?.document);
 
@@ -408,7 +419,8 @@ export function IssueInvoiceDialog({
   useEffect(() => {
     if (!profile) return;
     // Ambiente é da empresa na NFE.io (Development/Production) — a emissão
-    // trava no ambiente cadastrado no perfil, sem escolha por nota.
+    // usa o ambiente cadastrado no perfil, sem escolha por nota (link acima
+    // manda pro perfil fiscal caso precise mudar).
     form.setValue("environment", profile.environment);
     form.setValue(
       "cityServiceCode",
@@ -466,10 +478,10 @@ export function IssueInvoiceDialog({
     }
     if (Number(profile.defaultAliquotaIss) <= 0)
       errors.push("Alíquota ISS inválida.");
-    if (Number(contractValue) <= 0)
-      errors.push("Valor do contrato deve ser maior que zero.");
+    if (Number(serviceValue) <= 0)
+      errors.push("Valor do serviço deve ser maior que zero.");
     setPreflightErrors(errors);
-  }, [profile, contractValue, form]);
+  }, [profile, serviceValue, form]);
 
   const handleReview = async () => {
     const isValid = await form.trigger();
@@ -478,8 +490,7 @@ export function IssueInvoiceDialog({
 
   const onSubmit = async (values: IssueInvoiceFormValues) => {
     try {
-      const result = await issue.mutateAsync({
-        contractId,
+      const overrides = {
         tipoTomador: values.tipoTomador,
         environment: values.environment,
         dataCompetencia: values.dataCompetencia,
@@ -527,7 +538,18 @@ export function IssueInvoiceDialog({
         tomadorMunicipio: values.tomadorMunicipio,
         tomadorUf: values.tomadorUf,
         tomadorCep: values.tomadorCep,
-      });
+      };
+
+      const result =
+        target.kind === "contract"
+          ? await issueFromContract.mutateAsync({
+              contractId: target.contractId,
+              ...overrides,
+            })
+          : await issueFromPaymentEntry.mutateAsync({
+              paymentEntryId: target.paymentEntryId,
+              ...overrides,
+            });
 
       if (result.status === "AUTORIZADO") {
         toast.success("Nota fiscal autorizada!");
@@ -593,7 +615,9 @@ export function IssueInvoiceDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="size-5 text-[#7C3AED]" />
-            Emitir NFS-e — Contrato #{String(contractNumber).padStart(4, "0")}
+            {target.kind === "contract"
+              ? `Emitir NFS-e — Contrato #${String(target.contractNumber).padStart(4, "0")}`
+              : `Emitir NFS-e — ${target.label}`}
           </DialogTitle>
           <p className="text-xs text-muted-foreground pt-0.5">
             {step === "form"
@@ -618,7 +642,7 @@ export function IssueInvoiceDialog({
         {/* ── STEP 1: Formulário ─────────────────────────────────────── */}
         {step === "form" && (
           <form onSubmit={(e) => e.preventDefault()} className="space-y-5">
-            {/* Ambiente de emissão — travado no ambiente da empresa na NFE.io */}
+            {/* Ambiente de emissão — travado no ambiente cadastrado da empresa na NFE.io */}
             <div className="space-y-2">
               <Label>Ambiente</Label>
               <p className="text-sm font-medium">
@@ -627,8 +651,14 @@ export function IssueInvoiceDialog({
                   : "Homologação"}
               </p>
               <p className="text-xs text-muted-foreground">
-                Definido pelo ambiente cadastrado da empresa na NFE.io — altere
-                no perfil fiscal se precisar mudar.
+                Definido pelo ambiente cadastrado da empresa na NFE.io.{" "}
+                <Link
+                  href="/settings/fiscal"
+                  className="text-blue-600 hover:underline"
+                >
+                  Alterar no perfil fiscal
+                </Link>
+                .
               </p>
               {environment === "PRODUCAO" && (
                 <p className="text-xs text-amber-600 font-medium">
@@ -1165,7 +1195,7 @@ export function IssueInvoiceDialog({
                 <div>
                   <PreviewRow
                     label="Valor"
-                    value={fmtCurrency(contractValue)}
+                    value={fmtCurrency(serviceValue)}
                   />
                   <PreviewRow
                     label="Competência"

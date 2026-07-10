@@ -16,13 +16,13 @@ export const nacionalNfseProvider: NfseProvider = {
 
   async emitir({
     ref,
-    contract,
+    source,
     profile,
     overrides,
     environment,
     companyToken,
   }: EmitParams): Promise<EmitResult> {
-    const payload = buildNfseNacionalPayload(contract, profile, overrides);
+    const payload = buildNfseNacionalPayload(source, profile, overrides);
     const response = await emitirNfseNacional(
       ref,
       payload,

@@ -24,10 +24,14 @@ import {
 } from "lucide-react";
 import {
   useFiscalInvoicesByContract,
+  useFiscalInvoicesByPaymentEntry,
   useRefreshFiscalInvoiceStatus,
   useCancelFiscalInvoice,
 } from "../hooks/use-fiscal-invoices";
-import { IssueInvoiceDialog } from "./issue-invoice-dialog";
+import {
+  IssueInvoiceDialog,
+  type FiscalIssueTarget,
+} from "./issue-invoice-dialog";
 import { cn } from "@/lib/utils";
 
 const STATUS_CONFIG = {
@@ -81,20 +85,15 @@ interface FiscalInvoiceItem {
   contractId: string | null;
 }
 
-interface ContractSnapshot {
-  id: string;
-  number: number;
-  value: string;
+interface FiscalInvoiceCardProps {
+  target: FiscalIssueTarget;
+  serviceValue: string;
   clientData: {
     name?: string | null;
     document?: string | null;
     email?: string | null;
     address?: string | null;
   } | null;
-}
-
-interface FiscalInvoiceCardProps {
-  contract: ContractSnapshot;
 }
 
 function CancelInvoiceDialog({
@@ -160,8 +159,21 @@ function CancelInvoiceDialog({
   );
 }
 
-export function FiscalInvoiceCard({ contract }: FiscalInvoiceCardProps) {
-  const { data, isLoading } = useFiscalInvoicesByContract(contract.id);
+export function FiscalInvoiceCard({
+  target,
+  serviceValue,
+  clientData,
+}: FiscalInvoiceCardProps) {
+  const byContract = useFiscalInvoicesByContract(
+    target.kind === "contract" ? target.contractId : "",
+    target.kind === "contract",
+  );
+  const byPaymentEntry = useFiscalInvoicesByPaymentEntry(
+    target.kind === "payment-entry" ? target.paymentEntryId : "",
+    target.kind === "payment-entry",
+  );
+  const { data, isLoading } =
+    target.kind === "contract" ? byContract : byPaymentEntry;
   const refresh = useRefreshFiscalInvoiceStatus();
   const [issueOpen, setIssueOpen] = useState(false);
   const [cancelInvoiceId, setCancelInvoiceId] = useState<string | null>(null);
@@ -327,10 +339,9 @@ export function FiscalInvoiceCard({ contract }: FiscalInvoiceCardProps) {
       <IssueInvoiceDialog
         open={issueOpen}
         onClose={() => setIssueOpen(false)}
-        contractId={contract.id}
-        contractNumber={contract.number}
-        contractValue={contract.value}
-        clientData={contract.clientData}
+        target={target}
+        serviceValue={serviceValue}
+        clientData={clientData}
       />
 
       {cancelInvoiceId && (

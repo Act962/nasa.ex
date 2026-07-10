@@ -94,6 +94,7 @@ const upsertProfileInput = z
       .max(100)
       .optional(),
     defaultInformacoesAdicionais: z.string().nullable().optional(),
+    autoIssueOnEntryPaid: z.boolean().optional(),
     supportedByFocus: z.boolean(),
     nfseStandard: z.enum(["MUNICIPAL", "NACIONAL"]).optional(),
     arquivoCertificadoBase64: z.string().optional(),

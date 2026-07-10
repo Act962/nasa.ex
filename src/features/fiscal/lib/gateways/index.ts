@@ -24,6 +24,7 @@ export type {
   CompanySyncResult,
   FiscalGatewayAdapter,
   FiscalIssueOverrides,
+  FiscalIssueSource,
   FiscalWebhookEvent,
   InvoiceFileResult,
   InvoiceLocator,

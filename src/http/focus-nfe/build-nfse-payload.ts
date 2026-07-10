@@ -3,7 +3,6 @@ import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import type {
   FiscalCompanyProfile,
-  ForgeContract,
   TomadorType,
 } from "@/generated/prisma/client";
 import type { FiscalEnvironment } from "@/generated/prisma/enums";
@@ -14,6 +13,13 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const TIMEZONE = "America/Sao_Paulo";
+
+// Fonte genérica de emissão — desacopla os gateways/builders de qual entidade
+// de domínio originou a nota (ForgeContract, PaymentEntry, ...).
+export type FiscalIssueSource = {
+  amount: number; // valor do serviço em REAIS (não centavos)
+  defaultDescription: string; // fallback da discriminação quando não informada
+};
 
 export type IssueOverrides = {
   tipoTomador: TomadorType;
@@ -60,7 +66,7 @@ export type PreflightResult = {
 };
 
 export function validateBeforeEmit(
-  contract: ForgeContract,
+  source: FiscalIssueSource,
   profile: FiscalCompanyProfile,
   overrides: IssueOverrides,
   requirements: MunicipioNfseRequirements,
@@ -112,8 +118,8 @@ export function validateBeforeEmit(
     );
   if (Number(profile.defaultAliquotaIss) <= 0)
     errors.push("Alíquota ISS inválida.");
-  if (Number(contract.value) <= 0)
-    errors.push("Valor do contrato deve ser maior que zero.");
+  if (source.amount <= 0)
+    errors.push("Valor do serviço deve ser maior que zero.");
 
   if (overrides.tipoTomador === "PJ") {
     const cnpj = (overrides.tomadorCnpj ?? "").replace(/\D/g, "");
@@ -146,7 +152,7 @@ export function validateBeforeEmit(
 }
 
 export function buildNfsePayload(
-  contract: ForgeContract,
+  source: FiscalIssueSource,
   profile: FiscalCompanyProfile,
   overrides: IssueOverrides,
   requirements: MunicipioNfseRequirements,
@@ -230,10 +236,10 @@ export function buildNfsePayload(
       discriminacao:
         overrides.discriminacao?.trim() ||
         profile.defaultDiscriminacao?.trim() ||
-        `Serviços conforme contrato #${contract.number}`,
+        source.defaultDescription,
       codigo_municipio:
         overrides.tomadorCodigoMunicipio ?? profile.codigoMunicipio,
-      valor_servicos: Number(contract.value),
+      valor_servicos: source.amount,
     },
   };
 }

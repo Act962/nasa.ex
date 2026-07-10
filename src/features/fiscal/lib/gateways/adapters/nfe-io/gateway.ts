@@ -128,16 +128,16 @@ export const nfeIoGateway: FiscalGatewayAdapter = {
     }
   },
 
-  validateBeforeIssue({ contract, profile, overrides, environment }) {
-    return validateBeforeEmitNfeIo(contract, profile, overrides, environment);
+  validateBeforeIssue({ source, profile, overrides, environment }) {
+    return validateBeforeEmitNfeIo(source, profile, overrides, environment);
   },
 
-  async issueInvoice({ ref, contract, profile, overrides }) {
+  async issueInvoice({ ref, source, profile, overrides }) {
     const nfeIo = getNfeIoClient();
     const companyId = requireCompanyId(profile);
     const payload = buildNfeIoServiceInvoicePayload(
       ref,
-      contract,
+      source,
       profile,
       overrides,
     );

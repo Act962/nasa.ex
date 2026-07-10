@@ -1,12 +1,13 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
-import type {
-  FiscalCompanyProfile,
-  ForgeContract,
-} from "@/generated/prisma/client";
+import type { FiscalCompanyProfile } from "@/generated/prisma/client";
 import type { NfseNacionalPayload } from "./types";
-import type { IssueOverrides, PreflightResult } from "./build-nfse-payload";
+import type {
+  FiscalIssueSource,
+  IssueOverrides,
+  PreflightResult,
+} from "./build-nfse-payload";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -92,7 +93,7 @@ function resolvePrestadorDocumento(
 }
 
 export function validateNacionalBeforeEmit(
-  contract: ForgeContract,
+  source: FiscalIssueSource,
   profile: FiscalCompanyProfile,
   overrides: IssueOverrides,
 ): PreflightResult {
@@ -110,8 +111,8 @@ export function validateNacionalBeforeEmit(
     );
   if (Number(profile.defaultAliquotaIss) <= 0)
     errors.push("Alíquota ISS inválida.");
-  if (Number(contract.value) <= 0)
-    errors.push("Valor do contrato deve ser maior que zero.");
+  if (source.amount <= 0)
+    errors.push("Valor do serviço deve ser maior que zero.");
 
   if (overrides.tipoTomador === "PJ") {
     const cnpj = (overrides.tomadorCnpj ?? "").replace(/\D/g, "");
@@ -142,7 +143,7 @@ export function validateNacionalBeforeEmit(
 }
 
 export function buildNfseNacionalPayload(
-  contract: ForgeContract,
+  source: FiscalIssueSource,
   profile: FiscalCompanyProfile,
   overrides: IssueOverrides,
 ): NfseNacionalPayload {
@@ -177,8 +178,8 @@ export function buildNfseNacionalPayload(
     descricao_servico:
       overrides.discriminacao?.trim() ||
       profile.defaultDiscriminacao?.trim() ||
-      `Serviços conforme contrato #${contract.number}`,
-    valor_servico: Number(contract.value),
+      source.defaultDescription,
+    valor_servico: source.amount,
     tributacao_iss: toTributacaoIssqn(profile.defaultTributacaoIssqn),
     // TODO(verificar-homologacao): a doc oficial nomeia este campo como
     // `percentual_aliquota_relativa_municipio`. Renomear após confirmar que a Focus

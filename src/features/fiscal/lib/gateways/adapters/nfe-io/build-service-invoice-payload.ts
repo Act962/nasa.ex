@@ -7,13 +7,14 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
-import type {
-  FiscalCompanyProfile,
-  ForgeContract,
-} from "@/generated/prisma/client";
+import type { FiscalCompanyProfile } from "@/generated/prisma/client";
 import type { FiscalEnvironment } from "@/generated/prisma/enums";
 import { resolveMunicipioRequirements } from "../../../municipio-requirements";
-import type { FiscalIssueOverrides, PreflightResult } from "../../types";
+import type {
+  FiscalIssueOverrides,
+  FiscalIssueSource,
+  PreflightResult,
+} from "../../types";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -53,7 +54,7 @@ function resolvePercentAmount(
 }
 
 export function validateBeforeEmitNfeIo(
-  contract: ForgeContract,
+  source: FiscalIssueSource,
   profile: FiscalCompanyProfile,
   overrides: FiscalIssueOverrides,
   environment: FiscalEnvironment,
@@ -65,9 +66,11 @@ export function validateBeforeEmitNfeIo(
     errors.push(
       "Empresa não está cadastrada na NFE.io. Salve o perfil fiscal novamente.",
     );
-  // O ambiente pertence à EMPRESA na NFE.io (Development/Production), não à
-  // chamada — emitir num ambiente diferente do cadastrado falharia ou emitiria
-  // no ambiente errado.
+  // O ambiente é uma propriedade da EMPRESA cadastrada na NFE.io (enviado em
+  // sync-company.ts ao criar/atualizar o Company resource), não um parâmetro
+  // da chamada de emissão — uma nota pedida num ambiente diferente do
+  // cadastrado seria processada no ambiente da empresa mesmo assim,
+  // divergindo silenciosamente do que foi solicitado/exibido.
   if (environment !== profile.environment)
     errors.push(
       `O ambiente da emissão (${environment}) difere do ambiente da empresa na NFE.io (${profile.environment}). Ajuste o perfil fiscal.`,
@@ -83,8 +86,8 @@ export function validateBeforeEmitNfeIo(
     errors.push("Inscrição municipal do prestador não configurada.");
   if (Number(profile.defaultAliquotaIss) <= 0)
     errors.push("Alíquota ISS inválida.");
-  if (Number(contract.value) <= 0)
-    errors.push("Valor do contrato deve ser maior que zero.");
+  if (source.amount <= 0)
+    errors.push("Valor do serviço deve ser maior que zero.");
 
   if (overrides.tipoTomador === "PJ") {
     const cnpj = (overrides.tomadorCnpj ?? "").replace(/\D/g, "");
@@ -169,7 +172,7 @@ export type NfeIoServiceInvoicePayload = {
 
 export function buildNfeIoServiceInvoicePayload(
   ref: string,
-  contract: ForgeContract,
+  source: FiscalIssueSource,
   profile: FiscalCompanyProfile,
   overrides: FiscalIssueOverrides,
 ): NfeIoServiceInvoicePayload {
@@ -213,7 +216,7 @@ export function buildNfeIoServiceInvoicePayload(
         }
       : undefined;
 
-  const servicesAmount = Number(contract.value);
+  const servicesAmount = source.amount;
   const issRate = percentToFraction(profile.defaultAliquotaIss);
 
   // ISS retido: override por nota tem prioridade sobre o boolean do perfil; o
@@ -285,7 +288,7 @@ export function buildNfeIoServiceInvoicePayload(
     description:
       overrides.discriminacao?.trim() ||
       profile.defaultDiscriminacao?.trim() ||
-      `Serviços conforme contrato #${contract.number}`,
+      source.defaultDescription,
     servicesAmount,
     issRate,
     issuedOn: dayjs(overrides.dataCompetencia).tz(TIMEZONE).format(),

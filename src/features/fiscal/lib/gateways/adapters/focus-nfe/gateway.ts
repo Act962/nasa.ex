@@ -69,17 +69,17 @@ export const focusNfeGateway: FiscalGatewayAdapter = {
     return { focusCertificadoUploadedAt: new Date() };
   },
 
-  validateBeforeIssue({ contract, profile, overrides, environment }) {
+  validateBeforeIssue({ source, profile, overrides, environment }) {
     const provider = resolveNfseProvider(profile.nfseStandard);
-    return provider.validate(contract, profile, overrides, environment);
+    return provider.validate(source, profile, overrides, environment);
   },
 
-  async issueInvoice({ ref, contract, profile, overrides, environment }) {
+  async issueInvoice({ ref, source, profile, overrides, environment }) {
     const provider = resolveNfseProvider(profile.nfseStandard);
     const companyToken = resolveCompanyToken(profile, environment);
     const { response, payload } = await provider.emitir({
       ref,
-      contract,
+      source,
       profile,
       overrides,
       environment,

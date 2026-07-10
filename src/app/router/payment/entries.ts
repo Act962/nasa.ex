@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { requirePaymentAccess } from "@/app/middlewares/payment-access";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { randomUUID } from "crypto";
@@ -41,7 +42,13 @@ const entryShape = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
   category: z.object({ id: z.string(), name: z.string(), type: z.string(), color: z.string().nullable() }).nullable(),
-  contact: z.object({ id: z.string(), name: z.string(), contactType: z.string() }).nullable(),
+  contact: z.object({
+    id: z.string(),
+    name: z.string(),
+    contactType: z.string(),
+    document: z.string().nullable(),
+    email: z.string().nullable(),
+  }).nullable(),
   account: z.object({ id: z.string(), name: z.string(), type: z.string() }).nullable(),
   approvalRequest: z
     .object({
@@ -56,7 +63,15 @@ const entryShape = z.object({
 
 const entryInclude = {
   category: { select: { id: true, name: true, type: true, color: true } },
-  contact: { select: { id: true, name: true, contactType: true } },
+  contact: {
+    select: {
+      id: true,
+      name: true,
+      contactType: true,
+      document: true,
+      email: true,
+    },
+  },
   account: { select: { id: true, name: true, type: true } },
   approvalRequest: {
     select: {
@@ -424,6 +439,25 @@ export const payPaymentEntry = base
         resourceId: entry.id,
         metadata: { paidAmount: input.paidAmount, totalPaid: newPaid, totalAmount: existing.amount, type: existing.type },
       });
+
+      // Emite sempre (o handler fiscal decide, via flag do perfil, se emite
+      // NFS-e automaticamente) — payment não importa nada do fiscal. Falha no
+      // envio do evento não deve derrubar a quitação, que já foi persistida.
+      if (status === "PAID" && existing.type === "RECEIVABLE") {
+        await inngest
+          .send({
+            name: "payment/entry.paid",
+            id: `entry-paid-${entry.id}`,
+            data: {
+              entryId: entry.id,
+              organizationId: context.org.id,
+              paidByUserId: context.user.id,
+            },
+          })
+          .catch((err) => {
+            console.error("[payment/entries pay] evento entry.paid falhou:", err);
+          });
+      }
 
       return { entry };
     } catch {

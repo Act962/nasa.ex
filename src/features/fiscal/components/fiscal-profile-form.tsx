@@ -107,7 +107,7 @@ function OptionDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="max-h-72 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
+        className="max-h-72 w-(--radix-dropdown-menu-trigger-width) overflow-y-auto"
       >
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
           {options.map((option) => (
@@ -196,8 +196,10 @@ const schema = z
     defaultDescontoIncondicionadoPercent: z.string().optional(),
     defaultDescontoCondicionadoPercent: z.string().optional(),
     defaultInformacoesAdicionais: z.string().optional(),
+    autoIssueOnEntryPaid: z.boolean(),
     supportedByFocus: z.boolean(),
     nfseStandard: z.enum(["MUNICIPAL", "NACIONAL"]).optional(),
+    environment: z.enum(["HOMOLOGACAO", "PRODUCAO"]),
     senhaCertificado: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -287,8 +289,10 @@ export function FiscalProfileForm() {
       defaultDescontoIncondicionadoPercent: "0",
       defaultDescontoCondicionadoPercent: "0",
       defaultInformacoesAdicionais: "",
+      autoIssueOnEntryPaid: false,
       supportedByFocus: false,
       nfseStandard: "MUNICIPAL",
+      environment: "HOMOLOGACAO",
       senhaCertificado: "",
     },
   });
@@ -464,8 +468,10 @@ export function FiscalProfileForm() {
       defaultDescontoCondicionadoPercent:
         profile.defaultDescontoCondicionadoPercent ?? "0",
       defaultInformacoesAdicionais: profile.defaultInformacoesAdicionais ?? "",
+      autoIssueOnEntryPaid: profile.autoIssueOnEntryPaid ?? false,
       supportedByFocus: profile.supportedByFocus,
       nfseStandard: profile.nfseStandard,
+      environment: profile.environment,
       senhaCertificado: "",
     });
   }, [profile, form]);
@@ -660,579 +666,647 @@ export function FiscalProfileForm() {
       )}
 
       <div className="space-y-6">
-      {/* Dados do Prestador */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Building2 className="size-4 text-[#7C3AED] shrink-0" /> Prestador de
-            Serviços
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Tipo de documento */}
-          <div className="sm:col-span-2 space-y-1.5">
-            <Label>Tipo de documento</Label>
-            <div className="flex gap-2">
-              {(["cnpj", "cpf"] as const).map((tipo) => (
-                <button
-                  key={tipo}
-                  type="button"
-                  onClick={() => {
-                    form.setValue("documentoTipo", tipo);
-                    form.setValue("cnpj", "");
-                    form.setValue("cpf", "");
-                    setCnpjLookupStatus("idle");
-                    lastFetchedCnpjRef.current = "";
-                  }}
-                  className={`px-4 py-1.5 rounded-md border text-sm font-medium transition-colors ${
-                    documentoTipo === tipo
-                      ? "bg-[#7C3AED] text-white border-[#7C3AED]"
-                      : "bg-background text-muted-foreground border-border hover:border-[#7C3AED]"
-                  }`}
-                >
-                  {tipo.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* CNPJ ou CPF */}
-          {documentoTipo === "cnpj" ? (
-            <div className="space-y-1.5">
-              <Label>
-                CNPJ <span className="text-destructive">*</span>
-              </Label>
-              <div className="relative">
-                <Input
-                  {...form.register("cnpj")}
-                  onChange={(e) => {
-                    const masked = maskCnpj(e.target.value);
-                    e.target.value = masked;
-                    form.setValue("cnpj", masked, { shouldDirty: true });
-                  }}
-                  placeholder="XX.XXX.XXX/XXXX-XX"
-                  maxLength={18}
-                  className="pr-8"
-                />
-                {cnpjLookupStatus === "loading" && (
-                  <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
-                )}
-                {cnpjLookupStatus === "found" && (
-                  <CheckCircle2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-emerald-600" />
-                )}
+        {/* Dados do Prestador */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Building2 className="size-4 text-[#7C3AED] shrink-0" /> Prestador
+              de Serviços
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Tipo de documento */}
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label>Tipo de documento</Label>
+              <div className="flex gap-2">
+                {(["cnpj", "cpf"] as const).map((tipo) => (
+                  <button
+                    key={tipo}
+                    type="button"
+                    onClick={() => {
+                      form.setValue("documentoTipo", tipo);
+                      form.setValue("cnpj", "");
+                      form.setValue("cpf", "");
+                      setCnpjLookupStatus("idle");
+                      lastFetchedCnpjRef.current = "";
+                    }}
+                    className={`px-4 py-1.5 rounded-md border text-sm font-medium transition-colors ${
+                      documentoTipo === tipo
+                        ? "bg-[#7C3AED] text-white border-[#7C3AED]"
+                        : "bg-background text-muted-foreground border-border hover:border-[#7C3AED]"
+                    }`}
+                  >
+                    {tipo.toUpperCase()}
+                  </button>
+                ))}
               </div>
-              {form.formState.errors.cnpj && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.cnpj.message}
-                </p>
-              )}
-              {cnpjLookupStatus === "not-found" && (
-                <p className="text-xs text-amber-600">
-                  CNPJ não encontrado na base da Receita Federal.
-                </p>
-              )}
-              {cnpjLookupStatus === "rate-limited" && (
-                <p className="text-xs text-amber-600">
-                  Limite de consultas atingido. Aguarde 1 minuto.
-                </p>
-              )}
-              {cnpjLookupStatus === "error" && (
-                <p className="text-xs text-muted-foreground">
-                  Não foi possível consultar o CNPJ automaticamente.
-                </p>
-              )}
             </div>
-          ) : (
-            <div className="space-y-1.5">
-              <Label>
-                CPF <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                {...form.register("cpf")}
-                onChange={(e) => {
-                  const masked = maskCpf(e.target.value);
-                  e.target.value = masked;
-                  form.setValue("cpf", masked, { shouldDirty: true });
-                }}
-                placeholder="XXX.XXX.XXX-XX"
-                maxLength={14}
-              />
-              {form.formState.errors.cpf && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.cpf.message}
-                </p>
-              )}
-            </div>
-          )}
 
-          <div className="space-y-1.5">
-            <Label>
-              Razão Social <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              {...form.register("razaoSocial")}
-              placeholder="Nome da empresa"
-            />
-            {form.formState.errors.razaoSocial && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.razaoSocial.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Nome Fantasia</Label>
-            <Input
-              {...form.register("nomeFantasia")}
-              placeholder="Nome fantasia (opcional)"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>
-              Inscrição Municipal <span className="text-destructive">*</span>
-            </Label>
-            <Input {...form.register("inscricaoMunicipal")} placeholder="IM" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>
-              E-mail da empresa <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              {...form.register("email")}
-              type="email"
-              placeholder="contato@empresa.com.br"
-            />
-            {form.formState.errors.email && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.email.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>
-              Data de abertura <span className="text-destructive">*</span>
-            </Label>
-            <Input {...form.register("openingDate")} type="date" />
-            {form.formState.errors.openingDate && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.openingDate.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>
-              Natureza Jurídica <span className="text-destructive">*</span>
-            </Label>
-            <Controller
-              control={form.control}
-              name="legalNature"
-              render={({ field }) => (
-                <OptionDropdown
-                  value={field.value}
-                  onChange={field.onChange}
-                  options={LEGAL_NATURE_OPTIONS}
-                />
-              )}
-            />
-            {form.formState.errors.legalNature && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.legalNature.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>
-              Regime Tributário <span className="text-destructive">*</span>
-            </Label>
-            <Controller
-              control={form.control}
-              name="taxRegime"
-              render={({ field }) => (
-                <OptionDropdown
-                  value={field.value}
-                  onChange={field.onChange}
-                  options={TAX_REGIME_OPTIONS}
-                />
-              )}
-            />
-            {form.formState.errors.taxRegime && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.taxRegime.message}
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Switch
-              checked={form.watch("optanteSimplesNacional")}
-              onCheckedChange={(v) =>
-                form.setValue("optanteSimplesNacional", v)
-              }
-            />
-            <Label>Optante Simples Nacional</Label>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Switch
-              checked={form.watch("simplesNacionalMei")}
-              onCheckedChange={(v) => form.setValue("simplesNacionalMei", v)}
-            />
-            <Label>Microempreendedor Individual (MEI)</Label>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Regime Especial de Tributação (opcional)</Label>
-            <Input
-              {...form.register("regimeEspecialTributacao")}
-              placeholder="Ex: 1"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Endereço */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Endereço do Prestador</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2 space-y-1.5">
-            <Label>
-              Logradouro <span className="text-destructive">*</span>
-            </Label>
-            <Input {...form.register("logradouro")} placeholder="Rua / Av." />
-          </div>
-          <div className="space-y-1.5">
-            <Label>
-              Número <span className="text-destructive">*</span>
-            </Label>
-            <Input {...form.register("numero")} placeholder="123" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Complemento</Label>
-            <Input {...form.register("complemento")} placeholder="Sala 1" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>
-              Bairro <span className="text-destructive">*</span>
-            </Label>
-            <Input {...form.register("bairro")} placeholder="Centro" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>
-              CEP <span className="text-destructive">*</span>
-            </Label>
-            <Input {...form.register("cep")} placeholder="00000-000" />
-          </div>
-          <div className="sm:col-span-2 space-y-1.5">
-            <Label>
-              Município <span className="text-destructive">*</span>
-            </Label>
-            <MunicipioCombobox
-              displayValue={
-                form.watch("municipio") && form.watch("uf")
-                  ? `${form.watch("municipio")} — ${form.watch("uf")}`
-                  : (form.watch("municipio") ?? "")
-              }
-              onSelect={(municipio) => {
-                form.setValue("municipio", municipio.nome, {
-                  shouldValidate: true,
-                });
-                form.setValue("uf", municipio.uf, { shouldValidate: true });
-                form.setValue("codigoMunicipio", municipio.codigo_ibge, {
-                  shouldValidate: true,
-                });
-              }}
-            />
-            <p className="text-xs text-muted-foreground">
-              Digite o nome para buscar — estado e código IBGE preenchidos
-              automaticamente.
-            </p>
-          </div>
-          <div className="space-y-1.5">
-            <Label>UF</Label>
-            <Input
-              {...form.register("uf")}
-              placeholder="SP"
-              maxLength={2}
-              readOnly
-              className="bg-muted/50 cursor-default"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Código IBGE</Label>
-            <Input
-              {...form.register("codigoMunicipio")}
-              placeholder="3550308"
-              readOnly
-              className="bg-muted/50 cursor-default"
-            />
-            {form.formState.errors.codigoMunicipio && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.codigoMunicipio.message}
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Defaults do Serviço */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Padrões do Serviço</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label className="sm:min-h-10 items-start">
-              Item da Lista de Serviço (Código Nacional NFS-e){" "}
-              <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              {...form.register("defaultItemListaServico")}
-              placeholder="Ex: 170601"
-            />
-            <p className="text-xs text-muted-foreground">
-              6 dígitos numéricos: 2 para item, 2 para subitem (LC 116/2003) e 2
-              para desdobro nacional.
-            </p>
-            {form.formState.errors.defaultItemListaServico && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.defaultItemListaServico.message}
-              </p>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <Label className="sm:min-h-10 items-start">
-              Código de Serviço Municipal (NFE.io)
-            </Label>
-            <Input
-              {...form.register("defaultCityServiceCode")}
-              placeholder="Ex: 0101"
-            />
-            <p className="text-xs text-muted-foreground">
-              Código do serviço no formato da prefeitura — diferente do item da
-              lista LC 116 acima. Consulte o contador ou a tabela da prefeitura.
-            </p>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="sm:min-h-10 items-start">
-              Alíquota ISS (%) <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              {...form.register("defaultAliquotaIss")}
-              type="number"
-              min="2"
-              max="5"
-              step="0.01"
-              placeholder="5.00"
-            />
-            <p className="text-xs text-muted-foreground">
-              Percentual entre 2% e 5% (limite legal — LC 116/2003). Ex: 5 para
-              5%.
-            </p>
-            {form.formState.errors.defaultAliquotaIss && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.defaultAliquotaIss.message}
-              </p>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <Label className="sm:min-h-10 items-start">
-              Tributação do ISSQN <span className="text-destructive">*</span>
-            </Label>
-            <Select
-              value={String(form.watch("defaultTributacaoIssqn"))}
-              onValueChange={(value) =>
-                form.setValue("defaultTributacaoIssqn", Number(value))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">1 — Operação tributável</SelectItem>
-                <SelectItem value="2">2 — Imunidade</SelectItem>
-                <SelectItem value="3">3 — Exportação de serviços</SelectItem>
-                <SelectItem value="4">4 — Não incidência</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-3">
-            <Switch
-              checked={form.watch("defaultIssRetido")}
-              onCheckedChange={(v) => form.setValue("defaultIssRetido", v)}
-            />
-            <Label>ISS Retido na Fonte</Label>
-          </div>
-          {(() => {
-            const municipioRequirements = resolveMunicipioRequirements(
-              form.watch("codigoMunicipio"),
-            );
-            return (
+            {/* CNPJ ou CPF */}
+            {documentoTipo === "cnpj" ? (
               <div className="space-y-1.5">
-                <Label className="sm:min-h-10 items-start">
-                  Código CNAE do serviço{" "}
-                  {municipioRequirements.requiresCodigoCnae && (
-                    <span className="text-destructive">*</span>
-                  )}
+                <Label>
+                  CNPJ <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  {...form.register("defaultCodigoCnae")}
-                  inputMode="numeric"
-                  placeholder="Ex: 620910000"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {municipioRequirements.requiresCodigoCnae
-                    ? `Seu município exige CNAE de ${municipioRequirements.requiresCodigoCnae.digits} dígitos na emissão.`
-                    : "Opcional — alguns municípios exigem o CNAE na emissão."}
-                </p>
-                {form.formState.errors.defaultCodigoCnae && (
+                <div className="relative">
+                  <Input
+                    {...form.register("cnpj")}
+                    onChange={(e) => {
+                      const masked = maskCnpj(e.target.value);
+                      e.target.value = masked;
+                      form.setValue("cnpj", masked, { shouldDirty: true });
+                    }}
+                    placeholder="XX.XXX.XXX/XXXX-XX"
+                    maxLength={18}
+                    className="pr-8"
+                  />
+                  {cnpjLookupStatus === "loading" && (
+                    <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+                  )}
+                  {cnpjLookupStatus === "found" && (
+                    <CheckCircle2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-emerald-600" />
+                  )}
+                </div>
+                {form.formState.errors.cnpj && (
                   <p className="text-xs text-destructive">
-                    {form.formState.errors.defaultCodigoCnae.message}
+                    {form.formState.errors.cnpj.message}
+                  </p>
+                )}
+                {cnpjLookupStatus === "not-found" && (
+                  <p className="text-xs text-amber-600">
+                    CNPJ não encontrado na base da Receita Federal.
+                  </p>
+                )}
+                {cnpjLookupStatus === "rate-limited" && (
+                  <p className="text-xs text-amber-600">
+                    Limite de consultas atingido. Aguarde 1 minuto.
+                  </p>
+                )}
+                {cnpjLookupStatus === "error" && (
+                  <p className="text-xs text-muted-foreground">
+                    Não foi possível consultar o CNPJ automaticamente.
                   </p>
                 )}
               </div>
-            );
-          })()}
-          <div className="sm:col-span-2 space-y-1.5">
-            <Label>Discriminação padrão do serviço</Label>
-            <Textarea
-              {...form.register("defaultDiscriminacao")}
-              placeholder="Descrição padrão para o campo de serviços da NFS-e"
-              rows={2}
-            />
-          </div>
-        </CardContent>
-      </Card>
+            ) : (
+              <div className="space-y-1.5">
+                <Label>
+                  CPF <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  {...form.register("cpf")}
+                  onChange={(e) => {
+                    const masked = maskCpf(e.target.value);
+                    e.target.value = masked;
+                    form.setValue("cpf", masked, { shouldDirty: true });
+                  }}
+                  placeholder="XXX.XXX.XXX-XX"
+                  maxLength={14}
+                />
+                {form.formState.errors.cpf && (
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.cpf.message}
+                  </p>
+                )}
+              </div>
+            )}
 
-      {/* Retenções e descontos padrão */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            Retenções e descontos padrão
-          </CardTitle>
-          <p className="text-xs text-muted-foreground pt-1">
-            Percentuais aplicados sobre o valor do serviço na emissão. Deixe 0
-            quando não houver. Podem ser sobrescritos por nota.
-          </p>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {(
-            [
-              { name: "defaultIrPercent", label: "IR (%)" },
-              { name: "defaultPisPercent", label: "PIS (%)" },
-              { name: "defaultCofinsPercent", label: "COFINS (%)" },
-              { name: "defaultCsllPercent", label: "CSLL (%)" },
-              { name: "defaultInssPercent", label: "INSS (%)" },
-              {
-                name: "defaultOutrasRetencoesPercent",
-                label: "Outras ret. (%)",
-              },
-              { name: "defaultDeducoesPercent", label: "Deduções (%)" },
-              {
-                name: "defaultDescontoIncondicionadoPercent",
-                label: "Desc. incondicionado (%)",
-              },
-              {
-                name: "defaultDescontoCondicionadoPercent",
-                label: "Desc. condicionado (%)",
-              },
-            ] as const
-          ).map((percentField) => (
-            <div key={percentField.name} className="space-y-1.5">
-              <Label className="text-xs">{percentField.label}</Label>
-              <Input
-                {...form.register(percentField.name)}
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                placeholder="0"
-              />
-            </div>
-          ))}
-          <div className="col-span-2 sm:col-span-3 space-y-1.5">
-            <Label>Informações adicionais padrão</Label>
-            <Textarea
-              {...form.register("defaultInformacoesAdicionais")}
-              placeholder="Texto livre impresso na nota (ex.: dados bancários, observações)"
-              rows={2}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Certificado A1 */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <ShieldCheck className="size-4 text-[#7C3AED] shrink-0" />{" "}
-            Certificado A1 Digital
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {profile?.nfeIoCertificateStatus === "Active" ? (
-            <div className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2 text-sm text-emerald-700 dark:text-emerald-300">
-              <CheckCircle2 className="size-4 shrink-0" />
-              Certificado ativo na NFE.io
-              {profile.nfeIoCertificateExpiresOn &&
-                ` — expira em ${new Date(
-                  profile.nfeIoCertificateExpiresOn,
-                ).toLocaleDateString("pt-BR", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })}`}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
-              <AlertTriangle className="size-4 shrink-0" />
-              Nenhum certificado ativo na NFE.io. A emissão de notas requer o
-              A1.
-            </div>
-          )}
-
-          <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="flex items-center gap-1.5">
-                <Upload className="size-3.5" /> Arquivo .pfx ou .p12
+              <Label>
+                Razão Social <span className="text-destructive">*</span>
               </Label>
-              <input
-                ref={certFileInputRef}
-                type="file"
-                accept=".pfx,.p12"
-                onChange={(e) => setCertFile(e.target.files?.[0] ?? null)}
-                className="block w-full text-sm text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-border file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80 cursor-pointer"
+              <Input
+                {...form.register("razaoSocial")}
+                placeholder="Nome da empresa"
               />
-              {certFile && (
-                <p className="text-xs text-muted-foreground">{certFile.name}</p>
+              {form.formState.errors.razaoSocial && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.razaoSocial.message}
+                </p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label className="flex items-center gap-1.5">
-                <KeyRound className="size-3.5" /> Senha do certificado
-              </Label>
+              <Label>Nome Fantasia</Label>
               <Input
-                {...form.register("senhaCertificado")}
-                type="password"
-                placeholder="Senha do arquivo .pfx / .p12"
-                autoComplete="off"
+                {...form.register("nomeFantasia")}
+                placeholder="Nome fantasia (opcional)"
               />
             </div>
 
+            <div className="space-y-1.5">
+              <Label>
+                Inscrição Municipal <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                {...form.register("inscricaoMunicipal")}
+                placeholder="IM"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>
+                E-mail da empresa <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                {...form.register("email")}
+                type="email"
+                placeholder="contato@empresa.com.br"
+              />
+              {form.formState.errors.email && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.email.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>
+                Data de abertura <span className="text-destructive">*</span>
+              </Label>
+              <Input {...form.register("openingDate")} type="date" />
+              {form.formState.errors.openingDate && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.openingDate.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>
+                Natureza Jurídica <span className="text-destructive">*</span>
+              </Label>
+              <Controller
+                control={form.control}
+                name="legalNature"
+                render={({ field }) => (
+                  <OptionDropdown
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={LEGAL_NATURE_OPTIONS}
+                  />
+                )}
+              />
+              {form.formState.errors.legalNature && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.legalNature.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>
+                Regime Tributário <span className="text-destructive">*</span>
+              </Label>
+              <Controller
+                control={form.control}
+                name="taxRegime"
+                render={({ field }) => (
+                  <OptionDropdown
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={TAX_REGIME_OPTIONS}
+                  />
+                )}
+              />
+              {form.formState.errors.taxRegime && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.taxRegime.message}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={form.watch("optanteSimplesNacional")}
+                onCheckedChange={(v) =>
+                  form.setValue("optanteSimplesNacional", v)
+                }
+              />
+              <Label>Optante Simples Nacional</Label>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={form.watch("simplesNacionalMei")}
+                onCheckedChange={(v) => form.setValue("simplesNacionalMei", v)}
+              />
+              <Label>Microempreendedor Individual (MEI)</Label>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Regime Especial de Tributação (opcional)</Label>
+              <Input
+                {...form.register("regimeEspecialTributacao")}
+                placeholder="Ex: 1"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Ambiente de emissão */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldCheck className="size-4 text-[#7C3AED] shrink-0" />{" "}
+              Ambiente de Emissão
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex gap-2">
+              {(["HOMOLOGACAO", "PRODUCAO"] as const).map(
+                (environmentOption) => (
+                  <button
+                    key={environmentOption}
+                    type="button"
+                    onClick={() =>
+                      form.setValue("environment", environmentOption)
+                    }
+                    className={`px-4 py-1.5 rounded-md border text-sm font-medium transition-colors ${
+                      form.watch("environment") === environmentOption
+                        ? "bg-[#7C3AED] text-white border-[#7C3AED]"
+                        : "bg-background text-muted-foreground border-border hover:border-[#7C3AED]"
+                    }`}
+                  >
+                    {environmentOption === "PRODUCAO"
+                      ? "Produção"
+                      : "Homologação"}
+                  </button>
+                ),
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
-              O arquivo não é armazenado — é enviado diretamente à NFE.io junto
-              com o cadastro da empresa.
+              Ambiente padrão usado para pré-preencher a emissão de novas notas
+              — pode ser sobrescrito por nota na tela de emissão.
             </p>
-          </div>
-        </CardContent>
-      </Card>
+            {form.watch("environment") === "PRODUCAO" && (
+              <p className="text-xs text-amber-600 font-medium flex items-center gap-1.5">
+                <AlertTriangle className="size-3.5 shrink-0" />
+                Atenção: notas emitidas em produção têm validade fiscal real.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Endereço */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Endereço do Prestador</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label>
+                Logradouro <span className="text-destructive">*</span>
+              </Label>
+              <Input {...form.register("logradouro")} placeholder="Rua / Av." />
+            </div>
+            <div className="space-y-1.5">
+              <Label>
+                Número <span className="text-destructive">*</span>
+              </Label>
+              <Input {...form.register("numero")} placeholder="123" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Complemento</Label>
+              <Input {...form.register("complemento")} placeholder="Sala 1" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>
+                Bairro <span className="text-destructive">*</span>
+              </Label>
+              <Input {...form.register("bairro")} placeholder="Centro" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>
+                CEP <span className="text-destructive">*</span>
+              </Label>
+              <Input {...form.register("cep")} placeholder="00000-000" />
+            </div>
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label>
+                Município <span className="text-destructive">*</span>
+              </Label>
+              <MunicipioCombobox
+                displayValue={
+                  form.watch("municipio") && form.watch("uf")
+                    ? `${form.watch("municipio")} — ${form.watch("uf")}`
+                    : (form.watch("municipio") ?? "")
+                }
+                onSelect={(municipio) => {
+                  form.setValue("municipio", municipio.nome, {
+                    shouldValidate: true,
+                  });
+                  form.setValue("uf", municipio.uf, { shouldValidate: true });
+                  form.setValue("codigoMunicipio", municipio.codigo_ibge, {
+                    shouldValidate: true,
+                  });
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Digite o nome para buscar — estado e código IBGE preenchidos
+                automaticamente.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>UF</Label>
+              <Input
+                {...form.register("uf")}
+                placeholder="SP"
+                maxLength={2}
+                readOnly
+                className="bg-muted/50 cursor-default"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Código IBGE</Label>
+              <Input
+                {...form.register("codigoMunicipio")}
+                placeholder="3550308"
+                readOnly
+                className="bg-muted/50 cursor-default"
+              />
+              {form.formState.errors.codigoMunicipio && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.codigoMunicipio.message}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Defaults do Serviço */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Padrões do Serviço</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="sm:min-h-10 items-start">
+                Item da Lista de Serviço (Código Nacional NFS-e){" "}
+                <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                {...form.register("defaultItemListaServico")}
+                placeholder="Ex: 170601"
+              />
+              <p className="text-xs text-muted-foreground">
+                6 dígitos numéricos: 2 para item, 2 para subitem (LC 116/2003) e
+                2 para desdobro nacional.
+              </p>
+              {form.formState.errors.defaultItemListaServico && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.defaultItemListaServico.message}
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="sm:min-h-10 items-start">
+                Código de Serviço Municipal (NFE.io)
+              </Label>
+              <Input
+                {...form.register("defaultCityServiceCode")}
+                placeholder="Ex: 0101"
+              />
+              <p className="text-xs text-muted-foreground">
+                Código do serviço no formato da prefeitura — diferente do item
+                da lista LC 116 acima. Consulte o contador ou a tabela da
+                prefeitura.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="sm:min-h-10 items-start">
+                Alíquota ISS (%) <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                {...form.register("defaultAliquotaIss")}
+                type="number"
+                min="2"
+                max="5"
+                step="0.01"
+                placeholder="5.00"
+              />
+              <p className="text-xs text-muted-foreground">
+                Percentual entre 2% e 5% (limite legal — LC 116/2003). Ex: 5
+                para 5%.
+              </p>
+              {form.formState.errors.defaultAliquotaIss && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.defaultAliquotaIss.message}
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="sm:min-h-10 items-start">
+                Tributação do ISSQN <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={String(form.watch("defaultTributacaoIssqn"))}
+                onValueChange={(value) =>
+                  form.setValue("defaultTributacaoIssqn", Number(value))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 — Operação tributável</SelectItem>
+                  <SelectItem value="2">2 — Imunidade</SelectItem>
+                  <SelectItem value="3">3 — Exportação de serviços</SelectItem>
+                  <SelectItem value="4">4 — Não incidência</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={form.watch("defaultIssRetido")}
+                onCheckedChange={(v) => form.setValue("defaultIssRetido", v)}
+              />
+              <Label>ISS Retido na Fonte</Label>
+            </div>
+            {(() => {
+              const municipioRequirements = resolveMunicipioRequirements(
+                form.watch("codigoMunicipio"),
+              );
+              return (
+                <div className="space-y-1.5">
+                  <Label className="sm:min-h-10 items-start">
+                    Código CNAE do serviço{" "}
+                    {municipioRequirements.requiresCodigoCnae && (
+                      <span className="text-destructive">*</span>
+                    )}
+                  </Label>
+                  <Input
+                    {...form.register("defaultCodigoCnae")}
+                    inputMode="numeric"
+                    placeholder="Ex: 620910000"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {municipioRequirements.requiresCodigoCnae
+                      ? `Seu município exige CNAE de ${municipioRequirements.requiresCodigoCnae.digits} dígitos na emissão.`
+                      : "Opcional — alguns municípios exigem o CNAE na emissão."}
+                  </p>
+                  {form.formState.errors.defaultCodigoCnae && (
+                    <p className="text-xs text-destructive">
+                      {form.formState.errors.defaultCodigoCnae.message}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label>Discriminação padrão do serviço</Label>
+              <Textarea
+                {...form.register("defaultDiscriminacao")}
+                placeholder="Descrição padrão para o campo de serviços da NFS-e"
+                rows={2}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Retenções e descontos padrão */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">
+              Retenções e descontos padrão
+            </CardTitle>
+            <p className="text-xs text-muted-foreground pt-1">
+              Percentuais aplicados sobre o valor do serviço na emissão. Deixe 0
+              quando não houver. Podem ser sobrescritos por nota.
+            </p>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {(
+              [
+                { name: "defaultIrPercent", label: "IR (%)" },
+                { name: "defaultPisPercent", label: "PIS (%)" },
+                { name: "defaultCofinsPercent", label: "COFINS (%)" },
+                { name: "defaultCsllPercent", label: "CSLL (%)" },
+                { name: "defaultInssPercent", label: "INSS (%)" },
+                {
+                  name: "defaultOutrasRetencoesPercent",
+                  label: "Outras ret. (%)",
+                },
+                { name: "defaultDeducoesPercent", label: "Deduções (%)" },
+                {
+                  name: "defaultDescontoIncondicionadoPercent",
+                  label: "Desc. incondicionado (%)",
+                },
+                {
+                  name: "defaultDescontoCondicionadoPercent",
+                  label: "Desc. condicionado (%)",
+                },
+              ] as const
+            ).map((percentField) => (
+              <div key={percentField.name} className="space-y-1.5">
+                <Label className="text-xs">{percentField.label}</Label>
+                <Input
+                  {...form.register(percentField.name)}
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  placeholder="0"
+                />
+              </div>
+            ))}
+            <div className="col-span-2 sm:col-span-3 space-y-1.5">
+              <Label>Informações adicionais padrão</Label>
+              <Textarea
+                {...form.register("defaultInformacoesAdicionais")}
+                placeholder="Texto livre impresso na nota (ex.: dados bancários, observações)"
+                rows={2}
+              />
+            </div>
+
+            <div className="col-span-2 sm:col-span-3 flex items-center justify-between rounded-lg border px-4 py-2.5">
+              <div className="space-y-0.5">
+                <Label>
+                  Emitir NFS-e automaticamente ao quitar lançamentos
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Quando um lançamento a receber for marcado como pago, emite a
+                  nota fiscal automaticamente usando os padrões deste perfil.
+                </p>
+              </div>
+              <Switch
+                checked={form.watch("autoIssueOnEntryPaid")}
+                onCheckedChange={(v) =>
+                  form.setValue("autoIssueOnEntryPaid", v)
+                }
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Certificado A1 */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldCheck className="size-4 text-[#7C3AED] shrink-0" />{" "}
+              Certificado A1 Digital
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {profile?.nfeIoCertificateStatus === "Active" ? (
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+                <CheckCircle2 className="size-4 shrink-0" />
+                Certificado ativo na NFE.io
+                {profile.nfeIoCertificateExpiresOn &&
+                  ` — expira em ${new Date(
+                    profile.nfeIoCertificateExpiresOn,
+                  ).toLocaleDateString("pt-BR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}`}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
+                <AlertTriangle className="size-4 shrink-0" />
+                Nenhum certificado ativo na NFE.io. A emissão de notas requer o
+                A1.
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <Upload className="size-3.5" /> Arquivo .pfx ou .p12
+                </Label>
+                <input
+                  ref={certFileInputRef}
+                  type="file"
+                  accept=".pfx,.p12"
+                  onChange={(e) => setCertFile(e.target.files?.[0] ?? null)}
+                  className="block w-full text-sm text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-border file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80 cursor-pointer"
+                />
+                {certFile && (
+                  <p className="text-xs text-muted-foreground">
+                    {certFile.name}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <KeyRound className="size-3.5" /> Senha do certificado
+                </Label>
+                <Input
+                  {...form.register("senhaCertificado")}
+                  type="password"
+                  placeholder="Senha do arquivo .pfx / .p12"
+                  autoComplete="off"
+                />
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                O arquivo não é armazenado — é enviado diretamente à NFE.io
+                junto com o cadastro da empresa.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Button

@@ -1,10 +1,8 @@
-import type {
-  FiscalCompanyProfile,
-  ForgeContract,
-} from "@/generated/prisma/client";
+import type { FiscalCompanyProfile } from "@/generated/prisma/client";
 import type { FiscalEnvironment, FiscalInvoiceType } from "@/generated/prisma/enums";
 import type { FocusNfseResponse } from "@/http/focus-nfe/types";
 import type {
+  FiscalIssueSource,
   IssueOverrides,
   PreflightResult,
 } from "@/http/focus-nfe/build-nfse-payload";
@@ -15,7 +13,7 @@ export type NfseWebhookEvent = "nfse" | "nfsen";
 
 export type EmitParams = {
   ref: string;
-  contract: ForgeContract;
+  source: FiscalIssueSource;
   profile: FiscalCompanyProfile;
   overrides: IssueOverrides;
   environment: FiscalEnvironment;
@@ -36,7 +34,7 @@ export interface NfseProvider {
   readonly webhookEvent: NfseWebhookEvent;
 
   validate(
-    contract: ForgeContract,
+    source: FiscalIssueSource,
     profile: FiscalCompanyProfile,
     overrides: IssueOverrides,
     environment: FiscalEnvironment,

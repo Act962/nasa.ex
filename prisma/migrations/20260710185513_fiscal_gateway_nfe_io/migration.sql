@@ -2,7 +2,8 @@
 CREATE TYPE "FiscalGateway" AS ENUM ('NFE_IO', 'FOCUS_NFE');
 
 -- AlterTable
-ALTER TABLE "fiscal_company_profile" ADD COLUMN     "default_city_service_code" TEXT,
+ALTER TABLE "fiscal_company_profile" ADD COLUMN     "auto_issue_on_entry_paid" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "default_city_service_code" TEXT,
 ADD COLUMN     "default_cofins_percent" DECIMAL(5,2) NOT NULL DEFAULT 0,
 ADD COLUMN     "default_csll_percent" DECIMAL(5,2) NOT NULL DEFAULT 0,
 ADD COLUMN     "default_deducoes_percent" DECIMAL(5,2) NOT NULL DEFAULT 0,
@@ -26,7 +27,14 @@ ADD COLUMN     "tax_regime" TEXT;
 -- AlterTable
 ALTER TABLE "fiscal_invoice" ADD COLUMN     "external_id" TEXT,
 ADD COLUMN     "flow_status" TEXT,
-ADD COLUMN     "gateway" "FiscalGateway" NOT NULL DEFAULT 'FOCUS_NFE';
+ADD COLUMN     "gateway" "FiscalGateway" NOT NULL DEFAULT 'FOCUS_NFE',
+ADD COLUMN     "payment_entry_id" TEXT;
+
+-- CreateIndex
+CREATE INDEX "fiscal_invoice_payment_entry_id_idx" ON "fiscal_invoice"("payment_entry_id");
 
 -- CreateIndex
 CREATE INDEX "fiscal_invoice_external_id_idx" ON "fiscal_invoice"("external_id");
+
+-- AddForeignKey
+ALTER TABLE "fiscal_invoice" ADD CONSTRAINT "fiscal_invoice_payment_entry_id_fkey" FOREIGN KEY ("payment_entry_id") REFERENCES "payment_entries"("id") ON DELETE SET NULL ON UPDATE CASCADE;

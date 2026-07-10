@@ -15,6 +15,18 @@ export function useFiscalInvoicesByContract(
   });
 }
 
+export function useFiscalInvoicesByPaymentEntry(
+  paymentEntryId: string,
+  enabled = true,
+) {
+  return useQuery({
+    ...orpc.fiscal.invoices.listByPaymentEntry.queryOptions({
+      input: { paymentEntryId },
+    }),
+    enabled: enabled && !!paymentEntryId,
+  });
+}
+
 export function useFiscalInvoice(id: string, enabled = true) {
   return useQuery({
     ...orpc.fiscal.invoices.get.queryOptions({ input: { id } }),
@@ -26,6 +38,16 @@ export function useIssueFiscalInvoice() {
   const queryClient = useQueryClient();
   return useMutation({
     ...orpc.fiscal.invoices.issueFromContract.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: orpc.fiscal.invoices.key() });
+    },
+  });
+}
+
+export function useIssueFiscalInvoiceFromPaymentEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...orpc.fiscal.invoices.issueFromPaymentEntry.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: orpc.fiscal.invoices.key() });
     },

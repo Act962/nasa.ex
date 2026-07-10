@@ -4368,6 +4368,7 @@ model PaymentEntry {
   approvalRequest   PaymentApprovalRequest?
   dunningRule       PaymentDunningRule?        @relation(fields: [dunningRuleId], references: [id], onDelete: SetNull)
   dunningExecutions PaymentDunningExecution[]
+  fiscalInvoices    FiscalInvoice[]
 
   @@index([organizationId])
   @@index([type])
@@ -7451,6 +7452,9 @@ model FiscalCompanyProfile {
   defaultDescontoCondicionadoPercent   Decimal @default(0) @map("default_desconto_condicionado_percent") @db.Decimal(5, 2)
   defaultInformacoesAdicionais       String? @map("default_informacoes_adicionais")
 
+  // Emissão automática de NFS-e quando um PaymentEntry RECEIVABLE vira PAID.
+  autoIssueOnEntryPaid Boolean @default(false) @map("auto_issue_on_entry_paid")
+
   // Cadastro NFE.io (CompanyResource): email/abertura/natureza jurídica/regime são
   // obrigatórios na API; cityServiceCode é o código de serviço municipal (≠ item LC116).
   email                  String?   @map("email")
@@ -7493,6 +7497,8 @@ model FiscalInvoice {
   profile        FiscalCompanyProfile @relation(fields: [profileId], references: [id])
   contractId     String?              @map("contract_id")
   contract       ForgeContract?       @relation(fields: [contractId], references: [id])
+  paymentEntryId String?              @map("payment_entry_id")
+  paymentEntry   PaymentEntry?        @relation(fields: [paymentEntryId], references: [id])
 
   ref         String              @unique
   type        FiscalInvoiceType   @default(NFSE)
@@ -7538,6 +7544,7 @@ model FiscalInvoice {
 
   @@index([organizationId])
   @@index([contractId])
+  @@index([paymentEntryId])
   @@index([status, createdAt])
   @@index([ref])
   @@index([externalId])

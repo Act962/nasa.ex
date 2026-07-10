@@ -6,7 +6,6 @@
 import type {
   FiscalCompanyProfile,
   FiscalInvoice,
-  ForgeContract,
 } from "@/generated/prisma/client";
 import type {
   FiscalEnvironment,
@@ -16,11 +15,12 @@ import type {
   NfseStandard,
 } from "@/generated/prisma/enums";
 import type {
+  FiscalIssueSource,
   IssueOverrides,
   PreflightResult,
 } from "@/http/focus-nfe/build-nfse-payload";
 
-export type { PreflightResult };
+export type { FiscalIssueSource, PreflightResult };
 
 export type FiscalIssueOverrides = IssueOverrides & {
   // Código do serviço no formato do município (NFE.io) — distinto do item LC116.
@@ -98,7 +98,7 @@ export type CertificateUpload = {
 
 export type IssueInvoiceParams = {
   ref: string;
-  contract: ForgeContract;
+  source: FiscalIssueSource;
   profile: FiscalCompanyProfile;
   overrides: FiscalIssueOverrides;
   environment: FiscalEnvironment;

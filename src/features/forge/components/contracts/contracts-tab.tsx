@@ -578,7 +578,15 @@ export function ContractsTab() {
           </SheetHeader>
           <div className="mt-4">
             {fiscalContract && (
-              <FiscalInvoiceCard contract={fiscalContract} />
+              <FiscalInvoiceCard
+                target={{
+                  kind: "contract",
+                  contractId: fiscalContract.id,
+                  contractNumber: fiscalContract.number,
+                }}
+                serviceValue={fiscalContract.value}
+                clientData={fiscalContract.clientData}
+              />
             )}
           </div>
         </SheetContent>

@@ -13,9 +13,9 @@ export const municipalNfseProvider: NfseProvider = {
   invoiceType: "NFSE",
   webhookEvent: "nfse",
 
-  validate: (contract, profile, overrides, environment) =>
+  validate: (source, profile, overrides, environment) =>
     validateBeforeEmit(
-      contract,
+      source,
       profile,
       overrides,
       resolveMunicipioRequirements(profile.codigoMunicipio),
@@ -24,14 +24,14 @@ export const municipalNfseProvider: NfseProvider = {
 
   async emitir({
     ref,
-    contract,
+    source,
     profile,
     overrides,
     environment,
     companyToken,
   }: EmitParams): Promise<EmitResult> {
     const payload = buildNfsePayload(
-      contract,
+      source,
       profile,
       overrides,
       resolveMunicipioRequirements(profile.codigoMunicipio),
