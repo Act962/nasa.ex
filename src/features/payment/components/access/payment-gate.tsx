@@ -11,6 +11,7 @@ import {
   Loader2,
   ShieldX,
   ShieldCheck,
+  ShieldPlus,
   MessageCircle,
   Fingerprint,
   KeyRound,
@@ -20,6 +21,7 @@ import {
   useVerifyPaymentOtp,
   useRequestPaymentOtp,
   useMyPaymentAccess,
+  useSetupOwnerPaymentAccess,
   useStartWebauthnAuth,
   useFinishWebauthnAuth,
 } from "../../hooks/use-payment";
@@ -52,6 +54,8 @@ export function PaymentGate({ children }: { children: React.ReactNode }) {
   const [step, setStep] = useState<Step>("password");
   const [pin, setPin] = useState("");
   const [otp, setOtp] = useState("");
+  const [setupPin, setSetupPin] = useState("");
+  const [setupConfirm, setSetupConfirm] = useState("");
   const [showPin, setShowPin] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [timeoutMin, setTimeoutMin] = useState(DEFAULT_TIMEOUT_MIN);
@@ -63,6 +67,7 @@ export function PaymentGate({ children }: { children: React.ReactNode }) {
   const requestOtp = useRequestPaymentOtp();
   const startWebauthn = useStartWebauthnAuth();
   const finishWebauthn = useFinishWebauthnAuth();
+  const setupOwner = useSetupOwnerPaymentAccess();
 
   const hasWebauthn = my.data?.hasWebauthn ?? false;
 
@@ -157,10 +162,77 @@ export function PaymentGate({ children }: { children: React.ReactNode }) {
 
   if (unlocked) return <>{children}</>;
 
+  // Owner da empresa sem acesso ainda → auto-cadastro (define o próprio PIN)
+  if (my.data && !my.data.authorized && my.data.canSelfSetup) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen w-full gap-6 px-4">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="size-16 rounded-2xl bg-[#1E90FF]/10 border border-[#1E90FF]/20 flex items-center justify-center">
+            <ShieldPlus className="size-8 text-[#1E90FF]" />
+          </div>
+          <h1 className="text-xl font-bold">Configure seu acesso financeiro</h1>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            Como responsável pela empresa, defina um PIN de acesso ao módulo
+            NASA Payment. Ele será sua senha permanente e você poderá liberar
+            acesso a outras pessoas depois.
+          </p>
+        </div>
+        <form onSubmit={handleSetupSubmit} className="w-full max-w-xs space-y-3">
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              ref={inputRef}
+              type={showPin ? "text" : "password"}
+              inputMode="numeric"
+              placeholder="Novo PIN (mín. 4 dígitos)"
+              value={setupPin}
+              onChange={(event) => setSetupPin(event.target.value)}
+              className="pl-9 pr-10 text-center tracking-widest text-lg h-12"
+              disabled={setupOwner.isPending}
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowPin((value) => !value)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              type={showPin ? "text" : "password"}
+              inputMode="numeric"
+              placeholder="Confirme o PIN"
+              value={setupConfirm}
+              onChange={(event) => setSetupConfirm(event.target.value)}
+              className="pl-9 pr-10 text-center tracking-widest text-lg h-12"
+              disabled={setupOwner.isPending}
+              autoComplete="off"
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={setupOwner.isPending || setupPin.trim().length < 4}
+            className="w-full h-11 bg-[#1E90FF] hover:bg-[#1E90FF]/90 text-white"
+          >
+            {setupOwner.isPending ? (
+              <><Loader2 className="size-4 animate-spin mr-2" />Configurando...</>
+            ) : (
+              <><ShieldCheck className="size-4 mr-2" />Definir PIN e entrar</>
+            )}
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
   // Usuário sem PaymentAccess → tela de bloqueio total
   if (my.data && !my.data.authorized) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6 px-4 text-center">
+      <div className="flex flex-col items-center justify-center min-h-screen w-full gap-6 px-4 text-center">
         <div className="size-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
           <ShieldX className="size-8 text-red-500" />
         </div>
@@ -177,6 +249,29 @@ export function PaymentGate({ children }: { children: React.ReactNode }) {
   }
 
   const LOCKED_OUT = attempts >= 5;
+
+  async function handleSetupSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (setupPin.trim().length < 4 || setupOwner.isPending) return;
+    if (setupPin !== setupConfirm) {
+      toast.error("Os PINs não conferem.");
+      return;
+    }
+    try {
+      const result = await setupOwner.mutateAsync({ pin: setupPin });
+      if (result.ok) {
+        setSetupPin("");
+        setSetupConfirm("");
+        await my.refetch();
+        persistUnlocked();
+        toast.success("Acesso financeiro configurado");
+      } else {
+        toast.error("Não foi possível configurar o acesso");
+      }
+    } catch {
+      toast.error("Erro ao configurar acesso");
+    }
+  }
 
   async function handlePinSubmit(event: React.FormEvent) {
     event.preventDefault();

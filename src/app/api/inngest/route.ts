@@ -75,6 +75,9 @@ import {
 import { paymentDunningFire } from "@/inngest/functions/payment/dunning-fire";
 import { paymentApprovalReminder } from "@/inngest/functions/payment/approval-reminder";
 import { nfseStatusSync } from "@/inngest/functions/fiscal/nfse-status-sync";
+// ── Campanhas (disparo em massa WhatsApp Oficial — Fase 3/4) ──
+import { dispatchBroadcast } from "@/inngest/functions/campanhas/dispatch-broadcast";
+import { dispatchDueBroadcasts } from "@/inngest/functions/campanhas/dispatch-due-broadcasts";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -151,6 +154,12 @@ export const { GET, POST, PUT } = serve({
     agentTriggerPaymentReceivedFn,
     agentTriggerMessageIncomingFn,
     agentTriggerWebhookExternalFn,
+    // ── NASA Payment Fase 2 — event-driven, sem cron ──
+    paymentDunningFire,
+    paymentApprovalReminder,
+    // ── Campanhas — disparo em massa (Fase 3) + agendamento (Fase 4, cron) ──
+    dispatchBroadcast,
+    dispatchDueBroadcasts,
     // ── Fiscal (NFS-e): sync de status via webhook do gateway ──
     nfseStatusSync,
     // bookingNotification,

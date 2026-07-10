@@ -41,7 +41,6 @@ interface ProposalsAndBudgetsPanelProps {
   leadId: string;
   leadName: string;
   leadPhone: string;
-  whatsappToken: string;
   /** Insere texto no input da mensagem do chat (usado pra link de proposta). */
   onInsertMessage: (text: string) => void;
   /**
@@ -67,7 +66,6 @@ export function ProposalsAndBudgetsPanel({
   leadId,
   leadName,
   leadPhone,
-  whatsappToken,
   onInsertMessage,
   initialAttach,
 }: ProposalsAndBudgetsPanelProps) {
@@ -141,7 +139,6 @@ export function ProposalsAndBudgetsPanel({
               leadId={leadId}
               leadName={leadName}
               leadPhone={leadPhone}
-              whatsappToken={whatsappToken}
               onSuccess={() => setTab("historico")}
               initialAttach={initialAttach}
             />

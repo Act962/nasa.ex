@@ -26,6 +26,7 @@ export const createAdminAppointment = base
       date: z.string().min(1, "Date is required"), // YYYY-MM-DD
       time: z.string().min(1, "Time is required"), // HH:mm
       name: z.string().min(1, "Name is required"),
+      title: z.string().optional(),
       phone: z.string().min(1, "Phone is required"),
       email: z.email("Email inválido").optional().or(z.literal("")),
       notes: z.string().optional(),
@@ -127,7 +128,7 @@ export const createAdminAppointment = base
         userId: context.user.id,
         startsAt: startsAt.toDate(),
         endsAt: endsAt.toDate(),
-        title: `Agendamento: ${input.name}`,
+        title: input.title?.trim() || `Agendamento: ${input.name}`,
         notes: input.notes,
         status: "CONFIRMED",
         trackingId: agenda.trackingId,

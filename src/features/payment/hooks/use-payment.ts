@@ -19,7 +19,7 @@ export function useGrantPaymentAccess() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.access.grant.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
 
@@ -27,7 +27,7 @@ export function useRevokePaymentAccess() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.access.revoke.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
 
@@ -43,11 +43,19 @@ export function useMyPaymentAccess() {
   return useQuery(orpc.payment.access.getMy.queryOptions({ input: {} }));
 }
 
+export function useSetupOwnerPaymentAccess() {
+  const qc = useQueryClient();
+  return useMutation({
+    ...orpc.payment.access.setupOwner.mutationOptions(),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
+  });
+}
+
 export function useUpdatePaymentRole() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.access.updateRole.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
 
@@ -55,7 +63,7 @@ export function useUpdatePaymentPermissions() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.access.updatePermissions.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
 
@@ -67,7 +75,7 @@ export function useFinishWebauthnRegistration() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.access.finishWebauthnReg.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
 
@@ -130,7 +138,7 @@ export function useCreatePaymentEntry() {
   return useMutation({
     ...orpc.payment.entries.create.mutationOptions(),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["payment"] });
+      qc.invalidateQueries({ queryKey: orpc.payment.key() });
     },
   });
 }
@@ -139,9 +147,9 @@ export function useUpdatePaymentEntry() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.entries.update.mutationOptions(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["payment"] });
-    },
+    // Retorna a promise pra que `mutateAsync`/`isPending` só resolvam depois
+    // que a lista recarregar — o dialog de edição fecha com dados já atualizados.
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.payment.key() }),
   });
 }
 
@@ -150,7 +158,7 @@ export function usePayEntry() {
   return useMutation({
     ...orpc.payment.entries.pay.mutationOptions(),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["payment"] });
+      qc.invalidateQueries({ queryKey: orpc.payment.key() });
     },
   });
 }
@@ -160,7 +168,17 @@ export function useDeletePaymentEntry() {
   return useMutation({
     ...orpc.payment.entries.delete.mutationOptions(),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["payment"] });
+      qc.invalidateQueries({ queryKey: orpc.payment.key() });
+    },
+  });
+}
+
+export function useRemovePaymentEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    ...orpc.payment.entries.remove.mutationOptions(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orpc.payment.key() });
     },
   });
 }
@@ -177,7 +195,7 @@ export function useCreatePaymentAccount() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.accounts.create.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
 
@@ -185,7 +203,7 @@ export function useUpdatePaymentAccount() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.accounts.update.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
 
@@ -193,7 +211,7 @@ export function useDeletePaymentAccount() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.accounts.delete.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
 
@@ -209,7 +227,7 @@ export function useCreatePaymentCategory() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.categories.create.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
 
@@ -217,7 +235,7 @@ export function useUpdatePaymentCategory() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.categories.update.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
 
@@ -225,7 +243,7 @@ export function useDeletePaymentCategory() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.categories.delete.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
 
@@ -249,7 +267,7 @@ export function useCreatePaymentContact() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.contacts.create.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
 
@@ -257,7 +275,7 @@ export function useUpdatePaymentContact() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.contacts.update.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
 
@@ -265,6 +283,6 @@ export function useDeletePaymentContact() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.contacts.delete.mutationOptions(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payment"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }

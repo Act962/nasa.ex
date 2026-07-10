@@ -15,12 +15,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   MoreHorizontal,
   CheckCircle2,
+  Pencil,
   Trash2,
+  XCircle,
   Search,
   Plus,
   Bell,
@@ -33,7 +45,9 @@ import {
   useCreatePaymentEntry,
   usePayEntry,
   useDeletePaymentEntry,
+  useRemovePaymentEntry,
 } from "../../hooks/use-payment";
+import { EntryEditDialog } from "./entry-edit-dialog";
 import {
   formatCurrency,
   formatDate,
@@ -53,6 +67,10 @@ interface EntriesTableProps {
   type: "RECEIVABLE" | "PAYABLE";
 }
 
+type PaymentEntryRow = NonNullable<
+  ReturnType<typeof usePaymentEntries>["data"]
+>["entries"][number];
+
 export function EntriesTable({ type }: EntriesTableProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -62,6 +80,11 @@ export function EntriesTable({ type }: EntriesTableProps) {
   const [showForm, setShowForm] = useState(false);
   const [payDialog, setPayDialog] = useState<{ id: string; amount: number } | null>(null);
   const [payAmount, setPayAmount] = useState("");
+  // Edição de valores + confirmação de cancelar (soft) / excluir (hard).
+  const [editEntry, setEditEntry] = useState<PaymentEntryRow | null>(null);
+  const [confirm, setConfirm] = useState<
+    { kind: "cancel" | "delete"; id: string; name: string } | null
+  >(null);
   // ── Dunning (Fase 2) — atribuir régua + ver histórico de execuções.
   const [assignDunning, setAssignDunning] = useState<{ id: string; ruleId: string | null; name: string } | null>(null);
   const [historyDunning, setHistoryDunning] = useState<{ id: string; name: string } | null>(null);
@@ -78,6 +101,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
   const createEntry = useCreatePaymentEntry();
   const payEntry = usePayEntry();
   const deleteEntry = useDeletePaymentEntry();
+  const removeEntry = useRemovePaymentEntry();
 
   async function handleCreate(formData: Parameters<typeof createEntry.mutateAsync>[0]) {
     try {
@@ -110,6 +134,22 @@ export function EntriesTable({ type }: EntriesTableProps) {
     } catch {
       toast.error("Erro ao cancelar");
     }
+  }
+
+  async function handleRemove(id: string) {
+    try {
+      await removeEntry.mutateAsync({ id });
+      toast.success("Lançamento excluído");
+    } catch {
+      toast.error("Erro ao excluir");
+    }
+  }
+
+  async function handleConfirm() {
+    if (!confirm) return;
+    if (confirm.kind === "cancel") await handleDelete(confirm.id);
+    else await handleRemove(confirm.id);
+    setConfirm(null);
   }
 
   const entries = data?.entries ?? [];
@@ -247,6 +287,13 @@ export function EntriesTable({ type }: EntriesTableProps) {
                             Registrar Pagamento
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem
+                          onClick={() => setEditEntry(entry)}
+                          className="gap-2"
+                        >
+                          <Pencil className="size-4 text-blue-400" />
+                          Editar
+                        </DropdownMenuItem>
                         {entry.type === "RECEIVABLE" && (
                           <>
                             <DropdownMenuItem
@@ -271,13 +318,27 @@ export function EntriesTable({ type }: EntriesTableProps) {
                             </DropdownMenuItem>
                           </>
                         )}
-                        <DropdownMenuItem
-                          onClick={() => handleDelete(entry.id)}
-                          className="gap-2 text-red-400"
-                        >
-                          <Trash2 className="size-4" />
-                          Cancelar
-                        </DropdownMenuItem>
+                        {entry.status !== "CANCELLED" ? (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              setConfirm({ kind: "cancel", id: entry.id, name: entry.description })
+                            }
+                            className="gap-2 text-amber-400"
+                          >
+                            <XCircle className="size-4" />
+                            Cancelar
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              setConfirm({ kind: "delete", id: entry.id, name: entry.description })
+                            }
+                            className="gap-2 text-red-400"
+                          >
+                            <Trash2 className="size-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -300,7 +361,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
 
       {/* Create Entry Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto scroll-cols-tracking">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <span className={`text-base ${color}`}>{type === "RECEIVABLE" ? "💚" : "🔴"}</span>
@@ -374,6 +435,49 @@ export function EntriesTable({ type }: EntriesTableProps) {
         entryName={historyDunning?.name ?? null}
         onClose={() => setHistoryDunning(null)}
       />
+
+      {/* Editar lançamento */}
+      <EntryEditDialog entry={editEntry} onClose={() => setEditEntry(null)} />
+
+      {/* Confirmação de cancelar (soft) / excluir (hard) */}
+      <AlertDialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirm?.kind === "delete" ? "Excluir lançamento?" : "Cancelar lançamento?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirm?.kind === "delete" ? (
+                <>
+                  O lançamento <strong>{confirm?.name}</strong> será removido
+                  permanentemente e não poderá ser recuperado.
+                </>
+              ) : (
+                <>
+                  O lançamento <strong>{confirm?.name}</strong> será marcado como
+                  cancelado, mas continuará no histórico.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteEntry.isPending || removeEntry.isPending}>
+              Voltar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirm}
+              disabled={deleteEntry.isPending || removeEntry.isPending}
+              className={
+                confirm?.kind === "delete"
+                  ? "bg-red-500 hover:bg-red-500/90 text-white"
+                  : "bg-amber-500 hover:bg-amber-500/90 text-white"
+              }
+            >
+              {confirm?.kind === "delete" ? "Excluir" : "Cancelar lançamento"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

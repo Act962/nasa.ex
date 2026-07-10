@@ -6,6 +6,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowUpRight,
+  Banknote,
   CalendarClock,
   CheckIcon,
   ClipboardList as ClipboardListIcon,
@@ -25,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQueryTagByLead } from "@/features/tracking-chat/hooks/use-leads-conversation";
 import { Button } from "@/components/ui/button";
 import { phoneMaskFull } from "@/utils/format-phone";
+import { formatCentsToMoney } from "@/utils/mask-money";
 import dayjs from "dayjs";
 import { memo, useMemo, useState, useEffect } from "react";
 import { Lead } from "../types";
@@ -34,9 +36,9 @@ import { useLeadStore } from "../contexts/use-lead";
 import { useKanbanStore } from "../lib/kanban-store";
 import { useKanbanAppearance } from "../hooks/use-kanban-appearance";
 import { useLeadPurchasesByTracking } from "../hooks/use-lead-purchases";
+import { useCardConfig } from "../hooks/use-card-config";
+import { isFieldVisible, resolveCardVisibility } from "../lib/card-visibility";
 import { LeadPurchaseBasket } from "./lead-purchase-basket";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
 import { hexToRgba } from "@/utils/hex-to-rgba";
 import {
   Popover,
@@ -147,19 +149,26 @@ export const LeadItem = memo(
     const { data: appearance } = useKanbanAppearance(data.trackingId);
     // Cesta de compra: dedupa via React Query — 1 request por tracking.
     const { data: purchasesData } = useLeadPurchasesByTracking(data.trackingId);
-    const { data: cardConfigData } = useQuery(
-      orpc.tracking.getCardConfig.queryOptions({
-        input: { trackingId: data.trackingId },
-      }),
+    const { data: cardConfig } = useCardConfig(data.trackingId);
+    // Visibilidade efetiva: preview ao vivo (Sheet aberto) tem prioridade
+    // sobre o config salvo, mas SÓ para o tracking deste card. Chave ausente
+    // = visível (default true).
+    const visibilityPreview = useKanbanStore((s) => s.visibilityPreview);
+    const visibility = resolveCardVisibility(
+      cardConfig?.cardVisibility,
+      visibilityPreview,
+      data.trackingId,
     );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cardConfig = (cardConfigData as any)?.config;
     const basketThresholds = {
       recentDays: cardConfig?.basketRecentDays ?? 30,
       mediumDays: cardConfig?.basketMediumDays ?? 60,
       longDays: cardConfig?.basketLongDays ?? 90,
     };
-    const showBasket = cardConfig?.showPurchaseBasket !== false;
+    // Cesta respeita tanto a nova visibilidade quanto o toggle legado da aba
+    // de Configurações (`showPurchaseBasket`).
+    const showBasket =
+      isFieldVisible(visibility, "purchaseBasket") &&
+      cardConfig?.showPurchaseBasket !== false;
     const leadPurchase = purchasesData?.purchases?.[data.id];
     const [description, setDescription] = useState(data.description);
 
@@ -256,22 +265,25 @@ export const LeadItem = memo(
           Posicionada mais pra fora (em cima do contorno esquerdo), mas
           ainda com uma parte por cima da foto. Sem ring/halo — visual
           mais limpo. `pointer-events-none` pra não bloquear drag/click. */}
-        <span
-          aria-label={`Temperatura: ${TEMP_TEXT[data.temperature]}`}
-          title={TEMP_TEXT[data.temperature]}
-          className="pointer-events-none absolute z-10 size-1.5 rounded-full"
-          style={{
-            backgroundColor: TEMP_COLOR[data.temperature],
-            top: "13px",
-            left: "7px",
-          }}
-        />
+        {isFieldVisible(visibility, "temperature") && (
+          <span
+            aria-label={`Temperatura: ${TEMP_TEXT[data.temperature]}`}
+            title={TEMP_TEXT[data.temperature]}
+            className="pointer-events-none absolute z-10 size-1.5 rounded-full"
+            style={{
+              backgroundColor: TEMP_COLOR[data.temperature],
+              top: "13px",
+              left: "7px",
+            }}
+          />
+        )}
         <div className="flex items-center justify-between gap-2 px-3 py-2">
           {/* Container esquerdo: `min-w-0 flex-1` é essencial pra que o nome
             + pill de apelido respeitem o truncate e não empurrem a largura
             do card. Sem isso, flex-children "esticam" pelo conteúdo. */}
           <div className="flex min-w-0 flex-1 flex-row items-center gap-2">
             <button
+              data-dnd-handle
               className="shrink-0 touch-none flex lg:hidden lg:group-hover:flex active:cursor-grabbing cursor-grab"
               {...listeners}
               {...attributes}
@@ -280,6 +292,7 @@ export const LeadItem = memo(
               <Grip className="size-4 " />
             </button>
             <Avatar
+              data-dnd-handle
               className="shrink-0 size-4 hidden lg:block lg:group-hover:hidden touch-none"
               {...listeners}
               {...attributes}
@@ -305,7 +318,7 @@ export const LeadItem = memo(
               <span className="min-w-0 shrink truncate text-xs font-medium max-w-38">
                 {data.name || "Sem nome"}
               </span>
-              {data.nickname && (
+              {data.nickname && isFieldVisible(visibility, "nickname") && (
                 // Pill de apelido — mesmo visual do botão "+" de adicionar
                 // tag (`variant="outline"` + rounded-full). `shrink-0` + cap
                 // de 80px pra não engolir o nome inteiro quando o apelido é
@@ -330,12 +343,14 @@ export const LeadItem = memo(
             >
               <ArrowUpRight className="size-3.5" />
             </button>
-            <CheckIaLead
-              size={"xs"}
-              active={data.isActive}
-              leadId={data.id}
-              trackingId={data.trackingId}
-            />
+            {isFieldVisible(visibility, "aiIndicator") && (
+              <CheckIaLead
+                size={"xs"}
+                active={data.isActive}
+                leadId={data.id}
+                trackingId={data.trackingId}
+              />
+            )}
             {showBasket && (
               <LeadPurchaseBasket
                 purchase={leadPurchase}
@@ -348,15 +363,27 @@ export const LeadItem = memo(
         <div className="flex flex-col px-4 gap-1 text-xs text-muted-foreground py-2">
           {/* E-mail removido do card por solicitação — fica visível apenas
             no painel "Detalhes do lead" pra deixar o card mais enxuto. */}
-          <LeadItemContainer>
-            <Phone className="size-3" />
-            {phoneMaskFull(data.phone) || "(00) 00000-0000"}
-          </LeadItemContainer>
-          <LeadItemContainer className="items-baseline">
-            <Tag className="size-3" />
-            <ListLeadTags leadId={data.id} tags={data.leadTags} />
-          </LeadItemContainer>
-          {(data.description || description) && viewMode === "modern" && (
+          {isFieldVisible(visibility, "phone") && (
+            <LeadItemContainer>
+              <Phone className="size-3" />
+              {phoneMaskFull(data.phone) || "(00) 00000-0000"}
+            </LeadItemContainer>
+          )}
+          {Number(data.amount) > 0 && isFieldVisible(visibility, "leadValue") && (
+            <LeadItemContainer>
+              <Banknote className="size-3" />
+              {formatCentsToMoney(data.amount)}
+            </LeadItemContainer>
+          )}
+          {isFieldVisible(visibility, "tags") && (
+            <LeadItemContainer className="items-baseline">
+              <Tag className="size-3" />
+              <ListLeadTags leadId={data.id} tags={data.leadTags} />
+            </LeadItemContainer>
+          )}
+          {(data.description || description) &&
+            viewMode === "modern" &&
+            isFieldVisible(visibility, "description") && (
             <LeadItemContainer
               className="mt-2"
               onClick={(e) => {
@@ -374,12 +401,14 @@ export const LeadItem = memo(
         </div>
         <Separator />
         <div
+          data-dnd-handle
           className="flex items-center justify-between bg-secondary px-3 py-2"
           {...listeners}
           {...attributes}
         >
           <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-            {(() => {
+            {isFieldVisible(visibility, "dateLabel") &&
+              (() => {
               // A data exibida acompanha o sort ativo — assim o usuário sempre
               // vê o critério que está usando pra ordenar (sem precisar abrir
               // o lead). Quando sort = "order" (Personalizada), mostra
@@ -416,15 +445,18 @@ export const LeadItem = memo(
               ativo (`deadlineHint`). Form deadline tem prioridade —
               evita 2 contadores empilhados no rodapé do card disputando
               atenção. */}
-            {data.slaDeadline && !data.deadlineHint && (
-              <SlaTimer
-                compact
-                enteredAt={data.statusEnteredAt ?? data.createdAt}
-                deadline={data.slaDeadline}
-              />
-            )}
+            {data.slaDeadline &&
+              !data.deadlineHint &&
+              isFieldVisible(visibility, "slaTimer") && (
+                <SlaTimer
+                  compact
+                  enteredAt={data.statusEnteredAt ?? data.createdAt}
+                  deadline={data.slaDeadline}
+                />
+              )}
             {data.statusFlow &&
               STATUS_FLOW_CONFIG[data.statusFlow] &&
+              isFieldVisible(visibility, "conversation") &&
               (() => {
                 const { label, color, Icon } =
                   STATUS_FLOW_CONFIG[data.statusFlow];
@@ -470,16 +502,18 @@ export const LeadItem = memo(
               (aguarda assinatura), azul (em progresso), verde (completo),
               ou muted (igual à data) quando lead não tem nenhum form
               preenchido nem em andamento. */}
-            <FormStatusIcon
-              forms={data.forms ?? []}
-              onOpenForms={() => setFormsDialogOpen(true)}
-            />
+            {isFieldVisible(visibility, "forms") && (
+              <FormStatusIcon
+                forms={data.forms ?? []}
+                onOpenForms={() => setFormsDialogOpen(true)}
+              />
+            )}
 
             {/* Próximo agendamento (Agenda ou agenda do chat). Compact: só
               ícone azul; tooltip nativo do title mostra data + hora + nome
               da agenda. Não quebra largura do card — ocupa 12px (size-3),
               mesma proporção dos outros ícones do footer. */}
-            {data.nextAppointment && (
+            {data.nextAppointment && isFieldVisible(visibility, "nextAppointment") && (
               <span
                 className="inline-flex items-center gap-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400"
                 title={`${dayjs(data.nextAppointment.startsAt).format("DD/MM HH:mm")} — ${
@@ -502,19 +536,23 @@ export const LeadItem = memo(
               DatePicker marcado com `useAsDeadline=true`. Substitui o
               que iria pra "Observações" (decisão de design: campo
               separado, sem mexer em description). */}
-            {data.deadlineHint && <DeadlineBadge hint={data.deadlineHint} />}
+            {data.deadlineHint && isFieldVisible(visibility, "deadline") && (
+              <DeadlineBadge hint={data.deadlineHint} />
+            )}
           </div>
-          <span title={data.responsible?.name || "Sem responsável"}>
-            <Avatar className="size-4">
-              <AvatarImage
-                src={data.responsible?.image || "/user-placeholder.png"}
-                alt="photo user"
-              />
-              <AvatarFallback>
-                {data.responsible?.name.split(" ")[0][0]}
-              </AvatarFallback>
-            </Avatar>
-          </span>
+          {isFieldVisible(visibility, "responsible") && (
+            <span title={data.responsible?.name || "Sem responsável"}>
+              <Avatar className="size-4">
+                <AvatarImage
+                  src={data.responsible?.image || "/user-placeholder.png"}
+                  alt="photo user"
+                />
+                <AvatarFallback>
+                  {data.responsible?.name.split(" ")[0][0]}
+                </AvatarFallback>
+              </Avatar>
+            </span>
+          )}
         </div>
 
         {/* Dialog "Formulários do lead" — 95vw, grid 3 cols. Abre ao clicar

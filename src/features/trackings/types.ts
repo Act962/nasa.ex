@@ -2,6 +2,7 @@ import { Temperature, LeadAction, StatusFlow } from "@/generated/prisma/enums";
 
 export type Lead = {
   order: string;
+  amount: string;
   id: string;
   trackingId: string;
   isActive: boolean;

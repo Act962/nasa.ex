@@ -151,7 +151,6 @@ export function SendMessageSheet({
     if (
       instanceLoading ||
       !instance ||
-      !instance?.apiKey ||
       instance.status === "DISCONNECTED"
     ) {
       toast.error("Instância não conectada");
@@ -192,7 +191,6 @@ export function SendMessageSheet({
           body: payload.message,
           leadPhone: lead.phone ?? "",
           conversationId: conversationId,
-          token: instance.apiKey,
         },
         {
           onSuccess: () => {
@@ -209,7 +207,6 @@ export function SendMessageSheet({
           leadPhone: targetPhone,
           mediaUrl: payload.imageUrl,
           body: payload.caption,
-          token: instance.apiKey,
         },
         {
           onSuccess: () => {
@@ -226,7 +223,6 @@ export function SendMessageSheet({
           leadPhone: targetPhone,
           mediaUrl: payload.docsUrl,
           mimetype: getMimeType(payload.docsUrl),
-          token: instance.apiKey,
           fileName: "arquivo",
           body: payload.body,
         },
@@ -279,7 +275,6 @@ export function SendMessageSheet({
 
           {!instanceLoading && !conversationId && instance && (
             <EmptyConversation
-              apikey={instance?.apiKey ?? ""}
               lead={{ ...lead, phone: lead.phone ?? "" }}
               trackingId={trackingId}
             />

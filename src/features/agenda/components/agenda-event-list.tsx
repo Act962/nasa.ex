@@ -45,9 +45,9 @@ function EventCard({ appt, color, selected, onSelect }: EventCardProps) {
 
   const start = dayjs(appt.startsAt);
   const end = dayjs(appt.endsAt);
-  const clientName =
+  const displayTitle =
+    (appt.title ?? "").replace(/^agendamento:\s*/i, "").trim() ||
     appt.lead?.name ||
-    (appt.title ?? "").replace(/^agendamento:\s*/i, "") ||
     "Agendamento";
 
   const cover =
@@ -83,7 +83,7 @@ function EventCard({ appt, color, selected, onSelect }: EventCardProps) {
             className="flex h-full w-full items-center justify-center text-2xl font-bold text-white drop-shadow"
             style={{ backgroundColor: color }}
           >
-            {clientName.charAt(0).toUpperCase()}
+            {displayTitle.charAt(0).toUpperCase()}
           </div>
         )}
       </div>
@@ -100,7 +100,7 @@ function EventCard({ appt, color, selected, onSelect }: EventCardProps) {
             (isCancelled || isDone) && "line-through",
           )}
         >
-          {clientName}
+          {displayTitle}
         </div>
         <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
           <Clock className="h-2.5 w-2.5 shrink-0" />

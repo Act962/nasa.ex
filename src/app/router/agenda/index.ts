@@ -24,6 +24,7 @@ import { cancelAppointment } from "./appointments/cancel";
 import { completeAppointment } from "./appointments/complete";
 import { deleteAppointment } from "./appointments/delete";
 import { rescheduleAppointment } from "./appointments/reschedule";
+import { renameAppointment } from "./appointments/rename";
 import { getAppointmentsByOrg } from "./appointments/get-appointments-by-org";
 import { setAppointmentMeetingType } from "./appointments/set-meeting-type";
 import { syncAppointmentToGoogleCalendar } from "./appointments/sync-google-calendar";
@@ -75,6 +76,7 @@ export const agendaRouter = {
     getManyByOrg: getAppointmentsByOrg,
     createAdmin: createAdminAppointment,
     reschedule: rescheduleAppointment,
+    rename: renameAppointment,
     setMeetingType: setAppointmentMeetingType,
     syncToGoogleCalendar: syncAppointmentToGoogleCalendar,
   },
