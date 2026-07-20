@@ -254,7 +254,19 @@ Implementado em [star-cycle-service.ts](../src/features/stars/lib/star-cycle-ser
 
 **Backfill:** [backfill-star-cycles.ts](../src/scripts/backfill-star-cycles.ts) reancora orgs congeladas e aplica **um** ciclo. Dry-run por padrão; `--apply` para gravar.
 
-**Teste:** `pnpm tsx --env-file=.env src/scripts/test-star-cycle.ts` — cobre idempotência, teto de rollover, corrida entre gatilhos, determinismo do `periodKey`, remoção-e-reaplicação de plano no mesmo período, upgrade em meio de ciclo, retentativa de `APP_CHARGE` sem saldo e precedência da assinatura ativa sobre a inadimplente.
+**Testes** (ambos criam dados próprios e limpam no final):
+
+| Script | Cobertura |
+|---|---|
+| `src/scripts/test-star-cycle.ts` | Unitário-funcional: idempotência, teto de rollover, corrida entre gatilhos, determinismo do `periodKey`, remoção-e-reaplicação de plano no mesmo período, upgrade em meio de ciclo, retentativa de `APP_CHARGE` sem saldo, precedência da assinatura ativa sobre a inadimplente |
+| `src/scripts/e2e-star-renewal.ts` | E2E: 3 meses de assinatura com consumo e top-up no meio, renovação via avanço de `periodStart/periodEnd`, cron rodando repetidamente, expiração pelo teto de rollover |
+
+```bash
+pnpm tsx --env-file=.env src/scripts/test-star-cycle.ts
+pnpm tsx --env-file=.env src/scripts/e2e-star-renewal.ts
+```
+
+Nenhum dos dois depende de Stripe ou Inngest. Para o E2E com Stripe real é preciso o Stripe CLI e planos com `stripePriceId` de test mode; o fluxo é: `stripe listen --forward-to localhost:3000/api/auth/stripe/webhook`, assinar via checkout, depois `stripe test_helpers test_clocks advance` para forçar a renovação e conferir que uma nova linha `OrgStarCycle` aparece.
 
 ---
 
