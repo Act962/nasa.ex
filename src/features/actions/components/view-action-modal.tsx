@@ -68,6 +68,7 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   const [historicOpen, setHistoricOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const updateAction = useUpdateAction();
+  const updateDescription = useUpdateAction();
   const toggleActionDone = useToggleActionDone();
   const updateFields = useUpdateActionFields();
   const createSubAction = useCreateSubAction(actionId);
@@ -93,6 +94,13 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   const handleUpdateAction = (data: any) => {
     updateAction.mutate(
       { actionId, ...data },
+      { onError: () => toast.error("Erro ao atualizar ação") },
+    );
+  };
+
+  const handleUpdateDescription = (description: string) => {
+    updateDescription.mutate(
+      { actionId, description },
       { onError: () => toast.error("Erro ao atualizar ação") },
     );
   };
@@ -346,9 +354,7 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
 
                       <ActionDescription
                         description={action?.description}
-                        onDescriptionChange={(description) =>
-                          handleUpdateAction({ description })
-                        }
+                        onDescriptionChange={handleUpdateDescription}
                       />
 
                       <AttachmentsSection
