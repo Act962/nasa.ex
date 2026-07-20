@@ -86,10 +86,14 @@ export async function finalizeStarsTopUpInTx(
     );
   }
 
-  // 4. Crédito ATÔMICO.
+  // 4. Crédito ATÔMICO. Stars pagas entram também no saldo protegido, então
+  //    sobrevivem à virada de ciclo (ver `star-cycle-service`).
   const credited = await tx.organization.update({
     where: { id: payment.organizationId },
-    data: { starsBalance: { increment: effectiveStars } },
+    data: {
+      starsBalance: { increment: effectiveStars },
+      starsProtectedBalance: { increment: effectiveStars },
+    },
     select: { starsBalance: true },
   });
 
@@ -160,9 +164,28 @@ export async function revertStarsTopUpInTx(
     select: { organizationId: true, starsAmount: true },
   });
 
+  const before = await tx.organization.findUniqueOrThrow({
+    where: { id: payment.organizationId },
+    select: { starsBalance: true, starsProtectedBalance: true },
+  });
+
+  // O saldo pode ficar negativo (decisão de produto), mas a parcela protegida
+  // nunca: ela é limitada a 0 e ao saldo resultante.
+  const balanceAfterRefund = before.starsBalance - payment.starsAmount;
+  const protectedAfterRefund = Math.max(
+    0,
+    Math.min(
+      before.starsProtectedBalance - payment.starsAmount,
+      balanceAfterRefund,
+    ),
+  );
+
   const debited = await tx.organization.update({
     where: { id: payment.organizationId },
-    data: { starsBalance: { increment: -payment.starsAmount } },
+    data: {
+      starsBalance: { increment: -payment.starsAmount },
+      starsProtectedBalance: protectedAfterRefund,
+    },
     select: { starsBalance: true },
   });
 

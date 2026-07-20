@@ -224,7 +224,7 @@ Componentes em [src/features/stars/components/](../src/features/stars/components
 [src/app/api/stripe/webhook/route.ts](../src/app/api/stripe/webhook/route.ts) — cursos NASA Route, planos e top-up legacy. **Não credita mais Stars do fluxo de gateway novo** (movido pro endpoint dedicado).
 
 - `checkout.session.completed` → cursos (`PendingCoursePurchase`), `plan` (vincula + `runMonthlyCycle`), top-up legacy (`itemType=topup` → `purchaseTopUp`).
-- `invoice.payment_succeeded` / `customer.subscription.deleted` — **TODO** (renovação/cancelamento de plano).
+- Renovação e cancelamento de plano **não** passam por aqui: são tratados pelos hooks `onSubscription*` do plugin better-auth/stripe em `/api/auth/stripe/webhook` (ver §10).
 
 Asaas webhook (`/api/payments/asaas/webhook`): recredita top-ups PIX/boleto via `purchaseTopUp` (fluxo `createGatewayCheckout`).
 
@@ -232,12 +232,29 @@ Asaas webhook (`/api/payments/asaas/webhook`): recredita top-ups PIX/boleto via 
 
 ## 10. Inngest / ciclo mensal
 
-**Gap importante:** não existe job Inngest recorrente que rode `runMonthlyCycle` em todas as orgs ativas. Hoje o ciclo só é executado:
+Implementado em [star-cycle-service.ts](../src/features/stars/lib/star-cycle-service.ts). O ciclo é ancorado no período **real** de cobrança do Stripe (`Subscription.periodStart`), não num relógio interno, e é idempotente por `periodKey`.
 
-- Na **primeira** compra de plano (webhook Stripe);
-- Manualmente, se chamado em outro fluxo.
+**Dois gatilhos, uma função:**
 
-Implicação: orgs com plano ativo mas sem novo evento de pagamento **não têm o saldo resetado nem rollover aplicado** automaticamente todo mês. Crons relacionados existem para outras features ([partner-payout-close-cycle.ts](../src/features/partner/), [nasa-route-subscription-renew.ts](../src/features/nasa-route/)) — usar como template.
+| Gatilho | Onde | Papel |
+|---|---|---|
+| `onSubscriptionUpdate` → evento `stars/cycle.ensure` | [auth.ts](../src/lib/auth.ts) → [cycle-ensure.ts](../src/inngest/functions/stars/cycle-ensure.ts) | Primário — credita minutos após o pagamento |
+| Cron `stars-cycle-renew` (`15 * * * *`) | [stars-cycle-renew.ts](../src/inngest/functions/crons/stars-cycle-renew.ts) | Reconciliação — cobre orgs sem sub Stripe e webhooks perdidos |
+
+**Idempotência:** `OrgStarCycle` com unique `(organizationId, periodKey)`. O insert é a primeira instrução da transação — `P2002` significa "já aplicado", e o rollback de qualquer passo posterior libera o retry. Rodar os dois gatilhos em paralelo credita exatamente uma vez.
+
+**`periodKey`** — precisa ser determinístico, senão a unique nunca colide:
+- Com sub Stripe: `${stripeSubscriptionId}:${periodStart}`
+- Plano anual: `…:m${índice}` — 12 recargas mensais, não a cota do ano de uma vez
+- Sem sub (plano manual, `partnerLifetimeGranted`): `local:${orgId}:${cycleStart}`, ancorado em `starsCycleStart ?? createdAt`
+
+**Saldo protegido:** `Organization.starsProtectedBalance` é a *parcela* de `starsBalance` originada de compras (não uma carteira paralela). Invariante `0 <= protegido <= saldo`; todo débito faz `min(protegido, saldo)`, o que consome a cota do plano — perecível — antes das Stars pagas. O ciclo aplica rollover só sobre `starsBalance - starsProtectedBalance`. Sem isso, a primeira virada apagaria Stars que o cliente pagou.
+
+**Troca de plano no meio do ciclo:** upgrade credita a diferença de cota (`PLAN_UPGRADE_DELTA`); downgrade não faz clawback — o teto de rollover menor drena o excesso no ciclo seguinte. Sem proração de Stars (o Stripe já prorateia o dinheiro).
+
+**Backfill:** [backfill-star-cycles.ts](../src/scripts/backfill-star-cycles.ts) reancora orgs congeladas e aplica **um** ciclo. Dry-run por padrão; `--apply` para gravar.
+
+**Teste:** `pnpm tsx --env-file=.env src/scripts/test-star-cycle.ts` — cobre idempotência, teto de rollover, corrida entre gatilhos, determinismo do `periodKey`, remoção-e-reaplicação de plano no mesmo período, upgrade em meio de ciclo, retentativa de `APP_CHARGE` sem saldo e precedência da assinatura ativa sobre a inadimplente.
 
 ---
 
@@ -285,16 +302,17 @@ Cada plano tem `monthlyStars`, `rolloverPct` (default 30%), `priceMonthly`, `max
 | Cobrança por ação | ✅ Funcional | ~15 ações ativas; alguns custos ainda hardcoded |
 | Bloqueio quando zera | ✅ Por feature | Sem middleware global; cada rota trata |
 | Top-up | ✅ Completo | Stripe + Asaas via `createGatewayCheckout` |
-| Planos | ✅ Catalogados | Compra OK, renovação **incompleta** |
+| Planos | ✅ Catalogados | Compra e renovação OK |
 | Welcome bonus | ✅ | 100★ em `starsBonusBalance` na 1ª chamada |
-| Rollover | ⚠️ Estrutura existe | Dependente do `runMonthlyCycle` rodar |
+| Rollover | ✅ Funcional | Aplicado a cada virada, só sobre a cota do plano |
 | **Overage / pós-pago** | ❌ Inexistente | Oportunidade clara de produto |
-| Ciclo mensal automático | ❌ Sem cron | Só roda no 1º plano via webhook |
+| Ciclo mensal automático | ✅ Webhook + cron | Idempotente por `periodKey` (§10) |
+| Top-up sobrevive à virada | ✅ | `starsProtectedBalance` (§10) |
 | Distribuição custom | ⚠️ Rastreia, não bloqueia | Enforcement de budget pendente |
 | Cooldown / rate-limit | ❌ Campo existe, não usado | `StarRule.cooldownHours` |
 | Hooks client em `features/stars/hooks/` | ❌ | Componentes importam `orpc` direto (anti-padrão) |
 | Webhook Asaas | ❓ A confirmar | Não localizado nesta auditoria |
-| Renovação Stripe (invoice / subscription deleted) | ❌ TODO no código | Comentários explícitos no webhook |
+| Renovação Stripe | ✅ Via `onSubscriptionUpdate` | Hook do plugin, não o webhook compartilhado (§10) |
 
 ---
 

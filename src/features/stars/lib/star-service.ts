@@ -17,6 +17,7 @@ import { StarTransactionType } from "@/generated/prisma/client";
 export interface StarBalance {
   balance: number; // saldo gastável (planos, top-ups, payouts) — pode pagar curso no Router
   bonusBalance: number; // saldo de bônus (welcome, promoções) — NÃO pode pagar curso no Router
+  protectedBalance: number; // parcela de `balance` originada de compras — não expira na virada
   totalBalance: number; // soma dos dois — pra exibição/rastreio apenas
   planMonthlyStars: number;
   planSlug: string;
@@ -55,7 +56,9 @@ export async function checkBalance(
     select: {
       starsBalance: true,
       starsBonusBalance: true,
+      starsProtectedBalance: true,
       starsCycleStart: true,
+      starsCycleEnd: true,
       starsGraceStartedAt: true,
       starsSuspendedAt: true,
       plan: {
@@ -92,16 +95,20 @@ export async function checkBalance(
 
   const plan = org.plan ?? { slug: "free", name: "Gratuito", monthlyStars: 0 };
 
-  let nextCycleDate: Date | null = null;
-  if (org.starsCycleStart) {
-    const d = new Date(org.starsCycleStart);
-    d.setMonth(d.getMonth() + 1);
-    nextCycleDate = d;
+  // `starsCycleEnd` é escrito pelo ciclo e ancorado no período real do Stripe.
+  // O fallback +1 mês cobre orgs anteriores à renovação automática, que ainda
+  // não passaram por um ciclo.
+  let nextCycleDate: Date | null = org.starsCycleEnd;
+  if (!nextCycleDate && org.starsCycleStart) {
+    const fallback = new Date(org.starsCycleStart);
+    fallback.setMonth(fallback.getMonth() + 1);
+    nextCycleDate = fallback;
   }
 
   return {
     balance: org.starsBalance,
     bonusBalance: org.starsBonusBalance,
+    protectedBalance: org.starsProtectedBalance,
     totalBalance: org.starsBalance + org.starsBonusBalance,
     planMonthlyStars: plan.monthlyStars,
     planSlug: plan.slug,
@@ -149,7 +156,11 @@ export async function debitStars(
   const result = await prisma.$transaction(async (tx) => {
     const org = await tx.organization.findUniqueOrThrow({
       where: { id: organizationId },
-      select: { starsBalance: true, starsBonusBalance: true },
+      select: {
+        starsBalance: true,
+        starsBonusBalance: true,
+        starsProtectedBalance: true,
+      },
     });
 
     const totalAvailable = allowBonus
@@ -170,12 +181,22 @@ export async function debitStars(
     const newBalance = org.starsBalance - fromMain;
     const newBonusBalance = org.starsBonusBalance - fromBonus;
 
+    // A parcela protegida (compras) nunca excede o saldo. O clamp faz a cota do
+    // plano — perecível — ser consumida antes das Stars pagas.
+    const newProtectedBalance = Math.min(
+      org.starsProtectedBalance,
+      newBalance,
+    );
+
     await tx.organization.update({
       where: { id: organizationId },
-      data:
-        fromBonus > 0
-          ? { starsBalance: newBalance, starsBonusBalance: newBonusBalance }
-          : { starsBalance: newBalance },
+      data: {
+        starsBalance: newBalance,
+        ...(fromBonus > 0 && { starsBonusBalance: newBonusBalance }),
+        ...(newProtectedBalance !== org.starsProtectedBalance && {
+          starsProtectedBalance: newProtectedBalance,
+        }),
+      },
     });
 
     const finalDescription =
@@ -404,6 +425,11 @@ async function creditStars(
   type: StarTransactionType,
   description: string,
   packageId?: string,
+  /**
+   * `true` para Stars pagas (top-up, payouts): entram também no saldo protegido
+   * e portanto sobrevivem à virada de ciclo.
+   */
+  isProtected = false,
 ): Promise<number> {
   const result = await prisma.$transaction(async (tx) => {
     const org = await tx.organization.findUniqueOrThrow({
@@ -415,7 +441,10 @@ async function creditStars(
 
     await tx.organization.update({
       where: { id: organizationId },
-      data: { starsBalance: newBalance },
+      data: {
+        starsBalance: newBalance,
+        ...(isProtected && { starsProtectedBalance: { increment: amount } }),
+      },
     });
 
     await tx.starTransaction.create({
@@ -456,6 +485,7 @@ export async function purchaseTopUp(
     StarTransactionType.TOPUP_PURCHASE,
     `Compra de pacote ${pkg.label}`,
     packageId,
+    true, // Stars pagas — não expiram na virada de ciclo
   );
 
   return { success: true, newBalance, starsAdded: pkg.stars };
@@ -464,86 +494,15 @@ export async function purchaseTopUp(
 // ─── Monthly cycle ────────────────────────────────────────────────────────────
 
 /**
- * Runs the monthly cycle for an organization:
- *  1. Apply rollover from previous balance (up to `rolloverPct` of plan stars)
- *  2. Credit plan stars
- *  3. Debit monthly app charges for all active workspace integrations
+ * Wrapper retrocompatível — a lógica real vive em `star-cycle-service`, que é
+ * idempotente e ancorada no período de cobrança do Stripe. Mantido para os
+ * call-sites existentes (`afterCreateOrganization`, propagação de plano).
+ *
+ * O import é dinâmico porque `star-cycle-service` importa `debitStars` daqui.
  */
 export async function runMonthlyCycle(organizationId: string): Promise<void> {
-  const org = await prisma.organization.findUniqueOrThrow({
-    where: { id: organizationId },
-    select: {
-      starsBalance: true,
-      starsCycleStart: true,
-      partnerLifetimeGranted: true,
-      plan: true,
-      workspaceIntegrations: {
-        where: { isActive: true },
-        select: { appSlug: true },
-      },
-    },
-  });
-
-  if (!org.plan) return;
-
-  const { monthlyStars, rolloverPct } = org.plan;
-  const maxRollover = Math.floor(monthlyStars * (rolloverPct / 100));
-  const rollover = Math.min(org.starsBalance, maxRollover);
-
-  // Reset balance to rollover amount, then credit plan stars
-  await prisma.organization.update({
-    where: { id: organizationId },
-    data: {
-      starsBalance: rollover,
-      starsCycleStart: new Date(),
-    },
-  });
-
-  if (rollover > 0) {
-    await prisma.starTransaction.create({
-      data: {
-        organizationId,
-        type: StarTransactionType.ROLLOVER,
-        amount: rollover,
-        balanceAfter: rollover,
-        description: `Rollover do ciclo anterior (${rollover} ★)`,
-      },
-    });
-  }
-
-  // Credit plan stars — anotando se for cortesia do programa Partner Infinity
-  const lifetime = org.partnerLifetimeGranted;
-  await creditStars(
-    organizationId,
-    monthlyStars,
-    StarTransactionType.PLAN_CREDIT,
-    lifetime
-      ? `Crédito mensal do plano ${org.plan.name} (${monthlyStars} ★) — Cortesia NASA Partner Infinity`
-      : `Crédito mensal do plano ${org.plan.name} (${monthlyStars} ★)`,
-  );
-
-  // Debit monthly charges for each active app
-  for (const wi of org.workspaceIntegrations) {
-    const appCost = await prisma.appStarCost.findUnique({
-      where: { appSlug: wi.appSlug },
-    });
-    if (!appCost || appCost.monthlyCost === 0) continue;
-
-    await debitStars(
-      organizationId,
-      appCost.monthlyCost,
-      StarTransactionType.APP_CHARGE,
-      `Cobrança mensal — ${wi.appSlug} (${appCost.monthlyCost} ★)`,
-      wi.appSlug,
-    );
-
-    await prisma.workspaceIntegration.update({
-      where: {
-        organizationId_appSlug: { organizationId, appSlug: wi.appSlug },
-      },
-      data: { lastChargedAt: new Date() },
-    });
-  }
+  const { ensureStarsCycle } = await import("./star-cycle-service");
+  await ensureStarsCycle(organizationId, "first_activation");
 }
 
 // ─── Plan billing eligibility ────────────────────────────────────────────────

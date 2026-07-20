@@ -345,24 +345,36 @@ export const auth = betterAuth({
         // rederive o estado consultando `prisma.subscription` direto,
         // logo é idempotente e tolera eventos fora de ordem (caso 15
         // de docs/subscription-org-model.md).
-        onSubscriptionComplete: async ({ subscription }) => {
+        onSubscriptionComplete: async ({ event, subscription }) => {
           try {
-            await syncOrgPlansForUser(subscription.referenceId);
+            await syncOrgPlansForUser(subscription.referenceId, {
+              stripeEventId: event?.id,
+              stripeEventType: event?.type,
+            });
           } catch (e) {
             console.error("[billing] onSubscriptionComplete failed:", e);
           }
         },
-        onSubscriptionCreated: async ({ subscription }) => {
+        onSubscriptionCreated: async ({ event, subscription }) => {
           // Sub criada fora do checkout (ex: direto no Stripe Dashboard — caso 16)
           try {
-            await syncOrgPlansForUser(subscription.referenceId);
+            await syncOrgPlansForUser(subscription.referenceId, {
+              stripeEventId: event?.id,
+              stripeEventType: event?.type,
+            });
           } catch (e) {
             console.error("[billing] onSubscriptionCreated failed:", e);
           }
         },
-        onSubscriptionUpdate: async ({ subscription }) => {
+        // Gatilho primário da renovação de Stars: o plugin já persistiu o
+        // `periodStart`/`periodEnd` novos antes de chegar aqui, então a âncora
+        // do ciclo vem pronta do Stripe.
+        onSubscriptionUpdate: async ({ event, subscription }) => {
           try {
-            await syncOrgPlansForUser(subscription.referenceId);
+            await syncOrgPlansForUser(subscription.referenceId, {
+              stripeEventId: event?.id,
+              stripeEventType: event?.type,
+            });
           } catch (e) {
             console.error("[billing] onSubscriptionUpdate failed:", e);
           }
