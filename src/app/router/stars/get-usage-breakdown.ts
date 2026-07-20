@@ -3,7 +3,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 
-const CYCLE_DAYS = 30;
+const FALLBACK_CYCLE_DAYS = 30;
 const DEBIT_TYPES = ["APP_CHARGE", "APP_SETUP", "COURSE_PURCHASE"] as const;
 
 /**
@@ -31,32 +31,28 @@ export const getStarsUsageBreakdown = base
         starsBalance: true,
         starsBonusBalance: true,
         starsCycleStart: true,
+        starsCycleEnd: true,
+        plan: { select: { slug: true, name: true, monthlyStars: true } },
       },
     });
 
     const cycleStart = org.starsCycleStart ?? org.createdAt;
-    const cycleEnd = new Date(cycleStart.getTime() + CYCLE_DAYS * 24 * 60 * 60 * 1000);
+    // `starsCycleEnd` é escrito pelo ciclo e ancorado no período real do Stripe.
+    // O fallback de 30 dias cobre orgs que ainda não passaram por uma virada.
+    const cycleEnd =
+      org.starsCycleEnd ??
+      new Date(
+        cycleStart.getTime() + FALLBACK_CYCLE_DAYS * 24 * 60 * 60 * 1000,
+      );
 
-    // ── Plano ativo via Better Auth subscription (se disponível) ─────
-    // Fallback: lê via `Subscription` em DB ou assume free.
-    const subscription = await prisma.subscription.findFirst({
-      where: {
-        referenceId: orgId,
-        status: "active",
-      },
-      select: { plan: true, periodEnd: true },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const planSlug = subscription?.plan?.toLowerCase() ?? "free";
+    // O plano vem de `Organization.plan` — a propagação sub → org já resolveu
+    // qual plano vale. A tentativa anterior de ler `Subscription` por
+    // `referenceId: orgId` nunca casava (`referenceId` é userId), então o plano
+    // caía sempre em "free" e o breakdown reportava cota zero.
+    const planSlug = org.plan?.slug ?? "free";
     const isPayPerUse = planSlug === "suite";
-
-    // monthlyStars do plano — busca em Plan se existe modelo, senão 0
-    const plan = await prisma.plan.findFirst({
-      where: { slug: planSlug },
-      select: { monthlyStars: true, name: true },
-    });
-    const planMonthlyStars = plan?.monthlyStars ?? 0;
+    const planMonthlyStars = org.plan?.monthlyStars ?? 0;
+    const plan = org.plan;
 
     // ── Débitos no ciclo ─────────────────────────────────────────────
     const debits = await prisma.starTransaction.findMany({

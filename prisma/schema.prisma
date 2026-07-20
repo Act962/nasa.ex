@@ -213,10 +213,25 @@ model Organization {
   // ── STARS ──────────────────────────────────
   planId               String?   @map("plan_id")
   starsBalance         Int       @default(0) @map("stars_balance")
+  // Cota do plano — é o ÚNICO saldo que o ciclo mensal reseta (com teto de rollover).
   starsBonusBalance    Int       @default(0) @map("stars_bonus_balance")
   // Saldo de bônus (welcome, promoções) — não pode pagar curso no NASA Router,
   // mas pode ser consumido por integrações (Planner IA, Command IA, APP_CHARGE/SETUP).
+  starsProtectedBalance Int      @default(0) @map("stars_protected_balance")
+  // NÃO é uma carteira paralela: é a PARCELA de `starsBalance` originada de
+  // compras (top-up, payouts), que nunca expira na virada de ciclo. Invariante:
+  // 0 <= starsProtectedBalance <= starsBalance. Todo débito faz o clamp
+  // `min(protegido, saldo)`, o que consome a cota do plano primeiro (perecível)
+  // e só então come a parcela protegida. O ciclo aplica rollover apenas sobre
+  // `starsBalance - starsProtectedBalance` e recompõe o protegido por inteiro.
+  // Manter `starsBalance` como saldo gastável único evita reescrever os
+  // call-sites que debitam direto (cursos, ingressos, ajuste admin).
   starsCycleStart      DateTime? @map("stars_cycle_start")
+  // Fim do ciclo corrente e chave do período aplicado. `starsCycleEnd` é o que o
+  // cron `stars-cycle-renew` varre; `starsCyclePeriodKey` espelha o último
+  // `OrgStarCycle.periodKey` aplicado (ver features/stars/lib/star-cycle-service).
+  starsCycleEnd        DateTime? @map("stars_cycle_end")
+  starsCyclePeriodKey  String?   @map("stars_cycle_period_key")
   // ── Grace period / suspensão (pay-per-use) ────────────────
   // Quando saldo zera, `starsGraceStartedAt` é setado. Org tem 15 dias
   // pra recarregar. Cron `stars-grace-period-monitor` notifica em dias
@@ -286,6 +301,7 @@ model Organization {
   starTransactions       StarTransaction[]
   workspaceIntegrations  WorkspaceIntegration[]
   memberStarBudgets      MemberStarBudget[]
+  starCycles             OrgStarCycle[]
   nboxFolders            NBoxFolder[]
   nboxItems              NBoxItem[]
   nasaPlanners           NasaPlanner[]
@@ -3030,6 +3046,8 @@ enum StarTransactionType {
   WELCOME_BONUS // bônus único de boas-vindas — credita em starsBonusBalance
   EVENT_TICKET_PURCHASE // débito ao comprar ingresso de WorldEvent
   EVENT_TICKET_PAYOUT // crédito ao organizador de WorldEvent
+  CYCLE_EXPIRE // cota do plano perdida na virada (acima do teto de rollover)
+  PLAN_UPGRADE_DELTA // diferença de cota creditada no upgrade em meio de ciclo
 }
 
 model StarTransaction {
@@ -3041,12 +3059,14 @@ model StarTransaction {
   description    String
   appSlug        String?             @map("app_slug")
   packageId      String?             @map("package_id") // ref a StarPackage
+  periodKey      String?             @map("period_key") // ciclo que originou a tx; NULL em tx anteriores à renovação automática
   createdAt      DateTime            @default(now()) @map("created_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, createdAt])
   @@index([type])
+  @@index([organizationId, periodKey])
   @@map("star_transactions")
 }
 
@@ -3056,6 +3076,9 @@ model WorkspaceIntegration {
   appSlug        String    @map("app_slug")
   installedAt    DateTime  @default(now()) @map("installed_at")
   lastChargedAt  DateTime? @map("last_charged_at")
+  // Último ciclo em que o APP_CHARGE mensal foi cobrado. Serve de claim atômico:
+  // o ciclo só cobra quando `lastChargedPeriodKey != periodKey` corrente.
+  lastChargedPeriodKey String? @map("last_charged_period_key")
   isActive       Boolean   @default(true) @map("is_active")
   config         Json      @default("{}") // credenciais cifradas ou metadata
 
@@ -3064,6 +3087,33 @@ model WorkspaceIntegration {
   @@unique([organizationId, appSlug])
   @@index([organizationId])
   @@map("workspace_integrations")
+}
+
+/// Claim + auditoria de cada ciclo de Stars aplicado a uma org.
+/// A unique (organizationId, periodKey) é o mecanismo de idempotência: o insert
+/// é a PRIMEIRA instrução da transação do ciclo, então P2002 significa "já
+/// aplicado" e o rollback de qualquer passo posterior libera o retry.
+model OrgStarCycle {
+  id              String   @id @default(cuid())
+  organizationId  String   @map("organization_id")
+  periodKey       String   @map("period_key")
+  planId          String?  @map("plan_id")
+  source          String // stripe | cron | first_activation | plan_change | backfill
+  status          String   @default("applied") // applied | skipped_dunning | skipped_no_plan
+  cycleStart      DateTime @map("cycle_start")
+  cycleEnd        DateTime @map("cycle_end")
+  monthlyStars    Int      @default(0) @map("monthly_stars")
+  rolloverApplied Int      @default(0) @map("rollover_applied")
+  balanceBefore   Int      @default(0) @map("balance_before")
+  balanceAfter    Int      @default(0) @map("balance_after")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, periodKey])
+  @@index([organizationId, cycleStart])
+  @@index([status])
+  @@map("org_star_cycles")
 }
 
 // Distribuição de Stars por membro
