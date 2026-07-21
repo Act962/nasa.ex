@@ -43,6 +43,7 @@ import { useLeadSoundAlert } from "@/hooks/use-lead-sound-alert";
 import { useBoardRealtimeSync } from "../hooks/use-board-realtime-sync";
 import { KanbanMinimap } from "./kanban-minimap";
 import { useGrabScroll } from "../hooks/use-grab-scroll";
+import { LeadActionsSheet } from "@/features/leads/components/lead-actions-sheet";
 
 
 interface BoardContainerProps {
@@ -476,6 +477,10 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
             document.body,
           )}
       </DndContext>
+
+      {/* Montado UMA vez pro board inteiro: o estado de abertura vive num
+        store, então centenas de cards não precisam de um Sheet cada. */}
+      <LeadActionsSheet />
     </>
   );
 }

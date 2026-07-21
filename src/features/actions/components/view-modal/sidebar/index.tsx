@@ -8,6 +8,7 @@ import { InfoFields } from "./info-fields";
 import { TagsField } from "./tags-field";
 import { CoverImageField } from "./cover-image-field";
 import { OrgProjectField } from "./org-project-field";
+import { LeadField } from "./lead-field";
 import { Action } from "../../../types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PublicVisibilityField } from "@/features/public-calendar/components/public-visibility-field";
@@ -80,6 +81,13 @@ export function ActionSidebar({
         <OrgProjectField
           value={action?.orgProjectId}
           onValueChange={(orgProjectId) => onUpdateAction({ orgProjectId })}
+          disabled={isUpdating}
+        />
+
+        <LeadField
+          value={action?.leadId}
+          currentLeadName={action?.lead?.name}
+          onValueChange={(leadId) => onUpdateAction({ leadId })}
           disabled={isUpdating}
         />
 

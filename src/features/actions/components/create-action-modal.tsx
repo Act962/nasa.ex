@@ -70,6 +70,8 @@ interface Props {
   defaultStartDate?: Date;
   /** Override do dueDate default (amanhã 00h). Útil ao criar a partir do calendário. */
   defaultDueDate?: Date;
+  /** Vincula a ação a um lead já na criação (sheet de ações do lead). */
+  leadId?: string;
 }
 
 type WorkspaceMemberOption = {
@@ -108,6 +110,7 @@ export const CreateActionModal = ({
   onCreated,
   defaultStartDate,
   defaultDueDate,
+  leadId,
 }: Props) => {
   const initialStart = presetStartDate
     ? dayjs(presetStartDate).startOf("day").toDate()
@@ -197,6 +200,7 @@ export const CreateActionModal = ({
     createAction.mutate(
       {
         ...values,
+        ...(leadId && { leadId }),
         description: normalizedDescription
           ? JSON.stringify({
               type: "doc",

@@ -50,10 +50,17 @@ export const StatusHeader = ({
   data,
   attributes,
   listeners,
+  readOnly,
 }: {
   data: StatusHeaderProps;
   attributes: DraggableAttributes;
   listeners?: SyntheticListenerMap;
+  /**
+   * Esconde as afordâncias de mutação da coluna (renomear, cor, excluir,
+   * adicionar ação). A coluna pertence ao workspace — no sheet do lead ela é
+   * só um agrupamento de leitura.
+   */
+  readOnly?: boolean;
 }) => {
   const form = useForm({
     resolver: zodResolver(updateStatusNameSchema),
@@ -97,7 +104,7 @@ export const StatusHeader = ({
 
   return (
     <div className="pt-2 px-2 text-sm font-medium flex justify-between items-start gap-x-2">
-      {isEditing ? (
+      {isEditing && !readOnly ? (
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 px-0.5 ">
           <Input
             placeholder="Digite um nome..."
@@ -109,7 +116,7 @@ export const StatusHeader = ({
         </form>
       ) : (
         <div
-          onClick={toggleEditing}
+          onClick={readOnly ? undefined : toggleEditing}
           className="w-full flex items-center justify-start text-sm py-1 h-7 font-medium border-transparent truncate"
         >
           {/* <Button
@@ -140,27 +147,31 @@ export const StatusHeader = ({
           </span>
         </div>
       )}
-      <div className="flex items-center">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => setIsAdding(true)}
-        >
-          <Plus className="size-4" />
-        </Button>
-        <ListOption
-          currentColor={colorSelect}
-          onColorChange={onColorChange}
-          onDelete={onDelete}
-        />
-      </div>
+      {!readOnly && (
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setIsAdding(true)}
+          >
+            <Plus className="size-4" />
+          </Button>
+          <ListOption
+            currentColor={colorSelect}
+            onColorChange={onColorChange}
+            onDelete={onDelete}
+          />
+        </div>
+      )}
 
-      <CreateActionModal
-        open={isAdding}
-        onOpenChange={setIsAdding}
-        workspaceId={data.workspaceId}
-        defaultColumnId={data.id}
-      />
+      {!readOnly && (
+        <CreateActionModal
+          open={isAdding}
+          onOpenChange={setIsAdding}
+          workspaceId={data.workspaceId}
+          defaultColumnId={data.id}
+        />
+      )}
     </div>
   );
 };

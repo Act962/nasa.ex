@@ -17,6 +17,8 @@ interface Props {
   workspaceId: string;
   color: string | null;
   actionsCount: number;
+  leadId?: string;
+  readOnlyColumns?: boolean;
 }
 
 function WorkspaceColumnImpl({
@@ -25,6 +27,8 @@ function WorkspaceColumnImpl({
   workspaceId,
   name,
   actionsCount,
+  leadId,
+  readOnlyColumns,
 }: Props) {
   const registerColumn = useActionKanbanStore((s) => s.registerColumn);
   const isBoardDragging = useActionKanbanStore((s) => s.isDragging);
@@ -56,6 +60,7 @@ function WorkspaceColumnImpl({
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useInfiniteActionsByStatus({
       columnId: id,
+      leadId,
       filters: {
         participantIds: filters.participantIds,
         tagIds: filters.tagIds,
@@ -117,6 +122,7 @@ function WorkspaceColumnImpl({
           data={{ id, name, color, workspaceId, actionsCount }}
           attributes={attributes}
           listeners={listeners}
+          readOnly={readOnlyColumns}
         />
 
         <ScrollArea className="flex-1 min-h-0">
@@ -182,7 +188,12 @@ export const WorkspaceColumn = memo(WorkspaceColumnImpl, (prev, next) => {
     prev.name === next.name &&
     prev.color === next.color &&
     prev.actionsCount === next.actionsCount &&
-    prev.workspaceId === next.workspaceId
+    prev.workspaceId === next.workspaceId &&
+    // `leadId` é obrigatório aqui: ao reabrir o sheet pra outro lead os
+    // columnIds se repetem, então sem comparar isso a coluna seguiria
+    // renderizando as ações do lead anterior.
+    prev.leadId === next.leadId &&
+    prev.readOnlyColumns === next.readOnlyColumns
   );
 });
 WorkspaceColumn.displayName = "WorkspaceColumn";

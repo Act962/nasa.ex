@@ -1,23 +1,24 @@
-import { parseAsInteger, parseAsString, useQueryState, useQueryStates } from "nuqs";
 import { useListActionByWorkspace } from "../../hooks/use-tasks";
 import { useActionFilters } from "../../hooks/use-action-filters";
+import { useActionTableState } from "../../hooks/use-action-table-state";
 import { columns } from "./columns";
 import { ActionsTable } from "./table";
 
 interface DataTableProps {
   workspaceId: string;
+  /** Presente = tabela escopada às ações desse lead (sheet do lead). */
+  leadId?: string;
 }
 
-export const DataTable = ({ workspaceId }: DataTableProps) => {
-  const [pagination] = useQueryStates({
-    pageIndex: parseAsInteger.withDefault(0),
-    pageSize: parseAsInteger.withDefault(20),
+export const DataTable = ({ workspaceId, leadId }: DataTableProps) => {
+  const { pagination, setPagination, search, setSearch } = useActionTableState({
+    persistInUrl: !leadId,
   });
-  const [q] = useQueryState("q", parseAsString.withDefault(""));
 
   const { filters } = useActionFilters();
   const { actions, total } = useListActionByWorkspace({
     workspaceId,
+    leadId,
     page: pagination.pageIndex + 1,
     limit: pagination.pageSize,
     participantIds: filters.participantIds,
@@ -28,12 +29,20 @@ export const DataTable = ({ workspaceId }: DataTableProps) => {
     sortBy: filters.sortBy,
     sortOrder: filters.sortOrder,
     isArchived: filters.showArchived,
-    title: q,
+    title: search,
   });
 
   return (
     <div className="p-4">
-      <ActionsTable columns={columns} data={actions} totalCount={total} />
+      <ActionsTable
+        columns={columns}
+        data={actions}
+        totalCount={total}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        search={search}
+        onSearchChange={setSearch}
+      />
     </div>
   );
 };

@@ -15,6 +15,7 @@ import { getTrackingIdleAutomation } from "./get-idle-automation";
 import { updateTrackingIdleAutomation } from "./update-idle-automation";
 import { getKanbanAppearance } from "./get-kanban-appearance";
 import { getLeadPurchases } from "./get-lead-purchases";
+import { getLeadActionCounts } from "./get-lead-action-counts";
 
 export const trackingRoutes = {
   list: listTrackings,
@@ -34,4 +35,5 @@ export const trackingRoutes = {
   getIdleAutomation: getTrackingIdleAutomation,
   updateIdleAutomation: updateTrackingIdleAutomation,
   getLeadPurchases,
+  getLeadActionCounts,
 };

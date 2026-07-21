@@ -13,6 +13,19 @@ export const useSuspenseWokspaces = () => {
   return useSuspenseQuery(orpc.workspace.list.queryOptions());
 };
 
+/**
+ * Versão sem Suspense — pra quem monta fora de um boundary (ex: o sheet de
+ * ações do lead, que abre dentro do board de tracking).
+ */
+export const useWorkspaces = (enabled = true) => {
+  const { data, isLoading } = useQuery({
+    ...orpc.workspace.list.queryOptions(),
+    enabled,
+  });
+
+  return { workspaces: data?.workspaces ?? [], isLoading };
+};
+
 export const useWorkspace = (workspaceId: string) => {
   return useQuery(
     orpc.workspace.get.queryOptions({
@@ -53,6 +66,7 @@ interface ColumnFilters {
   projectIds?: string[];
   dueDateFrom?: Date | null;
   dueDateTo?: Date | null;
+  leadId?: string;
 }
 
 export const useSuspenseColumnsByWorkspace = (workspaceId: string) => {
@@ -74,6 +88,7 @@ export const useColumnsByWorkspace = (
         participantIds: filters?.participantIds ?? [],
         tagIds: filters?.tagIds ?? [],
         projectIds: filters?.projectIds ?? [],
+        ...(filters?.leadId && { leadId: filters.leadId }),
         ...(filters?.dueDateFrom != null && { dueDateFrom: filters.dueDateFrom }),
         ...(filters?.dueDateTo != null && { dueDateTo: filters.dueDateTo }),
       },

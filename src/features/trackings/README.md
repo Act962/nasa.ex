@@ -324,7 +324,8 @@ fetch (cursor por `sortBy`). Scroll na coluna dispara `fetchNextPage`.
 
 **Campos toggláveis** (`CARD_FIELDS`) — `group: "card"`: `temperature`,
 `nickname`, `phone`, `tags`, `description`, `purchaseBasket`, `aiIndicator`,
-`dateLabel`, `slaTimer`, `conversation`, `forms`, `nextAppointment`, `deadline`,
+`dateLabel`, `slaTimer`, `conversation`, `forms`, `nextAppointment`,
+**`actionsCounter`** (ver abaixo), `deadline`,
 `responsible`, **`leadValue`** (valor monetário do lead — `Lead.amount`, armazenado
 em **centavos** e formatado com `maskMoney`, **oculto no card quando R$ 0,00**);
 `group: "column"`: `leadCount`, **`columnValueTotal`** (soma dos `amount` da
@@ -340,6 +341,45 @@ servidor) e no erro (rollback).
 > **Regra (CLAUDE.md item 16):** todo campo novo no card ou na coluna deve
 > entrar em `CARD_FIELDS` (ganha toggle automático) e ser envolvido por
 > `isFieldVisible(...)` no render — salvo campos obrigatórios (ex.: nome).
+
+### 7.6 Ações do lead (`actionsCounter` + sheet)
+
+O card mostra `concluídas/total` das `Action` vinculadas ao lead
+(`Action.leadId`, FK que já existia no schema). Clicar abre o
+`LeadActionsSheet` — sheet de baixo pra cima com kanban + lista das ações
+daquele lead.
+
+**Contagem** — `tracking.getLeadActionCounts`
+(`src/app/router/trackings/get-lead-action-counts.ts`) faz um `groupBy` por
+`["leadId","isDone"]` e devolve `Record<leadId, {total, done}>`. Conta apenas
+`isArchived: false` (pra bater com o que o sheet mostra) e **replica o filtro
+de visibilidade por role** de `action.listByColumn` — um `member` só conta o
+que ele criaria/participa. Leads sem ação não entram no mapa. O hook
+`useLeadActionCountsByTracking` espelha `useLeadPurchasesByTracking`: uma
+request por board, dedupada entre todos os cards.
+
+**Sheet** — `src/features/leads/components/lead-actions-sheet/`. Reusa
+`DataKanban`/`DataTable` do workspace passando `leadId`: as colunas são as
+reais do `WorkspaceColumn` do workspace selecionado, filtradas pelas ações do
+lead, com drag & drop persistindo via `action.reorder`. Um workspace por vez
+(seletor no header), porque `Action.workspaceId` é obrigatório e cada
+workspace tem suas próprias colunas. `leadId` também liga `readOnlyColumns`,
+que esconde criar/renomear/excluir coluna. O sheet **não** renderiza
+`FiltersBar`/`FiltersSheet`: eles escrevem `af_*` na URL, que aqui é a da
+página de tracking.
+
+**Armadilhas** — (a) `useInfiniteActionsByStatus` monta a queryKey na mão, então
+`leadId` entra no fim do array (o índice 1 tem que continuar sendo `columnId`,
+usado nas invalidações); (b) o comparador do memo de `WorkspaceColumn` compara
+`leadId` — sem isso, reabrir o sheet pra outro lead mostraria as ações do
+anterior, já que os `columnId` se repetem; (c) `useActionKanbanStore` é
+singleton keyed por `columnId`, então abrir/fechar o sheet chama `resetBoard()`
+imperativamente via `getState()` (nunca em `useEffect` — efeito de pai roda
+depois do filho e apagaria o `registerColumn` recém-feito).
+
+**Vínculo** — criado de dois lugares: "Nova ação" dentro do sheet (nasce com
+`leadId`) e o campo **Lead** na sidebar do `ViewActionModal`
+(`view-modal/sidebar/lead-field.tsx`, busca server-side via `leads.search`).
 
 ---
 

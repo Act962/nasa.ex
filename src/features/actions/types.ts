@@ -70,6 +70,14 @@ export interface Action {
     avatar: string | null;
   } | null;
 
+  leadId?: string | null;
+  lead?: {
+    id: string;
+    name: string;
+    phone: string | null;
+    email: string | null;
+  } | null;
+
   // Sprint 2 fields
   attachments: { name: string; url: string; type?: string }[];
   links: { title: string; url: string }[];

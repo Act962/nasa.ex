@@ -21,6 +21,7 @@ export const listActionByColumn = base
       sortBy: z.enum(["order", "createdAt", "dueDate", "priority", "title"]).optional(),
       sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
       isArchived: z.boolean().optional().default(false),
+      leadId: z.string().optional(),
     }),
   )
   .handler(async ({ input, context, errors }) => {
@@ -76,6 +77,8 @@ export const listActionByColumn = base
       where: {
         columnId: input.columnId,
         isArchived: input.isArchived,
+        workspace: { organizationId: context.org.id },
+        ...(input.leadId && { leadId: input.leadId }),
         ...visibilityFilter,
         ...filterWhere,
       },

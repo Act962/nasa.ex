@@ -3,6 +3,7 @@
 import {
   ColumnDef,
   ColumnFiltersState,
+  OnChangeFn,
   PaginationState,
   SortingState,
   flexRender,
@@ -22,7 +23,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { parseAsInteger, parseAsString, useQueryState, useQueryStates } from "nuqs";
 import { useEffect, useState } from "react";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { Input } from "@/components/ui/input";
@@ -39,41 +39,44 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   totalCount: number;
+  pagination: PaginationState;
+  onPaginationChange: OnChangeFn<PaginationState>;
+  search: string;
+  onSearchChange: (value: string) => void;
 }
 
 export function ActionsTable<TData, TValue>({
   columns,
   data,
   totalCount,
+  pagination,
+  onPaginationChange,
+  search,
+  onSearchChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [pagination, setPagination] = useQueryStates({
-    pageIndex: parseAsInteger.withDefault(0),
-    pageSize: parseAsInteger.withDefault(20),
-  });
 
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [q, setQ] = useQueryState("q", parseAsString.withDefault(""));
-  const [searchValue, setSearchValue] = useState(q);
+  const [searchValue, setSearchValue] = useState(search);
   const debouncedSearch = useDebouncedValue(searchValue, 500);
 
   useEffect(() => {
-    setQ(debouncedSearch || null);
-  }, [debouncedSearch, setQ]);
+    onSearchChange(debouncedSearch);
+  }, [debouncedSearch, onSearchChange]);
 
-  // Sincroniza o valor do input se q mudar externamente (ex: navegação)
+  // Sincroniza o valor do input se a busca mudar externamente (ex: navegação)
   useEffect(() => {
-    setSearchValue(q);
-  }, [q]);
+    setSearchValue(search);
+  }, [search]);
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    onPaginationChange: setPagination,
+    onPaginationChange,
     getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),

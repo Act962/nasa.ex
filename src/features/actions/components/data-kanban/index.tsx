@@ -34,17 +34,23 @@ import { useBoardActionsRealtimeSync } from "../../hooks/use-board-actions-realt
 
 interface Props {
   workspaceId: string;
+  /**
+   * Presente = board escopado às ações desse lead (sheet do lead). Também
+   * desliga a edição de colunas: elas pertencem ao workspace, não ao lead.
+   */
+  leadId?: string;
 }
 
-export const DataKanban = ({ workspaceId }: Props) => {
+export const DataKanban = ({ workspaceId, leadId }: Props) => {
   return (
     <ErrorBoundary>
-      <KanbanBoard workspaceId={workspaceId} />
+      <KanbanBoard workspaceId={workspaceId} leadId={leadId} />
     </ErrorBoundary>
   );
 };
 
-const KanbanBoard = ({ workspaceId }: Props) => {
+const KanbanBoard = ({ workspaceId, leadId }: Props) => {
+  const readOnlyColumns = !!leadId;
   const { filters } = useActionFilters();
   const { columns: fetchedColumns, isLoading: isColumnsLoading } =
     useColumnsByWorkspace(workspaceId, {
@@ -53,6 +59,7 @@ const KanbanBoard = ({ workspaceId }: Props) => {
       projectIds: filters.projectIds,
       dueDateFrom: filters.dueDateFrom,
       dueDateTo: filters.dueDateTo,
+      leadId,
     });
   useBoardActionsRealtimeSync({ workspaceId });
   const reorderAction = useReorderAction();
@@ -326,10 +333,14 @@ const KanbanBoard = ({ workspaceId }: Props) => {
                 key={column.id}
                 {...column}
                 workspaceId={workspaceId}
+                leadId={leadId}
+                readOnlyColumns={readOnlyColumns}
               />
             ))}
           </SortableContext>
-          <ColumnForm />
+          {/* ColumnForm lê `useParams<{workspaceId}>()`, que só existe na rota
+              de workspace — fora dela criaria coluna com workspaceId undefined. */}
+          {!readOnlyColumns && <ColumnForm />}
           <div className="shrink-0 w-1" />
         </ol>
       </div>

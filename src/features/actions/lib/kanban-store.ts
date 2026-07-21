@@ -48,6 +48,8 @@ type ActionKanbanStore = {
 
   isDragging: boolean;
   setIsDragging: (isDragging: boolean) => void;
+
+  resetBoard: () => void;
 };
 
 export const useActionKanbanStore = create<ActionKanbanStore>()(
@@ -59,6 +61,16 @@ export const useActionKanbanStore = create<ActionKanbanStore>()(
       isDragging: false,
 
       setIsDragging: (isDragging) => set({ isDragging }),
+
+      // O store é um singleton keyed por columnId — o board do lead (dentro do
+      // sheet) e o do workspace escrevem as mesmas chaves. Zerar ao abrir/fechar
+      // o sheet evita um frame com os cards do lead anterior, já que os
+      // columnIds se repetem. Também destrava `isDragging` quando o sheet
+      // fecha no meio de um drag (aí onDragEnd/onDragCancel nunca disparam e
+      // registerColumn/setColumnList ficariam em early-return pra sempre).
+      // Chamar SEMPRE via getState(), nunca em useEffect: efeito de pai roda
+      // depois do filho e apagaria o registerColumn recém-feito.
+      resetBoard: () => set({ columns: {}, columnList: [], isDragging: false }),
 
       setSortBy: (sortBy) =>
         set({

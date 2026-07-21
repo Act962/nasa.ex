@@ -8,12 +8,17 @@ import {
 } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useActionKanbanStore, EMPTY_ACTIONS } from "../lib/kanban-store";
+import {
+  invalidateLeadActionCounts,
+  patchLeadActionCounts,
+} from "@/features/trackings/lib/lead-action-counts-cache";
 
 export const useCreateTask = () => {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.action.create.mutationOptions({
       onSuccess: (data) => {
+        if (data.action.leadId) invalidateLeadActionCounts(queryClient);
         queryClient.invalidateQueries(
           orpc.workspace.getColumnsByWorkspace.queryOptions({
             input: {
@@ -60,10 +65,12 @@ export const useListActionByColumn = (columnId: string) => {
 
 export const useInfiniteActionsByStatus = ({
   columnId,
+  leadId,
   filters,
   enabled = true,
 }: {
   columnId: string;
+  leadId?: string;
   filters?: {
     participantIds?: string[];
     tagIds?: string[];
@@ -89,7 +96,13 @@ export const useInfiniteActionsByStatus = ({
       ...(filters?.sortBy != null && { sortBy: filters.sortBy }),
       sortOrder: filters?.sortOrder ?? "desc",
       isArchived: filters?.isArchived ?? false,
+      ...(leadId && { leadId }),
     }),
+    // A queryKey é montada na mão (não vem do input), então `leadId` PRECISA
+    // entrar aqui — senão o board do lead e o board do workspace dividem a
+    // mesma entrada de cache por columnId. Vai no FIM porque o índice 1 tem
+    // que continuar sendo columnId: as invalidações em `useReorderAction` e
+    // em `useBoardActionsRealtimeSync` casam por queryKey[1].
     queryKey: [
       "action.listByColumn",
       columnId,
@@ -101,6 +114,7 @@ export const useInfiniteActionsByStatus = ({
       filters?.sortBy ?? "",
       filters?.sortOrder ?? "",
       String(filters?.isArchived ?? false),
+      leadId ?? "",
     ],
     enabled,
     initialPageParam: undefined,
@@ -137,10 +151,12 @@ interface ListActionByWorkspace {
   sortOrder?: "asc" | "desc";
   isArchived?: boolean;
   title?: string;
+  leadId?: string;
 }
 
 export const useListActionByWorkspace = ({
   workspaceId,
+  leadId,
   limit = 20,
   page = 1,
   participantIds = [],
@@ -162,6 +178,7 @@ export const useListActionByWorkspace = ({
         participantIds,
         tagIds,
         projectIds,
+        ...(leadId && { leadId }),
         ...(dueDateFrom != null && { dueDateFrom }),
         ...(dueDateTo != null && { dueDateTo }),
         sortBy,
@@ -252,6 +269,11 @@ export const useUpdateAction = () => {
   return useMutation(
     orpc.action.update.mutationOptions({
       onSuccess: (data) => {
+        // Vincular/desvincular lead muda o total de dois leads possivelmente
+        // em trackings diferentes — invalidar tudo é mais barato que
+        // reconciliar, e roda na rota de workspace onde nenhum board está
+        // montado.
+        invalidateLeadActionCounts(queryClient);
         queryClient.invalidateQueries(
           orpc.action.get.queryOptions({
             input: { actionId: data.action.id },
@@ -284,7 +306,21 @@ export const useToggleActionDone = () => {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.action.toggleDone.mutationOptions({
+      // O contador de ações no card do lead precisa mexer na hora. O leadId
+      // não vem no input, então lemos do cache de `action.get` — se a ação
+      // não estiver lá, o onSuccess invalida e corrige.
+      onMutate: ({ actionId, isDone }) => {
+        const cached = queryClient.getQueryData(
+          orpc.action.get.queryKey({ input: { actionId } }),
+        ) as { action?: { leadId?: string | null } } | undefined;
+
+        const leadId = cached?.action?.leadId;
+        if (!leadId) return;
+
+        patchLeadActionCounts(queryClient, leadId, { done: isDone ? 1 : -1 });
+      },
       onSuccess: (data) => {
+        if (data.action.leadId) invalidateLeadActionCounts(queryClient);
         queryClient.invalidateQueries(
           orpc.action.get.queryOptions({
             input: { actionId: data.action.id },
@@ -316,6 +352,7 @@ export const useDeleteAction = () => {
   return useMutation(
     orpc.action.delete.mutationOptions({
       onSuccess: (data) => {
+        invalidateLeadActionCounts(queryClient);
         queryClient.invalidateQueries({
           queryKey: ["action.listByColumn"],
         });

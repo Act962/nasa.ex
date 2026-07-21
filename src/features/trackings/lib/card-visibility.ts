@@ -16,6 +16,7 @@ export type CardFieldId =
   | "conversation"
   | "forms"
   | "nextAppointment"
+  | "actionsCounter"
   | "deadline"
   | "responsible"
   | "leadValue"
@@ -106,6 +107,12 @@ export const CARD_FIELDS: CardFieldDefinition[] = [
   {
     id: "nextAppointment",
     label: "Próximo agendamento",
+    group: "card",
+  },
+  {
+    id: "actionsCounter",
+    label: "Ações",
+    description: "Contador de ações concluídas/total. Clicar abre as ações.",
     group: "card",
   },
   {

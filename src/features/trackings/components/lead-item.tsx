@@ -11,6 +11,7 @@ import {
   CheckIcon,
   ClipboardList as ClipboardListIcon,
   Grip,
+  ListTodo,
   Phone,
   PlusIcon,
   Tag,
@@ -36,6 +37,8 @@ import { useLeadStore } from "../contexts/use-lead";
 import { useKanbanStore } from "../lib/kanban-store";
 import { useKanbanAppearance } from "../hooks/use-kanban-appearance";
 import { useLeadPurchasesByTracking } from "../hooks/use-lead-purchases";
+import { useLeadActionCountsByTracking } from "../hooks/use-lead-action-counts";
+import { useLeadActionsSheetStore } from "@/features/leads/lib/lead-actions-sheet-store";
 import { useCardConfig } from "../hooks/use-card-config";
 import { isFieldVisible, resolveCardVisibility } from "../lib/card-visibility";
 import { LeadPurchaseBasket } from "./lead-purchase-basket";
@@ -170,6 +173,13 @@ export const LeadItem = memo(
       isFieldVisible(visibility, "purchaseBasket") &&
       cardConfig?.showPurchaseBasket !== false;
     const leadPurchase = purchasesData?.purchases?.[data.id];
+    // Contador de ações: mesma estratégia da cesta — 1 request por tracking,
+    // dedupada entre todos os cards.
+    const { data: actionCountsData } = useLeadActionCountsByTracking(
+      data.trackingId,
+    );
+    const actionCount = actionCountsData?.counts?.[data.id];
+    const openLeadActions = useLeadActionsSheetStore((s) => s.openLeadActions);
     const [description, setDescription] = useState(data.description);
 
     const debouncedDescription = useDebouncedValue(description, 1000);
@@ -530,6 +540,39 @@ export const LeadItem = memo(
                 </span>
               </span>
             )}
+
+            {/* Ações vinculadas ao lead (concluídas/total). Clicar abre o
+              sheet de ações — `onPointerDown` precisa parar a propagação
+              porque esta linha do rodapé carrega os listeners do dnd-kit. */}
+            {actionCount &&
+              actionCount.total > 0 &&
+              isFieldVisible(visibility, "actionsCounter") && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    openLeadActions({
+                      leadId: data.id,
+                      leadName: data.name,
+                      trackingId: data.trackingId,
+                    });
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className={cn(
+                    "inline-flex cursor-pointer items-center gap-0.5 text-[10px] font-medium transition-opacity hover:opacity-80",
+                    actionCount.done === actionCount.total &&
+                      "text-emerald-500",
+                  )}
+                  title={`${actionCount.done} de ${actionCount.total} ações concluídas`}
+                  aria-label="Abrir ações do lead"
+                >
+                  <ListTodo className="size-3 shrink-0" />
+                  <span className="tabular-nums">
+                    {actionCount.done}/{actionCount.total}
+                  </span>
+                </button>
+              )}
 
             {/* Prazo mais urgente entre todos os forms do lead.
               `data.deadlineHint` é computado server-side a partir do

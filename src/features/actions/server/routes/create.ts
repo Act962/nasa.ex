@@ -38,6 +38,7 @@ export const createAction = base
       workspaceId: z.string().min(1, "Workspace é obrigatório"),
       columnId: z.string().min(1, "Coluna é obrigatória"),
       orgProjectId: z.string().optional(),
+      leadId: z.string().optional(),
       participantIds: z.array(z.string()).optional(),
       // Compartilhar com outras empresas (cross-org). Pra cada org:
       //  - Se user tem role owner/admin/moderador → cópia direta.
@@ -53,7 +54,21 @@ export const createAction = base
       registrationUrl: z.string().nullable().optional(),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
+    if (input.leadId) {
+      const lead = await prisma.lead.findFirst({
+        where: {
+          id: input.leadId,
+          tracking: { organizationId: context.org.id },
+        },
+        select: { id: true },
+      });
+
+      if (!lead) {
+        throw errors.NOT_FOUND({ message: "Lead não encontrado" });
+      }
+    }
+
     const firstAction = await prisma.action.findFirst({
       where: {
         columnId: input.columnId,
@@ -104,6 +119,7 @@ export const createAction = base
         order: newOrder,
         columnId: input.columnId,
         orgProjectId: input.orgProjectId,
+        leadId: input.leadId,
         createdBy: context.user.id,
         isPublic: input.isPublic ?? false,
         publicSlug,

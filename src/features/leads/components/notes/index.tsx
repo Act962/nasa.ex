@@ -3,10 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { RichtTextEditor } from "@/components/rich-text-editor/editor-lazy";
 import { ContainerItemLead } from "./container-item-lead";
-import {
-  // useMutationCreateLeadAction,
-  useQueryLeadAction,
-} from "@/features/leads/hooks/use-lead-action";
+import { useQueryLeadAction } from "@/features/leads/hooks/use-lead-action";
 import { useState } from "react";
 
 interface TabNotesProps {
@@ -16,27 +13,12 @@ interface TabNotesProps {
 
 export function TabNotes({ leadId, trackingId }: TabNotesProps) {
   const { data, isLoading } = useQueryLeadAction({ leadId });
-  // const mutation = useMutationCreateLeadAction();
   const [editor, setEditor] = useState<string | undefined>(undefined);
-
-  // const onSubmit = () => {
-  //   mutation.mutate({
-  //     leadId,
-  //     description: editor,
-  //     title: "Tarefa vazia",
-  //     trackingId,
-  //   });
-  //   setEditor("");
-  // };
 
   if (isLoading) return <div>Loading...</div>;
   return (
     <div className="w-full space-y-4 overflow-y-auto h-full">
-      <RichtTextEditor
-        // disabled={mutation.isPending}
-        field={editor}
-        onChange={setEditor}
-      >
+      <RichtTextEditor field={editor} onChange={setEditor}>
         <Button className="ml-auto" onClick={() => {}} disabled={!editor}>
           Adicionar nota
         </Button>
