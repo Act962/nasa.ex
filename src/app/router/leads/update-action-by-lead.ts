@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { TypeAction } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import z from "zod";
@@ -8,6 +9,7 @@ import { recordLeadHistory } from "./utils/history";
 
 export const updateActionByLead = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "POST",
     summary: "Update a action by lead",
@@ -32,6 +34,43 @@ export const updateActionByLead = base
     }),
   )
   .handler(async ({ input, errors, context }) => {
+    const existingAction = await prisma.action.findFirst({
+      where: {
+        id: input.actionId,
+        workspace: { organizationId: context.org.id },
+      },
+      select: { id: true },
+    });
+
+    if (!existingAction) {
+      throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+    }
+
+    if (input.leadId) {
+      const targetLead = await prisma.lead.findFirst({
+        where: {
+          id: input.leadId,
+          tracking: { organizationId: context.org.id },
+        },
+        select: { id: true },
+      });
+
+      if (!targetLead) {
+        throw errors.NOT_FOUND({ message: "Lead não encontrado" });
+      }
+    }
+
+    if (input.trackingId) {
+      const targetTracking = await prisma.tracking.findFirst({
+        where: { id: input.trackingId, organizationId: context.org.id },
+        select: { id: true },
+      });
+
+      if (!targetTracking) {
+        throw errors.NOT_FOUND({ message: "Tracking não encontrado" });
+      }
+    }
+
     try {
       const result = await prisma.$transaction(async (tx) => {
         const action = await tx.action.update({
@@ -47,7 +86,6 @@ export const updateActionByLead = base
             type: input.type,
             trackingId: input.trackingId,
             organizationId: context.session.activeOrganizationId,
-            createdBy: context.user.id,
             startDate: input.startDate,
             endDate: input.endDate,
             responsibles: {

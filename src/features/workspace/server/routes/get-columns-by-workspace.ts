@@ -15,6 +15,7 @@ export const getColumnsByWorkspace = base
       projectIds: z.array(z.string()).optional().default([]),
       dueDateFrom: z.coerce.date().nullable().optional(),
       dueDateTo: z.coerce.date().nullable().optional(),
+      leadId: z.string().optional(),
     }),
   )
   .handler(async ({ input, context, errors }) => {
@@ -36,6 +37,10 @@ export const getColumnsByWorkspace = base
     const result = await prisma.workspaceColumn.findMany({
       where: {
         workspaceId: input.workspaceId,
+        // Sem o escopo por org, qualquer usuário autenticado lê o layout de
+        // colunas (e a contagem de ações) de um workspace de outra empresa —
+        // e com `leadId` no _count vira um oráculo cross-tenant.
+        workspace: { organizationId: context.org.id },
       },
       orderBy: {
         order: "asc",
@@ -51,6 +56,7 @@ export const getColumnsByWorkspace = base
             actions: {
               where: {
                 isArchived: false,
+                ...(input.leadId && { leadId: input.leadId }),
                 ...(input.participantIds.length > 0 && {
                   participants: {
                     some: { userId: { in: input.participantIds } },

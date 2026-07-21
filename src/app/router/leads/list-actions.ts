@@ -53,11 +53,16 @@ export const listActionsByLead = base
       ),
     }),
   )
-  .handler(async ({ errors, input }) => {
+  .handler(async ({ errors, input, context }) => {
     try {
       const actions = await prisma.action.findMany({
         where: {
           leadId: input.leadId,
+          // Escopa os DOIS lados: o lead (quem pergunta) e a action (o que
+          // volta). Só o lado do lead deixaria vazar uma action de outra org
+          // que tivesse sido apontada pra um lead local.
+          lead: { tracking: { organizationId: context.org.id } },
+          workspace: { organizationId: context.org.id },
         },
         include: {
           responsibles: {

@@ -35,6 +35,7 @@ export const updateAction = base
       endDate: z.date().nullable().optional(),
       isDone: z.boolean().optional(),
       orgProjectId: z.string().nullable().optional(),
+      leadId: z.string().nullable().optional(),
       // ─── Calendário Público ──────────────────────────────────────────
       isPublic: z.boolean().optional(),
       eventCategory: z.enum(EVENT_CATEGORY_VALUES).nullable().optional(),
@@ -56,9 +57,35 @@ export const updateAction = base
     const { actionId, consent, ...data } = input;
     const { session } = context;
 
-    const previous = await prisma.action.findUnique({
-      where: { id: actionId },
+    // Escopo pela org do workspace: `Action.workspaceId` e
+    // `Workspace.organizationId` são obrigatórios, então isso sempre resolve.
+    // Sem isso, qualquer usuário autenticado edita qualquer action por id —
+    // e com `leadId` writable daria pra reparentar a action de outra empresa
+    // pra um lead próprio e ler o conteúdo dela via `leads.listActions`.
+    const previous = await prisma.action.findFirst({
+      where: {
+        id: actionId,
+        workspace: { organizationId: context.org.id },
+      },
     });
+
+    if (!previous) {
+      throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+    }
+
+    if (data.leadId) {
+      const lead = await prisma.lead.findFirst({
+        where: {
+          id: data.leadId,
+          tracking: { organizationId: context.org.id },
+        },
+        select: { id: true },
+      });
+
+      if (!lead) {
+        throw errors.NOT_FOUND({ message: "Lead não encontrado" });
+      }
+    }
 
     // Guarda do consentimento: vira público (false → true) sem consent é
     // rejeitado pra que TODA publicação passe pelo aviso explícito.
