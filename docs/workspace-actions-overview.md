@@ -23,11 +23,11 @@ O objetivo desta linha de trabalho é **ativar essas pontes** de forma increment
 
 | Item | Status |
 | --- | --- |
-| Fase em andamento | **Fase 2 implementada ✅** — Action herda o `trackingId` do workspace na criação e re-resolve ao mover/copiar; backfill em migration versionada (**pendente de rodar**) |
+| Fase em andamento | **Fase 2 implementada ✅** — Action herda o `trackingId` do workspace na criação, re-resolve ao mover/copiar e recebe cascata quando o vínculo do workspace muda |
 | Fase anterior | **Fase 1.1 implementada ✅** — seletor de workspaces conectados na toolbar do board de tracking |
 | Fase 1 | **✅** — vínculo Tracking → Workspaces (1:N), com seleção na criação e na aba Geral das configurações |
 | `Workspace.trackingId` | **Ativo ✅** — gravável em `workspace.create` e `workspace.update`, filtrável em `workspace.list` |
-| `Action.trackingId` | **Ativo ✅** — herdado do workspace em todos os caminhos de criação; re-resolvido em move/copy. Backfill aguardando `pnpm db:migrate` |
+| `Action.trackingId` | **Ativo ✅** — herdado do workspace na criação, re-resolvido em move/copy e cascateado quando o vínculo do workspace muda. **Sem migration pendente** |
 | `Action.leadId` | ⬜ Sempre `null` — fluxo lead→action comentado no código (ver §5, Fase 3) |
 | Validação de coerência | ⬜ Inexistente — nada garante que lead/tracking/workspace/org sejam consistentes entre si (ver §6) |
 | Dívidas de segurança | 🚧 Mapeadas em §6, **não corrigidas** salvo onde indicado |
@@ -164,16 +164,17 @@ A action passa a nascer — e permanecer — com o tracking do workspace onde vi
 | `ia/ai-workspace/tools/create-action.ts` | Herda via `tracking: { connect }` (o arquivo usa sintaxe de relação) |
 | `nasa-planner/create-campaign-task.ts` / `create-campaign-event.ts` | Herdam na criação |
 | `nasa-command/execute.ts` | Herda na criação da tarefa |
-| `prisma/migrations/20260722120000_backfill_action_tracking_id/` | **Migration de dados** — `UPDATE` das actions com `tracking_id` nulo a partir do workspace |
+| `workspace/server/routes/update.ts` | **Cascata**: mudar o `trackingId` do workspace atualiza as actions dele na mesma transação |
 
 **Decisões:**
 
 - **Herança na criação + re-resolução no movimento.** Só preencher na criação deixaria o campo rançoso assim que alguém arrastasse a action pra outro quadro — foi exatamente a dívida C1. `moveAction`, `moveActions` e `copyAction` re-resolvem do destino, então o invariante "trackingId da action == trackingId do seu workspace" vale sempre.
 - **Cópias cross-org continuam sem herdar.** `copy-action-to-org.ts` e o trecho de cópia em `create.ts` seguem descartando `trackingId`/`leadId` de propósito: o tracking pertence à org de origem e não faz sentido na destino.
 - **`promote-sub-action` deixou de copiar da action-pai.** Resolver do workspace cobre o caso de actions antigas com `trackingId` nulo, que propagariam o nulo adiante.
-- **Backfill como migration versionada, não script solto.** Segue a convenção do projeto e roda igual em todos os ambientes. É idempotente (`WHERE tracking_id IS NULL`) e não toca em actions que já tenham tracking.
+- **Cascata no `workspace.update` em vez de migration de backfill.** A primeira versão desta fase trazia uma migration de dados; ela foi **removida antes do merge** por ser inócua: em produção nenhum workspace tem `tracking_id` (a Fase 1 é que introduz o primeiro escritor), então o `UPDATE` casaria zero linhas. O problema real não é o deploy e sim o uso contínuo — vincular um workspace que **já tem** actions deixaria essas actions órfãs, e uma migration executada semanas antes não ajudaria. A cascata resolve os dois casos e dispensa migration.
+- **A cascata só dispara quando o vínculo muda de fato** (`input.trackingId !== undefined && !== valor atual`), evitando um `updateMany` desnecessário a cada save da aba Geral. Roda dentro da mesma transação do update do workspace.
 
-**Verificado em runtime:** action criada em workspace vinculado nasceu com o `trackingId` do tracking; movida pra workspace sem vínculo, o campo virou `null`; movida de volta, voltou a apontar pro tracking. Dados de teste removidos.
+**Verificado em runtime:** action criada em workspace vinculado nasceu com o `trackingId`; movida pra workspace sem vínculo virou `null`; movida de volta, voltou a apontar. Na cascata, vincular um workspace com 4 actions preexistentes (todas `null`) preencheu as 4 de uma vez, e desvincular zerou as 4. Dados de teste removidos.
 
 ### 2026-07-22 — Fase 1.1: seletor de workspaces na toolbar do tracking ✅
 

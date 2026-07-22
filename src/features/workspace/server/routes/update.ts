@@ -26,7 +26,7 @@ export const updateWorkspace = base
         id: input.workspaceId,
         organizationId: context.org.id,
       },
-      select: { id: true },
+      select: { id: true, trackingId: true },
     });
 
     if (!existingWorkspace) {
@@ -49,16 +49,35 @@ export const updateWorkspace = base
       }
     }
 
-    const workspace = await prisma.workspace.update({
-      where: { id: input.workspaceId },
-      data: {
-        name: input.name,
-        description: input.description,
-        icon: input.icon,
-        color: input.color,
-        coverImage: input.coverImage,
-        trackingId: input.trackingId,
-      },
+    // `undefined` significa "não mexer no vínculo"; qualquer outro valor
+    // (inclusive `null`, que desvincula) precisa descer pras actions.
+    const isChangingTracking =
+      input.trackingId !== undefined &&
+      input.trackingId !== existingWorkspace.trackingId;
+
+    const workspace = await prisma.$transaction(async (tx) => {
+      const updated = await tx.workspace.update({
+        where: { id: input.workspaceId },
+        data: {
+          name: input.name,
+          description: input.description,
+          icon: input.icon,
+          color: input.color,
+          coverImage: input.coverImage,
+          trackingId: input.trackingId,
+        },
+      });
+
+      // Sem esta cascata, as actions que já existiam no workspace ficariam
+      // com o tracking antigo (ou nulo) — só as criadas depois herdariam.
+      if (isChangingTracking) {
+        await tx.action.updateMany({
+          where: { workspaceId: input.workspaceId },
+          data: { trackingId: input.trackingId ?? null },
+        });
+      }
+
+      return updated;
     });
 
     return { workspace };
