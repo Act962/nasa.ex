@@ -1,6 +1,6 @@
 # Workspace + Actions ↔ Tracking + Leads — Visão Geral
 
-> Documento vivo do elo entre o domínio **Workspace/Action** (execução: quadros, tarefas, eventos) e o domínio **Tracking/Lead** (comercial: pipeline, contatos). Última revisão: 2026-07-22 (**Fase 2** — herança de `Action.trackingId` a partir do workspace).
+> Documento vivo do elo entre o domínio **Workspace/Action** (execução: quadros, tarefas, eventos) e o domínio **Tracking/Lead** (comercial: pipeline, contatos). Última revisão: 2026-07-22 (**Fase 3** — vínculo Action → Lead reativado + correções S1/S2).
 >
 > **Regra de manutenção:** sempre que alterar qualquer coisa em `src/features/workspace/`, `src/features/actions/`, os routers `src/app/router/leads/`, ou os modelos `Workspace`/`WorkspaceColumn`/`WorkspaceMember`/`Action`/`SubActions` no `prisma/schema.prisma`, **atualize este arquivo na mesma sessão** — tabelas, roadmap/status, decisões e changelog sincronizados com o código. Espelha a regra dos itens 10 e 14 do CLAUDE.md.
 
@@ -23,12 +23,13 @@ O objetivo desta linha de trabalho é **ativar essas pontes** de forma increment
 
 | Item | Status |
 | --- | --- |
-| Fase em andamento | **Fase 2 implementada ✅** — Action herda o `trackingId` do workspace na criação, re-resolve ao mover/copiar e recebe cascata quando o vínculo do workspace muda |
+| Fase em andamento | **Fase 3 implementada ✅** — criação de tarefa a partir do lead, com workspace resolvido pelo tracking; dívidas **S1 e S2 fechadas** |
+| Fase anterior | **Fase 2 implementada ✅** — Action herda o `trackingId` do workspace na criação, re-resolve ao mover/copiar e recebe cascata quando o vínculo do workspace muda |
 | Fase anterior | **Fase 1.1 implementada ✅** — seletor de workspaces conectados na toolbar do board de tracking |
 | Fase 1 | **✅** — vínculo Tracking → Workspaces (1:N), com seleção na criação e na aba Geral das configurações |
 | `Workspace.trackingId` | **Ativo ✅** — gravável em `workspace.create` e `workspace.update`, filtrável em `workspace.list` |
 | `Action.trackingId` | **Ativo ✅** — herdado do workspace na criação, re-resolvido em move/copy e cascateado quando o vínculo do workspace muda. **Sem migration pendente** |
-| `Action.leadId` | ⬜ Sempre `null` — fluxo lead→action comentado no código (ver §5, Fase 3) |
+| `Action.leadId` | **Ativo ✅** — gravável via `leads.createAction`; repontar exige mesmo tracking |
 | Validação de coerência | ⬜ Inexistente — nada garante que lead/tracking/workspace/org sejam consistentes entre si (ver §6) |
 | Dívidas de segurança | 🚧 Mapeadas em §6, **não corrigidas** salvo onde indicado |
 
@@ -105,7 +106,8 @@ Os dois sistemas **não se sincronizam**. Participante de tracking não vira mem
 | **1** | **Vínculo Tracking → Workspaces (1:N).** `trackingId` gravável em create/update, filtro em list, seletor na UI de criação e configurações | **✅ Implementada** |
 | **1.1** | **Seletor de workspaces conectados** na toolbar do tracking, com atalho de navegação por item | **✅ Implementada** |
 | **2** | **Herança `Action.trackingId`.** Action criada num workspace vinculado herda o `trackingId` do workspace; backfill das actions existentes | **✅ Implementada** |
-| **3** | **Reativar vínculo Action → Lead.** Ressuscitar o fluxo lead→action (hoje 100% comentado), com seletor de lead na action e aba de tarefas no detalhe do lead | ⬜ Planejada |
+| **3** | **Reativar vínculo Action → Lead.** Criação de tarefa pelo painel do lead + correções S1/S2 | **✅ Implementada** |
+| **3.1** | **Seletor de lead dentro da action** (direção inversa, não coberta pela Fase 3) | ⬜ Planejada |
 | **4** | **Validação de coerência.** Garantir que `leadId` pertence ao `trackingId`, que o workspace pertence à org, e que `move-action` atualiza os campos denormalizados | ⬜ Planejada |
 | **5** | **Endurecimento de permissão.** Fechar as rotas sem checagem de recurso listadas em §6 | ⬜ Planejada |
 
@@ -119,8 +121,8 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 
 | # | Onde | Problema |
 | --- | --- | --- |
-| S1 | [`leads/update-action-by-lead.ts:9`](../src/app/router/leads/update-action-by-lead.ts) | Sem `requireOrgMiddleware`, sem checagem de dono do `actionId`, e grava `createdBy: context.user.id` em toda atualização → qualquer autenticado reatribui autoria de qualquer action por id |
-| S2 | [`leads/list-actions.ts:58`](../src/app/router/leads/list-actions.ts) | `where: { leadId }` sem escopo de org → leitura cross-tenant por id de lead |
+| S1 | [`leads/update-action-by-lead.ts`](../src/app/router/leads/update-action-by-lead.ts) | ~~Sem org, sem checagem de dono, gravava `createdBy` do chamador~~ — **corrigida na Fase 3**: `requireOrgMiddleware`, escopo via `workspace.organizationId`, `createdBy` e `trackingId` removidos do write |
+| S2 | [`leads/list-actions.ts`](../src/app/router/leads/list-actions.ts) | ~~`where: { leadId }` sem escopo de org~~ — **corrigida na Fase 3**: filtra pelo tracking do lead (org + participação) |
 | S3 | [`workspace/update.ts`](../src/features/workspace/server/routes/update.ts) | ~~Atualizava por id sem checar org~~ — **corrigido na Fase 1** (escopo de org + participação no tracking) |
 | S4 | `actions/list-action-by-workspace.ts:85` | `where: { workspaceId }` sem escopo de org → role privilegiado da org A lê actions de workspace da org B |
 | S5 | `actions/` — ~18 procedures | `update`, `toggleDone`, `reorder`, `addParticipant`, `createSubAction` e afins rodam com auth+org apenas, **zero checagem de recurso** |
@@ -138,14 +140,36 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 
 | # | Onde | Situação |
 | --- | --- | --- |
-| D1 | [`leads/create-action-by-lead.ts`](../src/app/router/leads/create-action-by-lead.ts) | Arquivo inteiro comentado (linhas 1-71); registro em `leads/index.ts:16,58` também comentado |
-| D2 | [`leads/components/notes/index.tsx:38`](../src/features/leads/components/notes/index.tsx) | Botão "Adicionar nota" é `onClick={() => {}}` — no-op |
+| D1 | [`leads/create-action-by-lead.ts`](../src/app/router/leads/create-action-by-lead.ts) | ~~Arquivo inteiro comentado~~ — **reescrito e ativado na Fase 3** |
+| D2 | [`leads/components/notes/index.tsx`](../src/features/leads/components/notes/index.tsx) | ~~Botão "Adicionar nota" era `onClick={() => {}}`~~ — **substituído na Fase 3** por formulário funcional |
 | D3 | `ActionMirror` (schema.prisma:3710) | Modelo sem nenhuma referência em `src/` — zero hits fora do generated |
-| D4 | `workspace-calendar-modal.tsx:171` | Filtro de leads deduz leads das actions do mês; com `leadId` sempre null, a lista sai vazia |
+| D4 | `workspace-calendar-modal.tsx:171` | Filtro de leads deduz leads das actions do mês. Passa a funcionar conforme actions ganham `leadId` (Fase 3) |
 
 ---
 
 ## 7. Changelog
+
+### 2026-07-22 — Fase 3: vínculo Action → Lead reativado ✅
+
+Fecha a terceira ponte. O painel do lead volta a criar tarefas, e elas nascem vinculadas ao lead, ao tracking e a um workspace real.
+
+| Arquivo | Mudança |
+| --- | --- |
+| `leads/create-action-by-lead.ts` | **Reescrito e ativado.** A versão comentada criava a action **sem `workspaceId`** — campo obrigatório no schema, então nunca teria funcionado. Agora resolve o workspace pelo tracking do lead |
+| `leads/update-action-by-lead.ts` | **S1 fechada** — `requireOrgMiddleware`, escopo via `workspace.organizationId`, `createdBy` e `trackingId` fora do write, repontar lead exige mesmo tracking |
+| `leads/list-actions.ts` | **S2 fechada** — filtra pelo tracking do lead (org + participação) |
+| `leads/index.ts` | `createAction` registrado |
+| `leads/hooks/use-lead-action.tsx` | `useMutationCreateLeadAction` reativado, com mensagem de erro vinda do servidor |
+| `leads/components/notes/index.tsx` | Formulário funcional (título + descrição + seletor de workspace quando há mais de um) no lugar do botão morto |
+
+**Decisões:**
+
+- **O workspace é resolvido pelo tracking do lead**, com default no primeiro workspace conectado e seletor só quando há mais de um. Sem workspace conectado, a aba mostra um aviso apontando pras configurações em vez de um formulário que falharia. É a Fase 1 pagando dividendo: sem o vínculo tracking↔workspace não haveria como responder "onde essa tarefa mora".
+- **`trackingId` saiu do contrato das duas rotas.** Antes o cliente mandava; agora é derivado do lead. Cliente escolher o tracking é justamente o que permitia incoerência entre `leadId` e `trackingId`.
+- **`createdBy` nunca mais é escrito no update.** Era o vetor de roubo de autoria da S1, e afetava até edições legítimas de descrição.
+- **Repontar a action pra outro lead exige mesmo tracking** — cruzar trackings quebraria a coerência que a Fase 2 estabeleceu.
+
+**Verificado em runtime:** tarefa criada pelo lead nasceu com `leadId`, `trackingId` e `workspaceId`/`columnId` resolvidos, e apareceu na aba do lead. Nas guardas: action de fora da org → `NOT_FOUND`; lead de outra org em `listActions` → 0 ações; lead inexistente em `createAction` → `NOT_FOUND`; repontar pra lead de outro tracking → `FORBIDDEN`; `trackingId` forjado no update → ignorado; `createdBy` preservado. Dados de teste removidos.
 
 ### 2026-07-22 — Fase 2: herança de `Action.trackingId` ✅
 

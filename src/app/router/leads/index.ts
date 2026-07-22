@@ -13,7 +13,7 @@ import { archiveLead } from "./archive";
 import { setArchived as setLeadArchived } from "./set-archived";
 import { toggleFavorite as toggleLeadFavorite } from "./toggle-favorite";
 import { listActionsByLead } from "./list-actions";
-// import { createActionByLead } from "./create-action-by-lead";
+import { createActionByLead } from "./create-action-by-lead";
 import { updateActionByLead } from "./update-action-by-lead";
 import { listLeadByWhats } from "./list-lead-by-whats";
 import { listLeadWithoutConversation } from "./list-without-conversation";
@@ -55,7 +55,7 @@ export const leadRoutes = {
   setArchived: setLeadArchived,
   toggleFavorite: toggleLeadFavorite,
   listActions: listActionsByLead,
-  // createAction: createActionByLead,
+  createAction: createActionByLead,
   updateActionByLead: updateActionByLead,
   listLeadByWhats: listLeadByWhats,
   listLeadWithoutConversation: listLeadWithoutConversation,
