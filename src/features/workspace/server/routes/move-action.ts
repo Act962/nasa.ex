@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { resolveWorkspaceTrackingId } from "@/features/actions/lib/workspace-tracking";
 import { logOrgActivity } from "@/features/admin/lib/org-activity-log";
 import {
   hasMovedColumnWorkflow,
@@ -25,11 +26,16 @@ export const moveAction = base
       select: { columnId: true, workspaceId: true },
     });
 
+    // Mudar de workspace pode mudar o tracking: re-resolve em vez de deixar
+    // o valor antigo (que apontaria pro tracking do workspace de origem).
+    const trackingId = await resolveWorkspaceTrackingId(input.workspaceId);
+
     const action = await prisma.action.update({
       where: { id: input.actionId },
       data: {
         columnId: input.columnId,
         workspaceId: input.workspaceId,
+        trackingId,
       },
     });
 

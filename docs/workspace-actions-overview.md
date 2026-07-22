@@ -1,6 +1,6 @@
 # Workspace + Actions ↔ Tracking + Leads — Visão Geral
 
-> Documento vivo do elo entre o domínio **Workspace/Action** (execução: quadros, tarefas, eventos) e o domínio **Tracking/Lead** (comercial: pipeline, contatos). Última revisão: 2026-07-22 (**Fase 1** — vínculo Tracking → Workspaces).
+> Documento vivo do elo entre o domínio **Workspace/Action** (execução: quadros, tarefas, eventos) e o domínio **Tracking/Lead** (comercial: pipeline, contatos). Última revisão: 2026-07-22 (**Fase 2** — herança de `Action.trackingId` a partir do workspace).
 >
 > **Regra de manutenção:** sempre que alterar qualquer coisa em `src/features/workspace/`, `src/features/actions/`, os routers `src/app/router/leads/`, ou os modelos `Workspace`/`WorkspaceColumn`/`WorkspaceMember`/`Action`/`SubActions` no `prisma/schema.prisma`, **atualize este arquivo na mesma sessão** — tabelas, roadmap/status, decisões e changelog sincronizados com o código. Espelha a regra dos itens 10 e 14 do CLAUDE.md.
 
@@ -23,10 +23,11 @@ O objetivo desta linha de trabalho é **ativar essas pontes** de forma increment
 
 | Item | Status |
 | --- | --- |
-| Fase em andamento | **Fase 1.1 implementada ✅** — seletor de workspaces conectados na toolbar do board de tracking, substituindo o filtro de Status inline |
-| Fase anterior | **Fase 1 implementada ✅** — vínculo Tracking → Workspaces (1:N), com seleção na criação e na aba Geral das configurações |
+| Fase em andamento | **Fase 2 implementada ✅** — Action herda o `trackingId` do workspace na criação e re-resolve ao mover/copiar; backfill em migration versionada (**pendente de rodar**) |
+| Fase anterior | **Fase 1.1 implementada ✅** — seletor de workspaces conectados na toolbar do board de tracking |
+| Fase 1 | **✅** — vínculo Tracking → Workspaces (1:N), com seleção na criação e na aba Geral das configurações |
 | `Workspace.trackingId` | **Ativo ✅** — gravável em `workspace.create` e `workspace.update`, filtrável em `workspace.list` |
-| `Action.trackingId` | ⬜ Sempre `null` — nenhum caminho de criação preenche (ver §5, Fase 2) |
+| `Action.trackingId` | **Ativo ✅** — herdado do workspace em todos os caminhos de criação; re-resolvido em move/copy. Backfill aguardando `pnpm db:migrate` |
 | `Action.leadId` | ⬜ Sempre `null` — fluxo lead→action comentado no código (ver §5, Fase 3) |
 | Validação de coerência | ⬜ Inexistente — nada garante que lead/tracking/workspace/org sejam consistentes entre si (ver §6) |
 | Dívidas de segurança | 🚧 Mapeadas em §6, **não corrigidas** salvo onde indicado |
@@ -103,7 +104,7 @@ Os dois sistemas **não se sincronizam**. Participante de tracking não vira mem
 | --- | --- | --- |
 | **1** | **Vínculo Tracking → Workspaces (1:N).** `trackingId` gravável em create/update, filtro em list, seletor na UI de criação e configurações | **✅ Implementada** |
 | **1.1** | **Seletor de workspaces conectados** na toolbar do tracking, com atalho de navegação por item | **✅ Implementada** |
-| **2** | **Herança `Action.trackingId`.** Action criada num workspace vinculado herda o `trackingId` do workspace; backfill das actions existentes | ⬜ Planejada |
+| **2** | **Herança `Action.trackingId`.** Action criada num workspace vinculado herda o `trackingId` do workspace; backfill das actions existentes | **✅ Implementada** |
 | **3** | **Reativar vínculo Action → Lead.** Ressuscitar o fluxo lead→action (hoje 100% comentado), com seletor de lead na action e aba de tarefas no detalhe do lead | ⬜ Planejada |
 | **4** | **Validação de coerência.** Garantir que `leadId` pertence ao `trackingId`, que o workspace pertence à org, e que `move-action` atualiza os campos denormalizados | ⬜ Planejada |
 | **5** | **Endurecimento de permissão.** Fechar as rotas sem checagem de recurso listadas em §6 | ⬜ Planejada |
@@ -128,7 +129,7 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 
 | # | Onde | Problema |
 | --- | --- | --- |
-| C1 | [`workspace/move-action.ts:28`](../src/features/workspace/server/routes/move-action.ts) | Move `workspaceId` sem atualizar `organizationId`/`trackingId`/`orgProjectId` → campos denormalizados rançosos |
+| C1 | [`workspace/move-action.ts`](../src/features/workspace/server/routes/move-action.ts) | ~~Move `workspaceId` sem atualizar `trackingId`~~ — **`trackingId` corrigido na Fase 2** (re-resolvido do destino). `organizationId`/`orgProjectId` seguem rançosos |
 | C2 | `actions/create.ts:100` | Grava `workspaceId` ao lado de `organizationId` sem verificar que o workspace pertence àquela org |
 | C3 | `workspace/approve-share.ts:60` | Copia pra `targetWorkspaceId` não validado |
 | C4 | [`trackings/components/filters/index.tsx:92`](../src/features/trackings/components/filters/index.tsx) | **Erro de hidratação pré-existente** na toolbar do tracking. `canCustomizeBoard && !collapsed` muda a contagem de filhos entre servidor e cliente (a query resolve diferente no SSR), então o React desalinha os irmãos e reporta mismatch no botão "Personalizar". Reproduzido no baseline em 2026-07-22, **não** causado pela Fase 1.1. Correção provável: renderizar o botão sempre e controlar só a visibilidade, ou aguardar `isFetched` antes de decidir |
@@ -145,6 +146,34 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 ---
 
 ## 7. Changelog
+
+### 2026-07-22 — Fase 2: herança de `Action.trackingId` ✅
+
+A action passa a nascer — e permanecer — com o tracking do workspace onde vive. Workspace sem vínculo produz `null`, como antes.
+
+| Arquivo | Mudança |
+| --- | --- |
+| `actions/lib/workspace-tracking.ts` | **Novo.** `resolveWorkspaceTrackingId(workspaceId, prisma?)` — lookup por PK, aceita client de transação via `PrismaLike` |
+| `actions/server/routes/create.ts` | Caminho principal de criação herda o tracking |
+| `actions/server/routes/promote-sub-action.ts` | Passa a **resolver do workspace** em vez de copiar da action-pai (a pai pode ser pré-Fase 2 e propagar `null`) |
+| `workspace/server/routes/copy-action.ts` | Resolve do workspace **de destino** — a cópia pode aterrissar em outro quadro |
+| `workspace/server/routes/move-action.ts` / `move-actions.ts` | Re-resolvem ao mover, fechando a dívida **C1** |
+| `workspace-executions/.../executor.ts` | Usa `workspace.trackingId` (o workspace já estava carregado) |
+| `astro/server/tools/actions/index.ts` | `trackingId` entrou no `select` do workspace e na criação |
+| `public-calendar/utils/create-event-from-parsed.ts` | Herda na criação do evento público |
+| `ia/ai-workspace/tools/create-action.ts` | Herda via `tracking: { connect }` (o arquivo usa sintaxe de relação) |
+| `nasa-planner/create-campaign-task.ts` / `create-campaign-event.ts` | Herdam na criação |
+| `nasa-command/execute.ts` | Herda na criação da tarefa |
+| `prisma/migrations/20260722120000_backfill_action_tracking_id/` | **Migration de dados** — `UPDATE` das actions com `tracking_id` nulo a partir do workspace |
+
+**Decisões:**
+
+- **Herança na criação + re-resolução no movimento.** Só preencher na criação deixaria o campo rançoso assim que alguém arrastasse a action pra outro quadro — foi exatamente a dívida C1. `moveAction`, `moveActions` e `copyAction` re-resolvem do destino, então o invariante "trackingId da action == trackingId do seu workspace" vale sempre.
+- **Cópias cross-org continuam sem herdar.** `copy-action-to-org.ts` e o trecho de cópia em `create.ts` seguem descartando `trackingId`/`leadId` de propósito: o tracking pertence à org de origem e não faz sentido na destino.
+- **`promote-sub-action` deixou de copiar da action-pai.** Resolver do workspace cobre o caso de actions antigas com `trackingId` nulo, que propagariam o nulo adiante.
+- **Backfill como migration versionada, não script solto.** Segue a convenção do projeto e roda igual em todos os ambientes. É idempotente (`WHERE tracking_id IS NULL`) e não toca em actions que já tenham tracking.
+
+**Verificado em runtime:** action criada em workspace vinculado nasceu com o `trackingId` do tracking; movida pra workspace sem vínculo, o campo virou `null`; movida de volta, voltou a apontar pro tracking. Dados de teste removidos.
 
 ### 2026-07-22 — Fase 1.1: seletor de workspaces na toolbar do tracking ✅
 

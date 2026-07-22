@@ -79,6 +79,7 @@ export const wsCreateActionExecutor: NodeExecutor<Data> = async ({
             // organizationId é OBRIGATÓRIO pra ação aparecer no calendário —
             // `getWorkspaceCalendar` filtra por org. Pega da workspace.
             organizationId: workspace.organizationId,
+            trackingId: workspace.trackingId,
             columnId: action.columnId,
             order: newOrder,
             createdBy: workspace.createdBy,

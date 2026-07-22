@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { generatePublicSlug } from "@/features/public-calendar/utils/slug";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { resolveWorkspaceTrackingId } from "@/features/actions/lib/workspace-tracking";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import {
   hasActionCreatedWorkflow,
@@ -90,6 +91,8 @@ export const createAction = base
       publishedAt = new Date();
     }
 
+    const trackingId = await resolveWorkspaceTrackingId(input.workspaceId);
+
     const action = await prisma.action.create({
       data: {
         title: input.title,
@@ -101,6 +104,7 @@ export const createAction = base
         // organizationId é OBRIGATÓRIO pra ação aparecer no calendário do
         // workspace — `getWorkspaceCalendar` filtra por organizationId.
         organizationId: context.org.id,
+        trackingId,
         order: newOrder,
         columnId: input.columnId,
         orgProjectId: input.orgProjectId,

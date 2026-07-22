@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { resolveWorkspaceTrackingId } from "@/features/actions/lib/workspace-tracking";
 import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -41,6 +42,12 @@ export const promoteSubAction = base
       ? Prisma.Decimal.sub(firstAction.order, 1)
       : new Prisma.Decimal(0);
 
+    // Resolve do workspace em vez de copiar da action-pai: ações criadas
+    // antes da Fase 2 têm `trackingId` nulo e propagariam o nulo adiante.
+    const trackingId = await resolveWorkspaceTrackingId(
+      subAction.action.workspaceId,
+    );
+
     const [newAction] = await prisma.$transaction([
       prisma.action.create({
         data: {
@@ -49,7 +56,7 @@ export const promoteSubAction = base
           dueDate: subAction.finishDate ?? subAction.action.dueDate,
           workspaceId: subAction.action.workspaceId,
           columnId: subAction.action.columnId,
-          trackingId: subAction.action.trackingId,
+          trackingId,
           organizationId: subAction.action.organizationId,
           createdBy: context.user.id,
           order: newOrder,
