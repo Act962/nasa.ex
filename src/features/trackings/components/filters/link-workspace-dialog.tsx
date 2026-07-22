@@ -70,7 +70,7 @@ export function LinkWorkspaceDialog({
               type="button"
               onClick={() => onLink(workspace.id)}
               disabled={updateWorkspace.isPending}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm outline-hidden hover:bg-accent focus-visible:bg-accent focus-visible:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
             >
               <span className="truncate">
                 {workspace.icon ? `${workspace.icon} ` : ""}
