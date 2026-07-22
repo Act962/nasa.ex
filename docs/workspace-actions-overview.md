@@ -23,7 +23,8 @@ O objetivo desta linha de trabalho é **ativar essas pontes** de forma increment
 
 | Item | Status |
 | --- | --- |
-| Fase em andamento | **Fase 1 implementada ✅** — vínculo Tracking → Workspaces (1:N), com seleção na criação e na aba Geral das configurações |
+| Fase em andamento | **Fase 1.1 implementada ✅** — seletor de workspaces conectados na toolbar do board de tracking, substituindo o filtro de Status inline |
+| Fase anterior | **Fase 1 implementada ✅** — vínculo Tracking → Workspaces (1:N), com seleção na criação e na aba Geral das configurações |
 | `Workspace.trackingId` | **Ativo ✅** — gravável em `workspace.create` e `workspace.update`, filtrável em `workspace.list` |
 | `Action.trackingId` | ⬜ Sempre `null` — nenhum caminho de criação preenche (ver §5, Fase 2) |
 | `Action.leadId` | ⬜ Sempre `null` — fluxo lead→action comentado no código (ver §5, Fase 3) |
@@ -101,6 +102,7 @@ Os dois sistemas **não se sincronizam**. Participante de tracking não vira mem
 | Fase | Escopo | Status |
 | --- | --- | --- |
 | **1** | **Vínculo Tracking → Workspaces (1:N).** `trackingId` gravável em create/update, filtro em list, seletor na UI de criação e configurações | **✅ Implementada** |
+| **1.1** | **Seletor de workspaces conectados** na toolbar do tracking, com atalho de navegação por item | **✅ Implementada** |
 | **2** | **Herança `Action.trackingId`.** Action criada num workspace vinculado herda o `trackingId` do workspace; backfill das actions existentes | ⬜ Planejada |
 | **3** | **Reativar vínculo Action → Lead.** Ressuscitar o fluxo lead→action (hoje 100% comentado), com seletor de lead na action e aba de tarefas no detalhe do lead | ⬜ Planejada |
 | **4** | **Validação de coerência.** Garantir que `leadId` pertence ao `trackingId`, que o workspace pertence à org, e que `move-action` atualiza os campos denormalizados | ⬜ Planejada |
@@ -129,6 +131,7 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 | C1 | [`workspace/move-action.ts:28`](../src/features/workspace/server/routes/move-action.ts) | Move `workspaceId` sem atualizar `organizationId`/`trackingId`/`orgProjectId` → campos denormalizados rançosos |
 | C2 | `actions/create.ts:100` | Grava `workspaceId` ao lado de `organizationId` sem verificar que o workspace pertence àquela org |
 | C3 | `workspace/approve-share.ts:60` | Copia pra `targetWorkspaceId` não validado |
+| C4 | [`trackings/components/filters/index.tsx:92`](../src/features/trackings/components/filters/index.tsx) | **Erro de hidratação pré-existente** na toolbar do tracking. `canCustomizeBoard && !collapsed` muda a contagem de filhos entre servidor e cliente (a query resolve diferente no SSR), então o React desalinha os irmãos e reporta mismatch no botão "Personalizar". Reproduzido no baseline em 2026-07-22, **não** causado pela Fase 1.1. Correção provável: renderizar o botão sempre e controlar só a visibilidade, ou aguardar `isFetched` antes de decidir |
 
 ### 6.3 Código morto
 
@@ -142,6 +145,22 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 ---
 
 ## 7. Changelog
+
+### 2026-07-22 — Fase 1.1: seletor de workspaces na toolbar do tracking ✅
+
+Primeiro consumo visível do vínculo criado na Fase 1. A toolbar do board de tracking passa a mostrar quais workspaces estão conectados àquele tracking, com atalho de navegação.
+
+| Arquivo | Mudança |
+| --- | --- |
+| `trackings/components/filters/workspaces-switcher.tsx` | **Novo.** Dropdown no padrão do `TrackingSwitcher`, listando os workspaces conectados via `useWorkspacesByTracking`. Cada item é um link para `/workspaces/<id>` com ícone `ArrowUpRight`. Badge com a contagem no gatilho |
+| `trackings/components/filters/index.tsx` | `StatusFlowFilter` sai da toolbar inline, `WorkspacesSwitcher` entra no lugar (entre `TagsFilter` e `CalendarFilter`) |
+
+**Decisões:**
+
+- **O filtro de Status não foi removido do sistema** — continua disponível no Sheet de "Filtros" (`filters.tsx:41`), que é acessível pelo ícone de funil na mesma toolbar. Só saiu da barra inline, que era o pedido.
+- **O item inteiro é o link, não só o ícone.** O ícone `ArrowUpRight` é a affordance visual do "abrir", mas a área clicável é a linha toda — evita uma zona morta no dropdown e espelha o comportamento do `TrackingSwitcher`.
+- **Estado vazio explícito** quando nenhum workspace está conectado, apontando onde fazer o vínculo (configurações do workspace) em vez de mostrar um menu vazio.
+- Diferente do `TrackingSwitcher` (que chama `orpc` direto e viola o item 9 do CLAUDE.md), este componente consome o hook `useWorkspacesByTracking`.
 
 ### 2026-07-22 — Fase 1: vínculo Tracking → Workspaces ✅
 

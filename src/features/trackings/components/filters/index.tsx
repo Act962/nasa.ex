@@ -20,7 +20,7 @@ import { BoardCustomizeSheet } from "@/features/trackings/components/modal/board
 import { AiLeadButton } from "@/features/trackings/components/modal/ai-lead-button";
 import { useAddLead } from "@/hooks/modal/use-add-lead";
 import { useCanCustomizeBoard } from "../../hooks/use-can-customize-board";
-import { StatusFlowFilter } from "./status-flow-filter";
+import { WorkspacesSwitcher } from "./workspaces-switcher";
 import { useKanbanStore } from "../../lib/kanban-store";
 import { cn } from "@/lib/utils";
 import {
@@ -51,7 +51,7 @@ export function FiltersTracking() {
               <TrackingSwitcher />
               <ParticipantsSwitcher />
               <TagsFilter />
-              <StatusFlowFilter />
+              <WorkspacesSwitcher />
               <CalendarFilter />
               {/* <SorterLead /> */}
             </div>
