@@ -23,8 +23,8 @@ O objetivo desta linha de trabalho é **ativar essas pontes** de forma increment
 
 | Item | Status |
 | --- | --- |
-| Fase em andamento | **Fase 1 em implementação 🚧** — vínculo Tracking → Workspaces (1:N), com seleção na criação e na aba Geral das configurações |
-| `Workspace.trackingId` | 🚧 Sempre `null` até a Fase 1 aterrissar — nenhum caminho grava o campo |
+| Fase em andamento | **Fase 1 implementada ✅** — vínculo Tracking → Workspaces (1:N), com seleção na criação e na aba Geral das configurações |
+| `Workspace.trackingId` | **Ativo ✅** — gravável em `workspace.create` e `workspace.update`, filtrável em `workspace.list` |
 | `Action.trackingId` | ⬜ Sempre `null` — nenhum caminho de criação preenche (ver §5, Fase 2) |
 | `Action.leadId` | ⬜ Sempre `null` — fluxo lead→action comentado no código (ver §5, Fase 3) |
 | Validação de coerência | ⬜ Inexistente — nada garante que lead/tracking/workspace/org sejam consistentes entre si (ver §6) |
@@ -100,7 +100,7 @@ Os dois sistemas **não se sincronizam**. Participante de tracking não vira mem
 
 | Fase | Escopo | Status |
 | --- | --- | --- |
-| **1** | **Vínculo Tracking → Workspaces (1:N).** `trackingId` gravável em create/update, filtro em list, seletor na UI de criação e configurações | **🚧 Em implementação** |
+| **1** | **Vínculo Tracking → Workspaces (1:N).** `trackingId` gravável em create/update, filtro em list, seletor na UI de criação e configurações | **✅ Implementada** |
 | **2** | **Herança `Action.trackingId`.** Action criada num workspace vinculado herda o `trackingId` do workspace; backfill das actions existentes | ⬜ Planejada |
 | **3** | **Reativar vínculo Action → Lead.** Ressuscitar o fluxo lead→action (hoje 100% comentado), com seletor de lead na action e aba de tarefas no detalhe do lead | ⬜ Planejada |
 | **4** | **Validação de coerência.** Garantir que `leadId` pertence ao `trackingId`, que o workspace pertence à org, e que `move-action` atualiza os campos denormalizados | ⬜ Planejada |
@@ -118,7 +118,7 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 | --- | --- | --- |
 | S1 | [`leads/update-action-by-lead.ts:9`](../src/app/router/leads/update-action-by-lead.ts) | Sem `requireOrgMiddleware`, sem checagem de dono do `actionId`, e grava `createdBy: context.user.id` em toda atualização → qualquer autenticado reatribui autoria de qualquer action por id |
 | S2 | [`leads/list-actions.ts:58`](../src/app/router/leads/list-actions.ts) | `where: { leadId }` sem escopo de org → leitura cross-tenant por id de lead |
-| S3 | [`workspace/update.ts`](../src/features/workspace/server/routes/update.ts) | Atualiza por id sem checar org → escrita cross-org (alvo da Fase 1) |
+| S3 | [`workspace/update.ts`](../src/features/workspace/server/routes/update.ts) | ~~Atualizava por id sem checar org~~ — **corrigido na Fase 1** (escopo de org + participação no tracking) |
 | S4 | `actions/list-action-by-workspace.ts:85` | `where: { workspaceId }` sem escopo de org → role privilegiado da org A lê actions de workspace da org B |
 | S5 | `actions/` — ~18 procedures | `update`, `toggleDone`, `reorder`, `addParticipant`, `createSubAction` e afins rodam com auth+org apenas, **zero checagem de recurso** |
 
@@ -143,7 +143,7 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 
 ## 7. Changelog
 
-### 2026-07-22 — Fase 1: vínculo Tracking → Workspaces 🚧
+### 2026-07-22 — Fase 1: vínculo Tracking → Workspaces ✅
 
 Ativa a primeira ponte. Um tracking pode ter **vários** workspaces; um workspace pertence a **no máximo um** tracking (ou nenhum — o vínculo é opcional).
 

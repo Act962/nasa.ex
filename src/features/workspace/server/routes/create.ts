@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { isTrackingAccessibleByUser } from "@/features/workspace/lib/tracking-link";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -12,9 +13,24 @@ export const createWorkspace = base
       name: z.string(),
       description: z.string().optional(),
       icon: z.string().optional(),
+      trackingId: z.string().optional(),
     }),
   )
-  .handler(async ({ context, input }) => {
+  .handler(async ({ context, input, errors }) => {
+    if (input.trackingId) {
+      const isAccessible = await isTrackingAccessibleByUser({
+        trackingId: input.trackingId,
+        organizationId: context.org.id,
+        userId: context.user.id,
+      });
+
+      if (!isAccessible) {
+        throw errors.FORBIDDEN({
+          message: "Tracking não encontrado ou sem acesso",
+        });
+      }
+    }
+
     const members = await prisma.member.findMany({
       where: {
         organizationId: context.org.id,
@@ -28,6 +44,7 @@ export const createWorkspace = base
         organizationId: context.org.id,
         createdBy: context.user.id,
         icon: input.icon,
+        trackingId: input.trackingId ?? null,
         members: {
           createMany: {
             data: members.map((member) => ({

@@ -13,6 +13,15 @@ export const useSuspenseWokspaces = () => {
   return useSuspenseQuery(orpc.workspace.list.queryOptions());
 };
 
+export const useWorkspacesByTracking = (trackingId: string) => {
+  return useQuery(
+    orpc.workspace.list.queryOptions({
+      input: { trackingId },
+      enabled: !!trackingId,
+    }),
+  );
+};
+
 export const useWorkspace = (workspaceId: string) => {
   return useQuery(
     orpc.workspace.get.queryOptions({
