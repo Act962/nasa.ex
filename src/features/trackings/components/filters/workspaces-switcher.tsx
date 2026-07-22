@@ -55,7 +55,10 @@ export function WorkspacesSwitcher() {
             asChild
             className="cursor-pointer"
           >
-            <Link href={`/workspaces/${workspace.id}`} prefetch>
+            <Link
+              href={`/workspaces/${workspace.id}?action-view=kanban`}
+              prefetch
+            >
               <span className="truncate">
                 {workspace.icon ? `${workspace.icon} ` : ""}
                 {workspace.name}

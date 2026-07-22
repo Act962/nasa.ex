@@ -152,7 +152,7 @@ Primeiro consumo visível do vínculo criado na Fase 1. A toolbar do board de tr
 
 | Arquivo | Mudança |
 | --- | --- |
-| `trackings/components/filters/workspaces-switcher.tsx` | **Novo.** Dropdown no padrão do `TrackingSwitcher`, listando os workspaces conectados via `useWorkspacesByTracking`. Cada item é um link para `/workspaces/<id>` com ícone `ArrowUpRight`. Badge com a contagem no gatilho |
+| `trackings/components/filters/workspaces-switcher.tsx` | **Novo.** Dropdown no padrão do `TrackingSwitcher`, listando os workspaces conectados via `useWorkspacesByTracking`. Cada item é um link para `/workspaces/<id>?action-view=kanban` com ícone `ArrowUpRight`. Badge com a contagem no gatilho |
 | `trackings/components/filters/index.tsx` | `StatusFlowFilter` sai da toolbar inline, `WorkspacesSwitcher` entra no lugar (entre `TagsFilter` e `CalendarFilter`) |
 
 **Decisões:**
@@ -160,6 +160,7 @@ Primeiro consumo visível do vínculo criado na Fase 1. A toolbar do board de tr
 - **O filtro de Status não foi removido do sistema** — continua disponível no Sheet de "Filtros" (`filters.tsx:41`), que é acessível pelo ícone de funil na mesma toolbar. Só saiu da barra inline, que era o pedido.
 - **O item inteiro é o link, não só o ícone.** O ícone `ArrowUpRight` é a affordance visual do "abrir", mas a área clicável é a linha toda — evita uma zona morta no dropdown e espelha o comportamento do `TrackingSwitcher`.
 - **Estado vazio explícito** quando nenhum workspace está conectado, apontando onde fazer o vínculo (configurações do workspace) em vez de mostrar um menu vazio.
+- **O link força `?action-view=kanban`.** Vindo de um board de tracking (que é kanban), cair na visão de Lista do workspace quebraria a continuidade visual. O parâmetro é o mesmo `useQueryState("action-view")` de `actions-view-switcher.tsx:39`, e já havia precedente em `ia/ai-workspace/tools/create-action.ts:55`. Como é só um query param, o usuário troca pra Lista/Calendário normalmente depois.
 - Diferente do `TrackingSwitcher` (que chama `orpc` direto e viola o item 9 do CLAUDE.md), este componente consome o hook `useWorkspacesByTracking`.
 
 ### 2026-07-22 — Fase 1: vínculo Tracking → Workspaces ✅
