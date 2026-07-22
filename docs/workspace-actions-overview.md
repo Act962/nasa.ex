@@ -23,7 +23,7 @@ O objetivo desta linha de trabalho é **ativar essas pontes** de forma increment
 
 | Item | Status |
 | --- | --- |
-| Fase em andamento | **Fase 3 implementada ✅** — criação de tarefa a partir do lead, com workspace resolvido pelo tracking; dívidas **S1 e S2 fechadas** |
+| Fase em andamento | **Fase 3 implementada ✅** (backend) — criação de tarefa a partir do lead, com workspace resolvido pelo tracking; dívidas **S1 e S2 fechadas**. ⚠️ A aba "Tarefas" foi **desmontada** por reprovação de UI/UX — ver §6.3/U1 e Fase 3.2 |
 | Fase anterior | **Fase 2 implementada ✅** — Action herda o `trackingId` do workspace na criação, re-resolve ao mover/copiar e recebe cascata quando o vínculo do workspace muda |
 | Fase anterior | **Fase 1.1 implementada ✅** — seletor de workspaces conectados na toolbar do board de tracking |
 | Fase 1 | **✅** — vínculo Tracking → Workspaces (1:N), com seleção na criação e na aba Geral das configurações |
@@ -108,6 +108,7 @@ Os dois sistemas **não se sincronizam**. Participante de tracking não vira mem
 | **2** | **Herança `Action.trackingId`.** Action criada num workspace vinculado herda o `trackingId` do workspace; backfill das actions existentes | **✅ Implementada** |
 | **3** | **Reativar vínculo Action → Lead.** Criação de tarefa pelo painel do lead + correções S1/S2 | **✅ Implementada** |
 | **3.1** | **Seletor de lead dentro da action** (direção inversa, não coberta pela Fase 3) | ⬜ Planejada |
+| **3.2** | **Redesenho da aba "Tarefas" do lead.** Backend pronto e funcional; a aba foi **desmontada** por reprovação de UI/UX. Ver §6.4 | 🚧 **Pendente — prioridade** |
 | **4** | **Validação de coerência.** Garantir que `leadId` pertence ao `trackingId`, que o workspace pertence à org, e que `move-action` atualiza os campos denormalizados | ⬜ Planejada |
 | **5** | **Endurecimento de permissão.** Fechar as rotas sem checagem de recurso listadas em §6 | ⬜ Planejada |
 
@@ -136,7 +137,20 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 | C3 | `workspace/approve-share.ts:60` | Copia pra `targetWorkspaceId` não validado |
 | C4 | [`trackings/components/filters/index.tsx:92`](../src/features/trackings/components/filters/index.tsx) | **Erro de hidratação pré-existente** na toolbar do tracking. `canCustomizeBoard && !collapsed` muda a contagem de filhos entre servidor e cliente (a query resolve diferente no SSR), então o React desalinha os irmãos e reporta mismatch no botão "Personalizar". Reproduzido no baseline em 2026-07-22, **não** causado pela Fase 1.1. Correção provável: renderizar o botão sempre e controlar só a visibilidade, ou aguardar `isFetched` antes de decidir |
 
-### 6.3 Código morto
+### 6.3 UI pendente
+
+| # | Onde | Situação |
+| --- | --- | --- |
+| U1 | [`leads/components/lead-details.tsx`](../src/features/leads/components/lead-details.tsx) | **Aba "Tarefas" desmontada em 2026-07-22 por reprovação de UI/UX.** O backend da Fase 3 está completo e verificado (criar tarefa pelo lead funciona ponta a ponta), e `TabNotes` continua importado no arquivo. Para religar: recolocar a entrada `{ name: "Tarefas", value: "tasks", icon: StickyNoteIcon, content: <TabNotes leadId={...} trackingId={...} /> }` no array `tabs`. **Antes de religar, redesenhar** — ver notas abaixo |
+
+**O que precisa melhorar antes de voltar** (`features/leads/components/notes/`):
+
+- `container-item-lead.tsx` é o principal ofensor: cada tarefa vira um bloco alto com editor rico embutido, blocos de Lembrete/Prioridade/Responsável sempre expandidos e `px-8 py-4` — três tarefas já estouram a altura do painel. Deveria ser uma linha compacta que expande sob demanda.
+- O formulário de criação ocupa o topo inteiro com um editor rico completo (barra de ferramentas com H1/H2/H3, listas, alinhamento) para o que na maioria das vezes é uma frase. Considerar campo simples com opção de expandir.
+- Sem estado vazio desenhado para "nenhuma tarefa ainda".
+- O card não mostra o **título** como texto — ele vive dentro de um `<input>`, o que confunde leitura e acessibilidade.
+
+### 6.4 Código morto
 
 | # | Onde | Situação |
 | --- | --- | --- |
@@ -161,6 +175,8 @@ Fecha a terceira ponte. O painel do lead volta a criar tarefas, e elas nascem vi
 | `leads/index.ts` | `createAction` registrado |
 | `leads/hooks/use-lead-action.tsx` | `useMutationCreateLeadAction` reativado, com mensagem de erro vinda do servidor |
 | `leads/components/notes/index.tsx` | Formulário funcional (título + descrição + seletor de workspace quando há mais de um) no lugar do botão morto |
+
+> ⚠️ **Atualização de 2026-07-22, mesma data:** a aba "Tarefas" chegou a ser montada em `lead-details.tsx` e **foi removida em seguida** — layout reprovado. O backend permanece ativo e testado; só a superfície visual saiu. Detalhes e checklist de redesenho em §6.3/U1.
 
 **Decisões:**
 
