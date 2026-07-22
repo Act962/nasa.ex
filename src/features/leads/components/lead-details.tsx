@@ -78,6 +78,17 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       ),
     },
     {
+      name: "Tarefas",
+      value: "tasks",
+      icon: StickyNoteIcon,
+      content: (
+        <TabNotes
+          leadId={initialData.lead.id}
+          trackingId={initialData.lead.trackingId}
+        />
+      ),
+    },
+    {
       name: "Jornada",
       value: "journey",
       icon: RouteIcon,
