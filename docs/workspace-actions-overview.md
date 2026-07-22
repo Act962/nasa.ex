@@ -142,8 +142,9 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 | # | Onde | Situação |
 | --- | --- | --- |
 | U1 | [`leads/components/lead-details.tsx`](../src/features/leads/components/lead-details.tsx) | **Aba "Tarefas" desmontada em 2026-07-22 por reprovação de UI/UX.** O backend da Fase 3 está completo e verificado (criar tarefa pelo lead funciona ponta a ponta), e `TabNotes` continua importado no arquivo. Para religar: recolocar a entrada `{ name: "Tarefas", value: "tasks", icon: StickyNoteIcon, content: <TabNotes leadId={...} trackingId={...} /> }` no array `tabs`. **Antes de religar, redesenhar** — ver notas abaixo |
+| U2 | [`trackings/components/filters/link-workspace-dialog.tsx`](../src/features/trackings/components/filters/link-workspace-dialog.tsx) | **Focus trap possivelmente furado.** Com o dialog aberto, o primeiro `Tab` levou o foco para o botão "Calendário" da toolbar **atrás** do dialog, em vez de circular dentro dele; só após focar o dialog manualmente o Tab passou a se comportar. Observado em 2026-07-22 ao verificar o fix de outline. **Não confirmado como bug real** — pode ser artefato da automação (o `Tab` foi disparado sem interação de mouse prévia dentro do dialog, então o foco inicial podia estar no `body`). Reproduzir manualmente antes de investigar: abrir o dialog com o mouse e pressionar Tab. Se procede, afeta todos os `DialogContent` do app, não só este |
 
-**O que precisa melhorar antes de voltar** (`features/leads/components/notes/`):
+**U1 — o que precisa melhorar antes de voltar** (`features/leads/components/notes/`):
 
 - `container-item-lead.tsx` é o principal ofensor: cada tarefa vira um bloco alto com editor rico embutido, blocos de Lembrete/Prioridade/Responsável sempre expandidos e `px-8 py-4` — três tarefas já estouram a altura do painel. Deveria ser uma linha compacta que expande sob demanda.
 - O formulário de criação ocupa o topo inteiro com um editor rico completo (barra de ferramentas com H1/H2/H3, listas, alinhamento) para o que na maioria das vezes é uma frase. Considerar campo simples com opção de expandir.
