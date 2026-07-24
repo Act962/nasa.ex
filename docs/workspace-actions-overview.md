@@ -110,7 +110,8 @@ Os dois sistemas **não se sincronizam**. Participante de tracking não vira mem
 | **3.1** | **Seletor de lead dentro da action** (direção inversa, não coberta pela Fase 3) | ⬜ Planejada |
 | **3.2** | **Redesenho da aba "Tarefas" do lead.** Backend pronto e funcional; a aba foi **desmontada** por reprovação de UI/UX. Ver §6.4 | 🚧 **Pendente — prioridade** |
 | **4** | **Validação de coerência.** Garantir que `leadId` pertence ao `trackingId`, que o workspace pertence à org, e que `move-action` atualiza os campos denormalizados | ⬜ Planejada |
-| **5** | **Endurecimento de permissão.** Fechar as rotas sem checagem de recurso listadas em §6 | ⬜ Planejada |
+| **5** | **Endurecimento de permissão.** Isolamento de tenant nas procedures de `actions/` — fecha S4 e S5 | **✅ Implementada** |
+| **5.1** | **Mesma auditoria em `workspace/`.** As 41 rotas do domínio irmão têm a mesma classe de buraco (S6) | ⬜ Planejada |
 
 ---
 
@@ -125,8 +126,10 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 | S1 | [`leads/update-action-by-lead.ts`](../src/app/router/leads/update-action-by-lead.ts) | ~~Sem org, sem checagem de dono, gravava `createdBy` do chamador~~ — **corrigida na Fase 3**: `requireOrgMiddleware`, escopo via `workspace.organizationId`, `createdBy` e `trackingId` removidos do write |
 | S2 | [`leads/list-actions.ts`](../src/app/router/leads/list-actions.ts) | ~~`where: { leadId }` sem escopo de org~~ — **corrigida na Fase 3**: filtra pelo tracking do lead (org + participação) |
 | S3 | [`workspace/update.ts`](../src/features/workspace/server/routes/update.ts) | ~~Atualizava por id sem checar org~~ — **corrigido na Fase 1** (escopo de org + participação no tracking) |
-| S4 | `actions/list-action-by-workspace.ts:85` | `where: { workspaceId }` sem escopo de org → role privilegiado da org A lê actions de workspace da org B |
-| S5 | `actions/` — ~18 procedures | `update`, `toggleDone`, `reorder`, `addParticipant`, `createSubAction` e afins rodam com auth+org apenas, **zero checagem de recurso** |
+| S4 | `actions/list-action-by-workspace.ts` | ~~`where: { workspaceId }` sem escopo de org~~ — **corrigida na Fase 5**. Valia também pra `list-action-by-column`, `search-actions` e `list-favorites` |
+| S5 | `actions/` — 21 procedures | ~~auth+org apenas, **zero checagem de recurso**~~ — **corrigida na Fase 5** via [`server/lib/action-access.ts`](../src/features/actions/server/lib/action-access.ts) |
+| S6 | `workspace/` — 41 rotas | **Mesma classe de buraco, domínio não auditado.** Confirmado em [`add-member.ts`](../src/features/workspace/server/routes/add-member.ts) (upsert de `WorkspaceMember` por `workspaceId`+`userId` sem checar org de nenhum dos dois — dá pra se auto-inserir em workspace alheio) e [`get-members.ts`](../src/features/workspace/server/routes/get-members.ts) (lista membros de qualquer `workspaceId`). Vira Fase 5.1 |
+| S7 | [`actions/get.ts`](../src/features/actions/server/routes/get.ts) | Quando `hasAccess === false`, devolve o registro **inteiro** da action — só remove `favorites`. Depois da Fase 5 o vazamento é intra-org (o escopo de tenant já barra o resto), e a UI só usa a flag pra renderizar "Acesso Restrito", sem ler o conteúdo. Encolher o payload é seguro, mas muda o contrato tipado do procedure |
 
 ### 6.2 Consistência
 
@@ -163,6 +166,39 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 ---
 
 ## 7. Changelog
+
+### 2026-07-24 — Fase 5: isolamento de tenant nas actions ✅
+
+Fecha S4 e S5. Toda procedure que recebia id de recurso confiava no id: com auth + org válidos, qualquer `actionId`/`subActionId`/`groupId`/`workspaceId` de outra organização era lido e escrito sem checagem.
+
+**O buraco era maior que o débito descrevia.** `get.ts` e `chat/_helpers.ts` *tinham* checagem de papel, mas liam `context.org.members` — a org **ativa do chamador**. Ser owner/admin/moderador da própria org liberava ação de qualquer tenant. Filtrar por org **antes** da checagem de papel conserta os dois de uma vez, sem mexer na lógica de papel.
+
+| Arquivo | Mudança |
+| --- | --- |
+| `server/lib/action-access.ts` | **Novo.** Escopo pelo **workspace**, não por `Action.organizationId` — esse é opcional e ficou nulo em ações antigas, então filtrar por ele deixaria buracos. `Workspace.organizationId` é obrigatório |
+| `get.ts`, `chat/_helpers.ts` | Escopo de org movido pra antes da checagem de papel |
+| `update.ts`, `toggle-done.ts`, `delete.ts`, `reorder.ts`, `promote-sub-action.ts` | Recurso validado antes de ler/escrever |
+| `create.ts`, `update.ts`, `reorder.ts` | Coluna, workspace e projeto de **destino** validados — sem isso um id alheio injeta ou arrasta o card pra fora da org |
+| `reorder-sub-actions.ts`, `reorder-sub-action-groups.ts` | Escrita em lote exige que **todos** os ids sejam da ação informada |
+| `add-participant.ts`, `add-responsible.ts`, `add-sub-action-responsible.ts` | Alvo do vínculo tem que ser membro da mesma org — antes dava pra plugar qualquer usuário da plataforma numa ação |
+| `list-action-by-workspace.ts`, `list-action-by-column.ts`, `search-actions.ts`, `list-favorites.ts` | Filtro de org no `where` (S4) |
+| `get-analytics.ts`, `list-analytics-details.ts` | Recorte por org ativa — antes somavam as ações do usuário em **todas** as orgs no mesmo card |
+| `chat/unread-counts.ts` | Ids fora da org filtrados em silêncio |
+| `toggle-favorite-personal.ts` | Não tinha nem `requireOrgMiddleware` |
+| `delete.ts` | O `catch` convertia os próprios `NOT_FOUND`/`FORBIDDEN` em 500, escondendo o motivo da recusa |
+
+**Sem migration.** Nenhuma coluna nova — as chaves de escopo (`Workspace.organizationId`) já existiam.
+
+**Verificação em runtime** (banco local, `demo@gmail.com` na EMPRESA TESTE, **não membro** da ACT Digital):
+
+| | Antes | Depois |
+| --- | --- | --- |
+| `action.get` de ação da ACT Digital | `200 hasAccess: true`, título e workspace expostos | `200 hasAccess: false`, `action: null` |
+| `action.listByWorkspace` no workspace da ACT Digital | `200 total: 2`, listou "testee" e "TESTE" | `200 total: 0` |
+| 12 escritas cross-org (`update`, `toggleDone`, `delete`, `reorder`, `addParticipant`, `createSubAction`, favoritos, `create`) | — | todas `404 NOT_FOUND` / `403 FORBIDDEN` |
+| Controle na própria org (`get`, `update`, `create`) | — | `200`, fluxo legítimo intacto |
+
+A org alheia foi conferida depois: `isDone` e colunas inalterados, nenhuma sonda criada nela.
 
 ### 2026-07-22 — Fase 3: vínculo Action → Lead reativado ✅
 
