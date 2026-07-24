@@ -14,20 +14,27 @@ export const deleteAction = base
     }),
   )
   .handler(async ({ input, context, errors }) => {
-    try {
-      const existing = await prisma.action.findUnique({
-        where: { id: input.actionId },
-        select: { isArchived: true, createdBy: true, title: true },
+    // Guards ficam fora do try: dentro dele o catch convertia NOT_FOUND e
+    // FORBIDDEN em 500, escondendo a razão real da recusa.
+    const existing = await prisma.action.findFirst({
+      where: {
+        id: input.actionId,
+        workspace: { organizationId: context.org.id },
+      },
+      select: { isArchived: true, createdBy: true, title: true },
+    });
+
+    if (!existing) {
+      throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+    }
+
+    if (!existing.isArchived || existing.createdBy !== context.user.id) {
+      throw errors.FORBIDDEN({
+        message: "Só o criador pode excluir, e apenas ações arquivadas",
       });
+    }
 
-      if (!existing) {
-        throw errors.NOT_FOUND;
-      }
-
-      if (!existing.isArchived || existing.createdBy !== context.user.id) {
-        throw errors.FORBIDDEN;
-      }
-
+    try {
       const action = await prisma.action.delete({
         where: { id: input.actionId },
       });

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { generatePublicSlug } from "@/features/public-calendar/utils/slug";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { resolveWorkspaceTrackingId } from "@/features/actions/lib/workspace-tracking";
+import { findColumnInOrg } from "../lib/action-access";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import {
   hasActionCreatedWorkflow,
@@ -54,7 +55,25 @@ export const createAction = base
       registrationUrl: z.string().nullable().optional(),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
+    // Sem validar destino, um id de workspace/coluna de outra org injeta o
+    // card no board alheio — a ação nasce com `organizationId` do chamador,
+    // mas quem lista o board filtra pelo workspace.
+    const column = await findColumnInOrg(input.columnId, context.org.id);
+    if (!column || column.workspaceId !== input.workspaceId) {
+      throw errors.NOT_FOUND({ message: "Coluna não encontrada" });
+    }
+
+    if (input.orgProjectId) {
+      const orgProject = await prisma.orgProject.findFirst({
+        where: { id: input.orgProjectId, organizationId: context.org.id },
+        select: { id: true },
+      });
+      if (!orgProject) {
+        throw errors.NOT_FOUND({ message: "Projeto não encontrado" });
+      }
+    }
+
     const firstAction = await prisma.action.findFirst({
       where: {
         columnId: input.columnId,

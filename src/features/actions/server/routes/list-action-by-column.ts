@@ -75,6 +75,7 @@ export const listActionByColumn = base
     const action = await prisma.action.findMany({
       where: {
         columnId: input.columnId,
+        workspace: { organizationId: context.org.id },
         isArchived: input.isArchived,
         ...visibilityFilter,
         ...filterWhere,

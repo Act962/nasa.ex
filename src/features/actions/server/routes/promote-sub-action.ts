@@ -14,9 +14,12 @@ export const promoteSubAction = base
       subActionId: z.string(),
     }),
   )
-  .handler(async ({ input, context }) => {
-    const subAction = await prisma.subActions.findUniqueOrThrow({
-      where: { id: input.subActionId },
+  .handler(async ({ input, context, errors }) => {
+    const subAction = await prisma.subActions.findFirst({
+      where: {
+        id: input.subActionId,
+        action: { workspace: { organizationId: context.org.id } },
+      },
       include: {
         action: {
           select: {
@@ -31,6 +34,10 @@ export const promoteSubAction = base
         },
       },
     });
+
+    if (!subAction) {
+      throw errors.NOT_FOUND({ message: "Sub-ação não encontrada" });
+    }
 
     // Find the first action in the column to set a new order (place before it)
     const firstAction = await prisma.action.findFirst({

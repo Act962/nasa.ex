@@ -23,8 +23,8 @@ export const toggleDone = base
     const { actionId, isDone } = input;
     const { session } = context;
 
-    const previous = await prisma.action.findUnique({
-      where: { id: actionId },
+    const previous = await prisma.action.findFirst({
+      where: { id: actionId, workspace: { organizationId: context.org.id } },
       select: { id: true, isDone: true, title: true, createdBy: true },
     });
 

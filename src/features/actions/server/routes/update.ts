@@ -6,6 +6,7 @@ import { z } from "zod";
 import { awardPoints } from "@/app/router/space-point/utils";
 import { generatePublicSlug } from "@/features/public-calendar/utils/slug";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { findColumnInOrg } from "../lib/action-access";
 
 const EVENT_CATEGORY_VALUES = [
   "WORKSHOP",
@@ -56,9 +57,32 @@ export const updateAction = base
     const { actionId, consent, ...data } = input;
     const { session } = context;
 
-    const previous = await prisma.action.findUnique({
-      where: { id: actionId },
+    const previous = await prisma.action.findFirst({
+      where: { id: actionId, workspace: { organizationId: context.org.id } },
     });
+
+    if (!previous) {
+      throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+    }
+
+    // Coluna destino tem que ser da mesma org, senão dá pra empurrar a ação
+    // pro board de outro tenant só passando o id.
+    if (data.columnId) {
+      const column = await findColumnInOrg(data.columnId, context.org.id);
+      if (!column || column.workspaceId !== previous.workspaceId) {
+        throw errors.NOT_FOUND({ message: "Coluna não encontrada" });
+      }
+    }
+
+    if (data.orgProjectId) {
+      const orgProject = await prisma.orgProject.findFirst({
+        where: { id: data.orgProjectId, organizationId: context.org.id },
+        select: { id: true },
+      });
+      if (!orgProject) {
+        throw errors.NOT_FOUND({ message: "Projeto não encontrado" });
+      }
+    }
 
     // Guarda do consentimento: vira público (false → true) sem consent é
     // rejeitado pra que TODA publicação passe pelo aviso explícito.

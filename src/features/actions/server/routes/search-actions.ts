@@ -46,6 +46,7 @@ export const searchActions = base
 
     const where: Prisma.ActionWhereInput = {
       workspaceId: input.workspaceId,
+      workspace: { organizationId: context.org.id },
       isArchived: input.isArchived,
       ...visibilityFilter,
       ...(input.columnIds.length > 0 && {

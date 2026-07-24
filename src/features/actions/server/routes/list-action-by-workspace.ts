@@ -84,6 +84,9 @@ export const listActionByWorkspace = base
 
     const where: Prisma.ActionWhereInput = {
       workspaceId: input.workspaceId,
+      // Sem o filtro de org, um id de workspace alheio lista as actions de
+      // outro tenant para qualquer role privilegiado (débito S4).
+      workspace: { organizationId: context.org.id },
       isArchived: input.isArchived,
       ...(input.isFavorited !== undefined && { isFavorited: input.isFavorited }),
       ...visibilityFilter,

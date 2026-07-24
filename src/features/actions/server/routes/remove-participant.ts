@@ -14,9 +14,10 @@ export const removeParticipant = base
     }),
   )
   .handler(async ({ input, context, errors }) => {
-    const action = await prisma.action.findUnique({
+    const action = await prisma.action.findFirst({
       where: {
         id: input.actionId,
+        workspace: { organizationId: context.org.id },
       },
       select: {
         id: true,
