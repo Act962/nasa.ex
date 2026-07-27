@@ -224,6 +224,11 @@ export const LeadItem = memo(
       // em onDragEnd, que roda no próximo task JS — depois deste click).
       if (useKanbanStore.getState().activeDragLeadId) return;
       if ((e.target as HTMLElement).closest("a")) return;
+      // Ignora cliques vindos de conteúdo portalado (popover/dialog de
+      // atividades): o Radix move o node pro body, mas em React o evento
+      // borbulha pela árvore de componentes até aqui. Só seleciona quando o
+      // clique nasceu de fato dentro do DOM deste card.
+      if (!e.currentTarget.contains(e.target as Node)) return;
       toggleLead(data);
     };
 
