@@ -15,7 +15,9 @@ import {
   useMutationSavePartialResponse,
   useMutationValidateLeadPhone,
   useMutationFindDraftByPhone,
+  useMutationCheckExistingLead,
 } from "../../../hooks/use-form";
+import { authClient } from "@/lib/auth-client";
 import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormSettings } from "@/generated/prisma/client";
@@ -29,6 +31,13 @@ import { useLeadInfo } from "./use-lead-info";
 import { useFormDraft } from "./use-form-draft";
 import { LeadStep } from "./lead-step";
 import { StepBlocks } from "./step-blocks";
+
+export type ExistingLeadHint = {
+  exists: boolean;
+  currentTrackingName?: string | null;
+  currentStatusName?: string | null;
+  isInFormTracking?: boolean;
+};
 
 type FormSubmitProps = {
   id: string;
@@ -60,6 +69,14 @@ export function FormSubmitComponent({
   const savePartialResponse = useMutationSavePartialResponse();
   const findDraft = useMutationFindDraftByPhone();
   const validateLeadPhone = useMutationValidateLeadPhone();
+  const checkExistingLead = useMutationCheckExistingLead();
+
+  // Mod 1: sinaliza (só pra consultor autenticado) que o telefone já é um lead
+  // da org. Visitante anônimo não tem sessão → nunca consulta nem vê o selo.
+  const { data: sessionData } = authClient.useSession();
+  const viewerIsAuthenticated = !!sessionData?.user;
+  const [existingLeadHint, setExistingLeadHint] =
+    useState<ExistingLeadHint | null>(null);
 
   const [resumeLoading, setResumeLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -120,6 +137,47 @@ export function FormSubmitComponent({
       if (dbSaveDebounceRef.current) clearTimeout(dbSaveDebounceRef.current);
     };
   }, []);
+
+  // Mod 1: ao digitar o telefone (consultor autenticado), checa de forma
+  // discreta se já existe lead na base. Debounced; ignora resultados obsoletos.
+  useEffect(() => {
+    if (!viewerIsAuthenticated || !showPhone || isEditMode) {
+      setExistingLeadHint(null);
+      return;
+    }
+    const digits = leadInfo.phone.replace(/\D/g, "");
+    if (digits.length < 8) {
+      setExistingLeadHint(null);
+      return;
+    }
+    let cancelled = false;
+    const phoneNormalized = normalizePhone(
+      `${selectedCountry.ddi} ${leadInfo.phone}`,
+    );
+    const timer = setTimeout(async () => {
+      try {
+        const result = await checkExistingLead.mutateAsync({
+          formId: id,
+          phone: phoneNormalized,
+        });
+        if (!cancelled) setExistingLeadHint(result);
+      } catch {
+        if (!cancelled) setExistingLeadHint(null);
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    leadInfo.phone,
+    selectedCountry.ddi,
+    viewerIsAuthenticated,
+    showPhone,
+    isEditMode,
+    id,
+  ]);
 
   const isFieldFilled = (fieldValue: FieldValue | undefined): boolean => {
     if (!fieldValue) return false;
@@ -502,6 +560,7 @@ export function FormSubmitComponent({
                         onPhoneChange={setPhone}
                         onCountryChange={setSelectedCountry}
                         onContinue={handleContinue}
+                        existingLeadHint={existingLeadHint}
                       />
                     )}
 
