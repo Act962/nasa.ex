@@ -111,7 +111,7 @@ Os dois sistemas **não se sincronizam**. Participante de tracking não vira mem
 | **3.2** | **Redesenho da aba "Tarefas" do lead.** Backend pronto e funcional; a aba foi **desmontada** por reprovação de UI/UX. Ver §6.4 | 🚧 **Pendente — prioridade** |
 | **4** | **Validação de coerência.** Garantir que `leadId` pertence ao `trackingId`, que o workspace pertence à org, e que `move-action` atualiza os campos denormalizados | ⬜ Planejada |
 | **5** | **Endurecimento de permissão.** Isolamento de tenant nas procedures de `actions/` — fecha S4 e S5 | **✅ Implementada** |
-| **5.1** | **Mesma auditoria em `workspace/`.** As 41 rotas do domínio irmão têm a mesma classe de buraco (S6) | ⬜ Planejada |
+| **5.1** | **Isolamento de tenant em `workspace/`** — fecha S6 (26 das 41 rotas) | **✅ Implementada** |
 
 ---
 
@@ -128,7 +128,7 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 | S3 | [`workspace/update.ts`](../src/features/workspace/server/routes/update.ts) | ~~Atualizava por id sem checar org~~ — **corrigido na Fase 1** (escopo de org + participação no tracking) |
 | S4 | `actions/list-action-by-workspace.ts` | ~~`where: { workspaceId }` sem escopo de org~~ — **corrigida na Fase 5**. Valia também pra `list-action-by-column`, `search-actions` e `list-favorites` |
 | S5 | `actions/` — 21 procedures | ~~auth+org apenas, **zero checagem de recurso**~~ — **corrigida na Fase 5** via [`server/lib/action-access.ts`](../src/features/actions/server/lib/action-access.ts) |
-| S6 | `workspace/` — 41 rotas | **Mesma classe de buraco, domínio não auditado.** Confirmado em [`add-member.ts`](../src/features/workspace/server/routes/add-member.ts) (upsert de `WorkspaceMember` por `workspaceId`+`userId` sem checar org de nenhum dos dois — dá pra se auto-inserir em workspace alheio) e [`get-members.ts`](../src/features/workspace/server/routes/get-members.ts) (lista membros de qualquer `workspaceId`). Vira Fase 5.1 |
+| S6 | `workspace/` — 26 rotas | ~~Mesma classe de buraco: `add-member` permitia auto-inserção como OWNER em workspace alheio, `get-members`/`get-columns` liam qualquer workspace~~ — **corrigida na Fase 5.1** via [`server/lib/workspace-access.ts`](../src/features/workspace/server/lib/workspace-access.ts) |
 | S7 | [`actions/get.ts`](../src/features/actions/server/routes/get.ts) | Quando `hasAccess === false`, devolve o registro **inteiro** da action — só remove `favorites`. Depois da Fase 5 o vazamento é intra-org (o escopo de tenant já barra o resto), e a UI só usa a flag pra renderizar "Acesso Restrito", sem ler o conteúdo. Encolher o payload é seguro, mas muda o contrato tipado do procedure |
 
 ### 6.2 Consistência
@@ -166,6 +166,36 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 ---
 
 ## 7. Changelog
+
+### 2026-07-27 — Fase 5.1: isolamento de tenant no workspace ✅
+
+Fecha S6. Mesma classe de buraco da Fase 5, no domínio irmão: das 41 rotas de `workspace/`, **26 recebiam id de recurso e confiavam nele** — com auth + org válidos, qualquer `workspaceId`/`columnId`/`tagId`/`automationId`/`folderId`/`actionId` de outra organização era lido e escrito sem checagem. As 15 restantes (list/share/get-company-code) já escopavam por `context.org.id`.
+
+**Dois furos de escrita graves:**
+- `add-member` — **sem checagem nenhuma.** Um usuário se auto-inseria como OWNER em workspace de qualquer tenant só passando o id.
+- `remove-member` — *tinha* checagem de papel, mas o caminho `isOrgPrivileged` lia o papel na org **ativa do chamador**. Sem ancorar o workspace nessa org, admin removia membro de workspace alheio (idêntico ao bug do `get.ts` na Fase 5).
+
+| Grupo | Rotas | Mudança |
+| --- | --- | --- |
+| Novo helper | `server/lib/workspace-access.ts` | Escopo pelo workspace dono (coluna/tag/automação) ou direto pela org (workspace/folder) |
+| Workspace-nativas (17) | `add-member`, `remove-member`, `get-members`, `delete`, `create-column`, `update-column`, `delete-column`, `create-tag`, `update-tag`, `delete-tag`, `create-automation`, `update-automation`, `delete-automation`, `delete-folder`, `list-tags`, `list-automations`, `get-columns-by-workspace` | Recurso validado na org antes de ler/escrever |
+| Action-based (9) | `add-tag-to-action`, `remove-tag-from-action`, `archive-actions`, `delete-actions`, `move-action`, `move-actions`, `copy-action`, `update-action-fields`, `remove-file` | Reusam `findActionInOrg`/`filterActionIdsInOrg` da Fase 5; `move`/`copy` validam também workspace/coluna de **destino** |
+| Lote | `delete-actions`, `move-actions`, `archive-actions` | Ids intrusos filtrados no `where` ou lote recusado |
+| Bug de fluxo | `remove-file` | Guard movido pra fora do `try` (o `catch` convertia em 500) |
+
+**Sem migration.** As chaves de escopo (`Workspace.organizationId`) já existiam.
+
+**Verificação em runtime** (`demo@gmail.com`, EMPRESA TESTE, **não membro** da ACT Digital):
+
+| | Antes | Depois |
+| --- | --- | --- |
+| `getMembers` do workspace da ACT Digital | `200` — listou os 2 e-mails | `404 NOT_FOUND` |
+| `getColumnsByWorkspace` idem | `200` — 4 colunas | `404 NOT_FOUND` |
+| `addMember` self-insert como OWNER | `200` — criou a linha (`role: OWNER`) | `404 NOT_FOUND` |
+| 15 demais ataques (create/delete/move/copy/update cross-org) | — | `404`/`403` |
+| Controle na própria org (`getMembers`, `createColumn`) | — | `200`, fluxo intacto |
+
+A linha OWNER injetada no baseline foi removida; depois conferi o banco: ACT Digital com 2 membros e 4 colunas originais, a ação alheia com `isArchived: false` (o `archiveActions`/`moveActions` filtram em silêncio — 200, nada tocado).
 
 ### 2026-07-24 — Fase 5: isolamento de tenant nas actions ✅
 
