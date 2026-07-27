@@ -4,15 +4,40 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { resolveWorkspaceTrackingId } from "@/features/actions/lib/workspace-tracking";
 import { logOrgActivity } from "@/features/admin/lib/org-activity-log";
+import { findColumnInOrg, findWorkspaceInOrg } from "../lib/workspace-access";
 import { z } from "zod";
 
 export const copyAction = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .input(z.object({ actionId: z.string(), columnId: z.string().optional(), workspaceId: z.string().optional() }))
-  .handler(async ({ input, context }) => {
-    const source = await prisma.action.findUnique({ where: { id: input.actionId } });
-    if (!source) throw new Error("Action not found");
+  .handler(async ({ input, context, errors }) => {
+    // Origem escopada pela org: ler ação alheia expõe descrição, anexos e
+    // links via a cópia resultante.
+    const source = await prisma.action.findFirst({
+      where: {
+        id: input.actionId,
+        workspace: { organizationId: context.org.id },
+      },
+    });
+    if (!source) throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+
+    // Destino (quando informado) também tem que ser da org.
+    if (input.columnId) {
+      const targetColumn = await findColumnInOrg(input.columnId, context.org.id);
+      const expectedWorkspaceId = input.workspaceId ?? source.workspaceId;
+      if (!targetColumn || targetColumn.workspaceId !== expectedWorkspaceId) {
+        throw errors.NOT_FOUND({ message: "Coluna não encontrada" });
+      }
+    } else if (input.workspaceId) {
+      const targetWorkspace = await findWorkspaceInOrg(
+        input.workspaceId,
+        context.org.id,
+      );
+      if (!targetWorkspace) {
+        throw errors.NOT_FOUND({ message: "Workspace não encontrado" });
+      }
+    }
 
     // A cópia pode aterrissar em outro workspace, então o tracking é
     // resolvido do destino em vez de herdado da origem.
