@@ -4,11 +4,19 @@ import { toast } from "sonner";
 
 interface UseLeadActionProps {
   leadId: string;
+  // Permite fetch condicional — ex.: só buscar quando o popover abre.
+  enabled?: boolean;
 }
 
-export function useQueryLeadAction({ leadId }: UseLeadActionProps) {
+export function useQueryLeadAction({
+  leadId,
+  enabled = true,
+}: UseLeadActionProps) {
   const { data, isLoading } = useQuery(
-    orpc.leads.listActions.queryOptions({ input: { leadId } }),
+    orpc.leads.listActions.queryOptions({
+      input: { leadId },
+      enabled: enabled && !!leadId,
+    }),
   );
   return { data, isLoading };
 }
@@ -41,6 +49,13 @@ export function useMutationCreateLeadAction() {
 
         queryClient.invalidateQueries({
           queryKey: orpc.leads.list.queryKey(),
+        });
+
+        // Feed do Kanban — atualiza o badge de atividades no card do lead.
+        // O board usa uma queryKey manual (`["leads.listLeadsByStatus", ...]`),
+        // não a gerada pelo oRPC — invalidar pela string é o que casa.
+        queryClient.invalidateQueries({
+          queryKey: ["leads.listLeadsByStatus"],
         });
 
         toast.success(`Ação criada com sucesso`);
@@ -86,6 +101,13 @@ export function useMutationUpdateLeadAction({
 
         queryClient.invalidateQueries({
           queryKey: orpc.leads.list.queryKey(),
+        });
+
+        // Feed do Kanban — atualiza o badge de atividades no card do lead.
+        // O board usa uma queryKey manual (`["leads.listLeadsByStatus", ...]`),
+        // não a gerada pelo oRPC — invalidar pela string é o que casa.
+        queryClient.invalidateQueries({
+          queryKey: ["leads.listLeadsByStatus"],
         });
 
         toast.success(`Ação atualizada com sucesso`);

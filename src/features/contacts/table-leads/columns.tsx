@@ -14,11 +14,17 @@ import { useConstructUrl } from "@/hooks/use-construct-url";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
-import { ArchiveRestoreIcon, ArrowUpDown, MoreHorizontal } from "lucide-react";
+import {
+  ArchiveRestoreIcon,
+  ArrowUpDown,
+  ListTodo,
+  MoreHorizontal,
+} from "lucide-react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
+import { LeadActionsPopover } from "@/features/leads/components/lead-actions/lead-actions-popover";
 
 export function getInitials(name: string): string {
   if (!name) return "";
@@ -150,6 +156,27 @@ export const columns: ColumnDef<LeadWithTrackingAndStatus>[] = [
     cell: ({ row }) => {
       return dayjs(row.original.createdAt).format("DD/MM/YYYY");
     },
+  },
+  {
+    id: "Atividades",
+    header: "Atividades",
+    cell: ({ row }) => (
+      <LeadActionsPopover
+        leadId={row.original.id}
+        leadName={row.original.name || "Sem nome"}
+        trackingId={row.original.tracking.id}
+        align="start"
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1 px-2 text-muted-foreground"
+          aria-label="Ver atividades do lead"
+        >
+          <ListTodo className="size-4" />
+        </Button>
+      </LeadActionsPopover>
+    ),
   },
   {
     id: "action",

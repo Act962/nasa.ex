@@ -23,6 +23,14 @@ export interface Action {
   workspace?: {
     name: string;
   };
+  // Lead vinculado (1:N via Action.leadId). `orpc.action.get` já o retorna.
+  leadId?: string | null;
+  lead?: {
+    id: string;
+    name: string;
+    phone: string | null;
+    email: string | null;
+  } | null;
   participants: {
     user: {
       id: string;

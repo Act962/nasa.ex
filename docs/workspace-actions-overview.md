@@ -112,6 +112,7 @@ Os dois sistemas **não se sincronizam**. Participante de tracking não vira mem
 | **4** | **Validação de coerência.** Garantir que `leadId` pertence ao `trackingId`, que o workspace pertence à org, e que `move-action` atualiza os campos denormalizados | ⬜ Planejada |
 | **5** | **Endurecimento de permissão.** Isolamento de tenant nas procedures de `actions/` — fecha S4 e S5 | **✅ Implementada** |
 | **5.1** | **Isolamento de tenant em `workspace/`** — fecha S6 (26 das 41 rotas) | **✅ Implementada** |
+| **6** | **Integração Lead ↔ Actions (UI).** Criar/editar/excluir atividade do lead + badge/popover no Kanban e na lista + lead no card da action. Helper `canEditAction`/`canDeleteAction`. Detalhe em [`lead-actions-overview.md`](lead-actions-overview.md) | **✅ Implementada** |
 
 ---
 
@@ -166,6 +167,15 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 ---
 
 ## 7. Changelog
+
+### 2026-07-27 — Fase 6: integração Lead ↔ Actions (UI) ✅
+
+Superfície de UI para o vínculo Lead↔Action, mais o helper de autorização que faltava. Detalhe completo em [`lead-actions-overview.md`](lead-actions-overview.md).
+
+- **Novo** [`actions/server/lib/can-edit-action.ts`](../src/features/actions/server/lib/can-edit-action.ts) — `resolveActionAccess` com `canEdit`/`canDelete`. Editar: owner/admin/moderador/workspace-owner/criador/participante. Excluir: os mesmos **menos participante**, mantendo arquivar-antes.
+- Adotado por `action.update` (que **não tinha guarda de dono/papel**), `action.delete` (antes criador-only) e `leads.updateActionByLead`.
+- `get-many.ts` agrega `actionsSummary` no payload do Kanban; badge + popover compartilhado no card e na lista de contatos; campo "Lead vinculado" no `ViewActionModal`.
+- Sem migration.
 
 ### 2026-07-27 — Fase 5.1: isolamento de tenant no workspace ✅
 

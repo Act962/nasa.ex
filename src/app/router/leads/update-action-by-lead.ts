@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import z from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
+import { resolveActionAccess } from "@/features/actions/server/lib/can-edit-action";
 
 export const updateActionByLead = base
   .use(requiredAuthMiddleware)
@@ -44,6 +45,16 @@ export const updateActionByLead = base
     if (!existingAction) {
       throw errors.NOT_FOUND({
         message: "Ação não encontrada ou sem acesso",
+      });
+    }
+
+    const access = await resolveActionAccess(input.actionId, {
+      userId: context.user.id,
+      org: context.org,
+    });
+    if (!access?.canEdit) {
+      throw errors.FORBIDDEN({
+        message: "Você não tem permissão para editar esta ação",
       });
     }
 

@@ -7,6 +7,7 @@ import { awardPoints } from "@/app/router/space-point/utils";
 import { generatePublicSlug } from "@/features/public-calendar/utils/slug";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { findColumnInOrg } from "../lib/action-access";
+import { resolveActionAccess } from "../lib/can-edit-action";
 
 const EVENT_CATEGORY_VALUES = [
   "WORKSHOP",
@@ -59,10 +60,22 @@ export const updateAction = base
 
     const previous = await prisma.action.findFirst({
       where: { id: actionId, workspace: { organizationId: context.org.id } },
+      include: { participants: { select: { userId: true } } },
     });
 
     if (!previous) {
       throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+    }
+
+    const access = await resolveActionAccess(
+      actionId,
+      { userId: context.user.id, org: context.org },
+      { action: previous },
+    );
+    if (!access?.canEdit) {
+      throw errors.FORBIDDEN({
+        message: "Você não tem permissão para editar esta ação",
+      });
     }
 
     // Coluna destino tem que ser da mesma org, senão dá pra empurrar a ação

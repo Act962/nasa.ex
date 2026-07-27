@@ -332,6 +332,14 @@ export const useDeleteAction = () => {
         queryClient.invalidateQueries({
           queryKey: [["action", "getWorkspaceCalendar"]] as const,
         });
+        // Se a action estava vinculada a um lead, atualiza o popover de
+        // atividades e o badge no card do Kanban (key manual do board).
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.listActions.key(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["leads.listLeadsByStatus"],
+        });
       },
     }),
   );
