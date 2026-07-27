@@ -43,9 +43,12 @@ Adotam o helper: `action.update`, `action.delete` e `leads.updateActionByLead`. 
 | Popover de atividades | [`leads/components/lead-actions/lead-actions-popover.tsx`](../src/features/leads/components/lead-actions/lead-actions-popover.tsx) | Lista simples (fetch **lazy** ao abrir); cada item abre o card completo via `?actionId=`; botão "+ Adicionar". **Compartilhado** entre Kanban e lista. |
 | Modal de criação | [`leads/components/lead-actions/create-lead-action-modal.tsx`](../src/features/leads/components/lead-actions/create-lead-action-modal.tsx) | Título pré-preenchido `Atividade para o lead {nome}`; seletor de workspace só aparece quando o tracking tem >1 (1º pré-selecionado). |
 | Lead no card da action | [`actions/components/view-modal/sidebar/linked-lead-field.tsx`](../src/features/actions/components/view-modal/sidebar/linked-lead-field.tsx) | Campo "Lead vinculado" no sidebar do `ViewActionModal`, link para `/contatos/[id]`. `orpc.action.get` já retornava o lead. |
+| Selo do lead no card do board de actions | [`actions/components/data-kanban/kanban-card.tsx`](../src/features/actions/components/data-kanban/kanban-card.tsx) | Chip discreto (ícone `UserRound` + nome do lead, indigo) sob o título, só quando `action.lead` existe. **Puramente visual, sem handlers próprios** → herda o drag/click do card, não interfere no DnD. Clicar abre o `ViewActionModal` (mesmo comportamento do card), onde o "Lead vinculado" leva ao contato. |
 | Coluna na lista de contatos | [`contacts/table-leads/columns.tsx`](../src/features/contacts/table-leads/columns.tsx) | Coluna "Atividades" com o mesmo popover compartilhado. |
 
 **Contagem no payload:** [`app/router/leads/get-many.ts`](../src/app/router/leads/get-many.ts) agrega `actionsSummary { total, pending, done }` (só `isDone` das não-arquivadas), ao lado de `forms`/`nextAppointment`. Tipado em [`trackings/types.ts`](../src/features/trackings/types.ts).
+
+**Lead no feed do board de actions:** [`list-action-by-column.ts`](../src/features/actions/server/routes/list-action-by-column.ts) (Kanban) e [`list-action-by-workspace.ts`](../src/features/actions/server/routes/list-action-by-workspace.ts) (lista) selecionam `lead { id, name }` — só o mínimo pro selo. O `Action` type ([`actions/types.ts`](../src/features/actions/types.ts)) já expõe `lead`.
 
 **Invalidação:** o feed do board usa uma queryKey **manual** `["leads.listLeadsByStatus", ...]` — invalidar pela string (não pela key gerada do oRPC) é o que atualiza o badge ao vivo. Aplicado em [`use-lead-action.tsx`](../src/features/leads/hooks/use-lead-action.tsx) (create/update) e no `useDeleteAction` de [`use-tasks.ts`](../src/features/actions/hooks/use-tasks.ts).
 
@@ -67,3 +70,6 @@ Feito com `demo@gmail.com` (owner da EMPRESA TESTE), lead "John" no tracking ATE
 
 ### 2026-07-27 — Fase 6: integração Lead ↔ Actions ✅
 Backend: helper `resolveActionAccess` + adoção em `action.update`/`action.delete`/`leads.updateActionByLead`; `actionsSummary` no `get-many`. Frontend: badge + popover compartilhado no Kanban e na lista, modal de criação com título pré-preenchido, campo "Lead vinculado" no card da action. Sem migration. Fora de escopo: aba de tarefas dentro do lead (Fase 3.2), seletor de lead dentro da action (Fase 3.1).
+
+### 2026-07-27 — Fase 6.1: selo do lead no card do board de actions ✅
+O card do Kanban de actions ([`kanban-card.tsx`](../src/features/actions/components/data-kanban/kanban-card.tsx)) agora mostra um selo do lead vinculado (ícone `UserRound` + nome, indigo) sob o título. Feeds `list-action-by-column`/`list-action-by-workspace` passaram a selecionar `lead { id, name }`. Selo sem handlers próprios — zero impacto no drag & drop. Verificado em runtime: cards "CARRO X — MECÂNICO Y" e "Verificar vinculo com lead" (ligados ao John) exibem o selo; "TESTE" (sem lead) não. Sem migration.

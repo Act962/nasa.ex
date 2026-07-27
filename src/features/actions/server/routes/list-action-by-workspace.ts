@@ -141,6 +141,12 @@ export const listActionByWorkspace = base
               isDone: true,
             },
           },
+          lead: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           createdAt: true,
         },
       }),

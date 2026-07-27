@@ -126,6 +126,12 @@ export const listActionByColumn = base
             isDone: true,
           },
         },
+        lead: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         tags: {
           select: {
             tag: {

@@ -21,6 +21,7 @@ import {
   PinIcon,
   CircleIcon,
   CircleCheckIcon,
+  UserRoundIcon,
 } from "lucide-react";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { useActionStore } from "../../context/use-action";
@@ -243,6 +244,20 @@ export function KanbanCard({ action, isOverlay }: Props) {
               {action.title}
             </p>
           </div>
+
+          {/* Vínculo com o lead (1:N). Selo puramente visual — sem handlers
+              próprios, herda o drag/click do card, então não interfere no DnD. */}
+          {action.lead && (
+            <div className="flex">
+              <span
+                className="inline-flex max-w-full items-center gap-1 rounded-full border border-indigo-500/15 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-400"
+                title={`Lead: ${action.lead.name}`}
+              >
+                <UserRoundIcon className="size-3 shrink-0" />
+                <span className="truncate">{action.lead.name}</span>
+              </span>
+            </div>
+          )}
 
           {/* Footer row: metadata + avatars */}
           <div className="flex items-center justify-between gap-2 pt-0.5">

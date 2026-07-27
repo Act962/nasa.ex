@@ -168,6 +168,14 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 
 ## 7. Changelog
 
+### 2026-07-27 — Fase 6.1: selo do lead no card do board de actions ✅
+
+Direção inversa da Fase 6: o card do Kanban de actions passa a sinalizar visualmente o lead vinculado. Detalhe em [`lead-actions-overview.md`](lead-actions-overview.md) §5.
+
+- `list-action-by-column.ts` e `list-action-by-workspace.ts` selecionam `lead { id, name }` (mínimo pro selo).
+- [`kanban-card.tsx`](../src/features/actions/components/data-kanban/kanban-card.tsx): chip `UserRound` + nome sob o título, só quando há lead. Sem handlers próprios → não interfere no drag & drop.
+- Sem migration.
+
 ### 2026-07-27 — Fase 6: integração Lead ↔ Actions (UI) ✅
 
 Superfície de UI para o vínculo Lead↔Action, mais o helper de autorização que faltava. Detalhe completo em [`lead-actions-overview.md`](lead-actions-overview.md).
