@@ -130,6 +130,7 @@ export const savePartialResponse = base
         select: {
           id: true,
           jsonBlock: true,
+          organizationId: true,
           settings: { select: { trackingId: true, statusId: true } },
         },
       });
@@ -141,18 +142,29 @@ export const savePartialResponse = base
       // (não quando reaproveitou um existente pelo telefone).
       let didCreateLead = false;
 
-      // Acha lead existente pelo phone (dentro do tracking) ou cria novo.
-      // Mesma lógica do submitResponse, mas isolada numa transação separada
-      // pra não bloquear caso o lead já exista.
+      // Acha lead existente pelo phone e reusa — org-wide, não só no tracking do
+      // form. Assim, se a pessoa já existe em outro tracking, o draft binda no
+      // MESMO lead (sem duplicar); a realocação pro tracking/coluna do form
+      // acontece só no submit final (Mod 2). Prefere a linha que já está no
+      // tracking do form.
       if (trackingId && statusId && userPhone) {
-        const existingLead = await prisma.lead.findUnique({
+        const inFormTracking = await prisma.lead.findUnique({
           where: {
             phone_trackingId: { phone: userPhone, trackingId },
           },
           select: { id: true },
         });
-        if (existingLead) {
-          leadId = existingLead.id;
+        if (inFormTracking) {
+          leadId = inFormTracking.id;
+        } else {
+          const anyInOrg = await prisma.lead.findFirst({
+            where: {
+              phone: userPhone,
+              tracking: { organizationId: form.organizationId },
+            },
+            select: { id: true },
+          });
+          if (anyInOrg) leadId = anyInOrg.id;
         }
       }
 
