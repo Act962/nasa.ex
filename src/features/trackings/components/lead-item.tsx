@@ -740,10 +740,12 @@ function LeadActionsIndicator({
     >
       <button
         type="button"
-        // Sem `preventDefault`: o Radix PopoverTrigger compõe o onClick e pula
-        // o próprio toggle quando o evento vem com defaultPrevented. Só paramos
-        // a propagação (pra não selecionar o card / iniciar drag).
+        // Isola o clique do card: o wrapper seleciona o lead no clique e o
+        // rodapé inicia drag no pointer/mouse down. Paramos a propagação em
+        // todos, mas SEM `preventDefault` — o Radix PopoverTrigger compõe o
+        // onClick e pula o próprio toggle quando o evento vem defaultPrevented.
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         className={cn(
           "inline-flex items-center gap-0.5 hover:opacity-80 transition-opacity cursor-pointer",
