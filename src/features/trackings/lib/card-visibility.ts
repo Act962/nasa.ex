@@ -18,6 +18,7 @@ export type CardFieldId =
   | "nextAppointment"
   | "deadline"
   | "responsible"
+  | "actions"
   | "leadValue"
   | "leadCount"
   | "columnValueTotal";
@@ -118,6 +119,13 @@ export const CARD_FIELDS: CardFieldDefinition[] = [
     id: "responsible",
     label: "Responsável",
     description: "Avatar do responsável pelo lead.",
+    group: "card",
+  },
+  {
+    id: "actions",
+    label: "Atividades",
+    description:
+      "Ícone com a contagem de atividades do lead; abre a lista num popover.",
     group: "card",
   },
   {

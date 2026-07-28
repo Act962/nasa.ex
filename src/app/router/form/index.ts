@@ -22,6 +22,7 @@ import { getResponseByToken } from "./get-response-by-token";
 import { updateClientSignatures } from "./update-client-signatures";
 import { recordFormOpening } from "./record-form-opening";
 import { listRecentResponses } from "./list-recent-responses";
+import { checkExistingLead } from "./check-existing-lead";
 
 export const formRouter = {
   get: fetchFormById,
@@ -45,6 +46,7 @@ export const formRouter = {
   findDraftByPhone,
   validateLeadPhone,
   validateCep,
+  checkExistingLead,
   PublishForm,
   togglePublicOnSpace,
   insightForm,

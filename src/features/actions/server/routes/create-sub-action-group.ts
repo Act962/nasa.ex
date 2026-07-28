@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { findActionInOrg } from "../lib/action-access";
 
 export const createSubActionGroup = base
   .use(requiredAuthMiddleware)
@@ -13,7 +14,10 @@ export const createSubActionGroup = base
       name: z.string().min(1),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
+    const action = await findActionInOrg(input.actionId, context.org.id);
+    if (!action) throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+
     const last = await prisma.subActionGroup.findFirst({
       where: { actionId: input.actionId },
       orderBy: { order: "desc" },

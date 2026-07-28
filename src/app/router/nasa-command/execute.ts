@@ -1,5 +1,6 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { resolveWorkspaceTrackingId } from "@/features/actions/lib/workspace-tracking";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -1703,6 +1704,8 @@ CTA: [chamada para ação]`;
         const dueDate   = dueDateStr   ? new Date(`${dueDateStr}T23:59:00`)   : null;
 
         // ── Create task ────────────────────────────────────────────────────
+        const trackingId = await resolveWorkspaceTrackingId(workspace.id);
+
         const task = await prisma.action.create({
           data: {
             title: finalTitle!,
@@ -1710,6 +1713,7 @@ CTA: [chamada para ação]`;
             workspaceId: workspace.id,
             columnId: resolvedColumnId,
             organizationId: orgId,
+            trackingId,
             createdBy: context.user.id,
             isDone: false,
             startDate,

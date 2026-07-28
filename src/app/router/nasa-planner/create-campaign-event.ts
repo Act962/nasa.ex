@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { awardPoints } from "@/app/router/space-point/utils";
+import { resolveWorkspaceTrackingId } from "@/features/actions/lib/workspace-tracking";
 import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -55,6 +56,8 @@ export const createCampaignEvent = base
         if (data.description) descParts.push(data.description);
         if (data.meetingLink) descParts.push(`Link da reunião: ${data.meetingLink}`);
 
+        const trackingId = await resolveWorkspaceTrackingId(data.workspaceId);
+
         const action = await prisma.action.create({
           data: {
             title: data.title,
@@ -66,6 +69,7 @@ export const createCampaignEvent = base
             workspaceId: data.workspaceId,
             columnId: data.columnId,
             organizationId: context.org.id,
+            trackingId,
             order: newOrder,
             createdBy: context.user.id,
             participants: { create: { userId: context.user.id } },

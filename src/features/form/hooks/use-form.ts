@@ -258,6 +258,11 @@ export const useMutationFindDraftByPhone = () => {
   return useMutation(orpc.form.findDraftByPhone.mutationOptions({}));
 };
 
+// Mod 1: checa (só pra membro autenticado) se o telefone já é um lead da org.
+export const useMutationCheckExistingLead = () => {
+  return useMutation(orpc.form.checkExistingLead.mutationOptions({}));
+};
+
 export const useMutationSubmitResponse = () => {
   const queryClient = useQueryClient();
 

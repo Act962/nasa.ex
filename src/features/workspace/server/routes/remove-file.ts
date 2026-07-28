@@ -15,17 +15,23 @@ export const removeFileAction = base
     }),
   )
   .handler(async ({ input, context, errors }) => {
+    const { actionId, attachmentId } = input;
+
+    // Fora do try: o catch abaixo converte tudo em 500 e engoliria o motivo
+    // real da recusa.
+    const existingAction = await prisma.action.findFirst({
+      where: {
+        id: actionId,
+        workspace: { organizationId: context.org.id },
+      },
+      select: { attachments: true, workspaceId: true, columnId: true },
+    });
+
+    if (!existingAction) {
+      throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+    }
+
     try {
-      const { actionId, attachmentId } = input;
-      const existingAction = await prisma.action.findUnique({
-        where: { id: actionId },
-        select: { attachments: true, workspaceId: true, columnId: true },
-      });
-
-      if (!existingAction) {
-        throw errors.NOT_FOUND({ message: "Action not found" });
-      }
-
       const currentAttachments = Array.isArray(existingAction.attachments)
         ? existingAction.attachments
         : [];

@@ -11,8 +11,13 @@ export const archiveActions = base
   .use(requireOrgMiddleware)
   .input(z.object({ actionIds: z.array(z.string()) }))
   .handler(async ({ input, context }) => {
+    // Escopo pelo workspace no próprio `where`: ids de outra org saem do
+    // conjunto e nunca são arquivados nem logados.
     const actions = await prisma.action.findMany({
-      where: { id: { in: input.actionIds } },
+      where: {
+        id: { in: input.actionIds },
+        workspace: { organizationId: context.org.id },
+      },
       select: { id: true, workspaceId: true, columnId: true, title: true },
     });
 

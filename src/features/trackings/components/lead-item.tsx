@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Timer,
   TimerOff,
+  ListTodo,
 } from "lucide-react";
 import { formatTimeUntil } from "@/features/form/lib/extract-deadline";
 import { WhatsappIcon } from "@/components/whatsapp";
@@ -80,6 +81,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { LeadActionsPopover } from "@/features/leads/components/lead-actions/lead-actions-popover";
 
 const TEMP_COLOR = {
   COLD: "#3498db",
@@ -222,6 +224,11 @@ export const LeadItem = memo(
       // em onDragEnd, que roda no próximo task JS — depois deste click).
       if (useKanbanStore.getState().activeDragLeadId) return;
       if ((e.target as HTMLElement).closest("a")) return;
+      // Ignora cliques vindos de conteúdo portalado (popover/dialog de
+      // atividades): o Radix move o node pro body, mas em React o evento
+      // borbulha pela árvore de componentes até aqui. Só seleciona quando o
+      // clique nasceu de fato dentro do DOM deste card.
+      if (!e.currentTarget.contains(e.target as Node)) return;
       toggleLead(data);
     };
 
@@ -509,6 +516,15 @@ export const LeadItem = memo(
               />
             )}
 
+            {isFieldVisible(visibility, "actions") && (
+              <LeadActionsIndicator
+                leadId={data.id}
+                leadName={data.name || "Sem nome"}
+                trackingId={data.trackingId}
+                summary={data.actionsSummary}
+              />
+            )}
+
             {/* Próximo agendamento (Agenda ou agenda do chat). Compact: só
               ícone azul; tooltip nativo do title mostra data + hora + nome
               da agenda. Não quebra largura do card — ocupa 12px (size-3),
@@ -693,6 +709,62 @@ function FormStatusIcon({
         }
       />
     </button>
+  );
+}
+
+/**
+ * Ícone agregado das atividades (actions) do lead no rodapé do card. Mostra a
+ * contagem total (com destaque quando há pendentes) e abre o `LeadActionsPopover`
+ * — lista simples que leva ao card completo da action e permite criar novas.
+ */
+function LeadActionsIndicator({
+  leadId,
+  leadName,
+  trackingId,
+  summary,
+}: {
+  leadId: string;
+  leadName: string;
+  trackingId: string;
+  summary: Lead["actionsSummary"];
+}) {
+  const total = summary?.total ?? 0;
+  const pending = summary?.pending ?? 0;
+  const tooltip =
+    total === 0
+      ? "Nenhuma atividade — clique para adicionar"
+      : `${total} atividade${total > 1 ? "s" : ""}${
+          pending > 0 ? ` — ${pending} pendente${pending > 1 ? "s" : ""}` : ""
+        }`;
+
+  return (
+    <LeadActionsPopover
+      leadId={leadId}
+      leadName={leadName}
+      trackingId={trackingId}
+    >
+      <button
+        type="button"
+        // Isola o clique do card: o wrapper seleciona o lead no clique e o
+        // rodapé inicia drag no pointer/mouse down. Paramos a propagação em
+        // todos, mas SEM `preventDefault` — o Radix PopoverTrigger compõe o
+        // onClick e pula o próprio toggle quando o evento vem defaultPrevented.
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        className={cn(
+          "inline-flex items-center gap-0.5 hover:opacity-80 transition-opacity cursor-pointer",
+          pending > 0 ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground",
+        )}
+        aria-label={tooltip}
+        title={tooltip}
+      >
+        <ListTodo className="size-3" />
+        {total > 0 && (
+          <span className="text-[10px] tabular-nums leading-none">{total}</span>
+        )}
+      </button>
+    </LeadActionsPopover>
   );
 }
 

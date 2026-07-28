@@ -13,6 +13,19 @@ export const useSuspenseWokspaces = () => {
   return useSuspenseQuery(orpc.workspace.list.queryOptions());
 };
 
+export const useWorkspacesByTracking = (trackingId: string) => {
+  return useQuery(
+    orpc.workspace.list.queryOptions({
+      input: { trackingId },
+      enabled: !!trackingId,
+    }),
+  );
+};
+
+export const useWorkspaces = () => {
+  return useQuery(orpc.workspace.list.queryOptions());
+};
+
 export const useWorkspace = (workspaceId: string) => {
   return useQuery(
     orpc.workspace.get.queryOptions({
@@ -109,7 +122,9 @@ export const useUpdateWorkspace = () => {
     orpc.workspace.update.mutationOptions({
       onSuccess: () => {
         toast.success("Workspace atualizado com sucesso!");
-        queryClient.invalidateQueries(orpc.workspace.list.queryOptions());
+        // `.key()` casa parcialmente: invalida tanto a lista sem filtro
+        // quanto as filtradas por tracking.
+        queryClient.invalidateQueries({ queryKey: orpc.workspace.list.key() });
         queryClient.invalidateQueries({ queryKey: ["workspace.get"] });
       },
       onError: () => {

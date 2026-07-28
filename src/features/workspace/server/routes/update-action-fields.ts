@@ -20,10 +20,13 @@ export const updateActionFields = base
       isFavorited: z.boolean().optional(),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
     const { actionId, ...data } = input;
-    const existing = await prisma.action.findUnique({
-      where: { id: actionId },
+    const existing = await prisma.action.findFirst({
+      where: {
+        id: actionId,
+        workspace: { organizationId: context.org.id },
+      },
       select: {
         workspaceId: true,
         columnId: true,
@@ -32,6 +35,11 @@ export const updateActionFields = base
         isFavorited: true,
       },
     });
+
+    if (!existing) {
+      throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+    }
+
     const changedFields = Object.keys(data).filter(
       (key) => (data as Record<string, unknown>)[key] !== undefined,
     );

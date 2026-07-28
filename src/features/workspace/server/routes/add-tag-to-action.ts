@@ -4,12 +4,22 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { hasTaggedWorkflow, sendWorkspaceWorkflowEvent } from "@/inngest/utils";
 import { z } from "zod";
+import { findActionInOrg } from "@/features/actions/server/lib/action-access";
+import { findTagInOrg } from "../lib/workspace-access";
 
 export const addTagToAction = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .input(z.object({ actionId: z.string(), tagId: z.string() }))
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
+    const action = await findActionInOrg(input.actionId, context.org.id);
+    if (!action) throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+
+    const tag = await findTagInOrg(input.tagId, context.org.id);
+    if (!tag || tag.workspaceId !== action.workspaceId) {
+      throw errors.NOT_FOUND({ message: "Tag não encontrada" });
+    }
+
     await prisma.actionTag.upsert({
       where: { actionId_tagId: { actionId: input.actionId, tagId: input.tagId } },
       create: { actionId: input.actionId, tagId: input.tagId },

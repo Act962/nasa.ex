@@ -15,7 +15,9 @@ import {
   useMutationSavePartialResponse,
   useMutationValidateLeadPhone,
   useMutationFindDraftByPhone,
+  useMutationCheckExistingLead,
 } from "../../../hooks/use-form";
+import { authClient } from "@/lib/auth-client";
 import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormSettings } from "@/generated/prisma/client";
@@ -23,12 +25,20 @@ import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { cn } from "@/lib/utils";
 import { normalizePhone } from "@/utils/format-phone";
+import { countries } from "@/types/some";
 import { normalizeRedirectUrl } from "@/features/form/lib/normalize-redirect-url";
 import { resolveNextButtonAction } from "@/features/form/lib/next-button-action";
 import { useLeadInfo } from "./use-lead-info";
 import { useFormDraft } from "./use-form-draft";
 import { LeadStep } from "./lead-step";
 import { StepBlocks } from "./step-blocks";
+
+export type ExistingLeadHint = {
+  exists: boolean;
+  currentTrackingName?: string | null;
+  currentStatusName?: string | null;
+  isInFormTracking?: boolean;
+};
 
 type FormSubmitProps = {
   id: string;
@@ -60,6 +70,14 @@ export function FormSubmitComponent({
   const savePartialResponse = useMutationSavePartialResponse();
   const findDraft = useMutationFindDraftByPhone();
   const validateLeadPhone = useMutationValidateLeadPhone();
+  const checkExistingLead = useMutationCheckExistingLead();
+
+  // Mod 1: sinaliza (só pra consultor autenticado) que o telefone já é um lead
+  // da org. Visitante anônimo não tem sessão → nunca consulta nem vê o selo.
+  const { data: sessionData } = authClient.useSession();
+  const viewerIsAuthenticated = !!sessionData?.user;
+  const [existingLeadHint, setExistingLeadHint] =
+    useState<ExistingLeadHint | null>(null);
 
   const [resumeLoading, setResumeLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -101,8 +119,15 @@ export function FormSubmitComponent({
   const [step, setStep] = useState(showLeadFields ? 1 : 2);
   const textColor = backgroundColor ? getContrastColor(backgroundColor) : undefined;
 
-  const { leadInfo, setName, setEmail, setPhone, selectedCountry, setSelectedCountry } =
-    useLeadInfo({ initialLead });
+  const {
+    leadInfo,
+    setLeadInfo,
+    setName,
+    setEmail,
+    setPhone,
+    selectedCountry,
+    setSelectedCountry,
+  } = useLeadInfo({ initialLead });
 
   const draft = useFormDraft({
     formId: id,
@@ -120,6 +145,88 @@ export function FormSubmitComponent({
       if (dbSaveDebounceRef.current) clearTimeout(dbSaveDebounceRef.current);
     };
   }, []);
+
+  // Retoma a sessão salva (nome/telefone/respostas) sem refazer o step 1 — cobre
+  // o tablet que descarta a aba ao abrir a câmera. TTL de 24h e limpeza no submit
+  // vivem no useFormDraft; aqui só reidratamos e pulamos pro corpo do form.
+  const autoResumedRef = useRef(false);
+  useEffect(() => {
+    if (autoResumedRef.current) return;
+    if (initialResponseValues || !showLeadFields) return;
+    const session = draft.pendingLocalDraftRef.current;
+    if (!session?.contact) return;
+    autoResumedRef.current = true;
+    draft.pendingLocalDraftRef.current = null;
+
+    const contact = session.contact;
+    setLeadInfo({
+      name: contact.name ?? "",
+      phone: contact.phone ?? "",
+      email: contact.email ?? "",
+    });
+    if (contact.ddi) {
+      const country = countries.find((item) => item.ddi === contact.ddi);
+      if (country) setSelectedCountry(country);
+    }
+
+    const hydrated: PrefillFieldMap = {};
+    for (const [key, value] of Object.entries(session.fv ?? {})) {
+      if (value && typeof value === "object" && typeof value.value === "string") {
+        formVals.current[key] = value;
+        hydrated[key] = value;
+      }
+    }
+    if (Object.keys(hydrated).length > 0) setPrefillMap(hydrated);
+
+    if (session.responseId) draft.hydrateResponseId(session.responseId);
+
+    setStep(2);
+    toast.success("Retomando de onde você parou", {
+      description: "Seus dados e respostas foram restaurados.",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Mod 1: ao digitar o telefone (consultor autenticado), checa de forma
+  // discreta se já existe lead na base. Debounced; ignora resultados obsoletos.
+  useEffect(() => {
+    if (!viewerIsAuthenticated || !showPhone || isEditMode) {
+      setExistingLeadHint(null);
+      return;
+    }
+    const digits = leadInfo.phone.replace(/\D/g, "");
+    if (digits.length < 8) {
+      setExistingLeadHint(null);
+      return;
+    }
+    let cancelled = false;
+    const phoneNormalized = normalizePhone(
+      `${selectedCountry.ddi} ${leadInfo.phone}`,
+    );
+    const timer = setTimeout(async () => {
+      try {
+        const result = await checkExistingLead.mutateAsync({
+          formId: id,
+          phone: phoneNormalized,
+        });
+        if (!cancelled) setExistingLeadHint(result);
+      } catch {
+        if (!cancelled) setExistingLeadHint(null);
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    leadInfo.phone,
+    selectedCountry.ddi,
+    viewerIsAuthenticated,
+    showPhone,
+    isEditMode,
+    id,
+  ]);
 
   const isFieldFilled = (fieldValue: FieldValue | undefined): boolean => {
     if (!fieldValue) return false;
@@ -398,6 +505,9 @@ export function FormSubmitComponent({
     }
 
     draft.applyPendingLocalDraft(setPrefillMap);
+    // Persiste a sessão (nome/telefone) já ao entrar no corpo do form, antes de
+    // qualquer blur — cobre o caso de tocar a foto logo após o step 1.
+    draft.saveDraftToLocalStorage();
     setStep(2);
   };
 
@@ -502,6 +612,7 @@ export function FormSubmitComponent({
                         onPhoneChange={setPhone}
                         onCountryChange={setSelectedCountry}
                         onContinue={handleContinue}
+                        existingLeadHint={existingLeadHint}
                       />
                     )}
 
