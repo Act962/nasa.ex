@@ -309,12 +309,12 @@ export function KanbanCard({ action, isOverlay }: Props) {
                 (action.lead ? (
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={(event) => {
+                      event.stopPropagation();
                       setFormsDialogOpen(true);
                     }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => e.stopPropagation()}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => event.stopPropagation()}
                     className="flex items-center transition-colors hover:text-foreground"
                     title={
                       action.formResponse?.form?.name

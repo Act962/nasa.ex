@@ -313,12 +313,12 @@ function FormCard({
       role="button"
       tabIndex={0}
       onClick={handlePrimaryAction}
-      onKeyDown={(e) => {
+      onKeyDown={(event) => {
         // Só o próprio card dispara a ação primária; teclas nos filhos (ex.:
         // botão "Preencher novo") não devem duplicar o comportamento.
-        if (e.target !== e.currentTarget) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
           handlePrimaryAction();
         }
       }}

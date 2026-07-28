@@ -69,15 +69,6 @@ export function ActionTitleComposer({ blocks, value, onChange }: Props) {
   const removeAt = (index: number) =>
     onChange(value.filter((_, position) => position !== index));
 
-  const editLiteral = (index: number, text: string) =>
-    onChange(
-      value.map((token, position) =>
-        position === index && token.type === "literal"
-          ? { type: "literal", text }
-          : token,
-      ),
-    );
-
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -110,7 +101,7 @@ export function ActionTitleComposer({ blocks, value, onChange }: Props) {
         {value.map((token, index) =>
           token.type === "field" ? (
             <span
-              key={index}
+              key={`field-${index}`}
               className="inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary"
             >
               {labelById.get(token.blockId) ?? "campo removido"}
@@ -124,15 +115,10 @@ export function ActionTitleComposer({ blocks, value, onChange }: Props) {
             </span>
           ) : (
             <span
-              key={index}
-              className="inline-flex items-center gap-0.5 rounded-md bg-muted px-1 py-0.5"
+              key={`literal-${index}`}
+              className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-xs"
             >
-              <input
-                value={token.text}
-                onChange={(event) => editLiteral(index, event.target.value)}
-                className="bg-transparent text-xs outline-none"
-                style={{ width: `${Math.max(token.text.length, 2)}ch` }}
-              />
+              <span className="whitespace-pre">{token.text}</span>
               <button
                 type="button"
                 onClick={() => removeAt(index)}

@@ -81,6 +81,18 @@ export function GenerateActionsSection() {
   const dueDateDays =
     template.dueDate?.preset === "in_days" ? template.dueDate.days : 3;
 
+  // O quadro/coluna salvos podem ter sumido (tracking trocado, item deletado).
+  // Sem um item correspondente, o Select ficaria em branco e mascararia o alvo
+  // inválido — renderizamos um item sintético "indisponível" pra sinalizar.
+  const workspaceMissing =
+    !!template.workspaceId &&
+    workspaces.length > 0 &&
+    !workspaces.some((workspace) => workspace.id === template.workspaceId);
+  const columnMissing =
+    !!template.columnId &&
+    columns.length > 0 &&
+    !columns.some((column) => column.id === template.columnId);
+
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -141,6 +153,11 @@ export function GenerateActionsSection() {
                       {workspace.name}
                     </SelectItem>
                   ))}
+                  {workspaceMissing && (
+                    <SelectItem value={template.workspaceId as string}>
+                      Quadro indisponível — revise
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             )}
@@ -173,6 +190,11 @@ export function GenerateActionsSection() {
                     {column.name}
                   </SelectItem>
                 ))}
+                {columnMissing && (
+                  <SelectItem value={template.columnId as string}>
+                    Coluna indisponível — revise
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </Field>

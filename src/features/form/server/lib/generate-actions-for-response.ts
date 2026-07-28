@@ -120,18 +120,25 @@ async function resolveTarget(
   template: ActionTemplate,
   form: GenerateActionsInput["form"],
 ): Promise<{ workspaceId: string; columnId: string; trackingId: string | null } | null> {
+  // A action herda o tracking do form (coerência lead↔action, como
+  // createActionByLead). Sem tracking no form não há destino válido; e o
+  // workspace escolhido precisa pertencer a esse tracking.
+  if (!form.trackingId) return null;
+
   const workspace = template.workspaceId
     ? await prisma.workspace.findFirst({
-        where: { id: template.workspaceId, organizationId: form.organizationId },
+        where: {
+          id: template.workspaceId,
+          organizationId: form.organizationId,
+          trackingId: form.trackingId,
+        },
         select: { id: true, trackingId: true },
       })
-    : form.trackingId
-      ? await prisma.workspace.findFirst({
-          where: { organizationId: form.organizationId, trackingId: form.trackingId },
-          orderBy: { createdAt: "asc" },
-          select: { id: true, trackingId: true },
-        })
-      : null;
+    : await prisma.workspace.findFirst({
+        where: { organizationId: form.organizationId, trackingId: form.trackingId },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, trackingId: true },
+      });
 
   if (!workspace) return null;
 
