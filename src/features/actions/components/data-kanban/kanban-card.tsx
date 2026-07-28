@@ -22,6 +22,7 @@ import {
   CircleIcon,
   CircleCheckIcon,
   UserRoundIcon,
+  ClipboardListIcon,
 } from "lucide-react";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { useActionStore } from "../../context/use-action";
@@ -296,6 +297,21 @@ export function KanbanCard({ action, isOverlay }: Props) {
                 >
                   <CalendarIcon className="size-3.5 shrink-0" />
                   <span className="capitalize">{dueDateInfo.label}</span>
+                </span>
+              )}
+
+              {/* Origem: criado por formulário. Ícone discreto (sem handlers),
+                  herda o drag/click do card — não interfere no DnD. */}
+              {action.formResponseId && (
+                <span
+                  className="flex items-center"
+                  title={
+                    action.formResponse?.form?.name
+                      ? `Criado pelo formulário: ${action.formResponse.form.name}`
+                      : "Criado por formulário"
+                  }
+                >
+                  <ClipboardListIcon className="size-3.5 shrink-0" />
                 </span>
               )}
             </div>

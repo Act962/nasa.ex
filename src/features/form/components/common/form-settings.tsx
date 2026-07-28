@@ -44,6 +44,7 @@ import {
   type NextButtonActionType,
 } from "@/features/form/lib/next-button-action";
 import { SendMessageDialog } from "./send-whatsapp-message";
+import { GenerateActionsSection } from "./generate-actions-section";
 import { VariablePicker } from "@/features/tracking-executions/components/send-message/variable-picker";
 import { useVariableAutocomplete } from "@/features/tracking-executions/components/send-message/use-variable-autocomplete";
 
@@ -177,6 +178,11 @@ export function FormSettings() {
           </div>
         </div>
       </section>
+
+      <Separator />
+
+      {/* ─── Gerar Actions ──────────────────────────────── */}
+      <GenerateActionsSection />
 
       <Separator />
 

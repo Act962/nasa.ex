@@ -19,6 +19,7 @@ import {
   publishLeadMoved,
 } from "@/features/leads/realtime/publish";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
+import { generateActionsForResponse } from "@/features/form/server/lib/generate-actions-for-response";
 import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
 import { eventBus } from "@/features/alerts/lib/event-bus";
 import {
@@ -574,6 +575,49 @@ export const submitResponse = base
         }
       } catch (err) {
         console.error("[form/submit] eventBus publish falhou:", err);
+      }
+
+      // Gera a Action configurada a partir da resposta (síncrono, como o lead).
+      // Isolado: uma falha aqui nunca derruba o submit já commitado.
+      try {
+        const actionMeta = await prisma.form.findUnique({
+          where: { id },
+          select: {
+            userId: true,
+            organizationId: true,
+            name: true,
+            jsonBlock: true,
+            settings: {
+              select: { trackingId: true, generateActionsConfig: true },
+            },
+            formSubmissions: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { id: true, jsonResponse: true, leadId: true },
+            },
+          },
+        });
+        const submission = actionMeta?.formSubmissions?.[0];
+        if (actionMeta && submission && actionMeta.settings?.generateActionsConfig) {
+          await generateActionsForResponse({
+            form: {
+              id,
+              userId: actionMeta.userId,
+              organizationId: actionMeta.organizationId,
+              name: actionMeta.name,
+              jsonBlock: actionMeta.jsonBlock,
+              trackingId: actionMeta.settings.trackingId ?? null,
+            },
+            formResponse: {
+              id: submission.id,
+              jsonResponse: submission.jsonResponse,
+              leadId: submission.leadId ?? null,
+            },
+            config: actionMeta.settings.generateActionsConfig,
+          });
+        }
+      } catch (genErr) {
+        console.error("[form/submit] geração de actions falhou:", genErr);
       }
 
       // Verificar se este form faz parte de um processo de onboarding

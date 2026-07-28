@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
+import { resolveGenerateActionsConfig } from "@/features/form/lib/generate-actions-config";
 import { useMutationUpdateForm } from "./use-form";
 
 export type AutoSaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
@@ -160,6 +161,20 @@ export function useFormAutosave() {
                         passLeadData?: boolean;
                       };
                     }).nextButtonAction,
+                  }
+                : {}),
+              // Config de "gerar Actions" — o autosave lista campo a campo (não
+              // faz spread), então SEM esta entrada a config nunca persiste.
+              // Só envia quando a chave existe no store; normaliza p/ shape válido.
+              ...((currentSettings as unknown as {
+                generateActionsConfig?: unknown;
+              }).generateActionsConfig !== undefined
+                ? {
+                    generateActionsConfig: resolveGenerateActionsConfig(
+                      (currentSettings as unknown as {
+                        generateActionsConfig?: unknown;
+                      }).generateActionsConfig,
+                    ),
                   }
                 : {}),
             },

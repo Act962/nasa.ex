@@ -1282,6 +1282,7 @@ model Action {
   createdBy      String  @map("created_by")
   leadId         String? @map("lead_id")
   orgProjectId   String? @map("org_project_id")
+  formResponseId String? @map("form_response_id")
 
   closedAt  DateTime? @map("closed_at")
   createdAt DateTime  @default(now()) @map("created_at")
@@ -1293,6 +1294,7 @@ model Action {
   orgProject   OrgProject?      @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
   workspace    Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   column       WorkspaceColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
+  formResponse FormResponses?   @relation("FormResponseActions", fields: [formResponseId], references: [id], onDelete: SetNull)
 
   participants    ActionsUserParticipant[]
   responsibles    ActionsUserResponsible[]
@@ -1363,6 +1365,7 @@ model Action {
   @@index([workspaceId])
   @@index([columnId])
   @@index([leadId])
+  @@index([formResponseId])
   @@index([createdBy])
   @@index([isDone])
   @@index([priority])
@@ -2001,6 +2004,7 @@ model FormSettings {
   whatsappChats    Json    @default("[]") @map("whatsapp_chats")
   whatsappMessage  String? @map("whatsapp_message")
   validateWhatsapp Boolean @default(false) @map("validate_whatsapp")
+  generateActionsConfig Json? @map("generate_actions_config")
 
   tracking Tracking? @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   status   Status?   @relation(fields: [statusId], references: [id], onDelete: SetNull)
@@ -2030,7 +2034,8 @@ model FormResponses {
   label               String? @map("label")
   labelManuallyEdited Boolean @default(false) @map("label_manually_edited")
 
-  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+  form    Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  actions Action[] @relation("FormResponseActions")
 
   @@index([completedAt])
   @@map("form_responses")
