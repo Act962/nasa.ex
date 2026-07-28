@@ -31,6 +31,12 @@ export interface Action {
     phone: string | null;
     email: string | null;
   } | null;
+  // Origem: resposta de formulário (1:N via Action.formResponseId).
+  formResponseId?: string | null;
+  formResponse?: {
+    id: string;
+    form: { id: string; name: string } | null;
+  } | null;
   participants: {
     user: {
       id: string;

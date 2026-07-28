@@ -51,6 +51,8 @@ export function LeadActionsPopover({
           className="w-72 p-0"
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
         >
           <div className="flex items-center justify-between border-b px-3 py-2">
             <span className="text-sm font-medium">Atividades</span>

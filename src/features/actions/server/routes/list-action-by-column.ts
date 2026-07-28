@@ -132,6 +132,13 @@ export const listActionByColumn = base
             name: true,
           },
         },
+        formResponseId: true,
+        formResponse: {
+          select: {
+            id: true,
+            form: { select: { id: true, name: true } },
+          },
+        },
         tags: {
           select: {
             tag: {

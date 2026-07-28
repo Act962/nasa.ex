@@ -1,7 +1,36 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import z from "zod";
+
+const titleTokenSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("field"), blockId: z.string() }),
+  z.object({ type: z.literal("literal"), text: z.string() }),
+]);
+
+const dueDatePresetSchema = z.discriminatedUnion("preset", [
+  z.object({ preset: z.literal("today") }),
+  z.object({ preset: z.literal("tomorrow") }),
+  z.object({ preset: z.literal("in_days"), days: z.number().int().min(0).max(365) }),
+  z.object({ preset: z.literal("end_of_week") }),
+]);
+
+const actionTemplateSchema = z.object({
+  title: z.array(titleTokenSchema).default([]),
+  workspaceId: z.string().nullable().default(null),
+  columnId: z.string().nullable().default(null),
+  coverImage: z
+    .object({ blockId: z.string(), index: z.number().int().min(0).default(0) })
+    .nullable()
+    .default(null),
+  dueDate: dueDatePresetSchema.nullable().default(null),
+});
+
+const generateActionsConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  template: actionTemplateSchema.nullable().default(null),
+});
 
 const settingsSchema = z.object({
   primaryColor: z.string().optional(),
@@ -44,6 +73,7 @@ const settingsSchema = z.object({
     .optional(),
   whatsappMessage: z.string().optional().nullable(),
   validateWhatsapp: z.boolean().optional(),
+  generateActionsConfig: generateActionsConfigSchema.nullable().optional(),
 });
 
 export const updateForm = base
@@ -65,6 +95,10 @@ export const updateForm = base
   .handler(async ({ input }) => {
     const { id, name, description, jsonBlock, settings } = input;
 
+    // `generateActionsConfig` é um campo Json: sai do spread pra receber o
+    // tratamento correto do Prisma (`Prisma.JsonNull` p/ null, cast p/ o resto).
+    const { generateActionsConfig, ...restSettings } = settings ?? {};
+
     const form = await prisma.form.update({
       where: { id },
       data: {
@@ -73,7 +107,15 @@ export const updateForm = base
         jsonBlock: jsonBlock as any,
         ...(settings && {
           settings: {
-            update: settings,
+            update: {
+              ...restSettings,
+              ...(generateActionsConfig !== undefined && {
+                generateActionsConfig:
+                  generateActionsConfig === null
+                    ? Prisma.JsonNull
+                    : (generateActionsConfig as Prisma.InputJsonValue),
+              }),
+            },
           },
         }),
       },

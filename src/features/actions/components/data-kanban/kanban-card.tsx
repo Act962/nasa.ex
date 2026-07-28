@@ -22,9 +22,11 @@ import {
   CircleIcon,
   CircleCheckIcon,
   UserRoundIcon,
+  ClipboardListIcon,
 } from "lucide-react";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { useActionStore } from "../../context/use-action";
+import { LeadFormsDialog } from "@/features/leads/components/lead-forms-dialog";
 
 interface Props {
   action: Action;
@@ -64,6 +66,7 @@ const PLACEHOLDER_BG = "bg-linear-to-br from-muted to-muted/40";
 
 export function KanbanCard({ action, isOverlay }: Props) {
   const [open, setOpen] = useState(false);
+  const [formsDialogOpen, setFormsDialogOpen] = useState(false);
   const coverUrl = useConstructUrl((action as any).coverImage || "");
 
   const {
@@ -115,7 +118,7 @@ export function KanbanCard({ action, isOverlay }: Props) {
         {hasCover && (
           <div
             className={cn(
-              "relative w-full h-36 overflow-hidden",
+              "relative w-full h-28 overflow-hidden",
               !hasCover && PLACEHOLDER_BG,
             )}
           >
@@ -298,6 +301,41 @@ export function KanbanCard({ action, isOverlay }: Props) {
                   <span className="capitalize">{dueDateInfo.label}</span>
                 </span>
               )}
+
+              {/* Origem: criado por formulário. Quando há lead vinculado, abre
+                  o dialog de formulários do lead destacando o form de origem —
+                  stopPropagation evita disparar drag (MouseSensor) ou o modal. */}
+              {action.formResponseId &&
+                (action.lead ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setFormsDialogOpen(true);
+                    }}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    className="flex items-center transition-colors hover:text-foreground"
+                    title={
+                      action.formResponse?.form?.name
+                        ? `Criado pelo formulário: ${action.formResponse.form.name} — ver`
+                        : "Criado por formulário — ver"
+                    }
+                  >
+                    <ClipboardListIcon className="size-3.5 shrink-0" />
+                  </button>
+                ) : (
+                  <span
+                    className="flex items-center"
+                    title={
+                      action.formResponse?.form?.name
+                        ? `Criado pelo formulário: ${action.formResponse.form.name}`
+                        : "Criado por formulário"
+                    }
+                  >
+                    <ClipboardListIcon className="size-3.5 shrink-0" />
+                  </span>
+                ))}
             </div>
 
             {/* Right: participant avatars */}
@@ -332,6 +370,16 @@ export function KanbanCard({ action, isOverlay }: Props) {
           actionId={action.id}
           open={open}
           onOpenChange={setOpen}
+        />
+      )}
+
+      {formsDialogOpen && action.lead && (
+        <LeadFormsDialog
+          leadId={action.lead.id}
+          leadName={action.lead.name}
+          open={formsDialogOpen}
+          onOpenChange={setFormsDialogOpen}
+          highlightFormId={action.formResponse?.form?.id ?? undefined}
         />
       )}
     </>

@@ -111,11 +111,15 @@ export function LeadFormsDialog({
   leadName,
   open,
   onOpenChange,
+  highlightFormId,
 }: {
   leadId: string;
   leadName?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // Quando aberto a partir de uma action gerada por formulário: destaca o
+  // card do form de origem.
+  highlightFormId?: string;
 }) {
   // Fetch 2 queries em paralelo (só quando dialog abre):
   //  1. Respostas vinculadas a este lead (com `state` derivado server-side)
@@ -251,6 +255,7 @@ export function LeadFormsDialog({
                   key={c.form.id}
                   card={c}
                   leadId={leadId}
+                  isHighlighted={!!highlightFormId && c.form.id === highlightFormId}
                   onPickedAction={() => onOpenChange(false)}
                 />
               ))}
@@ -268,10 +273,12 @@ function FormCard({
   card,
   leadId,
   onPickedAction,
+  isHighlighted = false,
 }: {
   card: FormCardData;
   leadId: string;
   onPickedAction: () => void;
+  isHighlighted?: boolean;
 }) {
   const router = useRouter();
   const { form, responses, aggregateState, lastActivityAt } = card;
@@ -300,14 +307,38 @@ function FormCard({
   };
 
   return (
-    <button
-      type="button"
+    // `div role=button` (não `<button>`) porque o card contém o botão aninhado
+    // "Preencher novo" — button dentro de button é HTML inválido (hydration).
+    <div
+      role="button"
+      tabIndex={0}
       onClick={handlePrimaryAction}
+      onKeyDown={(event) => {
+        // Só o próprio card dispara a ação primária; teclas nos filhos (ex.:
+        // botão "Preencher novo") não devem duplicar o comportamento.
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handlePrimaryAction();
+        }
+      }}
       className={cn(
-        "group flex flex-col gap-2 rounded-xl border border-border bg-card p-3 transition-all text-left",
+        "group flex cursor-pointer flex-col gap-2 rounded-xl border border-border bg-card p-3 transition-all text-left",
         "hover:border-violet-400 hover:shadow-md hover:-translate-y-0.5",
+        "outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60",
+        isHighlighted &&
+          "border-violet-500 ring-2 ring-violet-500/60 bg-violet-50/50 dark:bg-violet-950/20",
       )}
     >
+      {isHighlighted && (
+        <div className="flex justify-start">
+          <span className="inline-flex items-center gap-1 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white">
+            <ClipboardListIcon className="size-3" />
+            Gerou esta tarefa
+          </span>
+        </div>
+      )}
+
       {/* Label da última resposta (campo "Usar como título") — se existe */}
       {latest?.label && (
         <div className="flex justify-start">
@@ -384,6 +415,6 @@ function FormCard({
           Preencher novo
         </button>
       )}
-    </button>
+    </div>
   );
 }

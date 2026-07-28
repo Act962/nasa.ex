@@ -19,6 +19,7 @@ import {
   publishLeadMoved,
 } from "@/features/leads/realtime/publish";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
+import { generateActionsForResponse } from "@/features/form/server/lib/generate-actions-for-response";
 import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
 import { eventBus } from "@/features/alerts/lib/event-bus";
 import {
@@ -81,6 +82,11 @@ export const submitResponse = base
       // ao submeter — publicado no realtime + alerta APÓS o commit.
       let movedLeadForBoard: MovedLeadForBoard | null = null;
       let statusChangeAlert: StatusChangeAlert | null = null;
+      // Id da resposta finalizada NESTA submissão (draft finalizado OU nova
+      // submissão) + o lead a que ela pertence — usados pós-commit p/ gerar a
+      // action da resposta CERTA (não "a mais recente por createdAt").
+      let submittedResponseId: string | null = null;
+      let submittedResponseLeadId: string | null = null;
 
       const { formMeta, createdLeadForBoard } = await prisma.$transaction(async (tx) => {
         // Lead novo criado nesta submissão (cai no board). Retornado da tx e
@@ -97,6 +103,7 @@ export const submitResponse = base
             published: true,
           },
           select: {
+            userId: true,
             name: true,
             jsonBlock: true,
             organizationId: true,
@@ -106,6 +113,7 @@ export const submitResponse = base
                 statusId: true,
                 whatsappChats: true,
                 whatsappMessage: true,
+                generateActionsConfig: true,
               },
             },
           },
@@ -396,6 +404,12 @@ export const submitResponse = base
           });
         }
 
+        // Captura o id da resposta desta submissão (draft finalizado usa o
+        // próprio id; nova submissão usa a linha recém-criada) + seu lead.
+        submittedResponseId =
+          finalizingResponseId ?? updatedForm.formSubmissions?.[0]?.id ?? null;
+        submittedResponseLeadId = leadId;
+
         if (leadId) {
           const lastSub = updatedForm.formSubmissions?.[0];
           const newResponseId = lastSub?.id ?? null;
@@ -574,6 +588,37 @@ export const submitResponse = base
         }
       } catch (err) {
         console.error("[form/submit] eventBus publish falhou:", err);
+      }
+
+      // Gera a Action configurada a partir da resposta (síncrono, como o lead).
+      // Isolado: uma falha aqui nunca derruba o submit já commitado. Usa a
+      // resposta DESTA submissão (capturada na tx) e os dados do form já
+      // carregados — sem re-buscar "a mais recente por createdAt".
+      // Cast força a união: o TS narrowa `let` atribuído no closure da tx.
+      const responseIdForActions = submittedResponseId as string | null;
+      const responseLeadForActions = submittedResponseLeadId as string | null;
+      try {
+        const actionsConfig = formMeta.settings?.generateActionsConfig;
+        if (responseIdForActions && actionsConfig) {
+          await generateActionsForResponse({
+            form: {
+              id,
+              userId: formMeta.userId,
+              organizationId: formMeta.organizationId,
+              name: formMeta.name,
+              jsonBlock: formMeta.jsonBlock,
+              trackingId: formMeta.settings?.trackingId ?? null,
+            },
+            formResponse: {
+              id: responseIdForActions,
+              jsonResponse: response,
+              leadId: responseLeadForActions,
+            },
+            config: actionsConfig,
+          });
+        }
+      } catch (genErr) {
+        console.error("[form/submit] geração de actions falhou:", genErr);
       }
 
       // Verificar se este form faz parte de um processo de onboarding
