@@ -38,6 +38,8 @@ import { getLeadByPublicToken } from "./get-by-public-token";
 import { getLeadPrefillByToken } from "./get-prefill-by-token";
 import { listAllAttachments } from "./list-all-attachments";
 import { listAttachmentsByToken } from "./list-attachments-by-token";
+import { detectMergeConflicts } from "./detect-merge-conflicts";
+import { mergeLeads } from "./merge-leads";
 
 export const leadRoutes = {
   list: listLead,
@@ -80,4 +82,6 @@ export const leadRoutes = {
   getPrefillByToken: getLeadPrefillByToken,
   listAllAttachments,
   listAttachmentsByToken,
+  detectMergeConflicts,
+  mergeLeads,
 };
