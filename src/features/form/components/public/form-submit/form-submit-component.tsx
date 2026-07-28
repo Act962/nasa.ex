@@ -25,6 +25,7 @@ import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { cn } from "@/lib/utils";
 import { normalizePhone } from "@/utils/format-phone";
+import { countries } from "@/types/some";
 import { normalizeRedirectUrl } from "@/features/form/lib/normalize-redirect-url";
 import { resolveNextButtonAction } from "@/features/form/lib/next-button-action";
 import { useLeadInfo } from "./use-lead-info";
@@ -118,8 +119,15 @@ export function FormSubmitComponent({
   const [step, setStep] = useState(showLeadFields ? 1 : 2);
   const textColor = backgroundColor ? getContrastColor(backgroundColor) : undefined;
 
-  const { leadInfo, setName, setEmail, setPhone, selectedCountry, setSelectedCountry } =
-    useLeadInfo({ initialLead });
+  const {
+    leadInfo,
+    setLeadInfo,
+    setName,
+    setEmail,
+    setPhone,
+    selectedCountry,
+    setSelectedCountry,
+  } = useLeadInfo({ initialLead });
 
   const draft = useFormDraft({
     formId: id,
@@ -136,6 +144,47 @@ export function FormSubmitComponent({
     return () => {
       if (dbSaveDebounceRef.current) clearTimeout(dbSaveDebounceRef.current);
     };
+  }, []);
+
+  // Retoma a sessão salva (nome/telefone/respostas) sem refazer o step 1 — cobre
+  // o tablet que descarta a aba ao abrir a câmera. TTL de 24h e limpeza no submit
+  // vivem no useFormDraft; aqui só reidratamos e pulamos pro corpo do form.
+  const autoResumedRef = useRef(false);
+  useEffect(() => {
+    if (autoResumedRef.current) return;
+    if (initialResponseValues || !showLeadFields) return;
+    const session = draft.pendingLocalDraftRef.current;
+    if (!session?.contact) return;
+    autoResumedRef.current = true;
+    draft.pendingLocalDraftRef.current = null;
+
+    const contact = session.contact;
+    setLeadInfo({
+      name: contact.name ?? "",
+      phone: contact.phone ?? "",
+      email: contact.email ?? "",
+    });
+    if (contact.ddi) {
+      const country = countries.find((item) => item.ddi === contact.ddi);
+      if (country) setSelectedCountry(country);
+    }
+
+    const hydrated: PrefillFieldMap = {};
+    for (const [key, value] of Object.entries(session.fv ?? {})) {
+      if (value && typeof value === "object" && typeof value.value === "string") {
+        formVals.current[key] = value;
+        hydrated[key] = value;
+      }
+    }
+    if (Object.keys(hydrated).length > 0) setPrefillMap(hydrated);
+
+    if (session.responseId) draft.hydrateResponseId(session.responseId);
+
+    setStep(2);
+    toast.success("Retomando de onde você parou", {
+      description: "Seus dados e respostas foram restaurados.",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Mod 1: ao digitar o telefone (consultor autenticado), checa de forma
@@ -456,6 +505,9 @@ export function FormSubmitComponent({
     }
 
     draft.applyPendingLocalDraft(setPrefillMap);
+    // Persiste a sessão (nome/telefone) já ao entrar no corpo do form, antes de
+    // qualquer blur — cobre o caso de tocar a foto logo após o step 1.
+    draft.saveDraftToLocalStorage();
     setStep(2);
   };
 
