@@ -307,12 +307,25 @@ function FormCard({
   };
 
   return (
-    <button
-      type="button"
+    // `div role=button` (não `<button>`) porque o card contém o botão aninhado
+    // "Preencher novo" — button dentro de button é HTML inválido (hydration).
+    <div
+      role="button"
+      tabIndex={0}
       onClick={handlePrimaryAction}
+      onKeyDown={(e) => {
+        // Só o próprio card dispara a ação primária; teclas nos filhos (ex.:
+        // botão "Preencher novo") não devem duplicar o comportamento.
+        if (e.target !== e.currentTarget) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handlePrimaryAction();
+        }
+      }}
       className={cn(
-        "group flex flex-col gap-2 rounded-xl border border-border bg-card p-3 transition-all text-left",
+        "group flex cursor-pointer flex-col gap-2 rounded-xl border border-border bg-card p-3 transition-all text-left",
         "hover:border-violet-400 hover:shadow-md hover:-translate-y-0.5",
+        "outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60",
         isHighlighted &&
           "border-violet-500 ring-2 ring-violet-500/60 bg-violet-50/50 dark:bg-violet-950/20",
       )}
@@ -402,6 +415,6 @@ function FormCard({
           Preencher novo
         </button>
       )}
-    </button>
+    </div>
   );
 }
