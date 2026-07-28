@@ -34,7 +34,8 @@ export interface Action {
   // Origem: resposta de formulário (1:N via Action.formResponseId).
   formResponseId?: string | null;
   formResponse?: {
-    form: { name: string } | null;
+    id: string;
+    form: { id: string; name: string } | null;
   } | null;
   participants: {
     user: {

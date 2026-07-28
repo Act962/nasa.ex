@@ -135,7 +135,8 @@ export const listActionByColumn = base
         formResponseId: true,
         formResponse: {
           select: {
-            form: { select: { name: true } },
+            id: true,
+            form: { select: { id: true, name: true } },
           },
         },
         tags: {

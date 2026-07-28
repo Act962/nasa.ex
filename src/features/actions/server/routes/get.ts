@@ -54,6 +54,12 @@ export const getAction = base
             email: true,
           },
         },
+        formResponse: {
+          select: {
+            id: true,
+            form: { select: { id: true, name: true } },
+          },
+        },
         workspace: {
           select: {
             id: true,

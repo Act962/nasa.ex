@@ -15,7 +15,7 @@ export function LinkedLeadField({ lead }: LinkedLeadFieldProps) {
     <SidebarField label="Lead vinculado" icon={<UserIcon className="size-3" />}>
       <Link
         href={`/contatos/${lead.id}`}
-        className="group flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 hover:bg-accent"
+        className="group flex items-center gap-2 rounded-md border border-input bg-transparent px-2 py-1.5 transition-colors hover:bg-accent dark:bg-input/30 dark:hover:bg-input/50"
       >
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-xs font-medium">{lead.name}</span>

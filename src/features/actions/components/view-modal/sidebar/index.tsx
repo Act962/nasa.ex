@@ -9,6 +9,7 @@ import { TagsField } from "./tags-field";
 import { CoverImageField } from "./cover-image-field";
 import { OrgProjectField } from "./org-project-field";
 import { LinkedLeadField } from "./linked-lead-field";
+import { GeneratedFromFormField } from "./generated-from-form-field";
 import { Action } from "../../../types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PublicVisibilityField } from "@/features/public-calendar/components/public-visibility-field";
@@ -79,6 +80,9 @@ export function ActionSidebar({
         )}
 
         {action?.lead && <LinkedLeadField lead={action.lead} />}
+        {action?.formResponse && (
+          <GeneratedFromFormField formResponse={action.formResponse} />
+        )}
 
         <OrgProjectField
           value={action?.orgProjectId}

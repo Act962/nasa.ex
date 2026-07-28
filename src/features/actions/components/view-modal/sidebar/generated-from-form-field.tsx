@@ -1,0 +1,32 @@
+import Link from "next/link";
+import { ClipboardListIcon, ArrowUpRightIcon } from "lucide-react";
+import { SidebarField } from "./sidebar-field";
+import { Action } from "../../../types";
+
+interface GeneratedFromFormFieldProps {
+  formResponse: NonNullable<Action["formResponse"]>;
+}
+
+// Mostra o formulário que gerou esta action (via Action.formResponseId), com
+// atalho para a resposta. Só é renderizado quando a action nasceu de um form.
+export function GeneratedFromFormField({
+  formResponse,
+}: GeneratedFromFormFieldProps) {
+  const form = formResponse.form;
+  if (!form) return null;
+
+  return (
+    <SidebarField
+      label="Gerado pelo formulário"
+      icon={<ClipboardListIcon className="size-3" />}
+    >
+      <Link
+        href={`/formulario/${form.id}/${formResponse.id}`}
+        className="group flex items-center gap-2 rounded-md border border-input bg-transparent px-2 py-1.5 transition-colors hover:bg-accent dark:bg-input/30 dark:hover:bg-input/50"
+      >
+        <span className="truncate text-xs font-medium">{form.name}</span>
+        <ArrowUpRightIcon className="ml-auto size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
+      </Link>
+    </SidebarField>
+  );
+}
