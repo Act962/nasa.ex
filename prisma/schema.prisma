@@ -2005,6 +2005,10 @@ model FormSettings {
   whatsappMessage  String? @map("whatsapp_message")
   validateWhatsapp Boolean @default(false) @map("validate_whatsapp")
   generateActionsConfig Json? @map("generate_actions_config")
+  // Retomada de sessão: persiste nome/telefone/respostas (localStorage 24h +
+  // rascunho por telefone no servidor) pra o visitante voltar sem refazer o
+  // step 1. Opt-in (default off) — sem isso o form nunca retoma sessão.
+  resumeSession    Boolean @default(false) @map("resume_session")
 
   tracking Tracking? @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   status   Status?   @relation(fields: [statusId], references: [id], onDelete: SetNull)

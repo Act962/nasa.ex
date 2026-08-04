@@ -73,6 +73,7 @@ const settingsSchema = z.object({
     .optional(),
   whatsappMessage: z.string().optional().nullable(),
   validateWhatsapp: z.boolean().optional(),
+  resumeSession: z.boolean().optional(),
   generateActionsConfig: generateActionsConfigSchema.nullable().optional(),
 });
 

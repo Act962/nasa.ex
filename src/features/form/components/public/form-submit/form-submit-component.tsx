@@ -115,6 +115,10 @@ export function FormSubmitComponent({
   const backgroundColor = settings?.backgroundColor ?? undefined;
   const backgroundImage = settings?.backgroundImage ?? undefined;
   const redirectUrl = settings?.redirectUrl ?? undefined;
+  // Opt-in (default off): sem isso o form nunca guarda nem retoma sessão.
+  const resumeSession =
+    (settings as { resumeSession?: boolean } | null | undefined)
+      ?.resumeSession ?? false;
 
   const isEditMode = !!onSubmitOverride;
   const showLeadFields =
@@ -137,6 +141,7 @@ export function FormSubmitComponent({
     formId: id,
     initialResponseValues,
     showLeadFields,
+    resumeEnabled: resumeSession,
     formValsRef: formVals,
     leadInfo,
     selectedCountryDdi: selectedCountry.ddi,
@@ -156,7 +161,7 @@ export function FormSubmitComponent({
   const autoResumedRef = useRef(false);
   useEffect(() => {
     if (autoResumedRef.current) return;
-    if (initialResponseValues || !showLeadFields) return;
+    if (initialResponseValues || !showLeadFields || !resumeSession) return;
     const session = draft.pendingLocalDraftRef.current;
     if (!session?.contact) return;
     autoResumedRef.current = true;
@@ -461,7 +466,7 @@ export function FormSubmitComponent({
       }
     }
 
-    if (showPhone && leadInfo.phone.trim() && !onSubmitOverride) {
+    if (resumeSession && showPhone && leadInfo.phone.trim() && !onSubmitOverride) {
       setResumeLoading(true);
       try {
         const phoneNormalized = normalizePhone(`${selectedCountry.ddi} ${leadInfo.phone}`);
