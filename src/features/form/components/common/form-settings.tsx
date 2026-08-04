@@ -222,6 +222,31 @@ export function FormSettings() {
               }
             />
           </div>
+
+          {/* Retomada de sessão: o visitante volta (mesmo dispositivo, 24h) sem
+              refazer o step de identificação. Só faz sentido com identificação
+              exigida. */}
+          <div className="flex items-start justify-between gap-3 pt-1">
+            <div className="flex flex-col">
+              <span className="text-sm">Retomar sessão</span>
+              <span className="text-xs text-muted-foreground">
+                {settings.needLogin
+                  ? "Guarda nome/telefone e respostas por 24h para o visitante voltar sem refazer o step 1."
+                  : "Ative “Exigir identificação” para usar a retomada de sessão."}
+              </span>
+            </div>
+            <Switch
+              checked={
+                (settings as { resumeSession?: boolean }).resumeSession ?? false
+              }
+              disabled={!settings.needLogin}
+              onCheckedChange={(checked) =>
+                updateSettings({
+                  resumeSession: checked,
+                } as unknown as Partial<FormSettings>)
+              }
+            />
+          </div>
         </div>
       </section>
 

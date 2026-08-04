@@ -119,6 +119,9 @@ export function useFormAutosave() {
               validateWhatsapp: ((currentSettings as unknown) as {
                 validateWhatsapp?: boolean;
               }).validateWhatsapp,
+              resumeSession: ((currentSettings as unknown) as {
+                resumeSession?: boolean;
+              }).resumeSession,
               stepMode:
                 ((currentSettings as unknown) as { stepMode?: string })
                   .stepMode || "off",

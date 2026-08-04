@@ -24,6 +24,8 @@ type UseFormDraftParams = {
   formId: string;
   initialResponseValues?: Record<string, FieldValue>;
   showLeadFields: boolean;
+  /** Toggle `resumeSession` do form. Off = nunca persiste nem restaura sessão. */
+  resumeEnabled: boolean;
   formValsRef: React.RefObject<Record<string, FieldValue>>;
   leadInfo: { name: string; phone: string; email: string };
   selectedCountryDdi: string;
@@ -35,6 +37,7 @@ export function useFormDraft({
   formId,
   initialResponseValues,
   showLeadFields,
+  resumeEnabled,
   formValsRef,
   leadInfo,
   selectedCountryDdi,
@@ -43,6 +46,11 @@ export function useFormDraft({
 }: UseFormDraftParams) {
   const responseIdStorageKey = `nasa.form.draft.${formId}`;
   const localStorageDraftKey = `nasa.form.ls.${formId}`;
+
+  // Sem lead fields não há identidade pra validar no restore; com a retomada
+  // desligada o form nunca guarda sessão. Ambos os casos: não persiste, não
+  // restaura, e limpa qualquer rascunho legado na montagem.
+  const persistDrafts = showLeadFields && resumeEnabled;
 
   const responseIdRef = useRef<string | null>(
     typeof window !== "undefined" && !initialResponseValues
@@ -55,8 +63,7 @@ export function useFormDraft({
   const saveDraftToLocalStorage = () => {
     if (typeof window === "undefined") return;
     if (initialResponseValues) return;
-    // Sem etapa de lead não há telefone/e-mail pra validar identidade no restore — nunca persiste.
-    if (!showLeadFields) return;
+    if (!persistDrafts) return;
     try {
       localStorage.setItem(
         localStorageDraftKey,
@@ -110,8 +117,8 @@ export function useFormDraft({
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (initialResponseValues) return;
-    if (!showLeadFields) {
-      // Sem telefone/e-mail pra validar identidade: nunca restaura — e descarta
+    if (!persistDrafts) {
+      // Retomada desligada (ou sem lead fields): nunca restaura — e descarta
       // qualquer rascunho legado salvo antes dessa trava existir.
       try {
         localStorage.removeItem(localStorageDraftKey);

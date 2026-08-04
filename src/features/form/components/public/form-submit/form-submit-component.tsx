@@ -100,6 +100,10 @@ export function FormSubmitComponent({
   );
   const savingPartialRef = useRef(false);
   const dbSaveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Após o submit, nenhum autosave atrasado pode regravar o rascunho por cima
+  // do tombstone "já enviado" — senão o resume ressuscita uma resposta já
+  // finalizada e o próximo submit manda um responseId obsoleto.
+  const submittedRef = useRef(false);
   const sessionKeyRef = useRef<string>(`form-${id}-${Date.now()}`);
 
   const showName = settings?.showName ?? true;
@@ -111,6 +115,10 @@ export function FormSubmitComponent({
   const backgroundColor = settings?.backgroundColor ?? undefined;
   const backgroundImage = settings?.backgroundImage ?? undefined;
   const redirectUrl = settings?.redirectUrl ?? undefined;
+  // Opt-in (default off): sem isso o form nunca guarda nem retoma sessão.
+  const resumeSession =
+    (settings as { resumeSession?: boolean } | null | undefined)
+      ?.resumeSession ?? false;
 
   const isEditMode = !!onSubmitOverride;
   const showLeadFields =
@@ -133,6 +141,7 @@ export function FormSubmitComponent({
     formId: id,
     initialResponseValues,
     showLeadFields,
+    resumeEnabled: resumeSession,
     formValsRef: formVals,
     leadInfo,
     selectedCountryDdi: selectedCountry.ddi,
@@ -152,7 +161,7 @@ export function FormSubmitComponent({
   const autoResumedRef = useRef(false);
   useEffect(() => {
     if (autoResumedRef.current) return;
-    if (initialResponseValues || !showLeadFields) return;
+    if (initialResponseValues || !showLeadFields || !resumeSession) return;
     const session = draft.pendingLocalDraftRef.current;
     if (!session?.contact) return;
     autoResumedRef.current = true;
@@ -292,6 +301,7 @@ export function FormSubmitComponent({
   };
 
   const persistPartial = async () => {
+    if (submittedRef.current) return;
     if (onSubmitOverride && !onPartialSave) return;
     if (dbSaveDebounceRef.current) {
       clearTimeout(dbSaveDebounceRef.current);
@@ -352,6 +362,7 @@ export function FormSubmitComponent({
         return updated;
       });
     }
+    if (submittedRef.current) return;
     draft.saveDraftToLocalStorage();
     if (dbSaveDebounceRef.current) clearTimeout(dbSaveDebounceRef.current);
     dbSaveDebounceRef.current = setTimeout(() => {
@@ -404,6 +415,11 @@ export function FormSubmitComponent({
       },
       {
         onSuccess: () => {
+          submittedRef.current = true;
+          if (dbSaveDebounceRef.current) {
+            clearTimeout(dbSaveDebounceRef.current);
+            dbSaveDebounceRef.current = null;
+          }
           setSubmitted(true);
           draft.markDraftAsSubmitted();
           draft.clearSessionDraft();
@@ -450,7 +466,7 @@ export function FormSubmitComponent({
       }
     }
 
-    if (showPhone && leadInfo.phone.trim() && !onSubmitOverride) {
+    if (resumeSession && showPhone && leadInfo.phone.trim() && !onSubmitOverride) {
       setResumeLoading(true);
       try {
         const phoneNormalized = normalizePhone(`${selectedCountry.ddi} ${leadInfo.phone}`);

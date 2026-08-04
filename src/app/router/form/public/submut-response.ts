@@ -68,6 +68,47 @@ export const submitResponse = base
         nextActionTagId,
         responseId: finalizingResponseId,
       } = input;
+
+      // A retomada de sessão (localStorage, 24h) pode reenviar o responseId de
+      // uma resposta JÁ finalizada — ou é um retry cujo ack se perdeu. Nenhum
+      // dos dois é erro: a submissão já foi processada. Responde idempotente
+      // com o mesmo lead, sem reprocessar efeitos nem duplicar a resposta.
+      if (finalizingResponseId) {
+        const alreadySubmitted = await prisma.formResponses.findFirst({
+          where: {
+            id: finalizingResponseId,
+            formId: id,
+            completedAt: { not: null },
+          },
+          select: {
+            lead: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                publicToken: true,
+              },
+            },
+          },
+        });
+        if (alreadySubmitted) {
+          return {
+            id,
+            message: "Response already submitted",
+            lead: alreadySubmitted.lead
+              ? {
+                  id: alreadySubmitted.lead.id,
+                  name: alreadySubmitted.lead.name,
+                  email: alreadySubmitted.lead.email,
+                  phone: alreadySubmitted.lead.phone,
+                  publicToken: alreadySubmitted.lead.publicToken,
+                }
+              : null,
+          };
+        }
+      }
+
       const tagIds: string[] = Object.values(JSON.parse(response))
         .map((field: any) => field?.meta?.tagId)
         .filter((tagId): tagId is string => Boolean(tagId));
@@ -195,19 +236,19 @@ export const submitResponse = base
           });
         };
 
-        if (finalizingResponseId) {
-          // completedAt: null evita reexecutar a finalização inteira (e
-          // duplicar efeitos não-idempotentes — WhatsApp, eventos de
-          // jornada, alertas) quando o client reenvia o mesmo
-          // finalizingResponseId num retry fantasma (ack do submit
-          // anterior se perdeu, mas o servidor já tinha processado).
-          const draft = await tx.formResponses.findFirst({
-            where: { id: finalizingResponseId, formId: id, completedAt: null },
-            select: { id: true, leadId: true },
-          });
-          if (!draft) {
-            throw errors.NOT_FOUND({ message: "Draft não encontrado" });
-          }
+        // Draft finalizável: existe, é deste form e ainda não foi concluído.
+        // Um responseId obsoleto (resposta deletada ou de outro form) NÃO
+        // derruba o submit — cai no fluxo de submissão nova. O retry de uma
+        // resposta já concluída foi tratado de forma idempotente antes da tx.
+        const draft = finalizingResponseId
+          ? await tx.formResponses.findFirst({
+              where: { id: finalizingResponseId, formId: id, completedAt: null },
+              select: { id: true, leadId: true },
+            })
+          : null;
+        const finalizeDraftId = draft?.id ?? null;
+
+        if (draft) {
           if (draft.leadId) {
             const draftLead = await tx.lead.findUnique({
               where: { id: draft.leadId },
@@ -347,9 +388,9 @@ export const submitResponse = base
           organizationId: string;
           formSubmissions: { id: string; label: string | null }[];
         };
-        if (finalizingResponseId) {
+        if (finalizeDraftId) {
           await tx.formResponses.update({
-            where: { id: finalizingResponseId },
+            where: { id: finalizeDraftId },
             data: {
               jsonResponse: response,
               label: autoLabel,
@@ -369,7 +410,7 @@ export const submitResponse = base
             userId: formAfter?.userId ?? "",
             organizationId: formAfter?.organizationId ?? "",
             formSubmissions: [
-              { id: finalizingResponseId, label: autoLabel ?? null },
+              { id: finalizeDraftId, label: autoLabel ?? null },
             ],
           };
         } else {
@@ -407,7 +448,7 @@ export const submitResponse = base
         // Captura o id da resposta desta submissão (draft finalizado usa o
         // próprio id; nova submissão usa a linha recém-criada) + seu lead.
         submittedResponseId =
-          finalizingResponseId ?? updatedForm.formSubmissions?.[0]?.id ?? null;
+          finalizeDraftId ?? updatedForm.formSubmissions?.[0]?.id ?? null;
         submittedResponseLeadId = leadId;
 
         if (leadId) {
@@ -688,7 +729,19 @@ export const submitResponse = base
           : null,
       };
     } catch (error) {
-      console.log(error);
+      // Erros oRPC definidos (form inexistente/despublicado → NOT_FOUND, etc.)
+      // devem propagar com o status certo, não virar 500. Só o inesperado vira
+      // INTERNAL_SERVER_ERROR. Mesmo tratamento do save-partial-response.
+      const code = (error as { code?: string } | null)?.code;
+      if (
+        code === "NOT_FOUND" ||
+        code === "BAD_REQUEST" ||
+        code === "FORBIDDEN" ||
+        code === "UNAUTHORIZED"
+      ) {
+        throw error;
+      }
+      console.error("[form/submitResponse]", error);
       throw errors.INTERNAL_SERVER_ERROR();
     }
   });
