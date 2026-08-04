@@ -100,6 +100,10 @@ export function FormSubmitComponent({
   );
   const savingPartialRef = useRef(false);
   const dbSaveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Após o submit, nenhum autosave atrasado pode regravar o rascunho por cima
+  // do tombstone "já enviado" — senão o resume ressuscita uma resposta já
+  // finalizada e o próximo submit manda um responseId obsoleto.
+  const submittedRef = useRef(false);
   const sessionKeyRef = useRef<string>(`form-${id}-${Date.now()}`);
 
   const showName = settings?.showName ?? true;
@@ -292,6 +296,7 @@ export function FormSubmitComponent({
   };
 
   const persistPartial = async () => {
+    if (submittedRef.current) return;
     if (onSubmitOverride && !onPartialSave) return;
     if (dbSaveDebounceRef.current) {
       clearTimeout(dbSaveDebounceRef.current);
@@ -352,6 +357,7 @@ export function FormSubmitComponent({
         return updated;
       });
     }
+    if (submittedRef.current) return;
     draft.saveDraftToLocalStorage();
     if (dbSaveDebounceRef.current) clearTimeout(dbSaveDebounceRef.current);
     dbSaveDebounceRef.current = setTimeout(() => {
@@ -404,6 +410,11 @@ export function FormSubmitComponent({
       },
       {
         onSuccess: () => {
+          submittedRef.current = true;
+          if (dbSaveDebounceRef.current) {
+            clearTimeout(dbSaveDebounceRef.current);
+            dbSaveDebounceRef.current = null;
+          }
           setSubmitted(true);
           draft.markDraftAsSubmitted();
           draft.clearSessionDraft();
