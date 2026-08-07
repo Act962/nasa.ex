@@ -5,7 +5,10 @@ import z from "zod";
 import { inngest } from "@/inngest/client";
 import type { WhatsappChat } from "@/features/form/types";
 import { awardPoints } from "@/app/router/space-point/utils";
-import { trackLeadEvent } from "@/lib/lead-journey/track";
+import {
+  trackLeadEvent,
+  type TrackLeadEventInput,
+} from "@/lib/lead-journey/track";
 import {
   trackingParamsSchema,
   shouldLogUtmLanding,
@@ -119,6 +122,12 @@ export const submitResponse = base
       let outLeadPublicToken: string | null = null;
 
       const pendingLeadEvents: RecordLeadEventInput[] = [];
+      // Eventos de jornada coletados DENTRO da tx e gravados só APÓS o commit.
+      // `trackLeadEvent` usa o cliente Prisma global — outra conexão. Chamado
+      // aqui dentro, o INSERT valida a FK contra a linha de `leads` que esta tx
+      // acabou de travar: a tx espera o insert, o insert espera a tx. Espera
+      // circular que só o timeout de 5s desfaz, devolvendo 500 ao usuário.
+      const pendingJourneyEvents: TrackLeadEventInput[] = [];
       // Mod 2: lead reposicionado (movido de coluna ou realocado de tracking)
       // ao submeter — publicado no realtime + alerta APÓS o commit.
       let movedLeadForBoard: MovedLeadForBoard | null = null;
@@ -200,7 +209,7 @@ export const submitResponse = base
 
         // Mod 2: quando o lead é movido/realocado pro tracking/coluna do form,
         // coleta os efeitos de board/jornada/alerta pra disparar pós-commit.
-        const collectPlacementSideEffects = async (placement: PlaceLeadResult) => {
+        const collectPlacementSideEffects = (placement: PlaceLeadResult) => {
           if (placement.outcome !== "moved" && placement.outcome !== "relocated") {
             return;
           }
@@ -225,7 +234,7 @@ export const submitResponse = base
             previousStatusId: fromStatusId,
             newStatusId: placement.to.statusId,
           });
-          await trackLeadEvent({
+          pendingJourneyEvents.push({
             leadId: placement.lead.id,
             kind: "status_changed",
             metadata: {
@@ -280,7 +289,7 @@ export const submitResponse = base
                   skipDuplicates: true,
                 });
               }
-              await trackLeadEvent({
+              pendingJourneyEvents.push({
                 leadId,
                 kind: "form_submit",
                 metadata: { formId: id, finalized: true },
@@ -295,7 +304,7 @@ export const submitResponse = base
                   trackingId,
                   statusId,
                 );
-                if (placement) await collectPlacementSideEffects(placement);
+                if (placement) collectPlacementSideEffects(placement);
               }
             }
           }
@@ -329,7 +338,7 @@ export const submitResponse = base
             });
           }
 
-          await trackLeadEvent({
+          pendingJourneyEvents.push({
             leadId: placement.lead.id,
             kind: "form_submit",
             metadata: { formId: id, returning: placement.outcome !== "created" },
@@ -342,7 +351,7 @@ export const submitResponse = base
               statusId,
             };
             if (shouldLogUtmLanding(trackingParams)) {
-              await trackLeadEvent({
+              pendingJourneyEvents.push({
                 leadId: placement.lead.id,
                 kind: "utm_landing",
                 metadata: {
@@ -356,19 +365,8 @@ export const submitResponse = base
                 },
               });
             }
-
-            await fetch(
-              `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${trackingId}&leadId=${placement.lead.id}`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ trackingId }),
-              },
-            );
           } else {
-            await collectPlacementSideEffects(placement);
+            collectPlacementSideEffects(placement);
           }
         }
 
@@ -537,10 +535,38 @@ export const submitResponse = base
         await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
       }
 
+      // Jornada do lead: gravada só agora, com a tx commitada e as linhas de
+      // `leads` visíveis pra outras conexões. Dentro da tx, o lead recém-criado
+      // ainda não existia pro cliente global e o INSERT morria em violação de
+      // FK — silenciosamente, porque trackLeadEvent nunca repropaga.
+      if (pendingJourneyEvents.length > 0) {
+        await Promise.all(pendingJourneyEvents.map((event) => trackLeadEvent(event)));
+      }
+
       // Realtime do board: lead novo entrou no tracking → board refetcha a
       // coluna e o card aparece ao vivo. Best-effort (helper isola erro).
       if (createdLeadForBoard) {
         await publishLeadCreated({ ...createdLeadForBoard, source: "form" });
+
+        // Workflow de lead novo: I/O de rede, portanto sempre pós-commit. Antes
+        // rodava dentro da tx, segurando a transação aberta pelo tempo de uma
+        // request HTTP. Best-effort: falhar aqui não invalida a submissão.
+        try {
+          const { leadId: newLeadId, trackingId: newLeadTrackingId } =
+            createdLeadForBoard;
+          await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${newLeadTrackingId}&leadId=${newLeadId}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ trackingId: newLeadTrackingId }),
+            },
+          );
+        } catch (workflowErr) {
+          console.error("[form/submit] workflow lead/new falhou:", workflowErr);
+        }
       }
 
       // Mod 2: lead movido/realocado pro tracking/coluna do form → atualiza o

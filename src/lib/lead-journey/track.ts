@@ -47,11 +47,14 @@ export async function trackLeadEvent(input: TrackLeadEventInput) {
     });
   } catch (err) {
     // Logamos mas NÃO repropagamos. Falha no tracking não pode quebrar webhook/UX.
-    console.error("[trackLeadEvent] failed", {
-      leadId: input.leadId,
-      kind: input.kind,
-      err: err instanceof Error ? err.message : String(err),
-    });
+    // Contexto vai interpolado na mensagem: como objeto, o logger do Next serializa
+    // como `{}` e o erro fica invisível — foi assim que uma violação de FK passou
+    // despercebida, com eventos de jornada sumindo em silêncio.
+    console.error(
+      `[trackLeadEvent] failed lead=${input.leadId} kind=${input.kind}: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
     return null;
   }
 }
