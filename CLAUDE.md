@@ -204,6 +204,21 @@ src/features/<dominio>/
 
     Objetivo: nenhum campo novo pode voltar a poluir o board sem o usuário poder desligá-lo. Ver [`src/features/trackings/README.md`](src/features/trackings/README.md) para o fluxo completo.
 
+17. **Spec Driven Development (OBRIGATÓRIO para mudanças relevantes)** — antes de implementar feature nova, mudança de schema ou bug que introduza caminho condicional sobre dados de produção, escreva a spec em `specs/<dominio>/` a partir de [`specs/TEMPLATE.md`](specs/TEMPLATE.md) e tenha-a revisada **antes** do código. Ver [`specs/README.md`](specs/README.md) para o fluxo, os dois pesos de spec (leve/completa) e a lista do que NÃO exige spec (typo, refactor sem mudança de comportamento, bump de dependência).
+
+    **Teste decisivo**: a mudança cria um novo "depende de" sobre dados que já existem em produção? Se sim, escreva a spec — é exatamente esse tipo de mudança que gerou o 500 do submit de formulário (ver [`specs/form/0001-form-submit-lead-placement.md`](specs/form/0001-form-submit-lead-placement.md)).
+
+    Regras de manutenção: cada critério de aceite (`CA-n`) vira ao menos um teste que cita o id no nome; divergiu da spec durante a implementação, **atualize a spec no mesmo PR** e registre no changelog dela. Spec desatualizada é pior que spec nenhuma — mente com autoridade.
+
+18. **Transações Prisma contêm apenas escritas de banco (OBRIGATÓRIO)** — dentro de `prisma.$transaction(async (tx) => ...)` é proibido:
+
+    - Chamar helper que usa o **cliente Prisma global** em vez do `tx` (ex.: `trackLeadEvent`, `recordLeadEvent`, `logActivity`). Rodando em outra conexão, uma query que toque linha travada pela própria transação espera por ela — que por sua vez espera a query. Espera circular resolvida só pelo timeout de 5s, virando **500**.
+    - Fazer I/O de rede: `fetch`, Pusher, Inngest, envio de e-mail.
+
+    **Padrão correto**: colete os efeitos numa lista dentro da tx (`pendingLeadEvents`, `pendingJourneyEvents`) e execute **após o commit**, best-effort — falha em efeito colateral não pode invalidar a submissão já persistida. Ver `src/app/router/form/public/submut-response.ts` como referência.
+
+    Esse bug já custou dois PRs de correção que miravam a causa errada. Ao mexer em qualquer procedure com `$transaction`, confira essa regra antes de commitar.
+
 ## Obsidian
 
 Vault: `NASA Agents` em `/Users/weydsonlima/Documents/NASA Agents/`
