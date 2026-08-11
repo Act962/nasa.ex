@@ -84,6 +84,7 @@ export interface DashboardSettings {
     byChannel: boolean;
     byAttendant: boolean;
     topTags: boolean;
+    statusConversion: boolean;
   };
   chartTypes: {
     byStatus: ChartType;

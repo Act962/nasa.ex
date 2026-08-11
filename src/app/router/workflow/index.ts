@@ -1,6 +1,7 @@
 import { createWorkflow } from "./create";
 import { createWorkflowFromBlueprintProc } from "./create-from-blueprint";
 import { deleteWorkflow } from "./delete";
+import { duplicateWorkflow } from "./duplicate";
 import { executeWorkflow } from "./execute";
 import { getWorkflow } from "./get";
 import { listWorkflows } from "./list";
@@ -19,6 +20,7 @@ export const workflowRoutes = {
    * blueprint estruturado. Usado pela tool IA `generate_workflow_from_intent`.
    */
   createFromBlueprint: createWorkflowFromBlueprintProc,
+  duplicate: duplicateWorkflow,
   list: listWorkflows,
   delete: deleteWorkflow,
   getOne: getWorkflow,
