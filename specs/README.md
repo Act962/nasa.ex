@@ -80,6 +80,17 @@ Escrever spec para isto é teatro de processo — não faça:
 existem em produção?_ Se sim, escreva a spec — foi exatamente esse tipo de
 mudança que gerou o 500 do submit.
 
+### Specs de baseline
+
+Domínio grande e antigo demais para caber numa spec de mudança ganha uma spec
+de **baseline**: ela não descreve uma alteração, descreve o **estado atual**
+(mapa, invariantes, casos de borda já conhecidos) e serve de leitura
+obrigatória antes de mexer ali. Nasce com `status: implementada`.
+
+Baseline é **atualizada**, não substituída: a spec da mudança cita o número da
+baseline e registra no changelog dela o que passou a divergir. A primeira é a
+[0003](tracking-chat/0003-tracking-chat-baseline.md), do `tracking-chat`.
+
 ---
 
 ## O fluxo
@@ -153,6 +164,8 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | --- | --- | --- | --- |
 | [0001](form/0001-form-submit-lead-placement.md) | form | Posicionamento de lead no submit público de formulário | em-revisao |
 | [0002](form/0002-formularios-com-escopo-de-action.md) | form | Formulários e respostas com escopo de Action | em-revisao |
+| [0003](tracking-chat/0003-tracking-chat-baseline.md) | tracking-chat | Baseline do Tracking Chat — contrato do domínio | implementada |
+| [0004](tracking-chat/0004-video-por-script.md) | tracking-chat | Envio de vídeo pelo chat via anexo em Script | implementada |
 
 ---
 
