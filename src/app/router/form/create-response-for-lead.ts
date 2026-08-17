@@ -170,6 +170,10 @@ export const createResponseForLead = base
           label: autoLabel,
           labelManuallyEdited: false,
           actionId: resolvedActionId,
+          // Autoria (spec 0005). Imutável depois: editar não reivindica
+          // autoria (D-3).
+          createdById: userId,
+          authorKind: "USER",
         },
         select: {
           id: true,

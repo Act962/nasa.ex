@@ -302,6 +302,9 @@ export function FormSubmitComponent({
 
   const persistPartial = async () => {
     if (submittedRef.current) return;
+    // Sem permissão de edição, navegar entre etapas não pode gerar requisição
+    // nenhuma — o servidor devolveria 403 a cada "Próximo" (spec 0005, RF-11).
+    if (readOnly) return;
     if (onSubmitOverride && !onPartialSave) return;
     if (dbSaveDebounceRef.current) {
       clearTimeout(dbSaveDebounceRef.current);
@@ -648,6 +651,7 @@ export function FormSubmitComponent({
                         onSubmit={handleSubmit}
                         submitLabel={submitLabel}
                         onStepAdvance={persistPartial}
+                        readOnly={readOnly}
                       />
                     )}
                   </div>

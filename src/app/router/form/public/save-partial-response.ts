@@ -200,6 +200,8 @@ export const savePartialResponse = base
             ...(leadId && { leadId }),
             label: autoLabel,
             labelManuallyEdited: false,
+            // Rascunho público — preenchido pelo lead (spec 0005, D-2).
+            authorKind: "LEAD",
           },
           select: { id: true, leadId: true },
         });

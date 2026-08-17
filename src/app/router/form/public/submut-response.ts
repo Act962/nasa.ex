@@ -424,6 +424,9 @@ export const submitResponse = base
                   ...(leadId && { leadId }),
                   label: autoLabel,
                   completedAt: new Date(),
+                  // Submit público: quem preencheu foi o próprio lead, não um
+                  // usuário da org. Sem autor, mas atribuível (spec 0005, D-2).
+                  authorKind: "LEAD",
                 },
               },
               responses: {

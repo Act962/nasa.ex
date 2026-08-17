@@ -50,6 +50,9 @@ export const useQueryFormById = ({ formId }: UseFormByIdOptions) => {
   return {
     form: data?.form,
     message: data?.message,
+    // Spec 0005, D-13 — só gestores alteram a política de edição. Vem do
+    // servidor; a UI não re-deriva papel (RF-12).
+    canEditPolicy: data?.canEditPolicy ?? false,
     isLoading,
   };
 };
@@ -194,6 +197,12 @@ export const useQueryFormResponseById = (id: string) => {
   );
   return {
     response: data?.response,
+    // Permissão de edição vem resolvida do servidor (spec 0005, RF-12) — o
+    // cliente nunca re-deriva a regra. Ausente = ainda carregando; tratamos
+    // como não-editável pra não piscar o formulário habilitado.
+    canEdit: data?.canEdit ?? false,
+    editBlockedReason: data?.editBlockedReason ?? null,
+    createdBy: data?.createdBy ?? null,
     isLoading,
     isError,
     error,
