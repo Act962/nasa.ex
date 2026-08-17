@@ -4948,6 +4948,17 @@ model Script {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
+  // ── Vídeo anexado (spec 0004) ────────────────────────────────────────
+  // Relação 1:1 opcional — o vídeo sobe uma vez e é reenviado por URL a
+  // cada uso, mantendo o storage em O(scripts com vídeo) em vez de
+  // O(envios). Todas nullable: script sem vídeo é o caso da maioria.
+  // `videoKey` é a key no R2 sob `videos/scripts/`; excluir ou trocar o
+  // vídeo apaga o objeto anterior.
+  videoKey       String? @map("video_key")
+  videoMimetype  String? @map("video_mimetype")
+  videoFileName  String? @map("video_file_name")
+  videoSizeBytes Int?    @map("video_size_bytes")
+
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
 
   @@index([trackingId])

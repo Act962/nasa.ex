@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { FileMessageBox } from "./file-message-box";
 import { AudioMessageBox } from "./audio-message-box";
+import { VideoMessageBox } from "./video-message-box";
 import { LocationMessageBox } from "./location-message-box";
 import { ContactMessageBox } from "./contact-message-box";
 import { PendingMediaNotice } from "./pending-media-notice";
@@ -275,47 +276,40 @@ export function MessageBox({
                   //
                   // Resultado: ao trocar Claro/Escuro, default segue tema;
                   // quando custom, texto se adapta à luminância da bolha.
-                  "relative text-sm w-fit max-w-[min(85vw,520px)] space-y-1 rounded-lg px-2 py-1 shadow-sm",
+                  "relative text-sm w-fit max-w-[min(85vw,520px)] space-y-1 rounded-lg shadow-sm",
                   isOwn ? "rounded-tr-none" : "rounded-tl-none",
-                  // Mídia (foto/file/etc): sem fundo de bolha + sem rabinho
-                  isFile &&
-                    "bg-transparent dark:bg-transparent shadow-none px-0 py-0",
+                  // Mídia mantém a bolha — sem ela a legenda e o horário
+                  // ficam soltos sobre o papel de parede do chat. Só o
+                  // padding encolhe, pra virar a moldura fina do WhatsApp.
+                  isFile ? "p-[3px]" : "px-2 py-1",
                 )}
-                style={
-                  isFile
-                    ? undefined
-                    : {
-                        background: isOwn
-                          ? "var(--chat-own-bg, var(--chat-own-bg-default, #d9fdd3))"
-                          : "var(--chat-their-bg, var(--chat-their-bg-default, #ffffff))",
-                        color: isOwn
-                          ? "var(--chat-own-text, var(--chat-own-text-default, #18181b))"
-                          : "var(--chat-their-text, var(--chat-their-text-default, #18181b))",
-                      }
-                }
+                style={{
+                  background: isOwn
+                    ? "var(--chat-own-bg, var(--chat-own-bg-default, #d9fdd3))"
+                    : "var(--chat-their-bg, var(--chat-their-bg-default, #ffffff))",
+                  color: isOwn
+                    ? "var(--chat-own-text, var(--chat-own-text-default, #18181b))"
+                    : "var(--chat-their-text, var(--chat-their-text-default, #18181b))",
+                }}
               >
                 {/* Rabinho da bolha (triângulo via border CSS).
                     - fromMe → topo-direito apontando pra direita
-                    - recebida → topo-esquerdo apontando pra esquerda
-                    Escondido em mídia (`isFile`) — visualmente o card de
-                    mídia já delimita sozinho. */}
-                {!isFile && (
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "absolute top-0 w-0 h-0 pointer-events-none",
-                      isOwn
-                        ? "right-[-8px] border-r-[8px] border-r-transparent"
-                        : "left-[-8px] border-l-[8px] border-l-transparent",
-                    )}
-                    style={{
-                      borderTopWidth: 8,
-                      borderTopColor: isOwn
-                        ? "var(--chat-own-bg, var(--chat-own-bg-default, #d9fdd3))"
-                        : "var(--chat-their-bg, var(--chat-their-bg-default, #ffffff))",
-                    }}
-                  />
-                )}
+                    - recebida → topo-esquerdo apontando pra esquerda */}
+                <span
+                  aria-hidden
+                  className={cn(
+                    "absolute top-0 w-0 h-0 pointer-events-none",
+                    isOwn
+                      ? "right-[-8px] border-r-[8px] border-r-transparent"
+                      : "left-[-8px] border-l-[8px] border-l-transparent",
+                  )}
+                  style={{
+                    borderTopWidth: 8,
+                    borderTopColor: isOwn
+                      ? "var(--chat-own-bg, var(--chat-own-bg-default, #d9fdd3))"
+                      : "var(--chat-their-bg, var(--chat-their-bg-default, #ffffff))",
+                  }}
+                />
                 {/* Sender name em mensagens RECEBIDAS de GRUPOS — estilo
                     WhatsApp Web. Cor única por participante (hash do
                     senderId/senderName) pra ficar fácil distinguir quem
@@ -354,7 +348,9 @@ export function MessageBox({
                     soft delete já limparam os campos, mas mantemos guard
                     explícito pra evitar regressão se um campo escapar. */}
                 {!isDeleted && (
-                  <div className="relative w-fit py-1">
+                  <div
+                    className={cn("relative w-fit", isFile ? "py-0" : "py-1")}
+                  >
                     {isCall && callPayload && (
                       <CallMessageBox payload={callPayload} fromMe={isOwn} />
                     )}
@@ -383,7 +379,7 @@ export function MessageBox({
                           <Image
                             alt="Image"
                             src={useConstructUrl(message.mediaUrl)}
-                            className="object-contain cursor-pointer max-h-50 hover:opacity-90 transition-opacity"
+                            className="object-contain cursor-pointer max-h-50 rounded-md hover:opacity-90 transition-opacity"
                             width={288}
                             height={288}
                             onClick={() => setShowImageViewer(true)}
@@ -428,8 +424,19 @@ export function MessageBox({
                           mimetype={message.mimetype}
                         />
                       )}
+                    {message.mediaUrl &&
+                      message.mimetype?.startsWith("video") && (
+                        <VideoMessageBox
+                          mediaUrl={message.mediaUrl}
+                          fileName={message.fileName}
+                        />
+                      )}
                     {!isLocation && !isContact && !isCall && message.body && (
-                      <BodyMessage message={message} />
+                      // Em mídia a bolha usa moldura de 3px; a legenda
+                      // precisa do respiro lateral que o texto puro já tem.
+                      <div className={cn(isFile && "px-1.5 pt-1")}>
+                        <BodyMessage message={message} />
+                      </div>
                     )}
                   </div>
                 )}
@@ -440,7 +447,10 @@ export function MessageBox({
                     quando user customizou cor da bolha. Mantém legibilidade
                     em qualquer combinação. */}
                 <div
-                  className="flex items-center gap-1 text-[10px] -mt-0.5 justify-end"
+                  className={cn(
+                    "flex items-center gap-1 text-[10px] -mt-0.5 justify-end",
+                    isFile && "px-1.5 pb-0.5",
+                  )}
                   style={{
                     color: isOwn
                       ? "var(--chat-own-muted, var(--chat-own-muted-default, rgba(63,63,70,0.7)))"
