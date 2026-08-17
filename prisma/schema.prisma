@@ -129,6 +129,7 @@ model User {
 
   // Insights — jornada do lead
   leadJourneyEventsActed LeadJourneyEvent[] @relation("LeadJourneyEventActor")
+  formResponsesAuthored  FormResponses[]    @relation("FormResponseAuthor")
 
   // ── ASTRO (Agentes IA) ──
   aiSessions      AiSession[]
@@ -2043,11 +2044,34 @@ model FormSettings {
   // step 1. Opt-in (default off) — sem isso o form nunca retoma sessão.
   resumeSession    Boolean @default(false) @map("resume_session")
 
+  /// Quem pode EDITAR as respostas deste formulário (spec 0005, seção 6.1).
+  /// Default = comportamento histórico: qualquer participante do tracking do
+  /// lead. Nenhum nível concede acesso além do que já é permitido hoje — a
+  /// política só restringe (invariante de monotonicidade, D-15).
+  responseEditPolicy FormResponseEditPolicy @default(TRACKING_PARTICIPANTS) @map("response_edit_policy")
+
   tracking Tracking? @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   status   Status?   @relation(fields: [statusId], references: [id], onDelete: SetNull)
   form     Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
 
   @@map("form_settings")
+}
+
+/// Quem pode editar as respostas de um formulário. Ordenado do mais aberto ao
+/// mais restrito; todo nível é subconjunto do padrão (spec 0005, D-15).
+enum FormResponseEditPolicy {
+  TRACKING_PARTICIPANTS // participantes do tracking atual do lead (padrão = hoje)
+  AUTHOR_ONLY // apenas quem preencheu (gestores sempre passam)
+}
+
+/// Origem de uma resposta. Discrimina os dois motivos distintos de
+/// `createdById` ser NULL — sem isto, resposta pública e legado ficam
+/// indistinguíveis (spec 0005, D-2).
+enum FormResponseAuthorKind {
+  USER // preenchida por usuário logado da org — `createdById` preenchido
+  LEAD // preenchida pelo próprio lead via link público — sem autor-usuário
+  SYSTEM // criada em branco por automação — ninguém preencheu ainda
+  UNKNOWN // legado anterior à instrumentação — conjunto congelado
 }
 
 model FormResponses {
@@ -2078,6 +2102,13 @@ model FormResponses {
   actionId String? @map("action_id")
   action   Action? @relation("ActionFilledResponses", fields: [actionId], references: [id], onDelete: SetNull)
 
+  /// Autoria (spec 0005). `createdById` só é preenchido quando `authorKind`
+  /// é USER. Imutáveis após a criação: editar NÃO reivindica autoria (D-3),
+  /// senão o primeiro a abrir uma resposta pública viraria dono dela.
+  createdById String?                @map("created_by_id")
+  createdBy   User?                  @relation("FormResponseAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  authorKind  FormResponseAuthorKind @default(UNKNOWN) @map("author_kind")
+
   form    Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
   /// Tarefas GERADAS por esta resposta — proveniência, não posse.
   /// Não confundir com `action` acima. Ver spec 0002, decisão D-1.
@@ -2087,6 +2118,7 @@ model FormResponses {
   @@index([actionId])
   @@index([formId])
   @@index([leadId])
+  @@index([createdById])
   @@map("form_responses")
 }
 

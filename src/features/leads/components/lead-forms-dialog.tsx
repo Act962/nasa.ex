@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   Calendar,
   ClipboardListIcon,
+  LockIcon,
   FileText,
   PencilLine,
   UserSearch,
@@ -82,6 +83,10 @@ interface FormResponse {
   /** Tarefa de origem — null = resposta avulsa (spec 0002). */
   actionId?: string | null;
   action?: { id: string; title: string } | null;
+  /** Spec 0005 — resolvido no servidor; a UI não re-deriva a regra. */
+  canEdit?: boolean;
+  editBlockedReason?: string | null;
+  createdBy?: { id: string; name: string; image: string | null } | null;
 }
 
 /** Linha da visão "Respostas": uma resposta + o formulário a que pertence. */
@@ -419,6 +424,14 @@ function ResponsesList({
                   · {row.label}
                 </span>
               ) : null}
+              {/* Somente leitura: abrir continua funcionando, só a edição é
+                  que está bloqueada (spec 0005). */}
+              {row.canEdit === false && (
+                <LockIcon
+                  className="ml-1.5 inline size-3 shrink-0 text-muted-foreground/70 align-[-1px]"
+                  aria-label="Somente leitura"
+                />
+              )}
             </span>
 
             {/* Badge de origem: clicável leva aos formulários daquela tarefa. */}

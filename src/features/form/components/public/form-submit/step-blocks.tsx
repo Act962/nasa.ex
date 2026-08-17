@@ -30,6 +30,8 @@ type StepBlocksProps = {
   onSubmit: () => void;
   submitLabel?: string;
   onStepAdvance?: () => Promise<void> | void;
+  /** Sem permissão de edição: o botão de envio não é renderizado (spec 0005, RF-10). */
+  readOnly?: boolean;
 };
 
 export function StepBlocks({
@@ -47,6 +49,7 @@ export function StepBlocks({
   onSubmit,
   submitLabel,
   onStepAdvance,
+  readOnly,
 }: StepBlocksProps) {
   const stepMode = ((settings as unknown as { stepMode?: string })?.stepMode ??
     "off") as "off" | "auto" | "manual";
@@ -139,16 +142,18 @@ export function StepBlocks({
             />
           );
         })}
-        <SubmitButtons
-          showLeadFields={showLeadFields}
-          isLoading={isLoading}
-          onBack={onBack}
-          onSubmit={onSubmit}
-          textColor={textColor}
-          primaryColor={primaryColor}
-          primaryBtnStyle={primaryBtnStyle}
-          submitLabel={submitLabel}
-        />
+        {!readOnly && (
+          <SubmitButtons
+            showLeadFields={showLeadFields}
+            isLoading={isLoading}
+            onBack={onBack}
+            onSubmit={onSubmit}
+            textColor={textColor}
+            primaryColor={primaryColor}
+            primaryBtnStyle={primaryBtnStyle}
+            submitLabel={submitLabel}
+          />
+        )}
       </>
     );
   }

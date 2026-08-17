@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import z from "zod";
+import { isFormPolicyManager } from "@/features/form/lib/can-edit-response";
 
 const titleTokenSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("field"), blockId: z.string() }),
@@ -77,6 +78,10 @@ const settingsSchema = z.object({
   validateWhatsapp: z.boolean().optional(),
   resumeSession: z.boolean().optional(),
   generateActionsConfig: generateActionsConfigSchema.nullable().optional(),
+  /** Spec 0005 — alterar exige ser gestor (D-13). */
+  responseEditPolicy: z
+    .enum(["TRACKING_PARTICIPANTS", "AUTHOR_ONLY"])
+    .optional(),
 });
 
 type GenerateActionsConfigInput = z.infer<typeof generateActionsConfigSchema>;
@@ -134,8 +139,50 @@ export const updateForm = base
       settings: settingsSchema.optional(),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
     const { id, name, description, jsonBlock, settings } = input;
+    const userId = context.user.id;
+
+    // Antes da spec 0005 este handler não recebia `context`: qualquer usuário
+    // autenticado reescrevia qualquer formulário de qualquer organização
+    // (escrita cross-tenant). RF-0.
+    const existingForm = await prisma.form.findUnique({
+      where: { id },
+      select: {
+        organizationId: true,
+        settings: { select: { trackingId: true } },
+      },
+    });
+    if (!existingForm) {
+      throw errors.NOT_FOUND({ message: "Formulário não encontrado" });
+    }
+
+    const member = await prisma.member.findFirst({
+      where: { organizationId: existingForm.organizationId, userId },
+      select: { role: true },
+    });
+    if (!member) {
+      throw errors.UNAUTHORIZED({
+        message: "Você não tem acesso a este formulário",
+      });
+    }
+
+    // A política de edição de respostas vale o que valer a procedure que a
+    // escreve: sem este gate, quem for bloqueado por `AUTHOR_ONLY` afrouxaria
+    // o próprio bloqueio numa chamada (spec 0005, D-13).
+    if (settings?.responseEditPolicy !== undefined) {
+      const isPolicyManager = await isFormPolicyManager({
+        userId,
+        organizationId: existingForm.organizationId,
+        formTrackingId: existingForm.settings?.trackingId ?? null,
+      });
+      if (!isPolicyManager) {
+        throw errors.FORBIDDEN({
+          message:
+            "Apenas o Master da conta ou o Owner do tracking podem alterar quem edita as respostas.",
+        });
+      }
+    }
 
     // `generateActionsConfig` é um campo Json: sai do spread pra receber o
     // tratamento correto do Prisma (`Prisma.JsonNull` p/ null, cast p/ o resto).
