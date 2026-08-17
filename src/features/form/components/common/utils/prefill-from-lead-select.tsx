@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import type { FormBlockInstance } from "@/features/form/types";
 import type { LeadPrefillSource } from "@/features/form/context/form-prefill-context";
@@ -55,7 +62,8 @@ export function PrefillFromLeadSelect({
   const isDisabled = !needLogin || availableSources.length === 0;
 
   function commit(nextValue: string) {
-    const source = nextValue === NONE_VALUE ? null : (nextValue as LeadPrefillSource);
+    const source =
+      nextValue === NONE_VALUE ? null : (nextValue as LeadPrefillSource);
     updateChildBlock(parentId, blockInstance.id, {
       ...blockInstance,
       attributes: {
@@ -68,25 +76,32 @@ export function PrefillFromLeadSelect({
   return (
     <div className="px-4 pt-1 pb-3">
       <div className="rounded-md border border-foreground/10 bg-foreground/[0.03] p-3 space-y-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[13px] font-medium">
-            Preencher automaticamente com
-          </span>
-          <select
-            value={current ?? NONE_VALUE}
-            disabled={isDisabled}
-            onChange={(event) => commit(event.target.value)}
+        {/* Label acima e select em largura cheia: lado a lado, o rótulo
+            quebrava em três linhas no painel estreito de propriedades. */}
+        <span className="block text-[13px] font-medium">
+          Preencher automaticamente com
+        </span>
+        <Select
+          value={current ?? NONE_VALUE}
+          disabled={isDisabled}
+          onValueChange={commit}
+        >
+          <SelectTrigger
+            size="sm"
+            className="w-full"
             aria-label="Preencher automaticamente com"
-            className="border rounded-md h-7 px-2 text-xs bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <option value={NONE_VALUE}>Não preencher</option>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NONE_VALUE}>Não preencher</SelectItem>
             {availableSources.map((source) => (
-              <option key={source} value={source}>
+              <SelectItem key={source} value={source}>
                 {SOURCE_LABEL[source]}
-              </option>
+              </SelectItem>
             ))}
-          </select>
-        </div>
+          </SelectContent>
+        </Select>
 
         {isDisabled ? (
           <p className="text-[11px] text-muted-foreground leading-tight">
