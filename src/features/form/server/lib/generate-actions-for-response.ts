@@ -162,6 +162,31 @@ async function resolveTarget(
   };
 }
 
+/**
+ * Pauta da action: o form gerador na posição 0, seguido dos extras da config.
+ * Os extras são relidos do banco porque a config é JSON livre — pode apontar
+ * pra form apagado, despublicado ou de outra org (spec 0002, CB-14).
+ */
+async function resolvePautaFormIds(
+  attachFormIds: string[],
+  form: GenerateActionsInput["form"],
+): Promise<string[]> {
+  const extraIds = attachFormIds.filter((formId) => formId !== form.id);
+  if (extraIds.length === 0) return [form.id];
+
+  const attachableForms = await prisma.form.findMany({
+    where: {
+      id: { in: extraIds },
+      organizationId: form.organizationId,
+      published: true,
+    },
+    select: { id: true },
+  });
+
+  const attachableIds = new Set(attachableForms.map((attachable) => attachable.id));
+  return [form.id, ...extraIds.filter((formId) => attachableIds.has(formId))];
+}
+
 export async function generateActionsForResponse(
   input: GenerateActionsInput,
 ): Promise<GenerateActionsResult> {
@@ -189,6 +214,8 @@ export async function generateActionsForResponse(
     ? Prisma.Decimal.sub(firstAction.order, 1)
     : new Prisma.Decimal(0);
 
+  const pautaFormIds = await resolvePautaFormIds(template.attachFormIds, form);
+
   const action = await prisma.$transaction(async (tx) => {
     const created = await tx.action.create({
       data: {
@@ -205,6 +232,22 @@ export async function generateActionsForResponse(
         formResponseId: formResponse.id,
       },
       select: { id: true },
+    });
+
+    // `updateMany` com guarda `actionId: null` em vez de `update`: se a
+    // resposta já pertencer a outra tarefa, ela NÃO é roubada em silêncio.
+    await tx.formResponses.updateMany({
+      where: { id: formResponse.id, actionId: null },
+      data: { actionId: created.id },
+    });
+
+    await tx.actionForm.createMany({
+      data: pautaFormIds.map((formId, index) => ({
+        actionId: created.id,
+        formId,
+        order: index,
+      })),
+      skipDuplicates: true,
     });
 
     if (formResponse.leadId) {

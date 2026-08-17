@@ -80,8 +80,11 @@ export function ActionSidebar({
         )}
 
         {action?.lead && <LinkedLeadField lead={action.lead} />}
-        {action?.formResponse && (
-          <GeneratedFromFormField formResponse={action.formResponse} />
+        {action?.formResponse && action?.id && (
+          <GeneratedFromFormField
+            actionId={action.id}
+            formResponse={action.formResponse}
+          />
         )}
 
         <OrgProjectField

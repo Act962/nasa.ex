@@ -25,6 +25,8 @@ const actionTemplateSchema = z.object({
     .nullable()
     .default(null),
   dueDate: dueDatePresetSchema.nullable().default(null),
+  /** Formulários extras na pauta da action gerada — ver spec 0002, D-2. */
+  attachFormIds: z.array(z.string()).max(20).default([]),
 });
 
 const generateActionsConfigSchema = z.object({
@@ -77,6 +79,45 @@ const settingsSchema = z.object({
   generateActionsConfig: generateActionsConfigSchema.nullable().optional(),
 });
 
+type GenerateActionsConfigInput = z.infer<typeof generateActionsConfigSchema>;
+
+/**
+ * Descarta ids de `attachFormIds` que não sejam de formulários da mesma
+ * organização do form editado — a pauta não pode cruzar tenants (spec 0002, I3).
+ */
+async function sanitizeAttachFormIds(
+  formId: string,
+  config: GenerateActionsConfigInput,
+): Promise<GenerateActionsConfigInput> {
+  const template = config.template;
+  if (!template || template.attachFormIds.length === 0) return config;
+
+  const editedForm = await prisma.form.findUnique({
+    where: { id: formId },
+    select: { organizationId: true },
+  });
+  if (!editedForm) return config;
+
+  const sameOrgForms = await prisma.form.findMany({
+    where: {
+      id: { in: template.attachFormIds },
+      organizationId: editedForm.organizationId,
+    },
+    select: { id: true },
+  });
+  const allowedIds = new Set(sameOrgForms.map((candidate) => candidate.id));
+
+  return {
+    ...config,
+    template: {
+      ...template,
+      attachFormIds: template.attachFormIds.filter((attachId) =>
+        allowedIds.has(attachId),
+      ),
+    },
+  };
+}
+
 export const updateForm = base
   .use(requiredAuthMiddleware)
   .route({
@@ -100,6 +141,10 @@ export const updateForm = base
     // tratamento correto do Prisma (`Prisma.JsonNull` p/ null, cast p/ o resto).
     const { generateActionsConfig, ...restSettings } = settings ?? {};
 
+    const sanitizedActionsConfig = generateActionsConfig
+      ? await sanitizeAttachFormIds(id, generateActionsConfig)
+      : generateActionsConfig;
+
     const form = await prisma.form.update({
       where: { id },
       data: {
@@ -110,11 +155,11 @@ export const updateForm = base
           settings: {
             update: {
               ...restSettings,
-              ...(generateActionsConfig !== undefined && {
+              ...(sanitizedActionsConfig !== undefined && {
                 generateActionsConfig:
-                  generateActionsConfig === null
+                  sanitizedActionsConfig === null
                     ? Prisma.JsonNull
-                    : (generateActionsConfig as Prisma.InputJsonValue),
+                    : (sanitizedActionsConfig as Prisma.InputJsonValue),
               }),
             },
           },

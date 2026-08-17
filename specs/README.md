@@ -152,21 +152,12 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | # | Domínio | Título | Status |
 | --- | --- | --- | --- |
 | [0001](form/0001-form-submit-lead-placement.md) | form | Posicionamento de lead no submit público de formulário | em-revisao |
+| [0002](form/0002-formularios-com-escopo-de-action.md) | form | Formulários e respostas com escopo de Action | em-revisao |
 
 ---
 
 ## Integração com o CLAUDE.md
 
-O CLAUDE.md é a fonte de verdade das regras do projeto. Para o SDD valer de fato,
-ele precisa de uma entrada lá. Sugestão de item a acrescentar — **ainda não
-aplicado**, aguardando sua aprovação:
-
-```markdown
-17. **Spec Driven Development (OBRIGATÓRIO para mudanças relevantes)** — antes de
-    implementar feature nova, mudança de schema ou bug que introduza caminho
-    condicional sobre dados de produção, escreva a spec em `specs/<dominio>/`
-    a partir de `specs/TEMPLATE.md` e tenha-a revisada. Ver
-    [`specs/README.md`](specs/README.md) para o fluxo, os dois pesos de spec e a
-    lista do que NÃO exige spec. Divergiu da spec ao implementar? Atualize a spec
-    no mesmo PR.
-```
+O CLAUDE.md é a fonte de verdade das regras do projeto, e o SDD já está lá:
+**item 17**, que aponta para este arquivo. Mudou o fluxo aqui? Confira se o item
+17 continua descrevendo a mesma coisa.

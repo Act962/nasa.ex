@@ -40,6 +40,7 @@ model User {
   archivedTags                       Tag[]                        @relation("TagArchiver")
   chatPreferences                    UserChatPreferences?
   forms                              Form[]
+  actionFormsAttached                ActionForm[]                 @relation("ActionFormAttachedBy")
   leadFiles                          LeadFile[]
   insightShares                      InsightShares[]
   savedInsightReports                SavedInsightReport[]
@@ -1294,7 +1295,14 @@ model Action {
   orgProject   OrgProject?      @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
   workspace    Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   column       WorkspaceColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
+  /// Resposta que GEROU esta tarefa (proveniência). Ver spec 0002, D-1.
   formResponse FormResponses?   @relation("FormResponseActions", fields: [formResponseId], references: [id], onDelete: SetNull)
+
+  /// Respostas que PERTENCEM a esta tarefa (checklists preenchidos da O.S.).
+  filledResponses FormResponses[] @relation("ActionFilledResponses")
+  /// Pauta: formulários que devem ser preenchidos nesta tarefa, tenham
+  /// sido preenchidos ou não.
+  forms           ActionForm[]
 
   participants    ActionsUserParticipant[]
   responsibles    ActionsUserResponsible[]
@@ -1974,9 +1982,34 @@ model Form {
   onboardingBrandForms      ClientOnboardingProcess[] @relation("OnboardingBrandForm")
   onboardingOnboardingForms ClientOnboardingProcess[] @relation("OnboardingOnboardingForm")
 
+  actionForms ActionForm[]
+
   isPublicOnSpace Boolean @default(false) @map("is_public_on_space")
 
   @@map("forms")
+}
+
+/// Pauta de formulários de uma tarefa. Uma O.S. de oficina tem N checklists;
+/// esta tabela guarda quais são, independente de já terem sido preenchidos.
+/// Ver spec 0002 (`specs/form/0002-formularios-com-escopo-de-action.md`).
+model ActionForm {
+  id String @id @default(cuid())
+
+  actionId String @map("action_id")
+  formId   String @map("form_id")
+  /// Posição na pauta. 0 = formulário que gerou a tarefa.
+  order    Int    @default(0)
+
+  attachedBy String?  @map("attached_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  action         Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  form           Form   @relation(fields: [formId], references: [id], onDelete: Cascade)
+  attachedByUser User?  @relation("ActionFormAttachedBy", fields: [attachedBy], references: [id], onDelete: SetNull)
+
+  @@unique([actionId, formId])
+  @@index([formId])
+  @@map("action_forms")
 }
 
 model FormSettings {
@@ -2038,10 +2071,22 @@ model FormResponses {
   label               String? @map("label")
   labelManuallyEdited Boolean @default(false) @map("label_manually_edited")
 
+  /// Tarefa (ex: uma O.S. de oficina) à qual esta resposta pertence.
+  /// NULL = resposta avulsa — preenchida pelo lead via link público ou
+  /// criada antes desta feature. Excluir a tarefa devolve a resposta ao
+  /// lead como avulsa em vez de apagá-la (spec 0002, CB-1).
+  actionId String? @map("action_id")
+  action   Action? @relation("ActionFilledResponses", fields: [actionId], references: [id], onDelete: SetNull)
+
   form    Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  /// Tarefas GERADAS por esta resposta — proveniência, não posse.
+  /// Não confundir com `action` acima. Ver spec 0002, decisão D-1.
   actions Action[] @relation("FormResponseActions")
 
   @@index([completedAt])
+  @@index([actionId])
+  @@index([formId])
+  @@index([leadId])
   @@map("form_responses")
 }
 

@@ -4,18 +4,26 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface UseListFormsOptions {
   organizationId?: string;
+  /**
+   * Dialogs montados o tempo todo (ex: LeadFormsDialog no card do kanban)
+   * precisam adiar a busca até abrirem — senão o board inteiro dispara a
+   * listagem de formulários da org sem ninguém ter pedido.
+   */
+  enabled?: boolean;
 }
 
 export const useQueryListForms = ({
   organizationId,
+  enabled = true,
 }: UseListFormsOptions = {}) => {
-  const { data, isLoading, ...query } = useQuery(
-    orpc.form.list.queryOptions({
+  const { data, isLoading, ...query } = useQuery({
+    ...orpc.form.list.queryOptions({
       input: {
         organizationId,
       },
     }),
-  );
+    enabled,
+  });
 
   return {
     forms: data?.forms ?? [],
@@ -207,6 +215,15 @@ export const useMutationCreateResponseForLead = () => {
             input: { leadId: variables.leadId },
           }),
         });
+        // Preenchimento a partir do dialog da tarefa: sem isso a pauta não
+        // reflete a resposta nova ao voltar (spec 0002).
+        if (variables.actionId) {
+          queryClient.invalidateQueries({
+            queryKey: orpc.action.forms.list.queryKey({
+              input: { actionId: variables.actionId },
+            }),
+          });
+        }
       },
     }),
   );

@@ -29,7 +29,29 @@ export const listFormResponsesByLead = base
       leadId: z.string(),
     }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
+    // Fora do try: o catch abaixo converte QUALQUER erro em 500, e um
+    // NOT_FOUND/UNAUTHORIZED virando 500 esconderia a negativa de acesso.
+    //
+    // Sem esta checagem, qualquer usuário autenticado lia as respostas de
+    // qualquer lead de qualquer organização (spec 0002, CB-10).
+    const lead = await prisma.lead.findUnique({
+      where: { id: input.leadId },
+      select: { tracking: { select: { organizationId: true } } },
+    });
+    if (!lead) throw errors.NOT_FOUND({ message: "Lead não encontrado" });
+
+    const member = await prisma.member.findFirst({
+      where: {
+        organizationId: lead.tracking.organizationId,
+        userId: context.user.id,
+      },
+      select: { id: true },
+    });
+    if (!member) {
+      throw errors.UNAUTHORIZED({ message: "Você não tem acesso a este lead" });
+    }
+
     try {
       const responses = await prisma.formResponses.findMany({
         where: { leadId: input.leadId },
@@ -40,6 +62,8 @@ export const listFormResponsesByLead = base
           completedAt: true,
           jsonResponse: true,
           label: true,
+          actionId: true,
+          action: { select: { id: true, title: true } },
           form: {
             select: {
               id: true,
@@ -98,6 +122,10 @@ export const listFormResponsesByLead = base
             createdAt: r.createdAt,
           }),
           deadline: activeConfig ? activeConfig.date.toISOString() : null,
+          // Origem da resposta: null = avulsa (link público ou anterior à
+          // spec 0002). Alimenta badge e filtro por tarefa no dialog do lead.
+          actionId: r.actionId,
+          action: r.action,
           // jsonBlock + settings expostos pra UI renderizar thumbnail
           // (FormFirstGroupThumbnail) no dialog "Formulários do lead" que
           // abre via ícone no LeadItem (kanban).

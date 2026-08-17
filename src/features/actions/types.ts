@@ -37,6 +37,8 @@ export interface Action {
     id: string;
     form: { id: string; name: string } | null;
   } | null;
+  // Tamanho da pauta de formulários da tarefa (spec 0002).
+  _count?: { forms: number };
   participants: {
     user: {
       id: string;

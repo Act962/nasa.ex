@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
 import {
   Calendar,
   ClipboardListIcon,
@@ -11,7 +10,6 @@ import {
   PencilLine,
   UserSearch,
 } from "lucide-react";
-import { orpc } from "@/lib/orpc";
 import {
   Dialog,
   DialogContent,
@@ -19,9 +17,24 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { FormFirstGroupThumbnail } from "@/features/form/components/form-first-group-thumbnail";
+import {
+  STATE_COLORS,
+  STATE_LABELS,
+  STATE_SORT_ORDER as SORT_ORDER,
+} from "@/features/form/lib/form-state-ui";
+import { useLeadFormResponses } from "@/features/leads/hooks/use-lead-form-responses";
+import { useQueryListForms } from "@/features/form/hooks/use-form";
+import { ActionFormsDialog } from "@/features/actions/components/action-forms-dialog";
 import { cn } from "@/lib/utils";
 
 /**
@@ -51,33 +64,6 @@ import { cn } from "@/lib/utils";
  * continua tendo a LISTA AGRUPADA (FormGroupItem) por design.
  */
 
-const STATE_COLORS: Record<string, string> = {
-  empty: "#94a3b8", // slate-400 — iniciado sem resposta
-  in_progress: "#3b82f6", // blue
-  waiting_client_signature: "#f59e0b", // amber
-  stale: "#ef4444", // red
-  complete: "#10b981", // emerald
-  unfilled: "#6b7280", // gray — form sem nenhuma resposta vinculada
-};
-
-const STATE_LABELS: Record<string, string> = {
-  empty: "Iniciado",
-  in_progress: "Em preenchimento",
-  waiting_client_signature: "Aguardando assinatura",
-  stale: "Atrasado",
-  complete: "Preenchido",
-  unfilled: "Sem preenchimento",
-};
-
-const SORT_ORDER: Record<string, number> = {
-  unfilled: 0, // forms sem resposta primeiro (CTA pra "Preencher")
-  empty: 1,
-  in_progress: 2,
-  waiting_client_signature: 3,
-  stale: 4,
-  complete: 5,
-};
-
 interface FormItem {
   id: string;
   name: string;
@@ -93,7 +79,16 @@ interface FormResponse {
   label: string | null;
   state: string;
   deadline: string | null;
+  /** Tarefa de origem — null = resposta avulsa (spec 0002). */
+  actionId?: string | null;
+  action?: { id: string; title: string } | null;
 }
+
+/** Linha da visão "Respostas": uma resposta + o formulário a que pertence. */
+type ResponseRow = FormResponse & { form: FormItem };
+
+const ALL_ORIGINS = "__all__";
+const NO_ACTION = "__none__";
 
 /** Forma agregada usada pra renderizar 1 card por form. */
 interface FormCardData {
@@ -111,39 +106,34 @@ export function LeadFormsDialog({
   leadName,
   open,
   onOpenChange,
-  highlightFormId,
 }: {
   leadId: string;
   leadName?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // Quando aberto a partir de uma action gerada por formulário: destaca o
-  // card do form de origem.
-  highlightFormId?: string;
 }) {
   // Fetch 2 queries em paralelo (só quando dialog abre):
   //  1. Respostas vinculadas a este lead (com `state` derivado server-side)
   //  2. Todos os forms publicados da org (pra mostrar mesmo sem resposta)
-  const { data: responsesData, isLoading: respLoading } = useQuery({
-    ...orpc.leads.listFormResponses.queryOptions({
-      input: { leadId },
-    }),
-    enabled: open,
-  });
-
-  const { data: formsData, isLoading: formsLoading } = useQuery({
-    ...orpc.form.list.queryOptions({ input: {} }),
-    enabled: open,
-  });
+  const { responses: leadResponses, isLoading: respLoading } =
+    useLeadFormResponses(leadId, { enabled: open });
+  const { forms: organizationForms, isLoading: formsLoading } =
+    useQueryListForms({ enabled: open });
 
   const isLoading = respLoading || formsLoading;
 
+  // "forms" preserva o grid original; "responses" é a visão cronológica, onde
+  // badge de tarefa e filtro por tarefa fazem sentido (spec 0002, D-5).
+  const [viewMode, setViewMode] = useState<"forms" | "responses">("forms");
+  const [originFilter, setOriginFilter] = useState<string>(ALL_ORIGINS);
+  const [openActionId, setOpenActionId] = useState<string | null>(null);
+
+  const responseRows = leadResponses as unknown as ResponseRow[];
+
   // Agrega: 1 entrada por form, com responses[] vinculadas ao lead embaixo.
   const cards = useMemo<FormCardData[]>(() => {
-    const responses = (responsesData?.responses ?? []) as unknown as (FormResponse & {
-      form: FormItem;
-    })[];
-    const allForms = ((formsData as any)?.forms ?? []) as FormItem[];
+    const responses = responseRows;
+    const allForms = organizationForms as unknown as FormItem[];
 
     // Só forms publicados aparecem no dialog (operador não pica rascunho)
     const publishedForms = allForms.filter((f) => f.published);
@@ -200,10 +190,40 @@ export function LeadFormsDialog({
       const bT = b.lastActivityAt?.getTime() ?? 0;
       return bT - aT;
     });
-  }, [responsesData, formsData]);
+  }, [responseRows, organizationForms]);
+
+  // Tarefas distintas presentes nas respostas — alimentam o filtro de origem.
+  const originActions = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const row of responseRows) {
+      if (row.action) byId.set(row.action.id, row.action.title);
+    }
+    return [...byId].map(([id, title]) => ({ id, title }));
+  }, [responseRows]);
+
+  const filteredResponses = useMemo(() => {
+    const sorted = [...responseRows].sort(
+      (first, second) =>
+        new Date(second.createdAt).getTime() -
+        new Date(first.createdAt).getTime(),
+    );
+    if (originFilter === ALL_ORIGINS) return sorted;
+    if (originFilter === NO_ACTION) {
+      return sorted.filter((row) => !row.actionId);
+    }
+    return sorted.filter((row) => row.actionId === originFilter);
+  }, [responseRows, originFilter]);
+
+  // Fechar o dialog do lead precisa derrubar junto o dialog da tarefa: este
+  // componente fica montado no card do kanban, então um `openActionId` órfão
+  // faria o dialog da tarefa reabrir sozinho na próxima abertura.
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) setOpenActionId(null);
+    onOpenChange(isOpen);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className={cn(
           "w-[95vw] max-w-[95vw] sm:max-w-[95vw]",
@@ -218,9 +238,9 @@ export function LeadFormsDialog({
                 Formulários{leadName ? ` de ${leadName}` : ""}
               </DialogTitle>
               <DialogDescription>
-                Não preenchidos primeiro (clique em &ldquo;Preencher&rdquo;),
-                depois os já iniciados. Tudo num lugar só — sem precisar
-                abrir os detalhes do lead.
+                {viewMode === "forms"
+                  ? "Não preenchidos primeiro (clique em “Preencher”), depois os já iniciados. Tudo num lugar só — sem precisar abrir os detalhes do lead."
+                  : "Todas as respostas deste lead em ordem cronológica, com a tarefa de origem de cada uma."}
               </DialogDescription>
             </div>
             {/* Atalho pro tab "Formulários" no detalhe do lead — quem
@@ -232,6 +252,52 @@ export function LeadFormsDialog({
               </Link>
             </Button>
           </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-md border p-0.5">
+              <button
+                type="button"
+                onClick={() => setViewMode("forms")}
+                className={cn(
+                  "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                  viewMode === "forms"
+                    ? "bg-violet-600 text-white"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Por formulário
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("responses")}
+                className={cn(
+                  "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                  viewMode === "responses"
+                    ? "bg-violet-600 text-white"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Respostas ({responseRows.length})
+              </button>
+            </div>
+
+            {viewMode === "responses" && (
+              <Select value={originFilter} onValueChange={setOriginFilter}>
+                <SelectTrigger className="h-8 w-64 text-xs">
+                  <SelectValue placeholder="Todas as origens" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_ORIGINS}>Todas as origens</SelectItem>
+                  <SelectItem value={NO_ACTION}>Sem tarefa (avulsas)</SelectItem>
+                  {originActions.map((originAction) => (
+                    <SelectItem key={originAction.id} value={originAction.id}>
+                      {originAction.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto pr-1">
@@ -239,6 +305,12 @@ export function LeadFormsDialog({
             <div className="flex items-center justify-center py-20">
               <Spinner />
             </div>
+          ) : viewMode === "responses" ? (
+            <ResponsesList
+              rows={filteredResponses}
+              onOpenAction={(actionId) => setOpenActionId(actionId)}
+              onPicked={() => handleOpenChange(false)}
+            />
           ) : cards.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
               <div className="size-14 rounded-2xl bg-muted flex items-center justify-center">
@@ -255,15 +327,135 @@ export function LeadFormsDialog({
                   key={c.form.id}
                   card={c}
                   leadId={leadId}
-                  isHighlighted={!!highlightFormId && c.form.id === highlightFormId}
-                  onPickedAction={() => onOpenChange(false)}
+                  onPickedAction={() => handleOpenChange(false)}
                 />
               ))}
             </div>
           )}
         </div>
       </DialogContent>
+
+      {openActionId && (
+        <ActionFormsDialog
+          actionId={openActionId}
+          open={!!openActionId}
+          onOpenChange={(isOpen) => !isOpen && setOpenActionId(null)}
+        />
+      )}
     </Dialog>
+  );
+}
+
+// ─── Visão cronológica de respostas ───────────────────────────────────────────
+
+function ResponsesList({
+  rows,
+  onOpenAction,
+  onPicked,
+}: {
+  rows: ResponseRow[];
+  onOpenAction: (actionId: string) => void;
+  onPicked: () => void;
+}) {
+  const router = useRouter();
+
+  if (rows.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+        <div className="size-14 rounded-2xl bg-muted flex items-center justify-center">
+          <FileText className="size-7 text-muted-foreground" />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Nenhuma resposta para este filtro.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {rows.map((row) => {
+        const stateColor = STATE_COLORS[row.state] ?? "#6b7280";
+        const stateLabel = STATE_LABELS[row.state] ?? row.state;
+
+        return (
+          <div
+            key={row.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              onPicked();
+              router.push(`/formulario/${row.form.id}/${row.id}`);
+            }}
+            onKeyDown={(event) => {
+              if (event.target !== event.currentTarget) return;
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onPicked();
+                router.push(`/formulario/${row.form.id}/${row.id}`);
+              }
+            }}
+            className={cn(
+              "flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-border bg-card p-3 text-left transition-all",
+              "hover:border-violet-400 hover:shadow-sm",
+              "outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60",
+            )}
+          >
+            <span
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+              title={stateLabel}
+            >
+              <span
+                className="inline-block size-2 rounded-full"
+                style={{ background: stateColor }}
+              />
+              {stateLabel}
+            </span>
+
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">
+              {row.form.name}
+              {row.label ? (
+                <span className="ml-1.5 text-violet-600 dark:text-violet-300">
+                  · {row.label}
+                </span>
+              ) : null}
+            </span>
+
+            {/* Badge de origem: clicável leva aos formulários daquela tarefa. */}
+            {row.action ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenAction(row.action!.id);
+                }}
+                title={`Ver formulários da tarefa: ${row.action.title}`}
+                className="inline-flex max-w-[240px] items-center gap-1 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white transition-opacity hover:opacity-85"
+              >
+                <ClipboardListIcon className="size-3 shrink-0" />
+                <span className="truncate">{row.action.title}</span>
+              </button>
+            ) : (
+              <span
+                className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                title="Resposta não vinculada a nenhuma tarefa"
+              >
+                Avulsa
+              </span>
+            )}
+
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Calendar className="size-3" />
+              {new Date(row.createdAt).toLocaleDateString("pt-BR", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "2-digit",
+              })}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -273,12 +465,10 @@ function FormCard({
   card,
   leadId,
   onPickedAction,
-  isHighlighted = false,
 }: {
   card: FormCardData;
   leadId: string;
   onPickedAction: () => void;
-  isHighlighted?: boolean;
 }) {
   const router = useRouter();
   const { form, responses, aggregateState, lastActivityAt } = card;
@@ -326,19 +516,8 @@ function FormCard({
         "group flex cursor-pointer flex-col gap-2 rounded-xl border border-border bg-card p-3 transition-all text-left",
         "hover:border-violet-400 hover:shadow-md hover:-translate-y-0.5",
         "outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60",
-        isHighlighted &&
-          "border-violet-500 ring-2 ring-violet-500/60 bg-violet-50/50 dark:bg-violet-950/20",
       )}
     >
-      {isHighlighted && (
-        <div className="flex justify-start">
-          <span className="inline-flex items-center gap-1 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white">
-            <ClipboardListIcon className="size-3" />
-            Gerou esta tarefa
-          </span>
-        </div>
-      )}
-
       {/* Label da última resposta (campo "Usar como título") — se existe */}
       {latest?.label && (
         <div className="flex justify-start">
