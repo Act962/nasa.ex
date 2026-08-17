@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FieldValue,
   FormBlockInstance,
@@ -8,6 +8,7 @@ import {
 import {
   FormPrefillProvider,
   type PrefillFieldMap,
+  type LeadIdentityValues,
 } from "@/features/form/context/form-prefill-context";
 import { toast } from "sonner";
 import {
@@ -530,6 +531,31 @@ export function FormSubmitComponent({
     setStep(2);
   };
 
+  // Fontes disponíveis para blocos com `prefillFromLead` (spec 0006). Só entra
+  // o que está sendo realmente coletado — vínculo para fonte desligada resolve
+  // como ausente e o campo nasce vazio (CB-1/CB-2). O telefone vai no formato
+  // exibido, com DDI, e não no normalizado do banco (RF-8).
+  const leadIdentityValues = useMemo<LeadIdentityValues>(() => {
+    if (!needLogin) return {};
+    return {
+      ...(showName && { name: leadInfo.name }),
+      ...(showEmail && { email: leadInfo.email }),
+      ...(showPhone &&
+        leadInfo.phone.trim().length > 0 && {
+          phone: `${selectedCountry.ddi} ${leadInfo.phone}`,
+        }),
+    };
+  }, [
+    needLogin,
+    showName,
+    showEmail,
+    showPhone,
+    leadInfo.name,
+    leadInfo.email,
+    leadInfo.phone,
+    selectedCountry.ddi,
+  ]);
+
   const primaryBtnStyle: React.CSSProperties = {
     backgroundColor: primaryColor || undefined,
     borderColor: primaryColor || undefined,
@@ -537,7 +563,11 @@ export function FormSubmitComponent({
   };
 
   return (
-    <FormPrefillProvider values={prefillMap} sessionKey={sessionKeyRef.current}>
+    <FormPrefillProvider
+      values={prefillMap}
+      identity={leadIdentityValues}
+      sessionKey={sessionKeyRef.current}
+    >
       <style>{`
         #lead_name::placeholder  { color: ${textColor}; }
         #lead_email::placeholder { color: ${textColor}; }

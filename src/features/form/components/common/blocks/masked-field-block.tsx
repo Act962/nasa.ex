@@ -38,7 +38,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
-import { usePrefillValue } from "@/features/form/context/form-prefill-context";
+import {
+  useResolvedInitialValue,
+  type LeadPrefillSource,
+} from "@/features/form/context/form-prefill-context";
 import { useMutationValidateCep } from "@/features/form/hooks/use-form";
 import { FormSettings } from "@/generated/prisma/client";
 import type { FormSettingsTyped } from "@/features/form/types";
@@ -87,6 +90,8 @@ type AttributesType = {
   format: MaskedFormat;
   validateCep: boolean;
   validateCpf: boolean;
+  /** Vínculo com o step de identificação (spec 0006). */
+  prefillFromLead?: LeadPrefillSource | null;
 };
 
 const propertiesValidateSchema = z.object({
@@ -216,7 +221,22 @@ function FormView({
   }
 
   // Prefill: o valor salvo já está formatado (ex.: "(11) 91234-5678").
-  const prefill = usePrefillValue(block.id);
+  // Ordem: resposta salva → identificação → vazio (spec 0006, D-3). O valor
+  // vindo da identificação passa pela máscara do bloco, já que chega como
+  // digitado no step 1 e com DDI (RF-8).
+  const { initialValue: rawPrefill, identityValue: rawIdentityValue } =
+    useResolvedInitialValue(
+      block.id,
+      block.attributes.prefillFromLead ?? null,
+    );
+  const identityValue =
+    rawIdentityValue === undefined
+      ? undefined
+      : applyMask(format, rawIdentityValue);
+  const prefill =
+    rawPrefill === rawIdentityValue && rawPrefill !== undefined
+      ? identityValue
+      : rawPrefill;
 
   // City-UF: armazenamos como "Cidade - UF" no value. Separa pra UI.
   const initialCity = (() => {
@@ -255,6 +275,15 @@ function FormView({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Acompanha a identificação enquanto o campo não foi editado (spec 0006,
+  // D-4). `touched` já existia neste bloco e marca interação do usuário.
+  useEffect(() => {
+    if (touched) return;
+    if (identityValue === undefined) return;
+    commit(identityValue);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identityValue]);
 
   function commit(formatted: string) {
     setValue(formatted);
@@ -424,7 +453,12 @@ function FormView({
             borderColor: textColor ? `${textColor}40` : undefined,
           }}
           value={value}
-          onChange={(e) => commit(applyMask(format, e.target.value))}
+          onChange={(e) => {
+            // Marca edição já no digitar (não só no blur), senão uma mudança
+            // na identificação sobrescreveria o que está sendo digitado.
+            setTouched(true);
+            commit(applyMask(format, e.target.value));
+          }}
           onBlur={() => {
             setTouched(true);
             void runCepCheck(value);
