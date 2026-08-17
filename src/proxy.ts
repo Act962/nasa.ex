@@ -7,7 +7,7 @@ const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 dias
 const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"] as const;
 
 /**
- * Middleware Edge — captura:
+ * Proxy (antigo Middleware, renomeado no Next 16.3) — captura:
  *  1. `?ref=<code>` para o programa de parceria (cookie httpOnly `nasa_ref`)
  *  2. `?utm_*` para tracking de origem do lead (cookie httpOnly `nasa_tracking`)
  *
@@ -16,9 +16,10 @@ const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "ut
  * rotas de criação de lead (form submit, agenda, linnker, etc.) via
  * `extractTracking()`.
  *
- * NÃO registramos a visita aqui (lookups de DB são caros no edge runtime).
+ * NÃO registramos a visita aqui — roda antes de toda request casada pelo
+ * matcher, então lookups de DB pesariam em cada navegação.
  */
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const url = req.nextUrl;
   const ref = url.searchParams.get("ref");
 
