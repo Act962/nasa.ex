@@ -30,6 +30,12 @@ export type ActionTemplate = {
   /** Campo ImageUpload usado como capa; `index` escolhe a imagem (0 = single). */
   coverImage: { blockId: string; index: number } | null;
   dueDate: DueDatePreset | null;
+  /**
+   * Formulários extras que entram na pauta da action gerada, além do próprio
+   * form gerador (que sempre ocupa a posição 0). É o que faz uma O.S. de
+   * oficina nascer já com seus checklists. Ver spec 0002, decisão D-2.
+   */
+  attachFormIds: string[];
 };
 
 export type GenerateActionsConfig = {
@@ -43,7 +49,11 @@ export const EMPTY_ACTION_TEMPLATE: ActionTemplate = {
   columnId: null,
   coverImage: null,
   dueDate: null,
+  attachFormIds: [],
 };
+
+/** Teto defensivo pra uma config absurda não virar uma pauta gigante. */
+const MAX_ATTACHED_FORMS = 20;
 
 export const DISABLED_GENERATE_ACTIONS_CONFIG: GenerateActionsConfig = {
   enabled: false,
@@ -95,6 +105,15 @@ function normalizeCoverImage(
   return { blockId: raw.blockId, index: index >= 0 ? index : 0 };
 }
 
+function normalizeAttachFormIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const uniqueIds = new Set<string>();
+  for (const item of raw) {
+    if (typeof item === "string" && item.trim()) uniqueIds.add(item);
+  }
+  return [...uniqueIds].slice(0, MAX_ATTACHED_FORMS);
+}
+
 function normalizeTemplate(raw: unknown): ActionTemplate | null {
   if (!isRecord(raw)) return null;
   return {
@@ -103,6 +122,7 @@ function normalizeTemplate(raw: unknown): ActionTemplate | null {
     columnId: typeof raw.columnId === "string" ? raw.columnId : null,
     coverImage: normalizeCoverImage(raw.coverImage),
     dueDate: normalizeDueDate(raw.dueDate),
+    attachFormIds: normalizeAttachFormIds(raw.attachFormIds),
   };
 }
 

@@ -24,10 +24,25 @@ import {
   type DueDatePreset,
   type GenerateActionsConfig,
 } from "@/features/form/lib/generate-actions-config";
+import { useQueryListForms } from "@/features/form/hooks/use-form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ActionTitleComposer } from "./action-title-composer";
 
 const AUTO = "__auto__";
 const NONE = "__none__";
+const MAX_ATTACHED_FORMS = 20;
+
+function toggleAttachedForm(
+  attachFormIds: string[],
+  formId: string,
+  shouldAttach: boolean,
+): string[] {
+  if (!shouldAttach) {
+    return attachFormIds.filter((attached) => attached !== formId);
+  }
+  if (attachFormIds.includes(formId)) return attachFormIds;
+  return [...attachFormIds, formId].slice(0, MAX_ATTACHED_FORMS);
+}
 
 function presetToKey(preset: DueDatePreset | null): string {
   if (!preset) return NONE;
@@ -66,6 +81,13 @@ export function GenerateActionsSection() {
 
   const imageFields = listFillableFields(blockLayouts).filter(
     (field) => field.blockType === "ImageUpload",
+  );
+
+  // O form gerador entra na pauta automaticamente (posição 0) — só os outros
+  // publicados da org podem ser escolhidos aqui.
+  const { forms: organizationForms } = useQueryListForms();
+  const attachableForms = organizationForms.filter(
+    (candidate) => candidate.published && candidate.id !== formData?.id,
   );
 
   if (!settings) return null;
@@ -266,6 +288,42 @@ export function GenerateActionsSection() {
                     patchTemplate({ dueDate: { preset: "in_days", days } });
                   }}
                 />
+              </div>
+            )}
+          </Field>
+
+          <Field>
+            <FieldLabel>Formulários da tarefa</FieldLabel>
+            <p className="text-xs text-muted-foreground">
+              Toda tarefa gerada por este formulário já nasce com estes
+              checklists na pauta — o técnico não precisa anexá-los um a um.
+            </p>
+            {attachableForms.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Nenhum outro formulário publicado nesta organização.
+              </p>
+            ) : (
+              <div className="max-h-44 space-y-2 overflow-y-auto rounded-md border p-2">
+                {attachableForms.map((attachable) => (
+                  <label
+                    key={attachable.id}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <Checkbox
+                      checked={template.attachFormIds.includes(attachable.id)}
+                      onCheckedChange={(checked) =>
+                        patchTemplate({
+                          attachFormIds: toggleAttachedForm(
+                            template.attachFormIds,
+                            attachable.id,
+                            checked === true,
+                          ),
+                        })
+                      }
+                    />
+                    <span className="truncate">{attachable.name}</span>
+                  </label>
+                ))}
               </div>
             )}
           </Field>

@@ -58,9 +58,12 @@ export const updateActionByLead = base
       });
     }
 
+    const isRepointingLead =
+      !!input.leadId && input.leadId !== existingAction.leadId;
+
     // Repontar pra outro lead só é permitido dentro do mesmo tracking da
     // action — caso contrário o vínculo lead↔tracking ficaria incoerente.
-    if (input.leadId && input.leadId !== existingAction.leadId) {
+    if (isRepointingLead) {
       const lead = await prisma.lead.findFirst({
         where: {
           id: input.leadId,
@@ -80,7 +83,22 @@ export const updateActionByLead = base
       }
     }
 
+    const previousLeadId = existingAction.leadId;
+
     const result = await prisma.$transaction(async (tx) => {
+      // A tarefa muda de dono, as respostas não vão junto: quem preencheu o
+      // checklist foi o cliente anterior. Elas voltam a ser avulsas no lead
+      // dele (spec 0002, CB-5). A pauta (ActionForm) permanece — o novo lead
+      // continua precisando dos mesmos formulários.
+      const detachedResponses = isRepointingLead
+        ? (
+            await tx.formResponses.updateMany({
+              where: { actionId: input.actionId },
+              data: { actionId: null },
+            })
+          ).count
+        : 0;
+
       const action = await tx.action.update({
         where: { id: input.actionId },
         data: {
@@ -109,7 +127,23 @@ export const updateActionByLead = base
         });
       }
 
-      return { action };
+      // Trilha de auditoria no lead ANTIGO: sem isso, respostas somem da
+      // tarefa sem deixar rastro de para onde foram.
+      if (detachedResponses > 0 && previousLeadId) {
+        const noun =
+          detachedResponses === 1
+            ? "1 resposta de formulário"
+            : `${detachedResponses} respostas de formulário`;
+        await recordLeadHistory({
+          leadId: previousLeadId,
+          userId: context.user.id,
+          action: LeadAction.ACTIVE,
+          notes: `${noun} desvinculada(s): a tarefa "${action.title}" foi movida para outro lead`,
+          tx,
+        });
+      }
+
+      return { action, detachedResponses };
     });
 
     return result;

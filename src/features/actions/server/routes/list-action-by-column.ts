@@ -139,6 +139,9 @@ export const listActionByColumn = base
             form: { select: { id: true, name: true } },
           },
         },
+        // Habilita o ícone de formulários no card mesmo quando a tarefa não
+        // foi gerada por form, mas teve pauta anexada à mão (spec 0002).
+        _count: { select: { forms: true } },
         tags: {
           select: {
             tag: {
