@@ -219,6 +219,14 @@ src/features/<dominio>/
 
     Esse bug já custou dois PRs de correção que miravam a causa errada. Ao mexer em qualquer procedure com `$transaction`, confira essa regra antes de commitar.
 
+19. **Documentação da evolução arquitetural** — sempre que criar ou alterar qualquer coisa em `src/modules/`, nas regras de fronteira (`.dependency-cruiser.js`), no CI (`.github/workflows/`), na configuração de testes (`vitest.config.*`, `playwright.config.*`, `docker-compose.test.yml`), ou ao concluir/reordenar uma fase do roadmap, **atualize também [`docs/arquitetura-evolucao-overview.md`](docs/arquitetura-evolucao-overview.md)** na mesma sessão — tabela de status, roadmap, decisões e changelog sincronizados com o código. Espelha as regras 10 (NASA Route) e 14 (WhatsApp Oficial).
+
+    Documentos satélite, com a mesma obrigação: [`docs/seguranca-auditoria-2026-08.md`](docs/seguranca-auditoria-2026-08.md) (ao corrigir um item da auditoria, marque o status e registre o PR — **não apague o item**) e [`docs/testes-estrategia.md`](docs/testes-estrategia.md) (ao mudar runner, pipeline ou quality gate).
+
+    **Antes de propor arquitetura, teste ou CI neste projeto, leia o overview.** Ele registra decisões já travadas — arquitetura alvo (Hexagonal seletivo, não Clean Architecture ampla), escopo (piloto `form`, não migração ampla) e o que foi deliberadamente descartado, com o porquê. Repropor algo já descartado sem novo argumento custa tempo do time.
+
+20. **Deriva conhecida entre este arquivo e o código** — auditoria de 2026-08-18 encontrou divergências ainda não corrigidas. Enquanto não forem, **confie no código, não neste documento**, nestes pontos: procedures oRPC estão em `src/app/router/` (não em `src/server/`, que não existe); a Regra 9 tem 518 violações; a Regra 5 convive com Jotai além de Zustand; a Regra 17 é **inexequível** (não há runner de teste instalado); `.claude/settings.json` não existe (o hook `PreToolUse` descrito no Git Workflow não está ativo); `.env.example` e `prisma/migrations/MANUAL_*.sql` referenciados em `docs/DEPLOYMENT.md` não existem — `scripts/apply-prod-migrations.sh` quebra por causa disso. Lista completa em [`docs/arquitetura-evolucao-overview.md`](docs/arquitetura-evolucao-overview.md) §3.5. Corrigir a deriva é item da Fase 0.
+
 ## Obsidian
 
 Vault: `NASA Agents` em `/Users/weydsonlima/Documents/NASA Agents/`
