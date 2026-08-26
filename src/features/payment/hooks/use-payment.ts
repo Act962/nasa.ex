@@ -11,10 +11,6 @@ export function usePaymentAccessList() {
   );
 }
 
-export function useVerifyPaymentPin() {
-  return useMutation(orpc.payment.access.verify.mutationOptions());
-}
-
 export function useGrantPaymentAccess() {
   const qc = useQueryClient();
   return useMutation({
@@ -31,22 +27,14 @@ export function useRevokePaymentAccess() {
   });
 }
 
-export function useVerifyPaymentOtp() {
-  return useMutation(orpc.payment.access.verifyOtp.mutationOptions());
-}
-
-export function useRequestPaymentOtp() {
-  return useMutation(orpc.payment.access.requestOtp.mutationOptions());
-}
-
 export function useMyPaymentAccess() {
   return useQuery(orpc.payment.access.getMy.queryOptions({ input: {} }));
 }
 
-export function useSetupOwnerPaymentAccess() {
+export function useClaimOwnerPaymentAccess() {
   const qc = useQueryClient();
   return useMutation({
-    ...orpc.payment.access.setupOwner.mutationOptions(),
+    ...orpc.payment.access.claimOwner.mutationOptions(),
     onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }

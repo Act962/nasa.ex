@@ -18,16 +18,16 @@ import {
   ROLE_DEFAULTS,
   resolveEffectivePermissions,
 } from "@/features/payment/lib/permissions";
+import { logActivity } from "@/features/admin/lib/activity-logger";
+import {
+  ensureOrgOwnerPaymentAccess,
+  claimOrgOwnerPaymentAccess,
+  isOrgOwner,
+} from "@/features/payment/server/ensure-payment-access";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-// PAYMENT_MASTER_HASH é backdoor OPCIONAL de emergência (ex.: destravar
-// acesso quando o OWNER perdeu a senha). Ausente = simplesmente desligado.
-function getMasterHash(): string | null {
-  return process.env.PAYMENT_MASTER_HASH ?? null;
-}
 
 function generatePin(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -81,6 +81,19 @@ async function fetchUserPhone(userId: string): Promise<string | null> {
   return user?.phone ?? null;
 }
 
+/** Identidade legível do alvo, para o rótulo do log de atividade (RF-8). */
+async function describeTargetUser(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true, email: true },
+  });
+  return {
+    id: userId,
+    name: user?.name ?? userId,
+    email: user?.email ?? userId,
+  };
+}
+
 async function getOrgConfig(orgId: string) {
   const config = await prisma.paymentGovernanceConfig.findUnique({
     where: { organizationId: orgId },
@@ -127,6 +140,9 @@ const accessShape = z.object({
   permissions: z.unknown().nullable(),
   sessionCount: z.number(),
   hasWebauthn: z.boolean(),
+  // Owner da empresa é autoprovisionado (spec 0007), então revogá-lo não
+  // persiste — a UI usa esta flag pra avisar quem estiver revogando.
+  isOrgOwner: z.boolean(),
   authorizedById: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -137,6 +153,19 @@ const accessShape = z.object({
     phone: z.string().nullable().optional(),
   }),
 });
+
+// ═════════════════════════════════════════════════════════════════════════════
+// DESATIVADAS pela spec 0007 (specs/payment/0007-acesso-financeiro-por-whitelist.md)
+//
+// As quatro procedures abaixo — verifyPaymentPin, verifyPaymentOtp,
+// requestPaymentOtp e setupOwnerPaymentAccess — foram DESREGISTRADAS do router
+// em `index.ts` e não são mais alcançáveis pela API. O acesso ao módulo passou
+// a ser determinado só pela whitelist (isAuthorized + role).
+//
+// O código permanece aqui de propósito: reverter é reeditar o registro do
+// router, e a fase de biometria vai reaproveitar a infraestrutura de
+// credenciais. Não ligue nada disso de volta sem uma spec nova.
+// ═════════════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────────────────────
 // verifyPaymentPin — primeira etapa: senha permanente
@@ -170,23 +199,9 @@ export const verifyPaymentPin = base
 
       const config = await getOrgConfig(context.org.id);
 
-      // Master hash do env é override de emergência (não conta sessão).
-      // Só tenta se estiver configurado — ausente = backdoor desligado.
-      const masterHash = getMasterHash();
-      if (masterHash) {
-        const masterMatch = await bcrypt
-          .compare(input.pin, masterHash)
-          .catch(() => false);
-        if (masterMatch) {
-          return {
-            ok: true,
-            requiresOtp: false,
-            sessionTimeoutMinutes: config.sessionTimeoutMinutes,
-          };
-        }
-      }
-
-      if (!access || !access.isAuthorized) {
+      // passwordHash é opcional desde a spec 0007: acessos criados depois dela
+      // não têm PIN, então não há o que comparar.
+      if (!access || !access.isAuthorized || !access.passwordHash) {
         return {
           ok: false,
           requiresOtp: false,
@@ -396,32 +411,24 @@ export const getMyPaymentAccess = base
       authorized: z.boolean(),
       role: z.enum(["VIEWER", "EDITOR", "ADMIN", "OWNER"]).nullable(),
       effective: z.unknown().nullable(),
-      hasWebauthn: z.boolean(),
-      hasPhone: z.boolean(),
-      sessionTimeoutMinutes: z.number(),
       // Sinaliza pro frontend "estamos em bootstrap" — a org ainda não tem
-      // NINGUÉM autorizado. Combinado com master-da-org, libera a UI de
-      // reivindicação inicial (a primeira grantPaymentAccess vira OWNER).
+      // NINGUÉM autorizado. Combinado com master-da-org, libera a aba de
+      // Acesso Financeiro em Permissões antes de existir um OWNER.
       orgHasAnyAccess: z.boolean(),
-      // True quando o caller ainda não tem acesso autorizado MAS é owner da
-      // empresa (Member.role === "owner"). O gate usa isso pra mostrar o
-      // formulário de auto-cadastro (define o próprio PIN e vira OWNER), em
-      // vez da tela de bloqueio. Independe de orgHasAnyAccess: o owner nunca
-      // deve ficar trancado pra fora do próprio financeiro.
-      canSelfSetup: z.boolean(),
+      // True quando o caller não tem acesso MAS é owner da empresa — caso das
+      // contas de staff, barradas na autoprovisão por RF-13. O gate usa isso
+      // pra oferecer o botão de auto-liberação em vez de uma tela sem saída.
+      canClaimAsOrgOwner: z.boolean(),
     }),
   )
   .handler(async ({ context, errors }) => {
     try {
-      const access = await prisma.paymentAccess.findUnique({
-        where: {
-          userId_organizationId: {
-            userId: context.user.id,
-            organizationId: context.org.id,
-          },
-        },
-      });
-      const config = await getOrgConfig(context.org.id);
+      // Ponto de entrada do módulo: é aqui que o owner da empresa é
+      // autoprovisionado (spec 0007), pra ninguém cair na tela de bloqueio à toa.
+      const access = await ensureOrgOwnerPaymentAccess(
+        context.user,
+        context.org.id,
+      );
       const anyAccess = await prisma.paymentAccess.findFirst({
         where: { organizationId: context.org.id, isAuthorized: true },
         select: { id: true },
@@ -433,26 +440,17 @@ export const getMyPaymentAccess = base
           authorized: false,
           role: null,
           effective: null,
-          hasWebauthn: false,
-          hasPhone: false,
-          sessionTimeoutMinutes: config.sessionTimeoutMinutes,
           orgHasAnyAccess,
-          canSelfSetup: await isOrgOwner(context.user.id, context.org.id),
+          canClaimAsOrgOwner: await isOrgOwner(context.user.id, context.org.id),
         };
       }
-      const phone = access.phone ?? (await fetchUserPhone(access.userId));
-      const credentials = Array.isArray(access.webauthnCredentials)
-        ? access.webauthnCredentials
-        : [];
+
       return {
         authorized: true,
         role: access.role,
         effective: resolveEffectivePermissions(access.role, access.permissions),
-        hasWebauthn: credentials.length > 0,
-        hasPhone: !!phone,
-        sessionTimeoutMinutes: config.sessionTimeoutMinutes,
         orgHasAnyAccess,
-        canSelfSetup: false,
+        canClaimAsOrgOwner: false,
       };
     } catch (err) {
       console.error("[payment/access/getMy]", err);
@@ -478,15 +476,6 @@ async function requireOwnerOrAdminAccess(userId: string, orgId: string) {
   return my?.isAuthorized && (my.role === "OWNER" || my.role === "ADMIN");
 }
 
-/** Owner (criador) da organização no better-auth — Member.role === "owner". */
-async function isOrgOwner(userId: string, orgId: string) {
-  const member = await prisma.member.findFirst({
-    where: { organizationId: orgId, userId },
-    select: { role: true },
-  });
-  return member?.role === "owner";
-}
-
 /**
  * Retorna true se o caller pode listar/reivindicar acesso no cenário de
  * bootstrap — quando a org ainda NÃO tem nenhum PaymentAccess autorizado E
@@ -501,6 +490,39 @@ async function isMasterInBootstrap(userId: string, orgId: string) {
   if (anyAccess) return false;
   return isOrgOwner(userId, orgId);
 }
+
+// claimOwnerPaymentAccess — owner da empresa libera o próprio acesso (RF-14).
+// Existe para quem é owner mas foi barrado na autoprovisão por ser staff da
+// plataforma (RF-13): uma organização por clique, registrado no log como ação
+// deliberada, nunca em lote.
+export const claimOwnerPaymentAccess = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .route({
+    method: "POST",
+    summary: "Org owner claims own payment access",
+    tags: ["Payment"],
+  })
+  .input(z.object({}))
+  .output(z.object({ ok: z.boolean() }))
+  .handler(async ({ context, errors }) => {
+    try {
+      const access = await claimOrgOwnerPaymentAccess(
+        context.user,
+        context.org.id,
+      );
+      if (!access) {
+        throw errors.FORBIDDEN({
+          message: "Só o owner da empresa pode liberar o próprio acesso",
+        });
+      }
+      return { ok: true };
+    } catch (err) {
+      if ((err as { code?: string }).code === "FORBIDDEN") throw err;
+      console.error("[payment/access/claimOwner]", err);
+      throw errors.INTERNAL_SERVER_ERROR;
+    }
+  });
 
 export const listPaymentAccess = base
   .use(requiredAuthMiddleware)
@@ -526,6 +548,11 @@ export const listPaymentAccess = base
         },
         orderBy: { createdAt: "desc" },
       });
+      const orgOwners = await prisma.member.findMany({
+        where: { organizationId: context.org.id, role: "owner" },
+        select: { userId: true },
+      });
+      const orgOwnerIds = new Set(orgOwners.map((member) => member.userId));
       return {
         records: records.map((record) => ({
           id: record.id,
@@ -539,6 +566,7 @@ export const listPaymentAccess = base
           hasWebauthn: Array.isArray(record.webauthnCredentials)
             ? record.webauthnCredentials.length > 0
             : false,
+          isOrgOwner: orgOwnerIds.has(record.userId),
           authorizedById: record.authorizedById,
           createdAt: record.createdAt,
           updatedAt: record.updatedAt,
@@ -557,7 +585,7 @@ export const grantPaymentAccess = base
   .use(requireOrgMiddleware)
   .route({
     method: "POST",
-    summary: "Grant payment access and send PIN",
+    summary: "Grant payment access",
     tags: ["Payment"],
   })
   .input(
@@ -571,10 +599,8 @@ export const grantPaymentAccess = base
   .output(
     z.object({
       ok: z.boolean(),
-      // Retornado APENAS quando não foi possível entregar a senha pelo canal
-      // pedido (uazapi sem token, falha de SMTP, etc.). Caller deve mostrar
-      // a senha 1x e descartar — não fica gravada em lugar nenhum legível.
-      tempPassword: z.string().optional(),
+      // Aviso de entrega é best-effort: a concessão já está gravada quando o
+      // envio falha, então canal indisponível nunca invalida o acesso (RF-7).
       deliveryWarning: z.string().optional(),
     }),
   )
@@ -589,9 +615,6 @@ export const grantPaymentAccess = base
         });
         if (anyAccess) throw errors.FORBIDDEN;
       }
-
-      const pin = generatePin();
-      const hash = await bcrypt.hash(pin, 8);
 
       // Aceita ID OU email — se não bate por ID, tenta por email
       let targetUser = await prisma.user.findUnique({
@@ -622,14 +645,12 @@ export const grantPaymentAccess = base
         create: {
           userId: targetUser.id,
           organizationId: context.org.id,
-          passwordHash: hash,
           isAuthorized: true,
           phone,
           role: input.role,
           authorizedById: context.user.id,
         },
         update: {
-          passwordHash: hash,
           isAuthorized: true,
           phone: phone ?? undefined,
           role: input.role,
@@ -640,13 +661,13 @@ export const grantPaymentAccess = base
       const message =
         `🔐 *NASA Payment* — Acesso liberado\n\n` +
         `Olá, ${targetUser.name}.\n` +
-        `Seu PIN de acesso (senha permanente) é:\n\n*${pin}*\n\n` +
-        `Guarde em local seguro. A senha não é armazenada em texto puro.\n` +
-        `Role: ${input.role}.`;
+        `Você recebeu acesso ao módulo financeiro da sua organização.\n` +
+        `Basta entrar na plataforma e abrir o NASA Payment — não há senha ` +
+        `separada.\n\n` +
+        `Nível de acesso: ${input.role}.`;
 
-      // Tenta entregar pelo canal pedido; cai pra fallback (email → tempPassword
-      // na resposta) sem derrubar a chamada. Senha já foi salva (hash) então
-      // perder o canal de entrega não corrompe o estado.
+      // Entrega é best-effort e nunca carrega segredo. A concessão já está
+      // gravada; canal indisponível vira aviso, não falha (RF-7).
       let deliveredVia: "whatsapp" | "email" | "none" = "none";
       let deliveryWarning: string | undefined;
 
@@ -665,14 +686,13 @@ export const grantPaymentAccess = base
         await resend.emails.send({
           from: process.env.BETTER_AUTH_EMAIL ?? "noreply@nasaex.com",
           to: targetUser!.email,
-          subject: "🔐 NASA Payment — Seu PIN de acesso",
+          subject: "🔐 NASA Payment — Acesso liberado",
           html: `<div style="font-family:sans-serif;max-width:480px;margin:auto">
             <h2>NASA Payment — Acesso liberado</h2>
             <p>Olá, <strong>${targetUser!.name}</strong>.</p>
-            <p>Seu PIN de acesso (senha permanente) é:</p>
-            <div style="font-size:2rem;letter-spacing:.5rem;font-weight:bold;color:#1E90FF;padding:1rem;background:#f0f7ff;border-radius:8px;text-align:center">${pin}</div>
-            <p>Role: <strong>${input.role}</strong></p>
-            <p style="color:#888;font-size:.85rem;margin-top:1rem">Guarde em local seguro. A senha não é armazenada em texto puro e não pode ser recuperada após este envio.</p>
+            <p>Você recebeu acesso ao módulo financeiro da sua organização.</p>
+            <p>Basta entrar na plataforma e abrir o <strong>NASA Payment</strong> — não há senha separada.</p>
+            <p>Nível de acesso: <strong>${input.role}</strong></p>
           </div>`,
         });
       }
@@ -688,7 +708,7 @@ export const grantPaymentAccess = base
             deliveredVia = "email";
             deliveryWarning = `WhatsApp falhou (${reason}); enviado por e-mail.`;
           } catch (err2) {
-            deliveryWarning = `Não foi possível enviar (WhatsApp: ${reason}; e-mail: ${(err2 as Error).message}). Mostrando a senha 1x.`;
+            deliveryWarning = `Acesso liberado, mas o aviso não foi entregue (WhatsApp: ${reason}; e-mail: ${(err2 as Error).message}). Avise a pessoa manualmente.`;
           }
         }
       } else {
@@ -696,15 +716,27 @@ export const grantPaymentAccess = base
           await tryEmail();
           deliveredVia = "email";
         } catch (err) {
-          deliveryWarning = `E-mail falhou (${(err as Error).message}). Mostrando a senha 1x.`;
+          deliveryWarning = `Acesso liberado, mas o aviso por e-mail falhou (${(err as Error).message}). Avise a pessoa manualmente.`;
         }
       }
 
-      return {
-        ok: true,
-        tempPassword: deliveredVia === "none" ? pin : undefined,
-        deliveryWarning,
-      };
+      await logActivity({
+        organizationId: context.org.id,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as { image?: string | null }).image,
+        appSlug: "payment",
+        subAppSlug: "payment-access",
+        featureKey: "payment.access.granted",
+        action: "payment.access.granted",
+        actionLabel: `Liberou acesso financeiro para ${targetUser.name} (${targetUser.email}) como ${input.role}`,
+        resource: targetUser.email,
+        resourceId: targetUser.id,
+        metadata: { role: input.role, deliveredVia },
+      });
+
+      return { ok: true, deliveryWarning };
     } catch (err) {
       if (
         (err as { code?: string }).code === "FORBIDDEN" ||
@@ -814,6 +846,27 @@ export const revokePaymentAccess = base
         where: { userId: input.userId, organizationId: context.org.id },
         data: { isAuthorized: false },
       });
+
+      const target = await describeTargetUser(input.userId);
+      const targetIsOrgOwner = await isOrgOwner(input.userId, context.org.id);
+      await logActivity({
+        organizationId: context.org.id,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as { image?: string | null }).image,
+        appSlug: "payment",
+        subAppSlug: "payment-access",
+        featureKey: "payment.access.revoked",
+        action: "payment.access.revoked",
+        actionLabel: targetIsOrgOwner
+          ? `Revogou acesso financeiro de ${target.name} (${target.email}) — owner da empresa, será reativado no próximo acesso`
+          : `Revogou acesso financeiro de ${target.name} (${target.email})`,
+        resource: target.email,
+        resourceId: target.id,
+        metadata: { targetIsOrgOwner },
+      });
+
       return { ok: true };
     } catch (err) {
       if ((err as { code?: string }).code === "FORBIDDEN") throw err;
@@ -841,6 +894,24 @@ export const updatePaymentRole = base
         where: { userId: input.userId, organizationId: context.org.id },
         data: { role: input.role },
       });
+
+      const target = await describeTargetUser(input.userId);
+      await logActivity({
+        organizationId: context.org.id,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as { image?: string | null }).image,
+        appSlug: "payment",
+        subAppSlug: "payment-access",
+        featureKey: "payment.access.role_changed",
+        action: "payment.access.role_changed",
+        actionLabel: `Alterou o nível de acesso financeiro de ${target.name} (${target.email}) para ${input.role}`,
+        resource: target.email,
+        resourceId: target.id,
+        metadata: { role: input.role },
+      });
+
       return { ok: true };
     } catch (err) {
       if ((err as { code?: string }).code === "FORBIDDEN") throw err;
@@ -872,6 +943,24 @@ export const updatePaymentPermissions = base
         where: { userId: input.userId, organizationId: context.org.id },
         data: { permissions: input.permissions ?? undefined },
       });
+
+      const target = await describeTargetUser(input.userId);
+      await logActivity({
+        organizationId: context.org.id,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as { image?: string | null }).image,
+        appSlug: "payment",
+        subAppSlug: "payment-access",
+        featureKey: "payment.access.permissions_changed",
+        action: "payment.access.permissions_changed",
+        actionLabel: `Ajustou permissões financeiras de ${target.name} (${target.email})`,
+        resource: target.email,
+        resourceId: target.id,
+        metadata: { permissions: input.permissions ?? null },
+      });
+
       return { ok: true };
     } catch (err) {
       if ((err as { code?: string }).code === "FORBIDDEN") throw err;

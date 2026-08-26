@@ -703,9 +703,9 @@ submit público E2E nos 3 caminhos da spec 0001; `depcruise` sem violação em `
 | 2 | Inventário completo de IDOR | 6 confirmados por leitura; ~184 candidatos não lidos individualmente | ⬜ |
 | 3 | `api/s3/proxy-svg` — sanitização e SSRF | Não verificado | ⬜ |
 | 4 | Os 7 `dangerouslySetInnerHTML` que dependem de sanitização upstream | Não verificado | ⬜ |
-| 5 | `PAYMENT_MASTER_HASH` — uso; ausente do `.env` | Não verificado | ⬜ |
+| 5 | `PAYMENT_MASTER_HASH` — uso; ausente do `.env` | **Resolvido**: era backdoor de resgate do PIN do módulo financeiro. Removido do código pela [spec 0007](../specs/payment/0007-acesso-financeiro-por-whitelist.md), que eliminou o PIN. Nenhuma env var nova; a antiga deixou de ser lida | ✅ |
 | 6 | Compromisso externo com `api.nasaex.com` | Se houver data contratada, revisar §5.5 | ⬜ |
-| 7 | Resultado de `tsc --noEmit` hoje | Nunca rodou em CI; passivo desconhecido | ⬜ |
+| 7 | Resultado de `tsc --noEmit` hoje | **Respondido em 2026-08-26**: passa limpo (exit 0, zero erros) sobre a branch da spec 0007. Passivo de tipos é zero. Ressalva para o CI: precisa de heap acima do default do Node — com 4 GB o processo morre por OOM (`exit 134`), o que se disfarça de "sem erros" se o exit code não for checado. Rodar como `NODE_OPTIONS=--max-old-space-size=12288 tsc --noEmit` e **falhar o job pelo exit code** | ✅ |
 | 8 | `s3/delete` e `upload-local` ainda são usadas? | Define se a correção é *fix* ou *remoção* | ⬜ |
 | 9 | O orquestrador usa `/api/health`? | Health check pode estar inerte | ⬜ |
 | 10 | Backend do cache remoto do Turborepo | Deploy é Nixpacks, não Vercel — §7.1 | ⬜ |
@@ -721,4 +721,5 @@ acrescentar itens à Fase 0**.
 
 | Data | O quê |
 | --- | --- |
+| 2026-08-26 | Item aberto **5** (`PAYMENT_MASTER_HASH`) resolvido pela [spec 0007](../specs/payment/0007-acesso-financeiro-por-whitelist.md): o acesso ao módulo financeiro passou a ser determinado só pela whitelist, o PIN próprio e o OTP por WhatsApp foram desativados e o backdoor saiu do código. O item **1** (topologia de deploy) segue aberto e ficou mais relevante — a fase de biometria depende dele, porque os desafios WebAuthn ainda vivem em memória. Item aberto **7** também respondido: `tsc --noEmit` passa limpo, mas só com heap ampliado — ver a ressalva de CI na linha do item. |
 | 2026-08-18 | Auditoria técnica completa sobre `f67796d2`. Diagnóstico, arquitetura alvo (Hexagonal seletivo), regras R1–R10, roadmap em 5 fases e documentos satélite de segurança e testes. Recomendação de **adiar o split Fastify e inverter a ordem** registrada em §5.5. Turborepo adotado em duas etapas (§7.1). Nenhuma alteração de código. |

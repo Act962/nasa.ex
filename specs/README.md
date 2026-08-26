@@ -166,6 +166,9 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0002](form/0002-formularios-com-escopo-de-action.md) | form | Formulários e respostas com escopo de Action | em-revisao |
 | [0003](tracking-chat/0003-tracking-chat-baseline.md) | tracking-chat | Baseline do Tracking Chat — contrato do domínio | implementada |
 | [0004](tracking-chat/0004-video-por-script.md) | tracking-chat | Envio de vídeo pelo chat via anexo em Script | implementada |
+| [0005](form/0005-bloqueio-edicao-respostas-por-autoria.md) | form | Política configurável de edição de respostas de formulário | em-revisao |
+| [0006](form/0006-prefill-de-campos-pela-identificacao.md) | form | Pré-preencher campos do formulário com dados da identificação | rascunho |
+| [0007](payment/0007-acesso-financeiro-por-whitelist.md) | payment | Acesso ao módulo financeiro por whitelist, sem senha própria | aprovada |
 
 ---
 
