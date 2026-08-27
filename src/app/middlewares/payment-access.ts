@@ -1,10 +1,10 @@
 import { base } from "./base";
-import prisma from "@/lib/prisma";
 import {
   type PaymentResource,
   type PaymentAction,
   resolveEffectivePermissions,
 } from "@/features/payment/lib/permissions";
+import { ensureOrgOwnerPaymentAccess } from "@/features/payment/server/ensure-payment-access";
 
 /**
  * Middleware de enforcement do PaymentAccess.
@@ -13,9 +13,10 @@ import {
  * coisas:
  *
  * 1. Garante que existe um registro PaymentAccess autorizado para o
- *    {user, org} atual — mesmo um owner da org é bloqueado se não estiver na
- *    whitelist financeira (esse é o ponto da feature: nem desenvolvedores veem
- *    dados financeiros sem registro explícito).
+ *    {user, org} atual. Quem não está na whitelist é bloqueado — nem
+ *    desenvolvedores veem dados financeiros sem registro explícito. A exceção
+ *    é o owner da empresa, autoprovisionado pela spec 0007 para nunca ficar
+ *    trancado fora do próprio financeiro.
  *
  * 2. Resolve permissões efetivas combinando `role` + `permissions` override
  *    (JSON por recurso). Se o recurso/action solicitado não estiver permitido,
@@ -30,7 +31,7 @@ export function requirePaymentAccess(
 ) {
   return base.middleware(async ({ context, next, errors }) => {
     const ctx = context as typeof context & {
-      user?: { id: string };
+      user?: { id: string; name?: string | null; email?: string | null; image?: string | null };
       org?: { id: string };
     };
 
@@ -38,14 +39,7 @@ export function requirePaymentAccess(
       throw errors.UNAUTHORIZED({ message: "Sessão/organização inválida" });
     }
 
-    const access = await prisma.paymentAccess.findUnique({
-      where: {
-        userId_organizationId: {
-          userId: ctx.user.id,
-          organizationId: ctx.org.id,
-        },
-      },
-    });
+    const access = await ensureOrgOwnerPaymentAccess(ctx.user, ctx.org.id);
 
     if (!access || !access.isAuthorized) {
       throw errors.FORBIDDEN({

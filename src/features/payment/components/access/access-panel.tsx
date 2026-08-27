@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,6 +65,12 @@ import {
 type Role = "VIEWER" | "EDITOR" | "ADMIN" | "OWNER";
 const ROLES: Role[] = ["VIEWER", "EDITOR", "ADMIN", "OWNER"];
 
+interface RevokeTarget {
+  userId: string;
+  name: string;
+  isOrgOwner: boolean;
+}
+
 function roleBadgeClass(role: Role): string {
   switch (role) {
     case "OWNER":
@@ -91,8 +97,7 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
   const [grantRole, setGrantRole] = useState<Role>("VIEWER");
   const [grantSendVia, setGrantSendVia] = useState<"email" | "whatsapp">("whatsapp");
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
-  const [tempPassword, setTempPassword] = useState<string | null>(null);
-  const [deliveryWarning, setDeliveryWarning] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<RevokeTarget | null>(null);
 
   const records = data?.records ?? [];
 
@@ -106,61 +111,34 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
         sendVia: grantSendVia,
         phone: grantPhone || undefined,
       });
-      if (result.tempPassword) {
-        setTempPassword(result.tempPassword);
-        setDeliveryWarning(result.deliveryWarning ?? null);
-        toast.warning(
-          result.deliveryWarning ?? "Senha gerada — copie agora, não é recuperável",
-        );
+      if (result.deliveryWarning) {
+        toast.warning(result.deliveryWarning);
       } else {
         toast.success(
-          result.deliveryWarning
-            ? result.deliveryWarning
-            : `Acesso liberado — senha enviada via ${grantSendVia === "email" ? "e-mail" : "WhatsApp"}`,
+          `Acesso liberado — avisado via ${grantSendVia === "email" ? "e-mail" : "WhatsApp"}`,
         );
-        setShowDialog(false);
-        setGrantUserId("");
-        setGrantPhone("");
-        setGrantRole("VIEWER");
       }
+      setShowDialog(false);
+      setGrantUserId("");
+      setGrantPhone("");
+      setGrantRole("VIEWER");
     } catch (err) {
       const message = (err as { message?: string })?.message ?? "Erro ao liberar acesso";
       toast.error(message);
     }
   }
 
-  async function handleRevoke(userId: string) {
+  async function handleRevoke(target: RevokeTarget) {
     try {
-      await revoke.mutateAsync({ userId });
-      toast.success("Acesso revogado");
+      await revoke.mutateAsync({ userId: target.userId });
+      setRevokeTarget(null);
+      toast.success(
+        target.isOrgOwner
+          ? "Acesso revogado — mas será restabelecido no próximo acesso"
+          : "Acesso revogado",
+      );
     } catch {
       toast.error("Erro ao revogar acesso");
-    }
-  }
-
-  async function handleRegenerate(
-    userId: string,
-    role: Role,
-    via: "email" | "whatsapp",
-    phone?: string | null,
-  ) {
-    try {
-      const result = await grant.mutateAsync({
-        userId,
-        role,
-        sendVia: via,
-        phone: phone || undefined,
-      });
-      if (result.tempPassword) {
-        setTempPassword(result.tempPassword);
-        setDeliveryWarning(result.deliveryWarning ?? null);
-        toast.warning(result.deliveryWarning ?? "Senha gerada — copie agora");
-      } else {
-        toast.success(result.deliveryWarning ?? "Nova senha gerada e enviada");
-      }
-    } catch (err) {
-      const message = (err as { message?: string })?.message ?? "Erro ao regenerar senha";
-      toast.error(message);
     }
   }
 
@@ -221,11 +199,10 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
       </div>
 
       <p className="text-xs text-muted-foreground leading-relaxed">
-        Apenas as pessoas abaixo conseguem entrar no NASA Payment — nem mesmo o
-        owner da organização vê dados financeiros sem registro aqui. A senha é
-        gerada e enviada por WhatsApp/e-mail, criptografada com bcrypt e
-        validada por 2FA via WhatsApp a cada N sessões (configurável em
-        Governança).
+        Apenas as pessoas abaixo conseguem entrar no NASA Payment. Não há senha
+        separada: quem está nesta lista entra com o próprio login da plataforma.
+        O owner da empresa é liberado automaticamente e volta à lista mesmo se
+        for revogado aqui.
       </p>
 
       <div className="rounded-xl border border-border/50 overflow-hidden">
@@ -259,7 +236,7 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
                 const effective = resolveEffectivePermissions(role, record.permissions);
                 const hasOverride = !!record.permissions;
                 return (
-                  <>
+                  <Fragment key={record.id}>
                     <tr
                       key={record.id}
                       className="border-b border-border/30 hover:bg-muted/20"
@@ -351,22 +328,6 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              className="gap-2 text-xs"
-                              onClick={() =>
-                                handleRegenerate(record.userId, role, "whatsapp", record.phone ?? record.user.phone)
-                              }
-                            >
-                              <RefreshCw className="size-3.5" /> Nova senha (WhatsApp)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="gap-2 text-xs"
-                              onClick={() =>
-                                handleRegenerate(record.userId, role, "email")
-                              }
-                            >
-                              <RefreshCw className="size-3.5" /> Nova senha (e-mail)
-                            </DropdownMenuItem>
                             {hasOverride && (
                               <DropdownMenuItem
                                 className="gap-2 text-xs"
@@ -377,7 +338,13 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
                             )}
                             <DropdownMenuItem
                               className="gap-2 text-xs text-red-400"
-                              onClick={() => handleRevoke(record.userId)}
+                              onClick={() =>
+                                setRevokeTarget({
+                                  userId: record.userId,
+                                  name: record.user.name,
+                                  isOrgOwner: record.isOrgOwner,
+                                })
+                              }
                             >
                               <ShieldOff className="size-3.5" /> Revogar acesso
                             </DropdownMenuItem>
@@ -451,7 +418,7 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })
             )}
@@ -459,49 +426,47 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
         </table>
       </div>
 
-      {/* Dialog de senha temporária — quando WhatsApp/email falharam */}
+      {/* Confirmação de revogação — avisa quando o alvo é owner da empresa */}
       <Dialog
-        open={!!tempPassword}
+        open={!!revokeTarget}
         onOpenChange={(open) => {
-          if (!open) {
-            setTempPassword(null);
-            setDeliveryWarning(null);
-            setShowDialog(false);
-            setGrantUserId("");
-            setGrantPhone("");
-            setGrantRole("VIEWER");
-          }
+          if (!open) setRevokeTarget(null);
         }}
       >
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Senha gerada — copie agora</DialogTitle>
+            <DialogTitle>Revogar acesso financeiro</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            {deliveryWarning && (
-              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
-                ⚠ {deliveryWarning}
+            <p className="text-sm text-muted-foreground">
+              {revokeTarget?.name} deixará de ver o módulo NASA Payment.
+            </p>
+            {revokeTarget?.isOrgOwner && (
+              <p className="text-xs text-amber-600 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 leading-relaxed">
+                ⚠ <strong>Esta revogação não vai durar.</strong> {revokeTarget.name}{" "}
+                é owner da empresa, e o owner é reautorizado automaticamente ao
+                abrir o módulo — mantendo o nível de acesso atual. Para tirar o
+                acesso de vez, é preciso antes remover o papel de owner da
+                empresa em Permissões.
               </p>
             )}
-            <div className="text-center font-mono text-3xl tracking-[0.4em] font-bold py-4 bg-[#1E90FF]/5 border border-[#1E90FF]/20 rounded-xl select-all">
-              {tempPassword}
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setRevokeTarget(null)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                disabled={revoke.isPending}
+                onClick={() => revokeTarget && handleRevoke(revokeTarget)}
+              >
+                {revoke.isPending ? "Revogando..." : "Revogar"}
+              </Button>
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              A senha foi gerada e o hash já está no banco — esta é a única vez
-              que ela aparece em texto claro. Copie e entregue ao usuário por um
-              canal seguro.
-            </p>
-            <Button
-              onClick={() => {
-                if (tempPassword) {
-                  navigator.clipboard?.writeText(tempPassword);
-                  toast.success("Senha copiada");
-                }
-              }}
-              className="w-full"
-            >
-              Copiar senha
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -542,7 +507,7 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Enviar senha via</Label>
+              <Label>Avisar via</Label>
               <Select
                 value={grantSendVia}
                 onValueChange={(value) =>
@@ -586,7 +551,7 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
                 disabled={grant.isPending}
                 className="flex-1 bg-[#1E90FF] hover:bg-[#1E90FF]/90 text-white"
               >
-                {grant.isPending ? "Enviando..." : "Liberar e enviar senha"}
+                {grant.isPending ? "Liberando..." : "Liberar acesso"}
               </Button>
             </div>
           </form>

@@ -4348,7 +4348,9 @@ model PaymentAccess {
   id             String      @id @default(cuid())
   userId         String      @map("user_id")
   organizationId String      @map("organization_id")
-  passwordHash   String      @map("password_hash")
+  // Legado do PIN próprio do módulo, desativado pela spec 0007. Mantido
+  // opcional para rollback; nenhum caminho de acesso lê este campo.
+  passwordHash   String?     @map("password_hash")
   isAuthorized   Boolean     @default(false) @map("is_authorized")
   phone          String? // para envio de PIN/OTP via WhatsApp (fallback do User.phone)
   authorizedById String?     @map("authorized_by_id")
