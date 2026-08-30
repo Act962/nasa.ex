@@ -4,12 +4,6 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -27,17 +21,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  MoreHorizontal,
-  CheckCircle2,
-  Pencil,
-  Trash2,
-  XCircle,
-  Search,
-  Plus,
-  Bell,
-  History,
-} from "lucide-react";
+import { CheckCircle2, Pencil, Search, Plus } from "lucide-react";
+import { EntryActionsMenu } from "./entry-actions-menu";
 import { DunningAssignDialog } from "../dunning/dunning-assign-dialog";
 import { DunningHistoryDrawer } from "../dunning/dunning-history-drawer";
 import {
@@ -107,7 +92,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
     try {
       await createEntry.mutateAsync(formData);
       setShowForm(false);
-      toast.success(type === "RECEIVABLE" ? "Conta a receber criada!" : "Conta a pagar criada!");
+      toast.success(type === "RECEIVABLE" ? "Receita criada!" : "Despesa criada!");
     } catch {
       toast.error("Erro ao criar lançamento");
     }
@@ -145,6 +130,19 @@ export function EntriesTable({ type }: EntriesTableProps) {
     }
   }
 
+  function openPayDialog(entry: PaymentEntryRow) {
+    setPayDialog({ id: entry.id, amount: entry.amount - entry.paidAmount });
+    setPayAmount("");
+  }
+
+  function openAssignDunning(entry: PaymentEntryRow) {
+    setAssignDunning({
+      id: entry.id,
+      ruleId: (entry as { dunningRuleId?: string | null }).dunningRuleId ?? null,
+      name: entry.description,
+    });
+  }
+
   async function handleConfirm() {
     if (!confirm) return;
     if (confirm.kind === "cancel") await handleDelete(confirm.id);
@@ -153,7 +151,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
   }
 
   const entries = data?.entries ?? [];
-  const typeLabel = type === "RECEIVABLE" ? "Receber" : "Pagar";
+  const typeLabel = type === "RECEIVABLE" ? "Receita" : "Despesa";
   const color = type === "RECEIVABLE" ? "text-green-400" : "text-red-400";
 
   const totalPending = entries
@@ -163,51 +161,152 @@ export function EntriesTable({ type }: EntriesTableProps) {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <p className="text-xs text-muted-foreground">Total pendente</p>
           <p className={`text-2xl font-black ${color}`}>{formatCurrency(totalPending)}</p>
         </div>
         <Button
-          size="sm"
           onClick={() => setShowForm(true)}
-          className="bg-[#1E90FF] hover:bg-[#1E90FF]/90 text-white gap-1.5"
+          className="h-9 w-full gap-1.5 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90 sm:w-auto"
         >
           <Plus className="size-4" />
-          Novo a {typeLabel}
+          Nova {typeLabel}
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+        <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            className="pl-9 h-8 text-sm"
+            className="h-9 pl-9 text-sm"
             placeholder="Buscar..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <select
-          className="text-xs bg-muted border border-border rounded-lg px-2.5 py-1.5 focus:outline-none"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="">Todos</option>
-          {Object.entries(STATUS_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
-        <PaymentPeriodPicker
-          from={period.from}
-          to={period.to}
-          onChange={setPeriod}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            className="h-9 flex-1 min-w-32 rounded-lg border border-border bg-muted px-2.5 text-xs focus:outline-none sm:flex-none"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">Todos</option>
+            {Object.entries(STATUS_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+          <PaymentPeriodPicker
+            from={period.from}
+            to={period.to}
+            onChange={setPeriod}
+            triggerClassName="h-9 flex-1 justify-center sm:flex-none sm:justify-start"
+          />
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-border/50 overflow-hidden">
+      {/* Lista em cards — mobile. A tabela larga vira scroll horizontal e
+          quebra a página em telas pequenas, então abaixo de md usamos cards. */}
+      <div className="space-y-2 md:hidden">
+        {isLoading ? (
+          <p className="py-12 text-center text-sm text-muted-foreground">
+            Carregando...
+          </p>
+        ) : entries.length === 0 ? (
+          <p className="py-12 text-center text-sm text-muted-foreground">
+            Nenhum lançamento encontrado
+          </p>
+        ) : (
+          entries.map((entry) => (
+            <div
+              key={entry.id}
+              className="rounded-xl border border-border/50 bg-card p-3"
+            >
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium leading-tight">
+                    {entry.description}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {entry.contact?.name ?? "Sem contato"}
+                    {entry.category?.name ? ` · ${entry.category.name}` : ""}
+                    {entry.installmentTotal
+                      ? ` · Parcela ${entry.installmentCurrent}/${entry.installmentTotal}`
+                      : ""}
+                  </p>
+                </div>
+                <EntryActionsMenu
+                  entry={entry}
+                  onPay={() => openPayDialog(entry)}
+                  onEdit={() => setEditEntry(entry)}
+                  onAssignDunning={() => openAssignDunning(entry)}
+                  onDunningHistory={() =>
+                    setHistoryDunning({ id: entry.id, name: entry.description })
+                  }
+                  onCancel={() =>
+                    setConfirm({ kind: "cancel", id: entry.id, name: entry.description })
+                  }
+                  onDelete={() =>
+                    setConfirm({ kind: "delete", id: entry.id, name: entry.description })
+                  }
+                  className="-mr-1 shrink-0"
+                />
+              </div>
+
+              <div className="mt-2.5 flex items-end justify-between gap-2 border-t pt-2.5">
+                <div className="min-w-0">
+                  <p className={`text-base font-bold tabular-nums ${color}`}>
+                    {formatCurrency(entry.amount)}
+                  </p>
+                  {entry.paidAmount > 0 && entry.paidAmount < entry.amount && (
+                    <p className="text-xs text-muted-foreground">
+                      Pago: {formatCurrency(entry.paidAmount)}
+                    </p>
+                  )}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <Badge
+                    variant="outline"
+                    className={`text-[11px] ${STATUS_COLORS[entry.status]}`}
+                  >
+                    {STATUS_LABELS[entry.status]}
+                  </Badge>
+                  <span className="text-[11px] tabular-nums text-muted-foreground">
+                    Venc. {formatDate(entry.dueDate)}
+                  </span>
+                </div>
+              </div>
+
+              {["PENDING", "PARTIAL", "OVERDUE"].includes(entry.status) && (
+                <div className="mt-2.5 grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 gap-1.5"
+                    onClick={() => openPayDialog(entry)}
+                  >
+                    <CheckCircle2 className="size-4 text-green-500" />
+                    Pagar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 gap-1.5"
+                    onClick={() => setEditEntry(entry)}
+                  >
+                    <Pencil className="size-4 text-blue-500" />
+                    Editar
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Tabela — desktop */}
+      <div className="hidden overflow-hidden rounded-xl border border-border/50 md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -268,79 +367,21 @@ export function EntriesTable({ type }: EntriesTableProps) {
                     {entry.category?.name ?? "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-7">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {["PENDING", "PARTIAL", "OVERDUE"].includes(entry.status) && (
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setPayDialog({ id: entry.id, amount: entry.amount - entry.paidAmount });
-                              setPayAmount("");
-                            }}
-                            className="gap-2"
-                          >
-                            <CheckCircle2 className="size-4 text-green-400" />
-                            Registrar Pagamento
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem
-                          onClick={() => setEditEntry(entry)}
-                          className="gap-2"
-                        >
-                          <Pencil className="size-4 text-blue-400" />
-                          Editar
-                        </DropdownMenuItem>
-                        {entry.type === "RECEIVABLE" && (
-                          <>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                setAssignDunning({
-                                  id: entry.id,
-                                  ruleId: (entry as { dunningRuleId?: string | null }).dunningRuleId ?? null,
-                                  name: entry.description,
-                                })
-                              }
-                              className="gap-2"
-                            >
-                              <Bell className="size-4 text-amber-500" />
-                              Atribuir régua de cobrança
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setHistoryDunning({ id: entry.id, name: entry.description })}
-                              className="gap-2"
-                            >
-                              <History className="size-4 text-indigo-400" />
-                              Histórico de cobrança
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        {entry.status !== "CANCELLED" ? (
-                          <DropdownMenuItem
-                            onClick={() =>
-                              setConfirm({ kind: "cancel", id: entry.id, name: entry.description })
-                            }
-                            className="gap-2 text-amber-400"
-                          >
-                            <XCircle className="size-4" />
-                            Cancelar
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem
-                            onClick={() =>
-                              setConfirm({ kind: "delete", id: entry.id, name: entry.description })
-                            }
-                            className="gap-2 text-red-400"
-                          >
-                            <Trash2 className="size-4" />
-                            Excluir
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <EntryActionsMenu
+                      entry={entry}
+                      onPay={() => openPayDialog(entry)}
+                      onEdit={() => setEditEntry(entry)}
+                      onAssignDunning={() => openAssignDunning(entry)}
+                      onDunningHistory={() =>
+                        setHistoryDunning({ id: entry.id, name: entry.description })
+                      }
+                      onCancel={() =>
+                        setConfirm({ kind: "cancel", id: entry.id, name: entry.description })
+                      }
+                      onDelete={() =>
+                        setConfirm({ kind: "delete", id: entry.id, name: entry.description })
+                      }
+                    />
                   </td>
                 </tr>
               ))}
@@ -365,7 +406,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <span className={`text-base ${color}`}>{type === "RECEIVABLE" ? "💚" : "🔴"}</span>
-              Nova Conta a {typeLabel}
+              Nova {typeLabel}
             </DialogTitle>
           </DialogHeader>
           <EntryForm

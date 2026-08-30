@@ -81,10 +81,10 @@ export function ContractsTab() {
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
+        <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            className="pl-9 h-8 text-sm"
+            className="pl-9 h-9 text-sm"
             placeholder="Buscar por título…"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -92,13 +92,14 @@ export function ContractsTab() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border/50 overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-border/50">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border/50 bg-muted/30 text-xs text-muted-foreground">
               <th className="text-left px-4 py-3 font-medium">Contrato</th>
-              <th className="text-left px-4 py-3 font-medium">Cliente</th>
-              <th className="text-left px-4 py-3 font-medium">Período</th>
+              <th className="hidden lg:table-cell text-left px-4 py-3 font-medium">Cliente</th>
+              <th className="hidden lg:table-cell text-left px-4 py-3 font-medium">Período</th>
               <th className="text-right px-4 py-3 font-medium">Valor</th>
               <th className="text-center px-4 py-3 font-medium">Status</th>
               <th className="w-10" />
@@ -140,10 +141,10 @@ export function ContractsTab() {
                       </p>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs">
+                  <td className="hidden lg:table-cell px-4 py-3 text-xs">
                     {contract.clientName ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                  <td className="hidden lg:table-cell px-4 py-3 text-xs text-muted-foreground">
                     {new Date(contract.startDate).toLocaleDateString("pt-BR")} –{" "}
                     {new Date(contract.endDate).toLocaleDateString("pt-BR")}
                   </td>
@@ -177,6 +178,7 @@ export function ContractsTab() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <Card className="p-3 text-xs text-muted-foreground">

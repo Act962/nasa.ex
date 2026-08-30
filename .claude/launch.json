@@ -4,16 +4,56 @@
     {
       "name": "Next.js Dev Server",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev"],
+      "runtimeArgs": [
+        "dev"
+      ],
       "port": 3000,
       "autoPort": true
     },
     {
       "name": "Next.js Dev Server (HTTPS)",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev", "--experimental-https"],
+      "runtimeArgs": [
+        "dev",
+        "--experimental-https"
+      ],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "NERP Books (worktree)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "/Users/weydsonlima/nerp-2-books",
+        "dev"
+      ],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "NASA (porta fixa 3002)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "dev",
+        "--port",
+        "3002"
+      ],
+      "port": 3002,
+      "autoPort": false
+    },
+    {
+      "name": "NERP-2",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "/Users/weydsonlima/nerp-2/apps/web",
+        "dev",
+        "--port",
+        "3001"
+      ],
+      "port": 3001,
+      "autoPort": false
     }
   ]
 }

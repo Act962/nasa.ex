@@ -54,7 +54,7 @@ export function CashflowTab() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="bg-card border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-green-400 mb-1">
@@ -137,35 +137,37 @@ export function CashflowTab() {
 
       {/* Table */}
       {rows.length > 0 && (
-        <div className="rounded-xl border border-border/50 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="overflow-hidden rounded-xl border border-border/50">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[420px] text-sm">
             <thead>
               <tr className="border-b border-border/50 bg-muted/30">
-                <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Data</th>
-                <th className="text-right px-4 py-3 text-xs text-muted-foreground font-medium text-green-400">Entradas</th>
-                <th className="text-right px-4 py-3 text-xs text-muted-foreground font-medium text-red-400">Saídas</th>
-                <th className="text-right px-4 py-3 text-xs text-muted-foreground font-medium text-blue-400">Saldo</th>
+                <th className="text-left px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium">Data</th>
+                <th className="text-right px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium text-green-400">Entradas</th>
+                <th className="text-right px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium text-red-400">Saídas</th>
+                <th className="text-right px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium text-blue-400">Saldo</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.date} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-2.5 font-medium">
+                  <td className="px-3 sm:px-4 py-2.5 font-medium">
                     {new Date(r.date).toLocaleDateString("pt-BR")}
                   </td>
-                  <td className="px-4 py-2.5 text-right text-green-400">
+                  <td className="px-3 sm:px-4 py-2.5 text-right text-green-400">
                     {r.receivable > 0 ? formatCurrency(r.receivable) : "—"}
                   </td>
-                  <td className="px-4 py-2.5 text-right text-red-400">
+                  <td className="px-3 sm:px-4 py-2.5 text-right text-red-400">
                     {r.payable > 0 ? formatCurrency(r.payable) : "—"}
                   </td>
-                  <td className={`px-4 py-2.5 text-right font-semibold ${r.balance >= 0 ? "text-green-400" : "text-red-400"}`}>
+                  <td className={`px-3 sm:px-4 py-2.5 text-right font-semibold ${r.balance >= 0 ? "text-green-400" : "text-red-400"}`}>
                     {formatCurrency(r.balance)}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

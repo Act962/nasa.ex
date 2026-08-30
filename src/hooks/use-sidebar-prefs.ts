@@ -40,6 +40,43 @@ export function useSetSidebarPref() {
   });
 }
 
+export const HOME_APP_PREFIX = "home:";
+
+/** Chave do app definido como principal, ou null quando nenhum foi escolhido. */
+export function getHomeAppKey(
+  prefs: Record<string, boolean> | undefined,
+): string | null {
+  if (!prefs) return null;
+  const entry = Object.entries(prefs).find(
+    ([key, enabled]) => enabled && key.startsWith(HOME_APP_PREFIX),
+  );
+  return entry ? entry[0].slice(HOME_APP_PREFIX.length) : null;
+}
+
+export function useSetHomeApp() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { appKey: string | null }) =>
+      orpc.sidebarPrefs.setHomeApp.call(vars),
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey: SIDEBAR_PREFS_KEY });
+      const prev = qc.getQueryData<Record<string, boolean>>(SIDEBAR_PREFS_KEY);
+      qc.setQueryData<Record<string, boolean>>(SIDEBAR_PREFS_KEY, (old) => {
+        const next = { ...(old ?? {}) };
+        for (const key of Object.keys(next)) {
+          if (key.startsWith(HOME_APP_PREFIX)) next[key] = false;
+        }
+        if (vars.appKey) next[`${HOME_APP_PREFIX}${vars.appKey}`] = true;
+        return next;
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      qc.setQueryData(SIDEBAR_PREFS_KEY, ctx?.prev);
+    },
+  });
+}
+
 /** Returns true if item should be shown. Uses defaultVisible when no pref saved. */
 export function isItemVisible(
   prefs: Record<string, boolean> | undefined,
