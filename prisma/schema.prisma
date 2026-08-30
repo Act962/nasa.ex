@@ -34,11 +34,13 @@ model User {
   actions                            Action[]
   responsibleOnSubActions            SubActionUserResponsible[]
   responsibleOnLeads                 Lead[]                       @relation("LeadResponsible")
+  broadcasts                         Broadcast[]
   worflows                           Workflow[]
   workflowFolders                    WorkflowFolder[]
   archivedTags                       Tag[]                        @relation("TagArchiver")
   chatPreferences                    UserChatPreferences?
   forms                              Form[]
+  actionFormsAttached                ActionForm[]                 @relation("ActionFormAttachedBy")
   leadFiles                          LeadFile[]
   insightShares                      InsightShares[]
   savedInsightReports                SavedInsightReport[]
@@ -127,6 +129,7 @@ model User {
 
   // Insights — jornada do lead
   leadJourneyEventsActed LeadJourneyEvent[] @relation("LeadJourneyEventActor")
+  formResponsesAuthored  FormResponses[]    @relation("FormResponseAuthor")
 
   // ── ASTRO (Agentes IA) ──
   aiSessions      AiSession[]
@@ -270,6 +273,7 @@ model Organization {
   tags                   Tag[]
   tagGroups              TagGroup[]
   whatsappInstances      WhatsAppInstance[]
+  broadcasts             Broadcast[]
   actions                Action[]
   insightShares          InsightShares[]
   agendas                Agenda[]
@@ -554,6 +558,7 @@ model Tracking {
   workflowFolders     WorkflowFolder[]
   forms               FormSettings[]
   whatsappInstance    WhatsAppInstance?
+  broadcasts          Broadcast[]
   conversations       Conversation[]
   agendas             Agenda[]
   appointments        Appointment[]
@@ -621,6 +626,10 @@ model TrackingCardConfig {
   id           String   @id @default(cuid())
   trackingId   String   @unique @map("tracking_id")
   fields       Json     @default("[]")
+  // Visibilidade dos campos do card/coluna no Kanban. Mapa `fieldId → boolean`
+  // (ex.: { "phone": false, "leadCount": false }). Ausência de chave = visível
+  // (default true), então `{}` mantém tudo visível — compatível com o legado.
+  cardVisibility Json   @default("{}") @map("card_visibility")
   showSlaTimer Boolean  @default(true) @map("show_sla_timer")
 
   // Cesta de compra do lead — ícone colorido no card indicando quando foi a
@@ -999,6 +1008,7 @@ model Lead {
   // NASA Auto Agent — sessões abertas pra este lead
   agentSessions             LeadAgentSession[]
   dailyTriggerClaims        LeadDailyTriggerClaim[]
+  broadcastRecipients       BroadcastRecipient[]
 
   @@unique([phone, trackingId])
   @@index([trackingId])
@@ -1280,6 +1290,7 @@ model Action {
   createdBy      String  @map("created_by")
   leadId         String? @map("lead_id")
   orgProjectId   String? @map("org_project_id")
+  formResponseId String? @map("form_response_id")
 
   closedAt  DateTime? @map("closed_at")
   createdAt DateTime  @default(now()) @map("created_at")
@@ -1291,6 +1302,14 @@ model Action {
   orgProject   OrgProject?      @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
   workspace    Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   column       WorkspaceColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
+  /// Resposta que GEROU esta tarefa (proveniência). Ver spec 0002, D-1.
+  formResponse FormResponses?   @relation("FormResponseActions", fields: [formResponseId], references: [id], onDelete: SetNull)
+
+  /// Respostas que PERTENCEM a esta tarefa (checklists preenchidos da O.S.).
+  filledResponses FormResponses[] @relation("ActionFilledResponses")
+  /// Pauta: formulários que devem ser preenchidos nesta tarefa, tenham
+  /// sido preenchidos ou não.
+  forms           ActionForm[]
 
   participants    ActionsUserParticipant[]
   responsibles    ActionsUserResponsible[]
@@ -1361,6 +1380,7 @@ model Action {
   @@index([workspaceId])
   @@index([columnId])
   @@index([leadId])
+  @@index([formResponseId])
   @@index([createdBy])
   @@index([isDone])
   @@index([priority])
@@ -1969,9 +1989,34 @@ model Form {
   onboardingBrandForms      ClientOnboardingProcess[] @relation("OnboardingBrandForm")
   onboardingOnboardingForms ClientOnboardingProcess[] @relation("OnboardingOnboardingForm")
 
+  actionForms ActionForm[]
+
   isPublicOnSpace Boolean @default(false) @map("is_public_on_space")
 
   @@map("forms")
+}
+
+/// Pauta de formulários de uma tarefa. Uma O.S. de oficina tem N checklists;
+/// esta tabela guarda quais são, independente de já terem sido preenchidos.
+/// Ver spec 0002 (`specs/form/0002-formularios-com-escopo-de-action.md`).
+model ActionForm {
+  id String @id @default(cuid())
+
+  actionId String @map("action_id")
+  formId   String @map("form_id")
+  /// Posição na pauta. 0 = formulário que gerou a tarefa.
+  order    Int    @default(0)
+
+  attachedBy String?  @map("attached_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  action         Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  form           Form   @relation(fields: [formId], references: [id], onDelete: Cascade)
+  attachedByUser User?  @relation("ActionFormAttachedBy", fields: [attachedBy], references: [id], onDelete: SetNull)
+
+  @@unique([actionId, formId])
+  @@index([formId])
+  @@map("action_forms")
 }
 
 model FormSettings {
@@ -1999,12 +2044,40 @@ model FormSettings {
   whatsappChats    Json    @default("[]") @map("whatsapp_chats")
   whatsappMessage  String? @map("whatsapp_message")
   validateWhatsapp Boolean @default(false) @map("validate_whatsapp")
+  generateActionsConfig Json? @map("generate_actions_config")
+  // Retomada de sessão: persiste nome/telefone/respostas (localStorage 24h +
+  // rascunho por telefone no servidor) pra o visitante voltar sem refazer o
+  // step 1. Opt-in (default off) — sem isso o form nunca retoma sessão.
+  resumeSession    Boolean @default(false) @map("resume_session")
+
+  /// Quem pode EDITAR as respostas deste formulário (spec 0005, seção 6.1).
+  /// Default = comportamento histórico: qualquer participante do tracking do
+  /// lead. Nenhum nível concede acesso além do que já é permitido hoje — a
+  /// política só restringe (invariante de monotonicidade, D-15).
+  responseEditPolicy FormResponseEditPolicy @default(TRACKING_PARTICIPANTS) @map("response_edit_policy")
 
   tracking Tracking? @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   status   Status?   @relation(fields: [statusId], references: [id], onDelete: SetNull)
   form     Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
 
   @@map("form_settings")
+}
+
+/// Quem pode editar as respostas de um formulário. Ordenado do mais aberto ao
+/// mais restrito; todo nível é subconjunto do padrão (spec 0005, D-15).
+enum FormResponseEditPolicy {
+  TRACKING_PARTICIPANTS // participantes do tracking atual do lead (padrão = hoje)
+  AUTHOR_ONLY // apenas quem preencheu (gestores sempre passam)
+}
+
+/// Origem de uma resposta. Discrimina os dois motivos distintos de
+/// `createdById` ser NULL — sem isto, resposta pública e legado ficam
+/// indistinguíveis (spec 0005, D-2).
+enum FormResponseAuthorKind {
+  USER // preenchida por usuário logado da org — `createdById` preenchido
+  LEAD // preenchida pelo próprio lead via link público — sem autor-usuário
+  SYSTEM // criada em branco por automação — ninguém preencheu ainda
+  UNKNOWN // legado anterior à instrumentação — conjunto congelado
 }
 
 model FormResponses {
@@ -2028,9 +2101,30 @@ model FormResponses {
   label               String? @map("label")
   labelManuallyEdited Boolean @default(false) @map("label_manually_edited")
 
-  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+  /// Tarefa (ex: uma O.S. de oficina) à qual esta resposta pertence.
+  /// NULL = resposta avulsa — preenchida pelo lead via link público ou
+  /// criada antes desta feature. Excluir a tarefa devolve a resposta ao
+  /// lead como avulsa em vez de apagá-la (spec 0002, CB-1).
+  actionId String? @map("action_id")
+  action   Action? @relation("ActionFilledResponses", fields: [actionId], references: [id], onDelete: SetNull)
+
+  /// Autoria (spec 0005). `createdById` só é preenchido quando `authorKind`
+  /// é USER. Imutáveis após a criação: editar NÃO reivindica autoria (D-3),
+  /// senão o primeiro a abrir uma resposta pública viraria dono dela.
+  createdById String?                @map("created_by_id")
+  createdBy   User?                  @relation("FormResponseAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  authorKind  FormResponseAuthorKind @default(UNKNOWN) @map("author_kind")
+
+  form    Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  /// Tarefas GERADAS por esta resposta — proveniência, não posse.
+  /// Não confundir com `action` acima. Ver spec 0002, decisão D-1.
+  actions Action[] @relation("FormResponseActions")
 
   @@index([completedAt])
+  @@index([actionId])
+  @@index([formId])
+  @@index([leadId])
+  @@index([createdById])
   @@map("form_responses")
 }
 
@@ -2268,6 +2362,107 @@ model WhatsAppInstance {
   @@index([inChatModeManual])
   @@index([provider])
   @@map("whatsapp_instances")
+}
+
+// ─────────────────────────────────────────────
+// CAMPANHAS (Disparos WhatsApp API Oficial — MM API)
+// Ver docs/campanhas-overview.md. Fase 1: fundação + audiência.
+// ─────────────────────────────────────────────
+
+enum BroadcastStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  PAUSED
+  FAILED
+  CANCELLED
+}
+
+enum BroadcastRecipientStatus {
+  PENDING
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  SKIPPED
+}
+
+// Categoria do template Meta usado num broadcast. Espelha as categorias da
+// Cloud API; AUTHENTICATION ainda não tem builder próprio, mas fica reservada.
+enum WhatsAppTemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
+model Broadcast {
+  id             String          @id @default(cuid())
+  name           String
+  organizationId String          @map("organization_id")
+  trackingId     String          @map("tracking_id") // número/instância META_CLOUD de origem
+  createdById    String          @map("created_by_id")
+  status         BroadcastStatus @default(DRAFT)
+
+  // Template (preenchido na Fase 2/3 — nullable na Fase 1)
+  templateName      String?           @map("template_name")
+  templateLanguage  String?           @map("template_language")
+  templateCategory  WhatsAppTemplateCategory? @map("template_category") // define o endpoint de envio (marketing vs messages)
+  templateVariables Json?             @map("template_variables") // config de mapeamento var→campo
+
+  // Agendamento (Fase 4 — colunas já existem, inertes na Fase 1)
+  scheduledAt DateTime? @map("scheduled_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  // Contadores denormalizados p/ UI (sem COUNT scans; alimentados pelo
+  // webhook de status na Fase 3).
+  totalRecipients Int @default(0) @map("total_recipients")
+  sentCount       Int @default(0) @map("sent_count")
+  deliveredCount  Int @default(0) @map("delivered_count")
+  readCount       Int @default(0) @map("read_count")
+  failedCount     Int @default(0) @map("failed_count")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tracking     Tracking             @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  createdBy    User                 @relation(fields: [createdById], references: [id])
+  recipients   BroadcastRecipient[]
+
+  @@index([organizationId])
+  @@index([trackingId])
+  @@index([status])
+  @@map("broadcasts")
+}
+
+model BroadcastRecipient {
+  id                String                   @id @default(cuid())
+  broadcastId       String                   @map("broadcast_id")
+  leadId            String?                  @map("lead_id") // null quando origem é CSV cru
+  name              String?
+  phone             String // E.164 só-dígitos (normalizePhone)
+  variables         Json? // valores das variáveis do template p/ este destinatário
+  status            BroadcastRecipientStatus @default(PENDING)
+  externalMessageId String?                  @map("external_message_id") // wamid
+  errorCode         String?                  @map("error_code")
+  errorMessage      String?                  @map("error_message")
+  sentAt            DateTime?                @map("sent_at")
+  deliveredAt       DateTime?                @map("delivered_at")
+  readAt            DateTime?                @map("read_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  lead      Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@unique([broadcastId, phone]) // dedupe dentro da campanha
+  @@index([broadcastId, status])
+  @@index([externalMessageId])
+  @@map("broadcast_recipients")
 }
 
 // ─────────────────────────────────────────────
@@ -4272,7 +4467,9 @@ model PaymentAccess {
   id             String      @id @default(cuid())
   userId         String      @map("user_id")
   organizationId String      @map("organization_id")
-  passwordHash   String      @map("password_hash")
+  // Legado do PIN próprio do módulo, desativado pela spec 0007. Mantido
+  // opcional para rollback; nenhum caminho de acesso lê este campo.
+  passwordHash   String?     @map("password_hash")
   isAuthorized   Boolean     @default(false) @map("is_authorized")
   phone          String? // para envio de PIN/OTP via WhatsApp (fallback do User.phone)
   authorizedById String?     @map("authorized_by_id")
@@ -4903,6 +5100,17 @@ model Script {
   trackingId String   @map("tracking_id")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // ── Vídeo anexado (spec 0004) ────────────────────────────────────────
+  // Relação 1:1 opcional — o vídeo sobe uma vez e é reenviado por URL a
+  // cada uso, mantendo o storage em O(scripts com vídeo) em vez de
+  // O(envios). Todas nullable: script sem vídeo é o caso da maioria.
+  // `videoKey` é a key no R2 sob `videos/scripts/`; excluir ou trocar o
+  // vídeo apaga o objeto anterior.
+  videoKey       String? @map("video_key")
+  videoMimetype  String? @map("video_mimetype")
+  videoFileName  String? @map("video_file_name")
+  videoSizeBytes Int?    @map("video_size_bytes")
 
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
 

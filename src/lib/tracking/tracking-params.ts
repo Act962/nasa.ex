@@ -2,7 +2,7 @@
  * Helpers de tracking de origem (client-side).
  *
  * Capturam UTMs da URL atual + persistem em sessionStorage para sobreviverem
- * entre páginas dentro da mesma sessão. O middleware também grava em cookie
+ * entre páginas dentro da mesma sessão. O proxy também grava em cookie
  * httpOnly `nasa_tracking` para o servidor ler diretamente.
  *
  * Uso típico em Client Components:

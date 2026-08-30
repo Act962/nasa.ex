@@ -246,16 +246,18 @@ function HistoryRow({
         </span>
       </button>
       <button
+        type="button"
         onClick={startEdit}
-        className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-600 hover:text-violet-400 p-1"
+        className="hover-reveal text-zinc-600 hover:text-violet-400 p-1"
         aria-label="Editar título"
       >
         <Pencil className="w-3 h-3" />
       </button>
       {onDelete && (
         <button
+          type="button"
           onClick={() => onDelete(session.id)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-600 hover:text-rose-400 p-1"
+          className="hover-reveal text-zinc-600 hover:text-rose-400 p-1"
           aria-label="Apagar conversa"
         >
           <Trash2 className="w-3 h-3" />

@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { logOrgActivity } from "@/features/admin/lib/org-activity-log";
 import { z } from "zod";
+import { findSubActionInOrg } from "../lib/action-access";
 
 export const updateSubAction = base
   .use(requiredAuthMiddleware)
@@ -17,8 +18,13 @@ export const updateSubAction = base
       finishDate: z.date().nullable().optional(),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
     const { subActionId, ...data } = input;
+
+    const existing = await findSubActionInOrg(subActionId, context.org.id);
+    if (!existing) {
+      throw errors.NOT_FOUND({ message: "Sub-ação não encontrada" });
+    }
 
     const changedFields = Object.keys(data).filter(
       (key) => (data as Record<string, unknown>)[key] !== undefined,

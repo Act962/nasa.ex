@@ -113,11 +113,6 @@ export default async function Page({
       content: <TemplateSettings trackingId={trackingId} />,
     },
     {
-      name: "Zona de Perigo",
-      value: "danger-zone",
-      content: <TrackingDangerZone trackingId={trackingId} />,
-    },
-    {
       name: "Personalização",
       value: "personalization",
       content: <Personalization trackingId={trackingId} />,
@@ -126,6 +121,11 @@ export default async function Page({
       name: "Leads",
       value: "leads",
       content: <LeadsSettings trackingId={trackingId} />,
+    },
+    {
+      name: "Zona de Perigo",
+      value: "danger-zone",
+      content: <TrackingDangerZone trackingId={trackingId} />,
     },
   ];
 

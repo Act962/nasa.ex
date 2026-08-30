@@ -209,7 +209,7 @@ export function SignupForm() {
   };
 
   /**
-   * NASA Partner: consome cookie nasa_ref (setado pelo edge middleware)
+   * NASA Partner: consome cookie nasa_ref (setado pelo proxy em src/proxy.ts)
    * e cria PartnerReferral vinculando a org recém-criada ao parceiro indicador.
    */
   const consumePartnerReferral = async () => {

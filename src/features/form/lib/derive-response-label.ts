@@ -67,7 +67,7 @@ function findFirstLabelBlockId(blocks: AnyBlock[]): string | null {
   return null;
 }
 
-function readValue(entry: unknown): string | null {
+export function readValue(entry: unknown): string | null {
   if (entry == null) return null;
   if (typeof entry === "string") return entry;
   if (typeof entry === "object") {

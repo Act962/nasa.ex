@@ -390,12 +390,20 @@ export class UazapiProvider implements WhatsAppChatProvider {
       ownerExternalId: pickString(raw, "owner"),
     } as const;
 
-    // displayName fallback: senderName → chat.name (paridade com fallback
-    // chain do route.ts pré-Fase 3).
+    // displayName do peer (o outro lado da conversa — que vira o Lead).
+    // - !fromMe: `senderName` é o push name de quem enviou = o próprio peer.
+    //   Fallback pra `chat.name` (nome na agenda do dono).
+    // - fromMe: `senderName` é SEMPRE o dono da conta (ex.: "finnaflor"), NÃO
+    //   o destinatário — jamais usar. `chat.name`/`wa_contactName`/`wa_name`
+    //   trazem o nome do destinatário salvo na agenda do dono; se todos vazios
+    //   (contato desconhecido), fica undefined e o pipeline cai em "Sem nome".
     const sender = {
       phone,
-      displayName:
-        pickString(message, "senderName") ?? pickString(raw.chat, "name"),
+      displayName: fromMe
+        ? (pickString(raw.chat, "name") ??
+          pickString(raw.chat, "wa_contactName") ??
+          pickString(raw.chat, "wa_name"))
+        : (pickString(message, "senderName") ?? pickString(raw.chat, "name")),
       fromMe,
     } as const;
 

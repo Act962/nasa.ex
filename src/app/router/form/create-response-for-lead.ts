@@ -43,11 +43,17 @@ export const createResponseForLead = base
        * no submit final — não no auto-save de cada "Próximo".
        */
       isFinal: z.boolean().optional().default(false),
+      /**
+       * Tarefa (O.S.) em cujo contexto a resposta está sendo preenchida.
+       * Chega como query param `?actionId=` da rota /formulario/novo.
+       * Ausente = resposta avulsa do lead (spec 0002, D-4).
+       */
+      actionId: z.string().optional().nullable(),
     }),
   )
   .handler(async ({ input, context, errors }) => {
     try {
-      const { formId, leadId, response, isFinal } = input;
+      const { formId, leadId, response, isFinal, actionId } = input;
       const userId = context.user.id;
 
       // Carrega form (incluindo settings.trackingId/statusId pro
@@ -111,6 +117,51 @@ export const createResponseForLead = base
         jsonResponse: response,
       });
 
+      // A tarefa precisa ser da mesma org do form e, se tiver lead, do MESMO
+      // lead — vincular resposta de um cliente a uma O.S. de outro seria
+      // vazamento de dado (spec 0002, invariante I4).
+      let resolvedActionId: string | null = null;
+      if (actionId) {
+        const action = await prisma.action.findFirst({
+          where: {
+            id: actionId,
+            workspace: { organizationId: form.organizationId },
+          },
+          select: { id: true, leadId: true },
+        });
+        if (!action) {
+          throw errors.NOT_FOUND({ message: "Tarefa não encontrada" });
+        }
+        if (action.leadId && action.leadId !== leadId) {
+          throw errors.BAD_REQUEST({
+            message: "Esta tarefa pertence a outro lead",
+          });
+        }
+        resolvedActionId = action.id;
+
+        // A pauta é gravada ANTES da resposta: se a tarefa sumir agora
+        // (exclusão concorrente), o erro acontece sem nada persistido. Fazer
+        // isso depois devolvia 500 com a resposta já criada, e o retry do
+        // usuário gerava uma segunda resposta duplicada.
+        //
+        // Mantém a invariante I5: toda resposta de uma tarefa tem o formulário
+        // correspondente na pauta dela, mesmo preenchida por um atalho que não
+        // passou pelo "Vincular formulário". Linha de pauta sem resposta é
+        // inofensiva — significa apenas "este formulário deve ser preenchido".
+        await prisma.actionForm.upsert({
+          where: {
+            actionId_formId: { actionId: resolvedActionId, formId },
+          },
+          create: {
+            actionId: resolvedActionId,
+            formId,
+            order: 999,
+            attachedBy: userId,
+          },
+          update: {},
+        });
+      }
+
       const created = await prisma.formResponses.create({
         data: {
           jsonResponse: response,
@@ -118,6 +169,11 @@ export const createResponseForLead = base
           leadId,
           label: autoLabel,
           labelManuallyEdited: false,
+          actionId: resolvedActionId,
+          // Autoria (spec 0005). Imutável depois: editar não reivindica
+          // autoria (D-3).
+          createdById: userId,
+          authorKind: "USER",
         },
         select: {
           id: true,

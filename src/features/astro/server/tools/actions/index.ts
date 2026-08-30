@@ -130,7 +130,7 @@ export function buildActionTools(ctx: AgentContext) {
         }
         const ws = await prisma.workspace.findUnique({
           where: { id: resolvedWorkspaceId },
-          select: { organizationId: true, name: true },
+          select: { organizationId: true, name: true, trackingId: true },
         });
         if (!ws) return { error: "Workspace não encontrado" };
 
@@ -190,6 +190,7 @@ export function buildActionTools(ctx: AgentContext) {
               workspaceId: resolvedWorkspaceId,
               columnId: firstColumn?.id ?? null,
               organizationId: ws.organizationId,
+              trackingId: ws.trackingId,
               createdBy: ctx.userId,
               dueDate: resolvedDueDate,
               priority: priority ?? ActionPriority.NONE,

@@ -13,9 +13,13 @@ export const getAction = base
     }),
   )
   .handler(async ({ input, context }) => {
-    const action = await prisma.action.findUnique({
+    // O escopo de org vem antes do papel: `canSeeByOrg` abaixo lê
+    // `context.org.members`, que é a org ATIVA do chamador. Sem esse filtro,
+    // ser owner/admin da própria org liberava qualquer ação de qualquer org.
+    const action = await prisma.action.findFirst({
       where: {
         id: input.actionId,
+        workspace: { organizationId: context.org.id },
       },
       include: {
         participants: {
@@ -48,6 +52,12 @@ export const getAction = base
             name: true,
             phone: true,
             email: true,
+          },
+        },
+        formResponse: {
+          select: {
+            id: true,
+            form: { select: { id: true, name: true } },
           },
         },
         workspace: {

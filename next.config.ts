@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // O `next dev` (16.3+) injeta um bloco de regras em AGENTS.md/CLAUDE.md, que
+  // aqui são versionados e curados à mão. Desligado pra não sujar a árvore de
+  // todo dev a cada `pnpm dev`. Sem efeito em runtime/produção.
+  agentRules: false,
   // React Compiler custa CPU+RAM a cada compile. Mantemos no build de produção
   // (ganho de perf real) e desligamos no dev pra aliviar o `next dev` numa
   // máquina com pouca RAM. Funcionalmente inócuo — o compiler só memoiza.

@@ -19,6 +19,7 @@ import {
   UserPlusIcon,
 } from "lucide-react";
 import { EmojiStickerPicker } from "./emoji-sticker-picker";
+import { ComposerActionButton } from "./composer-action-button";
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -29,10 +30,16 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   useMutationAudioMessage,
   useMutationContactMessage,
   useMutationLocationMessage,
   useMutationTextMessage,
+  useMutationVideoMessage,
 } from "../hooks/use-messages";
 import { toast } from "sonner";
 import { SendFile } from "./send-file";
@@ -172,6 +179,7 @@ export function Footer({
     lead,
     messageSelected,
   });
+  const mutationVideo = useMutationVideoMessage({ conversationId, lead });
   const mutationAudio = useMutationAudioMessage({
     conversationId,
     lead,
@@ -468,6 +476,21 @@ export function Footer({
               setMessage((prev) => prev + content);
               setShowScripts(false);
             }}
+            onSendVideoScript={({ mediaUrl, mimetype, fileName, caption }) => {
+              if (!lead.phone) {
+                toast.error("Lead sem telefone");
+                return;
+              }
+              mutationVideo.mutate({
+                conversationId,
+                leadPhone: lead.phone,
+                mediaUrl,
+                mimetype,
+                fileName,
+                body: caption,
+              });
+              setShowScripts(false);
+            }}
             leadName={lead.name}
             leadPhone={lead.phone ?? undefined}
           />
@@ -523,7 +546,7 @@ export function Footer({
           {!showAudioRecorder ? (
             <InputGroup
               className={cn(
-                "border-0 has-[[data-slot=input-group-control]:focus-visible]:border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 bg-white dark:bg-zinc-800 rounded-2xl px-2 shadow-md",
+                "border-0 has-[[data-slot=input-group-control]:focus-visible]:border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 bg-white dark:bg-zinc-800 rounded-full px-2 shadow-md",
                 message.includes("\n") || message.length > 60
                   ? "items-end pb-1.5"
                   : "items-center",
@@ -531,10 +554,12 @@ export function Footer({
             >
               {!isDisabled ? (
                 <>
-                  <InputGroupAddon>
+                  <InputGroupAddon className="gap-0.5 pl-1.5">
                     <Popover open={open} onOpenChange={setOpen}>
                       <PopoverTrigger asChild>
-                        <PlusIcon className="cursor-pointer size-4" />
+                        <ComposerActionButton label="Anexar">
+                          <PlusIcon />
+                        </ComposerActionButton>
                       </PopoverTrigger>
                       <PopoverContent className="w-fit h-fit p-0">
                         <div
@@ -751,26 +776,15 @@ export function Footer({
                         </div>
                       </PopoverContent>
                     </Popover>
-                  </InputGroupAddon>
-
-                  <InputGroupAddon>
-                    {/* Picker combinado de Emojis + Figurinhas (tabs).
-                        Substitui o popover antigo que só tinha emoji.
-                        Stickers usam `UserSticker` (org-scoped, R2)
-                        e enviam via uazapi com type:"sticker".
-                        Trigger é um <button> de verdade — `PopoverTrigger
-                        asChild` precisa de elemento que aceite ref, e o
-                        SVG do lucide não forwarda ref consistente. */}
+                    {/* Stickers usam `UserSticker` (org-scoped, R2) e enviam
+                        via uazapi com type:"sticker". O trigger precisa ser um
+                        <button> real — `PopoverTrigger asChild` exige elemento
+                        que aceite ref. */}
                     <EmojiStickerPicker
                       trigger={
-                        <button
-                          type="button"
-                          className="cursor-pointer inline-flex items-center justify-center text-foreground hover:text-foreground/80 transition-colors"
-                          aria-label="Emojis e figurinhas"
-                          title="Emojis e figurinhas"
-                        >
-                          <StickerIcon className="size-4" />
-                        </button>
+                        <ComposerActionButton label="Emojis e figurinhas">
+                          <StickerIcon />
+                        </ComposerActionButton>
                       }
                       onEmoji={(emoji) => setMessage((prev) => prev + emoji)}
                       onSticker={({ url, mimetype }) => {
@@ -850,25 +864,30 @@ export function Footer({
 
               <InputGroupAddon align="inline-end">
                 {message.trim().length > 0 ? (
-                  <Button
-                    type="submit"
-                    size="icon"
-                    className="rounded-full "
-                    disabled={isDisabled || outsideWindow}
-                  >
-                    <SendIcon className="size-4 " />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="submit"
+                        size="icon"
+                        aria-label="Enviar mensagem"
+                        className="rounded-full transition-transform duration-150 hover:scale-105 active:scale-95"
+                        disabled={isDisabled || outsideWindow}
+                      >
+                        <SendIcon className="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" sideOffset={8}>
+                      Enviar mensagem
+                    </TooltipContent>
+                  </Tooltip>
                 ) : (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full"
+                  <ComposerActionButton
+                    label="Gravar áudio"
                     disabled={isDisabled || outsideWindow}
                     onClick={() => setShowAudioRecorder(true)}
                   >
-                    <MicIcon className="size-4" />
-                  </Button>
+                    <MicIcon />
+                  </ComposerActionButton>
                 )}
               </InputGroupAddon>
             </InputGroup>

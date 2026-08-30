@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { awardPoints } from "@/app/router/space-point/utils";
+import { resolveWorkspaceTrackingId } from "@/features/actions/lib/workspace-tracking";
 import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -43,6 +44,8 @@ export const createCampaignTask = base
           ? Prisma.Decimal.sub(firstAction.order, 1)
           : new Prisma.Decimal(0);
 
+        const trackingId = await resolveWorkspaceTrackingId(workspaceId);
+
         const action = await prisma.action.create({
           data: {
             title: input.title,
@@ -53,6 +56,7 @@ export const createCampaignTask = base
             workspaceId,
             columnId,
             organizationId: context.org.id,
+            trackingId,
             order: newOrder,
             createdBy: context.user.id,
             participants: { create: { userId: context.user.id } },

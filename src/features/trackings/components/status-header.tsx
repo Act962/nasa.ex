@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useKanbanStore } from "../lib/kanban-store";
+import { useCardVisibility } from "../hooks/use-card-config";
+import { isFieldVisible } from "../lib/card-visibility";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useUpdateStatusName } from "@/features/status/hooks/use-status";
 import { cn } from "@/lib/utils";
@@ -43,16 +45,15 @@ import { useState } from "react";
 import { SketchPicker } from "react-color";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useDeleteStatus } from "../hooks/use-trackings";
+import { useDeleteStatus, useStatusColumnMeta } from "../hooks/use-trackings";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
-import { useQueryState } from "nuqs";
-import dayjs from "dayjs";
 import { orpc } from "@/lib/orpc";
+import { formatCentsToMoney } from "@/utils/mask-money";
 
 interface StatusHeaderProps {
   id: string;
@@ -185,7 +186,7 @@ export const StatusHeader = ({
             </TooltipTrigger>
             <TooltipContent>{data.name}</TooltipContent>
           </Tooltip>
-          <StatusLeadsCount
+          <StatusColumnMeta
             columnId={data.id}
             trackingId={data.trackingId}
             fallback={data.leads}
@@ -280,13 +281,12 @@ export const StatusHeader = ({
   );
 };
 
-// Leaf component que subscreve sozinho ao count via TanStack Query.
-// Quando o count muda (drag de lead, refetch), só ESTE componente
-// re-renderiza — não cascateia pro StatusColumn (que está memoizado
-// ignorando leads count) nem pro StatusHeader. Isso quebra o ciclo
-// de ref churn que o memo do StatusColumn deixava passar quando o
-// count mudava.
-function StatusLeadsCount({
+// Leaf que subscreve sozinho à meta da coluna (contagem + soma de valores) via
+// TanStack Query. Quando a meta muda (drag de lead, refetch), só ESTE
+// componente re-renderiza — não cascateia pro StatusColumn (memoizado ignorando
+// o count) nem pro StatusHeader. Um único observer cobre count + total, e ambos
+// respeitam a visibilidade do board.
+function StatusColumnMeta({
   columnId,
   trackingId,
   fallback,
@@ -295,41 +295,26 @@ function StatusLeadsCount({
   trackingId: string;
   fallback: number;
 }) {
-  const [dateInit] = useQueryState("date_init");
-  const [dateEnd] = useQueryState("date_end");
-  const [participantFilter] = useQueryState("participant");
-  const [tagsFilter] = useQueryState("tags");
-  const [temperatureFilter] = useQueryState("temperature");
-  const [actionFilter] = useQueryState("filter");
+  const visibility = useCardVisibility(trackingId);
+  const { data: meta } = useStatusColumnMeta(trackingId, columnId, fallback);
 
-  const baseOptions = orpc.status.getMany.queryOptions({
-    input: {
-      trackingId,
-      dateInit: dateInit
-        ? dayjs(dateInit).startOf("day").toDate().toISOString()
-        : undefined,
-      dateEnd: dateEnd
-        ? dayjs(dateEnd).endOf("day").toDate().toISOString()
-        : undefined,
-      participantFilter: participantFilter || undefined,
-      tagsFilter: tagsFilter ? tagsFilter.split(",") : undefined,
-      temperatureFilter: temperatureFilter
-        ? temperatureFilter.split(",")
-        : undefined,
-      actionFilter: (actionFilter || "ACTIVE") as any,
-    },
-  });
-
-  const { data: count } = useQuery({
-    ...baseOptions,
-    select: (data: any) =>
-      data?.find((s: any) => s.id === columnId)?._count?.leads ?? fallback,
-  });
+  const showCount = isFieldVisible(visibility, "leadCount");
+  const showTotal = isFieldVisible(visibility, "columnValueTotal");
+  if (!showCount && !showTotal) return null;
 
   return (
-    <span className="text-xs text-muted-foreground ml-2">
-      {count ?? fallback}
-    </span>
+    <>
+      {showCount && (
+        <span className="text-xs text-muted-foreground ml-2">
+          {meta?.count ?? fallback}
+        </span>
+      )}
+      {showTotal && (
+        <span className="text-xs font-medium text-muted-foreground ml-2">
+          {formatCentsToMoney(meta?.valueTotal ?? 0)}
+        </span>
+      )}
+    </>
   );
 }
 

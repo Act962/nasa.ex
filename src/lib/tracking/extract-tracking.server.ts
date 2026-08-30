@@ -4,7 +4,7 @@
  * (form public submit, agenda, linnker, etc.) para popular os campos `utm*`,
  * `referrer`, `landingPage`, `device`, `userAgent` no Lead.
  *
- * Lê o cookie httpOnly `nasa_tracking` setado pelo `middleware.ts`.
+ * Lê o cookie httpOnly `nasa_tracking` setado pelo `proxy.ts`.
  */
 import { parseDevice, type TrackingParams } from "./tracking-params";
 
@@ -42,7 +42,7 @@ export function extractTracking(input: ExtractTrackingInput): TrackingParams {
   // sessionStorage e pode incluir UTMs do "primeiro touch" da sessão.
   const fromBody: TrackingParams = input.explicit ?? {};
 
-  // 2. Cookie nasa_tracking (setado pelo middleware na primeira visita)
+  // 2. Cookie nasa_tracking (setado pelo proxy na primeira visita)
   let fromCookie: TrackingParams = {};
   const cookieVal = readValue(input.cookies, "nasa_tracking");
   if (cookieVal) {

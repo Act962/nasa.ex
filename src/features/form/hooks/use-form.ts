@@ -4,18 +4,26 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface UseListFormsOptions {
   organizationId?: string;
+  /**
+   * Dialogs montados o tempo todo (ex: LeadFormsDialog no card do kanban)
+   * precisam adiar a busca até abrirem — senão o board inteiro dispara a
+   * listagem de formulários da org sem ninguém ter pedido.
+   */
+  enabled?: boolean;
 }
 
 export const useQueryListForms = ({
   organizationId,
+  enabled = true,
 }: UseListFormsOptions = {}) => {
-  const { data, isLoading, ...query } = useQuery(
-    orpc.form.list.queryOptions({
+  const { data, isLoading, ...query } = useQuery({
+    ...orpc.form.list.queryOptions({
       input: {
         organizationId,
       },
     }),
-  );
+    enabled,
+  });
 
   return {
     forms: data?.forms ?? [],
@@ -42,6 +50,9 @@ export const useQueryFormById = ({ formId }: UseFormByIdOptions) => {
   return {
     form: data?.form,
     message: data?.message,
+    // Spec 0005, D-13 — só gestores alteram a política de edição. Vem do
+    // servidor; a UI não re-deriva papel (RF-12).
+    canEditPolicy: data?.canEditPolicy ?? false,
     isLoading,
   };
 };
@@ -186,6 +197,12 @@ export const useQueryFormResponseById = (id: string) => {
   );
   return {
     response: data?.response,
+    // Permissão de edição vem resolvida do servidor (spec 0005, RF-12) — o
+    // cliente nunca re-deriva a regra. Ausente = ainda carregando; tratamos
+    // como não-editável pra não piscar o formulário habilitado.
+    canEdit: data?.canEdit ?? false,
+    editBlockedReason: data?.editBlockedReason ?? null,
+    createdBy: data?.createdBy ?? null,
     isLoading,
     isError,
     error,
@@ -207,6 +224,15 @@ export const useMutationCreateResponseForLead = () => {
             input: { leadId: variables.leadId },
           }),
         });
+        // Preenchimento a partir do dialog da tarefa: sem isso a pauta não
+        // reflete a resposta nova ao voltar (spec 0002).
+        if (variables.actionId) {
+          queryClient.invalidateQueries({
+            queryKey: orpc.action.forms.list.queryKey({
+              input: { actionId: variables.actionId },
+            }),
+          });
+        }
       },
     }),
   );
@@ -250,8 +276,17 @@ export const useMutationValidateLeadPhone = () => {
   return useMutation(orpc.form.validateLeadPhone.mutationOptions({}));
 };
 
+export const useMutationValidateCep = () => {
+  return useMutation(orpc.form.validateCep.mutationOptions({}));
+};
+
 export const useMutationFindDraftByPhone = () => {
   return useMutation(orpc.form.findDraftByPhone.mutationOptions({}));
+};
+
+// Mod 1: checa (só pra membro autenticado) se o telefone já é um lead da org.
+export const useMutationCheckExistingLead = () => {
+  return useMutation(orpc.form.checkExistingLead.mutationOptions({}));
 };
 
 export const useMutationSubmitResponse = () => {

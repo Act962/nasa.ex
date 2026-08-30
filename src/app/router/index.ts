@@ -68,6 +68,7 @@ import { inChatRouter } from "./in-chat";
 import { workflowClipboardRouter } from "./workflow-clipboard";
 import { astroBotRouter } from "./astro-bot";
 import { whatsappAnalyticsRouter } from "./whatsapp-analytics";
+import { campanhasRouter } from "./campanhas";
 
 export const router = {
   tracking: trackingRoutes,
@@ -142,4 +143,6 @@ export const router = {
   workflowClipboard: workflowClipboardRouter,
   /** Analytics do WhatsApp Oficial (Meta Cloud) — mensagens/conversas/custo. */
   whatsappAnalytics: whatsappAnalyticsRouter,
+  /** Campanhas — disparos WhatsApp API Oficial (MM API). Ver docs/campanhas-overview.md. */
+  campanhas: campanhasRouter,
 };

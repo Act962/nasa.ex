@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DashboardHeader } from "./dashboard-header";
 import { DashboardFilters } from "./dashboard-filters";
 import { KPIGeneralCards } from "./kpi/general-cards";
+import { StatusConversionPanel } from "./status-conversion/status-conversion-panel";
 import { ChartWrapper } from "./chart-wrapper";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
@@ -142,6 +143,7 @@ export function TrackingDashboard({
     trackingId,
     organizationIds,
     tagIds,
+    statusIds,
     memberIds,
     workspaceIds,
     dateRange,
@@ -151,6 +153,7 @@ export function TrackingDashboard({
     toggleOrganizationId,
     setDateRange,
     toggleTagId,
+    toggleStatusId,
     toggleMemberId,
     toggleWorkspaceId,
     toggleSection,
@@ -455,7 +458,8 @@ export function TrackingDashboard({
                   (organizationIds.length > 0 ? 1 : 0) +
                   (workspaceIds.length > 0 ? 1 : 0) +
                   (showTrackingFilters && trackingId ? 1 : 0) +
-                  (showTrackingFilters && tagIds.length > 0 ? 1 : 0);
+                  (showTrackingFilters && tagIds.length > 0 ? 1 : 0) +
+                  (showTrackingFilters && statusIds.length > 0 ? 1 : 0);
                 if (count === 0) return null;
                 return (
                   <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
@@ -495,6 +499,9 @@ export function TrackingDashboard({
                 onOrganizationToggle={toggleOrganizationId}
                 onTagToggle={toggleTagId}
                 onDateRangeChange={setDateRange}
+                statusIds={showTrackingFilters ? statusIds : []}
+                onStatusToggle={toggleStatusId}
+                showStatusFilter={showTrackingFilters}
                 workspaceIds={workspaceIds}
                 workspaceOptions={workspaceOptions}
                 onWorkspaceToggle={toggleWorkspaceId}
@@ -788,6 +795,16 @@ export function TrackingDashboard({
                     <KPIGeneralCards summary={data.summary} />
                   )}
                 </section>
+              )}
+              {settings.visibleSections.statusConversion && (
+                <StatusConversionPanel
+                  trackingId={trackingId}
+                  organizationIds={organizationIds}
+                  statusIds={statusIds}
+                  tagIds={tagIds}
+                  dateRange={dateRange}
+                  onHide={() => toggleSection("statusConversion")}
+                />
               )}
               {/* Seção de performance personalizável — começa vazia,
                   user adiciona via "+ Adicionar Insight". Mostra tempo

@@ -5,20 +5,47 @@ import z from "zod";
 import { inngest } from "@/inngest/client";
 import type { WhatsappChat } from "@/features/form/types";
 import { awardPoints } from "@/app/router/space-point/utils";
-import { trackLeadEvent } from "@/lib/lead-journey/track";
+import {
+  trackLeadEvent,
+  type TrackLeadEventInput,
+} from "@/lib/lead-journey/track";
 import {
   trackingParamsSchema,
-  trackingToLeadData,
   shouldLogUtmLanding,
 } from "@/lib/tracking/tracking-params";
 import {
   recordLeadEvent,
   type RecordLeadEventInput,
 } from "@/features/leads/lib/history";
-import { publishLeadCreated } from "@/features/leads/realtime/publish";
+import {
+  publishLeadCreated,
+  publishLeadMoved,
+} from "@/features/leads/realtime/publish";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
+import { generateActionsForResponse } from "@/features/form/server/lib/generate-actions-for-response";
 import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
 import { eventBus } from "@/features/alerts/lib/event-bus";
+import {
+  resolveAndPlaceLeadForForm,
+  placeLeadInFormTarget,
+  type PlaceLeadResult,
+} from "@/features/form/server/lib/resolve-and-place-lead-for-form";
+
+type MovedLeadForBoard = {
+  leadId: string;
+  fromTrackingId: string | null;
+  toTrackingId: string;
+  fromStatusId: string | null;
+  toStatusId: string;
+};
+
+type StatusChangeAlert = {
+  leadId: string;
+  fromStatusId: string | null;
+  toStatusId: string;
+  orgId: string;
+  responsibleId: string | null;
+};
 
 export const submitResponse = base
   .route({
@@ -44,6 +71,47 @@ export const submitResponse = base
         nextActionTagId,
         responseId: finalizingResponseId,
       } = input;
+
+      // A retomada de sessão (localStorage, 24h) pode reenviar o responseId de
+      // uma resposta JÁ finalizada — ou é um retry cujo ack se perdeu. Nenhum
+      // dos dois é erro: a submissão já foi processada. Responde idempotente
+      // com o mesmo lead, sem reprocessar efeitos nem duplicar a resposta.
+      if (finalizingResponseId) {
+        const alreadySubmitted = await prisma.formResponses.findFirst({
+          where: {
+            id: finalizingResponseId,
+            formId: id,
+            completedAt: { not: null },
+          },
+          select: {
+            lead: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                publicToken: true,
+              },
+            },
+          },
+        });
+        if (alreadySubmitted) {
+          return {
+            id,
+            message: "Response already submitted",
+            lead: alreadySubmitted.lead
+              ? {
+                  id: alreadySubmitted.lead.id,
+                  name: alreadySubmitted.lead.name,
+                  email: alreadySubmitted.lead.email,
+                  phone: alreadySubmitted.lead.phone,
+                  publicToken: alreadySubmitted.lead.publicToken,
+                }
+              : null,
+          };
+        }
+      }
+
       const tagIds: string[] = Object.values(JSON.parse(response))
         .map((field: any) => field?.meta?.tagId)
         .filter((tagId): tagId is string => Boolean(tagId));
@@ -54,6 +122,21 @@ export const submitResponse = base
       let outLeadPublicToken: string | null = null;
 
       const pendingLeadEvents: RecordLeadEventInput[] = [];
+      // Eventos de jornada coletados DENTRO da tx e gravados só APÓS o commit.
+      // `trackLeadEvent` usa o cliente Prisma global — outra conexão. Chamado
+      // aqui dentro, o INSERT valida a FK contra a linha de `leads` que esta tx
+      // acabou de travar: a tx espera o insert, o insert espera a tx. Espera
+      // circular que só o timeout de 5s desfaz, devolvendo 500 ao usuário.
+      const pendingJourneyEvents: TrackLeadEventInput[] = [];
+      // Mod 2: lead reposicionado (movido de coluna ou realocado de tracking)
+      // ao submeter — publicado no realtime + alerta APÓS o commit.
+      let movedLeadForBoard: MovedLeadForBoard | null = null;
+      let statusChangeAlert: StatusChangeAlert | null = null;
+      // Id da resposta finalizada NESTA submissão (draft finalizado OU nova
+      // submissão) + o lead a que ela pertence — usados pós-commit p/ gerar a
+      // action da resposta CERTA (não "a mais recente por createdAt").
+      let submittedResponseId: string | null = null;
+      let submittedResponseLeadId: string | null = null;
 
       const { formMeta, createdLeadForBoard } = await prisma.$transaction(async (tx) => {
         // Lead novo criado nesta submissão (cai no board). Retornado da tx e
@@ -70,14 +153,17 @@ export const submitResponse = base
             published: true,
           },
           select: {
+            userId: true,
             name: true,
             jsonBlock: true,
+            organizationId: true,
             settings: {
               select: {
                 trackingId: true,
                 statusId: true,
                 whatsappChats: true,
                 whatsappMessage: true,
+                generateActionsConfig: true,
               },
             },
           },
@@ -121,19 +207,57 @@ export const submitResponse = base
 
         const { trackingId, statusId } = form.settings ?? {};
 
-        if (finalizingResponseId) {
-          // completedAt: null evita reexecutar a finalização inteira (e
-          // duplicar efeitos não-idempotentes — WhatsApp, eventos de
-          // jornada, alertas) quando o client reenvia o mesmo
-          // finalizingResponseId num retry fantasma (ack do submit
-          // anterior se perdeu, mas o servidor já tinha processado).
-          const draft = await tx.formResponses.findFirst({
-            where: { id: finalizingResponseId, formId: id, completedAt: null },
-            select: { id: true, leadId: true },
-          });
-          if (!draft) {
-            throw errors.NOT_FOUND({ message: "Draft não encontrado" });
+        // Mod 2: quando o lead é movido/realocado pro tracking/coluna do form,
+        // coleta os efeitos de board/jornada/alerta pra disparar pós-commit.
+        const collectPlacementSideEffects = (placement: PlaceLeadResult) => {
+          if (placement.outcome !== "moved" && placement.outcome !== "relocated") {
+            return;
           }
+          const fromStatusId = placement.from?.statusId ?? null;
+          movedLeadForBoard = {
+            leadId: placement.lead.id,
+            fromTrackingId: placement.from?.trackingId ?? null,
+            toTrackingId: placement.to.trackingId,
+            fromStatusId,
+            toStatusId: placement.to.statusId,
+          };
+          statusChangeAlert = {
+            leadId: placement.lead.id,
+            fromStatusId,
+            toStatusId: placement.to.statusId,
+            orgId: form.organizationId,
+            responsibleId: placement.lead.responsibleId,
+          };
+          pendingLeadEvents.push({
+            leadId: placement.lead.id,
+            eventType: "STATUS_CHANGE",
+            previousStatusId: fromStatusId,
+            newStatusId: placement.to.statusId,
+          });
+          pendingJourneyEvents.push({
+            leadId: placement.lead.id,
+            kind: "status_changed",
+            metadata: {
+              from: fromStatusId,
+              to: placement.to.statusId,
+              source: "form_submit",
+            },
+          });
+        };
+
+        // Draft finalizável: existe, é deste form e ainda não foi concluído.
+        // Um responseId obsoleto (resposta deletada ou de outro form) NÃO
+        // derruba o submit — cai no fluxo de submissão nova. O retry de uma
+        // resposta já concluída foi tratado de forma idempotente antes da tx.
+        const draft = finalizingResponseId
+          ? await tx.formResponses.findFirst({
+              where: { id: finalizingResponseId, formId: id, completedAt: null },
+              select: { id: true, leadId: true },
+            })
+          : null;
+        const finalizeDraftId = draft?.id ?? null;
+
+        if (draft) {
           if (draft.leadId) {
             const draftLead = await tx.lead.findUnique({
               where: { id: draft.leadId },
@@ -165,83 +289,70 @@ export const submitResponse = base
                   skipDuplicates: true,
                 });
               }
-              await trackLeadEvent({
+              pendingJourneyEvents.push({
                 leadId,
                 kind: "form_submit",
                 metadata: { formId: id, finalized: true },
               });
+
+              // Mod 2: garante que o lead do draft termine no tracking/coluna
+              // do form ao finalizar (move de coluna ou realoca de tracking).
+              if (trackingId && statusId) {
+                const placement = await placeLeadInFormTarget(
+                  tx,
+                  draftLead.id,
+                  trackingId,
+                  statusId,
+                );
+                if (placement) collectPlacementSideEffects(placement);
+              }
             }
           }
         } else if (trackingId && statusId) {
-          let existingLead = null;
-          if (userPhone) {
-            existingLead = await tx.lead.findUnique({
-              where: {
-                phone_trackingId: {
-                  phone: userPhone,
-                  trackingId,
-                },
-              },
+          // Mod 2: resolve o lead pelo telefone na org inteira e o posiciona no
+          // tracking/coluna do form — realocando o existente ou criando um novo.
+          const placement = await resolveAndPlaceLeadForForm(tx, {
+            organizationId: form.organizationId,
+            phone: userPhone,
+            formTrackingId: trackingId,
+            formStatusId: statusId,
+            leadData: { name: userName, email: userEmail, phone: userPhone },
+            trackingParams,
+          });
+
+          leadId = placement.lead.id;
+          outLeadId = placement.lead.id;
+          outLeadName = placement.lead.name;
+          outLeadEmail = placement.lead.email;
+          outLeadPhone = placement.lead.phone;
+          outLeadPublicToken = placement.lead.publicToken;
+
+          // Tags das respostas (radio/checkbox com tagId) — idempotente.
+          if (tagsFind.length > 0) {
+            await tx.leadTag.createMany({
+              data: tagsFind.map((tag) => ({
+                leadId: placement.lead.id,
+                tagId: tag.id,
+              })),
+              skipDuplicates: true,
             });
           }
 
-          if (existingLead) {
-            leadId = existingLead.id;
-            outLeadId = existingLead.id;
-            outLeadName = existingLead.name;
-            outLeadEmail = existingLead.email;
-            outLeadPhone = existingLead.phone;
-            outLeadPublicToken =
-              (existingLead as unknown as { publicToken?: string | null })
-                .publicToken ?? null;
-            // Lead já existia — registra o resubmit como evento, sem alterar UTMs
-            // do "primeiro touch".
-            await trackLeadEvent({
-              leadId,
-              kind: "form_submit",
-              metadata: { formId: id, returning: true },
-            });
-          } else {
-            const newLead = await tx.lead.create({
-              data: {
-                name: userName,
-                email: userEmail,
-                phone: userPhone,
-                trackingId,
-                statusId,
-                source: "FORM",
-                ...trackingToLeadData(trackingParams),
-              },
-            });
-            await tx.leadTag.createMany({
-              data: tagsFind.map((tag) => ({
-                leadId: newLead.id,
-                tagId: tag.id,
-              })),
-            });
-            leadId = newLead.id;
-            outLeadId = newLead.id;
-            outLeadName = newLead.name;
-            outLeadEmail = newLead.email;
-            outLeadPhone = newLead.phone;
-            // trackingId/statusId garantidos não-nulos por este `else if`.
-            createdLeadForBoard = {
-              leadId: newLead.id,
-              trackingId: trackingId!,
-              statusId: statusId!,
-            };
-            outLeadPublicToken =
-              (newLead as unknown as { publicToken?: string | null })
-                .publicToken ?? null;
+          pendingJourneyEvents.push({
+            leadId: placement.lead.id,
+            kind: "form_submit",
+            metadata: { formId: id, returning: placement.outcome !== "created" },
+          });
 
-            await trackLeadEvent({
-              leadId: newLead.id,
-              kind: "form_submit",
-              metadata: { formId: id },
-            });
+          if (placement.outcome === "created") {
+            createdLeadForBoard = {
+              leadId: placement.lead.id,
+              trackingId,
+              statusId,
+            };
             if (shouldLogUtmLanding(trackingParams)) {
-              await trackLeadEvent({
-                leadId: newLead.id,
+              pendingJourneyEvents.push({
+                leadId: placement.lead.id,
                 kind: "utm_landing",
                 metadata: {
                   utmSource: trackingParams?.utmSource,
@@ -254,17 +365,8 @@ export const submitResponse = base
                 },
               });
             }
-
-            await fetch(
-              `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${trackingId}&leadId=${newLead.id}`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ trackingId }),
-              },
-            );
+          } else {
+            collectPlacementSideEffects(placement);
           }
         }
 
@@ -284,9 +386,9 @@ export const submitResponse = base
           organizationId: string;
           formSubmissions: { id: string; label: string | null }[];
         };
-        if (finalizingResponseId) {
+        if (finalizeDraftId) {
           await tx.formResponses.update({
-            where: { id: finalizingResponseId },
+            where: { id: finalizeDraftId },
             data: {
               jsonResponse: response,
               label: autoLabel,
@@ -306,7 +408,7 @@ export const submitResponse = base
             userId: formAfter?.userId ?? "",
             organizationId: formAfter?.organizationId ?? "",
             formSubmissions: [
-              { id: finalizingResponseId, label: autoLabel ?? null },
+              { id: finalizeDraftId, label: autoLabel ?? null },
             ],
           };
         } else {
@@ -322,6 +424,9 @@ export const submitResponse = base
                   ...(leadId && { leadId }),
                   label: autoLabel,
                   completedAt: new Date(),
+                  // Submit público: quem preencheu foi o próprio lead, não um
+                  // usuário da org. Sem autor, mas atribuível (spec 0005, D-2).
+                  authorKind: "LEAD",
                 },
               },
               responses: {
@@ -340,6 +445,12 @@ export const submitResponse = base
             },
           });
         }
+
+        // Captura o id da resposta desta submissão (draft finalizado usa o
+        // próprio id; nova submissão usa a linha recém-criada) + seu lead.
+        submittedResponseId =
+          finalizeDraftId ?? updatedForm.formSubmissions?.[0]?.id ?? null;
+        submittedResponseLeadId = leadId;
 
         if (leadId) {
           const lastSub = updatedForm.formSubmissions?.[0];
@@ -427,10 +538,60 @@ export const submitResponse = base
         await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
       }
 
+      // Jornada do lead: gravada só agora, com a tx commitada e as linhas de
+      // `leads` visíveis pra outras conexões. Dentro da tx, o lead recém-criado
+      // ainda não existia pro cliente global e o INSERT morria em violação de
+      // FK — silenciosamente, porque trackLeadEvent nunca repropaga.
+      if (pendingJourneyEvents.length > 0) {
+        await Promise.all(pendingJourneyEvents.map((event) => trackLeadEvent(event)));
+      }
+
       // Realtime do board: lead novo entrou no tracking → board refetcha a
       // coluna e o card aparece ao vivo. Best-effort (helper isola erro).
       if (createdLeadForBoard) {
         await publishLeadCreated({ ...createdLeadForBoard, source: "form" });
+
+        // Workflow de lead novo: I/O de rede, portanto sempre pós-commit. Antes
+        // rodava dentro da tx, segurando a transação aberta pelo tempo de uma
+        // request HTTP. Best-effort: falhar aqui não invalida a submissão.
+        try {
+          const { leadId: newLeadId, trackingId: newLeadTrackingId } =
+            createdLeadForBoard;
+          await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${newLeadTrackingId}&leadId=${newLeadId}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ trackingId: newLeadTrackingId }),
+            },
+          );
+        } catch (workflowErr) {
+          console.error("[form/submit] workflow lead/new falhou:", workflowErr);
+        }
+      }
+
+      // Mod 2: lead movido/realocado pro tracking/coluna do form → atualiza o
+      // board (origem + destino) e dispara o alerta de mudança de status.
+      // Const locais: TS não estreita `let` atribuído dentro do closure da tx.
+      // `as` força o tipo da expressão pra a união: o TS narrowa o `let`
+      // atribuído dentro do closure da tx para `null` no CFA (não rastreia a
+      // atribuição), o que colapsaria o guard para `never` sem o cast.
+      const movedForBoard = movedLeadForBoard as MovedLeadForBoard | null;
+      if (movedForBoard) {
+        await publishLeadMoved({
+          leadId: movedForBoard.leadId,
+          fromTrackingId: movedForBoard.fromTrackingId,
+          toTrackingId: movedForBoard.toTrackingId,
+          fromStatusId: movedForBoard.fromStatusId,
+          toStatusId: movedForBoard.toStatusId,
+          movedAt: new Date().toISOString(),
+        });
+      }
+      const alertToPublish = statusChangeAlert as StatusChangeAlert | null;
+      if (alertToPublish) {
+        await eventBus.publish("lead.status_changed", alertToPublish);
       }
 
       // Propaga labels → Lead.description (textareas card + observações).
@@ -497,6 +658,37 @@ export const submitResponse = base
         }
       } catch (err) {
         console.error("[form/submit] eventBus publish falhou:", err);
+      }
+
+      // Gera a Action configurada a partir da resposta (síncrono, como o lead).
+      // Isolado: uma falha aqui nunca derruba o submit já commitado. Usa a
+      // resposta DESTA submissão (capturada na tx) e os dados do form já
+      // carregados — sem re-buscar "a mais recente por createdAt".
+      // Cast força a união: o TS narrowa `let` atribuído no closure da tx.
+      const responseIdForActions = submittedResponseId as string | null;
+      const responseLeadForActions = submittedResponseLeadId as string | null;
+      try {
+        const actionsConfig = formMeta.settings?.generateActionsConfig;
+        if (responseIdForActions && actionsConfig) {
+          await generateActionsForResponse({
+            form: {
+              id,
+              userId: formMeta.userId,
+              organizationId: formMeta.organizationId,
+              name: formMeta.name,
+              jsonBlock: formMeta.jsonBlock,
+              trackingId: formMeta.settings?.trackingId ?? null,
+            },
+            formResponse: {
+              id: responseIdForActions,
+              jsonResponse: response,
+              leadId: responseLeadForActions,
+            },
+            config: actionsConfig,
+          });
+        }
+      } catch (genErr) {
+        console.error("[form/submit] geração de actions falhou:", genErr);
       }
 
       // Verificar se este form faz parte de um processo de onboarding
@@ -566,7 +758,19 @@ export const submitResponse = base
           : null,
       };
     } catch (error) {
-      console.log(error);
+      // Erros oRPC definidos (form inexistente/despublicado → NOT_FOUND, etc.)
+      // devem propagar com o status certo, não virar 500. Só o inesperado vira
+      // INTERNAL_SERVER_ERROR. Mesmo tratamento do save-partial-response.
+      const code = (error as { code?: string } | null)?.code;
+      if (
+        code === "NOT_FOUND" ||
+        code === "BAD_REQUEST" ||
+        code === "FORBIDDEN" ||
+        code === "UNAUTHORIZED"
+      ) {
+        throw error;
+      }
+      console.error("[form/submitResponse]", error);
       throw errors.INTERNAL_SERVER_ERROR();
     }
   });

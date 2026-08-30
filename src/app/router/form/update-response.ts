@@ -4,13 +4,14 @@ import prisma from "@/lib/prisma";
 import z from "zod";
 import { recordLeadEvent } from "@/features/leads/lib/history";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
-import {
-  checkLeadTrackingParticipant,
-  NOT_TRACKING_PARTICIPANT_MESSAGE,
-} from "@/features/leads/lib/tracking-participant-guard";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
 import { applyResponseTagsToLead } from "@/features/form/lib/apply-response-tags";
+import {
+  checkFormResponseEditable,
+  resolveEditPolicy,
+  EDIT_BLOCKED_MESSAGE,
+} from "@/features/form/lib/can-edit-response";
 
 /**
  * Atualiza o `jsonResponse` de uma `FormResponses` existente. Usado no fluxo
@@ -57,11 +58,20 @@ export const updateResponse = base
           leadId: true,
           formId: true,
           labelManuallyEdited: true,
+          authorKind: true,
+          createdById: true,
+          lead: { select: { trackingId: true } },
           form: {
             select: {
               organizationId: true,
               jsonBlock: true,
-              settings: { select: { trackingId: true, statusId: true } },
+              settings: {
+                select: {
+                  trackingId: true,
+                  statusId: true,
+                  responseEditPolicy: true,
+                },
+              },
             },
           },
         },
@@ -71,29 +81,32 @@ export const updateResponse = base
         throw errors.NOT_FOUND({ message: "Resposta não encontrada" });
       }
 
-      // Membership check (org-level — defesa em profundidade)
-      const member = await prisma.member.findFirst({
-        where: { organizationId: existing.form.organizationId, userId },
-        select: { id: true },
-      });
-      if (!member) {
-        throw errors.UNAUTHORIZED({
-          message: "Você não tem acesso a esta resposta",
-        });
-      }
-
-      // Tracking participant check — usuário precisa participar do
-      // tracking ATUAL do lead pra editar respostas.
-      if (existing.leadId) {
-        const { ok } = await checkLeadTrackingParticipant(
-          existing.leadId,
+      // Guard único (spec 0005): membership + regra de setor + política do
+      // formulário, na ordem da matriz 6.2. Substitui a dupla membership +
+      // checkLeadTrackingParticipant que existia aqui.
+      const verdict = await checkFormResponseEditable(
+        {
+          authorKind: existing.authorKind,
+          createdById: existing.createdById,
+          leadTrackingId: existing.lead?.trackingId ?? null,
+        },
+        resolveEditPolicy(existing.form.settings),
+        userId,
+        existing.form.organizationId,
+      );
+      if (!verdict.canEdit) {
+        const message = EDIT_BLOCKED_MESSAGE[verdict.reason!];
+        console.warn("[form/updateResponse] edição negada", {
           userId,
-        );
-        if (!ok) {
-          throw errors.FORBIDDEN({
-            message: NOT_TRACKING_PARTICIPANT_MESSAGE,
-          });
+          responseId: existing.id,
+          authorKind: existing.authorKind,
+          policy: resolveEditPolicy(existing.form.settings),
+          reason: verdict.reason,
+        });
+        if (verdict.reason === "not_org_member") {
+          throw errors.UNAUTHORIZED({ message });
         }
+        throw errors.FORBIDDEN({ message });
       }
 
       // Re-deriva label automático SOMENTE quando o user nunca fez
@@ -222,7 +235,14 @@ export const updateResponse = base
       };
     } catch (error: any) {
       console.error("[form/updateResponse]", error);
-      if (error?.code === "NOT_FOUND" || error?.code === "BAD_REQUEST") {
+      // FORBIDDEN/UNAUTHORIZED precisam passar: engolidos aqui, uma negação de
+      // permissão viraria 500 e o usuário veria "erro interno" em vez do motivo.
+      if (
+        error?.code === "NOT_FOUND" ||
+        error?.code === "BAD_REQUEST" ||
+        error?.code === "FORBIDDEN" ||
+        error?.code === "UNAUTHORIZED"
+      ) {
         throw error;
       }
       throw errors.INTERNAL_SERVER_ERROR({

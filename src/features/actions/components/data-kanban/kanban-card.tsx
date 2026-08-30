@@ -21,9 +21,12 @@ import {
   PinIcon,
   CircleIcon,
   CircleCheckIcon,
+  UserRoundIcon,
+  ClipboardListIcon,
 } from "lucide-react";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { useActionStore } from "../../context/use-action";
+import { ActionFormsDialog } from "@/features/actions/components/action-forms-dialog";
 
 interface Props {
   action: Action;
@@ -63,6 +66,7 @@ const PLACEHOLDER_BG = "bg-linear-to-br from-muted to-muted/40";
 
 export function KanbanCard({ action, isOverlay }: Props) {
   const [open, setOpen] = useState(false);
+  const [formsDialogOpen, setFormsDialogOpen] = useState(false);
   const coverUrl = useConstructUrl((action as any).coverImage || "");
 
   const {
@@ -114,7 +118,7 @@ export function KanbanCard({ action, isOverlay }: Props) {
         {hasCover && (
           <div
             className={cn(
-              "relative w-full h-36 overflow-hidden",
+              "relative w-full h-28 overflow-hidden",
               !hasCover && PLACEHOLDER_BG,
             )}
           >
@@ -244,6 +248,20 @@ export function KanbanCard({ action, isOverlay }: Props) {
             </p>
           </div>
 
+          {/* Vínculo com o lead (1:N). Selo puramente visual — sem handlers
+              próprios, herda o drag/click do card, então não interfere no DnD. */}
+          {action.lead && (
+            <div className="flex">
+              <span
+                className="inline-flex max-w-full items-center gap-1 rounded-full border border-indigo-500/15 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-400"
+                title={`Lead: ${action.lead.name}`}
+              >
+                <UserRoundIcon className="size-3 shrink-0" />
+                <span className="truncate">{action.lead.name}</span>
+              </span>
+            </div>
+          )}
+
           {/* Footer row: metadata + avatars */}
           <div className="flex items-center justify-between gap-2 pt-0.5">
             {/* Left: icons */}
@@ -283,6 +301,31 @@ export function KanbanCard({ action, isOverlay }: Props) {
                   <span className="capitalize">{dueDateInfo.label}</span>
                 </span>
               )}
+
+              {/* Abre os formulários DESTA tarefa (spec 0002) — antes abria o
+                  dialog do lead, que mostrava o histórico inteiro do contato e
+                  confundia o usuário. Também aparece quando a pauta foi
+                  anexada à mão, sem a tarefa ter sido gerada por formulário.
+                  stopPropagation evita disparar drag (MouseSensor) ou o modal. */}
+              {(action.formResponseId || (action._count?.forms ?? 0) > 0) && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setFormsDialogOpen(true);
+                  }}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  className="flex items-center transition-colors hover:text-foreground"
+                  title={
+                    action.formResponse?.form?.name
+                      ? `Criado pelo formulário: ${action.formResponse.form.name} — ver formulários da tarefa`
+                      : "Formulários desta tarefa"
+                  }
+                >
+                  <ClipboardListIcon className="size-3.5 shrink-0" />
+                </button>
+              )}
             </div>
 
             {/* Right: participant avatars */}
@@ -317,6 +360,14 @@ export function KanbanCard({ action, isOverlay }: Props) {
           actionId={action.id}
           open={open}
           onOpenChange={setOpen}
+        />
+      )}
+
+      {formsDialogOpen && (
+        <ActionFormsDialog
+          actionId={action.id}
+          open={formsDialogOpen}
+          onOpenChange={setFormsDialogOpen}
         />
       )}
     </>
