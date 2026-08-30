@@ -35,4 +35,44 @@ export const setSidebarPref = base
     return { success: true };
   });
 
-export const sidebarPrefsRouter = { get: getSidebarPrefs, set: setSidebarPref };
+/**
+ * App principal — o que abre primeiro ao entrar no Órbita. Guardado na mesma
+ * tabela de preferências com o prefixo `home:`; só uma chave fica `true`.
+ */
+export const HOME_APP_PREFIX = "home:";
+
+export const setHomeApp = base
+  .use(requiredAuthMiddleware)
+  .route({ method: "POST", summary: "Set the app that opens first" })
+  .input(z.object({
+    // null limpa a escolha e devolve o Início como tela inicial.
+    appKey: z.string().nullable(),
+  }))
+  .output(z.object({ success: z.boolean() }))
+  .handler(async ({ input, context }) => {
+    const userId = context.user.id;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.userSidebarPreference.updateMany({
+        where: { userId, itemKey: { startsWith: HOME_APP_PREFIX } },
+        data: { visible: false },
+      });
+
+      if (!input.appKey) return;
+
+      const itemKey = `${HOME_APP_PREFIX}${input.appKey}`;
+      await tx.userSidebarPreference.upsert({
+        where: { userId_itemKey: { userId, itemKey } },
+        create: { userId, itemKey, visible: true },
+        update: { visible: true },
+      });
+    });
+
+    return { success: true };
+  });
+
+export const sidebarPrefsRouter = {
+  get: getSidebarPrefs,
+  set: setSidebarPref,
+  setHomeApp,
+};

@@ -1,111 +1,83 @@
 "use client";
 
-import { useState } from "react";
-import { usePaymentDashboard, useCashflow } from "../../hooks/use-payment";
-import { formatCurrency } from "../../lib/format";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMemo, useState } from "react";
 import {
-  ArrowDownCircle,
-  ArrowUpCircle,
-  TrendingUp,
-  TrendingDown,
-  AlertTriangle,
-  Wallet,
-  Clock,
   BarChart3,
-  ListChecks,
+  Landmark,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
 } from "lucide-react";
-import { KpiEntriesDialog, type KpiEntriesFilter } from "./kpi-entries-dialog";
+import { usePaymentDashboard, useCashflow } from "../../hooks/use-payment";
+import { formatCurrency, formatPercent } from "../../lib/format";
+import { type PeriodRange } from "../shared/payment-period-picker";
+import { DashboardToolbar } from "./dashboard-toolbar";
+import { NewTransactionDialog } from "./new-transaction-dialog";
+import { SummaryCard } from "./summary-card";
+import { CashflowChartCard, type CashflowPoint } from "./cashflow-chart-card";
+import { ExpensesByCategoryCard } from "./expenses-by-category-card";
+import { EntriesPreviewCard } from "./entries-preview-card";
+import { RecentTransactionsCard } from "./recent-transactions-card";
 import {
-  PaymentPeriodPicker,
-  currentMonthRange,
-} from "../shared/payment-period-picker";
-import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from "recharts";
+  ExecutiveSummaryCard,
+  type ExecutiveMetric,
+} from "./executive-summary-card";
 
-const PIE_COLORS = ["#1E90FF", "#00FF87", "#FF6B6B", "#FFD93D", "#C77DFF", "#06BEE1"];
+const OPEN_STATUSES = ["PENDING", "PARTIAL", "OVERDUE"] as const;
+const MONTH_LABELS = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
 
-function fmt(cents: number) {
-  return formatCurrency(cents);
+/** "2026-05" → "Mai" */
+function monthLabel(month: string): string {
+  const index = Number(month.slice(5, 7)) - 1;
+  return MONTH_LABELS[index] ?? month;
 }
 
-function KpiCard({
-  title,
-  value,
-  icon: Icon,
-  color,
-  subtitle,
-  filter,
-  useSumOfPaid,
-}: {
-  title: string;
-  value: string;
-  icon: React.ElementType;
-  color: string;
-  subtitle?: string;
-  // Passar `filter` habilita o ícone de lista no canto superior. Clicar abre
-  // um dialog com as entries que compõem esse KPI.
-  filter?: KpiEntriesFilter;
-  useSumOfPaid?: boolean;
-}) {
-  const [dialogOpen, setDialogOpen] = useState(false);
+function DashboardSkeleton() {
   return (
-    <>
-      <Card className="bg-card border-border/50 relative">
-        {filter && (
-          <button
-            type="button"
-            onClick={() => setDialogOpen(true)}
-            className="absolute top-2 right-2 size-6 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-            aria-label={`Ver lançamentos de ${title}`}
-            title="Ver lançamentos"
-          >
-            <ListChecks className="size-3.5" />
-          </button>
-        )}
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground font-medium truncate">{title}</p>
-              <p className={`text-xl font-black mt-1 ${color}`}>{value}</p>
-              {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
-            </div>
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ml-3 ${color === "text-green-400" ? "bg-green-500/10" : color === "text-red-400" ? "bg-red-500/10" : color === "text-blue-400" ? "bg-blue-500/10" : "bg-yellow-500/10"}`}>
-              <Icon className={`size-4 ${color}`} />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      {filter && (
-        <KpiEntriesDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          title={title}
-          filter={filter}
-          accentClassName={color}
-          useSumOfPaid={useSumOfPaid}
-        />
-      )}
-    </>
+    <div className="space-y-5">
+      <div className="h-10 w-64 animate-pulse rounded-lg bg-muted/50" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="h-28 animate-pulse rounded-xl bg-muted/40" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="h-80 animate-pulse rounded-xl bg-muted/40" />
+        <div className="h-80 animate-pulse rounded-xl bg-muted/40" />
+      </div>
+    </div>
   );
 }
 
-export function PaymentDashboard() {
-  const initial = currentMonthRange();
-  const [period, setPeriod] = useState<{ from?: Date; to?: Date }>(initial);
+export function PaymentDashboard({
+  period,
+  onPeriodChange,
+  onExport,
+  isExporting,
+  onNavigateTab,
+}: {
+  period: PeriodRange;
+  onPeriodChange: (range: PeriodRange) => void;
+  onExport: () => void;
+  isExporting: boolean;
+  /** Leva o usuário pra aba correspondente ao clicar em "Ver todas". */
+  onNavigateTab?: (tab: string) => void;
+}) {
+  const [granularity, setGranularity] = useState<"monthly" | "daily">("monthly");
+  const [newTransactionOpen, setNewTransactionOpen] = useState(false);
 
   const dateFrom = period.from?.toISOString();
   const dateTo = period.to?.toISOString();
@@ -113,244 +85,237 @@ export function PaymentDashboard() {
   const { data, isLoading } = usePaymentDashboard({ dateFrom, dateTo });
   const { data: cashflowData } = useCashflow({ dateFrom, dateTo });
 
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-pulse">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-24 rounded-xl bg-muted/30" />
-        ))}
-      </div>
-    );
-  }
+  const chartPoints = useMemo<CashflowPoint[]>(() => {
+    if (granularity === "daily") {
+      return (cashflowData?.rows ?? []).map((row) => ({
+        name: row.date.slice(8, 10),
+        Receitas: row.receivable,
+        Despesas: row.payable,
+        Saldo: row.balance,
+      }));
+    }
+    return (data?.monthlyChart ?? []).map((month) => ({
+      name: monthLabel(month.month),
+      Receitas: month.receivable,
+      Despesas: month.payable,
+      Saldo: month.result,
+    }));
+  }, [granularity, cashflowData, data]);
 
+  const expenseSlices = useMemo(
+    () =>
+      (data?.categoryBreakdown ?? [])
+        .filter((category) => category.type === "PAYABLE" && category.total > 0)
+        .map((category) => ({
+          name: category.categoryName,
+          value: category.total,
+        })),
+    [data],
+  );
+
+  if (isLoading) return <DashboardSkeleton />;
   if (!data) return null;
 
-  const chartData = data.monthlyChart.map((m) => ({
-    name: m.month.slice(5),
-    Receitas: m.receivable / 100,
-    Despesas: m.payable / 100,
-    Resultado: m.result / 100,
-  }));
-
-  const cashflowRows = (cashflowData?.rows ?? []).map((r) => ({
-    date: r.date.slice(8, 10),
-    Entrada: r.receivable / 100,
-    Saída: r.payable / 100,
-    Saldo: r.balance / 100,
-  }));
-
-  const pieData = data.categoryBreakdown
-    .filter((c) => c.type === "PAYABLE" && c.total > 0)
-    .slice(0, 6)
-    .map((c) => ({ name: c.categoryName, value: c.total / 100 }));
-
-  // Intervalo escolhido pelo PaymentPeriodPicker — usado nos drill-downs dos KPIs
-  const monthStartISO = dateFrom;
-  const monthEndISO = dateTo;
-
   const today = new Date();
-  const in7 = new Date(today);
-  in7.setDate(in7.getDate() + 7);
-  const in30 = new Date(today);
-  in30.setDate(in30.getDate() + 30);
+  const in7Days = new Date(today);
+  in7Days.setDate(in7Days.getDate() + 7);
+  const in30Days = new Date(today);
+  in30Days.setDate(in30Days.getDate() + 30);
 
-  const OPEN_STATUSES = ["PENDING", "PARTIAL", "OVERDUE"] as const;
+  const previousRevenue =
+    data.previousPeriod.netResult + data.previousPeriod.totalPaid;
+
+  const executiveMetrics: ExecutiveMetric[] = [
+    {
+      label: "Receita",
+      value: formatCurrency(data.totalReceivable),
+      hint: "Em aberto no período",
+      tone: "emerald",
+      onSelect: () => onNavigateTab?.("receivables"),
+    },
+    {
+      label: "Despesa",
+      value: formatCurrency(data.totalPayable),
+      hint: "Em aberto no período",
+      tone: "red",
+      onSelect: () => onNavigateTab?.("payables"),
+    },
+    {
+      label: "Faturamento",
+      value: formatCurrency(data.executive.revenue),
+      comparison: { current: data.executive.revenue, previous: previousRevenue },
+      filter: {
+        type: "RECEIVABLE",
+        statuses: ["PAID", "PARTIAL"],
+        paidFrom: dateFrom,
+        paidTo: dateTo,
+      },
+      useSumOfPaid: true,
+    },
+    {
+      label: "Lucro líquido",
+      value: formatCurrency(data.executive.netProfit),
+      comparison: {
+        current: data.executive.netProfit,
+        previous: data.previousPeriod.netResult,
+      },
+    },
+    {
+      label: "Ticket médio",
+      value: formatCurrency(data.executive.averageTicket),
+      hint: "Por recebimento confirmado",
+    },
+    {
+      label: "Inadimplência",
+      value: formatPercent(data.executive.defaultRatePercent),
+      hint: `${formatCurrency(data.executive.overdueInPeriod)} vencidos no período`,
+      filter: {
+        type: "RECEIVABLE",
+        statuses: ["OVERDUE"],
+        dateFrom,
+        dateTo,
+      },
+    },
+    {
+      label: "Reservas",
+      value: formatCurrency(data.executive.reserves),
+      hint: "Saldo em contas",
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Period selector */}
-      <div className="flex items-center gap-3">
-        <PaymentPeriodPicker
-          from={period.from}
-          to={period.to}
-          onChange={setPeriod}
-        />
-      </div>
+    // pb extra no mobile: o dock flutuante de IA cobre o rodapé do último card.
+    <div className="space-y-5 pb-16 lg:pb-0">
+      <DashboardToolbar
+        period={period}
+        onPeriodChange={onPeriodChange}
+        onExport={onExport}
+        isExporting={isExporting}
+        onNewTransaction={() => setNewTransactionOpen(true)}
+      />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard
-          title="A Receber"
-          value={fmt(data.totalReceivable)}
-          icon={ArrowDownCircle}
-          color="text-green-400"
-          subtitle="No mês"
+      <ExecutiveSummaryCard
+        metrics={executiveMetrics}
+        goalAchieved={data.executive.goalAchieved}
+        goalTarget={data.executive.goalTarget}
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard
+          label="Receita"
+          value={formatCurrency(data.totalReceivable)}
+          icon={Wallet}
+          tone="emerald"
+          current={data.totalReceivable}
+          previous={data.previousPeriod.totalReceivable}
           filter={{
             type: "RECEIVABLE",
             statuses: [...OPEN_STATUSES],
-            dateFrom: monthStartISO,
-            dateTo: monthEndISO,
+            dateFrom,
+            dateTo,
           }}
         />
-        <KpiCard
-          title="A Pagar"
-          value={fmt(data.totalPayable)}
-          icon={ArrowUpCircle}
-          color="text-red-400"
-          subtitle="No mês"
+        <SummaryCard
+          label="Despesa"
+          value={formatCurrency(data.totalPayable)}
+          icon={Landmark}
+          tone="red"
+          current={data.totalPayable}
+          previous={data.previousPeriod.totalPayable}
+          higherIsBetter={false}
           filter={{
             type: "PAYABLE",
             statuses: [...OPEN_STATUSES],
-            dateFrom: monthStartISO,
-            dateTo: monthEndISO,
+            dateFrom,
+            dateTo,
           }}
         />
-        <KpiCard
-          title="Recebido"
-          value={fmt(data.totalReceived)}
-          icon={TrendingUp}
-          color="text-blue-400"
-          subtitle="Confirmado"
+        <SummaryCard
+          label="Gastos do período"
+          value={formatCurrency(data.totalPaid)}
+          icon={BarChart3}
+          tone="blue"
+          current={data.totalPaid}
+          previous={data.previousPeriod.totalPaid}
+          higherIsBetter={false}
           filter={{
-            type: "RECEIVABLE",
+            type: "PAYABLE",
             statuses: ["PAID", "PARTIAL"],
-            paidFrom: monthStartISO,
-            paidTo: monthEndISO,
+            paidFrom: dateFrom,
+            paidTo: dateTo,
           }}
           useSumOfPaid
         />
-        <KpiCard
-          title="Resultado"
-          value={fmt(data.netResult)}
+        <SummaryCard
+          label="Saldo do período"
+          value={formatCurrency(data.netResult)}
           icon={data.netResult >= 0 ? TrendingUp : TrendingDown}
-          color={data.netResult >= 0 ? "text-green-400" : "text-red-400"}
-          subtitle="Receita − Despesa"
-        />
-        <KpiCard
-          title="Saldo em Caixa"
-          value={fmt(data.balanceTotal)}
-          icon={Wallet}
-          color="text-blue-400"
-        />
-        <KpiCard
-          title="Inadimplência"
-          value={fmt(data.overdueReceivable)}
-          icon={AlertTriangle}
-          color="text-yellow-400"
-          subtitle="A receber vencido"
-          filter={{
-            type: "RECEIVABLE",
-            statuses: ["OVERDUE"],
-          }}
-        />
-        <KpiCard
-          title="Próx. 7 dias"
-          value={fmt(data.upcoming7Days.receivable)}
-          icon={Clock}
-          color="text-green-400"
-          subtitle="Entradas previstas"
-          filter={{
-            type: "RECEIVABLE",
-            statuses: ["PENDING", "PARTIAL"],
-            dateFrom: today.toISOString(),
-            dateTo: in7.toISOString(),
-          }}
-        />
-        <KpiCard
-          title="Próx. 30 dias"
-          value={fmt(data.upcoming30Days.payable)}
-          icon={Clock}
-          color="text-red-400"
-          subtitle="Saídas previstas"
-          filter={{
-            type: "PAYABLE",
-            statuses: ["PENDING", "PARTIAL"],
-            dateFrom: today.toISOString(),
-            dateTo: in30.toISOString(),
-          }}
+          tone="violet"
+          current={data.netResult}
+          previous={data.previousPeriod.netResult}
         />
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Receita x Despesa (últimos meses) */}
-        <Card className="bg-card border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <BarChart3 className="size-4 text-blue-400" />
-              Receitas x Despesas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#888" }} />
-                <YAxis tick={{ fontSize: 11, fill: "#888" }} tickFormatter={(v) => `R$${v}`} />
-                <Tooltip
-                  contentStyle={{ background: "#0A0E27", border: "1px solid #1E90FF33", borderRadius: 8, fontSize: 12 }}
-                  formatter={(v: number) => [`R$ ${v.toFixed(2)}`, ""]}
-                />
-                <Bar dataKey="Receitas" fill="#00FF87" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Despesas" fill="#FF6B6B" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Fluxo de Caixa do Mês */}
-        <Card className="bg-card border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <TrendingUp className="size-4 text-blue-400" />
-              Fluxo de Caixa
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={cashflowRows} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1E90FF" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#1E90FF" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#888" }} />
-                <YAxis tick={{ fontSize: 11, fill: "#888" }} />
-                <Tooltip
-                  contentStyle={{ background: "#0A0E27", border: "1px solid #1E90FF33", borderRadius: 8, fontSize: 12 }}
-                  formatter={(v: number) => [`R$ ${v.toFixed(2)}`, ""]}
-                />
-                <Area type="monotone" dataKey="Saldo" stroke="#1E90FF" fill="url(#colorSaldo)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Distribuição de despesas */}
-        {pieData.length > 0 && (
-          <Card className="bg-card border-border/50 lg:col-span-2">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold">Distribuição de Despesas por Categoria</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {pieData.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ background: "#0A0E27", border: "1px solid #1E90FF33", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: number) => [`R$ ${v.toFixed(2)}`, ""]}
-                  />
-                  <Legend iconType="circle" iconSize={10} wrapperStyle={{ fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <CashflowChartCard
+          points={chartPoints}
+          granularity={granularity}
+          onGranularityChange={setGranularity}
+        />
+        <ExpensesByCategoryCard items={expenseSlices} />
       </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        <EntriesPreviewCard
+          title="Receitas"
+          tone="emerald"
+          entries={data.upcomingReceivables}
+          total={data.totalReceivable}
+          totalLabel="Total de receitas"
+          emptyMessage="Nenhuma receita no período."
+          onSeeAll={() => onNavigateTab?.("receivables")}
+          upcoming={{
+            label: "Próximos 7 dias",
+            value: data.upcoming7Days.receivable,
+            filter: {
+              type: "RECEIVABLE",
+              statuses: ["PENDING", "PARTIAL"],
+              dateFrom: today.toISOString(),
+              dateTo: in7Days.toISOString(),
+            },
+          }}
+        />
+        <EntriesPreviewCard
+          title="Despesas"
+          tone="red"
+          entries={data.upcomingPayables}
+          total={data.totalPayable}
+          totalLabel="Total de despesas"
+          emptyMessage="Nenhuma despesa no período."
+          onSeeAll={() => onNavigateTab?.("payables")}
+          upcoming={{
+            label: "Próximos 30 dias",
+            value: data.upcoming30Days.payable,
+            filter: {
+              type: "PAYABLE",
+              statuses: ["PENDING", "PARTIAL"],
+              dateFrom: today.toISOString(),
+              dateTo: in30Days.toISOString(),
+            },
+          }}
+        />
+        <div className="lg:col-span-2 xl:col-span-1">
+          <RecentTransactionsCard
+            transactions={data.recentTransactions}
+            onSeeAll={() => onNavigateTab?.("cashflow")}
+          />
+        </div>
+      </div>
+
+      <NewTransactionDialog
+        open={newTransactionOpen}
+        onOpenChange={setNewTransactionOpen}
+      />
     </div>
   );
 }

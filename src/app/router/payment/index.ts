@@ -34,6 +34,7 @@ import {
 } from "./contacts";
 import {
   listPaymentEntries,
+  listRecentEntryDescriptions,
   createPaymentEntry,
   updatePaymentEntry,
   payPaymentEntry,
@@ -41,6 +42,7 @@ import {
   removePaymentEntry,
 } from "./entries";
 import { getPaymentDashboard, getCashflow } from "./dashboard";
+import { getIncomeStatement, getOperationalResult } from "./reports";
 import { listExternalContacts } from "./external-contacts";
 import { listActiveContracts } from "./contracts";
 import {
@@ -103,6 +105,7 @@ export const paymentRouter = {
   },
   entries: {
     list: listPaymentEntries,
+    recentDescriptions: listRecentEntryDescriptions,
     create: createPaymentEntry,
     update: updatePaymentEntry,
     pay: payPaymentEntry,
@@ -112,6 +115,10 @@ export const paymentRouter = {
   dashboard: {
     get: getPaymentDashboard,
     cashflow: getCashflow,
+  },
+  reports: {
+    incomeStatement: getIncomeStatement,
+    operationalResult: getOperationalResult,
   },
   externalContacts: {
     list: listExternalContacts,

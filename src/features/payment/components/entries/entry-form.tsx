@@ -12,7 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { usePaymentCategories, usePaymentContacts, usePaymentAccounts } from "../../hooks/use-payment";
+import { ChevronDown } from "lucide-react";
+import {
+  usePaymentCategories,
+  usePaymentContacts,
+  usePaymentAccounts,
+  useRecentEntryDescriptions,
+} from "../../hooks/use-payment";
 import { useDunningRules } from "../../hooks/use-payment-dunning";
 import { parseCurrencyToCents, maskCurrency } from "../../lib/format";
 import { toast } from "sonner";
@@ -61,6 +67,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
   const [installments, setInstallments] = useState(1);
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [dunningRuleId, setDunningRuleId] = useState<string>("__none__");
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
 
   const { data: categoriesData } = usePaymentCategories(
     type === "RECEIVABLE" ? "REVENUE" : "EXPENSE"
@@ -70,6 +77,8 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
   // Régua só faz sentido em RECEIVABLE — pedimos só nesse caso pra economizar
   // 1 request/render quando o user tá cadastrando A pagar.
   const { data: dunningData } = useDunningRules();
+  const { data: recentData } = useRecentEntryDescriptions(type);
+  const recentDescriptions = recentData?.descriptions ?? [];
   const availableRules = type === "RECEIVABLE"
     ? (dunningData?.rules ?? []).filter((r) => r.isActive)
     : [];
@@ -104,6 +113,21 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
+        {recentDescriptions.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {recentDescriptions.map((recent) => (
+              <button
+                key={recent}
+                type="button"
+                onClick={() => setDescription(recent)}
+                className="max-w-full truncate rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title={recent}
+              >
+                {recent}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -140,21 +164,6 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>{type === "RECEIVABLE" ? "Cliente" : "Fornecedor"}</Label>
-          <Select value={contactId} onValueChange={setContactId}>
-            <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-            <SelectContent position="popper" className={dropdownContentClass}>
-              <SelectItem value="__none__">Sem contato</SelectItem>
-              {contactsData?.contacts.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
           <Label>Conta Bancária</Label>
           <Select value={accountId} onValueChange={setAccountId}>
             <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
@@ -166,22 +175,57 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <Label>Parcelas</Label>
-          <Select value={String(installments)} onValueChange={(v) => setInstallments(Number(v))}>
-            <SelectTrigger className={selectTriggerClass}><SelectValue /></SelectTrigger>
-            <SelectContent position="popper" className={dropdownContentClass}>
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
-                <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Nº do Documento</Label>
-        <Input placeholder="Ex: NF-0001" value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} />
+      <div className="rounded-lg border border-border/60">
+        <button
+          type="button"
+          onClick={() => setShowMoreOptions((open) => !open)}
+          className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60"
+          aria-expanded={showMoreOptions}
+        >
+          Mais opções
+          <ChevronDown
+            className={`size-4 shrink-0 text-muted-foreground transition-transform ${
+              showMoreOptions ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {showMoreOptions && (
+          <div className="space-y-3 border-t p-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>{type === "RECEIVABLE" ? "Cliente" : "Fornecedor"}</Label>
+                <Select value={contactId} onValueChange={setContactId}>
+                  <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                  <SelectContent position="popper" className={dropdownContentClass}>
+                    <SelectItem value="__none__">Sem contato</SelectItem>
+                    {contactsData?.contacts.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Parcelas</Label>
+                <Select value={String(installments)} onValueChange={(v) => setInstallments(Number(v))}>
+                  <SelectTrigger className={selectTriggerClass}><SelectValue /></SelectTrigger>
+                  <SelectContent position="popper" className={dropdownContentClass}>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Nº do Documento</Label>
+              <Input placeholder="Ex: NF-0001" value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-2">

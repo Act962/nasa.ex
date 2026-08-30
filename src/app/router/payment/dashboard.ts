@@ -3,7 +3,27 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { requirePaymentAccess } from "@/app/middlewares/payment-access";
 import prisma from "@/lib/prisma";
+import { loadDashboardInsights } from "@/features/payment/server/dashboard/dashboard-insights";
 import { z } from "zod";
+
+const previewEntrySchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  contactName: z.string().nullable(),
+  categoryName: z.string().nullable(),
+  amount: z.number(),
+  dueDate: z.date(),
+  status: z.string(),
+});
+
+const recentTransactionSchema = z.object({
+  id: z.string(),
+  type: z.enum(["RECEIVABLE", "PAYABLE"]),
+  description: z.string(),
+  contactName: z.string().nullable(),
+  amount: z.number(),
+  occurredAt: z.date(),
+});
 
 export const getPaymentDashboard = base
   .use(requiredAuthMiddleware)
@@ -41,6 +61,27 @@ export const getPaymentDashboard = base
       type: z.string(),
       total: z.number(),
     })),
+    // Mesma janela imediatamente anterior — alimenta as variações "x% vs
+    // período anterior" dos cards do topo.
+    previousPeriod: z.object({
+      totalReceivable: z.number(),
+      totalPayable: z.number(),
+      totalPaid: z.number(),
+      netResult: z.number(),
+    }),
+    executive: z.object({
+      revenue: z.number(),
+      netProfit: z.number(),
+      averageTicket: z.number(),
+      defaultRatePercent: z.number(),
+      overdueInPeriod: z.number(),
+      reserves: z.number(),
+      goalTarget: z.number(),
+      goalAchieved: z.number(),
+    }),
+    upcomingReceivables: z.array(previewEntrySchema),
+    upcomingPayables: z.array(previewEntrySchema),
+    recentTransactions: z.array(recentTransactionSchema),
   }))
   .handler(async ({ input, context, errors }) => {
     try {
@@ -74,6 +115,7 @@ export const getPaymentDashboard = base
         categoriesRec,
         categoriesPay,
         monthlyEntries,
+        insights,
       ] = await Promise.all([
         // total a receber no mês
         prisma.paymentEntry.aggregate({
@@ -151,6 +193,10 @@ export const getPaymentDashboard = base
           },
           select: { type: true, paidAmount: true, paidAt: true },
         }),
+        loadDashboardInsights({
+          organizationId: orgId,
+          period: { start: monthStart, end: monthEnd },
+        }),
       ]);
 
       // Category names
@@ -196,9 +242,28 @@ export const getPaymentDashboard = base
 
       const totalReceived = receivedAgg._sum.paidAmount ?? 0;
       const totalPaid = paidAgg._sum.paidAmount ?? 0;
+      const totalReceivable = receivableAgg._sum.amount ?? 0;
+
+      // Previsto do período = o que já entrou + o que ainda está em aberto.
+      // É a régua usada tanto no medidor de meta quanto na inadimplência.
+      const expectedRevenue = totalReceived + totalReceivable;
+      const executive = {
+        revenue: totalReceived,
+        netProfit: totalReceived - totalPaid,
+        averageTicket: insights.paidReceivableCount
+          ? Math.round(totalReceived / insights.paidReceivableCount)
+          : 0,
+        defaultRatePercent: expectedRevenue
+          ? (insights.overdueReceivableInPeriod / expectedRevenue) * 100
+          : 0,
+        overdueInPeriod: insights.overdueReceivableInPeriod,
+        reserves: accounts._sum.balance ?? 0,
+        goalTarget: expectedRevenue,
+        goalAchieved: totalReceived,
+      };
 
       return {
-        totalReceivable: receivableAgg._sum.amount ?? 0,
+        totalReceivable,
         totalPayable: payableAgg._sum.amount ?? 0,
         totalReceived,
         totalPaid,
@@ -210,6 +275,11 @@ export const getPaymentDashboard = base
         upcoming30Days: { receivable: up30Rec._sum.amount ?? 0, payable: up30Pay._sum.amount ?? 0 },
         monthlyChart,
         categoryBreakdown,
+        previousPeriod: insights.previousPeriod,
+        executive,
+        upcomingReceivables: insights.upcomingReceivables,
+        upcomingPayables: insights.upcomingPayables,
+        recentTransactions: insights.recentTransactions,
       };
     } catch (err) {
       console.error("[payment/dashboard]", err);

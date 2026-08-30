@@ -1,11 +1,13 @@
 "use client";
 
 import { Suspense } from "react";
-import { PanelLeft } from "lucide-react";
+import { PanelLeft, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useSidebarPrefs,
   useSetSidebarPref,
+  useSetHomeApp,
+  getHomeAppKey,
   isItemVisible,
 } from "@/hooks/use-sidebar-prefs";
 import { SIDEBAR_NAV_ITEMS } from "@/features/apps/lib/sidebar-items";
@@ -68,6 +70,45 @@ export function WorkspaceToggles() {
   );
 }
 
+// ─── App principal ────────────────────────────────────────────────────────────
+
+/**
+ * Marca o app que abre primeiro ao entrar no Órbita. Só um por vez — clicar no
+ * que já está marcado desfaz a escolha e devolve o Início como tela inicial.
+ */
+function HomeAppToggle({
+  appKey,
+  appTitle,
+}: {
+  appKey: string;
+  appTitle: string;
+}) {
+  const { data: prefs } = useSidebarPrefs();
+  const setHomeApp = useSetHomeApp();
+  const isPrimary = getHomeAppKey(prefs) === appKey;
+
+  return (
+    <button
+      type="button"
+      onClick={() => setHomeApp.mutate({ appKey: isPrimary ? null : appKey })}
+      title={
+        isPrimary
+          ? `${appTitle} abre primeiro ao entrar. Clique para desfazer.`
+          : `Fazer o ${appTitle} abrir primeiro ao entrar no Órbita`
+      }
+      className={cn(
+        "flex w-full items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors",
+        isPrimary
+          ? "border-amber-500/40 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 dark:text-amber-400"
+          : "border-border text-muted-foreground hover:border-amber-500/30 hover:text-amber-600 dark:hover:text-amber-400",
+      )}
+    >
+      <Star className={cn("size-3", isPrimary && "fill-current")} />
+      {isPrimary ? "App principal" : "Definir como principal"}
+    </button>
+  );
+}
+
 // ─── Personalizar Menu ────────────────────────────────────────────────────────
 
 export function PersonalizarMenu() {
@@ -90,16 +131,21 @@ export function PersonalizarMenu() {
             return (
               <div
                 key={item.key}
-                className="flex items-center justify-between p-3 rounded-xl border bg-card gap-3"
+                className="flex flex-col gap-2 p-3 rounded-xl border bg-card"
               >
-                <div className="flex items-center gap-2.5">
-                  <Icon className="size-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm font-medium">{item.title}</span>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon className="size-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm font-medium truncate">
+                      {item.title}
+                    </span>
+                  </div>
+                  <SidebarToggle
+                    sidebarKey={item.key}
+                    defaultVisible={item.defaultVisible}
+                  />
                 </div>
-                <SidebarToggle
-                  sidebarKey={item.key}
-                  defaultVisible={item.defaultVisible}
-                />
+                <HomeAppToggle appKey={item.key} appTitle={item.title} />
               </div>
             );
           })}
