@@ -66,6 +66,7 @@ model User {
   spacePoints                        UserSpacePoint[]
   memberStarBudgets                  MemberStarBudget[]
   paymentEntriesCreated              PaymentEntry[]               @relation("PaymentEntryCreatedBy")
+  paymentAttachmentsUploaded         PaymentAttachment[]          @relation("PaymentAttachmentUploadedBy")
   paymentAccess                      PaymentAccess[]              @relation("PaymentAccessUser")
   paymentAccessGranted               PaymentAccess[]              @relation("PaymentAccessAuthorizer")
   paymentApprovalsRequested          PaymentApprovalRequest[]     @relation("PaymentApprovalRequester")
@@ -316,6 +317,7 @@ model Organization {
   paymentCostCenters       PaymentCostCenter[]
   paymentContacts          PaymentContact[]
   paymentEntries           PaymentEntry[]
+  paymentAttachments       PaymentAttachment[]
   paymentAccess            PaymentAccess[]
   paymentApprovalRequests  PaymentApprovalRequest[]
   paymentGovernanceConfig  PaymentGovernanceConfig?
@@ -4567,6 +4569,7 @@ model PaymentEntry {
   approvalRequest   PaymentApprovalRequest?
   dunningRule       PaymentDunningRule?        @relation(fields: [dunningRuleId], references: [id], onDelete: SetNull)
   dunningExecutions PaymentDunningExecution[]
+  attachments       PaymentAttachment[]
 
   @@index([organizationId])
   @@index([type])
@@ -4579,6 +4582,59 @@ model PaymentEntry {
   @@index([leadId])
   @@index([dunningRuleId])
   @@map("payment_entries")
+}
+
+// ─────────────────────────────────────────────
+// NASA PAYMENT — ANEXOS (spec 0008)
+// ─────────────────────────────────────────────
+
+enum PaymentAttachmentKind {
+  NOTA_FISCAL
+  BOLETO
+  RECIBO
+  COMPROVANTE
+  CONTRATO
+  OUTRO
+}
+
+// Documento anexado a um lançamento financeiro. Substitui, na prática, o
+// `PaymentEntry.attachmentUrl` (único e sem metadados), que permanece por
+// retrocompat alimentado pelo BudgetPanel do chat — ver spec 0008, D-1.
+//
+// `fileKey` é a CHAVE no bucket, nunca uma URL pública: nota fiscal e
+// comprovante bancário são servidos só pela rota autenticada
+// `/api/payment/attachments/[id]` (D-3).
+//
+// `entryId` é opcional de propósito: anexo cujo lançamento foi excluído
+// sobrevive com vínculo nulo (documento fiscal não evapora junto com o
+// registro contábil), e arquivo subido antes de salvar o form fica
+// recuperável na aba Documentos em vez de virar lixo invisível (CB-3/CB-4).
+model PaymentAttachment {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  entryId        String? @map("entry_id")
+
+  fileKey   String                @map("file_key")
+  fileName  String                @map("file_name")
+  mimeType  String                @map("mime_type")
+  sizeBytes Int                   @map("size_bytes")
+  kind      PaymentAttachmentKind @default(OUTRO)
+
+  description String?
+
+  uploadedById String?  @map("uploaded_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entry        PaymentEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  uploadedBy   User?         @relation("PaymentAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([entryId])
+  @@index([kind])
+  @@index([fileKey])
+  @@map("payment_attachments")
 }
 
 // ─────────────────────────────────────────────

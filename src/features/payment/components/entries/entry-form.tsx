@@ -21,6 +21,7 @@ import {
 } from "../../hooks/use-payment";
 import { useDunningRules } from "../../hooks/use-payment-dunning";
 import { parseCurrencyToCents, maskCurrency } from "../../lib/format";
+import { AttachmentUploader } from "../attachments/attachment-uploader";
 import { toast } from "sonner";
 
 interface EntryFormProps {
@@ -38,6 +39,7 @@ interface EntryFormProps {
     installments: number;
     requiresApproval?: boolean;
     dunningRuleId?: string;
+    attachmentIds?: string[];
   }) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
@@ -67,6 +69,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
   const [installments, setInstallments] = useState(1);
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [dunningRuleId, setDunningRuleId] = useState<string>("__none__");
+  const [attachmentIds, setAttachmentIds] = useState<string[]>([]);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
 
   const { data: categoriesData } = usePaymentCategories(
@@ -101,6 +104,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
       installments,
       requiresApproval,
       dunningRuleId: dunningRuleId === "__none__" ? undefined : dunningRuleId,
+      attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
     });
   }
 
@@ -226,6 +230,11 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
             </div>
           </div>
         )}
+      </div>
+
+      <div className="space-y-2">
+        <Label>Anexos</Label>
+        <AttachmentUploader onChange={setAttachmentIds} disabled={isLoading} />
       </div>
 
       <div className="space-y-2">

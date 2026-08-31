@@ -20,6 +20,8 @@ import { EntriesTable } from "./entries/entries-table";
 import { CashflowTab } from "./cashflow/cashflow-tab";
 import { ContactsTab } from "./contacts/contacts-tab";
 import { ContractsTab } from "./contracts/contracts-tab";
+import { DocumentsTab } from "./attachments/documents-tab";
+import { ProjectionTab } from "./projection/projection-tab";
 import { AccountsTab } from "./accounts/accounts-tab";
 import { DreTab } from "./reports/dre-tab";
 import { DroTab } from "./reports/dro-tab";
@@ -49,11 +51,13 @@ const BASE_TABS: PaymentTabItem[] = [
   { value: "receivables", label: "Receita", emoji: "💚" },
   { value: "payables", label: "Despesa", emoji: "🔴" },
   { value: "cashflow", label: "Fluxo de Caixa", emoji: "📈" },
+  { value: "projection", label: "Projeção", emoji: "🔭" },
   { value: "dre", label: "DRE", emoji: "📄" },
   { value: "dro", label: "DRO", emoji: "🏭" },
   { value: "accounts", label: "Contas", emoji: "🏦" },
   { value: "contacts", label: "Contatos", emoji: "👥" },
   { value: "contracts", label: "Contratos Ativos", emoji: "📝" },
+  { value: "documents", label: "Documentos", emoji: "📎" },
 ];
 
 export function PaymentPage() {
@@ -197,6 +201,9 @@ export function PaymentPage() {
             <TabsTrigger value="cashflow" className="text-xs gap-1.5">
               📈 Fluxo de Caixa
             </TabsTrigger>
+            <TabsTrigger value="projection" className="text-xs gap-1.5">
+              🔭 Projeção
+            </TabsTrigger>
             <TabsTrigger value="dre" className="text-xs gap-1.5">
               📄 DRE
             </TabsTrigger>
@@ -211,6 +218,9 @@ export function PaymentPage() {
             </TabsTrigger>
             <TabsTrigger value="contracts" className="text-xs gap-1.5">
               📝 Contratos Ativos
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="text-xs gap-1.5">
+              📎 Documentos
             </TabsTrigger>
             {showApprovalsTab && (
               <TabsTrigger value="approvals" className="text-xs gap-1.5">
@@ -244,6 +254,9 @@ export function PaymentPage() {
           <TabsContent value="cashflow" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <CashflowTab />
           </TabsContent>
+          <TabsContent value="projection" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
+            <ProjectionTab />
+          </TabsContent>
           <TabsContent value="dre" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <DreTab />
           </TabsContent>
@@ -258,6 +271,9 @@ export function PaymentPage() {
           </TabsContent>
           <TabsContent value="contracts" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <ContractsTab />
+          </TabsContent>
+          <TabsContent value="documents" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
+            <DocumentsTab />
           </TabsContent>
           {showApprovalsTab && (
             <TabsContent value="approvals" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
