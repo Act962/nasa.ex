@@ -23,6 +23,8 @@ import { partnerGracePeriodMonitor } from "@/inngest/functions/crons/partner-gra
 import { starsGracePeriodMonitor } from "@/inngest/functions/crons/stars-grace-period-monitor";
 import { starsPendingSweep } from "@/inngest/functions/crons/stars-pending-sweep";
 import { coursePublicPurchasePaid } from "@/inngest/functions/course-public-purchase-paid";
+import { trafegoPurchasePaid } from "@/inngest/functions/trafego/purchase-paid";
+import { trafegoOrderRequested } from "@/inngest/functions/trafego/order-requested";
 import { publishPostHandler } from "@/inngest/functions/nasa-planner/publish-post-handler";
 import { publishScheduledPosts } from "@/inngest/functions/nasa-planner/publish-scheduled-posts";
 import { refreshMetaTokens } from "@/inngest/functions/nasa-planner/refresh-meta-tokens";
@@ -97,6 +99,8 @@ export const { GET, POST, PUT } = serve({
     starsPendingSweep,
     // ── NASA Router (checkout público de curso) ──
     coursePublicPurchasePaid,
+    trafegoPurchasePaid,
+    trafegoOrderRequested,
     // ── NASA Planner ──
     publishPostHandler,
     publishScheduledPosts,

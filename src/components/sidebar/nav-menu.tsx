@@ -10,8 +10,12 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { SIDEBAR_NAV_ITEMS } from "@/features/apps/lib/sidebar-items";
-import { useSidebarPrefs, isItemVisible } from "@/hooks/use-sidebar-prefs";
+import { SIDEBAR_NAV_ITEMS, SCOPED_NAV_KEYS } from "@/features/apps/lib/sidebar-items";
+import {
+  useSidebarPrefs,
+  useSidebarScope,
+  isItemVisible,
+} from "@/hooks/use-sidebar-prefs";
 
 function AstroNavIcon({ className }: { className?: string }) {
   return (
@@ -33,12 +37,19 @@ function AstroNavIcon({ className }: { className?: string }) {
 export function NavMenu() {
   const pathname = usePathname();
   const { data: prefs } = useSidebarPrefs();
+  const { data: scope } = useSidebarScope();
 
-  const visibleItems = SIDEBAR_NAV_ITEMS.filter(
-    (item) =>
-      item.alwaysVisible ||
-      isItemVisible(prefs, `app:${item.key}`, item.defaultVisible),
-  );
+  // Org com escopo de produto vê só os apps daquele escopo — inclusive itens
+  // `alwaysVisible`, que aqui são deliberadamente ignorados.
+  const scopedKeys = scope?.appScope ? SCOPED_NAV_KEYS[scope.appScope] : undefined;
+
+  const visibleItems = scopedKeys
+    ? SIDEBAR_NAV_ITEMS.filter((item) => scopedKeys.includes(item.key))
+    : SIDEBAR_NAV_ITEMS.filter(
+        (item) =>
+          item.alwaysVisible ||
+          isItemVisible(prefs, `app:${item.key}`, item.defaultVisible),
+      );
 
   // Map sidebar keys → data-tour attribute names
   const TOUR_ATTRS: Record<string, string> = {

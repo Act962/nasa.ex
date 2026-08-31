@@ -148,6 +148,15 @@ model User {
   // ── Astro Bot via WhatsApp ──
   whatsappBindings UserWhatsappBinding[]
 
+  // ── trafeGO ──
+  trafegoPurchases         TrafegoPendingPurchase[] @relation("TrafegoPurchaseUser")
+  trafegoPurchasesRedeemed TrafegoPendingPurchase[] @relation("TrafegoPurchaseRedeemer")
+  trafegoOrdersOwned       TrafegoOrder[]           @relation("TrafegoOrderOwner")
+  trafegoOrdersAssigned    TrafegoOrder[]           @relation("TrafegoOrderAssignee")
+  trafegoOrderEvents       TrafegoOrderEvent[]      @relation("TrafegoEventActor")
+  trafegoCreatives         TrafegoCreative[]        @relation("TrafegoCreativeUploader")
+  trafegoSupportMessages   TrafegoSupportMessage[]  @relation("TrafegoSupportAuthor")
+
   @@unique([email])
   @@map("user")
 }
@@ -267,6 +276,13 @@ model Organization {
   // só é persistida e exibida em Settings; nenhum sync acontece ainda.
   nerpFinancialEnabled Boolean @default(false) @map("nerp_financial_enabled")
 
+  // ── Escopo de produto ─────────────────────────────────────
+  // null = plataforma completa. "trafego" = org nascida do self-service do
+  // trafeGO: sidebar e tela inicial restritas a esse app. O admin zera o campo
+  // quando o cliente vira conta completa. É restrição de NAVEGAÇÃO, não de
+  // autorização — ver specs/trafego/0008 §CB-9.
+  appScope String? @map("app_scope")
+
   members                Member[]
   invitations            Invitation[]
   inviteLinks            OrganizationInviteLink[]
@@ -291,6 +307,7 @@ model Organization {
   memberStarBudgets      MemberStarBudget[]
   nboxFolders            NBoxFolder[]
   nboxItems              NBoxItem[]
+  trafegoOrders          TrafegoOrder[]
   nasaPlanners           NasaPlanner[]
   orgPermissions         OrgPermission[]
   activityLogs           OrgActivityLog[]
@@ -2433,6 +2450,8 @@ model Broadcast {
   tracking     Tracking             @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   createdBy    User                 @relation(fields: [createdById], references: [id])
   recipients   BroadcastRecipient[]
+
+  trafegoOrder TrafegoOrder?
 
   @@index([organizationId])
   @@index([trackingId])
@@ -7067,6 +7086,8 @@ model MetaAdCampaign {
   adsets       MetaAdSet[]
   ads          MetaAd[]
 
+  trafegoOrders TrafegoOrder[]
+
   @@index([organizationId])
   @@index([adAccountId])
   @@map("meta_ad_campaigns")
@@ -7624,4 +7645,362 @@ model WhatsappBotCommand {
   @@index([organizationId, receivedAt])
   @@index([status])
   @@map("whatsapp_bot_command")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// trafeGO — self-service de tráfego pago e campanhas
+// Spec: specs/trafego/0008-trafego-self-service.md
+//
+// Nomenclatura: o pedido do cliente chama-se `TrafegoOrder`, nunca "campanha" —
+// "campanha" já nomeia `Broadcast` (disparo), `MetaAdCampaign` (anúncio Meta) e
+// `NasaCampaignPlanner` (planejamento) neste schema.
+// ═════════════════════════════════════════════════════════════════════════════
+
+enum TrafegoPlatform {
+  META_ADS
+  WHATSAPP_OFICIAL
+}
+
+enum TrafegoCampaignType {
+  PROSPECCAO
+  REMARKETING
+  VENDA_DIRETA
+  RECONHECIMENTO
+  RELACIONAMENTO
+}
+
+/// Mapeiam 1:1 pros OUTCOME_* do Meta em src/features/trafego/lib/objective-labels.ts
+enum TrafegoObjective {
+  LEADS
+  TRAFFIC
+  SALES
+  AWARENESS
+  ENGAGEMENT
+  MESSAGES
+  BROADCAST
+}
+
+enum TrafegoOrderStatus {
+  PAID // pagamento confirmado, conta ainda não criada
+  ONBOARDING // cliente criou a conta, falta enviar materiais
+  MATERIALS_SUBMITTED // criativos + copy enviados, ainda não ativou
+  REQUESTED // cliente ativou; entrou na fila da equipe
+  IN_REVIEW // equipe analisando
+  CHANGES_REQUESTED // equipe devolveu pedindo correção
+  SCHEDULED // aprovado, aguardando data de início
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum TrafegoPendingPurchaseStatus {
+  PENDING
+  PAID
+  REDEEMED
+  EXPIRED
+  REFUNDED
+  CANCELLED
+  // Cron de recuperação desistiu após 30+ dias sem pagamento.
+  ABANDONED
+}
+
+enum TrafegoCreativeKind {
+  IMAGE
+  VIDEO
+}
+
+enum TrafegoCreativeStatus {
+  UPLOADED
+  SELECTED
+  REJECTED
+}
+
+enum TrafegoCopySource {
+  CLIENT
+  SUGGESTED_BY_NASA
+  AI
+}
+
+enum TrafegoSupportAuthorRole {
+  CLIENT
+  NASA
+}
+
+/// Catálogo público de planos. O preço é COMPOSTO: `adBudgetBrlCents` é a verba
+/// que vai pro anúncio e a taxa de serviço é derivada de `serviceFeePercent`
+/// (ou fixada por `serviceFeeBrlCents`). O total nunca é armazenado aqui — é
+/// calculado por `computeTrafegoPrice()` para que mudar o percentual não exija
+/// backfill. O pedido guarda o snapshot dos três valores.
+model TrafegoPlan {
+  id                 String              @id @default(cuid())
+  slug               String              @unique
+  name               String
+  headline           String?
+  description        String?             @db.Text
+  platform           TrafegoPlatform
+  campaignTypes      TrafegoCampaignType[] @map("campaign_types")
+  objectives         TrafegoObjective[]
+
+  adBudgetBrlCents   Int                 @map("ad_budget_brl_cents")
+  serviceFeePercent  Decimal             @default(50) @map("service_fee_percent") @db.Decimal(5, 2)
+  /// Override de taxa fixa. Quando preenchido, ignora `serviceFeePercent`.
+  serviceFeeBrlCents Int?                @map("service_fee_brl_cents")
+
+  durationDays       Int                 @default(30) @map("duration_days")
+  maxCreatives       Int                 @default(3) @map("max_creatives")
+  maxCopies          Int                 @default(3) @map("max_copies")
+  highlights         String[]            @default([])
+  isActive           Boolean             @default(true) @map("is_active")
+  isDefault          Boolean             @default(false) @map("is_default")
+  position           Int                 @default(0)
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  orders           TrafegoOrder[]
+  pendingPurchases TrafegoPendingPurchase[]
+
+  @@index([isActive, platform, position])
+  @@map("trafego_plan")
+}
+
+/// Compra iniciada por quem ainda não tem conta. Espelha `PendingCoursePurchase`:
+/// após o webhook confirmar, gera `signupToken`; o resgate cria Organization +
+/// Member + TrafegoOrder.
+model TrafegoPendingPurchase {
+  id                    String                       @id @default(cuid())
+  email                 String
+  phone                 String?
+  companyName           String?                      @map("company_name")
+  /// Preenchido quando o checkout partiu de usuário já logado.
+  userId                String?                      @map("user_id")
+  /// "public" (anônimo, gera signupToken) | "authenticated" (webhook finaliza direto)
+  flow                  String                       @default("public")
+  planId                String                       @map("plan_id")
+  campaignType          TrafegoCampaignType          @map("campaign_type")
+  platform              TrafegoPlatform
+  objective             TrafegoObjective
+  /// Respostas do briefing coletadas no wizard, antes de existir pedido.
+  briefing              Json                         @default("{}")
+
+  adBudgetBrlCents      Int                          @map("ad_budget_brl_cents")
+  serviceFeeBrlCents    Int                          @map("service_fee_brl_cents")
+  amountBrlCents        Int                          @map("amount_brl_cents")
+
+  stripeSessionId       String?                      @map("stripe_session_id")
+  stripePaymentIntentId String?                      @map("stripe_payment_intent_id")
+  signupToken           String?                      @unique @map("signup_token")
+  tokenExpiresAt        DateTime?                    @map("token_expires_at")
+  status                TrafegoPendingPurchaseStatus @default(PENDING)
+
+  /// Stripe cobrou valor diferente do esperado (cupom, ajuste manual). Não
+  /// reescalamos a verba em silêncio — sinalizamos para conferência humana.
+  amountMismatch        Boolean                      @default(false) @map("amount_mismatch")
+
+  createdAt             DateTime                     @default(now()) @map("created_at")
+  paidAt                DateTime?                    @map("paid_at")
+  redeemedAt            DateTime?                    @map("redeemed_at")
+  redeemedByUserId      String?                      @map("redeemed_by_user_id")
+
+  // ── Recuperação de carrinho ──
+  lastReminderSentAt    DateTime?                    @map("last_reminder_sent_at")
+  /// "d1" | "d3" | "d7" | null
+  lastReminderStage     String?                      @map("last_reminder_stage")
+
+  plan           TrafegoPlan   @relation(fields: [planId], references: [id], onDelete: Restrict)
+  user           User?         @relation("TrafegoPurchaseUser", fields: [userId], references: [id], onDelete: SetNull)
+  redeemedByUser User?         @relation("TrafegoPurchaseRedeemer", fields: [redeemedByUserId], references: [id], onDelete: SetNull)
+  order          TrafegoOrder?
+
+  @@index([email])
+  @@index([status])
+  @@index([stripeSessionId])
+  @@index([userId])
+  @@map("trafego_pending_purchase")
+}
+
+/// O pedido do cliente — uma campanha contratada. Carrega snapshot do catálogo
+/// e do preço: mudar o plano depois não reescreve o que foi vendido.
+model TrafegoOrder {
+  id                String             @id @default(cuid())
+  /// Legível pro suporte: "TG-0001".
+  code              String             @unique
+  organizationId    String             @map("organization_id")
+  ownerUserId       String             @map("owner_user_id")
+  planId            String?            @map("plan_id")
+  /// Guard de idempotência: uma compra gera no máximo um pedido.
+  pendingPurchaseId String?            @unique @map("pending_purchase_id")
+
+  // ── Snapshot do catálogo ──
+  planNameSnapshot  String             @map("plan_name_snapshot")
+  campaignType      TrafegoCampaignType @map("campaign_type")
+  platform          TrafegoPlatform
+  objective         TrafegoObjective
+  durationDays      Int                @map("duration_days")
+  maxCreatives      Int                @map("max_creatives")
+  maxCopies         Int                @map("max_copies")
+
+  // ── Snapshot financeiro (bate com o que o Stripe cobrou) ──
+  adBudgetBrlCents      Int     @map("ad_budget_brl_cents")
+  serviceFeeBrlCents    Int     @map("service_fee_brl_cents")
+  totalBrlCents         Int     @map("total_brl_cents")
+  stripeSessionId       String? @map("stripe_session_id")
+  stripePaymentIntentId String? @map("stripe_payment_intent_id")
+
+  // ── Briefing do cliente ──
+  businessName   String? @map("business_name")
+  businessNiche  String? @map("business_niche")
+  targetAudience String? @map("target_audience") @db.Text
+  destinationUrl String? @map("destination_url")
+  whatsappNumber String? @map("whatsapp_number")
+  notes          String? @db.Text
+
+  status      TrafegoOrderStatus @default(PAID)
+  requestedAt DateTime?          @map("requested_at")
+  approvedAt  DateTime?          @map("approved_at")
+  startedAt   DateTime?          @map("started_at")
+  endsAt      DateTime?          @map("ends_at")
+  completedAt DateTime?          @map("completed_at")
+
+  // ── Vínculo com a execução real (preenchido pela equipe) ──
+  metaAdCampaignId       String? @map("meta_ad_campaign_id")
+  /// ID Meta da campanha = MetaAdsKpiSnapshot.entityId com level=CAMPAIGN.
+  metaCampaignExternalId String? @map("meta_campaign_external_id")
+  /// Org dona dos snapshots — a da AGÊNCIA, que detém a PlatformIntegration(META).
+  /// Sem isto o dashboard do cliente volta vazio: os KPIs não nascem na org dele.
+  metricsOrganizationId  String? @map("metrics_organization_id")
+  broadcastId            String? @unique @map("broadcast_id")
+
+  assignedToUserId String? @map("assigned_to_user_id")
+  internalNotes    String? @map("internal_notes") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization    Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner           User                    @relation("TrafegoOrderOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  assignedTo      User?                   @relation("TrafegoOrderAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  plan            TrafegoPlan?            @relation(fields: [planId], references: [id], onDelete: SetNull)
+  pendingPurchase TrafegoPendingPurchase? @relation(fields: [pendingPurchaseId], references: [id], onDelete: SetNull)
+  metaAdCampaign  MetaAdCampaign?         @relation(fields: [metaAdCampaignId], references: [id], onDelete: SetNull)
+  broadcast       Broadcast?              @relation(fields: [broadcastId], references: [id], onDelete: SetNull)
+
+  creatives TrafegoCreative[]
+  copies    TrafegoCopy[]
+  events    TrafegoOrderEvent[]
+  messages  TrafegoSupportMessage[]
+
+  @@index([organizationId, status])
+  @@index([status, requestedAt])
+  @@index([metaCampaignExternalId])
+  @@map("trafego_order")
+}
+
+/// Timeline append-only. Não usamos coluna `*At` por estágio (como
+/// `ClientOnboardingProcess`) porque o fluxo tem voltas — CHANGES_REQUESTED →
+/// MATERIALS_SUBMITTED → REQUESTED — e colunas perderiam a segunda passagem.
+model TrafegoOrderEvent {
+  id              String              @id @default(cuid())
+  orderId         String              @map("order_id")
+  fromStatus      TrafegoOrderStatus? @map("from_status")
+  toStatus        TrafegoOrderStatus  @map("to_status")
+  title           String
+  detail          String?             @db.Text
+  /// false = nota interna da equipe, invisível pro cliente.
+  isClientVisible Boolean             @default(true) @map("is_client_visible")
+  /// null = evento do sistema (webhook, cron).
+  actorUserId     String?             @map("actor_user_id")
+  createdAt       DateTime            @default(now()) @map("created_at")
+
+  order TrafegoOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor User?        @relation("TrafegoEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@map("trafego_order_event")
+}
+
+model TrafegoCreative {
+  id               String                @id @default(cuid())
+  orderId          String                @map("order_id")
+  kind             TrafegoCreativeKind
+  /// Key do R2 — nunca URL. `getPublicMediaUrl()` resolve na hora de usar.
+  fileKey          String                @map("file_key")
+  fileName         String?               @map("file_name")
+  fileSize         Int?                  @map("file_size")
+  mimeType         String?               @map("mime_type")
+  width            Int?
+  height           Int?
+  durationSeconds  Int?                  @map("duration_seconds")
+  /// `position` e não `order` — `order` colidiria com a relação de mesmo nome.
+  position         Int                   @default(0)
+  status           TrafegoCreativeStatus @default(UPLOADED)
+  /// Preenchidos quando a equipe sobe o arquivo pro Meta.
+  metaImageHash    String?               @map("meta_image_hash")
+  metaVideoId      String?               @map("meta_video_id")
+  reviewNote       String?               @map("review_note")
+  uploadedByUserId String                @map("uploaded_by_user_id")
+  createdAt        DateTime              @default(now()) @map("created_at")
+
+  order      TrafegoOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  uploadedBy User         @relation("TrafegoCreativeUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, position])
+  @@map("trafego_creative")
+}
+
+model TrafegoCopy {
+  id           String            @id @default(cuid())
+  orderId      String            @map("order_id")
+  headline     String?
+  primaryText  String            @map("primary_text") @db.Text
+  description  String?
+  callToAction String?           @map("call_to_action")
+  source       TrafegoCopySource @default(CLIENT)
+  isSelected   Boolean           @default(false) @map("is_selected")
+  position     Int               @default(0)
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  order TrafegoOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, position])
+  @@map("trafego_copy")
+}
+
+model TrafegoSupportMessage {
+  id             String                   @id @default(cuid())
+  orderId        String                   @map("order_id")
+  authorUserId   String                   @map("author_user_id")
+  authorRole     TrafegoSupportAuthorRole @map("author_role")
+  body           String                   @db.Text
+  attachmentKey  String?                  @map("attachment_key")
+  readByClientAt DateTime?                @map("read_by_client_at")
+  readByNasaAt   DateTime?                @map("read_by_nasa_at")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+
+  order  TrafegoOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  author User         @relation("TrafegoSupportAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("trafego_support_message")
+}
+
+/// Configuração global do produto. Singleton (id="singleton").
+model TrafegoSettings {
+  id                         String   @id @default("singleton")
+  /// Org da AGÊNCIA — detém a PlatformIntegration(META) e é onde nascem os
+  /// MetaAdsKpiSnapshot. Vira o `metricsOrganizationId` default dos pedidos.
+  agencyOrganizationId       String?  @map("agency_organization_id")
+  /// Tracking META_CLOUD usado como origem dos disparos WhatsApp.
+  defaultBroadcastTrackingId String?  @map("default_broadcast_tracking_id")
+  /// Destino do lead da venda no CRM (espelha NasaRouteCourse.purchaseTrackingId).
+  salesTrackingId            String?  @map("sales_tracking_id")
+  salesStatusId              String?  @map("sales_status_id")
+  defaultServiceFeePercent   Decimal  @default(50) @map("default_service_fee_percent") @db.Decimal(5, 2)
+  supportWhatsapp            String?  @map("support_whatsapp")
+  updatedAt                  DateTime @updatedAt @map("updated_at")
+  updatedById                String?  @map("updated_by_id")
+
+  @@map("trafego_settings")
 }
