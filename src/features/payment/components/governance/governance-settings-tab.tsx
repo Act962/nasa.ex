@@ -127,7 +127,7 @@ export function GovernanceSettingsTab() {
       <div className="flex items-center justify-between rounded-md border p-3">
         <div className="space-y-0.5">
           <Label className="text-xs font-medium">
-            Exigir aprovação para todo "A pagar"
+            Exigir aprovação para toda "Despesa"
           </Label>
           <p className="text-[11px] text-muted-foreground">
             Independente do valor, todo PAYABLE entra em aprovação.

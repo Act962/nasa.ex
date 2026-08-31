@@ -147,6 +147,47 @@ export const listPaymentEntries = base
     }
   });
 
+// Descrições usadas recentemente, pra oferecer preenchimento rápido no form.
+// A dedupe é em JS porque o `distinct` do Prisma roda depois do `take` e
+// devolveria menos opções que o pedido.
+const RECENT_DESCRIPTIONS_SCAN = 60;
+
+export const listRecentEntryDescriptions = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("entries", "view"))
+  .route({ method: "GET", summary: "List recent entry descriptions", tags: ["Payment"] })
+  .input(z.object({
+    type: z.enum(["RECEIVABLE", "PAYABLE"]),
+    limit: z.number().default(6),
+  }))
+  .output(z.object({ descriptions: z.array(z.string()) }))
+  .handler(async ({ input, context, errors }) => {
+    try {
+      const rows = await prisma.paymentEntry.findMany({
+        where: { organizationId: context.org.id, type: input.type },
+        select: { description: true },
+        orderBy: { createdAt: "desc" },
+        take: RECENT_DESCRIPTIONS_SCAN,
+      });
+
+      const seen = new Set<string>();
+      const descriptions: string[] = [];
+      for (const row of rows) {
+        const description = row.description.trim();
+        const key = description.toLowerCase();
+        if (!description || seen.has(key)) continue;
+        seen.add(key);
+        descriptions.push(description);
+        if (descriptions.length >= input.limit) break;
+      }
+
+      return { descriptions };
+    } catch {
+      throw errors.INTERNAL_SERVER_ERROR;
+    }
+  });
+
 export const createPaymentEntry = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)

@@ -465,11 +465,11 @@ export function ContactsTab() {
   return (
     <div className="space-y-4">
       {/* Barra de ações */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-xs">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            className="pl-9 h-8 text-sm"
+            className="pl-9 h-9 text-sm"
             placeholder="Buscar contato..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -481,7 +481,7 @@ export function ContactsTab() {
             resetForm();
             setShowForm(true);
           }}
-          className="bg-[#1E90FF] hover:bg-[#1E90FF]/90 text-white gap-1.5"
+          className="h-9 w-full gap-1.5 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90 sm:w-auto"
         >
           <Plus className="size-4" /> Novo Contato
         </Button>
@@ -500,7 +500,8 @@ export function ContactsTab() {
       </div>
 
       {/* Tabela */}
-      <div className="rounded-xl border border-border/50 overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-border/50">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border/50 bg-muted/30">
@@ -510,13 +511,13 @@ export function ContactsTab() {
               <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">
                 Tipo
               </th>
-              <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">
+              <th className="hidden lg:table-cell text-left px-4 py-3 text-xs text-muted-foreground font-medium">
                 Documento
               </th>
-              <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">
+              <th className="hidden lg:table-cell text-left px-4 py-3 text-xs text-muted-foreground font-medium">
                 E-mail
               </th>
-              <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">
+              <th className="hidden lg:table-cell text-left px-4 py-3 text-xs text-muted-foreground font-medium">
                 Telefone
               </th>
               <th className="w-10" />
@@ -554,13 +555,13 @@ export function ContactsTab() {
                       {CONTACT_TYPE_LABELS[c.contactType] ?? c.contactType}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  <td className="hidden lg:table-cell px-4 py-3 text-muted-foreground">
                     {c.document ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  <td className="hidden lg:table-cell px-4 py-3 text-muted-foreground">
                     {c.email ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  <td className="hidden lg:table-cell px-4 py-3 text-muted-foreground">
                     {c.phone ?? "—"}
                   </td>
                   <td className="px-4 py-3">
@@ -593,6 +594,7 @@ export function ContactsTab() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Dialog de criação */}

@@ -121,6 +121,34 @@ export function usePaymentEntries(params: {
   });
 }
 
+/** Descrições usadas recentemente — atalhos de preenchimento no formulário. */
+export function useRecentEntryDescriptions(
+  type: "RECEIVABLE" | "PAYABLE",
+  limit = 6,
+) {
+  return useQuery(
+    orpc.payment.entries.recentDescriptions.queryOptions({
+      input: { type, limit },
+    }),
+  );
+}
+
+/**
+ * Busca sob demanda (não em render) os lançamentos de um período — usado pelo
+ * botão "Exportar" do painel, que só precisa dos dados no clique.
+ */
+export function useExportPaymentEntries() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { dateFrom?: string; dateTo?: string }) =>
+      qc.fetchQuery(
+        orpc.payment.entries.list.queryOptions({
+          input: { ...input, page: 1, perPage: 500 },
+        }),
+      ),
+  });
+}
+
 export function useCreatePaymentEntry() {
   const qc = useQueryClient();
   return useMutation({

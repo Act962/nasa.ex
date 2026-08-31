@@ -62,7 +62,9 @@ export function NavMenu() {
                 "bg-sidebar-accent text-sidebar-accent-foreground",
             )}
           >
-            <Link href="/home">
+            {/* `home=1` evita o redirect pro app principal — o Início continua
+                acessível mesmo com outro app definido como inicial. */}
+            <Link href="/home?home=1">
               <AstroNavIcon />
               <span>Início</span>
             </Link>

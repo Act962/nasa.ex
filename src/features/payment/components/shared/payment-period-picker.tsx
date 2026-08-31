@@ -26,6 +26,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export type PeriodRange = { from?: Date; to?: Date };
 
@@ -35,6 +36,8 @@ interface Props {
   onChange: (range: PeriodRange) => void;
   /** Ocultar seletor de hora (só data). Default: false. */
   hideTime?: boolean;
+  /** Classes extras no botão que abre o calendário. */
+  triggerClassName?: string;
 }
 
 function pad(n: number) {
@@ -54,7 +57,15 @@ function applyTime(date: Date | undefined, hhmm: string): Date | undefined {
   return out;
 }
 
-export function PaymentPeriodPicker({ from, to, onChange, hideTime = false }: Props) {
+export function PaymentPeriodPicker({
+  from,
+  to,
+  onChange,
+  hideTime = false,
+  triggerClassName,
+}: Props) {
+  // Dois meses lado a lado estouram a largura no celular.
+  const isMobile = useIsMobile();
   const fromTime = timeFromDate(from);
   const toTime = timeFromDate(to);
 
@@ -132,13 +143,17 @@ export function PaymentPeriodPicker({ from, to, onChange, hideTime = false }: Pr
           className={cn(
             "h-8 text-xs justify-start font-normal",
             !from && "text-muted-foreground",
+            triggerClassName,
           )}
         >
           <CalendarIcon className="mr-1.5 size-3.5" />
           {label}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent
+        className="w-auto max-w-[calc(100vw-1.5rem)] overflow-x-auto p-0"
+        align="start"
+      >
         <Calendar
           locale={pt}
           mode="range"
@@ -146,7 +161,7 @@ export function PaymentPeriodPicker({ from, to, onChange, hideTime = false }: Pr
           defaultMonth={from}
           selected={{ from, to }}
           onSelect={handleRangeSelect}
-          numberOfMonths={2}
+          numberOfMonths={isMobile ? 1 : 2}
         />
 
         {!hideTime && (
@@ -178,7 +193,7 @@ export function PaymentPeriodPicker({ from, to, onChange, hideTime = false }: Pr
           </div>
         )}
 
-        <div className="flex items-center justify-between border-t p-3 gap-3">
+        <div className="flex flex-col gap-2 border-t p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <Button
             variant="ghost"
             size="sm"
@@ -187,7 +202,7 @@ export function PaymentPeriodPicker({ from, to, onChange, hideTime = false }: Pr
           >
             Limpar
           </Button>
-          <div className="flex flex-wrap gap-1.5 justify-end">
+          <div className="flex flex-wrap justify-start gap-1.5 sm:justify-end">
             <Button
               variant="outline"
               size="sm"
