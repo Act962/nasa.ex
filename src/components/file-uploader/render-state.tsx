@@ -1,9 +1,20 @@
 import { cn } from "@/lib/utils";
 import { FileIcon, ImageIcon, Trash2, UploadIcon, XIcon } from "lucide-react";
 import Image from "next/image";
+import { useState } from "react";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import Link from "next/link";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 
 export function RenderEmptyState({ isDragActive }: { isDragActive: boolean }) {
   return (
@@ -50,8 +61,10 @@ export function RenderUploadedState({
   handleDelete: () => void;
   fileType: "image" | "video" | "outros";
 }) {
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
   return (
-    <div className=" group">
+    <div>
       {/* {fileType === "video" ? (
         <video src={previewUrl} controls className="rounded-md size-full" />
       ) : (
@@ -87,17 +100,42 @@ export function RenderUploadedState({
         </div>
       )}
 
+      {/* Sempre visível: escondido atrás de `group-hover` ele continuava
+          clicável enquanto invisível (opacity não bloqueia pointer events),
+          e em telas sem hover nunca aparecia — virava um delete às cegas. */}
       <Button
+        type="button"
         variant="destructive"
         size="icon"
-        className={cn(
-          "absolute top-2 right-2 opacity-0 group-hover:opacity-100",
-        )}
-        onClick={handleDelete}
+        className="absolute top-2 right-2 rounded-full shadow-md"
+        onClick={() => setIsDeleteConfirmOpen(true)}
         disabled={isDeleting}
+        aria-label="Excluir arquivo"
+        title="Excluir arquivo"
       >
         {isDeleting ? <Spinner /> : <Trash2 className="size-4" />}
       </Button>
+
+      <AlertDialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={setIsDeleteConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir este arquivo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O arquivo é apagado do armazenamento permanentemente e não há
+              como desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

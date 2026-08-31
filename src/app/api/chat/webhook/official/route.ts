@@ -60,6 +60,7 @@ import { getCachedTrackingContext } from "@/features/tracking-chat/lib/get-cache
 import { createProvider } from "@/features/tracking-chat/lib/providers";
 import { persistCanonicalInbound } from "@/features/tracking-chat/lib/inbound/persist-canonical-inbound";
 import { applyStatusUpdates } from "@/features/tracking-chat/lib/inbound/apply-status-updates";
+import { applyBroadcastStatusUpdates } from "@/features/campanhas/server/lib/apply-broadcast-status-updates";
 import {
   buildMetaDownloadInboundMedia,
   buildMetaFetchProfilePicture,
@@ -304,6 +305,14 @@ export async function POST(request: NextRequest) {
   if (normalized?.statusUpdates?.length) {
     await applyStatusUpdates(normalized.statusUpdates).catch((error) => {
       console.error("[webhook:official:POST] apply_status_updates_failed", {
+        phoneNumberId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+    // Mesmos statuses alimentam os contadores das campanhas (Fase 3). Um wamid
+    // é de chat OU de disparo — cada handler ignora o que não é seu.
+    await applyBroadcastStatusUpdates(normalized.statusUpdates).catch((error) => {
+      console.error("[webhook:official:POST] apply_broadcast_status_failed", {
         phoneNumberId,
         error: error instanceof Error ? error.message : String(error),
       });

@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useMutation } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Link2 } from "lucide-react";
+import { ArrowLeft, Link2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -45,7 +45,7 @@ export default function Page() {
   const responseId = params.responseId;
   const router = useRouter();
 
-  const { response, isLoading, isError, error } =
+  const { response, canEdit, editBlockedReason, createdBy, isLoading, isError, error } =
     useQueryFormResponseById(responseId);
   const updateMutation = useMutationUpdateResponse();
 
@@ -265,6 +265,26 @@ export default function Page() {
         </div>
       </header>
 
+      {/* Sem permissão de edição: o conteúdo continua inteiramente visível,
+          só os campos ficam desabilitados (spec 0005, RF-10). */}
+      {!canEdit && !isLoading && (
+        <div className="border-b bg-amber-50 dark:bg-amber-950/30">
+          <div className="max-w-[920px] mx-auto px-4 py-2.5 flex items-start gap-2">
+            <Lock className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-500" />
+            <div className="text-xs text-amber-900 dark:text-amber-200">
+              <span className="font-medium">Somente leitura.</span>{" "}
+              {editBlockedReason ?? "Você não pode editar esta resposta."}
+              {createdBy?.name && (
+                <span className="opacity-80">
+                  {" "}
+                  Preenchida por {createdBy.name}.
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Form em modo edit ──────────────────────────────────────── */}
       <main className="flex-1 min-h-0">
         <FormLeadProvider
@@ -280,6 +300,7 @@ export default function Page() {
             settings={response.form.settings}
             initialResponseValues={initialResponseValues}
             submitLabel="Salvar"
+            readOnly={!canEdit}
             onSubmitOverride={async (responseJson) => {
               try {
                 // `isFinal: true` aciona o "Direcionamento" do form —

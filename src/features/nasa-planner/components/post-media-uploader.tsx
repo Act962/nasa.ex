@@ -207,16 +207,23 @@ export function PostMediaUploader({
                   {idx + 1}
                 </div>
 
-                {/* Delete overlay */}
+                {/* Remover slide — alvo próprio no canto. Antes era um
+                    `inset-0` invisível: em touch, tocar no slide apagava. */}
                 <button
                   type="button"
                   onClick={() => handleRemoveSlide(slide.id)}
-                  disabled={removeSlide.isPending}
-                  className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+                  disabled={
+                    removeSlide.isPending &&
+                    removeSlide.variables?.slideId === slide.id
+                  }
+                  className="absolute top-1 right-1 size-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-md disabled:opacity-50"
+                  title="Remover slide"
+                  aria-label="Remover slide"
                 >
-                  {removeSlide.isPending
-                    ? <Loader2Icon className="size-5 text-white animate-spin" />
-                    : <Trash2Icon className="size-5 text-white drop-shadow" />}
+                  {removeSlide.isPending &&
+                  removeSlide.variables?.slideId === slide.id
+                    ? <Loader2Icon className="size-3 animate-spin" />
+                    : <Trash2Icon className="size-3" />}
                 </button>
               </div>
             ))}

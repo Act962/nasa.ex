@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { findWorkspaceInOrg } from "../lib/workspace-access";
 
 export const createAutomation = base
   .use(requiredAuthMiddleware)
@@ -15,7 +16,12 @@ export const createAutomation = base
     conditions: z.array(z.record(z.string(), z.any())).optional(),
     steps: z.array(z.record(z.string(), z.any())).optional(),
   }))
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
+    const workspace = await findWorkspaceInOrg(input.workspaceId, context.org.id);
+    if (!workspace) {
+      throw errors.NOT_FOUND({ message: "Workspace não encontrado" });
+    }
+
     const automation = await prisma.workspaceAutomation.create({
       data: {
         workspaceId: input.workspaceId,

@@ -221,7 +221,7 @@ export function ChatMessage({
             </div>
           </div>
 
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-start gap-0.5 mt-1">
+          <div className="hover-reveal flex items-start gap-0.5 mt-1">
             <Button
               type="button"
               variant="ghost"

@@ -23,6 +23,22 @@ export interface Action {
   workspace?: {
     name: string;
   };
+  // Lead vinculado (1:N via Action.leadId). `orpc.action.get` já o retorna.
+  leadId?: string | null;
+  lead?: {
+    id: string;
+    name: string;
+    phone: string | null;
+    email: string | null;
+  } | null;
+  // Origem: resposta de formulário (1:N via Action.formResponseId).
+  formResponseId?: string | null;
+  formResponse?: {
+    id: string;
+    form: { id: string; name: string } | null;
+  } | null;
+  // Tamanho da pauta de formulários da tarefa (spec 0002).
+  _count?: { forms: number };
   participants: {
     user: {
       id: string;

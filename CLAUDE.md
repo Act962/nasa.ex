@@ -194,6 +194,39 @@ src/features/<dominio>/
 
 15. **WhatsApp Oficial — fluxo normal via `main` (fases já integradas)** — as fases do roadmap (ver `docs/whatsapp-oficial-overview.md`) **já estão na `main`**. A branch de integração `feature/whatsapp-oficial-integration` foi aposentada; **não é mais usada**. Novas fases e ajustes do WhatsApp Oficial seguem o fluxo padrão do projeto (item Git Workflow): branch de fase nasce a partir da **`main`** atualizada (`/start`) e o PR da fase tem base **`main`** (`--base main`). Não retargete PRs para a branch de integração nem crie branches a partir dela.
 
+16. **Visibilidade de campos no Kanban (OBRIGATÓRIO)** — todo **novo campo** exibido no card do lead (`src/features/trackings/components/lead-item.tsx`) ou na coluna (`src/features/trackings/components/status-header.tsx`) **deve** entrar no sistema de visibilidade personalizável, salvo se for realmente obrigatório (ex.: nome do lead — sempre visível). Ao adicionar um campo:
+
+    a. **Registrar em `CARD_FIELDS`** (`src/features/trackings/lib/card-visibility.ts`) — adicionar `{ id, label, group: "card" | "column" }`. Isso automaticamente cria o toggle no Sheet "Personalizar board" (`components/modal/board-customize-sheet.tsx`), que itera sobre `CARD_FIELDS` — **não** é preciso editar o Sheet manualmente.
+
+    b. **Envolver o render** do campo com `isFieldVisible(visibility, "<id>")` no componente correspondente (`lead-item.tsx` ou `status-header.tsx`), usando a mesma `visibility` já computada (`visibilityPreview` do tracking OU `cardConfig.cardVisibility`). Default ausente = visível (compat com trackings sem config).
+
+    c. **Campos obrigatórios** (não-ocultáveis) ficam **fora** de `CARD_FIELDS` — não recebem toggle e renderizam sempre.
+
+    Objetivo: nenhum campo novo pode voltar a poluir o board sem o usuário poder desligá-lo. Ver [`src/features/trackings/README.md`](src/features/trackings/README.md) para o fluxo completo.
+
+17. **Spec Driven Development (OBRIGATÓRIO para mudanças relevantes)** — antes de implementar feature nova, mudança de schema ou bug que introduza caminho condicional sobre dados de produção, escreva a spec em `specs/<dominio>/` a partir de [`specs/TEMPLATE.md`](specs/TEMPLATE.md) e tenha-a revisada **antes** do código. Ver [`specs/README.md`](specs/README.md) para o fluxo, os dois pesos de spec (leve/completa) e a lista do que NÃO exige spec (typo, refactor sem mudança de comportamento, bump de dependência).
+
+    **Teste decisivo**: a mudança cria um novo "depende de" sobre dados que já existem em produção? Se sim, escreva a spec — é exatamente esse tipo de mudança que gerou o 500 do submit de formulário (ver [`specs/form/0001-form-submit-lead-placement.md`](specs/form/0001-form-submit-lead-placement.md)).
+
+    Regras de manutenção: cada critério de aceite (`CA-n`) vira ao menos um teste que cita o id no nome; divergiu da spec durante a implementação, **atualize a spec no mesmo PR** e registre no changelog dela. Spec desatualizada é pior que spec nenhuma — mente com autoridade.
+
+18. **Transações Prisma contêm apenas escritas de banco (OBRIGATÓRIO)** — dentro de `prisma.$transaction(async (tx) => ...)` é proibido:
+
+    - Chamar helper que usa o **cliente Prisma global** em vez do `tx` (ex.: `trackLeadEvent`, `recordLeadEvent`, `logActivity`). Rodando em outra conexão, uma query que toque linha travada pela própria transação espera por ela — que por sua vez espera a query. Espera circular resolvida só pelo timeout de 5s, virando **500**.
+    - Fazer I/O de rede: `fetch`, Pusher, Inngest, envio de e-mail.
+
+    **Padrão correto**: colete os efeitos numa lista dentro da tx (`pendingLeadEvents`, `pendingJourneyEvents`) e execute **após o commit**, best-effort — falha em efeito colateral não pode invalidar a submissão já persistida. Ver `src/app/router/form/public/submut-response.ts` como referência.
+
+    Esse bug já custou dois PRs de correção que miravam a causa errada. Ao mexer em qualquer procedure com `$transaction`, confira essa regra antes de commitar.
+
+19. **Documentação da evolução arquitetural** — sempre que criar ou alterar qualquer coisa em `src/modules/`, nas regras de fronteira (`.dependency-cruiser.js`), no CI (`.github/workflows/`), na configuração de testes (`vitest.config.*`, `playwright.config.*`, `docker-compose.test.yml`), ou ao concluir/reordenar uma fase do roadmap, **atualize também [`docs/arquitetura-evolucao-overview.md`](docs/arquitetura-evolucao-overview.md)** na mesma sessão — tabela de status, roadmap, decisões e changelog sincronizados com o código. Espelha as regras 10 (NASA Route) e 14 (WhatsApp Oficial).
+
+    Documentos satélite, com a mesma obrigação: [`docs/seguranca-auditoria-2026-08.md`](docs/seguranca-auditoria-2026-08.md) (ao corrigir um item da auditoria, marque o status e registre o PR — **não apague o item**) e [`docs/testes-estrategia.md`](docs/testes-estrategia.md) (ao mudar runner, pipeline ou quality gate).
+
+    **Antes de propor arquitetura, teste ou CI neste projeto, leia o overview.** Ele registra decisões já travadas — arquitetura alvo (Hexagonal seletivo, não Clean Architecture ampla), escopo (piloto `form`, não migração ampla) e o que foi deliberadamente descartado, com o porquê. Repropor algo já descartado sem novo argumento custa tempo do time.
+
+20. **Deriva conhecida entre este arquivo e o código** — auditoria de 2026-08-18 encontrou divergências ainda não corrigidas. Enquanto não forem, **confie no código, não neste documento**, nestes pontos: procedures oRPC estão em `src/app/router/` (não em `src/server/`, que não existe); a Regra 9 tem 518 violações; a Regra 5 convive com Jotai além de Zustand; a Regra 17 é **inexequível** (não há runner de teste instalado); `.claude/settings.json` não existe (o hook `PreToolUse` descrito no Git Workflow não está ativo); `.env.example` e `prisma/migrations/MANUAL_*.sql` referenciados em `docs/DEPLOYMENT.md` não existem — `scripts/apply-prod-migrations.sh` quebra por causa disso. Lista completa em [`docs/arquitetura-evolucao-overview.md`](docs/arquitetura-evolucao-overview.md) §3.5. Corrigir a deriva é item da Fase 0.
+
 ## Obsidian
 
 Vault: `NASA Agents` em `/Users/weydsonlima/Documents/NASA Agents/`

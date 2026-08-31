@@ -536,16 +536,45 @@ export function PopupTemplatesManager({
     }
   };
 
-  const handleBannerDelete = async (id: string) => {
-    const res = await fetch("/api/admin/banner-patterns", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    const updated = await res.json();
-    if (Array.isArray(updated)) setGlobalPatterns(updated);
-  };
   const confirm = useConfirm();
+
+  const handleBannerDelete = async (id: string) => {
+    const confirmed = await confirm.confirm({
+      title: "Remover banner",
+      description:
+        "Tem certeza que deseja remover este banner? Ele é global e a ação não pode ser desfeita.",
+      confirmText: "Remover",
+      cancelText: "Cancelar",
+      isDangerous: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch("/api/admin/banner-patterns", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        toast.error(errorBody?.error ?? "Falha ao remover o banner.");
+        return;
+      }
+
+      const updated = await response.json().catch(() => null);
+      if (Array.isArray(updated)) {
+        setGlobalPatterns(updated);
+      } else {
+        setGlobalPatterns((current) =>
+          current.filter((pattern) => pattern.id !== id),
+        );
+      }
+      toast.success("Banner removido.");
+    } catch {
+      toast.error("Falha ao remover o banner.");
+    }
+  };
 
   const filteredTemplates =
     selectedType === "all"
@@ -698,15 +727,17 @@ export function PopupTemplatesManager({
                     alt={p.label}
                     className="w-full aspect-768/391 object-cover"
                   />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <button
-                      onClick={() => handleBannerDelete(p.id)}
-                      className="p-1.5 bg-red-600/90 rounded-lg text-white hover:bg-red-500 transition-colors"
-                      title="Remover"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  {/* Alvo próprio no canto: antes era um overlay `inset-0`
+                      invisível com o botão no centro do banner. */}
+                  <button
+                    type="button"
+                    onClick={() => handleBannerDelete(p.id)}
+                    className="absolute top-1 right-1 p-1.5 bg-red-600/90 rounded-lg text-white hover:bg-red-500 transition-colors shadow-md"
+                    title="Remover"
+                    aria-label="Remover banner"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                   <p className="text-[10px] text-zinc-400 px-2 py-1 truncate bg-zinc-900/80">
                     {p.label}
                   </p>

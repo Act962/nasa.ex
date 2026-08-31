@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { arrayMove } from "@dnd-kit/sortable";
 import { Lead } from "../types";
 import { persist } from "zustand/middleware";
+import { CardVisibility } from "./card-visibility";
 
 export type SortBy = "order" | "createdAt" | "updatedAt" | "statusEnteredAt";
 
@@ -60,6 +61,15 @@ type KanbanStore = {
   // "Novo Lead". Persiste no localStorage pra manter preferência.
   headerCollapsed: boolean;
   toggleHeaderCollapsed: () => void;
+
+  // Preview ao vivo da personalização de campos: enquanto o Sheet de
+  // "Personalizar" está aberto, guarda o rascunho de visibilidade para o
+  // board renderizar em tempo real. `null` = sem preview (usa o config salvo).
+  // Escopado ao `trackingId` pra NÃO vazar o rascunho de um tracking para os
+  // cards/colunas de outro. Efêmero de propósito — NÃO entra no `partialize`.
+  visibilityPreview: { trackingId: string; values: CardVisibility } | null;
+  setVisibilityPreview: (trackingId: string, values: CardVisibility) => void;
+  clearVisibilityPreview: () => void;
 };
 
 export const useKanbanStore = create<KanbanStore>()(
@@ -81,6 +91,11 @@ export const useKanbanStore = create<KanbanStore>()(
       headerCollapsed: false,
       toggleHeaderCollapsed: () =>
         set((state) => ({ headerCollapsed: !state.headerCollapsed })),
+
+      visibilityPreview: null,
+      setVisibilityPreview: (trackingId, values) =>
+        set({ visibilityPreview: { trackingId, values } }),
+      clearVisibilityPreview: () => set({ visibilityPreview: null }),
 
       setSortBy: (sortBy) =>
         set({

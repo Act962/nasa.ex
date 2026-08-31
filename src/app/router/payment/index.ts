@@ -1,11 +1,12 @@
+// verifyPaymentPin, verifyPaymentOtp, requestPaymentOtp e
+// setupOwnerPaymentAccess foram DESREGISTRADAS pela spec 0007 — o acesso ao
+// módulo passou a ser determinado só pela whitelist. Os handlers continuam em
+// `./access` de propósito; religar exige spec nova.
 import {
-  verifyPaymentPin,
-  verifyPaymentOtp,
-  requestPaymentOtp,
   getMyPaymentAccess,
+  claimOwnerPaymentAccess,
   listPaymentAccess,
   grantPaymentAccess,
-  setupOwnerPaymentAccess,
   revokePaymentAccess,
   updatePaymentRole,
   updatePaymentPermissions,
@@ -70,13 +71,10 @@ import {
 
 export const paymentRouter = {
   access: {
-    verify:             verifyPaymentPin,
-    verifyOtp:          verifyPaymentOtp,
-    requestOtp:         requestPaymentOtp,
     getMy:              getMyPaymentAccess,
+    claimOwner:         claimOwnerPaymentAccess,
     list:               listPaymentAccess,
     grant:              grantPaymentAccess,
-    setupOwner:         setupOwnerPaymentAccess,
     revoke:             revokePaymentAccess,
     updateRole:         updatePaymentRole,
     updatePermissions:  updatePaymentPermissions,

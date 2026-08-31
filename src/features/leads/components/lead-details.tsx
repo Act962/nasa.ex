@@ -17,6 +17,10 @@ import {
   StickyNoteIcon,
 } from "lucide-react";
 import { LeadContracts } from "./lead-contracts";
+// Importado de propósito sem uso: a aba "Tarefas" (TabNotes) existe e o
+// backend do vínculo Action↔Lead funciona, mas o layout foi reprovado e a aba
+// saiu até o redesenho. Ver docs/workspace-actions-overview.md §5, Fase 3.2 —
+// pra religar, basta voltar a entrada no array `tabs` abaixo.
 import { TabNotes } from "./notes";
 import { LeadAttachmentsByFolder } from "./lead-files/lead-attachments-by-folder";
 import { ObservationLead } from "./observations";

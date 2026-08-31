@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { isFormPolicyManager } from "@/features/form/lib/can-edit-response";
 
 export const fetchFormById = base
   .use(requiredAuthMiddleware)
@@ -37,9 +38,19 @@ export const fetchFormById = base
         throw errors.NOT_FOUND({ message: "Form not found" });
       }
 
+      // Quem pode alterar a política de edição de respostas (spec 0005, D-13).
+      // Resolvido no servidor pelo mesmo motivo do RF-12: a UI não re-deriva
+      // regra de permissão — só renderiza o que o servidor disser.
+      const canEditPolicy = await isFormPolicyManager({
+        userId: context.user.id,
+        organizationId: form.organizationId,
+        formTrackingId: form.settings?.trackingId ?? null,
+      });
+
       return {
         message: "Form fetched successfully",
         form,
+        canEditPolicy,
       };
     } catch (error: any) {
       console.error("Error fetching form:", error);

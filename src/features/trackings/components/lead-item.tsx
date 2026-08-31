@@ -6,6 +6,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowUpRight,
+  Banknote,
   CalendarClock,
   CheckIcon,
   ClipboardList as ClipboardListIcon,
@@ -18,6 +19,7 @@ import {
   CheckCircle2,
   Timer,
   TimerOff,
+  ListTodo,
 } from "lucide-react";
 import { formatTimeUntil } from "@/features/form/lib/extract-deadline";
 import { WhatsappIcon } from "@/components/whatsapp";
@@ -25,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQueryTagByLead } from "@/features/tracking-chat/hooks/use-leads-conversation";
 import { Button } from "@/components/ui/button";
 import { phoneMaskFull } from "@/utils/format-phone";
+import { formatCentsToMoney } from "@/utils/mask-money";
 import dayjs from "dayjs";
 import { memo, useMemo, useState, useEffect } from "react";
 import { Lead } from "../types";
@@ -34,9 +37,9 @@ import { useLeadStore } from "../contexts/use-lead";
 import { useKanbanStore } from "../lib/kanban-store";
 import { useKanbanAppearance } from "../hooks/use-kanban-appearance";
 import { useLeadPurchasesByTracking } from "../hooks/use-lead-purchases";
+import { useCardConfig } from "../hooks/use-card-config";
+import { isFieldVisible, resolveCardVisibility } from "../lib/card-visibility";
 import { LeadPurchaseBasket } from "./lead-purchase-basket";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
 import { hexToRgba } from "@/utils/hex-to-rgba";
 import {
   Popover,
@@ -78,6 +81,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { LeadActionsPopover } from "@/features/leads/components/lead-actions/lead-actions-popover";
 
 const TEMP_COLOR = {
   COLD: "#3498db",
@@ -147,19 +151,26 @@ export const LeadItem = memo(
     const { data: appearance } = useKanbanAppearance(data.trackingId);
     // Cesta de compra: dedupa via React Query — 1 request por tracking.
     const { data: purchasesData } = useLeadPurchasesByTracking(data.trackingId);
-    const { data: cardConfigData } = useQuery(
-      orpc.tracking.getCardConfig.queryOptions({
-        input: { trackingId: data.trackingId },
-      }),
+    const { data: cardConfig } = useCardConfig(data.trackingId);
+    // Visibilidade efetiva: preview ao vivo (Sheet aberto) tem prioridade
+    // sobre o config salvo, mas SÓ para o tracking deste card. Chave ausente
+    // = visível (default true).
+    const visibilityPreview = useKanbanStore((s) => s.visibilityPreview);
+    const visibility = resolveCardVisibility(
+      cardConfig?.cardVisibility,
+      visibilityPreview,
+      data.trackingId,
     );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cardConfig = (cardConfigData as any)?.config;
     const basketThresholds = {
       recentDays: cardConfig?.basketRecentDays ?? 30,
       mediumDays: cardConfig?.basketMediumDays ?? 60,
       longDays: cardConfig?.basketLongDays ?? 90,
     };
-    const showBasket = cardConfig?.showPurchaseBasket !== false;
+    // Cesta respeita tanto a nova visibilidade quanto o toggle legado da aba
+    // de Configurações (`showPurchaseBasket`).
+    const showBasket =
+      isFieldVisible(visibility, "purchaseBasket") &&
+      cardConfig?.showPurchaseBasket !== false;
     const leadPurchase = purchasesData?.purchases?.[data.id];
     const [description, setDescription] = useState(data.description);
 
@@ -213,6 +224,11 @@ export const LeadItem = memo(
       // em onDragEnd, que roda no próximo task JS — depois deste click).
       if (useKanbanStore.getState().activeDragLeadId) return;
       if ((e.target as HTMLElement).closest("a")) return;
+      // Ignora cliques vindos de conteúdo portalado (popover/dialog de
+      // atividades): o Radix move o node pro body, mas em React o evento
+      // borbulha pela árvore de componentes até aqui. Só seleciona quando o
+      // clique nasceu de fato dentro do DOM deste card.
+      if (!e.currentTarget.contains(e.target as Node)) return;
       toggleLead(data);
     };
 
@@ -256,16 +272,18 @@ export const LeadItem = memo(
           Posicionada mais pra fora (em cima do contorno esquerdo), mas
           ainda com uma parte por cima da foto. Sem ring/halo — visual
           mais limpo. `pointer-events-none` pra não bloquear drag/click. */}
-        <span
-          aria-label={`Temperatura: ${TEMP_TEXT[data.temperature]}`}
-          title={TEMP_TEXT[data.temperature]}
-          className="pointer-events-none absolute z-10 size-1.5 rounded-full"
-          style={{
-            backgroundColor: TEMP_COLOR[data.temperature],
-            top: "13px",
-            left: "7px",
-          }}
-        />
+        {isFieldVisible(visibility, "temperature") && (
+          <span
+            aria-label={`Temperatura: ${TEMP_TEXT[data.temperature]}`}
+            title={TEMP_TEXT[data.temperature]}
+            className="pointer-events-none absolute z-10 size-1.5 rounded-full"
+            style={{
+              backgroundColor: TEMP_COLOR[data.temperature],
+              top: "13px",
+              left: "7px",
+            }}
+          />
+        )}
         <div className="flex items-center justify-between gap-2 px-3 py-2">
           {/* Container esquerdo: `min-w-0 flex-1` é essencial pra que o nome
             + pill de apelido respeitem o truncate e não empurrem a largura
@@ -307,7 +325,7 @@ export const LeadItem = memo(
               <span className="min-w-0 shrink truncate text-xs font-medium max-w-38">
                 {data.name || "Sem nome"}
               </span>
-              {data.nickname && (
+              {data.nickname && isFieldVisible(visibility, "nickname") && (
                 // Pill de apelido — mesmo visual do botão "+" de adicionar
                 // tag (`variant="outline"` + rounded-full). `shrink-0` + cap
                 // de 80px pra não engolir o nome inteiro quando o apelido é
@@ -332,12 +350,14 @@ export const LeadItem = memo(
             >
               <ArrowUpRight className="size-3.5" />
             </button>
-            <CheckIaLead
-              size={"xs"}
-              active={data.isActive}
-              leadId={data.id}
-              trackingId={data.trackingId}
-            />
+            {isFieldVisible(visibility, "aiIndicator") && (
+              <CheckIaLead
+                size={"xs"}
+                active={data.isActive}
+                leadId={data.id}
+                trackingId={data.trackingId}
+              />
+            )}
             {showBasket && (
               <LeadPurchaseBasket
                 purchase={leadPurchase}
@@ -350,15 +370,27 @@ export const LeadItem = memo(
         <div className="flex flex-col px-4 gap-1 text-xs text-muted-foreground py-2">
           {/* E-mail removido do card por solicitação — fica visível apenas
             no painel "Detalhes do lead" pra deixar o card mais enxuto. */}
-          <LeadItemContainer>
-            <Phone className="size-3" />
-            {phoneMaskFull(data.phone) || "(00) 00000-0000"}
-          </LeadItemContainer>
-          <LeadItemContainer className="items-baseline">
-            <Tag className="size-3" />
-            <ListLeadTags leadId={data.id} tags={data.leadTags} />
-          </LeadItemContainer>
-          {(data.description || description) && viewMode === "modern" && (
+          {isFieldVisible(visibility, "phone") && (
+            <LeadItemContainer>
+              <Phone className="size-3" />
+              {phoneMaskFull(data.phone) || "(00) 00000-0000"}
+            </LeadItemContainer>
+          )}
+          {Number(data.amount) > 0 && isFieldVisible(visibility, "leadValue") && (
+            <LeadItemContainer>
+              <Banknote className="size-3" />
+              {formatCentsToMoney(data.amount)}
+            </LeadItemContainer>
+          )}
+          {isFieldVisible(visibility, "tags") && (
+            <LeadItemContainer className="items-baseline">
+              <Tag className="size-3" />
+              <ListLeadTags leadId={data.id} tags={data.leadTags} />
+            </LeadItemContainer>
+          )}
+          {(data.description || description) &&
+            viewMode === "modern" &&
+            isFieldVisible(visibility, "description") && (
             <LeadItemContainer
               className="mt-2"
               onClick={(e) => {
@@ -382,7 +414,8 @@ export const LeadItem = memo(
           {...attributes}
         >
           <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-            {(() => {
+            {isFieldVisible(visibility, "dateLabel") &&
+              (() => {
               // A data exibida acompanha o sort ativo — assim o usuário sempre
               // vê o critério que está usando pra ordenar (sem precisar abrir
               // o lead). Quando sort = "order" (Personalizada), mostra
@@ -419,15 +452,18 @@ export const LeadItem = memo(
               ativo (`deadlineHint`). Form deadline tem prioridade —
               evita 2 contadores empilhados no rodapé do card disputando
               atenção. */}
-            {data.slaDeadline && !data.deadlineHint && (
-              <SlaTimer
-                compact
-                enteredAt={data.statusEnteredAt ?? data.createdAt}
-                deadline={data.slaDeadline}
-              />
-            )}
+            {data.slaDeadline &&
+              !data.deadlineHint &&
+              isFieldVisible(visibility, "slaTimer") && (
+                <SlaTimer
+                  compact
+                  enteredAt={data.statusEnteredAt ?? data.createdAt}
+                  deadline={data.slaDeadline}
+                />
+              )}
             {data.statusFlow &&
               STATUS_FLOW_CONFIG[data.statusFlow] &&
+              isFieldVisible(visibility, "conversation") &&
               (() => {
                 const { label, color, Icon } =
                   STATUS_FLOW_CONFIG[data.statusFlow];
@@ -473,16 +509,27 @@ export const LeadItem = memo(
               (aguarda assinatura), azul (em progresso), verde (completo),
               ou muted (igual à data) quando lead não tem nenhum form
               preenchido nem em andamento. */}
-            <FormStatusIcon
-              forms={data.forms ?? []}
-              onOpenForms={() => setFormsDialogOpen(true)}
-            />
+            {isFieldVisible(visibility, "forms") && (
+              <FormStatusIcon
+                forms={data.forms ?? []}
+                onOpenForms={() => setFormsDialogOpen(true)}
+              />
+            )}
+
+            {isFieldVisible(visibility, "actions") && (
+              <LeadActionsIndicator
+                leadId={data.id}
+                leadName={data.name || "Sem nome"}
+                trackingId={data.trackingId}
+                summary={data.actionsSummary}
+              />
+            )}
 
             {/* Próximo agendamento (Agenda ou agenda do chat). Compact: só
               ícone azul; tooltip nativo do title mostra data + hora + nome
               da agenda. Não quebra largura do card — ocupa 12px (size-3),
               mesma proporção dos outros ícones do footer. */}
-            {data.nextAppointment && (
+            {data.nextAppointment && isFieldVisible(visibility, "nextAppointment") && (
               <span
                 className="inline-flex items-center gap-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400"
                 title={`${dayjs(data.nextAppointment.startsAt).format("DD/MM HH:mm")} — ${
@@ -505,19 +552,23 @@ export const LeadItem = memo(
               DatePicker marcado com `useAsDeadline=true`. Substitui o
               que iria pra "Observações" (decisão de design: campo
               separado, sem mexer em description). */}
-            {data.deadlineHint && <DeadlineBadge hint={data.deadlineHint} />}
+            {data.deadlineHint && isFieldVisible(visibility, "deadline") && (
+              <DeadlineBadge hint={data.deadlineHint} />
+            )}
           </div>
-          <span title={data.responsible?.name || "Sem responsável"}>
-            <Avatar className="size-4">
-              <AvatarImage
-                src={data.responsible?.image || "/user-placeholder.png"}
-                alt="photo user"
-              />
-              <AvatarFallback>
-                {data.responsible?.name.split(" ")[0][0]}
-              </AvatarFallback>
-            </Avatar>
-          </span>
+          {isFieldVisible(visibility, "responsible") && (
+            <span title={data.responsible?.name || "Sem responsável"}>
+              <Avatar className="size-4">
+                <AvatarImage
+                  src={data.responsible?.image || "/user-placeholder.png"}
+                  alt="photo user"
+                />
+                <AvatarFallback>
+                  {data.responsible?.name.split(" ")[0][0]}
+                </AvatarFallback>
+              </Avatar>
+            </span>
+          )}
         </div>
 
         {/* Dialog "Formulários do lead" — 95vw, grid 3 cols. Abre ao clicar
@@ -658,6 +709,62 @@ function FormStatusIcon({
         }
       />
     </button>
+  );
+}
+
+/**
+ * Ícone agregado das atividades (actions) do lead no rodapé do card. Mostra a
+ * contagem total (com destaque quando há pendentes) e abre o `LeadActionsPopover`
+ * — lista simples que leva ao card completo da action e permite criar novas.
+ */
+function LeadActionsIndicator({
+  leadId,
+  leadName,
+  trackingId,
+  summary,
+}: {
+  leadId: string;
+  leadName: string;
+  trackingId: string;
+  summary: Lead["actionsSummary"];
+}) {
+  const total = summary?.total ?? 0;
+  const pending = summary?.pending ?? 0;
+  const tooltip =
+    total === 0
+      ? "Nenhuma atividade — clique para adicionar"
+      : `${total} atividade${total > 1 ? "s" : ""}${
+          pending > 0 ? ` — ${pending} pendente${pending > 1 ? "s" : ""}` : ""
+        }`;
+
+  return (
+    <LeadActionsPopover
+      leadId={leadId}
+      leadName={leadName}
+      trackingId={trackingId}
+    >
+      <button
+        type="button"
+        // Isola o clique do card: o wrapper seleciona o lead no clique e o
+        // rodapé inicia drag no pointer/mouse down. Paramos a propagação em
+        // todos, mas SEM `preventDefault` — o Radix PopoverTrigger compõe o
+        // onClick e pula o próprio toggle quando o evento vem defaultPrevented.
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        className={cn(
+          "inline-flex items-center gap-0.5 hover:opacity-80 transition-opacity cursor-pointer",
+          pending > 0 ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground",
+        )}
+        aria-label={tooltip}
+        title={tooltip}
+      >
+        <ListTodo className="size-3" />
+        {total > 0 && (
+          <span className="text-[10px] tabular-nums leading-none">{total}</span>
+        )}
+      </button>
+    </LeadActionsPopover>
   );
 }
 

@@ -44,6 +44,8 @@ import {
   type NextButtonActionType,
 } from "@/features/form/lib/next-button-action";
 import { SendMessageDialog } from "./send-whatsapp-message";
+import { useQueryFormById } from "@/features/form/hooks/use-form";
+import { GenerateActionsSection } from "./generate-actions-section";
 import { VariablePicker } from "@/features/tracking-executions/components/send-message/variable-picker";
 import { useVariableAutocomplete } from "@/features/tracking-executions/components/send-message/use-variable-autocomplete";
 
@@ -55,6 +57,7 @@ export function FormSettings() {
   const { status } = useQueryStatus({
     trackingId: formData?.settings?.trackingId || "",
   });
+  const { canEditPolicy } = useQueryFormById({ formId: formId ?? "" });
 
   const settings = formData?.settings;
   if (!settings) return null;
@@ -180,6 +183,11 @@ export function FormSettings() {
 
       <Separator />
 
+      {/* ─── Gerar Actions ──────────────────────────────── */}
+      <GenerateActionsSection />
+
+      <Separator />
+
       {/* ─── Campos do Lead ─────────────────────────────── */}
       <section>
         <h3 className="text-sm font-semibold text-muted-foreground mb-3">
@@ -216,6 +224,102 @@ export function FormSettings() {
               }
             />
           </div>
+
+          {/* Retomada de sessão: o visitante volta (mesmo dispositivo, 24h) sem
+              refazer o step de identificação. Só faz sentido com identificação
+              exigida. */}
+          <div className="flex items-start justify-between gap-3 pt-1">
+            <div className="flex flex-col">
+              <span className="text-sm">Retomar sessão</span>
+              <span className="text-xs text-muted-foreground">
+                {settings.needLogin
+                  ? "Guarda nome/telefone e respostas por 24h para o visitante voltar sem refazer o step 1."
+                  : "Ative “Exigir identificação” para usar a retomada de sessão."}
+              </span>
+            </div>
+            <Switch
+              checked={
+                (settings as { resumeSession?: boolean }).resumeSession ?? false
+              }
+              disabled={!settings.needLogin}
+              onCheckedChange={(checked) =>
+                updateSettings({
+                  resumeSession: checked,
+                } as unknown as Partial<FormSettings>)
+              }
+            />
+          </div>
+        </div>
+      </section>
+
+      <Separator />
+
+      {/* ─── Edição das respostas (spec 0005) ───────────── */}
+      <section>
+        <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+          Edição das respostas
+        </h3>
+        <div className="flex flex-col gap-2">
+          <span className="text-xs text-muted-foreground">
+            Quem pode alterar uma resposta depois de preenchida. O Master da
+            conta e o Owner do tracking sempre podem, em qualquer opção.
+          </span>
+
+          {(
+            [
+              {
+                value: "TRACKING_PARTICIPANTS",
+                label: "Participantes do setor",
+                hint: "Qualquer pessoa que participe do tracking do lead. É o padrão.",
+              },
+              {
+                value: "AUTHOR_ONLY",
+                label: "Somente quem preencheu",
+                hint: "Só o autor da resposta. Respostas enviadas pelo próprio lead seguem liberadas para o setor.",
+              },
+            ] as const
+          ).map((option) => {
+            const current =
+              (settings as { responseEditPolicy?: string })
+                .responseEditPolicy ?? "TRACKING_PARTICIPANTS";
+            return (
+              <label
+                key={option.value}
+                className={`flex items-start gap-2.5 rounded-md border p-2.5 ${
+                  canEditPolicy
+                    ? "cursor-pointer hover:bg-accent/40"
+                    : "opacity-60 cursor-not-allowed"
+                } ${current === option.value ? "border-primary bg-accent/30" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="responseEditPolicy"
+                  className="mt-1"
+                  value={option.value}
+                  checked={current === option.value}
+                  disabled={!canEditPolicy}
+                  onChange={() =>
+                    updateSettings({
+                      responseEditPolicy: option.value,
+                    } as unknown as Partial<FormSettings>)
+                  }
+                />
+                <span className="flex flex-col">
+                  <span className="text-sm">{option.label}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {option.hint}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+
+          {!canEditPolicy && (
+            <span className="text-xs text-muted-foreground">
+              Apenas o Master da conta ou o Owner do tracking podem alterar esta
+              configuração.
+            </span>
+          )}
         </div>
       </section>
 

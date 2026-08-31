@@ -6,6 +6,16 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Uploader } from "@/components/file-uploader/uploader";
 import { useConstructUrl } from "@/hooks/use-construct-url";
@@ -214,6 +224,7 @@ function StickerCell({
   onDelete?: () => void;
 }) {
   const fullUrl = useConstructUrl(sticker.url);
+  const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
   return (
     <div className="relative group">
       <button
@@ -230,18 +241,43 @@ function StickerCell({
         />
       </button>
       {onDelete && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 size-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow transition-opacity"
-          title="Remover figurinha"
-          aria-label="Remover figurinha"
-        >
-          <Trash2Icon className="size-3" />
-        </button>
+        <>
+          {/* Sem offset negativo: sobreposto ao botão de enviar, um toque
+              perto do canto apagava a figurinha em vez de enviá-la. */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsRemoveConfirmOpen(true);
+            }}
+            className="absolute top-0 right-0 hover-reveal size-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow"
+            title="Remover figurinha"
+            aria-label="Remover figurinha"
+          >
+            <Trash2Icon className="size-3" />
+          </button>
+
+          <AlertDialog
+            open={isRemoveConfirmOpen}
+            onOpenChange={setIsRemoveConfirmOpen}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remover esta figurinha?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  A figurinha sai do pacote da organização e não há como
+                  desfazer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={onDelete}>
+                  Remover
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
       )}
     </div>
   );

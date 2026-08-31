@@ -6,6 +6,8 @@ import {
   CalendarDaysIcon,
   Columns3Icon,
   ListIcon,
+  Maximize2Icon,
+  Minimize2Icon,
   PlusIcon,
 } from "lucide-react";
 import { useQueryState } from "nuqs";
@@ -29,6 +31,11 @@ interface Props {
 export function ActionsViewSwitcher({ workspaceId }: Props) {
   const [localOpen, setLocalOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  // Tela cheia real (F11) via Fullscreen API no `documentElement` — pedimos o
+  // fullscreen na raiz `<html>` (não no board) pra que os modais portalados no
+  // `<body>` continuem dentro da subárvore em fullscreen e sigam visíveis. O
+  // `fixed inset-0` faz o Kanban ocupar 100% desse espaço.
+  const [isMaximized, setIsMaximized] = useState(false);
   // Flag pra suprimir o `onOpenChange` que o Radix dispara quando trocamos
   // o prop `open` programaticamente após criar a ação. Sem isso, ele reseta
   // os params da URL (setCreateParam(null) etc) e atrapalha o redirect
@@ -60,10 +67,56 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
     return () => clearTimeout(t);
   }, [presetPublic, endTour]);
 
+  // Sincroniza o estado com o fullscreen do browser: sair via F11/Esc dispara
+  // `fullscreenchange` e reseta o maximize (mantém o ícone e o layout corretos).
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement) setIsMaximized(false);
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  // Fallback do Esc só pro modo CSS (quando a Fullscreen API foi bloqueada). No
+  // fullscreen nativo, o próprio browser sai no Esc e dispara `fullscreenchange`.
+  useEffect(() => {
+    if (!isMaximized) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !document.fullscreenElement) {
+        setIsMaximized(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isMaximized]);
+
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement) {
+      setIsMaximized(false);
+      try {
+        await document.exitFullscreen();
+      } catch {
+        // Ignora: alguns navegadores rejeitam exit fora de gesto do usuário.
+      }
+      return;
+    }
+    setIsMaximized(true);
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch {
+      // Fullscreen API bloqueada (permissão/iframe): o `fixed inset-0` já cobre
+      // a viewport, então o maximize por CSS funciona como fallback.
+    }
+  };
+
   return (
     <>
       <Tabs
-        className="flex-1 w-full h-full"
+        className={cn(
+          "flex-1 w-full h-full",
+          isMaximized && "fixed inset-0 z-[60] bg-background",
+        )}
         value={view || "list"}
         onValueChange={(next) => {
           // "calendar" não é uma view real — é um shortcut pra abrir o
@@ -104,6 +157,23 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
               <FiltersSheet workspaceId={workspaceId} />
             </div>
             <div className="flex items-center gap-2 w-full lg:w-auto">
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="size-8 shrink-0"
+                onClick={toggleFullscreen}
+                aria-label={
+                  isMaximized ? "Sair da tela cheia" : "Ver em tela cheia"
+                }
+                title={isMaximized ? "Sair da tela cheia (Esc)" : "Tela cheia"}
+              >
+                {isMaximized ? (
+                  <Minimize2Icon className="size-4" />
+                ) : (
+                  <Maximize2Icon className="size-4" />
+                )}
+              </Button>
               <CreateActionWithAi workspaceId={workspaceId} />
               <Button
                 size="sm"

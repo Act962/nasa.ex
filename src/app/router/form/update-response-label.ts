@@ -2,11 +2,12 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
-import {
-  checkLeadTrackingParticipant,
-  NOT_TRACKING_PARTICIPANT_MESSAGE,
-} from "@/features/leads/lib/tracking-participant-guard";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
+import {
+  checkFormResponseEditable,
+  resolveEditPolicy,
+  EDIT_BLOCKED_MESSAGE,
+} from "@/features/form/lib/can-edit-response";
 
 /**
  * Atualiza manualmente o `label` (título customizado) de uma `FormResponses`.
@@ -45,33 +46,48 @@ export const updateResponseLabel = base
           leadId: true,
           formId: true,
           jsonResponse: true,
-          form: { select: { organizationId: true, jsonBlock: true } },
+          authorKind: true,
+          createdById: true,
+          lead: { select: { trackingId: true } },
+          form: {
+            select: {
+              organizationId: true,
+              jsonBlock: true,
+              settings: { select: { responseEditPolicy: true } },
+            },
+          },
         },
       });
       if (!existing) {
         throw errors.NOT_FOUND({ message: "Resposta não encontrada" });
       }
 
-      // Membership na org (defesa em profundidade)
-      const member = await prisma.member.findFirst({
-        where: { organizationId: existing.form.organizationId, userId },
-        select: { id: true },
-      });
-      if (!member) {
-        throw errors.UNAUTHORIZED({
-          message: "Você não tem acesso a esta resposta",
-        });
-      }
-
-      // Tracking participant guard (igual updateResponse)
-      if (existing.leadId) {
-        const { ok } = await checkLeadTrackingParticipant(
-          existing.leadId,
+      // Mesmo guard de `updateResponse` — o título é conteúdo da resposta e
+      // identifica a O.S.; liberá-lo contornaria o bloqueio pela porta lateral
+      // (spec 0005, D-5).
+      const verdict = await checkFormResponseEditable(
+        {
+          authorKind: existing.authorKind,
+          createdById: existing.createdById,
+          leadTrackingId: existing.lead?.trackingId ?? null,
+        },
+        resolveEditPolicy(existing.form.settings),
+        userId,
+        existing.form.organizationId,
+      );
+      if (!verdict.canEdit) {
+        const message = EDIT_BLOCKED_MESSAGE[verdict.reason!];
+        console.warn("[form/updateResponseLabel] edição negada", {
           userId,
-        );
-        if (!ok) {
-          throw errors.FORBIDDEN({ message: NOT_TRACKING_PARTICIPANT_MESSAGE });
+          responseId: existing.id,
+          authorKind: existing.authorKind,
+          policy: resolveEditPolicy(existing.form.settings),
+          reason: verdict.reason,
+        });
+        if (verdict.reason === "not_org_member") {
+          throw errors.UNAUTHORIZED({ message });
         }
+        throw errors.FORBIDDEN({ message });
       }
 
       const trimmed = (input.label ?? "").trim();

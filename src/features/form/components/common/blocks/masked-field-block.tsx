@@ -38,10 +38,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
-import { usePrefillValue } from "@/features/form/context/form-prefill-context";
+import {
+  useResolvedInitialValue,
+  type LeadPrefillSource,
+} from "@/features/form/context/form-prefill-context";
+import { useMutationValidateCep } from "@/features/form/hooks/use-form";
 import { FormSettings } from "@/generated/prisma/client";
 import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
+import { validateCPF } from "@/utils/validate-data";
 import {
   applyMask,
   autoCompleteFor,
@@ -50,6 +55,7 @@ import {
   formatPlaceholder,
   inputModeFor,
   isValidByFormat,
+  isValidCep,
   type MaskedFormat,
 } from "@/features/form/lib/masks";
 
@@ -82,6 +88,10 @@ type AttributesType = {
   required: boolean;
   placeHolder: string;
   format: MaskedFormat;
+  validateCep: boolean;
+  validateCpf: boolean;
+  /** Vínculo com o step de identificação (spec 0006). */
+  prefillFromLead?: LeadPrefillSource | null;
 };
 
 const propertiesValidateSchema = z.object({
@@ -92,6 +102,8 @@ const propertiesValidateSchema = z.object({
   format: z
     .enum(["phone-br", "cpf", "cep", "city-uf", "email"])
     .default("phone-br"),
+  validateCep: z.boolean().default(false).optional(),
+  validateCpf: z.boolean().default(false).optional(),
 });
 type PropertiesType = z.input<typeof propertiesValidateSchema>;
 
@@ -107,6 +119,8 @@ export const MaskedFieldBlock: ObjectBlockType = {
       required: false,
       placeHolder: "",
       format: "phone-br",
+      validateCep: false,
+      validateCpf: false,
     } satisfies AttributesType,
   }),
   blockBtnElement: { icon: Sparkles, label: "Campo formatado" },
@@ -180,14 +194,49 @@ function FormView({
   settings?: FormSettings | FormSettingsTyped | null;
 }) {
   const block = blockInstance as Instance;
-  const { label, required, helperText, placeHolder, format } = block.attributes;
+  const {
+    label,
+    required,
+    helperText,
+    placeHolder,
+    format,
+    validateCep,
+    validateCpf,
+  } = block.attributes;
   const textColor = settings?.backgroundColor
     ? getContrastColor(settings.backgroundColor)
     : undefined;
   const Icon = iconFor(format);
+  const shouldCheckCep = format === "cep" && !!validateCep;
+  const shouldCheckCpf = format === "cpf" && !!validateCpf;
+  const validateCepMutation = useMutationValidateCep();
+
+  // CPF: checagem síncrona (dígito verificador) — ao contrário do CEP não
+  // depende de rede, então não precisa de estado "checking"/mutation.
+  function cpfExistsFor(formatted: string): boolean | undefined {
+    if (!shouldCheckCpf) return undefined;
+    const digits = formatted.replace(/\D/g, "");
+    if (digits.length !== 11) return undefined;
+    return validateCPF(formatted);
+  }
 
   // Prefill: o valor salvo já está formatado (ex.: "(11) 91234-5678").
-  const prefill = usePrefillValue(block.id);
+  // Ordem: resposta salva → identificação → vazio (spec 0006, D-3). O valor
+  // vindo da identificação passa pela máscara do bloco, já que chega como
+  // digitado no step 1 e com DDI (RF-8).
+  const { initialValue: rawPrefill, identityValue: rawIdentityValue } =
+    useResolvedInitialValue(
+      block.id,
+      block.attributes.prefillFromLead ?? null,
+    );
+  const identityValue =
+    rawIdentityValue === undefined
+      ? undefined
+      : applyMask(format, rawIdentityValue);
+  const prefill =
+    rawPrefill === rawIdentityValue && rawPrefill !== undefined
+      ? identityValue
+      : rawPrefill;
 
   // City-UF: armazenamos como "Cidade - UF" no value. Separa pra UI.
   const initialCity = (() => {
@@ -205,32 +254,84 @@ function FormView({
   const [city, setCity] = useState<string>(initialCity);
   const [uf, setUf] = useState<string>(initialUf);
   const [touched, setTouched] = useState(false);
+  const [cepStatus, setCepStatus] = useState<
+    "idle" | "checking" | "valid" | "invalid"
+  >("idle");
 
   // Propaga prefill no mount.
   useEffect(() => {
     if (prefill && handleBlur) {
+      const prefillCpfExists = cpfExistsFor(prefill);
       handleBlur(block.id, {
         value: prefill,
         meta: {
           format,
           raw: prefill.replace(/\D/g, ""),
           isValid: isValidByFormat(format, prefill),
+          ...(prefillCpfExists !== undefined && { cpfExists: prefillCpfExists }),
         },
       });
+      if (shouldCheckCep) void runCepCheck(prefill);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Acompanha a identificação enquanto o campo não foi editado (spec 0006,
+  // D-4). `touched` já existia neste bloco e marca interação do usuário.
+  useEffect(() => {
+    if (touched) return;
+    if (identityValue === undefined) return;
+    commit(identityValue);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identityValue]);
+
   function commit(formatted: string) {
     setValue(formatted);
+    // Novo valor precisa ser re-verificado no ViaCEP; invalida o status atual.
+    if (shouldCheckCep) setCepStatus("idle");
+    const cpfExists = cpfExistsFor(formatted);
     handleBlur?.(block.id, {
       value: formatted,
       meta: {
         format,
         raw: formatted.replace(/\D/g, ""),
         isValid: isValidByFormat(format, formatted),
+        ...(cpfExists !== undefined && { cpfExists }),
       },
     });
+  }
+
+  // Checa no ViaCEP se o CEP existe. Fail-open: `skipped` (ViaCEP indisponível)
+  // conta como existente pra não travar o lead.
+  async function runCepCheck(cepValue: string) {
+    if (!shouldCheckCep || !isValidCep(cepValue)) return;
+    setCepStatus("checking");
+    try {
+      const { status } = await validateCepMutation.mutateAsync({ cep: cepValue });
+      const hasCepExists = status !== "invalid";
+      setCepStatus(hasCepExists ? "valid" : "invalid");
+      handleBlur?.(block.id, {
+        value: cepValue,
+        meta: {
+          format,
+          raw: cepValue.replace(/\D/g, ""),
+          isValid: isValidByFormat(format, cepValue),
+          cepExists: hasCepExists,
+        },
+      });
+    } catch {
+      // Erro inesperado no transporte → fail-open (não bloqueia o envio).
+      setCepStatus("valid");
+      handleBlur?.(block.id, {
+        value: cepValue,
+        meta: {
+          format,
+          raw: cepValue.replace(/\D/g, ""),
+          isValid: isValidByFormat(format, cepValue),
+          cepExists: true,
+        },
+      });
+    }
   }
 
   function commitCityUf(nextCity: string, nextUf: string) {
@@ -246,7 +347,9 @@ function FormView({
 
   const localInvalid =
     touched && required && value.length > 0 && !isValidByFormat(format, value);
-  const isError = localInvalid || isSubmitError;
+  const cepNotFound = shouldCheckCep && cepStatus === "invalid";
+  const cpfNotFound = shouldCheckCpf && cpfExistsFor(value) === false;
+  const isError = localInvalid || cepNotFound || cpfNotFound || isSubmitError;
 
   // ── city-uf tem layout próprio ────────────────────────────────────────
   if (format === "city-uf") {
@@ -350,8 +453,16 @@ function FormView({
             borderColor: textColor ? `${textColor}40` : undefined,
           }}
           value={value}
-          onChange={(e) => commit(applyMask(format, e.target.value))}
-          onBlur={() => setTouched(true)}
+          onChange={(e) => {
+            // Marca edição já no digitar (não só no blur), senão uma mudança
+            // na identificação sobrescreveria o que está sendo digitado.
+            setTouched(true);
+            commit(applyMask(format, e.target.value));
+          }}
+          onBlur={() => {
+            setTouched(true);
+            void runCepCheck(value);
+          }}
         />
       </div>
       {helperText && (
@@ -370,7 +481,28 @@ function FormView({
           {validationMessageFor(format)}
         </p>
       )}
-      {isSubmitError && !localInvalid && (
+      {shouldCheckCep && cepStatus === "checking" && (
+        <p
+          className="text-[0.8rem] break-words whitespace-normal"
+          style={{
+            color: textColor ? `${textColor}99` : undefined,
+            opacity: textColor ? undefined : 0.7,
+          }}
+        >
+          Verificando CEP…
+        </p>
+      )}
+      {cepNotFound && !localInvalid && (
+        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+          CEP não encontrado
+        </p>
+      )}
+      {cpfNotFound && !localInvalid && (
+        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+          CPF inválido
+        </p>
+      )}
+      {isSubmitError && !localInvalid && !cepNotFound && !cpfNotFound && (
         <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
           {errorMessage || "Campo inválido."}
         </p>
@@ -592,6 +724,56 @@ function PropertiesView({
               </FormItem>
             )}
           />
+
+          {block.attributes.format === "cep" && (
+            <FormField
+              control={form.control}
+              name="validateCep"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-center justify-between gap-2">
+                    <FormLabel className="text-[13px] font-normal">
+                      Validar se o CEP existe
+                    </FormLabel>
+                    <FormControl>
+                      <Switch
+                        checked={!!field.value}
+                        onCheckedChange={(v) => {
+                          field.onChange(v);
+                          commit({ validateCep: v });
+                        }}
+                      />
+                    </FormControl>
+                  </div>
+                </FormItem>
+              )}
+            />
+          )}
+
+          {block.attributes.format === "cpf" && (
+            <FormField
+              control={form.control}
+              name="validateCpf"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-center justify-between gap-2">
+                    <FormLabel className="text-[13px] font-normal">
+                      Validar se o CPF existe
+                    </FormLabel>
+                    <FormControl>
+                      <Switch
+                        checked={!!field.value}
+                        onCheckedChange={(v) => {
+                          field.onChange(v);
+                          commit({ validateCpf: v });
+                        }}
+                      />
+                    </FormControl>
+                  </div>
+                </FormItem>
+              )}
+            />
+          )}
         </form>
       </Form>
     </div>

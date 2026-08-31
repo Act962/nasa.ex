@@ -415,10 +415,14 @@ export function ImageEditorDialog({
                 <button
                   type="button"
                   onClick={() => removeSlide.mutate({ postId, slideId: slide.id })}
-                  disabled={removeSlide.isPending}
-                  className="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                  disabled={
+                    removeSlide.isPending &&
+                    removeSlide.variables?.slideId === slide.id
+                  }
+                  className="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center hover-reveal shadow-sm"
                 >
-                  {removeSlide.isPending
+                  {removeSlide.isPending &&
+                  removeSlide.variables?.slideId === slide.id
                     ? <Loader2Icon className="size-2.5 animate-spin" />
                     : <Trash2Icon className="size-2.5" />}
                 </button>

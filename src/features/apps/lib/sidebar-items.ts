@@ -16,6 +16,7 @@ import {
   GraduationCap,
   LayoutTemplate,
   Rocket,
+  Send,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type React from "react";
@@ -163,6 +164,14 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     alwaysVisible: false,
     defaultVisible: false,
   },
+  {
+    key: "campanhas",
+    title: "Campanhas",
+    url: "/campanhas",
+    icon: Send,
+    alwaysVisible: false,
+    defaultVisible: false,
+  },
   // ── Sempre visível ──────────────────────────────────────────────────────
   {
     key: "apps",
@@ -188,6 +197,7 @@ export const APP_TO_SIDEBAR_KEY: Record<string, string> = {
   "nasa-route": "nasa-route",
   "nasa-pages": "nasa-pages",
   "space-station": "space-station",
+  campanhas: "campanhas",
   insights: "insights",
   integrations: "integrations",
   contatos: "contatos",

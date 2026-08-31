@@ -5,8 +5,10 @@ import {
   ChevronsLeft,
   ChevronsRight,
   PlusIcon,
+  SlidersHorizontal,
   SparklesIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { TrackingSwitcher } from "./tracking-switcher";
 import { ParticipantsSwitcher } from "./participant-switcher";
 import { Filters } from "./filters";
@@ -14,9 +16,11 @@ import { TagsFilter } from "./tags-filter";
 import { CalendarFilter } from "./calendar-filter";
 import { useParams } from "next/navigation";
 import AddLeadSheet from "@/features/trackings/components/modal/add-lead-sheet";
+import { BoardCustomizeSheet } from "@/features/trackings/components/modal/board-customize-sheet";
 import { AiLeadButton } from "@/features/trackings/components/modal/ai-lead-button";
 import { useAddLead } from "@/hooks/modal/use-add-lead";
-import { StatusFlowFilter } from "./status-flow-filter";
+import { useCanCustomizeBoard } from "../../hooks/use-can-customize-board";
+import { WorkspacesSwitcher } from "./workspaces-switcher";
 import { useKanbanStore } from "../../lib/kanban-store";
 import { cn } from "@/lib/utils";
 import {
@@ -28,11 +32,9 @@ import {
 export function FiltersTracking() {
   const { trackingId } = useParams<{ trackingId: string }>();
   const useLeadSheet = useAddLead();
+  const canCustomizeBoard = useCanCustomizeBoard(trackingId);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
 
-  // Estado persistido (Zustand + localStorage). Quando recolhido,
-  // esconde TrackingSwitcher / Participantes / Tags / Status /
-  // Calendário / IA de Leads — mantém apenas o toggle, "Filtros" e
-  // "Novo Lead" agrupados à direita.
   const collapsed = useKanbanStore((s) => s.headerCollapsed);
   const toggleCollapsed = useKanbanStore((s) => s.toggleHeaderCollapsed);
 
@@ -40,23 +42,16 @@ export function FiltersTracking() {
     <>
       <div
         className={cn(
-          // Espaçamento/tamanho idênticos nos dois estados — status NÃO
-          // sobem ao recolher (a "faixa" continua reservada). Recolhido
-          // remove apenas a borda inferior e o `mb-2`.
-          "flex justify-between items-center px-4 py-2 gap-2",
-          !collapsed && "border-b border-border mb-2",
+          "flex justify-between items-center px-4 py-2 gap-2 border-b border-border mb-2",
         )}
       >
-        {/* Lado esquerdo: APENAS os switchers (escondem quando recolhido).
-            Quando recolhido, o lado esquerdo fica vazio — o `justify-between`
-            mantém o grupo da direita encostado na borda direita. */}
         <div className="flex items-center gap-x-2">
           {!collapsed && (
             <div className="hidden md:flex items-center gap-x-2">
               <TrackingSwitcher />
               <ParticipantsSwitcher />
               <TagsFilter />
-              <StatusFlowFilter />
+              <WorkspacesSwitcher />
               <CalendarFilter />
               {/* <SorterLead /> */}
             </div>
@@ -94,21 +89,34 @@ export function FiltersTracking() {
           {/* Filtros — sempre visível, mesmo recolhido. */}
           <Filters />
 
-          {/* Agente de Automações — IA generativa de workflows + gestão
-              de leads (mesma Sheet, escopo do tracking). Esconde no
-              recolhido por ser secundário. */}
+          {canCustomizeBoard && !collapsed && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCustomizeOpen(true)}
+                  aria-label="Personalizar board"
+                >
+                  <SlidersHorizontal className="size-4" />
+                  <span className="hidden lg:inline">Personalizar</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Personalizar campos do board</TooltipContent>
+            </Tooltip>
+          )}
+
           {!collapsed && (
             <AiLeadButton trackingId={trackingId}>
-              <Button variant="outline" size="sm">
-                <SparklesIcon className="size-4 mr-2 text-purple-500" />
-                <span className="bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-semibold">
+              <Button variant="outline" size="icon-sm">
+                <SparklesIcon className="size-4 text-purple-500" />
+                {/* <span className="bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-semibold">
                   Agente de Automações
-                </span>
+                </span> */}
               </Button>
             </AiLeadButton>
           )}
 
-          {/* Novo Lead — ação primária, sempre visível. */}
           <Button size="sm" onClick={() => useLeadSheet.setIsOpen(true)}>
             <PlusIcon className="size-4" />
             Novo Lead
@@ -121,6 +129,14 @@ export function FiltersTracking() {
         open={useLeadSheet.isOpen}
         onOpenChange={useLeadSheet.setIsOpen}
       />
+
+      {canCustomizeBoard && (
+        <BoardCustomizeSheet
+          trackingId={trackingId}
+          open={customizeOpen}
+          onOpenChange={setCustomizeOpen}
+        />
+      )}
     </>
   );
 }

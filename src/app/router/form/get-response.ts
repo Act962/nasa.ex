@@ -6,6 +6,11 @@ import {
   checkLeadTrackingParticipant,
   NOT_TRACKING_PARTICIPANT_MESSAGE,
 } from "@/features/leads/lib/tracking-participant-guard";
+import {
+  checkFormResponseEditable,
+  resolveEditPolicy,
+  EDIT_BLOCKED_MESSAGE,
+} from "@/features/form/lib/can-edit-response";
 
 /**
  * Busca uma `FormResponses` específica por ID, retornando junto:
@@ -42,6 +47,11 @@ export const getResponseById = base
           id: true,
           createdAt: true,
           jsonResponse: true,
+          authorKind: true,
+          createdById: true,
+          createdBy: {
+            select: { id: true, name: true, image: true },
+          },
           form: {
             select: {
               id: true,
@@ -103,6 +113,10 @@ export const getResponseById = base
       // Regra de NEGÓCIO: só participantes do tracking ATUAL do lead
       // podem mexer no formulário. Se o lead foi movido pra um tracking
       // do qual o user não participa, bloqueia com mensagem específica.
+      //
+      // Este é o gate de VISUALIZAÇÃO e continua idêntico ao de antes da spec
+      // 0005 — a política de edição não afrouxa nem endurece quem abre a
+      // resposta (CB-15).
       if (response.lead?.id) {
         const { ok } = await checkLeadTrackingParticipant(
           response.lead.id,
@@ -115,7 +129,27 @@ export const getResponseById = base
         }
       }
 
-      return { response };
+      // Quem chegou aqui PODE ver. `canEdit` decide se os campos vêm
+      // desabilitados — o cliente nunca re-deriva a regra (RF-12).
+      const verdict = await checkFormResponseEditable(
+        {
+          authorKind: response.authorKind,
+          createdById: response.createdById,
+          leadTrackingId: response.lead?.tracking?.id ?? null,
+        },
+        resolveEditPolicy(response.form.settings),
+        userId,
+        response.form.organizationId,
+      );
+
+      return {
+        response,
+        canEdit: verdict.canEdit,
+        editBlockedReason: verdict.reason
+          ? EDIT_BLOCKED_MESSAGE[verdict.reason]
+          : null,
+        createdBy: response.createdBy ?? null,
+      };
     } catch (error: any) {
       console.error("[form/getResponseById]", error);
       if (error?.code === "NOT_FOUND" || error?.code === "BAD_REQUEST") {

@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { findColumnInOrg } from "../lib/workspace-access";
 
 export const updateColumn = base
   .use(requiredAuthMiddleware)
@@ -15,7 +16,12 @@ export const updateColumn = base
       order: z.number().optional(),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
+    const existing = await findColumnInOrg(input.columnId, context.org.id);
+    if (!existing) {
+      throw errors.NOT_FOUND({ message: "Coluna não encontrada" });
+    }
+
     const column = await prisma.workspaceColumn.update({
       where: { id: input.columnId },
       data: {

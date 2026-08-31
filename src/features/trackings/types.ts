@@ -2,6 +2,7 @@ import { Temperature, LeadAction, StatusFlow } from "@/generated/prisma/enums";
 
 export type Lead = {
   order: string;
+  amount: string;
   id: string;
   trackingId: string;
   isActive: boolean;
@@ -71,5 +72,14 @@ export type Lead = {
     meetingType: "ONLINE" | "IN_PERSON";
     agendaName: string;
   } | null;
+  /**
+   * Resumo das atividades (actions) não-arquivadas do lead. Alimenta o badge
+   * de atividades no card; a lista completa é buscada lazy no popover.
+   */
+  actionsSummary?: {
+    total: number;
+    pending: number;
+    done: number;
+  };
 };
 
