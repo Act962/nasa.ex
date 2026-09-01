@@ -267,7 +267,6 @@ async function main() {
       type: "PAYABLE",
       description: "Aluguel do escritório",
       amount: reais(2_400),
-      paidAmount: reais(2_400),
       dueDate: dateAt(offset, 10),
       paidAt: dateAt(offset, 9),
       categoryId: `${PREFIX}cat-aluguel`,
