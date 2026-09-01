@@ -20,6 +20,8 @@ import { EntriesTable } from "./entries/entries-table";
 import { CashflowTab } from "./cashflow/cashflow-tab";
 import { ContactsTab } from "./contacts/contacts-tab";
 import { ContractsTab } from "./contracts/contracts-tab";
+import { DocumentsTab } from "./attachments/documents-tab";
+import { ProjectionTab } from "./projection/projection-tab";
 import { AccountsTab } from "./accounts/accounts-tab";
 import { DreTab } from "./reports/dre-tab";
 import { DroTab } from "./reports/dro-tab";
@@ -35,10 +37,8 @@ import {
 } from "../hooks/use-payment-approvals";
 import { useExportPaymentEntries } from "../hooks/use-payment";
 import { buildEntriesCsv, downloadCsv } from "../lib/export-entries";
-import {
-  currentMonthRange,
-  type PeriodRange,
-} from "./shared/payment-period-picker";
+import { PaymentFilterBar } from "./shared/payment-filter-bar";
+import { usePaymentFiltersStore } from "../store/use-payment-filters-store";
 import {
   PaymentMobileMenu,
   type PaymentTabItem,
@@ -49,21 +49,37 @@ const BASE_TABS: PaymentTabItem[] = [
   { value: "receivables", label: "Receita", emoji: "💚" },
   { value: "payables", label: "Despesa", emoji: "🔴" },
   { value: "cashflow", label: "Fluxo de Caixa", emoji: "📈" },
+  { value: "projection", label: "Projeção", emoji: "🔭" },
   { value: "dre", label: "DRE", emoji: "📄" },
   { value: "dro", label: "DRO", emoji: "🏭" },
   { value: "accounts", label: "Contas", emoji: "🏦" },
   { value: "contacts", label: "Contatos", emoji: "👥" },
   { value: "contracts", label: "Contratos Ativos", emoji: "📝" },
+  { value: "documents", label: "Documentos", emoji: "📎" },
 ];
+
+// Abas cujo conteúdo responde ao período e/ou às categorias. A Projeção entra
+// só pela categoria: ela tem horizonte próprio (3/6/12 meses).
+const FILTERED_TABS = new Set([
+  "dashboard",
+  "receivables",
+  "payables",
+  "cashflow",
+  "projection",
+  "dre",
+  "dro",
+]);
 
 export function PaymentPage() {
   const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Controlada pra que "Ver todas" no painel possa saltar direto pra aba certa.
   const [activeTab, setActiveTab] = useState("dashboard");
-  // Período do painel mora aqui porque o "Exportar" existe em dois lugares:
-  // na toolbar do painel (desktop) e no menu sanduíche (mobile).
-  const [period, setPeriod] = useState<PeriodRange>(currentMonthRange());
+  // O período agora mora no store compartilhado (uma barra para todas as
+  // abas); aqui só é lido para o "Exportar", que existe na toolbar do painel
+  // e no menu sanduíche do mobile.
+  const period = usePaymentFiltersStore((state) => state.period);
+  const categoryIds = usePaymentFiltersStore((state) => state.categoryIds);
   // Badge de pendências da aba Aprovações — só pra users com canApprove.
   const canApproveQuery = useCanApprovePayments();
   const pendingApprovals = usePendingApprovals();
@@ -101,8 +117,9 @@ export function PaymentPage() {
   async function handleExport() {
     try {
       const result = await exportEntries.mutateAsync({
-        dateFrom: period.from?.toISOString(),
-        dateTo: period.to?.toISOString(),
+        dateFrom: period.from,
+        dateTo: period.to,
+        ...(categoryIds.length > 0 ? { categoryIds } : {}),
       });
       if (result.entries.length === 0) {
         toast.info("Nenhum lançamento no período selecionado.");
@@ -197,6 +214,9 @@ export function PaymentPage() {
             <TabsTrigger value="cashflow" className="text-xs gap-1.5">
               📈 Fluxo de Caixa
             </TabsTrigger>
+            <TabsTrigger value="projection" className="text-xs gap-1.5">
+              🔭 Projeção
+            </TabsTrigger>
             <TabsTrigger value="dre" className="text-xs gap-1.5">
               📄 DRE
             </TabsTrigger>
@@ -212,6 +232,9 @@ export function PaymentPage() {
             <TabsTrigger value="contracts" className="text-xs gap-1.5">
               📝 Contratos Ativos
             </TabsTrigger>
+            <TabsTrigger value="documents" className="text-xs gap-1.5">
+              📎 Documentos
+            </TabsTrigger>
             {showApprovalsTab && (
               <TabsTrigger value="approvals" className="text-xs gap-1.5">
                 🛡️ Aprovações
@@ -225,11 +248,17 @@ export function PaymentPage() {
           </TabsList>
         </div>
 
+        {/* Barra única de filtros: mesma posição em toda aba que filtra por
+            período/categoria. Abas que não filtram (Contas, Contatos,
+            Contratos, Documentos, Aprovações) ficam de fora — controle inerte
+            confunde mais do que ajuda. */}
+        {FILTERED_TABS.has(activeTab) && (
+          <PaymentFilterBar showPeriod={activeTab !== "projection"} />
+        )}
+
         <div className="flex-1 overflow-y-auto">
           <TabsContent value="dashboard" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <PaymentDashboard
-              period={period}
-              onPeriodChange={setPeriod}
               onExport={handleExport}
               isExporting={exportEntries.isPending}
               onNavigateTab={setActiveTab}
@@ -243,6 +272,9 @@ export function PaymentPage() {
           </TabsContent>
           <TabsContent value="cashflow" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <CashflowTab />
+          </TabsContent>
+          <TabsContent value="projection" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
+            <ProjectionTab />
           </TabsContent>
           <TabsContent value="dre" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <DreTab />
@@ -258,6 +290,9 @@ export function PaymentPage() {
           </TabsContent>
           <TabsContent value="contracts" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <ContractsTab />
+          </TabsContent>
+          <TabsContent value="documents" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
+            <DocumentsTab />
           </TabsContent>
           {showApprovalsTab && (
             <TabsContent value="approvals" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">

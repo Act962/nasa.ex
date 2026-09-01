@@ -7,24 +7,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  PaymentPeriodPicker,
-  type PeriodRange,
-} from "../shared/payment-period-picker";
 import type { ReportRegime } from "../../hooks/use-payment-reports";
 
 export function ReportToolbar({
   title,
   subtitle,
-  period,
-  onPeriodChange,
   regime,
   onRegimeChange,
 }: {
   title: string;
   subtitle: string;
-  period: PeriodRange;
-  onPeriodChange: (range: PeriodRange) => void;
   regime: ReportRegime;
   onRegimeChange: (regime: ReportRegime) => void;
 }) {
@@ -35,13 +27,6 @@ export function ReportToolbar({
         <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <PaymentPeriodPicker
-          from={period.from}
-          to={period.to}
-          onChange={onPeriodChange}
-          hideTime
-          triggerClassName="h-9 w-full justify-center sm:w-auto sm:justify-start"
-        />
         <Select
           value={regime}
           onValueChange={(value) => onRegimeChange(value as ReportRegime)}

@@ -37,6 +37,8 @@ export const getPaymentDashboard = base
     // ambos vêm — usado pelo PaymentPeriodPicker do frontend.
     dateFrom: z.string().optional(),
     dateTo: z.string().optional(),
+    // Filtro compartilhado do módulo. Vazio/ausente = todas as categorias.
+    categoryIds: z.array(z.string()).optional(),
   }))
   .output(z.object({
     totalReceivable: z.number(),
@@ -99,6 +101,12 @@ export const getPaymentDashboard = base
       const in7 = new Date(today); in7.setDate(today.getDate() + 7);
       const in30 = new Date(today); in30.setDate(today.getDate() + 30);
       const orgId = context.org.id;
+      // Espalhado em cada where de lançamento abaixo. Contas bancárias ficam
+      // de fora de propósito: saldo de conta não pertence a categoria.
+      const categoryFilter =
+        input.categoryIds && input.categoryIds.length > 0
+          ? { categoryId: { in: input.categoryIds } }
+          : {};
 
       const [
         receivableAgg,
@@ -119,52 +127,52 @@ export const getPaymentDashboard = base
       ] = await Promise.all([
         // total a receber no mês
         prisma.paymentEntry.aggregate({
-          where: { organizationId: orgId, type: "RECEIVABLE", dueDate: { gte: monthStart, lte: monthEnd }, status: { in: ["PENDING", "PARTIAL", "OVERDUE"] } },
+          where: { organizationId: orgId, ...categoryFilter, type: "RECEIVABLE", dueDate: { gte: monthStart, lte: monthEnd }, status: { in: ["PENDING", "PARTIAL", "OVERDUE"] } },
           _sum: { amount: true },
         }),
         // total a pagar no mês
         prisma.paymentEntry.aggregate({
-          where: { organizationId: orgId, type: "PAYABLE", dueDate: { gte: monthStart, lte: monthEnd }, status: { in: ["PENDING", "PARTIAL", "OVERDUE"] } },
+          where: { organizationId: orgId, ...categoryFilter, type: "PAYABLE", dueDate: { gte: monthStart, lte: monthEnd }, status: { in: ["PENDING", "PARTIAL", "OVERDUE"] } },
           _sum: { amount: true },
         }),
         // total recebido no mês
         prisma.paymentEntry.aggregate({
-          where: { organizationId: orgId, type: "RECEIVABLE", paidAt: { gte: monthStart, lte: monthEnd }, status: "PAID" },
+          where: { organizationId: orgId, ...categoryFilter, type: "RECEIVABLE", paidAt: { gte: monthStart, lte: monthEnd }, status: "PAID" },
           _sum: { paidAmount: true },
         }),
         // total pago no mês
         prisma.paymentEntry.aggregate({
-          where: { organizationId: orgId, type: "PAYABLE", paidAt: { gte: monthStart, lte: monthEnd }, status: "PAID" },
+          where: { organizationId: orgId, ...categoryFilter, type: "PAYABLE", paidAt: { gte: monthStart, lte: monthEnd }, status: "PAID" },
           _sum: { paidAmount: true },
         }),
         // inadimplente a receber
         prisma.paymentEntry.aggregate({
-          where: { organizationId: orgId, type: "RECEIVABLE", status: "OVERDUE", dueDate: { lt: today } },
+          where: { organizationId: orgId, ...categoryFilter, type: "RECEIVABLE", status: "OVERDUE", dueDate: { lt: today } },
           _sum: { amount: true },
         }),
         // inadimplente a pagar
         prisma.paymentEntry.aggregate({
-          where: { organizationId: orgId, type: "PAYABLE", status: "OVERDUE", dueDate: { lt: today } },
+          where: { organizationId: orgId, ...categoryFilter, type: "PAYABLE", status: "OVERDUE", dueDate: { lt: today } },
           _sum: { amount: true },
         }),
         // próximos 7 dias a receber
         prisma.paymentEntry.aggregate({
-          where: { organizationId: orgId, type: "RECEIVABLE", status: { in: ["PENDING", "PARTIAL"] }, dueDate: { gte: today, lte: in7 } },
+          where: { organizationId: orgId, ...categoryFilter, type: "RECEIVABLE", status: { in: ["PENDING", "PARTIAL"] }, dueDate: { gte: today, lte: in7 } },
           _sum: { amount: true },
         }),
         // próximos 7 dias a pagar
         prisma.paymentEntry.aggregate({
-          where: { organizationId: orgId, type: "PAYABLE", status: { in: ["PENDING", "PARTIAL"] }, dueDate: { gte: today, lte: in7 } },
+          where: { organizationId: orgId, ...categoryFilter, type: "PAYABLE", status: { in: ["PENDING", "PARTIAL"] }, dueDate: { gte: today, lte: in7 } },
           _sum: { amount: true },
         }),
         // próximos 30 dias a receber
         prisma.paymentEntry.aggregate({
-          where: { organizationId: orgId, type: "RECEIVABLE", status: { in: ["PENDING", "PARTIAL"] }, dueDate: { gte: today, lte: in30 } },
+          where: { organizationId: orgId, ...categoryFilter, type: "RECEIVABLE", status: { in: ["PENDING", "PARTIAL"] }, dueDate: { gte: today, lte: in30 } },
           _sum: { amount: true },
         }),
         // próximos 30 dias a pagar
         prisma.paymentEntry.aggregate({
-          where: { organizationId: orgId, type: "PAYABLE", status: { in: ["PENDING", "PARTIAL"] }, dueDate: { gte: today, lte: in30 } },
+          where: { organizationId: orgId, ...categoryFilter, type: "PAYABLE", status: { in: ["PENDING", "PARTIAL"] }, dueDate: { gte: today, lte: in30 } },
           _sum: { amount: true },
         }),
         // saldo das contas
@@ -175,19 +183,20 @@ export const getPaymentDashboard = base
         // breakdown por categoria - receitas
         prisma.paymentEntry.groupBy({
           by: ["categoryId"],
-          where: { organizationId: orgId, type: "RECEIVABLE", paidAt: { gte: monthStart, lte: monthEnd }, status: "PAID" },
+          where: { organizationId: orgId, ...categoryFilter, type: "RECEIVABLE", paidAt: { gte: monthStart, lte: monthEnd }, status: "PAID" },
           _sum: { paidAmount: true },
         }),
         // breakdown por categoria - despesas
         prisma.paymentEntry.groupBy({
           by: ["categoryId"],
-          where: { organizationId: orgId, type: "PAYABLE", paidAt: { gte: monthStart, lte: monthEnd }, status: "PAID" },
+          where: { organizationId: orgId, ...categoryFilter, type: "PAYABLE", paidAt: { gte: monthStart, lte: monthEnd }, status: "PAID" },
           _sum: { paidAmount: true },
         }),
         // últimos 6 meses
         prisma.paymentEntry.findMany({
           where: {
             organizationId: orgId,
+            ...categoryFilter,
             status: "PAID",
             paidAt: { gte: new Date(year, month - 7, 1), lte: monthEnd },
           },
@@ -297,6 +306,7 @@ export const getCashflow = base
     month: z.number().optional(),
     dateFrom: z.string().optional(),
     dateTo: z.string().optional(),
+    categoryIds: z.array(z.string()).optional(),
   }))
   .output(z.object({
     rows: z.array(z.object({
@@ -321,6 +331,9 @@ export const getCashflow = base
       const entries = await prisma.paymentEntry.findMany({
         where: {
           organizationId: context.org.id,
+          ...(input.categoryIds && input.categoryIds.length > 0
+            ? { categoryId: { in: input.categoryIds } }
+            : {}),
           status: { notIn: ["CANCELLED"] },
           dueDate: { gte: monthStart, lte: monthEnd },
         },

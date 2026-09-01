@@ -10,9 +10,9 @@ import {
 } from "../../hooks/use-payment-reports";
 import { formatCurrency, formatPercent } from "../../lib/format";
 import {
-  currentMonthRange,
-  type PeriodRange,
-} from "../shared/payment-period-picker";
+  usePaymentPeriodIso,
+  usePaymentCategoryFilter,
+} from "../../store/use-payment-filters-store";
 import { ReportToolbar } from "./report-toolbar";
 
 function resultClass(value: number) {
@@ -45,14 +45,12 @@ function TotalCard({
 }
 
 export function DroTab() {
-  const [period, setPeriod] = useState<PeriodRange>(currentMonthRange());
   const [regime, setRegime] = useState<ReportRegime>("cash");
 
-  const { data, isLoading } = useOperationalResult({
-    dateFrom: period.from?.toISOString(),
-    dateTo: period.to?.toISOString(),
-    regime,
-  });
+  const { dateFrom, dateTo } = usePaymentPeriodIso();
+  const categoryIds = usePaymentCategoryFilter();
+
+  const { data, isLoading } = useOperationalResult({ dateFrom, dateTo, regime, categoryIds });
 
   const rows = data?.rows ?? [];
 
@@ -61,8 +59,6 @@ export function DroTab() {
       <ReportToolbar
         title="DRO"
         subtitle="Demonstração do Resultado Operacional por centro de custo"
-        period={period}
-        onPeriodChange={setPeriod}
         regime={regime}
         onRegimeChange={setRegime}
       />

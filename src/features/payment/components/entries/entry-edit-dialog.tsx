@@ -24,6 +24,7 @@ import {
   usePaymentContacts,
 } from "../../hooks/use-payment";
 import { formatCurrency, parseCurrencyToCents } from "../../lib/format";
+import { EntryAttachmentsSection } from "../attachments/entry-attachments-section";
 import { toast } from "sonner";
 
 interface EditableEntry {
@@ -100,7 +101,7 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
 
   return (
     <Dialog open={!!entry} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[88vh] max-w-lg overflow-y-auto scroll-cols-tracking">
         <DialogHeader>
           <DialogTitle>Editar Lançamento</DialogTitle>
         </DialogHeader>
@@ -168,6 +169,8 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
               onChange={(event) => setNotes(event.target.value)}
             />
           </div>
+
+          {entry && <EntryAttachmentsSection entryId={entry.id} />}
 
           <div className="flex gap-2 pt-2">
             <Button

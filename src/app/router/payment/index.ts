@@ -42,7 +42,14 @@ import {
   deletePaymentEntry,
   removePaymentEntry,
 } from "./entries";
+import {
+  listPaymentAttachments,
+  updatePaymentAttachment,
+  deletePaymentAttachment,
+  linkPaymentAttachments,
+} from "./attachments";
 import { getPaymentDashboard, getCashflow } from "./dashboard";
+import { getPaymentProjection } from "./projection";
 import { getIncomeStatement, getOperationalResult } from "./reports";
 import { listExternalContacts } from "./external-contacts";
 import { listActiveContracts } from "./contracts";
@@ -110,9 +117,18 @@ export const paymentRouter = {
     delete: deletePaymentEntry,
     remove: removePaymentEntry,
   },
+  attachments: {
+    list:   listPaymentAttachments,
+    update: updatePaymentAttachment,
+    delete: deletePaymentAttachment,
+    link:   linkPaymentAttachments,
+  },
   dashboard: {
     get: getPaymentDashboard,
     cashflow: getCashflow,
+  },
+  projection: {
+    get: getPaymentProjection,
   },
   reports: {
     incomeStatement: getIncomeStatement,

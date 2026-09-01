@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useCashflow } from "../../hooks/use-payment";
 import { formatCurrency } from "../../lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,18 +15,14 @@ import {
 } from "recharts";
 import { TrendingUp, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import {
-  PaymentPeriodPicker,
-  currentMonthRange,
-} from "../shared/payment-period-picker";
+  usePaymentPeriodIso,
+  usePaymentCategoryFilter,
+} from "../../store/use-payment-filters-store";
 
 export function CashflowTab() {
-  const [period, setPeriod] = useState<{ from?: Date; to?: Date }>(
-    currentMonthRange(),
-  );
-  const { data, isLoading } = useCashflow({
-    dateFrom: period.from?.toISOString(),
-    dateTo: period.to?.toISOString(),
-  });
+  const { dateFrom, dateTo } = usePaymentPeriodIso();
+  const categoryIds = usePaymentCategoryFilter();
+  const { data, isLoading } = useCashflow({ dateFrom, dateTo, categoryIds });
 
   const rows = data?.rows ?? [];
 
@@ -44,14 +39,6 @@ export function CashflowTab() {
 
   return (
     <div className="space-y-6">
-      {/* Period selector */}
-      <div className="flex items-center gap-3">
-        <PaymentPeriodPicker
-          from={period.from}
-          to={period.to}
-          onChange={setPeriod}
-        />
-      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

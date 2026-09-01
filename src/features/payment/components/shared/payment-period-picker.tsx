@@ -11,6 +11,7 @@
  * `dateFrom`/`dateTo` ISO ao chamar o backend.
  */
 
+import { useState } from "react";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { MonthRangeGrid } from "./month-range-grid";
 
 export type PeriodRange = { from?: Date; to?: Date };
 
@@ -49,6 +51,39 @@ function timeFromDate(d?: Date) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/**
+ * Rótulo curto pra intervalos que coincidem com meses ou anos inteiros:
+ * "Março 2026" lê melhor que "01/03/26 – 31/03/26", e é justamente o recorte
+ * que o modo Meses produz. Devolve null quando o intervalo não fecha em mês.
+ */
+function wholePeriodLabel(from?: Date, to?: Date): string | null {
+  if (!from || !to) return null;
+
+  const start = dayjs(from);
+  const end = dayjs(to);
+  const startsMonth = start.isSame(start.startOf("month"), "day");
+  const endsMonth = end.isSame(end.endOf("month"), "day");
+  if (!startsMonth || !endsMonth) return null;
+
+  const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+  const monthName = (date: dayjs.Dayjs) =>
+    capitalize(format(date.toDate(), "MMMM", { locale: ptBR }));
+
+  if (start.isSame(start.startOf("year"), "day") && end.isSame(end.endOf("year"), "day")) {
+    return start.year() === end.year()
+      ? `Ano de ${start.year()}`
+      : `${start.year()} – ${end.year()}`;
+  }
+
+  if (start.isSame(end, "month")) {
+    return `${monthName(start)} ${start.year()}`;
+  }
+
+  return start.year() === end.year()
+    ? `${monthName(start)} – ${monthName(end)} ${start.year()}`
+    : `${monthName(start)} ${start.year()} – ${monthName(end)} ${end.year()}`;
+}
+
 function applyTime(date: Date | undefined, hhmm: string): Date | undefined {
   if (!date) return undefined;
   const [h, m] = hhmm.split(":").map((n) => parseInt(n, 10));
@@ -66,6 +101,9 @@ export function PaymentPeriodPicker({
 }: Props) {
   // Dois meses lado a lado estouram a largura no celular.
   const isMobile = useIsMobile();
+  // "day" = calendário de datas exatas; "month" = grade de meses inteiros,
+  // que é como o financeiro costuma recortar (competência, fechamento, DRE).
+  const [granularity, setGranularity] = useState<"day" | "month">("day");
   const fromTime = timeFromDate(from);
   const toTime = timeFromDate(to);
 
@@ -124,7 +162,7 @@ export function PaymentPeriodPicker({
     });
   }
 
-  const label = from
+  const exactRangeLabel = from
     ? to
       ? hideTime
         ? `${format(from, "dd/MM/yy", { locale: ptBR })} – ${format(to, "dd/MM/yy", { locale: ptBR })}`
@@ -133,6 +171,8 @@ export function PaymentPeriodPicker({
         ? format(from, "dd/MM/yy", { locale: ptBR })
         : format(from, "dd/MM/yy HH:mm", { locale: ptBR })
     : "Selecione o período";
+
+  const label = wholePeriodLabel(from, to) ?? exactRangeLabel;
 
   return (
     <Popover>
@@ -154,17 +194,44 @@ export function PaymentPeriodPicker({
         className="w-auto max-w-[calc(100vw-1.5rem)] overflow-x-auto p-0"
         align="start"
       >
-        <Calendar
-          locale={pt}
-          mode="range"
-          timeZone="America/Sao_Paulo"
-          defaultMonth={from}
-          selected={{ from, to }}
-          onSelect={handleRangeSelect}
-          numberOfMonths={isMobile ? 1 : 2}
-        />
+        <div className="flex gap-1 border-b p-2">
+          {(
+            [
+              { value: "day", label: "Dias" },
+              { value: "month", label: "Meses" },
+            ] as const
+          ).map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setGranularity(option.value)}
+              className={cn(
+                "flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                granularity === option.value
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
 
-        {!hideTime && (
+        {granularity === "month" ? (
+          <MonthRangeGrid from={from} to={to} onChange={onChange} />
+        ) : (
+          <Calendar
+            locale={pt}
+            mode="range"
+            timeZone="America/Sao_Paulo"
+            defaultMonth={from}
+            selected={{ from, to }}
+            onSelect={handleRangeSelect}
+            numberOfMonths={isMobile ? 1 : 2}
+          />
+        )}
+
+        {!hideTime && granularity === "day" && (
           <div className="grid grid-cols-2 gap-2 border-t p-3">
             <div className="space-y-1">
               <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">

@@ -82,6 +82,7 @@ export function usePaymentDashboard(params: {
   year?: number;
   dateFrom?: string;
   dateTo?: string;
+  categoryIds?: string[];
 }) {
   return useQuery(orpc.payment.dashboard.get.queryOptions({ input: params }));
 }
@@ -91,6 +92,7 @@ export function useCashflow(params: {
   year?: number;
   dateFrom?: string;
   dateTo?: string;
+  categoryIds?: string[];
 }) {
   return useQuery(
     orpc.payment.dashboard.cashflow.queryOptions({ input: params }),
@@ -112,6 +114,7 @@ export function usePaymentEntries(params: {
   dateTo?: string;
   paidFrom?: string;
   paidTo?: string;
+  categoryIds?: string[];
   enabled?: boolean;
 }) {
   const { enabled = true, ...rest } = params;
@@ -140,7 +143,7 @@ export function useRecentEntryDescriptions(
 export function useExportPaymentEntries() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { dateFrom?: string; dateTo?: string }) =>
+    mutationFn: (input: { dateFrom?: string; dateTo?: string; categoryIds?: string[] }) =>
       qc.fetchQuery(
         orpc.payment.entries.list.queryOptions({
           input: { ...input, page: 1, perPage: 500 },

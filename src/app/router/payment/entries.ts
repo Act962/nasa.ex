@@ -82,6 +82,9 @@ export const listPaymentEntries = base
     statuses: z.array(z.enum(["PENDING_APPROVAL", "PENDING", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"])).optional(),
     contactId: z.string().optional(),
     categoryId: z.string().optional(),
+    // Multi-seleção do filtro compartilhado do módulo. Convive com o
+    // `categoryId` singular, que outros callers (drill-down) ainda usam.
+    categoryIds: z.array(z.string()).optional(),
     accountId: z.string().optional(),
     // Filtros novos pra histórico de orçamentos do lead no chat.
     leadId: z.string().optional(),
@@ -110,6 +113,9 @@ export const listPaymentEntries = base
           : {}),
         ...(input.contactId ? { contactId: input.contactId } : {}),
         ...(input.categoryId ? { categoryId: input.categoryId } : {}),
+        ...(input.categoryIds && input.categoryIds.length > 0
+          ? { categoryId: { in: input.categoryIds } }
+          : {}),
         ...(input.accountId ? { accountId: input.accountId } : {}),
         ...(input.leadId ? { leadId: input.leadId } : {}),
         ...(input.trackingId ? { trackingId: input.trackingId } : {}),
@@ -224,11 +230,14 @@ export const createPaymentEntry = base
     requiresApproval: z.boolean().default(false),
     // Régua de cobrança (Fase 2) — só faz sentido em RECEIVABLE.
     dunningRuleId: z.string().optional(),
+    // Anexos já enviados pelo form (spec 0008). Vinculados depois do commit,
+    // a TODAS as parcelas criadas — ver `linkAttachmentsToEntries`.
+    attachmentIds: z.array(z.string()).optional(),
   }))
   .output(z.object({ entries: z.array(entryShape) }))
   .handler(async ({ input, context, errors }) => {
     try {
-      const { installments, dueDate, competenceDate, requiresApproval, dunningRuleId, ...rest } = input;
+      const { installments, dueDate, competenceDate, requiresApproval, dunningRuleId, attachmentIds, ...rest } = input;
       const groupId = installments > 1 ? randomUUID() : undefined;
       const baseDate = new Date(dueDate);
 
@@ -276,6 +285,25 @@ export const createPaymentEntry = base
       const entries = await prisma.$transaction(
         data.map((d) => prisma.paymentEntry.create({ data: d, include: entryInclude }))
       );
+
+      // ── Vincula anexos já enviados (spec 0008, RF-2/RF-5) ───────────────
+      // Fora da transação de propósito (CLAUDE.md item 18) e best-effort: se
+      // falhar, o lançamento persiste e o arquivo continua recuperável na aba
+      // Documentos como "Sem vínculo" (CB-3).
+      if (attachmentIds && attachmentIds.length > 0) {
+        try {
+          const { linkAttachmentsToEntries } = await import(
+            "@/features/payment/server/attachments/link-attachments-to-entries"
+          );
+          await linkAttachmentsToEntries({
+            organizationId: context.org.id,
+            attachmentIds,
+            entryIds: entries.map((entry) => entry.id),
+          });
+        } catch (err) {
+          console.error("[payment/entries create] attachment link failed:", err);
+        }
+      }
 
       // ── Cria PaymentApprovalRequest pra cada parcela triggered ──────────
       // Notifica aprovadores AGORA + agenda reminder event-driven (sem cron).

@@ -9,6 +9,7 @@ type ReportParams = {
   dateFrom?: string;
   dateTo?: string;
   regime: ReportRegime;
+  categoryIds?: string[];
 };
 
 /** DRE — receitas, custos, despesas e margens do período. */
