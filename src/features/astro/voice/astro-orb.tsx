@@ -200,7 +200,22 @@ export function AstroOrb() {
     },
   });
 
-  if (!visible) return null;
+  // Escondido: sobra um alvo mínimo pra trazer o Astro de volta. Sem ele,
+  // fechar o orb era irreversível — `visible` é persistido em localStorage e
+  // nenhuma outra tela reativa.
+  if (!visible) {
+    return (
+      <button
+        type="button"
+        onClick={() => setVisible(true)}
+        title="Mostrar o Astro"
+        aria-label="Mostrar o Astro"
+        className="fixed bottom-3 right-3 z-[9000] size-6 rounded-full border border-violet-500/30 bg-zinc-900/60 text-violet-300/70 opacity-40 shadow transition hover:opacity-100 flex items-center justify-center"
+      >
+        <Sparkles className="size-3" />
+      </button>
+    );
+  }
 
   const handleOrbClick = () => {
     // iOS Safari: aproveita esse gesto pra destravar audio/speechSynth.
@@ -353,150 +368,166 @@ export function AstroOrb() {
       {/* Keyframes locais — evita plugin do Tailwind */}
       <style>{ORB_KEYFRAMES}</style>
 
-      {/* O orb propriamente */}
-      <button
-        type="button"
-        onClick={handleOrbClick}
-        title={
-          phase === "listening"
-            ? "Cancelar captura"
-            : phase === "thinking"
-              ? "Astro processando"
-              : phase === "speaking"
-                ? "Astro falando"
-                : wakeWordEnabled
-                  ? "Escutando 'ASTRO' — click pra menu"
-                  : "Astro — click pra falar"
-        }
-        aria-label="Astro Orb"
-        className={cn(
-          "pointer-events-auto relative size-12 rounded-full flex items-center justify-center shadow-xl transition-all duration-500 hover:scale-105 active:scale-95",
-          phaseStyle.bg,
-          phaseStyle.ring,
-        )}
-        style={{
-          boxShadow: phaseStyle.glow,
-        }}
-      >
-        {/* ── LISTENING: 3 ondas concêntricas em delay ──────────────── */}
-        {phase === "listening" && (
-          <>
-            <span
-              className="absolute inset-0 rounded-full pointer-events-none"
-              style={{
-                background: "radial-gradient(circle, rgba(59,130,246,0.35) 0%, rgba(59,130,246,0) 70%)",
-                animation: "orb-ripple 1.6s ease-out infinite",
-              }}
-              aria-hidden
-            />
-            <span
-              className="absolute inset-0 rounded-full pointer-events-none"
-              style={{
-                background: "radial-gradient(circle, rgba(59,130,246,0.25) 0%, rgba(59,130,246,0) 70%)",
-                animation: "orb-ripple 1.6s ease-out infinite",
-                animationDelay: "0.53s",
-              }}
-              aria-hidden
-            />
-            <span
-              className="absolute inset-0 rounded-full pointer-events-none"
-              style={{
-                background: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0) 70%)",
-                animation: "orb-ripple 1.6s ease-out infinite",
-                animationDelay: "1.06s",
-              }}
-              aria-hidden
-            />
-          </>
-        )}
-
-        {/* ── SPEAKING: aurora gradiente rotacionando ───────────────── */}
-        {phase === "speaking" && (
-          <span
-            className="absolute -inset-2 rounded-full pointer-events-none"
-            style={{
-              background:
-                "conic-gradient(from 0deg, rgba(16,185,129,0.6), rgba(59,130,246,0.6), rgba(168,85,247,0.6), rgba(16,185,129,0.6))",
-              filter: "blur(8px)",
-              animation: "orb-aurora 4s linear infinite",
-            }}
-            aria-hidden
-          />
-        )}
-
-        {/* ── IDLE + wake ON: halo respirando + ring sutil ──────────── */}
-        {wakeWordEnabled && phase === "idle" && (
-          <>
-            <span
-              className="absolute -inset-1 rounded-full pointer-events-none"
-              style={{
-                background: "radial-gradient(circle, rgba(16,185,129,0.35) 0%, rgba(16,185,129,0) 70%)",
-                animation: "orb-breathe 3.6s ease-in-out infinite",
-              }}
-              aria-hidden
-            />
-            {/* 3 partículas esparsas orbitando */}
-            <span
-              className="absolute size-1 rounded-full bg-emerald-300 pointer-events-none"
-              style={{
-                top: "50%",
-                left: "50%",
-                animation: "orb-orbit 6s linear infinite",
-                animationDelay: "0s",
-              }}
-              aria-hidden
-            />
-            <span
-              className="absolute size-1 rounded-full bg-violet-300 pointer-events-none"
-              style={{
-                top: "50%",
-                left: "50%",
-                animation: "orb-orbit 6s linear infinite",
-                animationDelay: "2s",
-                opacity: 0.7,
-              }}
-              aria-hidden
-            />
-            <span
-              className="absolute size-0.5 rounded-full bg-blue-300 pointer-events-none"
-              style={{
-                top: "50%",
-                left: "50%",
-                animation: "orb-orbit 6s linear infinite",
-                animationDelay: "4s",
-                opacity: 0.6,
-              }}
-              aria-hidden
-            />
-          </>
-        )}
-
-        {/* Icone central — cross-fade entre phases */}
-        <span
-          key={phase}
-          className="relative z-10 text-white"
-          style={{ animation: "orb-icon-in 0.35s ease-out" }}
+      {/* O orb propriamente, com o botão de fechar sobreposto no canto */}
+      <div className="pointer-events-none relative">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            setVisible(false);
+            setMenuOpen(false);
+          }}
+          title="Fechar o Astro"
+          aria-label="Fechar o Astro"
+          className="pointer-events-auto absolute -left-1.5 -top-1.5 z-20 flex size-5 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-400 shadow-md transition hover:bg-zinc-800 hover:text-zinc-100"
         >
-          {phase === "listening" ? (
-            <Mic className="size-5" />
-          ) : phase === "thinking" ? (
-            <Loader2 className="size-5 animate-spin" />
-          ) : phase === "speaking" ? (
-            <Volume2 className="size-5" />
-          ) : (
-            <Sparkles className="size-5" />
-          )}
-        </span>
+          <X className="size-3" />
+        </button>
 
-        {/* Indicador de wake word ativo no canto */}
-        {wakeWordEnabled && phase === "idle" && (
+        <button
+          type="button"
+          onClick={handleOrbClick}
+          title={
+            phase === "listening"
+              ? "Cancelar captura"
+              : phase === "thinking"
+                ? "Astro processando"
+                : phase === "speaking"
+                  ? "Astro falando"
+                  : wakeWordEnabled
+                    ? "Escutando 'ASTRO' — click pra menu"
+                    : "Astro — click pra falar"
+          }
+          aria-label="Astro Orb"
+          className={cn(
+            "pointer-events-auto relative size-12 rounded-full flex items-center justify-center shadow-xl transition-all duration-500 hover:scale-105 active:scale-95",
+            phaseStyle.bg,
+            phaseStyle.ring,
+          )}
+          style={{
+            boxShadow: phaseStyle.glow,
+          }}
+        >
+          {/* ── LISTENING: 3 ondas concêntricas em delay ──────────────── */}
+          {phase === "listening" && (
+            <>
+              <span
+                className="absolute inset-0 rounded-full pointer-events-none"
+                style={{
+                  background: "radial-gradient(circle, rgba(59,130,246,0.35) 0%, rgba(59,130,246,0) 70%)",
+                  animation: "orb-ripple 1.6s ease-out infinite",
+                }}
+                aria-hidden
+              />
+              <span
+                className="absolute inset-0 rounded-full pointer-events-none"
+                style={{
+                  background: "radial-gradient(circle, rgba(59,130,246,0.25) 0%, rgba(59,130,246,0) 70%)",
+                  animation: "orb-ripple 1.6s ease-out infinite",
+                  animationDelay: "0.53s",
+                }}
+                aria-hidden
+              />
+              <span
+                className="absolute inset-0 rounded-full pointer-events-none"
+                style={{
+                  background: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0) 70%)",
+                  animation: "orb-ripple 1.6s ease-out infinite",
+                  animationDelay: "1.06s",
+                }}
+                aria-hidden
+              />
+            </>
+          )}
+
+          {/* ── SPEAKING: aurora gradiente rotacionando ───────────────── */}
+          {phase === "speaking" && (
+            <span
+              className="absolute -inset-2 rounded-full pointer-events-none"
+              style={{
+                background:
+                  "conic-gradient(from 0deg, rgba(16,185,129,0.6), rgba(59,130,246,0.6), rgba(168,85,247,0.6), rgba(16,185,129,0.6))",
+                filter: "blur(8px)",
+                animation: "orb-aurora 4s linear infinite",
+              }}
+              aria-hidden
+            />
+          )}
+
+          {/* ── IDLE + wake ON: halo respirando + ring sutil ──────────── */}
+          {wakeWordEnabled && phase === "idle" && (
+            <>
+              <span
+                className="absolute -inset-1 rounded-full pointer-events-none"
+                style={{
+                  background: "radial-gradient(circle, rgba(16,185,129,0.35) 0%, rgba(16,185,129,0) 70%)",
+                  animation: "orb-breathe 3.6s ease-in-out infinite",
+                }}
+                aria-hidden
+              />
+              {/* 3 partículas esparsas orbitando */}
+              <span
+                className="absolute size-1 rounded-full bg-emerald-300 pointer-events-none"
+                style={{
+                  top: "50%",
+                  left: "50%",
+                  animation: "orb-orbit 6s linear infinite",
+                  animationDelay: "0s",
+                }}
+                aria-hidden
+              />
+              <span
+                className="absolute size-1 rounded-full bg-violet-300 pointer-events-none"
+                style={{
+                  top: "50%",
+                  left: "50%",
+                  animation: "orb-orbit 6s linear infinite",
+                  animationDelay: "2s",
+                  opacity: 0.7,
+                }}
+                aria-hidden
+              />
+              <span
+                className="absolute size-0.5 rounded-full bg-blue-300 pointer-events-none"
+                style={{
+                  top: "50%",
+                  left: "50%",
+                  animation: "orb-orbit 6s linear infinite",
+                  animationDelay: "4s",
+                  opacity: 0.6,
+                }}
+                aria-hidden
+              />
+            </>
+          )}
+
+          {/* Icone central — cross-fade entre phases */}
           <span
-            className="absolute -top-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-zinc-950 pointer-events-none"
-            style={{ animation: "orb-breathe 3.6s ease-in-out infinite" }}
-            aria-label="Escuta ativa"
-          />
-        )}
-      </button>
+            key={phase}
+            className="relative z-10 text-white"
+            style={{ animation: "orb-icon-in 0.35s ease-out" }}
+          >
+            {phase === "listening" ? (
+              <Mic className="size-5" />
+            ) : phase === "thinking" ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : phase === "speaking" ? (
+              <Volume2 className="size-5" />
+            ) : (
+              <Sparkles className="size-5" />
+            )}
+          </span>
+
+          {/* Indicador de wake word ativo no canto */}
+          {wakeWordEnabled && phase === "idle" && (
+            <span
+              className="absolute -top-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-zinc-950 pointer-events-none"
+              style={{ animation: "orb-breathe 3.6s ease-in-out infinite" }}
+              aria-label="Escuta ativa"
+            />
+          )}
+        </button>
+      </div>
 
       {/* Botão de fechar menu — overlay invisível */}
       {menuOpen && (

@@ -35,9 +35,12 @@ export function PaymentGate({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // `w-full` como nos demais estados: sem largura, o container encolhe até o
+  // tamanho do spinner e o `justify-center` centraliza dentro dessa caixa
+  // mínima — o loading aparecia colado à esquerda da tela.
   if (my.isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60vh] w-full">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
