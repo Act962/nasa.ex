@@ -44,9 +44,9 @@ import { EntryForm } from "./entry-form";
 import { toast } from "sonner";
 import { usePaymentAccounts } from "../../hooks/use-payment";
 import {
-  PaymentPeriodPicker,
-  currentMonthRange,
-} from "../shared/payment-period-picker";
+  usePaymentPeriod,
+  usePaymentCategoryFilter,
+} from "../../store/use-payment-filters-store";
 
 interface EntriesTableProps {
   type: "RECEIVABLE" | "PAYABLE";
@@ -59,9 +59,6 @@ type PaymentEntryRow = NonNullable<
 export function EntriesTable({ type }: EntriesTableProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
-  const [period, setPeriod] = useState<{ from?: Date; to?: Date }>(
-    currentMonthRange(),
-  );
   const [showForm, setShowForm] = useState(false);
   const [payDialog, setPayDialog] = useState<{ id: string; amount: number } | null>(null);
   const [payAmount, setPayAmount] = useState("");
@@ -74,8 +71,12 @@ export function EntriesTable({ type }: EntriesTableProps) {
   const [assignDunning, setAssignDunning] = useState<{ id: string; ruleId: string | null; name: string } | null>(null);
   const [historyDunning, setHistoryDunning] = useState<{ id: string; name: string } | null>(null);
 
+  const period = usePaymentPeriod();
+  const categoryIds = usePaymentCategoryFilter();
+
   const { data, isLoading } = usePaymentEntries({
     type,
+    categoryIds,
     search: search || undefined,
     status: (statusFilter as "PENDING_APPROVAL" | "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED") || undefined,
     dateFrom: period.from?.toISOString(),
@@ -197,12 +198,6 @@ export function EntriesTable({ type }: EntriesTableProps) {
               <option key={k} value={k}>{v}</option>
             ))}
           </select>
-          <PaymentPeriodPicker
-            from={period.from}
-            to={period.to}
-            onChange={setPeriod}
-            triggerClassName="h-9 flex-1 justify-center sm:flex-none sm:justify-start"
-          />
         </div>
       </div>
 

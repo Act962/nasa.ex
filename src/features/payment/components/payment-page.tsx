@@ -37,10 +37,8 @@ import {
 } from "../hooks/use-payment-approvals";
 import { useExportPaymentEntries } from "../hooks/use-payment";
 import { buildEntriesCsv, downloadCsv } from "../lib/export-entries";
-import {
-  currentMonthRange,
-  type PeriodRange,
-} from "./shared/payment-period-picker";
+import { PaymentFilterBar } from "./shared/payment-filter-bar";
+import { usePaymentFiltersStore } from "../store/use-payment-filters-store";
 import {
   PaymentMobileMenu,
   type PaymentTabItem,
@@ -60,14 +58,28 @@ const BASE_TABS: PaymentTabItem[] = [
   { value: "documents", label: "Documentos", emoji: "📎" },
 ];
 
+// Abas cujo conteúdo responde ao período e/ou às categorias. A Projeção entra
+// só pela categoria: ela tem horizonte próprio (3/6/12 meses).
+const FILTERED_TABS = new Set([
+  "dashboard",
+  "receivables",
+  "payables",
+  "cashflow",
+  "projection",
+  "dre",
+  "dro",
+]);
+
 export function PaymentPage() {
   const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Controlada pra que "Ver todas" no painel possa saltar direto pra aba certa.
   const [activeTab, setActiveTab] = useState("dashboard");
-  // Período do painel mora aqui porque o "Exportar" existe em dois lugares:
-  // na toolbar do painel (desktop) e no menu sanduíche (mobile).
-  const [period, setPeriod] = useState<PeriodRange>(currentMonthRange());
+  // O período agora mora no store compartilhado (uma barra para todas as
+  // abas); aqui só é lido para o "Exportar", que existe na toolbar do painel
+  // e no menu sanduíche do mobile.
+  const period = usePaymentFiltersStore((state) => state.period);
+  const categoryIds = usePaymentFiltersStore((state) => state.categoryIds);
   // Badge de pendências da aba Aprovações — só pra users com canApprove.
   const canApproveQuery = useCanApprovePayments();
   const pendingApprovals = usePendingApprovals();
@@ -105,8 +117,9 @@ export function PaymentPage() {
   async function handleExport() {
     try {
       const result = await exportEntries.mutateAsync({
-        dateFrom: period.from?.toISOString(),
-        dateTo: period.to?.toISOString(),
+        dateFrom: period.from,
+        dateTo: period.to,
+        ...(categoryIds.length > 0 ? { categoryIds } : {}),
       });
       if (result.entries.length === 0) {
         toast.info("Nenhum lançamento no período selecionado.");
@@ -235,11 +248,17 @@ export function PaymentPage() {
           </TabsList>
         </div>
 
+        {/* Barra única de filtros: mesma posição em toda aba que filtra por
+            período/categoria. Abas que não filtram (Contas, Contatos,
+            Contratos, Documentos, Aprovações) ficam de fora — controle inerte
+            confunde mais do que ajuda. */}
+        {FILTERED_TABS.has(activeTab) && (
+          <PaymentFilterBar showPeriod={activeTab !== "projection"} />
+        )}
+
         <div className="flex-1 overflow-y-auto">
           <TabsContent value="dashboard" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <PaymentDashboard
-              period={period}
-              onPeriodChange={setPeriod}
               onExport={handleExport}
               isExporting={exportEntries.isPending}
               onNavigateTab={setActiveTab}

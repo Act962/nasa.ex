@@ -13,6 +13,8 @@ const reportInput = z.object({
   // "cash" = o que entrou/saiu de fato (por data de pagamento).
   // "accrual" = competência, por data de vencimento.
   regime: regimeSchema,
+  // Filtro compartilhado do módulo. Vazio/ausente = todas as categorias.
+  categoryIds: z.array(z.string()).optional(),
 });
 
 const groupLineSchema = z.object({
@@ -47,15 +49,20 @@ async function loadReportEntries({
   regime,
   start,
   end,
+  categoryIds,
 }: {
   organizationId: string;
   regime: Regime;
   start: Date;
   end: Date;
+  categoryIds?: string[];
 }): Promise<ReportEntry[]> {
   return prisma.paymentEntry.findMany({
     where: {
       organizationId,
+      ...(categoryIds && categoryIds.length > 0
+        ? { categoryId: { in: categoryIds } }
+        : {}),
       ...(regime === "cash"
         ? {
             status: { in: ["PAID", "PARTIAL"] },
@@ -115,6 +122,7 @@ export const getIncomeStatement = base
         regime: input.regime,
         start,
         end,
+        categoryIds: input.categoryIds,
       });
 
       const revenueTotals = new Map<string, number>();
@@ -200,6 +208,7 @@ export const getOperationalResult = base
         regime: input.regime,
         start,
         end,
+        categoryIds: input.categoryIds,
       });
 
       const buckets = new Map<

@@ -21,6 +21,9 @@ export const getPaymentProjection = base
     z.object({
       horizonMonths: z.union([z.literal(3), z.literal(6), z.literal(12)]).default(6),
       trendWindowMonths: z.number().min(1).max(24).default(DEFAULT_TREND_WINDOW_MONTHS),
+      // Filtro compartilhado do módulo. Afeta os lançamentos, não o saldo
+      // inicial: conta bancária não pertence a categoria.
+      categoryIds: z.array(z.string()).optional(),
     }),
   )
   .output(
@@ -82,6 +85,9 @@ export const getPaymentProjection = base
         prisma.paymentEntry.findMany({
           where: {
             organizationId: context.org.id,
+            ...(input.categoryIds && input.categoryIds.length > 0
+              ? { categoryId: { in: input.categoryIds } }
+              : {}),
             status: { not: "CANCELLED" },
             OR: [
               { dueDate: { gte: historyStart, lte: horizonEnd } },

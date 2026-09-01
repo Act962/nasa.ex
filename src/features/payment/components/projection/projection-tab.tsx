@@ -38,6 +38,7 @@ import {
   Clock,
 } from "lucide-react";
 import { usePaymentProjection, type ProjectionHorizon } from "../../hooks/use-payment-projection";
+import { usePaymentCategoryFilter } from "../../store/use-payment-filters-store";
 import { formatCurrency, formatAxisCurrency } from "../../lib/format";
 import { cn } from "@/lib/utils";
 
@@ -62,7 +63,8 @@ function confidenceClasses(confidence: number, hasTrendBasis: boolean): string {
 
 export function ProjectionTab() {
   const [horizonMonths, setHorizonMonths] = useState<ProjectionHorizon>(6);
-  const { data, isLoading } = usePaymentProjection({ horizonMonths });
+  const categoryIds = usePaymentCategoryFilter();
+  const { data, isLoading } = usePaymentProjection({ horizonMonths, categoryIds });
 
   const months = data?.months ?? [];
   const openingBalance = data?.openingBalance ?? 0;

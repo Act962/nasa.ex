@@ -10,7 +10,10 @@ import {
 } from "lucide-react";
 import { usePaymentDashboard, useCashflow } from "../../hooks/use-payment";
 import { formatCurrency, formatPercent } from "../../lib/format";
-import { type PeriodRange } from "../shared/payment-period-picker";
+import {
+  usePaymentPeriodIso,
+  usePaymentCategoryFilter,
+} from "../../store/use-payment-filters-store";
 import { DashboardToolbar } from "./dashboard-toolbar";
 import { NewTransactionDialog } from "./new-transaction-dialog";
 import { SummaryCard } from "./summary-card";
@@ -63,14 +66,10 @@ function DashboardSkeleton() {
 }
 
 export function PaymentDashboard({
-  period,
-  onPeriodChange,
   onExport,
   isExporting,
   onNavigateTab,
 }: {
-  period: PeriodRange;
-  onPeriodChange: (range: PeriodRange) => void;
   onExport: () => void;
   isExporting: boolean;
   /** Leva o usuário pra aba correspondente ao clicar em "Ver todas". */
@@ -79,11 +78,11 @@ export function PaymentDashboard({
   const [granularity, setGranularity] = useState<"monthly" | "daily">("monthly");
   const [newTransactionOpen, setNewTransactionOpen] = useState(false);
 
-  const dateFrom = period.from?.toISOString();
-  const dateTo = period.to?.toISOString();
+  const { dateFrom, dateTo } = usePaymentPeriodIso();
+  const categoryIds = usePaymentCategoryFilter();
 
-  const { data, isLoading } = usePaymentDashboard({ dateFrom, dateTo });
-  const { data: cashflowData } = useCashflow({ dateFrom, dateTo });
+  const { data, isLoading } = usePaymentDashboard({ dateFrom, dateTo, categoryIds });
+  const { data: cashflowData } = useCashflow({ dateFrom, dateTo, categoryIds });
 
   const chartPoints = useMemo<CashflowPoint[]>(() => {
     if (granularity === "daily") {
@@ -187,8 +186,6 @@ export function PaymentDashboard({
     // pb extra no mobile: o dock flutuante de IA cobre o rodapé do último card.
     <div className="space-y-5 pb-16 lg:pb-0">
       <DashboardToolbar
-        period={period}
-        onPeriodChange={onPeriodChange}
         onExport={onExport}
         isExporting={isExporting}
         onNewTransaction={() => setNewTransactionOpen(true)}

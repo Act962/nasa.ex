@@ -8,15 +8,21 @@ export type ProjectionHorizon = 3 | 6 | 12;
 interface ProjectionParams {
   horizonMonths?: ProjectionHorizon;
   trendWindowMonths?: number;
+  categoryIds?: string[];
 }
 
 export function usePaymentProjection({
   horizonMonths = 6,
   trendWindowMonths = 6,
+  categoryIds,
 }: ProjectionParams = {}) {
   return useQuery(
     orpc.payment.projection.get.queryOptions({
-      input: { horizonMonths, trendWindowMonths },
+      input: {
+        horizonMonths,
+        trendWindowMonths,
+        ...(categoryIds && categoryIds.length > 0 ? { categoryIds } : {}),
+      },
     }),
   );
 }

@@ -82,6 +82,9 @@ export const listPaymentEntries = base
     statuses: z.array(z.enum(["PENDING_APPROVAL", "PENDING", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"])).optional(),
     contactId: z.string().optional(),
     categoryId: z.string().optional(),
+    // Multi-seleção do filtro compartilhado do módulo. Convive com o
+    // `categoryId` singular, que outros callers (drill-down) ainda usam.
+    categoryIds: z.array(z.string()).optional(),
     accountId: z.string().optional(),
     // Filtros novos pra histórico de orçamentos do lead no chat.
     leadId: z.string().optional(),
@@ -110,6 +113,9 @@ export const listPaymentEntries = base
           : {}),
         ...(input.contactId ? { contactId: input.contactId } : {}),
         ...(input.categoryId ? { categoryId: input.categoryId } : {}),
+        ...(input.categoryIds && input.categoryIds.length > 0
+          ? { categoryId: { in: input.categoryIds } }
+          : {}),
         ...(input.accountId ? { accountId: input.accountId } : {}),
         ...(input.leadId ? { leadId: input.leadId } : {}),
         ...(input.trackingId ? { trackingId: input.trackingId } : {}),
