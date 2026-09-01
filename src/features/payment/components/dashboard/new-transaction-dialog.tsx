@@ -10,6 +10,7 @@ import {
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { describePaymentError } from "../../lib/describe-error";
 import { useCreatePaymentEntry } from "../../hooks/use-payment";
 import { EntryForm } from "../entries/entry-form";
 
@@ -62,8 +63,8 @@ export function NewTransactionDialog({
       toast.success(
         type === "RECEIVABLE" ? "Receita criada!" : "Despesa criada!",
       );
-    } catch {
-      toast.error("Erro ao criar lançamento");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível criar o lançamento"));
     }
   }
 

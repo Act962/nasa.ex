@@ -21,8 +21,15 @@ import {
 } from "../../hooks/use-payment";
 import { useDunningRules } from "../../hooks/use-payment-dunning";
 import { parseCurrencyToCents, maskCurrency } from "../../lib/format";
+import { todayAsDateInput } from "../../lib/dates";
+import {
+  entryFormSchema,
+  toFieldErrors,
+  MAX_INSTALLMENTS,
+  type EntryFieldErrors,
+} from "../../schemas/entry-form-schema";
 import { AttachmentUploader } from "../attachments/attachment-uploader";
-import { toast } from "sonner";
+import { FieldError, fieldErrorClass } from "../shared/field-error";
 
 interface EntryFormProps {
   type: "RECEIVABLE" | "PAYABLE";
@@ -60,7 +67,9 @@ const selectTriggerClass = "w-full min-w-0";
 export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProps) {
   const [description, setDescription] = useState("");
   const [amountStr, setAmountStr] = useState("");
-  const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 10));
+  // `todayAsDateInput` usa o calendário local: `toISOString()` devolvia o dia
+  // seguinte pra quem preenchia depois das 21h no horário de Brasília.
+  const [dueDate, setDueDate] = useState(todayAsDateInput());
   const [categoryId, setCategoryId] = useState<string>("__none__");
   const [contactId, setContactId] = useState<string>("__none__");
   const [accountId, setAccountId] = useState<string>("__none__");
@@ -71,6 +80,15 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
   const [dunningRuleId, setDunningRuleId] = useState<string>("__none__");
   const [attachmentIds, setAttachmentIds] = useState<string[]>([]);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<EntryFieldErrors>({});
+
+  // Some com o erro assim que o campo é corrigido — manter a mensagem até o
+  // próximo submit faz o formulário parecer quebrado enquanto se digita.
+  function clearFieldError(field: keyof EntryFieldErrors) {
+    setFieldErrors((current) =>
+      current[field] ? { ...current, [field]: undefined } : current,
+    );
+  }
 
   const { data: categoriesData } = usePaymentCategories(
     type === "RECEIVABLE" ? "REVENUE" : "EXPENSE"
@@ -88,13 +106,26 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!description.trim()) return toast.error("Descrição obrigatória");
-    const amount = parseCurrencyToCents(amountStr);
-    if (!amount) return toast.error("Valor inválido");
+
+    // Validação por campo em vez de um toast genérico: a mensagem aparece
+    // embaixo do input que está errado, e todos os problemas de uma vez.
+    const parsed = entryFormSchema.safeParse({
+      description,
+      amount: parseCurrencyToCents(amountStr),
+      dueDate,
+      installments,
+    });
+
+    if (!parsed.success) {
+      setFieldErrors(toFieldErrors(parsed.error));
+      return;
+    }
+
+    setFieldErrors({});
     await onSubmit({
       type,
-      description,
-      amount,
+      description: parsed.data.description,
+      amount: parsed.data.amount,
       dueDate,
       categoryId: categoryId === "__none__" ? undefined : categoryId,
       contactId: contactId === "__none__" ? undefined : contactId,
@@ -115,15 +146,24 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
         <Input
           placeholder="Ex: Mensalidade cliente..."
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          aria-invalid={!!fieldErrors.description}
+          className={fieldErrors.description ? fieldErrorClass : undefined}
+          onChange={(e) => {
+            setDescription(e.target.value);
+            clearFieldError("description");
+          }}
         />
+        <FieldError message={fieldErrors.description} />
         {recentDescriptions.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {recentDescriptions.map((recent) => (
               <button
                 key={recent}
                 type="button"
-                onClick={() => setDescription(recent)}
+                onClick={() => {
+                  setDescription(recent);
+                  clearFieldError("description");
+                }}
                 className="max-w-full truncate rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 title={recent}
               >
@@ -141,16 +181,28 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
             placeholder="R$ 0,00"
             inputMode="numeric"
             value={amountStr}
-            onChange={(e) => setAmountStr(maskCurrency(e.target.value))}
+            aria-invalid={!!fieldErrors.amount}
+            className={fieldErrors.amount ? fieldErrorClass : undefined}
+            onChange={(e) => {
+              setAmountStr(maskCurrency(e.target.value));
+              clearFieldError("amount");
+            }}
           />
+          <FieldError message={fieldErrors.amount} />
         </div>
         <div className="space-y-2">
           <Label>Vencimento *</Label>
           <Input
             type="date"
             value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
+            aria-invalid={!!fieldErrors.dueDate}
+            className={fieldErrors.dueDate ? fieldErrorClass : undefined}
+            onChange={(e) => {
+              setDueDate(e.target.value);
+              clearFieldError("dueDate");
+            }}
           />
+          <FieldError message={fieldErrors.dueDate} />
         </div>
       </div>
 
@@ -216,7 +268,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
                 <Select value={String(installments)} onValueChange={(v) => setInstallments(Number(v))}>
                   <SelectTrigger className={selectTriggerClass}><SelectValue /></SelectTrigger>
                   <SelectContent position="popper" className={dropdownContentClass}>
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                    {Array.from({ length: MAX_INSTALLMENTS }, (_, i) => i + 1).map((n) => (
                       <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
                     ))}
                   </SelectContent>

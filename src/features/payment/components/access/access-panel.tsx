@@ -48,6 +48,7 @@ import {
   useUpdatePaymentPermissions,
 } from "../../hooks/use-payment";
 import { toast } from "sonner";
+import { describePaymentError } from "../../lib/describe-error";
 import {
   PAYMENT_RESOURCES,
   PAYMENT_ACTIONS,
@@ -137,8 +138,8 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
           ? "Acesso revogado — mas será restabelecido no próximo acesso"
           : "Acesso revogado",
       );
-    } catch {
-      toast.error("Erro ao revogar acesso");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível revogar o acesso"));
     }
   }
 
@@ -146,8 +147,8 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
     try {
       await updateRole.mutateAsync({ userId, role });
       toast.success(`Role atualizada para ${ROLE_LABELS[role]}`);
-    } catch {
-      toast.error("Erro ao mudar role");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível alterar a role"));
     }
   }
 
@@ -166,8 +167,8 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
     };
     try {
       await updatePermissions.mutateAsync({ userId, permissions: next });
-    } catch {
-      toast.error("Erro ao atualizar permissões");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível atualizar as permissões"));
     }
   }
 
@@ -175,8 +176,8 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
     try {
       await updatePermissions.mutateAsync({ userId, permissions: null });
       toast.success("Permissões resetadas pro default da role");
-    } catch {
-      toast.error("Erro ao resetar permissões");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível resetar as permissões"));
     }
   }
 

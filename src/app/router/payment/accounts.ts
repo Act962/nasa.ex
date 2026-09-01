@@ -36,7 +36,8 @@ export const listPaymentAccounts = base
         orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
       });
       return { accounts };
-    } catch {
+    } catch (err) {
+      console.error("[payment/accounts/listPaymentAccounts]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -70,7 +71,8 @@ export const createPaymentAccount = base
         data: { ...input, organizationId: context.org.id },
       });
       return { account };
-    } catch {
+    } catch (err) {
+      console.error("[payment/accounts/createPaymentAccount]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -95,6 +97,12 @@ export const updatePaymentAccount = base
   }))
   .output(z.object({ account: accountShape }))
   .handler(async ({ input, context, errors }) => {
+    const exists = await prisma.paymentBankAccount.findFirst({
+      where: { id: input.id, organizationId: context.org.id },
+      select: { id: true },
+    });
+    if (!exists) throw errors.NOT_FOUND({ message: "Conta bancária não encontrada" });
+
     try {
       const { id, ...data } = input;
       if (data.isDefault) {
@@ -104,11 +112,12 @@ export const updatePaymentAccount = base
         });
       }
       const account = await prisma.paymentBankAccount.update({
-        where: { id, organizationId: context.org.id },
+        where: { id },
         data,
       });
       return { account };
-    } catch {
+    } catch (err) {
+      console.error("[payment/accounts/update]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -121,13 +130,20 @@ export const deletePaymentAccount = base
   .input(z.object({ id: z.string() }))
   .output(z.object({ ok: z.boolean() }))
   .handler(async ({ input, context, errors }) => {
+    const exists = await prisma.paymentBankAccount.findFirst({
+      where: { id: input.id, organizationId: context.org.id },
+      select: { id: true },
+    });
+    if (!exists) throw errors.NOT_FOUND({ message: "Conta bancária não encontrada" });
+
     try {
       await prisma.paymentBankAccount.update({
-        where: { id: input.id, organizationId: context.org.id },
+        where: { id: input.id },
         data: { isActive: false },
       });
       return { ok: true };
-    } catch {
+    } catch (err) {
+      console.error("[payment/accounts/delete]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });

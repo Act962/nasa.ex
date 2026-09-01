@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Landmark, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { describePaymentError } from "../../lib/describe-error";
 import {
   usePaymentAccounts,
   useCreatePaymentAccount,
@@ -69,8 +70,8 @@ export function AccountsTab() {
       setBankName("");
       setBalance("");
       toast.success("Conta criada!");
-    } catch {
-      toast.error("Erro ao criar conta");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível criar a conta"));
     }
   }
 
