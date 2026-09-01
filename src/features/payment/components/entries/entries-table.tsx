@@ -21,7 +21,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Pencil, Search, Plus } from "lucide-react";
+import { CheckCircle2, Pencil, Search, Plus, CalendarOff, X } from "lucide-react";
+import { useDebouncedValue } from "@/hooks/use-debounced";
+import {
+  PaymentPagination,
+  PaymentPaginationNav,
+  PAYMENT_PAGE_SIZE,
+  PAYMENT_SEARCH_DEBOUNCE_MS,
+} from "../shared/payment-pagination";
 import { EntryActionsMenu } from "./entry-actions-menu";
 import { DunningAssignDialog } from "../dunning/dunning-assign-dialog";
 import { DunningHistoryDrawer } from "../dunning/dunning-history-drawer";
@@ -42,9 +49,10 @@ import {
 } from "../../lib/format";
 import { EntryForm } from "./entry-form";
 import { toast } from "sonner";
+import { describePaymentError } from "../../lib/describe-error";
 import { usePaymentAccounts } from "../../hooks/use-payment";
 import {
-  usePaymentPeriod,
+  usePaymentPeriodIso,
   usePaymentCategoryFilter,
 } from "../../store/use-payment-filters-store";
 
@@ -59,6 +67,11 @@ type PaymentEntryRow = NonNullable<
 export function EntriesTable({ type }: EntriesTableProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [page, setPage] = useState(1);
+  // Busca fora do período: o filtro de data do módulo começa no mês corrente,
+  // então procurar por um lançamento antigo não devolvia nada. Com o termo
+  // digitado, o usuário pode estender a busca para todo o histórico.
+  const [searchAllPeriods, setSearchAllPeriods] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [payDialog, setPayDialog] = useState<{ id: string; amount: number } | null>(null);
   const [payAmount, setPayAmount] = useState("");
@@ -71,16 +84,45 @@ export function EntriesTable({ type }: EntriesTableProps) {
   const [assignDunning, setAssignDunning] = useState<{ id: string; ruleId: string | null; name: string } | null>(null);
   const [historyDunning, setHistoryDunning] = useState<{ id: string; name: string } | null>(null);
 
-  const period = usePaymentPeriod();
+  // Período em ISO (e não como `Date`): o seletor de `Date` devolve objetos
+  // novos a cada render, e o reset de página abaixo compara por valor.
+  const { dateFrom, dateTo } = usePaymentPeriodIso();
   const categoryIds = usePaymentCategoryFilter();
+  const categoryKey = categoryIds?.join(",") ?? "";
+
+  // A query só dispara com o termo estabilizado — digitar "aluguel" fazia
+  // sete requisições ao banco, uma por tecla.
+  const debouncedSearch = useDebouncedValue(search.trim(), PAYMENT_SEARCH_DEBOUNCE_MS);
+  const isSearching = debouncedSearch.length > 0;
+  const ignorePeriod = isSearching && searchAllPeriods;
+
+  // Qualquer mudança de filtro volta pra primeira página: continuar na página
+  // 4 de um resultado que agora tem 1 página mostra a lista vazia. O ajuste é
+  // em render (e não num efeito) pra não gerar um render extra com a página
+  // antiga — é o padrão recomendado pra derivar estado de outro estado.
+  const filterKey = [
+    debouncedSearch,
+    statusFilter,
+    categoryKey,
+    dateFrom,
+    dateTo,
+    ignorePeriod,
+  ].join("|");
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (filterKey !== lastFilterKey) {
+    setLastFilterKey(filterKey);
+    setPage(1);
+  }
 
   const { data, isLoading } = usePaymentEntries({
     type,
     categoryIds,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: (statusFilter as "PENDING_APPROVAL" | "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED") || undefined,
-    dateFrom: period.from?.toISOString(),
-    dateTo: period.to?.toISOString(),
+    dateFrom: ignorePeriod ? undefined : dateFrom,
+    dateTo: ignorePeriod ? undefined : dateTo,
+    page,
+    perPage: PAYMENT_PAGE_SIZE,
   });
 
   const { data: accountsData } = usePaymentAccounts();
@@ -94,8 +136,8 @@ export function EntriesTable({ type }: EntriesTableProps) {
       await createEntry.mutateAsync(formData);
       setShowForm(false);
       toast.success(type === "RECEIVABLE" ? "Receita criada!" : "Despesa criada!");
-    } catch {
-      toast.error("Erro ao criar lançamento");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível criar o lançamento"));
     }
   }
 
@@ -108,8 +150,8 @@ export function EntriesTable({ type }: EntriesTableProps) {
       setPayDialog(null);
       setPayAmount("");
       toast.success("Pagamento registrado!");
-    } catch {
-      toast.error("Erro ao registrar pagamento");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível registrar o pagamento"));
     }
   }
 
@@ -117,8 +159,8 @@ export function EntriesTable({ type }: EntriesTableProps) {
     try {
       await deleteEntry.mutateAsync({ id });
       toast.success("Lançamento cancelado");
-    } catch {
-      toast.error("Erro ao cancelar");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível cancelar o lançamento"));
     }
   }
 
@@ -126,8 +168,8 @@ export function EntriesTable({ type }: EntriesTableProps) {
     try {
       await removeEntry.mutateAsync({ id });
       toast.success("Lançamento excluído");
-    } catch {
-      toast.error("Erro ao excluir");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível excluir o lançamento"));
     }
   }
 
@@ -152,12 +194,21 @@ export function EntriesTable({ type }: EntriesTableProps) {
   }
 
   const entries = data?.entries ?? [];
+  const totalEntries = data?.total ?? 0;
   const typeLabel = type === "RECEIVABLE" ? "Receita" : "Despesa";
   const color = type === "RECEIVABLE" ? "text-green-400" : "text-red-400";
 
-  const totalPending = entries
-    .filter((e) => ["PENDING", "PARTIAL", "OVERDUE"].includes(e.status))
-    .reduce((s, e) => s + e.amount, 0);
+  // Vem agregado do servidor: somar só a página mostraria um "Total pendente"
+  // diferente a cada troca de página.
+  const totalPending = data?.totals.pendingAmount ?? 0;
+  const totalAmount = data?.totals.amount ?? 0;
+
+  // Sem resultado durante uma busca restrita ao período, o motivo mais provável
+  // é o próprio período — o vazio precisa dizer isso, não só "não encontrado".
+  const emptyMessage =
+    isSearching && !searchAllPeriods
+      ? "Nada encontrado no período selecionado — use \"Buscar em todo o histórico\"."
+      : "Nenhum lançamento encontrado";
 
   return (
     <div className="space-y-4">
@@ -181,11 +232,21 @@ export function EntriesTable({ type }: EntriesTableProps) {
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            className="h-9 pl-9 text-sm"
-            placeholder="Buscar..."
+            className="h-9 pl-9 pr-8 text-sm"
+            placeholder="Buscar descrição, contato, documento..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              aria-label="Limpar busca"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
@@ -198,7 +259,32 @@ export function EntriesTable({ type }: EntriesTableProps) {
               <option key={k} value={k}>{v}</option>
             ))}
           </select>
+
+          {isSearching && (
+            <Button
+              type="button"
+              variant={searchAllPeriods ? "secondary" : "outline"}
+              size="sm"
+              className="h-9 gap-1.5 text-xs"
+              onClick={() => setSearchAllPeriods((current) => !current)}
+              title="Procura também fora do período selecionado na barra de filtros"
+            >
+              <CalendarOff className="size-3.5" />
+              {searchAllPeriods ? "Todo o histórico" : "Buscar em todo o histórico"}
+            </Button>
+          )}
         </div>
+
+        {/* Mesma navegação do rodapé, pra não precisar rolar a lista inteira
+            só pra virar de página. */}
+        <PaymentPaginationNav
+          page={page}
+          total={totalEntries}
+          perPage={PAYMENT_PAGE_SIZE}
+          onPageChange={setPage}
+          isLoading={isLoading}
+          className="sm:ml-auto"
+        />
       </div>
 
       {/* Lista em cards — mobile. A tabela larga vira scroll horizontal e
@@ -210,7 +296,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
           </p>
         ) : entries.length === 0 ? (
           <p className="py-12 text-center text-sm text-muted-foreground">
-            Nenhum lançamento encontrado
+            {emptyMessage}
           </p>
         ) : (
           entries.map((entry) => (
@@ -323,7 +409,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
               ) : entries.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-muted-foreground text-sm">
-                    Nenhum lançamento encontrado
+                    {emptyMessage}
                   </td>
                 </tr>
               ) : entries.map((entry) => (
@@ -385,15 +471,25 @@ export function EntriesTable({ type }: EntriesTableProps) {
         </div>
       </div>
 
-      {/* Total */}
-      {entries.length > 0 && (
-        <div className="flex justify-between text-sm px-1">
-          <span className="text-muted-foreground">{data?.total ?? entries.length} lançamentos</span>
-          <span className="font-semibold">
-            Total: <span className={color}>{formatCurrency(entries.reduce((s, e) => s + e.amount, 0))}</span>
-          </span>
-        </div>
-      )}
+      {/* Total do filtro + navegação entre páginas */}
+      <div className="space-y-2">
+        {entries.length > 0 && (
+          <div className="flex justify-end px-1 text-sm">
+            <span className="font-semibold">
+              Total do filtro:{" "}
+              <span className={color}>{formatCurrency(totalAmount)}</span>
+            </span>
+          </div>
+        )}
+        <PaymentPagination
+          page={page}
+          total={totalEntries}
+          perPage={PAYMENT_PAGE_SIZE}
+          onPageChange={setPage}
+          itemLabel="lançamento"
+          isLoading={isLoading}
+        />
+      </div>
 
       {/* Create Entry Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>

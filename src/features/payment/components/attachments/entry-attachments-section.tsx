@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Download, Eye, Trash2, FileText, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
+import { describePaymentError } from "../../lib/describe-error";
 import {
   useEntryAttachments,
   useDeletePaymentAttachment,
@@ -88,7 +89,10 @@ export function EntryAttachmentsSection({ entryId }: EntryAttachmentsSectionProp
                       { id: attachment.id },
                       {
                         onSuccess: () => toast.success("Anexo excluído"),
-                        onError: () => toast.error("Erro ao excluir o anexo"),
+                        onError: (error) =>
+                          toast.error(
+                            describePaymentError(error, "Não foi possível excluir o anexo"),
+                          ),
                       },
                     )
                   }

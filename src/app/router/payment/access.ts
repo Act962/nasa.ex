@@ -41,7 +41,8 @@ function getRpIdAndOrigin(): { rpID: string; origin: string } {
   try {
     const parsed = new URL(url);
     return { rpID: parsed.hostname, origin: parsed.origin };
-  } catch {
+  } catch (err) {
+    console.error("[payment/access/access]", err);
     return { rpID: "localhost", origin: "http://localhost:3000" };
   }
 }

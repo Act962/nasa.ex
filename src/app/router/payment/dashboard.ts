@@ -359,7 +359,8 @@ export const getCashflow = base
         });
 
       return { rows };
-    } catch {
+    } catch (err) {
+      console.error("[payment/dashboard/getCashflow]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });

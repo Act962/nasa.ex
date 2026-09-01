@@ -24,7 +24,15 @@ import {
   usePaymentContacts,
 } from "../../hooks/use-payment";
 import { formatCurrency, parseCurrencyToCents } from "../../lib/format";
+import { toDateInputValue } from "../../lib/dates";
+import { describePaymentError } from "../../lib/describe-error";
+import {
+  entryEditSchema,
+  toFieldErrors,
+  type EntryFieldErrors,
+} from "../../schemas/entry-form-schema";
 import { EntryAttachmentsSection } from "../attachments/entry-attachments-section";
+import { FieldError, fieldErrorClass } from "../shared/field-error";
 import { toast } from "sonner";
 
 interface EditableEntry {
@@ -45,10 +53,6 @@ interface EntryEditDialogProps {
 
 const NONE = "__none__";
 
-function toDateInputValue(date: string | Date): string {
-  return new Date(date).toISOString().slice(0, 10);
-}
-
 export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
   const [description, setDescription] = useState("");
   const [amountStr, setAmountStr] = useState("");
@@ -56,7 +60,14 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
   const [categoryId, setCategoryId] = useState<string>(NONE);
   const [contactId, setContactId] = useState<string>(NONE);
   const [notes, setNotes] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<EntryFieldErrors>({});
   const updateEntry = useUpdatePaymentEntry();
+
+  function clearFieldError(field: keyof EntryFieldErrors) {
+    setFieldErrors((current) =>
+      current[field] ? { ...current, [field]: undefined } : current,
+    );
+  }
 
   const { data: categoriesData } = usePaymentCategories(
     entry?.type === "PAYABLE" ? "EXPENSE" : "REVENUE",
@@ -72,28 +83,39 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
     setCategoryId(entry.categoryId ?? NONE);
     setContactId(entry.contactId ?? NONE);
     setNotes(entry.notes ?? "");
+    setFieldErrors({});
   }, [entry]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!entry) return;
-    if (!description.trim()) return toast.error("Descrição obrigatória");
-    const amount = parseCurrencyToCents(amountStr);
-    if (!amount) return toast.error("Valor inválido");
+
+    const parsed = entryEditSchema.safeParse({
+      description,
+      amount: parseCurrencyToCents(amountStr),
+      dueDate,
+    });
+
+    if (!parsed.success) {
+      setFieldErrors(toFieldErrors(parsed.error));
+      return;
+    }
+
+    setFieldErrors({});
     try {
       await updateEntry.mutateAsync({
         id: entry.id,
-        description,
-        amount,
-        dueDate,
+        description: parsed.data.description,
+        amount: parsed.data.amount,
+        dueDate: parsed.data.dueDate,
         categoryId: categoryId === NONE ? null : categoryId,
         contactId: contactId === NONE ? null : contactId,
         notes: notes.trim() ? notes : null,
       });
       toast.success("Lançamento atualizado");
       onClose();
-    } catch {
-      toast.error("Erro ao atualizar lançamento");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível atualizar o lançamento"));
     }
   }
 
@@ -110,9 +132,15 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
             <Label>Descrição *</Label>
             <Input
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              aria-invalid={!!fieldErrors.description}
+              className={fieldErrors.description ? fieldErrorClass : undefined}
+              onChange={(event) => {
+                setDescription(event.target.value);
+                clearFieldError("description");
+              }}
               autoFocus
             />
+            <FieldError message={fieldErrors.description} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -121,16 +149,28 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
               <Input
                 placeholder="R$ 0,00"
                 value={amountStr}
-                onChange={(event) => setAmountStr(event.target.value)}
+                aria-invalid={!!fieldErrors.amount}
+                className={fieldErrors.amount ? fieldErrorClass : undefined}
+                onChange={(event) => {
+                  setAmountStr(event.target.value);
+                  clearFieldError("amount");
+                }}
               />
+              <FieldError message={fieldErrors.amount} />
             </div>
             <div className="space-y-2">
               <Label>Vencimento *</Label>
               <Input
                 type="date"
                 value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
+                aria-invalid={!!fieldErrors.dueDate}
+                className={fieldErrors.dueDate ? fieldErrorClass : undefined}
+                onChange={(event) => {
+                  setDueDate(event.target.value);
+                  clearFieldError("dueDate");
+                }}
               />
+              <FieldError message={fieldErrors.dueDate} />
             </div>
           </div>
 

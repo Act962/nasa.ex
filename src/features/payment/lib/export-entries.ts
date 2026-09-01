@@ -1,6 +1,6 @@
 // Exportação CSV dos lançamentos do período — separador ";" e BOM UTF-8
 // porque o Excel em pt-BR abre assim sem quebrar acento nem juntar colunas.
-import { formatDate, STATUS_LABELS } from "./format";
+import { formatDate, formatTimestampDate, STATUS_LABELS } from "./format";
 
 export type ExportableEntry = {
   type: "RECEIVABLE" | "PAYABLE";
@@ -43,7 +43,7 @@ export function buildEntriesCsv(entries: ExportableEntry[]): string {
     toDecimal(entry.amount),
     formatDate(entry.dueDate),
     STATUS_LABELS[entry.status] ?? entry.status,
-    entry.paidAt ? formatDate(entry.paidAt) : "",
+    entry.paidAt ? formatTimestampDate(entry.paidAt) : "",
     toDecimal(entry.paidAmount),
   ]);
 

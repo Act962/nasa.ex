@@ -34,6 +34,7 @@ import {
   Unlink,
 } from "lucide-react";
 import { toast } from "sonner";
+import { describePaymentError } from "../../lib/describe-error";
 import {
   usePaymentAttachments,
   useUpdatePaymentAttachment,
@@ -47,8 +48,12 @@ import {
   formatFileSize,
   type PaymentAttachmentKind,
 } from "../../lib/attachments";
-import { formatCurrency, formatDate } from "../../lib/format";
+import { formatCurrency, formatTimestampDate } from "../../lib/format";
 import { cn } from "@/lib/utils";
+import {
+  PaymentPagination,
+  PaymentPaginationNav,
+} from "../shared/payment-pagination";
 
 const PER_PAGE = 24;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -114,7 +119,6 @@ export function DocumentsTab() {
 
   const attachments = data?.attachments ?? [];
   const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
   const hasActiveFilters = useMemo(
     () => !!search || kind !== "all" || linkage !== "all" || !!dateFrom || !!dateTo,
@@ -136,7 +140,8 @@ export function DocumentsTab() {
       { id: attachmentId },
       {
         onSuccess: () => toast.success("Documento excluído"),
-        onError: () => toast.error("Erro ao excluir o documento"),
+        onError: (error) =>
+          toast.error(describePaymentError(error, "Não foi possível excluir o documento")),
       },
     );
   }
@@ -157,7 +162,8 @@ export function DocumentsTab() {
           toast.success("Documento atualizado");
           setEditing(null);
         },
-        onError: () => toast.error("Erro ao atualizar o documento"),
+        onError: (error) =>
+          toast.error(describePaymentError(error, "Não foi possível atualizar o documento")),
       },
     );
   }
@@ -171,9 +177,18 @@ export function DocumentsTab() {
             Notas, boletos, recibos e comprovantes anexados aos lançamentos.
           </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          {isLoading ? "Carregando…" : `${total} ${total === 1 ? "documento" : "documentos"}`}
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-muted-foreground">
+            {isLoading ? "Carregando…" : `${total} ${total === 1 ? "documento" : "documentos"}`}
+          </p>
+          <PaymentPaginationNav
+            page={page}
+            total={total}
+            perPage={PER_PAGE}
+            onPageChange={setPage}
+            isLoading={isLoading}
+          />
+        </div>
       </div>
 
       <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -301,7 +316,7 @@ export function DocumentsTab() {
                     {attachment.fileName}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {formatFileSize(attachment.sizeBytes)} · {formatDate(attachment.createdAt)}
+                    {formatFileSize(attachment.sizeBytes)} · {formatTimestampDate(attachment.createdAt)}
                     {attachment.uploadedBy?.name ? ` · ${attachment.uploadedBy.name}` : ""}
                   </p>
                 </div>
@@ -389,31 +404,14 @@ export function DocumentsTab() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t pt-3">
-          <p className="text-xs text-muted-foreground">
-            Página {page} de {totalPages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((current) => current - 1)}
-            >
-              Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage((current) => current + 1)}
-            >
-              Próxima
-            </Button>
-          </div>
-        </div>
-      )}
+      <PaymentPagination
+        page={page}
+        total={total}
+        perPage={PER_PAGE}
+        onPageChange={setPage}
+        itemLabel="documento"
+        isLoading={isLoading}
+      />
 
       <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
         <DialogContent className="max-w-md">
