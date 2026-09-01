@@ -6,6 +6,11 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { randomUUID } from "crypto";
+import {
+  addCalendarMonths,
+  isValidDateValue,
+  parseCalendarDate,
+} from "@/features/payment/lib/dates";
 
 const entryShape = z.object({
   id: z.string(),
@@ -54,6 +59,14 @@ const entryShape = z.object({
     .nullable(),
 });
 
+/** Centavos → "R$ 1.500,00". Os valores do módulo são sempre inteiros em centavos. */
+function formatCents(cents: number): string {
+  return (cents / 100).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
 const entryInclude = {
   category: { select: { id: true, name: true, type: true, color: true } },
   contact: { select: { id: true, name: true, contactType: true } },
@@ -101,6 +114,14 @@ export const listPaymentEntries = base
   .output(z.object({
     entries: z.array(entryShape),
     total: z.number(),
+    // Somatórios do filtro inteiro, não só da página devolvida — a tela mostra
+    // "Total pendente" no cabeçalho e somar apenas a página daria um número
+    // que muda ao virar de página.
+    totals: z.object({
+      amount: z.number(),
+      paidAmount: z.number(),
+      pendingAmount: z.number(),
+    }),
   }))
   .handler(async ({ input, context, errors }) => {
     try {
@@ -119,7 +140,20 @@ export const listPaymentEntries = base
         ...(input.accountId ? { accountId: input.accountId } : {}),
         ...(input.leadId ? { leadId: input.leadId } : {}),
         ...(input.trackingId ? { trackingId: input.trackingId } : {}),
-        ...(input.search ? { description: { contains: input.search, mode: "insensitive" as const } } : {}),
+        // A busca cobre os campos que o usuário enxerga na linha — antes só
+        // olhava `description`, e procurar pelo nome do contato ou pelo número
+        // do documento não devolvia nada.
+        ...(input.search
+          ? {
+              OR: [
+                { description: { contains: input.search, mode: "insensitive" as const } },
+                { documentNumber: { contains: input.search, mode: "insensitive" as const } },
+                { notes: { contains: input.search, mode: "insensitive" as const } },
+                { contact: { name: { contains: input.search, mode: "insensitive" as const } } },
+                { category: { name: { contains: input.search, mode: "insensitive" as const } } },
+              ],
+            }
+          : {}),
         ...(input.dateFrom || input.dateTo
           ? {
               dueDate: {
@@ -137,7 +171,9 @@ export const listPaymentEntries = base
             }
           : {}),
       };
-      const [entries, total] = await Promise.all([
+      const PENDING_STATUSES = ["PENDING", "PARTIAL", "OVERDUE"] as const;
+
+      const [entries, total, amountAggregate, pendingAggregate] = await Promise.all([
         prisma.paymentEntry.findMany({
           where,
           include: entryInclude,
@@ -146,9 +182,27 @@ export const listPaymentEntries = base
           take: input.perPage,
         }),
         prisma.paymentEntry.count({ where }),
+        prisma.paymentEntry.aggregate({ where, _sum: { amount: true, paidAmount: true } }),
+        // AND (em vez de espalhar `where`): se o usuário já filtrou por um
+        // status, o somatório precisa respeitar esse filtro em vez de
+        // sobrescrevê-lo.
+        prisma.paymentEntry.aggregate({
+          where: { AND: [where, { status: { in: [...PENDING_STATUSES] } }] },
+          _sum: { amount: true },
+        }),
       ]);
-      return { entries, total };
-    } catch {
+
+      return {
+        entries,
+        total,
+        totals: {
+          amount: amountAggregate._sum.amount ?? 0,
+          paidAmount: amountAggregate._sum.paidAmount ?? 0,
+          pendingAmount: pendingAggregate._sum.amount ?? 0,
+        },
+      };
+    } catch (err) {
+      console.error("[payment/entries list]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -189,7 +243,8 @@ export const listRecentEntryDescriptions = base
       }
 
       return { descriptions };
-    } catch {
+    } catch (err) {
+      console.error("[payment/entries recentDescriptions]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -201,9 +256,11 @@ export const createPaymentEntry = base
   .route({ method: "POST", summary: "Create payment entry", tags: ["Payment"] })
   .input(z.object({
     type: z.enum(["RECEIVABLE", "PAYABLE"]),
-    description: z.string(),
-    amount: z.number(),
-    dueDate: z.string(),
+    // Validado aqui além do formulário: a procedure também é chamada pelo
+    // painel de orçamento do chat, e um 500 genérico escondia a causa.
+    description: z.string().trim().min(1, "Informe uma descrição"),
+    amount: z.number().int().positive("O valor precisa ser maior que zero"),
+    dueDate: z.string().refine(isValidDateValue, "Data de vencimento inválida"),
     categoryId: z.string().optional(),
     costCenterId: z.string().optional(),
     contactId: z.string().optional(),
@@ -214,8 +271,8 @@ export const createPaymentEntry = base
     leadId: z.string().optional(),
     notes: z.string().optional(),
     documentNumber: z.string().optional(),
-    competenceDate: z.string().optional(),
-    installments: z.number().default(1),
+    competenceDate: z.string().refine(isValidDateValue, "Data de competência inválida").optional(),
+    installments: z.number().int().min(1).max(12).default(1),
     isRecurring: z.boolean().default(false),
     recurrenceType: z.string().optional(),
     // Chave S3/R2 do anexo original (PDF/imagem do orçamento) — preenchido
@@ -239,7 +296,9 @@ export const createPaymentEntry = base
     try {
       const { installments, dueDate, competenceDate, requiresApproval, dunningRuleId, attachmentIds, ...rest } = input;
       const groupId = installments > 1 ? randomUUID() : undefined;
-      const baseDate = new Date(dueDate);
+      // Meio-dia UTC: "2026-09-01" virava meia-noite UTC e o vencimento
+      // aparecia em 31/08 pra quem está em fuso negativo. Ver lib/dates.ts.
+      const baseDate = parseCalendarDate(dueDate);
 
       // ── Decide se cada parcela nasce em PENDING_APPROVAL ────────────────
       // O trigger considera a config global (PaymentGovernanceConfig) +
@@ -261,15 +320,14 @@ export const createPaymentEntry = base
       );
 
       const data = Array.from({ length: installments }, (_, i) => {
-        const due = new Date(baseDate);
-        due.setMonth(due.getMonth() + i);
+        const due = addCalendarMonths(baseDate, i);
         const trigger = triggers[i];
         return {
           ...rest,
           organizationId: context.org.id,
           createdById: context.user.id,
           dueDate: due,
-          competenceDate: competenceDate ? new Date(competenceDate) : null,
+          competenceDate: competenceDate ? parseCalendarDate(competenceDate) : null,
           installmentTotal: installments > 1 ? installments : null,
           installmentCurrent: installments > 1 ? i + 1 : null,
           installmentGroupId: groupId ?? null,
@@ -411,9 +469,9 @@ export const updatePaymentEntry = base
   .route({ method: "PATCH", summary: "Update payment entry", tags: ["Payment"] })
   .input(z.object({
     id: z.string(),
-    description: z.string().optional(),
-    amount: z.number().optional(),
-    dueDate: z.string().optional(),
+    description: z.string().trim().min(1, "Informe uma descrição").optional(),
+    amount: z.number().int().positive("O valor precisa ser maior que zero").optional(),
+    dueDate: z.string().refine(isValidDateValue, "Data de vencimento inválida").optional(),
     status: z.enum(["PENDING_APPROVAL", "PENDING", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"]).optional(),
     paidAmount: z.number().optional(),
     paidAt: z.string().nullable().optional(),
@@ -426,19 +484,31 @@ export const updatePaymentEntry = base
   }))
   .output(z.object({ entry: entryShape }))
   .handler(async ({ input, context, errors }) => {
+    const { id, dueDate, paidAt, ...data } = input;
+
+    // Checa antes de atualizar: sem isso, uma entry de outra organização (ou
+    // já excluída) caía no catch e virava "Something went wrong".
+    const existing = await prisma.paymentEntry.findFirst({
+      where: { id, organizationId: context.org.id },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw errors.NOT_FOUND({ message: "Lançamento não encontrado" });
+    }
+
     try {
-      const { id, dueDate, paidAt, ...data } = input;
       const entry = await prisma.paymentEntry.update({
-        where: { id, organizationId: context.org.id },
+        where: { id },
         data: {
           ...data,
-          ...(dueDate ? { dueDate: new Date(dueDate) } : {}),
+          ...(dueDate ? { dueDate: parseCalendarDate(dueDate) } : {}),
           ...(paidAt !== undefined ? { paidAt: paidAt ? new Date(paidAt) : null } : {}),
         },
         include: entryInclude,
       });
       return { entry };
-    } catch {
+    } catch (err) {
+      console.error("[payment/entries update]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -450,18 +520,38 @@ export const payPaymentEntry = base
   .route({ method: "POST", summary: "Pay payment entry", tags: ["Payment"] })
   .input(z.object({
     id: z.string(),
-    paidAmount: z.number(),
+    paidAmount: z.number().int().positive("O valor pago precisa ser maior que zero"),
     paidAt: z.string().optional(),
     accountId: z.string().optional(),
   }))
   .output(z.object({ entry: entryShape }))
   .handler(async ({ input, context, errors }) => {
-    try {
-      const existing = await prisma.paymentEntry.findFirst({
-        where: { id: input.id, organizationId: context.org.id },
+    // Fora do try de propósito: antes o `throw errors.NOT_FOUND` estava dentro
+    // dele e o próprio catch o convertia em INTERNAL_SERVER_ERROR — o usuário
+    // via "erro ao registrar pagamento" no lugar de "lançamento não encontrado".
+    const existing = await prisma.paymentEntry.findFirst({
+      where: { id: input.id, organizationId: context.org.id },
+    });
+    if (!existing) {
+      throw errors.NOT_FOUND({ message: "Lançamento não encontrado" });
+    }
+    if (existing.status === "CANCELLED") {
+      throw errors.BAD_REQUEST({
+        message: "Lançamento cancelado não aceita pagamento",
       });
-      if (!existing) throw errors.NOT_FOUND;
+    }
 
+    const remaining = existing.amount - existing.paidAmount;
+    if (remaining <= 0) {
+      throw errors.BAD_REQUEST({ message: "Lançamento já está quitado" });
+    }
+    if (input.paidAmount > remaining) {
+      throw errors.BAD_REQUEST({
+        message: `Valor acima do saldo devedor (${formatCents(remaining)})`,
+      });
+    }
+
+    try {
       const newPaid = existing.paidAmount + input.paidAmount;
       const status = newPaid >= existing.amount ? "PAID" : "PARTIAL";
 
@@ -487,15 +577,16 @@ export const payPaymentEntry = base
         featureKey: status === "PAID" ? "payment.entry.paid" : "payment.entry.partial",
         action: status === "PAID" ? "payment.entry.paid" : "payment.entry.partial",
         actionLabel: status === "PAID"
-          ? `Quitou "${entry.description}" (R$ ${input.paidAmount.toFixed(2)})`
-          : `Recebeu parcial em "${entry.description}" (R$ ${input.paidAmount.toFixed(2)})`,
+          ? `Quitou "${entry.description}" (${formatCents(input.paidAmount)})`
+          : `Recebeu parcial em "${entry.description}" (${formatCents(input.paidAmount)})`,
         resource: entry.description,
         resourceId: entry.id,
         metadata: { paidAmount: input.paidAmount, totalPaid: newPaid, totalAmount: existing.amount, type: existing.type },
       });
 
       return { entry };
-    } catch {
+    } catch (err) {
+      console.error("[payment/entries pay]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -508,13 +599,25 @@ export const deletePaymentEntry = base
   .input(z.object({ id: z.string() }))
   .output(z.object({ ok: z.boolean() }))
   .handler(async ({ input, context, errors }) => {
+    const existing = await prisma.paymentEntry.findFirst({
+      where: { id: input.id, organizationId: context.org.id },
+      select: { id: true, status: true },
+    });
+    if (!existing) {
+      throw errors.NOT_FOUND({ message: "Lançamento não encontrado" });
+    }
+    if (existing.status === "CANCELLED") {
+      throw errors.BAD_REQUEST({ message: "Lançamento já está cancelado" });
+    }
+
     try {
       await prisma.paymentEntry.update({
-        where: { id: input.id, organizationId: context.org.id },
+        where: { id: input.id },
         data: { status: "CANCELLED" },
       });
       return { ok: true };
-    } catch {
+    } catch (err) {
+      console.error("[payment/entries cancel]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -534,7 +637,9 @@ export const removePaymentEntry = base
     const existing = await prisma.paymentEntry.findFirst({
       where: { id: input.id, organizationId: context.org.id },
     });
-    if (!existing) throw errors.NOT_FOUND;
+    if (!existing) {
+      throw errors.NOT_FOUND({ message: "Lançamento não encontrado" });
+    }
 
     try {
       await prisma.paymentEntry.delete({
@@ -551,14 +656,15 @@ export const removePaymentEntry = base
         subAppSlug: "payment-entries",
         featureKey: "payment.entry.deleted",
         action: "payment.entry.deleted",
-        actionLabel: `Excluiu "${existing.description}" (R$ ${(existing.amount / 100).toFixed(2)})`,
+        actionLabel: `Excluiu "${existing.description}" (${formatCents(existing.amount)})`,
         resource: existing.description,
         resourceId: existing.id,
         metadata: { amount: existing.amount, type: existing.type },
       });
 
       return { ok: true };
-    } catch {
+    } catch (err) {
+      console.error("[payment/entries remove]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });

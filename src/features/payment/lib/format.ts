@@ -1,3 +1,5 @@
+import { formatCalendarDate } from "./dates";
+
 /** Formata centavos para R$ */
 export function formatCurrency(cents: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -47,10 +49,21 @@ export function variationBetween(current: number, previous: number): Variation {
   return { percent: Math.abs(percent), direction: percent > 0 ? "up" : "down" };
 }
 
-/** Formata data ISO para DD/MM/YYYY */
+/**
+ * Data de calendário (vencimento, competência) como DD/MM/YYYY.
+ * Lê em UTC — ver `lib/dates.ts` para o porquê.
+ */
 export function formatDate(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleDateString("pt-BR");
+  return formatCalendarDate(date);
+}
+
+/**
+ * Data de um instante real (pagamento, criação) no fuso de quem lê. Diferente
+ * de `formatDate`: aqui a hora existe e o fuso local é a leitura certa.
+ */
+export function formatTimestampDate(date: Date | string): string {
+  const parsed = typeof date === "string" ? new Date(date) : date;
+  return parsed.toLocaleDateString("pt-BR");
 }
 
 /** "Hoje, 10:30" / "Ontem, 09:15" / "28/05/2026" — usado no feed de transações */
@@ -69,7 +82,7 @@ export function formatRelativeDateTime(date: Date | string): string {
 
   if (daysApart === 0) return `Hoje, ${time}`;
   if (daysApart === 1) return `Ontem, ${time}`;
-  return formatDate(target);
+  return formatTimestampDate(target);
 }
 
 /** Status label */
@@ -126,6 +139,6 @@ export function maskCurrency(value: string): string {
 /** Verifica se uma data está vencida */
 export function isOverdue(dueDate: Date | string, status: string): boolean {
   if (status === "PAID" || status === "CANCELLED") return false;
-  const d = typeof dueDate === "string" ? new Date(dueDate) : dueDate;
-  return d < new Date();
+  const parsed = typeof dueDate === "string" ? new Date(dueDate) : dueDate;
+  return parsed < new Date();
 }
