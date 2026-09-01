@@ -23,6 +23,9 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, X } from "lucide-react";
 import { usePaymentEntries } from "../../hooks/use-payment";
 import { formatCurrency } from "../../lib/format";
+import { PaymentPagination } from "../shared/payment-pagination";
+
+const KPI_PER_PAGE = 50;
 
 type EntryStatus =
   | "PENDING_APPROVAL"
@@ -79,14 +82,34 @@ export function KpiEntriesDialog({
   useSumOfPaid?: boolean;
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+
+  // Reabrir o dialog precisa voltar pra primeira página — senão o usuário cai
+  // numa página que talvez nem exista no novo filtro.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setPage(1);
+  }
 
   const { data, isLoading } = usePaymentEntries({
     ...filter,
-    perPage: 200,
+    page,
+    perPage: KPI_PER_PAGE,
     enabled: open,
   });
 
   const entries = data?.entries ?? [];
+  const totalEntries = data?.total ?? 0;
+
+  // A seleção vale para a página aberta: o rodapé soma os lançamentos
+  // carregados, então manter marcações de outra página faria a contagem e o
+  // valor discordarem.
+  const [lastPage, setLastPage] = useState(page);
+  if (page !== lastPage) {
+    setLastPage(page);
+    setSelectedIds(new Set());
+  }
 
   function toggleAll() {
     setSelectedIds((prev) =>
@@ -112,12 +135,11 @@ export function KpiEntriesDialog({
       );
   }, [entries, selectedIds, useSumOfPaid]);
 
-  const totalSum = useMemo(() => {
-    return entries.reduce(
-      (acc, entry) => acc + (useSumOfPaid ? entry.paidAmount : entry.amount),
-      0,
-    );
-  }, [entries, useSumOfPaid]);
+  // Agregado no servidor: antes somava só os lançamentos carregados e o
+  // "Total do filtro" ficava menor que o KPI que abriu o dialog.
+  const totalSum = useSumOfPaid
+    ? (data?.totals.paidAmount ?? 0)
+    : (data?.totals.amount ?? 0);
 
   const allSelected = entries.length > 0 && selectedIds.size === entries.length;
 
@@ -134,7 +156,7 @@ export function KpiEntriesDialog({
           <DialogTitle className="flex items-center gap-2">
             <span>{title}</span>
             <Badge variant="outline" className="text-[10px]">
-              {entries.length} {entries.length === 1 ? "lançamento" : "lançamentos"}
+              {totalEntries} {totalEntries === 1 ? "lançamento" : "lançamentos"}
             </Badge>
           </DialogTitle>
         </DialogHeader>
@@ -219,6 +241,15 @@ export function KpiEntriesDialog({
             </tbody>
           </table>
         </div>
+
+        <PaymentPagination
+          page={page}
+          total={totalEntries}
+          perPage={KPI_PER_PAGE}
+          onPageChange={setPage}
+          itemLabel="lançamento"
+          isLoading={isLoading}
+        />
 
         <div className="flex items-center justify-between gap-4 px-1 pt-2 border-t border-border/40">
           <div className="text-xs text-muted-foreground">

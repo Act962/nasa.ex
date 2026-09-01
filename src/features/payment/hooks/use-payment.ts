@@ -139,16 +139,44 @@ export function useRecentEntryDescriptions(
 /**
  * Busca sob demanda (não em render) os lançamentos de um período — usado pelo
  * botão "Exportar" do painel, que só precisa dos dados no clique.
+ *
+ * Percorre todas as páginas: antes parava na primeira (500 registros) e o CSV
+ * saía truncado sem avisar quem exportou.
  */
+const EXPORT_PAGE_SIZE = 500;
+const EXPORT_MAX_PAGES = 40;
+
 export function useExportPaymentEntries() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { dateFrom?: string; dateTo?: string; categoryIds?: string[] }) =>
-      qc.fetchQuery(
+    mutationFn: async (input: {
+      dateFrom?: string;
+      dateTo?: string;
+      categoryIds?: string[];
+    }) => {
+      const firstPage = await qc.fetchQuery(
         orpc.payment.entries.list.queryOptions({
-          input: { ...input, page: 1, perPage: 500 },
+          input: { ...input, page: 1, perPage: EXPORT_PAGE_SIZE },
         }),
-      ),
+      );
+
+      const entries = [...firstPage.entries];
+      for (
+        let page = 2;
+        entries.length < firstPage.total && page <= EXPORT_MAX_PAGES;
+        page++
+      ) {
+        const nextPage = await qc.fetchQuery(
+          orpc.payment.entries.list.queryOptions({
+            input: { ...input, page, perPage: EXPORT_PAGE_SIZE },
+          }),
+        );
+        if (nextPage.entries.length === 0) break;
+        entries.push(...nextPage.entries);
+      }
+
+      return { entries, total: firstPage.total };
+    },
   });
 }
 
@@ -276,9 +304,20 @@ export function useExternalContacts(search?: string) {
 
 // ── Contacts ─────────────────────────────────────────────────────────────────
 
-export function usePaymentContacts(search?: string, contactType?: string) {
+export function usePaymentContacts(
+  search?: string,
+  contactType?: string,
+  pagination?: { page?: number; perPage?: number },
+) {
   return useQuery(
-    orpc.payment.contacts.list.queryOptions({ input: { search, contactType } })
+    orpc.payment.contacts.list.queryOptions({
+      input: {
+        search,
+        contactType,
+        ...(pagination?.page ? { page: pagination.page } : {}),
+        ...(pagination?.perPage ? { perPage: pagination.perPage } : {}),
+      },
+    }),
   );
 }
 

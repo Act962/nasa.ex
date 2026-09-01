@@ -55,8 +55,16 @@ import {
 } from "../../hooks/use-payment";
 import { CONTACT_TYPE_LABELS } from "../../lib/format";
 import { toast } from "sonner";
+import { describePaymentError } from "../../lib/describe-error";
 import { cn } from "@/lib/utils";
 import { validateCNPJ, validateCPF } from "@/utils/validate-data";
+import { useDebouncedValue } from "@/hooks/use-debounced";
+import {
+  PaymentPagination,
+  PaymentPaginationNav,
+  PAYMENT_PAGE_SIZE,
+  PAYMENT_SEARCH_DEBOUNCE_MS,
+} from "../shared/payment-pagination";
 
 // ── CPF/CNPJ validation ───────────────────────────────────────────────────────
 
@@ -105,17 +113,6 @@ function maskPhone(value: string): string {
 
 type DocStatus = "idle" | "valid" | "invalid" | "loading";
 
-// ── Debounce hook (inline) ────────────────────────────────────────────────────
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState<T>(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
-}
-
 // ── External contact type ─────────────────────────────────────────────────────
 
 interface ExternalContact {
@@ -137,7 +134,7 @@ function ImportCombobox({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const debouncedQuery = useDebounce(query, 300);
+  const debouncedQuery = useDebouncedValue(query, 300);
   const ref = useRef<HTMLDivElement>(null);
 
   const { data, isFetching } = useExternalContacts(debouncedQuery || undefined);
@@ -237,7 +234,7 @@ function DocumentInput({
 }) {
   const [status, setStatus] = useState<DocStatus>("idle");
   const digits = value.replace(/\D/g, "");
-  const debouncedDigits = useDebounce(digits, 600);
+  const debouncedDigits = useDebouncedValue(digits, 600);
 
   const validate = useCallback(
     async (d: string) => {
@@ -333,6 +330,7 @@ type ContactRow = {
 
 export function ContactsTab() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -347,7 +345,20 @@ export function ContactsTab() {
   const [contactType, setContactType] = useState("BOTH");
   const [notes, setNotes] = useState("");
 
-  const { data, isLoading } = usePaymentContacts(search || undefined);
+  const debouncedSearch = useDebouncedValue(search.trim(), PAYMENT_SEARCH_DEBOUNCE_MS);
+
+  // Novo termo de busca reinicia a paginação (ajuste em render, não em efeito).
+  const [lastSearch, setLastSearch] = useState(debouncedSearch);
+  if (debouncedSearch !== lastSearch) {
+    setLastSearch(debouncedSearch);
+    setPage(1);
+  }
+
+  const { data, isLoading } = usePaymentContacts(
+    debouncedSearch || undefined,
+    undefined,
+    { page, perPage: PAYMENT_PAGE_SIZE },
+  );
   const createContact = useCreatePaymentContact();
   const updateContact = useUpdatePaymentContact();
   const deleteContact = useDeletePaymentContact();
@@ -442,9 +453,14 @@ export function ContactsTab() {
       }
       setShowForm(false);
       resetForm();
-    } catch {
+    } catch (error) {
       toast.error(
-        isEditing ? "Erro ao atualizar contato" : "Erro ao criar contato",
+        describePaymentError(
+          error,
+          isEditing
+            ? "Não foi possível atualizar o contato"
+            : "Não foi possível criar o contato",
+        ),
       );
     }
   }
@@ -455,12 +471,13 @@ export function ContactsTab() {
       await deleteContact.mutateAsync({ id: deleteTarget.id });
       toast.success("Contato removido");
       setDeleteTarget(null);
-    } catch {
-      toast.error("Erro ao remover");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível remover o contato"));
     }
   }
 
   const contacts = data?.contacts ?? [];
+  const totalContacts = data?.total ?? 0;
 
   return (
     <div className="space-y-4">
@@ -475,16 +492,25 @@ export function ContactsTab() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button
-          size="sm"
-          onClick={() => {
-            resetForm();
-            setShowForm(true);
-          }}
-          className="h-9 w-full gap-1.5 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90 sm:w-auto"
-        >
-          <Plus className="size-4" /> Novo Contato
-        </Button>
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <PaymentPaginationNav
+            page={page}
+            total={totalContacts}
+            perPage={PAYMENT_PAGE_SIZE}
+            onPageChange={setPage}
+            isLoading={isLoading}
+          />
+          <Button
+            size="sm"
+            onClick={() => {
+              resetForm();
+              setShowForm(true);
+            }}
+            className="h-9 w-full gap-1.5 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90 sm:w-auto"
+          >
+            <Plus className="size-4" /> Novo Contato
+          </Button>
+        </div>
       </div>
 
       {/* Importar de Leads/Forge */}
@@ -596,6 +622,15 @@ export function ContactsTab() {
         </table>
         </div>
       </div>
+
+      <PaymentPagination
+        page={page}
+        total={totalContacts}
+        perPage={PAYMENT_PAGE_SIZE}
+        onPageChange={setPage}
+        itemLabel="contato"
+        isLoading={isLoading}
+      />
 
       {/* Dialog de criação */}
       <Dialog
