@@ -74,7 +74,7 @@ node `FILTER_LEAD` ganha o campo **"Mensagem do lead"** para comparar contra ela
 | RF-2 | `leadMessage.text` é **sempre** o texto escrito pelo LEAD — nunca do atendente, nunca da IA. |
 | RF-3 | `NEW_LEAD` leva a mensagem quando o lead foi criado por uma mensagem **do lead** — WhatsApp, DM de Instagram ou DM de Facebook (`source: "TRIGGER_EVENT"`). |
 | RF-4 | `FIRST_INTERACTION_OF_DAY` leva a mensagem inbound que satisfez o gate (`source: "TRIGGER_EVENT"`). |
-| RF-5 | `FIRST_CHAT_INTERACTION`, `LEAD_TAGGED` e `AI_FINISHED` levam a **última** mensagem inbound do lead, buscada no banco (`source: "CONVERSATION_HISTORY"`). |
+| RF-5 | `FIRST_CHAT_INTERACTION`, `LEAD_TAGGED` e `AI_FINISHED` levam a última mensagem do lead **que tem texto**, buscada no banco (`source: "CONVERSATION_HISTORY"`). Mídia sem legenda, cartão de contato e localização são puladas; a busca olha no máximo 20 mensagens pra trás. |
 | RF-6 | O dialog do `FILTER_LEAD` ganha o campo "Mensagem do lead" com os operadores *contém*, *não contém* e *é igual a*. |
 | RF-7 | A comparação normaliza os dois lados: minúsculas, acentos removidos e espaços colapsados. |
 | RF-8 | O executor do `FILTER_LEAD` lê a mensagem de `context.leadMessage`. |
@@ -85,7 +85,7 @@ node `FILTER_LEAD` ganha o campo **"Mensagem do lead"** para comparar contra ela
 | ID | Requisito |
 | --- | --- |
 | RNF-1 | Nenhum dispatch novo pode falhar por causa da mensagem: toda coleta é best-effort, em `try/catch`, e um erro resulta em `leadMessage` ausente — nunca em gatilho não-disparado. |
-| RNF-2 | A query de RF-5 usa índice existente (`Message.conversationId` + `createdAt`), `take: 1`. |
+| RNF-2 | A query de RF-5 usa índice existente (`Message.conversationId` + `createdAt`), `take: 20`, e o descarte de contato/localização acontece em memória — não depende da semântica de NULL do `notIn` do Prisma numa coluna nullable. |
 | RNF-3 | `leadMessage.text` é truncado em 2000 caracteres antes de entrar no payload do Inngest. |
 | RNF-4 | Nenhum `any` nas assinaturas novas (CLAUDE.md item 13). |
 
@@ -110,6 +110,8 @@ node `FILTER_LEAD` ganha o campo **"Mensagem do lead"** para comparar contra ela
 | CB-5 | Mensagem é **resposta de botão/lista** (`interactive_reply`) | `text` = `replyText`, com fallback pro `replyId`. |
 | CB-6 | Mensagem é **localização / contato / reação / revoke** | `text: ""` nos três caminhos. `Message.body` guarda o nome do cartão (contato) e "nome — endereço" (localização), mas nada disso foi escrito pelo lead — `getLastLeadMessage` e a rota In-Chat descartam esse texto por `mediaType`. |
 | CB-7 | Lead **nunca escreveu nada** e o gatilho é de histórico (RF-5) | `leadMessage` ausente. |
+| CB-15 | Lead escreve "quero orçamento" e depois manda foto/localização/contato; gatilho de histórico dispara | `leadMessage.text` = "quero orçamento" — a busca pula as mensagens sem texto. |
+| CB-16 | Lead escreve texto e depois manda **mais de 20** mensagens sem texto | `leadMessage` ausente. Limite deliberado (`TEXT_LOOKBACK_LIMIT`): texto tão antigo não descreve mais a intenção atual. |
 | CB-8 | Operador *não contém* com mensagem ausente | Avalia `false`, **não** `true`. Decisão D-3. |
 | CB-9 | Condição de mensagem com `value` vazio | Bloqueada na validação do form (Zod `min(1)`). |
 | CB-10 | Mensagem maior que 2000 caracteres | Truncada em 2000 antes do dispatch (RNF-3). Comparação roda sobre o texto truncado. |
@@ -259,5 +261,6 @@ controla. Registrado aqui para virar item próprio na auditoria de segurança.
 | 2026-08-27 | João Gabriel | Criada |
 | 2026-08-27 | João Gabriel | Implementada. Typecheck limpo nos arquivos tocados; critérios de aceite ainda não verificados manualmente (exigem inbound real de WhatsApp). |
 | 2026-08-27 | João Gabriel | D-6 adicionada — o input inerte "Filtro por palavras" do `MESSAGE_INCOMING` saiu do dialog, com nota apontando pro `IF_CONDITION`. Mudança só de UI, decidida durante a implementação. |
+| 2026-09-02 | João Gabriel | RF-5 passa de "última mensagem" para "última mensagem **com texto**" (CB-15/CB-16, RNF-2). Sem isso, uma foto ou localização enviada depois do texto zerava o `leadMessage` e o filtro falhava calado, mesmo o lead tendo escrito o que se procurava. |
 | 2026-09-02 | João Gabriel | CB-6 passa a valer nos três caminhos: `getLastLeadMessage` e a rota In-Chat descartavam o `body` de contato/localização como se fosse texto do lead, divergindo do caminho canônico. |
 | 2026-09-02 | João Gabriel | Code review pegou 3 falhas, corrigidas neste PR: (a) `NEW_LEAD` anexava o texto do **atendente** quando a mensagem `fromMe=true` criava o lead — RF-3 e CB-13 ajustados; (b) e (c) webhooks de Instagram e Facebook criavam lead sem `leadMessage`, apesar do texto estar em escopo — RF-3 e CB-14 ajustados. |
