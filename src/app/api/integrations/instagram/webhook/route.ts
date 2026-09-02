@@ -10,6 +10,7 @@ import { assignLeadRoundRobin } from "@/http/rodizio/create-lead"
 import { logActivity } from "@/features/admin/lib/activity-logger"
 import { MessageChannel } from "@/generated/prisma/enums"
 import { trackLeadEvent } from "@/lib/lead-journey/track"
+import { truncateLeadMessageText } from "@/features/tracking-executions/lib/lead-message"
 import {
   resolveReferralForOrg,
   ctwaToLeadData,
@@ -192,9 +193,24 @@ export async function POST(request: NextRequest) {
             await prisma.$transaction((tx) => assignLeadRoundRobin(tx, lead!.id))
           } catch {}
 
+          // `leadMessage`: a DM que criou o lead, pro FILTER_LEAD comparar
+          // texto sem IA (spec 0008). `is_echo` já foi descartado acima, então
+          // aqui a mensagem é sempre do lead.
           await fetch(
             `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${trackingId}&leadId=${lead.id}`,
-            { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trackingId }) }
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                trackingId,
+                leadMessage: {
+                  text: truncateLeadMessageText(text),
+                  messageId,
+                  sentAt: new Date().toISOString(),
+                  source: "TRIGGER_EVENT",
+                },
+              }),
+            }
           )
         } else if (!lead.conversation) {
           await prisma.conversation.create({

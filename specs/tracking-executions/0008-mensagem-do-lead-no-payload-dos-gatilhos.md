@@ -72,7 +72,7 @@ node `FILTER_LEAD` ganha o campo **"Mensagem do lead"** para comparar contra ela
 | --- | --- |
 | RF-1 | Um novo campo opcional `leadMessage` entra no `initialData` dos dispatches de gatilho, com o shape `{ text, messageId?, mediaType?, sentAt?, source }`. |
 | RF-2 | `leadMessage.text` é **sempre** o texto escrito pelo LEAD — nunca do atendente, nunca da IA. |
-| RF-3 | `NEW_LEAD` leva a mensagem quando o lead foi criado por inbound de WhatsApp (`source: "TRIGGER_EVENT"`). |
+| RF-3 | `NEW_LEAD` leva a mensagem quando o lead foi criado por uma mensagem **do lead** — WhatsApp, DM de Instagram ou DM de Facebook (`source: "TRIGGER_EVENT"`). |
 | RF-4 | `FIRST_INTERACTION_OF_DAY` leva a mensagem inbound que satisfez o gate (`source: "TRIGGER_EVENT"`). |
 | RF-5 | `FIRST_CHAT_INTERACTION`, `LEAD_TAGGED` e `AI_FINISHED` levam a **última** mensagem inbound do lead, buscada no banco (`source: "CONVERSATION_HISTORY"`). |
 | RF-6 | O dialog do `FILTER_LEAD` ganha o campo "Mensagem do lead" com os operadores *contém*, *não contém* e *é igual a*. |
@@ -115,6 +115,8 @@ node `FILTER_LEAD` ganha o campo **"Mensagem do lead"** para comparar contra ela
 | CB-10 | Mensagem maior que 2000 caracteres | Truncada em 2000 antes do dispatch (RNF-3). Comparação roda sobre o texto truncado. |
 | CB-11 | Workflow salvo **antes** desta mudança, sem condição de mensagem | Inalterado — nenhuma condição nova, mesmo resultado de antes. |
 | CB-12 | Dois workflows no mesmo gatilho, um com filtro de mensagem e outro sem | Cada um avalia independentemente; o payload é o mesmo para os dois. |
+| CB-13 | **Atendente inicia a conversa** pelo celular com número desconhecido (Uazapi entrega `fromMe=true`, e esse caminho cria o lead) | `leadMessage` ausente. O texto é do atendente, não do lead — anexá-lo violaria RF-2. |
+| CB-14 | Lead criado por **DM de Instagram ou Facebook** | `leadMessage` presente, `source: "TRIGGER_EVENT"`. `is_echo` é descartado antes, então a mensagem é sempre do lead. |
 
 ## 6. Decisões de design
 
@@ -257,3 +259,4 @@ controla. Registrado aqui para virar item próprio na auditoria de segurança.
 | 2026-08-27 | João Gabriel | Criada |
 | 2026-08-27 | João Gabriel | Implementada. Typecheck limpo nos arquivos tocados; critérios de aceite ainda não verificados manualmente (exigem inbound real de WhatsApp). |
 | 2026-08-27 | João Gabriel | D-6 adicionada — o input inerte "Filtro por palavras" do `MESSAGE_INCOMING` saiu do dialog, com nota apontando pro `IF_CONDITION`. Mudança só de UI, decidida durante a implementação. |
+| 2026-09-02 | João Gabriel | Code review pegou 3 falhas, corrigidas neste PR: (a) `NEW_LEAD` anexava o texto do **atendente** quando a mensagem `fromMe=true` criava o lead — RF-3 e CB-13 ajustados; (b) e (c) webhooks de Instagram e Facebook criavam lead sem `leadMessage`, apesar do texto estar em escopo — RF-3 e CB-14 ajustados. |

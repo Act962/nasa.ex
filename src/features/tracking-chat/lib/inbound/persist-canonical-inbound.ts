@@ -481,7 +481,10 @@ async function createLeadFromInbound(
 
   // ── Workflow NEW_LEAD (best-effort, timeout) ────────────────────────────
   // `leadMessage` leva a mensagem que criou o lead pro FILTER_LEAD conseguir
-  // comparar texto sem IA (spec 0008, RF-3).
+  // comparar texto sem IA (spec 0008, RF-3). Só quando a mensagem é do lead:
+  // a Uazapi entrega `fromMe=true` quando o atendente inicia a conversa pelo
+  // celular com um número desconhecido, e esse caminho também cria o lead —
+  // sem o gate, o pitch do atendente entraria como se fosse texto do lead.
   try {
     await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${ctx.trackingId}&leadId=${createdLead.id}`,
@@ -490,7 +493,9 @@ async function createLeadFromInbound(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           trackingId: ctx.trackingId,
-          leadMessage: canonicalToLeadMessage(canonical),
+          ...(canonical.sender.fromMe
+            ? {}
+            : { leadMessage: canonicalToLeadMessage(canonical) }),
         }),
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       },
