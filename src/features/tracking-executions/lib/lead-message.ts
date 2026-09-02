@@ -69,6 +69,14 @@ export function normalizeLeadMessageText(text: string): string {
     .trim();
 }
 
+/**
+ * Tipos cujo `Message.body` NÃO é texto escrito pelo lead: contato guarda o
+ * nome do cartão compartilhado, localização guarda "nome — endereço". Tratar
+ * isso como mensagem faria um filtro casar com o nome de um contato que o lead
+ * apenas encaminhou (spec 0008, CB-6).
+ */
+const NON_TEXT_MEDIA_TYPES = new Set(["contact", "location"]);
+
 function toMediaType(mimetype: string | null): LeadMessageMediaType | undefined {
   if (!mimetype) return undefined;
   if (mimetype.startsWith("image/")) return "image";
@@ -100,6 +108,7 @@ export async function getLastLeadMessage(
       select: {
         messageId: true,
         body: true,
+        mediaType: true,
         mimetype: true,
         createdAt: true,
       },
@@ -108,9 +117,13 @@ export async function getLastLeadMessage(
     if (!message) return null;
 
     const mediaType = toMediaType(message.mimetype);
+    const body =
+      message.mediaType && NON_TEXT_MEDIA_TYPES.has(message.mediaType)
+        ? ""
+        : message.body ?? "";
 
     return {
-      text: truncateLeadMessageText(message.body ?? ""),
+      text: truncateLeadMessageText(body),
       messageId: message.messageId,
       ...(mediaType ? { mediaType } : {}),
       sentAt: message.createdAt.toISOString(),

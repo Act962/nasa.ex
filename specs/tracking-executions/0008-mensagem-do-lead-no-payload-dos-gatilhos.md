@@ -108,7 +108,7 @@ node `FILTER_LEAD` ganha o campo **"Mensagem do lead"** para comparar contra ela
 | CB-3 | Mensagem é **só mídia**, sem legenda | `text: ""`, `mediaType` preenchido. Condições de texto avaliam `false`. |
 | CB-4 | Mensagem é **mídia com legenda** | `text` = legenda. |
 | CB-5 | Mensagem é **resposta de botão/lista** (`interactive_reply`) | `text` = `replyText`, com fallback pro `replyId`. |
-| CB-6 | Mensagem é **localização / contato / reação / revoke** | `text: ""`. Não há texto a comparar. |
+| CB-6 | Mensagem é **localização / contato / reação / revoke** | `text: ""` nos três caminhos. `Message.body` guarda o nome do cartão (contato) e "nome — endereço" (localização), mas nada disso foi escrito pelo lead — `getLastLeadMessage` e a rota In-Chat descartam esse texto por `mediaType`. |
 | CB-7 | Lead **nunca escreveu nada** e o gatilho é de histórico (RF-5) | `leadMessage` ausente. |
 | CB-8 | Operador *não contém* com mensagem ausente | Avalia `false`, **não** `true`. Decisão D-3. |
 | CB-9 | Condição de mensagem com `value` vazio | Bloqueada na validação do form (Zod `min(1)`). |
@@ -259,4 +259,5 @@ controla. Registrado aqui para virar item próprio na auditoria de segurança.
 | 2026-08-27 | João Gabriel | Criada |
 | 2026-08-27 | João Gabriel | Implementada. Typecheck limpo nos arquivos tocados; critérios de aceite ainda não verificados manualmente (exigem inbound real de WhatsApp). |
 | 2026-08-27 | João Gabriel | D-6 adicionada — o input inerte "Filtro por palavras" do `MESSAGE_INCOMING` saiu do dialog, com nota apontando pro `IF_CONDITION`. Mudança só de UI, decidida durante a implementação. |
+| 2026-09-02 | João Gabriel | CB-6 passa a valer nos três caminhos: `getLastLeadMessage` e a rota In-Chat descartavam o `body` de contato/localização como se fosse texto do lead, divergindo do caminho canônico. |
 | 2026-09-02 | João Gabriel | Code review pegou 3 falhas, corrigidas neste PR: (a) `NEW_LEAD` anexava o texto do **atendente** quando a mensagem `fromMe=true` criava o lead — RF-3 e CB-13 ajustados; (b) e (c) webhooks de Instagram e Facebook criavam lead sem `leadMessage`, apesar do texto estar em escopo — RF-3 e CB-14 ajustados. |

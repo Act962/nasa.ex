@@ -301,7 +301,12 @@ export async function POST(
       fromMe: false,
       channel: "IN_CHAT",
       leadMessage: {
-        text: truncateLeadMessageText(finalBody ?? ""),
+        // Contato/localização gravam nome do cartão e "nome — endereço" no
+        // body — não é texto escrito pelo lead (spec 0008, CB-6).
+        text:
+          hasContact || hasLocation
+            ? ""
+            : truncateLeadMessageText(finalBody ?? ""),
         messageId: externalMessageId,
         ...(isLeadMessageMediaType(mediaType) ? { mediaType } : {}),
         sentAt: message.createdAt.toISOString(),
