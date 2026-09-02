@@ -404,7 +404,8 @@ export function validateNode(
       return { valid: true, errors: [], skip: true };
 
     case "MESSAGE_INCOMING":
-      // data: { containsAny?: string[], regex? }
+      // Sem config — dispara em toda mensagem do lead. Filtro por texto é
+      // feito num IF_CONDITION sobre `trigger.messageText`.
       return { valid: true, errors: [], skip: true };
 
     case "WEBHOOK_EXTERNAL":

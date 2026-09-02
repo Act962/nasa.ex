@@ -56,6 +56,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { MessageStatus } from "../../types";
 import { getCachedTrackingContext } from "../get-cached-tracking-context";
 import { firePostInboundAutomations } from "../incoming-message-pipeline";
+import { canonicalToLeadMessage } from "./to-lead-message";
 import type {
   CanonicalInboundContact,
   CanonicalInboundInteractiveReply,
@@ -310,6 +311,10 @@ export async function persistCanonicalInbound(
     externalMessageId: canonical.externalMessageId,
     fromMe: canonical.sender.fromMe,
     channel,
+    // Só inbound: `leadMessage` é, por contrato, texto escrito pelo lead.
+    ...(canonical.sender.fromMe
+      ? {}
+      : { leadMessage: canonicalToLeadMessage(canonical) }),
     messagePayload: messageData,
     conversationPayload: { ...lead.conversation, lead },
   });
@@ -475,13 +480,23 @@ async function createLeadFromInbound(
   }
 
   // ── Workflow NEW_LEAD (best-effort, timeout) ────────────────────────────
+  // `leadMessage` leva a mensagem que criou o lead pro FILTER_LEAD conseguir
+  // comparar texto sem IA (spec 0008, RF-3). Só quando a mensagem é do lead:
+  // a Uazapi entrega `fromMe=true` quando o atendente inicia a conversa pelo
+  // celular com um número desconhecido, e esse caminho também cria o lead —
+  // sem o gate, o pitch do atendente entraria como se fosse texto do lead.
   try {
     await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${ctx.trackingId}&leadId=${createdLead.id}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackingId: ctx.trackingId }),
+        body: JSON.stringify({
+          trackingId: ctx.trackingId,
+          ...(canonical.sender.fromMe
+            ? {}
+            : { leadMessage: canonicalToLeadMessage(canonical) }),
+        }),
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       },
     );

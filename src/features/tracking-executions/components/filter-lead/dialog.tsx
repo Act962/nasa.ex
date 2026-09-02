@@ -70,6 +70,11 @@ const filterConditionSchema = z.discriminatedUnion("field", [
     operator: z.literal("equals"),
     value: z.string().min(1, "Informe um e-mail"),
   }),
+  z.object({
+    field: z.literal("leadMessage"),
+    operator: z.enum(["contains", "not_contains", "equals"]),
+    value: z.string().min(1, "Informe o texto a comparar"),
+  }),
 ]);
 
 export const filterNodeFormSchema = z.object({
@@ -92,6 +97,7 @@ const FIELD_OPTIONS: { value: FilterCondition["field"]; label: string }[] = [
   { value: "value", label: "Valor do lead" },
   { value: "name", label: "Nome" },
   { value: "email", label: "E-mail" },
+  { value: "leadMessage", label: "Mensagem do lead" },
 ];
 
 const OPERATOR_OPTIONS: Record<
@@ -112,6 +118,20 @@ const OPERATOR_OPTIONS: Record<
   ],
   name: [{ value: "equals", label: "é igual a" }],
   email: [{ value: "equals", label: "é igual a" }],
+  leadMessage: [
+    { value: "contains", label: "contém" },
+    { value: "not_contains", label: "não contém" },
+    { value: "equals", label: "é igual a" },
+  ],
+};
+
+const PLACEHOLDER_BY_FIELD: Record<FilterCondition["field"], string> = {
+  status: "Valor...",
+  tag: "Valor...",
+  value: "0.00",
+  name: "Valor...",
+  email: "Valor...",
+  leadMessage: "ex: intrevistador",
 };
 
 const DEFAULT_CONDITION: FilterCondition = {
@@ -158,6 +178,11 @@ export const FilterNodeDialog = ({
     control: form.control,
     name: "conditions",
   });
+
+  const watchedConditions = form.watch("conditions");
+  const hasLeadMessageCondition = (watchedConditions ?? []).some(
+    (condition) => condition?.field === "leadMessage",
+  );
 
   const handleSubmit = (values: FilterLeadFormValues) => {
     onSubmit(values);
@@ -413,9 +438,7 @@ export const FilterNodeDialog = ({
                           ) : (
                             <Input
                               {...field}
-                              placeholder={
-                                currentField === "value" ? "0.00" : "Valor..."
-                              }
+                              placeholder={PLACEHOLDER_BY_FIELD[currentField]}
                               type={
                                 currentField === "value" ? "number" : "text"
                               }
@@ -457,6 +480,19 @@ export const FilterNodeDialog = ({
                 <span className="text-xs text-destructive">
                   {form.formState.errors.conditions.root.message}
                 </span>
+              )}
+
+              {hasLeadMessageCondition && (
+                <p className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
+                  A comparação ignora acentos e maiúsculas. Só os gatilhos{" "}
+                  <strong>Novo Lead</strong>, <strong>Primeira Interação no
+                  Chat</strong>, <strong>Primeira Interação do Dia</strong>,{" "}
+                  <strong>Lead com Tag</strong> e{" "}
+                  <strong>IA Finalizou o Atendimento</strong> trazem a mensagem
+                  do lead. Em qualquer outro gatilho — ou quando o lead ainda
+                  não escreveu nada — a condição não é satisfeita e o fluxo
+                  para.
+                </p>
               )}
 
               <Button

@@ -31,6 +31,7 @@ import { trackLeadEvent } from "@/lib/lead-journey/track";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { LeadSource } from "@/generated/prisma/enums";
+import type { WorkflowLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -59,6 +60,12 @@ export interface FirePostInboundParams {
   fromMe: boolean;
   /** Canal de origem — pro logging/IA decidir nome do event. */
   channel: "WHATSAPP" | "IN_CHAT" | "INSTAGRAM" | "FACEBOOK";
+  /**
+   * Mensagem do lead que originou este inbound, no shape que os gatilhos de
+   * workflow consomem (spec 0008). Só usada quando `fromMe=false`. Ausente em
+   * callers que não têm o texto em mãos.
+   */
+  leadMessage?: WorkflowLeadMessage;
   /** Dados serializáveis pro Pusher per-conversation event. */
   messagePayload: Record<string, any>;
   /** Dados serializáveis pro Pusher per-tracking event (lista de conversas). */
@@ -219,6 +226,7 @@ export async function firePostInboundAutomations(
         trackingId: params.trackingId,
         previousLastInboundAt: params.lead.lastInboundAt,
         interactionAt: now,
+        leadMessage: params.leadMessage,
       });
     } catch (err) {
       console.error("[pipeline] first_interaction_of_day_gate_failed", err);

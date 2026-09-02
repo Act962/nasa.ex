@@ -4,6 +4,37 @@ import { FilterLeadFormValues } from "./dialog";
 import { LeadContext } from "../../schemas";
 import prisma from "@/lib/prisma";
 import { filterLeadChannel } from "@/inngest/channels/filter-lead";
+import {
+  normalizeLeadMessageText,
+  type WorkflowLeadMessage,
+} from "../../lib/lead-message";
+
+/**
+ * Compara o texto que o LEAD escreveu contra o valor configurado. Ver spec
+ * 0008: sem mensagem no payload, TODA condição de mensagem é falsa — inclusive
+ * `not_contains` (D-3). Um lead que nunca escreveu nada não "não contém" algo:
+ * não há o que afirmar sobre ele.
+ */
+function evaluateLeadMessageCondition(
+  leadMessage: WorkflowLeadMessage | undefined,
+  operator: "contains" | "not_contains" | "equals",
+  value: string,
+): boolean {
+  if (!leadMessage?.text) return false;
+
+  const messageText = normalizeLeadMessageText(leadMessage.text);
+  const expectedText = normalizeLeadMessageText(value);
+  if (!expectedText) return false;
+
+  switch (operator) {
+    case "contains":
+      return messageText.includes(expectedText);
+    case "not_contains":
+      return !messageText.includes(expectedText);
+    case "equals":
+      return messageText === expectedText;
+  }
+}
 
 type FilterLeadNodeData = {
   action?: FilterLeadFormValues;
@@ -19,6 +50,9 @@ export const filterLeadExecutor: NodeExecutor<FilterLeadNodeData> = async ({
   const result = await step.run("filter-lead", async () => {
     const leadContextData = context.lead as LeadContext;
     const realTime = context.realTime as boolean;
+    // Preenchido pelos gatilhos que carregam mensagem (spec 0008). Ausente
+    // em gatilho sem mensagem — lead de formulário, gatilho manual, etc.
+    const leadMessage = context.leadMessage as WorkflowLeadMessage | undefined;
 
     try {
       if (realTime) {
@@ -78,6 +112,13 @@ export const filterLeadExecutor: NodeExecutor<FilterLeadNodeData> = async ({
             return (
               (lead.email || "").toLowerCase().trim() ===
               condition.value.toLowerCase().trim()
+            );
+          }
+          case "leadMessage": {
+            return evaluateLeadMessageCondition(
+              leadMessage,
+              condition.operator,
+              condition.value,
             );
           }
           default:
