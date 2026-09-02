@@ -3,6 +3,7 @@ import { dispatchLeadTagged, broadcastAgentWorkflowEvent } from "@/inngest/utils
 import { eventBus } from "@/features/alerts/lib/event-bus";
 import { findLeadTaggedMatchingWorkflows } from "@/features/triggers/components/lead-tagged/find-matching-workflows";
 import { publishLeadChanged } from "@/features/leads/realtime/publish";
+import { getLastLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 
 export interface ApplyTagsByAiInput {
   leadId: string;
@@ -70,12 +71,14 @@ export async function applyTagsByAi(
   }
 
   if (result.workflows.length > 0) {
+    const leadMessage = await getLastLeadMessage(lead.id);
     await Promise.all(
       result.workflows.map((workflow) =>
         dispatchLeadTagged({
           workflowId: workflow.id,
           lead,
           tagIds: input.tagIds,
+          leadMessage,
         }),
       ),
     );

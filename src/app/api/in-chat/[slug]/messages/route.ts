@@ -19,6 +19,10 @@ import { z } from "zod";
 import { MessageStatus } from "@/generated/prisma/enums";
 import { v4 as uuidv4 } from "uuid";
 import { firePostInboundAutomations } from "@/features/tracking-chat/lib/incoming-message-pipeline";
+import {
+  isLeadMessageMediaType,
+  truncateLeadMessageText,
+} from "@/features/tracking-executions/lib/lead-message";
 
 const COOKIE_NAME = "nasa_inchat_lead";
 
@@ -296,6 +300,13 @@ export async function POST(
       externalMessageId,
       fromMe: false,
       channel: "IN_CHAT",
+      leadMessage: {
+        text: truncateLeadMessageText(finalBody ?? ""),
+        messageId: externalMessageId,
+        ...(isLeadMessageMediaType(mediaType) ? { mediaType } : {}),
+        sentAt: message.createdAt.toISOString(),
+        source: "TRIGGER_EVENT",
+      },
       messagePayload: {
         ...message,
         conversation: {

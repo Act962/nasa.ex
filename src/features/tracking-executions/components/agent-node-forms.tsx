@@ -857,26 +857,12 @@ export function TriggerForm({ nodeType, data, onChange }: FormProps & { nodeType
     return (
       <div className="space-y-3">
         <FormHeader hint="Dispara quando o lead envia mensagem nova no WhatsApp." />
-        <div className="space-y-2">
-          <Label>Filtro por palavras (opcional)</Label>
-          <Input
-            placeholder="ex: comprar, quero, aceito (separadas por vírgula)"
-            value={(arr<string>(data.containsAny) ?? []).join(", ")}
-            onChange={(e) =>
-              onChange({
-                ...data,
-                containsAny: e.target.value
-                  .split(",")
-                  .map((s) => s.trim())
-                  .filter(Boolean),
-              })
-            }
-          />
-          <p className="text-xs text-muted-foreground">
-            Dispara só se a msg do lead contiver alguma destas palavras.
-            Deixe vazio pra disparar em toda mensagem.
-          </p>
-        </div>
+        <p className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
+          Este gatilho dispara em <strong>toda</strong> mensagem do lead — não
+          tem filtro próprio. Pra seguir só quando o texto casar, ligue um nó{" "}
+          <strong>Condição (IF)</strong> logo abaixo, com o campo{" "}
+          <code>trigger.messageText</code> e o operador <em>contém</em>.
+        </p>
       </div>
     );
   }
