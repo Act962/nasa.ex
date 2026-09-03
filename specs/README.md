@@ -169,6 +169,8 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0005](form/0005-bloqueio-edicao-respostas-por-autoria.md) | form | Política configurável de edição de respostas de formulário | em-revisao |
 | [0006](form/0006-prefill-de-campos-pela-identificacao.md) | form | Pré-preencher campos do formulário com dados da identificação | rascunho |
 | [0007](payment/0007-acesso-financeiro-por-whitelist.md) | payment | Acesso ao módulo financeiro por whitelist, sem senha própria | aprovada |
+| [0010](tracking-chat/0010-telefone-br-e-erros-outbound-estruturados.md) | tracking-chat | Corrigir normalização de telefone BR e estruturar erros do outbound | implementada |
+| [0011](tracking-chat/0011-filtros-avancados-na-lista-de-conversas.md) | tracking-chat | Filtros avançados e ordenação na lista de conversas do chat | implementada |
 
 ---
 

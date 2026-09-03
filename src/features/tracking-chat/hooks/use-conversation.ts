@@ -8,6 +8,13 @@ import {
 } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 import { conversationProps, InfiniteConversations } from "../types";
+import {
+  buildConversationsListQueryKey,
+  listHasNarrowingFilters,
+  newMessageChangesSortKey,
+  sortKeepsNewestOnTop,
+  type ConversationListFilters,
+} from "../lib/conversation-filters-state";
 import { toast } from "sonner";
 import {
   playSoundNotification,
@@ -15,35 +22,50 @@ import {
 } from "@/features/tracking-settings/hooks/use-sound-notification";
 
 export function useInfinityConversation(
-  trackingId: string,
-  statusId: string | null,
-  search: string | null,
+  filters: ConversationListFilters,
   currentConversationId?: string,
-  statusFlowFilter?: "FINISHED" | "ACTIVE" | null,
-  selectedChannel?: string,
-  selectedTagIds?: string[],
-  favoritesOnly?: boolean,
 ) {
+  const trackingId = filters.trackingId;
   const queryClient = useQueryClient();
   const reopenLead = useMutation(orpc.leads.update.mutationOptions({}));
   const { settings } = useSoundNotificationSettings(trackingId);
 
+  // Só a ordenação default garante que "mensagem nova" = "vai pro topo".
+  // Nas demais, mover a conversa mentiria sobre a ordem pedida — a gente
+  // atualiza no lugar e deixa o refetch reposicionar (spec 0011, CB-10).
+  const keepsNewestOnTop = sortKeepsNewestOnTop(
+    filters.sortBy,
+    filters.sortDirection,
+  );
+  // A inserção otimista de conversa nova só é segura numa lista sem
+  // estreitamento e na ordenação default; fora disso o cliente não tem
+  // como saber se a conversa pertence à lista, nem onde ela entra.
+  const canInsertOptimistically =
+    keepsNewestOnTop && !listHasNarrowingFilters(filters);
+  // Mensagem nova em `lastMessageAt` muda a própria chave de ordenação:
+  // manter a conversa no lugar deixaria a posição errada até algum outro
+  // refetch, que pode nunca vir (staleTime 30s, sem refetch no foco).
+  const needsServerReorder =
+    !keepsNewestOnTop && newMessageChangesSortKey(filters.sortBy);
+  const filtersSignature = JSON.stringify(
+    buildConversationsListQueryKey(filters),
+  );
+
   useEffect(() => {
     if (!trackingId) return;
 
-    const queryKey = [
-      "conversations.list",
-      trackingId,
-      statusId,
-      search,
-      statusFlowFilter ?? null,
-      selectedChannel ?? "ALL",
-      selectedTagIds ?? [],
-      favoritesOnly ?? false,
-    ];
+    const queryKey = buildConversationsListQueryKey(filters);
 
     const conversationHandler = (body: conversationProps) => {
       playSoundNotification(settings);
+
+      if (!canInsertOptimistically) {
+        // Deixa o servidor decidir se a conversa entra na lista e em que
+        // posição — o payload do Pusher não traz o lead, então filtrar
+        // aqui é impossível.
+        queryClient.invalidateQueries({ queryKey });
+        return;
+      }
 
       queryClient.setQueryData(queryKey, (old: any) => {
         if (!old) return old;
@@ -81,10 +103,14 @@ export function useInfinityConversation(
         if (!old) return old;
 
         let conversationToMove: any = null;
+        let originPageIndex = 0;
+        let originItemIndex = 0;
 
-        const newPages = old.pages.map((page: any) => {
-          const newItems = page.items.filter((item: any) => {
+        const newPages = old.pages.map((page: any, pageIndex: number) => {
+          const newItems = page.items.filter((item: any, itemIndex: number) => {
             if (item.id === message.conversationId) {
+              originPageIndex = pageIndex;
+              originItemIndex = itemIndex;
               const shouldReopen = item?.lead?.statusFlow === "FINISHED";
 
               if (shouldReopen) {
@@ -117,7 +143,17 @@ export function useInfinityConversation(
         });
 
         if (conversationToMove) {
-          newPages[0].items = [conversationToMove, ...newPages[0].items];
+          if (keepsNewestOnTop) {
+            newPages[0].items = [conversationToMove, ...newPages[0].items];
+          } else {
+            // Devolve a conversa à posição em que estava; a ordem correta
+            // vem do servidor no próximo refetch.
+            newPages[originPageIndex].items.splice(
+              originItemIndex,
+              0,
+              conversationToMove,
+            );
+          }
         }
 
         return {
@@ -126,7 +162,7 @@ export function useInfinityConversation(
         };
       });
 
-      if (!found) {
+      if (!found || needsServerReorder) {
         queryClient.invalidateQueries({ queryKey });
       }
 
@@ -156,12 +192,13 @@ export function useInfinityConversation(
     };
   }, [
     trackingId,
-    statusId,
-    search,
-    statusFlowFilter,
-    selectedChannel,
-    selectedTagIds,
-    favoritesOnly,
+    // Assinatura serializada dos filtros: o objeto `filters` é novo a cada
+    // render, então depender dele re-registraria os handlers do Pusher sem
+    // parar. A string só muda quando um filtro muda de verdade.
+    filtersSignature,
+    keepsNewestOnTop,
+    canInsertOptimistically,
+    needsServerReorder,
     queryClient,
     currentConversationId,
     reopenLead,
@@ -188,16 +225,25 @@ export function useConversationListInfinite({
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const infiniteOptions = orpc.conversation.list.infiniteOptions({
-    input: (pageParam: string | undefined) => ({
+    input: (
+      pageParam: { cursorId: string; cursorValue: string } | undefined,
+    ) => ({
       trackingId,
       search,
-      cursor: pageParam,
+      cursorId: pageParam?.cursorId,
+      cursorValue: pageParam?.cursorValue,
       limit: 30,
       statusId: null,
     }),
     queryKey: ["conversations.list.forward", trackingId, search],
     initialPageParam: undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    getNextPageParam: (lastPage) =>
+      lastPage.nextCursorId && lastPage.nextCursorValue
+        ? {
+            cursorId: lastPage.nextCursorId,
+            cursorValue: lastPage.nextCursorValue,
+          }
+        : undefined,
   });
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =

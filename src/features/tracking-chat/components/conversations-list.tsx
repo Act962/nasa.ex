@@ -3,6 +3,18 @@
 import { LeadBox } from "./lead-box";
 import { TrackingChatBottomTabs } from "./tracking-chat-bottom-tabs";
 import { ConversationFilters } from "./conversation-filters";
+import { useConversationFilters } from "../hooks/use-conversation-filters";
+import {
+  buildConversationsListQueryKey,
+  listHasNarrowingFilters,
+  type ConversationListFilters,
+} from "../lib/conversation-filters-state";
+
+/** Keyset da lista — par (id, valor da coluna ordenada). Spec 0011, RF-10. */
+interface ConversationListCursor {
+  cursorId: string;
+  cursorValue: string;
+}
 import { ImportFromWhatsAppButton } from "./import-from-whatsapp-button";
 import {
   PhoneIcon,
@@ -12,6 +24,7 @@ import {
   MoreHorizontalIcon,
   CheckCircle2Icon,
   CircleDashedIcon,
+  ListFilterIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -75,58 +88,94 @@ export function ConversationsList() {
   const [selectedChannel, setSelectedChannel] = useState<
     "ALL" | "WHATSAPP" | "INSTAGRAM" | "TIKTOK" | "FACEBOOK"
   >("ALL");
-  const [statusFlowFilter, setStatusFlowFilter] = useState<
-    "FINISHED" | "ACTIVE" | null
-  >(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [archivedOnly, setArchivedOnly] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const debouncedSearch = useDebouncedValue(search, 500);
   const router = useRouter();
 
+  const {
+    responsibleEmail,
+    temperatures,
+    statusFlows,
+    sortBy,
+    sortDirection,
+    toggleStatusFlow,
+    activeCount: filtersActiveCount,
+    clearAll: clearAdvancedFilters,
+  } = useConversationFilters();
+
+  // Uma única descrição dos filtros alimenta a query, a queryKey e o
+  // handler de realtime — antes a key era montada à mão em dois lugares
+  // e já tinha divergido (spec 0011).
+  const listFilters: ConversationListFilters = {
+    trackingId: selectedTracking,
+    statusId: selectedStatus,
+    search: debouncedSearch,
+    statusFlows,
+    channel: selectedChannel,
+    tagIds: selectedTagIds,
+    favoritesOnly,
+    archivedOnly,
+    responsibleEmail,
+    temperatures,
+    sortBy,
+    sortDirection,
+  };
+  const listQueryKey = buildConversationsListQueryKey(listFilters);
+
+  // Cobre os filtros novos (URL) e os antigos (useState) — os dois podem
+  // esvaziar a lista.
+  const hasAnyFilterActive =
+    filtersActiveCount > 0 ||
+    listHasNarrowingFilters(listFilters) ||
+    Boolean(debouncedSearch?.trim());
+
+  const clearAllListFilters = () => {
+    clearAdvancedFilters();
+    setSelectedChannel("ALL");
+    setFavoritesOnly(false);
+    setArchivedOnly(false);
+    setSelectedTagIds([]);
+    setSelectedStatus(null);
+    setSearch("");
+  };
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useInfinityConversation(
-    selectedTracking,
-    selectedStatus,
-    debouncedSearch,
-    conversationId,
-    statusFlowFilter,
-    selectedChannel,
-    selectedTagIds,
-    favoritesOnly,
-  );
+  useInfinityConversation(listFilters, conversationId);
 
   // Realtime das tags na lista de conversas — reflete add/remove de tag
   // (automação ou webhook do botão Uazapi) sem refresh.
   useTrackingChatRealtimeSync({ trackingId: selectedTracking });
 
   const infinitiOptions = orpc.conversation.list.infiniteOptions({
-    input: (pageParam: string | undefined) => ({
+    input: (pageParam: ConversationListCursor | undefined) => ({
       trackingId: selectedTracking,
       statusId: selectedStatus,
       search: debouncedSearch,
-      cursor: pageParam,
+      cursorId: pageParam?.cursorId,
+      cursorValue: pageParam?.cursorValue,
       limit: 15,
-      statusFlow: statusFlowFilter,
+      statusFlows,
       channel: selectedChannel === "ALL" ? null : selectedChannel,
       tagIds: selectedTagIds,
       favoritesOnly: favoritesOnly || undefined,
       archivedOnly: archivedOnly || undefined,
+      responsibleEmail: responsibleEmail || undefined,
+      temperatures,
+      sortBy,
+      sortDirection,
     }),
-    queryKey: [
-      "conversations.list",
-      selectedTracking,
-      selectedStatus,
-      debouncedSearch,
-      statusFlowFilter ?? null,
-      selectedChannel,
-      selectedTagIds,
-      favoritesOnly,
-      archivedOnly,
-    ],
+    queryKey: listQueryKey,
     initialPageParam: undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    getNextPageParam: (lastPage) =>
+      lastPage.nextCursorId && lastPage.nextCursorValue
+        ? {
+            cursorId: lastPage.nextCursorId,
+            cursorValue: lastPage.nextCursorValue,
+          }
+        : undefined,
   });
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
@@ -291,18 +340,14 @@ export function ConversationsList() {
                 <DropdownMenuLabel>Filtros de status</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem
-                  checked={statusFlowFilter === "ACTIVE"}
-                  onCheckedChange={(checked) =>
-                    setStatusFlowFilter(checked ? "ACTIVE" : null)
-                  }
+                  checked={statusFlows.includes("ACTIVE")}
+                  onCheckedChange={() => toggleStatusFlow("ACTIVE")}
                 >
                   <CircleDashedIcon className="size-3.5" /> Em atendimento
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
-                  checked={statusFlowFilter === "FINISHED"}
-                  onCheckedChange={(checked) =>
-                    setStatusFlowFilter(checked ? "FINISHED" : null)
-                  }
+                  checked={statusFlows.includes("FINISHED")}
+                  onCheckedChange={() => toggleStatusFlow("FINISHED")}
                 >
                   <CheckCircle2Icon className="size-3.5" /> Finalizados
                 </DropdownMenuCheckboxItem>
@@ -391,8 +436,6 @@ export function ConversationsList() {
               trackingId={selectedTracking || null}
               selectedChannel={selectedChannel}
               onChannelChange={setSelectedChannel}
-              statusFlowFilter={statusFlowFilter}
-              onStatusFlowFilterChange={setStatusFlowFilter}
               favoritesOnly={favoritesOnly}
               onFavoritesOnlyChange={setFavoritesOnly}
               archivedOnly={archivedOnly}
@@ -410,7 +453,30 @@ export function ConversationsList() {
             </div>
           ) : (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              {items.length === 0 && (
+              {/* Lista vazia POR CAUSA de filtro é um estado diferente
+                  de "não tem conversa nenhuma": oferecer "importar do
+                  WhatsApp" aqui faria o atendente achar que perdeu a base
+                  (spec 0011, CB-11). */}
+              {items.length === 0 && hasAnyFilterActive && (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <ListFilterIcon />
+                    </EmptyMedia>
+                    <EmptyTitle>Nenhuma conversa com esses filtros</EmptyTitle>
+                    <EmptyDescription>
+                      As conversas continuam aqui — os filtros ativos é que
+                      não deixaram nenhuma passar.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  <EmptyContent>
+                    <Button variant="outline" onClick={clearAllListFilters}>
+                      Limpar filtros
+                    </Button>
+                  </EmptyContent>
+                </Empty>
+              )}
+              {items.length === 0 && !hasAnyFilterActive && (
                 <Empty>
                   <EmptyHeader>
                     <EmptyMedia variant="icon">

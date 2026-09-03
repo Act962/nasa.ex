@@ -26,16 +26,30 @@ interface Participant {
   };
 }
 
-export function ParticipantsSwitcher() {
+interface ParticipantsSwitcherProps {
+  /**
+   * Tracking dono da lista de participantes. O board resolve pela rota
+   * (`/tracking/[trackingId]`), mas o chat vive em `/tracking-chat`, que
+   * não tem esse parâmetro — lá o tracking vem do seletor da sidebar
+   * (spec 0011, D-3).
+   */
+  trackingId?: string | null;
+}
+
+export function ParticipantsSwitcher({
+  trackingId: trackingIdProp,
+}: ParticipantsSwitcherProps = {}) {
   const params = useParams<{ trackingId: string }>();
+  const trackingId = trackingIdProp ?? params.trackingId;
 
   // Query com staleTime para evitar refetch desnecessário
   const { data, isPending } = useQuery({
     ...orpc.tracking.listParticipants.queryOptions({
       input: {
-        trackingId: params.trackingId,
+        trackingId: trackingId ?? "",
       },
     }),
+    enabled: !!trackingId,
   });
 
   const [participantFilter, setParticipantFilter] =
@@ -79,6 +93,14 @@ export function ParticipantsSwitcher() {
                 {selectedParticipant.user.name}
               </span>
             </>
+          ) : participantFilter ? (
+            // Filtro ativo que não corresponde a nenhum participante deste
+            // tracking. Sem isto o botão diria "Participantes", como se
+            // nada estivesse filtrando, enquanto a lista volta vazia.
+            <>
+              <UsersIcon className="size-4" />
+              <span className="max-w-30 truncate">{participantFilter}</span>
+            </>
           ) : (
             <>
               <UsersIcon className="size-4" />
@@ -91,7 +113,11 @@ export function ParticipantsSwitcher() {
       <DropdownMenuContent align="start" className="w-60">
         <DropdownMenuLabel>Participantes</DropdownMenuLabel>
 
-        {isPending ? (
+        {!trackingId ? (
+          <DropdownMenuLabel className="text-sm font-normal text-muted-foreground">
+            Selecione um tracking para ver os participantes.
+          </DropdownMenuLabel>
+        ) : isPending ? (
           <DropdownMenuLabel className="text-sm font-normal text-muted-foreground">
             Carregando...
           </DropdownMenuLabel>
@@ -100,7 +126,12 @@ export function ParticipantsSwitcher() {
             <DropdownMenuItem
               className="cursor-pointer gap-2"
               onClick={handleClearFilter}
-              disabled={!selectedParticipant}
+              // Depende do filtro na URL, não do match com o tracking
+              // atual: a chave `participant` é compartilhada com o chat
+              // (spec 0011, D-3), então o email pode ser de outro
+              // tracking — e nesse caso limpar é justamente o que o
+              // usuário precisa poder fazer.
+              disabled={!participantFilter}
             >
               <UserRound className="size-5 border rounded-full p-0.5" />
               <span>Todos os participantes</span>

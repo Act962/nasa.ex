@@ -2,7 +2,7 @@
 
 /**
  * Bottom tab bar do /tracking-chat — inspirado no padrão iOS do WhatsApp:
- * pill flutuante no rodapé com 5 ícones grandes e labels curtos. Cada
+ * pill flutuante no rodapé com 6 ícones grandes e labels curtos. Cada
  * tab dispara um comportamento diferente:
  *
  * 1. **Configuração** — navega pra settings do tracking atual (antes
@@ -15,7 +15,9 @@
  * 4. **Canal** — cicla pelo filtro de canal (`ALL` → `WHATSAPP` →
  *    `INSTAGRAM` → `FACEBOOK` → ALL). Ícone reflete o canal atual; rótulo
  *    mostra o nome.
- * 5. **Tags** — abre dropdown com etiquetas pra filtrar a lista.
+ * 5. **Filtros** — abre o painel de filtros avançados (responsável,
+ *    temperatura, status e ordenação), o mesmo do desktop.
+ * 6. **Tags** — abre dropdown com etiquetas pra filtrar a lista.
  *
  * Substitui a antiga row de circles + filter pills que ocupava muito
  * espaço no meio da sidebar.
@@ -39,9 +41,12 @@ import {
   KanbanSquareIcon,
   TagIcon,
   EllipsisIcon,
+  ListFilterIcon,
 } from "lucide-react";
 import { WhatsappIcon } from "@/components/whatsapp";
 import { toast } from "sonner";
+import { ConversationFiltersPanel } from "./conversation-filters-panel";
+import { useConversationFilters } from "../hooks/use-conversation-filters";
 import type { ReactNode } from "react";
 
 type ChannelFilter = "ALL" | "WHATSAPP" | "INSTAGRAM" | "TIKTOK" | "FACEBOOK";
@@ -102,6 +107,8 @@ export function TrackingChatBottomTabs({
   };
   const hasTagSelection = selectedTagIds.length > 0;
 
+  const { activeCount: filtersActiveCount } = useConversationFilters();
+
   const cycleChannel = () => {
     const idx = CHANNEL_CYCLE.indexOf(selectedChannel);
     const next = CHANNEL_CYCLE[(idx + 1) % CHANNEL_CYCLE.length];
@@ -158,6 +165,30 @@ export function TrackingChatBottomTabs({
           label={CHANNEL_LABEL[selectedChannel]}
           active={selectedChannel !== "ALL"}
           onClick={cycleChannel}
+        />
+
+        <ConversationFiltersPanel
+          trackingId={trackingId}
+          trigger={
+            <button
+              type="button"
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5",
+                "rounded-full px-2.5 py-1 transition-colors flex-1 min-w-0",
+                filtersActiveCount > 0
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              aria-label="Filtros avançados"
+            >
+              <ListFilterIcon className="size-4" />
+              <span className="text-[10px] leading-none truncate max-w-full">
+                {filtersActiveCount > 0
+                  ? `Filtros (${filtersActiveCount})`
+                  : "Filtros"}
+              </span>
+            </button>
+          }
         />
 
         <DropdownMenu>
