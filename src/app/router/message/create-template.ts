@@ -16,8 +16,8 @@ import {
 } from "./utils";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 import {
-  OutboundProviderError,
-  resolveOutboundProvider,
+  mapOutboundError,
+  resolveOutboundProviderOrBadRequest,
 } from "@/features/tracking-chat/lib/providers";
 
 /**
@@ -65,18 +65,9 @@ export const createTemplateMessage = base
     }
 
     // ── Resolve provider ANTES do charge (paridade com create.ts) ──────
-    let resolved: Awaited<ReturnType<typeof resolveOutboundProvider>>;
-    try {
-      resolved = await resolveOutboundProvider(trackingId);
-    } catch (error) {
-      if (error instanceof OutboundProviderError) {
-        throw errors.BAD_REQUEST({
-          message: error.message,
-          data: { code: error.code } as never,
-        });
-      }
-      throw error;
-    }
+    // O mapeamento pro erro estruturado vive no wrapper (spec 0010) —
+    // era este bloco, duplicado inline, que faltava nos outros handlers.
+    const resolved = await resolveOutboundProviderOrBadRequest(trackingId);
 
     if (resolved.providerId !== "meta-cloud") {
       throw errors.BAD_REQUEST({
@@ -108,13 +99,7 @@ export const createTemplateMessage = base
       });
       externalMessageId = response.externalMessageId;
     } catch (error) {
-      if (error instanceof OutboundProviderError) {
-        throw errors.BAD_REQUEST({
-          message: error.message,
-          data: { code: error.code } as never,
-        });
-      }
-      throw error;
+      throw mapOutboundError(error);
     }
 
     const message = await prisma.message.create({

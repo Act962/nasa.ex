@@ -105,3 +105,13 @@ export {
   ProviderSendInvalidResponseError,
   OutboundWindowClosedError,
 } from "./outbound-errors";
+
+// Tradução dos erros de domínio pro erro oRPC que o frontend trata
+// (spec 0010). Todo handler que chama `resolveOutboundProvider` ou
+// `provider.send*` deve envolver o catch com `mapOutboundError`.
+export {
+  mapOutboundError,
+  toOutboundErrorPayload,
+  resolveOutboundProviderOrBadRequest,
+} from "./map-outbound-error";
+export type { OutboundErrorPayload } from "./map-outbound-error";

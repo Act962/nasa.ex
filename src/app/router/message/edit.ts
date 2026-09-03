@@ -7,7 +7,7 @@ import prisma from "@/lib/prisma";
 import { MessageStatus } from "@/generated/prisma/enums";
 import {
   MetaFeatureUnsupportedError,
-  resolveOutboundProvider,
+  resolveOutboundProviderOrBadRequest,
 } from "@/features/tracking-chat/lib/providers";
 
 export const editMessageHandler = base
@@ -23,7 +23,7 @@ export const editMessageHandler = base
       text: z.string(),
       /**
        * @deprecated Ignorado — o token Uazapi é resolvido server-side via
-       * `resolveOutboundProvider(trackingId)`.
+       * `resolveOutboundProviderOrBadRequest(trackingId)`.
        */
       token: z.string().nullish(),
     }),
@@ -57,7 +57,7 @@ export const editMessageHandler = base
 
       // Resolve credenciais server-side — o client não trafega mais o token
       // Uazapi. `input.token` é ignorado.
-      const resolved = await resolveOutboundProvider(trackingId);
+      const resolved = await resolveOutboundProviderOrBadRequest(trackingId);
 
       // ── Gate Meta unsupported (Fase 6) ─────────────────────────────────
       // Meta Cloud API não tem endpoint pra editar mensagem outbound. Se o
