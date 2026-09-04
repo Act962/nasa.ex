@@ -3,13 +3,10 @@
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { XIcon } from "lucide-react";
 import { ParticipantsSwitcher } from "@/features/trackings/components/filters/participant-switcher";
 import { StatusFlowFilter } from "@/features/trackings/components/filters/status-flow-filter";
@@ -32,6 +29,10 @@ interface ConversationFiltersPanelProps {
  * Responsável, Temperatura e Status são os componentes do board, sem
  * cópia: eles leem e escrevem as mesmas chaves de URL (D-3). A ordenação
  * é própria do chat, porque tem direção e o board não tem (D-5).
+ *
+ * `modal={false}` é necessário, não estético: cada controle interno abre
+ * o próprio popover/dropdown, e o modo modal prenderia o foco no painel,
+ * impedindo a interação com esses filhos.
  */
 export function ConversationFiltersPanel({
   trackingId,
@@ -47,17 +48,33 @@ export function ConversationFiltersPanel({
   } = useConversationFilters();
 
   return (
-    <Sheet>
-      <SheetTrigger asChild>{trigger}</SheetTrigger>
-      <SheetContent hideOverlay>
-        <SheetHeader>
-          <SheetTitle>Filtros</SheetTitle>
-          <SheetDescription>
-            Aplique filtros para refinar sua busca.
-          </SheetDescription>
-        </SheetHeader>
+    <Popover modal={false}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={8}
+        collisionPadding={12}
+        className="w-64 p-2"
+      >
+        <div className="flex items-center justify-between px-1 pb-2">
+          <span className="text-xs font-medium text-muted-foreground">
+            Filtrar conversas
+          </span>
+          {activeCount > 0 && (
+            <button
+              type="button"
+              onClick={clearAll}
+              className="flex items-center gap-1 rounded-sm px-1 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <XIcon className="size-3" />
+              Limpar
+            </button>
+          )}
+        </div>
 
-        <div className="flex flex-col gap-2 px-4">
+        {/* `[&>button]:w-full` estica os controles do board, que nascem com
+            largura automática pra viver numa toolbar horizontal. */}
+        <div className="flex flex-col gap-1 [&>button]:w-full [&>div>button]:w-full">
           <ParticipantsSwitcher trackingId={trackingId} />
           <TemperatureFilter />
           <StatusFlowFilter />
@@ -66,21 +83,10 @@ export function ConversationFiltersPanel({
             sortDirection={sortDirection}
             onSortByChange={setSortBy}
             onSortDirectionChange={setSortDirection}
+            className="w-full justify-start"
           />
-
-          {activeCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-2 justify-start"
-              onClick={clearAll}
-            >
-              <XIcon className="size-3.5" />
-              Limpar filtros
-            </Button>
-          )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </PopoverContent>
+    </Popover>
   );
 }
