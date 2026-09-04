@@ -20,7 +20,9 @@ import {
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDownIcon, EllipsisIcon } from "lucide-react";
+import { ChevronDownIcon, EllipsisIcon, ListFilterIcon } from "lucide-react";
+import { ConversationFiltersPanel } from "./conversation-filters-panel";
+import { useConversationFilters } from "../hooks/use-conversation-filters";
 import Link from "next/link";
 import type { SVGProps } from "react";
 import { integrations } from "@/data/integrations";
@@ -32,8 +34,6 @@ interface ConversationFiltersProps {
   trackingId: string | null;
   selectedChannel: ChannelFilter;
   onChannelChange: (channel: ChannelFilter) => void;
-  statusFlowFilter: "FINISHED" | "ACTIVE" | null;
-  onStatusFlowFilterChange: (filter: "FINISHED" | "ACTIVE" | null) => void;
   favoritesOnly: boolean;
   onFavoritesOnlyChange: (value: boolean) => void;
   archivedOnly: boolean;
@@ -46,8 +46,6 @@ export function ConversationFilters({
   trackingId,
   selectedChannel,
   onChannelChange,
-  statusFlowFilter,
-  onStatusFlowFilterChange,
   favoritesOnly,
   onFavoritesOnlyChange,
   archivedOnly,
@@ -56,6 +54,8 @@ export function ConversationFilters({
   onSelectedTagIdsChange,
 }: ConversationFiltersProps) {
   const { installedSlugs } = useMarketplace();
+  const { statusFlows, toggleStatusFlow, activeCount } =
+    useConversationFilters();
 
   const messengerIntegrations = integrations.filter(
     (integration) =>
@@ -133,21 +133,17 @@ export function ConversationFilters({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {/* Atalhos do MESMO estado do filtro "Status" do painel — marcar
+            aqui reflete lá e vice-versa (spec 0011, RF-4). */}
         <QuickFilterButton
           label="Finalizados"
-          active={statusFlowFilter === "FINISHED"}
-          onClick={() =>
-            onStatusFlowFilterChange(
-              statusFlowFilter === "FINISHED" ? null : "FINISHED",
-            )
-          }
+          active={statusFlows.includes("FINISHED")}
+          onClick={() => toggleStatusFlow("FINISHED")}
         />
         <QuickFilterButton
           label="Em atendimento"
-          active={statusFlowFilter === "ACTIVE"}
-          onClick={() =>
-            onStatusFlowFilterChange(statusFlowFilter === "ACTIVE" ? null : "ACTIVE")
-          }
+          active={statusFlows.includes("ACTIVE")}
+          onClick={() => toggleStatusFlow("ACTIVE")}
         />
         <QuickFilterButton
           label="Favoritas"
@@ -219,6 +215,21 @@ export function ConversationFilters({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <ConversationFiltersPanel
+          trackingId={trackingId}
+          trigger={
+            <Button
+              variant={activeCount > 0 ? "default" : "outline"}
+              size="sm"
+              className="h-8 rounded-full px-3 text-xs"
+            >
+              <ListFilterIcon className="size-3.5" />
+              Filtros
+              {activeCount > 0 ? ` (${activeCount})` : ""}
+            </Button>
+          }
+        />
       </div>
     </div>
   );

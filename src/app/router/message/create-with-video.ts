@@ -23,7 +23,10 @@ import {
   markInstanceConnectionFailure,
   shouldSkipUazapiForConversation,
 } from "@/features/tracking-chat/lib/in-chat-mode";
-import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  mapOutboundError,
+  resolveOutboundProviderOrBadRequest,
+} from "@/features/tracking-chat/lib/providers";
 import { v4 as uuidv4 } from "uuid";
 import z from "zod";
 import {
@@ -84,7 +87,7 @@ export const createVideoMessage = base
           "Conversation sem trackingId — não é possível resolver provider.",
         );
       }
-      const resolved = await resolveOutboundProvider(conversation.trackingId);
+      const resolved = await resolveOutboundProviderOrBadRequest(conversation.trackingId);
       // URL absoluta e pública — a Uazapi/Meta baixa o arquivo por conta
       // própria. `getPublicMediaUrl` cai em presigned quando não há domínio
       // público configurado (spec 0004, CB-4/CB-5).
@@ -118,7 +121,7 @@ export const createVideoMessage = base
             }).catch(() => {});
           }
         }
-        throw err;
+        throw mapOutboundError(err);
       }
     }
 

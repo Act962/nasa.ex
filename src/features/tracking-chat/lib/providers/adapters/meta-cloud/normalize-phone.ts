@@ -17,29 +17,37 @@
  * Comportamento:
  *  - **Strip non-digits** (`+`, espaços, `-`, parênteses). Frontend ou
  *    Lead.phone com formatação cosmética não quebra mais.
- *  - **Brasil 12 dígitos sem 9** (`55 DD XXXXXXXX`) → insere `9` entre
- *    DDD e os 8 dígitos finais. Mobile brasileiro sempre tem 9 hoje
- *    (regra ANATEL desde 2016); só sobra com 12 dígitos quando o wa_id
- *    foi cadastrado antes do 9º dígito ser obrigatório.
- *  - **Brasil 13 dígitos** (já com 9), **internacional** (qualquer
- *    tamanho ≠ 12 ou não começa com 55) → devolve como veio (só sem
- *    formatação). Idempotente.
+ *  - **Mobile BR de 12 dígitos sem 9** (`55 DD 8XXXXXXX`) → insere `9`
+ *    entre DDD e os 8 dígitos finais.
+ *  - **Fixo BR de 12 dígitos** (`55 DD 3XXXXXXX`), **BR 13 dígitos** (já
+ *    com 9), **internacional** → devolve como veio (só sem formatação).
+ *    Idempotente.
  *
- * Limitação consciente: telefones BR fixos (8 dígitos sem o 9 inicial)
- * em DDD válido não existem no WhatsApp (linhas fixas não recebem msg).
- * Se um dia receber 12 dígitos BR de uma fonte exótica que NÃO seja
- * mobile sem 9, o normalize vai adicionar 9 incorretamente. Aceito pelo
- * pareto: 99,9% dos casos são mobile sem o 9.
+ * Por que a faixa importa (spec 0010, RF-1/RF-2): a versão anterior
+ * inseria o `9` em QUALQUER número BR de 12 dígitos. Um fixo
+ * (`5586 3221-1234`) virava `5586932211234` — um celular existente de
+ * outra pessoa. O envio não falhava: entregava a mensagem ao
+ * destinatário errado, vazando dados do lead. Pela numeração da ANATEL,
+ * fixos ocupam a faixa `2`–`5` e móveis `6`–`9`; só a segunda recebeu o
+ * 9º dígito na migração. Checar o primeiro dígito do número local separa
+ * as duas classes sem ambiguidade.
  */
+
+/** Primeiro dígito do número local que identifica faixa móvel (ANATEL). */
+const BR_MOBILE_LOCAL_PREFIXES = new Set(["6", "7", "8", "9"]);
+
 export function normalizePhoneToMetaE164(phone: string): string {
   const digits = phone.replace(/\D/g, "");
 
   // Brasil mobile sem o 9º dígito: `55 DD XXXXXXXX` (12 dígitos).
-  // Insere o 9 entre DDD (positions 2-3) e os 8 dígitos finais.
+  // Insere o 9 entre DDD (posições 2-3) e os 8 dígitos finais — mas só
+  // quando o número local está na faixa móvel. Fixo BR fica intocado.
   if (digits.length === 12 && digits.startsWith("55")) {
     const ddd = digits.slice(2, 4);
-    const rest = digits.slice(4);
-    return `55${ddd}9${rest}`;
+    const localNumber = digits.slice(4);
+    if (BR_MOBILE_LOCAL_PREFIXES.has(localNumber[0])) {
+      return `55${ddd}9${localNumber}`;
+    }
   }
 
   return digits;

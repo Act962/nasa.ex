@@ -2,6 +2,28 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import z from "zod";
 import prisma from "@/lib/prisma";
+import {
+  buildCursorWhere,
+  buildNextCursorValue,
+  buildOrderBy,
+  CONVERSATION_SORT_BY,
+} from "@/features/tracking-chat/lib/conversation-list-order";
+
+const sortOptions = z.enum(CONVERSATION_SORT_BY);
+const sortDirections = z.enum(["asc", "desc"]);
+const statusFlowValues = z.enum(["NEW", "ACTIVE", "WAITING", "FINISHED"]);
+const temperatureValues = z.enum(["COLD", "WARM", "HOT", "VERY_HOT"]);
+
+/**
+ * Lista de conversas da sidebar do chat (spec 0011).
+ *
+ * Pagina por **keyset** (`cursorId` + `cursorValue`), não por
+ * `cursor: { id }`. A forma antiga só funcionava porque a ordenação fixa
+ * era `lastMessageAt`, que é `@updatedAt` e praticamente nunca empata —
+ * com ordenação por data de chegada ou de entrada na etapa os empates
+ * viram regra, e cursor por id sobre ordenação não-única repete e omite
+ * registros.
+ */
 
 export const listConversation = base
   .use(requiredAuthMiddleware)
@@ -16,11 +38,20 @@ export const listConversation = base
       statusId: z.string().nullable(),
       search: z.string().nullable(),
       limit: z.number().min(1).max(100).optional(),
+      /**
+       * @deprecated Substituído por `cursorId` + `cursorValue` (spec 0011).
+       * Mantido pra não quebrar client antigo em cache; é ignorado.
+       */
       cursor: z.string().optional(),
-      statusFlow: z
-        .enum(["NEW", "ACTIVE", "WAITING", "FINISHED"])
-        .nullable()
-        .optional(),
+      cursorId: z.string().optional(),
+      cursorValue: z.string().optional(),
+      /**
+       * @deprecated Use `statusFlows` (multi). Mantido pra compat; quando
+       * vier preenchido é somado ao array.
+       */
+      statusFlow: statusFlowValues.nullable().optional(),
+      /** Filtro "Status" (spec 0011, RF-3). Vazio = esconde FINISHED (RF-5). */
+      statusFlows: z.array(statusFlowValues).optional(),
       channel: z.string().nullable().optional(),
       tagIds: z.array(z.string()).optional(),
       favoritesOnly: z.boolean().optional(),
@@ -30,16 +61,38 @@ export const listConversation = base
        * Outros filtros (statusFlow, tags, etc.) seguem aplicando.
        */
       archivedOnly: z.boolean().optional(),
+      /** Filtro "Responsável" — email, mesma chave do board (RF-1). */
+      responsibleEmail: z.string().optional(),
+      /** Filtro "Temperatura" (RF-2). */
+      temperatures: z.array(temperatureValues).optional(),
+      sortBy: sortOptions.default("lastMessageAt"),
+      sortDirection: sortDirections.default("desc"),
     }),
   )
 
   .handler(async ({ input, context, errors }) => {
     try {
       const limit = input.limit ?? 30;
+
+      // `statusFlow` (single, legado) e `statusFlows` (multi) convergem num
+      // conjunto só. Vazio mantém o default histórico de esconder finalizados.
+      const statusFlows = Array.from(
+        new Set([
+          ...(input.statusFlows ?? []),
+          ...(input.statusFlow ? [input.statusFlow] : []),
+        ]),
+      );
+
       const conversations = await prisma.conversation.findMany({
         where: {
           trackingId: input.trackingId,
           ...(input.channel && { channel: input.channel as any }),
+          ...buildCursorWhere(
+            input.sortBy,
+            input.sortDirection,
+            input.cursorId,
+            input.cursorValue,
+          ),
           lead: {
             // Arquivados: filtro orthogonal aos outros.
             // - `archivedOnly: true` → SOMENTE arquivados (filtro
@@ -53,10 +106,16 @@ export const listConversation = base
               : input.search?.trim()
                 ? {}
                 : { isArchived: false }),
-            statusFlow: input.statusFlow
-              ? { equals: input.statusFlow }
-              : { not: "FINISHED" },
+            ...(statusFlows.length
+              ? { statusFlow: { in: statusFlows } }
+              : { statusFlow: { not: "FINISHED" } }),
             ...(input.statusId && { statusId: input.statusId }),
+            ...(input.responsibleEmail && {
+              responsible: { email: input.responsibleEmail },
+            }),
+            ...(input.temperatures?.length && {
+              temperature: { in: input.temperatures },
+            }),
             ...(input.search && {
               OR: [
                 {
@@ -114,21 +173,15 @@ export const listConversation = base
             },
           },
         },
-        ...(input.cursor
-          ? {
-              cursor: { id: input.cursor },
-              skip: 1,
-            }
-          : {}),
-        take: limit,
-        orderBy: [{ lastMessageAt: "desc" }, { id: "desc" }],
+        // +1 pra saber se existe próxima página sem precisar de count.
+        take: limit + 1,
+        orderBy: buildOrderBy(input.sortBy, input.sortDirection),
       });
 
-      if (!conversations) {
-        throw errors.BAD_REQUEST;
-      }
+      const hasMore = conversations.length > limit;
+      const pageItems = hasMore ? conversations.slice(0, limit) : conversations;
 
-      const newConversations = conversations.map((conversation) => {
+      const newConversations = pageItems.map((conversation) => {
         const { _count, ...rest } = conversation;
         return {
           ...rest,
@@ -136,16 +189,22 @@ export const listConversation = base
         };
       });
 
-      const nextCursor =
-        conversations.length === limit
-          ? conversations[conversations.length - 1].id
+      const lastItem = pageItems[pageItems.length - 1];
+      const nextCursorId = hasMore && lastItem ? lastItem.id : undefined;
+      const nextCursorValue =
+        hasMore && lastItem
+          ? buildNextCursorValue(input.sortBy, lastItem)
           : undefined;
 
       return {
         items: newConversations,
-        nextCursor,
+        nextCursorId,
+        nextCursorValue,
       };
     } catch (error) {
+      // Antes o catch engolia a causa inteira, o que tornava impossível
+      // diagnosticar erro de filtro/cursor sem repro local.
+      console.error("[conversation.list] failed", error);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
