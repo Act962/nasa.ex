@@ -18,6 +18,7 @@ import { SpacePointWidget } from "@/features/space-point";
 import { PaymentDashboard } from "./dashboard/payment-dashboard";
 import { EntriesTable } from "./entries/entries-table";
 import { CashflowTab } from "./cashflow/cashflow-tab";
+import { ReconciliationTab } from "./reconciliation/reconciliation-tab";
 import { ContactsTab } from "./contacts/contacts-tab";
 import { ContractsTab } from "./contracts/contracts-tab";
 import { DocumentsTab } from "./attachments/documents-tab";
@@ -49,6 +50,7 @@ const BASE_TABS: PaymentTabItem[] = [
   { value: "receivables", label: "Receita", emoji: "💚" },
   { value: "payables", label: "Despesa", emoji: "🔴" },
   { value: "cashflow", label: "Fluxo de Caixa", emoji: "📈" },
+  { value: "reconciliation", label: "Conciliação", emoji: "🏦" },
   { value: "projection", label: "Projeção", emoji: "🔭" },
   { value: "dre", label: "DRE", emoji: "📄" },
   { value: "dro", label: "DRO", emoji: "🏭" },
@@ -214,6 +216,9 @@ export function PaymentPage() {
             <TabsTrigger value="cashflow" className="text-xs gap-1.5">
               📈 Fluxo de Caixa
             </TabsTrigger>
+            <TabsTrigger value="reconciliation" className="text-xs gap-1.5">
+              🏦 Conciliação
+            </TabsTrigger>
             <TabsTrigger value="projection" className="text-xs gap-1.5">
               🔭 Projeção
             </TabsTrigger>
@@ -272,6 +277,9 @@ export function PaymentPage() {
           </TabsContent>
           <TabsContent value="cashflow" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <CashflowTab />
+          </TabsContent>
+          <TabsContent value="reconciliation" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
+            <ReconciliationTab />
           </TabsContent>
           <TabsContent value="projection" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <ProjectionTab />
