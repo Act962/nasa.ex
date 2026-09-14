@@ -49,6 +49,7 @@ import {
   resolveReferralForOrg,
 } from "@/lib/lead-journey/ctwa";
 import prisma from "@/lib/prisma";
+import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
 import { pusherServer } from "@/lib/pusher";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { logActivity } from "@/features/admin/lib/activity-logger";
@@ -180,6 +181,29 @@ export async function persistCanonicalInbound(
       leadTags: { include: { tag: true } },
     },
   });
+
+  /*
+    Segunda tentativa antes de criar: o mesmo número pode estar gravado na
+    outra grafia. O `wa_id` de conta mobile antiga vem com 12 dígitos, sem o
+    9º; quem cadastrou pelo formulário ou pelo wizard do trafeGO passou por
+    `normalizePhoneToMetaE164`, que insere o 9. Sem esta busca, o cliente que
+    manda o comprovante abre um card novo em vez de cair no dele.
+
+    O lead continua sendo gravado com o `wa_id` cru quando é criado aqui —
+    `Lead.phone` é fonte de verdade do wa_id, e isso não muda.
+  */
+  if (!lead) {
+    const outrasGrafias = waIdLookupVariants(phone).filter((variant) => variant !== phone);
+    if (outrasGrafias.length > 0) {
+      lead = await prisma.lead.findFirst({
+        where: { trackingId: ctx.trackingId, phone: { in: outrasGrafias } },
+        include: {
+          conversation: true,
+          leadTags: { include: { tag: true } },
+        },
+      });
+    }
+  }
 
   const remoteJid = phone.includes("@") ? phone : `${phone}@s.whatsapp.net`;
   const channel = ctx.channel ?? "WHATSAPP";

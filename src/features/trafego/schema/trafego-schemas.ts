@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { MAX_AD_BUDGET_BRL_CENTS } from "@/features/trafego/lib/pricing-tiers";
 
-export const trafegoPlatformSchema = z.enum(["META_ADS", "WHATSAPP_OFICIAL"]);
+export const trafegoPlatformSchema = z.enum(["META_ADS", "GOOGLE_ADS", "WHATSAPP_OFICIAL"]);
 
 export const trafegoCampaignTypeSchema = z.enum([
   "PROSPECCAO",
@@ -18,10 +19,12 @@ export const trafegoObjectiveSchema = z.enum([
   "ENGAGEMENT",
   "MESSAGES",
   "BROADCAST",
+  "SEARCH",
 ]);
 
 export const trafegoOrderStatusSchema = z.enum([
   "PAID",
+  "ACCOUNT_REVIEW",
   "ONBOARDING",
   "MATERIALS_SUBMITTED",
   "REQUESTED",
@@ -47,16 +50,59 @@ export const trafegoBriefingSchema = z.object({
 
 export type TrafegoBriefing = z.infer<typeof trafegoBriefingSchema>;
 
-/** Body de POST /api/checkout/trafego — endpoint público, sem auth. */
+export const businessManagerAnswerSchema = z.enum(["yes", "no", "unsure"]);
+
+/**
+ * Body de POST /api/checkout/trafego — endpoint público, sem auth.
+ *
+ * O preço vem do simulador por faixa: o cliente escolhe a verba e o servidor
+ * recalcula taxa e setup. Nada de valor vindo do browser.
+ */
 export const trafegoCheckoutBodySchema = z.object({
-  planId: z.string().min(1),
+  // Recusa acima do teto em vez de reduzir em silêncio: cobrar menos do que o
+  // cliente pediu sem avisar seria pior que devolver erro.
+  adBudgetBrlCents: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_AD_BUDGET_BRL_CENTS, {
+      message:
+        "Para investimentos acima de R$ 500.000 fale com um gestor — o checkout automático não cobre esse valor.",
+    }),
+  hasBusinessManager: businessManagerAnswerSchema,
   campaignType: trafegoCampaignTypeSchema,
   platform: trafegoPlatformSchema,
   objective: trafegoObjectiveSchema,
   email: z.string().trim().toLowerCase().email("E-mail inválido"),
-  phone: z.string().trim().max(30).optional(),
+  /// Obrigatório: é por ele que o comprovante cai no card e os avisos chegam.
+  phone: z
+    .string()
+    .trim()
+    .max(30)
+    .refine((value) => value.replace(/\D/g, "").length >= 10, "Informe um WhatsApp válido com DDD"),
   companyName: z.string().trim().max(120).optional(),
   briefing: trafegoBriefingSchema.optional(),
+  /// @ do Instagram ou página do Facebook (Meta Ads) — o preview vem do lookup.
+  socialHandle: z.string().trim().max(120).optional(),
+  /// WhatsApp Oficial: tem número na API? Sem número = setup (mesma tabela da BM).
+  hasOfficialNumber: businessManagerAnswerSchema.optional(),
+  officialNumber: z.string().trim().max(30).optional(),
+  /// Cartão abre o Stripe; PIX devolve a chave e espera o comprovante.
+  paymentMethod: z.enum(["CARD", "PIX"]).default("CARD"),
+  /// Cliente leu o alerta de política e escolheu seguir. Obrigatório quando a
+  /// checagem devolve WARNING — o servidor confere de novo antes de cobrar.
+  complianceAcknowledged: z.boolean().default(false),
+  /// Prazo: o que o cliente quer, o que é possível e o reconhecimento quando
+  /// as duas datas não batem. O servidor recalcula o possível — o browser só informa.
+  desiredStartAt: z.string().trim().max(20).optional(),
+  hasSocialLinked: z.boolean().optional(),
+  materialsReady: z.boolean().optional(),
+  startAcknowledged: z.boolean().default(false),
+  /// Aceite explícito dos termos. Sem isto o checkout é recusado — é a prova
+  /// de que o cliente leu a cláusula sobre responsabilidade pelo criativo.
+  acceptedTerms: z.literal(true, {
+    message: "É necessário aceitar os termos para continuar.",
+  }),
 });
 
 export type TrafegoCheckoutBody = z.infer<typeof trafegoCheckoutBodySchema>;
@@ -74,7 +120,7 @@ export const trafegoPlanInputSchema = z.object({
   platform: trafegoPlatformSchema,
   campaignTypes: z.array(trafegoCampaignTypeSchema).min(1),
   objectives: z.array(trafegoObjectiveSchema).min(1),
-  adBudgetBrlCents: z.number().int().min(0),
+  adBudgetBrlCents: z.number().int().min(0).max(MAX_AD_BUDGET_BRL_CENTS),
   serviceFeePercent: z.number().min(0).max(1000),
   serviceFeeBrlCents: z.number().int().min(0).nullable().optional(),
   durationDays: z.number().int().min(1).max(365),

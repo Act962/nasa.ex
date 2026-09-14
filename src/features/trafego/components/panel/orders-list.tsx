@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, Loader2, Plus, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTrafegoOrders } from "@/features/trafego/hooks/use-trafego-orders";
+import { usePanelPath } from "@/features/trafego/lib/base-path";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import {
   CAMPAIGN_TYPE_SHORT_LABEL,
@@ -14,6 +15,7 @@ import { OrderStatusBadge } from "./order-status-badge";
 
 export function TrafegoOrdersList() {
   const { data: orders, isLoading } = useTrafegoOrders();
+  const panelPath = usePanelPath();
 
   if (isLoading) {
     return (
@@ -63,7 +65,7 @@ export function TrafegoOrdersList() {
         {orders.map((order) => (
           <Link
             key={order.id}
-            href={`/trafego/painel/${order.id}`}
+            href={`${panelPath}/${order.id}`}
             className="group rounded-xl border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">

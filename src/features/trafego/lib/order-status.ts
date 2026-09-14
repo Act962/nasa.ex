@@ -4,6 +4,7 @@ import type { TrafegoOrderStatus } from "@/generated/prisma/enums";
 
 export const ORDER_STATUS_LABEL: Record<TrafegoOrderStatus, string> = {
   PAID: "Pagamento confirmado",
+  ACCOUNT_REVIEW: "Análise da conta de tráfego",
   ONBOARDING: "Aguardando seus materiais",
   MATERIALS_SUBMITTED: "Materiais enviados",
   REQUESTED: "Na fila da equipe",
@@ -19,6 +20,7 @@ export const ORDER_STATUS_LABEL: Record<TrafegoOrderStatus, string> = {
 
 export const ORDER_STATUS_STYLE: Record<TrafegoOrderStatus, string> = {
   PAID: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  ACCOUNT_REVIEW: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
   ONBOARDING: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
   MATERIALS_SUBMITTED: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
   REQUESTED: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
@@ -38,6 +40,7 @@ export const ORDER_STATUS_STYLE: Record<TrafegoOrderStatus, string> = {
  */
 export const ORDER_TIMELINE_STEPS: TrafegoOrderStatus[] = [
   "PAID",
+  "ACCOUNT_REVIEW",
   "ONBOARDING",
   "MATERIALS_SUBMITTED",
   "REQUESTED",
@@ -47,17 +50,38 @@ export const ORDER_TIMELINE_STEPS: TrafegoOrderStatus[] = [
   "COMPLETED",
 ];
 
-/** Status em que o cliente ainda pode editar criativos, copies e briefing. */
+/**
+ * Status em que o cliente ainda pode editar criativos, copies e briefing.
+ * Inclui ACCOUNT_REVIEW de propósito: enquanto a equipe analisa a conta, o
+ * cliente já adianta os materiais — as duas frentes andam em paralelo.
+ */
 export const EDITABLE_ORDER_STATUSES: TrafegoOrderStatus[] = [
+  "ACCOUNT_REVIEW",
   "ONBOARDING",
   "MATERIALS_SUBMITTED",
   "CHANGES_REQUESTED",
 ];
 
-/** Status a partir dos quais "Ativar campanha" reivindica o pedido. */
+/**
+ * Status a partir dos quais "Ativar campanha" reivindica o pedido. ACCOUNT_REVIEW
+ * fica de fora: ativar antes da conta ser verificada pularia a análise.
+ */
 export const ACTIVATABLE_ORDER_STATUSES: TrafegoOrderStatus[] = [
   "ONBOARDING",
   "MATERIALS_SUBMITTED",
+  "CHANGES_REQUESTED",
+];
+
+/** Status finais: o card deixa de espelhar o pedido e um novo pedido pode assumi-lo. */
+export const TERMINAL_ORDER_STATUSES: TrafegoOrderStatus[] = [
+  "COMPLETED",
+  "CANCELLED",
+  "REFUNDED",
+];
+
+/** Status em que a auto-marcação de "Materiais enviados" pode acontecer. */
+export const MATERIALS_AUTO_SUBMIT_FROM: TrafegoOrderStatus[] = [
+  "ONBOARDING",
   "CHANGES_REQUESTED",
 ];
 
@@ -67,4 +91,8 @@ export function isOrderEditable(status: TrafegoOrderStatus): boolean {
 
 export function isOrderActivatable(status: TrafegoOrderStatus): boolean {
   return ACTIVATABLE_ORDER_STATUSES.includes(status);
+}
+
+export function isTerminalOrderStatus(status: TrafegoOrderStatus): boolean {
+  return TERMINAL_ORDER_STATUSES.includes(status);
 }

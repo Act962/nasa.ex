@@ -43,10 +43,30 @@ export async function createTrafegoOrderFromPurchaseInTx({
       companyName: true,
       phone: true,
       adBudgetBrlCents: true,
+      serviceFeePercent: true,
       serviceFeeBrlCents: true,
+      setupFeeBrlCents: true,
       amountBrlCents: true,
+      hasBusinessManager: true,
+      acceptedTermsAt: true,
+      acceptedTermsVersion: true,
       stripeSessionId: true,
       stripePaymentIntentId: true,
+      leadId: true,
+      phoneVerifiedAt: true,
+      socialHandle: true,
+      socialProfile: true,
+      hasOfficialNumber: true,
+      officialNumber: true,
+      officialNumberCheck: true,
+      paymentMethod: true,
+      complianceLevel: true,
+      complianceIssues: true,
+      desiredStartAt: true,
+      earliestStartAt: true,
+      startAcknowledgedAt: true,
+      hasSocialLinked: true,
+      materialsReady: true,
       plan: {
         select: {
           name: true,
@@ -77,7 +97,9 @@ export async function createTrafegoOrderFromPurchaseInTx({
       planId: pending.planId,
       pendingPurchaseId: pending.id,
 
-      planNameSnapshot: pending.plan?.name ?? "Plano trafeGO",
+      planNameSnapshot:
+        pending.plan?.name ??
+        `Tráfego ${(pending.adBudgetBrlCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
       campaignType: pending.campaignType,
       platform: pending.platform,
       objective: pending.objective,
@@ -86,8 +108,13 @@ export async function createTrafegoOrderFromPurchaseInTx({
       maxCopies: pending.plan?.maxCopies ?? 3,
 
       adBudgetBrlCents: pending.adBudgetBrlCents,
+      serviceFeePercent: pending.serviceFeePercent,
       serviceFeeBrlCents: pending.serviceFeeBrlCents,
+      setupFeeBrlCents: pending.setupFeeBrlCents,
       totalBrlCents: pending.amountBrlCents,
+      hasBusinessManager: pending.hasBusinessManager,
+      acceptedTermsAt: pending.acceptedTermsAt,
+      acceptedTermsVersion: pending.acceptedTermsVersion,
       stripeSessionId: pending.stripeSessionId,
       stripePaymentIntentId: pending.stripePaymentIntentId,
 
@@ -101,20 +128,43 @@ export async function createTrafegoOrderFromPurchaseInTx({
       // Já aponta pra org da agência: é lá que nascem os MetaAdsKpiSnapshot.
       metricsOrganizationId: settings?.agencyOrganizationId ?? null,
 
-      status: "ONBOARDING",
+      // O card nasceu na compra ("Aguardando pagamento"); o pedido herda.
+      leadId: pending.leadId,
+
+      // Verificações feitas no wizard — a equipe confere na análise da conta.
+      phoneVerifiedAt: pending.phoneVerifiedAt,
+      socialHandle: pending.socialHandle,
+      socialProfile: pending.socialProfile ?? undefined,
+      hasOfficialNumber: pending.hasOfficialNumber,
+      officialNumber: pending.officialNumber,
+      officialNumberCheck: pending.officialNumberCheck ?? undefined,
+      paymentMethod: pending.paymentMethod,
+      complianceLevel: pending.complianceLevel,
+      complianceIssues: pending.complianceIssues ?? undefined,
+      desiredStartAt: pending.desiredStartAt,
+      earliestStartAt: pending.earliestStartAt,
+      startAcknowledgedAt: pending.startAcknowledgedAt,
+      hasSocialLinked: pending.hasSocialLinked,
+      materialsReady: pending.materialsReady,
+
+      // Todo pedido passa pela análise da conta de anúncios antes dos materiais
+      // (spec 0009 D-6). O cliente já pode subir criativos enquanto isso.
+      status: "ACCOUNT_REVIEW",
       events: {
         create: [
           {
             toStatus: "PAID",
             title: "Pagamento confirmado",
             detail: "Recebemos seu pagamento e sua campanha foi criada.",
+            source: "SYSTEM",
           },
           {
             fromStatus: "PAID",
-            toStatus: "ONBOARDING",
-            title: "Envie seus materiais",
+            toStatus: "ACCOUNT_REVIEW",
+            title: "Análise da conta de tráfego",
             detail:
-              "Suba os criativos e escreva a copy para que nossa equipe possa colocar a campanha no ar.",
+              "Vamos verificar sua conta de anúncios (ou criar uma para você). Enquanto isso, envie seus criativos e a copy.",
+            source: "SYSTEM",
           },
         ],
       },

@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { assertOrderEditable } from "@/features/trafego/server/lib/assert-order-editable";
 import { trafegoBriefingSchema } from "@/features/trafego/schema/trafego-schemas";
+import { upsertBriefingResponseForOrder } from "@/features/trafego/server/lib/briefing-form-response";
 
 export const updateTrafegoBriefing = base
   .use(requiredAuthMiddleware)
@@ -27,6 +28,11 @@ export const updateTrafegoBriefing = base
         notes: emptyToNull(input.notes),
       },
     });
+
+    // O card do gestor mostra o briefing como resposta de formulário — acompanha a edição.
+    await upsertBriefingResponseForOrder(order.id).catch((error) =>
+      console.error("[trafego/briefing] resposta no card não atualizada:", error),
+    );
 
     return { success: true };
   });

@@ -27,6 +27,11 @@ import { buildSearchTools } from "@/features/astro/server/tools/search";
 import { buildChartTools } from "@/features/astro/server/tools/charts";
 import { buildInsightsReportTools } from "@/features/astro/server/tools/insights-reports";
 import { buildWorkflowTools } from "@/features/astro/server/tools/workflows";
+import {
+  buildTrafegoAstroTools,
+  TRAFEGO_SCOPE_PROMPT,
+} from "@/features/trafego/server/lib/astro-tools";
+
 
 /**
  * Modelo OpenAI — reaproveita a `OPENAI_API_KEY` que já é usada pelos
@@ -243,8 +248,11 @@ export function streamAstro(opts: {
    *   - "insights": somente leitura (analytics/list/search/chart). Sem mutations,
    *     actions, workflows ou routing pra sub-agents (que escrevem). Usado pelo
    *     Astro via WhatsApp (Insights pelo WhatsApp), garantindo read-only de fato.
+   *   - "trafego": painel do cliente trafeGO. NENHUMA tool da plataforma —
+   *     só o módulo `trafego/server/lib/astro-tools`. O cliente aqui não é
+   *     membro da plataforma: ele não pode ver leads, orgs nem automações.
    */
-  toolScope?: "full" | "insights";
+  toolScope?: "full" | "insights" | "trafego";
   /**
    * Força o modelo "complex" (gpt-4o) ignorando a heurística de complexidade.
    * Usado pelo Astro via WhatsApp: o gpt-4o-mini hesita/alucina em tool-calls
@@ -301,7 +309,9 @@ export function streamAstro(opts: {
     // Modo insights (WhatsApp): só leitura — sem routing pra sub-agents
     // (closer/task/automation escrevem). Modo full: routing normal.
     const routingTools =
-      toolScope === "insights" ? {} : buildRoutingTools({ ctx, enabled });
+      toolScope === "insights" || toolScope === "trafego"
+        ? {}
+        : buildRoutingTools({ ctx, enabled });
     // Tools expostas direto no orchestrator (não passam por sub-agent).
     // Motivos:
     //   1. Sub-agent (generateText interno) consome outputs e devolve
@@ -339,7 +349,9 @@ export function streamAstro(opts: {
       ...buildInsightsReportTools(ctx),
     };
     const directTools: ToolSet =
-      toolScope === "insights"
+      toolScope === "trafego"
+        ? buildTrafegoAstroTools(ctx)
+        : toolScope === "insights"
         ? readOnlyTools
         : {
             ...readOnlyTools,
@@ -352,7 +364,9 @@ export function streamAstro(opts: {
             ...buildWorkflowTools(ctx),
           };
     const systemSuffix =
-      toolScope === "insights"
+      toolScope === "trafego"
+        ? TRAFEGO_SCOPE_PROMPT
+        : toolScope === "insights"
         ? INSIGHTS_SCOPE_PROMPT
         : buildAgentsBriefing(enabled);
     // Injeta a data/hora atual no system prompt pra o LLM resolver datas

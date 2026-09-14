@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
+import { getLiveCampaignKpis } from "@/features/trafego/server/lib/live-meta-insights";
 
 /**
  * Desempenho da campanha, com contrato único para as duas plataformas — o
@@ -36,6 +37,7 @@ export const getTrafegoOrderPerformance = base
         metricsOrganizationId: true,
         broadcastId: true,
         startedAt: true,
+        metaAutoLinkedAt: true,
       },
     });
 
@@ -60,6 +62,8 @@ export const getTrafegoOrderPerformance = base
           status: order.status,
           hasMetrics: false as const,
           reason: "not_linked" as const,
+          source: "snapshot" as const,
+          autoLinked: Boolean(order.metaAutoLinkedAt),
           period,
           kpis: [],
           series: [],
@@ -77,16 +81,54 @@ export const getTrafegoOrderPerformance = base
         orderBy: { date: "asc" },
       });
 
+      // O cron de KPIs roda 3h da manhã com o dado de ONTEM. Campanha que
+      // acabou de subir ficaria até 24h mostrando "sem dados" — justo quando
+      // o cliente mais olha. Busca ao vivo antes de desistir.
       if (snapshots.length === 0) {
+        const live = await getLiveCampaignKpis({
+          orderId: order.id,
+          metricsOrganizationId: order.metricsOrganizationId,
+          metaCampaignExternalId: order.metaCampaignExternalId,
+          since: order.startedAt ?? from,
+          until: to,
+        });
+
+        if (!live) {
+          return {
+            platform: order.platform,
+            status: order.status,
+            hasMetrics: false as const,
+            reason: "no_data_yet" as const,
+            source: "snapshot" as const,
+            autoLinked: Boolean(order.metaAutoLinkedAt),
+            period,
+            kpis: [],
+            series: [],
+            budget: emptyBudget,
+          };
+        }
+
+        const liveSpentBrlCents = Math.round(live.spend * 100);
         return {
           platform: order.platform,
           status: order.status,
-          hasMetrics: false as const,
-          reason: "no_data_yet" as const,
+          hasMetrics: true as const,
+          source: "live" as const,
+          updatedAt: live.fetchedAt,
+          autoLinked: Boolean(order.metaAutoLinkedAt),
           period,
-          kpis: [],
+          kpis: buildMetaKpis({
+            impressions: live.impressions,
+            reach: live.reach,
+            clicks: live.clicks,
+            leads: live.leads,
+            conversions: live.conversions,
+            spentBrlCents: liveSpentBrlCents,
+          }),
+          // A leitura ao vivo vem agregada, sem quebra por dia: o gráfico
+          // aparece quando o primeiro snapshot chegar.
           series: [],
-          budget: emptyBudget,
+          budget: buildBudget(order.adBudgetBrlCents, liveSpentBrlCents),
         };
       }
 
@@ -105,41 +147,24 @@ export const getTrafegoOrderPerformance = base
         platform: order.platform,
         status: order.status,
         hasMetrics: true as const,
+        source: "snapshot" as const,
+        updatedAt: snapshots.at(-1)?.syncedAt ?? null,
+        autoLinked: Boolean(order.metaAutoLinkedAt),
         period,
-        kpis: [
-          { key: "impressions", label: "Impressões", value: impressions, format: "int" as const },
-          { key: "reach", label: "Pessoas alcançadas", value: reach, format: "int" as const },
-          { key: "clicks", label: "Cliques", value: clicks, format: "int" as const },
-          {
-            key: "ctr",
-            label: "Taxa de cliques",
-            value: impressions > 0 ? (clicks / impressions) * 100 : 0,
-            format: "pct" as const,
-          },
-          { key: "leads", label: "Leads", value: leads, format: "int" as const },
-          { key: "conversions", label: "Conversões", value: conversions, format: "int" as const },
-          { key: "spend", label: "Investido", value: spentBrlCents, format: "currency" as const },
-          {
-            key: "cpc",
-            label: "Custo por clique",
-            value: clicks > 0 ? Math.round(spentBrlCents / clicks) : 0,
-            format: "currency" as const,
-          },
-        ],
+        kpis: buildMetaKpis({
+          impressions,
+          reach,
+          clicks,
+          leads,
+          conversions,
+          spentBrlCents,
+        }),
         series: snapshots.map((row) => ({
           date: row.date,
           primary: row.impressions,
           secondary: row.clicks,
         })),
-        budget: {
-          adBudgetBrlCents: order.adBudgetBrlCents,
-          spentBrlCents,
-          remainingBrlCents: Math.max(0, order.adBudgetBrlCents - spentBrlCents),
-          percentUsed:
-            order.adBudgetBrlCents > 0
-              ? Math.min(100, (spentBrlCents / order.adBudgetBrlCents) * 100)
-              : 0,
-        },
+        budget: buildBudget(order.adBudgetBrlCents, spentBrlCents),
       };
     }
 
@@ -150,6 +175,8 @@ export const getTrafegoOrderPerformance = base
         status: order.status,
         hasMetrics: false as const,
         reason: "not_linked" as const,
+        source: "snapshot" as const,
+        autoLinked: Boolean(order.metaAutoLinkedAt),
         period,
         kpis: [],
         series: [],
@@ -176,6 +203,8 @@ export const getTrafegoOrderPerformance = base
         status: order.status,
         hasMetrics: false as const,
         reason: "no_data_yet" as const,
+        source: "snapshot" as const,
+        autoLinked: Boolean(order.metaAutoLinkedAt),
         period,
         kpis: [],
         series: [],
@@ -190,6 +219,8 @@ export const getTrafegoOrderPerformance = base
       platform: order.platform,
       status: order.status,
       hasMetrics: true as const,
+      source: "snapshot" as const,
+      autoLinked: Boolean(order.metaAutoLinkedAt),
       period,
       kpis: [
         { key: "recipients", label: "Destinatários", value: broadcast.totalRecipients, format: "int" as const },
@@ -204,3 +235,44 @@ export const getTrafegoOrderPerformance = base
       budget: emptyBudget,
     };
   });
+
+/** Mesma lista de KPIs para o dado do snapshot e para o dado ao vivo. */
+function buildMetaKpis(totals: {
+  impressions: number;
+  reach: number;
+  clicks: number;
+  leads: number;
+  conversions: number;
+  spentBrlCents: number;
+}) {
+  return [
+    { key: "impressions", label: "Impressões", value: totals.impressions, format: "int" as const },
+    { key: "reach", label: "Pessoas alcançadas", value: totals.reach, format: "int" as const },
+    { key: "clicks", label: "Cliques", value: totals.clicks, format: "int" as const },
+    {
+      key: "ctr",
+      label: "Taxa de cliques",
+      value: totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0,
+      format: "pct" as const,
+    },
+    { key: "leads", label: "Leads", value: totals.leads, format: "int" as const },
+    { key: "conversions", label: "Conversões", value: totals.conversions, format: "int" as const },
+    { key: "spend", label: "Investido", value: totals.spentBrlCents, format: "currency" as const },
+    {
+      key: "cpc",
+      label: "Custo por clique",
+      value: totals.clicks > 0 ? Math.round(totals.spentBrlCents / totals.clicks) : 0,
+      format: "currency" as const,
+    },
+  ];
+}
+
+function buildBudget(adBudgetBrlCents: number, spentBrlCents: number) {
+  return {
+    adBudgetBrlCents,
+    spentBrlCents,
+    remainingBrlCents: Math.max(0, adBudgetBrlCents - spentBrlCents),
+    percentUsed:
+      adBudgetBrlCents > 0 ? Math.min(100, (spentBrlCents / adBudgetBrlCents) * 100) : 0,
+  };
+}

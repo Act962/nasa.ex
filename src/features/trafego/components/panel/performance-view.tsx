@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Loader2, LinkIcon } from "lucide-react";
+import { BarChart3, Clock, Loader2, LinkIcon, Radio } from "lucide-react";
 import { useTrafegoOrderPerformance } from "@/features/trafego/hooks/use-trafego-orders";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { Progress } from "@/components/ui/progress";
@@ -47,6 +47,11 @@ export function PerformanceView({ orderId }: { orderId: string }) {
 
   return (
     <div className="space-y-6">
+      <DataFreshness
+        source={data.source}
+        updatedAt={"updatedAt" in data ? data.updatedAt : null}
+      />
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {data.kpis.map((kpi) => (
           <div key={kpi.key} className="rounded-xl border bg-card p-4">
@@ -98,5 +103,37 @@ export function PerformanceView({ orderId }: { orderId: string }) {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * De quando é o número. "Ao vivo" aparece nas primeiras horas de uma campanha,
+ * antes do primeiro fechamento diário — dizer isso evita o cliente achar que o
+ * painel travou quando o valor mudar de um refresh para o outro.
+ */
+function DataFreshness({
+  source,
+  updatedAt,
+}: {
+  source: "live" | "snapshot";
+  updatedAt?: Date | string | null;
+}) {
+  const isLive = source === "live";
+  const Icon = isLive ? Radio : Clock;
+
+  const label = isLive
+    ? "Ao vivo — direto da plataforma, ainda sem o fechamento do dia"
+    : updatedAt
+      ? `Consolidado em ${new Date(updatedAt).toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+        })} — a plataforma fecha os números uma vez por dia`
+      : "Consolidado uma vez por dia pela plataforma";
+
+  return (
+    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <Icon className={isLive ? "size-3.5 text-emerald-500" : "size-3.5"} />
+      {label}
+    </p>
   );
 }

@@ -1,14 +1,14 @@
 import "server-only";
-import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
 import { ACTIVATABLE_ORDER_STATUSES } from "@/features/trafego/lib/order-status";
+import { transitionTrafegoOrder } from "./transition-order";
 
 /**
  * Transição atômica para `REQUESTED` + enfileiramento do aviso à equipe.
  *
- * O `updateMany` com guarda de status reivindica o pedido só se ele ainda
- * estiver num status ativável — evita duplo disparo por clique duplo, duas
- * abas ou retry do client. Mesmo padrão de `beginBroadcastDispatch`.
+ * `expectedFrom` reivindica o pedido só se ele ainda estiver num status
+ * ativável — evita duplo disparo por clique duplo, duas abas ou retry do
+ * client. Mesmo padrão de `beginBroadcastDispatch`.
  *
  * Retorna se ESTA chamada reivindicou o pedido (e, portanto, enfileirou).
  */
@@ -19,26 +19,18 @@ export async function beginTrafegoActivation(params: {
 }): Promise<boolean> {
   const { orderId, organizationId, actorUserId } = params;
 
-  const claimed = await prisma.trafegoOrder.updateMany({
-    where: {
-      id: orderId,
-      organizationId,
-      status: { in: ACTIVATABLE_ORDER_STATUSES },
-    },
-    data: { status: "REQUESTED", requestedAt: new Date() },
+  const result = await transitionTrafegoOrder({
+    orderId,
+    organizationId,
+    toStatus: "REQUESTED",
+    source: "CLIENT",
+    actorUserId,
+    expectedFrom: ACTIVATABLE_ORDER_STATUSES,
+    title: "Campanha enviada para a equipe",
+    clientNote:
+      "Recebemos seus materiais. Nossa equipe vai revisar e colocar a campanha no ar.",
   });
-  if (claimed.count === 0) return false;
-
-  await prisma.trafegoOrderEvent.create({
-    data: {
-      orderId,
-      toStatus: "REQUESTED",
-      title: "Campanha enviada para a equipe",
-      detail:
-        "Recebemos seus materiais. Nossa equipe vai revisar e colocar a campanha no ar.",
-      actorUserId,
-    },
-  });
+  if (!result.changed) return false;
 
   await inngest.send({
     name: "trafego/order.requested",

@@ -14,6 +14,7 @@ export async function assertOrderEditable(orderId: string, organizationId: strin
     select: {
       id: true,
       status: true,
+      platform: true,
       maxCreatives: true,
       maxCopies: true,
       _count: { select: { creatives: true, copies: true } },
@@ -33,6 +34,7 @@ export async function assertOrderEditable(orderId: string, organizationId: strin
   return {
     id: order.id,
     status: order.status,
+    platform: order.platform,
     maxCreatives: order.maxCreatives,
     maxCopies: order.maxCopies,
     creativesCount: order._count.creatives,

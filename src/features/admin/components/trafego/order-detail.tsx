@@ -5,11 +5,14 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowLeft,
+  BellRing,
   Download,
   ExternalLink,
   Link2,
+  Link2Off,
   Loader2,
   Send,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -24,13 +27,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { TrafegoOrderStatus } from "@/generated/prisma/enums";
+import type {
+  TrafegoOrderStatus,
+  TrafegoTransitionSource,
+} from "@/generated/prisma/enums";
 import {
   useLinkTrafegoBroadcast,
   useLinkTrafegoMetaCampaign,
   useReplyTrafegoMessage,
   useTrafegoAdminMessages,
   useTrafegoAdminOrder,
+  useUnlinkTrafegoMetaCampaign,
   useUpdateTrafegoOrderStatus,
 } from "@/features/trafego/hooks/use-trafego-admin";
 import { ORDER_STATUS_LABEL } from "@/features/trafego/lib/order-status";
@@ -42,12 +49,22 @@ import {
 } from "@/features/trafego/lib/catalog-labels";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { OrderStatusBadge } from "@/features/trafego/components/panel/order-status-badge";
+import { useAdminPath } from "@/features/trafego/lib/base-path";
+
+const SOURCE_LABEL: Record<TrafegoTransitionSource, string> = {
+  KANBAN: "kanban",
+  ADMIN: "admin",
+  CLIENT: "cliente",
+  SYSTEM: "sistema",
+};
 
 export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
   const { data: order, isLoading } = useTrafegoAdminOrder(orderId);
+  const adminPath = useAdminPath();
   const updateStatus = useUpdateTrafegoOrderStatus();
   const linkMeta = useLinkTrafegoMetaCampaign();
   const linkBroadcast = useLinkTrafegoBroadcast();
+  const unlinkMeta = useUnlinkTrafegoMetaCampaign();
 
   const [clientNote, setClientNote] = useState("");
   const [metaCampaignId, setMetaCampaignId] = useState("");
@@ -85,7 +102,7 @@ export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
   return (
     <div className="p-6">
       <Link
-        href="/admin/trafego"
+        href={adminPath}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
@@ -257,6 +274,11 @@ export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
                         (interno)
                       </span>
                     )}
+                    {event.source && (
+                      <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {SOURCE_LABEL[event.source]}
+                      </span>
+                    )}
                   </p>
                   {event.detail && (
                     <p className="text-sm text-muted-foreground">{event.detail}</p>
@@ -264,6 +286,11 @@ export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
                   <time className="text-xs text-muted-foreground">
                     {new Date(event.createdAt).toLocaleString("pt-BR")}
                   </time>
+                  {event.clientNotifiedAt && (
+                    <span className="ml-2 inline-flex items-center gap-1 text-[11px] text-emerald-600">
+                      <BellRing className="size-3" /> cliente avisado
+                    </span>
+                  )}
                 </li>
               ))}
             </ol>
@@ -275,6 +302,22 @@ export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
         </Tabs>
 
         <aside className="space-y-5">
+          {order.leadId && (
+            <div className="rounded-lg border p-4">
+              <h3 className="text-sm font-semibold">Card no tracking</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Arrastar o card muda a fase do pedido e avisa o cliente — o comprovante e as
+                conversas ficam nele.
+              </p>
+              <Button asChild variant="outline" size="sm" className="mt-3 w-full">
+                <Link href={`/contatos/${order.leadId}`} target="_blank">
+                  <ExternalLink className="mr-1.5 size-4" />
+                  Abrir card
+                </Link>
+              </Button>
+            </div>
+          )}
+
           <div className="rounded-lg border p-4">
             <h3 className="text-sm font-semibold">Mudar status</h3>
             <Textarea
@@ -337,6 +380,36 @@ export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
                 <Link2 className="mr-1.5 size-4" />
                 Vincular
               </Button>
+              {order.metaCampaignExternalId && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="mt-2 w-full"
+                  disabled={unlinkMeta.isPending}
+                  onClick={() =>
+                    unlinkMeta.mutate(
+                      { orderId },
+                      {
+                        onSuccess: () => {
+                          setMetaCampaignId("");
+                          toast.success("Campanha desvinculada.");
+                        },
+                        onError: (error) => toast.error(error.message),
+                      },
+                    )
+                  }
+                >
+                  <Link2Off className="mr-1.5 size-4" />
+                  Desvincular
+                </Button>
+              )}
+              {order.metaAutoLinkedAt && (
+                <p className="mt-2 flex items-start gap-1.5 text-[11px] text-emerald-600">
+                  <Sparkles className="mt-0.5 size-3 shrink-0" />
+                  Vinculada automaticamente pelo código no nome, em{" "}
+                  {new Date(order.metaAutoLinkedAt).toLocaleDateString("pt-BR")}.
+                </p>
+              )}
               {order.metricsOrganizationId && (
                 <p className="mt-2 text-[11px] text-muted-foreground">
                   Métricas lidas da organização da agência.

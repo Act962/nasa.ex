@@ -28,6 +28,7 @@ import { ORDER_STATUS_LABEL } from "@/features/trafego/lib/order-status";
 import { PLATFORM_SHORT_LABEL } from "@/features/trafego/lib/catalog-labels";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { OrderStatusBadge } from "@/features/trafego/components/panel/order-status-badge";
+import { useAdminPath } from "@/features/trafego/lib/base-path";
 
 const ALL = "__all__";
 
@@ -36,6 +37,7 @@ export function TrafegoOrdersTable() {
   const [platform, setPlatform] = useState<string>(ALL);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const adminPath = useAdminPath();
 
   const { data, isLoading } = useTrafegoAdminOrders({
     status: status === ALL ? undefined : (status as TrafegoOrderStatus),
@@ -56,7 +58,7 @@ export function TrafegoOrdersTable() {
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link href="/admin/trafego/planos">
+          <Link href={`${adminPath}/planos`}>
             <Settings2 className="mr-1.5 size-4" />
             Planos e ajustes
           </Link>
@@ -153,7 +155,7 @@ export function TrafegoOrdersTable() {
                 key={order.id}
                 className="cursor-pointer"
                 onClick={() => {
-                  window.location.href = `/admin/trafego/${order.id}`;
+                  window.location.href = `${adminPath}/${order.id}`;
                 }}
               >
                 <TableCell>

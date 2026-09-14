@@ -8,7 +8,7 @@ import {
   trafegoOrderStatusSchema,
   trafegoPlatformSchema,
 } from "@/features/trafego/schema/trafego-schemas";
-import { ORDER_STATUS_LABEL } from "@/features/trafego/lib/order-status";
+import { transitionTrafegoOrder } from "@/features/trafego/server/lib/transition-order";
 
 const PAGE_SIZE = 30;
 
@@ -135,66 +135,65 @@ export const updateTrafegoOrderStatus = base
     }),
   )
   .handler(async ({ input, context }) => {
+    const result = await transitionTrafegoOrder({
+      orderId: input.orderId,
+      toStatus: input.status,
+      source: "ADMIN",
+      actorUserId: context.adminUser.id,
+      clientNote: input.clientNote || null,
+      internalNote: input.internalNote || null,
+    });
+
+    if (!result.changed) {
+      if (result.reason === "not_found") {
+        throw new ORPCError("NOT_FOUND", { message: "Pedido não encontrado." });
+      }
+      if (result.reason === "claim_failed") {
+        throw new ORPCError("CONFLICT", {
+          message: "O pedido mudou de status enquanto você editava. Recarregue a página.",
+        });
+      }
+      return { success: true, unchanged: true };
+    }
+
+    return { success: true, unchanged: false };
+  });
+
+/** Desfaz o vínculo com a campanha do Meta (manual ou automático). */
+export const unlinkTrafegoMetaCampaign = base
+  .use(requireAdminMiddleware)
+  .input(z.object({ orderId: z.string().min(1) }))
+  .handler(async ({ input, context }) => {
     const order = await prisma.trafegoOrder.findUnique({
       where: { id: input.orderId },
-      select: { id: true, status: true, durationDays: true },
+      select: { id: true, status: true, metaCampaignExternalId: true },
     });
     if (!order) {
       throw new ORPCError("NOT_FOUND", { message: "Pedido não encontrado." });
     }
-    if (order.status === input.status) {
-      return { success: true, unchanged: true };
-    }
-
-    const now = new Date();
-    const timestamps: Record<string, Date | null> = {};
-    if (input.status === "IN_REVIEW") timestamps.approvedAt = now;
-    if (input.status === "RUNNING") {
-      timestamps.startedAt = now;
-      timestamps.endsAt = new Date(
-        now.getTime() + order.durationDays * 24 * 60 * 60 * 1000,
-      );
-    }
-    if (input.status === "COMPLETED") timestamps.completedAt = now;
 
     await prisma.$transaction([
       prisma.trafegoOrder.update({
         where: { id: order.id },
-        data: {
-          status: input.status,
-          ...timestamps,
-          ...(input.internalNote ? { internalNotes: input.internalNote } : {}),
-        },
+        data: { metaCampaignExternalId: null, metaAdCampaignId: null },
       }),
       prisma.trafegoOrderEvent.create({
         data: {
           orderId: order.id,
           fromStatus: order.status,
-          toStatus: input.status,
-          title: ORDER_STATUS_LABEL[input.status],
-          detail: input.clientNote ?? null,
-          isClientVisible: true,
+          toStatus: order.status,
+          title: "Campanha do Meta desvinculada",
+          detail: order.metaCampaignExternalId
+            ? `Vínculo anterior: ${order.metaCampaignExternalId}`
+            : null,
+          isClientVisible: false,
           actorUserId: context.adminUser.id,
+          source: "ADMIN",
         },
       }),
-      ...(input.internalNote
-        ? [
-            prisma.trafegoOrderEvent.create({
-              data: {
-                orderId: order.id,
-                fromStatus: order.status,
-                toStatus: input.status,
-                title: "Nota interna",
-                detail: input.internalNote,
-                isClientVisible: false,
-                actorUserId: context.adminUser.id,
-              },
-            }),
-          ]
-        : []),
     ]);
 
-    return { success: true, unchanged: false };
+    return { success: true };
   });
 
 export const assignTrafegoOrder = base

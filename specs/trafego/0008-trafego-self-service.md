@@ -5,8 +5,8 @@ dominio: trafego
 status: em-revisao
 autor: Weydson
 criada: 2026-08-30
-atualizada: 2026-08-30
-branch: feature/W-trafego-self-service-20260831
+atualizada: 2026-09-12
+branch: feature/W-trafego-self-service-20260908
 pr:
 peso: completa
 ---
@@ -68,8 +68,11 @@ atualiza o andamento por um painel interno.
 | ID | Requisito |
 | --- | --- |
 | RF-1 | Página pública `/trafego`, sem autenticação, com wizard: plataforma → tipo → objetivo → briefing → plano → contato. |
-| RF-2 | Catálogo de planos administrável (`TrafegoPlan`), com verba e taxa de serviço separadas; o preço exibido decompõe verba + taxa + total. |
-| RF-3 | Checkout Stripe em BRL com **dois `line_items`** (verba e taxa), sem exigir conta prévia — só e-mail. |
+| RF-2 | Simulador de investimento por faixa: o cliente escolhe a verba (mínimo R$ 300) e vê verba + taxa + setup + total. A taxa cai conforme a verba sobe (50% → 25%). |
+| RF-2a | O wizard pergunta se o cliente tem conta de anúncios (BM), explica o que é, e cobra setup único de quem não tem — zerado a partir de R$ 2.501. |
+| RF-2b | A landing exibe as marcas atendidas em faixa de rolagem contínua, pausável e respeitando `prefers-reduced-motion`. |
+| RF-2c | Botão "Falar com um gestor" abre o WhatsApp configurado no admin, com a simulação já no texto. |
+| RF-3 | Checkout Stripe em BRL com até **três `line_items`** (verba, taxa e setup), sem exigir conta prévia — só e-mail. |
 | RF-4 | Confirmação de pagamento por webhook dedicado, idempotente, tolerante a entrega duplicada e fora de ordem. |
 | RF-5 | Pagamento confirmado gera `signupToken` (TTL 7 dias) enviado por e-mail com link de ativação. |
 | RF-6 | Na ativação, o comprador cria a senha e o sistema provisiona `User` (já criado no signUp), `Organization`, `Member(owner)` e `TrafegoOrder`, tudo idempotente. |
@@ -92,12 +95,33 @@ atualiza o andamento por um painel interno.
 | RNF-4 | A procedure de desempenho valida `order.organizationId === context.org.id` **antes** de usar `metricsOrganizationId`; sem isso o campo vira vazamento cross-org. |
 | RNF-5 | Upload de criativo tenta presigned e cai para `upload-direct` — o bucket R2 não tem CORS configurado. |
 | RNF-6 | Falha em qualquer side-effect pós-commit não invalida um pagamento já confirmado. |
+| RNF-7 | O preço **nunca** vem do browser: o checkout recebe a verba e a resposta sobre a BM, e recalcula taxa e setup pela tabela no servidor. |
+| RNF-8 | O webhook é **fail-closed**: sem `STRIPE_TRAFEGO_WEBHOOK_SECRET` responde 500 e não processa. Nunca valida com o secret compartilhado de outro produto. |
+| RNF-9 | A verba é limitada a R$ 500.000 no Zod e por `clampAdBudget`, garantindo que o total caiba no `Int` do Postgres. |
 
 ## 4. Critérios de aceite
 
 - [ ] **CA-1** — Dado um visitante anônimo em `/trafego`, quando completa o wizard e envia o
-      e-mail, então é redirecionado ao Stripe Checkout com dois itens (verba e taxa) cuja soma
-      é igual a `TrafegoPendingPurchase.amountBrlCents`.
+      e-mail, então é redirecionado ao Stripe Checkout com os itens da cotação (verba, taxa e,
+      se houver, setup) cuja soma é igual a `TrafegoPendingPurchase.amountBrlCents`.
+- [ ] **CA-1a** — Dada verba de R$ 1.000 e cliente sem BM, quando simula, então taxa = 40%
+      (R$ 400), setup = R$ 450 e total = R$ 1.850.
+- [ ] **CA-1b** — Dada verba de R$ 5.000, quando simula, então taxa = 30% e o setup aparece
+      como "Grátis", independentemente da resposta sobre a BM.
+- [ ] **CA-1c** — Dado um body de checkout com valor de taxa adulterado, quando o servidor
+      processa, então o valor é ignorado e a cotação é recalculada pela tabela.
+- [ ] **CA-1d** — Dada verba abaixo de R$ 300, quando simula, então o piso de R$ 300 é aplicado
+      e o cliente é avisado.
+- [ ] **CA-1e** — Dada verba acima de R$ 500.000, quando simula, então o teto é aplicado e o
+      cliente é orientado a falar com um gestor; e um POST direto ao checkout com valor acima do
+      teto é recusado com 422, sem criar pending nem chamar o Stripe.
+- [ ] **CA-16** — Dado `STRIPE_TRAFEGO_WEBHOOK_SECRET` ausente, quando um evento chega em
+      `/api/trafego/webhook`, então a resposta é 500 e nada é processado — nunca uma validação
+      com o secret de outro produto.
+- [ ] **CA-17** — Dado um payload assinado com `STRIPE_WEBHOOK_SECRET` (secret de outro produto),
+      quando chega ao webhook do trafeGO, então é recusado.
+- [ ] **CA-18** — Dado um erro no processamento de um evento, quando o handler falha, então o
+      registro em `ProcessedStripeEvent` é removido e o Stripe consegue reentregar.
 - [ ] **CA-2** — Dado um `TrafegoPendingPurchase` PENDING criado há menos de 30 min com mesmo
       `(email, planId, objective)`, quando o visitante repete o checkout, então a mesma sessão
       Stripe é reaproveitada e nenhuma pending nova é criada.
@@ -144,6 +168,9 @@ Enumerados **antes** do código, como o `specs/README.md` cobra.
 | CB-4 | Resgate concorrente (duas abas) | Claim atômico; a segunda recebe `CONFLICT` |
 | CB-5 | Usuário já tem organização | Reusa a org mais antiga; **não** aplica `appScope` |
 | CB-6 | Plano desativado entre compra e resgate | Resgate prossegue — o pedido usa o snapshot, não o catálogo |
+| CB-6a | Tabela de faixas muda entre compra e resgate | O pedido preserva `serviceFeePercent` e `setupFeeBrlCents` do momento da compra |
+| CB-6b | Cliente responde "não sei" sobre a BM | Tratado como quem não tem: cobra setup. Se a conta existir, a equipe estorna |
+| CB-6c | Verba exatamente no limite da faixa (R$ 500, R$ 1.000…) | Vale a faixa de baixo; o simulador mostra quanto falta e quanto se economiza subindo |
 | CB-7 | Plano deletado entre compra e resgate | `planId` do pedido vira null (`SetNull`); snapshots preservam o vendido |
 | CB-8 | `payment_intent.succeeded` antes de `checkout.session.completed` | Qualquer um confirma; o segundo vira no-op pelo claim |
 | CB-9 | Cliente `appScope="trafego"` acessa `/tracking` por URL | Redirecionado ao painel; **as procedures seguem alcançáveis** (não-objetivo declarado) |
@@ -152,6 +179,8 @@ Enumerados **antes** do código, como o `specs/README.md` cobra.
 | CB-12 | Org da agência sem `config.adAccountId` | O cron pula a org em silêncio e não há KPI — validar antes de prometer métrica |
 | CB-13 | Upload presigned bloqueado por CORS | Cai em `upload-direct` sem erro visível ao cliente |
 | CB-14 | Stripe falha ao criar a sessão | Pending marcada `CANCELLED`; erro claro na tela |
+| CB-15 | Verba digitada acima do teto ou `NaN` | `clampAdBudget` prende entre piso e teto; o checkout recusa valor acima do teto |
+| CB-16 | Secret do webhook ausente em produção | 500 fail-closed; nenhuma compra é confirmada até configurar |
 
 ## 6. Modelo de dados
 
@@ -223,3 +252,5 @@ todos os `TrafegoPlan` e remover a rota pública; nada no resto da plataforma de
 | Data | Mudança |
 | --- | --- |
 | 2026-08-30 | Spec criada (rascunho → em-revisão). |
+| 2026-09-12 | Webhook fail-closed (RNF-8), teto de verba (RNF-9) e dedupe compartilhado entre os três webhooks Stripe. Verificado que o Stripe já cobra valor avulso e que o trafeGO já usa a mesma integração das Stars — nenhuma migração necessária. |
+| 2026-09-11 | Planos fixos dão lugar ao simulador por faixa (RF-2). Entram pergunta sobre BM com taxa de setup (RF-2a), carrossel de marcas (RF-2b) e contato com gestor (RF-2c). Checkout passa a ter até três itens. |

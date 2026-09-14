@@ -107,17 +107,28 @@ export async function POST(req: Request) {
     );
   }
 
+  // Org do trafeGO: o cliente contratou tráfego, não a plataforma — ele não
+  // tem Stars e não deveria precisar ter. A taxa de serviço já cobre o Astro
+  // dele, que só enxerga as tools do próprio pedido.
+  const organization = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { appScope: true },
+  });
+  const isTrafegoScope = organization?.appScope === "trafego";
+
   // ── Cobrança de Stars (regra global em AppStarCost: "astro_prompt") ─────
   // Custo fixo de "stake" por prompt — garante que o user tem saldo antes
   // de gerar resposta. Cobrança proporcional aos tokens reais é feita no
   // onFinish abaixo (silenciosa, sem expor valor pro user).
   // Custo zero ou regra ausente = não cobra fixo. Saldo insuficiente = 402.
   try {
-    const charge = await chargeStarsByAction(organizationId, "astro_prompt", {
-      userId,
-      description: "Astro IA — prompt (stake)",
-      appSlug: "astro",
-    });
+    const charge = isTrafegoScope
+      ? { skipped: true as const, success: true as const }
+      : await chargeStarsByAction(organizationId, "astro_prompt", {
+          userId,
+          description: "Astro IA — prompt (stake)",
+          appSlug: "astro",
+        });
     if (!charge.skipped && !charge.success) {
       return NextResponse.json(
         {
@@ -141,6 +152,7 @@ export async function POST(req: Request) {
         pinnedAgentKey: parsed.pinnedAgentKey as AgentKey | undefined,
       },
       uiMessages,
+      toolScope: isTrafegoScope ? "trafego" : undefined,
     });
   } catch (e) {
     console.error("[ASTRO/chat] streamAstro setup failed", e);
@@ -184,7 +196,7 @@ export async function POST(req: Request) {
       // Convertida pra Stars via STARS_PER_1K_TOKENS. Não mostramos valor
       // pro user — só registramos a transação. Falha silenciosa: se debit
       // não passar, mantém o fluxo (já cobrou o stake no início).
-      if (capturedTokens > 0) {
+      if (capturedTokens > 0 && !isTrafegoScope) {
         const starsToCharge = Math.max(
           1,
           Math.round((capturedTokens / 1000) * STARS_PER_1K_TOKENS),

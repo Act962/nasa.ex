@@ -20,7 +20,9 @@ interface TrafegoPurchaseConfirmationProps {
   platformLabel: string;
   objectiveLabel: string;
   adBudgetBrl: number;
+  serviceFeePercent: number;
   serviceFeeBrl: number;
+  setupFeeBrl: number;
   totalBrl: number;
   durationDays: number;
   activationLink: string;
@@ -36,7 +38,9 @@ export const TrafegoPurchaseConfirmationEmail = ({
   platformLabel,
   objectiveLabel,
   adBudgetBrl,
+  serviceFeePercent,
   serviceFeeBrl,
+  setupFeeBrl,
   totalBrl,
   durationDays,
   activationLink,
@@ -84,7 +88,7 @@ export const TrafegoPurchaseConfirmationEmail = ({
             <Row>
               <Column>
                 <Text className="text-[#a3a3a3] text-[13px] m-0">
-                  Taxa de serviço
+                  {`Serviço Órbita (${serviceFeePercent}%)`}
                 </Text>
               </Column>
               <Column align="right">
@@ -93,6 +97,21 @@ export const TrafegoPurchaseConfirmationEmail = ({
                 </Text>
               </Column>
             </Row>
+
+            {setupFeeBrl > 0 && (
+              <Row>
+                <Column>
+                  <Text className="text-[#a3a3a3] text-[13px] m-0">
+                    Setup da conta de anúncios
+                  </Text>
+                </Column>
+                <Column align="right">
+                  <Text className="text-white text-[13px] m-0">
+                    {brl(setupFeeBrl)}
+                  </Text>
+                </Column>
+              </Row>
+            )}
 
             <Hr className="border border-solid border-[#262626] my-[12px]" />
 

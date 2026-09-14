@@ -151,6 +151,8 @@ model User {
   // ── trafeGO ──
   trafegoPurchases         TrafegoPendingPurchase[] @relation("TrafegoPurchaseUser")
   trafegoPurchasesRedeemed TrafegoPendingPurchase[] @relation("TrafegoPurchaseRedeemer")
+  trafegoPixConfirmed      TrafegoPendingPurchase[] @relation("TrafegoPixConfirmer")
+  trafegoComplianceOverrides TrafegoPendingPurchase[] @relation("TrafegoComplianceOverride")
   trafegoOrdersOwned       TrafegoOrder[]           @relation("TrafegoOrderOwner")
   trafegoOrdersAssigned    TrafegoOrder[]           @relation("TrafegoOrderAssignee")
   trafegoOrderEvents       TrafegoOrderEvent[]      @relation("TrafegoEventActor")
@@ -1028,6 +1030,8 @@ model Lead {
   agentSessions             LeadAgentSession[]
   dailyTriggerClaims        LeadDailyTriggerClaim[]
   broadcastRecipients       BroadcastRecipient[]
+  trafegoOrders             TrafegoOrder[]
+  trafegoPendingPurchases   TrafegoPendingPurchase[]
 
   @@unique([phone, trackingId])
   @@index([trackingId])
@@ -7658,6 +7662,7 @@ model WhatsappBotCommand {
 
 enum TrafegoPlatform {
   META_ADS
+  GOOGLE_ADS
   WHATSAPP_OFICIAL
 }
 
@@ -7678,10 +7683,13 @@ enum TrafegoObjective {
   ENGAGEMENT
   MESSAGES
   BROADCAST
+  /// Exclusivo do Google: aparecer para quem já está procurando o serviço.
+  SEARCH
 }
 
 enum TrafegoOrderStatus {
   PAID // pagamento confirmado, conta ainda não criada
+  ACCOUNT_REVIEW // equipe verifica acesso e saúde da conta de anúncios; cliente já pode subir materiais
   ONBOARDING // cliente criou a conta, falta enviar materiais
   MATERIALS_SUBMITTED // criativos + copy enviados, ainda não ativou
   REQUESTED // cliente ativou; entrou na fila da equipe
@@ -7726,6 +7734,31 @@ enum TrafegoCopySource {
 enum TrafegoSupportAuthorRole {
   CLIENT
   NASA
+}
+
+/// Quem provocou a transição de status: card arrastado no tracking, admin,
+/// cliente (Ativar / materiais) ou sistema (webhook, cron).
+enum TrafegoTransitionSource {
+  KANBAN
+  ADMIN
+  CLIENT
+  SYSTEM
+}
+
+/// Cartão fecha sozinho pelo Stripe; PIX é manual — a equipe confere o
+/// comprovante e confirma. Não usamos gateway de PIX (spec 0009 §2).
+enum TrafegoPaymentMethod {
+  CARD
+  PIX
+}
+
+/// Resultado da checagem contra as políticas de Meta/Google/WhatsApp.
+/// WARNING paga depois de reconhecer; BLOCKED não passa pelo checkout
+/// automático — precisa de um gestor liberar.
+enum TrafegoComplianceLevel {
+  OK
+  WARNING
+  BLOCKED
 }
 
 /// Catálogo público de planos. O preço é COMPOSTO: `adBudgetBrlCents` é a verba
@@ -7777,15 +7810,29 @@ model TrafegoPendingPurchase {
   userId                String?                      @map("user_id")
   /// "public" (anônimo, gera signupToken) | "authenticated" (webhook finaliza direto)
   flow                  String                       @default("public")
-  planId                String                       @map("plan_id")
+  /// Opcional desde o simulador por faixa: a compra deixou de depender de um
+  /// plano fixo do catálogo. Mantido para compras antigas e ofertas pontuais.
+  planId                String?                      @map("plan_id")
   campaignType          TrafegoCampaignType          @map("campaign_type")
   platform              TrafegoPlatform
   objective             TrafegoObjective
   /// Respostas do briefing coletadas no wizard, antes de existir pedido.
   briefing              Json                         @default("{}")
 
+  /// null = cliente não soube responder; tratamos como "precisa de setup".
+  hasBusinessManager    Boolean?                     @map("has_business_manager")
+
+  /// Quando o cliente aceitou os termos no checkout, e qual versão estava no ar.
+  /// É a prova de que ele leu a cláusula sobre responsabilidade pelo criativo.
+  acceptedTermsAt       DateTime?                    @map("accepted_terms_at")
+  acceptedTermsVersion  String?                      @map("accepted_terms_version")
+
   adBudgetBrlCents      Int                          @map("ad_budget_brl_cents")
+  /// Percentual da faixa no momento da compra — a tabela pode mudar depois.
+  serviceFeePercent     Int                          @default(50) @map("service_fee_percent")
   serviceFeeBrlCents    Int                          @map("service_fee_brl_cents")
+  /// Setup da BM, cobrado uma única vez de quem não tem conta de anúncios.
+  setupFeeBrlCents      Int                          @default(0) @map("setup_fee_brl_cents")
   amountBrlCents        Int                          @map("amount_brl_cents")
 
   stripeSessionId       String?                      @map("stripe_session_id")
@@ -7808,15 +7855,68 @@ model TrafegoPendingPurchase {
   /// "d1" | "d3" | "d7" | null
   lastReminderStage     String?                      @map("last_reminder_stage")
 
-  plan           TrafegoPlan   @relation(fields: [planId], references: [id], onDelete: Restrict)
+  /// Card no tracking de operação — nasce no "Continuar" do wizard, antes do pagamento.
+  leadId                String?                      @map("lead_id")
+  /// Resposta "Briefing TrafeGO" criada no card do lead a partir do wizard.
+  briefingResponseId    String?                      @map("briefing_response_id")
+
+  // ── Verificações do wizard (spec 0009, Fase B) ──
+  /// Código por WhatsApp confirmado antes do pagamento.
+  phoneVerifiedAt       DateTime?                    @map("phone_verified_at")
+  /// @instagram ou página do Facebook informados no wizard.
+  socialHandle          String?                      @map("social_handle")
+  /// Perfil encontrado na Graph API (nome, foto, seguidores…) — snapshot da hora.
+  socialProfile         Json?                        @map("social_profile")
+  /// WhatsApp Oficial: já tem número na API? null = não soube dizer (= setup).
+  hasOfficialNumber     Boolean?                     @map("has_official_number")
+  officialNumber        String?                      @map("official_number")
+  /// Resultado da checagem do número (existe, nome verificado) — snapshot.
+  officialNumberCheck   Json?                        @map("official_number_check")
+
+  // ── Pagamento (spec 0009, Fase B) ──
+  paymentMethod         TrafegoPaymentMethod         @default(CARD) @map("payment_method")
+  /// Código curto que o cliente manda junto do comprovante ("TGP-4K2M").
+  /// Não usamos o `id` da pendência: quem o tem consegue ler o signupToken.
+  pixReference          String?                      @unique @map("pix_reference")
+  pixExpiresAt          DateTime?                    @map("pix_expires_at")
+  pixConfirmedAt        DateTime?                    @map("pix_confirmed_at")
+  pixConfirmedByUserId  String?                      @map("pix_confirmed_by_user_id")
+  pixReceivedBrlCents   Int?                         @map("pix_received_brl_cents")
+  pixConfirmationNote   String?                      @map("pix_confirmation_note") @db.Text
+
+  // ── Políticas de publicidade ──
+  complianceLevel            TrafegoComplianceLevel? @map("compliance_level")
+  /// `PolicyHit[]` — o que foi encontrado, com trecho, motivo e correção.
+  complianceIssues           Json?                   @map("compliance_issues")
+  /// Cliente leu o aviso e escolheu seguir (obrigatório quando WARNING).
+  complianceAcknowledgedAt   DateTime?               @map("compliance_acknowledged_at")
+  /// Admin liberou um caso BLOCKED manualmente — falso positivo do prescreen.
+  complianceOverrideByUserId String?                 @map("compliance_override_by_user_id")
+
+  // ── Prazo (spec 0009, Fase B) ──
+  /// Quando o cliente gostaria de começar.
+  desiredStartAt        DateTime?                    @map("desired_start_at")
+  /// Data mais cedo possível, calculada em dias úteis no wizard.
+  earliestStartAt       DateTime?                    @map("earliest_start_at")
+  /// Cliente reconheceu a data realista — vale como prova, é cláusula dos termos.
+  startAcknowledgedAt   DateTime?                    @map("start_acknowledged_at")
+  hasSocialLinked       Boolean?                     @map("has_social_linked")
+  materialsReady        Boolean?                     @map("materials_ready")
+
+  plan           TrafegoPlan?  @relation(fields: [planId], references: [id], onDelete: SetNull)
+  lead           Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
   user           User?         @relation("TrafegoPurchaseUser", fields: [userId], references: [id], onDelete: SetNull)
   redeemedByUser User?         @relation("TrafegoPurchaseRedeemer", fields: [redeemedByUserId], references: [id], onDelete: SetNull)
+  pixConfirmedBy User?         @relation("TrafegoPixConfirmer", fields: [pixConfirmedByUserId], references: [id], onDelete: SetNull)
+  complianceOverrideBy User?   @relation("TrafegoComplianceOverride", fields: [complianceOverrideByUserId], references: [id], onDelete: SetNull)
   order          TrafegoOrder?
 
   @@index([email])
   @@index([status])
   @@index([stripeSessionId])
   @@index([userId])
+  @@index([leadId])
+  @@index([status, paymentMethod])
   @@map("trafego_pending_purchase")
 }
 
@@ -7842,9 +7942,15 @@ model TrafegoOrder {
   maxCopies         Int                @map("max_copies")
 
   // ── Snapshot financeiro (bate com o que o Stripe cobrou) ──
-  adBudgetBrlCents      Int     @map("ad_budget_brl_cents")
-  serviceFeeBrlCents    Int     @map("service_fee_brl_cents")
-  totalBrlCents         Int     @map("total_brl_cents")
+  adBudgetBrlCents      Int      @map("ad_budget_brl_cents")
+  serviceFeePercent     Int      @default(50) @map("service_fee_percent")
+  serviceFeeBrlCents    Int      @map("service_fee_brl_cents")
+  setupFeeBrlCents      Int      @default(0) @map("setup_fee_brl_cents")
+  totalBrlCents         Int      @map("total_brl_cents")
+  /// null = cliente não soube responder no wizard.
+  hasBusinessManager    Boolean? @map("has_business_manager")
+  acceptedTermsAt       DateTime? @map("accepted_terms_at")
+  acceptedTermsVersion  String?   @map("accepted_terms_version")
   stripeSessionId       String? @map("stripe_session_id")
   stripePaymentIntentId String? @map("stripe_payment_intent_id")
 
@@ -7872,6 +7978,53 @@ model TrafegoOrder {
   metricsOrganizationId  String? @map("metrics_organization_id")
   broadcastId            String? @unique @map("broadcast_id")
 
+  /// Card no tracking de operação (TrafegoSettings.operationsTrackingId).
+  /// NÃO é único: cliente recorrente tem N pedidos no mesmo lead — o card
+  /// espelha o pedido mais recente que ainda não terminou.
+  leadId                 String?   @map("lead_id")
+  /// Quando os materiais ficaram completos (≥1 criativo + ≥1 copy selecionada).
+  materialsSubmittedAt   DateTime? @map("materials_submitted_at")
+
+  // ── Verificações herdadas do wizard (snapshot) ──
+  phoneVerifiedAt        DateTime? @map("phone_verified_at")
+  socialHandle           String?   @map("social_handle")
+  socialProfile          Json?     @map("social_profile")
+  hasOfficialNumber      Boolean?  @map("has_official_number")
+  officialNumber         String?   @map("official_number")
+  officialNumberCheck    Json?     @map("official_number_check")
+  paymentMethod          TrafegoPaymentMethod @default(CARD) @map("payment_method")
+  complianceLevel        TrafegoComplianceLevel? @map("compliance_level")
+  complianceIssues       Json?                   @map("compliance_issues")
+  desiredStartAt         DateTime? @map("desired_start_at")
+  earliestStartAt        DateTime? @map("earliest_start_at")
+  startAcknowledgedAt    DateTime? @map("start_acknowledged_at")
+  hasSocialLinked        Boolean?  @map("has_social_linked")
+  materialsReady         Boolean?  @map("materials_ready")
+
+  /// Vínculo feito pelo cron a partir do código no nome da campanha, em vez
+  /// de alguém colar o ID à mão (spec 0009 RF-13).
+  metaAutoLinkedAt       DateTime? @map("meta_auto_linked_at")
+
+  // ── Inteligência do painel (spec 0009, Fase D) ──
+  /// Release da empresa redigido pelo Astro e revisado pelo cliente:
+  /// `{ about, products[], differentials[], audience, tone, offers[], doNotSay[] }`.
+  release                Json?     @map("release")
+  /// De onde o Release saiu: `[{ kind, value, fileKey?, extractedAt?, chars? }]`.
+  /// Instagram/Facebook entram como referência — não são raspáveis.
+  releaseSources         Json?     @map("release_sources")
+  releaseGeneratedAt     DateTime? @map("release_generated_at")
+  /// Só depois que o cliente revisa e salva é que o Release alimenta copies
+  /// e recomendações — texto gerado sem conferência não vira anúncio.
+  releaseSavedAt         DateTime? @map("release_saved_at")
+
+  /// Orientação para o cliente: formato de criativo, adequação da verba,
+  /// destino e ângulo de copy. Regras duras em código, texto pelo modelo.
+  recommendations        Json?     @map("recommendations")
+  recommendationsGeneratedAt DateTime? @map("recommendations_generated_at")
+
+  /// Checklist de acessos (página, Instagram, BM, parceria concedida).
+  accessChecklist        Json?     @map("access_checklist")
+
   assignedToUserId String? @map("assigned_to_user_id")
   internalNotes    String? @map("internal_notes") @db.Text
 
@@ -7885,6 +8038,7 @@ model TrafegoOrder {
   pendingPurchase TrafegoPendingPurchase? @relation(fields: [pendingPurchaseId], references: [id], onDelete: SetNull)
   metaAdCampaign  MetaAdCampaign?         @relation(fields: [metaAdCampaignId], references: [id], onDelete: SetNull)
   broadcast       Broadcast?              @relation(fields: [broadcastId], references: [id], onDelete: SetNull)
+  lead            Lead?                   @relation(fields: [leadId], references: [id], onDelete: SetNull)
 
   creatives TrafegoCreative[]
   copies    TrafegoCopy[]
@@ -7894,6 +8048,7 @@ model TrafegoOrder {
   @@index([organizationId, status])
   @@index([status, requestedAt])
   @@index([metaCampaignExternalId])
+  @@index([leadId])
   @@map("trafego_order")
 }
 
@@ -7911,6 +8066,10 @@ model TrafegoOrderEvent {
   isClientVisible Boolean             @default(true) @map("is_client_visible")
   /// null = evento do sistema (webhook, cron).
   actorUserId     String?             @map("actor_user_id")
+  /// Origem da transição. null = evento anterior a esta coluna.
+  source          TrafegoTransitionSource?
+  /// Quando o cliente foi avisado (WhatsApp/e-mail) desta mudança.
+  clientNotifiedAt DateTime?          @map("client_notified_at")
   createdAt       DateTime            @default(now()) @map("created_at")
 
   order TrafegoOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -7957,6 +8116,10 @@ model TrafegoCopy {
   description  String?
   callToAction String?           @map("call_to_action")
   source       TrafegoCopySource @default(CLIENT)
+  /// Checagem de políticas do texto — a equipe vê o alerta antes de publicar.
+  complianceLevel   TrafegoComplianceLevel? @map("compliance_level")
+  complianceIssues  Json?                   @map("compliance_issues")
+  complianceCheckedAt DateTime?             @map("compliance_checked_at")
   isSelected   Boolean           @default(false) @map("is_selected")
   position     Int               @default(0)
   createdAt    DateTime          @default(now()) @map("created_at")
@@ -7999,6 +8162,37 @@ model TrafegoSettings {
   salesStatusId              String?  @map("sales_status_id")
   defaultServiceFeePercent   Decimal  @default(50) @map("default_service_fee_percent") @db.Decimal(5, 2)
   supportWhatsapp            String?  @map("support_whatsapp")
+
+  // ── Operação pelo tracking (spec 0009) ──
+  /// Tracking onde o gestor opera: um card por cliente, uma coluna por status.
+  operationsTrackingId       String?  @map("operations_tracking_id")
+  /// `{ [TrafegoColumnKey]: Status.id }` — preenchido ao provisionar o tracking.
+  statusColumnMap            Json     @default("{}") @map("status_column_map")
+  /// Formulário "Briefing TrafeGO" (org da agência) que recebe as respostas do wizard.
+  briefingFormId             String?  @map("briefing_form_id")
+  /// Business ID da Órbita — vai no pedido de acesso de parceiro à BM do cliente.
+  partnerBusinessId          String?  @map("partner_business_id")
+
+  // ── Avisos ao cliente ──
+  whatsappActivationTemplate String?  @map("whatsapp_activation_template")
+  whatsappStatusTemplate     String?  @map("whatsapp_status_template")
+  /// Template do código de verificação do wizard ({{1}} = código).
+  whatsappOtpTemplate        String?  @map("whatsapp_otp_template")
+
+  // ── PIX manual ──
+  pixKey                     String?  @map("pix_key")
+  pixHolderName              String?  @map("pix_holder_name")
+  pixBankName                String?  @map("pix_bank_name")
+  /// Validade da cobrança PIX. Vencida vira EXPIRED, mas ainda é confirmável.
+  pixExpiryHours             Int      @default(48) @map("pix_expiry_hours")
+  whatsappTemplateLanguage   String   @default("pt_BR") @map("whatsapp_template_language")
+  clientNotificationsEnabled Boolean  @default(true) @map("client_notifications_enabled")
+
+  // ── Financeiro (org da agência) ──
+  financeAccountId           String?  @map("finance_account_id")
+  financeRevenueCategoryId   String?  @map("finance_revenue_category_id")
+  financePassthroughCategoryId String? @map("finance_passthrough_category_id")
+
   updatedAt                  DateTime @updatedAt @map("updated_at")
   updatedById                String?  @map("updated_by_id")
 

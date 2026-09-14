@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Loader2, Rocket } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Rocket, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,7 @@ import {
   PLATFORM_SHORT_LABEL,
 } from "@/features/trafego/lib/catalog-labels";
 import { isOrderActivatable, isOrderEditable } from "@/features/trafego/lib/order-status";
+import { usePanelPath } from "@/features/trafego/lib/base-path";
 import { OrderStatusBadge } from "./order-status-badge";
 import { StatusTimeline } from "./status-timeline";
 import { CreativesManager } from "./creatives-manager";
@@ -24,10 +25,15 @@ import { CopiesManager } from "./copies-manager";
 import { BriefingForm } from "./briefing-form";
 import { PerformanceView } from "./performance-view";
 import { SupportThread } from "./support-thread";
+import { SupportWhatsappFab } from "./support-whatsapp-fab";
+import { NextStepsCard } from "./next-steps-card";
+import { ReleaseEditor } from "./release-editor";
+import { AccessChecklist } from "./access-checklist";
 
 export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
   const [tab, setTab] = useState("materiais");
   const { data: order, isLoading } = useTrafegoOrder(orderId);
+  const panelPath = usePanelPath();
   const activateOrder = useActivateTrafegoOrder();
 
   if (isLoading) {
@@ -82,7 +88,7 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 md:px-6">
       <Link
-        href="/trafego/painel"
+        href={panelPath}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
@@ -147,6 +153,20 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
         </div>
       )}
 
+      {order.status === "ACCOUNT_REVIEW" && (
+        <div className="mt-5 flex items-start gap-2 rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
+          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-sky-500" />
+          <div>
+            <p className="text-sm font-medium">Estamos analisando sua conta de anúncios</p>
+            <p className="text-xs text-muted-foreground">
+              Se você já tem BM, adicione a Órbita como parceira — enviamos o passo a passo por
+              WhatsApp e e-mail. Enquanto isso, suba os criativos e a copy: quando a conta for
+              liberada, é só ativar.
+            </p>
+          </div>
+        </div>
+      )}
+
       {order.status === "REQUESTED" && (
         <div className="mt-5 flex items-start gap-2 rounded-xl border border-violet-500/30 bg-violet-500/5 p-4">
           <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-violet-500" />
@@ -160,9 +180,16 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
         </div>
       )}
 
+      {/* Antes das abas: o cliente acabou de entrar e precisa saber o que fazer. */}
+      <div className="mt-6">
+        <NextStepsCard orderId={order.id} />
+      </div>
+
       <Tabs value={tab} onValueChange={setTab} className="mt-6">
         <TabsList>
           <TabsTrigger value="materiais">Materiais</TabsTrigger>
+          <TabsTrigger value="release">Release</TabsTrigger>
+          <TabsTrigger value="acessos">Acessos</TabsTrigger>
           <TabsTrigger value="andamento">Andamento</TabsTrigger>
           <TabsTrigger value="desempenho">Desempenho</TabsTrigger>
           <TabsTrigger value="suporte">Suporte</TabsTrigger>
@@ -195,6 +222,14 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
           />
         </TabsContent>
 
+        <TabsContent value="release" className="mt-6">
+          <ReleaseEditor orderId={order.id} />
+        </TabsContent>
+
+        <TabsContent value="acessos" className="mt-6">
+          <AccessChecklist orderId={order.id} />
+        </TabsContent>
+
         <TabsContent value="andamento" className="mt-6">
           <StatusTimeline status={order.status} events={order.events} />
         </TabsContent>
@@ -207,6 +242,8 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
           <SupportThread orderId={order.id} />
         </TabsContent>
       </Tabs>
+
+      <SupportWhatsappFab orderCode={order.code} />
     </div>
   );
 }

@@ -18,64 +18,41 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { randomBytes } from "node:crypto";
-import { constructWebhookEvent } from "@/lib/stripe";
+import {
+  claimStripeEvent,
+  constructWebhookEvent,
+  releaseStripeEvent,
+} from "@/lib/stripe";
 import prisma from "@/lib/prisma";
-import { Prisma } from "@/generated/prisma/client";
-import { inngest } from "@/inngest/client";
-import { getPostHogClient } from "@/lib/posthog-server";
-import { createTrafegoOrderFromPurchaseInTx } from "@/features/trafego/server/lib/create-order-from-purchase";
-
-const SIGNUP_TOKEN_TTL_DAYS = 7;
-
-/** P2002 = unique violation → evento já processado. */
-function isDuplicateEvent(error: unknown): boolean {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
-  );
-}
-
-/**
- * Dedupe por event.id. Gravamos ANTES de processar e removemos o registro se o
- * processamento falhar — assim uma falha real volta a ser reentregável pelo
- * Stripe, em vez de ser engolida pelo dedupe.
- */
-async function claimEventOnce(eventId: string, type: string): Promise<boolean> {
-  try {
-    await prisma.processedStripeEvent.create({
-      data: { id: eventId, type, source: "trafego" },
-    });
-    return true;
-  } catch (error) {
-    if (isDuplicateEvent(error)) return false;
-    throw error;
-  }
-}
-
-async function releaseEvent(eventId: string): Promise<void> {
-  await prisma.processedStripeEvent
-    .delete({ where: { id: eventId } })
-    .catch(() => {});
-}
+import { markTrafegoPurchasePaid } from "@/features/trafego/server/lib/mark-purchase-paid";
+import { transitionTrafegoOrder } from "@/features/trafego/server/lib/transition-order";
 
 export async function POST(req: NextRequest) {
+  // Fail-closed: exigimos o secret dedicado. Passar `undefined` adiante faria
+  // `constructWebhookEvent` cair no STRIPE_WEBHOOK_SECRET compartilhado
+  // (better-auth / planos) — validar evento de trafeGO com o secret de outro
+  // produto aceitaria como legítimo um evento que não é nosso.
+  const secret = process.env.STRIPE_TRAFEGO_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error("[trafego/webhook] STRIPE_TRAFEGO_WEBHOOK_SECRET não configurado.");
+    return NextResponse.json({ error: "Webhook não configurado." }, { status: 500 });
+  }
+
   const payload = await req.text();
   const signature = req.headers.get("stripe-signature") ?? "";
 
   let event;
   try {
-    event = constructWebhookEvent(
-      payload,
-      signature,
-      process.env.STRIPE_TRAFEGO_WEBHOOK_SECRET,
-    );
+    event = constructWebhookEvent(payload, signature, secret);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Webhook error";
     console.error("[trafego/webhook] assinatura inválida:", message);
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  const isFirstDelivery = await claimEventOnce(event.id, event.type);
+  // Dedupe: gravamos ANTES de processar e soltamos em caso de falha, para que
+  // um erro real continue reentregável pelo Stripe.
+  const isFirstDelivery = await claimStripeEvent(event.id, event.type, "trafego");
   if (!isFirstDelivery) {
     return NextResponse.json({ received: true, deduped: true });
   }
@@ -192,7 +169,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   } catch (error) {
     // Solta o dedupe pra que o Stripe possa reentregar — senão a falha some.
-    await releaseEvent(event.id);
+    await releaseStripeEvent(event.id);
     console.error(`[trafego/webhook] falha em ${event.type}:`, error);
     return NextResponse.json({ error: "Erro ao processar webhook." }, { status: 500 });
   }
@@ -207,122 +184,23 @@ interface ProcessPaidOptions {
 }
 
 /**
- * Confirma o pagamento de uma compra trafeGO. Idempotente: o claim atômico
- * `PENDING → PAID` garante que só a primeira execução gera o token de ativação.
+ * Adapta o evento do Stripe para o caminho único de confirmação
+ * (`markTrafegoPurchasePaid`), que o "Confirmar PIX" também usa. O claim
+ * atômico lá dentro é o que garante idempotência entre os dois.
  */
 async function processTrafegoPurchasePaid(options: ProcessPaidOptions): Promise<void> {
-  const { pendingId, amountTotalCents, paymentIntentId, checkoutSessionId, source } =
-    options;
-
-  const pending = await prisma.trafegoPendingPurchase.findUnique({
-    where: { id: pendingId },
-    select: {
-      id: true,
-      email: true,
-      flow: true,
-      userId: true,
-      status: true,
-      amountBrlCents: true,
-      signupToken: true,
-      platform: true,
-      objective: true,
+  await markTrafegoPurchasePaid({
+    pendingId: options.pendingId,
+    paymentSource: "stripe",
+    amountTotalCents: options.amountTotalCents,
+    stripe: {
+      paymentIntentId: options.paymentIntentId,
+      checkoutSessionId: options.checkoutSessionId,
     },
+    // Stripe só confirma pendência ainda aberta. Compra expirada que recebe
+    // pagamento tardio é caso de conferência humana, não de crédito automático.
+    claimFromStatuses: ["PENDING"],
   });
-  if (!pending) {
-    console.warn(`[trafego/webhook] ${source}: pending não encontrada: ${pendingId}`);
-    return;
-  }
-
-  // Divergência de valor: gravamos o recebido e SINALIZAMOS. Reescalar a verba
-  // em silêncio seria pior — ela é dinheiro que vai ser investido no anúncio
-  // (spec 0008 CA-14).
-  const hasMismatch =
-    amountTotalCents !== null && amountTotalCents !== pending.amountBrlCents;
-  if (hasMismatch) {
-    console.warn(
-      `[trafego/webhook] divergência de valor em ${pendingId}: esperado=${pending.amountBrlCents} recebido=${amountTotalCents}`,
-    );
-  }
-
-  const claim = await prisma.trafegoPendingPurchase.updateMany({
-    where: { id: pendingId, status: "PENDING" },
-    data: {
-      status: "PAID",
-      paidAt: new Date(),
-      stripePaymentIntentId: paymentIntentId,
-      ...(checkoutSessionId ? { stripeSessionId: checkoutSessionId } : {}),
-      ...(hasMismatch ? { amountMismatch: true } : {}),
-    },
-  });
-
-  if (claim.count === 0) {
-    console.log(`[trafego/webhook] ${source}: ${pendingId} já estava PAID — no-op.`);
-    return;
-  }
-
-  // Fluxo autenticado: a conta já existe, então o pedido nasce agora.
-  if (pending.flow === "authenticated" && pending.userId) {
-    const member = await prisma.member.findFirst({
-      where: { userId: pending.userId },
-      select: { organizationId: true },
-      orderBy: { createdAt: "asc" },
-    });
-
-    if (member) {
-      await prisma.$transaction(async (tx) =>
-        createTrafegoOrderFromPurchaseInTx({
-          tx,
-          pendingPurchaseId: pending.id,
-          organizationId: member.organizationId,
-          ownerUserId: pending.userId!,
-        }),
-      );
-      await prisma.trafegoPendingPurchase.update({
-        where: { id: pending.id },
-        data: { status: "REDEEMED" },
-      });
-      console.log(`[trafego/webhook] ✅ ${source} pedido criado (auth): ${pendingId}`);
-      return;
-    }
-    console.warn(
-      `[trafego/webhook] ${pendingId} flow=authenticated sem organização — caindo no fluxo de token.`,
-    );
-  }
-
-  // Fluxo público: gera o token de ativação e dispara o e-mail.
-  const signupToken = randomBytes(32).toString("hex");
-  await prisma.trafegoPendingPurchase.update({
-    where: { id: pending.id },
-    data: {
-      signupToken,
-      tokenExpiresAt: new Date(
-        Date.now() + SIGNUP_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
-      ),
-    },
-  });
-
-  try {
-    await inngest.send({ name: "trafego/purchase.paid", data: { pendingId } });
-  } catch (error) {
-    console.error(`[trafego/webhook] ${source}: dispatch Inngest falhou:`, error);
-  }
-
-  const posthog = getPostHogClient();
-  posthog.capture({
-    distinctId: pending.email,
-    event: "trafego_purchase_paid",
-    properties: {
-      pending_id: pendingId,
-      platform: pending.platform,
-      objective: pending.objective,
-      amount_brl_cents: amountTotalCents ?? pending.amountBrlCents,
-      amount_mismatch: hasMismatch,
-      source,
-    },
-  });
-  await posthog.shutdown();
-
-  console.log(`[trafego/webhook] ✅ ${source} pago (public): ${pendingId}`);
 }
 
 async function revokeTrafegoPurchase(pendingId: string): Promise<void> {
@@ -333,23 +211,17 @@ async function revokeTrafegoPurchase(pendingId: string): Promise<void> {
 
   const order = await prisma.trafegoOrder.findUnique({
     where: { pendingPurchaseId: pendingId },
-    select: { id: true, status: true },
+    select: { id: true },
   });
   if (!order) return;
 
   // Criativos e histórico ficam — o cliente pode contestar, e a equipe precisa
-  // do rastro.
-  await prisma.trafegoOrder.update({
-    where: { id: order.id },
-    data: { status: "REFUNDED" },
-  });
-  await prisma.trafegoOrderEvent.create({
-    data: {
-      orderId: order.id,
-      fromStatus: order.status,
-      toStatus: "REFUNDED",
-      title: "Pagamento reembolsado",
-      detail: "O pagamento desta campanha foi reembolsado integralmente.",
-    },
+  // do rastro. O card vira perdido pela própria transição.
+  await transitionTrafegoOrder({
+    orderId: order.id,
+    toStatus: "REFUNDED",
+    source: "SYSTEM",
+    title: "Pagamento reembolsado",
+    clientNote: "O pagamento desta campanha foi reembolsado integralmente.",
   });
 }

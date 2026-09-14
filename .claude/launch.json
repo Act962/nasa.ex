@@ -54,6 +54,46 @@
       ],
       "port": 3001,
       "autoPort": false
+    },
+    {
+      "name": "Site \u00d3RBITA (nerp-2)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "/Users/weydsonlima/nerp-2/apps/site",
+        "dev"
+      ],
+      "port": 3001,
+      "autoPort": false
+    },
+    {
+      "name": "Site \u00d3RBITA :3002",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "/Users/weydsonlima/nerp-2/apps/site",
+        "exec",
+        "next",
+        "dev",
+        "--turbopack",
+        "-p",
+        "3002"
+      ],
+      "port": 3002,
+      "autoPort": false
+    },
+    {
+      "name": "NERP-2 web :3000",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "/Users/weydsonlima/nerp-2/apps/web",
+        "dev",
+        "--port",
+        "3000"
+      ],
+      "port": 3000,
+      "autoPort": false
     }
   ]
 }

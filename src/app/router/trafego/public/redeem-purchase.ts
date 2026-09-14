@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { createTrafegoOrderFromPurchaseInTx } from "@/features/trafego/server/lib/create-order-from-purchase";
-import { createTrafegoSaleSideEffects } from "@/features/trafego/server/lib/sale-side-effects";
+import { runTrafegoOrderPostCreation } from "@/features/trafego/server/lib/create-order-and-side-effects";
 
 /**
  * Resgate da compra pública do trafeGO.
@@ -22,7 +22,8 @@ import { createTrafegoSaleSideEffects } from "@/features/trafego/server/lib/sale
  *     c. Cria o TrafegoOrder a partir do snapshot da compra.
  *     d. Semeia a sidebar (app + app inicial) e fecha o onboarding da plataforma.
  *     e. Marca a compra como REDEEMED.
- *  4. Fora da transação, best-effort: CRM + financeiro.
+ *  4. Fora da transação, best-effort: card, briefing, financeiro e aviso
+ *     (`runTrafegoOrderPostCreation` — o mesmo dos outros caminhos de pagamento).
  */
 export const redeemTrafegoPurchase = base
   .use(requiredAuthMiddleware)
@@ -161,7 +162,7 @@ export const redeemTrafegoPurchase = base
 
     // Efeitos colaterais ficam fora da transação: falha aqui não pode invalidar
     // um pagamento já confirmado (CLAUDE.md regra 18).
-    createTrafegoSaleSideEffects({
+    runTrafegoOrderPostCreation({
       orderId: result.orderId,
       buyer: {
         userId,

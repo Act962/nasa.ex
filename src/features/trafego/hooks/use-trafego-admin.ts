@@ -64,6 +64,15 @@ export const useLinkTrafegoMetaCampaign = () => {
   );
 };
 
+export const useUnlinkTrafegoMetaCampaign = () => {
+  const invalidate = useAdminOrderInvalidation();
+  return useMutation(
+    orpc.trafego.admin.orders.unlinkMetaCampaign.mutationOptions({
+      onSuccess: (_data, variables) => invalidate(variables.orderId),
+    }),
+  );
+};
+
 export const useLinkTrafegoBroadcast = () => {
   const invalidate = useAdminOrderInvalidation();
   return useMutation(
@@ -163,6 +172,45 @@ export const useUpdateTrafegoSettings = () => {
           queryKey: orpc.trafego.admin.settings.get.key(),
         });
       },
+    }),
+  );
+};
+
+/** Trackings (com colunas), contas, categorias e formulários da org da agência. */
+export const useTrafegoAgencyOptions = (organizationId: string | null | undefined) => {
+  const enabled = Boolean(organizationId && organizationId.trim().length >= 8);
+  return useQuery({
+    ...orpc.trafego.admin.settings.listAgencyOptions.queryOptions({
+      input: { organizationId: organizationId?.trim() ?? "" },
+    }),
+    enabled,
+  });
+};
+
+function useSettingsInvalidation() {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({ queryKey: orpc.trafego.admin.settings.get.key() });
+    queryClient.invalidateQueries({
+      queryKey: orpc.trafego.admin.settings.listAgencyOptions.key(),
+    });
+  };
+}
+
+export const useProvisionTrafegoOperationsTracking = () => {
+  const invalidate = useSettingsInvalidation();
+  return useMutation(
+    orpc.trafego.admin.settings.provisionOperationsTracking.mutationOptions({
+      onSuccess: invalidate,
+    }),
+  );
+};
+
+export const useProvisionTrafegoBriefingForm = () => {
+  const invalidate = useSettingsInvalidation();
+  return useMutation(
+    orpc.trafego.admin.settings.provisionBriefingForm.mutationOptions({
+      onSuccess: invalidate,
     }),
   );
 };

@@ -10,3 +10,12 @@ export const usePublicTrafegoPlans = (platform?: TrafegoPlatform) => {
     }),
   );
 };
+
+/** Config pública da landing (WhatsApp do gestor). Sem autenticação. */
+export const useTrafegoPublicConfig = () => {
+  return useQuery({
+    ...orpc.trafego.getPublicConfig.queryOptions({ input: {} }),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+};

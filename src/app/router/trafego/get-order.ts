@@ -76,6 +76,8 @@ export const getTrafegoOrder = base
             source: true,
             isSelected: true,
             position: true,
+            complianceLevel: true,
+            complianceIssues: true,
           },
         },
         events: {

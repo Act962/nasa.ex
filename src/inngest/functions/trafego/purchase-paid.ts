@@ -6,13 +6,18 @@ import {
   PLATFORM_SHORT_LABEL,
   OBJECTIVE_LABEL,
 } from "@/features/trafego/lib/catalog-labels";
+import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
+import { trafegoActivationUrl } from "@/features/trafego/lib/urls";
+import { loadTrafegoSettings } from "@/features/trafego/server/lib/trafego-settings";
+import { sendTrafegoClientWhatsapp } from "@/features/trafego/server/lib/send-client-whatsapp";
+import { moveTrafegoLeadToColumn } from "@/features/trafego/server/lib/lead-card";
 
 const EXPIRES_IN_DAYS = 7;
 
 /**
- * Dispara após o webhook marcar a compra como PAID. Envia o e-mail com o link
- * de ativação (`/trafego/ativar/<signupToken>`) que permite criar a conta e
- * cair direto no painel da campanha.
+ * Dispara após a compra ser marcada como PAID (Stripe ou PIX confirmado).
+ * Envia o link de ativação (`/trafego/ativar/<signupToken>`) por e-mail e
+ * WhatsApp, e move o card do cliente para "Pagamento confirmado".
  *
  * Evento: `trafego/purchase.paid` — emitido em `/api/trafego/webhook`.
  */
@@ -28,11 +33,17 @@ export const trafegoPurchasePaid = inngest.createFunction(
         select: {
           id: true,
           email: true,
+          phone: true,
+          companyName: true,
+          briefing: true,
+          leadId: true,
           status: true,
           platform: true,
           objective: true,
           adBudgetBrlCents: true,
+          serviceFeePercent: true,
           serviceFeeBrlCents: true,
+          setupFeeBrlCents: true,
           amountBrlCents: true,
           signupToken: true,
           tokenExpiresAt: true,
@@ -45,12 +56,7 @@ export const trafegoPurchasePaid = inngest.createFunction(
     if (pending.status !== "PAID") return { skipped: "not_paid", pendingId };
     if (!pending.signupToken) return { skipped: "missing_signup_token", pendingId };
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL ??
-      process.env.NEXT_PUBLIC_APP_URL ??
-      process.env.BETTER_AUTH_URL ??
-      "";
-    const activationLink = `${baseUrl}/trafego/ativar/${pending.signupToken}`;
+    const activationLink = trafegoActivationUrl(pending.signupToken);
 
     await step.run("send-email", async () => {
       await resend.emails.send({
@@ -59,11 +65,13 @@ export const trafegoPurchasePaid = inngest.createFunction(
         subject: "Pagamento confirmado — ative sua campanha",
         react: reactTrafegoPurchaseConfirmationEmail({
           email: pending.email,
-          planName: pending.plan?.name ?? "Campanha trafeGO",
+          planName: pending.plan?.name ?? "Sua campanha",
           platformLabel: PLATFORM_SHORT_LABEL[pending.platform],
           objectiveLabel: OBJECTIVE_LABEL[pending.objective],
           adBudgetBrl: pending.adBudgetBrlCents / 100,
+          serviceFeePercent: pending.serviceFeePercent,
           serviceFeeBrl: pending.serviceFeeBrlCents / 100,
+          setupFeeBrl: pending.setupFeeBrlCents / 100,
           totalBrl: pending.amountBrlCents / 100,
           durationDays: pending.plan?.durationDays ?? 30,
           activationLink,
@@ -72,6 +80,36 @@ export const trafegoPurchasePaid = inngest.createFunction(
       });
     });
 
-    return { sent: true, pendingId };
+    const whatsapp = await step.run("send-whatsapp", async () => {
+      const settings = await loadTrafegoSettings({ fresh: true });
+      const briefing = (pending.briefing ?? {}) as Record<string, unknown>;
+      const businessName =
+        (typeof briefing.businessName === "string" && briefing.businessName.trim()) ||
+        pending.companyName ||
+        "";
+      const clientName = businessName || pending.email;
+      const total = formatBrlFromCents(pending.amountBrlCents);
+      return sendTrafegoClientWhatsapp({
+        phone: pending.phone,
+        leadId: pending.leadId,
+        text: `Pagamento confirmado ✅\n\nOi! Recebemos ${total} da sua campanha trafeGO${businessName ? ` (${businessName})` : ""}. Falta um passo: crie sua senha para acessar o painel, enviar os criativos e escolher a copy.\n\nAtivar minha conta: ${activationLink}\n\nLink válido por ${EXPIRES_IN_DAYS} dias.`,
+        template: {
+          name: settings.whatsappActivationTemplate,
+          language: settings.whatsappTemplateLanguage,
+          bodyParameters: [clientName, total, activationLink],
+        },
+      });
+    });
+
+    const card = await step.run("move-card", async () => {
+      if (!pending.leadId) return "no_lead";
+      return moveTrafegoLeadToColumn({
+        leadId: pending.leadId,
+        columnKey: "PAID",
+        note: "trafeGO: pagamento confirmado",
+      });
+    });
+
+    return { sent: true, pendingId, whatsapp, card };
   },
 );

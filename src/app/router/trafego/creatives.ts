@@ -7,6 +7,7 @@ import { ORPCError } from "@orpc/server";
 import { deleteStoredObject } from "@/lib/s3-client";
 import { assertOrderEditable } from "@/features/trafego/server/lib/assert-order-editable";
 import { trafegoCreativeInputSchema } from "@/features/trafego/schema/trafego-schemas";
+import { maybeMarkMaterialsSubmitted } from "@/features/trafego/server/lib/materials-submitted";
 
 /** Registra um criativo já enviado ao R2. O upload em si é feito via /api/s3/*. */
 export const addTrafegoCreative = base
@@ -28,7 +29,7 @@ export const addTrafegoCreative = base
       select: { position: true },
     });
 
-    return prisma.trafegoCreative.create({
+    const creative = await prisma.trafegoCreative.create({
       data: {
         orderId: order.id,
         kind: input.kind,
@@ -44,6 +45,11 @@ export const addTrafegoCreative = base
       },
       select: { id: true, position: true },
     });
+
+    await maybeMarkMaterialsSubmitted(order.id).catch((error) =>
+      console.error("[trafego/creatives] auto 'materiais enviados' falhou:", error),
+    );
+    return creative;
   });
 
 export const removeTrafegoCreative = base

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,9 @@ import {
   useRemoveTrafegoCopy,
   useSetTrafegoCopySelected,
 } from "@/features/trafego/hooks/use-trafego-orders";
+import { useSuggestTrafegoCopies } from "@/features/trafego/hooks/use-trafego-recommendations";
 import { cn } from "@/lib/utils";
+import { CopyComplianceBadge } from "./copy-compliance-badge";
 
 interface Copy {
   id: string;
@@ -21,6 +23,9 @@ interface Copy {
   description: string | null;
   callToAction: string | null;
   isSelected: boolean;
+  source?: string;
+  complianceLevel?: string | null;
+  complianceIssues?: unknown;
 }
 
 interface CopiesManagerProps {
@@ -55,6 +60,7 @@ export function CopiesManager({
   const addCopy = useAddTrafegoCopy();
   const removeCopy = useRemoveTrafegoCopy(orderId);
   const setSelected = useSetTrafegoCopySelected(orderId);
+  const suggestCopies = useSuggestTrafegoCopies();
 
   const isFull = copies.length >= maxCopies;
   const selectedCount = copies.filter((copy) => copy.isSelected).length;
@@ -96,16 +102,41 @@ export function CopiesManager({
         </div>
 
         {!readOnly && !isComposing && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={isFull}
-            onClick={() => setIsComposing(true)}
-          >
-            <Plus className="mr-1.5 size-4" />
-            Nova variação
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={isFull || suggestCopies.isPending}
+              onClick={() =>
+                suggestCopies.mutate(
+                  { orderId },
+                  {
+                    onSuccess: (created) =>
+                      toast.success(`${created.length} sugestões criadas. Revise antes de usar.`),
+                    onError: (error) => toast.error(error.message),
+                  },
+                )
+              }
+            >
+              {suggestCopies.isPending ? (
+                <Loader2 className="mr-1.5 size-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-1.5 size-4" />
+              )}
+              Sugerir com o Astro
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={isFull}
+              onClick={() => setIsComposing(true)}
+            >
+              <Plus className="mr-1.5 size-4" />
+              Nova variação
+            </Button>
+          </div>
         )}
       </div>
 
@@ -220,6 +251,19 @@ export function CopiesManager({
                       {copy.callToAction}
                     </span>
                   )}
+
+                  <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    {copy.source === "SUGGESTED_BY_NASA" && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-violet-600 dark:text-violet-400">
+                        <Sparkles className="size-3" />
+                        Sugerida pelo Astro
+                      </span>
+                    )}
+                    <CopyComplianceBadge
+                      level={copy.complianceLevel ?? null}
+                      issues={copy.complianceIssues}
+                    />
+                  </div>
                 </div>
 
                 {!readOnly && (

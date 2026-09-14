@@ -218,6 +218,7 @@ export const updateNewOrder = base
           toStatusId: result.updatedLead.statusId,
           orgId: tracking.organizationId,
           responsibleId: result.updatedLead.responsibleId,
+          actorUserId: context.user.id,
         });
       }
     }

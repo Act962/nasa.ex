@@ -44,6 +44,7 @@ import {
 import { computeTrafegoPrice, formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { TrafegoSettingsForm } from "./settings-form";
 import { TrafegoPublicLinkCard } from "./public-link-card";
+import { useAdminPath } from "@/features/trafego/lib/base-path";
 import { cn } from "@/lib/utils";
 
 const CAMPAIGN_TYPES: TrafegoCampaignType[] = [
@@ -59,11 +60,12 @@ export function TrafegoPlansManager() {
   const toggleActive = useToggleTrafegoPlanActive();
   const deletePlan = useDeleteTrafegoPlan();
   const [isCreating, setIsCreating] = useState(false);
+  const adminPath = useAdminPath();
 
   return (
     <div className="p-6">
       <Link
-        href="/admin/trafego"
+        href={adminPath}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
