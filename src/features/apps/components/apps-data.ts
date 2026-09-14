@@ -79,6 +79,23 @@ export const APPS: AppDef[] = [
     theme: "purple",
   },
   {
+    id: "trafego",
+    name: "trafeGO",
+    byline: "by NASA®",
+    status: "installed",
+    icon: BoostIcon,
+    shortDesc: "Contrate tráfego pago e disparos sem passar por agência",
+    fullDesc:
+      "Self-service de tráfego pago e campanhas para quem quer investir sem contratar agência. O cliente escolhe o canal (Meta Ads ou WhatsApp API Oficial), o objetivo e o plano, paga, envia os criativos e a copy, e acompanha status e desempenho pelo painel. Nossa equipe cuida da execução. Metade do valor do plano vira verba de anúncio.",
+    category: "Marketing",
+    integration: "Meta Ads · WhatsApp API Oficial · Stripe",
+    action: "internal",
+    href: "/trafego/painel",
+    activeUsers: null,
+    theme: "purple",
+    sidebarKey: "trafego",
+  },
+  {
     id: "campanhas",
     name: "CAMPANHAS",
     byline: "by NASA®",

@@ -1,0 +1,854 @@
+"use client";
+
+import { useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import {
+  BadgeCheck,
+  Eye,
+  Heart,
+  Megaphone,
+  MessagesSquare,
+  Repeat,
+  Search,
+  Send,
+  ShieldCheck,
+  ShoppingCart,
+  Sparkles,
+  Target,
+  ThumbsUp,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import type {
+  TrafegoCampaignType,
+  TrafegoObjective,
+  TrafegoPlatform,
+} from "@/generated/prisma/enums";
+import {
+  useStartTrafegoCheckout,
+  type TrafegoPixCharge,
+} from "@/features/trafego/hooks/use-trafego-purchase";
+import { useTrafegoPublicConfig } from "@/features/trafego/hooks/use-trafego-plans";
+import {
+  CAMPAIGN_TYPES_BY_PLATFORM,
+  CAMPAIGN_TYPE_DESCRIPTION,
+  CAMPAIGN_TYPE_LABEL,
+  CAMPAIGN_TYPE_SHORT_LABEL,
+  OBJECTIVES_BY_PLATFORM,
+  OBJECTIVE_DESCRIPTION,
+  OBJECTIVE_LABEL,
+  PLATFORM_SHORT_LABEL,
+} from "@/features/trafego/lib/catalog-labels";
+import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
+import { quoteTrafego } from "@/features/trafego/lib/pricing-tiers";
+import { summarizeAudience } from "@/features/trafego/lib/audience";
+import { prescreenAdContent } from "@/features/trafego/lib/ad-policies";
+import {
+  estimateEarliestStart,
+  formatStartDate,
+  isDesiredStartTooSoon,
+} from "@/features/trafego/lib/timeline";
+import type { SocialNetwork, TrafegoSocialProfile } from "@/features/trafego/lib/social-profile";
+import { BusinessManagerStep, type BusinessManagerAnswer } from "./business-manager-step";
+import { InvestmentSimulator, TalkToManagerButton } from "./investment-simulator";
+import { BrandsMarquee } from "./brands-marquee";
+import { ChoiceCardGrid, type ChoiceCardOption } from "./choice-card-grid";
+import { SocialBackdrop } from "./social-backdrop";
+import { Testimonials } from "./social-proof";
+import { TrafegoFooter } from "./trafego-footer";
+import { LandingNav } from "./landing-nav";
+import { Hero } from "./hero";
+import { WizardStepper } from "./wizard/wizard-stepper";
+import { StepShell } from "./wizard/step-shell";
+import { ChannelStep } from "./wizard/channel-step";
+import { MetaAccountStep } from "./wizard/meta-account-step";
+import {
+  WhatsappAcquireStep,
+  WhatsappNumberStep,
+  type OfficialNumberAnswer,
+} from "./wizard/whatsapp-number-step";
+import {
+  WhatsappVerifyStep,
+  type WhatsappNumberCheckResult,
+} from "./wizard/whatsapp-verify-step";
+import { BusinessStep, type BusinessDraft } from "./wizard/business-step";
+import { TimingStep, type TimingDraft } from "./wizard/timing-step";
+import { ContactStep, type ContactDraft } from "./wizard/contact-step";
+import { OrderSummary } from "./wizard/order-summary";
+import type { PhoneVerificationStatus } from "./wizard/phone-verification";
+import {
+  PaymentMethodStep,
+  type TrafegoPaymentMethod,
+} from "./wizard/payment-method-step";
+import { PixInstructions } from "./wizard/pix-instructions";
+import { ComplianceAlert } from "./wizard/compliance-alert";
+import { TrafegoAssistant } from "./assistant/trafego-assistant";
+
+const STEPS = [
+  { key: "channel", label: "Canal" },
+  { key: "type", label: "Campanha" },
+  { key: "objective", label: "Objetivo" },
+  { key: "business", label: "Negócio" },
+  { key: "investment", label: "Investimento" },
+  { key: "contact", label: "Contato" },
+] as const;
+
+/**
+ * Telas do wizard. As verificações de canal são sub-telas do passo 1 — assim a
+ * trilha continua com seis marcos, sem inflar conforme o canal escolhido.
+ */
+type ScreenId =
+  | "channel"
+  | "meta-account"
+  | "ad-account"
+  | "wa-has-number"
+  | "wa-verify"
+  | "wa-acquire"
+  | "type"
+  | "objective"
+  | "business"
+  | "timing"
+  | "investment"
+  | "contact";
+
+const SCREEN_STEP: Record<ScreenId, number> = {
+  channel: 0,
+  "meta-account": 0,
+  "ad-account": 0,
+  "wa-has-number": 0,
+  "wa-verify": 0,
+  "wa-acquire": 0,
+  type: 1,
+  objective: 2,
+  business: 3,
+  // "Prazo" é sub-tela de "Negócio": a trilha continua com seis marcos.
+  timing: 3,
+  investment: 4,
+  contact: 5,
+};
+
+const CAMPAIGN_TYPE_ICON: Record<TrafegoCampaignType, typeof Megaphone> = {
+  PROSPECCAO: UserPlus,
+  REMARKETING: Repeat,
+  VENDA_DIRETA: ShoppingCart,
+  RECONHECIMENTO: Eye,
+  RELACIONAMENTO: Heart,
+};
+
+const OBJECTIVE_ICON: Record<TrafegoObjective, typeof Megaphone> = {
+  LEADS: UserPlus,
+  TRAFFIC: Users,
+  SALES: ShoppingCart,
+  AWARENESS: Eye,
+  ENGAGEMENT: ThumbsUp,
+  MESSAGES: MessagesSquare,
+  BROADCAST: Send,
+  SEARCH: Search,
+};
+
+const DEFAULT_BUDGET_BRL_CENTS = 200_000;
+
+const EMPTY_BUSINESS: BusinessDraft = {
+  businessName: "",
+  segment: "",
+  destinationUrl: "",
+  audienceChips: [],
+  audienceNotes: "",
+  specialCategory: "none",
+};
+
+const EMPTY_TIMING: TimingDraft = {
+  desiredStartAt: "",
+  hasSocialLinked: null,
+  materialsReady: null,
+  acknowledged: false,
+};
+
+const EMPTY_CONTACT: ContactDraft = {
+  fullName: "",
+  email: "",
+  phone: "",
+  referralSource: "",
+};
+
+export function TrafegoLanding() {
+  const searchParams = useSearchParams();
+  const wasCancelled = searchParams.get("cancelado") === "1";
+  const wizardRef = useRef<HTMLDivElement>(null);
+
+  // O wizard só entra em cena quando o cliente pede. Antes disso a página é
+  // só a promessa — quem chega pelo anúncio decide se quer começar.
+  // Volta aberto quando o Stripe devolve com `?cancelado=1`: a pessoa já
+  // estava no meio do caminho.
+  const [hasStarted, setHasStarted] = useState(wasCancelled);
+  const [screenId, setScreenId] = useState<ScreenId>("channel");
+  const [platform, setPlatform] = useState<TrafegoPlatform | null>(null);
+  const [campaignType, setCampaignType] = useState<TrafegoCampaignType | null>(null);
+  const [objective, setObjective] = useState<TrafegoObjective | null>(null);
+
+  const [socialNetwork, setSocialNetwork] = useState<SocialNetwork>("instagram");
+  const [socialHandle, setSocialHandle] = useState("");
+  const [socialProfile, setSocialProfile] = useState<TrafegoSocialProfile | null>(null);
+
+  const [hasBusinessManager, setHasBusinessManager] =
+    useState<BusinessManagerAnswer | null>(null);
+  const [officialAnswer, setOfficialAnswer] = useState<OfficialNumberAnswer | null>(null);
+  const [officialNumber, setOfficialNumber] = useState("");
+  const [officialCheck, setOfficialCheck] = useState<WhatsappNumberCheckResult | null>(null);
+  const [acquireConfirmed, setAcquireConfirmed] = useState(false);
+
+  const [business, setBusiness] = useState<BusinessDraft>(EMPTY_BUSINESS);
+  const [timing, setTiming] = useState<TimingDraft>(EMPTY_TIMING);
+  const [adBudgetBrlCents, setAdBudgetBrlCents] = useState(DEFAULT_BUDGET_BRL_CENTS);
+  const [contact, setContact] = useState<ContactDraft>(EMPTY_CONTACT);
+  const [phoneVerification, setPhoneVerification] =
+    useState<PhoneVerificationStatus>("idle");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<TrafegoPaymentMethod>("CARD");
+  const [complianceAcknowledged, setComplianceAcknowledged] = useState(false);
+  /** Cobrança PIX gerada: enquanto existir, a tela do PIX substitui o wizard. */
+  const [pixCharge, setPixCharge] = useState<
+    { pendingId: string; charge: TrafegoPixCharge } | null
+  >(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const { data: config } = useTrafegoPublicConfig();
+  const startCheckout = useStartTrafegoCheckout();
+
+  const isWhatsappChannel = platform === "WHATSAPP_OFICIAL";
+  // No WhatsApp o setup é o número na API; nos demais, a conta de anúncios.
+  const needsSetup = isWhatsappChannel
+    ? officialAnswer !== "yes"
+    : hasBusinessManager !== "yes";
+  const setupLabel = isWhatsappChannel
+    ? "Setup do número na API Oficial"
+    : "Setup da conta de anúncios";
+
+  const quote = useMemo(
+    () => quoteTrafego(adBudgetBrlCents, needsSetup),
+    [adBudgetBrlCents, needsSetup],
+  );
+
+  // Mesma função que o servidor roda antes de cobrar — o aviso que o cliente
+  // vê aqui é exatamente o que decide o checkout, sem surpresa no fim.
+  const compliance = useMemo(
+    () =>
+      prescreenAdContent({
+        platform,
+        texts: [
+          business.businessName,
+          business.segment,
+          business.audienceNotes,
+          summarizeAudience(business.audienceChips, business.specialCategory),
+          business.destinationUrl,
+        ],
+      }),
+    [platform, business],
+  );
+  // Mesma conta do servidor: a data mostrada é a que vale no checkout.
+  const hasAdAccount = isWhatsappChannel
+    ? officialAnswer === "yes"
+    : hasBusinessManager === "yes";
+  const startEstimate = estimateEarliestStart({
+    hasAdAccount,
+    hasSocialLinked: timing.hasSocialLinked,
+    materialsReady: timing.materialsReady,
+  });
+  const startTooSoon = isDesiredStartTooSoon(
+    timing.desiredStartAt,
+    startEstimate.earliestStart,
+  );
+
+  const isBlockedByPolicy = compliance.level === "BLOCKED";
+  const needsComplianceAck = compliance.level === "WARNING";
+
+  const screens = useMemo<ScreenId[]>(() => {
+    const list: ScreenId[] = ["channel"];
+    if (platform === "META_ADS") list.push("meta-account", "ad-account");
+    if (platform === "GOOGLE_ADS") list.push("ad-account");
+    if (platform === "WHATSAPP_OFICIAL") {
+      list.push("wa-has-number");
+      if (officialAnswer === "yes") list.push("wa-verify");
+      if (officialAnswer === "no") list.push("wa-acquire");
+    }
+    list.push("type", "objective", "business", "timing", "investment", "contact");
+    return list;
+  }, [platform, officialAnswer]);
+
+  const position = Math.max(0, screens.indexOf(screenId));
+  const isLastScreen = position === screens.length - 1;
+
+  const campaignTypeOptions: ChoiceCardOption<TrafegoCampaignType>[] = (
+    platform ? CAMPAIGN_TYPES_BY_PLATFORM[platform] : []
+  ).map((type) => ({
+    value: type,
+    label: CAMPAIGN_TYPE_LABEL[type],
+    description: CAMPAIGN_TYPE_DESCRIPTION[type],
+    icon: CAMPAIGN_TYPE_ICON[type],
+  }));
+
+  const objectiveOptions: ChoiceCardOption<TrafegoObjective>[] = (
+    platform ? OBJECTIVES_BY_PLATFORM[platform] : []
+  ).map((value) => ({
+    value,
+    label: OBJECTIVE_LABEL[value],
+    description: OBJECTIVE_DESCRIPTION[value],
+    icon: OBJECTIVE_ICON[value],
+  }));
+
+  const canGoNext = (() => {
+    switch (screenId) {
+      case "channel":
+        return Boolean(platform);
+      case "meta-account":
+        // A conta é opcional: quem não tem perfil comercial segue e a equipe
+        // confere na análise. Travar aqui perderia venda por detalhe de setup.
+        return true;
+      case "ad-account":
+        return Boolean(hasBusinessManager);
+      case "wa-has-number":
+        return Boolean(officialAnswer);
+      case "wa-verify":
+        return officialNumber.replace(/\D/g, "").length >= 10;
+      case "wa-acquire":
+        return acquireConfirmed;
+      case "type":
+        return Boolean(campaignType);
+      case "objective":
+        return Boolean(objective);
+      case "business":
+        return (
+          business.businessName.trim().length > 1 &&
+          Boolean(business.segment) &&
+          !isBlockedByPolicy
+        );
+      case "timing":
+        return !startTooSoon || timing.acknowledged;
+      case "investment":
+        return quote.totalBrlCents > 0;
+      case "contact":
+        return (
+          contact.fullName.trim().length > 2 &&
+          /\S+@\S+\.\S+/.test(contact.email) &&
+          contact.phone.replace(/\D/g, "").length >= 10 &&
+          acceptedTerms &&
+          !isBlockedByPolicy &&
+          (!needsComplianceAck || complianceAcknowledged) &&
+          (!startTooSoon || timing.acknowledged)
+        );
+      default:
+        return false;
+    }
+  })();
+
+  function scrollToWizard() {
+    wizardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  /** CTA do hero e do topo: revela o wizard e leva o olho até ele. */
+  function startWizard() {
+    if (hasStarted) {
+      scrollToWizard();
+      return;
+    }
+    setHasStarted(true);
+    // Só dá para rolar depois que o bloco existe no DOM.
+    requestAnimationFrame(() => requestAnimationFrame(scrollToWizard));
+  }
+
+  function goNext() {
+    setFormError(null);
+    if (isLastScreen) {
+      handleSubmit();
+      return;
+    }
+    setScreenId(screens[position + 1]);
+    scrollToWizard();
+  }
+
+  function goBack() {
+    setFormError(null);
+    if (position === 0) return;
+    setScreenId(screens[position - 1]);
+    scrollToWizard();
+  }
+
+  function selectPlatform(value: TrafegoPlatform) {
+    setPlatform(value);
+    // Cada canal tem catálogo e perguntas próprias — o que foi respondido para
+    // outro canal não vale mais.
+    setCampaignType(null);
+    setObjective(null);
+    setSocialHandle("");
+    setSocialProfile(null);
+    setHasBusinessManager(null);
+    setOfficialAnswer(null);
+    setOfficialNumber("");
+    setOfficialCheck(null);
+    setAcquireConfirmed(false);
+  }
+
+  const managerMessage = [
+    "Olá! Vim pelo site do trafeGO e quero falar sobre uma campanha.",
+    platform ? `Canal: ${PLATFORM_SHORT_LABEL[platform]}` : null,
+    objective ? `Objetivo: ${OBJECTIVE_LABEL[objective]}` : null,
+    `Investimento pensado: ${formatBrlFromCents(quote.adBudgetBrlCents)}`,
+    business.businessName.trim() ? `Negócio: ${business.businessName.trim()}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  function handleSubmit() {
+    if (!platform || !campaignType || !objective || !acceptedTerms) return;
+    setFormError(null);
+
+    const audience = summarizeAudience(
+      business.audienceChips,
+      business.specialCategory,
+      business.audienceNotes,
+    );
+
+    startCheckout.mutate(
+      {
+        adBudgetBrlCents: quote.adBudgetBrlCents,
+        // Canal WhatsApp não pergunta BM: "unsure" mantém o setup cobrado, e a
+        // equipe estorna se a conta já existir.
+        hasBusinessManager: isWhatsappChannel ? "unsure" : (hasBusinessManager ?? "unsure"),
+        socialHandle: socialHandle.trim() || undefined,
+        hasOfficialNumber: isWhatsappChannel ? (officialAnswer ?? undefined) : undefined,
+        officialNumber:
+          isWhatsappChannel && officialAnswer === "yes"
+            ? officialNumber.trim() || undefined
+            : undefined,
+        platform,
+        campaignType,
+        objective,
+        acceptedTerms: true,
+        paymentMethod,
+        complianceAcknowledged,
+        desiredStartAt: timing.desiredStartAt || undefined,
+        hasSocialLinked: timing.hasSocialLinked ?? undefined,
+        materialsReady: timing.materialsReady ?? undefined,
+        startAcknowledged: timing.acknowledged,
+        email: contact.email.trim().toLowerCase(),
+        phone: contact.phone.trim(),
+        companyName: business.businessName.trim() || undefined,
+        briefing: {
+          businessName: business.businessName.trim() || undefined,
+          businessNiche: business.segment || undefined,
+          targetAudience: audience || undefined,
+          destinationUrl: business.destinationUrl.trim() || undefined,
+          whatsappNumber: contact.phone.trim() || undefined,
+          notes:
+            [
+              contact.fullName.trim() ? `Contato: ${contact.fullName.trim()}` : null,
+              timing.desiredStartAt ? `Quer começar em ${timing.desiredStartAt}` : null,
+              contact.referralSource ? `Conheceu por: ${contact.referralSource}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ") || undefined,
+        },
+      },
+      {
+        onSuccess: (data) => {
+          if (data.paymentMethod === "PIX") {
+            setPixCharge({ pendingId: data.pendingId, charge: data.pix });
+            scrollToWizard();
+            return;
+          }
+          window.location.assign(data.url);
+        },
+        onError: (error) =>
+          setFormError(
+            error instanceof Error ? error.message : "Não foi possível iniciar o pagamento.",
+          ),
+      },
+    );
+  }
+
+  return (
+    <div className="min-h-screen">
+      <SocialBackdrop />
+      <LandingNav onStart={startWizard} />
+      <Hero onStart={startWizard} />
+
+      <div className="mx-auto max-w-3xl px-4 sm:px-6">
+        <BrandsMarquee />
+
+        {wasCancelled && (
+          <div className="mt-6 rounded-xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+            Pagamento cancelado. Seus dados continuam preenchidos — é só refazer a
+            simulação quando quiser.
+          </div>
+        )}
+
+        {pixCharge ? (
+          <div ref={wizardRef} id="montar" className="scroll-mt-20 pt-8">
+            <PixInstructions charge={pixCharge.charge} pendingId={pixCharge.pendingId} />
+          </div>
+        ) : hasStarted ? (
+        <div ref={wizardRef} id="montar" className="scroll-mt-20 pt-8">
+          <WizardStepper steps={STEPS} currentIndex={SCREEN_STEP[screenId]} />
+
+          <div className="mt-5">
+            {screenId === "channel" && (
+              <StepShell
+                eyebrow="01. Canal"
+                title="Onde você quer anunciar?"
+                subtitle="Escolha o canal da sua campanha. Dá para contratar mais de um — comece por este."
+                onBack={scrollToWizard}
+                onNext={goNext}
+                canGoNext={canGoNext}
+                backDisabled
+              >
+                <ChannelStep value={platform} onSelect={selectPlatform} />
+              </StepShell>
+            )}
+
+            {screenId === "meta-account" && (
+              <StepShell
+                eyebrow="01A. Verificação Meta"
+                title="Conecte sua conta do Instagram ou Facebook"
+                subtitle="Verifique se a conta existe e permita que nossa equipe analise."
+                onBack={goBack}
+                onNext={goNext}
+                canGoNext={canGoNext}
+              >
+                <MetaAccountStep
+                  handle={socialHandle}
+                  onHandle={setSocialHandle}
+                  network={socialNetwork}
+                  onNetwork={setSocialNetwork}
+                  profile={socialProfile}
+                  onProfile={setSocialProfile}
+                  lookupEnabled={config?.verification.social ?? false}
+                />
+              </StepShell>
+            )}
+
+            {screenId === "ad-account" && (
+              <StepShell
+                eyebrow="01B. Conta de anúncios"
+                title="Você já tem conta de anúncios (BM)?"
+                subtitle="Isso muda o valor: quem não tem paga uma taxa única de setup."
+                onBack={goBack}
+                onNext={goNext}
+                canGoNext={canGoNext}
+              >
+                <BusinessManagerStep
+                  value={hasBusinessManager}
+                  onChange={setHasBusinessManager}
+                  setupBrlCents={quote.tier.setupBrlCents}
+                />
+              </StepShell>
+            )}
+
+            {screenId === "wa-has-number" && (
+              <StepShell
+                eyebrow="01B. Verificação WhatsApp"
+                title="Você já possui um número na API Oficial do WhatsApp?"
+                onBack={goBack}
+                onNext={goNext}
+                canGoNext={canGoNext}
+              >
+                <WhatsappNumberStep
+                  value={officialAnswer}
+                  onChange={setOfficialAnswer}
+                  setupBrlCents={quote.tier.setupBrlCents}
+                />
+              </StepShell>
+            )}
+
+            {screenId === "wa-verify" && (
+              <StepShell
+                eyebrow="01B.1. Verificar número"
+                title="Informe o número do WhatsApp"
+                onBack={goBack}
+                onNext={goNext}
+                canGoNext={canGoNext}
+              >
+                <WhatsappVerifyStep
+                  number={officialNumber}
+                  onNumber={setOfficialNumber}
+                  check={officialCheck}
+                  onCheck={setOfficialCheck}
+                  checkEnabled={config?.verification.whatsappCheck ?? false}
+                />
+              </StepShell>
+            )}
+
+            {screenId === "wa-acquire" && (
+              <StepShell
+                eyebrow="01B.2. Adquirir número"
+                title="Vamos providenciar um novo número?"
+                onBack={goBack}
+                onNext={goNext}
+                canGoNext={canGoNext}
+              >
+                <WhatsappAcquireStep
+                  confirmed={acquireConfirmed}
+                  onConfirm={setAcquireConfirmed}
+                  setupBrlCents={quote.tier.setupBrlCents}
+                />
+              </StepShell>
+            )}
+
+            {screenId === "type" && (
+              <StepShell
+                eyebrow="02. Campanha"
+                title="Que tipo de campanha?"
+                subtitle="Isso orienta como a equipe vai configurar a segmentação."
+                onBack={goBack}
+                onNext={goNext}
+                canGoNext={canGoNext}
+              >
+                <ChoiceCardGrid
+                  options={campaignTypeOptions}
+                  value={campaignType}
+                  onSelect={setCampaignType}
+                />
+              </StepShell>
+            )}
+
+            {screenId === "objective" && (
+              <StepShell
+                eyebrow="03. Objetivo"
+                title="Qual o resultado que você quer?"
+                subtitle="O objetivo define como a campanha é otimizada."
+                onBack={goBack}
+                onNext={goNext}
+                canGoNext={canGoNext}
+              >
+                <ChoiceCardGrid
+                  options={objectiveOptions}
+                  value={objective}
+                  onSelect={setObjective}
+                />
+              </StepShell>
+            )}
+
+            {screenId === "business" && (
+              <StepShell
+                eyebrow="04. Seu negócio"
+                title="Conte sobre o seu negócio"
+                subtitle="Essas informações ajudam nossa equipe a encontrar as pessoas certas."
+                onBack={goBack}
+                onNext={goNext}
+                canGoNext={canGoNext}
+              >
+                <div className="space-y-5">
+                  <BusinessStep value={business} onChange={setBusiness} />
+                  <ComplianceAlert
+                    level={compliance.level}
+                    issues={compliance.hits}
+                    supportWhatsapp={config?.supportWhatsapp}
+                  />
+                </div>
+              </StepShell>
+            )}
+
+            {screenId === "timing" && (
+              <StepShell
+                eyebrow="04B. Prazo"
+                title="Quando você quer começar?"
+                subtitle="Melhor combinar isso agora do que descobrir depois que o prazo não cabia."
+                onBack={goBack}
+                onNext={goNext}
+                canGoNext={canGoNext}
+              >
+                <TimingStep value={timing} onChange={setTiming} hasAdAccount={hasAdAccount} />
+              </StepShell>
+            )}
+
+            {screenId === "investment" && (
+              <StepShell
+                eyebrow="05. Investimento"
+                title="Quanto você quer investir?"
+                subtitle="A verba de tráfego vai inteira para o anúncio. Nossa taxa vem por cima — e cai conforme o valor sobe."
+                onBack={goBack}
+                onNext={goNext}
+                canGoNext={canGoNext}
+              >
+                <InvestmentSimulator
+                  adBudgetBrlCents={adBudgetBrlCents}
+                  onChangeBudget={setAdBudgetBrlCents}
+                  needsSetup={needsSetup}
+                  setupLabel={setupLabel}
+                />
+
+                {config?.supportWhatsapp && (
+                  <div className="mt-6 flex flex-col items-center gap-2 border-t border-white/[0.07] pt-6">
+                    <p className="text-xs text-white/40">
+                      Ficou em dúvida sobre quanto investir?
+                    </p>
+                    <TalkToManagerButton
+                      whatsappNumber={config.supportWhatsapp}
+                      message={managerMessage}
+                    />
+                  </div>
+                )}
+              </StepShell>
+            )}
+
+            {screenId === "contact" && (
+              <StepShell
+                eyebrow="06. Contato"
+                title="Seus dados de contato"
+                subtitle="Para sua campanha entrar no ar, precisamos de algumas informações."
+                onBack={goBack}
+                onNext={goNext}
+                canGoNext={canGoNext}
+                isBusy={startCheckout.isPending}
+                nextLabel={
+                  paymentMethod === "PIX" ? "Gerar PIX e contratar" : "Finalizar e contratar"
+                }
+              >
+                <div className="space-y-5">
+                  <ContactStep
+                    value={contact}
+                    onChange={setContact}
+                    phoneVerification={phoneVerification}
+                    onPhoneVerification={setPhoneVerification}
+                    verificationEnabled={config?.verification.phone ?? false}
+                  />
+
+                  <ComplianceAlert
+                    level={compliance.level}
+                    issues={compliance.hits}
+                    acknowledged={complianceAcknowledged}
+                    onAcknowledge={setComplianceAcknowledged}
+                    supportWhatsapp={config?.supportWhatsapp}
+                  />
+
+                  <PaymentMethodStep
+                    value={paymentMethod}
+                    onChange={setPaymentMethod}
+                    pixAvailable={config?.pixAvailable ?? false}
+                  />
+
+                  <div className="rounded-2xl border border-white/[0.09] bg-white/[0.03] p-4 sm:p-5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/35">
+                      Resumo
+                    </p>
+                    <p className="mt-1.5 text-sm text-white/60">
+                      {platform ? PLATFORM_SHORT_LABEL[platform] : ""} ·{" "}
+                      {campaignType ? CAMPAIGN_TYPE_SHORT_LABEL[campaignType] : ""} ·{" "}
+                      {objective ? OBJECTIVE_LABEL[objective] : ""}
+                    </p>
+                    <div className="mt-3">
+                      <OrderSummary
+                        quote={quote}
+                        needsSetup={needsSetup}
+                        setupLabel={setupLabel}
+                        compact
+                      />
+                    </div>
+                  </div>
+
+                  {formError && (
+                    <p className="rounded-lg border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-200">
+                      {formError}
+                    </p>
+                  )}
+
+                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.09] bg-white/[0.03] p-4 transition hover:border-white/20">
+                    <input
+                      type="checkbox"
+                      checked={acceptedTerms}
+                      onChange={(event) => setAcceptedTerms(event.target.checked)}
+                      className="mt-0.5 size-4 shrink-0 accent-violet-500"
+                    />
+                    <span className="text-xs leading-relaxed text-white/55">
+                      Li e aceito os{" "}
+                      <Link
+                        href="/trafego/termos"
+                        target="_blank"
+                        className="font-medium text-violet-300 underline underline-offset-2"
+                      >
+                        Termos de serviço
+                      </Link>{" "}
+                      e a{" "}
+                      <Link
+                        href="/trafego/privacidade"
+                        target="_blank"
+                        className="font-medium text-violet-300 underline underline-offset-2"
+                      >
+                        Política de privacidade
+                      </Link>
+                      . Entendo que a Órbita executa e otimiza a veiculação, e que o
+                      resultado depende também do criativo e da oferta que eu enviar —
+                      não há garantia de vendas ou de retorno.
+                    </span>
+                  </label>
+
+                  <div className="flex items-center gap-2 text-xs text-white/35">
+                    <ShieldCheck className="size-4 shrink-0" />
+                    {paymentMethod === "PIX"
+                      ? "Você paga na nossa chave e envia o comprovante. A equipe confirma em horário comercial."
+                      : "Pagamento processado pelo Stripe. Não guardamos dados do cartão."}
+                  </div>
+                </div>
+              </StepShell>
+            )}
+          </div>
+        </div>
+        ) : null}
+
+        <ValueProps />
+        <Testimonials />
+        <TrafegoFooter />
+      </div>
+
+      <TrafegoAssistant
+        context={{
+          platform,
+          objective: objective ? OBJECTIVE_LABEL[objective] : null,
+          campaignType: campaignType ? CAMPAIGN_TYPE_SHORT_LABEL[campaignType] : null,
+          businessName: business.businessName || null,
+          segment: business.segment || null,
+          adBudgetBrlCents: quote.adBudgetBrlCents,
+          totalBrlCents: quote.totalBrlCents,
+          feePercent: quote.feePercent,
+          setupBrlCents: needsSetup ? quote.setupBrlCents : null,
+          earliestStart: formatStartDate(startEstimate.earliestStart),
+        }}
+      />
+    </div>
+  );
+}
+
+function ValueProps() {
+  const items = [
+    {
+      icon: Target,
+      title: "A verba é toda sua",
+      text: "100% do valor de tráfego vai para a plataforma de anúncio. Nossa taxa vem por cima, sem desconto escondido.",
+    },
+    {
+      icon: BadgeCheck,
+      title: "Equipe especialista",
+      text: "Nosso time configura, publica e acompanha. Você não precisa aprender Meta Ads.",
+    },
+    {
+      icon: Sparkles,
+      title: "Painel próprio",
+      text: "Envie criativos, acompanhe o desempenho e fale com o suporte num lugar só.",
+    },
+  ];
+
+  return (
+    <div id="como-funciona" className="mt-14 grid scroll-mt-20 gap-4 md:grid-cols-3">
+      {items.map((item) => (
+        <div
+          key={item.title}
+          className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5"
+        >
+          <item.icon className="size-5 text-violet-300" />
+          <p className="mt-3 text-sm font-semibold text-white">{item.title}</p>
+          <p className="mt-1 text-xs leading-relaxed text-white/45">{item.text}</p>
+        </div>
+      ))}
+    </div>
+  );
+}

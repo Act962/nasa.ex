@@ -23,6 +23,12 @@ import { partnerGracePeriodMonitor } from "@/inngest/functions/crons/partner-gra
 import { starsGracePeriodMonitor } from "@/inngest/functions/crons/stars-grace-period-monitor";
 import { starsPendingSweep } from "@/inngest/functions/crons/stars-pending-sweep";
 import { coursePublicPurchasePaid } from "@/inngest/functions/course-public-purchase-paid";
+import { trafegoPurchasePaid } from "@/inngest/functions/trafego/purchase-paid";
+import { trafegoOrderRequested } from "@/inngest/functions/trafego/order-requested";
+import { trafegoOrderStatusChanged } from "@/inngest/functions/trafego/order-status-changed";
+import { trafegoReleaseGenerate } from "@/inngest/functions/trafego/release-generate";
+import { trafegoKanbanDriftSweep } from "@/inngest/functions/crons/trafego-kanban-drift-sweep";
+import { trafegoPixPendingSweep } from "@/inngest/functions/crons/trafego-pix-pending-sweep";
 import { publishPostHandler } from "@/inngest/functions/nasa-planner/publish-post-handler";
 import { publishScheduledPosts } from "@/inngest/functions/nasa-planner/publish-scheduled-posts";
 import { refreshMetaTokens } from "@/inngest/functions/nasa-planner/refresh-meta-tokens";
@@ -97,6 +103,14 @@ export const { GET, POST, PUT } = serve({
     starsPendingSweep,
     // ── NASA Router (checkout público de curso) ──
     coursePublicPurchasePaid,
+    trafegoPurchasePaid,
+    trafegoOrderRequested,
+    trafegoOrderStatusChanged,
+    trafegoReleaseGenerate,
+    // ── trafeGO: card do tracking realinhado ao pedido (de hora em hora) ──
+    trafegoKanbanDriftSweep,
+    // ── trafeGO: PIX vencido vira EXPIRED (de hora em hora) ──
+    trafegoPixPendingSweep,
     // ── NASA Planner ──
     publishPostHandler,
     publishScheduledPosts,

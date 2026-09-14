@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
+import { AstroMark } from "@/features/astro/components/astro-mark";
 import { useAstroOrbStore } from "./use-astro-orb-store";
 import { useVoiceModeStore } from "./use-voice-mode-store";
 import { useWakeWord } from "./use-wake-word";
@@ -45,6 +46,9 @@ export function AstroOrb() {
   const setWakeWordEnabled = useAstroOrbStore((s) => s.setWakeWordEnabled);
   const setVisible = useAstroOrbStore((s) => s.setVisible);
   const setPendingUtterance = useAstroOrbStore((s) => s.setPendingUtterance);
+
+  // O disco inteiro é o "corpo" da marca: é ele que treme e aquece na zanga.
+  const discoRef = useRef<HTMLButtonElement>(null);
 
   const isSpeaking = useVoiceModeStore((s) => s.isSpeaking);
   const setVoiceSpeaking = useVoiceModeStore((s) => s.setSpeaking);
@@ -385,6 +389,7 @@ export function AstroOrb() {
         </button>
 
         <button
+          ref={discoRef}
           type="button"
           onClick={handleOrbClick}
           title={
@@ -504,7 +509,13 @@ export function AstroOrb() {
           {/* Icone central — cross-fade entre phases */}
           <span
             key={phase}
-            className="relative z-10 text-white"
+            className={cn(
+              "z-10 text-white",
+              // Parado, o Astro é o próprio disco. Ouvindo, pensando ou
+              // falando, o ícone de estado volta — ele diz o que está
+              // acontecendo, e um rosto não diria.
+              phase === "idle" ? "absolute inset-0 p-px" : "relative",
+            )}
             style={{ animation: "orb-icon-in 0.35s ease-out" }}
           >
             {phase === "listening" ? (
@@ -514,7 +525,7 @@ export function AstroOrb() {
             ) : phase === "speaking" ? (
               <Volume2 className="size-5" />
             ) : (
-              <Sparkles className="size-5" />
+              <AstroMark corpo={discoRef} />
             )}
           </span>
 

@@ -71,8 +71,30 @@ export const setHomeApp = base
     return { success: true };
   });
 
+/**
+ * Escopo de produto da organização ativa. Procedure separada de `get` de
+ * propósito: `getSidebarPrefs` devolve `Record<string, boolean>` e já tem
+ * vários consumidores — mudar o formato dela quebraria todos.
+ */
+export const getSidebarScope = base
+  .use(requiredAuthMiddleware)
+  .route({ method: "GET", summary: "Escopo de produto da organização ativa" })
+  .input(z.object({}).optional())
+  .output(z.object({ appScope: z.string().nullable() }))
+  .handler(async ({ context }) => {
+    const activeOrganizationId = context.session.activeOrganizationId;
+    if (!activeOrganizationId) return { appScope: null };
+
+    const organization = await prisma.organization.findUnique({
+      where: { id: activeOrganizationId },
+      select: { appScope: true },
+    });
+    return { appScope: organization?.appScope ?? null };
+  });
+
 export const sidebarPrefsRouter = {
   get: getSidebarPrefs,
   set: setSidebarPref,
   setHomeApp,
+  getScope: getSidebarScope,
 };

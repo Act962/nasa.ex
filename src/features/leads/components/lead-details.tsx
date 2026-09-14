@@ -13,10 +13,12 @@ import {
   EditIcon,
   FileIcon,
   FileSignature,
+  Megaphone,
   RouteIcon,
   StickyNoteIcon,
 } from "lucide-react";
 import { LeadContracts } from "./lead-contracts";
+import { LeadTrafegoTab } from "@/features/trafego/components/ops/lead-trafego-tab";
 // Importado de propósito sem uso: a aba "Tarefas" (TabNotes) existe e o
 // backend do vínculo Action↔Lead funciona, mas o layout foi reprovado e a aba
 // saiu até o redesenho. Ver docs/workspace-actions-overview.md §5, Fase 3.2 —
@@ -109,6 +111,15 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       value: "contracts",
       icon: FileSignature,
       content: <LeadContracts leadId={initialData.lead.id} />,
+    },
+    {
+      // Só rende conteúdo quando o lead é do tracking do trafeGO; nos demais a
+      // aba mostra uma linha explicando. Manter fixa evita um layout que muda
+      // de forma conforme o lead aberto.
+      name: "trafeGO",
+      value: "trafego",
+      icon: Megaphone,
+      content: <LeadTrafegoTab leadId={initialData.lead.id} />,
     },
   ];
 

@@ -15,6 +15,7 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
+import { autoLinkTrafegoMetaCampaigns } from "@/features/trafego/server/lib/auto-link-meta-campaigns";
 import {
   listMetaCampaigns,
   listMetaAdSets,
@@ -38,6 +39,7 @@ export const syncMetaAdsStructure = inngest.createFunction(
     let campaignsUpserted = 0;
     let adsetsUpserted = 0;
     let adsUpserted = 0;
+    let trafegoLinked = 0;
     const errors: string[] = [];
 
     for (const integ of integrations) {
@@ -51,11 +53,13 @@ export const syncMetaAdsStructure = inngest.createFunction(
       };
 
       // ── 1. Campaigns ─────────────────────────────────────────────
+      let campaignList: Awaited<ReturnType<typeof listMetaCampaigns>> = [];
       try {
         const campaigns = await step.run(
           `campaigns-${integ.organizationId}`,
           () => listMetaCampaigns(auth),
         );
+        campaignList = campaigns;
         for (const c of campaigns) {
           await prisma.metaAdCampaign
             .upsert({
@@ -88,6 +92,23 @@ export const syncMetaAdsStructure = inngest.createFunction(
       } catch (err) {
         errors.push(`campaigns ${integ.organizationId}: ${(err as Error).message}`);
         continue; // sem campaigns, não há como fazer adsets/ads
+      }
+
+      // ── 1b. trafeGO: vincula pedido pela convenção de nome ────────
+      // Fica aqui porque é exatamente quando os nomes acabaram de ser
+      // espelhados. A função ignora orgs que não são a da agência.
+      try {
+        const result = await step.run(
+          `trafego-auto-link-${integ.organizationId}`,
+          () =>
+            autoLinkTrafegoMetaCampaigns({
+              organizationId: integ.organizationId,
+              campaigns: campaignList.map((c) => ({ id: c.id, name: c.name })),
+            }),
+        );
+        trafegoLinked += result.linked.length;
+      } catch (err) {
+        errors.push(`trafego auto-link ${integ.organizationId}: ${(err as Error).message}`);
       }
 
       // ── 2. AdSets ────────────────────────────────────────────────
@@ -248,6 +269,7 @@ export const syncMetaAdsStructure = inngest.createFunction(
       campaignsUpserted,
       adsetsUpserted,
       adsUpserted,
+      trafegoLinked,
       errors: errors.slice(0, 20),
     };
   },

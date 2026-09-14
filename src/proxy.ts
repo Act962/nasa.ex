@@ -105,5 +105,6 @@ export const config = {
     "/l/:path*",
     "/join/:path*",
     "/resgatar/:path*",
+    "/trafego/:path*",
   ],
 };
