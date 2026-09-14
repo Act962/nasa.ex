@@ -29,6 +29,11 @@ export const NOTIF_TYPES = {
   PAYMENT_RECEIVED:          "PAYMENT_RECEIVED",
   PAYMENT_OVERDUE_ALERT:     "PAYMENT_OVERDUE_ALERT",
   PAYMENT_DUNNING_SENT:      "PAYMENT_DUNNING_SENT",
+  // ── NASA Payment: metas de vendas e reserva de caixa (spec 0011) ───────
+  PAYMENT_RESERVE_AT_RISK:   "PAYMENT_RESERVE_AT_RISK",
+  PAYMENT_GOAL_REACHED:      "PAYMENT_GOAL_REACHED",
+  PAYMENT_GOAL_WEEKLY:       "PAYMENT_GOAL_WEEKLY",
+  PAYMENT_EXPENSE_CRITICAL:  "PAYMENT_EXPENSE_CRITICAL",
 } as const;
 
 export type NotifType = (typeof NOTIF_TYPES)[keyof typeof NOTIF_TYPES];
@@ -50,6 +55,11 @@ export const NOTIF_META: Record<NotifType, { label: string; appKey: string; desc
   PAYMENT_RECEIVED:          { label: "Recebimento confirmado",            appKey: "financeiro", description: "Uma conta a receber foi paga pelo cliente" },
   PAYMENT_OVERDUE_ALERT:     { label: "Pagamento em atraso",               appKey: "financeiro", description: "Uma conta venceu e segue pendente" },
   PAYMENT_DUNNING_SENT:      { label: "Cobrança automática enviada",       appKey: "financeiro", description: "A régua de cobrança disparou um lembrete pro cliente" },
+  // ── NASA Payment: metas e reserva ───────────────────────────────────────
+  PAYMENT_RESERVE_AT_RISK:   { label: "Reserva de caixa em risco",          appKey: "financeiro", description: "O mês caminha para fechar abaixo da reserva definida" },
+  PAYMENT_GOAL_REACHED:      { label: "Meta de vendas batida",              appKey: "financeiro", description: "A receita recebida no mês atingiu a meta" },
+  PAYMENT_GOAL_WEEKLY:       { label: "Resumo semanal do financeiro",       appKey: "financeiro", description: "Toda segunda: meta, despesas a pagar e caixa projetado" },
+  PAYMENT_EXPENSE_CRITICAL:  { label: "Despesa derruba a reserva",          appKey: "financeiro", description: "Uma despesa lançada joga o caixa projetado abaixo da reserva" },
 };
 
 interface CreateNotificationOptions {
