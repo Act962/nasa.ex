@@ -126,14 +126,14 @@ export function PaymentDashboard({
 
   const executiveMetrics: ExecutiveMetric[] = [
     {
-      label: "Receita",
+      label: "A receber",
       value: formatCurrency(data.totalReceivable),
       hint: "Em aberto no período",
       tone: "emerald",
       onSelect: () => onNavigateTab?.("receivables"),
     },
     {
-      label: "Despesa",
+      label: "A pagar",
       value: formatCurrency(data.totalPayable),
       hint: "Em aberto no período",
       tone: "red",
@@ -199,7 +199,7 @@ export function PaymentDashboard({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
-          label="Receita"
+          label="A receber"
           value={formatCurrency(data.totalReceivable)}
           icon={Wallet}
           tone="emerald"
@@ -213,7 +213,7 @@ export function PaymentDashboard({
           }}
         />
         <SummaryCard
-          label="Despesa"
+          label="A pagar"
           value={formatCurrency(data.totalPayable)}
           icon={Landmark}
           tone="red"
