@@ -296,6 +296,38 @@ export const getPaymentDashboard = base
     }
   });
 
+// Mesma definicao de "em aberto" do painel — os totais das duas telas
+// precisam fechar entre si.
+const CASHFLOW_OPEN_STATUSES = ["PENDING", "PARTIAL", "OVERDUE"] as const;
+
+/**
+ * O `where` que define o que entra no fluxo de caixa de um período.
+ *
+ * Vive numa função para que o detalhe de um dia use exatamente a mesma regra
+ * do total daquele dia — se as duas divergissem, a lista abriria sem explicar
+ * o número que a originou.
+ */
+function cashflowWhere(params: {
+  organizationId: string;
+  start: Date;
+  end: Date;
+  categoryIds?: string[];
+}) {
+  return {
+    organizationId: params.organizationId,
+    ...(params.categoryIds && params.categoryIds.length > 0
+      ? { categoryId: { in: params.categoryIds } }
+      : {}),
+    OR: [
+      { status: "PAID" as const, paidAt: { gte: params.start, lte: params.end } },
+      {
+        status: { in: [...CASHFLOW_OPEN_STATUSES] },
+        dueDate: { gte: params.start, lte: params.end },
+      },
+    ],
+  };
+}
+
 export const getCashflow = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
@@ -328,26 +360,29 @@ export const getCashflow = base
         ? new Date(input.dateTo)
         : new Date(year, month, 0, 23, 59, 59);
 
+      // O que já foi liquidado entra pela data do pagamento; o que segue em
+      // aberto entra pelo vencimento. Filtrar tudo por `dueDate` fazia uma
+      // despesa vencida num mês e paga no seguinte sumir do fluxo do mês em
+      // que o dinheiro de fato saiu, embora contasse nos "Gastos do período".
       const entries = await prisma.paymentEntry.findMany({
-        where: {
+        where: cashflowWhere({
           organizationId: context.org.id,
-          ...(input.categoryIds && input.categoryIds.length > 0
-            ? { categoryId: { in: input.categoryIds } }
-            : {}),
-          status: { notIn: ["CANCELLED"] },
-          dueDate: { gte: monthStart, lte: monthEnd },
-        },
-        select: { type: true, amount: true, paidAmount: true, dueDate: true, status: true },
-        orderBy: { dueDate: "asc" },
+          start: monthStart,
+          end: monthEnd,
+          categoryIds: input.categoryIds,
+        }),
+        select: { type: true, amount: true, paidAmount: true, dueDate: true, paidAt: true, status: true },
       });
 
       const dayMap: Record<string, { receivable: number; payable: number }> = {};
-      for (const e of entries) {
-        const key = e.dueDate.toISOString().slice(0, 10);
+      for (const entry of entries) {
+        const isSettled = entry.status === "PAID";
+        const cashDate = isSettled ? entry.paidAt ?? entry.dueDate : entry.dueDate;
+        const key = cashDate.toISOString().slice(0, 10);
         if (!dayMap[key]) dayMap[key] = { receivable: 0, payable: 0 };
-        const val = e.status === "PAID" ? e.paidAmount : e.amount;
-        if (e.type === "RECEIVABLE") dayMap[key].receivable += val;
-        else dayMap[key].payable += val;
+        const value = isSettled ? entry.paidAmount : entry.amount;
+        if (entry.type === "RECEIVABLE") dayMap[key].receivable += value;
+        else dayMap[key].payable += value;
       }
 
       let runningBalance = 0;
@@ -361,6 +396,106 @@ export const getCashflow = base
       return { rows };
     } catch (err) {
       console.error("[payment/dashboard/getCashflow]", err);
+      throw errors.INTERNAL_SERVER_ERROR;
+    }
+  });
+
+/**
+ * Lançamentos que compõem um dia do fluxo de caixa.
+ *
+ * Usa `cashflowWhere` com a janela de um dia só — a mesma regra que produziu o
+ * total da linha, então a soma da lista sempre reproduz o valor clicado.
+ */
+export const getCashflowDayEntries = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("dashboard", "view"))
+  .route({ method: "GET", summary: "Entries behind a cashflow day", tags: ["Payment"] })
+  .input(
+    z.object({
+      // "2026-09-15" — o mesmo `date` que a linha da tabela carrega.
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida"),
+      categoryIds: z.array(z.string()).optional(),
+    }),
+  )
+  .output(
+    z.object({
+      entries: z.array(
+        z.object({
+          id: z.string(),
+          type: z.enum(["RECEIVABLE", "PAYABLE"]),
+          status: z.string(),
+          description: z.string(),
+          amount: z.number(),
+          paidAmount: z.number(),
+          /** O valor que entrou na soma do dia: pago se liquidado, previsto se em aberto. */
+          cashAmount: z.number(),
+          dueDate: z.date(),
+          paidAt: z.date().nullable(),
+          categoryName: z.string().nullable(),
+          contactName: z.string().nullable(),
+        }),
+      ),
+      totals: z.object({ receivable: z.number(), payable: z.number() }),
+    }),
+  )
+  .handler(async ({ input, context, errors }) => {
+    try {
+      const [year, month, day] = input.date.split("-").map(Number);
+      // A chave do dia é montada em UTC no `getCashflow`; a janela precisa
+      // usar o mesmo referencial para devolver exatamente as mesmas linhas.
+      const start = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+      const end = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+
+      const rows = await prisma.paymentEntry.findMany({
+        where: cashflowWhere({
+          organizationId: context.org.id,
+          start,
+          end,
+          categoryIds: input.categoryIds,
+        }),
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          description: true,
+          amount: true,
+          paidAmount: true,
+          dueDate: true,
+          paidAt: true,
+          category: { select: { name: true } },
+          contact: { select: { name: true } },
+        },
+        orderBy: { amount: "desc" },
+      });
+
+      const entries = rows.map((row) => ({
+        id: row.id,
+        type: row.type,
+        status: row.status,
+        description: row.description,
+        amount: row.amount,
+        paidAmount: row.paidAmount,
+        cashAmount: row.status === "PAID" ? row.paidAmount : row.amount,
+        dueDate: row.dueDate,
+        paidAt: row.paidAt,
+        categoryName: row.category?.name ?? null,
+        contactName: row.contact?.name ?? null,
+      }));
+
+      return {
+        entries,
+        totals: {
+          receivable: entries
+            .filter((entry) => entry.type === "RECEIVABLE")
+            .reduce((sum, entry) => sum + entry.cashAmount, 0),
+          payable: entries
+            .filter((entry) => entry.type === "PAYABLE")
+            .reduce((sum, entry) => sum + entry.cashAmount, 0),
+        },
+      };
+    } catch (err) {
+      console.error("[payment/dashboard/cashflow-day]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });

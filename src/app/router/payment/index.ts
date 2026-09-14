@@ -48,7 +48,11 @@ import {
   deletePaymentAttachment,
   linkPaymentAttachments,
 } from "./attachments";
-import { getPaymentDashboard, getCashflow } from "./dashboard";
+import {
+  getPaymentDashboard,
+  getCashflow,
+  getCashflowDayEntries,
+} from "./dashboard";
 import { getPaymentProjection } from "./projection";
 import { getIncomeStatement, getOperationalResult } from "./reports";
 import { listExternalContacts } from "./external-contacts";
@@ -126,6 +130,7 @@ export const paymentRouter = {
   dashboard: {
     get: getPaymentDashboard,
     cashflow: getCashflow,
+    cashflowDay: getCashflowDayEntries,
   },
   projection: {
     get: getPaymentProjection,

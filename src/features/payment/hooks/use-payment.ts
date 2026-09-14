@@ -99,6 +99,19 @@ export function useCashflow(params: {
   );
 }
 
+/** Lançamentos por trás de um dia do fluxo de caixa. Só busca quando abre. */
+export function useCashflowDay(params: {
+  date: string | null;
+  categoryIds?: string[];
+}) {
+  return useQuery({
+    ...orpc.payment.dashboard.cashflowDay.queryOptions({
+      input: { date: params.date ?? "2000-01-01", categoryIds: params.categoryIds },
+    }),
+    enabled: Boolean(params.date),
+  });
+}
+
 // ── Entries ───────────────────────────────────────────────────────────────────
 
 export function usePaymentEntries(params: {
