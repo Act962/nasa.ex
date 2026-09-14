@@ -502,7 +502,7 @@ export const updatePaymentEntry = base
         data: {
           ...data,
           ...(dueDate ? { dueDate: parseCalendarDate(dueDate) } : {}),
-          ...(paidAt !== undefined ? { paidAt: paidAt ? new Date(paidAt) : null } : {}),
+          ...(paidAt !== undefined ? { paidAt: paidAt ? parseCalendarDate(paidAt) : null } : {}),
         },
         include: entryInclude,
       });
@@ -560,7 +560,7 @@ export const payPaymentEntry = base
         data: {
           paidAmount: newPaid,
           status,
-          paidAt: input.paidAt ? new Date(input.paidAt) : new Date(),
+          paidAt: input.paidAt ? parseCalendarDate(input.paidAt) : new Date(),
           ...(input.accountId ? { accountId: input.accountId } : {}),
         },
         include: entryInclude,

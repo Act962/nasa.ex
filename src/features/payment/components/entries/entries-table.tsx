@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Pencil, Search, Plus, CalendarOff, X } from "lucide-react";
+import { CheckCircle2, Pencil, Search, Plus, CalendarOff, X, Eye } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import {
   PaymentPagination,
@@ -30,6 +30,7 @@ import {
   PAYMENT_SEARCH_DEBOUNCE_MS,
 } from "../shared/payment-pagination";
 import { EntryActionsMenu } from "./entry-actions-menu";
+import { EntryDetailsDialog } from "./entry-details-dialog";
 import { DunningAssignDialog } from "../dunning/dunning-assign-dialog";
 import { DunningHistoryDrawer } from "../dunning/dunning-history-drawer";
 import {
@@ -60,6 +61,8 @@ interface EntriesTableProps {
   type: "RECEIVABLE" | "PAYABLE";
 }
 
+const PENDING_STATUS_FILTERS = new Set(["PENDING", "PARTIAL", "OVERDUE"]);
+
 type PaymentEntryRow = NonNullable<
   ReturnType<typeof usePaymentEntries>["data"]
 >["entries"][number];
@@ -77,6 +80,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
   const [payAmount, setPayAmount] = useState("");
   // Edição de valores + confirmação de cancelar (soft) / excluir (hard).
   const [editEntry, setEditEntry] = useState<PaymentEntryRow | null>(null);
+  const [detailsEntry, setDetailsEntry] = useState<PaymentEntryRow | null>(null);
   const [confirm, setConfirm] = useState<
     { kind: "cancel" | "delete"; id: string; name: string } | null
   >(null);
@@ -202,6 +206,23 @@ export function EntriesTable({ type }: EntriesTableProps) {
   // diferente a cada troca de página.
   const totalPending = data?.totals.pendingAmount ?? 0;
   const totalAmount = data?.totals.amount ?? 0;
+  const totalSettled = data?.totals.paidAmount ?? 0;
+
+  // O cabeçalho segue o filtro de status. Antes mostrava "Total pendente"
+  // fixo: com o filtro "Pago" a interseção entre PAID e os status pendentes é
+  // vazia, e a tela exibia R$ 0,00 como se nada tivesse sido recebido.
+  const settledLabel = type === "RECEIVABLE" ? "Total recebido" : "Total pago";
+  const summaryTotals =
+    statusFilter === ""
+      ? [
+          { label: "Total pendente", value: totalPending },
+          { label: settledLabel, value: totalSettled },
+        ]
+      : statusFilter === "PAID"
+        ? [{ label: settledLabel, value: totalSettled }]
+        : PENDING_STATUS_FILTERS.has(statusFilter)
+          ? [{ label: "Total pendente", value: totalPending }]
+          : [{ label: "Total do filtro", value: totalAmount }];
 
   // Sem resultado durante uma busca restrita ao período, o motivo mais provável
   // é o próprio período — o vazio precisa dizer isso, não só "não encontrado".
@@ -214,9 +235,13 @@ export function EntriesTable({ type }: EntriesTableProps) {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">Total pendente</p>
-          <p className={`text-2xl font-black ${color}`}>{formatCurrency(totalPending)}</p>
+        <div className="flex min-w-0 flex-wrap gap-x-6 gap-y-2">
+          {summaryTotals.map((resumo) => (
+            <div key={resumo.label} className="min-w-0">
+              <p className="text-xs text-muted-foreground">{resumo.label}</p>
+              <p className={`text-2xl font-black ${color}`}>{formatCurrency(resumo.value)}</p>
+            </div>
+          ))}
         </div>
         <Button
           onClick={() => setShowForm(true)}
@@ -302,7 +327,16 @@ export function EntriesTable({ type }: EntriesTableProps) {
           entries.map((entry) => (
             <div
               key={entry.id}
-              className="rounded-xl border border-border/50 bg-card p-3"
+              role="button"
+              tabIndex={0}
+              onClick={() => setDetailsEntry(entry)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setDetailsEntry(entry);
+                }
+              }}
+              className="cursor-pointer rounded-xl border border-border/50 bg-card p-3 transition-colors hover:bg-muted/20"
             >
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
@@ -317,6 +351,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
                       : ""}
                   </p>
                 </div>
+                <div onClick={(event) => event.stopPropagation()}>
                 <EntryActionsMenu
                   entry={entry}
                   onPay={() => openPayDialog(entry)}
@@ -333,6 +368,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
                   }
                   className="-mr-1 shrink-0"
                 />
+                </div>
               </div>
 
               <div className="mt-2.5 flex items-end justify-between gap-2 border-t pt-2.5">
@@ -413,7 +449,11 @@ export function EntriesTable({ type }: EntriesTableProps) {
                   </td>
                 </tr>
               ) : entries.map((entry) => (
-                <tr key={entry.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                <tr
+                  key={entry.id}
+                  onClick={() => setDetailsEntry(entry)}
+                  className="cursor-pointer border-b border-border/30 hover:bg-muted/20 transition-colors"
+                >
                   <td className="px-4 py-3">
                     <div className="font-medium text-sm leading-tight">{entry.description}</div>
                     {entry.installmentTotal && (
@@ -447,7 +487,19 @@ export function EntriesTable({ type }: EntriesTableProps) {
                   <td className="px-4 py-3 text-center text-muted-foreground text-xs">
                     {entry.category?.name ?? "—"}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-0.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-muted-foreground hover:text-foreground"
+                      aria-label={`Ver detalhes de ${entry.description}`}
+                      title="Ver detalhes"
+                      onClick={() => setDetailsEntry(entry)}
+                    >
+                      <Eye className="size-4" />
+                    </Button>
                     <EntryActionsMenu
                       entry={entry}
                       onPay={() => openPayDialog(entry)}
@@ -463,6 +515,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
                         setConfirm({ kind: "delete", id: entry.id, name: entry.description })
                       }
                     />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -570,6 +623,13 @@ export function EntriesTable({ type }: EntriesTableProps) {
 
       {/* Editar lançamento */}
       <EntryEditDialog entry={editEntry} onClose={() => setEditEntry(null)} />
+
+      <EntryDetailsDialog
+        entry={detailsEntry}
+        onOpenChange={(open) => {
+          if (!open) setDetailsEntry(null);
+        }}
+      />
 
       {/* Confirmação de cancelar (soft) / excluir (hard) */}
       <AlertDialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}>
