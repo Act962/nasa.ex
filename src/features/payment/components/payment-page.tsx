@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -11,7 +11,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { ArrowLeft, Settings, Landmark } from "lucide-react";
 import { toast } from "sonner";
 import { StarsWidget } from "@/features/stars";
 import { SpacePointWidget } from "@/features/space-point";
@@ -44,16 +43,63 @@ import {
   PaymentMobileMenu,
   type PaymentTabItem,
 } from "./payment-mobile-menu";
+import {
+  PaymentTabsBar,
+  PaymentSubTabs,
+  type PaymentTab,
+} from "./payment-tabs-bar";
+import {
+  ArrowLeft,
+  Settings,
+  LayoutDashboard,
+  ArrowUpFromLine,
+  ArrowDownToLine,
+  TrendingUp,
+  ArrowLeftRight,
+  Landmark,
+  Users,
+  Paperclip,
+  CalendarDays,
+  FileText,
+  Factory,
+} from "lucide-react";
 
-const BASE_TABS: PaymentTabItem[] = [
+/**
+ * Projeção, DRE e DRO moram dentro do Fluxo de Caixa: os quatro respondem à
+ * mesma pergunta — como o dinheiro se comporta ao longo do tempo. Contratos e
+ * Aprovações saíram para as Configurações, que é onde mora o que se ajusta de
+ * vez em quando.
+ */
+const MAIN_TABS: PaymentTab[] = [
+  { value: "dashboard", label: "Painel", icon: LayoutDashboard },
+  { value: "receivables", label: "Receita", icon: ArrowUpFromLine },
+  { value: "payables", label: "Despesa", icon: ArrowDownToLine },
+  { value: "cashflow", label: "Fluxo de Caixa", icon: TrendingUp, hasChildren: true },
+  { value: "reconciliation", label: "Conciliação", icon: ArrowLeftRight },
+  { value: "accounts", label: "Contas", icon: Landmark },
+  { value: "contacts", label: "Contatos", icon: Users },
+  { value: "documents", label: "Documentos", icon: Paperclip },
+];
+
+const CASHFLOW_VIEWS = [
+  { value: "cashflow", label: "Diário", icon: CalendarDays },
+  { value: "projection", label: "Projeção", icon: TrendingUp },
+  { value: "dre", label: "DRE", icon: FileText },
+  { value: "dro", label: "DRO", icon: Factory },
+] as const;
+
+const CASHFLOW_VIEW_VALUES = new Set(CASHFLOW_VIEWS.map((view) => view.value));
+
+/** O menu do mobile continua plano: submenu em tela pequena esconde demais. */
+const MOBILE_TABS: PaymentTabItem[] = [
   { value: "dashboard", label: "Painel", emoji: "📊" },
   { value: "receivables", label: "Receita", emoji: "💚" },
   { value: "payables", label: "Despesa", emoji: "🔴" },
   { value: "cashflow", label: "Fluxo de Caixa", emoji: "📈" },
-  { value: "reconciliation", label: "Conciliação", emoji: "🏦" },
   { value: "projection", label: "Projeção", emoji: "🔭" },
   { value: "dre", label: "DRE", emoji: "📄" },
   { value: "dro", label: "DRO", emoji: "🏭" },
+  { value: "reconciliation", label: "Conciliação", emoji: "🔁" },
   { value: "accounts", label: "Contas", emoji: "🏦" },
   { value: "contacts", label: "Contatos", emoji: "👥" },
   { value: "contracts", label: "Contratos Ativos", emoji: "📝" },
@@ -92,7 +138,7 @@ export function PaymentPage() {
 
   const tabs: PaymentTabItem[] = showApprovalsTab
     ? [
-        ...BASE_TABS,
+        ...MOBILE_TABS,
         {
           value: "approvals",
           label: "Aprovações",
@@ -100,7 +146,10 @@ export function PaymentPage() {
           badgeCount: pendingCount,
         },
       ]
-    : BASE_TABS;
+    : MOBILE_TABS;
+
+  // Quando a aba ativa é uma sub-visão, a barra principal destaca o pai.
+  const activeMainTab = CASHFLOW_VIEW_VALUES.has(activeTab) ? "cashflow" : activeTab;
 
   const activeTabLabel =
     tabs.find((tab) => tab.value === activeTab)?.label ?? "Painel";
@@ -187,7 +236,15 @@ export function PaymentPage() {
             className="sm:hidden"
             tabs={tabs}
             activeTab={activeTab}
-            onSelectTab={setActiveTab}
+            onSelectTab={(value) => {
+              // No mobile as duas continuam listadas, mas abrem o painel de
+              // configurações, que é onde passaram a morar.
+              if (value === "contracts" || value === "approvals") {
+                setSettingsOpen(true);
+                return;
+              }
+              setActiveTab(value);
+            }}
             onOpenSettings={() => setSettingsOpen(true)}
             onExport={handleExport}
             isExporting={exportEntries.isPending}
@@ -203,54 +260,23 @@ export function PaymentPage() {
       >
         {/* No mobile a navegação vive no menu sanduíche do header. */}
         <div className="hidden sm:block px-4 sm:px-6 pt-4 shrink-0 w-full">
-          <TabsList className="h-auto w-full flex-wrap justify-start gap-1 p-1 [&>*]:flex-none">
-            <TabsTrigger value="dashboard" className="text-xs gap-1.5">
-              📊 Painel
-            </TabsTrigger>
-            <TabsTrigger value="receivables" className="text-xs gap-1.5">
-              💚 Receita
-            </TabsTrigger>
-            <TabsTrigger value="payables" className="text-xs gap-1.5">
-              🔴 Despesa
-            </TabsTrigger>
-            <TabsTrigger value="cashflow" className="text-xs gap-1.5">
-              📈 Fluxo de Caixa
-            </TabsTrigger>
-            <TabsTrigger value="reconciliation" className="text-xs gap-1.5">
-              🏦 Conciliação
-            </TabsTrigger>
-            <TabsTrigger value="projection" className="text-xs gap-1.5">
-              🔭 Projeção
-            </TabsTrigger>
-            <TabsTrigger value="dre" className="text-xs gap-1.5">
-              📄 DRE
-            </TabsTrigger>
-            <TabsTrigger value="dro" className="text-xs gap-1.5">
-              🏭 DRO
-            </TabsTrigger>
-            <TabsTrigger value="accounts" className="text-xs gap-1.5">
-              🏦 Contas
-            </TabsTrigger>
-            <TabsTrigger value="contacts" className="text-xs gap-1.5">
-              👥 Contatos
-            </TabsTrigger>
-            <TabsTrigger value="contracts" className="text-xs gap-1.5">
-              📝 Contratos Ativos
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="text-xs gap-1.5">
-              📎 Documentos
-            </TabsTrigger>
-            {showApprovalsTab && (
-              <TabsTrigger value="approvals" className="text-xs gap-1.5">
-                🛡️ Aprovações
-                {pendingCount > 0 && (
-                  <span className="ml-1 rounded-full bg-amber-500 text-white text-[10px] px-1.5 leading-4 font-semibold">
-                    {pendingCount > 99 ? "99+" : pendingCount}
-                  </span>
-                )}
-              </TabsTrigger>
-            )}
-          </TabsList>
+          <PaymentTabsBar
+            tabs={MAIN_TABS}
+            activeTab={activeMainTab}
+            onSelect={setActiveTab}
+            onOpenSettings={() => setSettingsOpen(true)}
+            settingsBadge={showApprovalsTab ? pendingCount : 0}
+          />
+
+          {CASHFLOW_VIEW_VALUES.has(activeTab) && (
+            <div className="mt-3">
+              <PaymentSubTabs
+                views={[...CASHFLOW_VIEWS]}
+                activeView={activeTab}
+                onSelect={setActiveTab}
+              />
+            </div>
+          )}
         </div>
 
         {/* Barra única de filtros: mesma posição em toda aba que filtra por
@@ -267,6 +293,7 @@ export function PaymentPage() {
               onExport={handleExport}
               isExporting={exportEntries.isPending}
               onNavigateTab={setActiveTab}
+              onOpenSettings={() => setSettingsOpen(true)}
             />
           </TabsContent>
           <TabsContent value="receivables" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
@@ -296,17 +323,9 @@ export function PaymentPage() {
           <TabsContent value="contacts" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <ContactsTab />
           </TabsContent>
-          <TabsContent value="contracts" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
-            <ContractsTab />
-          </TabsContent>
           <TabsContent value="documents" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <DocumentsTab />
           </TabsContent>
-          {showApprovalsTab && (
-            <TabsContent value="approvals" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
-              <ApprovalsTab />
-            </TabsContent>
-          )}
         </div>
       </Tabs>
 
@@ -336,6 +355,28 @@ export function PaymentPage() {
             </div>
           </SheetHeader>
           <div className="px-4 sm:px-6 py-6 space-y-10">
+            {/* Pendências primeiro: é a única seção aqui que representa
+                trabalho parado esperando alguém, e é o que o selo no botão de
+                Configurações está anunciando. */}
+            {showApprovalsTab && (
+              <section className="space-y-4">
+                <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">
+                  Aprovações pendentes
+                  {pendingCount > 0 && (
+                    <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-bold leading-4 text-amber-950">
+                      {pendingCount > 99 ? "99+" : pendingCount}
+                    </span>
+                  )}
+                </h3>
+                <ApprovalsTab />
+              </section>
+            )}
+            <section className="space-y-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">
+                Contratos ativos
+              </h3>
+              <ContractsTab />
+            </section>
             <section className="space-y-4">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">
                 Governança e Aprovações
