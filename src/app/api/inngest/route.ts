@@ -80,6 +80,8 @@ import {
 // ── NASA Payment Fase 2 (governança + cobrança event-driven) ──
 import { paymentDunningFire }      from "@/inngest/functions/payment/dunning-fire";
 import { paymentApprovalReminder } from "@/inngest/functions/payment/approval-reminder";
+import { paymentGoalDailyCheck }    from "@/inngest/functions/payment/goal-daily-check";
+import { paymentGoalWeeklySummary } from "@/inngest/functions/payment/goal-weekly-summary";
 // ── Campanhas (disparo em massa WhatsApp Oficial — Fase 3/4) ──
 import { dispatchBroadcast } from "@/inngest/functions/campanhas/dispatch-broadcast";
 import { dispatchDueBroadcasts } from "@/inngest/functions/campanhas/dispatch-due-broadcasts";
@@ -170,6 +172,8 @@ export const { GET, POST, PUT } = serve({
     // ── NASA Payment Fase 2 — event-driven, sem cron ──
     paymentDunningFire,
     paymentApprovalReminder,
+    paymentGoalDailyCheck,
+    paymentGoalWeeklySummary,
     // ── Campanhas — disparo em massa (Fase 3) + agendamento (Fase 4, cron) ──
     dispatchBroadcast,
     dispatchDueBroadcasts,

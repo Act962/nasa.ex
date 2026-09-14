@@ -53,6 +53,11 @@ import {
   getCashflow,
   getCashflowDayEntries,
 } from "./dashboard";
+import {
+  getPaymentGoalStatus,
+  updatePaymentGoalConfig,
+  upsertPaymentGoalMonth,
+} from "./goals";
 import { getPaymentProjection } from "./projection";
 import { getIncomeStatement, getOperationalResult } from "./reports";
 import { listExternalContacts } from "./external-contacts";
@@ -131,6 +136,11 @@ export const paymentRouter = {
     get: getPaymentDashboard,
     cashflow: getCashflow,
     cashflowDay: getCashflowDayEntries,
+  },
+  goals: {
+    status:      getPaymentGoalStatus,
+    updateConfig: updatePaymentGoalConfig,
+    upsertMonth: upsertPaymentGoalMonth,
   },
   projection: {
     get: getPaymentProjection,
