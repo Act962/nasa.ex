@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Prisma } from "@/generated/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 
 /**
  * Regra de quitação de um lançamento, compartilhada entre a baixa manual e a

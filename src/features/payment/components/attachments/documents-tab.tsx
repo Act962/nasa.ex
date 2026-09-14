@@ -67,6 +67,7 @@ const KIND_BADGE_CLASSES: Record<PaymentAttachmentKind, string> = {
   COMPROVANTE:
     "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   CONTRATO: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400",
+  EXTRATO: "border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400",
   OUTRO: "border-border bg-muted text-muted-foreground",
 };
 

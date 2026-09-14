@@ -10,11 +10,12 @@
 export type StatementSource = "OFX_UPLOAD" | "EMAIL_INBOX" | "AGGREGATOR";
 export type StatementDirection = "CREDIT" | "DEBIT";
 
-export interface StatementWarning {
+// `type` (não `interface`) para ser atribuível a `Prisma.InputJsonValue`.
+export type StatementWarning = {
   code: string;
   message: string;
   severity: "info" | "warning" | "error";
-}
+};
 
 export interface NormalizedBankTransaction {
   /** FITID no OFX; id do provedor quando vier de agregador. */

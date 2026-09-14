@@ -33,16 +33,9 @@ export function useStatementImports(params: { accountId?: string } = {}) {
   );
 }
 
-function useStatementMutation<T extends { mutationOptions: () => object }>(
-  procedure: T,
-) {
+function useInvalidatePayment() {
   const queryClient = useQueryClient();
-  return useMutation({
-    ...(procedure.mutationOptions() as object),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: orpc.payment.key() });
-    },
-  });
+  return () => queryClient.invalidateQueries({ queryKey: orpc.payment.key() });
 }
 
 export function useInspectStatement() {
@@ -50,21 +43,44 @@ export function useInspectStatement() {
 }
 
 export function useImportStatement() {
-  return useStatementMutation(orpc.payment.statements.import);
+  const invalidatePayment = useInvalidatePayment();
+  return useMutation(
+    orpc.payment.statements.import.mutationOptions({ onSuccess: invalidatePayment }),
+  );
 }
 
 export function useReconcileTransaction() {
-  return useStatementMutation(orpc.payment.statements.transactions.reconcile);
+  const invalidatePayment = useInvalidatePayment();
+  return useMutation(
+    orpc.payment.statements.transactions.reconcile.mutationOptions({
+      onSuccess: invalidatePayment,
+    }),
+  );
 }
 
 export function useUnmatchTransaction() {
-  return useStatementMutation(orpc.payment.statements.transactions.unmatch);
+  const invalidatePayment = useInvalidatePayment();
+  return useMutation(
+    orpc.payment.statements.transactions.unmatch.mutationOptions({
+      onSuccess: invalidatePayment,
+    }),
+  );
 }
 
 export function useCreateEntryFromTransaction() {
-  return useStatementMutation(orpc.payment.statements.transactions.createEntry);
+  const invalidatePayment = useInvalidatePayment();
+  return useMutation(
+    orpc.payment.statements.transactions.createEntry.mutationOptions({
+      onSuccess: invalidatePayment,
+    }),
+  );
 }
 
 export function useIgnoreTransaction() {
-  return useStatementMutation(orpc.payment.statements.transactions.ignore);
+  const invalidatePayment = useInvalidatePayment();
+  return useMutation(
+    orpc.payment.statements.transactions.ignore.mutationOptions({
+      onSuccess: invalidatePayment,
+    }),
+  );
 }

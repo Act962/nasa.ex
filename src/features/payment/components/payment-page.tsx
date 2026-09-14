@@ -88,7 +88,7 @@ const CASHFLOW_VIEWS = [
   { value: "dro", label: "DRO", icon: Factory },
 ] as const;
 
-const CASHFLOW_VIEW_VALUES = new Set(CASHFLOW_VIEWS.map((view) => view.value));
+const CASHFLOW_VIEW_VALUES = new Set<string>(CASHFLOW_VIEWS.map((view) => view.value));
 
 /** O menu do mobile continua plano: submenu em tela pequena esconde demais. */
 const MOBILE_TABS: PaymentTabItem[] = [
