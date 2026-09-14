@@ -343,6 +343,8 @@ model Organization {
   paymentDunningRules      PaymentDunningRule[]
   paymentGoalConfig        PaymentGoalConfig?
   paymentGoalMonths        PaymentGoalMonth[]
+  paymentStatementImports  PaymentStatementImport[]
+  paymentBankTransactions  PaymentBankTransaction[]
 
   // NASA Campaign Planner
   nasaCampaignPlanners NasaCampaignPlanner[]
@@ -4419,14 +4421,25 @@ model PaymentBankAccount {
   account        String?
   type           PaymentAccountType @default(CHECKING)
   balance        Int                @default(0) // em centavos
+  // Identificação da conta no extrato OFX: casa o arquivo importado com esta
+  // conta e impede que o extrato de uma conta caia na fila de outra.
+  ofxBankId             String?   @map("ofx_bank_id")
+  ofxAccountId          String?   @map("ofx_account_id")
+  // Saldo lido do <LEDGERBAL> do último extrato. Separado de `balance` de
+  // propósito: `balance` é digitado pelo usuário e alimenta o saldo inicial da
+  // projeção — sobrescrevê-lo sozinho mudaria a projeção sem ele saber.
+  statementBalanceCents Int?      @map("statement_balance_cents")
+  statementBalanceAt    DateTime? @map("statement_balance_at")
   isActive       Boolean            @default(true) @map("is_active")
   isDefault      Boolean            @default(false) @map("is_default")
   color          String?            @default("#1E90FF")
   createdAt      DateTime           @default(now()) @map("created_at")
   updatedAt      DateTime           @updatedAt @map("updated_at")
 
-  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  entries      PaymentEntry[]
+  organization     Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entries          PaymentEntry[]
+  statementImports PaymentStatementImport[]
+  bankTransactions PaymentBankTransaction[]
 
   @@index([organizationId])
   @@map("payment_bank_accounts")
@@ -4594,6 +4607,9 @@ model PaymentEntry {
   approvalRequest   PaymentApprovalRequest?
   dunningRule       PaymentDunningRule?        @relation(fields: [dunningRuleId], references: [id], onDelete: SetNull)
   dunningExecutions PaymentDunningExecution[]
+  // 1:N e não 1:1 — um recebimento quebrado em dois Pix casa com o mesmo
+  // lançamento, que fica PARTIAL até somar o total.
+  bankTransactions  PaymentBankTransaction[]
   attachments       PaymentAttachment[]
 
   @@index([organizationId])
@@ -4619,6 +4635,7 @@ enum PaymentAttachmentKind {
   RECIBO
   COMPROVANTE
   CONTRATO
+  EXTRATO
   OUTRO
 }
 
@@ -4653,6 +4670,7 @@ model PaymentAttachment {
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   entry        PaymentEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  statementImports PaymentStatementImport[]
   uploadedBy   User?         @relation("PaymentAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([organizationId, createdAt])
@@ -4838,6 +4856,124 @@ model PaymentDunningExecution {
   @@unique([entryId, stepId])
   @@index([status, scheduledFor])
   @@map("payment_dunning_executions")
+}
+
+enum PaymentBankTxSource {
+  OFX_UPLOAD
+  EMAIL_INBOX
+  AGGREGATOR
+}
+
+enum PaymentBankTxDirection {
+  CREDIT
+  DEBIT
+}
+
+enum PaymentBankTxStatus {
+  PENDING
+  MATCHED
+  IGNORED
+}
+
+enum PaymentStatementImportStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+/// Lote de importação de extrato. Guarda o resumo do que entrou e o arquivo
+/// original (via `attachmentId`), para auditoria de onde cada transação veio.
+model PaymentStatementImport {
+  id             String                       @id @default(cuid())
+  organizationId String                       @map("organization_id")
+  accountId      String                       @map("account_id")
+  attachmentId   String?                      @map("attachment_id")
+  source         PaymentBankTxSource          @default(OFX_UPLOAD)
+  fileName       String                       @map("file_name")
+  // sha256 do arquivo. Alimenta o aviso "este extrato já foi importado em X" —
+  // reimportar é legítimo, a idempotência de verdade é o `externalId`.
+  fileHash       String                       @map("file_hash")
+  ofxBankId      String?                      @map("ofx_bank_id")
+  ofxAccountId   String?                      @map("ofx_account_id")
+  currency       String?
+  periodStart    DateTime?                    @map("period_start")
+  periodEnd      DateTime?                    @map("period_end")
+  ledgerBalanceCents Int?                     @map("ledger_balance_cents")
+  ledgerBalanceAt    DateTime?                @map("ledger_balance_at")
+  totalCount     Int                          @default(0) @map("total_count")
+  importedCount  Int                          @default(0) @map("imported_count")
+  duplicateCount Int                          @default(0) @map("duplicate_count")
+  invalidCount   Int                          @default(0) @map("invalid_count")
+  status         PaymentStatementImportStatus @default(PROCESSING)
+  errorMessage   String?                      @map("error_message")
+  warnings       Json?
+  createdById    String?                      @map("created_by_id")
+  createdAt      DateTime                     @default(now()) @map("created_at")
+  updatedAt      DateTime                     @updatedAt @map("updated_at")
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      PaymentBankAccount       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  attachment   PaymentAttachment?       @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  transactions PaymentBankTransaction[]
+
+  @@index([organizationId, accountId, fileHash])
+  @@index([organizationId, createdAt])
+  @@map("payment_statement_imports")
+}
+
+/// Transação lida do extrato, aguardando conciliação. É a fila que o usuário
+/// resolve: casar com um lançamento existente, virar lançamento novo, ou ser
+/// ignorada.
+model PaymentBankTransaction {
+  id             String                 @id @default(cuid())
+  organizationId String                 @map("organization_id")
+  accountId      String                 @map("account_id")
+  // SetNull de propósito: apagar um lote nunca pode destruir a chave de
+  // idempotência, senão a transação voltaria numa reimportação.
+  importId       String?                @map("import_id")
+  source         PaymentBankTxSource    @default(OFX_UPLOAD)
+  // FITID do OFX hoje; id do agregador quando houver. Nome neutro porque a
+  // fonte pode mudar sem que a semântica mude.
+  externalId     String                 @map("external_id")
+  direction      PaymentBankTxDirection
+  // Sempre positivo — o sinal vive em `direction`, para não haver duas formas
+  // de representar uma saída.
+  amountCents    Int                    @map("amount_cents")
+  // Instante real do lançamento e o dia de calendário a meio-dia UTC. O dia
+  // separado é o que permite comparar com `PaymentEntry.dueDate` sem que o
+  // fuso desloque a janela do match em um dia.
+  postedAt       DateTime               @map("posted_at")
+  postedDate     DateTime               @map("posted_date")
+  memo           String
+  memoKind       String?                @map("memo_kind")
+  counterpartyName     String?          @map("counterparty_name")
+  counterpartyDocument String?          @map("counterparty_document")
+  // O extrato às vezes entrega o CPF mascarado. Guardamos como veio e nunca
+  // tentamos desmascarar — é dado de terceiro.
+  counterpartyDocumentMasked Boolean    @default(false) @map("counterparty_document_masked")
+  rawPayload     Json?                  @map("raw_payload")
+  status         PaymentBankTxStatus    @default(PENDING)
+  matchedEntryId String?                @map("matched_entry_id")
+  matchedAt      DateTime?              @map("matched_at")
+  matchedById    String?                @map("matched_by_id")
+  matchMethod    String?                @map("match_method")
+  ignoredReason  String?                @map("ignored_reason")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      PaymentBankAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  import       PaymentStatementImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
+  matchedEntry PaymentEntry?           @relation(fields: [matchedEntryId], references: [id], onDelete: SetNull)
+
+  // A chave de idempotência. `accountId` entra porque o FITID só é único
+  // dentro de uma instituição+conta; `organizationId` isola tenants.
+  @@unique([organizationId, accountId, externalId])
+  @@index([organizationId, status])
+  @@index([organizationId, accountId, postedDate])
+  @@index([matchedEntryId])
+  @@index([importId])
+  @@map("payment_bank_transactions")
 }
 
 /// Meta de vendas e reserva de caixa padrão da organização, mais as flags de

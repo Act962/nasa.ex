@@ -438,6 +438,21 @@ export const createPaymentEntry = base
         );
       }
 
+      // Após o commit e best-effort: o lançamento já vale, um alerta que
+      // falhe não pode derrubá-lo.
+      const { checkExpenseBreaksReserve } = await import(
+        "@/features/payment/server/goals/check-expense-impact"
+      );
+      await checkExpenseBreaksReserve({
+        organizationId: context.org.id,
+        entries: entries.map((entry) => ({
+          amount: entry.amount,
+          dueDate: entry.dueDate,
+          type: entry.type,
+          status: entry.status,
+        })),
+      });
+
       const totalAmount = entries.reduce((s, e) => s + e.amount, 0);
       await logActivity({
         organizationId: context.org.id,

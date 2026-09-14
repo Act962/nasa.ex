@@ -8,6 +8,7 @@ export const PAYMENT_ATTACHMENT_KINDS = [
   "RECIBO",
   "COMPROVANTE",
   "CONTRATO",
+  "EXTRATO",
   "OUTRO",
 ] as const;
 
@@ -19,6 +20,7 @@ export const ATTACHMENT_KIND_LABELS: Record<PaymentAttachmentKind, string> = {
   RECIBO: "Recibo",
   COMPROVANTE: "Comprovante",
   CONTRATO: "Contrato",
+  EXTRATO: "Extrato bancário",
   OUTRO: "Outro",
 };
 
@@ -40,10 +42,14 @@ export const ALLOWED_ATTACHMENT_MIMETYPES = [
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  // Extrato bancário. Navegador quase sempre entrega .ofx como octet-stream,
+  // então a extensão em ACCEPT_ATTACHMENT_TYPES é o que faz o filtro na tela.
+  "application/x-ofx",
+  "application/octet-stream",
 ] as const;
 
 export const ACCEPT_ATTACHMENT_TYPES =
-  ALLOWED_ATTACHMENT_MIMETYPES.join(",") + ",.pdf,.xml,.csv,.xlsx,.docx";
+  ALLOWED_ATTACHMENT_MIMETYPES.join(",") + ",.pdf,.xml,.csv,.xlsx,.docx,.ofx";
 
 export function isAllowedAttachmentType(mimeType: string): boolean {
   return (ALLOWED_ATTACHMENT_MIMETYPES as readonly string[]).includes(mimeType);
@@ -70,5 +76,6 @@ export function guessAttachmentKind(fileName: string): PaymentAttachmentKind {
   if (/recibo/.test(normalized)) return "RECIBO";
   if (/(comprovante|\bpix\b|transferencia|\bted\b)/.test(normalized)) return "COMPROVANTE";
   if (/(contrato|proposta|orcamento)/.test(normalized)) return "CONTRATO";
+  if (/(\.ofx$|extrato)/.test(normalized)) return "EXTRATO";
   return "OUTRO";
 }
