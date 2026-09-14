@@ -438,6 +438,21 @@ export const createPaymentEntry = base
         );
       }
 
+      // Após o commit e best-effort: o lançamento já vale, um alerta que
+      // falhe não pode derrubá-lo.
+      const { checkExpenseBreaksReserve } = await import(
+        "@/features/payment/server/goals/check-expense-impact"
+      );
+      await checkExpenseBreaksReserve({
+        organizationId: context.org.id,
+        entries: entries.map((entry) => ({
+          amount: entry.amount,
+          dueDate: entry.dueDate,
+          type: entry.type,
+          status: entry.status,
+        })),
+      });
+
       const totalAmount = entries.reduce((s, e) => s + e.amount, 0);
       await logActivity({
         organizationId: context.org.id,
@@ -502,7 +517,7 @@ export const updatePaymentEntry = base
         data: {
           ...data,
           ...(dueDate ? { dueDate: parseCalendarDate(dueDate) } : {}),
-          ...(paidAt !== undefined ? { paidAt: paidAt ? new Date(paidAt) : null } : {}),
+          ...(paidAt !== undefined ? { paidAt: paidAt ? parseCalendarDate(paidAt) : null } : {}),
         },
         include: entryInclude,
       });
@@ -560,7 +575,7 @@ export const payPaymentEntry = base
         data: {
           paidAmount: newPaid,
           status,
-          paidAt: input.paidAt ? new Date(input.paidAt) : new Date(),
+          paidAt: input.paidAt ? parseCalendarDate(input.paidAt) : new Date(),
           ...(input.accountId ? { accountId: input.accountId } : {}),
         },
         include: entryInclude,

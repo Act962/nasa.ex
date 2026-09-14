@@ -32,6 +32,8 @@ import {
 import { CATEGORY_TYPE_LABELS } from "../../lib/format";
 import { toast } from "sonner";
 import { describePaymentError } from "../../lib/describe-error";
+import { Separator } from "@/components/ui/separator";
+import { GoalsSettingsSection } from "./goals-settings-section";
 
 function CategoriesSection() {
   const [showForm, setShowForm] = useState(false);
@@ -122,6 +124,10 @@ function CategoriesSection() {
 
 export function PaymentSettings() {
   return (
-    <CategoriesSection />
+    <div className="space-y-5">
+      <GoalsSettingsSection />
+      <Separator />
+      <CategoriesSection />
+    </div>
   );
 }

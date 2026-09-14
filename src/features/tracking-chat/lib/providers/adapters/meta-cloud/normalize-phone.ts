@@ -52,3 +52,35 @@ export function normalizePhoneToMetaE164(phone: string): string {
 
   return digits;
 }
+
+/**
+ * As formas em que UM MESMO número brasileiro pode ter sido gravado em
+ * `Lead.phone`, para buscar antes de criar um lead duplicado.
+ *
+ * Existe porque as duas pontas gravam diferente e nenhuma está errada:
+ * o inbound guarda o `wa_id` cru (que para conta mobile antiga vem com 12
+ * dígitos, sem o 9), e quem cadastra pela interface passa por
+ * `normalizePhoneToMetaE164`, que insere o 9. Com busca por igualdade exata,
+ * o mesmo cliente vira dois cards — e o comprovante que ele manda no WhatsApp
+ * abre um card novo em vez de cair no dele.
+ *
+ * A primeira posição é sempre o número como veio: quem usa isto tenta o
+ * caminho rápido antes de varrer as variantes.
+ */
+export function waIdLookupVariants(phone: string): string[] {
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return [];
+
+  const variants = new Set<string>([digits]);
+  variants.add(normalizePhoneToMetaE164(digits));
+
+  // Caminho inverso: tira o 9 de um BR móvel de 13 dígitos. Só aceita se
+  // reinserir devolver exatamente o original — assim as faixas da ANATEL
+  // continuam definidas num lugar só, aqui em cima.
+  if (digits.length === 13 && digits.startsWith("55") && digits[4] === "9") {
+    const withoutNinth = `${digits.slice(0, 4)}${digits.slice(5)}`;
+    if (normalizePhoneToMetaE164(withoutNinth) === digits) variants.add(withoutNinth);
+  }
+
+  return [...variants];
+}

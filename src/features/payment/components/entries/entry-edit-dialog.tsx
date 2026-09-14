@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ import {
   useUpdatePaymentEntry,
   usePaymentCategories,
   usePaymentContacts,
+  usePaymentAccounts,
 } from "../../hooks/use-payment";
 import { formatCurrency, parseCurrencyToCents } from "../../lib/format";
 import { toDateInputValue } from "../../lib/dates";
@@ -43,6 +45,8 @@ interface EditableEntry {
   dueDate: string | Date;
   categoryId: string | null;
   contactId: string | null;
+  accountId: string | null;
+  documentNumber: string | null;
   notes: string | null;
 }
 
@@ -59,7 +63,10 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
   const [dueDate, setDueDate] = useState("");
   const [categoryId, setCategoryId] = useState<string>(NONE);
   const [contactId, setContactId] = useState<string>(NONE);
+  const [accountId, setAccountId] = useState<string>(NONE);
+  const [documentNumber, setDocumentNumber] = useState("");
   const [notes, setNotes] = useState("");
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<EntryFieldErrors>({});
   const updateEntry = useUpdatePaymentEntry();
 
@@ -73,6 +80,7 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
     entry?.type === "PAYABLE" ? "EXPENSE" : "REVENUE",
   );
   const { data: contactsData } = usePaymentContacts();
+  const { data: accountsData } = usePaymentAccounts();
 
   // Sincroniza os campos sempre que abre com uma entry diferente.
   useEffect(() => {
@@ -82,7 +90,12 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
     setDueDate(toDateInputValue(entry.dueDate));
     setCategoryId(entry.categoryId ?? NONE);
     setContactId(entry.contactId ?? NONE);
+    setAccountId(entry.accountId ?? NONE);
+    setDocumentNumber(entry.documentNumber ?? "");
     setNotes(entry.notes ?? "");
+    // Abre já expandido quando há algo preenchido lá dentro, senão o campo
+    // some da vista de quem veio justamente conferi-lo.
+    setShowMoreOptions(Boolean(entry.contactId || entry.documentNumber));
     setFieldErrors({});
   }, [entry]);
 
@@ -110,6 +123,8 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
         dueDate: parsed.data.dueDate,
         categoryId: categoryId === NONE ? null : categoryId,
         contactId: contactId === NONE ? null : contactId,
+        accountId: accountId === NONE ? null : accountId,
+        documentNumber: documentNumber.trim() ? documentNumber.trim() : null,
         notes: notes.trim() ? notes : null,
       });
       toast.success("Lançamento atualizado");
@@ -188,17 +203,58 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>{contactLabel}</Label>
-              <Select value={contactId} onValueChange={setContactId}>
+              <Label>Conta bancária</Label>
+              <Select value={accountId} onValueChange={setAccountId}>
                 <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>Sem contato</SelectItem>
-                  {contactsData?.contacts.map((contact) => (
-                    <SelectItem key={contact.id} value={contact.id}>{contact.name}</SelectItem>
+                  <SelectItem value={NONE}>Sem conta</SelectItem>
+                  {accountsData?.accounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="rounded-lg border border-border/60">
+            <button
+              type="button"
+              onClick={() => setShowMoreOptions((open) => !open)}
+              className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60"
+              aria-expanded={showMoreOptions}
+            >
+              Mais opções
+              <ChevronDown
+                className={`size-4 shrink-0 text-muted-foreground transition-transform ${
+                  showMoreOptions ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {showMoreOptions && (
+              <div className="space-y-3 border-t p-3">
+                <div className="space-y-2">
+                  <Label>{contactLabel}</Label>
+                  <Select value={contactId} onValueChange={setContactId}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Sem contato</SelectItem>
+                      {contactsData?.contacts.map((contact) => (
+                        <SelectItem key={contact.id} value={contact.id}>{contact.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Nº do documento</Label>
+                  <Input
+                    placeholder="Ex: NF-0001"
+                    value={documentNumber}
+                    onChange={(event) => setDocumentNumber(event.target.value)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

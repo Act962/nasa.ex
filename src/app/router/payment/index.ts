@@ -48,7 +48,26 @@ import {
   deletePaymentAttachment,
   linkPaymentAttachments,
 } from "./attachments";
-import { getPaymentDashboard, getCashflow } from "./dashboard";
+import {
+  getPaymentDashboard,
+  getCashflow,
+  getCashflowDayEntries,
+} from "./dashboard";
+import {
+  getPaymentGoalStatus,
+  updatePaymentGoalConfig,
+  upsertPaymentGoalMonth,
+} from "./goals";
+import {
+  importPaymentStatement,
+  inspectPaymentStatement,
+  listStatementTransactions,
+  reconcileStatementTransaction,
+  unmatchStatementTransaction,
+  createEntryFromTransaction,
+  ignoreStatementTransaction,
+  listStatementImports,
+} from "./statements";
 import { getPaymentProjection } from "./projection";
 import { getIncomeStatement, getOperationalResult } from "./reports";
 import { listExternalContacts } from "./external-contacts";
@@ -126,6 +145,24 @@ export const paymentRouter = {
   dashboard: {
     get: getPaymentDashboard,
     cashflow: getCashflow,
+    cashflowDay: getCashflowDayEntries,
+  },
+  statements: {
+    import:       importPaymentStatement,
+    inspect:      inspectPaymentStatement,
+    listImports:  listStatementImports,
+    transactions: {
+      list:        listStatementTransactions,
+      reconcile:   reconcileStatementTransaction,
+      unmatch:     unmatchStatementTransaction,
+      createEntry: createEntryFromTransaction,
+      ignore:      ignoreStatementTransaction,
+    },
+  },
+  goals: {
+    status:      getPaymentGoalStatus,
+    updateConfig: updatePaymentGoalConfig,
+    upsertMonth: upsertPaymentGoalMonth,
   },
   projection: {
     get: getPaymentProjection,

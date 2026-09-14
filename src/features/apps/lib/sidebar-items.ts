@@ -17,6 +17,7 @@ import {
   LayoutTemplate,
   Rocket,
   Send,
+  TrendingUp,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type React from "react";
@@ -174,6 +175,14 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   },
   // ── Sempre visível ──────────────────────────────────────────────────────
   {
+    key: "trafego",
+    title: "trafeGO",
+    url: "/trafego/painel",
+    icon: TrendingUp,
+    alwaysVisible: false,
+    defaultVisible: false,
+  },
+  {
     key: "apps",
     title: "Apps",
     url: "/apps",
@@ -182,6 +191,15 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     defaultVisible: true,
   },
 ];
+
+/**
+ * Organizações com escopo de produto veem apenas os itens listados aqui —
+ * inclusive itens marcados `alwaysVisible`. É restrição de NAVEGAÇÃO: a
+ * barreira de autorização real, se necessária, é `OrgPermission`.
+ */
+export const SCOPED_NAV_KEYS: Record<string, string[]> = {
+  trafego: ["trafego"],
+};
 
 /** Map de app ID → sidebar key (para o toggle nos cards) */
 export const APP_TO_SIDEBAR_KEY: Record<string, string> = {
@@ -202,4 +220,5 @@ export const APP_TO_SIDEBAR_KEY: Record<string, string> = {
   integrations: "integrations",
   contatos: "contatos",
   demand: "workspaces",
+  trafego: "trafego",
 };

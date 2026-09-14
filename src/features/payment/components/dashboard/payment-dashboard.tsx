@@ -25,6 +25,9 @@ import {
   ExecutiveSummaryCard,
   type ExecutiveMetric,
 } from "./executive-summary-card";
+import { GoalsCard } from "./goals-card";
+import { usePaymentGoalStatus } from "../../hooks/use-payment-goals";
+import { monthFromPeriod } from "../../lib/period-month";
 
 const OPEN_STATUSES = ["PENDING", "PARTIAL", "OVERDUE"] as const;
 const MONTH_LABELS = [
@@ -69,11 +72,14 @@ export function PaymentDashboard({
   onExport,
   isExporting,
   onNavigateTab,
+  onOpenSettings,
 }: {
   onExport: () => void;
   isExporting: boolean;
   /** Leva o usuário pra aba correspondente ao clicar em "Ver todas". */
   onNavigateTab?: (tab: string) => void;
+  /** Abre as configurações do módulo — usado pelo convite de cadastrar meta. */
+  onOpenSettings?: () => void;
 }) {
   const [granularity, setGranularity] = useState<"monthly" | "daily">("monthly");
   const [newTransactionOpen, setNewTransactionOpen] = useState(false);
@@ -83,6 +89,14 @@ export function PaymentDashboard({
 
   const { data, isLoading } = usePaymentDashboard({ dateFrom, dateTo, categoryIds });
   const { data: cashflowData } = useCashflow({ dateFrom, dateTo, categoryIds });
+
+  // Meta é mensal: fora de um mês fechado o bloco não tem contra o que medir.
+  const selectedMonth = monthFromPeriod(dateFrom, dateTo);
+  const { data: goalData } = usePaymentGoalStatus({
+    year: selectedMonth?.year ?? 0,
+    month: selectedMonth?.month ?? 1,
+    enabled: selectedMonth !== null,
+  });
 
   const chartPoints = useMemo<CashflowPoint[]>(() => {
     if (granularity === "daily") {
@@ -126,14 +140,14 @@ export function PaymentDashboard({
 
   const executiveMetrics: ExecutiveMetric[] = [
     {
-      label: "Receita",
+      label: "A receber",
       value: formatCurrency(data.totalReceivable),
       hint: "Em aberto no período",
       tone: "emerald",
       onSelect: () => onNavigateTab?.("receivables"),
     },
     {
-      label: "Despesa",
+      label: "A pagar",
       value: formatCurrency(data.totalPayable),
       hint: "Em aberto no período",
       tone: "red",
@@ -193,13 +207,21 @@ export function PaymentDashboard({
 
       <ExecutiveSummaryCard
         metrics={executiveMetrics}
-        goalAchieved={data.executive.goalAchieved}
-        goalTarget={data.executive.goalTarget}
+        goalAchieved={goalData?.status.receivedRevenue ?? 0}
+        goalTarget={goalData?.status.revenueTargetCents ?? 0}
       />
+
+      {goalData && (
+        <GoalsCard
+          data={goalData.status}
+          hasCategoryFilter={Boolean(categoryIds && categoryIds.length > 0)}
+          onConfigure={onOpenSettings}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
-          label="Receita"
+          label="A receber"
           value={formatCurrency(data.totalReceivable)}
           icon={Wallet}
           tone="emerald"
@@ -213,7 +235,7 @@ export function PaymentDashboard({
           }}
         />
         <SummaryCard
-          label="Despesa"
+          label="A pagar"
           value={formatCurrency(data.totalPayable)}
           icon={Landmark}
           tone="red"

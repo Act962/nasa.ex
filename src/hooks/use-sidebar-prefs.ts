@@ -86,3 +86,15 @@ export function isItemVisible(
   if (!prefs || prefs[key] === undefined) return defaultVisible;
   return prefs[key];
 }
+
+/**
+ * Escopo de produto da organização ativa. Quando presente, a sidebar mostra
+ * apenas os apps daquele escopo — ver `SCOPED_NAV_KEYS`.
+ */
+export function useSidebarScope() {
+  return useQuery({
+    queryKey: ["sidebar-scope"],
+    queryFn: () => orpc.sidebarPrefs.getScope.call({}),
+    staleTime: 5 * 60_000,
+  });
+}

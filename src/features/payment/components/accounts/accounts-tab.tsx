@@ -33,6 +33,7 @@ import {
   useDeletePaymentAccount,
 } from "../../hooks/use-payment";
 import { ACCOUNT_TYPE_LABELS, formatCurrency } from "../../lib/format";
+import { BankPicker } from "./bank-picker";
 
 type AccountType = "CHECKING" | "SAVINGS" | "CASH" | "DIGITAL";
 
@@ -40,6 +41,7 @@ export function AccountsTab() {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [bankName, setBankName] = useState("");
+  const [bankCode, setBankCode] = useState("");
   const [type, setType] = useState<AccountType>("CHECKING");
   const [balance, setBalance] = useState("");
 
@@ -62,12 +64,14 @@ export function AccountsTab() {
       await createAccount.mutateAsync({
         name,
         bankName: bankName || undefined,
+        bankCode: bankCode || undefined,
         type,
         balance: balanceCents,
       });
       setShowForm(false);
       setName("");
       setBankName("");
+      setBankCode("");
       setBalance("");
       toast.success("Conta criada!");
     } catch (error) {
@@ -114,7 +118,9 @@ export function AccountsTab() {
                 <p className="truncate text-sm font-medium">{account.name}</p>
                 <p className="truncate text-xs text-muted-foreground">
                   {ACCOUNT_TYPE_LABELS[account.type]}
-                  {account.bankName ? ` • ${account.bankName}` : ""}
+                  {account.bankName
+                    ? ` • ${account.bankCode ? `${account.bankCode} ` : ""}${account.bankName}`
+                    : ""}
                 </p>
               </div>
             </div>
@@ -209,10 +215,13 @@ export function AccountsTab() {
               </div>
               <div className="space-y-1.5">
                 <Label>Banco</Label>
-                <Input
-                  placeholder="Ex: Itaú"
-                  value={bankName}
-                  onChange={(event) => setBankName(event.target.value)}
+                <BankPicker
+                  bankName={bankName}
+                  bankCode={bankCode}
+                  onChange={(value) => {
+                    setBankName(value.bankName);
+                    setBankCode(value.bankCode);
+                  }}
                 />
               </div>
             </div>

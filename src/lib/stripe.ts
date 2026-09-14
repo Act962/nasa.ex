@@ -17,6 +17,8 @@
  */
 
 import Stripe from "stripe";
+import prisma from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 
 // ─── Price IDs (preencher após criar no Stripe Dashboard) ─────────────────────
 
@@ -152,4 +154,52 @@ export function constructWebhookEvent(
   const secret = secretOverride ?? process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) throw new Error("Webhook secret não configurado.");
   return stripe.webhooks.constructEvent(payload, signature, secret);
+}
+
+// ─── Dedupe de eventos de webhook ────────────────────────────────────────────
+
+/**
+ * Origem do evento — vira `ProcessedStripeEvent.source`. A PK da tabela é o
+ * próprio `event.id` do Stripe, então o dedupe é global: um mesmo evento
+ * entregue a dois endpoints só é processado uma vez. O `source` serve para
+ * auditoria, não para particionar.
+ */
+export type StripeEventSource = "stars" | "trafego" | "course";
+
+/** P2002 = unique violation → evento já registrado. */
+function isDuplicateEventError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
+  );
+}
+
+/**
+ * Reivindica o processamento de um evento. Retorna `false` quando ele já foi
+ * registrado antes — o caller deve responder 200 sem reprocessar.
+ *
+ * Use SOMENTE fora de transação. Quando o crédito acontece dentro de um
+ * `$transaction`, registre o evento com o próprio `tx` (ver
+ * `finalizeStarsTopUpInTx`): assim um rollback desfaz o registro junto e o
+ * Stripe consegue reentregar.
+ */
+export async function claimStripeEvent(
+  eventId: string,
+  type: string,
+  source: StripeEventSource,
+): Promise<boolean> {
+  try {
+    await prisma.processedStripeEvent.create({ data: { id: eventId, type, source } });
+    return true;
+  } catch (error) {
+    if (isDuplicateEventError(error)) return false;
+    throw error;
+  }
+}
+
+/**
+ * Solta a reivindicação quando o processamento falhou. Sem isto, uma falha real
+ * ficaria mascarada pelo dedupe e o Stripe nunca reentregaria o evento.
+ */
+export async function releaseStripeEvent(eventId: string): Promise<void> {
+  await prisma.processedStripeEvent.delete({ where: { id: eventId } }).catch(() => {});
 }
