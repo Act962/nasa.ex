@@ -404,7 +404,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   {
     platform: IntegrationPlatform.OPENAI,
     label: "OpenAI",
-    description: "Use modelos GPT-4o no NASA para resumos de conversas, sugestões de resposta e automações inteligentes.",
+    description: "Use modelos GPT no NASA para resumos de conversas, sugestões de resposta e leitura de boletos e notas fiscais no financeiro. É a opção mais barata para leitura de documentos.",
     color: "text-foreground", bgColor: "bg-muted", borderColor: "border-border",
     icon: OpenAIIcon,
     docsUrl: "https://platform.openai.com/api-keys", docsLabel: "OpenAI Platform",
@@ -413,6 +413,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
       "Acesse platform.openai.com e faça login",
       "Vá em API Keys > Create new secret key",
       "Copie a chave (só aparece uma vez)",
+      "O financeiro usa esta chave para ler boletos e notas fiscais anexados ao Astro",
     ],
     fields: [
       { key: "apiKey", label: "API Key", placeholder: "sk-proj-...", type: "password", hint: "platform.openai.com/api-keys" },
@@ -422,7 +423,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   {
     platform: IntegrationPlatform.ANTHROPIC,
     label: "Anthropic (Claude)",
-    description: "Integre Claude ao NASA para análise de leads, automações e respostas mais precisas em português.",
+    description: "Integre Claude ao NASA para análise de leads, automações e leitura de documentos financeiros. Mais caro por leitura que OpenAI e Gemini.", 
     color: "text-[#D97757]", bgColor: "bg-[#D97757]/10", borderColor: "border-[#D97757]/30",
     icon: AnthropicIcon,
     docsUrl: "https://console.anthropic.com/settings/keys", docsLabel: "Anthropic Console",
@@ -431,6 +432,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
       "Acesse console.anthropic.com e faça login",
       "Vá em Settings > API Keys > Create Key",
       "Copie a chave e cole abaixo",
+      "Serve de reserva quando OpenAI ou Gemini falharem na leitura de documentos",
     ],
     fields: [
       { key: "apiKey", label: "API Key", placeholder: "sk-ant-api03-...", type: "password", hint: "console.anthropic.com/settings/keys" },
@@ -439,7 +441,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   {
     platform: IntegrationPlatform.GEMINI,
     label: "Gemini (Google AI)",
-    description: "Use Gemini 2.5 Flash para análise de dados, geração de relatórios e automações baseadas em IA.",
+    description: "Use Gemini para análise de dados, relatórios e leitura de boletos e notas fiscais. Custo por leitura próximo ao da OpenAI.",
     color: "text-[#4285F4]", bgColor: "bg-gradient-to-br from-[#4285F4]/10 to-[#EA4335]/10", borderColor: "border-[#4285F4]/30",
     icon: GeminiIcon,
     docsUrl: "https://aistudio.google.com/app/apikey", docsLabel: "Google AI Studio",
@@ -448,6 +450,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
       "Acesse aistudio.google.com e faça login com sua conta Google",
       "Clique em 'Get API Key' > 'Create API Key'",
       "Copie a chave e cole abaixo",
+      "O financeiro usa esta chave para ler boletos e notas fiscais anexados ao Astro",
     ],
     fields: [
       { key: "apiKey", label: "API Key", placeholder: "AIzaSy...", type: "password", hint: "aistudio.google.com/app/apikey" },

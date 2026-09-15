@@ -4,7 +4,11 @@ import type { UIMessage } from "ai";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { streamAstro } from "@/features/astro/server/orchestrator";
-import { astroChatRequestSchema } from "@/features/astro/schemas/chat-message";
+import {
+  astroChatRequestSchema,
+  extractAttachmentRefs,
+} from "@/features/astro/schemas/chat-message";
+import type { AstroAttachmentRef } from "@/features/astro/server/agents/types";
 import type { AgentKey } from "@/features/astro/schemas/agent-config";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { debitStars } from "@/features/stars/lib/star-service";
@@ -142,6 +146,11 @@ export async function POST(req: Request) {
     console.error("[ASTRO/chat] charge failed (continuing)", e);
   }
 
+  // Anexos declarados na última mensagem do usuário (spec 0014, D-3). O
+  // arquivo já subiu pela rota REST; aqui só confirmamos que ele é desta
+  // organização antes de deixar o modelo enxergar o id.
+  const attachments = await resolveMessageAttachments(uiMessages, organizationId);
+
   let result;
   try {
     result = await streamAstro({
@@ -150,6 +159,9 @@ export async function POST(req: Request) {
         organizationId,
         route: parsed.context ?? {},
         pinnedAgentKey: parsed.pinnedAgentKey as AgentKey | undefined,
+        attachments,
+        sessionId,
+        channel: "CHAT",
       },
       uiMessages,
       toolScope: isTrafegoScope ? "trafego" : undefined,
@@ -247,4 +259,33 @@ export async function POST(req: Request) {
       });
     },
   });
+}
+
+/**
+ * Lê os data parts de anexo da última mensagem do usuário e devolve só os que
+ * pertencem à organização da sessão — um id forjado no cliente não chega ao
+ * modelo.
+ */
+async function resolveMessageAttachments(
+  uiMessages: UIMessage[],
+  organizationId: string,
+): Promise<AstroAttachmentRef[] | undefined> {
+  const lastUserMessage = [...uiMessages].reverse().find((message) => message.role === "user");
+  if (!lastUserMessage) return undefined;
+
+  const refs = extractAttachmentRefs(lastUserMessage);
+  if (refs.length === 0) return undefined;
+
+  const owned = await prisma.paymentAttachment.findMany({
+    where: { id: { in: refs.map((ref) => ref.attachmentId) }, organizationId },
+    select: { id: true, fileName: true, mimeType: true, sizeBytes: true },
+  });
+  if (owned.length === 0) return undefined;
+
+  return owned.map((attachment) => ({
+    attachmentId: attachment.id,
+    fileName: attachment.fileName,
+    mimeType: attachment.mimeType,
+    sizeBytes: attachment.sizeBytes,
+  }));
 }

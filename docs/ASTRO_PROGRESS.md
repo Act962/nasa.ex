@@ -208,3 +208,67 @@ verdade em [`docs/astro-bot-whatsapp.md`](astro-bot-whatsapp.md) §Rework 2026-0
   virou nullable (PIN/sessão são legado, não enforçados).
 - Auth simplificada: admin adiciona número + escolhe membro (`binding/create`), sem
   OTP/PIN. Gestão é owner/admin only.
+
+## 2026-09-15 — Astro Financeiro, Fase 1 (spec 0014)
+
+Primeira fase da integração do Astro com as ferramentas do Órbita. O piloto é o
+NASA Payment; a arquitetura (packs por app + proposta/confirmação) é o que as
+próximas ferramentas vão reusar. Spec:
+[`specs/astro/0014-astro-agente-financeiro-tools-e-confirmacao.md`](../specs/astro/0014-astro-agente-financeiro-tools-e-confirmacao.md).
+
+### O que mudou
+
+- **Packs de tools por app** — `src/features/astro/server/tools/app-packs.ts`
+  registra pares leitura/escrita por `appSlug`; `server/tool-scope.ts` monta o
+  conjunto de cada escopo e saiu do `orchestrator.ts`. `toolScope` ganhou
+  `"assistant"` (WhatsApp com escrita, usado a partir da fase 6).
+- **Pack financeiro** — `server/tools/finance/`: `read.ts` (painel, fluxo de
+  caixa, dia do fluxo, projeção, metas, DRE, DRO, lançamentos, vencidos,
+  contatos, contas, documentos), `documents.ts` (`read_financial_document`),
+  `write.ts` (propostas) e `executors.ts`.
+- **Whitelist financeira passa a valer no Astro** — toda tool do pack chama
+  `assertPaymentToolAccess`, que reusa `resolvePaymentPermissions`, a mesma
+  matriz do middleware oRPC. A seção financeira de `get_platform_status_metrics`
+  também respeita isso. **Mudança de comportamento**: membro sem `PaymentAccess`
+  não vê mais dado financeiro pelo Astro.
+- **Confirmação obrigatória em escrita** — `AstroPendingAction` + as tools
+  genéricas `confirm_action` / `cancel_action` / `list_pending_actions` em
+  `server/tools/_shared/proposals/`. `create_payment_entry` e
+  `update_payment_entry` continuam existindo, mas só propõem.
+- **Anexo no chat** — o arquivo sobe por `/api/payment/attachments/upload` e a
+  mensagem leva um data part `data-astro-attachment`; a rota valida a posse e
+  injeta `[ARQUIVOS ANEXADOS]` no system prompt.
+- **Leitura de boleto/NF** — `extractFinancialDocument` (`generateObject`, PDF
+  como arquivo pra cobrir escaneado, fallback `pdf-parse`), com validação de
+  linha digitável e de CNPJ/CPF, contato correspondente e possíveis duplicados.
+  Resultado cacheado em `PaymentAttachment.extraction`.
+- **Provedor de IA por custo, configurado em /integrations** —
+  `resolve-extraction-model.ts` lê as chaves que a org cadastrou nos cards
+  OpenAI, Gemini e Anthropic e tenta nessa ordem: `gpt-4o-mini` (US$ 0,62 por
+  mil leituras), `gemini-2.5-flash-lite` (0,41) e `claude-haiku-4-5` (4,50).
+  A escolha inicial, `claude-opus-5`, custava 22,50 e foi descartada. O tier
+  barato é seguro porque a saída é conferível pela linha digitável. O modelo que
+  leu fica gravado na extração e um fallback acionado vira aviso na proposta.
+- **Nome padrão do documento** — `payment/lib/attachment-naming.ts`:
+  `AAAA-MM-DD_<KIND>_<contato>_<valor>_<doc>.<ext>`, aplicado na confirmação.
+- **Serviços do payment** — handlers oRPC viraram wrappers: a lógica mora em
+  `features/payment/server/{dashboard,cashflow,projection,reports,entries}/`, de
+  onde Astro e telas leem os mesmos números.
+
+### Pendências de ambiente
+
+- Migration `20260915120000_astro_pending_actions_and_attachment_extraction`
+  ainda **não aplicada** — rodar `pnpm db:migrate`. `SCHEMA_VERSION` já está em
+  `v70-astro-finance-proposals`.
+- Seed de Stars: `astro_finance_document` (5★) precisa existir em `AppStarCost`
+  (`prisma/seed-star-rules.ts` ou `/admin/stars › Regras`); sem a regra a
+  cobrança é silenciosamente pulada.
+- A chave de IA da leitura vem de /integrations (cards OpenAI, Gemini ou
+  Anthropic) ou das env vars de cada provedor. Sem nenhuma, a tool aponta a tela
+  e não cobra Stars. `ASTRO_FINANCE_EXTRACT_PROVIDER` e
+  `ASTRO_FINANCE_EXTRACT_MODEL` sobrescrevem a ordem e o modelo.
+
+### Próximas fases
+
+2. Widget flutuante no orb · 3. Extrato PDF e conciliação · 4. Lembretes com
+envio do boleto · 5. Caixa de entrada Gmail · 6. WhatsApp com escrita e Stars.

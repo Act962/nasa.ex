@@ -134,6 +134,7 @@ model User {
 
   // ── ASTRO (Agentes IA) ──
   aiSessions      AiSession[]
+  astroPendingActions AstroPendingAction[]
   aiKnowledgeMade AiKnowledge[] @relation("AiKnowledgeCreatedBy")
 
   // ── Tracking Chat — figurinhas personalizadas do composer ──
@@ -445,6 +446,7 @@ model Organization {
   // ── ASTRO (Agentes IA) ──
   aiAgentConfigs AiAgentConfig[]
   aiSessions     AiSession[]
+  astroPendingActions AstroPendingAction[]
   aiKnowledge    AiKnowledge[]
 
   // ── Tracking Chat — figurinhas personalizadas do composer ──
@@ -4664,6 +4666,15 @@ model PaymentAttachment {
 
   description String?
 
+  // Leitura do documento pelo Astro (spec 0014): guarda a extração para não
+  // cobrar Stars duas vezes pelo mesmo arquivo. `sourceChannel` diz por onde o
+  // arquivo entrou (upload | chat | widget | whatsapp | gmail) e
+  // `originalFileName` preserva o nome antes da renomeação padrão.
+  extraction       Json?     @map("extraction")
+  extractedAt      DateTime? @map("extracted_at")
+  sourceChannel    String?   @map("source_channel")
+  originalFileName String?   @map("original_file_name")
+
   uploadedById String?  @map("uploaded_by_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -7447,6 +7458,46 @@ model AiSession {
 
   @@index([organizationId, userId, updatedAt(sort: Desc)])
   @@map("ai_session")
+}
+
+// Proposta de escrita do Astro aguardando "sim" do usuário (spec 0014, D-2).
+// `propose_*` grava aqui; `confirm_action` executa e marca o resultado. Vale
+// para chat, widget e WhatsApp — o "sim" pode chegar em outra request.
+enum AstroActionChannel {
+  CHAT
+  WHATSAPP
+}
+
+enum AstroPendingActionStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+  FAILED
+}
+
+model AstroPendingAction {
+  id             String                   @id @default(cuid())
+  organizationId String                   @map("organization_id")
+  userId         String                   @map("user_id")
+  channel        AstroActionChannel       @default(CHAT)
+  sessionId      String?                  @map("session_id")
+  actionType     String                   @map("action_type")
+  payload        Json
+  summary        String
+  status         AstroPendingActionStatus @default(PENDING)
+  expiresAt      DateTime                 @map("expires_at")
+  confirmedAt    DateTime?                @map("confirmed_at")
+  result         Json?
+  errorMessage   String?                  @map("error_message")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId, status, createdAt(sort: Desc)], map: "astro_pending_actions_org_user_status_created_idx")
+  @@map("astro_pending_actions")
 }
 
 model AiKnowledge {

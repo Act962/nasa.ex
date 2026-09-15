@@ -191,6 +191,13 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
     category: "ai",
   },
   {
+    action: "astro_finance_document",
+    label: "Astro Financeiro — leitura de boleto/NF (Claude Vision)",
+    stars: 5,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
     action: "transcribe_video",
     label: "Transcrição de vídeo (Whisper, por minuto)",
     stars: 1,

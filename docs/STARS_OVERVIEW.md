@@ -69,6 +69,7 @@ Schema em [prisma/schema.prisma](../prisma/schema.prisma) (faixa ~2337–2486 e 
 | Feature | Arquivo | Action key | Custo |
 | --- | --- | --- | --- |
 | Astro IA — chat | [src/app/api/astro/chat/route.ts:116](../src/app/api/astro/chat/route.ts) | `astro_prompt` | 5★ stake + variável por tokens (1★ = 1000 tokens) |
+| Astro Financeiro — leitura de boleto/NF | [src/features/payment/server/documents/extract-financial-document.ts](../src/features/payment/server/documents/extract-financial-document.ts) | `astro_finance_document` | 5★ (cobrado antes do modelo; releitura do mesmo anexo usa o cache e não cobra) |
 | Astro IA — booking público | [src/app/api/public/booking-chat/route.ts:137](../src/app/api/public/booking-chat/route.ts) | `astro_prompt` | 5★ (erro ignorado silenciosamente) |
 | Insights — relatório IA | [src/app/router/insights/generate-report.ts:94](../src/app/router/insights/generate-report.ts) | `insights_report_ai` | 10★ |
 | NASA Planner — gerar post | (planner) | `ai_response_generate` | 5★ |
