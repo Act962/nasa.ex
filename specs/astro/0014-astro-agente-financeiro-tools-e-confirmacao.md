@@ -7,7 +7,7 @@ autor: Weydson
 criada: 2026-09-15
 atualizada: 2026-09-15
 branch: feature/W-astro-finance-tools-20260915
-pr:
+pr: https://github.com/Act962/nasa.ex/pull/392
 peso: completa
 ---
 
