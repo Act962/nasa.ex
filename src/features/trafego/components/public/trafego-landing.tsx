@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   BadgeCheck,
@@ -172,9 +171,11 @@ const EMPTY_CONTACT: ContactDraft = {
   referralSource: "",
 };
 
-export function TrafegoLanding() {
-  const searchParams = useSearchParams();
-  const wasCancelled = searchParams.get("cancelado") === "1";
+interface TrafegoLandingProps {
+  wasCancelled: boolean;
+}
+
+export function TrafegoLanding({ wasCancelled }: TrafegoLandingProps) {
   const wizardRef = useRef<HTMLDivElement>(null);
 
   // O wizard só entra em cena quando o cliente pede. Antes disso a página é
