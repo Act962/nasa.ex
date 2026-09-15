@@ -32,8 +32,15 @@ interface AstroOrbStore {
   hint: string | null;
   /** Utterance capturado após wake word, ainda não submetido. */
   pendingUtterance: string | null;
+  /**
+   * Guia de permissão do microfone aberto. Global porque o pedido de
+   * permissão parte do orb, do menu de voz ou do painel, mas o guia é
+   * renderizado uma vez só, pelo orb.
+   */
+  micGuideOpen: boolean;
 
   setPhase: (phase: OrbPhase) => void;
+  setMicGuideOpen: (open: boolean) => void;
   setWakeWordEnabled: (v: boolean) => void;
   setVisible: (v: boolean) => void;
   setHint: (msg: string | null) => void;
@@ -50,8 +57,10 @@ export const useAstroOrbStore = create<AstroOrbStore>()(
       wakeWordEnabled: false, // OPT-IN — user precisa ativar
       hint: null,
       pendingUtterance: null,
+      micGuideOpen: false,
 
       setPhase: (phase) => set({ phase }),
+      setMicGuideOpen: (micGuideOpen) => set({ micGuideOpen }),
       setWakeWordEnabled: (wakeWordEnabled) => set({ wakeWordEnabled }),
       setVisible: (visible) => set({ visible }),
       setHint: (hint) => set({ hint }),

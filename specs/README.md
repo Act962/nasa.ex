@@ -172,6 +172,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0010](tracking-chat/0010-telefone-br-e-erros-outbound-estruturados.md) | tracking-chat | Corrigir normalização de telefone BR e estruturar erros do outbound | implementada |
 | [0011](tracking-chat/0011-filtros-avancados-na-lista-de-conversas.md) | tracking-chat | Filtros avançados e ordenação na lista de conversas do chat | implementada |
 | [0014](astro/0014-astro-agente-financeiro-tools-e-confirmacao.md) | astro | Astro como agente financeiro — pack de tools, confirmação e leitura de documentos | em-revisao |
+| [0015](astro/0015-astro-widget-flutuante.md) | astro | Painel de chat do Astro no orb flutuante | em-revisao |
 
 ---
 

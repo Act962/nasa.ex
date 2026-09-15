@@ -272,3 +272,29 @@ próximas ferramentas vão reusar. Spec:
 
 2. Widget flutuante no orb · 3. Extrato PDF e conciliação · 4. Lembretes com
 envio do boleto · 5. Caixa de entrada Gmail · 6. WhatsApp com escrita e Stars.
+
+## 2026-09-15 — Astro Financeiro, Fase 2: painel no orb (spec 0015)
+
+Spec: [`specs/astro/0015-astro-widget-flutuante.md`](../specs/astro/0015-astro-widget-flutuante.md).
+
+### O que mudou
+
+- **Painel de chat no orb** — `components/widget/`: clique no orb abre um chat
+  compacto sobre a tela atual (layout do widget do NERP, paleta do `/trafego`),
+  com o mesmo motor do `/home`: anexos, cartão de confirmação, contexto da rota
+  e narração. Não existe no `/home`.
+- **Estado** — `voice/use-astro-widget-store.ts` (aberto, badge de não lidas,
+  prompt pendente). Sessão própria em `sessionStorage["astro-widget-session"]`.
+- **Abrir de qualquer lugar** — `lib/open-astro-widget.ts` dispara o evento
+  `astro:open` com `prompt` opcional.
+- **Orb enxuto** — `astro-orb.tsx` dividido em `greeting.ts`, `orb-visuals.ts`,
+  `mic-permission-guide.tsx`, `use-astro-voice-actions.ts` e
+  `astro-voice-menu.tsx` (menu reusado no cabeçalho do painel). Com o painel
+  aberto, a voz vai pro painel; fechado, segue indo pro `/home`.
+- **Removidos** — os widgets legados `astro-agent.tsx` e `astro-agent-legacy.tsx`,
+  sem importadores.
+
+### Próximas fases
+
+3. Extrato PDF e conciliação · 4. Lembretes com envio do boleto · 5. Caixa de
+entrada Gmail · 6. WhatsApp com escrita e Stars.
