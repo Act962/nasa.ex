@@ -7,7 +7,9 @@
  * fonte um adaptador em vez de uma reescrita.
  */
 
-export type StatementSource = "OFX_UPLOAD" | "EMAIL_INBOX" | "AGGREGATOR";
+export type StatementSource = "OFX_UPLOAD" | "EMAIL_INBOX" | "AGGREGATOR" | "PDF_UPLOAD";
+
+export const STATEMENT_SOURCES = ["OFX_UPLOAD", "EMAIL_INBOX", "AGGREGATOR", "PDF_UPLOAD"] as const;
 export type StatementDirection = "CREDIT" | "DEBIT";
 
 // `type` (não `interface`) para ser atribuível a `Prisma.InputJsonValue`.

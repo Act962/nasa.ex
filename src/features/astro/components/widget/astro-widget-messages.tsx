@@ -74,7 +74,8 @@ function describeWidgetError(error: Error): string {
   } catch {
     // Não era JSON.
   }
-  return error.message.includes("Stars")
+  const hasReadableMessage = error.message.trim().length > 0 && error.message !== "[object Object]";
+  return hasReadableMessage
     ? error.message
     : "Não consegui responder agora. Tente de novo em instantes.";
 }

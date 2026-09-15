@@ -9,11 +9,14 @@ import { getProposalExecutor } from "./types";
 // Tools genéricas de confirmação (spec 0014, D-2). Valem para qualquer
 // domínio que registre executores — não conhecem "financeiro".
 
+// Sem id, só vale a proposta do mesmo canal: um "sim" no WhatsApp não pode
+// executar o que ficou pendente no chat in-app (e vice-versa).
 async function findLatestPending(ctx: AgentContext) {
   return prisma.astroPendingAction.findFirst({
     where: {
       organizationId: ctx.organizationId,
       userId: ctx.userId,
+      channel: ctx.channel ?? "CHAT",
       status: "PENDING",
       expiresAt: { gt: new Date() },
     },

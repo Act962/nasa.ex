@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
+import type { BotInboundMedia } from "@/features/astro-bot/lib/types";
 import {
   WhatsAppInstanceStatus,
   WhatsAppProvider,
@@ -111,14 +112,44 @@ export async function POST(request: NextRequest) {
         botMessageType === "Conversation" ||
         botMessageType === "ExtendedTextMessage" ||
         botMessageType === "TextMessage";
-      if (!fromMe && bodyForBot && isTextForBot) {
+      // Documento/imagem de membro allow-listado (spec 0019): o handler só
+      // intercepta com `financeEnabled`; senão devolve handled:false e a mídia
+      // segue o pipeline normal abaixo.
+      const botMediaKind: BotInboundMedia["kind"] | null =
+        botMessageType === "DocumentMessage"
+          ? "document"
+          : botMessageType === "ImageMessage"
+            ? "image"
+            : null;
+      const botMediaContent =
+        json.message.content && typeof json.message.content === "object"
+          ? (json.message.content as Record<string, unknown>)
+          : {};
+      const pickBotMediaField = (field: string): string | undefined => {
+        const value = botMediaContent[field];
+        return typeof value === "string" && value ? value : undefined;
+      };
+      const botMediaMessageId: string | undefined =
+        json.message.messageid ?? pickBotMediaField("messageid");
+      const botMedia: BotInboundMedia | undefined =
+        botMediaKind && botMediaMessageId
+          ? {
+              externalMessageId: botMediaMessageId,
+              kind: botMediaKind,
+              mimetype: pickBotMediaField("mimetype"),
+              fileName: pickBotMediaField("fileName"),
+              caption: pickBotMediaField("caption") ?? (bodyForBot || undefined),
+            }
+          : undefined;
+      if (!fromMe && ((bodyForBot && isTextForBot) || botMedia)) {
         try {
           const { maybeHandleBotMessage } = await import(
             "@/features/astro-bot/lib/webhook-handler"
           );
           const botResult = await maybeHandleBotMessage({
             fromPhone: phone,
-            messageText: bodyForBot,
+            messageText: botMedia ? (botMedia.caption ?? "").trim() : bodyForBot,
+            media: botMedia,
             trackingId,
             deviceId: json.deviceId ?? undefined,
             trackingOrganizationId: tracking.organizationId,

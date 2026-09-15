@@ -30,6 +30,24 @@ const STARS_PER_1K_TOKENS = 1;
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
+type ProviderErrorBody = { error?: { code?: unknown; type?: unknown; message?: unknown } };
+
+// O provedor às vezes entrega o erro como objeto cru (`{ error: { code } }`);
+// `String()` nele vira "[object Object]" na tela.
+function describeStreamError(streamError: unknown): string {
+  const providerError =
+    typeof streamError === "object" && streamError !== null
+      ? (streamError as ProviderErrorBody).error
+      : undefined;
+  const errorCode = String(providerError?.code ?? providerError?.type ?? "");
+  if (/insufficient_quota|credit_balance_exhausted|billing/i.test(errorCode)) {
+    return "O Astro está sem crédito no provedor de IA (OpenAI). Avise o administrador pra recarregar a conta.";
+  }
+  if (typeof providerError?.message === "string") return providerError.message;
+  if (streamError instanceof Error) return streamError.message;
+  return "Não consegui responder agora. Tente de novo em instantes.";
+}
+
 /**
  * POST /api/astro/chat
  *
@@ -180,9 +198,9 @@ export async function POST(req: Request) {
   let capturedTokens = 0;
 
   return result.toUIMessageStreamResponse({
-    onError: (err) => {
-      console.error("[ASTRO/chat] stream error", err);
-      return err instanceof Error ? err.message : String(err);
+    onError: (streamError) => {
+      console.error("[ASTRO/chat] stream error", streamError);
+      return describeStreamError(streamError);
     },
     // Anexa { tokens } na última mensagem do stream (event "finish" do AI SDK).
     // Cliente lê em `message.metadata.tokens` e renderiza no rodapé.

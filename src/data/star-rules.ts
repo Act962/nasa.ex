@@ -198,6 +198,27 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
     category: "ai",
   },
   {
+    action: "astro_finance_statement_pdf",
+    label: "Astro Financeiro — importação de extrato em PDF",
+    stars: 10,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "astro_finance_reminder_send",
+    label: "Astro Financeiro — envio de lembrete com boleto (por canal/destinatário)",
+    stars: 1,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "astro_gmail_sync",
+    label: "Astro Financeiro — sincronização da caixa Gmail",
+    stars: 0,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
     action: "transcribe_video",
     label: "Transcrição de vídeo (Whisper, por minuto)",
     stars: 1,

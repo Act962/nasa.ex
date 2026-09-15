@@ -82,6 +82,9 @@ import { paymentDunningFire }      from "@/inngest/functions/payment/dunning-fir
 import { paymentApprovalReminder } from "@/inngest/functions/payment/approval-reminder";
 import { paymentGoalDailyCheck }    from "@/inngest/functions/payment/goal-daily-check";
 import { paymentGoalWeeklySummary } from "@/inngest/functions/payment/goal-weekly-summary";
+// ── Astro Financeiro (lembretes com boleto + caixa Gmail) ──
+import { paymentReminderFire } from "@/inngest/functions/payment/reminder-fire";
+import { paymentInboxSyncCron, paymentInboxSyncOrg } from "@/inngest/functions/payment/inbox-sync";
 // ── Campanhas (disparo em massa WhatsApp Oficial — Fase 3/4) ──
 import { dispatchBroadcast } from "@/inngest/functions/campanhas/dispatch-broadcast";
 import { dispatchDueBroadcasts } from "@/inngest/functions/campanhas/dispatch-due-broadcasts";
@@ -174,6 +177,10 @@ export const { GET, POST, PUT } = serve({
     paymentApprovalReminder,
     paymentGoalDailyCheck,
     paymentGoalWeeklySummary,
+    // ── Astro Financeiro — lembrete com boleto (event) + caixa Gmail (cron 30 min) ──
+    paymentReminderFire,
+    paymentInboxSyncCron,
+    paymentInboxSyncOrg,
     // ── Campanhas — disparo em massa (Fase 3) + agendamento (Fase 4, cron) ──
     dispatchBroadcast,
     dispatchDueBroadcasts,

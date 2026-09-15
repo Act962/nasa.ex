@@ -298,3 +298,55 @@ Spec: [`specs/astro/0015-astro-widget-flutuante.md`](../specs/astro/0015-astro-w
 
 3. Extrato PDF e conciliação · 4. Lembretes com envio do boleto · 5. Caixa de
 entrada Gmail · 6. WhatsApp com escrita e Stars.
+
+## 2026-09-15 — Astro Financeiro, Fases 3 a 6 (specs 0016–0019)
+
+Todas na mesma PR da fase 1 (#392). Migrations `20260915130000`…`20260915160000`,
+`SCHEMA_VERSION` `v74-astro-bot-finance`.
+
+### Fase 3 — Extrato PDF e conciliação (spec 0016)
+
+- Extrato PDF lido por IA vira `NormalizedStatement` com `source PDF_UPLOAD` e
+  `externalId` sintético (sha256 com índice de ocorrência); leitura cacheada no
+  anexo. Limite de 400 movimentações.
+- Handlers de `payment/statements.ts` extraídos para serviços em
+  `payment/server/statements/`; a aba Conciliação aceita PDF e mostra badge.
+- Tools: `inspect_bank_statement`, `propose_statement_import`,
+  `list_unreconciled_transactions`, `propose_reconciliation`,
+  `propose_reconciliation_batch`, `propose_entry_from_transaction`,
+  `propose_ignore_transaction`, `propose_unmatch_transaction`.
+
+### Fase 4 — Lembretes com envio do boleto (spec 0017)
+
+- `PaymentReminder` + Inngest `payment-reminder-fire` (dorme até o horário,
+  recarrega, um step por destinatário/canal, `deliveryLog`, notificação).
+- WhatsApp por organização em `tracking-chat/lib/providers/send-org-document.ts`;
+  e-mail com o PDF anexado via Resend.
+- Painel de lembretes na aba Documentos e no detalhe do lançamento.
+- Tools: `propose_payment_reminder`, `list_payment_reminders`,
+  `propose_cancel_payment_reminder`.
+
+### Fase 5 — Caixa de entrada Gmail (spec 0018)
+
+- Cron de 30 min → `payment/inbox.sync` por org; anexo vira `PaymentAttachment`
+  (`sourceChannel: gmail`), é lido e o item fica PROPOSED. Confirmar o lançamento
+  marca o item ACCEPTED.
+- `resolveGoogleAccessToken` extraído do sync do Calendar. A caixa lida é a da
+  conta Google que conectou a integração da empresa.
+- Seção "Caixa de entrada" na aba Documentos. Tools: `list_inbox_documents`,
+  `sync_gmail_inbox_now`, `propose_ignore_inbox_item`.
+
+### Fase 6 — WhatsApp financeiro e Stars (spec 0019)
+
+- `OrganizationBotConfig.financeEnabled` liga o escopo `assistant` (pack payment
+  + confirmação por SIM/NÃO, TTL 2 h). Desligado segue `insights`.
+- PDF/foto de membro allow-listado vira anexo e entra em `ctx.attachments`.
+- O bot passa a cobrar Stars nos dois escopos. Toggle no admin do bot.
+- `confirm_action` sem id só pega proposta do mesmo canal.
+
+### Pendências de ambiente
+
+- Aplicar as 4 migrations novas no banco e rodar o seed de Stars
+  (`astro_finance_statement_pdf`, `astro_finance_reminder_send`, `astro_gmail_sync`).
+- F5 precisa de `GOOGLE_INTEGRATIONS_CLIENT_ID/SECRET/REDIRECT_URI`.
+- Avisar admins que o Astro no WhatsApp passa a cobrar Stars.

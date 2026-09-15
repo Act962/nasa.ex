@@ -18,12 +18,18 @@ import prisma from "@/lib/prisma";
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
 import { handleBotCommand } from "./router";
 import { TrackingProviderBotChannel } from "./tracking-provider-channel";
+import type { BotInboundMedia } from "./types";
 
 export interface WhatsappWebhookHookInput {
   /** Phone do remetente da mensagem WhatsApp, formato E.164 sem `+`. */
   fromPhone: string;
-  /** Texto plain da mensagem. Só processamos texto — mídia ignora. */
+  /** Texto da mensagem (ou legenda da mídia). Pode vir vazio quando há `media`. */
   messageText: string;
+  /**
+   * Documento/imagem (spec 0019). Só é interceptado quando a org liga
+   * `financeEnabled`; sem isso a mídia segue o atendimento normal.
+   */
+  media?: BotInboundMedia;
   /** Tracking que recebeu o webhook — define o número/provider de resposta. */
   trackingId: string;
   /**
@@ -137,6 +143,9 @@ export async function maybeHandleBotMessage(
   if (!gate.allowed || !gate.binding) return { handled: false };
   const binding = gate.binding;
 
+  if (input.media && !binding.botConfig.financeEnabled) return { handled: false };
+  if (!input.media && !input.messageText.trim()) return { handled: false };
+
   // Provider de saída precisa estar resolvível ANTES de marcarmos handled:true.
   // Se a tracking habilitada estiver desconectada/sem credencial,
   // resolveOutboundProvider lança — devolvemos handled:false pra mensagem
@@ -165,7 +174,9 @@ export async function maybeHandleBotMessage(
         binding,
         botConfig: binding.botConfig,
         channel,
+        trackingId: input.trackingId,
         deviceId: input.deviceId,
+        media: input.media,
       },
       input.messageText,
     );

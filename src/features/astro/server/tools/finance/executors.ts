@@ -229,6 +229,16 @@ registerProposalExecutor<CreateEntryProposalPayload>(
     }
 
     const first = createdEntries[0];
+    if (payload.attachmentId && first) {
+      // Documento vindo da caixa Gmail sai da fila (spec 0018, RF-6).
+      await prisma.paymentInboxItem
+        .updateMany({
+          where: { organizationId: ctx.organizationId, attachmentId: payload.attachmentId },
+          data: { status: "ACCEPTED", entryId: first.id },
+        })
+        .catch((error) => console.error("[astro/finance] inbox item accept failed:", error));
+    }
+
     const awaitingApproval = createdEntries.some((entry) => entry.status === "PENDING_APPROVAL");
     const lines = [
       { label: "Lançamento", value: payload.description },

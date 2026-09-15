@@ -135,6 +135,7 @@ model User {
   // ── ASTRO (Agentes IA) ──
   aiSessions      AiSession[]
   astroPendingActions AstroPendingAction[]
+  paymentRemindersCreated PaymentReminder[] @relation("PaymentReminderCreatedBy")
   aiKnowledgeMade AiKnowledge[] @relation("AiKnowledgeCreatedBy")
 
   // ── Tracking Chat — figurinhas personalizadas do composer ──
@@ -338,6 +339,9 @@ model Organization {
   paymentContacts          PaymentContact[]
   paymentEntries           PaymentEntry[]
   paymentAttachments       PaymentAttachment[]
+  paymentReminders         PaymentReminder[]
+  paymentInboxConfig       PaymentInboxConfig?
+  paymentInboxItems        PaymentInboxItem[]
   paymentAccess            PaymentAccess[]
   paymentApprovalRequests  PaymentApprovalRequest[]
   paymentGovernanceConfig  PaymentGovernanceConfig?
@@ -4613,6 +4617,8 @@ model PaymentEntry {
   // lançamento, que fica PARTIAL até somar o total.
   bankTransactions  PaymentBankTransaction[]
   attachments       PaymentAttachment[]
+  reminders         PaymentReminder[]
+  inboxItems        PaymentInboxItem[]
 
   @@index([organizationId])
   @@index([type])
@@ -4682,6 +4688,8 @@ model PaymentAttachment {
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   entry        PaymentEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
   statementImports PaymentStatementImport[]
+  reminders        PaymentReminder[]
+  inboxItems       PaymentInboxItem[]
   uploadedBy   User?         @relation("PaymentAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([organizationId, createdAt])
@@ -4873,6 +4881,115 @@ enum PaymentBankTxSource {
   OFX_UPLOAD
   EMAIL_INBOX
   AGGREGATOR
+  // Extrato em PDF lido por IA (spec 0016). O `externalId` é sintético.
+  PDF_UPLOAD
+}
+
+// ─────────────────────────────────────────────
+// NASA PAYMENT — LEMBRETES COM ENVIO DO BOLETO (spec 0017)
+// ─────────────────────────────────────────────
+
+enum PaymentReminderChannel {
+  WHATSAPP
+  EMAIL
+}
+
+enum PaymentReminderStatus {
+  SCHEDULED
+  SENT
+  PARTIAL
+  FAILED
+  SKIPPED
+  CANCELLED
+}
+
+// Lembrete agendado que envia o documento (boleto/NF) a contatos por WhatsApp
+// e/ou e-mail. Disparado por Inngest (`payment/reminder.created`).
+// `recipients` é snapshot de `{ contactId?, name, phone?, email? }` no momento
+// da criação; `deliveryLog` guarda o resultado por destinatário e canal.
+model PaymentReminder {
+  id             String                   @id @default(cuid())
+  organizationId String                   @map("organization_id")
+  entryId        String?                  @map("entry_id")
+  attachmentId   String?                  @map("attachment_id")
+  remindAt       DateTime                 @map("remind_at")
+  channels       PaymentReminderChannel[]
+  recipients     Json
+  message        String
+  notifyCreator  Boolean                  @default(true) @map("notify_creator")
+  status         PaymentReminderStatus    @default(SCHEDULED)
+  sentAt         DateTime?                @map("sent_at")
+  deliveryLog    Json?                    @map("delivery_log")
+  createdById    String                   @map("created_by_id")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entry        PaymentEntry?      @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  attachment   PaymentAttachment? @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  createdBy    User               @relation("PaymentReminderCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, remindAt, status])
+  @@index([entryId])
+  @@map("payment_reminders")
+}
+
+// ─────────────────────────────────────────────
+// NASA PAYMENT — CAIXA DE ENTRADA GMAIL (spec 0018)
+// ─────────────────────────────────────────────
+
+enum PaymentInboxItemStatus {
+  NEW
+  PROPOSED
+  ACCEPTED
+  IGNORED
+  FAILED
+}
+
+model PaymentInboxConfig {
+  id             String    @id @default(cuid())
+  organizationId String    @unique @map("organization_id")
+  isEnabled      Boolean   @default(false) @map("is_enabled")
+  gmailQuery     String    @default("has:attachment filename:pdf newer_than:7d") @map("gmail_query")
+  notifyWhatsapp Boolean   @default(false) @map("notify_whatsapp")
+  lastSyncAt     DateTime? @map("last_sync_at")
+  lastError      String?   @map("last_error")
+  lastHistoryId  String?   @map("last_history_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("payment_inbox_configs")
+}
+
+// Anexo de e-mail encontrado na caixa Gmail da org. A chave única impede que
+// o mesmo anexo vire dois itens entre sincronizações.
+model PaymentInboxItem {
+  id                String                 @id @default(cuid())
+  organizationId    String                 @map("organization_id")
+  gmailMessageId    String                 @map("gmail_message_id")
+  gmailAttachmentId String                 @map("gmail_attachment_id")
+  threadId          String?                @map("thread_id")
+  subject           String
+  fromEmail         String                 @map("from_email")
+  fromName          String?                @map("from_name")
+  receivedAt        DateTime               @map("received_at")
+  attachmentId      String?                @map("attachment_id")
+  status            PaymentInboxItemStatus @default(NEW)
+  extraction        Json?
+  entryId           String?                @map("entry_id")
+  errorMessage      String?                @map("error_message")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  attachment   PaymentAttachment? @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  entry        PaymentEntry?      @relation(fields: [entryId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, gmailMessageId, gmailAttachmentId], map: "payment_inbox_items_org_message_attachment_key")
+  @@index([organizationId, status, receivedAt])
+  @@map("payment_inbox_items")
 }
 
 enum PaymentBankTxDirection {
@@ -7767,6 +7884,10 @@ model OrganizationBotConfig {
   /// Hora local (0-23) — bot fica silencioso fora dessa janela. NULL = sem quiet hours.
   quietHoursStart Int? @map("quiet_hours_start")
   quietHoursEnd   Int? @map("quiet_hours_end")
+
+  /// Astro financeiro pelo WhatsApp (spec 0019): escopo "assistant", com
+  /// escrita confirmada, leitura de documentos e cobrança de Stars.
+  financeEnabled Boolean @default(false) @map("finance_enabled")
 
   isActive  Boolean  @default(false) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
