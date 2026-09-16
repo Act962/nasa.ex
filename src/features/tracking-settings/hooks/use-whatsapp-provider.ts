@@ -37,9 +37,22 @@ export const useUpdateWhatsAppProviderSettings = (trackingId: string) => {
 
   return useMutation(
     orpc.integrations.setProviderSettings.mutationOptions({
-      onSuccess: ({ changed }) => {
-        if (changed) {
+      onSuccess: (result) => {
+        if (result.changed) {
           toast.success("Configuração de provider atualizada.");
+        }
+        const subscriptionStatus =
+          "webhookSubscription" in result
+            ? result.webhookSubscription?.status
+            : undefined;
+        if (subscriptionStatus === "missing_business_account_id") {
+          toast.warning(
+            "Informe o WABA ID (Business Account ID): sem ele a Meta não envia mensagens recebidas ao NASA.",
+          );
+        } else if (subscriptionStatus === "failed") {
+          toast.warning(
+            "Credenciais salvas, mas a Meta recusou a inscrição do webhook na WABA. Mensagens recebidas não vão chegar até isso ser resolvido — confira o token e o WABA ID.",
+          );
         }
         queryClient.invalidateQueries({
           queryKey: orpc.integrations.getProviderSettings.queryKey({
