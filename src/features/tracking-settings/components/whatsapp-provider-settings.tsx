@@ -357,10 +357,10 @@ export function WhatsAppProviderSettings({
               }
             />
             <CredentialField
-              label="WhatsApp Business Account ID (opcional)"
+              label="WhatsApp Business Account ID (WABA ID)"
               placeholder={publicIdPlaceholder(
                 metaSummary?.businessAccountId,
-                "Necessário pra templates",
+                "Necessário pra receber mensagens e usar templates",
               )}
               value={metaForm.businessAccountId}
               onChange={(value) =>
@@ -376,11 +376,13 @@ export function WhatsAppProviderSettings({
                 Recebimento ativo
               </AlertTitle>
               <AlertDescription className="text-xs">
-                Com as 4 credenciais obrigatórias gravadas e o webhook
+                Com as credenciais e o WABA ID gravados e o webhook
                 configurado no Meta App apontando pra{" "}
                 <code>/api/chat/webhook/official</code>, mensagens
                 inbound já criam Lead/Conversation/Message via o mesmo
-                pipeline canônico do Uazapi.
+                pipeline canônico do Uazapi. Ao salvar, o NASA inscreve o
+                App na WABA automaticamente — sem isso a Meta não entrega
+                as mensagens.
               </AlertDescription>
             </Alert>
 
