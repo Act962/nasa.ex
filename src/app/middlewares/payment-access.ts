@@ -47,6 +47,9 @@ export function requirePaymentAccess(
       });
     }
 
+    // Mesma matriz que `resolvePaymentPermissions` (usada pelas tools do
+    // Astro) — spec 0014, RF-1. Só o `access` bruto segue no contexto porque
+    // as procedures leem `role`/`isAuthorized` dele.
     const effective = resolveEffectivePermissions(access.role, access.permissions);
     const allowed = effective[resource]?.[action] ?? false;
 

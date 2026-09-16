@@ -12,6 +12,7 @@ import { isToolUIPart } from "ai";
 import { orpc, client } from "@/lib/orpc";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
 import { useAstroChat } from "@/features/astro/hooks/use-astro-chat";
+import { useAstroAttachments } from "@/features/astro/hooks/use-astro-attachments";
 import { useAstro } from "@/features/astro/components/astro-provider";
 import { AstroMessage } from "@/features/astro/components/astro-message";
 import { useAutoNarrate } from "@/features/astro/voice/use-auto-narrate";
@@ -79,6 +80,7 @@ export function NasaCommandCenter() {
     messages,
     status,
     sendMessage,
+    sendMessageWithAttachments,
     stop,
     error,
     setMessages,
@@ -87,6 +89,16 @@ export function NasaCommandCenter() {
   } = useAstroChat({
     initialMessages: hydrated,
   });
+
+  // Anexos (boleto, nota fiscal) da próxima mensagem — sobem antes do envio.
+  const {
+    attachments,
+    readyAttachments,
+    isUploading: isUploadingAttachment,
+    addFiles,
+    removeAttachment,
+    clearAttachments,
+  } = useAstroAttachments();
 
   const deleteSessionMutation = useMutation(
     orpc.astro.sessions.delete.mutationOptions({
@@ -148,20 +160,33 @@ export function NasaCommandCenter() {
   const submitCommand = useCallback(
     async (userText: string) => {
       const trimmed = userText.trim();
-      if (!trimmed || status === "streaming" || status === "submitted") return;
+      const pendingAttachments = readyAttachments;
+      // Com anexo, texto vazio é válido: o bloco [ARQUIVOS ANEXADOS] já diz
+      // ao Astro o que fazer.
+      if (
+        (!trimmed && pendingAttachments.length === 0) ||
+        status === "streaming" ||
+        status === "submitted"
+      ) {
+        return;
+      }
       setCommand("");
       setDropdown(null);
-      await sendMessage({ text: trimmed });
+      clearAttachments();
+      await sendMessageWithAttachments({
+        text: trimmed || "Lê esse documento e me diz o que é.",
+        attachments: pendingAttachments,
+      });
       // Stars (mantém integração existente)
       queryClient.invalidateQueries({
         queryKey: orpc.stars.getBalance.queryOptions().queryKey,
       });
     },
-    [status, sendMessage, queryClient],
+    [status, sendMessageWithAttachments, readyAttachments, clearAttachments, queryClient],
   );
 
   const handleSubmit = async () => {
-    if (!command.trim()) return;
+    if (!command.trim() && readyAttachments.length === 0) return;
     await submitCommand(command.trim());
   };
 
@@ -304,6 +329,10 @@ export function NasaCommandCenter() {
     setDropdown,
     dropdownSearch,
     setDropdownSearch,
+    attachments,
+    onAddFiles: (files: File[]) => void addFiles(files),
+    onRemoveAttachment: removeAttachment,
+    isUploadingAttachment,
   };
 
   const recentSessions = (sessionsQuery.data?.sessions ?? []).map((s) => ({
@@ -359,6 +388,8 @@ export function NasaCommandCenter() {
                   <AstroMessage
                     key={msg.id}
                     message={msg}
+                    onRespond={(text) => void submitCommand(text)}
+                    busy={loading}
                     cumulativeTokens={
                       msg.role === "assistant" ? runningTotal : undefined
                     }

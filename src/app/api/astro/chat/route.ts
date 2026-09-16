@@ -4,7 +4,11 @@ import type { UIMessage } from "ai";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { streamAstro } from "@/features/astro/server/orchestrator";
-import { astroChatRequestSchema } from "@/features/astro/schemas/chat-message";
+import {
+  astroChatRequestSchema,
+  extractAttachmentRefs,
+} from "@/features/astro/schemas/chat-message";
+import type { AstroAttachmentRef } from "@/features/astro/server/agents/types";
 import type { AgentKey } from "@/features/astro/schemas/agent-config";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { debitStars } from "@/features/stars/lib/star-service";
@@ -25,6 +29,24 @@ const STARS_PER_1K_TOKENS = 1;
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
+
+type ProviderErrorBody = { error?: { code?: unknown; type?: unknown; message?: unknown } };
+
+// O provedor às vezes entrega o erro como objeto cru (`{ error: { code } }`);
+// `String()` nele vira "[object Object]" na tela.
+function describeStreamError(streamError: unknown): string {
+  const providerError =
+    typeof streamError === "object" && streamError !== null
+      ? (streamError as ProviderErrorBody).error
+      : undefined;
+  const errorCode = String(providerError?.code ?? providerError?.type ?? "");
+  if (/insufficient_quota|credit_balance_exhausted|billing/i.test(errorCode)) {
+    return "O Astro está sem crédito no provedor de IA (OpenAI). Avise o administrador pra recarregar a conta.";
+  }
+  if (typeof providerError?.message === "string") return providerError.message;
+  if (streamError instanceof Error) return streamError.message;
+  return "Não consegui responder agora. Tente de novo em instantes.";
+}
 
 /**
  * POST /api/astro/chat
@@ -142,6 +164,11 @@ export async function POST(req: Request) {
     console.error("[ASTRO/chat] charge failed (continuing)", e);
   }
 
+  // Anexos declarados na última mensagem do usuário (spec 0014, D-3). O
+  // arquivo já subiu pela rota REST; aqui só confirmamos que ele é desta
+  // organização antes de deixar o modelo enxergar o id.
+  const attachments = await resolveMessageAttachments(uiMessages, organizationId);
+
   let result;
   try {
     result = await streamAstro({
@@ -150,6 +177,9 @@ export async function POST(req: Request) {
         organizationId,
         route: parsed.context ?? {},
         pinnedAgentKey: parsed.pinnedAgentKey as AgentKey | undefined,
+        attachments,
+        sessionId,
+        channel: "CHAT",
       },
       uiMessages,
       toolScope: isTrafegoScope ? "trafego" : undefined,
@@ -168,9 +198,9 @@ export async function POST(req: Request) {
   let capturedTokens = 0;
 
   return result.toUIMessageStreamResponse({
-    onError: (err) => {
-      console.error("[ASTRO/chat] stream error", err);
-      return err instanceof Error ? err.message : String(err);
+    onError: (streamError) => {
+      console.error("[ASTRO/chat] stream error", streamError);
+      return describeStreamError(streamError);
     },
     // Anexa { tokens } na última mensagem do stream (event "finish" do AI SDK).
     // Cliente lê em `message.metadata.tokens` e renderiza no rodapé.
@@ -247,4 +277,33 @@ export async function POST(req: Request) {
       });
     },
   });
+}
+
+/**
+ * Lê os data parts de anexo da última mensagem do usuário e devolve só os que
+ * pertencem à organização da sessão — um id forjado no cliente não chega ao
+ * modelo.
+ */
+async function resolveMessageAttachments(
+  uiMessages: UIMessage[],
+  organizationId: string,
+): Promise<AstroAttachmentRef[] | undefined> {
+  const lastUserMessage = [...uiMessages].reverse().find((message) => message.role === "user");
+  if (!lastUserMessage) return undefined;
+
+  const refs = extractAttachmentRefs(lastUserMessage);
+  if (refs.length === 0) return undefined;
+
+  const owned = await prisma.paymentAttachment.findMany({
+    where: { id: { in: refs.map((ref) => ref.attachmentId) }, organizationId },
+    select: { id: true, fileName: true, mimeType: true, sizeBytes: true },
+  });
+  if (owned.length === 0) return undefined;
+
+  return owned.map((attachment) => ({
+    attachmentId: attachment.id,
+    fileName: attachment.fileName,
+    mimeType: attachment.mimeType,
+    sizeBytes: attachment.sizeBytes,
+  }));
 }

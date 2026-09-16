@@ -4,6 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { resolveTargetOrgs } from "@/features/astro/server/tools/shared/resolve-target-orgs";
+import { assertPaymentToolAccess } from "@/features/astro/server/tools/finance/access";
 
 /**
  * Tools de ANALYTICS pro Astro responder perguntas sobre indicadores
@@ -1631,7 +1632,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
     // "qual meu progresso em space help?"). Retorna 3 seções tipadas.
     get_platform_status_metrics: tool({
       description:
-        "Resume status de FINANCEIRO (contas a pagar/receber/vencidas/pagas, valores em centavos), INTEGRAÇÕES (plataformas conectadas, ativas, com erro) e SPACE HELP (trilhas iniciadas/concluídas pelo user, badges conquistados). Use quando o user perguntar sobre financeiro, contas, integrações conectadas, trilhas de educação, progresso no space help.",
+        "Resume status de INTEGRAÇÕES (plataformas conectadas, ativas, com erro), SPACE HELP (trilhas iniciadas/concluídas pelo user, badges) e, pra quem tem acesso ao módulo financeiro, um resumo raso de contas a pagar/receber. Pra qualquer pergunta financeira de verdade use as tools de finanças dedicadas (get_finance_dashboard, get_cashflow, list_overdue_entries).",
       inputSchema: z.object({
         fromIso: z.string().optional(),
         toIso: z.string().optional(),
@@ -1643,12 +1644,21 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           return { error: "Sem acesso a nenhuma organização" };
         }
 
+        // A seção financeira respeita a whitelist do módulo (spec 0014, RF-1):
+        // sem acesso, ela nem é consultada e a resposta sai sem ela.
+        const financeAccess = await assertPaymentToolAccess(ctx, "dashboard", "view");
+        const financeOrgs = financeAccess.ok
+          ? targetOrgs.filter((orgId) => orgId === ctx.organizationId)
+          : [];
+        const hasFinanceAccess = financeOrgs.length > 0;
+
         const from = fromIso
           ? new Date(fromIso)
           : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         const to = toIso ? new Date(toIso) : new Date();
 
         const baseOrg = { organizationId: { in: targetOrgs } };
+        const financeOrg = { organizationId: { in: financeOrgs } };
 
         const [
           // Finance
@@ -1670,26 +1680,26 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           spaceHelpBadges,
         ] = await Promise.all([
           prisma.paymentEntry.count({
-            where: { ...baseOrg, type: "RECEIVABLE", status: "PENDING" },
+            where: { ...financeOrg, type: "RECEIVABLE", status: "PENDING" },
           }),
           prisma.paymentEntry.count({
-            where: { ...baseOrg, type: "RECEIVABLE", status: "PAID" },
+            where: { ...financeOrg, type: "RECEIVABLE", status: "PAID" },
           }),
           prisma.paymentEntry.count({
-            where: { ...baseOrg, type: "RECEIVABLE", status: "OVERDUE" },
+            where: { ...financeOrg, type: "RECEIVABLE", status: "OVERDUE" },
           }),
           prisma.paymentEntry.count({
-            where: { ...baseOrg, type: "PAYABLE", status: "PENDING" },
+            where: { ...financeOrg, type: "PAYABLE", status: "PENDING" },
           }),
           prisma.paymentEntry.count({
-            where: { ...baseOrg, type: "PAYABLE", status: "PAID" },
+            where: { ...financeOrg, type: "PAYABLE", status: "PAID" },
           }),
           prisma.paymentEntry.count({
-            where: { ...baseOrg, type: "PAYABLE", status: "OVERDUE" },
+            where: { ...financeOrg, type: "PAYABLE", status: "OVERDUE" },
           }),
           prisma.paymentEntry.aggregate({
             where: {
-              ...baseOrg,
+              ...financeOrg,
               type: "RECEIVABLE",
               status: { in: ["PENDING", "PARTIAL", "OVERDUE"] },
             },
@@ -1697,7 +1707,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           }),
           prisma.paymentEntry.aggregate({
             where: {
-              ...baseOrg,
+              ...financeOrg,
               type: "PAYABLE",
               status: { in: ["PENDING", "PARTIAL", "OVERDUE"] },
             },
@@ -1705,7 +1715,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           }),
           prisma.paymentEntry.aggregate({
             where: {
-              ...baseOrg,
+              ...financeOrg,
               type: "RECEIVABLE",
               status: "PAID",
               paidAt: { gte: from, lte: to },
@@ -1714,7 +1724,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           }),
           prisma.paymentEntry.aggregate({
             where: {
-              ...baseOrg,
+              ...financeOrg,
               type: "PAYABLE",
               status: "PAID",
               paidAt: { gte: from, lte: to },
@@ -1754,23 +1764,28 @@ export function buildAnalyticsTools(ctx: AgentContext) {
 
         return {
           period: { from: from.toISOString(), to: to.toISOString() },
-          finance: {
-            receivable: {
-              pending: receivablePending,
-              paid: receivablePaid,
-              overdue: receivableOverdue,
-              totalPendingCents: totalReceivablePending._sum.amount ?? 0,
-              receivedInPeriodCents:
-                totalReceivedInPeriod._sum.paidAmount ?? 0,
-            },
-            payable: {
-              pending: payablePending,
-              paid: payablePaid,
-              overdue: payableOverdue,
-              totalPendingCents: totalPayablePending._sum.amount ?? 0,
-              paidInPeriodCents: totalPaidInPeriod._sum.paidAmount ?? 0,
-            },
-          },
+          finance: hasFinanceAccess
+            ? {
+                receivable: {
+                  pending: receivablePending,
+                  paid: receivablePaid,
+                  overdue: receivableOverdue,
+                  totalPendingCents: totalReceivablePending._sum.amount ?? 0,
+                  receivedInPeriodCents:
+                    totalReceivedInPeriod._sum.paidAmount ?? 0,
+                },
+                payable: {
+                  pending: payablePending,
+                  paid: payablePaid,
+                  overdue: payableOverdue,
+                  totalPendingCents: totalPayablePending._sum.amount ?? 0,
+                  paidInPeriodCents: totalPaidInPeriod._sum.paidAmount ?? 0,
+                },
+              }
+            : null,
+          financeUnavailableReason: hasFinanceAccess
+            ? null
+            : "Usuário sem acesso ao módulo financeiro — não comente números financeiros.",
           integrations: {
             total: integrations.length,
             active: integrationsActive,
@@ -1854,234 +1869,6 @@ export function buildAnalyticsTools(ctx: AgentContext) {
             createdAt: r.createdAt.toISOString(),
             author: r.createdBy.name,
           })),
-        };
-      },
-    }),
-
-    // ── FINANCEIRO dedicado (receita/despesa/ticket/saldo/inadimplência) ──
-    // get_platform_status_metrics já tem um resumo de finance, mas aqui
-    // dá pra ir fundo: ticket médio, saldo (receita - despesa pagas),
-    // inadimplência (vencidos / total a receber), por categoria + conta.
-    get_finance_metrics: tool({
-      description:
-        "Resume métricas detalhadas de FINANCEIRO: receita (a receber pendente + recebida no período), despesa (a pagar pendente + paga no período), resultado (receita - despesa) no período, ticket médio das contas pagas, saldo, taxa de inadimplência (vencidos a receber / total a receber), distribuição por categoria e por conta bancária. Filtros: empresa, período, categorias, contas bancárias. Use quando o user perguntar 'qual minha receita', 'quanto recebi', 'quanto paguei', 'qual o saldo', 'estou em inadimplência', 'ticket médio'.",
-      inputSchema: z.object({
-        fromIso: z.string().optional(),
-        toIso: z.string().optional(),
-        orgIds: z.array(z.string()).optional(),
-        categoryIds: z
-          .array(z.string())
-          .optional()
-          .describe("Filtra por categorias de receita/despesa"),
-        accountIds: z
-          .array(z.string())
-          .optional()
-          .describe("Filtra por contas bancárias específicas"),
-      }),
-      execute: async ({
-        fromIso,
-        toIso,
-        orgIds,
-        categoryIds,
-        accountIds,
-      }) => {
-        const targetOrgs = await resolveTargetOrgs(ctx, orgIds);
-        if (targetOrgs.length === 0) {
-          return { error: "Sem acesso a nenhuma organização" };
-        }
-
-        const from = fromIso
-          ? new Date(fromIso)
-          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const to = toIso ? new Date(toIso) : new Date();
-
-        const baseWhere = {
-          organizationId: { in: targetOrgs },
-          ...(categoryIds && categoryIds.length > 0
-            ? { categoryId: { in: categoryIds } }
-            : {}),
-          ...(accountIds && accountIds.length > 0
-            ? { accountId: { in: accountIds } }
-            : {}),
-        };
-
-        const [
-          // Recebível
-          receivablePendingAgg,
-          receivableOverdueAgg,
-          receivablePaidAgg,
-          receivablePaidCount,
-          // Pagável
-          payablePendingAgg,
-          payableOverdueAgg,
-          payablePaidAgg,
-          payablePaidCount,
-          // Distribuição por categoria
-          byCategoryReceivable,
-          byCategoryPayable,
-        ] = await Promise.all([
-          prisma.paymentEntry.aggregate({
-            where: {
-              ...baseWhere,
-              type: "RECEIVABLE",
-              status: { in: ["PENDING", "PARTIAL"] },
-            },
-            _sum: { amount: true },
-            _count: { _all: true },
-          }),
-          prisma.paymentEntry.aggregate({
-            where: { ...baseWhere, type: "RECEIVABLE", status: "OVERDUE" },
-            _sum: { amount: true },
-            _count: { _all: true },
-          }),
-          prisma.paymentEntry.aggregate({
-            where: {
-              ...baseWhere,
-              type: "RECEIVABLE",
-              status: "PAID",
-              paidAt: { gte: from, lte: to },
-            },
-            _sum: { paidAmount: true },
-            _count: { _all: true },
-          }),
-          prisma.paymentEntry.count({
-            where: {
-              ...baseWhere,
-              type: "RECEIVABLE",
-              status: "PAID",
-              paidAt: { gte: from, lte: to },
-            },
-          }),
-          prisma.paymentEntry.aggregate({
-            where: {
-              ...baseWhere,
-              type: "PAYABLE",
-              status: { in: ["PENDING", "PARTIAL"] },
-            },
-            _sum: { amount: true },
-            _count: { _all: true },
-          }),
-          prisma.paymentEntry.aggregate({
-            where: { ...baseWhere, type: "PAYABLE", status: "OVERDUE" },
-            _sum: { amount: true },
-            _count: { _all: true },
-          }),
-          prisma.paymentEntry.aggregate({
-            where: {
-              ...baseWhere,
-              type: "PAYABLE",
-              status: "PAID",
-              paidAt: { gte: from, lte: to },
-            },
-            _sum: { paidAmount: true },
-            _count: { _all: true },
-          }),
-          prisma.paymentEntry.count({
-            where: {
-              ...baseWhere,
-              type: "PAYABLE",
-              status: "PAID",
-              paidAt: { gte: from, lte: to },
-            },
-          }),
-          prisma.paymentEntry.groupBy({
-            by: ["categoryId"],
-            where: {
-              ...baseWhere,
-              type: "RECEIVABLE",
-              paidAt: { gte: from, lte: to },
-              status: "PAID",
-            },
-            _sum: { paidAmount: true },
-            _count: { _all: true },
-          }),
-          prisma.paymentEntry.groupBy({
-            by: ["categoryId"],
-            where: {
-              ...baseWhere,
-              type: "PAYABLE",
-              paidAt: { gte: from, lte: to },
-              status: "PAID",
-            },
-            _sum: { paidAmount: true },
-            _count: { _all: true },
-          }),
-        ]);
-
-        // Enriquece categorias com nome
-        const allCategoryIds = [
-          ...byCategoryReceivable.map((c) => c.categoryId),
-          ...byCategoryPayable.map((c) => c.categoryId),
-        ].filter((id): id is string => id !== null);
-        const categories =
-          allCategoryIds.length > 0
-            ? await prisma.paymentCategory.findMany({
-                where: { id: { in: allCategoryIds } },
-                select: { id: true, name: true, type: true },
-              })
-            : [];
-        const categoryMap = new Map(categories.map((c) => [c.id, c]));
-
-        const receivedCents = receivablePaidAgg._sum.paidAmount ?? 0;
-        const paidCents = payablePaidAgg._sum.paidAmount ?? 0;
-        const resultCents = receivedCents - paidCents;
-        const pendingReceivableCents = receivablePendingAgg._sum.amount ?? 0;
-        const overdueReceivableCents = receivableOverdueAgg._sum.amount ?? 0;
-        const totalReceivableCents =
-          pendingReceivableCents + overdueReceivableCents + receivedCents;
-        const overdueRate =
-          totalReceivableCents > 0
-            ? Math.round(
-                (overdueReceivableCents / totalReceivableCents) * 100 * 10,
-              ) / 10
-            : 0;
-        const avgTicketCents =
-          receivablePaidCount > 0
-            ? Math.round(receivedCents / receivablePaidCount)
-            : 0;
-
-        return {
-          period: { from: from.toISOString(), to: to.toISOString() },
-          receivable: {
-            pendingCents: pendingReceivableCents,
-            pendingCount: receivablePendingAgg._count._all,
-            overdueCents: overdueReceivableCents,
-            overdueCount: receivableOverdueAgg._count._all,
-            receivedInPeriodCents: receivedCents,
-            receivedCount: receivablePaidCount,
-          },
-          payable: {
-            pendingCents: payablePendingAgg._sum.amount ?? 0,
-            pendingCount: payablePendingAgg._count._all,
-            overdueCents: payableOverdueAgg._sum.amount ?? 0,
-            overdueCount: payableOverdueAgg._count._all,
-            paidInPeriodCents: paidCents,
-            paidCount: payablePaidCount,
-          },
-          result: {
-            // Resultado = recebido - pago (caixa real, não competência)
-            netCents: resultCents,
-          },
-          avgTicketReceivedCents: avgTicketCents,
-          overdueRatePercent: overdueRate,
-          byCategory: {
-            receivable: byCategoryReceivable.map((c) => ({
-              categoryId: c.categoryId,
-              name: c.categoryId
-                ? categoryMap.get(c.categoryId)?.name ?? "(sem categoria)"
-                : "(sem categoria)",
-              totalCents: c._sum.paidAmount ?? 0,
-              count: c._count._all,
-            })),
-            payable: byCategoryPayable.map((c) => ({
-              categoryId: c.categoryId,
-              name: c.categoryId
-                ? categoryMap.get(c.categoryId)?.name ?? "(sem categoria)"
-                : "(sem categoria)",
-              totalCents: c._sum.paidAmount ?? 0,
-              count: c._count._all,
-            })),
-          },
         };
       },
     }),

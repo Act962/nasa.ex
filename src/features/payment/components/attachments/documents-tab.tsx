@@ -54,6 +54,8 @@ import {
   PaymentPagination,
   PaymentPaginationNav,
 } from "../shared/payment-pagination";
+import { InboxSection } from "../inbox/inbox-section";
+import { RemindersPanel } from "../reminders/reminders-panel";
 
 const PER_PAGE = 24;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -171,6 +173,8 @@ export function DocumentsTab() {
 
   return (
     <div className="space-y-4">
+      <InboxSection />
+      <RemindersPanel />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Documentos</h2>

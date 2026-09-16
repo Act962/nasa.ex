@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +38,7 @@ import {
 import { useExportPaymentEntries } from "../hooks/use-payment";
 import { buildEntriesCsv, downloadCsv } from "../lib/export-entries";
 import { PaymentFilterBar } from "./shared/payment-filter-bar";
+import { usePaymentTabStore } from "@/features/payment/store/use-payment-tab-store";
 import { usePaymentFiltersStore } from "../store/use-payment-filters-store";
 import {
   PaymentMobileMenu,
@@ -120,9 +121,40 @@ const FILTERED_TABS = new Set([
 
 export function PaymentPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Controlada pra que "Ver todas" no painel possa saltar direto pra aba certa.
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTabState] = useState(
+    () => searchParams.get("tab") ?? "dashboard",
+  );
+
+  // A aba vai pra URL (`?tab=`) e pro store: o Astro lê o contexto da rota, e
+  // sabendo que o usuário está em Documentos ou em Conciliação responde sobre
+  // o que está na tela em vez de perguntar (spec 0014).
+  const publishTab = usePaymentTabStore((state) => state.setActiveTab);
+
+  const setActiveTab = useCallback(
+    (tab: string) => {
+      setActiveTabState(tab);
+      const params = new URLSearchParams(searchParams.toString());
+      if (tab === "dashboard") params.delete("tab");
+      else params.set("tab", tab);
+      const query = params.toString();
+      router.replace(query ? `/payment?${query}` : "/payment", { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  // Alguém abriu /payment?tab=documentos numa nova navegação (link do Astro).
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab") ?? "dashboard";
+    setActiveTabState((current) => (current === tabFromUrl ? current : tabFromUrl));
+  }, [searchParams]);
+
+  useEffect(() => {
+    publishTab(activeTab);
+    return () => publishTab(null);
+  }, [activeTab, publishTab]);
   // O período agora mora no store compartilhado (uma barra para todas as
   // abas); aqui só é lido para o "Exportar", que existe na toolbar do painel
   // e no menu sanduíche do mobile.

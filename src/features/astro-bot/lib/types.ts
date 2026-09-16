@@ -33,7 +33,23 @@ export type BotCommandStatus =
   | "tool_denied"
   | "error_orchestrator"
   | "binding_inactive"
-  | "binding_not_found";
+  | "binding_not_found"
+  | "stars_insufficient"
+  | "media_unsupported"
+  | "media_forbidden"
+  | "media_failed";
+
+/** Documento/imagem enviado por membro allow-listado (spec 0019). */
+export interface BotInboundMedia {
+  /** `messageid` na Uazapi, `wamid` na Meta. */
+  externalMessageId: string;
+  /** `media_id` da Graph API — só Meta. */
+  mediaId?: string;
+  kind: "document" | "image";
+  mimetype?: string;
+  fileName?: string;
+  caption?: string;
+}
 
 /** Resultado da resolução de um comando inbound. */
 export interface BotCommandResult {

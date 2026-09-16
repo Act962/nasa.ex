@@ -346,40 +346,59 @@ export async function POST(request: NextRequest) {
   const textCandidates = normalized.messages.filter(
     (message) => message.type === "text",
   );
-  if (normalized.messages.length === 1 && textCandidates.length === 1) {
-    const candidate = textCandidates[0];
-    if (candidate.type === "text") {
-      const bodyForBot = candidate.body.trim();
-      if (bodyForBot) {
-        try {
-          const { maybeHandleBotMessage } = await import(
-            "@/features/astro-bot/lib/webhook-handler"
-          );
-          const botResult = await maybeHandleBotMessage({
-            fromPhone: candidate.sender.phone,
-            messageText: bodyForBot,
-            trackingId: instance.trackingId,
-            trackingOrganizationId: tracking.organizationId,
-          });
-          if (botResult.handled) {
-            return NextResponse.json(
-              {
-                ok: true,
-                handledBy: "astro-bot",
-                bindingId: botResult.bindingId,
-                status: botResult.status,
-              },
-              { status: 200 },
-            );
-          }
-        } catch (error) {
-          console.error(
-            "[webhook:official:POST] astro_bot_intercept_failed",
-            error,
-          );
-          // segue pro pipeline normal
-        }
+  // Documento/imagem único de membro allow-listado também passa pelo gate
+  // (spec 0019); o handler só intercepta com `financeEnabled`.
+  const singleMessage =
+    normalized.messages.length === 1 ? normalized.messages[0] : undefined;
+  const singleBotMedia =
+    singleMessage?.type === "media" &&
+    (singleMessage.kind === "document" || singleMessage.kind === "image")
+      ? singleMessage
+      : undefined;
+  const bodyForBot =
+    singleMessage?.type === "text"
+      ? singleMessage.body.trim()
+      : (singleBotMedia?.caption ?? "").trim();
+  if (singleMessage && ((singleMessage.type === "text" && bodyForBot) || singleBotMedia)) {
+    try {
+      const { maybeHandleBotMessage } = await import(
+        "@/features/astro-bot/lib/webhook-handler"
+      );
+      const botResult = await maybeHandleBotMessage({
+        fromPhone: singleMessage.sender.phone,
+        messageText: bodyForBot,
+        media:
+          singleBotMedia &&
+          (singleBotMedia.kind === "document" || singleBotMedia.kind === "image")
+            ? {
+                externalMessageId: singleBotMedia.externalMessageId,
+                mediaId: singleBotMedia.mediaId,
+                kind: singleBotMedia.kind,
+                mimetype: singleBotMedia.mimetype,
+                fileName: singleBotMedia.fileName,
+                caption: singleBotMedia.caption,
+              }
+            : undefined,
+        trackingId: instance.trackingId,
+        trackingOrganizationId: tracking.organizationId,
+      });
+      if (botResult.handled) {
+        return NextResponse.json(
+          {
+            ok: true,
+            handledBy: "astro-bot",
+            bindingId: botResult.bindingId,
+            status: botResult.status,
+          },
+          { status: 200 },
+        );
       }
+    } catch (error) {
+      console.error(
+        "[webhook:official:POST] astro_bot_intercept_failed",
+        error,
+      );
+      // segue pro pipeline normal
     }
   } else if (textCandidates.length > 0 && normalized.messages.length > 1) {
     console.log("[webhook:official:POST] astro_bot_skipped_multi_message", {

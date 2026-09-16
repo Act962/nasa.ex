@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { EntryAttachmentsSection } from "../attachments/entry-attachments-section";
+import { RemindersPanel } from "../reminders/reminders-panel";
 import {
   formatCurrency,
   formatDate,
@@ -135,6 +136,10 @@ export function EntryDetailsDialog({
             </p>
             <EntryAttachmentsSection entryId={entry.id} />
           </div>
+
+          <Separator />
+
+          <RemindersPanel entryId={entry.id} />
         </div>
       </DialogContent>
     </Dialog>
