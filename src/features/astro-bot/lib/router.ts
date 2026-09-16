@@ -1,18 +1,10 @@
 /**
- * Router principal do Astro Bot via WhatsApp (Insights pelo WhatsApp).
+ * Router do Astro pelo WhatsApp. Por mensagem: binding ativo → quiet hours →
+ * rate limit → mídia elegível → stake de Stars → (download da mídia) →
+ * orquestrador → cobrança por tokens → log em WhatsappBotCommand.
  *
- * Pipeline pra cada mensagem recebida:
- *   1. Identifica binding pelo phoneE164 (allow-list) — feito no webhook-handler
- *   2. Verifica binding ativo, rate limit + quiet hours
- *   3. Chama Astro orchestrator em modo INSIGHTS (read-only)
- *   4. Converte saída pra WhatsApp-friendly
- *   5. Loga em WhatsappBotCommand pra audit + telemetria
- *
- * Sem PIN/sessão: o fluxo confia no número allow-listado pelo admin. Como o
- * escopo é read-only (`toolScope: "insights"`), não há ação destrutiva possível.
- *
- * Cada erro tem reply user-friendly em PT-BR — bot NUNCA mostra stack
- * trace ou JSON cru pro user.
+ * Escopo (spec 0019): `insights` (só leitura) por padrão; `assistant` quando a
+ * org liga `financeEnabled` — escrita financeira sempre via proposta + "sim".
  */
 import "server-only";
 import type {
@@ -21,7 +13,7 @@ import type {
 } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { streamAstro } from "@/features/astro/server/orchestrator";
-import type { AgentContext } from "@/features/astro/server/agents/types";
+import type { AgentContext, AstroAttachmentRef } from "@/features/astro/server/agents/types";
 import { isWithinRateLimit, isWithinQuietHours } from "./rate-limit";
 import { loadRecentBotHistory } from "./conversation-history";
 import {
@@ -29,72 +21,139 @@ import {
   markdownToWhatsapp,
   summarizeStructuredPayload,
 } from "./output-formatter";
-import type { BotCommandResult, WhatsappBotChannel } from "./types";
+import { assessBotInboundMedia, storeBotInboundDocument } from "./inbound-media";
+import { chargeBotPromptStake, debitBotTokenUsage } from "./stars-billing";
+import type { BotCommandResult, BotInboundMedia, WhatsappBotChannel } from "./types";
 
 interface RouteContext {
   binding: UserWhatsappBinding;
   botConfig: OrganizationBotConfig;
   channel: WhatsappBotChannel;
+  /** Tracking que recebeu a mensagem — de onde a mídia é baixada. */
+  trackingId: string;
   /** uazapi instance deviceId (pra detectar SIM swap). */
   deviceId?: string;
+  media?: BotInboundMedia;
+}
+
+const INSIGHTS_FALLBACK_REPLY =
+  "Não consegui montar uma resposta pra isso 🤔 Eu respondo só com base nos dados desta empresa (leads, conversões, agenda, listas). Tenta reformular ou me diz qual indicador você quer.";
+const ASSISTANT_FALLBACK_REPLY =
+  "Não consegui montar uma resposta pra isso 🤔 Posso consultar os dados desta empresa, o financeiro (contas a pagar e receber, fluxo de caixa, DRE) e ler boleto ou nota fiscal em PDF/foto. Tenta reformular.";
+const STARS_INSUFFICIENT_REPLY =
+  "⭐ Sua empresa está sem saldo de Stars pra usar o Astro. Peça ao admin pra recarregar no NASA e tente de novo.";
+const DEFAULT_MEDIA_PROMPT =
+  "Leia o documento que acabei de enviar e me mostre o resumo.";
+
+type StepSnapshot = {
+  toolCalls?: Array<{ toolName?: string }>;
+  toolResults?: Array<{ toolName?: string; output?: unknown; result?: unknown }>;
+};
+
+function buildLoggedMessageText(messageText: string, media?: BotInboundMedia): string {
+  if (!media) return messageText;
+  const mediaLabel = `[${media.kind === "image" ? "foto" : "documento"}${media.fileName ? `: ${media.fileName}` : ""}]`;
+  return messageText ? `${mediaLabel} ${messageText}` : mediaLabel;
 }
 
 export async function handleBotCommand(
   ctx: RouteContext,
   messageText: string,
 ): Promise<BotCommandResult> {
-  const { binding, botConfig } = ctx;
+  const { binding, botConfig, media } = ctx;
+  const loggedText = buildLoggedMessageText(messageText, media);
 
-  // ── 1. Binding inativo ─────────────────────────────────────
   if (!binding.isActive) {
-    return logAndReturn(binding, messageText, {
+    return logAndReturn(binding, loggedText, {
       status: "binding_inactive",
       reply:
         "Seu acesso ao Astro Bot foi desativado pelo admin da org. Fale com ele pra reativar.",
     });
   }
 
-  // ── 2. Quiet hours ─────────────────────────────────────────
   if (isWithinQuietHours(botConfig.quietHoursStart, botConfig.quietHoursEnd)) {
-    return logAndReturn(binding, messageText, {
+    return logAndReturn(binding, loggedText, {
       status: "quiet_hours",
       reply: `🌙 Estou em horário de descanso (${botConfig.quietHoursStart}h–${botConfig.quietHoursEnd}h). Te respondo quando voltar.`,
     });
   }
 
-  // ── 3. Rate limit ──────────────────────────────────────────
   const rate = await isWithinRateLimit(binding.id, botConfig.maxCmdsPerHour);
   if (!rate.allowed) {
-    return logAndReturn(binding, messageText, {
+    return logAndReturn(binding, loggedText, {
       status: "rate_limited",
       reply: `⏱️ Você atingiu ${rate.count}/${rate.limit} comandos nesta hora. Aguarde um pouco antes do próximo.`,
     });
   }
 
-  // ── 4. Chama Astro orchestrator em modo INSIGHTS (read-only) ──
+  // Validação barata antes do stake: arquivo recusado não gasta Stars.
+  if (media) {
+    const assessment = await assessBotInboundMedia(binding, media);
+    if (!assessment.isEligible) {
+      return logAndReturn(binding, loggedText, {
+        status: assessment.status,
+        reply: assessment.reply,
+      });
+    }
+  }
+
+  const stake = await chargeBotPromptStake(binding);
+  if (!stake.hasBalance) {
+    return logAndReturn(binding, loggedText, {
+      status: "stars_insufficient",
+      reply: STARS_INSUFFICIENT_REPLY,
+      starsCharged: 0,
+    });
+  }
+
+  let attachments: AstroAttachmentRef[] | undefined;
+  if (media) {
+    try {
+      const stored = await storeBotInboundDocument({
+        binding,
+        trackingId: ctx.trackingId,
+        media,
+      });
+      if (!stored.isStored) {
+        return logAndReturn(binding, loggedText, {
+          status: stored.status,
+          reply: stored.reply,
+          starsCharged: stake.starsCharged,
+        });
+      }
+      attachments = [stored.attachment];
+    } catch (storeError) {
+      console.error("[astro-bot/router] store media failed", storeError);
+      return logAndReturn(binding, loggedText, {
+        status: "media_failed",
+        reply: "❌ Não consegui guardar esse arquivo. Tenta mandar de novo daqui a pouco.",
+        starsCharged: stake.starsCharged,
+      });
+    }
+  }
+
+  const isFinanceEnabled = botConfig.financeEnabled;
+
   try {
     const agentCtx: AgentContext = {
       userId: binding.userId,
       organizationId: binding.organizationId,
-      // Trava as tools de leitura na org deste número — o Astro pelo WhatsApp
-      // responde por UMA tracking, então não pode vazar dados de outras orgs
-      // que o membro participe (ver resolveTargetOrgs).
+      // O número responde por UMA tracking — as tools não podem vazar dados de
+      // outras orgs do membro (ver resolveTargetOrgs).
       restrictToOrgId: binding.organizationId,
-      route: {
-        // Bot WhatsApp não tem rota — passa snapshot vazio. Tools que
-        // dependem de leadId/conversationId precisarão extrair do texto
-        // via search_entities (já existe no orchestrator).
-      } as never,
+      route: {},
+      channel: "WHATSAPP",
+      // Estável por número: agrupa as propostas pendentes deste binding.
+      sessionId: `whatsapp:${binding.id}`,
+      attachments,
     };
 
-    // Histórico curto por número — dá memória conversacional ("qual o nome
-    // desse lead?" depois de "quantos leads tenho?"). Os turnos anteriores
-    // entram antes da mensagem atual.
     const history = await loadRecentBotHistory(binding.id);
+    const promptText = messageText.trim() || DEFAULT_MEDIA_PROMPT;
 
     const stream = await streamAstro({
       ctx: agentCtx,
-      toolScope: "insights",
+      toolScope: isFinanceEnabled ? "assistant" : "insights",
       // gpt-4o-mini hesita/alucina em list_* pelo WhatsApp — força o gpt-4o.
       forceComplexModel: true,
       outputStyle: "whatsapp",
@@ -103,39 +162,31 @@ export async function handleBotCommand(
         {
           id: "bot-cmd",
           role: "user",
-          parts: [{ type: "text", text: messageText }],
+          parts: [{ type: "text", text: promptText }],
         } as never,
       ],
     });
 
     const finalText = await stream.text;
     const usage = await stream.usage;
+    const tokenStars = stake.isExempt
+      ? 0
+      : await debitBotTokenUsage(binding, usage?.totalTokens ?? 0);
 
-    // `stream.toolCalls` traz só o ÚLTIMO step — as tools rodam em steps
-    // anteriores. Agregamos de TODOS os steps pra logar certo e pra resumir
-    // os payloads estruturados (astro_table/astro_chart).
-    const steps = (await stream.steps) as Array<{
-      toolCalls?: Array<{ toolName?: string }>;
-      toolResults?: Array<{ toolName?: string; output?: unknown; result?: unknown }>;
-    }>;
+    // `stream.toolCalls` traz só o último step; as tools rodam nos anteriores.
+    const steps = (await stream.steps) as StepSnapshot[];
     const toolNames = steps
       .flatMap((step) => step.toolCalls ?? [])
       .map((call) => call.toolName ?? "?");
 
-    // ── 5. Coleta payloads estruturados pro resumo ─────────────
-    // Tools que retornam astro_chart/astro_table viram resumo textual (no
-    // WhatsApp não dá pra renderizar a tabela/clicar).
     const structuredSummaries: string[] = [];
     for (const step of steps) {
       for (const toolResult of step.toolResults ?? []) {
-        const result = toolResult.output ?? toolResult.result;
-        const summary = summarizeStructuredPayload(result);
+        const summary = summarizeStructuredPayload(toolResult.output ?? toolResult.result);
         if (summary) structuredSummaries.push(summary);
       }
     }
 
-    // Corta firula e — quando há resumo estruturado logo abaixo — a lista que o
-    // modelo repetiu em prosa (senão ela aparece duas vezes).
     const formatted = cleanWhatsappReply(markdownToWhatsapp(finalText ?? ""), {
       hasStructured: structuredSummaries.length > 0,
     });
@@ -147,26 +198,21 @@ export async function handleBotCommand(
       .join("\n\n")
       .trim();
 
-    // Insights é read-only — nunca "completa uma ação", então um reply vazio
-    // NÃO pode virar "✅ Feito." (confirmação de ação que confunde o usuário,
-    // como em "quais empresas vc vê? → ✅ Feito."). Resposta vazia = o modelo
-    // não montou texto (pergunta fora do escopo de leitura ou sem dados):
-    // devolve uma mensagem de não-resposta clara.
-    const fallbackReply =
-      "Não consegui montar uma resposta pra isso 🤔 Eu respondo só com base nos dados desta empresa (leads, conversões, agenda, listas). Tenta reformular ou me diz qual indicador você quer.";
-
-    return logAndReturn(binding, messageText, {
+    // Reply vazio nunca vira "✅ Feito." — confirmação falsa confunde o usuário.
+    return logAndReturn(binding, loggedText, {
       status: reply ? "ok" : "empty_reply",
-      reply: reply || fallbackReply,
+      reply: reply || (isFinanceEnabled ? ASSISTANT_FALLBACK_REPLY : INSIGHTS_FALLBACK_REPLY),
       toolsCalled: toolNames,
       tokensUsed: usage?.totalTokens ?? undefined,
+      starsCharged: stake.starsCharged + tokenStars,
     });
-  } catch (err) {
-    console.error("[astro-bot/router] orchestrator failed", err);
-    return logAndReturn(binding, messageText, {
+  } catch (orchestratorError) {
+    console.error("[astro-bot/router] orchestrator failed", orchestratorError);
+    return logAndReturn(binding, loggedText, {
       status: "error_orchestrator",
       reply:
         "❌ Tive um problema processando seu comando. Tenta de novo daqui a pouco — se persistir, manda mensagem no NASA pelo computador.",
+      starsCharged: stake.starsCharged,
     });
   }
 }
@@ -189,8 +235,8 @@ async function logAndReturn(
         starsCharged: result.starsCharged ?? null,
       },
     });
-  } catch (err) {
-    console.warn("[astro-bot/router] log command failed", err);
+  } catch (logError) {
+    console.warn("[astro-bot/router] log command failed", logError);
   }
   return result;
 }

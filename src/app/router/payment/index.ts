@@ -68,6 +68,18 @@ import {
   ignoreStatementTransaction,
   listStatementImports,
 } from "./statements";
+import {
+  getPaymentInboxConfig,
+  updatePaymentInboxConfig,
+  listPaymentInboxItems,
+  ignorePaymentInboxItem,
+  syncPaymentInboxNow,
+} from "./inbox";
+import {
+  listPaymentRemindersProcedure,
+  createPaymentReminderProcedure,
+  cancelPaymentReminderProcedure,
+} from "./reminders";
 import { getPaymentProjection } from "./projection";
 import { getIncomeStatement, getOperationalResult } from "./reports";
 import { listExternalContacts } from "./external-contacts";
@@ -141,6 +153,18 @@ export const paymentRouter = {
     update: updatePaymentAttachment,
     delete: deletePaymentAttachment,
     link:   linkPaymentAttachments,
+  },
+  reminders: {
+    list:   listPaymentRemindersProcedure,
+    create: createPaymentReminderProcedure,
+    cancel: cancelPaymentReminderProcedure,
+  },
+  inbox: {
+    getConfig:    getPaymentInboxConfig,
+    updateConfig: updatePaymentInboxConfig,
+    listItems:    listPaymentInboxItems,
+    ignoreItem:   ignorePaymentInboxItem,
+    syncNow:      syncPaymentInboxNow,
   },
   dashboard: {
     get: getPaymentDashboard,

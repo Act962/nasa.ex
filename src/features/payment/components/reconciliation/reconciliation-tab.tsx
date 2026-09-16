@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, FileCheck2, Landmark, Info, CheckCircle2, X } from "lucide-react";
+import { Upload, FileCheck2, Landmark, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -18,41 +18,23 @@ import {
   useInspectStatement,
   useStatementTransactions,
 } from "../../hooks/use-payment-statements";
+import { useUploadPaymentAttachment } from "../../hooks/use-payment-attachments";
 import { describePaymentError } from "../../lib/describe-error";
-import { formatCurrency, formatDate } from "../../lib/format";
+import { formatCurrency } from "../../lib/format";
 import { TransactionsList } from "./transactions-list";
+import { ConfirmImportCard, type PendingStatement } from "./confirm-import-card";
 
 type StatusTab = "PENDING" | "MATCHED" | "IGNORED";
-
-interface StatementInspection {
-  bankId: string | null;
-  bankName: string | null;
-  statementAccountId: string | null;
-  periodStart: Date | string | null;
-  periodEnd: Date | string | null;
-  transactionCount: number;
-  suggestedAccountId: string | null;
-  matchReason: "EXACT_ACCOUNT" | "BANK_CODE" | "ONLY_ACCOUNT" | "NONE";
-}
-
-interface PendingStatement {
-  fileName: string;
-  contentBase64: string;
-  inspection: StatementInspection;
-}
-
-const MATCH_REASON_LABELS: Record<StatementInspection["matchReason"], string> = {
-  EXACT_ACCOUNT: "Esta conta já recebeu extratos desta mesma conta bancária.",
-  BANK_CODE: "Única conta cadastrada neste banco.",
-  ONLY_ACCOUNT: "Você só tem uma conta cadastrada.",
-  NONE: "Não consegui identificar a conta — escolha abaixo.",
-};
 
 const STATUS_LABELS: Record<StatusTab, string> = {
   PENDING: "A conciliar",
   MATCHED: "Conciliadas",
   IGNORED: "Ignoradas",
 };
+
+function isPdfFile(file: File): boolean {
+  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+}
 
 export function ReconciliationTab() {
   const fileInput = useRef<HTMLInputElement>(null);
@@ -66,28 +48,41 @@ export function ReconciliationTab() {
   const accounts = accountsData?.accounts ?? [];
   const inspectStatement = useInspectStatement();
   const importStatement = useImportStatement();
+  const uploadAttachment = useUploadPaymentAttachment();
   const { data, isLoading } = useStatementTransactions({
     accountId: accountId || undefined,
     status: statusTab,
   });
 
-  const isBusy = inspectStatement.isPending || importStatement.isPending;
+  const isBusy = inspectStatement.isPending || importStatement.isPending || uploadAttachment.isPending;
+
+  async function readPdfStatement(file: File) {
+    // PDF sobe como anexo financeiro e é lido no servidor: o arquivo fica em
+    // Documentos e a leitura por IA é reaproveitada na importação.
+    const attachment = await uploadAttachment.mutateAsync(file);
+    const inspection = await inspectStatement.mutateAsync({ attachmentId: attachment.id });
+    if (inspection.suggestedAccountId) setAccountId(inspection.suggestedAccountId);
+    setPending({ format: "PDF", fileName: file.name, attachmentId: attachment.id, inspection });
+  }
+
+  async function readOfxStatement(file: File) {
+    // Lê como bytes e envia em base64: o encoding do extrato é detectado no
+    // servidor a partir do cabeçalho, e deixar o navegador decodificar como
+    // texto destruiria essa informação.
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    const contentBase64 = btoa(binary);
+
+    const inspection = await inspectStatement.mutateAsync({ contentBase64 });
+    if (inspection.suggestedAccountId) setAccountId(inspection.suggestedAccountId);
+    setPending({ format: "OFX", fileName: file.name, contentBase64, inspection });
+  }
 
   async function handleFile(file: File) {
     try {
-      // Lê como bytes e envia em base64: o encoding do extrato é detectado no
-      // servidor a partir do cabeçalho, e deixar o navegador decodificar como
-      // texto destruiria essa informação.
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      let binary = "";
-      for (const byte of bytes) binary += String.fromCharCode(byte);
-      const contentBase64 = btoa(binary);
-
-      // Lê o cabeçalho antes de gravar: o arquivo diz de que conta ele é, e a
-      // tela aponta a conta cadastrada correspondente para o usuário confirmar.
-      const inspection = await inspectStatement.mutateAsync({ contentBase64 });
-      if (inspection.suggestedAccountId) setAccountId(inspection.suggestedAccountId);
-      setPending({ fileName: file.name, contentBase64, inspection });
+      if (isPdfFile(file)) await readPdfStatement(file);
+      else await readOfxStatement(file);
     } catch (error) {
       toast.error(describePaymentError(error, "Não foi possível ler o extrato"));
     } finally {
@@ -100,11 +95,11 @@ export function ReconciliationTab() {
     if (!accountId) return toast.error("Escolha a conta de destino");
 
     try {
-      const result = await importStatement.mutateAsync({
-        accountId,
-        fileName: pending.fileName,
-        contentBase64: pending.contentBase64,
-      });
+      const result = await importStatement.mutateAsync(
+        pending.format === "PDF"
+          ? { accountId, fileName: pending.fileName, attachmentId: pending.attachmentId }
+          : { accountId, fileName: pending.fileName, contentBase64: pending.contentBase64 },
+      );
       setPending(null);
 
       if (result.alreadyImportedAt) {
@@ -115,7 +110,10 @@ export function ReconciliationTab() {
           ? `${result.imported} transação(ões) nova(s). ${result.duplicated} já existia(m).`
           : "Nenhuma transação nova — tudo neste extrato já havia sido importado.",
       );
-      for (const warning of result.warnings.filter((w) => w.severity !== "info")) {
+      if (result.starsCharged > 0) {
+        toast.info(`Leitura do extrato em PDF: ${result.starsCharged}★ consumidas.`);
+      }
+      for (const warning of result.warnings.filter((statementWarning) => statementWarning.severity !== "info")) {
         toast.warning(warning.message);
       }
     } catch (error) {
@@ -124,6 +122,13 @@ export function ReconciliationTab() {
   }
 
   const totals = data?.totals;
+  const importButtonLabel = uploadAttachment.isPending
+    ? "Enviando arquivo..."
+    : inspectStatement.isPending
+      ? "Lendo extrato..."
+      : importStatement.isPending
+        ? "Importando..."
+        : "Importar extrato (.ofx ou .pdf)";
 
   return (
     <div className="space-y-4">
@@ -151,7 +156,7 @@ export function ReconciliationTab() {
         <input
           ref={fileInput}
           type="file"
-          accept=".ofx,application/x-ofx"
+          accept=".ofx,.pdf,application/x-ofx,application/pdf"
           className="hidden"
           onChange={(event) => {
             const file = event.target.files?.[0];
@@ -164,11 +169,7 @@ export function ReconciliationTab() {
           className="h-9 gap-1.5 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90"
         >
           <Upload className="size-4" />
-          {inspectStatement.isPending
-            ? "Lendo arquivo..."
-            : importStatement.isPending
-              ? "Importando..."
-              : "Importar extrato (.ofx)"}
+          {importButtonLabel}
         </Button>
       </div>
 
@@ -236,100 +237,6 @@ export function ReconciliationTab() {
   );
 }
 
-/**
- * O que o arquivo diz de si mesmo, com a conta de destino já apontada. Existe
- * para o usuário confirmar o destino antes de qualquer escrita — importar na
- * conta errada mistura dois extratos numa fila só.
- */
-function ConfirmImportCard({
-  pending,
-  accounts,
-  accountId,
-  onAccountChange,
-  onConfirm,
-  onCancel,
-  isImporting,
-}: {
-  pending: PendingStatement;
-  accounts: Array<{ id: string; name: string }>;
-  accountId: string;
-  onAccountChange: (value: string) => void;
-  onConfirm: () => void;
-  onCancel: () => void;
-  isImporting: boolean;
-}) {
-  const { inspection } = pending;
-  const identified = inspection.matchReason !== "NONE";
-
-  return (
-    <Card className="gap-0 border-blue-500/30 py-0">
-      <CardContent className="space-y-3 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-2">
-            {identified ? (
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-400" />
-            ) : (
-              <Info className="mt-0.5 size-4 shrink-0 text-amber-400" />
-            )}
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">
-                {inspection.bankName ?? "Extrato"}
-                {inspection.statementAccountId ? ` · conta ${inspection.statementAccountId}` : ""}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {inspection.transactionCount} transação(ões)
-                {inspection.periodStart && inspection.periodEnd
-                  ? ` · ${formatDate(inspection.periodStart)} a ${formatDate(inspection.periodEnd)}`
-                  : ""}
-                {` · ${pending.fileName}`}
-              </p>
-            </div>
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-7 shrink-0"
-            onClick={onCancel}
-            aria-label="Descartar arquivo"
-          >
-            <X className="size-4" />
-          </Button>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <div className="flex flex-1 flex-col gap-1.5">
-            <label className="text-xs text-muted-foreground">Importar para</label>
-            <Select value={accountId} onValueChange={onAccountChange}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Escolher conta..." />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            onClick={onConfirm}
-            disabled={isImporting || !accountId}
-            className="h-9 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90"
-          >
-            {isImporting ? "Importando..." : "Confirmar importação"}
-          </Button>
-        </div>
-
-        <p className="text-[11px] text-muted-foreground">
-          {MATCH_REASON_LABELS[inspection.matchReason]}
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
 function EmptyState({ hasAccount, status }: { hasAccount: boolean; status: StatusTab }) {
   if (status !== "PENDING") {
     return (
@@ -365,6 +272,10 @@ function EmptyState({ hasAccount, status }: { hasAccount: boolean; status: Statu
             <p>
               Importar o mesmo período duas vezes não duplica nada — cada transação tem um
               identificador próprio do banco.
+            </p>
+            <p>
+              Só tem o extrato em <strong>PDF</strong>? Também dá para importar: a IA lê as
+              movimentações (consome Stars). Prefira o OFX quando o banco oferecer — é exato.
             </p>
           </div>
         </div>

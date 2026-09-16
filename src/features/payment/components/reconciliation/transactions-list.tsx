@@ -48,6 +48,7 @@ export interface StatementTransactionRow {
   counterpartyName: string | null;
   status: "PENDING" | "MATCHED" | "IGNORED";
   ignoredReason: string | null;
+  source?: string;
   suggestion: Suggestion | null;
 }
 
@@ -90,9 +91,20 @@ export function TransactionsList({
                 <div className="flex min-w-0 flex-1 items-start gap-2.5">
                   <Icon className={`mt-0.5 size-4 shrink-0 ${color}`} />
                   <div className="min-w-0">
-                    <p className={`text-base font-bold tabular-nums ${color}`}>
-                      {formatCurrency(transaction.amountCents)}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className={`text-base font-bold tabular-nums ${color}`}>
+                        {formatCurrency(transaction.amountCents)}
+                      </p>
+                      {transaction.source === "PDF_UPLOAD" && (
+                        <Badge
+                          variant="outline"
+                          className="border-violet-500/30 bg-violet-500/10 text-[10px] text-violet-300"
+                          title="Transação lida por IA de um extrato em PDF"
+                        >
+                          PDF
+                        </Badge>
+                      )}
+                    </div>
                     <p className="truncate text-xs text-muted-foreground">
                       {formatDate(transaction.postedDate)}
                       {transaction.counterpartyName ? ` · ${transaction.counterpartyName}` : ""}

@@ -15,6 +15,16 @@ import { isAstroChartPayload } from "@/features/astro/lib/astro-chart";
 import { AstroChartCard } from "@/features/astro/components/astro-chart-card";
 import { isAstroTagSuggestionsPayload } from "@/features/astro/lib/astro-tag-suggestions";
 import { AstroTagSuggestionsCard } from "@/features/astro/components/astro-tag-suggestions-card";
+import {
+  isAstroConfirmationPayload,
+  isAstroConfirmationResultPayload,
+} from "@/features/astro/lib/astro-confirmation";
+import {
+  AstroConfirmationCard,
+  AstroConfirmationResultCard,
+} from "@/features/astro/components/astro-confirmation-card";
+import { AstroAttachmentChip } from "@/features/astro/components/astro-attachment-chip";
+import { astroAttachmentPartSchema } from "@/features/astro/schemas/chat-message";
 
 /**
  * Render de uma `UIMessage` do AI SDK.
@@ -29,8 +39,18 @@ import { AstroTagSuggestionsCard } from "@/features/astro/components/astro-tag-s
 export function AstroMessage({
   message,
   cumulativeTokens,
+  onRespond,
+  busy,
 }: {
   message: UIMessage;
+  /**
+   * Envia texto como nova mensagem do usuário — é assim que o card de
+   * confirmação responde "confirmar <id>" (spec 0014, D-2). Sem isso, o card
+   * renderiza só leitura.
+   */
+  onRespond?: (text: string) => void;
+  /** Bloqueia os botões enquanto há stream em andamento. */
+  busy?: boolean;
   /**
    * Total acumulado de tokens da sessão até (e incluindo) esta mensagem.
    * Passado pelo parent que itera todas as mensagens — assim o footer
@@ -150,8 +170,44 @@ export function AstroMessage({
               </div>
             );
           }
+          if (isAstroConfirmationPayload(output)) {
+            return (
+              <div
+                key={idx}
+                className="self-stretch w-full max-w-[95%] sm:max-w-[85%]"
+              >
+                <AstroConfirmationCard
+                  payload={output}
+                  onRespond={onRespond ?? (() => {})}
+                  disabled={busy || !onRespond}
+                />
+              </div>
+            );
+          }
+          if (isAstroConfirmationResultPayload(output)) {
+            return (
+              <div
+                key={idx}
+                className="self-stretch w-full max-w-[95%] sm:max-w-[85%]"
+              >
+                <AstroConfirmationResultCard payload={output} />
+              </div>
+            );
+          }
           // Qualquer outra tool: invisível no UI.
           return null;
+        }
+
+        const attachmentPart = astroAttachmentPartSchema.safeParse(part);
+        if (attachmentPart.success) {
+          return (
+            <AstroAttachmentChip
+              key={idx}
+              fileName={attachmentPart.data.data.fileName}
+              mimeType={attachmentPart.data.data.mimeType}
+              sizeBytes={attachmentPart.data.data.sizeBytes}
+            />
+          );
         }
 
         return null;

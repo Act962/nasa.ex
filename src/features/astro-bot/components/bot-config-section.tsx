@@ -33,6 +33,7 @@ export function BotConfigSection() {
   const [quietHoursStart, setQuietHoursStart] = useState<string>("");
   const [quietHoursEnd, setQuietHoursEnd] = useState<string>("");
   const [isActive, setIsActive] = useState(false);
+  const [isFinanceEnabled, setIsFinanceEnabled] = useState(false);
 
   useEffect(() => {
     if (!config) return;
@@ -45,6 +46,7 @@ export function BotConfigSection() {
       config.quietHoursEnd != null ? String(config.quietHoursEnd) : "",
     );
     setIsActive(config.isActive);
+    setIsFinanceEnabled(config.financeEnabled ?? false);
   }, [config]);
 
   const toggleTracking = (trackingId: string) => {
@@ -63,6 +65,7 @@ export function BotConfigSection() {
         quietHoursStart: quietHoursStart === "" ? null : Number(quietHoursStart),
         quietHoursEnd: quietHoursEnd === "" ? null : Number(quietHoursEnd),
         isActive,
+        financeEnabled: isFinanceEnabled,
       },
       {
         onSuccess: () => toast.success("Configuração salva"),
@@ -185,6 +188,24 @@ export function BotConfigSection() {
           </p>
         </div>
         <Switch checked={isActive} onCheckedChange={setIsActive} />
+      </div>
+
+      <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+        <div>
+          <p className="text-sm font-medium">
+            Astro Financeiro pelo WhatsApp (cobra Stars)
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Libera consultas financeiras, leitura de boleto/nota em PDF ou foto
+            e lançamentos — sempre com confirmação por SIM/NÃO. Só vale pra
+            números com acesso ao NASA Payment. Cada mensagem ao Astro consome
+            Stars; leitura de documento cobra à parte.
+          </p>
+        </div>
+        <Switch
+          checked={isFinanceEnabled}
+          onCheckedChange={setIsFinanceEnabled}
+        />
       </div>
 
       {isActive && enabledTrackingIds.length === 0 && (

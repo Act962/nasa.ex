@@ -14,6 +14,13 @@
  * Fase 3 vai gerar imagem do chart e enviar via sendMedia.
  */
 import "server-only";
+import {
+  isAstroConfirmationPayload,
+  isAstroConfirmationResultPayload,
+  type AstroConfirmationLine,
+  type AstroConfirmationPayload,
+  type AstroConfirmationResultPayload,
+} from "@/features/astro/lib/astro-confirmation";
 
 export function markdownToWhatsapp(md: string): string {
   let out = md;
@@ -144,7 +151,12 @@ type TableRow = Record<string, string | number | boolean | null | undefined>;
 
 export function summarizeStructuredPayload(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
-  const p = payload as {
+  if (isAstroConfirmationPayload(payload)) return formatConfirmationForWhatsapp(payload);
+  if (isAstroConfirmationResultPayload(payload)) {
+    return formatConfirmationResultForWhatsapp(payload);
+  }
+
+  const structured = payload as {
     kind?: string;
     title?: string;
     data?: unknown;
@@ -152,11 +164,11 @@ export function summarizeStructuredPayload(payload: unknown): string | null {
     columns?: unknown;
     totalCount?: number;
   };
-  if (typeof p.kind !== "string") return null;
+  if (typeof structured.kind !== "string") return null;
 
-  if (p.kind === "astro_chart") {
-    const data = Array.isArray(p.data)
-      ? (p.data as Array<{ label?: string; value?: number }>)
+  if (structured.kind === "astro_chart") {
+    const data = Array.isArray(structured.data)
+      ? (structured.data as Array<{ label?: string; value?: number }>)
       : [];
     const top = data.slice(0, TABLE_SUMMARY_MAX_ROWS);
     const items = top
@@ -164,18 +176,18 @@ export function summarizeStructuredPayload(payload: unknown): string | null {
       .join("\n");
     const more =
       data.length > top.length ? `\n_(...e mais ${data.length - top.length})_` : "";
-    return `*${p.title ?? "Gráfico"}*\n${items}${more}`;
+    return `*${structured.title ?? "Gráfico"}*\n${items}${more}`;
   }
 
-  if (p.kind === "astro_table") {
+  if (structured.kind === "astro_table") {
     // O payload real usa `rows` + `columns` (não `data`). Renderiza as linhas
     // como lista legível — no WhatsApp não dá pra "clicar" na tabela, então o
     // conteúdo precisa vir no texto.
-    const rows = (Array.isArray(p.rows) ? p.rows : []) as TableRow[];
-    const columns = (Array.isArray(p.columns) ? p.columns : []) as TableColumn[];
-    const total = typeof p.totalCount === "number" ? p.totalCount : rows.length;
+    const rows = (Array.isArray(structured.rows) ? structured.rows : []) as TableRow[];
+    const columns = (Array.isArray(structured.columns) ? structured.columns : []) as TableColumn[];
+    const total = typeof structured.totalCount === "number" ? structured.totalCount : rows.length;
     if (rows.length === 0) {
-      return `*${p.title ?? "Tabela"}*\nNenhum item encontrado.`;
+      return `*${structured.title ?? "Tabela"}*\nNenhum item encontrado.`;
     }
     const primaryKey = columns[0]?.key ?? "name";
     const top = rows.slice(0, TABLE_SUMMARY_MAX_ROWS);
@@ -190,13 +202,55 @@ export function summarizeStructuredPayload(payload: unknown): string | null {
     });
     const more =
       total > top.length ? `\n_(...e mais ${total - top.length})_` : "";
-    return `*${p.title ?? "Tabela"}* (${total})\n${lines.join("\n")}${more}`;
+    return `*${structured.title ?? "Tabela"}* (${total})\n${lines.join("\n")}${more}`;
   }
 
-  if (p.kind === "astro_videos") {
-    const videos = Array.isArray(p.data) ? p.data : [];
+  if (structured.kind === "astro_videos") {
+    const videos = Array.isArray(structured.data) ? structured.data : [];
     return `*${videos.length} vídeo(s) encontrados*\n_Abre no NASA pra assistir._`;
   }
 
   return null;
+}
+
+function formatConfirmationLines(lines: AstroConfirmationLine[] | undefined): string[] {
+  return (lines ?? []).map((line) => `• ${line.label}: *${line.value}*`);
+}
+
+function formatExpiryTime(expiresAtIso: string): string | null {
+  const expiresAt = new Date(expiresAtIso);
+  if (Number.isNaN(expiresAt.getTime())) return null;
+  return expiresAt.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  });
+}
+
+// A PORT canônica do provider não envia botões interativos, e um clique em
+// botão chegaria como `interactive_reply` (fora do gate do bot) — por isso a
+// confirmação é por texto: "sim"/"não" vira `confirm_action`/`cancel_action`.
+function formatConfirmationForWhatsapp(payload: AstroConfirmationPayload): string {
+  const expiryTime = formatExpiryTime(payload.expiresAt);
+  return [
+    `📝 *${payload.title}*`,
+    ...formatConfirmationLines(payload.lines),
+    ...payload.warnings.map((warning) => `⚠️ ${warning}`),
+    "",
+    `Responda *SIM* pra confirmar ou *NÃO* pra cancelar${expiryTime ? ` (vale até ${expiryTime})` : ""}.`,
+  ].join("\n");
+}
+
+function formatConfirmationResultForWhatsapp(payload: AstroConfirmationResultPayload): string {
+  const absoluteLinks = (payload.links ?? [])
+    .filter((link) => /^https?:\/\//.test(link.href))
+    .map((link) => `${link.label}: ${link.href}`);
+  return [
+    `${payload.ok ? "✅" : "❌"} *${payload.title}*`,
+    payload.summary,
+    ...formatConfirmationLines(payload.lines),
+    ...absoluteLinks,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }

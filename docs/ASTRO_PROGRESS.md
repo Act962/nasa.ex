@@ -208,3 +208,145 @@ verdade em [`docs/astro-bot-whatsapp.md`](astro-bot-whatsapp.md) §Rework 2026-0
   virou nullable (PIN/sessão são legado, não enforçados).
 - Auth simplificada: admin adiciona número + escolhe membro (`binding/create`), sem
   OTP/PIN. Gestão é owner/admin only.
+
+## 2026-09-15 — Astro Financeiro, Fase 1 (spec 0014)
+
+Primeira fase da integração do Astro com as ferramentas do Órbita. O piloto é o
+NASA Payment; a arquitetura (packs por app + proposta/confirmação) é o que as
+próximas ferramentas vão reusar. Spec:
+[`specs/astro/0014-astro-agente-financeiro-tools-e-confirmacao.md`](../specs/astro/0014-astro-agente-financeiro-tools-e-confirmacao.md).
+
+### O que mudou
+
+- **Packs de tools por app** — `src/features/astro/server/tools/app-packs.ts`
+  registra pares leitura/escrita por `appSlug`; `server/tool-scope.ts` monta o
+  conjunto de cada escopo e saiu do `orchestrator.ts`. `toolScope` ganhou
+  `"assistant"` (WhatsApp com escrita, usado a partir da fase 6).
+- **Pack financeiro** — `server/tools/finance/`: `read.ts` (painel, fluxo de
+  caixa, dia do fluxo, projeção, metas, DRE, DRO, lançamentos, vencidos,
+  contatos, contas, documentos), `documents.ts` (`read_financial_document`),
+  `write.ts` (propostas) e `executors.ts`.
+- **Whitelist financeira passa a valer no Astro** — toda tool do pack chama
+  `assertPaymentToolAccess`, que reusa `resolvePaymentPermissions`, a mesma
+  matriz do middleware oRPC. A seção financeira de `get_platform_status_metrics`
+  também respeita isso. **Mudança de comportamento**: membro sem `PaymentAccess`
+  não vê mais dado financeiro pelo Astro.
+- **Confirmação obrigatória em escrita** — `AstroPendingAction` + as tools
+  genéricas `confirm_action` / `cancel_action` / `list_pending_actions` em
+  `server/tools/_shared/proposals/`. `create_payment_entry` e
+  `update_payment_entry` continuam existindo, mas só propõem.
+- **Anexo no chat** — o arquivo sobe por `/api/payment/attachments/upload` e a
+  mensagem leva um data part `data-astro-attachment`; a rota valida a posse e
+  injeta `[ARQUIVOS ANEXADOS]` no system prompt.
+- **Leitura de boleto/NF** — `extractFinancialDocument` (`generateObject`, PDF
+  como arquivo pra cobrir escaneado, fallback `pdf-parse`), com validação de
+  linha digitável e de CNPJ/CPF, contato correspondente e possíveis duplicados.
+  Resultado cacheado em `PaymentAttachment.extraction`.
+- **Provedor de IA por custo, configurado em /integrations** —
+  `resolve-extraction-model.ts` lê as chaves que a org cadastrou nos cards
+  OpenAI, Gemini e Anthropic e tenta nessa ordem: `gpt-4o-mini` (US$ 0,62 por
+  mil leituras), `gemini-2.5-flash-lite` (0,41) e `claude-haiku-4-5` (4,50).
+  A escolha inicial, `claude-opus-5`, custava 22,50 e foi descartada. O tier
+  barato é seguro porque a saída é conferível pela linha digitável. O modelo que
+  leu fica gravado na extração e um fallback acionado vira aviso na proposta.
+- **Nome padrão do documento** — `payment/lib/attachment-naming.ts`:
+  `AAAA-MM-DD_<KIND>_<contato>_<valor>_<doc>.<ext>`, aplicado na confirmação.
+- **Serviços do payment** — handlers oRPC viraram wrappers: a lógica mora em
+  `features/payment/server/{dashboard,cashflow,projection,reports,entries}/`, de
+  onde Astro e telas leem os mesmos números.
+
+### Pendências de ambiente
+
+- Migration `20260915120000_astro_pending_actions_and_attachment_extraction`
+  ainda **não aplicada** — rodar `pnpm db:migrate`. `SCHEMA_VERSION` já está em
+  `v70-astro-finance-proposals`.
+- Seed de Stars: `astro_finance_document` (5★) precisa existir em `AppStarCost`
+  (`prisma/seed-star-rules.ts` ou `/admin/stars › Regras`); sem a regra a
+  cobrança é silenciosamente pulada.
+- A chave de IA da leitura vem de /integrations (cards OpenAI, Gemini ou
+  Anthropic) ou das env vars de cada provedor. Sem nenhuma, a tool aponta a tela
+  e não cobra Stars. `ASTRO_FINANCE_EXTRACT_PROVIDER` e
+  `ASTRO_FINANCE_EXTRACT_MODEL` sobrescrevem a ordem e o modelo.
+
+### Próximas fases
+
+2. Widget flutuante no orb · 3. Extrato PDF e conciliação · 4. Lembretes com
+envio do boleto · 5. Caixa de entrada Gmail · 6. WhatsApp com escrita e Stars.
+
+## 2026-09-15 — Astro Financeiro, Fase 2: painel no orb (spec 0015)
+
+Spec: [`specs/astro/0015-astro-widget-flutuante.md`](../specs/astro/0015-astro-widget-flutuante.md).
+
+### O que mudou
+
+- **Painel de chat no orb** — `components/widget/`: clique no orb abre um chat
+  compacto sobre a tela atual (layout do widget do NERP, paleta do `/trafego`),
+  com o mesmo motor do `/home`: anexos, cartão de confirmação, contexto da rota
+  e narração. Não existe no `/home`.
+- **Estado** — `voice/use-astro-widget-store.ts` (aberto, badge de não lidas,
+  prompt pendente). Sessão própria em `sessionStorage["astro-widget-session"]`.
+- **Abrir de qualquer lugar** — `lib/open-astro-widget.ts` dispara o evento
+  `astro:open` com `prompt` opcional.
+- **Orb enxuto** — `astro-orb.tsx` dividido em `greeting.ts`, `orb-visuals.ts`,
+  `mic-permission-guide.tsx`, `use-astro-voice-actions.ts` e
+  `astro-voice-menu.tsx` (menu reusado no cabeçalho do painel). Com o painel
+  aberto, a voz vai pro painel; fechado, segue indo pro `/home`.
+- **Removidos** — os widgets legados `astro-agent.tsx` e `astro-agent-legacy.tsx`,
+  sem importadores.
+
+### Próximas fases
+
+3. Extrato PDF e conciliação · 4. Lembretes com envio do boleto · 5. Caixa de
+entrada Gmail · 6. WhatsApp com escrita e Stars.
+
+## 2026-09-15 — Astro Financeiro, Fases 3 a 6 (specs 0016–0019)
+
+Todas na mesma PR da fase 1 (#392). Migrations `20260915130000`…`20260915160000`,
+`SCHEMA_VERSION` `v74-astro-bot-finance`.
+
+### Fase 3 — Extrato PDF e conciliação (spec 0016)
+
+- Extrato PDF lido por IA vira `NormalizedStatement` com `source PDF_UPLOAD` e
+  `externalId` sintético (sha256 com índice de ocorrência); leitura cacheada no
+  anexo. Limite de 400 movimentações.
+- Handlers de `payment/statements.ts` extraídos para serviços em
+  `payment/server/statements/`; a aba Conciliação aceita PDF e mostra badge.
+- Tools: `inspect_bank_statement`, `propose_statement_import`,
+  `list_unreconciled_transactions`, `propose_reconciliation`,
+  `propose_reconciliation_batch`, `propose_entry_from_transaction`,
+  `propose_ignore_transaction`, `propose_unmatch_transaction`.
+
+### Fase 4 — Lembretes com envio do boleto (spec 0017)
+
+- `PaymentReminder` + Inngest `payment-reminder-fire` (dorme até o horário,
+  recarrega, um step por destinatário/canal, `deliveryLog`, notificação).
+- WhatsApp por organização em `tracking-chat/lib/providers/send-org-document.ts`;
+  e-mail com o PDF anexado via Resend.
+- Painel de lembretes na aba Documentos e no detalhe do lançamento.
+- Tools: `propose_payment_reminder`, `list_payment_reminders`,
+  `propose_cancel_payment_reminder`.
+
+### Fase 5 — Caixa de entrada Gmail (spec 0018)
+
+- Cron de 30 min → `payment/inbox.sync` por org; anexo vira `PaymentAttachment`
+  (`sourceChannel: gmail`), é lido e o item fica PROPOSED. Confirmar o lançamento
+  marca o item ACCEPTED.
+- `resolveGoogleAccessToken` extraído do sync do Calendar. A caixa lida é a da
+  conta Google que conectou a integração da empresa.
+- Seção "Caixa de entrada" na aba Documentos. Tools: `list_inbox_documents`,
+  `sync_gmail_inbox_now`, `propose_ignore_inbox_item`.
+
+### Fase 6 — WhatsApp financeiro e Stars (spec 0019)
+
+- `OrganizationBotConfig.financeEnabled` liga o escopo `assistant` (pack payment
+  + confirmação por SIM/NÃO, TTL 2 h). Desligado segue `insights`.
+- PDF/foto de membro allow-listado vira anexo e entra em `ctx.attachments`.
+- O bot passa a cobrar Stars nos dois escopos. Toggle no admin do bot.
+- `confirm_action` sem id só pega proposta do mesmo canal.
+
+### Pendências de ambiente
+
+- Aplicar as 4 migrations novas no banco e rodar o seed de Stars
+  (`astro_finance_statement_pdf`, `astro_finance_reminder_send`, `astro_gmail_sync`).
+- F5 precisa de `GOOGLE_INTEGRATIONS_CLIENT_ID/SECRET/REDIRECT_URI`.
+- Avisar admins que o Astro no WhatsApp passa a cobrar Stars.

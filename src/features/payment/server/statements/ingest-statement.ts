@@ -94,14 +94,17 @@ export async function ingestStatement(params: IngestParams): Promise<IngestResul
 
     // O extrato é a fonte mais confiável de saldo que temos; guardamos à parte
     // de `balance`, que é digitado e alimenta a projeção.
+    // Só o OFX grava os ids da conta: o número lido de um PDF vem sem formato
+    // fixo e quebraria o casamento exato do próximo OFX (spec 0016, D-4).
+    const isOfxStatement = statement.source === "OFX_UPLOAD";
     if (statement.ledgerBalanceCents !== null) {
       await tx.paymentBankAccount.update({
         where: { id: params.accountId },
         data: {
           statementBalanceCents: statement.ledgerBalanceCents,
           statementBalanceAt: statement.ledgerBalanceAt,
-          ...(statement.bankId ? { ofxBankId: statement.bankId } : {}),
-          ...(statement.accountId ? { ofxAccountId: statement.accountId } : {}),
+          ...(isOfxStatement && statement.bankId ? { ofxBankId: statement.bankId } : {}),
+          ...(isOfxStatement && statement.accountId ? { ofxAccountId: statement.accountId } : {}),
         },
       });
     }
