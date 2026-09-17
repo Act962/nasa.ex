@@ -451,9 +451,20 @@ export async function POST(req: NextRequest) {
         cancel_url: `${origin}/trafego?cancelado=1`,
         payment_method_types: ["card"],
         locale: "pt-BR",
-        // Cupom sobre múltiplos itens quebraria a divisão verba/taxa/setup e
-        // viraria problema no repasse — ver spec 0008 §CB-14.
-        allow_promotion_codes: false,
+        // Ligado para permitir cortesia e teste ponta a ponta em produção.
+        //
+        // ATENÇÃO — o desconto NÃO é rastreado: o Stripe aplica o cupom sobre a
+        // sessão inteira e não diz qual item absorveu, e nada aqui grava quanto
+        // foi. Consequências enquanto for assim:
+        //   · `amountMismatch` é marcado em toda compra com cupom (o esperado é
+        //     comparado contra o valor contratado, não contra o cobrado);
+        //   · `createTrafegoSaleSideEffects` lança receita e repasse pelos
+        //     valores CONTRATADOS — um pedido com 100% de desconto cria
+        //     lançamento de dinheiro que não entrou, e verba sem lastro.
+        // Use cupom só em pedido de teste, e apague os lançamentos depois.
+        // O tratamento correto está desenhado na spec 0010 (rascunho) e
+        // registrado como P-9 em docs/trafego-correcoes-pendentes.md.
+        allow_promotion_codes: true,
         metadata,
         // Propaga pro PaymentIntent: o handler de `payment_intent.succeeded`
         // (fallback e métodos assíncronos) depende disso pra reconhecer o kind.
