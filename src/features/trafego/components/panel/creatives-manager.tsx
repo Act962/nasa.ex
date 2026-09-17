@@ -1,14 +1,23 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImageIcon, Loader2, Trash2, Upload, VideoIcon } from "lucide-react";
+import {
+  ImageIcon,
+  LinkIcon,
+  Loader2,
+  Trash2,
+  Upload,
+  VideoIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   useAddTrafegoCreative,
   useRemoveTrafegoCreative,
+  useSetTrafegoMaterialsProfileLink,
 } from "@/features/trafego/hooks/use-trafego-orders";
 import { cn } from "@/lib/utils";
+import { TechnicalTerm } from "../technical-term";
 
 interface Creative {
   id: string;
@@ -23,6 +32,7 @@ interface CreativesManagerProps {
   orderId: string;
   creatives: Creative[];
   maxCreatives: number;
+  materialsProfileLink: string | null;
   readOnly: boolean;
 }
 
@@ -38,12 +48,15 @@ export function CreativesManager({
   orderId,
   creatives,
   maxCreatives,
+  materialsProfileLink,
   readOnly,
 }: CreativesManagerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [profileLink, setProfileLink] = useState(materialsProfileLink ?? "");
   const addCreative = useAddTrafegoCreative();
   const removeCreative = useRemoveTrafegoCreative(orderId);
+  const setMaterialsProfileLink = useSetTrafegoMaterialsProfileLink(orderId);
 
   const isFull = creatives.length >= maxCreatives;
 
@@ -68,7 +81,9 @@ export function CreativesManager({
           continue;
         }
 
-        const fileKey = isVideo ? await uploadVideo(file) : await uploadImage(file);
+        const fileKey = isVideo
+          ? await uploadVideo(file)
+          : await uploadImage(file);
 
         await addCreative.mutateAsync({
           orderId,
@@ -94,10 +109,13 @@ export function CreativesManager({
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-sm font-semibold">Criativos</h3>
+          <h3 className="text-sm font-semibold">
+            Criativos
+            <TechnicalTerm term="creative" />
+          </h3>
           <p className="text-xs text-muted-foreground">
-            {creatives.length} de {maxCreatives} enviados · imagens até 20 MB, vídeos
-            até 500 MB
+            {creatives.length} de {maxCreatives} enviados · imagens até 20 MB,
+            vídeos até 500 MB
           </p>
         </div>
 
@@ -134,12 +152,42 @@ export function CreativesManager({
         )}
       </div>
 
-      {creatives.length === 0 ? (
+      {!readOnly && (
+        <div className="mt-4 flex flex-col gap-2 rounded-xl border bg-muted/30 p-3 sm:flex-row sm:items-center">
+          <LinkIcon className="size-4 shrink-0 text-muted-foreground" />
+          <input
+            type="url"
+            value={profileLink}
+            onChange={(event) => setProfileLink(event.target.value)}
+            placeholder="Já tenho um perfil pronto — cole o link aqui"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={setMaterialsProfileLink.isPending}
+            onClick={() =>
+              setMaterialsProfileLink.mutate(
+                { orderId, profileLink: profileLink.trim() || null },
+                {
+                  onSuccess: () => toast.success("Link de perfil salvo."),
+                  onError: (error) => toast.error(error.message),
+                },
+              )
+            }
+          >
+            Salvar link
+          </Button>
+        </div>
+      )}
+
+      {creatives.length === 0 && !materialsProfileLink ? (
         <div className="mt-4 rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
           Nenhum criativo enviado ainda. Envie as imagens ou vídeos que devem
           aparecer no anúncio.
         </div>
-      ) : (
+      ) : creatives.length > 0 ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {creatives.map((creative) => (
             <div
@@ -158,7 +206,11 @@ export function CreativesManager({
                     className="size-full object-cover"
                   />
                 ) : (
-                  <video src={creative.url} controls className="size-full object-cover" />
+                  <video
+                    src={creative.url}
+                    controls
+                    className="size-full object-cover"
+                  />
                 )}
               </div>
 
@@ -200,7 +252,7 @@ export function CreativesManager({
             </div>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -260,7 +312,9 @@ async function uploadVideo(file: File): Promise<string> {
     body: file,
   });
   if (!response.ok) {
-    const error = (await response.json().catch(() => null)) as { error?: string } | null;
+    const error = (await response.json().catch(() => null)) as {
+      error?: string;
+    } | null;
     throw new Error(error?.error ?? "Falha ao enviar o vídeo.");
   }
   const { key } = (await response.json()) as { key: string };

@@ -8,7 +8,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
  * mostra o resultado é o polling do `get` enquanto o rascunho não chega.
  */
 
-export const useTrafegoRelease = (orderId: string, options?: { poll?: boolean }) => {
+export const useTrafegoRelease = (
+  orderId: string,
+  options?: { poll?: boolean },
+) => {
   return useQuery({
     ...orpc.trafego.release.get.queryOptions({ input: { orderId } }),
     enabled: Boolean(orderId),
@@ -58,10 +61,19 @@ export const useSaveTrafegoRelease = () => {
     orpc.trafego.release.save.mutationOptions({
       onSuccess: (_data, variables) => {
         queryClient.invalidateQueries({
-          queryKey: orpc.trafego.release.get.key({ input: { orderId: variables.orderId } }),
+          queryKey: orpc.trafego.release.get.key({
+            input: { orderId: variables.orderId },
+          }),
+        });
+        queryClient.invalidateQueries({
+          queryKey: orpc.trafego.getOrder.key({
+            input: { orderId: variables.orderId },
+          }),
         });
         // Salvar o Release refaz as recomendações no servidor.
-        queryClient.invalidateQueries({ queryKey: orpc.trafego.recommendations.get.key() });
+        queryClient.invalidateQueries({
+          queryKey: orpc.trafego.recommendations.get.key(),
+        });
       },
     }),
   );

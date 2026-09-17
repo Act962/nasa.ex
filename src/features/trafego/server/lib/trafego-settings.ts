@@ -20,6 +20,8 @@ export interface TrafegoOperationsSettings {
   briefingFormId: string | null;
   salesTrackingId: string | null;
   supportWhatsapp: string | null;
+  includedCreatives: number;
+  extraCreativeBrlCents: number;
   partnerBusinessId: string | null;
   whatsappActivationTemplate: string | null;
   whatsappStatusTemplate: string | null;
@@ -42,6 +44,8 @@ const EMPTY_SETTINGS: TrafegoOperationsSettings = {
   briefingFormId: null,
   salesTrackingId: null,
   supportWhatsapp: null,
+  includedCreatives: 3,
+  extraCreativeBrlCents: 4000,
   partnerBusinessId: null,
   whatsappActivationTemplate: null,
   whatsappStatusTemplate: null,
@@ -60,16 +64,22 @@ const EMPTY_SETTINGS: TrafegoOperationsSettings = {
 const TTL_MS = 30_000;
 
 const globalForSettings = globalThis as unknown as {
-  __trafegoSettingsCache?: { value: TrafegoOperationsSettings; expiresAt: number } | null;
+  __trafegoSettingsCache?: {
+    value: TrafegoOperationsSettings;
+    expiresAt: number;
+  } | null;
 };
 
 export async function loadTrafegoSettings(options?: {
   fresh?: boolean;
 }): Promise<TrafegoOperationsSettings> {
   const cached = globalForSettings.__trafegoSettingsCache;
-  if (!options?.fresh && cached && cached.expiresAt > Date.now()) return cached.value;
+  if (!options?.fresh && cached && cached.expiresAt > Date.now())
+    return cached.value;
 
-  const row = await prisma.trafegoSettings.findUnique({ where: { id: "singleton" } });
+  const row = await prisma.trafegoSettings.findUnique({
+    where: { id: "singleton" },
+  });
   const value: TrafegoOperationsSettings = row
     ? {
         agencyOrganizationId: row.agencyOrganizationId,
@@ -78,6 +88,8 @@ export async function loadTrafegoSettings(options?: {
         briefingFormId: row.briefingFormId,
         salesTrackingId: row.salesTrackingId,
         supportWhatsapp: row.supportWhatsapp,
+        includedCreatives: row.includedCreatives,
+        extraCreativeBrlCents: row.extraCreativeBrlCents,
         partnerBusinessId: row.partnerBusinessId,
         whatsappActivationTemplate: row.whatsappActivationTemplate,
         whatsappStatusTemplate: row.whatsappStatusTemplate,
@@ -94,7 +106,10 @@ export async function loadTrafegoSettings(options?: {
       }
     : EMPTY_SETTINGS;
 
-  globalForSettings.__trafegoSettingsCache = { value, expiresAt: Date.now() + TTL_MS };
+  globalForSettings.__trafegoSettingsCache = {
+    value,
+    expiresAt: Date.now() + TTL_MS,
+  };
   return value;
 }
 

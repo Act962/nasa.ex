@@ -1,8 +1,12 @@
 "use client";
 
 import { REFERRAL_SOURCES } from "@/features/trafego/lib/segments";
-import { PhoneVerification, type PhoneVerificationStatus } from "./phone-verification";
+import {
+  PhoneVerification,
+  type PhoneVerificationStatus,
+} from "./phone-verification";
 import { Field, fieldClass } from "./field";
+import { maskPhoneBr } from "@/features/form/lib/masks";
 
 export interface ContactDraft {
   fullName: string;
@@ -21,14 +25,17 @@ export function ContactStep({
   phoneVerification,
   onPhoneVerification,
   verificationEnabled,
+  numberCheckEnabled,
 }: {
   value: ContactDraft;
   onChange: (value: ContactDraft) => void;
   phoneVerification: PhoneVerificationStatus;
   onPhoneVerification: (status: PhoneVerificationStatus) => void;
   verificationEnabled: boolean;
+  numberCheckEnabled: boolean;
 }) {
-  const patch = (partial: Partial<ContactDraft>) => onChange({ ...value, ...partial });
+  const patch = (partial: Partial<ContactDraft>) =>
+    onChange({ ...value, ...partial });
 
   return (
     <div className="grid gap-5 sm:grid-cols-2">
@@ -59,12 +66,12 @@ export function ContactStep({
           <input
             value={value.phone}
             onChange={(event) => {
-              patch({ phone: event.target.value });
+              patch({ phone: maskPhoneBr(event.target.value) });
               // Mudou o número: a verificação anterior não vale mais.
               if (phoneVerification !== "idle") onPhoneVerification("idle");
             }}
             inputMode="tel"
-            placeholder="86 9 9888-9999"
+            placeholder="(86) 99888-9999"
             className={fieldClass}
           />
         </div>
@@ -73,6 +80,7 @@ export function ContactStep({
           status={phoneVerification}
           onStatusChange={onPhoneVerification}
           enabled={verificationEnabled}
+          numberCheckEnabled={numberCheckEnabled}
         />
       </Field>
 

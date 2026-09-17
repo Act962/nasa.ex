@@ -1,8 +1,14 @@
 "use client";
 
-import { CheckCircle2, Loader2, SearchCheck, TriangleAlert } from "lucide-react";
+import {
+  CheckCircle2,
+  Loader2,
+  SearchCheck,
+  TriangleAlert,
+} from "lucide-react";
 import { useCheckTrafegoWhatsappNumber } from "@/features/trafego/hooks/use-trafego-verification";
 import { WhatsappWarmupNote } from "./whatsapp-warmup-note";
+import { maskPhoneBr } from "@/features/form/lib/masks";
 
 export type WhatsappNumberCheckResult =
   | {
@@ -54,7 +60,7 @@ export function WhatsappVerifyStep({
         <input
           value={number}
           onChange={(event) => {
-            onNumber(event.target.value);
+            onNumber(maskPhoneBr(event.target.value));
             if (check) onCheck(null);
           }}
           onKeyDown={(event) => {
@@ -64,7 +70,7 @@ export function WhatsappVerifyStep({
             }
           }}
           inputMode="tel"
-          placeholder="86 9 9888-9999"
+          placeholder="(86) 99888-9999"
           className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-violet-400/60"
         />
         {checkEnabled && (
@@ -96,13 +102,15 @@ export function WhatsappVerifyStep({
               {check.verifiedName ? (
                 <>
                   Conta comercial verificada como{" "}
-                  <strong className="text-white/70">{check.verifiedName}</strong>.
-                  Confirmamos o vínculo com a API Oficial na análise da conta.
+                  <strong className="text-white/70">
+                    {check.verifiedName}
+                  </strong>
+                  . Confirmamos o vínculo com a API Oficial na análise da conta.
                 </>
               ) : (
                 <>
-                  Ainda sem nome verificado. Confirmamos o vínculo com a API Oficial
-                  na análise da conta.
+                  Ainda sem nome verificado. Confirmamos o vínculo com a API
+                  Oficial na análise da conta.
                 </>
               )}
             </p>
@@ -115,14 +123,17 @@ export function WhatsappVerifyStep({
           <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-300" />
           <p className="text-xs leading-relaxed text-amber-100">
             Esse número não aparece no WhatsApp. Confira o DDD e o dígito 9 — ou
-            volte e escolha <strong>&quot;preciso adquirir um novo número&quot;</strong>.
+            volte e escolha{" "}
+            <strong>&quot;preciso adquirir um novo número&quot;</strong>.
           </p>
         </div>
       )}
 
-      {(check?.status === "skipped" || (!checkEnabled && digits.length >= 10)) && (
+      {(check?.status === "skipped" ||
+        (!checkEnabled && digits.length >= 10)) && (
         <p className="text-xs text-white/35">
-          Não deu para checar agora. Pode seguir — a equipe confere na análise da conta.
+          Não deu para checar agora. Pode seguir — a equipe confere na análise
+          da conta.
         </p>
       )}
 

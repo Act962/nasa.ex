@@ -1,18 +1,29 @@
 "use client";
 
-import { AlertTriangle, Check, Lightbulb, Loader2, RefreshCw, Video } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  Lightbulb,
+  Loader2,
+  RefreshCw,
+  Video,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   useRegenerateTrafegoRecommendations,
   useTrafegoRecommendations,
 } from "@/features/trafego/hooks/use-trafego-recommendations";
+import { TechnicalTerm, type TechnicalTermKey } from "../technical-term";
 
 /** Verde quando está bem, âmbar quando merece atenção. */
 const LEVEL_TONE: Record<string, string> = {
-  below_minimum: "border-amber-500/30 bg-amber-500/[0.06] text-amber-700 dark:text-amber-300",
-  tight: "border-amber-500/30 bg-amber-500/[0.06] text-amber-700 dark:text-amber-300",
-  needs_setup: "border-amber-500/30 bg-amber-500/[0.06] text-amber-700 dark:text-amber-300",
+  below_minimum:
+    "border-amber-500/30 bg-amber-500/[0.06] text-amber-700 dark:text-amber-300",
+  tight:
+    "border-amber-500/30 bg-amber-500/[0.06] text-amber-700 dark:text-amber-300",
+  needs_setup:
+    "border-amber-500/30 bg-amber-500/[0.06] text-amber-700 dark:text-amber-300",
 };
 
 function toneFor(level: string): string {
@@ -25,7 +36,8 @@ function toneFor(level: string): string {
  * para a verba e o objetivo que ele escolheu.
  */
 export function NextStepsCard({ orderId }: { orderId: string }) {
-  const { data: recommendations, isLoading } = useTrafegoRecommendations(orderId);
+  const { data: recommendations, isLoading } =
+    useTrafegoRecommendations(orderId);
   const regenerate = useRegenerateTrafegoRecommendations();
 
   if (isLoading) {
@@ -56,7 +68,9 @@ export function NextStepsCard({ orderId }: { orderId: string }) {
           onClick={() => regenerate.mutate({ orderId })}
           disabled={regenerate.isPending}
         >
-          <RefreshCw className={cn("size-3.5", regenerate.isPending && "animate-spin")} />
+          <RefreshCw
+            className={cn("size-3.5", regenerate.isPending && "animate-spin")}
+          />
           Atualizar
         </Button>
       </header>
@@ -76,6 +90,7 @@ export function NextStepsCard({ orderId }: { orderId: string }) {
         <Advice
           icon={<Video className="size-4" />}
           title={`Criativo: ${recommendations.creativeFormat.label}`}
+          term="creative"
           text={recommendations.creativeFormat.text}
           tone={toneFor("ok")}
         />
@@ -88,6 +103,7 @@ export function NextStepsCard({ orderId }: { orderId: string }) {
             )
           }
           title={`Verba: ${recommendations.budget.dailyLabel}`}
+          term="adBudget"
           text={recommendations.budget.text}
           tone={toneFor(recommendations.budget.level)}
         />
@@ -106,7 +122,10 @@ export function NextStepsCard({ orderId }: { orderId: string }) {
 
       {recommendations.copyAngle && (
         <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-          <span className="font-medium text-foreground">Ângulo de texto sugerido: </span>
+          <span className="font-medium text-foreground">
+            Ângulo de copy sugerido
+            <TechnicalTerm term="copy" />:{" "}
+          </span>
           {recommendations.copyAngle}
         </p>
       )}
@@ -119,17 +138,20 @@ function Advice({
   title,
   text,
   tone,
+  term,
 }: {
   icon: React.ReactNode;
   title: string;
   text: string;
   tone: string;
+  term?: TechnicalTermKey;
 }) {
   return (
     <div className={cn("rounded-lg border p-3.5", tone)}>
       <p className="flex items-center gap-2 text-xs font-semibold">
         {icon}
         {title}
+        {term && <TechnicalTerm term={term} />}
       </p>
       <p className="mt-1.5 text-xs leading-relaxed opacity-90">{text}</p>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Copy, ExternalLink, Palette } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import {
   useTrafegoRelease,
   useUpdateTrafegoAccessChecklist,
 } from "@/features/trafego/hooks/use-trafego-release";
+import { TechnicalTerm } from "../technical-term";
 
 /**
  * Os acessos que a equipe precisa para publicar.
@@ -24,18 +25,17 @@ export function AccessChecklist({ orderId }: { orderId: string }) {
   const partnerBusinessId = data?.partnerBusinessId ?? null;
   const supportWhatsapp = data?.supportWhatsapp ?? null;
   const update = useUpdateTrafegoAccessChecklist();
-  const [items, setItems] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    if (data?.accessChecklist) setItems(data.accessChecklist);
-  }, [data?.accessChecklist]);
+  const [localItems, setLocalItems] = useState<Record<string, boolean> | null>(
+    null,
+  );
+  const items = localItems ?? data?.accessChecklist ?? {};
 
   function toggle(id: string, checked: boolean) {
     const next = { ...items, [id]: checked };
-    setItems(next);
+    setLocalItems(next);
     update.mutate(
       { orderId, items: next },
-      { onError: () => setItems(items) },
+      { onError: () => setLocalItems(items) },
     );
   }
 
@@ -46,8 +46,8 @@ export function AccessChecklist({ orderId }: { orderId: string }) {
       <header>
         <h3 className="text-sm font-semibold">Acessos</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          {done} de {ACCESS_CHECKLIST_ITEMS.length} liberados. Sem eles a campanha não
-          sai do lugar — nunca pedimos sua senha.
+          {done} de {ACCESS_CHECKLIST_ITEMS.length} liberados. Sem eles a
+          campanha não sai do lugar — nunca pedimos sua senha.
         </p>
       </header>
 
@@ -64,7 +64,9 @@ export function AccessChecklist({ orderId }: { orderId: string }) {
                 checked={items[item.id] === true}
                 onCheckedChange={(checked) => toggle(item.id, checked === true)}
               />
-              <span className={cn(items[item.id] && "line-through")}>{item.label}</span>
+              <span className={cn(items[item.id] && "line-through")}>
+                {item.label}
+              </span>
             </label>
           </li>
         ))}
@@ -72,12 +74,20 @@ export function AccessChecklist({ orderId }: { orderId: string }) {
 
       {partnerBusinessId && (
         <div className="rounded-xl border border-border bg-card p-4">
-          <h4 className="text-xs font-semibold">Como nos dar acesso à sua conta</h4>
+          <h4 className="text-xs font-semibold">
+            Como nos dar acesso à sua conta de anúncios
+            <TechnicalTerm term="adAccount" />
+          </h4>
           <ol className="mt-2.5 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
             <li>1. Abra o Gerenciador de Negócios da Meta.</li>
             <li>2. Vá em Configurações do negócio → Parceiros.</li>
-            <li>3. Clique em Adicionar e escolha “Dar acesso a um parceiro”.</li>
-            <li>4. Cole o ID abaixo e conceda acesso à conta de anúncios e à página.</li>
+            <li>
+              3. Clique em Adicionar e escolha “Dar acesso a um parceiro”.
+            </li>
+            <li>
+              4. Cole o ID abaixo e conceda acesso à conta de anúncios e à
+              página.
+            </li>
           </ol>
 
           <div className="mt-3 flex items-center gap-2">
@@ -108,8 +118,10 @@ export function AccessChecklist({ orderId }: { orderId: string }) {
           </a>
 
           <p className="mt-3 text-[11px] text-muted-foreground">
-            Não tem conta de anúncios? Sem problema — nós criamos para você, já incluso
-            no setup.
+            Não tem conta de anúncios
+            <TechnicalTerm term="adAccount" />? Sem problema — nós criamos para
+            você, já incluso no setup
+            <TechnicalTerm term="setup" />.
           </p>
         </div>
       )}
@@ -118,10 +130,13 @@ export function AccessChecklist({ orderId }: { orderId: string }) {
         <div className="flex items-start gap-3 rounded-xl border border-violet-500/25 bg-violet-500/[0.06] p-4">
           <Palette className="mt-0.5 size-4 shrink-0 text-violet-500" />
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold">Precisa de criativo?</p>
+            <p className="text-xs font-semibold">
+              Precisa de criativo?
+              <TechnicalTerm term="creative" />
+            </p>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              A criação de imagem e vídeo é um serviço à parte. Fale com a equipe e
-              montamos um orçamento.
+              A criação de imagem e vídeo é um serviço à parte. Fale com a
+              equipe e montamos um orçamento.
             </p>
             <a
               href={`https://wa.me/${supportWhatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
@@ -144,5 +159,9 @@ export function AccessChecklist({ orderId }: { orderId: string }) {
 /** Usado no resumo do topo do painel. */
 export function accessChecklistProgress(items: Record<string, boolean>) {
   const done = ACCESS_CHECKLIST_ITEMS.filter((item) => items[item.id]).length;
-  return { done, total: ACCESS_CHECKLIST_ITEMS.length, complete: done === ACCESS_CHECKLIST_ITEMS.length };
+  return {
+    done,
+    total: ACCESS_CHECKLIST_ITEMS.length,
+    complete: done === ACCESS_CHECKLIST_ITEMS.length,
+  };
 }

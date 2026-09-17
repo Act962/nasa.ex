@@ -58,6 +58,7 @@ export function ActivateForm({
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -88,7 +89,8 @@ export function ActivateForm({
                 message.includes("already") ||
                 message.includes("exists")
                 ? "Este e-mail já tem conta. Faça login e abra o link do e-mail novamente."
-                : signUp.error.message || "Erro ao criar conta. Tente novamente.",
+                : signUp.error.message ||
+                    "Erro ao criar conta. Tente novamente.",
             );
             setIsSubmitting(false);
             setStatusText(null);
@@ -98,7 +100,9 @@ export function ActivateForm({
       }
 
       setStatusText("Preparando sua campanha…");
-      const redeem = await orpcClient.trafego.redeemPurchase({ signupToken: token });
+      const redeem = await orpcClient.trafego.redeemPurchase({
+        signupToken: token,
+      });
 
       try {
         await authClient.organization.setActive({
@@ -120,8 +124,17 @@ export function ActivateForm({
     }
   }
 
+  // Já logado com o e-mail da compra, nome e senha nem aparecem na tela — o
+  // schema de cadastro reprovaria as senhas vazias e barraria o envio em silêncio.
+  const submit = isSameAccountLogged
+    ? (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        void onSubmit(getValues());
+      }
+    : handleSubmit(onSubmit);
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
+    <form onSubmit={submit} className="mt-6 space-y-4">
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-white/70">E-mail</label>
         <div className="relative">
@@ -138,7 +151,9 @@ export function ActivateForm({
       {!isSameAccountLogged && (
         <>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-white/70">Seu nome</label>
+            <label className="text-xs font-medium text-white/70">
+              Seu nome
+            </label>
             <div className="relative">
               <User className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/30" />
               <input
@@ -172,7 +187,8 @@ export function ActivateForm({
 
       {isSameAccountLogged && (
         <p className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 p-3 text-xs text-emerald-200">
-          Você já está logado com este e-mail. É só confirmar para liberar a campanha.
+          Você já está logado com este e-mail. É só confirmar para liberar a
+          campanha.
         </p>
       )}
 
@@ -189,7 +205,9 @@ export function ActivateForm({
         ) : (
           <>
             <Rocket className="size-4" />
-            {isSameAccountLogged ? "Liberar minha campanha" : "Criar conta e continuar"}
+            {isSameAccountLogged
+              ? "Liberar minha campanha"
+              : "Criar conta e continuar"}
           </>
         )}
       </button>

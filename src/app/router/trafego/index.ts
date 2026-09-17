@@ -16,7 +16,11 @@ import { getTrafegoOrder } from "./get-order";
 import { getTrafegoOrderPerformance } from "./get-order-performance";
 import { updateTrafegoBriefing } from "./update-briefing";
 import { activateTrafegoOrder } from "./activate-order";
-import { addTrafegoCreative, removeTrafegoCreative } from "./creatives";
+import {
+  addTrafegoCreative,
+  removeTrafegoCreative,
+  setTrafegoMaterialsProfileLink,
+} from "./creatives";
 import {
   addTrafegoCopy,
   updateTrafegoCopy,
@@ -96,6 +100,7 @@ export const trafegoRouter = {
   creatives: {
     add: addTrafegoCreative,
     remove: removeTrafegoCreative,
+    setProfileLink: setTrafegoMaterialsProfileLink,
   },
 
   copies: {

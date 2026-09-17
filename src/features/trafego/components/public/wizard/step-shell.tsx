@@ -20,8 +20,8 @@ export function StepShell({
   backDisabled,
 }: {
   eyebrow?: string;
-  title: string;
-  subtitle?: string;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
   children: React.ReactNode;
   onBack: () => void;
   onNext: () => void;
@@ -37,7 +37,12 @@ export function StepShell({
           {eyebrow}
         </p>
       )}
-      <h2 className={cn("text-xl font-bold text-white sm:text-2xl", eyebrow && "mt-1.5")}>
+      <h2
+        className={cn(
+          "text-xl font-bold text-white sm:text-2xl",
+          eyebrow && "mt-1.5",
+        )}
+      >
         {title}
       </h2>
       {subtitle && <p className="mt-1.5 text-sm text-white/45">{subtitle}</p>}

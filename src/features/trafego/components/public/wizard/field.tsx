@@ -10,7 +10,7 @@ export function Field({
   wide,
   children,
 }: {
-  label: string;
+  label: React.ReactNode;
   required?: boolean;
   hint?: string;
   wide?: boolean;
@@ -18,12 +18,14 @@ export function Field({
 }) {
   return (
     <div className={cn(wide && "sm:col-span-2")}>
-      <label className="text-xs font-medium text-white/55">
+      <div className="text-xs font-medium text-white/55">
         {label}
         {required && <span className="ml-0.5 text-violet-300">*</span>}
-      </label>
+      </div>
       <div className="mt-1.5">{children}</div>
-      {hint && <p className="mt-1.5 text-[11px] leading-snug text-white/30">{hint}</p>}
+      {hint && (
+        <p className="mt-1.5 text-[11px] leading-snug text-white/30">{hint}</p>
+      )}
     </div>
   );
 }
