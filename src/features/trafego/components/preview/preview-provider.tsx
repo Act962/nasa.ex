@@ -134,6 +134,8 @@ export function TrafegoPreviewProvider({ children }: { children: React.ReactNode
 
     client.setQueryData(orpc.trafego.getPublicConfig.queryOptions({ input: {} }).queryKey, {
       supportWhatsapp: previewSettings.supportWhatsapp,
+      includedCreatives: previewSettings.includedCreatives,
+      extraCreativeBrlCents: previewSettings.extraCreativeBrlCents,
       pixAvailable: true,
       verification: { phone: true, whatsappCheck: true, social: true },
     });
