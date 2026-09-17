@@ -466,6 +466,8 @@ export const previewSettings = {
   salesTrackingId: "tracking-vendas",
   salesStatusId: null,
   defaultServiceFeePercent: 50,
+  includedCreatives: 3,
+  extraCreativeBrlCents: 4000,
   supportWhatsapp: "5511988887777",
   operationsTrackingId: "tracking-trafego",
   statusColumnMap: {} as Record<string, string>,
