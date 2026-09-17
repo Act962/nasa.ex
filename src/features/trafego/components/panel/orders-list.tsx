@@ -35,7 +35,7 @@ export function TrafegoOrdersList() {
           Contrate um plano e nossa equipe coloca sua campanha no ar.
         </p>
         <Button asChild className="mt-6">
-          <Link href="/trafego">
+          <Link href="/trafego?nova=1#montar">
             <Plus className="mr-1.5 size-4" />
             Nova campanha
           </Link>
@@ -54,7 +54,7 @@ export function TrafegoOrdersList() {
           </p>
         </div>
         <Button asChild size="sm">
-          <Link href="/trafego">
+          <Link href="/trafego?nova=1#montar">
             <Plus className="mr-1.5 size-4" />
             Nova campanha
           </Link>

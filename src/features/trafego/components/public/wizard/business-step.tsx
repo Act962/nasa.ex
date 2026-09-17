@@ -8,6 +8,7 @@ import {
 } from "@/features/trafego/lib/audience";
 import { AudienceChips } from "./audience-chips";
 import { Field, fieldClass } from "./field";
+import { TechnicalTerm } from "../../technical-term";
 
 export interface BusinessDraft {
   businessName: string;
@@ -30,7 +31,8 @@ export function BusinessStep({
   value: BusinessDraft;
   onChange: (value: BusinessDraft) => void;
 }) {
-  const patch = (partial: Partial<BusinessDraft>) => onChange({ ...value, ...partial });
+  const patch = (partial: Partial<BusinessDraft>) =>
+    onChange({ ...value, ...partial });
   const isSpecial = value.specialCategory !== "none";
 
   return (
@@ -62,7 +64,12 @@ export function BusinessStep({
       </Field>
 
       <Field
-        label="Site ou link de destino"
+        label={
+          <>
+            Site ou link de destino
+            <TechnicalTerm term="destinationLink" className="text-white/50" />
+          </>
+        }
         wide
         hint="Para onde o cliente vai ao clicar no anúncio. Sem site? Deixe vazio: direcionamos para o WhatsApp."
       >
@@ -74,7 +81,15 @@ export function BusinessStep({
         />
       </Field>
 
-      <Field label="Quem você quer alcançar? (público)" wide>
+      <Field
+        label={
+          <>
+            Quem você quer alcançar? (público)
+            <TechnicalTerm term="audience" className="text-white/50" />
+          </>
+        }
+        wide
+      >
         <AudienceChips
           chips={value.audienceChips}
           onChange={(audienceChips) => patch({ audienceChips })}
@@ -110,20 +125,24 @@ export function BusinessStep({
                 specialCategory === "none"
                   ? value.audienceChips
                   : value.audienceChips.filter(
-                      (chip) => chip.dimension !== "gender" && chip.dimension !== "age",
+                      (chip) =>
+                        chip.dimension !== "gender" && chip.dimension !== "age",
                     ),
             });
           }}
           className={`${fieldClass} appearance-none`}
         >
           {SPECIAL_AD_CATEGORIES.map((category) => (
-            <option key={category.id} value={category.id} className="bg-[#15151a]">
+            <option
+              key={category.id}
+              value={category.id}
+              className="bg-[#15151a]"
+            >
               {category.label}
             </option>
           ))}
         </select>
       </Field>
-
     </div>
   );
 }

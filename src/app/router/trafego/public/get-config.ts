@@ -16,6 +16,8 @@ export const getPublicTrafegoConfig = base
   .output(
     z.object({
       supportWhatsapp: z.string().nullable(),
+      includedCreatives: z.number().int().positive(),
+      extraCreativeBrlCents: z.number().int().nonnegative(),
       pixAvailable: z.boolean(),
       verification: z.object({
         phone: z.boolean(),
@@ -44,14 +46,21 @@ export const getPublicTrafegoConfig = base
 
       return {
         supportWhatsapp: settings.supportWhatsapp,
+        includedCreatives: settings.includedCreatives,
+        extraCreativeBrlCents: settings.extraCreativeBrlCents,
         // Sem chave configurada o PIX nem aparece como opção.
         pixAvailable: Boolean(settings.pixKey),
         verification: { phone: hasOperationsInstance, whatsappCheck, social },
       };
     } catch (error) {
-      console.error("[trafego/config] leitura falhou — landing segue sem verificações:", error);
+      console.error(
+        "[trafego/config] leitura falhou — landing segue sem verificações:",
+        error,
+      );
       return {
         supportWhatsapp: null,
+        includedCreatives: 3,
+        extraCreativeBrlCents: 4000,
         pixAvailable: false,
         verification: { phone: false, whatsappCheck: false, social: false },
       };

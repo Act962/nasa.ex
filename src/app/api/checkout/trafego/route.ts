@@ -18,6 +18,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import type { Prisma } from "@/generated/prisma/client";
 import { getStripe } from "@/lib/stripe";
 import { getPostHogClient } from "@/lib/posthog-server";
@@ -32,7 +33,10 @@ import { isTrafegoPhoneVerified } from "@/features/trafego/server/lib/phone-veri
 import { checkWhatsappNumber } from "@/features/trafego/server/lib/whatsapp-number-check";
 import { lookupSocialProfile } from "@/features/trafego/server/lib/social-profile-lookup";
 import { loadTrafegoSettings } from "@/features/trafego/server/lib/trafego-settings";
-import { buildPixReceiptMessage, generatePixReference } from "@/features/trafego/lib/pix";
+import {
+  buildPixReceiptMessage,
+  generatePixReference,
+} from "@/features/trafego/lib/pix";
 import { checkAdCompliance } from "@/features/trafego/server/lib/compliance-check";
 import {
   estimateEarliestStart,
@@ -63,6 +67,7 @@ export async function POST(req: NextRequest) {
     );
   }
   const {
+    organizationId,
     adBudgetBrlCents,
     hasBusinessManager,
     campaignType,
@@ -81,7 +86,24 @@ export async function POST(req: NextRequest) {
     hasSocialLinked,
     materialsReady,
     startAcknowledged,
+    desiredCreativeCount,
   } = parsed.data;
+
+  const session = await auth.api
+    .getSession({ headers: req.headers })
+    .catch(() => null);
+  const activeOrganizationId = session?.session.activeOrganizationId;
+  const authenticatedMembership =
+    session?.user && organizationId && activeOrganizationId === organizationId
+      ? await prisma.member.findFirst({
+          where: { userId: session.user.id, organizationId },
+          select: { organizationId: true },
+        })
+      : null;
+  const isAuthenticatedFlow = Boolean(authenticatedMembership && session?.user);
+  const buyerEmail = isAuthenticatedFlow ? session!.user.email : email;
+  const buyerUserId = isAuthenticatedFlow ? session!.user.id : null;
+  const flow = isAuthenticatedFlow ? "authenticated" : "public";
 
   const isPix = paymentMethod === "PIX";
 
@@ -92,7 +114,18 @@ export async function POST(req: NextRequest) {
   const needsSetup = isWhatsappChannel
     ? (hasOfficialNumber ?? "unsure") !== "yes"
     : hasBusinessManager !== "yes";
-  const quote = quoteTrafego(adBudgetBrlCents, needsSetup);
+  const settings = await loadTrafegoSettings();
+  const creativeCount = desiredCreativeCount ?? settings.includedCreatives;
+  const extraCreatives = Math.max(
+    0,
+    creativeCount - settings.includedCreatives,
+  );
+  const quote = quoteTrafego(
+    adBudgetBrlCents,
+    needsSetup,
+    extraCreatives,
+    settings.extraCreativeBrlCents,
+  );
 
   if (quote.totalBrlCents < STRIPE_MIN_BRL_CENTS) {
     return NextResponse.json(
@@ -111,7 +144,10 @@ export async function POST(req: NextRequest) {
     materialsReady: materialsReady ?? null,
   });
 
-  if (isDesiredStartTooSoon(desiredStartAt, startEstimate.earliestStart) && !startAcknowledged) {
+  if (
+    isDesiredStartTooSoon(desiredStartAt, startEstimate.earliestStart) &&
+    !startAcknowledged
+  ) {
     return NextResponse.json(
       {
         error:
@@ -164,8 +200,10 @@ export async function POST(req: NextRequest) {
   const recentCutoff = new Date(Date.now() - IDEMPOTENCY_WINDOW_MS);
   const existing = await prisma.trafegoPendingPurchase.findFirst({
     where: {
-      email,
+      email: buyerEmail,
       objective,
+      flow,
+      userId: buyerUserId,
       adBudgetBrlCents: quote.adBudgetBrlCents,
       setupFeeBrlCents: quote.setupBrlCents,
       status: "PENDING",
@@ -195,19 +233,24 @@ export async function POST(req: NextRequest) {
 
   // Snapshots das verificações do wizard. O browser só manda o que digitou; o
   // que vale é o que o servidor confere agora (prova de OTP, lookup, checagem).
-  const [phoneVerified, socialProfile, officialNumberCheck] = await Promise.all([
-    isTrafegoPhoneVerified(phone).catch(() => false),
-    socialHandle ? lookupSocialProfile(socialHandle).catch(() => null) : Promise.resolve(null),
-    isWhatsappChannel && officialNumber
-      ? checkWhatsappNumber(officialNumber).catch(() => null)
-      : Promise.resolve(null),
-  ]);
+  const [phoneVerified, socialProfile, officialNumberCheck] = await Promise.all(
+    [
+      isTrafegoPhoneVerified(phone).catch(() => false),
+      socialHandle
+        ? lookupSocialProfile(socialHandle).catch(() => null)
+        : Promise.resolve(null),
+      isWhatsappChannel && officialNumber
+        ? checkWhatsappNumber(officialNumber).catch(() => null)
+        : Promise.resolve(null),
+    ],
+  );
 
   const pending = await prisma.trafegoPendingPurchase.create({
     data: {
-      email,
+      email: buyerEmail,
       phone,
       companyName,
+      userId: buyerUserId,
       phoneVerifiedAt: phoneVerified ? new Date() : null,
       socialHandle: socialHandle || null,
       socialProfile: toJsonSnapshot(socialProfile),
@@ -222,18 +265,29 @@ export async function POST(req: NextRequest) {
       complianceLevel: compliance?.level ?? null,
       complianceIssues: toJsonSnapshot(compliance?.issues),
       complianceAcknowledgedAt:
-        compliance?.level === "WARNING" && complianceAcknowledged ? new Date() : null,
-      desiredStartAt: desiredStartAt ? new Date(`${desiredStartAt}T12:00:00`) : null,
+        compliance?.level === "WARNING" && complianceAcknowledged
+          ? new Date()
+          : null,
+      desiredStartAt: desiredStartAt
+        ? new Date(`${desiredStartAt}T12:00:00`)
+        : null,
       earliestStartAt: startEstimate.earliestStart,
       startAcknowledgedAt: startAcknowledged ? new Date() : null,
       hasSocialLinked: hasSocialLinked ?? null,
       materialsReady: materialsReady ?? null,
-      flow: "public",
+      desiredCreativeCount: creativeCount,
+      flow,
       campaignType,
       platform,
       objective,
-      briefing: briefing ?? {},
-      hasBusinessManager: hasBusinessManager === "unsure" ? null : hasBusinessManager === "yes",
+      briefing: {
+        ...(briefing ?? {}),
+        ...(isAuthenticatedFlow && organizationId
+          ? { _organizationId: organizationId }
+          : {}),
+      },
+      hasBusinessManager:
+        hasBusinessManager === "unsure" ? null : hasBusinessManager === "yes",
       acceptedTermsAt: new Date(),
       acceptedTermsVersion: TRAFEGO_TERMS_VERSION,
       adBudgetBrlCents: quote.adBudgetBrlCents,
@@ -257,8 +311,8 @@ export async function POST(req: NextRequest) {
   }
 
   if (isPix) {
-    const settings = await loadTrafegoSettings({ fresh: true });
-    if (!settings.pixKey) {
+    const freshSettings = await loadTrafegoSettings({ fresh: true });
+    if (!freshSettings.pixKey) {
       // Sem chave configurada não há como o cliente pagar. Falhar aqui é melhor
       // do que mostrar uma tela de PIX vazia depois de ele escolher.
       await prisma.trafegoPendingPurchase.update({
@@ -266,13 +320,18 @@ export async function POST(req: NextRequest) {
         data: { status: "CANCELLED" },
       });
       return NextResponse.json(
-        { error: "Pagamento por PIX indisponível no momento. Use cartão ou fale com um gestor." },
+        {
+          error:
+            "Pagamento por PIX indisponível no momento. Use cartão ou fale com um gestor.",
+        },
         { status: 503 },
       );
     }
 
     const reference = await claimPixReference(pending.id);
-    const expiresAt = new Date(Date.now() + settings.pixExpiryHours * 60 * 60 * 1000);
+    const expiresAt = new Date(
+      Date.now() + freshSettings.pixExpiryHours * 60 * 60 * 1000,
+    );
     await prisma.trafegoPendingPurchase.update({
       where: { id: pending.id },
       data: { pixReference: reference, pixExpiresAt: expiresAt },
@@ -280,7 +339,7 @@ export async function POST(req: NextRequest) {
 
     const posthog = getPostHogClient();
     posthog.capture({
-      distinctId: email,
+      distinctId: buyerUserId ?? buyerEmail,
       event: "trafego_checkout_started",
       properties: {
         pending_id: pending.id,
@@ -296,13 +355,13 @@ export async function POST(req: NextRequest) {
       paymentMethod: "PIX" as const,
       pendingId: pending.id,
       pix: {
-        key: settings.pixKey,
-        holderName: settings.pixHolderName,
-        bankName: settings.pixBankName,
+        key: freshSettings.pixKey,
+        holderName: freshSettings.pixHolderName,
+        bankName: freshSettings.pixBankName,
         reference,
         amountBrlCents: quote.totalBrlCents,
         expiresAt: expiresAt.toISOString(),
-        supportWhatsapp: settings.supportWhatsapp,
+        supportWhatsapp: freshSettings.supportWhatsapp,
         receiptMessage: buildPixReceiptMessage({
           reference,
           amountLabel: (quote.totalBrlCents / 100).toLocaleString("pt-BR", {
@@ -319,7 +378,7 @@ export async function POST(req: NextRequest) {
   const platformLabel = PLATFORM_SHORT_LABEL[platform];
   const metadata = {
     kind: "trafego_order",
-    flow: "public",
+    flow,
     pendingId: pending.id,
     platform,
     objective,
@@ -368,11 +427,25 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  if (quote.extraCreativesBrlCents > 0) {
+    lineItems.push({
+      quantity: 1,
+      price_data: {
+        currency: "brl" as const,
+        unit_amount: quote.extraCreativesBrlCents,
+        product_data: {
+          name: "Criativos extras",
+          description: `${extraCreatives} criativo${extraCreatives === 1 ? "" : "s"} adicional${extraCreatives === 1 ? "" : "is"}`,
+        },
+      },
+    });
+  }
+
   try {
     const session = await getStripe().checkout.sessions.create(
       {
         mode: "payment",
-        customer_email: email,
+        customer_email: buyerEmail,
         line_items: lineItems,
         success_url: `${origin}/trafego/sucesso?token=${pending.id}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/trafego?cancelado=1`,
@@ -386,7 +459,7 @@ export async function POST(req: NextRequest) {
         // (fallback e métodos assíncronos) depende disso pra reconhecer o kind.
         payment_intent_data: { metadata },
       },
-      { idempotencyKey: `trafego-checkout:public:${pending.id}` },
+      { idempotencyKey: `trafego-checkout:${flow}:${pending.id}` },
     );
 
     if (!session.url) throw new Error("Stripe não retornou URL de checkout.");
@@ -396,13 +469,15 @@ export async function POST(req: NextRequest) {
       data: {
         stripeSessionId: session.id,
         stripePaymentIntentId:
-          typeof session.payment_intent === "string" ? session.payment_intent : null,
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : null,
       },
     });
 
     const posthog = getPostHogClient();
     posthog.capture({
-      distinctId: email,
+      distinctId: buyerUserId ?? buyerEmail,
       event: "trafego_checkout_started",
       properties: {
         platform,

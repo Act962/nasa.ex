@@ -160,6 +160,8 @@ model User {
   trafegoOrderEvents       TrafegoOrderEvent[]      @relation("TrafegoEventActor")
   trafegoCreatives         TrafegoCreative[]        @relation("TrafegoCreativeUploader")
   trafegoSupportMessages   TrafegoSupportMessage[]  @relation("TrafegoSupportAuthor")
+  trafegoInfoTipsSeen      TrafegoInfoTipSeen[]
+  trafegoCreativeTopUps    TrafegoCreativeTopUp[]   @relation("TrafegoCreativeTopUpBuyer")
 
   @@unique([email])
   @@map("user")
@@ -8115,6 +8117,14 @@ enum TrafegoComplianceLevel {
   BLOCKED
 }
 
+enum TrafegoTopUpStatus {
+  PENDING
+  PAID
+  EXPIRED
+  CANCELLED
+  REFUNDED
+}
+
 /// Catálogo público de planos. O preço é COMPOSTO: `adBudgetBrlCents` é a verba
 /// que vai pro anúncio e a taxa de serviço é derivada de `serviceFeePercent`
 /// (ou fixada por `serviceFeeBrlCents`). O total nunca é armazenado aqui — é
@@ -8256,6 +8266,7 @@ model TrafegoPendingPurchase {
   startAcknowledgedAt   DateTime?                    @map("start_acknowledged_at")
   hasSocialLinked       Boolean?                     @map("has_social_linked")
   materialsReady        Boolean?                     @map("materials_ready")
+  desiredCreativeCount  Int?                         @map("desired_creative_count")
 
   plan           TrafegoPlan?  @relation(fields: [planId], references: [id], onDelete: SetNull)
   lead           Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
@@ -8338,6 +8349,8 @@ model TrafegoOrder {
   leadId                 String?   @map("lead_id")
   /// Quando os materiais ficaram completos (≥1 criativo + ≥1 copy selecionada).
   materialsSubmittedAt   DateTime? @map("materials_submitted_at")
+  /// Perfil já pronto do cliente, alternativa aos arquivos enviados.
+  materialsProfileLink   String?   @map("materials_profile_link")
 
   // ── Verificações herdadas do wizard (snapshot) ──
   phoneVerifiedAt        DateTime? @map("phone_verified_at")
@@ -8398,6 +8411,7 @@ model TrafegoOrder {
   copies    TrafegoCopy[]
   events    TrafegoOrderEvent[]
   messages  TrafegoSupportMessage[]
+  topUps    TrafegoCreativeTopUp[]
 
   @@index([organizationId, status])
   @@index([status, requestedAt])
@@ -8503,6 +8517,38 @@ model TrafegoSupportMessage {
   @@map("trafego_support_message")
 }
 
+model TrafegoCreativeTopUp {
+  id                    String             @id @default(cuid())
+  orderId               String             @map("order_id")
+  quantity              Int
+  amountBrlCents        Int                @map("amount_brl_cents")
+  status                TrafegoTopUpStatus @default(PENDING)
+  stripeSessionId       String?            @map("stripe_session_id")
+  stripePaymentIntentId String?            @map("stripe_payment_intent_id")
+  purchasedByUserId     String             @map("purchased_by_user_id")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  paidAt                DateTime?          @map("paid_at")
+
+  order           TrafegoOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  purchasedByUser User         @relation("TrafegoCreativeTopUpBuyer", fields: [purchasedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([stripeSessionId])
+  @@map("trafego_creative_topup")
+}
+
+model TrafegoInfoTipSeen {
+  id     String   @id @default(cuid())
+  userId String   @map("user_id")
+  tipKey String   @map("tip_key")
+  seenAt DateTime @default(now()) @map("seen_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tipKey])
+  @@map("trafego_info_tip_seen")
+}
+
 /// Configuração global do produto. Singleton (id="singleton").
 model TrafegoSettings {
   id                         String   @id @default("singleton")
@@ -8516,6 +8562,8 @@ model TrafegoSettings {
   salesStatusId              String?  @map("sales_status_id")
   defaultServiceFeePercent   Decimal  @default(50) @map("default_service_fee_percent") @db.Decimal(5, 2)
   supportWhatsapp            String?  @map("support_whatsapp")
+  includedCreatives          Int      @default(3) @map("included_creatives")
+  extraCreativeBrlCents      Int      @default(4000) @map("extra_creative_brl_cents")
 
   // ── Operação pelo tracking (spec 0009) ──
   /// Tracking onde o gestor opera: um card por cliente, uma coluna por status.
