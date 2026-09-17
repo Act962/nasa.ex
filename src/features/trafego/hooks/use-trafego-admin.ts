@@ -1,6 +1,11 @@
+"use client";
+
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { TrafegoOrderStatus, TrafegoPlatform } from "@/generated/prisma/enums";
+import type {
+  TrafegoOrderStatus,
+  TrafegoPlatform,
+} from "@/generated/prisma/enums";
 
 interface AdminOrdersFilter {
   status?: TrafegoOrderStatus;
@@ -163,6 +168,15 @@ export const useTrafegoSettings = () => {
   return useQuery(orpc.trafego.admin.settings.get.queryOptions({ input: {} }));
 };
 
+/** Organizações disponíveis para configurar a agência que opera o trafeGO. */
+export const useTrafegoAgencyOrganizations = (search: string) => {
+  return useQuery(
+    orpc.admin.listOrganizationsForSelection.queryOptions({
+      input: { search: search.trim() || undefined, limit: 50 },
+    }),
+  );
+};
+
 export const useUpdateTrafegoSettings = () => {
   const queryClient = useQueryClient();
   return useMutation(
@@ -177,8 +191,10 @@ export const useUpdateTrafegoSettings = () => {
 };
 
 /** Trackings (com colunas), contas, categorias e formulários da org da agência. */
-export const useTrafegoAgencyOptions = (organizationId: string | null | undefined) => {
-  const enabled = Boolean(organizationId && organizationId.trim().length >= 8);
+export const useTrafegoAgencyOptions = (
+  organizationId: string | null | undefined,
+) => {
+  const enabled = Boolean(organizationId?.trim());
   return useQuery({
     ...orpc.trafego.admin.settings.listAgencyOptions.queryOptions({
       input: { organizationId: organizationId?.trim() ?? "" },

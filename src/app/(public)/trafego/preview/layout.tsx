@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import { TrafegoPreviewProvider } from "@/features/trafego/components/preview/preview-provider";
 
 /**
@@ -8,14 +8,16 @@ import { TrafegoPreviewProvider } from "@/features/trafego/components/preview/pr
  * Renderiza os componentes REAIS com o cache pré-populado, então o que aparece
  * é o componente de produção. Nenhuma ação grava nada.
  *
- * Bloqueado fora de desenvolvimento: em produção a rota simplesmente não existe.
+ * Em produção, apenas administradores do sistema podem abrir o preview.
  */
-export default function TrafegoPreviewLayout({
+export default async function TrafegoPreviewLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  if (process.env.NODE_ENV === "production") notFound();
+  if (process.env.NODE_ENV === "production") {
+    await requireAdminSession();
+  }
 
   return (
     <TrafegoPreviewProvider>
@@ -25,7 +27,7 @@ export default function TrafegoPreviewLayout({
             PREVIEW
           </span>
           <span className="text-muted-foreground">
-            dados fictícios · nada é salvo · só em desenvolvimento
+            dados fictícios · nada é salvo · acesso administrativo
           </span>
           <nav className="ml-auto flex items-center gap-3">
             <Link href="/trafego/preview/painel" className="hover:underline">
@@ -34,7 +36,10 @@ export default function TrafegoPreviewLayout({
             <Link href="/trafego/preview/admin" className="hover:underline">
               Painel da equipe
             </Link>
-            <Link href="/trafego" className="text-muted-foreground hover:underline">
+            <Link
+              href="/trafego"
+              className="text-muted-foreground hover:underline"
+            >
               Landing
             </Link>
           </nav>

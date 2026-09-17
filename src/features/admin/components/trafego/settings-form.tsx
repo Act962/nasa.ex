@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, Save, Wand2 } from "lucide-react";
+import { useDeferredValue, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Loader2,
+  Save,
+  Wand2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,10 +24,12 @@ import {
   useProvisionTrafegoBriefingForm,
   useProvisionTrafegoOperationsTracking,
   useTrafegoAgencyOptions,
+  useTrafegoAgencyOrganizations,
   useTrafegoSettings,
   useUpdateTrafegoSettings,
 } from "@/features/trafego/hooks/use-trafego-admin";
 import { TRAFEGO_KANBAN_COLUMNS } from "@/features/trafego/lib/kanban-columns";
+import { maskPhoneBr } from "@/features/form/lib/masks";
 
 const NONE = "__none__";
 
@@ -29,6 +37,8 @@ interface SettingsFormState {
   agencyOrganizationId: string;
   defaultServiceFeePercent: string;
   supportWhatsapp: string;
+  includedCreatives: string;
+  extraCreativeBrlCents: string;
   partnerBusinessId: string;
   operationsTrackingId: string;
   statusColumnMap: Record<string, string>;
@@ -54,6 +64,8 @@ const EMPTY_FORM: SettingsFormState = {
   agencyOrganizationId: "",
   defaultServiceFeePercent: "50",
   supportWhatsapp: "",
+  includedCreatives: "3",
+  extraCreativeBrlCents: "4000",
   partnerBusinessId: "",
   operationsTrackingId: "",
   statusColumnMap: {},
@@ -87,19 +99,28 @@ export function TrafegoSettingsForm() {
   const provisionForm = useProvisionTrafegoBriefingForm();
 
   const [form, setForm] = useState<SettingsFormState>(EMPTY_FORM);
-  const { data: options, isLoading: isLoadingOptions } = useTrafegoAgencyOptions(
-    form.agencyOrganizationId,
-  );
+  const [formSettings, setFormSettings] = useState(settings);
+  const [organizationSearch, setOrganizationSearch] = useState("");
+  const deferredOrganizationSearch = useDeferredValue(organizationSearch);
+  const { data: organizations, isLoading: isLoadingOrganizations } =
+    useTrafegoAgencyOrganizations(deferredOrganizationSearch);
+  const { data: options, isLoading: isLoadingOptions } =
+    useTrafegoAgencyOptions(form.agencyOrganizationId);
 
-  useEffect(() => {
-    if (!settings) return;
+  if (settings && settings !== formSettings) {
+    setFormSettings(settings);
     setForm({
       agencyOrganizationId: settings.agencyOrganizationId ?? "",
       defaultServiceFeePercent: String(settings.defaultServiceFeePercent ?? 50),
       supportWhatsapp: settings.supportWhatsapp ?? "",
+      includedCreatives: String(settings.includedCreatives ?? 3),
+      extraCreativeBrlCents: String(settings.extraCreativeBrlCents ?? 4000),
       partnerBusinessId: settings.partnerBusinessId ?? "",
       operationsTrackingId: settings.operationsTrackingId ?? "",
-      statusColumnMap: (settings.statusColumnMap ?? {}) as Record<string, string>,
+      statusColumnMap: (settings.statusColumnMap ?? {}) as Record<
+        string,
+        string
+      >,
       briefingFormId: settings.briefingFormId ?? "",
       clientNotificationsEnabled: settings.clientNotificationsEnabled ?? true,
       whatsappActivationTemplate: settings.whatsappActivationTemplate ?? "",
@@ -117,7 +138,7 @@ export function TrafegoSettingsForm() {
       salesStatusId: settings.salesStatusId ?? "",
       defaultBroadcastTrackingId: settings.defaultBroadcastTrackingId ?? "",
     });
-  }, [settings]);
+  }
 
   const patch = (partial: Partial<SettingsFormState>) =>
     setForm((current) => ({ ...current, ...partial }));
@@ -135,27 +156,36 @@ export function TrafegoSettingsForm() {
     updateSettings.mutate(
       {
         agencyOrganizationId: emptyToNull(form.agencyOrganizationId),
-        defaultBroadcastTrackingId: emptyToNull(form.defaultBroadcastTrackingId),
+        defaultBroadcastTrackingId: emptyToNull(
+          form.defaultBroadcastTrackingId,
+        ),
         salesTrackingId: emptyToNull(form.salesTrackingId),
         salesStatusId: emptyToNull(form.salesStatusId),
         defaultServiceFeePercent: Number(form.defaultServiceFeePercent),
         supportWhatsapp: emptyToNull(form.supportWhatsapp),
+        includedCreatives: Number(form.includedCreatives) || 3,
+        extraCreativeBrlCents: Number(form.extraCreativeBrlCents) || 0,
         operationsTrackingId: emptyToNull(form.operationsTrackingId),
         statusColumnMap: form.statusColumnMap,
         briefingFormId: emptyToNull(form.briefingFormId),
         partnerBusinessId: emptyToNull(form.partnerBusinessId),
-        whatsappActivationTemplate: emptyToNull(form.whatsappActivationTemplate),
+        whatsappActivationTemplate: emptyToNull(
+          form.whatsappActivationTemplate,
+        ),
         whatsappStatusTemplate: emptyToNull(form.whatsappStatusTemplate),
         whatsappOtpTemplate: emptyToNull(form.whatsappOtpTemplate),
         pixKey: emptyToNull(form.pixKey),
         pixHolderName: emptyToNull(form.pixHolderName),
         pixBankName: emptyToNull(form.pixBankName),
         pixExpiryHours: Number(form.pixExpiryHours) || 48,
-        whatsappTemplateLanguage: form.whatsappTemplateLanguage.trim() || "pt_BR",
+        whatsappTemplateLanguage:
+          form.whatsappTemplateLanguage.trim() || "pt_BR",
         clientNotificationsEnabled: form.clientNotificationsEnabled,
         financeAccountId: emptyToNull(form.financeAccountId),
         financeRevenueCategoryId: emptyToNull(form.financeRevenueCategoryId),
-        financePassthroughCategoryId: emptyToNull(form.financePassthroughCategoryId),
+        financePassthroughCategoryId: emptyToNull(
+          form.financePassthroughCategoryId,
+        ),
       },
       {
         onSuccess: () => toast.success("Ajustes salvos."),
@@ -191,7 +221,9 @@ export function TrafegoSettingsForm() {
         onSuccess: (result) => {
           patch({ briefingFormId: result.formId });
           toast.success(
-            result.created ? "Formulário Briefing TrafeGO criado." : "Formulário já existia.",
+            result.created
+              ? "Formulário Briefing TrafeGO criado."
+              : "Formulário já existia.",
           );
         },
         onError: (error) => toast.error(error.message),
@@ -208,7 +240,7 @@ export function TrafegoSettingsForm() {
     );
   }
 
-  const hasAgency = form.agencyOrganizationId.trim().length >= 8;
+  const hasAgency = Boolean(form.agencyOrganizationId.trim());
 
   return (
     <div className="space-y-5">
@@ -216,18 +248,56 @@ export function TrafegoSettingsForm() {
         title="Agência"
         description="A organização que roda os anúncios. É dela que vêm as opções abaixo, e é nela que a venda é lançada e as métricas do Meta nascem."
       >
-        <Field label="Organização da agência" wide>
+        <Field
+          label="Organização da agência"
+          wide
+          hint="Busque e selecione a organização que gerencia os anúncios. Isso libera o tracking, formulário e financeiro dela."
+        >
           <Input
-            value={form.agencyOrganizationId}
-            onChange={(event) => patch({ agencyOrganizationId: event.target.value })}
-            placeholder="ID da org da NASA que roda os anúncios"
+            value={organizationSearch}
+            onChange={(event) => setOrganizationSearch(event.target.value)}
+            placeholder="Buscar organização por nome"
           />
+          <div className="mt-2">
+            <OptionSelect
+              value={form.agencyOrganizationId}
+              onChange={(agencyOrganizationId) => {
+                const organization = organizations?.organizations.find(
+                  (item) => item.id === agencyOrganizationId,
+                );
+                setOrganizationSearch(organization?.name ?? "");
+                patch({
+                  agencyOrganizationId,
+                  operationsTrackingId: "",
+                  statusColumnMap: {},
+                  briefingFormId: "",
+                  financeAccountId: "",
+                  financeRevenueCategoryId: "",
+                  financePassthroughCategoryId: "",
+                });
+              }}
+              placeholder={
+                isLoadingOrganizations
+                  ? "Carregando organizações…"
+                  : "Selecione a organização"
+              }
+              disabled={isLoadingOrganizations}
+              items={(organizations?.organizations ?? []).map(
+                (organization) => ({
+                  value: organization.id,
+                  label: organization.name,
+                }),
+              )}
+            />
+          </div>
         </Field>
         <Field label="Taxa de serviço padrão (%)">
           <Input
             type="number"
             value={form.defaultServiceFeePercent}
-            onChange={(event) => patch({ defaultServiceFeePercent: event.target.value })}
+            onChange={(event) =>
+              patch({ defaultServiceFeePercent: event.target.value })
+            }
           />
         </Field>
         <Field
@@ -236,8 +306,10 @@ export function TrafegoSettingsForm() {
         >
           <Input
             value={form.supportWhatsapp}
-            onChange={(event) => patch({ supportWhatsapp: event.target.value })}
-            placeholder="5586998221810"
+            onChange={(event) =>
+              patch({ supportWhatsapp: maskPhoneBr(event.target.value) })
+            }
+            placeholder="(86) 99822-1810"
           />
         </Field>
         <Field
@@ -247,7 +319,9 @@ export function TrafegoSettingsForm() {
         >
           <Input
             value={form.partnerBusinessId}
-            onChange={(event) => patch({ partnerBusinessId: event.target.value })}
+            onChange={(event) =>
+              patch({ partnerBusinessId: event.target.value })
+            }
             placeholder="Configurações do negócio → Informações do negócio → ID"
           />
         </Field>
@@ -269,15 +343,23 @@ export function TrafegoSettingsForm() {
             ) : (
               <Wand2 className="mr-1.5 size-4" />
             )}
-            {form.operationsTrackingId ? "Conferir colunas" : "Criar tracking TrafeGO"}
+            {form.operationsTrackingId
+              ? "Conferir colunas"
+              : "Criar tracking TrafeGO"}
           </Button>
         }
       >
         <Field label="Tracking de operação" wide>
           <OptionSelect
             value={form.operationsTrackingId}
-            onChange={(value) => patch({ operationsTrackingId: value, statusColumnMap: {} })}
-            placeholder={hasAgency ? "Escolha o tracking" : "Informe a org da agência primeiro"}
+            onChange={(value) =>
+              patch({ operationsTrackingId: value, statusColumnMap: {} })
+            }
+            placeholder={
+              hasAgency
+                ? "Escolha o tracking"
+                : "Informe a org da agência primeiro"
+            }
             disabled={!hasAgency || isLoadingOptions}
             items={(options?.trackings ?? []).map((tracking) => ({
               value: tracking.id,
@@ -289,25 +371,33 @@ export function TrafegoSettingsForm() {
         {selectedTracking && (
           <div className="sm:col-span-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs">Fase do pedido → coluna do tracking</Label>
+              <Label className="text-xs">
+                Fase do pedido → coluna do tracking
+              </Label>
               {unmappedColumns.length === 0 ? (
                 <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
                   <CheckCircle2 className="size-3.5" /> Todas as fases mapeadas
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-xs text-amber-600">
-                  <AlertTriangle className="size-3.5" /> {unmappedColumns.length} sem coluna
+                  <AlertTriangle className="size-3.5" />{" "}
+                  {unmappedColumns.length} sem coluna
                 </span>
               )}
             </div>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {TRAFEGO_KANBAN_COLUMNS.map((column) => (
-                <div key={column.key} className="flex items-center gap-2 rounded-md border px-3 py-2">
+                <div
+                  key={column.key}
+                  className="flex items-center gap-2 rounded-md border px-3 py-2"
+                >
                   <span
                     className="size-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: column.color }}
                   />
-                  <span className="min-w-0 flex-1 truncate text-xs">{column.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs">
+                    {column.name}
+                  </span>
                   <OptionSelect
                     compact
                     value={form.statusColumnMap[column.key] ?? ""}
@@ -359,7 +449,11 @@ export function TrafegoSettingsForm() {
           <OptionSelect
             value={form.briefingFormId}
             onChange={(value) => patch({ briefingFormId: value })}
-            placeholder={hasAgency ? "Escolha o formulário" : "Informe a org da agência primeiro"}
+            placeholder={
+              hasAgency
+                ? "Escolha o formulário"
+                : "Informe a org da agência primeiro"
+            }
             disabled={!hasAgency || isLoadingOptions}
             items={(options?.forms ?? []).map((formOption) => ({
               value: formOption.id,
@@ -376,37 +470,56 @@ export function TrafegoSettingsForm() {
           <label className="flex items-center gap-2 text-xs">
             <Switch
               checked={form.clientNotificationsEnabled}
-              onCheckedChange={(checked) => patch({ clientNotificationsEnabled: checked })}
+              onCheckedChange={(checked) =>
+                patch({ clientNotificationsEnabled: checked })
+              }
             />
             {form.clientNotificationsEnabled ? "Ligados" : "Desligados"}
           </label>
         }
       >
-        <Field label="Template de ativação" hint="Parâmetros: nome · valor · link">
+        <Field
+          label="Template de ativação"
+          hint="Parâmetros: nome · valor · link"
+        >
           <Input
             value={form.whatsappActivationTemplate}
-            onChange={(event) => patch({ whatsappActivationTemplate: event.target.value })}
+            onChange={(event) =>
+              patch({ whatsappActivationTemplate: event.target.value })
+            }
             placeholder="trafego_ativacao"
           />
         </Field>
-        <Field label="Template de mudança de fase" hint="Parâmetros: nome · código · fase · link">
+        <Field
+          label="Template de mudança de fase"
+          hint="Parâmetros: nome · código · fase · link"
+        >
           <Input
             value={form.whatsappStatusTemplate}
-            onChange={(event) => patch({ whatsappStatusTemplate: event.target.value })}
+            onChange={(event) =>
+              patch({ whatsappStatusTemplate: event.target.value })
+            }
             placeholder="trafego_status"
           />
         </Field>
-        <Field label="Template do código de verificação" hint="Parâmetro: código de 6 dígitos (categoria Autenticação)">
+        <Field
+          label="Template do código de verificação"
+          hint="Parâmetro: código de 6 dígitos (categoria Autenticação)"
+        >
           <Input
             value={form.whatsappOtpTemplate}
-            onChange={(event) => patch({ whatsappOtpTemplate: event.target.value })}
+            onChange={(event) =>
+              patch({ whatsappOtpTemplate: event.target.value })
+            }
             placeholder="trafego_codigo"
           />
         </Field>
         <Field label="Idioma dos templates">
           <Input
             value={form.whatsappTemplateLanguage}
-            onChange={(event) => patch({ whatsappTemplateLanguage: event.target.value })}
+            onChange={(event) =>
+              patch({ whatsappTemplateLanguage: event.target.value })
+            }
             placeholder="pt_BR"
           />
         </Field>
@@ -416,7 +529,11 @@ export function TrafegoSettingsForm() {
         title="PIX manual"
         description="A chave aparece para o cliente no fim do wizard. Sem chave preenchida, o PIX some e só o cartão é oferecido."
       >
-        <Field label="Chave PIX" wide hint="CNPJ, e-mail, telefone ou chave aleatória.">
+        <Field
+          label="Chave PIX"
+          wide
+          hint="CNPJ, e-mail, telefone ou chave aleatória."
+        >
           <Input
             value={form.pixKey}
             onChange={(event) => patch({ pixKey: event.target.value })}
@@ -457,7 +574,11 @@ export function TrafegoSettingsForm() {
           <OptionSelect
             value={form.financeAccountId}
             onChange={(value) => patch({ financeAccountId: value })}
-            placeholder={hasAgency ? "Escolha a conta" : "Informe a org da agência primeiro"}
+            placeholder={
+              hasAgency
+                ? "Escolha a conta"
+                : "Informe a org da agência primeiro"
+            }
             disabled={!hasAgency || isLoadingOptions}
             items={(options?.accounts ?? []).map((account) => ({
               value: account.id,
@@ -473,7 +594,10 @@ export function TrafegoSettingsForm() {
             disabled={!hasAgency || isLoadingOptions}
             items={(options?.categories ?? [])
               .filter((category) => category.type === "REVENUE")
-              .map((category) => ({ value: category.id, label: category.name }))}
+              .map((category) => ({
+                value: category.id,
+                label: category.name,
+              }))}
           />
         </Field>
         <Field label="Categoria do repasse da verba">
@@ -484,7 +608,10 @@ export function TrafegoSettingsForm() {
             disabled={!hasAgency || isLoadingOptions}
             items={(options?.categories ?? [])
               .filter((category) => category.type !== "REVENUE")
-              .map((category) => ({ value: category.id, label: category.name }))}
+              .map((category) => ({
+                value: category.id,
+                label: category.name,
+              }))}
           />
         </Field>
       </Section>
@@ -510,14 +637,20 @@ export function TrafegoSettingsForm() {
         <Field label="Tracking padrão de disparo" wide>
           <Input
             value={form.defaultBroadcastTrackingId}
-            onChange={(event) => patch({ defaultBroadcastTrackingId: event.target.value })}
+            onChange={(event) =>
+              patch({ defaultBroadcastTrackingId: event.target.value })
+            }
             placeholder="Número META_CLOUD de origem dos disparos"
           />
         </Field>
       </Section>
 
       <div className="flex justify-end">
-        <Button size="sm" onClick={handleSave} disabled={updateSettings.isPending}>
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={updateSettings.isPending}
+        >
           {updateSettings.isPending ? (
             <Loader2 className="mr-1.5 size-4 animate-spin" />
           ) : (
@@ -546,7 +679,9 @@ function Section({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold">{title}</h2>
-          <p className="max-w-xl text-sm text-muted-foreground">{description}</p>
+          <p className="max-w-xl text-sm text-muted-foreground">
+            {description}
+          </p>
         </div>
         {action}
       </div>
