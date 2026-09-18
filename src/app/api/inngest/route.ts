@@ -88,6 +88,7 @@ import { paymentInboxSyncCron, paymentInboxSyncOrg } from "@/inngest/functions/p
 // ── Campanhas (disparo em massa WhatsApp Oficial — Fase 3/4) ──
 import { dispatchBroadcast } from "@/inngest/functions/campanhas/dispatch-broadcast";
 import { dispatchDueBroadcasts } from "@/inngest/functions/campanhas/dispatch-due-broadcasts";
+import { watchScheduledBroadcast } from "@/inngest/functions/campanhas/watch-scheduled-broadcast";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -184,6 +185,8 @@ export const { GET, POST, PUT } = serve({
     // ── Campanhas — disparo em massa (Fase 3) + agendamento (Fase 4, cron) ──
     dispatchBroadcast,
     dispatchDueBroadcasts,
+    // Disparo agendado por campanha — caminho principal; o cron acima é a rede.
+    watchScheduledBroadcast,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

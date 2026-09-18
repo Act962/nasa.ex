@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { inngest } from "@/inngest/client";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { scheduleBroadcastSchema } from "@/features/campanhas/schema/broadcast-schemas";
 import { loadBroadcastForOrg } from "@/features/campanhas/server/lib/broadcast-access";
@@ -10,8 +11,11 @@ import { assertBroadcastSendable } from "@/features/campanhas/server/lib/assert-
 /**
  * Agenda (ou reagenda) o disparo da campanha (Fase 4). Valida os mesmos
  * pré-requisitos do disparo imediato (template aprovado + destinatários) e
- * grava `scheduledAt` + status `SCHEDULED`. O cron `dispatch-due-broadcasts`
- * pega a campanha quando a hora chega e a coloca em `SENDING`.
+ * grava `scheduledAt` + status `SCHEDULED`.
+ *
+ * O disparo é agendado aqui, por campanha (`watch-scheduled-broadcast`), e sai
+ * na hora exata. O cron `dispatch-due-broadcasts` continua rodando em cadência
+ * baixa como rede, para o caso de este evento se perder.
  */
 export const schedule = base
   .use(requiredAuthMiddleware)
@@ -35,6 +39,22 @@ export const schedule = base
       data: { status: "SCHEDULED", scheduledAt },
       select: { id: true, status: true, scheduledAt: true },
     });
+
+    // Agendamento por campanha: dispara na hora exata, e o custo acompanha o
+    // número de campanhas em vez da passagem do tempo. Best-effort — se falhar,
+    // o cron de rede ainda pega.
+    try {
+      await inngest.send({
+        name: "campanhas/broadcast.scheduled",
+        data: {
+          broadcastId: broadcast.id,
+          organizationId: org.id,
+          scheduledAt: scheduledAt.toISOString(),
+        },
+      });
+    } catch (error) {
+      console.error("[campanhas/schedule] agendamento do disparo falhou:", error);
+    }
 
     await logActivity({
       organizationId: org.id,
