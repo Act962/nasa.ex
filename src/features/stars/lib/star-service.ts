@@ -467,7 +467,10 @@ export async function purchaseTopUp(
  * Runs the monthly cycle for an organization:
  *  1. Apply rollover from previous balance (up to `rolloverPct` of plan stars)
  *  2. Credit plan stars
- *  3. Debit monthly app charges for all active workspace integrations
+ *
+ * A cobrança mensal por app instalado foi aposentada na spec 0020: o ecossistema
+ * é o produto e o plano define a capacidade, então app não tem mais aluguel
+ * próprio em ★. O histórico de `WorkspaceIntegration` é preservado.
  */
 export async function runMonthlyCycle(organizationId: string): Promise<void> {
   const org = await prisma.organization.findUniqueOrThrow({
@@ -477,10 +480,6 @@ export async function runMonthlyCycle(organizationId: string): Promise<void> {
       starsCycleStart: true,
       partnerLifetimeGranted: true,
       plan: true,
-      workspaceIntegrations: {
-        where: { isActive: true },
-        select: { appSlug: true },
-      },
     },
   });
 
@@ -521,29 +520,6 @@ export async function runMonthlyCycle(organizationId: string): Promise<void> {
       ? `Crédito mensal do plano ${org.plan.name} (${monthlyStars} ★) — Cortesia NASA Partner Infinity`
       : `Crédito mensal do plano ${org.plan.name} (${monthlyStars} ★)`,
   );
-
-  // Debit monthly charges for each active app
-  for (const wi of org.workspaceIntegrations) {
-    const appCost = await prisma.appStarCost.findUnique({
-      where: { appSlug: wi.appSlug },
-    });
-    if (!appCost || appCost.monthlyCost === 0) continue;
-
-    await debitStars(
-      organizationId,
-      appCost.monthlyCost,
-      StarTransactionType.APP_CHARGE,
-      `Cobrança mensal — ${wi.appSlug} (${appCost.monthlyCost} ★)`,
-      wi.appSlug,
-    );
-
-    await prisma.workspaceIntegration.update({
-      where: {
-        organizationId_appSlug: { organizationId, appSlug: wi.appSlug },
-      },
-      data: { lastChargedAt: new Date() },
-    });
-  }
 }
 
 // ─── Plan billing eligibility ────────────────────────────────────────────────
