@@ -84,3 +84,21 @@ export function useIgnoreTransaction() {
     }),
   );
 }
+
+export function useMarkTransactionReviewed() {
+  const invalidatePayment = useInvalidatePayment();
+  return useMutation(
+    orpc.payment.statements.transactions.markReviewed.mutationOptions({
+      onSuccess: invalidatePayment,
+    }),
+  );
+}
+
+export function useReviewTransactionWithAstro() {
+  const invalidatePayment = useInvalidatePayment();
+  return useMutation(
+    orpc.payment.statements.transactions.reviewWithAstro.mutationOptions({
+      onSuccess: invalidatePayment,
+    }),
+  );
+}

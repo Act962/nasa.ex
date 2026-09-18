@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy, Loader2, MessageCircle, QrCode, Timer } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Loader2,
+  MessageCircle,
+  QrCode,
+  Timer,
+} from "lucide-react";
 import Link from "next/link";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { useTrafegoPendingPurchase } from "@/features/trafego/hooks/use-trafego-purchase";
@@ -53,16 +60,21 @@ export function PixInstructions({
         <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-emerald-500/20">
           <Check className="size-6 text-emerald-300" />
         </span>
-        <h2 className="mt-4 text-xl font-bold text-white">Pagamento confirmado!</h2>
+        <h2 className="mt-4 text-xl font-bold text-white">
+          Pagamento confirmado!
+        </h2>
         <p className="mt-1.5 text-sm text-white/55">
-          Nossa equipe conferiu seu comprovante. Agora é criar sua senha para acessar o
-          painel.
+          {data?.orderId
+            ? "Sua nova campanha já está disponível no painel."
+            : "Nossa equipe conferiu seu comprovante. Agora é criar sua senha para acessar o painel."}
         </p>
         <Link
           href={
-            data?.signupToken
-              ? `/trafego/ativar/${data.signupToken}`
-              : `/trafego/sucesso?token=${pendingId}`
+            data?.orderId
+              ? `/trafego/painel/${data.orderId}`
+              : data?.signupToken
+                ? `/trafego/ativar/${data.signupToken}`
+                : `/trafego/sucesso?token=${pendingId}`
           }
           className="mt-6 inline-flex rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-violet-500"
         >
@@ -87,8 +99,8 @@ export function PixInstructions({
             Falta pagar {formatBrlFromCents(charge.amountBrlCents)}
           </h2>
           <p className="mt-1 text-sm text-white/45">
-            Pague na chave abaixo e mande o comprovante — a equipe confirma em horário
-            comercial.
+            Pague na chave abaixo e mande o comprovante — a equipe confirma em
+            horário comercial.
           </p>
         </div>
       </div>
@@ -106,15 +118,24 @@ export function PixInstructions({
             onClick={copyKey}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-2 text-xs font-medium text-white transition hover:bg-white/[0.1]"
           >
-            {copied ? <Check className="size-3.5 text-emerald-300" /> : <Copy className="size-3.5" />}
+            {copied ? (
+              <Check className="size-3.5 text-emerald-300" />
+            ) : (
+              <Copy className="size-3.5" />
+            )}
             {copied ? "Copiado" : "Copiar"}
           </button>
         </div>
 
         <dl className="mt-4 space-y-1.5 border-t border-white/[0.07] pt-3 text-xs">
-          {charge.holderName && <Row label="Titular" value={charge.holderName} />}
+          {charge.holderName && (
+            <Row label="Titular" value={charge.holderName} />
+          )}
           {charge.bankName && <Row label="Banco" value={charge.bankName} />}
-          <Row label="Valor" value={formatBrlFromCents(charge.amountBrlCents)} />
+          <Row
+            label="Valor"
+            value={formatBrlFromCents(charge.amountBrlCents)}
+          />
           <Row label="Referência" value={charge.reference} mono />
         </dl>
       </div>
@@ -122,8 +143,8 @@ export function PixInstructions({
       <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-400/20 bg-amber-500/[0.07] p-3.5">
         <Timer className="mt-0.5 size-4 shrink-0 text-amber-300" />
         <p className="text-xs leading-relaxed text-amber-100">
-          Cite a referência <strong>{charge.reference}</strong> ao enviar o comprovante —
-          é assim que achamos o seu pedido. A cobrança vale até{" "}
+          Cite a referência <strong>{charge.reference}</strong> ao enviar o
+          comprovante — é assim que achamos o seu pedido. A cobrança vale até{" "}
           <strong>
             {new Date(charge.expiresAt).toLocaleString("pt-BR", {
               day: "2-digit",
@@ -156,11 +177,23 @@ export function PixInstructions({
   );
 }
 
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Row({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <dt className="text-white/40">{label}</dt>
-      <dd className={mono ? "font-mono font-semibold text-white" : "text-white/80"}>
+      <dd
+        className={
+          mono ? "font-mono font-semibold text-white" : "text-white/80"
+        }
+      >
         {value}
       </dd>
     </div>

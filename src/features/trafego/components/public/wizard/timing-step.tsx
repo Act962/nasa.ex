@@ -1,6 +1,11 @@
 "use client";
 
-import { CalendarClock, CalendarDays, Check, TriangleAlert } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarDays,
+  Check,
+  TriangleAlert,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   estimateEarliestStart,
@@ -8,6 +13,7 @@ import {
   isDesiredStartTooSoon,
 } from "@/features/trafego/lib/timeline";
 import { Field, fieldClass } from "./field";
+import { TechnicalTerm } from "../../technical-term";
 
 export interface TimingDraft {
   desiredStartAt: string;
@@ -26,20 +32,26 @@ export function TimingStep({
   value,
   onChange,
   hasAdAccount,
+  reuseSocialConnection = false,
 }: {
   value: TimingDraft;
   onChange: (value: TimingDraft) => void;
   /** null = "não sei dizer", tratado como quem não tem. */
   hasAdAccount: boolean | null;
+  reuseSocialConnection?: boolean;
 }) {
-  const patch = (partial: Partial<TimingDraft>) => onChange({ ...value, ...partial });
+  const patch = (partial: Partial<TimingDraft>) =>
+    onChange({ ...value, ...partial });
 
   const estimate = estimateEarliestStart({
     hasAdAccount,
     hasSocialLinked: value.hasSocialLinked,
     materialsReady: value.materialsReady,
   });
-  const isTooSoon = isDesiredStartTooSoon(value.desiredStartAt, estimate.earliestStart);
+  const isTooSoon = isDesiredStartTooSoon(
+    value.desiredStartAt,
+    estimate.earliestStart,
+  );
 
   return (
     <div className="space-y-5">
@@ -50,22 +62,46 @@ export function TimingStep({
             type="date"
             value={value.desiredStartAt}
             min={new Date().toISOString().slice(0, 10)}
-            onChange={(event) => patch({ desiredStartAt: event.target.value, acknowledged: false })}
+            onChange={(event) =>
+              patch({ desiredStartAt: event.target.value, acknowledged: false })
+            }
             className={`${fieldClass} [color-scheme:dark]`}
           />
         </div>
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
+        {reuseSocialConnection ? (
+          <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/[0.08] p-3">
+            <p className="flex items-center gap-2 text-xs font-medium text-emerald-200">
+              <Check className="size-4" />
+              Instagram e Facebook já vinculados
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-white/40">
+              Reaproveitamos esta confirmação da sua campanha anterior.
+            </p>
+          </div>
+        ) : (
+          <YesNo
+            label="Seu Instagram e Facebook já estão vinculados?"
+            value={value.hasSocialLinked}
+            onChange={(hasSocialLinked) =>
+              patch({ hasSocialLinked, acknowledged: false })
+            }
+          />
+        )}
         <YesNo
-          label="Seu Instagram e Facebook já estão vinculados?"
-          value={value.hasSocialLinked}
-          onChange={(hasSocialLinked) => patch({ hasSocialLinked, acknowledged: false })}
-        />
-        <YesNo
-          label="Seus criativos e textos já estão prontos?"
+          label={
+            <>
+              Seus criativos e textos já estão prontos?
+              <TechnicalTerm term="creative" className="text-white/50" />
+              <TechnicalTerm term="copy" className="text-white/50" />
+            </>
+          }
           value={value.materialsReady}
-          onChange={(materialsReady) => patch({ materialsReady, acknowledged: false })}
+          onChange={(materialsReady) =>
+            patch({ materialsReady, acknowledged: false })
+          }
         />
       </div>
 
@@ -73,20 +109,25 @@ export function TimingStep({
         <p className="flex items-center gap-2 text-sm font-semibold text-white">
           <CalendarClock className="size-4 shrink-0 text-violet-300" />
           Com o que você tem hoje, a campanha começa a partir de{" "}
-          <span className="text-violet-300">{formatStartDate(estimate.earliestStart)}</span>
+          <span className="text-violet-300">
+            {formatStartDate(estimate.earliestStart)}
+          </span>
         </p>
         <ul className="mt-2.5 space-y-1">
           {estimate.reasons.map((reason) => (
-            <li key={reason} className="flex items-start gap-2 text-xs text-white/50">
+            <li
+              key={reason}
+              className="flex items-start gap-2 text-xs text-white/50"
+            >
               <span className="mt-1.5 size-1 shrink-0 rounded-full bg-white/30" />
               {reason}
             </li>
           ))}
         </ul>
         <p className="mt-3 text-[11px] leading-relaxed text-white/35">
-          São {estimate.businessDays} dias úteis de preparo. O prazo só começa a correr
-          quando acessos e materiais estiverem liberados — e a aprovação do anúncio
-          depende da Meta e do Google, não de nós.
+          São {estimate.businessDays} dias úteis de preparo. O prazo só começa a
+          correr quando acessos e materiais estiverem liberados — e a aprovação
+          do anúncio depende da Meta e do Google, não de nós.
         </p>
       </div>
 
@@ -96,8 +137,9 @@ export function TimingStep({
             <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-300" />
             <span>
               Você escolheu uma data anterior a{" "}
-              <strong>{formatStartDate(estimate.earliestStart)}</strong>. Vamos fazer o
-              possível, mas não conseguimos garantir esse prazo com o que falta preparar.
+              <strong>{formatStartDate(estimate.earliestStart)}</strong>. Vamos
+              fazer o possível, mas não conseguimos garantir esse prazo com o
+              que falta preparar.
             </span>
           </p>
 
@@ -105,13 +147,15 @@ export function TimingStep({
             <input
               type="checkbox"
               checked={value.acknowledged}
-              onChange={(event) => patch({ acknowledged: event.target.checked })}
+              onChange={(event) =>
+                patch({ acknowledged: event.target.checked })
+              }
               className="mt-0.5 size-3.5 shrink-0 accent-amber-500"
             />
             <span className="text-xs leading-relaxed text-amber-100/90">
               Entendi que a data realista é{" "}
-              <strong>{formatStartDate(estimate.earliestStart)}</strong> e que o prazo
-              depende dos acessos e materiais que eu enviar.
+              <strong>{formatStartDate(estimate.earliestStart)}</strong> e que o
+              prazo depende dos acessos e materiais que eu enviar.
             </span>
           </label>
         </div>
@@ -125,7 +169,7 @@ function YesNo({
   value,
   onChange,
 }: {
-  label: string;
+  label: React.ReactNode;
   value: boolean | null;
   onChange: (value: boolean) => void;
 }) {

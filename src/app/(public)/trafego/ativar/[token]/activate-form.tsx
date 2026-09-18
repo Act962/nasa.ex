@@ -58,6 +58,7 @@ export function ActivateForm({
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -120,8 +121,17 @@ export function ActivateForm({
     }
   }
 
+  // Já logado com o e-mail da compra, nome e senha nem aparecem na tela — o
+  // schema de cadastro reprovaria as senhas vazias e barraria o envio em silêncio.
+  const submit = isSameAccountLogged
+    ? (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        void onSubmit(getValues());
+      }
+    : handleSubmit(onSubmit);
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
+    <form onSubmit={submit} className="mt-6 space-y-4">
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-white/70">E-mail</label>
         <div className="relative">

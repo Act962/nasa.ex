@@ -20,6 +20,8 @@ export interface TrafegoOperationsSettings {
   briefingFormId: string | null;
   salesTrackingId: string | null;
   supportWhatsapp: string | null;
+  includedCreatives: number;
+  extraCreativeBrlCents: number;
   partnerBusinessId: string | null;
   whatsappActivationTemplate: string | null;
   whatsappStatusTemplate: string | null;
@@ -42,6 +44,8 @@ const EMPTY_SETTINGS: TrafegoOperationsSettings = {
   briefingFormId: null,
   salesTrackingId: null,
   supportWhatsapp: null,
+  includedCreatives: 3,
+  extraCreativeBrlCents: 4000,
   partnerBusinessId: null,
   whatsappActivationTemplate: null,
   whatsappStatusTemplate: null,
@@ -78,6 +82,8 @@ export async function loadTrafegoSettings(options?: {
         briefingFormId: row.briefingFormId,
         salesTrackingId: row.salesTrackingId,
         supportWhatsapp: row.supportWhatsapp,
+        includedCreatives: row.includedCreatives,
+        extraCreativeBrlCents: row.extraCreativeBrlCents,
         partnerBusinessId: row.partnerBusinessId,
         whatsappActivationTemplate: row.whatsappActivationTemplate,
         whatsappStatusTemplate: row.whatsappStatusTemplate,

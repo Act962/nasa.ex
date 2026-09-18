@@ -97,6 +97,18 @@ export const listPaymentEntries = base
     paidFrom: z.string().optional(),
     paidTo: z.string().optional(),
     search: z.string().optional(),
+    orderBy: z
+      .enum([
+        "dueDate_asc", "dueDate_desc",
+        "amount_asc", "amount_desc",
+        "status_asc", "status_desc",
+        "paidAt_asc", "paidAt_desc",
+        "description_asc", "description_desc",
+        "createdAt_asc", "createdAt_desc",
+        "contact_asc", "contact_desc",
+        "category_asc", "category_desc",
+      ])
+      .optional(),
     page: z.number().default(1),
     perPage: z.number().default(50),
   }))

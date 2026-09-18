@@ -70,6 +70,15 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    // URLs em português que o Astro já mandou em conversas gravadas.
+    // Temporário (307): não fica preso no cache do navegador se as rotas mudarem.
+    return [
+      { source: "/integracoes/:path*", destination: "/integrations/:path*", permanent: false },
+      { source: "/formularios/:path*", destination: "/form", permanent: false },
+      { source: "/alertas", destination: "/settings/notifications", permanent: false },
+    ];
+  },
   images: {
     remotePatterns: [
       { hostname: "images.unsplash.com" },

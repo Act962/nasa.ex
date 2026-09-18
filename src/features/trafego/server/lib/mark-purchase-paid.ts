@@ -23,7 +23,10 @@ export interface MarkPurchasePaidInput {
   /** Valor efetivamente recebido; null quando o provedor não informa. */
   amountTotalCents: number | null;
   /** Stripe preenche; PIX não. */
-  stripe?: { paymentIntentId?: string | null; checkoutSessionId?: string | null };
+  stripe?: {
+    paymentIntentId?: string | null;
+    checkoutSessionId?: string | null;
+  };
   /** PIX: quem confirmou e o que anotou. */
   pix?: { confirmedByUserId: string; note?: string | null };
   /**
@@ -36,7 +39,11 @@ export interface MarkPurchasePaidInput {
 
 export type MarkPurchasePaidResult =
   | { status: "not_found" }
-  | { status: "already_paid"; via: "stripe" | "pix" | "unknown"; amountMismatch: boolean }
+  | {
+      status: "already_paid";
+      via: "stripe" | "pix" | "unknown";
+      amountMismatch: boolean;
+    }
   | {
       status: "paid";
       pendingId: string;
@@ -63,10 +70,13 @@ export async function markTrafegoPurchasePaid(
       objective: true,
       paymentMethod: true,
       pixConfirmedAt: true,
+      briefing: true,
     },
   });
   if (!pending) {
-    console.warn(`[trafego/paid] ${paymentSource}: pendência não encontrada: ${pendingId}`);
+    console.warn(
+      `[trafego/paid] ${paymentSource}: pendência não encontrada: ${pendingId}`,
+    );
     return { status: "not_found" };
   }
 
@@ -120,7 +130,9 @@ export async function markTrafegoPurchasePaid(
       );
     }
 
-    console.log(`[trafego/paid] ${paymentSource}: ${pendingId} já estava pago (${via}).`);
+    console.log(
+      `[trafego/paid] ${paymentSource}: ${pendingId} já estava pago (${via}).`,
+    );
     return { status: "already_paid", via, amountMismatch: hasMismatch };
   }
 
@@ -128,8 +140,18 @@ export async function markTrafegoPurchasePaid(
 
   // Fluxo autenticado: a conta já existe, então o pedido nasce agora.
   if (pending.flow === "authenticated" && pending.userId) {
+    const briefing = (pending.briefing ?? {}) as Record<string, unknown>;
+    const requestedOrganizationId =
+      typeof briefing._organizationId === "string"
+        ? briefing._organizationId
+        : null;
     const member = await prisma.member.findFirst({
-      where: { userId: pending.userId },
+      where: {
+        userId: pending.userId,
+        ...(requestedOrganizationId
+          ? { organizationId: requestedOrganizationId }
+          : {}),
+      },
       select: { organizationId: true },
       orderBy: { createdAt: "asc" },
     });
@@ -153,7 +175,13 @@ export async function markTrafegoPurchasePaid(
       });
       orderId = order.id;
       capture(pending, amountTotalCents, hasMismatch, paymentSource);
-      return { status: "paid", pendingId, flow: pending.flow, orderId, amountMismatch: hasMismatch };
+      return {
+        status: "paid",
+        pendingId,
+        flow: pending.flow,
+        orderId,
+        amountMismatch: hasMismatch,
+      };
     }
 
     console.warn(
@@ -167,23 +195,39 @@ export async function markTrafegoPurchasePaid(
     where: { id: pending.id },
     data: {
       signupToken,
-      tokenExpiresAt: new Date(Date.now() + SIGNUP_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000),
+      tokenExpiresAt: new Date(
+        Date.now() + SIGNUP_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+      ),
     },
   });
 
   try {
     await inngest.send({ name: "trafego/purchase.paid", data: { pendingId } });
   } catch (error) {
-    console.error(`[trafego/paid] ${paymentSource}: dispatch Inngest falhou:`, error);
+    console.error(
+      `[trafego/paid] ${paymentSource}: dispatch Inngest falhou:`,
+      error,
+    );
   }
 
   capture(pending, amountTotalCents, hasMismatch, paymentSource);
   console.log(`[trafego/paid] ✅ ${paymentSource} pago: ${pendingId}`);
-  return { status: "paid", pendingId, flow: pending.flow, orderId, amountMismatch: hasMismatch };
+  return {
+    status: "paid",
+    pendingId,
+    flow: pending.flow,
+    orderId,
+    amountMismatch: hasMismatch,
+  };
 }
 
 function capture(
-  pending: { email: string; platform: string; objective: string; amountBrlCents: number },
+  pending: {
+    email: string;
+    platform: string;
+    objective: string;
+    amountBrlCents: number;
+  },
   amountTotalCents: number | null,
   hasMismatch: boolean,
   source: string,
@@ -207,7 +251,10 @@ function capture(
   }
 }
 
-async function notifyDuplicatePayment(pendingId: string, email: string): Promise<void> {
+async function notifyDuplicatePayment(
+  pendingId: string,
+  email: string,
+): Promise<void> {
   const admins = await prisma.user.findMany({
     where: { isSystemAdmin: true, isActive: true },
     select: { id: true },

@@ -24,10 +24,25 @@ import {
 } from "@/features/payment/server/statements/create-entry-from-transaction";
 import { ignoreStatementTransactionRecord } from "@/features/payment/server/statements/ignore-transaction";
 import { unmatchStatementTransactionRecord } from "@/features/payment/server/statements/unmatch-transaction";
+import {
+  markTransactionReviewedRecord,
+  reviewTransactionWithAstro,
+} from "@/features/payment/server/statements/review-transaction";
 import { z } from "zod";
 
 // Handlers finos da conciliação (specs 0013 e 0016): validação de entrada,
 // permissão e tradução de falha em erro oRPC. A regra mora nos serviços.
+
+const reviewFieldStatus = z.enum(["match", "divergent", "unknown"]);
+const reviewResultShape = z.object({
+  checkedAt: z.string(),
+  attachmentId: z.string(),
+  matches: z.boolean(),
+  payer: z.object({ status: reviewFieldStatus, expected: z.string().nullable(), found: z.string().nullable() }),
+  amount: z.object({ status: reviewFieldStatus, expectedCents: z.number(), foundCents: z.number().nullable() }),
+  date: z.object({ status: reviewFieldStatus, expected: z.string().nullable(), found: z.string().nullable() }),
+  warnings: z.array(z.string()),
+});
 
 const transactionShape = z.object({
   id: z.string(),
@@ -45,6 +60,9 @@ const transactionShape = z.object({
   status: z.enum(["PENDING", "MATCHED", "IGNORED"]),
   matchedEntryId: z.string().nullable(),
   ignoredReason: z.string().nullable(),
+  reviewedAt: z.date().nullable(),
+  reviewResult: reviewResultShape.nullable(),
+  comprovanteAttachmentId: z.string().nullable(),
 });
 
 const suggestionShape = z.object({
@@ -356,6 +374,47 @@ export const ignoreStatementTransaction = base
     });
     if (!result.ok) throw toStatementError(errors, result);
     return { success: true };
+  });
+
+export const markStatementTransactionReviewed = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("entries", "edit"))
+  .route({ method: "POST", summary: "Mark transaction as reviewed", tags: ["Payment"] })
+  .input(z.object({ transactionId: z.string(), reviewed: z.boolean().default(true) }))
+  .output(z.object({ success: z.boolean() }))
+  .handler(async ({ input, context, errors }) => {
+    const result = await markTransactionReviewedRecord({
+      organizationId: context.org.id,
+      transactionId: input.transactionId,
+      reviewedById: context.user.id,
+      reviewed: input.reviewed,
+    });
+    if (!result.ok) throw toStatementError(errors, result);
+    return { success: true };
+  });
+
+export const reviewStatementTransactionWithAstro = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("entries", "edit"))
+  .route({ method: "POST", summary: "Read receipt with Astro and check payer/amount/date", tags: ["Payment"] })
+  .input(z.object({ transactionId: z.string() }))
+  .output(z.object({ success: z.boolean(), review: reviewResultShape }))
+  .handler(async ({ input, context, errors }) => {
+    let result: Awaited<ReturnType<typeof reviewTransactionWithAstro>>;
+    try {
+      result = await reviewTransactionWithAstro({
+        organizationId: context.org.id,
+        transactionId: input.transactionId,
+        userId: context.user.id,
+      });
+    } catch (error) {
+      console.error("[payment/statements/review-astro]", error);
+      throw errors.INTERNAL_SERVER_ERROR;
+    }
+    if (!result.ok) throw toStatementError(errors, result);
+    return { success: true, review: result.review };
   });
 
 export const listStatementImports = base

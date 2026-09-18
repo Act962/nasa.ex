@@ -36,6 +36,7 @@ import {
   useSaveTrafegoRelease,
   useTrafegoRelease,
 } from "@/features/trafego/hooks/use-trafego-release";
+import { TechnicalTerm } from "../technical-term";
 
 const EMPTY_RELEASE: TrafegoReleaseContent = {
   about: "",
@@ -114,7 +115,12 @@ export function ReleaseEditor({ orderId }: { orderId: string }) {
       });
       if (!response.ok) throw new Error("Falha ao enviar o arquivo.");
       const { key } = (await response.json()) as { key: string };
-      await addSource.mutateAsync({ orderId, kind: "pdf", value: file.name, fileKey: key });
+      await addSource.mutateAsync({
+        orderId,
+        kind: "pdf",
+        value: file.name,
+        fileKey: key,
+      });
       toast.success("PDF adicionado.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha no envio.");
@@ -127,10 +133,13 @@ export function ReleaseEditor({ orderId }: { orderId: string }) {
   return (
     <section className="space-y-5">
       <header>
-        <h3 className="text-sm font-semibold">Release da sua empresa</h3>
+        <h3 className="text-sm font-semibold">
+          Release da sua empresa
+          <TechnicalTerm term="release" />
+        </h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Aponte o site e o catálogo. A gente lê, escreve um resumo da sua empresa e
-          usa ele para criar os textos dos anúncios.
+          Aponte o site e o catálogo. A gente lê, escreve um resumo da sua
+          empresa e usa ele para criar os textos dos anúncios.
         </p>
       </header>
 
@@ -162,7 +171,9 @@ export function ReleaseEditor({ orderId }: { orderId: string }) {
                   variant="ghost"
                   size="icon"
                   className="size-7 shrink-0"
-                  onClick={() => removeSource.mutate({ orderId, sourceId: source.id })}
+                  onClick={() =>
+                    removeSource.mutate({ orderId, sourceId: source.id })
+                  }
                   aria-label={`Remover ${source.value}`}
                 >
                   <Trash2 className="size-3.5" />
@@ -173,7 +184,10 @@ export function ReleaseEditor({ orderId }: { orderId: string }) {
         )}
 
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Select value={kind} onValueChange={(next) => setKind(next as ReleaseSourceKind)}>
+          <Select
+            value={kind}
+            onValueChange={(next) => setKind(next as ReleaseSourceKind)}
+          >
             <SelectTrigger className="w-full sm:w-36">
               <SelectValue />
             </SelectTrigger>
@@ -268,13 +282,18 @@ export function ReleaseEditor({ orderId }: { orderId: string }) {
         </Button>
         {!hasReadableSource && (
           <p className="mt-2 text-[11px] text-muted-foreground">
-            Adicione o site ou um PDF — só deles conseguimos ler o conteúdo. Links de
-            rede social ficam guardados para a equipe consultar.
+            Adicione o site ou um PDF — só deles conseguimos ler o conteúdo.
+            Links de rede social ficam guardados para a equipe consultar.
           </p>
         )}
       </div>
 
-      <div className={cn("space-y-4", isGenerating && "pointer-events-none opacity-60")}>
+      <div
+        className={cn(
+          "space-y-4",
+          isGenerating && "pointer-events-none opacity-60",
+        )}
+      >
         <Field
           label="Sobre a empresa"
           value={draft.about}
@@ -358,7 +377,11 @@ function Field({
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
-      <Textarea value={value} onChange={(event) => onChange(event.target.value)} rows={rows} />
+      <Textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        rows={rows}
+      />
     </div>
   );
 }
@@ -377,7 +400,9 @@ function ListField({
     <div className="space-y-1.5">
       <Label className="text-xs">
         {label}
-        <span className="ml-1.5 font-normal text-muted-foreground">um por linha</span>
+        <span className="ml-1.5 font-normal text-muted-foreground">
+          um por linha
+        </span>
       </Label>
       <Textarea
         value={values.join("\n")}

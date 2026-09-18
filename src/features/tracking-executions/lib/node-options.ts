@@ -20,6 +20,7 @@ import {
   GlobeIcon,
   ImageIcon,
   Link2Icon,
+  LandmarkIcon,
   MailIcon,
   MessageSquareIcon,
   MicIcon,
@@ -426,6 +427,14 @@ export const executionNodes: NodeTypeOption[] = [
     label: "Filtrar Leads",
     description: "Filtra leads com base em critérios",
     icon: FunnelIcon,
+  },
+  {
+    type: NodeType.SEI_ACTION,
+    category: "execution",
+    label: "Consultar processo SEI",
+    description:
+      "Sincroniza o processo vinculado e disponibiliza protocolo, andamento e link para os próximos nós",
+    icon: LandmarkIcon,
   },
 
   // ─── Adicionar Lead no App ─────────────────────────────────────────────

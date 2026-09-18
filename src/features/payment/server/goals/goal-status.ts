@@ -26,6 +26,8 @@ export interface GoalStatus {
   hasRevenueTarget: boolean;
   hasMonthOverride: boolean;
   receivedRevenue: number;
+  /** Base da Meta de Vendas: recebido no mês só de vendas criadas no mês. */
+  salesRevenue: number;
   projectedRevenue: number;
   paidExpense: number;
   openPayable: number;
@@ -71,6 +73,7 @@ export function buildGoalStatus(params: {
     hasRevenueTarget: goal.hasRevenueTarget,
     hasMonthOverride: goal.hasMonthOverride,
     receivedRevenue: snapshot.receivedRevenue,
+    salesRevenue: snapshot.salesRevenue,
     projectedRevenue,
     paidExpense: snapshot.paidExpense,
     openPayable: snapshot.openPayable,
@@ -79,12 +82,14 @@ export function buildGoalStatus(params: {
     reserveTargetNow: percentOf(snapshot.receivedRevenue),
     reserveTargetProjected,
     reserveGap: projectedCash - reserveTargetProjected,
+    // Meta de Vendas mede vendas do mês (não recebimentos de lançamentos
+    // antigos), então usa salesRevenue — não receivedRevenue.
     goalProgressPercent: goal.hasRevenueTarget
-      ? (snapshot.receivedRevenue / goal.revenueTargetCents) * 100
+      ? (snapshot.salesRevenue / goal.revenueTargetCents) * 100
       : 0,
     isGoalReached:
       goal.hasRevenueTarget &&
-      snapshot.receivedRevenue >= goal.revenueTargetCents,
+      snapshot.salesRevenue >= goal.revenueTargetCents,
     // Com reserva 0% só é risco quando o mês fecha negativo — CB-2.
     isReserveAtRisk: projectedCash < reserveTargetProjected,
   };

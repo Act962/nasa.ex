@@ -20,13 +20,20 @@ const MAX_ATTEMPTS = 30;
 
 /** O que acontece a seguir, na ordem em que acontece — evita o "e agora?". */
 const NEXT_STEPS = [
-  { icon: FileCheck2, text: "Recebemos seus dados e o comprovante de pagamento." },
+  {
+    icon: FileCheck2,
+    text: "Recebemos seus dados e o comprovante de pagamento.",
+  },
   { icon: SearchCheck, text: "Nossa equipe vai analisar suas informações." },
   { icon: BellRing, text: "Você receberá atualizações por WhatsApp e e-mail." },
   { icon: Rocket, text: "Em breve sua campanha estará no ar!" },
 ];
 
-export function TrafegoSuccessPolling({ pendingId }: { pendingId: string | null }) {
+export function TrafegoSuccessPolling({
+  pendingId,
+}: {
+  pendingId: string | null;
+}) {
   const [attempts, setAttempts] = useState(0);
   const { data: config } = useTrafegoPublicConfig();
   const gaveUp = attempts >= MAX_ATTEMPTS;
@@ -43,7 +50,10 @@ export function TrafegoSuccessPolling({ pendingId }: { pendingId: string | null 
 
   useEffect(() => {
     if (!pendingId || isConfirmed || gaveUp) return;
-    const timer = setInterval(() => setAttempts((count) => count + 1), POLL_INTERVAL_MS);
+    const timer = setInterval(
+      () => setAttempts((count) => count + 1),
+      POLL_INTERVAL_MS,
+    );
     return () => clearInterval(timer);
   }, [pendingId, isConfirmed, gaveUp]);
 
@@ -89,7 +99,9 @@ export function TrafegoSuccessPolling({ pendingId }: { pendingId: string | null 
         <h1 className="mt-1.5 text-2xl font-bold text-white">
           Sua campanha está confirmada!
         </h1>
-        <p className="mt-1.5 text-sm text-white/45">Agora é com a nossa equipe.</p>
+        <p className="mt-1.5 text-sm text-white/45">
+          Agora é com a nossa equipe.
+        </p>
 
         <ul className="mt-7 space-y-3 text-left">
           {NEXT_STEPS.map((step) => (
@@ -97,15 +109,21 @@ export function TrafegoSuccessPolling({ pendingId }: { pendingId: string | null 
               <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.06]">
                 <step.icon className="size-3.5 text-white/60" />
               </span>
-              <span className="text-xs leading-relaxed text-white/60">{step.text}</span>
+              <span className="text-xs leading-relaxed text-white/60">
+                {step.text}
+              </span>
             </li>
           ))}
         </ul>
 
         <div className="mt-7 flex flex-col gap-2.5 sm:flex-row">
-          {data.signupToken ? (
+          {data.orderId || data.signupToken ? (
             <Link
-              href={`/trafego/ativar/${data.signupToken}`}
+              href={
+                data.orderId
+                  ? `/trafego/painel/${data.orderId}`
+                  : `/trafego/ativar/${data.signupToken}`
+              }
               className="flex-1 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-violet-500"
             >
               Acessar meu painel

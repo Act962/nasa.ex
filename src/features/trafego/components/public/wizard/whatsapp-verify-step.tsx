@@ -3,6 +3,7 @@
 import { CheckCircle2, Loader2, SearchCheck, TriangleAlert } from "lucide-react";
 import { useCheckTrafegoWhatsappNumber } from "@/features/trafego/hooks/use-trafego-verification";
 import { WhatsappWarmupNote } from "./whatsapp-warmup-note";
+import { maskPhoneBr } from "@/features/form/lib/masks";
 
 export type WhatsappNumberCheckResult =
   | {
@@ -54,7 +55,7 @@ export function WhatsappVerifyStep({
         <input
           value={number}
           onChange={(event) => {
-            onNumber(event.target.value);
+            onNumber(maskPhoneBr(event.target.value));
             if (check) onCheck(null);
           }}
           onKeyDown={(event) => {
@@ -64,7 +65,7 @@ export function WhatsappVerifyStep({
             }
           }}
           inputMode="tel"
-          placeholder="86 9 9888-9999"
+          placeholder="(86) 99888-9999"
           className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-violet-400/60"
         />
         {checkEnabled && (

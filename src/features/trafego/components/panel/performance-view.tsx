@@ -4,6 +4,7 @@ import { BarChart3, Clock, Loader2, LinkIcon, Radio } from "lucide-react";
 import { useTrafegoOrderPerformance } from "@/features/trafego/hooks/use-trafego-orders";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { Progress } from "@/components/ui/progress";
+import { TechnicalTerm, type TechnicalTermKey } from "../technical-term";
 
 type KpiFormat = "int" | "currency" | "pct";
 
@@ -12,6 +13,16 @@ function formatValue(value: number, format: KpiFormat): string {
   if (format === "pct") return `${value.toFixed(2).replace(".", ",")}%`;
   return Math.round(value).toLocaleString("pt-BR");
 }
+
+const KPI_TERMS: Record<string, TechnicalTermKey> = {
+  impressions: "impression",
+  reach: "reach",
+  clicks: "click",
+  ctr: "ctr",
+  leads: "lead",
+  conversions: "conversion",
+  cpc: "cpc",
+};
 
 export function PerformanceView({ orderId }: { orderId: string }) {
   const { data, isLoading } = useTrafegoOrderPerformance(orderId);
@@ -55,7 +66,12 @@ export function PerformanceView({ orderId }: { orderId: string }) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {data.kpis.map((kpi) => (
           <div key={kpi.key} className="rounded-xl border bg-card p-4">
-            <p className="text-xs text-muted-foreground">{kpi.label}</p>
+            <p className="text-xs text-muted-foreground">
+              {kpi.label}
+              {KPI_TERMS[kpi.key] && (
+                <TechnicalTerm term={KPI_TERMS[kpi.key]} />
+              )}
+            </p>
             <p className="mt-1 text-xl font-semibold tabular-nums">
               {formatValue(kpi.value, kpi.format as KpiFormat)}
             </p>
@@ -99,6 +115,7 @@ export function PerformanceView({ orderId }: { orderId: string }) {
           <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
             <LinkIcon className="size-3" />
             Impressões por dia no período
+            <TechnicalTerm term="impression" />
           </p>
         </div>
       )}
@@ -122,7 +139,7 @@ function DataFreshness({
   const Icon = isLive ? Radio : Clock;
 
   const label = isLive
-    ? "Ao vivo — direto da plataforma, ainda sem o fechamento do dia"
+    ? "Ao vivo — direto da plataforma, ainda sem o fechamento do dia · atualiza sozinho"
     : updatedAt
       ? `Consolidado em ${new Date(updatedAt).toLocaleDateString("pt-BR", {
           day: "2-digit",

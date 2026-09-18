@@ -18,10 +18,12 @@ export async function maybeMarkMaterialsSubmitted(orderId: string): Promise<void
       id: true,
       status: true,
       materialsSubmittedAt: true,
+      materialsProfileLink: true,
       _count: { select: { creatives: true } },
     },
   });
-  if (!order || order._count.creatives === 0) return;
+  const hasMaterials = Boolean(order?.materialsProfileLink) || (order?._count.creatives ?? 0) > 0;
+  if (!order || !hasMaterials) return;
 
   const selectedCopies = await prisma.trafegoCopy.count({
     where: { orderId: order.id, isSelected: true },

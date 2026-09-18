@@ -67,6 +67,7 @@ export async function createTrafegoOrderFromPurchaseInTx({
       startAcknowledgedAt: true,
       hasSocialLinked: true,
       materialsReady: true,
+      desiredCreativeCount: true,
       plan: {
         select: {
           name: true,
@@ -104,7 +105,7 @@ export async function createTrafegoOrderFromPurchaseInTx({
       platform: pending.platform,
       objective: pending.objective,
       durationDays: pending.plan?.durationDays ?? 30,
-      maxCreatives: pending.plan?.maxCreatives ?? 3,
+      maxCreatives: pending.desiredCreativeCount ?? pending.plan?.maxCreatives ?? 3,
       maxCopies: pending.plan?.maxCopies ?? 3,
 
       adBudgetBrlCents: pending.adBudgetBrlCents,

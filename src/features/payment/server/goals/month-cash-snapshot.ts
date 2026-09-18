@@ -15,6 +15,13 @@ export const OPEN_STATUSES = ["PENDING", "PARTIAL", "OVERDUE"] as const;
 export interface MonthCashSnapshot {
   /** Recebido de fato no mês (`RECEIVABLE` + `PAID`, por `paidAt`). */
   receivedRevenue: number;
+  /**
+   * Vendas do mês recebidas: subconjunto de `receivedRevenue` restrito a
+   * lançamentos CRIADOS no próprio mês. Baixar um recebível de mês anterior
+   * entra em `receivedRevenue` (caixa) mas não aqui — é o que alimenta a Meta
+   * de Vendas, pra que receber lançamento antigo não infle a meta.
+   */
+  salesRevenue: number;
   /** A receber ainda em aberto, por vencimento no mês. */
   openReceivable: number;
   /** Pago de fato no mês (`PAYABLE` + `PAID`, por `paidAt`). */
@@ -43,9 +50,16 @@ export async function loadMonthCashSnapshot(
     dueDate: { gte: period.start, lte: period.end },
   };
 
-  const [received, openReceivable, paid, openPayable] = await Promise.all([
+  // "Vendas do mês": recebido no mês, mas só de lançamentos criados no mês.
+  const createdWindow = { createdAt: { gte: period.start, lte: period.end } };
+
+  const [received, salesReceived, openReceivable, paid, openPayable] = await Promise.all([
     prisma.paymentEntry.aggregate({
       where: { organizationId, ...categoryFilter, type: "RECEIVABLE", status: "PAID", ...settledWindow },
+      _sum: { paidAmount: true },
+    }),
+    prisma.paymentEntry.aggregate({
+      where: { organizationId, ...categoryFilter, type: "RECEIVABLE", status: "PAID", ...settledWindow, ...createdWindow },
       _sum: { paidAmount: true },
     }),
     prisma.paymentEntry.aggregate({
@@ -64,6 +78,7 @@ export async function loadMonthCashSnapshot(
 
   return {
     receivedRevenue: received._sum.paidAmount ?? 0,
+    salesRevenue: salesReceived._sum.paidAmount ?? 0,
     openReceivable: openReceivable._sum.amount ?? 0,
     paidExpense: paid._sum.paidAmount ?? 0,
     openPayable: openPayable._sum.amount ?? 0,

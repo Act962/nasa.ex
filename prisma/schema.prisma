@@ -290,6 +290,7 @@ model Organization {
   appScope String? @map("app_scope")
 
   members                Member[]
+  seiProcessLinks        SeiProcessLink[]
   invitations            Invitation[]
   inviteLinks            OrganizationInviteLink[]
   trackings              Tracking[]
@@ -1044,6 +1045,7 @@ model Lead {
   broadcastRecipients       BroadcastRecipient[]
   trafegoOrders             TrafegoOrder[]
   trafegoPendingPurchases   TrafegoPendingPurchase[]
+  seiProcessLinks           SeiProcessLink[]
 
   @@unique([phone, trackingId])
   @@index([trackingId])
@@ -1897,6 +1899,10 @@ enum NodeType {
   SEND_LINNKER
   SEND_NBOX
   SEND_NASA_ROUTE
+  // Consulta ou atualiza o processo SEI vinculado ao lead. O resultado fica
+  // disponível no contexto como `sei`, permitindo que o próximo SEND_MESSAGE
+  // comunique ao lead protocolo, situação e último andamento.
+  SEI_ACTION
   // OPEN_FORM — cria FormResponses vazia vinculada ao lead, SEM enviar
   // link via WhatsApp. O ícone do formulário no card do lead fica
   // pendente; quando o operador clica, abre /formulario/novo/.
@@ -2818,6 +2824,7 @@ enum IntegrationPlatform {
   POLLINATIONS
   NERP
   COMMENTS_APP
+  SEI
 }
 
 // Armazena credenciais de integração por plataforma/organização.
@@ -5116,6 +5123,11 @@ model PaymentBankTransaction {
   matchedById    String?                @map("matched_by_id")
   matchMethod    String?                @map("match_method")
   ignoredReason  String?                @map("ignored_reason")
+  // Conferência da conciliação: marca manual "Conferido" e o resultado da
+  // leitura do comprovante pela IA (Astro) — pagador × valor × data.
+  reviewedAt     DateTime?              @map("reviewed_at")
+  reviewedById   String?                @map("reviewed_by_id")
+  reviewResult   Json?                  @map("review_result")
   createdAt      DateTime               @default(now()) @map("created_at")
   updatedAt      DateTime               @updatedAt @map("updated_at")
 

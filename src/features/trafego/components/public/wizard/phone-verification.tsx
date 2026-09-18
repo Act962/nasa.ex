@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Loader2, MessageCircle, RotateCcw } from "lucide-react";
+import { CheckCircle2, Loader2, MessageCircle, RotateCcw, SearchCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   useConfirmTrafegoPhoneVerification,
+  useCheckTrafegoWhatsappNumber,
   useStartTrafegoPhoneVerification,
 } from "@/features/trafego/hooks/use-trafego-verification";
 
@@ -17,6 +18,8 @@ interface PhoneVerificationProps {
   onStatusChange: (status: PhoneVerificationStatus) => void;
   /** false quando não há instância para enviar o código — não bloqueia. */
   enabled: boolean;
+  /** Consulta a Uazapi para impedir números que não existem no WhatsApp. */
+  numberCheckEnabled: boolean;
 }
 
 /**
@@ -29,15 +32,21 @@ export function PhoneVerification({
   status,
   onStatusChange,
   enabled,
+  numberCheckEnabled,
 }: PhoneVerificationProps) {
   const [code, setCode] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const start = useStartTrafegoPhoneVerification();
   const confirm = useConfirmTrafegoPhoneVerification();
+  const checkNumber = useCheckTrafegoWhatsappNumber();
 
   const digits = phone.replace(/\D/g, "");
-  const canSend = digits.length >= 10 && cooldown === 0 && !start.isPending;
+  const canSend =
+    digits.length >= 10 &&
+    cooldown === 0 &&
+    !start.isPending &&
+    !checkNumber.isPending;
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -45,7 +54,7 @@ export function PhoneVerification({
     return () => window.clearTimeout(timer);
   }, [cooldown]);
 
-  if (!enabled) {
+  if (!enabled && !numberCheckEnabled) {
     return (
       <p className="mt-1.5 text-xs text-white/40">
         Confirmamos seu WhatsApp por mensagem depois do pagamento.
@@ -62,7 +71,7 @@ export function PhoneVerification({
     );
   }
 
-  function handleSend() {
+  function sendCode() {
     setMessage(null);
     start.mutate(
       { phone },
@@ -82,6 +91,47 @@ export function PhoneVerification({
             onStatusChange("unavailable");
             setMessage("Não conseguimos enviar o código agora. Pode continuar — confirmamos depois.");
           }
+        },
+        onError: (error) => setMessage(error.message),
+      },
+    );
+  }
+
+  function handleSend() {
+    setMessage(null);
+    if (!numberCheckEnabled) {
+      sendCode();
+      return;
+    }
+
+    checkNumber.mutate(
+      { phone },
+      {
+        onSuccess: (result) => {
+          if (result.status === "not_found") {
+            onStatusChange("idle");
+            setMessage("Esse número não foi encontrado no WhatsApp. Confira o DDD e o dígito 9.");
+            return;
+          }
+          if (result.status === "invalid_phone") {
+            onStatusChange("idle");
+            setMessage("Confira o número: precisa ser um celular com DDD.");
+            return;
+          }
+          if (result.status === "found" && !enabled) {
+            setMessage(
+              result.verifiedName
+                ? `Número ativo no WhatsApp · ${result.verifiedName}.`
+                : "Número ativo no WhatsApp.",
+            );
+            return;
+          }
+          if (result.status === "skipped" && !enabled) {
+            onStatusChange("unavailable");
+            setMessage("Não conseguimos consultar agora. Pode continuar — a equipe confirma depois.");
+            return;
+          }
+          sendCode();
         },
         onError: (error) => setMessage(error.message),
       },
@@ -123,17 +173,21 @@ export function PhoneVerification({
             disabled={!canSend}
             className="border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
           >
-            {start.isPending ? (
+            {start.isPending || checkNumber.isPending ? (
               <Loader2 className="mr-1.5 size-4 animate-spin" />
+            ) : !enabled ? (
+              <SearchCheck className="mr-1.5 size-4" />
             ) : (
               <MessageCircle className="mr-1.5 size-4" />
             )}
-            Verificar por WhatsApp
+            {enabled ? "Verificar por WhatsApp" : "Validar número"}
           </Button>
           <span className="text-xs text-white/45">
             {status === "unavailable"
               ? "Verificação indisponível agora — pode continuar."
-              : "Enviamos um código de 6 dígitos para este número."}
+              : enabled
+                ? "Enviamos um código de 6 dígitos para este número."
+                : "Confirmamos se o número está ativo no WhatsApp."}
           </span>
         </div>
       ) : (

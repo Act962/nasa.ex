@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  useMarkTrafegoMessagesRead,
   useSendTrafegoMessage,
   useTrafegoMessages,
 } from "@/features/trafego/hooks/use-trafego-support";
@@ -20,15 +19,6 @@ export function SupportThread({ orderId }: { orderId: string }) {
     refetchInterval: POLL_INTERVAL_MS,
   });
   const sendMessage = useSendTrafegoMessage(orderId);
-  const markRead = useMarkTrafegoMessagesRead();
-
-  useEffect(() => {
-    if (messages && messages.length > 0) {
-      markRead.mutate({ orderId });
-    }
-    // Marca como lida quando a aba abre e quando chega mensagem nova.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId, messages?.length]);
 
   function handleSend() {
     const body = draft.trim();

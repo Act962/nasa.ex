@@ -14,6 +14,7 @@ const goalStatusSchema = z.object({
   hasRevenueTarget: z.boolean(),
   hasMonthOverride: z.boolean(),
   receivedRevenue: z.number(),
+  salesRevenue: z.number(),
   projectedRevenue: z.number(),
   paidExpense: z.number(),
   openPayable: z.number(),

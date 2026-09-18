@@ -121,6 +121,15 @@ export function usePaymentEntries(params: {
     "PENDING_APPROVAL" | "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED"
   >;
   search?: string;
+  orderBy?:
+    | "dueDate_asc" | "dueDate_desc"
+    | "amount_asc" | "amount_desc"
+    | "status_asc" | "status_desc"
+    | "paidAt_asc" | "paidAt_desc"
+    | "description_asc" | "description_desc"
+    | "createdAt_asc" | "createdAt_desc"
+    | "contact_asc" | "contact_desc"
+    | "category_asc" | "category_desc";
   page?: number;
   perPage?: number;
   dateFrom?: string;

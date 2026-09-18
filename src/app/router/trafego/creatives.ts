@@ -6,7 +6,10 @@ import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { deleteStoredObject } from "@/lib/s3-client";
 import { assertOrderEditable } from "@/features/trafego/server/lib/assert-order-editable";
-import { trafegoCreativeInputSchema } from "@/features/trafego/schema/trafego-schemas";
+import {
+  trafegoCreativeInputSchema,
+  trafegoMaterialsProfileLinkSchema,
+} from "@/features/trafego/schema/trafego-schemas";
 import { maybeMarkMaterialsSubmitted } from "@/features/trafego/server/lib/materials-submitted";
 
 /** Registra um criativo já enviado ao R2. O upload em si é feito via /api/s3/*. */
@@ -74,5 +77,22 @@ export const removeTrafegoCreative = base
     // Best-effort: o registro já saiu; um órfão no bucket não justifica erro.
     deleteStoredObject(creative.fileKey).catch(() => {});
 
+    return { success: true };
+  });
+
+/** Salva o perfil do cliente como fonte alternativa de materiais. */
+export const setTrafegoMaterialsProfileLink = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .input(trafegoMaterialsProfileLinkSchema)
+  .handler(async ({ input, context }) => {
+    await assertOrderEditable(input.orderId, context.org.id);
+    await prisma.trafegoOrder.update({
+      where: { id: input.orderId },
+      data: { materialsProfileLink: input.profileLink || null },
+    });
+    await maybeMarkMaterialsSubmitted(input.orderId).catch((error) =>
+      console.error("[trafego/creatives] auto 'materiais enviados' falhou:", error),
+    );
     return { success: true };
   });

@@ -67,7 +67,13 @@ export async function buildTrafegoRecommendations(
       destinationUrl: true,
       whatsappNumber: true,
       release: true,
-      _count: { select: { creatives: true, copies: true } },
+      materialsProfileLink: true,
+      _count: {
+        select: {
+          creatives: true,
+          copies: { where: { isSelected: true } },
+        },
+      },
     },
   });
   if (!order) return null;
@@ -95,7 +101,9 @@ export async function buildTrafegoRecommendations(
         : `${dailyLabel} dá margem para a plataforma testar públicos e criativos e baixar o custo por resultado.`;
 
   const steps: string[] = [];
-  if (order._count.creatives === 0) steps.push("Envie pelo menos um criativo na aba Materiais");
+  if (order._count.creatives === 0 && !order.materialsProfileLink) {
+    steps.push("Envie pelo menos um criativo ou informe seu perfil na aba Materiais");
+  }
   if (order._count.copies === 0) steps.push("Escreva ou escolha uma copy");
   if (!order.release) steps.push("Monte o Release do seu negócio — ele melhora as copies sugeridas");
   if (destination.level === "attention") steps.push("Confirme o destino do anúncio");

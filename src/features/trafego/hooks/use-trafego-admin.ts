@@ -23,7 +23,10 @@ export const useTrafegoAdminOrders = (filter: AdminOrdersFilter = {}) => {
   );
 };
 
-export const useTrafegoAdminOrder = (orderId: string, options?: { enabled?: boolean }) => {
+export const useTrafegoAdminOrder = (
+  orderId: string,
+  options?: { enabled?: boolean },
+) => {
   return useQuery({
     ...orpc.trafego.admin.orders.get.queryOptions({ input: { orderId } }),
     enabled: (options?.enabled ?? true) && Boolean(orderId),
@@ -33,7 +36,9 @@ export const useTrafegoAdminOrder = (orderId: string, options?: { enabled?: bool
 function useAdminOrderInvalidation() {
   const queryClient = useQueryClient();
   return (orderId?: string) => {
-    queryClient.invalidateQueries({ queryKey: orpc.trafego.admin.orders.list.key() });
+    queryClient.invalidateQueries({
+      queryKey: orpc.trafego.admin.orders.list.key(),
+    });
     if (orderId) {
       queryClient.invalidateQueries({
         queryKey: orpc.trafego.admin.orders.get.key({ input: { orderId } }),
@@ -101,7 +106,9 @@ export const useTrafegoAdminMessages = (
   options?: { enabled?: boolean; refetchInterval?: number | false },
 ) => {
   return useQuery({
-    ...orpc.trafego.admin.orders.listMessages.queryOptions({ input: { orderId } }),
+    ...orpc.trafego.admin.orders.listMessages.queryOptions({
+      input: { orderId },
+    }),
     enabled: (options?.enabled ?? true) && Boolean(orderId),
     refetchInterval: options?.refetchInterval,
   });
@@ -113,7 +120,9 @@ export const useReplyTrafegoMessage = (orderId: string) => {
     orpc.trafego.admin.orders.reply.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries({
-          queryKey: orpc.trafego.admin.orders.listMessages.key({ input: { orderId } }),
+          queryKey: orpc.trafego.admin.orders.listMessages.key({
+            input: { orderId },
+          }),
         });
       },
     }),
@@ -129,8 +138,12 @@ export const useTrafegoAdminPlans = () => {
 function usePlansInvalidation() {
   const queryClient = useQueryClient();
   return () => {
-    queryClient.invalidateQueries({ queryKey: orpc.trafego.admin.plans.list.key() });
-    queryClient.invalidateQueries({ queryKey: orpc.trafego.listPublicPlans.key() });
+    queryClient.invalidateQueries({
+      queryKey: orpc.trafego.admin.plans.list.key(),
+    });
+    queryClient.invalidateQueries({
+      queryKey: orpc.trafego.listPublicPlans.key(),
+    });
   };
 }
 
@@ -151,7 +164,9 @@ export const useUpdateTrafegoPlan = () => {
 export const useToggleTrafegoPlanActive = () => {
   const invalidate = usePlansInvalidation();
   return useMutation(
-    orpc.trafego.admin.plans.toggleActive.mutationOptions({ onSuccess: invalidate }),
+    orpc.trafego.admin.plans.toggleActive.mutationOptions({
+      onSuccess: invalidate,
+    }),
   );
 };
 
@@ -206,7 +221,9 @@ export const useTrafegoAgencyOptions = (
 function useSettingsInvalidation() {
   const queryClient = useQueryClient();
   return () => {
-    queryClient.invalidateQueries({ queryKey: orpc.trafego.admin.settings.get.key() });
+    queryClient.invalidateQueries({
+      queryKey: orpc.trafego.admin.settings.get.key(),
+    });
     queryClient.invalidateQueries({
       queryKey: orpc.trafego.admin.settings.listAgencyOptions.key(),
     });

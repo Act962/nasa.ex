@@ -25,6 +25,7 @@ export const useTrafegoOrderPerformance = (
   return useQuery({
     ...orpc.trafego.getOrderPerformance.queryOptions({ input: { orderId, days } }),
     enabled: (options?.enabled ?? true) && Boolean(orderId),
+    refetchInterval: 5 * 60 * 1000,
   });
 };
 
@@ -69,6 +70,15 @@ export const useRemoveTrafegoCreative = (orderId: string) => {
   const invalidate = useOrderInvalidation();
   return useMutation(
     orpc.trafego.creatives.remove.mutationOptions({
+      onSuccess: () => invalidate(orderId),
+    }),
+  );
+};
+
+export const useSetTrafegoMaterialsProfileLink = (orderId: string) => {
+  const invalidate = useOrderInvalidation();
+  return useMutation(
+    orpc.trafego.creatives.setProfileLink.mutationOptions({
       onSuccess: () => invalidate(orderId),
     }),
   );

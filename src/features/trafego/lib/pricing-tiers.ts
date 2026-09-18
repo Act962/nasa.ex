@@ -79,7 +79,10 @@ export const TRAFEGO_TIERS: TrafegoTier[] = [
 export function clampAdBudget(adBudgetBrlCents: number): number {
   const rounded = Math.round(adBudgetBrlCents);
   if (!Number.isFinite(rounded)) return MIN_AD_BUDGET_BRL_CENTS;
-  return Math.min(MAX_AD_BUDGET_BRL_CENTS, Math.max(MIN_AD_BUDGET_BRL_CENTS, rounded));
+  return Math.min(
+    MAX_AD_BUDGET_BRL_CENTS,
+    Math.max(MIN_AD_BUDGET_BRL_CENTS, rounded),
+  );
 }
 
 /** Faixa que atende a verba. Abaixo do mínimo, devolve a primeira. */
@@ -111,6 +114,7 @@ export interface TrafegoQuote {
   feePercent: number;
   serviceFeeBrlCents: number;
   setupBrlCents: number;
+  extraCreativesBrlCents: number;
   totalBrlCents: number;
   /** Quanto falta investir para cair na faixa seguinte; null na última. */
   nextTierGapBrlCents: number | null;
@@ -130,6 +134,8 @@ export interface TrafegoQuote {
 export function quoteTrafego(
   adBudgetBrlCents: number,
   needsSetup: boolean,
+  extraCreatives = 0,
+  extraCreativeBrlCents = 0,
 ): TrafegoQuote {
   const budget = clampAdBudget(adBudgetBrlCents);
   const tier = resolveTier(budget);
@@ -137,7 +143,10 @@ export function quoteTrafego(
   const setupBrlCents = needsSetup ? tier.setupBrlCents : 0;
   const upcoming = nextTier(tier);
 
-  const totalBrlCents = budget + serviceFeeBrlCents + setupBrlCents;
+  const extraCreativesBrlCents =
+    Math.max(0, extraCreatives) * Math.max(0, extraCreativeBrlCents);
+  const totalBrlCents =
+    budget + serviceFeeBrlCents + setupBrlCents + extraCreativesBrlCents;
 
   let nextTierSavingBrlCents: number | null = null;
   if (upcoming) {
@@ -155,8 +164,11 @@ export function quoteTrafego(
     feePercent: tier.feePercent,
     serviceFeeBrlCents,
     setupBrlCents,
+    extraCreativesBrlCents,
     totalBrlCents,
-    nextTierGapBrlCents: upcoming ? Math.max(0, upcoming.minBrlCents - budget) : null,
+    nextTierGapBrlCents: upcoming
+      ? Math.max(0, upcoming.minBrlCents - budget)
+      : null,
     nextTierFeePercent: upcoming?.feePercent ?? null,
     nextTierSavingBrlCents,
   };

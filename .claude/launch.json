@@ -94,6 +94,17 @@
       ],
       "port": 3000,
       "autoPort": false
+    },
+    {
+      "name": "Inngest Dev Server",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "inngest:dev",
+        "-u",
+        "http://localhost:3000/api/inngest"
+      ],
+      "port": 8288,
+      "autoPort": false
     }
   ]
 }
