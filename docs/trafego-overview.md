@@ -221,7 +221,7 @@ src/app/api/astro/chat/route.ts            isenta Stars quando appScope === "tra
 | **Template** `trafego_codigo` (AUTENTICAÇÃO, pt_BR, 1 parâmetro) | Meta + Ajustes → Avisos | Verificação do WhatsApp no wizard não sai para quem nunca falou conosco |
 | **Instância Uazapi** (org da agência ou tracking de operação) | app de tracking | Botão "Verificar" do número da API Oficial some |
 | **Chave PIX** (+ titular, banco, validade) | Ajustes → PIX manual | Sem ela **e** sem gateway Asaas, a opção PIX não aparece no wizard |
-| **Gateway Asaas** (chave, ambiente, token do webhook) | `/admin/payments` → provider `asaas` | PIX cai no fluxo manual: chave estática e comprovante conferido à mão |
+| **Asaas** (`ASAAS_API_KEY`, `ASAAS_ENV`, `ASAAS_WEBHOOK_TOKEN`) | `.env` — **não** pelo `/admin/payments` | PIX cai no fluxo manual: chave estática e comprovante conferido à mão |
 | `OPENAI_API_KEY` | `.env.local` + host | O chat da landing responde 503 |
 | `ANTHROPIC_API_KEY` (ou integração ANTHROPIC na org da agência) | `.env.local` + host | A segunda camada da checagem de políticas não roda; fica só a determinística |
 | **Integração Meta com página + IG Business** na org da agência | app de integrações | Preview da conta do cliente no wizard some |

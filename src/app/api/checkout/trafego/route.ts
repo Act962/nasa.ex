@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
 
   // Antes de criar pendência, card ou cobrança: documento inválido recusa aqui,
   // senão sobra pendência órfã no banco e cadastro sujo no Asaas.
-  const asaasGateway = isPix ? await loadTrafegoAsaasGateway() : null;
+  const asaasGateway = isPix ? loadTrafegoAsaasGateway() : null;
   if (asaasGateway && !isValidBrazilianDocument(payerDocument)) {
     return NextResponse.json(
       {

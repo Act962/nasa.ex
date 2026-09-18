@@ -39,7 +39,7 @@ const OPEN_STATUSES = ["PENDING", "EXPIRED"] as const;
 export async function reconcileTrafegoPixPending(
   pendingId: string,
 ): Promise<ReconcileOutcome> {
-  const gateway = await loadTrafegoAsaasGateway();
+  const gateway = loadTrafegoAsaasGateway();
   if (!gateway) return { status: "gateway_off" };
 
   const pending = await prisma.trafegoPendingPurchase.findUnique({

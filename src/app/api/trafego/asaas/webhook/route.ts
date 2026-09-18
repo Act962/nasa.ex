@@ -36,7 +36,7 @@ interface AsaasWebhookBody {
 }
 
 export async function POST(req: NextRequest) {
-  const gateway = await loadTrafegoAsaasGateway();
+  const gateway = loadTrafegoAsaasGateway();
   const receivedToken = req.headers.get("asaas-access-token");
 
   if (!isAsaasWebhookTokenValid(receivedToken, gateway?.authToken ?? null)) {

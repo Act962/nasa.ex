@@ -37,7 +37,9 @@ export const getPublicTrafegoConfig = base
     try {
       const settings = await loadTrafegoSettings();
 
-      const [hasOperationsInstance, whatsappCheck, social, asaasGateway] =
+      const asaasGateway = loadTrafegoAsaasGateway();
+
+      const [hasOperationsInstance, whatsappCheck, social] =
         await Promise.all([
           settings.operationsTrackingId
             ? prisma.whatsAppInstance
@@ -47,7 +49,6 @@ export const getPublicTrafegoConfig = base
             : Promise.resolve(false),
           isWhatsappNumberCheckAvailable().catch(() => false),
           isSocialLookupAvailable().catch(() => false),
-          loadTrafegoAsaasGateway().catch(() => null),
         ]);
 
       return {

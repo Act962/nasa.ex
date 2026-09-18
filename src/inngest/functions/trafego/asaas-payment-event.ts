@@ -30,9 +30,8 @@ export const trafegoAsaasPaymentEvent = inngest.createFunction(
       paymentId: string;
     };
 
-    const gateway = await step.run("load-gateway", () =>
-      loadTrafegoAsaasGateway(),
-    );
+    // Lê do ambiente: não é I/O, então não precisa de step próprio.
+    const gateway = loadTrafegoAsaasGateway();
     if (!gateway) {
       console.warn("[trafego/asaas] gateway desativado — evento descartado");
       return { skipped: "gateway_inactive" as const };

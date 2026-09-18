@@ -113,7 +113,7 @@ webhook do Asaas, sem operador no meio.
 | RF-9 | Idempotência: evento repetido não produz segundo efeito. Garantida pelo claim atômico já existente (`updateMany` com guarda de status) |
 | RF-10 | O handler responde `200` para qualquer evento que não seja erro **nosso** — inclusive evento desconhecido e pendência inexistente — e processa o efeito fora do ciclo da resposta |
 | RF-11 | O "Confirmar PIX" manual continua funcionando e passa a aceitar também pendências com cobrança Asaas |
-| RF-12 | Chave de API, ambiente e `authToken` do webhook ficam em `PaymentGatewayConfig` (`provider: "asaas"`), configuráveis em `/admin/payments` |
+| RF-12 | Chave de API, ambiente e token do webhook vêm do **ambiente** (`ASAAS_API_KEY`, `ASAAS_ENV`, `ASAAS_WEBHOOK_TOKEN`), não do banco. `ASAAS_ENV` ausente vale `sandbox` |
 | RF-13 | `PAYMENT_OVERDUE` marca a pendência como `EXPIRED` (sem cancelar) — redundante com o cron `trafego-pix-pending-sweep`, e mantido porque vem do provedor, que é a fonte autoritativa do vencimento. `PAYMENT_REFUNDED`, `PAYMENT_PARTIALLY_REFUNDED` e `PAYMENT_CHARGEBACK_REQUESTED` **não** revertem nada automaticamente: notificam os admins e registram evento no pedido |
 | RF-14 | A tela de PIX do wizard mostra o QR e faz polling do status da pendência, liberando o próximo passo assim que o webhook confirmar |
 | RF-15 | Com o gateway Asaas inativo ou não configurado, o checkout PIX volta ao fluxo manual de hoje (chave estática + referência), sem erro para o cliente |
@@ -121,6 +121,7 @@ webhook do Asaas, sem operador no meio.
 | RF-17 | O cron horário que já existe (`trafego-pix-pending-sweep`) **reconcilia antes de expirar**: pendência aberta com cobrança no Asaas é conferida contra a API, e só depois o que sobrou vira `EXPIRED` |
 | RF-18 | Quando a reconciliação **confirma** um pagamento que o webhook não confirmou, os admins são notificados — isso não é rotina, é sinal de que a entrega de eventos está quebrada |
 | RF-19 | Existe um "Reconciliar PIX agora" no admin, servido por procedure oRPC **fora do Inngest**, para o caso de a fila inteira estar indisponível |
+| RF-20 | Nenhuma credencial do Asaas é lida do banco nem editável por interface |
 
 ### Não-funcionais
 
@@ -176,7 +177,8 @@ webhook do Asaas, sem operador no meio.
 | CB-15 | Mesmo CPF com e-mail diferente do cadastro anterior | Reusa o customer existente (busca por `cpfCnpj`) e **não** sobrescreve o cadastro no Asaas |
 | CB-16 | Dois checkouts simultâneos do mesmo cliente | Duas pendências, duas cobranças, dois QR. Cada webhook resolve a sua pelo `externalReference` |
 | CB-17 | Fila interrompida após 15 falhas | Eventos ficam retidos 14 dias; reativar com `PUT /v3/webhooks/{id}` (`interrupted: false`). Precisa de alarme — ver D-7 |
-| CB-18 | Cobrança criada em sandbox e webhook de produção (ou vice-versa) | O `environment` do gateway define base URL **e** segredo. Evento de ambiente trocado não valida o token e cai no CB-2 |
+| CB-18 | Cobrança criada em sandbox e webhook de produção (ou vice-versa) | `ASAAS_ENV` define a base URL e o `.env` define o token. Como dev e produção são arquivos diferentes, evento de ambiente trocado não valida o token e cai no CB-2 |
+| CB-26 | `ASAAS_ENV` com valor inesperado (vazio, `prod`, `Sandbox`) | Vale `sandbox`. Só a string exata `production` liga produção — qualquer ambiguidade erra para o lado que não move dinheiro |
 | CB-19 | `PAYMENT_DELETED` (cobrança apagada no painel) | Pendência volta a `CANCELLED`, com log. Não apagar dados |
 | CB-20 | Cliente escolhe PIX, desiste e volta como cartão | A cobrança Asaas fica em aberto e vence sozinha; a pendência nova é outra. Registrar, para não conciliar errado depois |
 | CB-21 | Webhook e reconciliação confirmam ao mesmo tempo | O claim atômico decide; o perdedor recebe `already_paid` e não faz nada |
@@ -280,6 +282,22 @@ webhook do Asaas, sem operador no meio.
   concorrência. No plano gratuito o teto de sleep é 7 dias — o nosso maior
   checkpoint é 48h.
 
+### D-10 — Credenciais no ambiente, não no banco
+
+- **Escolha**: as três variáveis `ASAAS_*` vivem no `.env`. O
+  `PaymentGatewayConfig` continua servindo só a recarga de Stars.
+- **Alternativas descartadas**: reusar o `PaymentGatewayConfig`, que já tem
+  interface pronta em `/admin/payments` — foi o desenho da primeira versão desta
+  spec. Descartada por decisão do dono, e a evidência apareceu durante o setup
+  local: o banco de desenvolvimento guardava uma chave `sk_live_` do Stripe
+  cadastrada meses antes, com `environment: production`. Credencial em linha
+  editável pela interface é credencial que ninguém audita, e o **ambiente** dela
+  vira um campo que alguém troca sem querer. No `.env`, dev e produção são
+  arquivos diferentes por construção.
+- **Consequência**: trocar chave passa a exigir deploy, e não mais um clique.
+  É o preço — e, para credencial que move dinheiro, é o lado certo do trade.
+  Some também a UI de configuração: não há tela a manter.
+
 ### D-9 — A saída manual não pode morar na mesma fila
 
 - **Escolha**: "Reconciliar PIX agora" é procedure oRPC, roda no request.
@@ -295,7 +313,7 @@ webhook do Asaas, sem operador no meio.
 - [x] Procedures oRPC (contrato de entrada/saída)
 - [ ] Realtime (Pusher / event-bus)
 - [x] Automações (Inngest)
-- [ ] Env vars novas
+- [x] Env vars novas
 - [ ] Breaking change para clientes existentes
 - [x] Documentação obrigatória
 
@@ -313,11 +331,16 @@ Quatro campos aditivos em `TrafegoPendingPurchase`, todos opcionais:
 A migration é aditiva e reversível (drop das colunas). Rodar com
 `pnpm db:migrate`, seguido do ritual do item 11 do CLAUDE.md.
 
-### Configuração
+### Configuração — três variáveis novas
 
-Nenhuma env var nova: chave, ambiente e `authToken` cabem no
-`PaymentGatewayConfig` que já existe (`secretKey`, `environment`,
-`webhookSecret`), com UI pronta em `/admin/payments`.
+| Variável | Papel | Ausente significa |
+| --- | --- | --- |
+| `ASAAS_API_KEY` | Chave da API | PIX volta ao fluxo manual |
+| `ASAAS_ENV` | `sandbox` (padrão) ou `production` | Sandbox — errar para esse lado não move dinheiro |
+| `ASAAS_WEBHOOK_TOKEN` | Header `asaas-access-token` | Webhook recusa **todos** os eventos |
+
+Documentadas no CLAUDE.md. O `PaymentGatewayConfig` **não** é usado pelo trafeGO
+— ele continua servindo só a recarga de Stars (ver D-10).
 
 ### Correção carona
 
@@ -370,6 +393,7 @@ schema, o drop das quatro colunas não afeta nenhum fluxo anterior.
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-18 | João Gabriel | Criada. Fatos da API do Asaas apurados na documentação oficial antes do desenho; D-1 decidido pelo dono (cobrança nominal, com CPF só na trilha PIX) |
+| 2026-09-18 | João Gabriel | Credenciais movidas do `PaymentGatewayConfig` para o `.env` (RF-12, RF-20, D-10), por decisão do dono. A UI de `/admin/payments` volta a servir só a recarga de Stars |
 | 2026-09-18 | João Gabriel | Recuperação de falha do webhook (RF-16..RF-19, D-8, D-9). O desenho inicial era um cron de 10 minutos; recusado pelo dono por custo no Inngest, e trocado por acompanhamento agendado por cobrança mais o cron horário que já existia — nenhum cron novo |
 | 2026-09-18 | João Gabriel | Implementada no mesmo PR. Divergência registrada: `pixAvailable` passou a considerar o gateway Asaas, porque com cobrança nominal a chave estática deixa de ser obrigatória; e `MarkPurchasePaidInput.pix.confirmedByUserId` virou anulável, para o webhook gravar `pixConfirmedAt` sem operador |
 | 2026-09-18 | João Gabriel | Correção de fato no §1: a expiração de PIX **existe**, pelo cron `trafego-pix-pending-sweep`. A primeira versão afirmava que nada expirava. RF-13 e a tabela de riscos foram reescritos em cima disso |

@@ -82,6 +82,9 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 - `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` — Stripe (cliente + webhook compartilhado de cursos/planos/better-auth)
 - `STRIPE_COURSE_WEBHOOK_SECRET` — secret do endpoint dedicado de cursos (`/api/stripe/webhook`)
 - `STRIPE_STARS_WEBHOOK_SECRET` — secret do endpoint dedicado de recarga de Stars (`/api/stars/webhook`). O fluxo de Stars usa o Stripe do sistema (`STRIPE_SECRET_KEY`), não o `PaymentGatewayConfig`.
+- `ASAAS_API_KEY` — chave da API do Asaas, usada no PIX do trafeGO (spec 0020). Ausente = o PIX volta ao fluxo manual (chave estática + comprovante).
+- `ASAAS_ENV` — `sandbox` (padrão) ou `production`. O padrão é sandbox de propósito: errar para esse lado não move dinheiro.
+- `ASAAS_WEBHOOK_TOKEN` — valor do header `asaas-access-token`, conferido pelo webhook `/api/trafego/asaas/webhook`. Aleatório, 32+ caracteres, **nunca** a chave de API. Ausente = o webhook recusa todos os eventos (fail-closed, porque credita dinheiro).
 - `AI_SECRETS_KEY` — chave (≥16 chars) usada para criptografar API keys customizadas de IA em `AiSettings.aiApiKey` (AES-256-GCM via `src/lib/crypto.ts`). Obrigatória se algum tracking configurar provider customizado (BYO).
 - `SYNC_SHARED_SECRET` — chave master HMAC do sync bidirecional de auth NASA ↔ NERP (`feature/sync`). **Mesmo valor** nos dois apps (`openssl rand -hex 32`). Assina/verifica `User/Account/Organization/Member` replicados via `src/features/sync/lib/system-cred.ts`.
 - `SYNC_API_KEY` — identifica o caller app↔app no sync (mesmo valor nos dois).

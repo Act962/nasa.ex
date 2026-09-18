@@ -330,26 +330,13 @@ function SetupGuide({
                 </li>
                 <li>Cole a URL abaixo no campo de URL</li>
                 <li>
-                  Preencha o <strong>Token de autenticação</strong> com o mesmo
-                  valor que você salvar no campo &quot;Token do Webhook&quot;
-                  aqui embaixo
-                </li>
-                <li>
                   Ative os eventos:{" "}
                   <code className="bg-zinc-700 px-1 rounded">
                     PAYMENT_RECEIVED
-                  </code>
-                  ,{" "}
+                  </code>{" "}
+                  e{" "}
                   <code className="bg-zinc-700 px-1 rounded">
                     PAYMENT_CONFIRMED
-                  </code>
-                  ,{" "}
-                  <code className="bg-zinc-700 px-1 rounded">
-                    PAYMENT_OVERDUE
-                  </code>
-                  ,{" "}
-                  <code className="bg-zinc-700 px-1 rounded">
-                    PAYMENT_REFUNDED
                   </code>
                 </li>
                 <li>Salve</li>
@@ -357,20 +344,14 @@ function SetupGuide({
               <div className="mt-1.5">
                 <WebhookUrlBox url={webhookUrl} />
               </div>
-              <p className="mt-1.5 text-[11px] text-zinc-500">
-                Recarga de Stars usa um endpoint separado e mais antigo:{" "}
-                <code className="bg-zinc-700 px-1 rounded">
-                  /api/payments/asaas/webhook
-                </code>
-              </p>
             </div>
 
             <div className="p-2 rounded bg-amber-950/40 border border-amber-800/30 text-amber-300">
-              ⚠️ O Asaas <strong>usa, sim, token de webhook</strong>: ele chega
-              no header <code>asaas-access-token</code>. Sem token configurado, o
-              endpoint do trafeGO recusa todos os eventos — é proposital, porque
-              esse endpoint credita dinheiro. Use um valor aleatório de 32+
-              caracteres e <strong>nunca</strong> a chave de API.
+              ⚠️ O Asaas <strong>usa token de webhook</strong>, no header{" "}
+              <code>asaas-access-token</code> — este endpoint (recarga de Stars)
+              ainda <strong>não valida</strong>, e isso é o item S1 da auditoria
+              de segurança. O PIX do trafeGO valida, e lê as credenciais do
+              ambiente (<code>ASAAS_*</code>), não desta tela.
             </div>
           </div>
         )}
@@ -416,7 +397,7 @@ function GatewayFormDialog({
   const webhookUrl =
     provider === "stripe"
       ? `${origin}/api/stripe/webhook`
-      : `${origin}/api/trafego/asaas/webhook`;
+      : `${origin}/api/payments/asaas/webhook`;
 
   const { mutate: save, isPending } = useMutation({
     ...orpc.admin.setGatewayConfig.mutationOptions(),
@@ -597,44 +578,6 @@ function GatewayFormDialog({
                 </p>
               </div>
             </>
-          )}
-
-          {/* Asaas: token do webhook.
-              Sem ele, o webhook do trafeGO recusa TODO evento — é fail-closed
-              de propósito, porque credita dinheiro (spec 0020 RF-6). */}
-          {provider === "asaas" && (
-            <div className="space-y-1.5">
-              <Label className="text-zinc-300">
-                Token do Webhook
-                <span className="ml-2 text-[10px] text-amber-400 font-normal">
-                  Necessário para confirmar PIX do trafeGO
-                </span>
-              </Label>
-              <div className="relative">
-                <Input
-                  type={showWebhook ? "text" : "password"}
-                  value={webhookSecret}
-                  onChange={(e) => setWebhookSecret(e.target.value)}
-                  placeholder="mínimo 32 caracteres, aleatório"
-                  className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowWebhook(!showWebhook)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                >
-                  {showWebhook ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-              <p className="text-[11px] text-zinc-500">
-                O mesmo valor vai no painel Asaas → Integrações → Webhooks, campo
-                &quot;Token de autenticação&quot;. Nunca use a chave de API aqui.
-              </p>
-            </div>
           )}
 
           {/* Is Default */}
