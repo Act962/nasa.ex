@@ -309,6 +309,7 @@ model Organization {
   forgeSettings          ForgeSettings?
   plan                   Plan?                      @relation(fields: [planId], references: [id], onDelete: SetNull)
   starTransactions       StarTransaction[]
+  usageEvents            UsageEvent[]
   workspaceIntegrations  WorkspaceIntegration[]
   memberStarBudgets      MemberStarBudget[]
   nboxFolders            NBoxFolder[]
@@ -3309,6 +3310,11 @@ model StarTransaction {
   description    String
   appSlug        String?             @map("app_slug")
   packageId      String?             @map("package_id") // ref a StarPackage
+  /// Quem gastou. Antes da spec 0021 nao existia: a atribuicao por pessoa
+  /// dependia de um contador acumulado que nunca era zerado.
+  userId         String?             @map("user_id")
+  /// Chave da acao no catalogo de preco. Liga a transacao ao UsageEvent.
+  action         String?
   createdAt      DateTime            @default(now()) @map("created_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -3316,6 +3322,89 @@ model StarTransaction {
   @@index([organizationId, createdAt])
   @@index([type])
   @@map("star_transactions")
+}
+
+/// Natureza do custo externo de um evento (spec 0021).
+enum UsageEventKind {
+  LLM
+  EMBEDDING
+  IMAGE
+  VIDEO
+  TRANSCRIPTION
+  MESSAGE
+  STORAGE
+  EMAIL
+  REALTIME
+  OTHER
+}
+
+/// Registro de custo por evento — responde "quanto custa atender esta organizacao".
+///
+/// Escrito SEMPRE apos o commit do debito, best-effort, nunca dentro da transacao
+/// (Regra 18 do CLAUDE.md). Registra tambem o evento que saiu gratuito e o que
+/// falhou por saldo: ambos custaram dinheiro no fornecedor, e ignora-los
+/// subestimaria o custo proprio.
+model UsageEvent {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  userId         String? @map("user_id")
+
+  kind    UsageEventKind
+  /// Mesma chave usada no catalogo de preco.
+  action  String
+  appSlug String?        @map("app_slug")
+  /// Recorte mais fino que o app, ex.: "astro.orchestrator", "astro.subagent.closer".
+  feature String?
+
+  provider       String?
+  modelId        String? @map("model_id")
+  /// Chave do proprio cliente: o custo para nos e zero. Sem esta marca,
+  /// superestimariamos o custo e cobrariamos mais do que o necessario.
+  usingCustomKey Boolean @default(false) @map("using_custom_key")
+
+  inputTokens  Int?     @map("input_tokens")
+  outputTokens Int?     @map("output_tokens")
+  cachedTokens Int?     @map("cached_tokens")
+  totalTokens  Int?     @map("total_tokens")
+  quantity     Decimal? @db.Decimal(16, 4)
+  quantityUnit String?  @map("quantity_unit")
+
+  providerCostUsd Decimal? @map("provider_cost_usd") @db.Decimal(14, 8)
+  infraCostUsd    Decimal? @map("infra_cost_usd") @db.Decimal(14, 8)
+  costBrl         Decimal? @map("cost_brl") @db.Decimal(14, 6)
+  /// Cambio aplicado neste evento. O passado nunca e reescrito quando o cambio muda.
+  usdToBrlRate    Decimal? @map("usd_to_brl_rate") @db.Decimal(10, 4)
+  /// "table" | "catalog" | "estimate" | "unknown". Modelo sem preco vira
+  /// "unknown", nunca custo zero silencioso.
+  priceSource     String?  @map("price_source")
+
+  starsCharged      Int      @default(0) @map("stars_charged")
+  starPriceBrl      Decimal? @map("star_price_brl") @db.Decimal(10, 4)
+  revenueBrl        Decimal? @map("revenue_brl") @db.Decimal(14, 6)
+  /// Ligacao solta com StarTransaction, SEM foreign key de proposito: precisamos
+  /// registrar tambem o evento gratuito e o que falhou por saldo, casos em que
+  /// nao existe transacao nenhuma.
+  starTransactionId String?  @map("star_transaction_id")
+
+  sessionId  String? @map("session_id")
+  trackingId String? @map("tracking_id")
+  leadId     String? @map("lead_id")
+  requestId  String? @map("request_id")
+  /// ok | provider_error | insufficient_stars | catalog_miss
+  status     String  @default("ok")
+  latencyMs  Int?    @map("latency_ms")
+  metadata   Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, action, createdAt])
+  @@index([provider, modelId, createdAt])
+  @@index([kind, createdAt])
+  @@index([starTransactionId])
+  @@map("usage_event")
 }
 
 model WorkspaceIntegration {
@@ -7030,6 +7119,9 @@ model PendingCoursePurchase {
 model RouterPaymentSettings {
   id           String   @id
   starPriceBrl Decimal  @default(0.15) @map("star_price_brl") @db.Decimal(10, 4)
+  /// Cambio USD->BRL. Sai do codigo porque e o numero que de fato varia e o
+  /// financeiro precisa ajustar sem deploy (D-5 da spec 0021).
+  usdToBrlRate Decimal  @default(5.5) @map("usd_to_brl_rate") @db.Decimal(10, 4)
   updatedAt    DateTime @updatedAt @map("updated_at")
   updatedById  String?  @map("updated_by_id")
 
