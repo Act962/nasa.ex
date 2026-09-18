@@ -17,9 +17,12 @@ peso: completa
 > migração de schema. O desenho foi escrito e decidido antes do código, conforme
 > item 17 do CLAUDE.md; a implementação veio no mesmo PR, por decisão do dono.
 >
-> **Estado**: código escrito e com lint limpo. Os critérios que dependem da API
-> do Asaas (CA-1, CA-2, CA-5, CA-8, CA-14) **ainda não foram verificados** — não
-> havia chave de sandbox configurada. Ver §8.
+> **Estado**: verificado no sandbox do Asaas em 2026-09-18, com conta real de
+> homologação. Passaram CA-1, CA-2, CA-3, CA-4, CA-5, CA-6 e CA-9 — inclusive o
+> caminho completo checkout → QR → cobrança paga → webhook → pedido liberado,
+> com a tela do cliente trocando sozinha. Seguem **não verificados** CA-7
+> (valor adulterado no corpo), CA-8 (pagamento parcial), CA-10 a CA-14 e
+> CA-15 a CA-18. Ver §8.
 
 ---
 
@@ -137,15 +140,15 @@ webhook do Asaas, sem operador no meio.
 
 ## 4. Critérios de aceite
 
-- [ ] **CA-1** — Dado um checkout PIX com CPF válido, quando o cliente conclui, então a resposta traz `payload` e `encodedImage`, e a pendência guarda o `pay_...` do Asaas.
-- [ ] **CA-2** — Dado um CPF/CNPJ inválido, quando o cliente tenta seguir, então o checkout recusa com mensagem de campo e **não** cria cobrança órfã no Asaas.
-- [ ] **CA-3** — Dado um POST no webhook **sem** o header `asaas-access-token`, então a resposta é `401` e nenhuma pendência muda de status.
-- [ ] **CA-4** — Dado um POST com token **errado**, então a resposta é `401` e nada muda. (Ausente e errado são critérios separados porque são caminhos distintos no código.)
-- [ ] **CA-5** — Dado `PAYMENT_RECEIVED` válido para uma pendência `PENDING`, então ela vira `PAID`, o pedido nasce e o cliente recebe o link de ativação.
-- [ ] **CA-6** — Dado o **mesmo** evento entregue duas vezes, então o segundo não gera pedido, e-mail ou lançamento financeiro duplicado.
+- [x] **CA-1** — Dado um checkout PIX com CPF válido, quando o cliente conclui, então a resposta traz `payload` e `encodedImage`, e a pendência guarda o `pay_...` do Asaas.
+- [x] **CA-2** — Dado um CPF/CNPJ inválido, quando o cliente tenta seguir, então o checkout recusa com mensagem de campo e **não** cria cobrança órfã no Asaas.
+- [x] **CA-3** — Dado um POST no webhook **sem** o header `asaas-access-token`, então a resposta é `401` e nenhuma pendência muda de status.
+- [x] **CA-4** — Dado um POST com token **errado**, então a resposta é `401` e nada muda. (Ausente e errado são critérios separados porque são caminhos distintos no código.)
+- [x] **CA-5** — Dado `PAYMENT_RECEIVED` válido para uma pendência `PENDING`, então ela vira `PAID`, o pedido nasce e o cliente recebe o link de ativação.
+- [x] **CA-6** — Dado o **mesmo** evento entregue duas vezes, então o segundo não gera pedido, e-mail ou lançamento financeiro duplicado.
 - [ ] **CA-7** — Dado um webhook cujo corpo diz um valor e a API diz outro, então vale o da API.
 - [ ] **CA-8** — Dado um pagamento de valor diferente do contratado, então a pendência é confirmada **e** marcada `amountMismatch`.
-- [ ] **CA-9** — Dado um evento cujo `externalReference` não existe no banco, então a resposta é `200` (a fila não pode ser punida por um evento que não é nosso).
+- [x] **CA-9** — Dado um evento cujo `externalReference` não existe no banco, então a resposta é `200` (a fila não pode ser punida por um evento que não é nosso).
 - [ ] **CA-10** — Dado `PAYMENT_RECEIVED` para uma pendência já paga no cartão, então o resultado é `already_paid` e os admins recebem o aviso de duplicidade.
 - [ ] **CA-11** — Dado `PAYMENT_OVERDUE`, então a pendência vira `EXPIRED` e continua confirmável à mão.
 - [ ] **CA-12** — Dado `PAYMENT_REFUNDED`, então os admins são notificados e o pedido registra o evento, sem reverter lançamento financeiro sozinho.
@@ -365,6 +368,18 @@ mesmo PR.
 Não há runner instalado (deriva conhecida, item 20 do CLAUDE.md), então os
 critérios são verificados **manualmente em sandbox**, com o roteiro registrado no
 PR. O sandbox do Asaas permite simular o pagamento de um QR.
+
+**Verificado em 2026-09-18** (sandbox, conta `APPROVED`, chave Pix `EVP` ativa):
+
+| Critério | Resultado |
+| --- | --- |
+| CA-1 | Cobrança `pay_l9rv24220s2ldnln` criada, QR e copia-e-cola na tela, `externalReference` = id da pendência, vencimento em 48h |
+| CA-2 | CPF `111.111.111-11` recusado no campo, botão travado, nenhuma cobrança criada |
+| CA-3 / CA-4 | `401` sem header e com token errado. Também `401` com token certo e `ASAAS_API_KEY` ausente |
+| CA-5 | `PAYMENT_RECEIVED` → pendência `PAID`, `signupToken` gerado, tela do cliente trocou sozinha para "Pagamento confirmado" |
+| CA-6 | Dois reenvios do mesmo evento: `200` nos dois, `paid_at` inalterado, nenhum pedido duplicado |
+| CA-9 | Cobrança inexistente e evento não tratado: `200` nos dois, sem efeito |
+| RF-7 | O corpo enviado **não continha `value`**, e `pixReceivedBrlCents` gravou 310000 — o valor só pode ter vindo da releitura na API |
 
 | Critério | Tipo | Como verificar |
 | --- | --- | --- |
