@@ -29,6 +29,7 @@ import { trafegoOrderStatusChanged } from "@/inngest/functions/trafego/order-sta
 import { trafegoReleaseGenerate } from "@/inngest/functions/trafego/release-generate";
 import { trafegoKanbanDriftSweep } from "@/inngest/functions/crons/trafego-kanban-drift-sweep";
 import { trafegoPixPendingSweep } from "@/inngest/functions/crons/trafego-pix-pending-sweep";
+import { trafegoAsaasPaymentEvent } from "@/inngest/functions/trafego/asaas-payment-event";
 import { publishPostHandler } from "@/inngest/functions/nasa-planner/publish-post-handler";
 import { publishScheduledPosts } from "@/inngest/functions/nasa-planner/publish-scheduled-posts";
 import { refreshMetaTokens } from "@/inngest/functions/nasa-planner/refresh-meta-tokens";
@@ -116,6 +117,8 @@ export const { GET, POST, PUT } = serve({
     trafegoKanbanDriftSweep,
     // ── trafeGO: PIX vencido vira EXPIRED (de hora em hora) ──
     trafegoPixPendingSweep,
+    // ── trafeGO: evento de cobrança do Asaas (spec 0020) ──
+    trafegoAsaasPaymentEvent,
     // ── NASA Planner ──
     publishPostHandler,
     publishScheduledPosts,

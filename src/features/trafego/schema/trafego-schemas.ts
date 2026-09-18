@@ -98,8 +98,11 @@ export const trafegoCheckoutBodySchema = z.object({
   /// WhatsApp Oficial: tem número na API? Sem número = setup (mesma tabela da BM).
   hasOfficialNumber: businessManagerAnswerSchema.optional(),
   officialNumber: z.string().trim().max(30).optional(),
-  /// Cartão abre o Stripe; PIX devolve a chave e espera o comprovante.
+  /// Cartão abre o Stripe; PIX emite cobrança no Asaas e confirma por webhook.
   paymentMethod: z.enum(["CARD", "PIX"]).default("CARD"),
+  /// CPF/CNPJ do pagador. Só a trilha PIX pede: o Asaas exige documento para
+  /// emitir cobrança nominal, e o cartão não precisa (spec 0020 D-1).
+  payerDocument: z.string().trim().max(20).optional(),
   /// Cliente leu o alerta de política e escolheu seguir. Obrigatório quando a
   /// checagem devolve WARNING — o servidor confere de novo antes de cobrar.
   complianceAcknowledged: z.boolean().default(false),
