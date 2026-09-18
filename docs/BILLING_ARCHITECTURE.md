@@ -10,7 +10,7 @@
 > PR.** Documentação atualizada depois não existe.
 
 **Última atualização:** 2026-09-18
-**Status geral:** 🚧 Fases 0 e 1 concluídas — Fases 2 a 6 abertas
+**Status geral:** 🚧 Fases 0, 1 e 2 concluídas — Fases 3 a 6 abertas
 
 ---
 
@@ -132,20 +132,26 @@ contradizia o princípio acima. O ciclo mensal deixou de cobrá-lo, e o históri
 
 ### 2.6 Medição de custo
 
-| Domínio de custo | Situação |
-| --- | --- |
-| IA — chatbot de tracking | **ESTIMADO** — tokens gravados, custo calculado na leitura, nunca persistido |
-| IA — workflows | **ESTIMADO** — e cego quando o workflow é de organização, não de tracking |
-| IA — ASTRO (app e WhatsApp) | **NÃO MEDIDO** |
-| IA — demais ~25 pontos | **NÃO MEDIDO** |
-| WhatsApp / Instagram / Facebook | **NÃO MEDIDO** |
-| Storage (S3/R2) | **NÃO MEDIDO** — o custo de upload de vídeo é calculado e descartado |
-| Imagem, vídeo, transcrição | **NÃO MEDIDO** |
-| E-mail, realtime, geocode | **NÃO MEDIDO** |
-| Infraestrutura | **NÃO MEDIDO** |
+Situação **depois da Fase 2**:
 
-A tabela de preço em dólar não tem entrada para os modelos default de hoje, e devolve zero para
-eles. Na prática, mesmo o "ESTIMADO" está estimando zero nos casos mais comuns.
+| Domínio de custo | Situação | Mudou? |
+| --- | --- | --- |
+| IA — ASTRO no app | **ESTIMADO** — tokens, modelo e custo persistidos por evento | ✅ era NÃO MEDIDO |
+| IA — ASTRO no WhatsApp | **ESTIMADO** | ✅ era NÃO MEDIDO |
+| IA — chatbot de tracking | **ESTIMADO** — custo agora persistido, não recalculado na leitura | ✅ |
+| IA — workflows | **ESTIMADO** — inclusive workflow de organização, antes cego | ✅ |
+| WhatsApp / Instagram / Facebook | **ESTIMADO** — evento registrado; falta o custo real por conversa do fornecedor | ✅ era NÃO MEDIDO |
+| IA — demais ~25 pontos | **NÃO MEDIDO** | Fase 3 |
+| Storage (S3/R2) | **NÃO MEDIDO** — o custo de upload de vídeo é calculado e descartado | Fase 3 |
+| Imagem, vídeo, transcrição | **NÃO MEDIDO** | Fase 3 |
+| E-mail, realtime, geocode | **NÃO MEDIDO** | — |
+| Infraestrutura | **NÃO MEDIDO** | — |
+
+> ⚠️ **Por que ainda é ESTIMADO e não MEDIDO.** Os preços por modelo adicionados em 2026-09-18
+> estão marcados com `// conferir` em `src/features/ia/lib/token-pricing.ts`: foram postos a partir
+> de valores de referência, sem checagem nas páginas oficiais dos providers. **Conferir antes de
+> basear preço de plano neles.** Modelo fora da tabela é gravado como `unknown`, nunca como custo
+> zero — zero seria indistinguível de "de graça" na hora de apurar margem.
 
 ---
 
@@ -246,7 +252,7 @@ Duas decisões deliberadas:
 | --- | --- | --- |
 | 0 | Desbloquear e inventariar | ✅ Concluída |
 | 1 | Catálogo único de preço, ponto único de cobrança | ✅ Concluída — falta definir o preço das 14 ações |
-| 2 | Registro de custo e instrumentação | ⬜ |
+| 2 | Registro de custo e instrumentação | ✅ Concluída — 5 superfícies instrumentadas |
 | 3 | Migrar os pontos que hoje escapam do catálogo | ⬜ |
 | 4 | Roteador de IA | ⬜ |
 | 5 | Correção dos vazamentos, cada um atrás de flag | ⬜ |
@@ -344,3 +350,5 @@ Esta frente mexe em dinheiro, saldo e schema. As regras de disciplina estão em 
 | 2026-09-18 | — | Drift de migrations verificado e encerrado: não existia mais. `PENDING_MIGRATIONS.md` marcado como resolvido, com o histórico preservado. Cliente Prisma regenerado. | Nada a desfazer |
 | 2026-09-18 | — | Fase 1: catálogo passa a suportar quantidade e variante (migration aditiva `20260918160000`); ponto único de cobrança criado; `chargeStarsByAction` virou fachada sem alterar os ~62 pontos; cache de preço com invalidação no admin; aluguel por app aposentado. Verificado: 52 ações de custo fixo com zero divergência. | Reverter o código faz o sistema voltar a ler só o custo fixo; as colunas novas ficam ociosas. A migration não precisa ser desfeita (nota de rollback no próprio SQL). Nenhum saldo ou extrato foi tocado |
 | 2026-09-18 | — | Correção do inventário: 5 das 14 ações sem preço **já tinham valor decidido** e nunca foram seedadas — `astro_prompt` (5★) e `calendar_share_enable` (5★) em `prisma/seed-star-rules.ts`, e as três `astro_finance_*` (5★/1★/10★) em `DEFAULT_STAR_RULES`. A causa raiz não era falta de decisão, era o seed nunca ter rodado neste banco. As três do financeiro foram cadastradas; `astro_prompt` aguarda decisão por mudar cobrança de alta frequência. Restam **9** realmente sem valor. | Remover as 3 linhas de `app_star_costs` volta o financeiro do ASTRO a gratuito |
+| 2026-09-18 | — | Fase 2: `UsageEvent` criado (migration aditiva `20260918170000`); extrato ganha usuário e ação; câmbio sai do código para `RouterPaymentSettings`; tabela de preço em dólar corrigida (os modelos default valiam zero); 5 superfícies instrumentadas. Verificado por `pnpm tsx scripts/verify-usage-ledger.ts` sem alterar saldo. | Reverter o código para de gravar; o que já foi registrado segue consultável e nenhum saldo foi tocado. Nota de rollback no próprio SQL |
+| 2026-09-18 | — | ⚠️ Mudança de comportamento: a cobrança por token do ASTRO passou a arredondar para cima em vez de arredondamento normal. Medido em 11 volumes reais: 3 divergem, soma 77★ → 80★ (~4% mais caro). O arredondamento para baixo fazia toda chamada pequena sair de graça. | Ajustar `unit_cost` da ação `astro_tokens` no catálogo, sem deploy |

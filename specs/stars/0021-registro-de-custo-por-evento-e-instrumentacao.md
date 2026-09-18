@@ -2,7 +2,7 @@
 id: 0021
 titulo: Registro de custo por evento e instrumentação das chamadas pagas
 dominio: stars
-status: rascunho
+status: em-revisao
 autor: João Gabriel
 criada: 2026-09-18
 atualizada: 2026-09-18
@@ -96,20 +96,31 @@ fornecedor, modelo, dia e mês.
       registro equivalente.
 - [ ] **CA-3** — Dado um workflow **de organização** (sem tracking), quando executa um nó de IA,
       então o uso é registrado — hoje esse caso é cego.
-- [ ] **CA-4** — Dada uma ação sem preço cadastrado, quando disparada, então existe registro com
+- [x] **CA-4** — Dada uma ação sem preço cadastrado, quando disparada, então existe registro com
       zero ★ cobradas e o custo de fornecedor preenchido.
 - [ ] **CA-5** — Dada uma cobrança que falha por saldo insuficiente, quando o fornecedor já foi
       chamado, então o custo fica registrado mesmo sem cobrança.
-- [ ] **CA-6** — Dada uma chamada com modelo fora da tabela de preço, quando registrada, então a
+- [x] **CA-6** — Dada uma chamada com modelo fora da tabela de preço, quando registrada, então a
       origem do preço é "desconhecido" — e **não** custo zero.
-- [ ] **CA-7** — Dado um débito de Stars feito por um usuário identificado, quando consultado o
+- [x] **CA-7** — Dado um débito de Stars feito por um usuário identificado, quando consultado o
       extrato, então o usuário aparece.
 - [ ] **CA-8** — Dada uma falha na gravação do registro, quando ela ocorre, então a cobrança
       permanece válida e o erro só aparece no log.
-- [ ] **CA-9** — Nenhuma escrita de registro acontece dentro da transação de débito (verificável
+- [x] **CA-9** — Nenhuma escrita de registro acontece dentro da transação de débito (verificável
       por inspeção do código).
-- [ ] **CA-10** — É possível responder, por consulta, o custo total de uma organização no mês,
+- [x] **CA-10** — É possível responder, por consulta, o custo total de uma organização no mês,
       quebrado por solução e por modelo.
+
+> **Estado da verificação em 2026-09-18.**
+> Marcados: **CA-4, CA-6, CA-10** e o caso de borda CB-2 foram exercitados por
+> `pnpm tsx scripts/verify-usage-ledger.ts` contra o banco real, sem debitar ★.
+> **CA-7** e **CA-9** foram verificados por inspeção do código (o débito passa `userId` para a
+> transação; a gravação do registro acontece depois do retorno de `debitStars`).
+>
+> Em aberto: **CA-1, CA-2, CA-3, CA-5 e CA-8** dependem de exercitar o fluxo de ponta a ponta em
+> desenvolvimento — uma conversa real com o ASTRO no app e no WhatsApp, um workflow de organização,
+> uma organização com saldo zerado e uma falha forçada de gravação. O código está instrumentado,
+> mas **instrumentado não é o mesmo que verificado**.
 
 ## 5. Casos de borda
 
@@ -237,3 +248,4 @@ novas no extrato ficam nulas nas linhas antigas e não são obrigatórias em nen
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-18 | João Gabriel | Criada, com o inventário de 2026-09-18 como base factual |
+| 2026-09-18 | João Gabriel | Implementada. CA-4, CA-6, CA-10 e CB-2 verificados por `pnpm tsx scripts/verify-usage-ledger.ts` contra o banco real, sem debitar ★. CA-7 e CA-9 por inspeção. CA-1, CA-2, CA-3, CA-5 e CA-8 seguem abertos: dependem de exercitar o fluxo de ponta a ponta em dev. Preços por modelo entram marcados como `// conferir` — enquanto não conferidos, o custo é ESTIMADO, não MEDIDO. |
