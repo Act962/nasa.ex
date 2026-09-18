@@ -109,7 +109,7 @@ webhook do Asaas, sem operador no meio.
 | RF-2 | O wizard coleta `cpfCnpj` **apenas** na trilha PIX, com validação de dígito verificador no cliente e no servidor |
 | RF-3 | O customer do Asaas é reaproveitado por `cpfCnpj`; só cria quando não existe |
 | RF-4 | `externalReference` da cobrança = `TrafegoPendingPurchase.id`, e o id da cobrança (`pay_...`) é gravado na pendência |
-| RF-5 | `dueDate` = hoje + `TrafegoSettings.pixExpiryHours`, reusando a configuração que já existe |
+| RF-5 | A validade da cobrança vem de `TrafegoSettings.pixExpiryMinutes` (padrão **10 min**) e governa `pixExpiresAt`, que é o relógio do **nosso** lado. O `dueDate` enviado ao Asaas é a data correspondente — a API não aceita hora (ver CB-28) |
 | RF-6 | Endpoint dedicado `POST /api/trafego/asaas/webhook` valida o header `asaas-access-token` contra o segredo guardado, **fail-closed**: token ausente ou diferente → `401`, sem efeito nenhum |
 | RF-7 | O valor **nunca** vem do corpo do webhook. O handler relê `GET /v3/payments/{id}` e usa o valor da API como verdade |
 | RF-8 | A confirmação passa por `markTrafegoPurchasePaid({ paymentSource: "pix" })` — nenhum caminho novo de liberação de pedido |
@@ -182,6 +182,8 @@ webhook do Asaas, sem operador no meio.
 | CB-17 | Fila interrompida após 15 falhas | Eventos ficam retidos 14 dias; reativar com `PUT /v3/webhooks/{id}` (`interrupted: false`). Precisa de alarme — ver D-7 |
 | CB-18 | Cobrança criada em sandbox e webhook de produção (ou vice-versa) | `ASAAS_ENV` define a base URL e o `.env` define o token. Como dev e produção são arquivos diferentes, evento de ambiente trocado não valida o token e cai no CB-2 |
 | CB-26 | `ASAAS_ENV` com valor inesperado (vazio, `prod`, `Sandbox`) | Vale `sandbox`. Só a string exata `production` liga produção — qualquer ambiguidade erra para o lado que não move dinheiro |
+| CB-28 | Cliente paga depois dos 10 minutos | **Confirma normalmente.** A cobrança no Asaas continua pagável: o `dueDate` de lá é data, sem hora, e o QR dinâmico vive 12 meses depois dela. A janela curta é promessa de tela, não trava de cobrança — e é coerente com `claimFromStatuses` aceitar `EXPIRED` |
+| CB-29 | Pendência vence às 12h19 e o cron horário só roda às 13h15 | O status fica `PENDING` por até uma hora depois de vencido. Com 48h isso era irrelevante; com 10 minutos, o relógio da tela e o status do banco ficam dessincronizados. Não afeta pagamento nem confirmação — só a fila da equipe |
 | CB-27 | `ASAAS_API_KEY` colada sem escapar num `.env` | A chave começa com `$` e o `dotenv-expand` a substitui por string vazia. O sistema não acusa erro: `pixAutoConfirms` fica `false` e o PIX volta ao manual, como se o gateway estivesse desligado. Escapar (`\$aact_...`) resolve; aspas simples não |
 | CB-19 | `PAYMENT_DELETED` (cobrança apagada no painel) | Pendência volta a `CANCELLED`, com log. Não apagar dados |
 | CB-20 | Cliente escolhe PIX, desiste e volta como cartão | A cobrança Asaas fica em aberto e vence sozinha; a pendência nova é outra. Registrar, para não conciliar errado depois |
@@ -414,6 +416,7 @@ schema, o drop das quatro colunas não afeta nenhum fluxo anterior.
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-18 | João Gabriel | Criada. Fatos da API do Asaas apurados na documentação oficial antes do desenho; D-1 decidido pelo dono (cobrança nominal, com CPF só na trilha PIX) |
+| 2026-09-18 | João Gabriel | Validade da cobrança passa de horas para **minutos**, padrão 10 (RF-5). O Asaas não expira por hora, então a janela é do nosso lado — CB-28 e CB-29 registram o que isso implica |
 | 2026-09-18 | João Gabriel | Credenciais movidas do `PaymentGatewayConfig` para o `.env` (RF-12, RF-20, D-10), por decisão do dono. A UI de `/admin/payments` volta a servir só a recarga de Stars |
 | 2026-09-18 | João Gabriel | Recuperação de falha do webhook (RF-16..RF-19, D-8, D-9). O desenho inicial era um cron de 10 minutos; recusado pelo dono por custo no Inngest, e trocado por acompanhamento agendado por cobrança mais o cron horário que já existia — nenhum cron novo |
 | 2026-09-18 | João Gabriel | Implementada no mesmo PR. Divergência registrada: `pixAvailable` passou a considerar o gateway Asaas, porque com cobrança nominal a chave estática deixa de ser obrigatória; e `MarkPurchasePaidInput.pix.confirmedByUserId` virou anulável, para o webhook gravar `pixConfirmedAt` sem operador |

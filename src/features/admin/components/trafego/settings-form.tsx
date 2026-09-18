@@ -52,7 +52,7 @@ interface SettingsFormState {
   pixKey: string;
   pixHolderName: string;
   pixBankName: string;
-  pixExpiryHours: string;
+  pixExpiryMinutes: string;
   financeAccountId: string;
   financeRevenueCategoryId: string;
   financePassthroughCategoryId: string;
@@ -79,7 +79,7 @@ const EMPTY_FORM: SettingsFormState = {
   pixKey: "",
   pixHolderName: "",
   pixBankName: "",
-  pixExpiryHours: "48",
+  pixExpiryMinutes: "10",
   financeAccountId: "",
   financeRevenueCategoryId: "",
   financePassthroughCategoryId: "",
@@ -127,7 +127,7 @@ export function TrafegoSettingsForm() {
       pixKey: settings.pixKey ?? "",
       pixHolderName: settings.pixHolderName ?? "",
       pixBankName: settings.pixBankName ?? "",
-      pixExpiryHours: String(settings.pixExpiryHours ?? 48),
+      pixExpiryMinutes: String(settings.pixExpiryMinutes ?? 10),
       whatsappTemplateLanguage: settings.whatsappTemplateLanguage ?? "pt_BR",
       financeAccountId: settings.financeAccountId ?? "",
       financeRevenueCategoryId: settings.financeRevenueCategoryId ?? "",
@@ -175,7 +175,7 @@ export function TrafegoSettingsForm() {
         pixKey: emptyToNull(form.pixKey),
         pixHolderName: emptyToNull(form.pixHolderName),
         pixBankName: emptyToNull(form.pixBankName),
-        pixExpiryHours: Number(form.pixExpiryHours) || 48,
+        pixExpiryMinutes: Number(form.pixExpiryMinutes) || 10,
         whatsappTemplateLanguage:
           form.whatsappTemplateLanguage.trim() || "pt_BR",
         clientNotificationsEnabled: form.clientNotificationsEnabled,
@@ -526,13 +526,13 @@ export function TrafegoSettingsForm() {
           />
         </Field>
         <Field
-          label="Validade da cobrança (horas)"
-          hint="Depois disso a cobrança vira “vencida” na fila — mas continua confirmável."
+          label="Validade da cobrança (minutos)"
+          hint="Conta do nosso lado: depois disso a cobrança vira “vencida” na fila. O cliente ainda consegue pagar — o Asaas não expira por hora — e o pagamento continua sendo confirmado."
         >
           <Input
             type="number"
-            value={form.pixExpiryHours}
-            onChange={(event) => patch({ pixExpiryHours: event.target.value })}
+            value={form.pixExpiryMinutes}
+            onChange={(event) => patch({ pixExpiryMinutes: event.target.value })}
           />
         </Field>
       </Section>

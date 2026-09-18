@@ -30,7 +30,7 @@ export interface TrafegoOperationsSettings {
   pixKey: string | null;
   pixHolderName: string | null;
   pixBankName: string | null;
-  pixExpiryHours: number;
+  pixExpiryMinutes: number;
   clientNotificationsEnabled: boolean;
   financeAccountId: string | null;
   financeRevenueCategoryId: string | null;
@@ -54,7 +54,7 @@ const EMPTY_SETTINGS: TrafegoOperationsSettings = {
   pixKey: null,
   pixHolderName: null,
   pixBankName: null,
-  pixExpiryHours: 48,
+  pixExpiryMinutes: 10,
   clientNotificationsEnabled: true,
   financeAccountId: null,
   financeRevenueCategoryId: null,
@@ -97,7 +97,7 @@ export async function loadTrafegoSettings(options?: {
         pixKey: row.pixKey,
         pixHolderName: row.pixHolderName,
         pixBankName: row.pixBankName,
-        pixExpiryHours: row.pixExpiryHours,
+        pixExpiryMinutes: row.pixExpiryMinutes,
         whatsappTemplateLanguage: row.whatsappTemplateLanguage,
         clientNotificationsEnabled: row.clientNotificationsEnabled,
         financeAccountId: row.financeAccountId,

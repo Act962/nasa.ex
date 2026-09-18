@@ -8598,7 +8598,11 @@ model TrafegoSettings {
   pixHolderName              String?  @map("pix_holder_name")
   pixBankName                String?  @map("pix_bank_name")
   /// Validade da cobrança PIX. Vencida vira EXPIRED, mas ainda é confirmável.
-  pixExpiryHours             Int      @default(48) @map("pix_expiry_hours")
+  /// Validade da cobrança PIX, em MINUTOS. Vencida vira EXPIRED, mas segue
+  /// confirmável: quem paga atrasado tem o dinheiro na nossa conta do mesmo
+  /// jeito. Atenção — isto é o NOSSO relógio: a cobrança no Asaas continua
+  /// pagável, porque o `dueDate` de lá é data, sem hora (spec 0020 CB-28).
+  pixExpiryMinutes           Int      @default(10) @map("pix_expiry_minutes")
   whatsappTemplateLanguage   String   @default("pt_BR") @map("whatsapp_template_language")
   clientNotificationsEnabled Boolean  @default(true) @map("client_notifications_enabled")
 

@@ -349,7 +349,7 @@ export async function POST(req: NextRequest) {
 
     const reference = await claimPixReference(pending.id);
     const expiresAt = new Date(
-      Date.now() + freshSettings.pixExpiryHours * 60 * 60 * 1000,
+      Date.now() + freshSettings.pixExpiryMinutes * 60 * 1000,
     );
     await prisma.trafegoPendingPurchase.update({
       where: { id: pending.id },
