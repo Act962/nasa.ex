@@ -46,6 +46,18 @@ export interface MeterInput {
     infraCostUsd?: number;
     latencyMs?: number;
   };
+  /**
+   * Custo já calculado por uma fórmula do domínio, quando o preço não é um
+   * número fixo e sim um modelo — caso do upload de vídeo, que depende de
+   * tamanho, horizonte de hospedagem, margem, câmbio e preço da estrela.
+   *
+   * **Exceção, não atalho.** Use só quando o preço for genuinamente calculado;
+   * constante no código é preço fixo e pertence ao catálogo. O `computedBy`
+   * é obrigatório para que a origem fique auditável no log e no registro.
+   *
+   * O teto máximo do catálogo continua valendo como guarda.
+   */
+  computedStars?: { stars: number; computedBy: string };
   feature?: string;
   sessionId?: string;
   trackingId?: string;
@@ -86,6 +98,32 @@ function reportMiss(action: string, skipReason: SkipReason) {
   );
 }
 
+/**
+ * Aplica um custo já calculado pelo domínio, mantendo o teto do catálogo como
+ * guarda. Preço calculado não dispensa proteção contra erro de cálculo.
+ */
+function applyComputedStars(
+  entry: Awaited<ReturnType<typeof resolvePrice>>,
+  stars: number,
+): ReturnType<typeof computeStars> {
+  if (!Number.isFinite(stars) || stars <= 0) {
+    return {
+      stars: 0,
+      cappedByMax: false,
+      unknownVariant: false,
+      skipReason: "invalid_quantity",
+    };
+  }
+  const capped =
+    entry.maxCharge !== null && stars > entry.maxCharge ? entry.maxCharge : stars;
+  return {
+    stars: Math.ceil(capped),
+    cappedByMax: capped !== stars,
+    unknownVariant: false,
+    skipReason: null,
+  };
+}
+
 /** Ações cobradas sem preço desde que o processo subiu, com a contagem de vezes. */
 export function getCatalogMisses(): Array<{ action: string; count: number }> {
   return [...reportedMisses.entries()]
@@ -95,7 +133,9 @@ export function getCatalogMisses(): Array<{ action: string; count: number }> {
 
 export async function meter(input: MeterInput): Promise<MeterResult> {
   const entry = await resolvePrice(input.organizationId, input.action);
-  const charge = computeStars(entry, input.quantity, input.variant);
+  const charge = input.computedStars
+    ? applyComputedStars(entry, input.computedStars.stars)
+    : computeStars(entry, input.quantity, input.variant);
 
   if (charge.unknownVariant) {
     console.warn(

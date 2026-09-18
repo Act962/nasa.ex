@@ -1,4 +1,6 @@
 export { meter, getCatalogMisses } from "./meter";
+export { meterOrThrow } from "./meter-or-throw";
+export type { MeteredCharge } from "./meter-or-throw";
 export { recordUsageEvent } from "./record-usage-event";
 export type { RecordUsageInput, TokenUsage } from "./record-usage-event";
 export { getMonetarySettings, invalidateMonetarySettings } from "./fx";
