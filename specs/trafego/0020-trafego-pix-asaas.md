@@ -179,6 +179,7 @@ webhook do Asaas, sem operador no meio.
 | CB-17 | Fila interrompida após 15 falhas | Eventos ficam retidos 14 dias; reativar com `PUT /v3/webhooks/{id}` (`interrupted: false`). Precisa de alarme — ver D-7 |
 | CB-18 | Cobrança criada em sandbox e webhook de produção (ou vice-versa) | `ASAAS_ENV` define a base URL e o `.env` define o token. Como dev e produção são arquivos diferentes, evento de ambiente trocado não valida o token e cai no CB-2 |
 | CB-26 | `ASAAS_ENV` com valor inesperado (vazio, `prod`, `Sandbox`) | Vale `sandbox`. Só a string exata `production` liga produção — qualquer ambiguidade erra para o lado que não move dinheiro |
+| CB-27 | `ASAAS_API_KEY` colada sem escapar num `.env` | A chave começa com `$` e o `dotenv-expand` a substitui por string vazia. O sistema não acusa erro: `pixAutoConfirms` fica `false` e o PIX volta ao manual, como se o gateway estivesse desligado. Escapar (`\$aact_...`) resolve; aspas simples não |
 | CB-19 | `PAYMENT_DELETED` (cobrança apagada no painel) | Pendência volta a `CANCELLED`, com log. Não apagar dados |
 | CB-20 | Cliente escolhe PIX, desiste e volta como cartão | A cobrança Asaas fica em aberto e vence sozinha; a pendência nova é outra. Registrar, para não conciliar errado depois |
 | CB-21 | Webhook e reconciliação confirmam ao mesmo tempo | O claim atômico decide; o perdedor recebe `already_paid` e não faz nada |
@@ -355,6 +356,11 @@ manual, e a linha 50 diz "Asaas não valida assinatura". Precisa ser atualizada 
 mesmo PR.
 
 ## 8. Plano de testes
+
+> **Antes de qualquer teste**: a chave do Asaas começa com `$`. Num arquivo
+> `.env` ela precisa ser escapada (`ASAAS_API_KEY=\$aact_...`), senão chega
+> vazia e a integração fica desligada **sem erro visível** — foi exatamente o que
+> aconteceu no primeiro setup local (CB-27).
 
 Não há runner instalado (deriva conhecida, item 20 do CLAUDE.md), então os
 critérios são verificados **manualmente em sandbox**, com o roteiro registrado no
