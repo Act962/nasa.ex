@@ -346,10 +346,12 @@ function SetupGuide({
               </div>
             </div>
 
-            <div className="p-2 rounded bg-green-950/40 border border-green-800/30 text-green-300">
-              ℹ️ O Asaas <strong>não usa Webhook Secret</strong> — a
-              autenticação é feita pelo token da API. O campo &quot;Webhook
-              Secret&quot; não é necessário para o Asaas.
+            <div className="p-2 rounded bg-amber-950/40 border border-amber-800/30 text-amber-300">
+              ⚠️ O Asaas <strong>usa token de webhook</strong>, no header{" "}
+              <code>asaas-access-token</code> — este endpoint (recarga de Stars)
+              ainda <strong>não valida</strong>, e isso é o item S1 da auditoria
+              de segurança. O PIX do trafeGO valida, e lê as credenciais do
+              ambiente (<code>ASAAS_*</code>), não desta tela.
             </div>
           </div>
         )}
@@ -396,8 +398,6 @@ function GatewayFormDialog({
     provider === "stripe"
       ? `${origin}/api/stripe/webhook`
       : `${origin}/api/payments/asaas/webhook`;
-
-  console.log(webhookUrl);
 
   const { mutate: save, isPending } = useMutation({
     ...orpc.admin.setGatewayConfig.mutationOptions(),

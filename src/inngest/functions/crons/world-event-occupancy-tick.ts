@@ -1,7 +1,7 @@
 /**
  * Cron: world-event-occupancy-tick
  *
- * Roda a cada 1 min. Pra cada WorldEvent LIVE/SCHEDULED na janela ativa
+ * Roda a cada 15 min. Pra cada WorldEvent LIVE/SCHEDULED na janela ativa
  * (startsAt - 30min ≤ now ≤ endsAt + 5min), atualiza:
  *   - currentOccupancy: hoje conta tickets que tiveram redeemedAt nas
  *     últimas 5 min (proxy de "presente no mapa"). Fase 2 troca pra
@@ -35,7 +35,7 @@ export const worldEventOccupancyTick = inngest.createFunction(
     const windowClose = new Date(now.getTime() + 5 * 60 * 1000);
 
     // Early exit fora de step.run pra não consumir step do Free tier
-    // quando não há eventos ativos na janela (cron roda 1440x/dia).
+    // quando não há eventos ativos na janela (cron roda 96x/dia).
     const activeEventsCount = await prisma.worldEvent.count({
       where: {
         status: { in: ["SCHEDULED", "LIVE"] },

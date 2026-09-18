@@ -480,7 +480,7 @@ export const previewSettings = {
   pixKey: "00.000.000/0001-00",
   pixHolderName: "Órbita Hub LTDA",
   pixBankName: "Inter",
-  pixExpiryHours: 48,
+  pixExpiryMinutes: 10,
   clientNotificationsEnabled: true,
   financeAccountId: null,
   financeRevenueCategoryId: null,

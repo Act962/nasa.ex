@@ -28,6 +28,9 @@ import { trafegoCheckoutBodySchema } from "@/features/trafego/schema/trafego-sch
 import { PLATFORM_SHORT_LABEL } from "@/features/trafego/lib/catalog-labels";
 import { TRAFEGO_TERMS_VERSION } from "@/features/trafego/lib/legal";
 import { ensureTrafegoLeadForPending } from "@/features/trafego/server/lib/ensure-trafego-lead";
+import { loadTrafegoAsaasGateway } from "@/features/trafego/server/lib/asaas-gateway";
+import { createAsaasPixCharge } from "@/features/trafego/server/lib/create-asaas-pix-charge";
+import { isValidBrazilianDocument } from "@/features/payment/lib/documents/normalize-document";
 import { createBriefingResponseForPending } from "@/features/trafego/server/lib/briefing-form-response";
 import { isTrafegoPhoneVerified } from "@/features/trafego/server/lib/phone-verification";
 import { checkWhatsappNumber } from "@/features/trafego/server/lib/whatsapp-number-check";
@@ -81,6 +84,7 @@ export async function POST(req: NextRequest) {
     hasOfficialNumber,
     officialNumber,
     paymentMethod,
+    payerDocument,
     complianceAcknowledged,
     desiredStartAt,
     hasSocialLinked,
@@ -106,6 +110,19 @@ export async function POST(req: NextRequest) {
   const flow = isAuthenticatedFlow ? "authenticated" : "public";
 
   const isPix = paymentMethod === "PIX";
+
+  // Antes de criar pendência, card ou cobrança: documento inválido recusa aqui,
+  // senão sobra pendência órfã no banco e cadastro sujo no Asaas.
+  const asaasGateway = isPix ? loadTrafegoAsaasGateway() : null;
+  if (asaasGateway && !isValidBrazilianDocument(payerDocument)) {
+    return NextResponse.json(
+      {
+        error: "Informe um CPF ou CNPJ válido para pagar com PIX.",
+        field: "payerDocument",
+      },
+      { status: 422 },
+    );
+  }
 
   // "unsure" é tratado como quem não tem: se na verificação a conta existir, a
   // equipe estorna o setup. Melhor sobrar do que descobrir depois que faltou.
@@ -312,7 +329,9 @@ export async function POST(req: NextRequest) {
 
   if (isPix) {
     const freshSettings = await loadTrafegoSettings({ fresh: true });
-    if (!freshSettings.pixKey) {
+    // Com o Asaas ligado a cobrança traz a própria chave; a estática só importa
+    // no fluxo manual.
+    if (!asaasGateway && !freshSettings.pixKey) {
       // Sem chave configurada não há como o cliente pagar. Falhar aqui é melhor
       // do que mostrar uma tela de PIX vazia depois de ele escolher.
       await prisma.trafegoPendingPurchase.update({
@@ -330,12 +349,47 @@ export async function POST(req: NextRequest) {
 
     const reference = await claimPixReference(pending.id);
     const expiresAt = new Date(
-      Date.now() + freshSettings.pixExpiryHours * 60 * 60 * 1000,
+      Date.now() + freshSettings.pixExpiryMinutes * 60 * 1000,
     );
     await prisma.trafegoPendingPurchase.update({
       where: { id: pending.id },
       data: { pixReference: reference, pixExpiresAt: expiresAt },
     });
+
+    // Com o gateway ligado, a cobrança nasce no Asaas e o webhook confirma
+    // sozinho. Sem ele, cai no fluxo manual de sempre — chave estática e
+    // comprovante no WhatsApp (spec 0020 RF-15).
+    let asaasCharge: Awaited<ReturnType<typeof createAsaasPixCharge>> | null =
+      null;
+    if (asaasGateway) {
+      try {
+        asaasCharge = await createAsaasPixCharge({
+          pendingId: pending.id,
+          secretKey: asaasGateway.secretKey,
+          environment: asaasGateway.environment,
+          email: buyerEmail,
+          payerName: companyName?.trim() || buyerEmail,
+          payerDocument: payerDocument!,
+          phone,
+          amountBrlCents: quote.totalBrlCents,
+          expiresAt,
+          description: `trafeGO ${PLATFORM_SHORT_LABEL[platform]} — ${reference}`,
+        });
+      } catch (error) {
+        console.error("[checkout/trafego] cobrança Asaas falhou:", error);
+        await prisma.trafegoPendingPurchase.update({
+          where: { id: pending.id },
+          data: { status: "CANCELLED" },
+        });
+        return NextResponse.json(
+          {
+            error:
+              "Não foi possível gerar a cobrança PIX agora. Tente de novo em instantes ou use cartão.",
+          },
+          { status: 503 },
+        );
+      }
+    }
 
     const posthog = getPostHogClient();
     posthog.capture({
@@ -362,6 +416,12 @@ export async function POST(req: NextRequest) {
         amountBrlCents: quote.totalBrlCents,
         expiresAt: expiresAt.toISOString(),
         supportWhatsapp: freshSettings.supportWhatsapp,
+        // Preenchidos só quando a cobrança saiu pelo Asaas. Null aqui é o sinal
+        // de que a tela deve pedir o comprovante, e não esperar o webhook.
+        qrPayload: asaasCharge?.payload ?? null,
+        qrImageBase64: asaasCharge?.encodedImage ?? null,
+        invoiceUrl: asaasCharge?.invoiceUrl ?? null,
+        autoConfirms: Boolean(asaasCharge),
         receiptMessage: buildPixReceiptMessage({
           reference,
           amountLabel: (quote.totalBrlCents / 100).toLocaleString("pt-BR", {

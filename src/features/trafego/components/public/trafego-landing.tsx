@@ -93,6 +93,8 @@ import {
   type TrafegoPaymentMethod,
 } from "./wizard/payment-method-step";
 import { PixInstructions } from "./wizard/pix-instructions";
+import { PayerDocumentStep } from "./wizard/payer-document-step";
+import { isValidBrazilianDocument } from "@/features/payment/lib/documents/normalize-document";
 import { ComplianceAlert } from "./wizard/compliance-alert";
 import { TrafegoAssistant } from "./assistant/trafego-assistant";
 import { TechnicalTerm } from "../technical-term";
@@ -293,6 +295,8 @@ export function TrafegoLanding({
   const [paymentMethod, setPaymentMethod] =
     useState<TrafegoPaymentMethod>("CARD");
   const [complianceAcknowledged, setComplianceAcknowledged] = useState(false);
+  /** CPF/CNPJ do pagador — só a trilha PIX pede (spec 0020 D-1). */
+  const [payerDocument, setPayerDocument] = useState("");
   /** Cobrança PIX gerada: enquanto existir, a tela do PIX substitui o wizard. */
   const [pixCharge, setPixCharge] = useState<{
     pendingId: string;
@@ -391,6 +395,10 @@ export function TrafegoLanding({
     icon: OBJECTIVE_ICON[value],
   }));
 
+  // Só a cobrança do Asaas exige documento. No PIX manual o campo nem aparece.
+  const needsPayerDocument =
+    paymentMethod === "PIX" && Boolean(config?.pixAutoConfirms);
+
   const canGoNext = (() => {
     switch (screenId) {
       case "channel":
@@ -429,7 +437,8 @@ export function TrafegoLanding({
           acceptedTerms &&
           !isBlockedByPolicy &&
           (!needsComplianceAck || complianceAcknowledged) &&
-          (!startTooSoon || timing.acknowledged)
+          (!startTooSoon || timing.acknowledged) &&
+          (!needsPayerDocument || isValidBrazilianDocument(payerDocument))
         );
       default:
         return false;
@@ -527,6 +536,8 @@ export function TrafegoLanding({
         objective,
         acceptedTerms: true,
         paymentMethod,
+        payerDocument:
+          paymentMethod === "PIX" ? payerDocument.trim() || undefined : undefined,
         complianceAcknowledged,
         desiredStartAt: timing.desiredStartAt || undefined,
         hasSocialLinked: timing.hasSocialLinked ?? undefined,
@@ -999,7 +1010,15 @@ export function TrafegoLanding({
                       value={paymentMethod}
                       onChange={setPaymentMethod}
                       pixAvailable={config?.pixAvailable ?? false}
+                      pixAutoConfirms={config?.pixAutoConfirms ?? false}
                     />
+
+                    {needsPayerDocument && (
+                      <PayerDocumentStep
+                        value={payerDocument}
+                        onChange={setPayerDocument}
+                      />
+                    )}
 
                     <div className="rounded-2xl border border-white/[0.09] bg-white/[0.03] p-4 sm:p-5">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-white/35">
@@ -1062,9 +1081,11 @@ export function TrafegoLanding({
 
                     <div className="flex items-center gap-2 text-xs text-white/35">
                       <ShieldCheck className="size-4 shrink-0" />
-                      {paymentMethod === "PIX"
-                        ? "Você paga na nossa chave e envia o comprovante. A equipe confirma em horário comercial."
-                        : "Pagamento processado pelo Stripe. Não guardamos dados do cartão."}
+                      {paymentMethod !== "PIX"
+                        ? "Pagamento processado pelo Stripe. Não guardamos dados do cartão."
+                        : needsPayerDocument
+                          ? "Cobrança emitida pelo Asaas. A confirmação é automática assim que o PIX cair."
+                          : "Você paga na nossa chave e envia o comprovante. A equipe confirma em horário comercial."}
                     </div>
                   </div>
                 </StepShell>

@@ -17,12 +17,13 @@ import type { TrafegoPixCharge } from "@/features/trafego/hooks/use-trafego-purc
 const POLL_INTERVAL_MS = 5_000;
 
 /**
- * Tela do PIX: chave para copiar, referência e o botão que abre o WhatsApp da
- * equipe já com a mensagem pronta.
+ * Tela do PIX, em dois modos.
  *
- * Fica fazendo polling porque a confirmação é humana — quando alguém do time
- * conferir o comprovante, esta tela troca sozinha para o link de acesso, sem
- * o cliente precisar recarregar nada.
+ * Com cobrança no Asaas (`autoConfirms`), mostra o QR e o copia-e-cola, e a
+ * confirmação chega pelo webhook em segundos. Sem ela, é o fluxo antigo: chave
+ * estática da agência e comprovante pelo WhatsApp, confirmado por uma pessoa.
+ *
+ * O polling serve aos dois — o que muda é quanto tempo ele espera.
  */
 export function PixInstructions({
   charge,
@@ -45,9 +46,14 @@ export function PixInstructions({
     return () => window.clearTimeout(timer);
   }, [copied]);
 
-  async function copyKey() {
+  // Com QR, o que se copia é o código da cobrança — ele já carrega valor e
+  // identificação. Sem QR, resta a chave da agência.
+  const copyValue = charge.qrPayload ?? charge.key ?? "";
+
+  async function copyPixCode() {
+    if (!copyValue) return;
     try {
-      await navigator.clipboard.writeText(charge.key);
+      await navigator.clipboard.writeText(copyValue);
       setCopied(true);
     } catch {
       setCopied(false);
@@ -66,7 +72,9 @@ export function PixInstructions({
         <p className="mt-1.5 text-sm text-white/55">
           {data?.orderId
             ? "Sua nova campanha já está disponível no painel."
-            : "Nossa equipe conferiu seu comprovante. Agora é criar sua senha para acessar o painel."}
+            : charge.autoConfirms
+              ? "Recebemos seu PIX. Agora é criar sua senha para acessar o painel."
+              : "Nossa equipe conferiu seu comprovante. Agora é criar sua senha para acessar o painel."}
         </p>
         <Link
           href={
@@ -99,23 +107,35 @@ export function PixInstructions({
             Falta pagar {formatBrlFromCents(charge.amountBrlCents)}
           </h2>
           <p className="mt-1 text-sm text-white/45">
-            Pague na chave abaixo e mande o comprovante — a equipe confirma em
-            horário comercial.
+            {charge.autoConfirms
+              ? "Escaneie o QR ou use o copia e cola. A confirmação é automática."
+              : "Pague na chave abaixo e mande o comprovante — a equipe confirma em horário comercial."}
           </p>
         </div>
       </div>
 
+      {charge.qrImageBase64 && (
+        <div className="mt-6 flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element -- base64 do Asaas, sem URL para otimizar */}
+          <img
+            src={`data:image/png;base64,${charge.qrImageBase64}`}
+            alt="QR Code para pagamento via PIX"
+            className="size-56 rounded-2xl bg-white p-3"
+          />
+        </div>
+      )}
+
       <div className="mt-6 rounded-2xl border border-white/[0.09] bg-white/[0.03] p-4">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-white/35">
-          Chave PIX
+          {charge.qrPayload ? "PIX copia e cola" : "Chave PIX"}
         </p>
         <div className="mt-1.5 flex items-center gap-2">
           <code className="min-w-0 flex-1 truncate text-base font-semibold text-white">
-            {charge.key}
+            {copyValue}
           </code>
           <button
             type="button"
-            onClick={copyKey}
+            onClick={copyPixCode}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-2 text-xs font-medium text-white transition hover:bg-white/[0.1]"
           >
             {copied ? (
@@ -128,10 +148,12 @@ export function PixInstructions({
         </div>
 
         <dl className="mt-4 space-y-1.5 border-t border-white/[0.07] pt-3 text-xs">
-          {charge.holderName && (
+          {!charge.autoConfirms && charge.holderName && (
             <Row label="Titular" value={charge.holderName} />
           )}
-          {charge.bankName && <Row label="Banco" value={charge.bankName} />}
+          {!charge.autoConfirms && charge.bankName && (
+            <Row label="Banco" value={charge.bankName} />
+          )}
           <Row
             label="Valor"
             value={formatBrlFromCents(charge.amountBrlCents)}
@@ -143,8 +165,14 @@ export function PixInstructions({
       <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-400/20 bg-amber-500/[0.07] p-3.5">
         <Timer className="mt-0.5 size-4 shrink-0 text-amber-300" />
         <p className="text-xs leading-relaxed text-amber-100">
-          Cite a referência <strong>{charge.reference}</strong> ao enviar o
-          comprovante — é assim que achamos o seu pedido. A cobrança vale até{" "}
+          {charge.autoConfirms ? (
+            <>Esta cobrança vale até </>
+          ) : (
+            <>
+              Cite a referência <strong>{charge.reference}</strong> ao enviar o
+              comprovante — é assim que achamos o seu pedido. A cobrança vale até{" "}
+            </>
+          )}
           <strong>
             {new Date(charge.expiresAt).toLocaleString("pt-BR", {
               day: "2-digit",
@@ -157,7 +185,7 @@ export function PixInstructions({
         </p>
       </div>
 
-      {whatsappHref && (
+      {!charge.autoConfirms && whatsappHref && (
         <a
           href={whatsappHref}
           target="_blank"
@@ -171,7 +199,9 @@ export function PixInstructions({
 
       <p className="mt-4 flex items-center justify-center gap-2 text-xs text-white/35">
         <Loader2 className="size-3.5 animate-spin" />
-        Esta tela troca sozinha assim que confirmarmos o pagamento.
+        {charge.autoConfirms
+          ? "Esperando o pagamento cair — esta tela troca sozinha."
+          : "Esta tela troca sozinha assim que confirmarmos o pagamento."}
       </p>
     </div>
   );

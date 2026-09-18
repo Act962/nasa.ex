@@ -27,8 +27,13 @@ export interface MarkPurchasePaidInput {
     paymentIntentId?: string | null;
     checkoutSessionId?: string | null;
   };
-  /** PIX: quem confirmou e o que anotou. */
-  pix?: { confirmedByUserId: string; note?: string | null };
+  /**
+   * PIX: quem confirmou e o que anotou. `confirmedByUserId` é null quando quem
+   * confirmou foi o webhook do Asaas — não há operador, mas `pixConfirmedAt`
+   * precisa ser gravado do mesmo jeito: é ele que identifica a compra como paga
+   * no PIX se um cartão cair depois.
+   */
+  pix?: { confirmedByUserId: string | null; note?: string | null };
   /**
    * Status a partir dos quais o claim vale. Stripe só aceita PENDING; o PIX
    * também aceita EXPIRED, porque quem paga atrasado ainda tem que ser
