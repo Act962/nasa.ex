@@ -176,6 +176,73 @@ async function main() {
       `(soma ${totalBefore}★ -> ${totalAfter}★)`,
   );
 
+  // ── Fase 3 — preços portados batem com as constantes antigas ────────────
+  // Cada par abaixo é (ação no catálogo, variante, valor que a constante tinha).
+  const ported: Array<[string, string | undefined, number]> = [
+    ["planner_campaign_create", undefined, 1],
+    ["planner_post_image", "ideogram_quality", 6],
+    ["planner_post_image", "ideogram_balanced", 4],
+    ["planner_post_image", "ideogram_turbo", 3],
+    ["planner_post_image", "dalle3_hd", 5],
+    ["planner_post_image", "dalle3_standard", 3],
+    ["planner_post_image", "pollinations", 1],
+    ["planner_image_prompt", "hd", 5],
+    ["planner_image_prompt", "standard", 3],
+    ["planner_image_prompt", "pollinations", 1],
+    ["planner_image_reference", undefined, 1],
+    ["planner_post_generate", undefined, 5],
+    ["planner_post_publish", undefined, 1],
+    ["planner_post_schedule", undefined, 1],
+    ["planner_video_merge", undefined, 1],
+    ["page_create", undefined, 2000],
+    ["page_duplicate", undefined, 2000],
+    ["meta_ads_action", "meta_ads_create_campaign", 5],
+    ["meta_ads_action", "meta_ads_pause_campaign", 2],
+    ["nasa_command", "query", 1],
+    ["nasa_command", "create", 3],
+    ["nasa_command", "ai_parse", 2],
+    ["nasa_command", "ai_generate", 8],
+    ["nasa_command", "move", 2],
+    ["booking_chat_message", undefined, 1],
+  ];
+
+  let portedMismatches = 0;
+  for (const [action, variant, expectedStars] of ported) {
+    const entry = await resolvePrice(organization.id, action);
+    const { stars } = computeStars(entry, undefined, variant);
+    if (stars !== expectedStars) {
+      portedMismatches += 1;
+      console.log(
+        `        ${action}${variant ? `/${variant}` : ""}: constante ${expectedStars}★, catálogo ${stars}★`,
+      );
+    }
+  }
+  check(
+    "Fase 3 — preços portados",
+    portedMismatches === 0,
+    `${ported.length} valores conferidos contra as constantes originais, ${portedMismatches} divergência(s)`,
+  );
+
+  // Vídeo cobra por variante de provedor, não por segundo.
+  const videoEntry = await resolvePrice(organization.id, "planner_video_generate");
+  const falai = computeStars(videoEntry, { unit: "second", amount: 5 }, "falai").stars;
+  const runway = computeStars(videoEntry, { unit: "second", amount: 5 }, "runway").stars;
+  check(
+    "Fase 3 — vídeo por provedor",
+    falai === 3 && runway === 15,
+    `fal.ai ${falai}★ (era 3), Runway ${runway}★ (era 15)`,
+  );
+
+  // Transcrição: 1★ por minuto estimado, mínimo 1★.
+  const transcriptionEntry = await resolvePrice(organization.id, "planner_transcription");
+  const oneMinute = computeStars(transcriptionEntry, { unit: "minute", amount: 1 }).stars;
+  const tenMinutes = computeStars(transcriptionEntry, { unit: "minute", amount: 10 }).stars;
+  check(
+    "Fase 3 — transcrição por minuto",
+    oneMinute === 1 && tenMinutes === 10,
+    `1min = ${oneMinute}★, 10min = ${tenMinutes}★ (antes: 1★/min, mínimo 1★)`,
+  );
+
   // ── CA-10 — ações sem preço ─────────────────────────────────────────────
   const stillMissing: string[] = [];
   for (const action of ACTIONS_WITHOUT_PRICE) {
