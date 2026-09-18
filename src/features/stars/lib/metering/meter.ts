@@ -7,9 +7,13 @@
  * (Regra 18 do CLAUDE.md).
  */
 
-import { StarTransactionType } from "@/generated/prisma/client";
+import {
+  StarTransactionType,
+  type UsageEventKind,
+} from "@/generated/prisma/client";
 import { debitStars } from "../star-service";
 import { computeStars } from "./compute-stars";
+import { recordUsageEvent, type TokenUsage } from "./record-usage-event";
 import { resolvePrice } from "./resolve-price";
 import type { MeterQuantity, PriceSource, SkipReason } from "./types";
 
@@ -27,6 +31,26 @@ export interface MeterInput {
   /** Proíbe usar saldo de bônus nesta cobrança. */
   disallowBonus?: boolean;
   transactionType?: StarTransactionType;
+
+  /**
+   * Custo externo deste evento. Quando presente, o registro de custo é gravado
+   * após o commit do débito — nunca dentro da transação (Regra 18).
+   */
+  cost?: {
+    kind: UsageEventKind;
+    provider?: string;
+    modelId?: string;
+    usingCustomKey?: boolean;
+    tokens?: TokenUsage;
+    providerCostUsd?: number;
+    infraCostUsd?: number;
+    latencyMs?: number;
+  };
+  feature?: string;
+  sessionId?: string;
+  trackingId?: string;
+  leadId?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export type MeterResult =
@@ -92,6 +116,34 @@ export async function meter(input: MeterInput): Promise<MeterResult> {
     if (charge.skipReason !== "zero_cost" && charge.skipReason !== "disabled") {
       reportMiss(input.action, charge.skipReason);
     }
+    // Evento gratuito ainda custou dinheiro no fornecedor: registrar é o que
+    // permite enxergar prejuízo (D-4 da spec 0021).
+    if (input.cost) {
+      await recordUsageEvent({
+        organizationId: input.organizationId,
+        userId: input.userId,
+        kind: input.cost.kind,
+        action: input.action,
+        appSlug: input.appSlug,
+        feature: input.feature,
+        provider: input.cost.provider,
+        modelId: input.cost.modelId,
+        usingCustomKey: input.cost.usingCustomKey,
+        tokens: input.cost.tokens,
+        quantity: input.quantity?.amount,
+        quantityUnit: input.quantity?.unit,
+        providerCostUsd: input.cost.providerCostUsd,
+        infraCostUsd: input.cost.infraCostUsd,
+        latencyMs: input.cost.latencyMs,
+        starsCharged: 0,
+        sessionId: input.sessionId,
+        trackingId: input.trackingId,
+        leadId: input.leadId,
+        status: charge.skipReason === "no_price" ? "catalog_miss" : "ok",
+        metadata: input.metadata,
+      });
+    }
+
     return {
       charged: false,
       success: true,
@@ -114,8 +166,36 @@ export async function meter(input: MeterInput): Promise<MeterResult> {
     description,
     appSlug,
     input.userId,
-    allowBonus ? undefined : { allowBonus: false },
+    { action: input.action, ...(allowBonus ? {} : { allowBonus: false }) },
   );
+
+  // Fora da transação, best-effort: falhar aqui não invalida a cobrança.
+  if (input.cost) {
+    await recordUsageEvent({
+      organizationId: input.organizationId,
+      userId: input.userId,
+      kind: input.cost.kind,
+      action: input.action,
+      appSlug,
+      feature: input.feature,
+      provider: input.cost.provider,
+      modelId: input.cost.modelId,
+      usingCustomKey: input.cost.usingCustomKey,
+      tokens: input.cost.tokens,
+      quantity: input.quantity?.amount,
+      quantityUnit: input.quantity?.unit,
+      providerCostUsd: input.cost.providerCostUsd,
+      infraCostUsd: input.cost.infraCostUsd,
+      latencyMs: input.cost.latencyMs,
+      starsCharged: result.success ? charge.stars : 0,
+      starTransactionId: result.starTransactionId,
+      sessionId: input.sessionId,
+      trackingId: input.trackingId,
+      leadId: input.leadId,
+      status: result.success ? "ok" : "insufficient_stars",
+      metadata: input.metadata,
+    });
+  }
 
   return {
     charged: true,

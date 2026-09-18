@@ -34,6 +34,8 @@ export interface DebitOpts {
    * onde bônus de boas-vindas não pode ser aceito como pagamento.
    */
   allowBonus?: boolean;
+  /** Chave da ação no catálogo. Liga a transação ao registro de custo (spec 0021). */
+  action?: string;
 }
 
 export interface AppCostInfo {
@@ -141,8 +143,13 @@ export async function debitStars(
   description: string,
   appSlug?: string,
   userId?: string, // opcional: rastreia consumo individual do usuário
-  opts?: DebitOpts, // opcional: { allowBonus?: boolean = true }
-): Promise<{ success: boolean; newBalance: number; newBonusBalance: number }> {
+  opts?: DebitOpts, // opcional: { allowBonus?: boolean = true, action?: string }
+): Promise<{
+  success: boolean;
+  newBalance: number;
+  newBonusBalance: number;
+  starTransactionId?: string;
+}> {
   const allowBonus = opts?.allowBonus ?? true;
 
   // ── 1. Debitar dentro de uma transação atômica ────────────────────────────
@@ -161,6 +168,7 @@ export async function debitStars(
         success: false,
         newBalance: org.starsBalance,
         newBonusBalance: org.starsBonusBalance,
+        starTransactionId: undefined,
       };
     }
 
@@ -183,7 +191,7 @@ export async function debitStars(
         ? `${description} (${fromMain}★ saldo + ${fromBonus}★ bônus)`
         : description;
 
-    await tx.starTransaction.create({
+    const transaction = await tx.starTransaction.create({
       data: {
         organizationId,
         type,
@@ -191,7 +199,10 @@ export async function debitStars(
         balanceAfter: newBalance,
         description: finalDescription,
         appSlug,
+        userId,
+        action: opts?.action,
       },
+      select: { id: true },
     });
 
     // ── Incrementar currentUsage por usuário (se informado) ─────────────────
@@ -209,7 +220,12 @@ export async function debitStars(
       });
     }
 
-    return { success: true, newBalance, newBonusBalance };
+    return {
+      success: true,
+      newBalance,
+      newBonusBalance,
+      starTransactionId: transaction.id,
+    };
   });
 
   // ── 2. Reabastecimento para moderadores ──────────────────────────────────
