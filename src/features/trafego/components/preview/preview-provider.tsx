@@ -137,6 +137,8 @@ export function TrafegoPreviewProvider({ children }: { children: React.ReactNode
       includedCreatives: previewSettings.includedCreatives,
       extraCreativeBrlCents: previewSettings.extraCreativeBrlCents,
       pixAvailable: true,
+      // Preview não fala com o Asaas: mostra o fluxo manual do PIX, não o QR.
+      pixAutoConfirms: false,
       verification: { phone: true, whatsappCheck: true, social: true },
     });
 
