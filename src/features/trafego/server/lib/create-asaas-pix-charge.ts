@@ -1,5 +1,6 @@
 import "server-only";
 import prisma from "@/lib/prisma";
+import { inngest } from "@/inngest/client";
 import {
   createCharge,
   findOrCreateCustomer,
@@ -83,6 +84,17 @@ export async function createAsaasPixCharge(
       pixQrCodePayload: payload,
     },
   });
+
+  // Acompanhamento da cobrança: recupera o pagamento se o webhook não chegar.
+  // Best-effort — se o dispatch falhar, o sweep horário ainda pega.
+  try {
+    await inngest.send({
+      name: "trafego/asaas.charge_created",
+      data: { pendingId: input.pendingId, paymentId: charge.id },
+    });
+  } catch (error) {
+    console.error("[trafego/asaas] dispatch do acompanhamento falhou:", error);
+  }
 
   return {
     paymentId: charge.id,

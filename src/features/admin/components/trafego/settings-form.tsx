@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
+  RefreshCw,
   Save,
   Wand2,
 } from "lucide-react";
@@ -20,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useReconcileTrafegoPix } from "@/features/trafego/hooks/use-trafego-ops";
 import {
   useProvisionTrafegoBriefingForm,
   useProvisionTrafegoOperationsTracking,
@@ -488,8 +490,15 @@ export function TrafegoSettingsForm() {
       </Section>
 
       <Section
-        title="PIX manual"
-        description="A chave aparece para o cliente no fim do wizard. Sem chave preenchida, o PIX some e só o cartão é oferecido."
+        title="Cobrança PIX pelo Asaas"
+        description="Reconciliação manual: pergunta ao Asaas o estado das cobranças abertas e confirma o que já foi pago. Use quando um cliente disser que pagou e o pedido não liberou."
+      >
+        <ReconcilePixButton />
+      </Section>
+
+      <Section
+        title="PIX manual (sem Asaas)"
+        description="A chave aparece para o cliente quando o gateway Asaas está desligado. Sem chave e sem gateway, o PIX some do wizard e só o cartão é oferecido."
       >
         <Field
           label="Chave PIX"
@@ -621,6 +630,49 @@ export function TrafegoSettingsForm() {
           Salvar ajustes
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Saída manual quando o Inngest está fora. As outras duas camadas de
+ * recuperação (acompanhamento por pedido e sweep horário) rodam na fila; esta
+ * roda no request e não depende dela.
+ */
+function ReconcilePixButton() {
+  const reconcile = useReconcileTrafegoPix();
+
+  return (
+    <div className="col-span-full flex flex-wrap items-center gap-3">
+      <Button
+        type="button"
+        variant="outline"
+        disabled={reconcile.isPending}
+        onClick={() =>
+          reconcile.mutate(
+            { minAgeMinutes: 0, maxAgeDays: 7 },
+            {
+              onSuccess: (result) => toast.success(result.message),
+              onError: (error) =>
+                toast.error(
+                  error instanceof Error
+                    ? error.message
+                    : "Não foi possível falar com o Asaas.",
+                ),
+            },
+          )
+        }
+      >
+        {reconcile.isPending ? (
+          <Loader2 className="mr-2 size-4 animate-spin" />
+        ) : (
+          <RefreshCw className="mr-2 size-4" />
+        )}
+        Reconciliar PIX agora
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Não duplica nada: quem já estava confirmado é ignorado.
+      </p>
     </div>
   );
 }

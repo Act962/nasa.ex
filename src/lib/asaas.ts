@@ -183,6 +183,8 @@ export interface AsaasPayment {
   dueDate:           string | null;
   paymentDate:       string | null;
   invoiceUrl:        string | null;
+  /** Cobrança removida no painel do Asaas. */
+  deleted:           boolean;
 }
 
 /**
@@ -195,6 +197,28 @@ export async function getPayment(
   paymentId: string,
 ): Promise<AsaasPayment> {
   return asaasFetch<AsaasPayment>(apiKey, env, `/payments/${paymentId}`);
+}
+
+export interface AsaasPaymentList {
+  data:       AsaasPayment[];
+  hasMore:    boolean;
+  totalCount: number;
+}
+
+/**
+ * Busca cobranças pelo identificador do NOSSO lado. Serve para reencontrar uma
+ * cobrança cujo vínculo não chegou a ser gravado — o POST foi aceito, o update
+ * seguinte falhou, e o id ficou só no Asaas.
+ */
+export async function findPaymentsByExternalReference(
+  apiKey: string,
+  env: AsaasEnv,
+  externalReference: string,
+): Promise<AsaasPaymentList> {
+  return asaasFetch<AsaasPaymentList>(
+    apiKey, env,
+    `/payments?externalReference=${encodeURIComponent(externalReference)}&limit=10`,
+  );
 }
 
 // ─── PIX QR Code ─────────────────────────────────────────────────────────────

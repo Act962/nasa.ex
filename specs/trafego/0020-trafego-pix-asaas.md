@@ -117,6 +117,10 @@ webhook do Asaas, sem operador no meio.
 | RF-13 | `PAYMENT_OVERDUE` marca a pendência como `EXPIRED` (sem cancelar) — redundante com o cron `trafego-pix-pending-sweep`, e mantido porque vem do provedor, que é a fonte autoritativa do vencimento. `PAYMENT_REFUNDED`, `PAYMENT_PARTIALLY_REFUNDED` e `PAYMENT_CHARGEBACK_REQUESTED` **não** revertem nada automaticamente: notificam os admins e registram evento no pedido |
 | RF-14 | A tela de PIX do wizard mostra o QR e faz polling do status da pendência, liberando o próximo passo assim que o webhook confirmar |
 | RF-15 | Com o gateway Asaas inativo ou não configurado, o checkout PIX volta ao fluxo manual de hoje (chave estática + referência), sem erro para o cliente |
+| RF-16 | Cada cobrança PIX criada agenda **um** acompanhamento próprio, que confere o estado no Asaas em 15min, 2h, 24h e 48h, e encerra no primeiro checkpoint em que a pendência já estiver resolvida |
+| RF-17 | O cron horário que já existe (`trafego-pix-pending-sweep`) **reconcilia antes de expirar**: pendência aberta com cobrança no Asaas é conferida contra a API, e só depois o que sobrou vira `EXPIRED` |
+| RF-18 | Quando a reconciliação **confirma** um pagamento que o webhook não confirmou, os admins são notificados — isso não é rotina, é sinal de que a entrega de eventos está quebrada |
+| RF-19 | Existe um "Reconciliar PIX agora" no admin, servido por procedure oRPC **fora do Inngest**, para o caso de a fila inteira estar indisponível |
 
 ### Não-funcionais
 
@@ -128,6 +132,7 @@ webhook do Asaas, sem operador no meio.
 | RNF-4 | A chave da API nunca é exposta ao cliente; QR e copia-e-cola vêm do nosso servidor |
 | RNF-5 | `cpfCnpj` é dado pessoal (LGPD): guardado só na pendência, usado só para emitir a cobrança, com prazo de retenção declarado em D-6 |
 | RNF-6 | Toda chamada ao Asaas tem timeout e falha fechada no checkout — não deixa o cliente numa tela de QR vazia |
+| RNF-7 | O custo de execução da recuperação acompanha o **volume de vendas**, não a passagem do tempo: nenhum cron novo, e um run por cobrança |
 
 ## 4. Critérios de aceite
 
@@ -145,6 +150,10 @@ webhook do Asaas, sem operador no meio.
 - [ ] **CA-12** — Dado `PAYMENT_REFUNDED`, então os admins são notificados e o pedido registra o evento, sem reverter lançamento financeiro sozinho.
 - [ ] **CA-13** — Dado o gateway Asaas desativado em `/admin/payments`, então o checkout PIX entrega a chave estática e a referência `TGP-`, como hoje.
 - [ ] **CA-14** — Dado um cliente que já comprou antes com o mesmo CPF, então nenhum customer novo é criado no Asaas.
+- [ ] **CA-15** — Dado um pagamento cujo webhook nunca chegou, quando o acompanhamento da cobrança acorda, então a pendência é confirmada e os admins recebem o aviso de resgate.
+- [ ] **CA-16** — Dado que o webhook já confirmou, quando o acompanhamento acorda, então ele encerra sem efeito nenhum.
+- [ ] **CA-17** — Dada uma pendência cuja cobrança existe no Asaas mas cujo `asaasPaymentId` não foi gravado, quando a reconciliação roda, então ela reencontra a cobrança pelo `externalReference` e grava o vínculo.
+- [ ] **CA-18** — Dado o botão "Reconciliar PIX agora" clicado duas vezes seguidas, então o segundo clique não gera pedido, e-mail ou lançamento duplicado.
 
 ## 5. Casos de borda
 
@@ -170,6 +179,11 @@ webhook do Asaas, sem operador no meio.
 | CB-18 | Cobrança criada em sandbox e webhook de produção (ou vice-versa) | O `environment` do gateway define base URL **e** segredo. Evento de ambiente trocado não valida o token e cai no CB-2 |
 | CB-19 | `PAYMENT_DELETED` (cobrança apagada no painel) | Pendência volta a `CANCELLED`, com log. Não apagar dados |
 | CB-20 | Cliente escolhe PIX, desiste e volta como cartão | A cobrança Asaas fica em aberto e vence sozinha; a pendência nova é outra. Registrar, para não conciliar errado depois |
+| CB-21 | Webhook e reconciliação confirmam ao mesmo tempo | O claim atômico decide; o perdedor recebe `already_paid` e não faz nada |
+| CB-22 | `inngest.send` do acompanhamento falha na criação da cobrança | Só loga. O sweep horário é a rede — por isso ele existe mesmo com o acompanhamento por pedido |
+| CB-23 | Cliente paga depois dos 48h do último checkpoint | O sweep horário ainda pega, até `MAX_AGE_DAYS`. Depois disso, só o "Confirmar PIX" manual |
+| CB-24 | Reconciliação não consegue falar com o Asaas | Conta em `failed`, notifica os admins e **não** marca nada. Chave errada não pode virar pedido cancelado |
+| CB-25 | Inngest inteiramente fora | Acompanhamento e sweep param juntos — são a mesma fila. Sobram o botão no admin e o "Confirmar PIX" |
 
 ## 6. Decisões de design
 
@@ -250,6 +264,30 @@ webhook do Asaas, sem operador no meio.
 - **Consequência**: precisa de visibilidade. Pendência PIX `PENDING` há mais de X
   horas **com cobrança Asaas criada** é sinal de fila interrompida, e deve virar
   notificação para os admins.
+
+### D-8 — Recuperação agendada por pedido, não varredura por tempo
+
+- **Escolha**: ao criar a cobrança, agendar um acompanhamento dela; e reusar o
+  cron horário que já existia como rede.
+- **Alternativas descartadas**: um cron novo de 10 em 10 minutos. Descartada por
+  custo e por forma: varredura de tempo executa igual com zero ou com mil
+  vendas, e é a única parte do sistema cujo custo não tem relação com o negócio.
+  Também descartado `step.waitForEvent` esperando o evento do próprio webhook —
+  é mais elegante, mas verifica contra um evento **nosso**, e a falha que se
+  quer cobrir é justamente o evento não existir. Conferir na API prova o fato.
+- **Consequência**: um run por cobrança, quase todos encerrando no primeiro
+  checkpoint. `step.sleep` não consome compute enquanto dorme nem ocupa
+  concorrência. No plano gratuito o teto de sleep é 7 dias — o nosso maior
+  checkpoint é 48h.
+
+### D-9 — A saída manual não pode morar na mesma fila
+
+- **Escolha**: "Reconciliar PIX agora" é procedure oRPC, roda no request.
+- **Alternativas descartadas**: um botão que dispara evento Inngest. Descartada
+  porque o cenário que ele existe para atender é exatamente o Inngest estar
+  fora — um botão que enfileira não serve de nada nessa hora.
+- **Consequência**: a chamada pode demorar alguns segundos com muitas cobranças
+  abertas. Aceitável: é operação manual, não caminho de cliente.
 
 ## 7. Impacto
 
@@ -332,5 +370,6 @@ schema, o drop das quatro colunas não afeta nenhum fluxo anterior.
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-18 | João Gabriel | Criada. Fatos da API do Asaas apurados na documentação oficial antes do desenho; D-1 decidido pelo dono (cobrança nominal, com CPF só na trilha PIX) |
+| 2026-09-18 | João Gabriel | Recuperação de falha do webhook (RF-16..RF-19, D-8, D-9). O desenho inicial era um cron de 10 minutos; recusado pelo dono por custo no Inngest, e trocado por acompanhamento agendado por cobrança mais o cron horário que já existia — nenhum cron novo |
 | 2026-09-18 | João Gabriel | Implementada no mesmo PR. Divergência registrada: `pixAvailable` passou a considerar o gateway Asaas, porque com cobrança nominal a chave estática deixa de ser obrigatória; e `MarkPurchasePaidInput.pix.confirmedByUserId` virou anulável, para o webhook gravar `pixConfirmedAt` sem operador |
 | 2026-09-18 | João Gabriel | Correção de fato no §1: a expiração de PIX **existe**, pelo cron `trafego-pix-pending-sweep`. A primeira versão afirmava que nada expirava. RF-13 e a tabela de riscos foram reescritos em cima disso |

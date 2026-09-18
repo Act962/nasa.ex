@@ -3,6 +3,7 @@ import { getPendingTrafegoPurchase } from "./public/get-pending-purchase";
 import { getPublicTrafegoConfig } from "./public/get-config";
 import { redeemTrafegoPurchase } from "./public/redeem-purchase";
 import { confirmTrafegoPixPayment } from "./ops/confirm-pix";
+import { reconcileTrafegoPix } from "./ops/reconcile-pix";
 import { listTrafegoPendingPix } from "./ops/list-pending-pix";
 import { getTrafegoLeadSummary } from "./ops/get-lead-summary";
 import {
@@ -86,6 +87,7 @@ export const trafegoRouter = {
   // ── Operação (admin do sistema ou participante do tracking) ──
   ops: {
     confirmPix: confirmTrafegoPixPayment,
+    reconcilePix: reconcileTrafegoPix,
     listPendingPix: listTrafegoPendingPix,
     getLeadSummary: getTrafegoLeadSummary,
   },

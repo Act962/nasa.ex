@@ -30,6 +30,7 @@ import { trafegoReleaseGenerate } from "@/inngest/functions/trafego/release-gene
 import { trafegoKanbanDriftSweep } from "@/inngest/functions/crons/trafego-kanban-drift-sweep";
 import { trafegoPixPendingSweep } from "@/inngest/functions/crons/trafego-pix-pending-sweep";
 import { trafegoAsaasPaymentEvent } from "@/inngest/functions/trafego/asaas-payment-event";
+import { trafegoAsaasChargeWatch } from "@/inngest/functions/trafego/asaas-charge-watch";
 import { publishPostHandler } from "@/inngest/functions/nasa-planner/publish-post-handler";
 import { publishScheduledPosts } from "@/inngest/functions/nasa-planner/publish-scheduled-posts";
 import { refreshMetaTokens } from "@/inngest/functions/nasa-planner/refresh-meta-tokens";
@@ -119,6 +120,8 @@ export const { GET, POST, PUT } = serve({
     trafegoPixPendingSweep,
     // ── trafeGO: evento de cobrança do Asaas (spec 0020) ──
     trafegoAsaasPaymentEvent,
+    // ── trafeGO: acompanha cada cobrança PIX até resolver (spec 0020) ──
+    trafegoAsaasChargeWatch,
     // ── NASA Planner ──
     publishPostHandler,
     publishScheduledPosts,
