@@ -274,9 +274,12 @@ cliente (depende da Fase 5) · Extensions.
 
 ## 7. Questões abertas [ABERTO]
 
-1. **Drift de migrations.** Documentado em `prisma/PENDING_MIGRATIONS.md` desde maio/2026. O
-   Prisma ofereceu *reset*, que apagaria tokens OAuth reais do Meta. **Enquanto não for resolvido,
-   nenhuma migration nova aplica limpo.** Ação do dev, com autorização explícita.
+1. ~~**Drift de migrations.**~~ ✅ **Resolvido em 2026-09-18.** `migrate status` devolve
+   "Database schema is up to date" e todos os itens que `prisma/PENDING_MIGRATIONS.md` dava como
+   faltando já existiam no banco. O documento estava desatualizado havia mais de quatro meses e
+   foi marcado como resolvido, preservando o histórico. Único item real: o cliente Prisma estava
+   defasado, e foi regenerado. A migration `astro_pgvector` que ele citava nunca foi commitada —
+   e não gera drift porque a coluna `embedding` não está no `schema.prisma`.
 2. **Slugs de plano divergentes.** O seed define `suite`/`earth`/`explore`/`constellation`; o banco
    tem `suit-mnj5mcxr`, `earth-mo1vk0jx`, `explore-mo1vq0oi`, `constellation-mnj648ae`. A
    propagação de plano casa por slug **ou** nome — com slug sufixado, depende só do nome. Verificar
