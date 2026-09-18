@@ -10,7 +10,7 @@
 > PR.** Documentação atualizada depois não existe.
 
 **Última atualização:** 2026-09-18
-**Status geral:** 🚧 Fases 0, 1, 2 e 5 concluídas — Fases 3, 4 e 6 abertas
+**Status geral:** 🚧 Fases 0, 1, 2, 3 e 5 concluídas — Fases 4 e 6 abertas
 
 ---
 
@@ -72,14 +72,26 @@ um contador acumulado que nunca é zerado — ou seja, é exibido como se fosse 
 
 ### 2.2 Preço: três fontes concorrentes
 
-| Fonte | Onde | Quem lê |
+Antes das Fases 1 e 3, o preço vinha de três lugares que não concordavam:
+
+| Fonte | Onde | Quem lia |
 | --- | --- | --- |
 | `AppStarCost` (banco) | 66 linhas, editável pelo admin sem deploy | A função principal de cobrança |
 | `StarRule` (banco, por organização) | 3.241 linhas | Apenas um handler de automação |
-| Constantes no código | 6+ arquivos | ~25 pontos de cobrança que ignoram as duas acima |
+| Constantes no código | 13 constantes em 12 arquivos | 19 pontos que ignoravam as duas acima |
 
-São ~62 pontos que usam a função principal e ~25 que debitam com número fixo no código. Mudar preço
-hoje pode exigir deploy, dependendo de onde a ação cai.
+> ✅ **Resolvido.** Existe um ponto único de cobrança, e os 19 pontos que debitavam com número fixo
+> foram migrados: as constantes `STARS_*`, `MODEL_TO_STARS`, `STAR_COSTS`, `STARS_PER_TOOL` e
+> `PAGES_STARS_COST` viraram linhas de catálogo, ajustáveis sem deploy. `debitStars` está fechado
+> por regra de lint — usá-lo fora do módulo é erro de build.
+>
+> A migração foi verificada valor a valor: **25 preços portados conferidos contra as constantes
+> originais, zero divergências.** A única exceção documentada é o upload de vídeo, cujo preço é
+> fórmula (tamanho × horizonte × margem × câmbio × preço da estrela) e não constante — achatá-lo
+> num valor por MB congelaria câmbio e preço da estrela dentro do catálogo.
+>
+> As 3.241 regras por organização foram comparadas com o catálogo global antes da migração:
+> **zero divergências**, o que responde a questão aberta 4 e tornou a troca neutra.
 
 > ✅ **Resolvido parcialmente na Fase 1.** Existe agora um ponto único de cobrança, e a função que os
 > ~62 pontos já chamavam virou fachada sobre ele — sem mudar nenhuma linha nesses pontos. O catálogo
@@ -283,7 +295,7 @@ Duas decisões deliberadas:
 | 0 | Desbloquear e inventariar | ✅ Concluída |
 | 1 | Catálogo único de preço, ponto único de cobrança | ✅ Concluída — falta definir o preço das 14 ações |
 | 2 | Registro de custo e instrumentação | ✅ Concluída — 5 superfícies instrumentadas |
-| 3 | Migrar os pontos que hoje escapam do catálogo | ⬜ |
+| 3 | Migrar os pontos que hoje escapam do catálogo | ✅ Concluída — 19 pontos migrados, `debitStars` fechado por lint |
 | 4 | Roteador de IA | ⬜ |
 | 5 | Correção dos vazamentos, cada um atrás de flag | ✅ Código pronto — V1 aguarda decisão de produto |
 | 6 | Catálogo unificado de soluções por setor | ⬜ |
@@ -334,8 +346,10 @@ cliente (depende da Fase 5) · Extensions.
 3. **O primeiro ciclo corrigido pode derrubar saldo.** O ciclo aplica rollover limitado a uma
    percentagem da franquia do plano. Organizações que acumularam saldo durante os meses quebrados
    podem perder o excedente. **Decisão de produto antes de subir.**
-4. **Quantas regras por organização divergem do padrão.** São 3.241 linhas; se alguma foi editada à
-   mão, promover essa tabela a camada de sobrescrita muda preço em silêncio.
+4. ~~**Quantas regras por organização divergem do padrão.**~~ ✅ **Respondido em 2026-09-18:**
+   nenhuma. As 3.241 linhas ativas batem exatamente com o catálogo global — zero divergências,
+   zero ações sem linha correspondente. Por isso migrar `process-user-action` para o catálogo não
+   alterou preço para nenhuma organização.
 5. **Não há test runner instalado.** A Regra 17 exige que cada critério de aceite vire teste — hoje
    inexequível, como a Regra 20 já admite. As specs desta frente saem com **aceite manual
    declarado**, não com teste silenciosamente pulado.
@@ -384,3 +398,4 @@ Esta frente mexe em dinheiro, saldo e schema. As regras de disciplina estão em 
 | 2026-09-18 | — | ⚠️ Mudança de comportamento: a cobrança por token do ASTRO passou a arredondar para cima em vez de arredondamento normal. Medido em 11 volumes reais: 3 divergem, soma 77★ → 80★ (~4% mais caro). O arredondamento para baixo fazia toda chamada pequena sair de graça. | Ajustar `unit_cost` da ação `astro_tokens` no catálogo, sem deploy |
 | 2026-09-18 | — | Fase 5: V3, V4, V5 e V6 corrigidos; V1 com cron criado e desligado. Ciclo mensal virou idempotente (não recredita com menos de 28 dias) e ganhou modo simulação. Nenhum saldo foi alterado. | Cada correção tem a própria flag ou é reversível revertendo o commit. Reverter o V4 volta o denominador a zero; reverter o V5 volta a não bloquear ninguém |
 | 2026-09-18 | — | ⚠️ **Decisão pendente de produto:** ligar o cron do ciclo mensal faria 17 organizações perderem 41.355★ acumuladas. Ver §3.1. | Não aplicável — nada foi aplicado |
+| 2026-09-18 | — | Fase 3: 16 ações portadas para o catálogo e 19 pontos de débito migrados; `meterOrThrow` e o caso de custo calculado adicionados; `debitStars` fechado por regra de lint. Verificado: 25 preços conferidos contra as constantes originais, zero divergências. | Reverter os commits devolve as constantes ao código; as linhas de catálogo ficam ociosas sem quebrar nada. Nenhum saldo foi alterado |
