@@ -66,6 +66,12 @@ Você está respondendo pelo número de WhatsApp de UMA empresa. Você só enxer
 - Se a pergunta for sobre "quais empresas você vê", trocar de empresa, ou algo fora da leitura desta empresa: explique em uma frase que você responde só sobre os dados desta empresa, e ofereça o que CONSEGUE (ex.: contagem de leads, conversões, agenda).
 - Se não houver dado pra responder, diga isso claramente — não invente nem responda vazio.`;
 
+function modelIdFor(complexity: "simple" | "complex") {
+  const override = process.env.ASTRO_DEFAULT_MODEL;
+  if (override) return override;
+  return complexity === "complex" ? "gpt-4o" : "gpt-4o-mini";
+}
+
 function modelFor(complexity: "simple" | "complex") {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error(
@@ -73,13 +79,7 @@ function modelFor(complexity: "simple" | "complex") {
         "Adicione em .env.local e reinicie o `pnpm dev`.",
     );
   }
-  const override = process.env.ASTRO_DEFAULT_MODEL;
-  const id = override
-    ? override
-    : complexity === "complex"
-      ? "gpt-4o"
-      : "gpt-4o-mini";
-  return openai(id);
+  return openai(modelIdFor(complexity));
 }
 
 /** Pra sub-agents (closer, task-agent, automation, etc) — mini é suficiente. */
@@ -262,6 +262,12 @@ export function streamAstro(opts: {
    * formatação WhatsApp, sem repetir listas que já vão anexadas).
    */
   outputStyle?: "default" | "whatsapp";
+  /**
+   * Informa qual modelo foi resolvido para esta requisição. Existe para o
+   * registro de custo saber o que gravar sem duplicar a heurística de escolha
+   * (spec 0021).
+   */
+  onModelResolved?: (info: { provider: string; modelId: string }) => void;
 }) {
   const { ctx, uiMessages } = opts;
   const toolScope = opts.toolScope ?? "full";
@@ -362,9 +368,11 @@ export function streamAstro(opts: {
     const complexity = opts.forceComplexModel
       ? "complex"
       : classifyComplexity(lastUserText);
+    const resolvedModelId = modelIdFor(complexity);
     console.log(
-      `[ASTRO/orchestrator] model=${complexity === "complex" ? "gpt-4o" : "gpt-4o-mini"} (heur="${complexity}", forced=${opts.forceComplexModel ?? false}, text="${lastUserText.slice(0, 80)}")`,
+      `[ASTRO/orchestrator] model=${resolvedModelId} (heur="${complexity}", forced=${opts.forceComplexModel ?? false}, text="${lastUserText.slice(0, 80)}")`,
     );
+    opts.onModelResolved?.({ provider: "openai", modelId: resolvedModelId });
 
     const styleBlock =
       opts.outputStyle === "whatsapp" ? WHATSAPP_STYLE_PROMPT : "";

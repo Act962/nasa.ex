@@ -11,7 +11,7 @@ import {
 import type { AstroAttachmentRef } from "@/features/astro/server/agents/types";
 import type { AgentKey } from "@/features/astro/schemas/agent-config";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
-import { debitStars } from "@/features/stars/lib/star-service";
+import { meter } from "@/features/stars/lib/metering";
 import { generateAutoTitle } from "@/features/astro/lib/auto-title";
 
 /**
@@ -25,7 +25,9 @@ import { generateAutoTitle } from "@/features/astro/lib/auto-title";
  * Pra recalibrar: ajuste só esse número. Cobrança é silenciosa (não
  * mostra valor pro user, só debita).
  */
-const STARS_PER_1K_TOKENS = 1;
+// O preço por token saiu daqui: mora no catálogo, na ação `astro_tokens`
+// (unidade "token", divisor 1000). Ajustar não exige mais deploy — e o valor
+// deixou de estar duplicado entre esta rota e o bot do WhatsApp.
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -169,7 +171,9 @@ export async function POST(req: Request) {
   // organização antes de deixar o modelo enxergar o id.
   const attachments = await resolveMessageAttachments(uiMessages, organizationId);
 
+  let resolvedModel: { provider: string; modelId: string } | null = null;
   let result;
+  const startedAt = Date.now();
   try {
     result = await streamAstro({
       ctx: {
@@ -183,6 +187,9 @@ export async function POST(req: Request) {
       },
       uiMessages,
       toolScope: isTrafegoScope ? "trafego" : undefined,
+      onModelResolved: (info) => {
+        resolvedModel = info;
+      },
     });
   } catch (e) {
     console.error("[ASTRO/chat] streamAstro setup failed", e);
@@ -227,20 +234,24 @@ export async function POST(req: Request) {
       // pro user — só registramos a transação. Falha silenciosa: se debit
       // não passar, mantém o fluxo (já cobrou o stake no início).
       if (capturedTokens > 0 && !isTrafegoScope) {
-        const starsToCharge = Math.max(
-          1,
-          Math.round((capturedTokens / 1000) * STARS_PER_1K_TOKENS),
-        );
         try {
-          await debitStars(
+          await meter({
             organizationId,
-            starsToCharge,
-            "APP_CHARGE",
-            `Astro IA — ${capturedTokens.toLocaleString("pt-BR")} tokens`,
-            "astro",
+            action: "astro_tokens",
             userId,
-            { allowBonus: true },
-          );
+            quantity: { unit: "token", amount: capturedTokens },
+            appSlug: "astro",
+            description: `Astro IA — ${capturedTokens.toLocaleString("pt-BR")} tokens`,
+            feature: "astro.orchestrator",
+            sessionId,
+            cost: {
+              kind: "LLM",
+              provider: resolvedModel?.provider,
+              modelId: resolvedModel?.modelId,
+              tokens: { totalTokens: capturedTokens },
+              latencyMs: Date.now() - startedAt,
+            },
+          });
         } catch (e) {
           // Saldo insuficiente etc. — só loga, não bloqueia a resposta
           // (já entregamos ao user). Próximo prompt vai falhar no stake.
