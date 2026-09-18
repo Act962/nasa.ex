@@ -47,7 +47,7 @@ A tabela vive em `src/features/trafego/lib/pricing-tiers.ts` e é a fonte de ver
 | Decisão | Escolha | Porquê |
 | --- | --- | --- |
 | Catálogo | Meta Ads + Google Ads + WhatsApp API Oficial | Google entra como pedido executado pela equipe |
-| Cobrança | Pagamento único (Stripe Checkout); PIX manual na Fase B | Reusa o eixo `PendingCoursePurchase`; Asaas não valida assinatura |
+| Cobrança | Pagamento único: cartão pelo Stripe Checkout, PIX pelo Asaas (spec 0020) | Reusa o eixo `PendingCoursePurchase`. O PIX manual continua como fallback quando o gateway está desligado |
 | Preço | Simulador por faixa, taxa **sobre** a verba | O cliente sabe quanto vai para o anúncio |
 | Execução | **Manual pela equipe**, via Claude Code + MCP | Verba é dinheiro real; clique de cliente não publica anúncio |
 | Mesa de operação | **Tracking** (não Workspace) — spec 0009 D-1 | Instância de WhatsApp e formulário se prendem ao lead/tracking |
@@ -199,6 +199,7 @@ src/app/api/trafego/assistant/ chat público (OpenAI, ferramentas de leitura)
 src/inngest/functions/trafego/ purchase-paid · order-requested · order-status-changed
                                release-generate (lê fontes e redige o Release)
 src/inngest/functions/crons/   trafego-kanban-drift-sweep · trafego-pix-pending-sweep
+src/inngest/functions/trafego/  asaas-payment-event (webhook do Asaas, fora do request)
                                sync-meta-ads-structure (vincula TG-NNNN)
 src/lib/email/                 trafego-purchase-confirmation · trafego-status-update
 src/features/admin/components/trafego/ orders-table · order-detail · plans-manager · settings-form
@@ -219,7 +220,8 @@ src/app/api/astro/chat/route.ts            isenta Stars quando appScope === "tra
 | **Templates** `trafego_ativacao` / `trafego_status` (UTILITY, pt_BR) | Meta + Ajustes → Avisos | Fora da janela de 24 h o WhatsApp não sai |
 | **Template** `trafego_codigo` (AUTENTICAÇÃO, pt_BR, 1 parâmetro) | Meta + Ajustes → Avisos | Verificação do WhatsApp no wizard não sai para quem nunca falou conosco |
 | **Instância Uazapi** (org da agência ou tracking de operação) | app de tracking | Botão "Verificar" do número da API Oficial some |
-| **Chave PIX** (+ titular, banco, validade) | Ajustes → PIX manual | A opção PIX não aparece no wizard; só cartão |
+| **Chave PIX** (+ titular, banco, validade) | Ajustes → PIX manual | Sem ela **e** sem gateway Asaas, a opção PIX não aparece no wizard |
+| **Asaas** (`ASAAS_API_KEY`, `ASAAS_ENV`, `ASAAS_WEBHOOK_TOKEN`) | `.env` — **não** pelo `/admin/payments` | PIX cai no fluxo manual: chave estática e comprovante conferido à mão |
 | `OPENAI_API_KEY` | `.env.local` + host | O chat da landing responde 503 |
 | `ANTHROPIC_API_KEY` (ou integração ANTHROPIC na org da agência) | `.env.local` + host | A segunda camada da checagem de políticas não roda; fica só a determinística |
 | **Integração Meta com página + IG Business** na org da agência | app de integrações | Preview da conta do cliente no wizard some |
@@ -251,11 +253,13 @@ trafeGO com o secret do better-auth aceitaria evento de outro produto. Mesmo gua
 | 0009-B | Completa | ✅ |
 | **0009-C** | Vínculo automático da campanha por nome (`TG-NNNN`) no cron da estrutura Meta, leitura ao vivo dos KPIs com cache de 15 min e selo de frescor no painel | ✅ código · ⬜ migration |
 | **0009-D** | Astro no painel com escopo `trafego` e isento de Stars, Release montado a partir de site/PDF, recomendações por regras duras, copies sugeridas com selo de política, checklist de acessos | ✅ código · ⬜ migration |
+| **0020** | PIX pelo Asaas: cobrança nominal com CPF/CNPJ na trilha PIX, QR na tela, webhook dedicado com `asaas-access-token` fail-closed e valor relido da API, confirmação pelo `markTrafegoPurchasePaid` | ✅ código · ⬜ migration/config |
 
 ## 8. Changelog
 
 | Data | Mudança |
 | --- | --- |
+| 2026-09-18 | **PIX pelo Asaas (spec 0020)**: a trilha PIX deixa de depender de comprovante. O checkout emite cobrança nominal no Asaas com `externalReference` = id da pendência, e a tela mostra QR e copia-e-cola em vez da chave estática. Como a API exige documento para cadastrar pagador, o wizard passa a pedir **CPF/CNPJ apenas em quem escolheu PIX** — o cartão não vê o campo. O webhook é endpoint próprio (`/api/trafego/asaas/webhook`), separado do de Stars: valida o header `asaas-access-token` **fail-closed** e, validado o token, **relê a cobrança na API** em vez de confiar no valor do corpo — token prova quem mandou, releitura prova quanto. Fora isso responde 200 quase sempre, porque o Asaas interrompe a fila após 15 falhas seguidas. A confirmação entra pelo `markTrafegoPurchasePaid` de sempre, então idempotência e aviso de duplicidade vêm de graça. Estorno e chargeback **notificam** e param aí. Gateway desligado em `/admin/payments` devolve tudo ao PIX manual, sem deploy. |
 | 2026-09-13 | **Fase D da 0009 — inteligência no painel**: o Astro do painel passa a ter escopo próprio (`toolScope: "trafego"`) com dez ferramentas do próprio pedido e **nenhuma da plataforma** — o cliente trafeGO não é membro e não pode ver leads, orgs nem automações — e fica **isento de Stars** (a taxa de serviço cobre; ele não tem saldo e não deveria precisar ter). O **Release** nasce das fontes que o cliente aponta: site e PDF são lidos de fato (fetch com bloqueio de IP privado, `pdf-parse` sob import dinâmico), Instagram e Facebook ficam como referência porque raspar violaria os termos; a redação roda no Inngest, um passo por fonte, e o resultado é **rascunho** — só vira insumo de copy e recomendação depois que o cliente salva. As **recomendações** são decididas por regras duras em código (verba mínima por dia e plataforma, formato por objetivo, destino × pixel) e o modelo só redige em cima do veredito — número inventado por modelo viraria conselho diferente a cada refresh. Copies ganham `suggest` (três ângulos distintos, `SUGGESTED_BY_NASA`, nunca já selecionadas) e selo de política por variação. Nova aba **Acessos** com o Business ID de parceiro para copiar — nunca pedimos senha. |
 | 2026-09-13 | **Fase C da 0009 — KPIs sem digitação**: o cron que espelha a estrutura da Meta passa a ler `TG-NNNN` no nome da campanha e preencher o vínculo sozinho, **sem nunca sobrescrever** um vínculo existente; duas campanhas com o mesmo código não vinculam nada e notificam o admin. Quando ainda não há snapshot, o painel busca ao vivo na Marketing API com cache de 15 minutos por pedido (falha também é cacheada, para não repetir chamada quebrada) e **nunca grava snapshot** — a origem do dado aparece na tela como "ao vivo · há N min" ou "dados de ontem". |
 | 2026-09-12 | **Fase A da 0009**: status `ACCOUNT_REVIEW`; `transitionTrafegoOrder` como único caminho de status; tracking de operação com `statusColumnMap` e subscriber do kanban; card nasce no checkout com telefone normalizado; formulário "Briefing TrafeGO" preenchido automaticamente; avisos ao cliente por WhatsApp (template) + e-mail a cada fase; `MATERIALS_SUBMITTED` automático; financeiro com conta/categoria e receita = taxa + setup; fluxo autenticado com os mesmos efeitos; cron de divergência; botão de WhatsApp no painel; tela de ajustes com provisionamento; Google Ads/`SEARCH` aceitos no checkout; playbook do gestor. |

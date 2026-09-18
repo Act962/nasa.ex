@@ -25,6 +25,23 @@ export const useTrafegoPendingPix = (
   });
 };
 
+/**
+ * Pergunta ao Asaas o estado das cobranças abertas e confirma o que já foi
+ * pago. Roda no request, sem Inngest — é a saída quando a fila está fora.
+ */
+export const useReconcileTrafegoPix = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.trafego.ops.reconcilePix.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.trafego.ops.listPendingPix.key(),
+        });
+      },
+    }),
+  );
+};
+
 export const useConfirmTrafegoPix = (leadId?: string) => {
   const queryClient = useQueryClient();
   return useMutation(

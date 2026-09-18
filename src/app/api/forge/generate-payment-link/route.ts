@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
 
         // 1. Ensure customer exists
         const custSearch = await fetch(
-          `${baseUrl}/customers?email=${encodeURIComponent(customerEmail)}`,
+          `${baseUrl}/customers?email=${encodeURIComponent(customerEmail ?? "")}`,
           {
             headers: { access_token: apiKey },
           },

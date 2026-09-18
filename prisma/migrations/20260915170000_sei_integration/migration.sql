@@ -36,5 +36,5 @@ ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "sei_process_links"
 ADD CONSTRAINT "sei_process_links_lead_id_fkey"
-FOREIGN KEY ("lead_id") REFERENCES "lead"("id")
+FOREIGN KEY ("lead_id") REFERENCES "leads"("id")
 ON DELETE CASCADE ON UPDATE CASCADE;

@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Loader2, MessageCircle, RotateCcw, SearchCheck } from "lucide-react";
+import {
+  CheckCircle2,
+  Loader2,
+  MessageCircle,
+  RotateCcw,
+  SearchCheck,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,7 +16,11 @@ import {
   useStartTrafegoPhoneVerification,
 } from "@/features/trafego/hooks/use-trafego-verification";
 
-export type PhoneVerificationStatus = "idle" | "sent" | "verified" | "unavailable";
+export type PhoneVerificationStatus =
+  | "idle"
+  | "sent"
+  | "verified"
+  | "unavailable";
 
 interface PhoneVerificationProps {
   phone: string;
@@ -50,7 +60,10 @@ export function PhoneVerification({
 
   useEffect(() => {
     if (cooldown <= 0) return;
-    const timer = window.setTimeout(() => setCooldown((value) => value - 1), 1000);
+    const timer = window.setTimeout(
+      () => setCooldown((value) => value - 1),
+      1000,
+    );
     return () => window.clearTimeout(timer);
   }, [cooldown]);
 
@@ -80,7 +93,9 @@ export function PhoneVerification({
           if (result.status === "sent") {
             onStatusChange("sent");
             setCooldown(60);
-            setMessage(`Código enviado para o WhatsApp ${maskPhone(result.phone)}.`);
+            setMessage(
+              `Código enviado para o WhatsApp ${maskPhone(result.phone)}.`,
+            );
           } else if (result.status === "cooldown") {
             onStatusChange("sent");
             setCooldown(result.retryInSeconds);
@@ -89,7 +104,9 @@ export function PhoneVerification({
             setMessage("Confira o número: precisa ter DDD.");
           } else {
             onStatusChange("unavailable");
-            setMessage("Não conseguimos enviar o código agora. Pode continuar — confirmamos depois.");
+            setMessage(
+              "Não conseguimos enviar o código agora. Pode continuar — confirmamos depois.",
+            );
           }
         },
         onError: (error) => setMessage(error.message),
@@ -110,7 +127,9 @@ export function PhoneVerification({
         onSuccess: (result) => {
           if (result.status === "not_found") {
             onStatusChange("idle");
-            setMessage("Esse número não foi encontrado no WhatsApp. Confira o DDD e o dígito 9.");
+            setMessage(
+              "Esse número não foi encontrado no WhatsApp. Confira o DDD e o dígito 9.",
+            );
             return;
           }
           if (result.status === "invalid_phone") {
@@ -128,7 +147,9 @@ export function PhoneVerification({
           }
           if (result.status === "skipped" && !enabled) {
             onStatusChange("unavailable");
-            setMessage("Não conseguimos consultar agora. Pode continuar — a equipe confirma depois.");
+            setMessage(
+              "Não conseguimos consultar agora. Pode continuar — a equipe confirma depois.",
+            );
             return;
           }
           sendCode();
@@ -194,7 +215,9 @@ export function PhoneVerification({
         <div className="flex flex-wrap items-center gap-2">
           <Input
             value={code}
-            onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            onChange={(event) =>
+              setCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+            }
             onKeyDown={(event) => {
               if (event.key === "Enter" && code.length === 6) {
                 event.preventDefault();
@@ -212,7 +235,9 @@ export function PhoneVerification({
             disabled={code.length !== 6 || confirm.isPending}
             className="bg-violet-600 hover:bg-violet-500"
           >
-            {confirm.isPending ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : null}
+            {confirm.isPending ? (
+              <Loader2 className="mr-1.5 size-4 animate-spin" />
+            ) : null}
             Confirmar
           </Button>
           <button
@@ -233,5 +258,7 @@ export function PhoneVerification({
 
 function maskPhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
-  return digits.length >= 8 ? `${digits.slice(0, -8).replace(/\d(?=\d{2})/g, "•")}••••-${digits.slice(-4)}` : phone;
+  return digits.length >= 8
+    ? `${digits.slice(0, -8).replace(/\d(?=\d{2})/g, "•")}••••-${digits.slice(-4)}`
+    : phone;
 }

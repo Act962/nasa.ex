@@ -10,7 +10,10 @@ export const useTrafegoOrders = () => {
   return useQuery(orpc.trafego.listOrders.queryOptions({ input: {} }));
 };
 
-export const useTrafegoOrder = (orderId: string, options?: { enabled?: boolean }) => {
+export const useTrafegoOrder = (
+  orderId: string,
+  options?: { enabled?: boolean },
+) => {
   return useQuery({
     ...orpc.trafego.getOrder.queryOptions({ input: { orderId } }),
     enabled: (options?.enabled ?? true) && Boolean(orderId),
@@ -23,7 +26,9 @@ export const useTrafegoOrderPerformance = (
   options?: { enabled?: boolean },
 ) => {
   return useQuery({
-    ...orpc.trafego.getOrderPerformance.queryOptions({ input: { orderId, days } }),
+    ...orpc.trafego.getOrderPerformance.queryOptions({
+      input: { orderId, days },
+    }),
     enabled: (options?.enabled ?? true) && Boolean(orderId),
     refetchInterval: 5 * 60 * 1000,
   });

@@ -11,7 +11,9 @@ import { transitionTrafegoOrder } from "./transition-order";
  * libera a conta (ver `transitionTrafegoOrder`). Monotônico: remover um
  * criativo depois não volta o status.
  */
-export async function maybeMarkMaterialsSubmitted(orderId: string): Promise<void> {
+export async function maybeMarkMaterialsSubmitted(
+  orderId: string,
+): Promise<void> {
   const order = await prisma.trafegoOrder.findUnique({
     where: { id: orderId },
     select: {
@@ -22,7 +24,8 @@ export async function maybeMarkMaterialsSubmitted(orderId: string): Promise<void
       _count: { select: { creatives: true } },
     },
   });
-  const hasMaterials = Boolean(order?.materialsProfileLink) || (order?._count.creatives ?? 0) > 0;
+  const hasMaterials =
+    Boolean(order?.materialsProfileLink) || (order?._count.creatives ?? 0) > 0;
   if (!order || !hasMaterials) return;
 
   const selectedCopies = await prisma.trafegoCopy.count({
@@ -37,7 +40,7 @@ export async function maybeMarkMaterialsSubmitted(orderId: string): Promise<void
       source: "CLIENT",
       expectedFrom: [order.status],
       clientNote:
-        "Criativos e copy recebidos. Quando quiser, clique em \"Ativar campanha\" para enviar à equipe.",
+        'Criativos e copy recebidos. Quando quiser, clique em "Ativar campanha" para enviar à equipe.',
     });
     return;
   }

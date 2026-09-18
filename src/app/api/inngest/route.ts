@@ -30,6 +30,8 @@ import { trafegoReleaseGenerate } from "@/inngest/functions/trafego/release-gene
 import { trafegoOrderCreated } from "@/inngest/functions/trafego/order-created";
 import { trafegoKanbanDriftSweep } from "@/inngest/functions/crons/trafego-kanban-drift-sweep";
 import { trafegoPixPendingSweep } from "@/inngest/functions/crons/trafego-pix-pending-sweep";
+import { trafegoAsaasPaymentEvent } from "@/inngest/functions/trafego/asaas-payment-event";
+import { trafegoAsaasChargeWatch } from "@/inngest/functions/trafego/asaas-charge-watch";
 import { publishPostHandler } from "@/inngest/functions/nasa-planner/publish-post-handler";
 import { publishScheduledPosts } from "@/inngest/functions/nasa-planner/publish-scheduled-posts";
 import { refreshMetaTokens } from "@/inngest/functions/nasa-planner/refresh-meta-tokens";
@@ -89,6 +91,7 @@ import { paymentInboxSyncCron, paymentInboxSyncOrg } from "@/inngest/functions/p
 // ── Campanhas (disparo em massa WhatsApp Oficial — Fase 3/4) ──
 import { dispatchBroadcast } from "@/inngest/functions/campanhas/dispatch-broadcast";
 import { dispatchDueBroadcasts } from "@/inngest/functions/campanhas/dispatch-due-broadcasts";
+import { watchScheduledBroadcast } from "@/inngest/functions/campanhas/watch-scheduled-broadcast";
 import { syncSeiProcess } from "@/inngest/functions/sei/sync-process";
 import { testSeiConnection } from "@/inngest/functions/sei/test-connection";
 
@@ -120,6 +123,10 @@ export const { GET, POST, PUT } = serve({
     trafegoKanbanDriftSweep,
     // ── trafeGO: PIX vencido vira EXPIRED (de hora em hora) ──
     trafegoPixPendingSweep,
+    // ── trafeGO: evento de cobrança do Asaas (spec 0020) ──
+    trafegoAsaasPaymentEvent,
+    // ── trafeGO: acompanha cada cobrança PIX até resolver (spec 0020) ──
+    trafegoAsaasChargeWatch,
     // ── NASA Planner ──
     publishPostHandler,
     publishScheduledPosts,
@@ -188,6 +195,8 @@ export const { GET, POST, PUT } = serve({
     // ── Campanhas — disparo em massa (Fase 3) + agendamento (Fase 4, cron) ──
     dispatchBroadcast,
     dispatchDueBroadcasts,
+    // Disparo agendado por campanha — caminho principal; o cron acima é a rede.
+    watchScheduledBroadcast,
     // ── SEI — consultas SOAP fora do ciclo das rotas HTTP ──
     syncSeiProcess,
     testSeiConnection,

@@ -50,7 +50,10 @@ export const addTrafegoCreative = base
     });
 
     await maybeMarkMaterialsSubmitted(order.id).catch((error) =>
-      console.error("[trafego/creatives] auto 'materiais enviados' falhou:", error),
+      console.error(
+        "[trafego/creatives] auto 'materiais enviados' falhou:",
+        error,
+      ),
     );
     return creative;
   });
@@ -92,7 +95,10 @@ export const setTrafegoMaterialsProfileLink = base
       data: { materialsProfileLink: input.profileLink || null },
     });
     await maybeMarkMaterialsSubmitted(input.orderId).catch((error) =>
-      console.error("[trafego/creatives] auto 'materiais enviados' falhou:", error),
+      console.error(
+        "[trafego/creatives] auto 'materiais enviados' falhou:",
+        error,
+      ),
     );
     return { success: true };
   });

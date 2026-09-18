@@ -1,7 +1,10 @@
 "use client";
 
 import { REFERRAL_SOURCES } from "@/features/trafego/lib/segments";
-import { PhoneVerification, type PhoneVerificationStatus } from "./phone-verification";
+import {
+  PhoneVerification,
+  type PhoneVerificationStatus,
+} from "./phone-verification";
 import { Field, fieldClass } from "./field";
 import { maskPhoneBr } from "@/features/form/lib/masks";
 
@@ -31,7 +34,8 @@ export function ContactStep({
   verificationEnabled: boolean;
   numberCheckEnabled: boolean;
 }) {
-  const patch = (partial: Partial<ContactDraft>) => onChange({ ...value, ...partial });
+  const patch = (partial: Partial<ContactDraft>) =>
+    onChange({ ...value, ...partial });
 
   return (
     <div className="grid gap-5 sm:grid-cols-2">

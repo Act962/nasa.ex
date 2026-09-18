@@ -52,7 +52,8 @@ export function SupportThread({ orderId }: { orderId: string }) {
 
         {!isLoading && (!messages || messages.length === 0) && (
           <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Nenhuma mensagem ainda. Escreva abaixo — nossa equipe responde por aqui.
+            Nenhuma mensagem ainda. Escreva abaixo — nossa equipe responde por
+            aqui.
           </div>
         )}
 
@@ -78,7 +79,9 @@ export function SupportThread({ orderId }: { orderId: string }) {
                 <time
                   className={cn(
                     "mt-1 block text-[10px]",
-                    isTeam ? "text-muted-foreground" : "text-primary-foreground/70",
+                    isTeam
+                      ? "text-muted-foreground"
+                      : "text-primary-foreground/70",
                   )}
                 >
                   {new Date(message.createdAt).toLocaleString("pt-BR", {

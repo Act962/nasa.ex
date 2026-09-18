@@ -20,7 +20,8 @@ export const useTrafegoPendingPurchase = (
 
 /** Dados da cobrança PIX devolvidos pelo checkout quando o cliente escolhe PIX. */
 export interface TrafegoPixCharge {
-  key: string;
+  /** Chave estática da agência. Null quando a cobrança saiu pelo Asaas. */
+  key: string | null;
   holderName: string | null;
   bankName: string | null;
   reference: string;
@@ -28,6 +29,16 @@ export interface TrafegoPixCharge {
   expiresAt: string;
   supportWhatsapp: string | null;
   receiptMessage: string;
+  /** Copia-e-cola do QR. Null quando a cobrança não saiu pelo Asaas. */
+  qrPayload: string | null;
+  /** PNG em base64, sem o prefixo `data:`. */
+  qrImageBase64: string | null;
+  invoiceUrl: string | null;
+  /**
+   * True quando o pagamento se confirma sozinho pelo webhook. False significa
+   * o fluxo antigo: pagar na chave e mandar o comprovante para a equipe.
+   */
+  autoConfirms: boolean;
 }
 
 export type TrafegoCheckoutResult =

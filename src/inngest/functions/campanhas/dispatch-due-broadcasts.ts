@@ -3,15 +3,23 @@ import prisma from "@/lib/prisma";
 import { beginBroadcastDispatch } from "@/features/campanhas/server/lib/begin-broadcast-dispatch";
 
 /**
- * Scanner de campanhas agendadas (Fase 4). A cada minuto pega as campanhas
- * `SCHEDULED` cuja hora chegou (`scheduledAt <= agora`) e as coloca em disparo
- * (`SENDING` + evento `campanhas/broadcast.send`), reivindicando cada uma
- * atomicamente (`beginBroadcastDispatch`) pra evitar disparo duplo caso duas
- * execuções do cron se sobreponham. Query leve (index em `status`).
+ * Rede de segurança do disparo agendado (Fase 4).
+ *
+ * O caminho principal é `watch-scheduled-broadcast`, agendado por campanha no
+ * momento em que ela é marcada — dispara na hora exata. Este cron existe para o
+ * que aquele não cobre: campanha agendada antes do deploy que introduziu o
+ * acompanhamento, e evento de agendamento que se perdeu.
+ *
+ * Rodava de minuto em minuto (1.440 execuções/dia) quando era o caminho
+ * principal. Como rede, 15 minutos bastam: o atraso só aparece se o
+ * acompanhamento tiver falhado, e antes disso ele nem existia.
+ *
+ * Disparo duplo não é risco: `beginBroadcastDispatch` reivindica a campanha
+ * atomicamente, então quem chegar depois não faz nada.
  */
 export const dispatchDueBroadcasts = inngest.createFunction(
   { id: "campanhas-dispatch-due-broadcasts", retries: 1 },
-  { cron: "* * * * *" },
+  { cron: "*/15 * * * *" },
   async ({ step }) => {
     const dueBroadcasts = await step.run("fetch-due-broadcasts", async () => {
       return prisma.broadcast.findMany({

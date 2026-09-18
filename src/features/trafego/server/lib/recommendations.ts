@@ -102,12 +102,19 @@ export async function buildTrafegoRecommendations(
 
   const steps: string[] = [];
   if (order._count.creatives === 0 && !order.materialsProfileLink) {
-    steps.push("Envie pelo menos um criativo ou informe seu perfil na aba Materiais");
+    steps.push(
+      "Envie pelo menos um criativo ou informe seu perfil na aba Materiais",
+    );
   }
   if (order._count.copies === 0) steps.push("Escreva ou escolha uma copy");
-  if (!order.release) steps.push("Monte o Release do seu negócio — ele melhora as copies sugeridas");
-  if (destination.level === "attention") steps.push("Confirme o destino do anúncio");
-  if (steps.length === 0) steps.push("Clique em Ativar campanha para enviar à nossa equipe");
+  if (!order.release)
+    steps.push(
+      "Monte o Release do seu negócio — ele melhora as copies sugeridas",
+    );
+  if (destination.level === "attention")
+    steps.push("Confirme o destino do anúncio");
+  if (steps.length === 0)
+    steps.push("Clique em Ativar campanha para enviar à nossa equipe");
 
   let narrative: z.infer<typeof narrativeSchema> | null = null;
   if (process.env.OPENAI_API_KEY) {
@@ -140,7 +147,10 @@ export async function buildTrafegoRecommendations(
       });
       narrative = object;
     } catch (error) {
-      console.warn("[trafego/recommendations] redação pelo modelo falhou:", error);
+      console.warn(
+        "[trafego/recommendations] redação pelo modelo falhou:",
+        error,
+      );
     }
   }
 
@@ -161,7 +171,9 @@ export async function buildTrafegoRecommendations(
     // Quais passos existem é decisão das regras; o modelo só reescreve a frase.
     // Aceitar a lista dele inteira deixaria um pendente real sumir da tela.
     nextSteps:
-      narrative?.nextSteps?.length === steps.length ? narrative.nextSteps : steps,
+      narrative?.nextSteps?.length === steps.length
+        ? narrative.nextSteps
+        : steps,
     copyAngle: narrative?.copyAngle ?? null,
     generatedAt: new Date().toISOString(),
     writtenByModel: Boolean(narrative),
@@ -169,7 +181,9 @@ export async function buildTrafegoRecommendations(
 }
 
 /** Gera e guarda no pedido. Best-effort: falhar aqui não quebra nada. */
-export async function refreshTrafegoRecommendations(orderId: string): Promise<void> {
+export async function refreshTrafegoRecommendations(
+  orderId: string,
+): Promise<void> {
   const recommendations = await buildTrafegoRecommendations(orderId);
   if (!recommendations) return;
   await prisma.trafegoOrder.update({

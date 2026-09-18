@@ -255,7 +255,8 @@ export const previewOrderDetail = {
       fromStatus: "ONBOARDING" as const,
       toStatus: "MATERIALS_SUBMITTED" as const,
       title: "Materiais enviados",
-      detail: "Criativos e copy recebidos. Quando quiser, clique em \"Ativar campanha\".",
+      detail:
+        'Criativos e copy recebidos. Quando quiser, clique em "Ativar campanha".',
       source: "CLIENT" as const,
       clientNotifiedAt: null,
       createdAt: daysAgo(10),
@@ -265,7 +266,8 @@ export const previewOrderDetail = {
       fromStatus: "MATERIALS_SUBMITTED" as const,
       toStatus: "REQUESTED" as const,
       title: "Campanha enviada para a equipe",
-      detail: "Recebemos seus materiais. Nossa equipe vai revisar e colocar a campanha no ar.",
+      detail:
+        "Recebemos seus materiais. Nossa equipe vai revisar e colocar a campanha no ar.",
       source: "CLIENT" as const,
       clientNotifiedAt: null,
       createdAt: daysAgo(10),
@@ -275,7 +277,8 @@ export const previewOrderDetail = {
       fromStatus: "REQUESTED" as const,
       toStatus: "IN_REVIEW" as const,
       title: "Em análise",
-      detail: "Um criativo foi recusado pelo limite de texto do Meta — seguimos com os outros dois.",
+      detail:
+        "Um criativo foi recusado pelo limite de texto do Meta — seguimos com os outros dois.",
       source: "KANBAN" as const,
       clientNotifiedAt: daysAgo(9),
       createdAt: daysAgo(9),
@@ -285,7 +288,8 @@ export const previewOrderDetail = {
       fromStatus: "IN_REVIEW" as const,
       toStatus: "RUNNING" as const,
       title: "No ar",
-      detail: "Sua campanha começou a rodar. Os números aparecem na aba Desempenho.",
+      detail:
+        "Sua campanha começou a rodar. Os números aparecem na aba Desempenho.",
       source: "KANBAN" as const,
       clientNotifiedAt: daysAgo(8),
       createdAt: daysAgo(8),
@@ -303,14 +307,44 @@ export const previewPerformance = {
   autoLinked: true,
   period: { from: daysAgo(8), to: new Date() },
   kpis: [
-    { key: "impressions", label: "Impressões", value: 84_213, format: "int" as const },
-    { key: "reach", label: "Pessoas alcançadas", value: 31_902, format: "int" as const },
+    {
+      key: "impressions",
+      label: "Impressões",
+      value: 84_213,
+      format: "int" as const,
+    },
+    {
+      key: "reach",
+      label: "Pessoas alcançadas",
+      value: 31_902,
+      format: "int" as const,
+    },
     { key: "clicks", label: "Cliques", value: 1_744, format: "int" as const },
-    { key: "ctr", label: "Taxa de cliques", value: 2.07, format: "pct" as const },
+    {
+      key: "ctr",
+      label: "Taxa de cliques",
+      value: 2.07,
+      format: "pct" as const,
+    },
     { key: "leads", label: "Leads", value: 96, format: "int" as const },
-    { key: "conversions", label: "Conversões", value: 41, format: "int" as const },
-    { key: "spend", label: "Investido", value: 61_400, format: "currency" as const },
-    { key: "cpc", label: "Custo por clique", value: 35, format: "currency" as const },
+    {
+      key: "conversions",
+      label: "Conversões",
+      value: 41,
+      format: "int" as const,
+    },
+    {
+      key: "spend",
+      label: "Investido",
+      value: 61_400,
+      format: "currency" as const,
+    },
+    {
+      key: "cpc",
+      label: "Custo por clique",
+      value: 35,
+      format: "currency" as const,
+    },
   ],
   series: Array.from({ length: 8 }, (_, index) => ({
     date: daysAgo(7 - index),
@@ -362,16 +396,26 @@ export const previewAdminOrders = {
     ...order,
     organization: {
       id: `org-${index}`,
-      name: ["Padaria do Bairro", "Ótica Visão", "Studio Bella"][index] ?? "Cliente",
-      slug: ["padaria-do-bairro", "otica-visao", "studio-bella"][index] ?? "cliente",
+      name:
+        ["Padaria do Bairro", "Ótica Visão", "Studio Bella"][index] ??
+        "Cliente",
+      slug:
+        ["padaria-do-bairro", "otica-visao", "studio-bella"][index] ??
+        "cliente",
     },
     owner: {
       id: `u-${index}`,
       name: ["Marina Souza", "Carlos Prado", "Bianca Reis"][index] ?? "Cliente",
-      email: ["marina@padaria.com.br", "carlos@oticavisao.com.br", "bianca@studiobella.com.br"][index] ?? "cliente@exemplo.com",
+      email:
+        [
+          "marina@padaria.com.br",
+          "carlos@oticavisao.com.br",
+          "bianca@studiobella.com.br",
+        ][index] ?? "cliente@exemplo.com",
     },
     assignedTo: index === 0 ? { id: "nasa-1", name: "Rafael" } : null,
-    businessName: ["Padaria do Bairro", "Ótica Visão", "Studio Bella"][index] ?? null,
+    businessName:
+      ["Padaria do Bairro", "Ótica Visão", "Studio Bella"][index] ?? null,
     requestedAt: order.status === "ACCOUNT_REVIEW" ? null : daysAgo(index + 2),
     amountMismatch: index === 2,
     messagesCount: index === 0 ? 3 : 0,
@@ -383,7 +427,11 @@ export const previewAdminOrders = {
 
 export const previewAdminOrderDetail = {
   ...previewOrderDetail,
-  organization: { id: "org-0", name: "Padaria do Bairro", slug: "padaria-do-bairro" },
+  organization: {
+    id: "org-0",
+    name: "Padaria do Bairro",
+    slug: "padaria-do-bairro",
+  },
   owner: {
     id: "u-0",
     name: "Marina Souza",
@@ -402,7 +450,8 @@ export const previewAdminOrderDetail = {
   hasBusinessManager: false,
   metricsOrganizationId: "org-agencia",
   metaAdCampaignId: null,
-  internalNotes: "Cliente respondeu rápido no WhatsApp. Verba pode subir no próximo ciclo.",
+  internalNotes:
+    "Cliente respondeu rápido no WhatsApp. Verba pode subir no próximo ciclo.",
   events: previewOrderDetail.events.map((event) => ({
     ...event,
     isClientVisible: true,
@@ -417,6 +466,8 @@ export const previewSettings = {
   salesTrackingId: "tracking-vendas",
   salesStatusId: null,
   defaultServiceFeePercent: 50,
+  includedCreatives: 3,
+  extraCreativeBrlCents: 4000,
   supportWhatsapp: "5511988887777",
   operationsTrackingId: "tracking-trafego",
   statusColumnMap: {} as Record<string, string>,
@@ -429,7 +480,7 @@ export const previewSettings = {
   pixKey: "00.000.000/0001-00",
   pixHolderName: "Órbita Hub LTDA",
   pixBankName: "Inter",
-  pixExpiryHours: 48,
+  pixExpiryMinutes: 10,
   clientNotificationsEnabled: true,
   financeAccountId: null,
   financeRevenueCategoryId: null,
@@ -443,7 +494,12 @@ export const previewRelease = {
   release: {
     about:
       "Padaria de bairro em Teresina, aberta há 12 anos. Produção própria de pães, bolos e salgados, com entrega no mesmo dia para a zona leste.",
-    products: ["Pães artesanais", "Bolos por encomenda", "Salgados para festa", "Café da manhã"],
+    products: [
+      "Pães artesanais",
+      "Bolos por encomenda",
+      "Salgados para festa",
+      "Café da manhã",
+    ],
     differentials: [
       "Fermentação natural, sem conservante",
       "Entrega em até 2 horas na zona leste",
@@ -452,7 +508,10 @@ export const previewRelease = {
     audience:
       "Famílias da zona leste de Teresina, 25 a 55 anos, que compram pão fresco durante a semana e encomendam bolo em datas comemorativas.",
     tone: "Próximo e caseiro, sem superlativo. Fala como quem atende no balcão.",
-    offers: ["Combo café da manhã para 4 pessoas", "10% na primeira encomenda pelo WhatsApp"],
+    offers: [
+      "Combo café da manhã para 4 pessoas",
+      "10% na primeira encomenda pelo WhatsApp",
+    ],
     doNotSay: ["“o melhor pão da cidade”", "promessa de entrega em tempo fixo"],
   },
   sources: [
@@ -518,7 +577,8 @@ export const previewRecommendations = {
     "Revise as sugestões de texto e escolha uma",
     "Clique em Ativar campanha",
   ],
-  copyAngle: "Pão fresco de verdade, entregue no mesmo dia — sem promessa que não cabe no anúncio.",
+  copyAngle:
+    "Pão fresco de verdade, entregue no mesmo dia — sem promessa que não cabe no anúncio.",
   generatedAt: "2026-09-12T14:25:00.000Z",
   writtenByModel: true,
 };

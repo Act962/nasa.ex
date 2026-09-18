@@ -45,7 +45,7 @@ export const getTrafegoSettings = base
         pixKey: null,
         pixHolderName: null,
         pixBankName: null,
-        pixExpiryHours: 48,
+        pixExpiryMinutes: 10,
         clientNotificationsEnabled: true,
         financeAccountId: null,
         financeRevenueCategoryId: null,
@@ -84,7 +84,7 @@ export const updateTrafegoSettings = base
       pixKey: z.string().trim().max(140).nullable(),
       pixHolderName: z.string().trim().max(120).nullable(),
       pixBankName: z.string().trim().max(80).nullable(),
-      pixExpiryHours: z.number().int().min(1).max(720),
+      pixExpiryMinutes: z.number().int().min(1).max(43_200),
       whatsappTemplateLanguage: z.string().trim().min(2).max(10),
       clientNotificationsEnabled: z.boolean(),
       financeAccountId: nullableId,
@@ -101,7 +101,10 @@ export const updateTrafegoSettings = base
       if (input.operationsTrackingId) {
         await assertBelongsToOrg(
           prisma.tracking.count({
-            where: { id: input.operationsTrackingId, organizationId: agencyOrganizationId },
+            where: {
+              id: input.operationsTrackingId,
+              organizationId: agencyOrganizationId,
+            },
           }),
           "O tracking de operação não pertence à organização da agência.",
         );
@@ -109,7 +112,10 @@ export const updateTrafegoSettings = base
       if (input.financeAccountId) {
         await assertBelongsToOrg(
           prisma.paymentBankAccount.count({
-            where: { id: input.financeAccountId, organizationId: agencyOrganizationId },
+            where: {
+              id: input.financeAccountId,
+              organizationId: agencyOrganizationId,
+            },
           }),
           "A conta financeira não pertence à organização da agência.",
         );
@@ -141,7 +147,10 @@ export const updateTrafegoSettings = base
       if (input.briefingFormId) {
         await assertBelongsToOrg(
           prisma.form.count({
-            where: { id: input.briefingFormId, organizationId: agencyOrganizationId },
+            where: {
+              id: input.briefingFormId,
+              organizationId: agencyOrganizationId,
+            },
           }),
           "O formulário de briefing não pertence à organização da agência.",
         );
@@ -149,7 +158,11 @@ export const updateTrafegoSettings = base
     }
 
     const statusColumnMap = parseStatusColumnMap(input.statusColumnMap ?? {});
-    const data = { ...input, statusColumnMap, updatedById: context.adminUser.id };
+    const data = {
+      ...input,
+      statusColumnMap,
+      updatedById: context.adminUser.id,
+    };
 
     await prisma.trafegoSettings.upsert({
       where: { id: SINGLETON_ID },
@@ -160,7 +173,10 @@ export const updateTrafegoSettings = base
     return { success: true };
   });
 
-async function assertBelongsToOrg(countPromise: Promise<number>, message: string) {
+async function assertBelongsToOrg(
+  countPromise: Promise<number>,
+  message: string,
+) {
   if ((await countPromise) === 0) {
     throw new ORPCError("BAD_REQUEST", { message });
   }
@@ -208,7 +224,9 @@ export const listTrafegoAgencyOptions = base
     return { trackings, accounts, categories, forms };
   });
 
-async function resolveAgencyOrganizationId(explicit?: string | null): Promise<string> {
+async function resolveAgencyOrganizationId(
+  explicit?: string | null,
+): Promise<string> {
   if (explicit) return explicit;
   const settings = await loadTrafegoSettings({ fresh: true });
   if (!settings.agencyOrganizationId) {
@@ -231,7 +249,9 @@ export const provisionTrafegoOperationsTrackingProcedure = base
       .optional(),
   )
   .handler(async ({ input, context }) => {
-    const organizationId = await resolveAgencyOrganizationId(input?.organizationId);
+    const organizationId = await resolveAgencyOrganizationId(
+      input?.organizationId,
+    );
     return provisionTrafegoOperationsTracking({
       organizationId,
       actorUserId: context.adminUser.id,
@@ -244,8 +264,13 @@ export const provisionTrafegoBriefingFormProcedure = base
   .use(requireAdminMiddleware)
   .input(z.object({ organizationId: z.string().min(1).optional() }).optional())
   .handler(async ({ input, context }) => {
-    const organizationId = await resolveAgencyOrganizationId(input?.organizationId);
-    return provisionTrafegoBriefingForm({ organizationId, actorUserId: context.adminUser.id });
+    const organizationId = await resolveAgencyOrganizationId(
+      input?.organizationId,
+    );
+    return provisionTrafegoBriefingForm({
+      organizationId,
+      actorUserId: context.adminUser.id,
+    });
   });
 
 /**

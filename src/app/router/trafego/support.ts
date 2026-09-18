@@ -83,14 +83,15 @@ export const sendTrafegoMessage = base
     }),
   )
   .handler(async ({ input, context }) => {
-    let order = await assertOwnedOrder(input.orderId, context.org.id);
-    const leadId = order.leadId ?? (await ensureTrafegoLeadForOrder(order.id));
+    const ownedOrder = await assertOwnedOrder(input.orderId, context.org.id);
+    const leadId =
+      ownedOrder.leadId ?? (await ensureTrafegoLeadForOrder(ownedOrder.id));
     if (!leadId) {
       throw new ORPCError("BAD_REQUEST", { message: "Não foi possível preparar a conversa deste pedido." });
     }
 
-    order = await prisma.trafegoOrder.findUniqueOrThrow({
-      where: { id: order.id },
+    const order = await prisma.trafegoOrder.findUniqueOrThrow({
+      where: { id: ownedOrder.id },
       select: {
         id: true,
         leadId: true,

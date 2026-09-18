@@ -30,7 +30,7 @@ export interface TrafegoOperationsSettings {
   pixKey: string | null;
   pixHolderName: string | null;
   pixBankName: string | null;
-  pixExpiryHours: number;
+  pixExpiryMinutes: number;
   clientNotificationsEnabled: boolean;
   financeAccountId: string | null;
   financeRevenueCategoryId: string | null;
@@ -54,7 +54,7 @@ const EMPTY_SETTINGS: TrafegoOperationsSettings = {
   pixKey: null,
   pixHolderName: null,
   pixBankName: null,
-  pixExpiryHours: 48,
+  pixExpiryMinutes: 10,
   clientNotificationsEnabled: true,
   financeAccountId: null,
   financeRevenueCategoryId: null,
@@ -64,16 +64,22 @@ const EMPTY_SETTINGS: TrafegoOperationsSettings = {
 const TTL_MS = 30_000;
 
 const globalForSettings = globalThis as unknown as {
-  __trafegoSettingsCache?: { value: TrafegoOperationsSettings; expiresAt: number } | null;
+  __trafegoSettingsCache?: {
+    value: TrafegoOperationsSettings;
+    expiresAt: number;
+  } | null;
 };
 
 export async function loadTrafegoSettings(options?: {
   fresh?: boolean;
 }): Promise<TrafegoOperationsSettings> {
   const cached = globalForSettings.__trafegoSettingsCache;
-  if (!options?.fresh && cached && cached.expiresAt > Date.now()) return cached.value;
+  if (!options?.fresh && cached && cached.expiresAt > Date.now())
+    return cached.value;
 
-  const row = await prisma.trafegoSettings.findUnique({ where: { id: "singleton" } });
+  const row = await prisma.trafegoSettings.findUnique({
+    where: { id: "singleton" },
+  });
   const value: TrafegoOperationsSettings = row
     ? {
         agencyOrganizationId: row.agencyOrganizationId,
@@ -91,7 +97,7 @@ export async function loadTrafegoSettings(options?: {
         pixKey: row.pixKey,
         pixHolderName: row.pixHolderName,
         pixBankName: row.pixBankName,
-        pixExpiryHours: row.pixExpiryHours,
+        pixExpiryMinutes: row.pixExpiryMinutes,
         whatsappTemplateLanguage: row.whatsappTemplateLanguage,
         clientNotificationsEnabled: row.clientNotificationsEnabled,
         financeAccountId: row.financeAccountId,
@@ -100,7 +106,10 @@ export async function loadTrafegoSettings(options?: {
       }
     : EMPTY_SETTINGS;
 
-  globalForSettings.__trafegoSettingsCache = { value, expiresAt: Date.now() + TTL_MS };
+  globalForSettings.__trafegoSettingsCache = {
+    value,
+    expiresAt: Date.now() + TTL_MS,
+  };
   return value;
 }
 

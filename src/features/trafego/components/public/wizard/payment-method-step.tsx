@@ -6,18 +6,23 @@ import { cn } from "@/lib/utils";
 export type TrafegoPaymentMethod = "CARD" | "PIX";
 
 /**
- * Cartão fecha sozinho; PIX passa pela conferência da equipe. A diferença de
- * prazo é dita aqui, não na tela seguinte — é o que evita a pessoa escolher
- * PIX achando que a campanha começa no mesmo minuto.
+ * A diferença de prazo é dita aqui, não na tela seguinte — é o que evita a
+ * pessoa escolher PIX achando que a campanha começa no mesmo minuto.
+ *
+ * Com `pixAutoConfirms`, essa diferença deixa de existir: a cobrança é do Asaas
+ * e confirma sozinha. Sem ele, o PIX ainda passa pela conferência da equipe, e
+ * a descrição precisa dizer isso.
  */
 export function PaymentMethodStep({
   value,
   onChange,
   pixAvailable,
+  pixAutoConfirms,
 }: {
   value: TrafegoPaymentMethod;
   onChange: (value: TrafegoPaymentMethod) => void;
   pixAvailable: boolean;
+  pixAutoConfirms: boolean;
 }) {
   if (!pixAvailable) return null;
 
@@ -37,7 +42,9 @@ export function PaymentMethodStep({
       value: "PIX",
       icon: QrCode,
       label: "PIX",
-      description: "Você paga na nossa chave e envia o comprovante pelo WhatsApp.",
+      description: pixAutoConfirms
+        ? "QR Code na tela seguinte. Confirmação automática."
+        : "Você paga na nossa chave e envia o comprovante pelo WhatsApp.",
     },
   ];
 

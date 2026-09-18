@@ -1,6 +1,11 @@
 "use client";
 
-import { CheckCircle2, Loader2, SearchCheck, TriangleAlert } from "lucide-react";
+import {
+  CheckCircle2,
+  Loader2,
+  SearchCheck,
+  TriangleAlert,
+} from "lucide-react";
 import { useCheckTrafegoWhatsappNumber } from "@/features/trafego/hooks/use-trafego-verification";
 import { WhatsappWarmupNote } from "./whatsapp-warmup-note";
 import { maskPhoneBr } from "@/features/form/lib/masks";
@@ -97,13 +102,15 @@ export function WhatsappVerifyStep({
               {check.verifiedName ? (
                 <>
                   Conta comercial verificada como{" "}
-                  <strong className="text-white/70">{check.verifiedName}</strong>.
-                  Confirmamos o vínculo com a API Oficial na análise da conta.
+                  <strong className="text-white/70">
+                    {check.verifiedName}
+                  </strong>
+                  . Confirmamos o vínculo com a API Oficial na análise da conta.
                 </>
               ) : (
                 <>
-                  Ainda sem nome verificado. Confirmamos o vínculo com a API Oficial
-                  na análise da conta.
+                  Ainda sem nome verificado. Confirmamos o vínculo com a API
+                  Oficial na análise da conta.
                 </>
               )}
             </p>
@@ -116,14 +123,17 @@ export function WhatsappVerifyStep({
           <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-300" />
           <p className="text-xs leading-relaxed text-amber-100">
             Esse número não aparece no WhatsApp. Confira o DDD e o dígito 9 — ou
-            volte e escolha <strong>&quot;preciso adquirir um novo número&quot;</strong>.
+            volte e escolha{" "}
+            <strong>&quot;preciso adquirir um novo número&quot;</strong>.
           </p>
         </div>
       )}
 
-      {(check?.status === "skipped" || (!checkEnabled && digits.length >= 10)) && (
+      {(check?.status === "skipped" ||
+        (!checkEnabled && digits.length >= 10)) && (
         <p className="text-xs text-white/35">
-          Não deu para checar agora. Pode seguir — a equipe confere na análise da conta.
+          Não deu para checar agora. Pode seguir — a equipe confere na análise
+          da conta.
         </p>
       )}
 

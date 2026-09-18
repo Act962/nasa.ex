@@ -105,7 +105,8 @@ export async function createTrafegoOrderFromPurchaseInTx({
       platform: pending.platform,
       objective: pending.objective,
       durationDays: pending.plan?.durationDays ?? 30,
-      maxCreatives: pending.desiredCreativeCount ?? pending.plan?.maxCreatives ?? 3,
+      maxCreatives:
+        pending.desiredCreativeCount ?? pending.plan?.maxCreatives ?? 3,
       maxCopies: pending.plan?.maxCopies ?? 3,
 
       adBudgetBrlCents: pending.adBudgetBrlCents,

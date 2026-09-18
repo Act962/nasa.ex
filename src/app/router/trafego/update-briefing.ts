@@ -29,7 +29,8 @@ export const updateTrafegoBriefing = base
       }
       if (check.status === "not_found") {
         throw new ORPCError("BAD_REQUEST", {
-          message: "Esse número não foi encontrado no WhatsApp. Confira o DDD e o dígito 9.",
+          message:
+            "Esse número não foi encontrado no WhatsApp. Confira o DDD e o dígito 9.",
         });
       }
     }
@@ -48,7 +49,10 @@ export const updateTrafegoBriefing = base
 
     // O card do gestor mostra o briefing como resposta de formulário — acompanha a edição.
     await upsertBriefingResponseForOrder(order.id).catch((error) =>
-      console.error("[trafego/briefing] resposta no card não atualizada:", error),
+      console.error(
+        "[trafego/briefing] resposta no card não atualizada:",
+        error,
+      ),
     );
 
     return { success: true };
