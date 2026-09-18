@@ -177,7 +177,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0017](payment/0017-lembretes-com-envio-de-boleto.md) | payment | Lembretes que enviam o boleto por WhatsApp e e-mail | em-revisao |
 | [0018](payment/0018-caixa-de-entrada-gmail.md) | payment | Caixa de entrada Gmail do financeiro | em-revisao |
 | [0019](astro-bot/0019-whatsapp-escopo-financeiro-e-stars.md) | astro-bot | Astro pelo WhatsApp — escopo financeiro, mídia inbound e Stars | em-revisao |
-| [0020](stars/0020-catalogo-unico-de-preco-e-ponto-unico-de-cobranca.md) | stars | Catálogo único de preço e ponto único de cobrança de Stars | rascunho |
+| [0020](stars/0020-catalogo-unico-de-preco-e-ponto-unico-de-cobranca.md) | stars | Catálogo único de preço e ponto único de cobrança de Stars | em-revisao |
 | [0021](stars/0021-registro-de-custo-por-evento-e-instrumentacao.md) | stars | Registro de custo por evento e instrumentação das chamadas pagas | rascunho |
 
 ---

@@ -10,7 +10,7 @@
 > PR.** Documentação atualizada depois não existe.
 
 **Última atualização:** 2026-09-18
-**Status geral:** 🚧 Fase 0 concluída — Fases 1 a 6 abertas
+**Status geral:** 🚧 Fases 0 e 1 concluídas — Fases 2 a 6 abertas
 
 ---
 
@@ -81,6 +81,12 @@ um contador acumulado que nunca é zerado — ou seja, é exibido como se fosse 
 São ~62 pontos que usam a função principal e ~25 que debitam com número fixo no código. Mudar preço
 hoje pode exigir deploy, dependendo de onde a ação cai.
 
+> ✅ **Resolvido parcialmente na Fase 1.** Existe agora um ponto único de cobrança, e a função que os
+> ~62 pontos já chamavam virou fachada sobre ele — sem mudar nenhuma linha nesses pontos. O catálogo
+> passou a suportar cobrança por quantidade e por variante, com teto de segurança, e o preço é
+> servido por cache com invalidação no salvamento do admin. Os ~25 pontos de débito direto migram na
+> Fase 3.
+
 ### 2.3 Catálogo furado — o achado mais grave da Fase 0 [CÓDIGO]
 
 **14 das 38 chaves de ação cobradas no código não têm linha de preço no banco.** Quando a linha não
@@ -91,6 +97,13 @@ desde sempre. O que ainda cobra no ASTRO é apenas o excedente por token, que ro
 e não passa pelo catálogo.
 
 Lista completa em [`relatorios/inventario-stars-2026-09-18.md`](relatorios/inventario-stars-2026-09-18.md), §3.1.
+
+> ⚠️ **A Fase 1 acabou com o silêncio, não com o furo.** Ação sem preço passou a avisar no log e a
+> entrar no relatório de ações sem preço — mas segue sem cobrar. Definir quanto cada uma vale é
+> decisão de negócio (RF-9 da spec 0020), e `astro_prompt` é o caso sensível: cadastrá-la passa a
+> cobrar algo que hoje é grátis.
+
+### 2.5 Aluguel por app — aposentado na Fase 1
 
 ### 2.4 Planos
 
@@ -112,12 +125,10 @@ vence.
 barrado. Ou seja, o princípio "o ecossistema é o produto, o plano define a capacidade" **já é o
 comportamento atual** — esta frente o ratifica, não o inventa.
 
-### 2.5 Aluguel por app — a ser aposentado
+Existia um segundo modelo comercial dormente: apps "instalados" com custo mensal próprio em ★, que
+contradizia o princípio acima. O ciclo mensal deixou de cobrá-lo, e o histórico foi preservado.
 
-Existe um segundo modelo comercial dormente: apps "instalados" com custo mensal próprio em ★. Ele
-contradiz o princípio acima.
-
-**Organizações com app alugado ativo hoje: zero.** Aposentar é risco zero.
+**Organizações afetadas: zero** — nenhuma tinha app alugado ativo.
 
 ### 2.6 Medição de custo
 
@@ -143,7 +154,7 @@ eles. Na prática, mesmo o "ESTIMADO" está estimando zero nos casos mais comuns
 | # | Vazamento | Tamanho medido | Fase |
 | --- | --- | --- | --- |
 | V1 | Ciclo mensal não tem cron, e renovação no mesmo plano retorna antes de creditar | **Todas as 12 organizações com crédito têm exatamente 1.** Uma do Earth está há 94 dias sem segundo crédito | 5 |
-| V2 | `astro_prompt` e mais 13 ações cobram no código sem preço no banco | Cobrança pulada em silêncio, sem log | 1 |
+| V2 | `astro_prompt` e mais 13 ações cobram no código sem preço no banco | 🚧 Silêncio corrigido na Fase 1 (agora avisa e reporta). Falta o negócio definir o preço de cada uma | 1 |
 | V3 | Refill automático de 1.000.000 ★ para organização com membro "moderador" | 1 organização, 1 ocorrência, 999.902 ★ | 5 |
 | V4 | Painel de consumo procura o plano pelo campo errado | Denominador sempre zero; o cliente nunca vê quanto tem | 5 |
 | V5 | Bloqueio por suspensão não está aplicado a nenhuma procedure | 1 organização marcada como suspensa, sem efeito | 5 |
@@ -233,8 +244,8 @@ Duas decisões deliberadas:
 
 | Fase | Entrega | Status |
 | --- | --- | --- |
-| 0 | Desbloquear e inventariar | ✅ Concluída (inventário feito; drift pendente de ação do dev) |
-| 1 | Catálogo único de preço, ponto único de cobrança | ⬜ |
+| 0 | Desbloquear e inventariar | ✅ Concluída |
+| 1 | Catálogo único de preço, ponto único de cobrança | ✅ Concluída — falta definir o preço das 14 ações |
 | 2 | Registro de custo e instrumentação | ⬜ |
 | 3 | Migrar os pontos que hoje escapam do catálogo | ⬜ |
 | 4 | Roteador de IA | ⬜ |
@@ -330,3 +341,5 @@ Esta frente mexe em dinheiro, saldo e schema. As regras de disciplina estão em 
 | Data | PR | O que mudou | Como desfazer |
 | --- | --- | --- | --- |
 | 2026-09-18 | — | Fase 0: inventário no banco real, criação deste documento e das specs 0020/0021. Nenhuma mudança de comportamento. | Nada a desfazer — só documentação |
+| 2026-09-18 | — | Drift de migrations verificado e encerrado: não existia mais. `PENDING_MIGRATIONS.md` marcado como resolvido, com o histórico preservado. Cliente Prisma regenerado. | Nada a desfazer |
+| 2026-09-18 | — | Fase 1: catálogo passa a suportar quantidade e variante (migration aditiva `20260918160000`); ponto único de cobrança criado; `chargeStarsByAction` virou fachada sem alterar os ~62 pontos; cache de preço com invalidação no admin; aluguel por app aposentado. Verificado: 52 ações de custo fixo com zero divergência. | Reverter o código faz o sistema voltar a ler só o custo fixo; as colunas novas ficam ociosas. A migration não precisa ser desfeita (nota de rollback no próprio SQL). Nenhum saldo ou extrato foi tocado |

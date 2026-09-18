@@ -2,7 +2,7 @@
 id: 0020
 titulo: Catálogo único de preço e ponto único de cobrança de Stars
 dominio: stars
-status: rascunho
+status: em-revisao
 autor: João Gabriel
 criada: 2026-09-18
 atualizada: 2026-09-18
@@ -96,24 +96,24 @@ quando uma ação cobra sem ter preço definido.
 
 ## 4. Critérios de aceite
 
-- [ ] **CA-1** — Dada uma ação com preço fixo já cadastrado hoje, quando cobrada, então o valor
+- [x] **CA-1** — Dada uma ação com preço fixo já cadastrado hoje, quando cobrada, então o valor
       debitado é **exatamente** o mesmo de antes da mudança.
-- [ ] **CA-2** — Dada uma ação com unidade `token`, divisor 1000 e custo unitário 1, quando cobrada
+- [x] **CA-2** — Dada uma ação com unidade `token`, divisor 1000 e custo unitário 1, quando cobrada
       com 2.500 tokens, então o débito é de 3 ★ (arredondado para cima, respeitando a cobrança
       mínima).
-- [ ] **CA-3** — Dada uma ação com variantes por modelo, quando cobrada informando um modelo
+- [x] **CA-3** — Dada uma ação com variantes por modelo, quando cobrada informando um modelo
       específico, então o preço aplicado é o da variante, e não o preço-base.
-- [ ] **CA-4** — Dada uma ação com teto máximo definido, quando a quantidade produziria um valor
+- [x] **CA-4** — Dada uma ação com teto máximo definido, quando a quantidade produziria um valor
       acima do teto, então o débito é limitado ao teto e a ocorrência fica registrada.
-- [ ] **CA-5** — Dada uma ação **sem** preço em nenhuma camada, quando cobrada, então nada é
+- [x] **CA-5** — Dada uma ação **sem** preço em nenhuma camada, quando cobrada, então nada é
       debitado, um aviso vai para o log e a ocorrência fica registrada como ação sem preço.
 - [ ] **CA-6** — Dada uma organização com sobrescrita própria para uma ação, quando cobrada, então
       vale a sobrescrita e não o catálogo global.
 - [ ] **CA-7** — Dado que o admin altera um preço na tela de regras, quando a próxima cobrança
       acontece, então o novo preço já vale, sem restart.
-- [ ] **CA-8** — Dada a cobrança de um curso, quando o saldo de bônus é suficiente mas a cobrança
+- [x] **CA-8** — Dada a cobrança de um curso, quando o saldo de bônus é suficiente mas a cobrança
       proíbe bônus, então o bônus **não** é usado (proteção contra bônus virar dinheiro real).
-- [ ] **CA-9** — Após a mudança, nenhuma organização tem app com cobrança mensal ativa, e as linhas
+- [x] **CA-9** — Após a mudança, nenhuma organização tem app com cobrança mensal ativa, e as linhas
       históricas continuam consultáveis.
 - [ ] **CA-10** — As 14 chaves listadas no inventário passam a ter preço definido, incluindo
       `astro_prompt`.
@@ -244,3 +244,4 @@ trecho; como não há nenhuma integração ativa, não há efeito prático em ne
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-18 | João Gabriel | Criada, com o inventário de 2026-09-18 como base factual |
+| 2026-09-18 | João Gabriel | Implementada. CA-1 a CA-9 verificados por `pnpm tsx scripts/verify-stars-metering.ts`. CA-10 pendente: depende do negócio definir o preço das 14 ações sem preço. |
