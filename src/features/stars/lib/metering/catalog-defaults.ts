@@ -61,21 +61,21 @@ export const CATALOG_DEFAULTS: Record<string, CatalogDefault> = {
 };
 
 /**
- * Ações que o código cobra e que não tinham preço cadastrado no inventário de
- * 2026-09-18. Enquanto estiverem aqui, seguem gratuitas — mas visíveis.
+ * Ações que o código cobra e que seguem sem preço. Enquanto estiverem aqui,
+ * continuam gratuitas — mas visíveis no relatório de ações sem preço.
  *
- * Definir o valor de cada uma é decisão de negócio (RF-9 da spec 0020).
- * `astro_prompt` é o caso sensível: é a cobrança-base de cada prompt do ASTRO
- * e nunca cobrou, então cadastrá-la passa a cobrar algo que hoje é grátis.
+ * Definir o valor de cada uma é decisão de negócio (RF-9 da spec 0020): estas
+ * nunca tiveram valor decidido em lugar nenhum, nem em `DEFAULT_STAR_RULES` nem
+ * no seed. A decisão espera a medição de custo da spec 0021.
+ *
+ * Fora desta lista, mas ainda sem linha no banco, estão `astro_prompt` (5★) e
+ * `calendar_share_enable` (5★): têm valor decidido em `prisma/seed-star-rules.ts`
+ * e dependem apenas de alguém rodar `scripts/seed-star-prices.ts`. `astro_prompt`
+ * é o caso sensível — cadastrá-lo passa a cobrar cada prompt do ASTRO.
  *
  * Ver docs/relatorios/inventario-stars-2026-09-18.md §3.1.
  */
 export const ACTIONS_WITHOUT_PRICE = [
-  "astro_prompt",
-  "astro_finance_document",
-  "astro_finance_reminder_send",
-  "astro_finance_statement_pdf",
-  "calendar_share_enable",
   "check_payment_query",
   "form_publish",
   "linnker_page_create",
