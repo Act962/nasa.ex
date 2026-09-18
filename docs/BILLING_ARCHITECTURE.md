@@ -10,7 +10,7 @@
 > PR.** Documentação atualizada depois não existe.
 
 **Última atualização:** 2026-09-18
-**Status geral:** 🚧 Fases 0, 1 e 2 concluídas — Fases 3 a 6 abertas
+**Status geral:** 🚧 Fases 0, 1, 2 e 5 concluídas — Fases 3, 4 e 6 abertas
 
 ---
 
@@ -157,14 +157,44 @@ Situação **depois da Fase 2**:
 
 ## 3. Vazamentos de receita conhecidos [CÓDIGO]
 
-| # | Vazamento | Tamanho medido | Fase |
+| # | Vazamento | Tamanho medido | Situação |
 | --- | --- | --- | --- |
-| V1 | Ciclo mensal não tem cron, e renovação no mesmo plano retorna antes de creditar | **Todas as 12 organizações com crédito têm exatamente 1.** Uma do Earth está há 94 dias sem segundo crédito | 5 |
-| V2 | `astro_prompt` e mais 13 ações cobram no código sem preço no banco | 🚧 Silêncio corrigido na Fase 1 (agora avisa e reporta). Falta o negócio definir o preço de cada uma | 1 |
-| V3 | Refill automático de 1.000.000 ★ para organização com membro "moderador" | 1 organização, 1 ocorrência, 999.902 ★ | 5 |
-| V4 | Painel de consumo procura o plano pelo campo errado | Denominador sempre zero; o cliente nunca vê quanto tem | 5 |
-| V5 | Bloqueio por suspensão não está aplicado a nenhuma procedure | 1 organização marcada como suspensa, sem efeito | 5 |
-| V6 | Contador de gasto por membro nunca é zerado | Número do mês exibido com valor acumulado de sempre | 5 |
+| V1 | Ciclo mensal não tem cron, e renovação no mesmo plano retorna antes de creditar | **Todas as 12 organizações com crédito têm exatamente 1.** Uma do Earth está há 94 dias sem segundo crédito | 🚧 Cron criado, **desligado**. Aguarda decisão de produto — ver §3.1 |
+| V2 | `astro_prompt` e mais 13 ações cobram no código sem preço no banco | Caiu de 14 para 9 ações sem preço | 🚧 Silêncio corrigido; falta o negócio definir os valores |
+| V3 | Refill automático de 1.000.000 ★ para organização com membro "moderador" | 1 organização, 1 ocorrência, 999.902 ★ | ✅ Atrás de `STARS_MODERATOR_REFILL`, desligado |
+| V4 | Painel de consumo procura o plano pelo campo errado | Denominador sempre zero; o cliente nunca vê quanto tem | ✅ Lê `Organization.plan` |
+| V5 | Bloqueio por suspensão não está aplicado a nenhuma procedure | 1 organização suspensa, com saldo zero e sem plano | ✅ Aplicado às procedures caras e à rota do ASTRO |
+| V6 | Contador de gasto por membro nunca é zerado | Número do mês exibido com valor acumulado de sempre | ✅ Zerado no ciclo |
+
+### 3.1 V1 — a decisão de produto que falta [ABERTO]
+
+O ciclo capa o saldo que passa adiante em `rolloverPct` da franquia. Como ele nunca rodou uma
+segunda vez, há organizações com saldo acumulado de vários meses — e elas **perderiam o excedente**
+na primeira execução.
+
+Simulação de 2026-09-18
+([relatório completo](relatorios/simulacao-ciclo-mensal-2026-09-18.md)):
+
+| | |
+| --- | ---: |
+| Organizações com ciclo vencido | 23 |
+| Créditos de franquia a distribuir | 170.900 ★ |
+| **Saldo que seria perdido pelo teto** | **41.355 ★** |
+| Organizações que perderiam saldo | 17 |
+| Maior perda individual (PLENOCAR) | 13.602 ★ |
+
+**Esse saldo foi acumulado porque o ciclo estava quebrado, não porque o cliente deixou de usar.**
+Ligar sem decidir transfere para ele o custo de um bug nosso. As saídas:
+
+- **a)** Ligar assim mesmo e comunicar aos afetados.
+- **b)** Creditar a diferença de volta com um ajuste manual registrado.
+- **c)** Elevar `rolloverPct` só no primeiro ciclo corrigido, deixando todo o saldo passar.
+
+O cron exige `STARS_MONTHLY_CYCLE_CRON=true`. Sem a variável, roda em simulação e só loga.
+
+**Efeito colateral já visível:** com o V4 corrigido, duas organizações aparecem com 826% e 564% da
+franquia no painel. É artefato do V1 — o consumo é cumulativo contra a franquia de um mês. Normaliza
+quando o ciclo for ligado.
 
 ---
 
@@ -255,7 +285,7 @@ Duas decisões deliberadas:
 | 2 | Registro de custo e instrumentação | ✅ Concluída — 5 superfícies instrumentadas |
 | 3 | Migrar os pontos que hoje escapam do catálogo | ⬜ |
 | 4 | Roteador de IA | ⬜ |
-| 5 | Correção dos vazamentos, cada um atrás de flag | ⬜ |
+| 5 | Correção dos vazamentos, cada um atrás de flag | ✅ Código pronto — V1 aguarda decisão de produto |
 | 6 | Catálogo unificado de soluções por setor | ⬜ |
 
 ### Fora de escopo desta frente
@@ -352,3 +382,5 @@ Esta frente mexe em dinheiro, saldo e schema. As regras de disciplina estão em 
 | 2026-09-18 | — | Correção do inventário: 5 das 14 ações sem preço **já tinham valor decidido** e nunca foram seedadas — `astro_prompt` (5★) e `calendar_share_enable` (5★) em `prisma/seed-star-rules.ts`, e as três `astro_finance_*` (5★/1★/10★) em `DEFAULT_STAR_RULES`. A causa raiz não era falta de decisão, era o seed nunca ter rodado neste banco. As três do financeiro foram cadastradas; `astro_prompt` aguarda decisão por mudar cobrança de alta frequência. Restam **9** realmente sem valor. | Remover as 3 linhas de `app_star_costs` volta o financeiro do ASTRO a gratuito |
 | 2026-09-18 | — | Fase 2: `UsageEvent` criado (migration aditiva `20260918170000`); extrato ganha usuário e ação; câmbio sai do código para `RouterPaymentSettings`; tabela de preço em dólar corrigida (os modelos default valiam zero); 5 superfícies instrumentadas. Verificado por `pnpm tsx scripts/verify-usage-ledger.ts` sem alterar saldo. | Reverter o código para de gravar; o que já foi registrado segue consultável e nenhum saldo foi tocado. Nota de rollback no próprio SQL |
 | 2026-09-18 | — | ⚠️ Mudança de comportamento: a cobrança por token do ASTRO passou a arredondar para cima em vez de arredondamento normal. Medido em 11 volumes reais: 3 divergem, soma 77★ → 80★ (~4% mais caro). O arredondamento para baixo fazia toda chamada pequena sair de graça. | Ajustar `unit_cost` da ação `astro_tokens` no catálogo, sem deploy |
+| 2026-09-18 | — | Fase 5: V3, V4, V5 e V6 corrigidos; V1 com cron criado e desligado. Ciclo mensal virou idempotente (não recredita com menos de 28 dias) e ganhou modo simulação. Nenhum saldo foi alterado. | Cada correção tem a própria flag ou é reversível revertendo o commit. Reverter o V4 volta o denominador a zero; reverter o V5 volta a não bloquear ninguém |
+| 2026-09-18 | — | ⚠️ **Decisão pendente de produto:** ligar o cron do ciclo mensal faria 17 organizações perderem 41.355★ acumuladas. Ver §3.1. | Não aplicável — nada foi aplicado |
