@@ -10,7 +10,7 @@
 > PR.** Documentação atualizada depois não existe.
 
 **Última atualização:** 2026-09-18
-**Status geral:** 🚧 Fases 0, 1, 2, 3 e 5 concluídas — Fases 4 e 6 abertas
+**Status geral:** 🚧 Fases 0 a 5 concluídas — Fase 6 aberta
 
 ---
 
@@ -267,24 +267,47 @@ no fornecedor, e ignorá-las é subestimar o próprio custo.
 
 ### 4.5 Roteamento de IA (ASTRO FAST / SMART / DEEP)
 
-Hoje o ASTRO é **OpenAI-only e derruba o copiloto inteiro se faltar uma variável de ambiente**,
-mesmo quando a organização tem chave de outro provider configurada. O `docs/ASTRO_PROGRESS.md`
-afirma que o padrão é Anthropic — **o código contradiz o documento** (ver §8).
+O ASTRO era **OpenAI-only e derrubava o copiloto inteiro se faltasse uma variável de ambiente**,
+mesmo quando a organização tinha chave de outro provider configurada. O `docs/ASTRO_PROGRESS.md`
+afirmava que o padrão era Anthropic — **o código contradizia o documento** (ver §8).
 
-Proposta: uma camada única que escolhe o modelo por capacidade necessária (visão, ferramentas,
-contexto longo), chave disponível (a da organização antes da nossa) e custo dentro do nível. Três
-níveis expostos, vários providers por baixo. **O cliente nunca escolhe GPT, Gemini ou Claude.**
+Existe agora uma camada única que escolhe o modelo por **capacidade exigida** (visão, ferramentas,
+contexto longo), **preferência declarada** e **chave disponível** — a da organização antes da nossa.
+Três níveis expostos, vários providers por baixo. **O cliente nunca escolhe GPT, Gemini ou Claude.**
 
-Já existe um bom exemplo disso no repositório — a escolha de modelo do financeiro, com cascata
-ordenada por custo e fallback. O roteador nasce dali, não do zero.
+| Nível | Quando | Ordem de preferência |
+| --- | --- | --- |
+| FAST | Classificação, extração simples | gpt-4.1-nano → gemini-2.5-flash-lite → claude-haiku-4-5 |
+| SMART | Uso do dia a dia, com ferramentas | gpt-4o-mini → gemini-2.5-flash → claude-haiku-4-5 |
+| DEEP | Raciocínio longo, ferramentas encadeadas | gpt-4o → claude-sonnet-4-5 → gemini-2.5-pro |
 
-Duas decisões deliberadas:
+Quatro decisões deliberadas:
 
-- **A classificação de complexidade atual é preservada.** É gratuita e funciona. Substituí-la por
-  um classificador de IA adicionaria uma chamada para economizar uma chamada.
-- **Fallback honesto.** Troca de provider quando falta chave ou o provider está fora. Falha no meio
-  de uma resposta em streaming continua sendo erro visível — prometer o contrário seria promessa
-  falsa, porque o erro surge depois de os cabeçalhos já terem sido enviados.
+- **Não ordena por preço.** Modelo barato que não chama ferramenta não resolve a tarefa mais
+  barato — não resolve. E a tabela de custo ainda está marcada `// conferir`: deixá-la escolher
+  trocaria o modelo de todo mundo com base em número não confiável. A verificação pegou exatamente
+  isso — o nível DEEP resolvia para `gemini-2.5-pro` em vez de `gpt-4o`. A ordem passou a ser a
+  declarada no catálogo, que é decisão assinada, não efeito colateral.
+- **A classificação de complexidade é preservada.** É gratuita e funciona. Substituí-la por um
+  classificador de IA adicionaria uma chamada para economizar uma chamada.
+- **Compatibilidade verificada.** Com chave da OpenAI, o modelo escolhido é idêntico ao de antes.
+  Sem ela, cai para o Gemini em vez de derrubar a conversa.
+- **Fallback honesto.** Troca de provider em tempo de seleção sempre, e em tempo de execução só nas
+  chamadas não-streaming — e apenas para erro de disponibilidade. Falha no meio de uma resposta
+  transmitida continua sendo erro visível: o erro surge depois de os cabeçalhos já terem sido
+  enviados, e prometer o contrário seria promessa falsa.
+
+### 4.5.1 O que deliberadamente NÃO foi migrado para o roteador
+
+- **A escolha de modelo do financeiro** (`resolve-extraction-model.ts`) tem spec própria (0014),
+  razão de custo documentada por mil leituras e modelos default diferentes dos níveis. Migrar
+  trocaria qual modelo lê o boleto do cliente, sem ganho — ela já fazia a parte boa que o roteador
+  generaliza.
+- **A escolha por tracking** (`tracking-chat-ai/lib/model.ts`) é outra coisa: o usuário escolheu
+  aquele modelo e aquela chave na tela de configuração. Roteamento por nível passaria por cima de
+  uma escolha explícita.
+
+Refatorar as duas seria mudança por mudança.
 
 ---
 
@@ -296,7 +319,7 @@ Duas decisões deliberadas:
 | 1 | Catálogo único de preço, ponto único de cobrança | ✅ Concluída — falta definir o preço das 14 ações |
 | 2 | Registro de custo e instrumentação | ✅ Concluída — 5 superfícies instrumentadas |
 | 3 | Migrar os pontos que hoje escapam do catálogo | ✅ Concluída — 19 pontos migrados, `debitStars` fechado por lint |
-| 4 | Roteador de IA | ⬜ |
+| 4 | Roteador de IA | ✅ Concluída |
 | 5 | Correção dos vazamentos, cada um atrás de flag | ✅ Código pronto — V1 aguarda decisão de produto |
 | 6 | Catálogo unificado de soluções por setor | ⬜ |
 
@@ -367,7 +390,7 @@ autoridade. Corrigir faz parte da frente:
 | `STARS_OVERVIEW.md` | Regra por organização sobrescreve o preço da ação | Não sobrescreve; só o catálogo global é lido |
 | `STARS_OVERVIEW.md` | "~15 ações ativas" | ~87 pontos de cobrança |
 | `STARS_AUDIT.md` | Lista ações como "ainda não cobram" | Várias já cobram |
-| `ASTRO_PROGRESS.md` | Provider padrão é Anthropic | É OpenAI, e falha sem a chave dela |
+| `ASTRO_PROGRESS.md` | Provider padrão é Anthropic | ✅ Corrigido na Fase 4: o ASTRO passou a funcionar com qualquer provedor disponível |
 
 ---
 
@@ -399,3 +422,4 @@ Esta frente mexe em dinheiro, saldo e schema. As regras de disciplina estão em 
 | 2026-09-18 | — | Fase 5: V3, V4, V5 e V6 corrigidos; V1 com cron criado e desligado. Ciclo mensal virou idempotente (não recredita com menos de 28 dias) e ganhou modo simulação. Nenhum saldo foi alterado. | Cada correção tem a própria flag ou é reversível revertendo o commit. Reverter o V4 volta o denominador a zero; reverter o V5 volta a não bloquear ninguém |
 | 2026-09-18 | — | ⚠️ **Decisão pendente de produto:** ligar o cron do ciclo mensal faria 17 organizações perderem 41.355★ acumuladas. Ver §3.1. | Não aplicável — nada foi aplicado |
 | 2026-09-18 | — | Fase 3: 16 ações portadas para o catálogo e 19 pontos de débito migrados; `meterOrThrow` e o caso de custo calculado adicionados; `debitStars` fechado por regra de lint. Verificado: 25 preços conferidos contra as constantes originais, zero divergências. | Reverter os commits devolve as constantes ao código; as linhas de catálogo ficam ociosas sem quebrar nada. Nenhum saldo foi alterado |
+| 2026-09-18 | — | Fase 4: roteador de modelos com níveis FAST/SMART/DEEP; ASTRO deixa de depender de um provedor único. Verificado por `pnpm tsx --require ./scripts/_setup-server-only.cjs scripts/verify-ai-router.ts` — modelo idêntico ao anterior com chave da OpenAI, e queda para o Gemini sem ela. | Reverter os commits volta o ASTRO a OpenAI-only. Nenhum dado é tocado |
