@@ -149,6 +149,33 @@ async function main() {
     `${activeRentals} integrações ativas, ${historyRows} linhas de histórico preservadas`,
   );
 
+  // ── Equivalência da cobrança por token do ASTRO ─────────────────────────
+  // Antes: Math.max(1, Math.round(tokens / 1000)). Agora: catálogo com
+  // arredondamento para cima. Mede-se a diferença em vez de supor.
+  const astroEntry = await resolvePrice(organization.id, "astro_tokens");
+  const samples = [
+    120, 400, 900, 1400, 1500, 2400, 2500, 3600, 7200, 15000, 40000,
+  ];
+  let diverging = 0;
+  let totalBefore = 0;
+  let totalAfter = 0;
+  for (const tokens of samples) {
+    const before = Math.max(1, Math.round(tokens / 1000));
+    const after = computeStars(astroEntry, { unit: "token", amount: tokens }).stars;
+    totalBefore += before;
+    totalAfter += after;
+    if (before !== after) {
+      diverging += 1;
+      console.log(`        ${tokens} tokens: antes ${before}★, agora ${after}★`);
+    }
+  }
+  check(
+    "ASTRO tokens",
+    astroEntry.source === "catalog",
+    `catálogo ativo; ${diverging} de ${samples.length} amostras divergem ` +
+      `(soma ${totalBefore}★ -> ${totalAfter}★)`,
+  );
+
   // ── CA-10 — ações sem preço ─────────────────────────────────────────────
   const stillMissing: string[] = [];
   for (const action of ACTIONS_WITHOUT_PRICE) {
