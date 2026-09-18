@@ -17,7 +17,11 @@ ASTRO é um copiloto IA escalável dentro do app: um orquestrador que delega par
 - **Schema enxuto**: 4 models — `AiAgentConfig`, `AiSession` (messages como Json), `AiKnowledge`, `AiKnowledgeChunk`.
 - **Permissões**: Admin/Owner configura; todos usam; tools respeitam `userId`.
 - **Transport**: Route handler `/api/astro/chat` com `streamText().toUIMessageStreamResponse()` + `useChat` do `@ai-sdk/react`. oRPC para o resto.
-- **Provider LLM default**: Anthropic (Sonnet); fallback OpenAI/Google por env.
+- **Provider LLM**: roteador de níveis desde 2026-09-18 — FAST, SMART e DEEP, com a ordem
+  `gpt-4o-mini`/`gpt-4o` e queda para Gemini e Anthropic conforme a chave disponível (a da
+  organização antes da nossa). Ver [`BILLING_ARCHITECTURE.md`](BILLING_ARCHITECTURE.md) §4.5.
+  _Correção de registro: até esta data esta linha dizia "default Anthropic (Sonnet)", o que o
+  código nunca fez — o ASTRO era OpenAI-only e lançava sem `OPENAI_API_KEY`._
 
 ## MVP
 
