@@ -1,9 +1,9 @@
+import { meterOrThrow } from "@/features/stars/lib/metering";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { requireStarsMiddleware } from "@/app/middlewares/require-stars";
 import prisma from "@/lib/prisma";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { StarTransactionType } from "@/generated/prisma/enums";
@@ -44,11 +44,15 @@ export const generateImageFromReference = base
       });
     }
 
-    const debit = await debitStars(
-      context.org.id, STARS_IMG2IMG, StarTransactionType.APP_CHARGE,
-      "NASA Planner — img2img Replicate SDXL", "nasa-planner", context.user.id,
-    );
-    if (!debit.success) throw new ORPCError("BAD_REQUEST", { message: "Saldo de stars insuficiente" });
+    const debit = await meterOrThrow({
+      organizationId: context.org.id,
+      action: "planner_image_reference",
+      userId: context.user.id,
+      appSlug: "nasa-planner",
+      description: "NASA Planner — img2img Replicate SDXL",
+      feature: "planner.image.reference",
+      cost: { kind: "IMAGE", provider: "replicate" },
+    }, "Saldo de stars insuficiente");
 
     // Fetch reference image from R2 as base64
     const s3Obj = await S3.send(
@@ -124,5 +128,5 @@ export const generateImageFromReference = base
       });
     }
 
-    return { slide, imageKey: key, starsSpent: STARS_IMG2IMG, balanceAfter: debit.newBalance };
+    return { slide, imageKey: key, starsSpent: debit.stars, balanceAfter: debit.balanceAfter };
   });

@@ -1,7 +1,7 @@
+import { meterOrThrow } from "@/features/stars/lib/metering";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { StarTransactionType } from "@/generated/prisma/enums";
 import { awardPoints } from "@/app/router/space-point/utils";
 import { logActivity } from "@/features/admin/lib/activity-logger";
@@ -36,25 +36,26 @@ export const createCampaign = base
   )
   .handler(async ({ input, context }) => {
     // Debitar STAR
-    let debitResult: { success: boolean; newBalance: number };
+    let debitResult: { stars: number; balanceAfter: number };
     try {
-      debitResult = await debitStars(
-        context.org.id,
-        STARS_COST,
-        StarTransactionType.APP_CHARGE,
-        "Criar Planejamento de Campanha",
-        "nasa-planner",
-        context.user.id,
+      debitResult = await meterOrThrow(
+        {
+          organizationId: context.org.id,
+          action: "planner_campaign_create",
+          userId: context.user.id,
+          appSlug: "nasa-planner",
+          description: "Criar Planejamento de Campanha",
+          feature: "planner.campaign",
+        },
+        "Saldo de STARs insuficiente. Adquira mais STARs para criar um planejamento.",
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // Saldo insuficiente já vem como ORPCError — repassa sem transformar em 500.
+      if (err instanceof ORPCError) throw err;
       throw new ORPCError("INTERNAL_SERVER_ERROR", {
-        message: `Erro ao verificar saldo de STARs: ${err?.message ?? "tente novamente"}`,
-      });
-    }
-
-    if (!debitResult.success) {
-      throw new ORPCError("BAD_REQUEST", {
-        message: "Saldo de STARs insuficiente. Adquira mais STARs para criar um planejamento.",
+        message: `Erro ao verificar saldo de STARs: ${
+          err instanceof Error ? err.message : "tente novamente"
+        }`,
       });
     }
 
@@ -111,5 +112,5 @@ export const createCampaign = base
       resourceId: campaign.id,
     }).catch(() => {});
 
-    return { campaign, starsSpent: STARS_COST, balanceAfter: debitResult.newBalance };
+    return { campaign, starsSpent: debitResult.stars, balanceAfter: debitResult.balanceAfter };
   });

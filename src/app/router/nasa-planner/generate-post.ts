@@ -1,8 +1,8 @@
+import { meterOrThrow } from "@/features/stars/lib/metering";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
@@ -38,16 +38,15 @@ export const generatePost = base
 
       const providerInfo = await selectImageProvider(context.org.id);
 
-      let debit: { success: boolean; newBalance: number };
-      try {
-        debit = await debitStars(
-          context.org.id, STARS_POST_FULL, StarTransactionType.APP_CHARGE,
-          "NASA Planner — geração de conteúdo IA", "nasa-planner", context.user.id,
-        );
-      } catch (starErr: any) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", { message: `Erro ao debitar stars: ${starErr?.message ?? "tente novamente"}` });
-      }
-      if (!debit.success) throw new ORPCError("BAD_REQUEST", { message: "Saldo de stars insuficiente para gerar o post" });
+      const debit = await meterOrThrow({
+        organizationId: context.org.id,
+        action: "planner_post_generate",
+        userId: context.user.id,
+        appSlug: "nasa-planner",
+        description: "NASA Planner — geração de conteúdo IA",
+        feature: "planner.post.generate",
+        cost: { kind: "LLM" },
+      }, "Saldo de stars insuficiente para gerar o post");
 
       const projSwot = orgProject?.swot as Record<string, string> | null;
       const projVisual = orgProject?.visual as Record<string, string> | null;
@@ -198,7 +197,7 @@ INSTRUÇÕES:
         metadata: { type: post.type, starsSpent: STARS_POST_FULL, hasImage: !!generatedImageKey },
       });
 
-      return { post: updatedPost, starsSpent: STARS_POST_FULL, balanceAfter: debit.newBalance };
+      return { post: updatedPost, starsSpent: debit.stars, balanceAfter: debit.balanceAfter };
     } catch (err: any) {
       if (err instanceof ORPCError) throw err;
       console.error("[NASA Planner] Unexpected error:", err?.message ?? err);
