@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requireStarsMiddleware } from "@/app/middlewares/require-stars";
 import prisma from "@/lib/prisma";
 import { debitStars } from "@/features/stars/lib/star-service";
 import { ORPCError } from "@orpc/server";
@@ -79,6 +80,7 @@ const MODEL_TO_LABEL: Record<(typeof MODEL_OPTIONS)[number], string> = {
 export const generatePostImage = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requireStarsMiddleware)
   .route({
     method: "POST",
     path: "/nasa-planner/posts/generate-image",

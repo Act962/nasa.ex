@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requireStarsMiddleware } from "@/app/middlewares/require-stars";
 import prisma from "@/lib/prisma";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -14,6 +15,7 @@ import { StarTransactionType } from "@/generated/prisma/enums";
 export const transcribeVideo = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requireStarsMiddleware)
   .input(z.object({ postId: z.string() }))
   .handler(async ({ input, context }) => {
     const post = await prisma.nasaPlannerPost.findFirst({

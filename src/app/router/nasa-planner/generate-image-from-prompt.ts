@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requireStarsMiddleware } from "@/app/middlewares/require-stars";
 import prisma from "@/lib/prisma";
 import { debitStars } from "@/features/stars/lib/star-service";
 import { ORPCError } from "@orpc/server";
@@ -17,6 +18,7 @@ import {
 export const generateImageFromPrompt = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requireStarsMiddleware)
   .input(
     z.object({
       postId: z.string(),

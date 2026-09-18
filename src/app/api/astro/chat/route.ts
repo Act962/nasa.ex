@@ -136,9 +136,23 @@ export async function POST(req: Request) {
   // dele, que só enxerga as tools do próprio pedido.
   const organization = await prisma.organization.findUnique({
     where: { id: organizationId },
-    select: { appScope: true },
+    select: { appScope: true, starsSuspendedAt: true },
   });
   const isTrafegoScope = organization?.appScope === "trafego";
+
+  // Organização suspensa por falta de Stars não gera resposta. Esta rota não é
+  // procedure oRPC, então o middleware de suspensão não a alcança — o bloqueio
+  // precisa ser explícito aqui (vazamento V5 do docs/BILLING_ARCHITECTURE.md).
+  if (!isTrafegoScope && organization?.starsSuspendedAt) {
+    return NextResponse.json(
+      {
+        error:
+          "Conta suspensa por falta de Stars. Recarregue pra voltar a usar o Astro.",
+        code: "STARS_SUSPENDED",
+      },
+      { status: 403 },
+    );
+  }
 
   // ── Cobrança de Stars (regra global em AppStarCost: "astro_prompt") ─────
   // Custo fixo de "stake" por prompt — garante que o user tem saldo antes

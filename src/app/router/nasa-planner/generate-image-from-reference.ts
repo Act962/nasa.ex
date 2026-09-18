@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requireStarsMiddleware } from "@/app/middlewares/require-stars";
 import prisma from "@/lib/prisma";
 import { debitStars } from "@/features/stars/lib/star-service";
 import { ORPCError } from "@orpc/server";
@@ -20,6 +21,7 @@ const STARS_IMG2IMG = 1; // Replicate SDXL ~$0.002 × 1.5 ÷ 0.15 ≈ 1 STAR
 export const generateImageFromReference = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requireStarsMiddleware)
   .input(
     z.object({
       postId: z.string(),
