@@ -3,6 +3,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import type { Suggestion } from "@/features/payment/lib/reconciliation/assign-matches";
 import { suggestMatches } from "./suggest-matches";
+import type { AstroReviewResult } from "./review-transaction";
 
 // Fila de transações do extrato com a sugestão de lançamento de cada uma.
 // Serve a aba Conciliação e o `list_unreconciled_transactions` do Astro.
@@ -78,6 +79,25 @@ export async function listStatementTransactionsRecord(params: ListStatementTrans
         })
       : new Map();
 
+  // Comprovante (kind COMPROVANTE) do lançamento conciliado — usado pelo selo
+  // e pela leitura por IA na aba de conciliação.
+  const matchedEntryIds = transactions
+    .map((transaction) => transaction.matchedEntryId)
+    .filter((entryId): entryId is string => Boolean(entryId));
+  const comprovantes = matchedEntryIds.length
+    ? await prisma.paymentAttachment.findMany({
+        where: { entryId: { in: matchedEntryIds }, kind: "COMPROVANTE" },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, entryId: true },
+      })
+    : [];
+  const comprovanteByEntryId = new Map<string, string>();
+  for (const comprovante of comprovantes) {
+    if (comprovante.entryId && !comprovanteByEntryId.has(comprovante.entryId)) {
+      comprovanteByEntryId.set(comprovante.entryId, comprovante.id);
+    }
+  }
+
   const suggestedEntryIds = [...suggestions.values()].map((suggestion) => suggestion.entryId);
   const suggestedEntries = suggestedEntryIds.length
     ? await prisma.paymentEntry.findMany({
@@ -101,6 +121,10 @@ export async function listStatementTransactionsRecord(params: ListStatementTrans
       const entry = suggestion ? entryById.get(suggestion.entryId) : undefined;
       return {
         ...transaction,
+        reviewResult: (transaction.reviewResult as AstroReviewResult | null) ?? null,
+        comprovanteAttachmentId: transaction.matchedEntryId
+          ? comprovanteByEntryId.get(transaction.matchedEntryId) ?? null
+          : null,
         suggestion:
           suggestion && entry
             ? {

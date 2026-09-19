@@ -11,6 +11,7 @@ export interface GoalsCardData {
   hasRevenueTarget: boolean;
   hasMonthOverride: boolean;
   receivedRevenue: number;
+  salesRevenue: number;
   projectedRevenue: number;
   openPayable: number;
   projectedCash: number;
@@ -73,7 +74,7 @@ export function GoalsCard({
   }
 
   const reservePercentLabel = `${data.cashReservePercent}% da receita`;
-  const missingToGoal = Math.max(data.revenueTargetCents - data.receivedRevenue, 0);
+  const missingToGoal = Math.max(data.revenueTargetCents - data.salesRevenue, 0);
   const reserveFillPercent =
     data.reserveTargetProjected > 0
       ? (data.projectedCash / data.reserveTargetProjected) * 100
@@ -96,7 +97,7 @@ export function GoalsCard({
             {data.hasRevenueTarget ? (
               <>
                 <p className="text-xl font-black tabular-nums">
-                  {formatCurrency(data.receivedRevenue)}
+                  {formatCurrency(data.salesRevenue)}
                 </p>
                 <ProgressBar percent={data.goalProgressPercent} tone="emerald" />
                 <p className="text-[11px] tabular-nums text-muted-foreground">

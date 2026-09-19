@@ -70,6 +70,7 @@ import { astroBotRouter } from "./astro-bot";
 import { whatsappAnalyticsRouter } from "./whatsapp-analytics";
 import { campanhasRouter } from "./campanhas";
 import { trafegoRouter } from "./trafego";
+import { seiRouter } from "./sei";
 
 export const router = {
   tracking: trackingRoutes,
@@ -147,4 +148,6 @@ export const router = {
   /** Campanhas — disparos WhatsApp API Oficial (MM API). Ver docs/campanhas-overview.md. */
   campanhas: campanhasRouter,
   trafego: trafegoRouter,
+  /** Integração com processos administrativos do SEI por lead. */
+  sei: seiRouter,
 };

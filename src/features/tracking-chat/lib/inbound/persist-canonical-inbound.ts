@@ -230,7 +230,7 @@ export async function persistCanonicalInbound(
       // Reload pra ter conversation no `lead.conversation` daqui pra
       // frente — firePostInboundAutomations precisa do id.
       lead = await prisma.lead.findUnique({
-        where: { phone_trackingId: { phone, trackingId: ctx.trackingId } },
+        where: { id: lead.id },
         include: {
           conversation: true,
           leadTags: { include: { tag: true } },

@@ -66,6 +66,8 @@ import {
   unmatchStatementTransaction,
   createEntryFromTransaction,
   ignoreStatementTransaction,
+  markStatementTransactionReviewed,
+  reviewStatementTransactionWithAstro,
   listStatementImports,
 } from "./statements";
 import {
@@ -181,6 +183,8 @@ export const paymentRouter = {
       unmatch:     unmatchStatementTransaction,
       createEntry: createEntryFromTransaction,
       ignore:      ignoreStatementTransaction,
+      markReviewed: markStatementTransactionReviewed,
+      reviewWithAstro: reviewStatementTransactionWithAstro,
     },
   },
   goals: {

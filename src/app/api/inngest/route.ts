@@ -27,6 +27,7 @@ import { trafegoPurchasePaid } from "@/inngest/functions/trafego/purchase-paid";
 import { trafegoOrderRequested } from "@/inngest/functions/trafego/order-requested";
 import { trafegoOrderStatusChanged } from "@/inngest/functions/trafego/order-status-changed";
 import { trafegoReleaseGenerate } from "@/inngest/functions/trafego/release-generate";
+import { trafegoOrderCreated } from "@/inngest/functions/trafego/order-created";
 import { trafegoKanbanDriftSweep } from "@/inngest/functions/crons/trafego-kanban-drift-sweep";
 import { trafegoPixPendingSweep } from "@/inngest/functions/crons/trafego-pix-pending-sweep";
 import { trafegoAsaasPaymentEvent } from "@/inngest/functions/trafego/asaas-payment-event";
@@ -91,6 +92,8 @@ import { paymentInboxSyncCron, paymentInboxSyncOrg } from "@/inngest/functions/p
 import { dispatchBroadcast } from "@/inngest/functions/campanhas/dispatch-broadcast";
 import { dispatchDueBroadcasts } from "@/inngest/functions/campanhas/dispatch-due-broadcasts";
 import { watchScheduledBroadcast } from "@/inngest/functions/campanhas/watch-scheduled-broadcast";
+import { syncSeiProcess } from "@/inngest/functions/sei/sync-process";
+import { testSeiConnection } from "@/inngest/functions/sei/test-connection";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -115,6 +118,7 @@ export const { GET, POST, PUT } = serve({
     trafegoOrderRequested,
     trafegoOrderStatusChanged,
     trafegoReleaseGenerate,
+    trafegoOrderCreated,
     // ── trafeGO: card do tracking realinhado ao pedido (de hora em hora) ──
     trafegoKanbanDriftSweep,
     // ── trafeGO: PIX vencido vira EXPIRED (de hora em hora) ──
@@ -193,6 +197,9 @@ export const { GET, POST, PUT } = serve({
     dispatchDueBroadcasts,
     // Disparo agendado por campanha — caminho principal; o cron acima é a rede.
     watchScheduledBroadcast,
+    // ── SEI — consultas SOAP fora do ciclo das rotas HTTP ──
+    syncSeiProcess,
+    testSeiConnection,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

@@ -1,39 +1,21 @@
 "use client";
 
-/**
- * Proposal Templates — 5 visual models for public proposal landing pages.
- * Template choice is stored in proposal.headerConfig.template
- *
- * PDF print requirements:
- *  - Elements never cut across page breaks (break-inside: avoid on cards/rows)
- *  - Running header on every page: logo + org name + proposal ref
- *  - Running footer on every page: creator name + creation date + branding
- *  - Product images always visible
- */
-
-import { ShoppingCart, CheckCircle2, Zap, Star, ExternalLink } from "lucide-react";
+import { CheckCircle2, CreditCard, Download, FileText } from "lucide-react";
 import DOMPurify from "isomorphic-dompurify";
-import { cn } from "@/lib/utils";
 import { useConstructUrl as constructUrl } from "@/hooks/use-construct-url";
-import { IdentityBlock } from "./parts/identity-block";
-import { CompanyInfoBlock } from "./parts/company-info-block";
-import { EcosystemLinksBlock } from "./parts/ecosystem-links-block";
 import { AcceptButton } from "./parts/accept-button";
+import { CompanyInfoBlock } from "./parts/company-info-block";
 import { NasaPoweredBy } from "./parts/nasa-powered-by";
 
-const sanitizeDescription = (html: string) => DOMPurify.sanitize(html);
-
-export type TemplateId = "modern" | "clean" | "corporate" | "bold" | "premium";
-
-export const TEMPLATE_LIST: { id: TemplateId; name: string; desc: string; preview: string }[] = [
-  { id: "modern",    name: "Modern",    desc: "Fundo escuro com cards de produto em destaque", preview: "bg-gradient-to-br from-slate-900 to-purple-950" },
-  { id: "clean",     name: "Clean",     desc: "Minimalista branco, tipografia refinada",        preview: "bg-white border-2 border-gray-200" },
-  { id: "corporate", name: "Corporate", desc: "Profissional azul corporativo, tabela clara",    preview: "bg-gradient-to-br from-blue-700 to-blue-900" },
-  { id: "bold",      name: "Bold",      desc: "Alto contraste, tipografia de impacto",          preview: "bg-black" },
-  { id: "premium",   name: "Premium",   desc: "Luxo escuro com detalhes dourados",              preview: "bg-gradient-to-br from-neutral-900 to-stone-900" },
+export type TemplateId = "standard";
+export const TEMPLATE_LIST = [
+  {
+    id: "standard" as const,
+    name: "Proposta N.A.S.A.",
+    desc: "Modelo único, legível e otimizado para conversão.",
+    preview: "bg-gradient-to-br from-slate-950 via-slate-900 to-violet-950",
+  },
 ];
-
-// ─── Shared types ──────────────────────────────────────────────────────────────
 
 export interface TemplateProduct {
   id: string;
@@ -49,7 +31,6 @@ export interface TemplateProduct {
     description: string | null;
   };
 }
-
 export interface TemplateProposal {
   title: string;
   number: number;
@@ -60,7 +41,6 @@ export interface TemplateProposal {
   discountType: string | null;
   paymentLink: string | null;
   createdAt?: string | null;
-  responsibleName?: string | null;
   products: TemplateProduct[];
   organization: {
     name: string;
@@ -91,7 +71,6 @@ export interface TemplateProposal {
     proposalBgColor: string;
   } | null;
 }
-
 export interface TemplateEcosystemLinks {
   agendaUrl: string | null;
   agendaLabel: string | null;
@@ -101,15 +80,17 @@ export interface TemplateEcosystemLinks {
   nasaRouteCount: number;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-export function fmt(n: number) {
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+export function fmt(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
-
 export function calcTotals(proposal: TemplateProposal) {
-  const subtotal = proposal.products.reduce((s, pp) =>
-    s + Number(pp.quantity) * Number(pp.unitValue) - Number(pp.discount ?? 0), 0);
+  const subtotal = proposal.products.reduce(
+    (sum, item) =>
+      sum +
+      Number(item.quantity) * Number(item.unitValue) -
+      Number(item.discount ?? 0),
+    0,
+  );
   const discountAmount = proposal.discount
     ? proposal.discountType === "PERCENTUAL"
       ? subtotal * (Number(proposal.discount) / 100)
@@ -118,82 +99,29 @@ export function calcTotals(proposal: TemplateProposal) {
   return { subtotal, discountAmount, total: subtotal - discountAmount };
 }
 
-// ─── Print-only running header (repeats on every PDF page) ────────────────────
-// Screen: hidden via CSS class "forge-print-header"
-// Print:  position: fixed, top: 0 → sits in the @page top margin
-
-function PrintRunningHeader({
-  logo,
-  orgName,
-  number,
-  title,
-}: {
-  logo: string | null;
-  orgName: string;
-  number: number;
-  title: string;
-}) {
-  return (
-    <div className="forge-print-header" aria-hidden="true">
-      {/* Left: logo + org name */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        {logo && (
-          <img
-            src={logo}
-            alt={orgName}
-            style={{ height: "26px", objectFit: "contain", maxWidth: "80px" }}
-          />
-        )}
-        <span style={{ fontWeight: 700, fontSize: "10pt", color: "#1f2937" }}>
-          {orgName}
-        </span>
+function ProductImage({ product }: { product: TemplateProduct["product"] }) {
+  if (!product.imageUrl)
+    return (
+      <div className="aspect-[4/3] bg-slate-100 grid place-items-center text-slate-400">
+        <FileText className="size-8" />
       </div>
-      {/* Right: title + number */}
-      <span style={{ fontFamily: "monospace", fontSize: "9pt", color: "#6b7280", textAlign: "right", maxWidth: "55%" }}>
-        {title} · #{String(number).padStart(4, "0")}
-      </span>
-    </div>
-  );
-}
-
-// ─── Print-only running footer (repeats on every PDF page) ────────────────────
-
-function PrintRunningFooter({
-  orgName,
-  responsibleName,
-  createdAt,
-}: {
-  orgName: string;
-  responsibleName?: string | null;
-  createdAt?: string | null;
-}) {
-  const dateStr = createdAt
-    ? new Date(createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
-    : "";
-
-  const left = [
-    responsibleName ? `Criado por ${responsibleName}` : null,
-    dateStr || null,
-  ]
-    .filter(Boolean)
-    .join("  ·  ");
-
+    );
   return (
-    <div className="forge-print-footer" aria-hidden="true">
-      <span>{left}</span>
-      <span style={{ color: "#9ca3af" }}>{orgName} · FORGE · N.A.S.A®</span>
+    <div className="aspect-[4/3] bg-slate-100 overflow-hidden">
+      <img
+        src={constructUrl(product.imageUrl)}
+        alt={product.name}
+        className="size-full object-contain"
+      />
     </div>
   );
 }
-
-// ─── Template: MODERN ─────────────────────────────────────────────────────────
 
 export function TemplateModern({
   proposal,
   isExpired,
   isPaid,
   token,
-  ecosystemLinks,
 }: {
   proposal: TemplateProposal;
   isExpired: boolean;
@@ -201,1145 +129,180 @@ export function TemplateModern({
   token: string;
   ecosystemLinks: TemplateEcosystemLinks;
 }) {
-  const { total, subtotal, discountAmount } = calcTotals(proposal);
+  const { subtotal, discountAmount, total } = calcTotals(proposal);
   const logo = proposal.settings?.logoUrl ?? proposal.organization.logo;
+  const hasPayment = Boolean(proposal.paymentLink) && !isExpired && !isPaid;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      {/* Print running elements */}
-      <PrintRunningHeader
-        logo={logo}
-        orgName={proposal.organization.name}
-        number={proposal.number}
-        title={proposal.title}
-      />
-      <PrintRunningFooter
-        orgName={proposal.organization.name}
-        responsibleName={proposal.responsibleName}
-        createdAt={proposal.createdAt}
-      />
-
-      {/* Status */}
-      {isExpired && !isPaid && (
-        <div className="bg-red-600 text-white text-sm flex items-center justify-center gap-2 px-6 py-2.5 font-medium forge-no-print">
-          ⚠ Proposta expirada em {new Date(proposal.validUntil!).toLocaleDateString("pt-BR")}
+    <main className="min-h-screen bg-slate-100 text-slate-950 selection:bg-violet-200">
+      {isExpired ? (
+        <div className="bg-amber-100 px-4 py-3 text-center text-base font-semibold text-amber-950">
+          Esta proposta expirou.
         </div>
-      )}
-      {isPaid && (
-        <div className="bg-emerald-600 text-white text-sm flex items-center justify-center gap-2 px-6 py-2.5 font-medium forge-no-print">
-          <CheckCircle2 className="size-4" /> Proposta paga — obrigado!
+      ) : null}
+      {isPaid ? (
+        <div className="bg-emerald-600 px-4 py-3 text-center text-base font-semibold text-white">
+          <CheckCircle2 className="mr-2 inline size-5" />
+          Pagamento confirmado. Obrigado!
         </div>
-      )}
-
-      {/* Hero */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#7C3AED]/30 via-slate-900 to-slate-950 px-8 py-16 text-center">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(124,58,237,0.2),transparent_60%)]" />
-        <div className="relative z-10 max-w-3xl mx-auto space-y-4">
-          {logo && (
-            <img src={logo} alt="Logo" className="h-14 object-contain mx-auto" />
-          )}
-          <p className="text-[#a78bfa] text-xs font-mono uppercase tracking-widest">
-            Proposta Comercial #{String(proposal.number).padStart(4, "0")}
-          </p>
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
-            {proposal.title}
-          </h1>
-          {proposal.client && (
-            <p className="text-slate-400 text-sm">
-              Para: <strong className="text-white">{proposal.client.name}</strong>
-            </p>
-          )}
-          {proposal.validUntil && (
-            <p className="text-slate-500 text-sm">
-              Válida até {new Date(proposal.validUntil).toLocaleDateString("pt-BR")}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Identity */}
-      <IdentityBlock
-        responsible={
-          proposal.responsible
-            ? { name: proposal.responsible.name, imageKey: proposal.responsible.image }
-            : null
-        }
-        client={
-          proposal.client
-            ? { name: proposal.client.name, imageKey: proposal.client.profile }
-            : null
-        }
-        variant="dark"
-      />
-
-      {/* Description */}
-      {proposal.description && (
-        <div
-          className="max-w-3xl mx-auto px-8 py-8 text-slate-300 text-base leading-relaxed whitespace-pre-wrap"
-          dangerouslySetInnerHTML={{ __html: sanitizeDescription(proposal.description) }}
-        />
-      )}
-
-      {/* Products grid */}
-      {proposal.products.length > 0 && (
-        <div className="max-w-5xl mx-auto px-6 pb-8">
-          <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest text-center mb-6">
-            O que está incluído
-          </p>
-          <div
-            className={cn(
-              proposal.products.length === 1
-                ? "flex justify-center"
-                : "flex flex-wrap justify-center gap-4",
-            )}
-          >
-            {proposal.products.map((pp) => {
-              const lineTotal =
-                Number(pp.quantity) * Number(pp.unitValue) - Number(pp.discount ?? 0);
-              return (
-                <div
-                  key={pp.id}
-                  className={cn(
-                    "bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col forge-avoid-break",
-                    proposal.products.length === 1
-                      ? "w-full md:w-1/2"
-                      : "w-full sm:w-[260px] md:w-[300px]",
-                  )}
-                >
-                  {/* Product image — always rendered, prominent */}
-                  {pp.product.imageUrl ? (
-                    <img
-                      src={constructUrl(pp.product.imageUrl)}
-                      alt={pp.product.name}
-                      style={{
-                        width: "100%",
-                        height: "180px",
-                        objectFit: "cover",
-                        display: "block",
-                        flexShrink: 0,
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-24 bg-slate-800 flex items-center justify-center">
-                      <span className="text-slate-600 text-xs">Sem imagem</span>
-                    </div>
-                  )}
-                  <div className="p-5 flex-1 flex flex-col gap-3">
-                    <div className="flex-1">
-                      <p className="font-bold text-lg">{pp.product.name}</p>
-                      <p className="text-slate-400 text-sm mt-1.5 leading-relaxed">
-                        {pp.description ?? pp.product.description}
-                      </p>
-                      <p className="text-slate-600 text-xs mt-1.5">
-                        {Number(pp.quantity).toLocaleString("pt-BR")} {pp.product.unit}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xl font-extrabold text-[#a78bfa]">{fmt(lineTotal)}</p>
-                      {proposal.paymentLink && !isPaid && !isExpired && (
-                        <a
-                          href={proposal.paymentLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="forge-no-print mt-2 flex items-center justify-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-xl py-2.5 text-sm font-semibold transition-colors"
-                        >
-                          <ShoppingCart className="size-4" /> Adquira agora
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Totals + Main CTA */}
-      <div
-        className="max-w-3xl mx-auto px-8 pb-16 forge-avoid-break"
-      >
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
-          <div className="flex justify-between text-sm text-slate-400">
-            <span>Subtotal</span>
-            <span>{fmt(subtotal)}</span>
-          </div>
-          {discountAmount > 0 && (
-            <div className="flex justify-between text-sm text-emerald-400">
-              <span>Desconto</span>
-              <span>- {fmt(discountAmount)}</span>
+      ) : null}
+      <section className="bg-slate-950 text-white">
+        <div className="mx-auto max-w-6xl px-5 py-7 sm:px-8 sm:py-10 lg:px-12">
+          <div className="flex items-center justify-between gap-5 border-b border-white/15 pb-6">
+            <div className="min-w-0">
+              {logo ? (
+                <img
+                  src={constructUrl(logo)}
+                  alt={proposal.organization.name}
+                  className="h-11 max-w-44 object-contain object-left"
+                />
+              ) : (
+                <p className="text-xl font-bold">
+                  {proposal.organization.name}
+                </p>
+              )}
             </div>
-          )}
-          <div className="flex justify-between text-2xl font-extrabold border-t border-slate-700 pt-3">
-            <span>Total</span>
-            <span className="text-[#a78bfa]">{fmt(total)}</span>
-          </div>
-          {proposal.paymentLink && !isPaid && !isExpired && (
-            <a
-              href={proposal.paymentLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="forge-no-print flex items-center justify-center gap-3 bg-gradient-to-r from-[#7C3AED] to-[#a855f7] text-white rounded-xl py-4 text-base font-bold mt-4 hover:opacity-90 transition-opacity shadow-lg shadow-purple-900/40"
-            >
-              <Zap className="size-5" /> Adquirir agora — {fmt(total)}
-            </a>
-          )}
-        </div>
-      </div>
-
-      {/* Aceitar proposta */}
-      <AcceptButton
-        token={token}
-        client={proposal.client}
-        isExpired={isExpired}
-        isPaid={isPaid}
-        variant="dark"
-      />
-
-      {/* Sobre a empresa */}
-      <CompanyInfoBlock organization={proposal.organization} variant="dark" />
-
-      {/* Ecosystem links */}
-      <EcosystemLinksBlock links={ecosystemLinks} variant="dark" />
-
-      {/* Powered by NASA */}
-      <NasaPoweredBy variant="dark" />
-
-      {/* Screen footer */}
-      <div className="border-t border-slate-800 px-8 py-4 text-center text-xs text-slate-600 forge-no-print">
-        {proposal.organization.name} · Proposta gerada via FORGE · N.A.S.A®
-      </div>
-    </div>
-  );
-}
-
-// ─── Template: CLEAN ──────────────────────────────────────────────────────────
-
-export function TemplateClean({
-  proposal,
-  isExpired,
-  isPaid,
-  token,
-  ecosystemLinks,
-}: {
-  proposal: TemplateProposal;
-  isExpired: boolean;
-  isPaid: boolean;
-  token: string;
-  ecosystemLinks: TemplateEcosystemLinks;
-}) {
-  const { total, subtotal, discountAmount } = calcTotals(proposal);
-  const logo = proposal.settings?.logoUrl ?? proposal.organization.logo;
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <PrintRunningHeader
-        logo={logo}
-        orgName={proposal.organization.name}
-        number={proposal.number}
-        title={proposal.title}
-      />
-      <PrintRunningFooter
-        orgName={proposal.organization.name}
-        responsibleName={proposal.responsibleName}
-        createdAt={proposal.createdAt}
-      />
-
-      {isExpired && !isPaid && (
-        <div className="bg-red-50 border-b border-red-200 text-red-700 text-sm flex items-center justify-center gap-2 px-6 py-2.5 forge-no-print">
-          ⚠ Proposta expirada em {new Date(proposal.validUntil!).toLocaleDateString("pt-BR")}
-        </div>
-      )}
-      {isPaid && (
-        <div className="bg-emerald-50 border-b border-emerald-200 text-emerald-700 text-sm flex items-center justify-center gap-2 px-6 py-2.5 forge-no-print">
-          <CheckCircle2 className="size-4" /> Proposta paga — obrigado!
-        </div>
-      )}
-
-      <div className="max-w-3xl mx-auto bg-white min-h-screen shadow-sm">
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-10 py-8 border-b forge-avoid-break"
-        >
-          {logo ? (
-            <img src={logo} alt="Logo" className="h-10 object-contain" />
-          ) : (
-            <p className="font-bold text-xl">{proposal.organization.name}</p>
-          )}
-          <div className="text-right">
-            <p className="text-xs text-gray-400 font-mono">
-              #{String(proposal.number).padStart(4, "0")}
+            <p className="shrink-0 text-sm font-medium text-slate-300">
+              Proposta #{String(proposal.number).padStart(4, "0")}
             </p>
-            {proposal.validUntil && (
-              <p className="text-xs text-gray-400">
-                Válida até {new Date(proposal.validUntil).toLocaleDateString("pt-BR")}
+          </div>
+          <div className="max-w-4xl py-12 sm:py-16">
+            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-violet-300">
+              Proposta comercial
+            </p>
+            <h1 className="text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
+              {proposal.title}
+            </h1>
+            {proposal.client ? (
+              <p className="mt-6 text-lg text-slate-300 sm:text-xl">
+                Preparada para{" "}
+                <span className="font-semibold text-white">
+                  {proposal.client.name}
+                </span>
               </p>
-            )}
-          </div>
-        </div>
-
-        {/* Title */}
-        <div className="px-10 py-10 forge-avoid-break">
-          {proposal.client && (
-            <p className="text-sm text-gray-400 mb-2">Para {proposal.client.name}</p>
-          )}
-          <h1 className="text-4xl font-black text-gray-900 leading-tight">{proposal.title}</h1>
-          {proposal.description && (
-            <p
-              className="mt-4 text-gray-500 text-sm leading-relaxed whitespace-pre-wrap"
-              dangerouslySetInnerHTML={{ __html: sanitizeDescription(proposal.description) }}
-            />
-          )}
-        </div>
-
-        {/* Identity */}
-        <IdentityBlock
-          responsible={
-            proposal.responsible
-              ? { name: proposal.responsible.name, imageKey: proposal.responsible.image }
-              : null
-          }
-          client={
-            proposal.client
-              ? { name: proposal.client.name, imageKey: proposal.client.profile }
-              : null
-          }
-          variant="light"
-        />
-
-        {/* Products */}
-        {proposal.products.length > 0 && (
-          <div
-            className={cn(
-              "px-10 pb-8",
-              proposal.products.length === 1
-                ? "flex flex-col items-center gap-4"
-                : "space-y-4",
-            )}
-          >
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
-              Itens da proposta
-            </p>
-            {proposal.products.map((pp) => {
-              const lineTotal =
-                Number(pp.quantity) * Number(pp.unitValue) - Number(pp.discount ?? 0);
-              return (
-                <div
-                  key={pp.id}
-                  className={cn(
-                    "border border-gray-100 rounded-xl overflow-hidden forge-avoid-break",
-                    proposal.products.length === 1 ? "w-full md:w-1/2" : "w-full",
-                  )}
-                >
-                  {/* Product image (full-width strip) */}
-                  {pp.product.imageUrl && (
-                    <img
-                      src={constructUrl(pp.product.imageUrl)}
-                      alt={pp.product.name}
-                      style={{
-                        width: "100%",
-                        height: "180px",
-                        objectFit: "cover",
-                        display: "block",
-                      }}
-                    />
-                  )}
-                  <div className="flex items-start gap-4 p-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900">{pp.product.name}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {pp.description ?? pp.product.description}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {Number(pp.quantity).toLocaleString("pt-BR")} {pp.product.unit}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0 flex flex-col items-end gap-2">
-                      <p className="font-bold text-gray-900 text-lg">{fmt(lineTotal)}</p>
-                      {proposal.paymentLink && !isPaid && !isExpired && (
-                        <a
-                          href={proposal.paymentLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="forge-no-print text-xs border border-gray-900 text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-900 hover:text-white transition-colors font-medium"
-                        >
-                          Adquira agora
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Totals */}
-        <div
-          className="px-10 pb-10 forge-avoid-break"
-        >
-          <div className="border-t pt-6 space-y-2 max-w-xs ml-auto">
-            <div className="flex justify-between text-sm text-gray-400">
-              <span>Subtotal</span>
-              <span>{fmt(subtotal)}</span>
-            </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-sm text-emerald-600">
-                <span>Desconto</span>
-                <span>- {fmt(discountAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-black text-2xl text-gray-900 border-t pt-3">
-              <span>Total</span>
-              <span>{fmt(total)}</span>
-            </div>
-          </div>
-          {proposal.paymentLink && !isPaid && !isExpired && (
-            <a
-              href={proposal.paymentLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="forge-no-print mt-6 flex items-center justify-center gap-2 bg-gray-900 text-white rounded-xl py-4 font-bold text-base hover:bg-gray-800 transition-colors"
-            >
-              <ShoppingCart className="size-5" /> Adquirir proposta — {fmt(total)}
-            </a>
-          )}
-        </div>
-
-        {/* Aceitar proposta */}
-        <AcceptButton
-          token={token}
-          client={proposal.client}
-          isExpired={isExpired}
-          isPaid={isPaid}
-          variant="light"
-        />
-
-        {/* Sobre a empresa */}
-        <CompanyInfoBlock organization={proposal.organization} variant="light" />
-
-        {/* Ecosystem links */}
-        <EcosystemLinksBlock links={ecosystemLinks} variant="light" />
-
-        {/* Powered by NASA */}
-        <NasaPoweredBy variant="light" />
-
-        <div className="border-t px-10 py-4 text-xs text-gray-300 text-center forge-no-print">
-          {proposal.organization.name} · FORGE · N.A.S.A®
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Template: CORPORATE ──────────────────────────────────────────────────────
-
-export function TemplateCorporate({
-  proposal,
-  isExpired,
-  isPaid,
-  token,
-  ecosystemLinks,
-}: {
-  proposal: TemplateProposal;
-  isExpired: boolean;
-  isPaid: boolean;
-  token: string;
-  ecosystemLinks: TemplateEcosystemLinks;
-}) {
-  const { total, subtotal, discountAmount } = calcTotals(proposal);
-  const logo = proposal.settings?.logoUrl ?? proposal.organization.logo;
-
-  return (
-    <div className="min-h-screen bg-slate-100">
-      <PrintRunningHeader
-        logo={logo}
-        orgName={proposal.organization.name}
-        number={proposal.number}
-        title={proposal.title}
-      />
-      <PrintRunningFooter
-        orgName={proposal.organization.name}
-        responsibleName={proposal.responsibleName}
-        createdAt={proposal.createdAt}
-      />
-
-      {isExpired && !isPaid && (
-        <div className="bg-red-600 text-white text-sm text-center py-2 font-medium forge-no-print">
-          Proposta expirada em {new Date(proposal.validUntil!).toLocaleDateString("pt-BR")}
-        </div>
-      )}
-      {isPaid && (
-        <div className="bg-emerald-600 text-white text-sm text-center py-2 font-medium forge-no-print">
-          ✓ Proposta paga
-        </div>
-      )}
-
-      {/* Blue header */}
-      <div
-        className="bg-gradient-to-r from-blue-800 to-blue-700 text-white px-8 py-8 forge-avoid-break"
-      >
-        <div className="max-w-4xl mx-auto flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4">
-            {logo && (
-              <img
-                src={logo}
-                alt="Logo"
-                className="h-12 object-contain bg-white/10 p-1.5 rounded"
-              />
-            )}
-            <div>
-              <p className="font-bold text-xl">{proposal.organization.name}</p>
-              <p className="text-blue-200 text-xs">Proposta Comercial</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-2xl font-extrabold">
-              #{String(proposal.number).padStart(4, "0")}
-            </p>
-            {proposal.validUntil && (
-              <p className="text-blue-200 text-xs">
-                Válida até {new Date(proposal.validUntil).toLocaleDateString("pt-BR")}
+            ) : null}
+            {proposal.validUntil ? (
+              <p className="mt-3 text-base text-slate-400">
+                Válida até{" "}
+                {new Date(proposal.validUntil).toLocaleDateString("pt-BR")}
               </p>
-            )}
+            ) : null}
           </div>
         </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
-        {/* Title card */}
-        <div
-          className="bg-white rounded-xl border border-slate-200 px-8 py-6 shadow-sm forge-avoid-break"
-        >
-          {proposal.client && (
-            <p className="text-sm text-slate-500 mb-1">
-              Destinatário:{" "}
-              <strong className="text-slate-700">{proposal.client.name}</strong>
-            </p>
-          )}
-          <h1 className="text-2xl font-bold text-slate-900">{proposal.title}</h1>
-          {proposal.description && (
-            <p
-              className="mt-3 text-slate-500 text-sm leading-relaxed whitespace-pre-wrap"
-              dangerouslySetInnerHTML={{ __html: sanitizeDescription(proposal.description) }}
+      </section>
+      <div className="mx-auto grid max-w-6xl gap-8 px-5 py-8 sm:px-8 sm:py-12 lg:grid-cols-[minmax(0,1fr)_22rem] lg:px-12">
+        <div className="min-w-0 space-y-10">
+          {proposal.description ? (
+            <div
+              className="prose prose-slate max-w-none text-lg leading-8"
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(proposal.description),
+              }}
             />
-          )}
-        </div>
-
-        {/* Identity */}
-        <IdentityBlock
-          responsible={
-            proposal.responsible
-              ? { name: proposal.responsible.name, imageKey: proposal.responsible.image }
-              : null
-          }
-          client={
-            proposal.client
-              ? { name: proposal.client.name, imageKey: proposal.client.profile }
-              : null
-          }
-          variant="light"
-        />
-
-        {/* Products — card per item with image */}
-        {proposal.products.length > 0 && (
-          <div
-            className={cn(
-              proposal.products.length === 1
-                ? "flex flex-col items-center gap-4"
-                : "space-y-4",
-            )}
-          >
-            <div className="bg-slate-50 rounded-xl border border-slate-200 px-8 py-3 w-full">
-              <p className="font-semibold text-slate-700 text-sm">Produtos e Serviços</p>
-            </div>
-            {proposal.products.map((pp, i) => {
-              const lineTotal =
-                Number(pp.quantity) * Number(pp.unitValue) - Number(pp.discount ?? 0);
-              return (
-                <div
-                  key={pp.id}
-                  className={cn(
-                    "bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm forge-avoid-break",
-                    proposal.products.length === 1 ? "w-full md:w-1/2" : "w-full",
-                  )}
-                >
-                  {/* Product image */}
-                  {pp.product.imageUrl && (
-                    <img
-                      src={constructUrl(pp.product.imageUrl)}
-                      alt={pp.product.name}
-                      style={{
-                        width: "100%",
-                        height: "200px",
-                        objectFit: "cover",
-                        display: "block",
-                      }}
-                    />
-                  )}
-                  <div className="flex items-start justify-between px-8 py-4 gap-4">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div
-                        className="size-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
-                      >
-                        {i + 1}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-800">{pp.product.name}</p>
-                        {(pp.description ?? pp.product.description) && (
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            {pp.description ?? pp.product.description}
-                          </p>
-                        )}
-                        <p className="text-xs text-slate-400 mt-1">
-                          {Number(pp.quantity).toLocaleString("pt-BR")} {pp.product.unit}
-                          {" "} · Unitário: {fmt(Number(pp.unitValue))}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-bold text-xl text-slate-900">{fmt(lineTotal)}</p>
-                      {proposal.paymentLink && !isPaid && !isExpired && (
-                        <a
-                          href={proposal.paymentLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="forge-no-print mt-2 inline-flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
-                        >
-                          <ExternalLink className="size-3" /> Adquirir
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Totals */}
-        <div
-          className="bg-white rounded-xl border border-slate-200 px-8 py-5 shadow-sm forge-avoid-break"
-        >
-          <div className="space-y-1 text-sm max-w-xs ml-auto">
-            <div className="flex justify-between text-slate-500">
-              <span>Subtotal</span>
-              <span>{fmt(subtotal)}</span>
-            </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-emerald-600">
-                <span>Desconto</span>
-                <span>- {fmt(discountAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-bold text-xl text-blue-800 border-t border-slate-200 pt-2 mt-2">
-              <span>Total</span>
-              <span>{fmt(total)}</span>
-            </div>
-          </div>
-          {proposal.paymentLink && !isPaid && !isExpired && (
-            <a
-              href={proposal.paymentLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="forge-no-print mt-4 flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg py-3.5 font-semibold text-sm transition-colors"
-            >
-              <ExternalLink className="size-4" /> Fechar proposta — Adquirir agora ({fmt(total)})
-            </a>
-          )}
-        </div>
-
-        {/* Aceitar proposta */}
-        <AcceptButton
-          token={token}
-          client={proposal.client}
-          isExpired={isExpired}
-          isPaid={isPaid}
-          variant="light"
-        />
-
-        {/* Sobre a empresa */}
-        <CompanyInfoBlock organization={proposal.organization} variant="light" />
-
-        {/* Ecosystem links */}
-        <EcosystemLinksBlock links={ecosystemLinks} variant="light" />
-
-        {/* Powered by NASA */}
-        <NasaPoweredBy variant="light" />
-      </div>
-
-      <div className="text-center text-xs text-slate-400 pb-8 forge-no-print">
-        {proposal.organization.name} · FORGE · N.A.S.A®
-      </div>
-    </div>
-  );
-}
-
-// ─── Template: BOLD ───────────────────────────────────────────────────────────
-
-export function TemplateBold({
-  proposal,
-  isExpired,
-  isPaid,
-  token,
-  ecosystemLinks,
-}: {
-  proposal: TemplateProposal;
-  isExpired: boolean;
-  isPaid: boolean;
-  token: string;
-  ecosystemLinks: TemplateEcosystemLinks;
-}) {
-  const { total, discountAmount } = calcTotals(proposal);
-  const logo = proposal.settings?.logoUrl ?? proposal.organization.logo;
-  const accentColor =
-    proposal.settings?.proposalBgColor && proposal.settings.proposalBgColor !== "#ffffff"
-      ? proposal.settings.proposalBgColor
-      : "#FF4500";
-
-  return (
-    <div className="min-h-screen bg-black text-white">
-      <PrintRunningHeader
-        logo={logo}
-        orgName={proposal.organization.name}
-        number={proposal.number}
-        title={proposal.title}
-      />
-      <PrintRunningFooter
-        orgName={proposal.organization.name}
-        responsibleName={proposal.responsibleName}
-        createdAt={proposal.createdAt}
-      />
-
-      {isExpired && !isPaid && (
-        <div className="bg-red-600 text-white text-sm text-center py-2 font-bold forge-no-print">
-          ⚠ PROPOSTA EXPIRADA
-        </div>
-      )}
-      {isPaid && (
-        <div className="bg-emerald-500 text-black text-sm text-center py-2 font-bold forge-no-print">
-          ✓ PAGO — OBRIGADO!
-        </div>
-      )}
-
-      <div className="max-w-4xl mx-auto px-6 py-12 space-y-12">
-        {/* Logo + ref */}
-        <div
-          className="flex items-center justify-between forge-avoid-break"
-        >
-          {logo ? (
-            <img src={logo} alt="Logo" className="h-10 object-contain invert" />
-          ) : (
-            <p className="text-2xl font-black tracking-tight">{proposal.organization.name}</p>
-          )}
-          <p className="text-gray-600 font-mono text-sm">
-            #{String(proposal.number).padStart(4, "0")}
-          </p>
-        </div>
-
-        {/* Headline */}
-        <div
-          className="space-y-4 forge-avoid-break"
-        >
-          {proposal.client && (
-            <p className="text-gray-500 text-sm uppercase tracking-widest">
-              Para {proposal.client.name}
-            </p>
-          )}
-          <h1 className="text-5xl md:text-7xl font-black leading-none tracking-tighter">
-            {proposal.title}
-          </h1>
-          {proposal.description && (
-            <p
-              className="text-gray-400 text-lg leading-relaxed max-w-2xl whitespace-pre-wrap"
-              dangerouslySetInnerHTML={{ __html: sanitizeDescription(proposal.description) }}
-            />
-          )}
-        </div>
-
-        {/* Identity */}
-        <IdentityBlock
-          responsible={
-            proposal.responsible
-              ? { name: proposal.responsible.name, imageKey: proposal.responsible.image }
-              : null
-          }
-          client={
-            proposal.client
-              ? { name: proposal.client.name, imageKey: proposal.client.profile }
-              : null
-          }
-          variant="dark"
-        />
-
-        {/* Products */}
-        {proposal.products.length > 0 && (
-          <div
-            className={cn(
-              proposal.products.length === 1
-                ? "flex flex-col items-center gap-6"
-                : "space-y-6",
-            )}
-          >
-            {proposal.products.map((pp, i) => {
-              const lineTotal =
-                Number(pp.quantity) * Number(pp.unitValue) - Number(pp.discount ?? 0);
-              return (
-                <div
-                  key={pp.id}
-                  className={cn(
-                    "border border-gray-800 rounded-2xl overflow-hidden forge-avoid-break",
-                    proposal.products.length === 1 ? "w-full md:w-1/2" : "w-full",
-                  )}
-                >
-                  {/* Product image */}
-                  {pp.product.imageUrl && (
-                    <img
-                      src={constructUrl(pp.product.imageUrl)}
-                      alt={pp.product.name}
-                      style={{
-                        width: "100%",
-                        height: "220px",
-                        objectFit: "cover",
-                        display: "block",
-                      }}
-                    />
-                  )}
-                  <div className="flex items-start gap-6 p-6">
-                    <div
-                      className="size-10 rounded-full bg-gray-900 flex items-center justify-center text-gray-500 font-bold text-xl shrink-0"
+          ) : null}
+          {proposal.products.length > 0 ? (
+            <section>
+              <h2 className="text-2xl font-bold tracking-tight">
+                Escopo da proposta
+              </h2>
+              <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                {proposal.products.map((item) => {
+                  const lineTotal =
+                    Number(item.quantity) * Number(item.unitValue) -
+                    Number(item.discount ?? 0);
+                  return (
+                    <article
+                      key={item.id}
+                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
                     >
-                      {i + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-2xl font-extrabold">{pp.product.name}</p>
-                      <p className="text-gray-500 text-sm mt-1">
-                        {pp.description ?? pp.product.description}
-                      </p>
-                      <p className="text-gray-600 text-xs mt-1">
-                        {Number(pp.quantity).toLocaleString("pt-BR")} {pp.product.unit}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p
-                        className="text-3xl font-black"
-                        style={{ color: accentColor }}
-                      >
-                        {fmt(lineTotal)}
-                      </p>
-                      {proposal.paymentLink && !isPaid && !isExpired && (
-                        <a
-                          href={proposal.paymentLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="forge-no-print mt-2 inline-block text-xs border px-3 py-1 rounded-full hover:bg-white hover:text-black transition-colors"
-                          style={{ borderColor: accentColor, color: accentColor }}
-                        >
-                          QUERO ESTE
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Big CTA */}
-        <div
-          className="border-t border-gray-800 pt-12 flex flex-col md:flex-row items-start md:items-end justify-between gap-8 forge-avoid-break"
-        >
-          <div>
-            {discountAmount > 0 && (
-              <p className="text-gray-600 text-sm">
-                Desconto de {fmt(discountAmount)} aplicado
-              </p>
-            )}
-            <p className="text-gray-500 text-sm">TOTAL</p>
-            <p
-              className="text-6xl md:text-8xl font-black tracking-tighter leading-none"
-              style={{ color: accentColor }}
-            >
-              {fmt(total)}
-            </p>
-          </div>
-          {proposal.paymentLink && !isPaid && !isExpired && (
-            <a
-              href={proposal.paymentLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="forge-no-print inline-flex items-center gap-3 text-black font-extrabold text-xl px-10 py-5 rounded-2xl transition-transform hover:scale-105"
-              style={{ backgroundColor: accentColor }}
-            >
-              <Zap className="size-6" /> ADQUIRIR AGORA
-            </a>
-          )}
-        </div>
-
-        {/* Aceitar proposta */}
-        <AcceptButton
-          token={token}
-          client={proposal.client}
-          isExpired={isExpired}
-          isPaid={isPaid}
-          variant="dark"
-        />
-
-        {/* Sobre a empresa */}
-        <CompanyInfoBlock organization={proposal.organization} variant="dark" />
-
-        {/* Ecosystem links */}
-        <EcosystemLinksBlock links={ecosystemLinks} variant="dark" />
-
-        {/* Powered by NASA */}
-        <NasaPoweredBy variant="dark" />
-      </div>
-
-      <div className="border-t border-gray-900 text-center text-xs text-gray-700 py-4 forge-no-print">
-        {proposal.organization.name} · FORGE · N.A.S.A®
-      </div>
-    </div>
-  );
-}
-
-// ─── Template: PREMIUM ────────────────────────────────────────────────────────
-
-export function TemplatePremium({
-  proposal,
-  isExpired,
-  isPaid,
-  token,
-  ecosystemLinks,
-}: {
-  proposal: TemplateProposal;
-  isExpired: boolean;
-  isPaid: boolean;
-  token: string;
-  ecosystemLinks: TemplateEcosystemLinks;
-}) {
-  const { total, subtotal, discountAmount } = calcTotals(proposal);
-  const logo = proposal.settings?.logoUrl ?? proposal.organization.logo;
-
-  return (
-    <div
-      className="min-h-screen"
-      style={{ background: "linear-gradient(135deg, #1a1a1a 0%, #111 50%, #1c1508 100%)" }}
-    >
-      <PrintRunningHeader
-        logo={logo}
-        orgName={proposal.organization.name}
-        number={proposal.number}
-        title={proposal.title}
-      />
-      <PrintRunningFooter
-        orgName={proposal.organization.name}
-        responsibleName={proposal.responsibleName}
-        createdAt={proposal.createdAt}
-      />
-
-      {isExpired && !isPaid && (
-        <div className="bg-red-900/60 border-b border-red-800 text-red-300 text-sm text-center py-2 forge-no-print">
-          Esta proposta expirou
-        </div>
-      )}
-      {isPaid && (
-        <div className="bg-emerald-900/60 border-b border-emerald-800 text-emerald-300 text-sm text-center py-2 forge-no-print">
-          ✓ Proposta liquidada
-        </div>
-      )}
-
-      {/* Gold line */}
-      <div className="h-0.5 bg-gradient-to-r from-transparent via-yellow-600 to-transparent" />
-
-      <div className="max-w-3xl mx-auto px-8 py-12 space-y-10">
-        {/* Header */}
-        <div
-          className="flex items-center justify-between forge-avoid-break"
-        >
-          {logo ? (
-            <img src={logo} alt="" className="h-12 object-contain" />
-          ) : (
-            <p className="text-yellow-600 font-black text-2xl tracking-widest uppercase">
-              {proposal.organization.name}
-            </p>
-          )}
-          <div className="text-right">
-            <p className="text-yellow-700/60 text-xs font-mono tracking-widest">PROPOSTA</p>
-            <p className="text-yellow-600 font-bold">
-              #{String(proposal.number).padStart(4, "0")}
-            </p>
-            {proposal.validUntil && (
-              <p className="text-stone-600 text-xs">
-                Válida até {new Date(proposal.validUntil).toLocaleDateString("pt-BR")}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Title */}
-        <div
-          className="border-l-2 border-yellow-700 pl-6 forge-avoid-break"
-        >
-          {proposal.client && (
-            <p className="text-stone-400 text-xs uppercase tracking-widest mb-2">
-              Para {proposal.client.name}
-            </p>
-          )}
-          <h1 className="text-3xl font-bold text-stone-100 leading-snug">
-            {proposal.title}
-          </h1>
-          {proposal.description && (
-            <p
-              className="mt-3 text-stone-400 text-sm leading-relaxed whitespace-pre-wrap"
-              dangerouslySetInnerHTML={{ __html: sanitizeDescription(proposal.description) }}
-            />
-          )}
-        </div>
-
-        {/* Identity */}
-        <IdentityBlock
-          responsible={
-            proposal.responsible
-              ? { name: proposal.responsible.name, imageKey: proposal.responsible.image }
-              : null
-          }
-          client={
-            proposal.client
-              ? { name: proposal.client.name, imageKey: proposal.client.profile }
-              : null
-          }
-          variant="dark"
-        />
-
-        {/* Products */}
-        {proposal.products.length > 0 && (
-          <div
-            className={cn(
-              proposal.products.length === 1
-                ? "flex flex-col items-center gap-4"
-                : "space-y-4",
-            )}
-          >
-            <p className="text-yellow-700/60 text-xs uppercase tracking-widest w-full">Itens</p>
-            {proposal.products.map((pp) => {
-              const lineTotal =
-                Number(pp.quantity) * Number(pp.unitValue) - Number(pp.discount ?? 0);
-              return (
-                <div
-                  key={pp.id}
-                  className={cn(
-                    "border border-stone-800 rounded-xl overflow-hidden bg-stone-900/40 forge-avoid-break",
-                    proposal.products.length === 1 ? "w-full md:w-1/2" : "w-full",
-                  )}
-                >
-                  {/* Product image */}
-                  {pp.product.imageUrl && (
-                    <img
-                      src={constructUrl(pp.product.imageUrl)}
-                      alt={pp.product.name}
-                      style={{
-                        width: "100%",
-                        height: "200px",
-                        objectFit: "cover",
-                        display: "block",
-                      }}
-                    />
-                  )}
-                  <div className="flex items-start gap-4 p-5">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-stone-100">{pp.product.name}</p>
-                          <p className="text-stone-500 text-xs mt-0.5">
-                            {pp.description ?? pp.product.description}
+                      <ProductImage product={item.product} />
+                      <div className="p-5">
+                        <h3 className="text-xl font-bold">
+                          {item.product.name}
+                        </h3>
+                        {(item.description ?? item.product.description) ? (
+                          <p className="mt-2 text-base leading-6 text-slate-600">
+                            {item.description ?? item.product.description}
                           </p>
-                          <p className="text-stone-600 text-xs mt-1">
-                            {Number(pp.quantity).toLocaleString("pt-BR")} {pp.product.unit}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-yellow-500 font-bold text-xl">{fmt(lineTotal)}</p>
-                          {proposal.paymentLink && !isPaid && !isExpired && (
-                            <a
-                              href={proposal.paymentLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="forge-no-print mt-1.5 inline-block text-[11px] border border-yellow-700 text-yellow-600 px-3 py-1 rounded-full hover:bg-yellow-700 hover:text-black transition-colors"
-                            >
-                              Adquira agora
-                            </a>
-                          )}
+                        ) : null}
+                        <div className="mt-5 flex items-end justify-between gap-4 border-t border-slate-100 pt-4">
+                          <span className="text-sm text-slate-500">
+                            {Number(item.quantity).toLocaleString("pt-BR")}{" "}
+                            {item.product.unit}
+                          </span>
+                          <span className="text-lg font-bold">
+                            {fmt(lineTotal)}
+                          </span>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Totals */}
-        <div
-          className="border-t border-stone-800 pt-8 forge-avoid-break"
-        >
-          <div className="space-y-2 mb-6">
-            <div className="flex justify-between text-sm text-stone-500">
-              <span>Subtotal</span>
-              <span>{fmt(subtotal)}</span>
-            </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-sm text-emerald-600/80">
-                <span>Desconto</span>
-                <span>- {fmt(discountAmount)}</span>
+                    </article>
+                  );
+                })}
               </div>
-            )}
-            <div className="flex justify-between items-end mt-2 pt-3 border-t border-stone-800">
-              <span className="text-stone-400 text-sm uppercase tracking-widest">
-                Investimento Total
-              </span>
-              <span className="text-4xl font-extrabold text-yellow-500">{fmt(total)}</span>
-            </div>
-          </div>
-
-          {proposal.paymentLink && !isPaid && !isExpired && (
-            <a
-              href={proposal.paymentLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="forge-no-print flex items-center justify-center gap-3 w-full py-4 rounded-xl font-bold text-base text-black transition-all hover:brightness-110"
-              style={{ background: "linear-gradient(135deg, #d4a017, #b8860b)" }}
-            >
-              <Star className="size-5" /> Adquirir Proposta
-            </a>
-          )}
+            </section>
+          ) : null}
+          <CompanyInfoBlock
+            organization={proposal.organization}
+            variant="light"
+          />
+          <AcceptButton
+            token={token}
+            client={proposal.client}
+            isExpired={isExpired}
+            isPaid={isPaid}
+            variant="light"
+          />
         </div>
-
-        {/* Aceitar proposta */}
-        <AcceptButton
-          token={token}
-          client={proposal.client}
-          isExpired={isExpired}
-          isPaid={isPaid}
-          variant="dark"
-          accentClassName="bg-gradient-to-r from-yellow-600 to-amber-700 hover:brightness-110 text-black shadow-lg shadow-yellow-900/30"
-        />
-
-        {/* Sobre a empresa */}
-        <CompanyInfoBlock organization={proposal.organization} variant="dark" />
-
-        {/* Ecosystem links */}
-        <EcosystemLinksBlock links={ecosystemLinks} variant="dark" />
-
-        {/* Powered by NASA */}
-        <NasaPoweredBy variant="dark" />
+        <aside className="self-start lg:sticky lg:top-6">
+          <div className="rounded-2xl bg-white p-6 shadow-lg ring-1 ring-slate-200">
+            <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+              Investimento
+            </p>
+            <div className="mt-5 space-y-3 text-base">
+              <div className="flex justify-between gap-4 text-slate-600">
+                <span>Subtotal</span>
+                <span>{fmt(subtotal)}</span>
+              </div>
+              {discountAmount > 0 ? (
+                <div className="flex justify-between gap-4 text-emerald-700">
+                  <span>Desconto</span>
+                  <span>− {fmt(discountAmount)}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between gap-4 border-t border-slate-200 pt-4 text-2xl font-bold">
+                <span>Total</span>
+                <span>{fmt(total)}</span>
+              </div>
+            </div>
+            {hasPayment ? (
+              <a
+                href={proposal.paymentLink!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="forge-no-print mt-6 flex min-h-14 items-center justify-center gap-2 rounded-xl bg-violet-700 px-5 text-base font-bold text-white transition-colors hover:bg-violet-800"
+              >
+                <CreditCard className="size-5" />
+                Pagar com segurança
+              </a>
+            ) : null}
+            {!hasPayment && !isPaid && !isExpired ? (
+              <p className="mt-6 rounded-xl bg-slate-100 p-4 text-sm leading-5 text-slate-600">
+                A forma de pagamento será combinada com a empresa responsável.
+              </p>
+            ) : null}
+            <button
+              onClick={() => window.print()}
+              className="forge-pdf-btn mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+            >
+              <Download className="size-4" />
+              Salvar como PDF
+            </button>
+          </div>
+        </aside>
       </div>
-
-      <div className="h-0.5 bg-gradient-to-r from-transparent via-yellow-800/50 to-transparent" />
-      <div className="text-center text-xs text-stone-700 py-4 forge-no-print">
-        {proposal.organization.name} · FORGE · N.A.S.A®
-      </div>
-    </div>
+      <footer className="border-t border-slate-200 px-5 py-8 text-center">
+        <NasaPoweredBy variant="light" />
+      </footer>
+    </main>
   );
 }

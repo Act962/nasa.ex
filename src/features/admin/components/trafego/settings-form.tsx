@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useDeferredValue, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -26,6 +26,7 @@ import {
   useProvisionTrafegoBriefingForm,
   useProvisionTrafegoOperationsTracking,
   useTrafegoAgencyOptions,
+  useTrafegoAgencyOrganizations,
   useTrafegoSettings,
   useUpdateTrafegoSettings,
 } from "@/features/trafego/hooks/use-trafego-admin";
@@ -100,13 +101,16 @@ export function TrafegoSettingsForm() {
   const provisionForm = useProvisionTrafegoBriefingForm();
 
   const [form, setForm] = useState<SettingsFormState>(EMPTY_FORM);
+  const [formSettings, setFormSettings] = useState(settings);
+  const [organizationSearch, setOrganizationSearch] = useState("");
+  const deferredOrganizationSearch = useDeferredValue(organizationSearch);
+  const { data: organizations, isLoading: isLoadingOrganizations } =
+    useTrafegoAgencyOrganizations(deferredOrganizationSearch);
   const { data: options, isLoading: isLoadingOptions } =
     useTrafegoAgencyOptions(form.agencyOrganizationId);
 
-  useEffect(() => {
-    if (!settings) return;
-    // A resposta do servidor é a fonte inicial do formulário administrável.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  if (settings && settings !== formSettings) {
+    setFormSettings(settings);
     setForm({
       agencyOrganizationId: settings.agencyOrganizationId ?? "",
       defaultServiceFeePercent: String(settings.defaultServiceFeePercent ?? 50),
@@ -136,7 +140,7 @@ export function TrafegoSettingsForm() {
       salesStatusId: settings.salesStatusId ?? "",
       defaultBroadcastTrackingId: settings.defaultBroadcastTrackingId ?? "",
     });
-  }, [settings]);
+  }
 
   const patch = (partial: Partial<SettingsFormState>) =>
     setForm((current) => ({ ...current, ...partial }));
@@ -238,7 +242,7 @@ export function TrafegoSettingsForm() {
     );
   }
 
-  const hasAgency = form.agencyOrganizationId.trim().length >= 8;
+  const hasAgency = Boolean(form.agencyOrganizationId.trim());
 
   return (
     <div className="space-y-5">
@@ -246,14 +250,48 @@ export function TrafegoSettingsForm() {
         title="Agência"
         description="A organização que roda os anúncios. É dela que vêm as opções abaixo, e é nela que a venda é lançada e as métricas do Meta nascem."
       >
-        <Field label="Organização da agência" wide>
+        <Field
+          label="Organização da agência"
+          wide
+          hint="Busque e selecione a organização que gerencia os anúncios. Isso libera o tracking, formulário e financeiro dela."
+        >
           <Input
-            value={form.agencyOrganizationId}
-            onChange={(event) =>
-              patch({ agencyOrganizationId: event.target.value })
-            }
-            placeholder="ID da org da NASA que roda os anúncios"
+            value={organizationSearch}
+            onChange={(event) => setOrganizationSearch(event.target.value)}
+            placeholder="Buscar organização por nome"
           />
+          <div className="mt-2">
+            <OptionSelect
+              value={form.agencyOrganizationId}
+              onChange={(agencyOrganizationId) => {
+                const organization = organizations?.organizations.find(
+                  (item) => item.id === agencyOrganizationId,
+                );
+                setOrganizationSearch(organization?.name ?? "");
+                patch({
+                  agencyOrganizationId,
+                  operationsTrackingId: "",
+                  statusColumnMap: {},
+                  briefingFormId: "",
+                  financeAccountId: "",
+                  financeRevenueCategoryId: "",
+                  financePassthroughCategoryId: "",
+                });
+              }}
+              placeholder={
+                isLoadingOrganizations
+                  ? "Carregando organizações…"
+                  : "Selecione a organização"
+              }
+              disabled={isLoadingOrganizations}
+              items={(organizations?.organizations ?? []).map(
+                (organization) => ({
+                  value: organization.id,
+                  label: organization.name,
+                }),
+              )}
+            />
+          </div>
         </Field>
         <Field label="Taxa de serviço padrão (%)">
           <Input

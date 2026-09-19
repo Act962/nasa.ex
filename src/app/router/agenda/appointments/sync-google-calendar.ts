@@ -9,9 +9,9 @@ const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
 const CALENDAR_TOKEN_MESSAGES = {
   no_integration:
-    "Pra sincronizar com o Google Calendar, faça login com Google (e autorize Calendário) ou conecte a integração Google em /integracoes.",
+    "Pra sincronizar com o Google Calendar, faça login com Google (e autorize Calendário) ou conecte a integração Google em /integrations.",
   missing_scope:
-    "A integração Google atual não tem permissão de Calendário. Reconecte em /integracoes pra autorizar o novo escopo.",
+    "A integração Google atual não tem permissão de Calendário. Reconecte em /integrations pra autorizar o novo escopo.",
 } as const;
 
 interface CalendarEventInsertResponse {
@@ -53,7 +53,7 @@ export const syncAppointmentToGoogleCalendar = base
     }
 
     // 2. Resolve o token: tenta login Google (better-auth) primeiro, depois
-    //    cai pra integração configurada em /integracoes.
+    //    cai pra integração configurada em /integrations.
     const resolved = await resolveGoogleAccessToken({
       organizationId: context.org.id,
       userId: context.user.id,

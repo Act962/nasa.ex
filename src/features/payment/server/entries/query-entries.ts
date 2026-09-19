@@ -37,7 +37,51 @@ export interface QueryPaymentEntriesInput {
   search?: string;
   page?: number;
   perPage?: number;
-  orderBy?: "dueDate_asc" | "dueDate_desc";
+  orderBy?: PaymentEntriesOrderBy;
+}
+
+export type PaymentEntriesOrderBy =
+  | "dueDate_asc"
+  | "dueDate_desc"
+  | "amount_asc"
+  | "amount_desc"
+  | "status_asc"
+  | "status_desc"
+  | "paidAt_asc"
+  | "paidAt_desc"
+  | "description_asc"
+  | "description_desc"
+  | "createdAt_asc"
+  | "createdAt_desc"
+  | "contact_asc"
+  | "contact_desc"
+  | "category_asc"
+  | "category_desc";
+
+type PrismaEntryOrderBy = Record<string, "asc" | "desc" | Record<string, "asc" | "desc">>;
+
+function resolvePaymentEntriesOrderBy(orderBy?: PaymentEntriesOrderBy): PrismaEntryOrderBy {
+  const [field, direction] = (orderBy ?? "dueDate_asc").split("_");
+  const sortDirection: "asc" | "desc" = direction === "desc" ? "desc" : "asc";
+  switch (field) {
+    case "amount":
+      return { amount: sortDirection };
+    case "status":
+      return { status: sortDirection };
+    case "paidAt":
+      return { paidAt: sortDirection };
+    case "description":
+      return { description: sortDirection };
+    case "createdAt":
+      return { createdAt: sortDirection };
+    case "contact":
+      return { contact: { name: sortDirection } };
+    case "category":
+      return { category: { name: sortDirection } };
+    case "dueDate":
+    default:
+      return { dueDate: sortDirection };
+  }
 }
 
 export function buildPaymentEntriesWhere(input: QueryPaymentEntriesInput) {
@@ -111,7 +155,7 @@ export async function queryPaymentEntries(input: QueryPaymentEntriesInput) {
     prisma.paymentEntry.findMany({
       where,
       include: ENTRY_INCLUDE,
-      orderBy: { dueDate: input.orderBy === "dueDate_desc" ? "desc" : "asc" },
+      orderBy: resolvePaymentEntriesOrderBy(input.orderBy),
       skip: (page - 1) * perPage,
       take: perPage,
     }),

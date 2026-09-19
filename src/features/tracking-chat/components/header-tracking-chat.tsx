@@ -18,6 +18,7 @@ import {
   CheckIcon,
   ChevronRightIcon,
   EllipsisVerticalIcon,
+  LandmarkIcon,
   PhoneIcon,
   RefreshCwIcon,
   SparklesIcon,
@@ -38,6 +39,7 @@ import { InChatStatusBadge } from "./in-chat-status-badge";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
+import { SeiLeadProcessDialog } from "@/features/sei/components/lead-process-dialog";
 
 interface HeaderProps {
   name: string;
@@ -103,6 +105,7 @@ export function Header({
   // PopoverTrigger; em mobile o trigger fica no dropdown "..." e abre o
   // mesmo Popover via essa state (modo controlado externamente).
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [seiOpen, setSeiOpen] = useState(false);
 
   const backHref = withSearchParams(`/tracking-chat`, searchParams);
 
@@ -318,6 +321,10 @@ export function Header({
               <RefreshCwIcon className="size-4" />
               Sincronizar mensagens
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSeiOpen(true)}>
+              <LandmarkIcon className="size-4" />
+              Processos SEI
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={handleArchiveLead}
               disabled={setArchived.isPending}
@@ -373,6 +380,11 @@ export function Header({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <SeiLeadProcessDialog
+          leadId={leadId}
+          open={seiOpen}
+          onOpenChange={setSeiOpen}
+        />
       </div>
     </div>
   );

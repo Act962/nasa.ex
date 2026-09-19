@@ -35,7 +35,7 @@ export function CardForms({ nick }: CardFormsProps) {
       emptyAction={
         isAuthenticated ? (
           <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600">
-            <Link href="/formularios/novo">
+            <Link href="/form">
               <Plus className="mr-1 size-4" />
               Criar meu primeiro formulário
             </Link>

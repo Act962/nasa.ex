@@ -214,15 +214,15 @@ Catálogo de rotas pra mencionar no caminho manual:
 - Workspace / tarefas (Actions) → \`/workspaces\`
 - Agenda / agendamentos → \`/agendas\`
 - Forge / propostas → \`/forge\`
-- Formulários → \`/formularios\`
-- Automações / alertas → \`/alertas\`
+- Formulários → \`/form\`
+- Automações / alertas → \`/settings/notifications\`
 - Linnker (bio link) → \`/linnker\`
 - NBox (storage) → \`/nbox\`
 - Financeiro → \`/payment\`
 - NASA Route (cursos) → \`/nasa-route\`
 - Space Help → \`/space-help\`
 - Insights → \`/insights\`
-- Integrações → \`/integracoes\`
+- Integrações → \`/integrations\`
 
 Exemplos de resposta correta:
 - User: "Crie um lead Wey 11999990000" → "Beleza, posso criar o lead Wey agora — em qual tracking quer? Ou você mesmo pode criar direto em [Contatos](/contatos)."

@@ -26,6 +26,7 @@ import {
   type ExecutiveMetric,
 } from "./executive-summary-card";
 import { GoalsCard } from "./goals-card";
+import { CashBalanceCard } from "./cash-balance-card";
 import { usePaymentGoalStatus } from "../../hooks/use-payment-goals";
 import { monthFromPeriod } from "../../lib/period-month";
 
@@ -207,7 +208,7 @@ export function PaymentDashboard({
 
       <ExecutiveSummaryCard
         metrics={executiveMetrics}
-        goalAchieved={goalData?.status.receivedRevenue ?? 0}
+        goalAchieved={goalData?.status.salesRevenue ?? 0}
         goalTarget={goalData?.status.revenueTargetCents ?? 0}
       />
 
@@ -274,6 +275,8 @@ export function PaymentDashboard({
           previous={data.previousPeriod.netResult}
         />
       </div>
+
+      <CashBalanceCard />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <CashflowChartCard

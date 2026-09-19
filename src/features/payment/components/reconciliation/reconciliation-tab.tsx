@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, FileCheck2, Landmark, Info } from "lucide-react";
+import { Upload, FileCheck2, Landmark, Info, LayoutList, KanbanSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -22,9 +22,11 @@ import { useUploadPaymentAttachment } from "../../hooks/use-payment-attachments"
 import { describePaymentError } from "../../lib/describe-error";
 import { formatCurrency } from "../../lib/format";
 import { TransactionsList } from "./transactions-list";
+import { ReconciliationKanban } from "./reconciliation-kanban";
 import { ConfirmImportCard, type PendingStatement } from "./confirm-import-card";
 
 type StatusTab = "PENDING" | "MATCHED" | "IGNORED";
+type ReconciliationView = "list" | "kanban";
 
 const STATUS_LABELS: Record<StatusTab, string> = {
   PENDING: "A conciliar",
@@ -40,6 +42,7 @@ export function ReconciliationTab() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [accountId, setAccountId] = useState<string>("");
   const [statusTab, setStatusTab] = useState<StatusTab>("PENDING");
+  const [view, setView] = useState<ReconciliationView>("list");
   // Arquivo já lido e aguardando confirmação do destino. Manter o conteúdo aqui
   // evita pedir o arquivo de novo entre a inspeção e a importação.
   const [pending, setPending] = useState<PendingStatement | null>(null);
@@ -212,21 +215,46 @@ export function ReconciliationTab() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-1.5">
-        {(Object.keys(STATUS_LABELS) as StatusTab[]).map((status) => (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {view === "list" &&
+            (Object.keys(STATUS_LABELS) as StatusTab[]).map((status) => (
+              <Button
+                key={status}
+                size="sm"
+                variant={statusTab === status ? "secondary" : "ghost"}
+                className="h-8 text-xs"
+                onClick={() => setStatusTab(status)}
+              >
+                {STATUS_LABELS[status]}
+              </Button>
+            ))}
+        </div>
+        <div className="flex gap-1.5">
           <Button
-            key={status}
             size="sm"
-            variant={statusTab === status ? "secondary" : "ghost"}
-            className="h-8 text-xs"
-            onClick={() => setStatusTab(status)}
+            variant={view === "list" ? "secondary" : "ghost"}
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => setView("list")}
           >
-            {STATUS_LABELS[status]}
+            <LayoutList className="size-3.5" />
+            Lista
           </Button>
-        ))}
+          <Button
+            size="sm"
+            variant={view === "kanban" ? "secondary" : "ghost"}
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => setView("kanban")}
+          >
+            <KanbanSquare className="size-3.5" />
+            Kanban
+          </Button>
+        </div>
       </div>
 
-      {isLoading ? (
+      {view === "kanban" ? (
+        <ReconciliationKanban accountId={accountId || undefined} />
+      ) : isLoading ? (
         <p className="py-12 text-center text-sm text-muted-foreground">Carregando...</p>
       ) : (data?.transactions.length ?? 0) === 0 ? (
         <EmptyState hasAccount={Boolean(accountId)} status={statusTab} />

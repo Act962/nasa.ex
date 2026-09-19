@@ -290,6 +290,7 @@ model Organization {
   appScope String? @map("app_scope")
 
   members                Member[]
+  seiProcessLinks        SeiProcessLink[]
   invitations            Invitation[]
   inviteLinks            OrganizationInviteLink[]
   trackings              Tracking[]
@@ -1044,6 +1045,7 @@ model Lead {
   broadcastRecipients       BroadcastRecipient[]
   trafegoOrders             TrafegoOrder[]
   trafegoPendingPurchases   TrafegoPendingPurchase[]
+  seiProcessLinks           SeiProcessLink[]
 
   @@unique([phone, trackingId])
   @@index([trackingId])
@@ -1897,6 +1899,10 @@ enum NodeType {
   SEND_LINNKER
   SEND_NBOX
   SEND_NASA_ROUTE
+  // Consulta ou atualiza o processo SEI vinculado ao lead. O resultado fica
+  // disponível no contexto como `sei`, permitindo que o próximo SEND_MESSAGE
+  // comunique ao lead protocolo, situação e último andamento.
+  SEI_ACTION
   // OPEN_FORM — cria FormResponses vazia vinculada ao lead, SEM enviar
   // link via WhatsApp. O ícone do formulário no card do lead fica
   // pendente; quando o operador clica, abre /formulario/novo/.
@@ -2818,6 +2824,7 @@ enum IntegrationPlatform {
   POLLINATIONS
   NERP
   COMMENTS_APP
+  SEI
 }
 
 // Armazena credenciais de integração por plataforma/organização.
@@ -2841,6 +2848,34 @@ model PlatformIntegration {
   @@unique([organizationId, platform])
   @@index([organizationId])
   @@map("platform_integrations")
+}
+
+// Vínculo entre o CRM e processos conhecidos pelo NASA. O WebService nativo
+// do SEI não oferece descoberta completa em todas as versões; por isso a
+// sincronização parte de protocolos explicitamente vinculados a um lead.
+model SeiProcessLink {
+  id                    String   @id @default(cuid())
+  organizationId        String   @map("organization_id")
+  leadId                String   @map("lead_id")
+  protocoloProcedimento String   @map("protocolo_procedimento")
+  idProcedimento        String?  @map("id_procedimento")
+  especificacao         String?
+  tipoProcedimento      String?  @map("tipo_procedimento")
+  nivelAcesso           String?  @map("nivel_acesso")
+  ultimoAndamento       String?  @map("ultimo_andamento")
+  linkAcesso            String?  @map("link_acesso")
+  snapshot              Json     @default("{}")
+  lastSyncedAt          DateTime? @map("last_synced_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, protocoloProcedimento])
+  @@index([organizationId, protocoloProcedimento])
+  @@index([leadId, updatedAt(sort: Desc)])
+  @@map("sei_process_links")
 }
 
 // ─────────────────────────────────────────────
@@ -5088,6 +5123,11 @@ model PaymentBankTransaction {
   matchedById    String?                @map("matched_by_id")
   matchMethod    String?                @map("match_method")
   ignoredReason  String?                @map("ignored_reason")
+  // Conferência da conciliação: marca manual "Conferido" e o resultado da
+  // leitura do comprovante pela IA (Astro) — pagador × valor × data.
+  reviewedAt     DateTime?              @map("reviewed_at")
+  reviewedById   String?                @map("reviewed_by_id")
+  reviewResult   Json?                  @map("review_result")
   createdAt      DateTime               @default(now()) @map("created_at")
   updatedAt      DateTime               @updatedAt @map("updated_at")
 

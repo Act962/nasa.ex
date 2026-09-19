@@ -40,6 +40,7 @@ import {
   Globe,
   Info,
   Key,
+  Landmark,
   Link2Off,
   Loader2,
   Lock,
@@ -549,6 +550,53 @@ export const PLATFORM_DEFS: PlatformDef[] = [
     fields: [
       { key: "apiToken", label: "API Token", placeholder: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", type: "password", hint: "Pipedrive > Configurações > Ferramentas pessoais > API" },
       { key: "domain", label: "Subdomínio da conta", placeholder: "suaempresa", hint: "Ex: 'suaempresa' de suaempresa.pipedrive.com" },
+    ],
+  },
+  {
+    platform: IntegrationPlatform.SEI,
+    label: "SEI",
+    description:
+      "Vincule processos administrativos aos leads, consulte andamentos e use os dados do SEI nas mensagens e automações do NASA.",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
+    borderColor: "border-primary/30",
+    icon: Landmark,
+    docsUrl:
+      "https://www.gov.br/gestao/pt-br/assuntos/gestaoeinovacao/informacoes-sistemas-e-servicos-de-gestao/processo-eletronico-nacional/servicos/documentacao",
+    docsLabel: "Manual de WebServices do SEI",
+    category: "crm",
+    steps: [
+      "Peça à TI do órgão o endpoint do WebService de homologação",
+      "Cadastre o NASA em Administração > Sistemas no SEI",
+      "Libere somente as operações consultarProcedimento e listarUnidades",
+      "Autorize o IP de saída do NASA ou forneça a chave de acesso do serviço",
+    ],
+    fields: [
+      {
+        key: "endpoint",
+        label: "Endpoint do WebService",
+        placeholder: "https://sei.orgao.gov.br/sei/controlador_ws.php?servico=sei",
+        hint: "Use o endpoint do ambiente de homologação antes de produção.",
+      },
+      {
+        key: "siglaSistema",
+        label: "Sigla do sistema",
+        placeholder: "NASA",
+        hint: "A mesma sigla cadastrada em Administração > Sistemas.",
+      },
+      {
+        key: "identificacaoServico",
+        label: "Chave de acesso do serviço",
+        placeholder: "Informe a IdentificacaoServico",
+        type: "password",
+        hint: "O NASA cifra esta chave antes de armazená-la.",
+      },
+      {
+        key: "idUnidade",
+        label: "ID da unidade padrão",
+        placeholder: "110000001",
+        hint: "Unidade usada nas consultas e ações das automações.",
+      },
     ],
   },
 ];

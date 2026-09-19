@@ -1,6 +1,11 @@
+"use client";
+
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { TrafegoOrderStatus, TrafegoPlatform } from "@/generated/prisma/enums";
+import type {
+  TrafegoOrderStatus,
+  TrafegoPlatform,
+} from "@/generated/prisma/enums";
 
 interface AdminOrdersFilter {
   status?: TrafegoOrderStatus;
@@ -18,7 +23,10 @@ export const useTrafegoAdminOrders = (filter: AdminOrdersFilter = {}) => {
   );
 };
 
-export const useTrafegoAdminOrder = (orderId: string, options?: { enabled?: boolean }) => {
+export const useTrafegoAdminOrder = (
+  orderId: string,
+  options?: { enabled?: boolean },
+) => {
   return useQuery({
     ...orpc.trafego.admin.orders.get.queryOptions({ input: { orderId } }),
     enabled: (options?.enabled ?? true) && Boolean(orderId),
@@ -28,7 +36,9 @@ export const useTrafegoAdminOrder = (orderId: string, options?: { enabled?: bool
 function useAdminOrderInvalidation() {
   const queryClient = useQueryClient();
   return (orderId?: string) => {
-    queryClient.invalidateQueries({ queryKey: orpc.trafego.admin.orders.list.key() });
+    queryClient.invalidateQueries({
+      queryKey: orpc.trafego.admin.orders.list.key(),
+    });
     if (orderId) {
       queryClient.invalidateQueries({
         queryKey: orpc.trafego.admin.orders.get.key({ input: { orderId } }),
@@ -96,7 +106,9 @@ export const useTrafegoAdminMessages = (
   options?: { enabled?: boolean; refetchInterval?: number | false },
 ) => {
   return useQuery({
-    ...orpc.trafego.admin.orders.listMessages.queryOptions({ input: { orderId } }),
+    ...orpc.trafego.admin.orders.listMessages.queryOptions({
+      input: { orderId },
+    }),
     enabled: (options?.enabled ?? true) && Boolean(orderId),
     refetchInterval: options?.refetchInterval,
   });
@@ -108,7 +120,9 @@ export const useReplyTrafegoMessage = (orderId: string) => {
     orpc.trafego.admin.orders.reply.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries({
-          queryKey: orpc.trafego.admin.orders.listMessages.key({ input: { orderId } }),
+          queryKey: orpc.trafego.admin.orders.listMessages.key({
+            input: { orderId },
+          }),
         });
       },
     }),
@@ -124,8 +138,12 @@ export const useTrafegoAdminPlans = () => {
 function usePlansInvalidation() {
   const queryClient = useQueryClient();
   return () => {
-    queryClient.invalidateQueries({ queryKey: orpc.trafego.admin.plans.list.key() });
-    queryClient.invalidateQueries({ queryKey: orpc.trafego.listPublicPlans.key() });
+    queryClient.invalidateQueries({
+      queryKey: orpc.trafego.admin.plans.list.key(),
+    });
+    queryClient.invalidateQueries({
+      queryKey: orpc.trafego.listPublicPlans.key(),
+    });
   };
 }
 
@@ -146,7 +164,9 @@ export const useUpdateTrafegoPlan = () => {
 export const useToggleTrafegoPlanActive = () => {
   const invalidate = usePlansInvalidation();
   return useMutation(
-    orpc.trafego.admin.plans.toggleActive.mutationOptions({ onSuccess: invalidate }),
+    orpc.trafego.admin.plans.toggleActive.mutationOptions({
+      onSuccess: invalidate,
+    }),
   );
 };
 
@@ -163,6 +183,15 @@ export const useTrafegoSettings = () => {
   return useQuery(orpc.trafego.admin.settings.get.queryOptions({ input: {} }));
 };
 
+/** Organizações disponíveis para configurar a agência que opera o trafeGO. */
+export const useTrafegoAgencyOrganizations = (search: string) => {
+  return useQuery(
+    orpc.admin.listOrganizationsForSelection.queryOptions({
+      input: { search: search.trim() || undefined, limit: 50 },
+    }),
+  );
+};
+
 export const useUpdateTrafegoSettings = () => {
   const queryClient = useQueryClient();
   return useMutation(
@@ -177,8 +206,10 @@ export const useUpdateTrafegoSettings = () => {
 };
 
 /** Trackings (com colunas), contas, categorias e formulários da org da agência. */
-export const useTrafegoAgencyOptions = (organizationId: string | null | undefined) => {
-  const enabled = Boolean(organizationId && organizationId.trim().length >= 8);
+export const useTrafegoAgencyOptions = (
+  organizationId: string | null | undefined,
+) => {
+  const enabled = Boolean(organizationId?.trim());
   return useQuery({
     ...orpc.trafego.admin.settings.listAgencyOptions.queryOptions({
       input: { organizationId: organizationId?.trim() ?? "" },
@@ -190,7 +221,9 @@ export const useTrafegoAgencyOptions = (organizationId: string | null | undefine
 function useSettingsInvalidation() {
   const queryClient = useQueryClient();
   return () => {
-    queryClient.invalidateQueries({ queryKey: orpc.trafego.admin.settings.get.key() });
+    queryClient.invalidateQueries({
+      queryKey: orpc.trafego.admin.settings.get.key(),
+    });
     queryClient.invalidateQueries({
       queryKey: orpc.trafego.admin.settings.listAgencyOptions.key(),
     });

@@ -79,7 +79,7 @@ export const trafegoOrderStatusChanged = inngest.createFunction(
     const email = await step.run("send-email", async () => {
       const to = order.pendingPurchase?.email ?? order.owner.email;
       if (!to) return { sent: false, reason: "no_email" };
-      await resend.emails.send({
+      const { error } = await resend.emails.send({
         from: "Nasaex <noreply@notifications.nasaex.com>",
         to,
         subject: copy.emailSubject(context),
@@ -91,6 +91,11 @@ export const trafegoOrderStatusChanged = inngest.createFunction(
           panelUrl: context.panelUrl,
         }),
       });
+      // O SDK do Resend devolve a falha em `error` em vez de lançar.
+      if (error) {
+        console.error(`[trafego/status] e-mail não enviado (${orderId}):`, error);
+        return { sent: false, reason: error.name, message: error.message };
+      }
       return { sent: true };
     });
 
@@ -109,12 +114,17 @@ export const trafegoOrderStatusChanged = inngest.createFunction(
       });
     });
 
-    await step.run("stamp", () =>
-      prisma.trafegoOrderEvent.update({
-        where: { id: eventId },
-        data: { clientNotifiedAt: new Date() },
-      }),
-    );
+    // "Cliente avisado" só vale se algum canal entregou — senão o admin mostra
+    // um aviso que ninguém recebeu. Duplicata de evento já é barrada pelo
+    // `idempotency` da função.
+    if (email.sent || whatsapp.sent) {
+      await step.run("stamp", () =>
+        prisma.trafegoOrderEvent.update({
+          where: { id: eventId },
+          data: { clientNotifiedAt: new Date() },
+        }),
+      );
+    }
 
     return { orderId, eventId, toStatus, email, whatsapp };
   },
