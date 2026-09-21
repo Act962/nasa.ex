@@ -1,8 +1,8 @@
+import { meterOrThrow } from "@/features/stars/lib/metering";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { IntegrationPlatform, NasaPlannerPostStatus, StarTransactionType } from "@/generated/prisma/enums";
@@ -77,11 +77,14 @@ export const publishPost = base
       throw new ORPCError("BAD_REQUEST", { message: "Post já publicado" });
     }
 
-    const debit = await debitStars(
-      context.org.id, STARS_PUBLISH, StarTransactionType.APP_CHARGE,
-      "NASA Planner — publicação de post", "nasa-planner", context.user.id,
-    );
-    if (!debit.success) throw new ORPCError("BAD_REQUEST", { message: "Saldo de stars insuficiente" });
+    const debit = await meterOrThrow({
+      organizationId: context.org.id,
+      action: "planner_post_publish",
+      userId: context.user.id,
+      appSlug: "nasa-planner",
+      description: "NASA Planner — publicação de post",
+      feature: "planner.post.publish",
+    }, "Saldo de stars insuficiente");
 
     const networks = (post.targetNetworks ?? []) as string[];
     const publishResults: Record<string, string | null> = {};
@@ -177,7 +180,7 @@ export const publishPost = base
 
     return {
       post: updated,
-      balanceAfter: debit.newBalance,
+      balanceAfter: debit.balanceAfter,
       publishResults,
       metaWarning: publishError,
     };

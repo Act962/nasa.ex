@@ -1,8 +1,8 @@
+import { meterOrThrow } from "@/features/stars/lib/metering";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { NasaPlannerPostStatus, StarTransactionType } from "@/generated/prisma/enums";
@@ -29,11 +29,14 @@ export const schedulePostReal = base
       throw new ORPCError("BAD_REQUEST", { message: "A data de agendamento deve ser no futuro" });
     }
 
-    const debit = await debitStars(
-      context.org.id, STARS_SCHEDULE, StarTransactionType.APP_CHARGE,
-      "NASA Planner — agendamento de post", "nasa-planner", context.user.id,
-    );
-    if (!debit.success) throw new ORPCError("BAD_REQUEST", { message: "Saldo de stars insuficiente" });
+    const debit = await meterOrThrow({
+      organizationId: context.org.id,
+      action: "planner_post_schedule",
+      userId: context.user.id,
+      appSlug: "nasa-planner",
+      description: "NASA Planner — agendamento de post",
+      feature: "planner.post.schedule",
+    }, "Saldo de stars insuficiente");
 
     const updated = await prisma.nasaPlannerPost.update({
       where: { id: post.id },
@@ -55,5 +58,5 @@ export const schedulePostReal = base
       ts: scheduledDate.getTime(),
     });
 
-    return { post: updated, balanceAfter: debit.newBalance };
+    return { post: updated, balanceAfter: debit.balanceAfter };
   });

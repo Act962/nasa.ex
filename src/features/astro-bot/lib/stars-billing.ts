@@ -4,9 +4,10 @@ import "server-only";
 import type { UserWhatsappBinding } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
-import { debitStars } from "@/features/stars/lib/star-service";
+import { meter } from "@/features/stars/lib/metering";
 
-const STARS_PER_1K_TOKENS = 1;
+// O preço por token mora no catálogo, na ação `astro_tokens`. Antes era a
+// constante STARS_PER_1K_TOKENS, duplicada aqui e na rota in-app.
 
 export interface BotStakeCharge {
   hasBalance: boolean;
@@ -50,20 +51,26 @@ export async function chargeBotPromptStake(
 export async function debitBotTokenUsage(
   binding: UserWhatsappBinding,
   totalTokens: number,
+  modelId?: string,
 ): Promise<number> {
   if (totalTokens <= 0) return 0;
-  const starsToCharge = Math.max(1, Math.round((totalTokens / 1000) * STARS_PER_1K_TOKENS));
   try {
-    const debit = await debitStars(
-      binding.organizationId,
-      starsToCharge,
-      "APP_CHARGE",
-      `Astro pelo WhatsApp — ${totalTokens.toLocaleString("pt-BR")} tokens`,
-      "astro",
-      binding.userId,
-      { allowBonus: true },
-    );
-    return debit.success ? starsToCharge : 0;
+    const charge = await meter({
+      organizationId: binding.organizationId,
+      action: "astro_tokens",
+      userId: binding.userId,
+      quantity: { unit: "token", amount: totalTokens },
+      appSlug: "astro",
+      description: `Astro pelo WhatsApp — ${totalTokens.toLocaleString("pt-BR")} tokens`,
+      feature: "astro.whatsapp",
+      cost: {
+        kind: "LLM",
+        provider: "openai",
+        modelId,
+        tokens: { totalTokens },
+      },
+    });
+    return charge.charged && charge.success ? charge.cost : 0;
   } catch (debitError) {
     console.warn("[astro-bot/stars-billing] token charge failed", debitError);
     return 0;

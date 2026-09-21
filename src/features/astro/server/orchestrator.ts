@@ -8,7 +8,12 @@ import {
   type ToolSet,
   type UIMessage,
 } from "ai";
-import { openai } from "@ai-sdk/openai";
+import {
+  resolveModels,
+  resolvePrimaryModel,
+  type AstroTier,
+  type ResolvedModel,
+} from "@/features/ia/lib/router";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { ASTRO_ORCHESTRATOR_PROMPT } from "@/features/astro/lib/prompts";
@@ -66,26 +71,24 @@ Você está respondendo pelo número de WhatsApp de UMA empresa. Você só enxer
 - Se a pergunta for sobre "quais empresas você vê", trocar de empresa, ou algo fora da leitura desta empresa: explique em uma frase que você responde só sobre os dados desta empresa, e ofereça o que CONSEGUE (ex.: contagem de leads, conversões, agenda).
 - Se não houver dado pra responder, diga isso claramente — não invente nem responda vazio.`;
 
-function modelFor(complexity: "simple" | "complex") {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error(
-      "OPENAI_API_KEY ausente — necessária para o ASTRO. " +
-        "Adicione em .env.local e reinicie o `pnpm dev`.",
-    );
-  }
-  const override = process.env.ASTRO_DEFAULT_MODEL;
-  const id = override
-    ? override
-    : complexity === "complex"
-      ? "gpt-4o"
-      : "gpt-4o-mini";
-  return openai(id);
+/**
+ * A heurística de complexidade continua mandando; o que muda é que ela escolhe
+ * um NÍVEL, não um modelo da OpenAI.
+ *
+ * Antes, o ASTRO era OpenAI-only e lançava se `OPENAI_API_KEY` faltasse —
+ * derrubava o copiloto inteiro mesmo quando a organização tinha chave de outro
+ * provedor cadastrada em /integrações.
+ */
+function tierFor(complexity: "simple" | "complex"): AstroTier {
+  return complexity === "complex" ? "DEEP" : "SMART";
 }
 
-/** Pra sub-agents (closer, task-agent, automation, etc) — mini é suficiente. */
-function defaultModel() {
-  return modelFor("simple");
-}
+/**
+ * Sub-agentes e agentes fixados sempre usaram o modelo do nível simples.
+ * Preservado: `SMART` resolve para o mesmo modelo de antes quando há chave da
+ * OpenAI, e só cai para outro provedor quando não há.
+ */
+const SUB_AGENT_TIER: AstroTier = "SMART";
 
 /**
  * Heurística simples (zero LLM) pra classificar a pergunta. Conta sinais:
@@ -159,6 +162,8 @@ async function loadAgentEnabledMap(
 function buildRoutingTools(opts: {
   ctx: AgentContext;
   enabled: Record<AgentKey, boolean>;
+  /** Resolvido uma vez por requisição, não por sub-agente. */
+  subAgentModel: ResolvedModel;
 }) {
   const tools: ToolSet = {};
   for (const agent of AGENTS) {
@@ -178,6 +183,7 @@ function buildRoutingTools(opts: {
           agent,
           ctx: opts.ctx,
           instruction,
+          resolved: opts.subAgentModel,
         });
         return { result };
       },
@@ -196,6 +202,7 @@ async function runSubAgent(opts: {
   agent: AgentDefinition;
   ctx: AgentContext;
   instruction: string;
+  resolved: ResolvedModel;
 }): Promise<string> {
   const { agent, ctx, instruction } = opts;
   const messages: ModelMessage[] = [
@@ -214,7 +221,7 @@ async function runSubAgent(opts: {
   });
   const dateContext = `\n\n[CONTEXTO TEMPORAL]\nHoje é ${nowSP} (fuso SP, offset -03:00). ISO: ${todayIso}. Use SEMPRE o ano corrente (${todayIso.slice(0, 4)}) pra qualquer data.`;
   const { text } = await generateText({
-    model: defaultModel(),
+    model: opts.resolved.model,
     system: `${agent.systemPrompt}${dateContext}`,
     tools: agent.buildTools(ctx),
     messages,
@@ -262,12 +269,28 @@ export function streamAstro(opts: {
    * formatação WhatsApp, sem repetir listas que já vão anexadas).
    */
   outputStyle?: "default" | "whatsapp";
+  /**
+   * Informa qual modelo foi resolvido para esta requisição. Existe para o
+   * registro de custo saber o que gravar sem duplicar a heurística de escolha
+   * (spec 0021).
+   */
+  onModelResolved?: (info: { provider: string; modelId: string }) => void;
 }) {
   const { ctx, uiMessages } = opts;
   const toolScope = opts.toolScope ?? "full";
 
   return (async () => {
     const enabled = await loadAgentEnabledMap(ctx.organizationId);
+
+    // Uma resolução por requisição, não uma por sub-agente. Sub-agentes e
+    // agentes fixados exigem tool-calling: modelo que não chama ferramenta não
+    // serve, por mais barato que seja.
+    const subAgentModel = await resolvePrimaryModel({
+      organizationId: ctx.organizationId,
+      tier: SUB_AGENT_TIER,
+      requires: { tools: true },
+      forceModelId: process.env.ASTRO_DEFAULT_MODEL,
+    });
 
     // Pinned agent (embeds): pula o orquestrador, vai direto para o sub-agente.
     const modelMessages = await convertToModelMessages(uiMessages);
@@ -289,7 +312,7 @@ export function streamAstro(opts: {
           .slice(0, 10);
         const dateContextPin = `\n\n[CONTEXTO TEMPORAL]\nHoje é ${nowSPpin} (fuso América/São Paulo, offset -03:00). Data ISO: ${todayIsoPin}. Use SEMPRE o ano corrente (${todayIsoPin.slice(0, 4)}).`;
         return streamText({
-          model: defaultModel(),
+          model: subAgentModel.model,
           system: `${pinned.systemPrompt}${buildRouteContextBlock(ctx.route)}${dateContextPin}`,
           tools: pinned.buildTools(ctx),
           messages: modelMessages,
@@ -314,7 +337,7 @@ export function streamAstro(opts: {
     // seguem disponíveis por `route_to_*` para os fluxos com persona.
     const scope = resolveToolSetForScope(toolScope, ctx);
     const routingTools = scope.allowsRouting
-      ? buildRoutingTools({ ctx, enabled })
+      ? buildRoutingTools({ ctx, enabled, subAgentModel })
       : {};
     const directTools: ToolSet = scope.tools;
     const systemSuffix =
@@ -362,15 +385,35 @@ export function streamAstro(opts: {
     const complexity = opts.forceComplexModel
       ? "complex"
       : classifyComplexity(lastUserText);
+
+    // `forceComplexModel` mantém nome e semântica externa. Internamente vira
+    // nível DEEP mais exigência de tool-calling, que é a razão real de existir:
+    // o modelo do nível de baixo hesita em tool-call no caminho do WhatsApp.
+    const orchestratorCandidates = await resolveModels({
+      organizationId: ctx.organizationId,
+      tier: tierFor(complexity),
+      requires: { tools: true },
+      forceModelId: process.env.ASTRO_DEFAULT_MODEL,
+    });
+    // Sem candidato no nível pedido, cai para o modelo dos sub-agentes em vez
+    // de derrubar a conversa.
+    const orchestratorModel = orchestratorCandidates[0] ?? subAgentModel;
+
     console.log(
-      `[ASTRO/orchestrator] model=${complexity === "complex" ? "gpt-4o" : "gpt-4o-mini"} (heur="${complexity}", forced=${opts.forceComplexModel ?? false}, text="${lastUserText.slice(0, 80)}")`,
+      `[ASTRO/orchestrator] model=${orchestratorModel.provider}/${orchestratorModel.modelId} ` +
+        `(tier="${orchestratorModel.tier}", heur="${complexity}", forced=${opts.forceComplexModel ?? false}, ` +
+        `chave="${orchestratorModel.keySource}", text="${lastUserText.slice(0, 80)}")`,
     );
+    opts.onModelResolved?.({
+      provider: orchestratorModel.provider,
+      modelId: orchestratorModel.modelId,
+    });
 
     const styleBlock =
       opts.outputStyle === "whatsapp" ? WHATSAPP_STYLE_PROMPT : "";
 
     return streamText({
-      model: modelFor(complexity),
+      model: orchestratorModel.model,
       system: `${ASTRO_ORCHESTRATOR_PROMPT}\n\n${systemSuffix}${buildRouteContextBlock(ctx.route)}${buildAttachmentsBlock(ctx.attachments)}${dateContext}${styleBlock}`,
       tools: { ...directTools, ...routingTools },
       messages: modelMessages,

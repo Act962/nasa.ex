@@ -31,32 +31,23 @@ export const getStarsUsageBreakdown = base
         starsBalance: true,
         starsBonusBalance: true,
         starsCycleStart: true,
+        plan: { select: { slug: true, name: true, monthlyStars: true } },
       },
     });
 
     const cycleStart = org.starsCycleStart ?? org.createdAt;
     const cycleEnd = new Date(cycleStart.getTime() + CYCLE_DAYS * 24 * 60 * 60 * 1000);
 
-    // ── Plano ativo via Better Auth subscription (se disponível) ─────
-    // Fallback: lê via `Subscription` em DB ou assume free.
-    const subscription = await prisma.subscription.findFirst({
-      where: {
-        referenceId: orgId,
-        status: "active",
-      },
-      select: { plan: true, periodEnd: true },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const planSlug = subscription?.plan?.toLowerCase() ?? "free";
-    const isPayPerUse = planSlug === "suite";
-
-    // monthlyStars do plano — busca em Plan se existe modelo, senão 0
-    const plan = await prisma.plan.findFirst({
-      where: { slug: planSlug },
-      select: { monthlyStars: true, name: true },
-    });
-    const planMonthlyStars = plan?.monthlyStars ?? 0;
+    // ── Plano da organização ──────────────────────────────────────────
+    // Lê a relação que o resto do sistema mantém (`Organization.planId`).
+    //
+    // Antes isto consultava `Subscription.referenceId = orgId`, mas esse campo
+    // guarda um **userId** — a busca nunca casava, o plano era sempre "free" e
+    // o denominador do painel ficava zerado. Era o vazamento V4 do
+    // docs/BILLING_ARCHITECTURE.md.
+    const planSlug = org.plan?.slug ?? "free";
+    const isPayPerUse = planSlug.startsWith("suit");
+    const planMonthlyStars = org.plan?.monthlyStars ?? 0;
 
     // ── Débitos no ciclo ─────────────────────────────────────────────
     const debits = await prisma.starTransaction.findMany({
@@ -108,7 +99,7 @@ export const getStarsUsageBreakdown = base
       byUser,
       planMonthlyStars,
       planSlug,
-      planName: plan?.name ?? planSlug.toUpperCase(),
+      planName: org.plan?.name ?? planSlug.toUpperCase(),
       isPayPerUse,
       bonusBalance: org.starsBonusBalance,
       balance: org.starsBalance,

@@ -34,6 +34,8 @@ export interface DebitOpts {
    * onde bônus de boas-vindas não pode ser aceito como pagamento.
    */
   allowBonus?: boolean;
+  /** Chave da ação no catálogo. Liga a transação ao registro de custo (spec 0021). */
+  action?: string;
 }
 
 export interface AppCostInfo {
@@ -119,6 +121,23 @@ const MODERATOR_REFILL_THRESHOLD = 100; // Reabastece quando saldo ≤ este valo
 const MODERATOR_REFILL_AMOUNT = 1_000_000; // Valor de reabastecimento
 
 /**
+ * Reabastecimento automático de moderador — **desligado por padrão**.
+ *
+ * Era código de produção sem flag: qualquer organização com um membro de role
+ * "moderador" tinha o saldo resetado para 1.000.000 ★ ao cair a ≤100. Disparou
+ * uma vez, para uma organização, creditando 999.902 ★ (vazamento V3 do
+ * docs/BILLING_ARCHITECTURE.md).
+ *
+ * Ligue com `STARS_MODERATOR_REFILL=true` se o comportamento for mesmo desejado.
+ * Não foi apagado para não alterar o fluxo de quem depende dele sem aviso.
+ *
+ * Os créditos passados poluem qualquer média de consumo: `MANUAL_ADJUST` deve
+ * ficar fora de toda apuração de custo unitário.
+ */
+const isModeratorRefillEnabled = () =>
+  process.env.STARS_MODERATOR_REFILL === "true";
+
+/**
  * Verifica se a organização possui pelo menos um membro com role "moderador".
  * Moderadores recebem reabastecimento automático quando o saldo chega a ≤ 100 ★.
  */
@@ -141,8 +160,13 @@ export async function debitStars(
   description: string,
   appSlug?: string,
   userId?: string, // opcional: rastreia consumo individual do usuário
-  opts?: DebitOpts, // opcional: { allowBonus?: boolean = true }
-): Promise<{ success: boolean; newBalance: number; newBonusBalance: number }> {
+  opts?: DebitOpts, // opcional: { allowBonus?: boolean = true, action?: string }
+): Promise<{
+  success: boolean;
+  newBalance: number;
+  newBonusBalance: number;
+  starTransactionId?: string;
+}> {
   const allowBonus = opts?.allowBonus ?? true;
 
   // ── 1. Debitar dentro de uma transação atômica ────────────────────────────
@@ -161,6 +185,7 @@ export async function debitStars(
         success: false,
         newBalance: org.starsBalance,
         newBonusBalance: org.starsBonusBalance,
+        starTransactionId: undefined,
       };
     }
 
@@ -183,7 +208,7 @@ export async function debitStars(
         ? `${description} (${fromMain}★ saldo + ${fromBonus}★ bônus)`
         : description;
 
-    await tx.starTransaction.create({
+    const transaction = await tx.starTransaction.create({
       data: {
         organizationId,
         type,
@@ -191,7 +216,10 @@ export async function debitStars(
         balanceAfter: newBalance,
         description: finalDescription,
         appSlug,
+        userId,
+        action: opts?.action,
       },
+      select: { id: true },
     });
 
     // ── Incrementar currentUsage por usuário (se informado) ─────────────────
@@ -209,12 +237,21 @@ export async function debitStars(
       });
     }
 
-    return { success: true, newBalance, newBonusBalance };
+    return {
+      success: true,
+      newBalance,
+      newBonusBalance,
+      starTransactionId: transaction.id,
+    };
   });
 
   // ── 2. Reabastecimento para moderadores ──────────────────────────────────
   // Se o saldo chegou a ≤ 100 e a org tem um membro moderador → recarrega para 1.000.000
-  if (result.success && result.newBalance <= MODERATOR_REFILL_THRESHOLD) {
+  if (
+    isModeratorRefillEnabled() &&
+    result.success &&
+    result.newBalance <= MODERATOR_REFILL_THRESHOLD
+  ) {
     try {
       const isMod = await orgHasModerator(organizationId);
       if (isMod) {
@@ -467,9 +504,40 @@ export async function purchaseTopUp(
  * Runs the monthly cycle for an organization:
  *  1. Apply rollover from previous balance (up to `rolloverPct` of plan stars)
  *  2. Credit plan stars
- *  3. Debit monthly app charges for all active workspace integrations
+ *
+ * A cobrança mensal por app instalado foi aposentada na spec 0020: o ecossistema
+ * é o produto e o plano define a capacidade, então app não tem mais aluguel
+ * próprio em ★. O histórico de `WorkspaceIntegration` é preservado.
+ *
+ * Idempotente desde a Fase 5: ciclo com menos de 28 dias não recredita. Aceita
+ * `{ dryRun: true }` para simular sem escrever nada — é assim que se mede o
+ * saldo que seria perdido pelo teto de rollover antes de aplicar de verdade.
  */
-export async function runMonthlyCycle(organizationId: string): Promise<void> {
+/** Dias mínimos antes de um novo ciclo. Protege contra crédito em duplicidade. */
+const MIN_CYCLE_DAYS = 28;
+
+export interface MonthlyCycleResult {
+  organizationId: string;
+  applied: boolean;
+  /** Preenchido quando `applied` é false. */
+  skipReason?: "no_plan" | "cycle_too_recent" | "already_credited";
+  planName?: string;
+  balanceBefore: number;
+  /** Saldo projetado (simulação) ou efetivo (aplicado). */
+  balanceAfter: number;
+  rollover: number;
+  /** Saldo perdido pelo teto de rollover. É o número sensível da correção. */
+  forfeited: number;
+  planStars: number;
+  cycleAgeDays: number | null;
+}
+
+export async function runMonthlyCycle(
+  organizationId: string,
+  opts?: { dryRun?: boolean },
+): Promise<MonthlyCycleResult> {
+  const dryRun = opts?.dryRun ?? false;
+
   const org = await prisma.organization.findUniqueOrThrow({
     where: { id: organizationId },
     select: {
@@ -477,20 +545,61 @@ export async function runMonthlyCycle(organizationId: string): Promise<void> {
       starsCycleStart: true,
       partnerLifetimeGranted: true,
       plan: true,
-      workspaceIntegrations: {
-        where: { isActive: true },
-        select: { appSlug: true },
-      },
     },
   });
 
-  if (!org.plan) return;
+  const cycleAgeDays = org.starsCycleStart
+    ? Math.floor(
+        (Date.now() - org.starsCycleStart.getTime()) / (24 * 60 * 60 * 1000),
+      )
+    : null;
+
+  const base: MonthlyCycleResult = {
+    organizationId,
+    applied: false,
+    planName: org.plan?.name,
+    balanceBefore: org.starsBalance,
+    balanceAfter: org.starsBalance,
+    rollover: 0,
+    forfeited: 0,
+    planStars: org.plan?.monthlyStars ?? 0,
+    cycleAgeDays,
+  };
+
+  if (!org.plan) return { ...base, skipReason: "no_plan" };
+
+  // Idempotência: um ciclo recente demais não recredita. Protege os dois
+  // caminhos que chamam esta função (troca de plano e cron mensal) de
+  // creditarem no mesmo dia.
+  if (cycleAgeDays !== null && cycleAgeDays < MIN_CYCLE_DAYS) {
+    const alreadyCredited = await prisma.starTransaction.count({
+      where: {
+        organizationId,
+        type: StarTransactionType.PLAN_CREDIT,
+        createdAt: { gte: org.starsCycleStart! },
+      },
+    });
+    return {
+      ...base,
+      skipReason: alreadyCredited > 0 ? "already_credited" : "cycle_too_recent",
+    };
+  }
 
   const { monthlyStars, rolloverPct } = org.plan;
   const maxRollover = Math.floor(monthlyStars * (rolloverPct / 100));
   const rollover = Math.min(org.starsBalance, maxRollover);
+  const forfeited = Math.max(org.starsBalance - rollover, 0);
 
-  // Reset balance to rollover amount, then credit plan stars
+  const projected: MonthlyCycleResult = {
+    ...base,
+    applied: !dryRun,
+    rollover,
+    forfeited,
+    balanceAfter: rollover + monthlyStars,
+  };
+
+  if (dryRun) return projected;
+
   await prisma.organization.update({
     where: { id: organizationId },
     data: {
@@ -522,28 +631,14 @@ export async function runMonthlyCycle(organizationId: string): Promise<void> {
       : `Crédito mensal do plano ${org.plan.name} (${monthlyStars} ★)`,
   );
 
-  // Debit monthly charges for each active app
-  for (const wi of org.workspaceIntegrations) {
-    const appCost = await prisma.appStarCost.findUnique({
-      where: { appSlug: wi.appSlug },
-    });
-    if (!appCost || appCost.monthlyCost === 0) continue;
+  // Zera o consumo por membro. Sem isto o contador acumula desde sempre e é
+  // exibido como se fosse do mês (vazamento V6).
+  await prisma.memberStarBudget.updateMany({
+    where: { organizationId },
+    data: { currentUsage: 0, cycleStart: new Date() },
+  });
 
-    await debitStars(
-      organizationId,
-      appCost.monthlyCost,
-      StarTransactionType.APP_CHARGE,
-      `Cobrança mensal — ${wi.appSlug} (${appCost.monthlyCost} ★)`,
-      wi.appSlug,
-    );
-
-    await prisma.workspaceIntegration.update({
-      where: {
-        organizationId_appSlug: { organizationId, appSlug: wi.appSlug },
-      },
-      data: { lastChargedAt: new Date() },
-    });
-  }
+  return projected;
 }
 
 // ─── Plan billing eligibility ────────────────────────────────────────────────

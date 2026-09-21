@@ -1,7 +1,7 @@
+import { meterOrThrow } from "@/features/stars/lib/metering";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { StarTransactionType } from "@/generated/prisma/client";
 import z from "zod";
 import { PAGES_STARS_COST, slugSchema } from "./_schemas";
@@ -39,19 +39,15 @@ export const duplicatePage = base
     });
     if (taken) throw errors.BAD_REQUEST({ message: "Este slug já está em uso" });
 
-    const debit = await debitStars(
+    const debit = await meterOrThrow({
       organizationId,
-      PAGES_STARS_COST,
-      StarTransactionType.APP_SETUP,
-      `NASA Pages — duplicação de "${src.title}" → "${input.newTitle}"`,
-      "pages",
-      context.user.id,
-    );
-    if (!debit.success) {
-      throw errors.BAD_REQUEST({
-        message: `Saldo de Stars insuficiente (necessário ${PAGES_STARS_COST} ★)`,
-      });
-    }
+      action: "page_duplicate",
+      userId: context.user.id,
+      appSlug: "pages",
+      description: `NASA Pages — duplicação de "${src.title}" → "${input.newTitle}"`,
+      feature: "pages.page_duplicate",
+      transactionType: StarTransactionType.APP_SETUP,
+    }, `Saldo de Stars insuficiente (necessário ${PAGES_STARS_COST} ★)`);
 
     const copy = await prisma.nasaPage.create({
       data: {
