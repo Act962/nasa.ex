@@ -535,7 +535,7 @@ export function buildMutationTools(ctx: AgentContext) {
         if (!inst || inst.status !== "CONNECTED") {
           return {
             error:
-              "Nenhuma instância WhatsApp conectada na organização. Conecte uma em [Integrações](/integracoes).",
+              "Nenhuma instância WhatsApp conectada na organização. Conecte uma em [Integrações](/integrations).",
           };
         }
 

@@ -131,7 +131,7 @@ export async function runGoalWeeklySummary(now: Date = new Date()): Promise<{ or
     const status = await loadGoalStatus({ organizationId, year, month });
 
     const goalLine = status.hasRevenueTarget
-      ? `${formatCents(status.receivedRevenue)} de ${formatCents(status.revenueTargetCents)} ` +
+      ? `${formatCents(status.salesRevenue)} de ${formatCents(status.revenueTargetCents)} ` +
         `(${status.goalProgressPercent.toFixed(0)}% da meta).`
       : `${formatCents(status.receivedRevenue)} recebidos no mês.`;
 

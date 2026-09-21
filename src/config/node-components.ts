@@ -24,6 +24,7 @@ import { SendLinnkerNode } from "@/features/tracking-executions/components/send-
 import { SendNboxNode } from "@/features/tracking-executions/components/send-nbox/node";
 import { SendNasaRouteNode } from "@/features/tracking-executions/components/send-nasa-route/node";
 import { OpenFormNode } from "@/features/tracking-executions/components/open-form/node";
+import { SeiActionNode } from "@/features/tracking-executions/components/sei-action/node";
 // ─── Modo Agente IA — componente genérico pros 14 NodeTypes novos ──
 import { AgentNode } from "@/features/tracking-executions/components/agent-node";
 import { NodeType } from "@/generated/prisma/enums";
@@ -56,6 +57,7 @@ export const nodeComponents = {
   [NodeType.SEND_NBOX]: SendNboxNode,
   [NodeType.SEND_NASA_ROUTE]: SendNasaRouteNode,
   [NodeType.OPEN_FORM]: OpenFormNode,
+  [NodeType.SEI_ACTION]: SeiActionNode,
   // ─── Modo Agente IA — todos usam o AgentNode genérico com editor JSON ──
   // Fase 4 vai substituir por componentes dedicados com formulários visuais.
   [NodeType.IF_CONDITION]: AgentNode,

@@ -234,6 +234,11 @@ export function validateNode(
       if (!hasNonEmptyString(d.method)) errs.push("Escolha o método HTTP");
       break;
 
+    case "SEI_ACTION":
+      // O protocolo é opcional: vazio significa usar o vínculo SEI mais
+      // recente do lead. A existência do vínculo é validada em runtime.
+      return { valid: true, errors: [], skip: true };
+
     // ── Send to App — cada app tem ID próprio ──────────────────────────
     case "SEND_FORM":
     case "OPEN_FORM":

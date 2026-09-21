@@ -70,6 +70,9 @@ export const useSaveTrafegoRelease = () => {
             input: { orderId: variables.orderId },
           }),
         });
+        queryClient.invalidateQueries({
+          queryKey: orpc.trafego.getOrder.key({ input: { orderId: variables.orderId } }),
+        });
         // Salvar o Release refaz as recomendações no servidor.
         queryClient.invalidateQueries({
           queryKey: orpc.trafego.recommendations.get.key(),

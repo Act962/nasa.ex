@@ -11,5 +11,18 @@ export const getManyPlatformIntegrations = base
       where: { organizationId: context.org.id },
       orderBy: { platform: "asc" },
     });
-    return { integrations };
+    return {
+      integrations: integrations.map((integration) => {
+        if (integration.platform !== "SEI") return integration;
+        const config = integration.config as Record<string, unknown>;
+        return {
+          ...integration,
+          config: {
+            ...config,
+            identificacaoServico: "",
+            hasIdentificacaoServico: Boolean(config.identificacaoServico),
+          },
+        };
+      }),
+    };
   });

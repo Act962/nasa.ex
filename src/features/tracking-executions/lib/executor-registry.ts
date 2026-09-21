@@ -25,6 +25,7 @@ import { sendLinnkerExecutor } from "../components/send-linnker/executor";
 import { sendNboxExecutor } from "../components/send-nbox/executor";
 import { sendNasaRouteExecutor } from "../components/send-nasa-route/executor";
 import { openFormExecutor } from "../components/open-form/executor";
+import { seiActionExecutor } from "../components/sei-action/executor";
 
 export const executorRegistry: Partial<Record<NodeType, NodeExecutor>> = {
   [NodeType.INITIAL]: manualTriggerExecutor,
@@ -53,6 +54,7 @@ export const executorRegistry: Partial<Record<NodeType, NodeExecutor>> = {
   [NodeType.SEND_NBOX]: sendNboxExecutor as NodeExecutor,
   [NodeType.SEND_NASA_ROUTE]: sendNasaRouteExecutor as NodeExecutor,
   [NodeType.OPEN_FORM]: openFormExecutor as NodeExecutor,
+  [NodeType.SEI_ACTION]: seiActionExecutor as NodeExecutor,
 };
 
 export const getExecutor = (type: NodeType): NodeExecutor => {

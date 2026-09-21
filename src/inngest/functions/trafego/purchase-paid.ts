@@ -58,8 +58,8 @@ export const trafegoPurchasePaid = inngest.createFunction(
 
     const activationLink = trafegoActivationUrl(pending.signupToken);
 
-    await step.run("send-email", async () => {
-      await resend.emails.send({
+    const email = await step.run("send-email", async () => {
+      const { error } = await resend.emails.send({
         from: "Nasaex <noreply@notifications.nasaex.com>",
         to: pending.email,
         subject: "Pagamento confirmado — ative sua campanha",
@@ -78,6 +78,13 @@ export const trafegoPurchasePaid = inngest.createFunction(
           expiresInDays: EXPIRES_IN_DAYS,
         }),
       });
+      // O SDK do Resend não lança: chave inválida ou domínio não verificado
+      // voltam em `error`, e sem esta checagem o passo terminava como enviado.
+      if (error) {
+        console.error(`[trafego/paid] e-mail não enviado (${pendingId}):`, error);
+        return { sent: false, reason: error.name, message: error.message };
+      }
+      return { sent: true };
     });
 
     const whatsapp = await step.run("send-whatsapp", async () => {
@@ -110,6 +117,6 @@ export const trafegoPurchasePaid = inngest.createFunction(
       });
     });
 
-    return { sent: true, pendingId, whatsapp, card };
+    return { pendingId, email, whatsapp, card };
   },
 );
