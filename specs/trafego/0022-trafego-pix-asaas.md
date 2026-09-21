@@ -1,5 +1,5 @@
 ---
-id: 0020
+id: 0022
 titulo: Cobrança PIX automática pelo Asaas no checkout do trafeGO
 dominio: trafego
 status: em-revisao
@@ -11,7 +11,7 @@ pr:
 peso: completa
 ---
 
-# 0020 — Cobrança PIX automática pelo Asaas no checkout do trafeGO
+# 0022 — Cobrança PIX automática pelo Asaas no checkout do trafeGO
 
 > Spec **completa**: integração externa, dinheiro, dado pessoal novo (CPF/CNPJ) e
 > migração de schema. O desenho foi escrito e decidido antes do código, conforme

@@ -125,9 +125,9 @@ export const { GET, POST, PUT } = serve({
     trafegoKanbanDriftSweep,
     // ── trafeGO: PIX vencido vira EXPIRED (de hora em hora) ──
     trafegoPixPendingSweep,
-    // ── trafeGO: evento de cobrança do Asaas (spec 0020) ──
+    // ── trafeGO: evento de cobrança do Asaas (spec 0022) ──
     trafegoAsaasPaymentEvent,
-    // ── trafeGO: acompanha cada cobrança PIX até resolver (spec 0020) ──
+    // ── trafeGO: acompanha cada cobrança PIX até resolver (spec 0022) ──
     trafegoAsaasChargeWatch,
     // ── NASA Planner ──
     publishPostHandler,

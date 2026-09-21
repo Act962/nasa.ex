@@ -8410,14 +8410,14 @@ model TrafegoPendingPurchase {
   pixReceivedBrlCents  Int?                 @map("pix_received_brl_cents")
   pixConfirmationNote  String?              @map("pix_confirmation_note") @db.Text
 
-  // ── PIX pelo Asaas (spec 0020) ──
+  // ── PIX pelo Asaas (spec 0022) ──
   /// Cobrança no Asaas ("pay_..."). Conciliação e idempotência do webhook:
   /// é por ele que um evento vira ESTA pendência, e não outra.
   asaasPaymentId        String?                      @unique @map("asaas_payment_id")
   /// Pagador no Asaas, para não recadastrar a cada compra.
   asaasCustomerId       String?                      @map("asaas_customer_id")
   /// CPF/CNPJ do pagador, só dígitos. Exigido pela API para emitir cobrança
-  /// nominal. Não é copiado para o pedido — ver spec 0020 D-6.
+  /// nominal. Não é copiado para o pedido — ver spec 0022 D-6.
   payerDocument         String?                      @map("payer_document")
   /// Copia-e-cola do QR, para reexibir a tela sem nova chamada ao Asaas.
   pixQrCodePayload      String?                      @map("pix_qr_code_payload") @db.Text
@@ -8763,7 +8763,7 @@ model TrafegoSettings {
   /// Validade da cobrança PIX, em MINUTOS. Vencida vira EXPIRED, mas segue
   /// confirmável: quem paga atrasado tem o dinheiro na nossa conta do mesmo
   /// jeito. Atenção — isto é o NOSSO relógio: a cobrança no Asaas continua
-  /// pagável, porque o `dueDate` de lá é data, sem hora (spec 0020 CB-28).
+  /// pagável, porque o `dueDate` de lá é data, sem hora (spec 0022 CB-28).
   pixExpiryMinutes           Int      @default(10) @map("pix_expiry_minutes")
   whatsappTemplateLanguage   String   @default("pt_BR") @map("whatsapp_template_language")
   clientNotificationsEnabled Boolean  @default(true) @map("client_notifications_enabled")
