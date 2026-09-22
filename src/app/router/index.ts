@@ -33,6 +33,7 @@ import { adminRouter } from "./admin";
 import { userNotificationsRouter } from "./user-notifications";
 import { userChatPreferencesRoutes } from "./user-chat-preferences";
 import { alertsRouter } from "./alerts";
+import { pushRouter } from "./push";
 import { sidebarPrefsRouter } from "./sidebar-prefs";
 import { spacePointRouter } from "./space-point";
 import { userRouter } from "./user";
@@ -111,6 +112,7 @@ export const router = {
   userNotifications: userNotificationsRouter,
   userChatPreferences: userChatPreferencesRoutes,
   alerts: alertsRouter,
+  push: pushRouter,
   sidebarPrefs: sidebarPrefsRouter,
   spacePoint: spacePointRouter,
   user: userRouter,

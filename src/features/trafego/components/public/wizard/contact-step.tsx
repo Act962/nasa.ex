@@ -6,6 +6,7 @@ import {
   type PhoneVerificationStatus,
 } from "./phone-verification";
 import { Field, fieldClass } from "./field";
+import { SelectField } from "./select-field";
 import { maskPhoneBr } from "@/features/form/lib/masks";
 
 export interface ContactDraft {
@@ -85,20 +86,14 @@ export function ContactStep({
       </Field>
 
       <Field label="Como você nos conheceu?" wide>
-        <select
+        <SelectField
           value={value.referralSource}
-          onChange={(event) => patch({ referralSource: event.target.value })}
-          className={`${fieldClass} appearance-none`}
-        >
-          <option value="" className="bg-[#15151a]">
-            Selecione…
-          </option>
-          {REFERRAL_SOURCES.map((source) => (
-            <option key={source} value={source} className="bg-[#15151a]">
-              {source}
-            </option>
-          ))}
-        </select>
+          onChange={(referralSource) => patch({ referralSource })}
+          options={REFERRAL_SOURCES.map((source) => ({
+            value: source,
+            label: source,
+          }))}
+        />
       </Field>
     </div>
   );
