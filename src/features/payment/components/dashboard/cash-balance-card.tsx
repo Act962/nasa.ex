@@ -24,7 +24,8 @@ const ACCOUNT_TYPE_ICON: Record<AccountType, typeof Wallet> = {
 export function CashBalanceCard() {
   const { data, isLoading } = usePaymentAccounts();
   const accounts = data?.accounts ?? [];
-  const total = accounts.reduce((sum, account) => sum + account.balance, 0);
+  // Mesmo número da aba Contas: saldo inicial + baixas registradas (spec 0023).
+  const total = accounts.reduce((sum, account) => sum + account.computedBalance, 0);
 
   return (
     <Card className="gap-0 py-0">
@@ -40,7 +41,7 @@ export function CashBalanceCard() {
           {formatCurrency(total)}
         </p>
         <p className="text-[11px] text-muted-foreground">
-          Soma do saldo das contas ativas
+          Saldo inicial das contas ativas + baixas registradas
         </p>
 
         {isLoading ? (
@@ -75,10 +76,10 @@ export function CashBalanceCard() {
                   </div>
                   <span
                     className={`shrink-0 text-sm font-semibold tabular-nums ${
-                      account.balance < 0 ? "text-red-400" : ""
+                      account.computedBalance < 0 ? "text-red-400" : ""
                     }`}
                   >
-                    {formatCurrency(account.balance)}
+                    {formatCurrency(account.computedBalance)}
                   </span>
                 </li>
               );

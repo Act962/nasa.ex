@@ -4,9 +4,37 @@ import prisma from "@/lib/prisma";
 import { resolveDashboardPeriod, type DashboardPeriodInput } from "../dashboard/load-dashboard";
 
 // Fluxo de caixa como serviço (spec 0010). O que já foi liquidado entra pela
-// data do pagamento; o que segue em aberto entra pelo vencimento.
+// data do pagamento; o que segue em aberto entra pelo vencimento. Um lançamento
+// parcial entra pelas duas pontas (spec 0023).
 
 const CASHFLOW_OPEN_STATUSES = ["PENDING", "PARTIAL", "OVERDUE"] as const;
+
+/**
+ * As pernas de caixa de um lançamento: o que já foi liquidado na data do
+ * pagamento e o que falta na data do vencimento. Um PAID tem só a primeira, um
+ * PENDING só a segunda, e um PARTIAL as duas — é isso que o fluxo antigo perdia,
+ * lançando o parcial inteiro no vencimento como se nada tivesse saído.
+ */
+function cashflowLegsOf(entry: {
+  status: string;
+  amount: number;
+  paidAmount: number;
+  dueDate: Date;
+  paidAt: Date | null;
+}): Array<{ date: Date; value: number }> {
+  if (entry.status === "PAID") {
+    return [{ date: entry.paidAt ?? entry.dueDate, value: entry.paidAmount }];
+  }
+  const legs: Array<{ date: Date; value: number }> = [];
+  if (entry.paidAmount > 0) {
+    legs.push({ date: entry.paidAt ?? entry.dueDate, value: entry.paidAmount });
+  }
+  const remaining = entry.amount - entry.paidAmount;
+  if (remaining > 0) {
+    legs.push({ date: entry.dueDate, value: remaining });
+  }
+  return legs;
+}
 
 export interface CashflowRow {
   date: string;
@@ -51,6 +79,12 @@ export function cashflowWhere(params: {
         status: { in: [...CASHFLOW_OPEN_STATUSES] },
         dueDate: { gte: params.start, lte: params.end },
       },
+      // Parcial pago dentro do período mas com vencimento fora dele: sem esta
+      // cláusula o caixa que já saiu não apareceria em lugar nenhum.
+      {
+        status: { in: [...CASHFLOW_OPEN_STATUSES] },
+        paidAt: { gte: params.start, lte: params.end },
+      },
     ],
   };
 }
@@ -72,13 +106,15 @@ export async function loadCashflow(
 
   const dayMap: Record<string, { receivable: number; payable: number }> = {};
   for (const entry of entries) {
-    const isSettled = entry.status === "PAID";
-    const cashDate = isSettled ? entry.paidAt ?? entry.dueDate : entry.dueDate;
-    const key = cashDate.toISOString().slice(0, 10);
-    if (!dayMap[key]) dayMap[key] = { receivable: 0, payable: 0 };
-    const value = isSettled ? entry.paidAmount : entry.amount;
-    if (entry.type === "RECEIVABLE") dayMap[key].receivable += value;
-    else dayMap[key].payable += value;
+    for (const leg of cashflowLegsOf(entry)) {
+      // O `where` traz o lançamento inteiro quando qualquer uma das pernas cai no
+      // período; a outra perna pode estar fora e não pode entrar no total.
+      if (leg.date < start || leg.date > end) continue;
+      const key = leg.date.toISOString().slice(0, 10);
+      if (!dayMap[key]) dayMap[key] = { receivable: 0, payable: 0 };
+      if (entry.type === "RECEIVABLE") dayMap[key].receivable += leg.value;
+      else dayMap[key].payable += leg.value;
+    }
   }
 
   let runningBalance = 0;
@@ -126,19 +162,24 @@ export async function loadCashflowDayEntries(params: {
     orderBy: { amount: "desc" },
   });
 
-  const entries: CashflowDayEntry[] = rows.map((row) => ({
-    id: row.id,
-    type: row.type,
-    status: row.status,
-    description: row.description,
-    amount: row.amount,
-    paidAmount: row.paidAmount,
-    cashAmount: row.status === "PAID" ? row.paidAmount : row.amount,
-    dueDate: row.dueDate,
-    paidAt: row.paidAt,
-    categoryName: row.category?.name ?? null,
-    contactName: row.contact?.name ?? null,
-  }));
+  const entries: CashflowDayEntry[] = rows
+    .map((row) => ({
+      id: row.id,
+      type: row.type,
+      status: row.status,
+      description: row.description,
+      amount: row.amount,
+      paidAmount: row.paidAmount,
+      // Mesma regra do total: o detalhe do dia só mostra o que caiu neste dia.
+      cashAmount: cashflowLegsOf(row)
+        .filter((leg) => leg.date >= start && leg.date <= end)
+        .reduce((sum, leg) => sum + leg.value, 0),
+      dueDate: row.dueDate,
+      paidAt: row.paidAt,
+      categoryName: row.category?.name ?? null,
+      contactName: row.contact?.name ?? null,
+    }))
+    .filter((entry) => entry.cashAmount > 0);
 
   return {
     entries,
