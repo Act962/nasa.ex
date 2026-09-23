@@ -1,3 +1,4 @@
+import { meterOrThrow } from "@/features/stars/lib/metering";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -16,7 +17,6 @@ import {
   VIDEO_UPLOAD_PART_SIZE_BYTES,
 } from "@/features/nasa-route/lib/video-storage-pricing";
 import { getStarPriceBrl } from "@/features/nasa-route/lib/pricing";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { StarTransactionType } from "@/generated/prisma/enums";
 
 const VIDEO_BUCKET_ENV = "R2_NASA_ROUTE_BUCKET";
@@ -74,26 +74,29 @@ export const creatorStartVideoUpload = base
     const totalParts = breakdown.totalParts;
 
     // ── 1. Débito de STARs (atômico). Lança se saldo insuficiente.
-    const debit = await debitStars(
-      context.org.id,
-      costStars,
-      StarTransactionType.APP_CHARGE,
-      `Upload vídeo NASA Route — ${breakdown.sizeGb.toFixed(2)} GB`,
-      "nasa-route-storage",
-      context.user.id,
-      { allowBonus: false }, // bônus não cobre hospedagem
-    );
-    if (!debit.success) {
-      throw new ORPCError("BAD_REQUEST", {
-        message: `Saldo de STARs insuficiente. Necessário: ${costStars} ★`,
-        data: {
-          code: "INSUFFICIENT_STARS",
-          balance: debit.newBalance,
-          bonusBalance: debit.newBonusBalance,
-          needed: costStars,
-        },
-      });
-    }
+    // Preço calculado por fórmula (tamanho × horizonte × margem × câmbio ×
+    // preço da estrela), não constante — por isso entra como custo calculado,
+    // a exceção documentada em `meter()`. O custo real em dólar que a fórmula
+    // já produzia agora é registrado em vez de descartado.
+    const debit = await meterOrThrow({
+      organizationId: context.org.id,
+      action: "route_video_upload",
+      userId: context.user.id,
+      computedStars: {
+        stars: costStars,
+        computedBy: "computeVideoUploadCost",
+      },
+      appSlug: "nasa-route-storage",
+      description: `Upload vídeo NASA Route — ${breakdown.sizeGb.toFixed(2)} GB`,
+      feature: "nasa-route.video-upload",
+      disallowBonus: true, // bônus não cobre hospedagem
+      quantity: { unit: "mb", amount: breakdown.sizeMb },
+      cost: {
+        kind: "STORAGE",
+        provider: "cloudflare-r2",
+        providerCostUsd: breakdown.totalUsd,
+      },
+    });
 
     // ── 2. Abre multipart no R2. Se falhar, refundamos via creditStars manual.
     const safeFilename = input.filename

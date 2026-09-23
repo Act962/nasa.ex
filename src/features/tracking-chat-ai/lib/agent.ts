@@ -4,6 +4,7 @@ import type { GetStepTools } from "inngest";
 import { sendText } from "@/http/uazapi/send-text";
 import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { inngest } from "@/inngest/client";
+import { recordUsageEvent } from "@/features/stars/lib/metering";
 import prisma from "@/lib/prisma";
 import { loadAgentContext, type AgentEventData } from "./context";
 import { resolveModel } from "./model";
@@ -164,6 +165,29 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     } catch (err) {
       console.error("[tracking-chat-ai] persist-usage falhou", err);
     }
+
+    // Custo do evento, separado da telemetria por tracking acima: aquela
+    // alimenta uma tela, esta alimenta a apuração de margem.
+    await recordUsageEvent({
+      organizationId: ctx.organizationId,
+      kind: "LLM",
+      action: "chat_ai_message",
+      appSlug: "nasachat",
+      feature: "tracking-chat-ai.agent",
+      provider:
+        resolved.provider === "NASA_DEFAULT"
+          ? undefined
+          : resolved.provider.toLowerCase(),
+      modelId: resolved.modelId,
+      usingCustomKey: resolved.usingCustom,
+      tokens: {
+        inputTokens: aiResult.inputTokens,
+        outputTokens: aiResult.outputTokens,
+        totalTokens: aiResult.totalTokens,
+      },
+      trackingId: ctx.trackingId,
+      leadId: ctx.lead.id,
+    });
   });
 
   if (aiResult.text) {

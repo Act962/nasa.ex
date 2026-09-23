@@ -151,7 +151,7 @@ export async function queryPaymentEntries(input: QueryPaymentEntriesInput) {
   const page = input.page ?? 1;
   const perPage = input.perPage ?? 50;
 
-  const [entries, total, amountAggregate, pendingAggregate] = await Promise.all([
+  const [entries, total, amountAggregate, settledAggregate, pendingAggregate] = await Promise.all([
     prisma.paymentEntry.findMany({
       where,
       include: ENTRY_INCLUDE,
@@ -160,22 +160,35 @@ export async function queryPaymentEntries(input: QueryPaymentEntriesInput) {
       take: perPage,
     }),
     prisma.paymentEntry.count({ where }),
-    prisma.paymentEntry.aggregate({ where, _sum: { amount: true, paidAmount: true } }),
+    prisma.paymentEntry.aggregate({ where, _sum: { amount: true } }),
+    // "Total recebido/pago" ignora cancelado (spec 0023): um lançamento
+    // cancelado com baixa registrada inflava o card sem sair da lista.
+    prisma.paymentEntry.aggregate({
+      where: { AND: [where, { status: { not: "CANCELLED" } }] },
+      _sum: { paidAmount: true },
+    }),
     // AND (em vez de espalhar `where`): se o usuário já filtrou por um status,
     // o somatório precisa respeitar esse filtro em vez de sobrescrevê-lo.
     prisma.paymentEntry.aggregate({
       where: { AND: [where, { status: { in: [...PENDING_ENTRY_STATUSES] } }] },
-      _sum: { amount: true },
+      _sum: { amount: true, paidAmount: true },
     }),
   ]);
+
+  // O que falta receber/pagar é o saldo devedor, não o valor cheio: somar
+  // `amount` de um PARTIAL cobrava de novo o que já entrou (spec 0023).
+  const pendingAmount = Math.max(
+    0,
+    (pendingAggregate._sum.amount ?? 0) - (pendingAggregate._sum.paidAmount ?? 0),
+  );
 
   return {
     entries,
     total,
     totals: {
       amount: amountAggregate._sum.amount ?? 0,
-      paidAmount: amountAggregate._sum.paidAmount ?? 0,
-      pendingAmount: pendingAggregate._sum.amount ?? 0,
+      paidAmount: settledAggregate._sum.paidAmount ?? 0,
+      pendingAmount,
     },
   };
 }

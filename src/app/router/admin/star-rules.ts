@@ -1,5 +1,6 @@
 import { base } from "@/app/middlewares/base";
 import { requireAdminMiddleware } from "@/app/middlewares/admin";
+import { invalidateCatalog } from "@/features/stars/lib/metering";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -123,6 +124,7 @@ export const adminCreateStarRule = base
         isPublic: true,
       },
     });
+    invalidateCatalog();
     return { success: true, id: created.id };
   });
 
@@ -152,6 +154,7 @@ export const adminUpdateStarRule = base
       where: { id: input.id },
       data,
     });
+    invalidateCatalog();
     return { success: true };
   });
 
@@ -162,5 +165,6 @@ export const adminDeleteStarRule = base
   .output(z.object({ success: z.boolean() }))
   .handler(async ({ input }) => {
     await prisma.appStarCost.delete({ where: { id: input.id } });
+    invalidateCatalog();
     return { success: true };
   });

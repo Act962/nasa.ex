@@ -1,7 +1,7 @@
+import { meterOrThrow } from "@/features/stars/lib/metering";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { StarTransactionType } from "@/generated/prisma/client";
 import z from "zod";
 import { PAGES_STARS_COST, emptyLayout, intentEnum, slugSchema } from "./_schemas";
@@ -63,19 +63,15 @@ export const createPage = base
       starsSeed = { palette: tmpl.palette, fontFamily: tmpl.fontFamily };
     }
 
-    const debit = await debitStars(
+    const debit = await meterOrThrow({
       organizationId,
-      PAGES_STARS_COST,
-      StarTransactionType.APP_SETUP,
-      `NASA Pages — criação de site "${input.title}"`,
-      "pages",
-      context.user.id,
-    );
-    if (!debit.success) {
-      throw errors.BAD_REQUEST({
-        message: `Saldo de Stars insuficiente (necessário ${PAGES_STARS_COST} ★)`,
-      });
-    }
+      action: "page_create",
+      userId: context.user.id,
+      appSlug: "pages",
+      description: `NASA Pages — criação de site "${input.title}"`,
+      feature: "pages.page_create",
+      transactionType: StarTransactionType.APP_SETUP,
+    }, `Saldo de Stars insuficiente (necessário ${PAGES_STARS_COST} ★)`);
 
     const page = await prisma.nasaPage.create({
       data: {

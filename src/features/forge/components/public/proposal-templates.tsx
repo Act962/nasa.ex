@@ -31,6 +31,16 @@ export interface TemplateProduct {
     description: string | null;
   };
 }
+export interface SimulationBreakdown {
+  recurring: { label: string; monthly: number }[];
+  oneTime: { label: string; amount: number }[];
+  termMonths: number;
+  validityLabel: string;
+  monthlyTotal: number;
+  oneTimeTotal: number;
+  contractTotal: number;
+}
+
 export interface TemplateProposal {
   title: string;
   number: number;
@@ -41,6 +51,7 @@ export interface TemplateProposal {
   discountType: string | null;
   paymentLink: string | null;
   createdAt?: string | null;
+  breakdown?: SimulationBreakdown | null;
   products: TemplateProduct[];
   organization: {
     name: string;
@@ -200,7 +211,53 @@ export function TemplateModern({
               }}
             />
           ) : null}
-          {proposal.products.length > 0 ? (
+          {proposal.breakdown ? (
+            <section className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Investimento mensal (recorrente)</h2>
+                <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
+                  {proposal.breakdown.recurring.map((line) => (
+                    <div key={line.label} className="flex items-center justify-between gap-4 p-4">
+                      <span className="text-base text-slate-700">{line.label}</span>
+                      <span className="font-semibold tabular-nums">{fmt(line.monthly)}/mês</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between gap-4 bg-slate-50 p-4">
+                    <span className="text-sm font-semibold uppercase tracking-wide text-slate-500">Total mensal</span>
+                    <span className="text-xl font-bold tabular-nums">{fmt(proposal.breakdown.monthlyTotal)}/mês</span>
+                  </div>
+                </div>
+              </div>
+              {proposal.breakdown.oneTime.length > 0 ? (
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">Cobranças únicas</h2>
+                  <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
+                    {proposal.breakdown.oneTime.map((line) => (
+                      <div key={line.label} className="flex items-center justify-between gap-4 p-4">
+                        <span className="text-base text-slate-700">{line.label}</span>
+                        <span className="font-semibold tabular-nums">{fmt(line.amount)}</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between gap-4 bg-slate-50 p-4">
+                      <span className="text-sm font-semibold uppercase tracking-wide text-slate-500">Total único</span>
+                      <span className="text-xl font-bold tabular-nums">{fmt(proposal.breakdown.oneTimeTotal)}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              <div className="flex flex-wrap items-baseline justify-between gap-3 rounded-2xl border-2 border-violet-300 bg-violet-50 p-5">
+                <div>
+                  <p className="text-sm font-semibold text-violet-800">Valor total do contrato</p>
+                  <p className="text-sm text-slate-500">
+                    Vigência {proposal.breakdown.validityLabel} · {proposal.breakdown.termMonths} × mensal + cobranças únicas
+                  </p>
+                </div>
+                <span className="text-3xl font-black tabular-nums text-violet-800">
+                  {fmt(proposal.breakdown.contractTotal)}
+                </span>
+              </div>
+            </section>
+          ) : proposal.products.length > 0 ? (
             <section>
               <h2 className="text-2xl font-bold tracking-tight">
                 Escopo da proposta
@@ -258,22 +315,42 @@ export function TemplateModern({
             <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
               Investimento
             </p>
-            <div className="mt-5 space-y-3 text-base">
-              <div className="flex justify-between gap-4 text-slate-600">
-                <span>Subtotal</span>
-                <span>{fmt(subtotal)}</span>
-              </div>
-              {discountAmount > 0 ? (
-                <div className="flex justify-between gap-4 text-emerald-700">
-                  <span>Desconto</span>
-                  <span>− {fmt(discountAmount)}</span>
+            {proposal.breakdown ? (
+              <div className="mt-5 space-y-3 text-base tabular-nums">
+                <div className="flex justify-between gap-4 text-slate-600">
+                  <span>Mensal</span>
+                  <span>{fmt(proposal.breakdown.monthlyTotal)}/mês</span>
                 </div>
-              ) : null}
-              <div className="flex justify-between gap-4 border-t border-slate-200 pt-4 text-2xl font-bold">
-                <span>Total</span>
-                <span>{fmt(total)}</span>
+                {proposal.breakdown.oneTimeTotal > 0 ? (
+                  <div className="flex justify-between gap-4 text-slate-600">
+                    <span>Cobrança única</span>
+                    <span>{fmt(proposal.breakdown.oneTimeTotal)}</span>
+                  </div>
+                ) : null}
+                <div className="flex justify-between gap-4 border-t border-slate-200 pt-4 text-2xl font-bold">
+                  <span>Total do contrato</span>
+                  <span>{fmt(proposal.breakdown.contractTotal)}</span>
+                </div>
+                <p className="text-sm text-slate-500">Vigência {proposal.breakdown.validityLabel}</p>
               </div>
-            </div>
+            ) : (
+              <div className="mt-5 space-y-3 text-base">
+                <div className="flex justify-between gap-4 text-slate-600">
+                  <span>Subtotal</span>
+                  <span>{fmt(subtotal)}</span>
+                </div>
+                {discountAmount > 0 ? (
+                  <div className="flex justify-between gap-4 text-emerald-700">
+                    <span>Desconto</span>
+                    <span>− {fmt(discountAmount)}</span>
+                  </div>
+                ) : null}
+                <div className="flex justify-between gap-4 border-t border-slate-200 pt-4 text-2xl font-bold">
+                  <span>Total</span>
+                  <span>{fmt(total)}</span>
+                </div>
+              </div>
+            )}
             {hasPayment ? (
               <a
                 href={proposal.paymentLink!}

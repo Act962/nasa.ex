@@ -9,6 +9,7 @@ import { ForgeDashboard } from "./dashboard/forge-dashboard";
 import { ProductsTab } from "./products/products-tab";
 import { ProposalsTab } from "./proposals/proposals-tab";
 import { ContractsTab } from "./contracts/contracts-tab";
+import { SimulatorTab } from "./simulator/simulator-tab";
 import { ForgeSettingsPanel } from "./settings/forge-settings";
 import {
   Sheet,
@@ -19,9 +20,14 @@ import {
 import { StarsWidget } from "@/features/stars";
 import { SpacePointWidget } from "@/features/space-point";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
+import { authClient } from "@/lib/auth-client";
 
 export function ForgePage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { data: session } = authClient.useSession();
+  const isSystemAdmin = Boolean(
+    (session?.user as { isSystemAdmin?: boolean } | undefined)?.isSystemAdmin,
+  );
 
   return (
     <ToastProvider>
@@ -71,6 +77,11 @@ export function ForgePage() {
             <TabsTrigger value="contracts" className="text-xs gap-1.5">
               📋 Contratos
             </TabsTrigger>
+            {isSystemAdmin && (
+              <TabsTrigger value="simulator" className="text-xs gap-1.5">
+                🧮 Simulador
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
 
@@ -87,6 +98,11 @@ export function ForgePage() {
           <TabsContent value="contracts" className="px-6 py-6 mt-0">
             <ContractsTab />
           </TabsContent>
+          {isSystemAdmin && (
+            <TabsContent value="simulator" className="px-6 py-6 mt-0">
+              <SimulatorTab />
+            </TabsContent>
+          )}
         </div>
       </Tabs>
 

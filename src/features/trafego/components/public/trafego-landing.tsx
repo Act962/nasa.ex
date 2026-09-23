@@ -296,7 +296,7 @@ export function TrafegoLanding({
   const [paymentMethod, setPaymentMethod] =
     useState<TrafegoPaymentMethod>("CARD");
   const [complianceAcknowledged, setComplianceAcknowledged] = useState(false);
-  /** CPF/CNPJ do pagador — só a trilha PIX pede (spec 0020 D-1). */
+  /** CPF/CNPJ do pagador — só a trilha PIX pede (spec 0022 D-1). */
   const [payerDocument, setPayerDocument] = useState("");
   /** Cobrança PIX gerada: enquanto existir, a tela do PIX substitui o wizard. */
   const [pixCharge, setPixCharge] = useState<{
