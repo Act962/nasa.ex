@@ -34,7 +34,10 @@ export function buildMutationTools(ctx: AgentContext) {
           .string()
           .optional()
           .describe("Telefone com DDD (ex: '11 99999-9999')"),
-        email: z.string().email().optional(),
+        email: z
+          .string()
+          .optional()
+          .describe("E-mail do lead"),
         document: z.string().optional().describe("CPF/CNPJ"),
         trackingId: z
           .string()
@@ -383,7 +386,10 @@ export function buildMutationTools(ctx: AgentContext) {
         leadId: z.string(),
         name: z.string().optional(),
         phone: z.string().optional(),
-        email: z.string().email().optional(),
+        email: z
+          .string()
+          .optional()
+          .describe("E-mail do lead"),
         document: z.string().optional(),
         description: z.string().optional(),
       }),
