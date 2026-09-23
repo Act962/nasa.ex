@@ -10,6 +10,8 @@ import { queryPaymentEntries } from "@/features/payment/server/entries/query-ent
 import { createPaymentEntryRecord } from "@/features/payment/server/entries/create-entry";
 import { updatePaymentEntryRecord } from "@/features/payment/server/entries/update-entry";
 import { payPaymentEntryRecord } from "@/features/payment/server/entries/pay-entry";
+import { generateEntryInstallments } from "@/features/payment/server/entries/generate-installments";
+import { MAX_INSTALLMENTS } from "@/features/payment/schemas/entry-form-schema";
 import { formatCents } from "@/features/payment/server/entries/entry-include";
 
 // As procedures validam contrato e traduzem resultado em erro HTTP; a lógica
@@ -247,6 +249,8 @@ export const updatePaymentEntry = base
     accountId: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
     documentNumber: z.string().nullable().optional(),
+    installmentTotal: z.number().int().positive().nullable().optional(),
+    installmentCurrent: z.number().int().positive().nullable().optional(),
   }))
   .output(z.object({ entry: entryShape }))
   .handler(async ({ input, context, errors }) => {
@@ -264,8 +268,43 @@ export const updatePaymentEntry = base
     }
     // Sem isso, uma entry de outra organização (ou já excluída) caía no catch
     // e virava "Something went wrong".
-    if (!result.ok) throw errors.NOT_FOUND({ message: result.message });
+    if (!result.ok) {
+      if (result.reason === "over_amount") {
+        throw errors.BAD_REQUEST({ message: result.message });
+      }
+      throw errors.NOT_FOUND({ message: result.message });
+    }
     return { entry: result.entry };
+  });
+
+export const generatePaymentEntryInstallments = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("entries", "create"))
+  .route({ method: "POST", summary: "Generate the remaining installments", tags: ["Payment"] })
+  .input(z.object({
+    id: z.string(),
+    installmentTotal: z.number().int().min(2).max(MAX_INSTALLMENTS),
+  }))
+  .output(z.object({ createdCount: z.number(), installmentTotal: z.number() }))
+  .handler(async ({ input, context, errors }) => {
+    let result;
+    try {
+      result = await generateEntryInstallments({
+        organizationId: context.org.id,
+        actor: context.user,
+        entryId: input.id,
+        installmentTotal: input.installmentTotal,
+      });
+    } catch (err) {
+      console.error("[payment/entries generateInstallments]", err);
+      throw errors.INTERNAL_SERVER_ERROR;
+    }
+    if (!result.ok) {
+      if (result.reason === "not_found") throw errors.NOT_FOUND({ message: result.message });
+      throw errors.BAD_REQUEST({ message: result.message });
+    }
+    return { createdCount: result.createdCount, installmentTotal: result.installmentTotal };
   });
 
 export const payPaymentEntry = base
