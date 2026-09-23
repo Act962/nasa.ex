@@ -62,6 +62,7 @@ model User {
   workspacesMembers                  WorkspaceMember[]
   userNotifications                  UserNotification[]
   notificationPrefs                  UserNotificationPreference[]
+  pushSubscriptions                  PushSubscription[]
   sidebarPrefs                       UserSidebarPreference[]
   spacePoints                        UserSpacePoint[]
   memberStarBudgets                  MemberStarBudget[]
@@ -4428,6 +4429,34 @@ model UserChatPreferences {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_chat_preferences")
+}
+
+/// Inscrição de Web Push de um browser (spec 0022).
+///
+/// Um usuário tem N inscrições — uma por browser/dispositivo. Quem identifica
+/// é o `endpoint`, único globalmente: o mesmo browser depois de trocar de conta
+/// reaproveita a linha, só mudando o `userId`.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  /// URL do push service (FCM, Mozilla, WNS…). Identidade da inscrição.
+  endpoint  String   @unique
+  /// Chave pública do cliente para criptografar o payload (ECDH P-256).
+  p256dh    String
+  /// Segredo de autenticação do cliente.
+  auth      String
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  /// Último envio aceito pelo push service — base para limpeza futura.
+  lastUsedAt DateTime? @map("last_used_at")
+  /// Falhas consecutivas que NÃO são 404/410 (403 de VAPID trocado, 429…).
+  /// Serve para diagnóstico: 404/410 apagam a linha na hora (spec 0022, D-4).
+  failureCount Int    @default(0) @map("failure_count")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscription")
 }
 
 // ─── Admin Notifications ──────────────────────────────────────────────────────
@@ -8940,7 +8969,16 @@ model TrafegoSettings {
   /// `{ [TrafegoColumnKey]: Status.id }` — preenchido ao provisionar o tracking.
   statusColumnMap      Json    @default("{}") @map("status_column_map")
   /// Formulário "Briefing TrafeGO" (org da agência) que recebe as respostas do wizard.
-  briefingFormId       String? @map("briefing_form_id")
+  briefingFormId             String?  @map("briefing_form_id")
+
+  // ── Captura de lead no wizard (spec 0021) ──
+  /// Destino do lead captado no passo Contato, ANTES do pagamento. Separado de
+  /// `operationsTrackingId` de propósito: aquele board é a mesa do gestor (um
+  /// card por pedido pago); este é o funil comercial, e pode ser de outra org.
+  /// Nulo em qualquer um dos três = captura desligada, o wizard segue igual.
+  captureOrganizationId      String?  @map("capture_organization_id")
+  captureTrackingId          String?  @map("capture_tracking_id")
+  captureStatusId            String?  @map("capture_status_id")
   /// Business ID da Órbita — vai no pedido de acesso de parceiro à BM do cliente.
   partnerBusinessId    String? @map("partner_business_id")
 

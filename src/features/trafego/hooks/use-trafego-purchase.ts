@@ -86,3 +86,14 @@ export const useRedeemTrafegoPurchase = () => {
       client.trafego.redeemPurchase(input),
   });
 };
+
+/**
+ * Lead do passo Contato (spec 0021). Dispara e segue — o wizard nunca espera
+ * a resposta nem mostra erro: falhar aqui não pode travar a venda (RNF-2).
+ */
+export const useCaptureTrafegoLead = () => {
+  return useMutation({
+    mutationFn: (input: Parameters<typeof client.trafego.captureLead>[0]) =>
+      client.trafego.captureLead(input),
+  });
+};

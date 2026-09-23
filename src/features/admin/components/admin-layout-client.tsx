@@ -12,15 +12,15 @@ interface AdminLayoutClientProps {
 }
 
 export function AdminLayoutClient({ adminUser, children }: AdminLayoutClientProps) {
+  // O AlertProvider não mora mais aqui: subiu para o layout raiz, para o popup
+  // seguir o admin por toda a aplicação (spec 0021, D-6).
   return (
     <ToastProvider>
       <div className="flex h-screen bg-zinc-950 text-white overflow-hidden">
         <AdminSidebar />
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <AdminHeader adminUser={adminUser} />
-          <main className="flex-1 overflow-y-auto p-6">
-            {children}
-          </main>
+          <main className="flex-1 overflow-y-auto p-6">{children}</main>
         </div>
       </div>
       <AdminToastContainer />

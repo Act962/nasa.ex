@@ -1,5 +1,6 @@
-import { TrafegoPlansManager } from "@/features/admin/components/trafego/plans-manager";
+import { redirect } from "next/navigation";
 
+/** Rota antiga dos planos: os ajustes agora vivem todos em /admin/trafego/settings. */
 export default function AdminTrafegoPlansPage() {
-  return <TrafegoPlansManager />;
+  redirect("/admin/trafego/settings");
 }

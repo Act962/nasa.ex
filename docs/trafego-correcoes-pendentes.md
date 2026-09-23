@@ -217,8 +217,8 @@ componente só. Já custou um hotfix de build no PR #391 (`useSearchParams` sem 
 
 ### E-6 · Componentes de admin fora da feature — **baixa**
 
-`src/features/admin/components/trafego/` tem 2.109 linhas (`order-detail`, `orders-table`,
-`plans-manager`, `settings-form`, `public-link-card`) que importam hooks, libs e componentes de
+`src/features/admin/components/trafego/` (`order-detail`, `orders-table`, `public-link-card` e a
+pasta `settings/`) importa hooks, libs e componentes de
 `@/features/trafego`. A regra 3 do CLAUDE.md diz que código de domínio mora na pasta do domínio.
 
 - [ ] Mover para `src/features/trafego/components/admin/`, deixando em `features/admin` apenas o
