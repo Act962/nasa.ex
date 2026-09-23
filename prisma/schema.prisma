@@ -308,6 +308,9 @@ model Organization {
   forgeContracts         ForgeContract[]
   forgeTemplates         ForgeContractTemplate[]
   forgeSettings          ForgeSettings?
+  forgePriceItems        ForgePriceItem[]
+  forgePriceSuggestions  ForgePriceSuggestion[]
+  forgeSimulations       ForgeSimulation[]
   plan                   Plan?                      @relation(fields: [planId], references: [id], onDelete: SetNull)
   starTransactions       StarTransaction[]
   usageEvents            UsageEvent[]
@@ -3113,6 +3116,7 @@ model ForgeProposal {
   campaignPlanners        NasaCampaignPlanner[]
   orgProject              OrgProject?              @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
   clientOnboardingProcess ClientOnboardingProcess?
+  simulation              ForgeSimulation?
 
   @@unique([organizationId, number])
   @@index([organizationId])
@@ -3209,6 +3213,197 @@ model ForgeSettings {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("forge_settings")
+}
+
+// ─────────────────────────────────────────────
+// FORGE — Simulador de Custos & Proposta
+// ─────────────────────────────────────────────
+
+enum ForgePriceCategory {
+  AI_MODEL
+  WHATSAPP_CONVERSATION
+  INFRA_SERVER
+  HOSTING
+  STORAGE
+  DATABASE
+  LABOR
+  OTHER
+}
+
+enum ForgePriceUnit {
+  PER_1K_TOKENS
+  PER_CONVERSATION
+  PER_MONTH
+  PER_HOUR
+  PER_GB_MONTH
+  PER_COMPUTE_HOUR
+  FLAT
+}
+
+enum ForgePriceCurrency {
+  BRL
+  USD
+}
+
+enum ForgePriceSuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ForgeSimulationMode {
+  COMERCIAL
+  LICITACAO
+}
+
+enum ForgeExequibilidadeFlag {
+  OK
+  EXCESSIVO
+  INEXEQUIVEL
+}
+
+model ForgePriceItem {
+  id               String             @id @default(cuid())
+  organizationId   String             @map("organization_id")
+  category         ForgePriceCategory
+  name             String
+  code             String?
+  description      String?
+  provider         String?
+  currency         ForgePriceCurrency @default(BRL)
+  unit             ForgePriceUnit
+  unitPrice        Decimal?           @map("unit_price") @db.Decimal(18, 8)
+  inputPer1k       Decimal?           @map("input_per_1k") @db.Decimal(18, 8)
+  outputPer1k      Decimal?           @map("output_per_1k") @db.Decimal(18, 8)
+  cachedInputPer1k Decimal?           @map("cached_input_per_1k") @db.Decimal(18, 8)
+  metadata         Json               @default("{}")
+  isActive         Boolean            @default(true) @map("is_active")
+  isSeeded         Boolean            @default(false) @map("is_seeded")
+  source           String?
+  sortOrder        Int                @default(0) @map("sort_order")
+  createdById      String?            @map("created_by")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  suggestions  ForgePriceSuggestion[]
+  simLines     ForgeSimulationLineItem[]
+  bidItems     ForgeBidItem[]
+
+  @@unique([organizationId, category, code])
+  @@index([organizationId, category])
+  @@index([organizationId, isActive])
+  @@map("forge_price_items")
+}
+
+model ForgePriceSuggestion {
+  id             String                     @id @default(cuid())
+  organizationId String                     @map("organization_id")
+  priceItemId    String?                    @map("price_item_id")
+  category       ForgePriceCategory
+  code           String?
+  name           String
+  currency       ForgePriceCurrency         @default(BRL)
+  currentValue   Json?                      @map("current_value")
+  suggestedValue Json                       @map("suggested_value")
+  sourceUrl      String?                    @map("source_url")
+  sourceLabel    String?                    @map("source_label")
+  fetchedAt      DateTime                   @default(now()) @map("fetched_at")
+  status         ForgePriceSuggestionStatus @default(PENDING)
+  reviewedById   String?                    @map("reviewed_by")
+  reviewedAt     DateTime?                  @map("reviewed_at")
+  createdAt      DateTime                   @default(now()) @map("created_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  priceItem    ForgePriceItem? @relation(fields: [priceItemId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@map("forge_price_suggestions")
+}
+
+model ForgeSimulation {
+  id                  String              @id @default(cuid())
+  organizationId      String              @map("organization_id")
+  name                String
+  mode                ForgeSimulationMode @default(COMERCIAL)
+  markupPercentage    Decimal             @default(0) @map("markup_percentage") @db.Decimal(6, 2)
+  usdToBrlRate        Decimal             @map("usd_to_brl_rate") @db.Decimal(10, 4)
+  internalCostTotal   Decimal             @default(0) @map("internal_cost_total") @db.Decimal(15, 2)
+  clientPriceTotal    Decimal             @default(0) @map("client_price_total") @db.Decimal(15, 2)
+  computedAt          DateTime?           @map("computed_at")
+  proposalId          String?             @unique @map("proposal_id")
+  // Modo Comercial
+  userCount           Int                 @default(1) @map("user_count")
+  aiPriceItemId       String?             @map("ai_price_item_id")
+  aiModelCode         String?             @map("ai_model_code")
+  inputTokensPerUser  Int                 @default(0) @map("input_tokens_per_user")
+  outputTokensPerUser Int                 @default(0) @map("output_tokens_per_user")
+  cachedTokensPerUser Int                 @default(0) @map("cached_tokens_per_user")
+  whatsappEnabled     Boolean             @default(false) @map("whatsapp_enabled")
+  whatsappMix         Json                @default("[]") @map("whatsapp_mix")
+  // Modo Licitação
+  bidOrg              String?             @map("bid_org")
+  bidNumber           String?             @map("bid_number")
+  contractMonths      Int                 @default(12) @map("contract_months")
+  ceilingTotalBrl     Decimal?            @map("ceiling_total_brl") @db.Decimal(15, 2)
+  createdById         String              @map("created_by")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  proposal     ForgeProposal?            @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  lineItems    ForgeSimulationLineItem[]
+  bidItems     ForgeBidItem[]
+
+  @@index([organizationId])
+  @@map("forge_simulations")
+}
+
+model ForgeSimulationLineItem {
+  id           String             @id @default(cuid())
+  simulationId String             @map("simulation_id")
+  priceItemId  String?            @map("price_item_id")
+  category     ForgePriceCategory
+  label        String
+  quantity     Decimal            @db.Decimal(18, 4)
+  unit         ForgePriceUnit
+  unitCostBrl  Decimal            @map("unit_cost_brl") @db.Decimal(18, 8)
+  internalCost Decimal            @map("internal_cost") @db.Decimal(15, 2)
+  meta         Json               @default("{}")
+  order        Int                @default(0)
+
+  simulation ForgeSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  priceItem  ForgePriceItem? @relation(fields: [priceItemId], references: [id], onDelete: SetNull)
+
+  @@index([simulationId])
+  @@map("forge_simulation_line_items")
+}
+
+model ForgeBidItem {
+  id                  String                  @id @default(cuid())
+  simulationId        String                  @map("simulation_id")
+  parentId            String?                 @map("parent_id")
+  priceItemId         String?                 @map("price_item_id")
+  code                String
+  description         String
+  unit                String                  @default("SV")
+  quantity            Decimal                 @db.Decimal(15, 4)
+  internalUnitCostBrl Decimal                 @map("internal_unit_cost_brl") @db.Decimal(18, 8)
+  markupPercentage    Decimal                 @default(0) @map("markup_percentage") @db.Decimal(6, 2)
+  bidUnitBrl          Decimal                 @map("bid_unit_brl") @db.Decimal(15, 2)
+  bidMonthlyBrl       Decimal                 @map("bid_monthly_brl") @db.Decimal(15, 2)
+  bidTotalBrl         Decimal                 @map("bid_total_brl") @db.Decimal(15, 2)
+  ceilingUnitBrl      Decimal?                @map("ceiling_unit_brl") @db.Decimal(15, 2)
+  exequibilidade      ForgeExequibilidadeFlag @default(OK)
+  order               Int                     @default(0)
+
+  simulation ForgeSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  parent     ForgeBidItem?   @relation("ForgeBidItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children   ForgeBidItem[]  @relation("ForgeBidItemChildren")
+  priceItem  ForgePriceItem? @relation(fields: [priceItemId], references: [id], onDelete: SetNull)
+
+  @@index([simulationId])
+  @@map("forge_bid_items")
 }
 
 // ─────────────────────────────────────────────
