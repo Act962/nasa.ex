@@ -1,7 +1,7 @@
 /**
  * POST /api/trafego/asaas/webhook
  *
- * Eventos de cobrança do Asaas para o trafeGO (spec 0020).
+ * Eventos de cobrança do Asaas para o trafeGO (spec 0022).
  *
  * Endpoint separado do webhook de Stars de propósito: segredo próprio, e o
  * trafeGO não herda o risco do outro domínio.

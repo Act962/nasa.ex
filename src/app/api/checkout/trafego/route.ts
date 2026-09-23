@@ -358,7 +358,7 @@ export async function POST(req: NextRequest) {
 
     // Com o gateway ligado, a cobrança nasce no Asaas e o webhook confirma
     // sozinho. Sem ele, cai no fluxo manual de sempre — chave estática e
-    // comprovante no WhatsApp (spec 0020 RF-15).
+    // comprovante no WhatsApp (spec 0022 RF-15).
     let asaasCharge: Awaited<ReturnType<typeof createAsaasPixCharge>> | null =
       null;
     if (asaasGateway) {

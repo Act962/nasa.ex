@@ -1,8 +1,9 @@
+import { meterOrThrow } from "@/features/stars/lib/metering";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requireStarsMiddleware } from "@/app/middlewares/require-stars";
 import prisma from "@/lib/prisma";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { StarTransactionType } from "@/generated/prisma/enums";
@@ -79,6 +80,7 @@ const MODEL_TO_LABEL: Record<(typeof MODEL_OPTIONS)[number], string> = {
 export const generatePostImage = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requireStarsMiddleware)
   .route({
     method: "POST",
     path: "/nasa-planner/posts/generate-image",
@@ -130,20 +132,17 @@ export const generatePostImage = base
     }
 
     // ── 2. Cobrança upfront ────────────────────────────────────────────
-    const starsToDebit = MODEL_TO_STARS[input.model];
-    const debit = await debitStars(
-      context.org.id,
-      starsToDebit,
-      StarTransactionType.APP_CHARGE,
-      `NASA Planner — imagem ${MODEL_TO_LABEL[input.model]}`,
-      "nasa-planner",
-      context.user.id,
-    );
-    if (!debit.success) {
-      throw new ORPCError("BAD_REQUEST", {
-        message: `Saldo de STARs insuficiente (${starsToDebit}★ necessários).`,
-      });
-    }
+    const debit = await meterOrThrow({
+      organizationId: context.org.id,
+      action: "planner_post_image",
+      variant: input.model,
+      userId: context.user.id,
+      appSlug: "nasa-planner",
+      description: `NASA Planner — imagem ${MODEL_TO_LABEL[input.model]}`,
+      feature: "planner.image.post",
+      quantity: { unit: "image", amount: 1 },
+      cost: { kind: "IMAGE", modelId: input.model },
+    });
 
     // ── 3. Dispatch pro provider correto ───────────────────────────────
     let imageKey: string | null = null;
@@ -239,7 +238,7 @@ export const generatePostImage = base
         where: { id: post.id },
         data: {
           thumbnail: imageKey,
-          starsSpent: { increment: starsToDebit },
+          starsSpent: { increment: debit.stars },
           aiPrompt: input.prompt, // salva o prompt original (sem brand suffix)
         },
       });
@@ -248,8 +247,8 @@ export const generatePostImage = base
     return {
       imageKey,
       modelUsed,
-      starsSpent: starsToDebit,
-      balanceAfter: debit.newBalance,
+      starsSpent: debit.stars,
+      balanceAfter: debit.balanceAfter,
       brandApplied: brandCtx.kitComplete,
     };
   });

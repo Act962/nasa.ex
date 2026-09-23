@@ -119,8 +119,13 @@ export function PublicProposalView({
     };
   }, [docTitle]);
 
+  const breakdown =
+    (proposal.headerConfig as { simulationBreakdown?: TemplateProposal["breakdown"] } | null)
+      ?.simulationBreakdown ?? null;
+
   const templateProposal: TemplateProposal = {
     ...proposal,
+    breakdown,
     createdAt: proposal.createdAt,
     organization: {
       name: proposal.organization.name,

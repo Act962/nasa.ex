@@ -1,10 +1,10 @@
+import { meter } from "@/features/stars/lib/metering";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { resolveWorkspaceTrackingId } from "@/features/actions/lib/workspace-tracking";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { StarTransactionType, ForgeProposalStatus } from "@/generated/prisma/enums";
 import {
   parseDate,
@@ -219,11 +219,29 @@ export const execute = base
     const resolvedClientName = resolvedContact?.name ?? (nameVars[0]?.replace(/_/g, " ") ?? null);
 
     // ─── Helper: debit stars safely ───────────────────────────────────────────
-    async function tryDebitStars(cost: number, description: string): Promise<void> {
+    /**
+     * `kind` é a variante no catálogo (`nasa_command`), não mais um número:
+     * os valores que viviam em STAR_COSTS foram portados para lá e agora podem
+     * ser ajustados sem deploy.
+     */
+    async function tryDebitStars(
+      kind: "query" | "create" | "ai_parse" | "ai_generate" | "move",
+      description: string,
+    ): Promise<number> {
       try {
-        await debitStars(orgId, cost, StarTransactionType.APP_CHARGE, `NASA Explorer — ${description}`, "nasa-explorer", context.user.id);
+        const charge = await meter({
+          organizationId: orgId,
+          action: "nasa_command",
+          variant: kind,
+          userId: context.user.id,
+          appSlug: "nasa-explorer",
+          description: `NASA Explorer — ${description}`,
+          feature: `nasa-command.${kind}`,
+        });
+        return charge.charged && charge.success ? charge.cost : 0;
       } catch {
         // Non-critical, don't block the response
+        return 0;
       }
     }
 
@@ -328,8 +346,8 @@ export const execute = base
           select: { id: true, number: true },
         });
 
-        const cost = STAR_COSTS.create;
-        await tryDebitStars(cost, `Proposta criada — ${proposalTitle}`);
+        const costKind = "create" as const;
+        const starsSpent = await tryDebitStars(costKind, `Proposta criada — ${proposalTitle}`);
 
         return {
           type: "created" as const,
@@ -337,7 +355,7 @@ export const execute = base
           description: `Proposta "${proposalTitle}" criada no Forge.${foundProduct ? ` Produto: ${foundProduct.name}.` : ""}`,
           url: `/forge?tab=proposals&id=${proposal.id}`,
           appName: "Forge",
-          starsSpent: cost,
+          starsSpent,
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute forge proposal enhanced]", err);
@@ -374,8 +392,8 @@ export const execute = base
           select: { id: true, number: true },
         });
 
-        const cost = STAR_COSTS.create;
-        await tryDebitStars(cost, `Contrato #${contract.number} criado`);
+        const costKind = "create" as const;
+        const starsSpent = await tryDebitStars(costKind, `Contrato #${contract.number} criado`);
 
         return {
           type: "created" as const,
@@ -383,7 +401,7 @@ export const execute = base
           description: `Contrato #${contract.number} criado no Forge aguardando assinatura.`,
           url: `/forge?tab=contracts&id=${contract.id}`,
           appName: "Forge",
-          starsSpent: cost,
+          starsSpent,
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute forge contract]", err);
@@ -559,8 +577,8 @@ export const execute = base
           data: { statusId: status.id, trackingId },
         });
 
-        const cost = STAR_COSTS.move;
-        await tryDebitStars(cost, `Lead "${lead.name}" movido para "${status.name}"`);
+        const costKind = "move" as const;
+        const starsSpent = await tryDebitStars(costKind, `Lead "${lead.name}" movido para "${status.name}"`);
 
         return {
           type: "created" as const,
@@ -568,7 +586,7 @@ export const execute = base
           description: `Lead "${lead.name}" movido para a etapa "${status.name}".`,
           url: "/tracking",
           appName: "Tracking",
-          starsSpent: cost,
+          starsSpent,
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute move lead]", err);
@@ -688,8 +706,8 @@ CTA: [chamada para ação]`;
           },
         });
 
-        const cost = STAR_COSTS.ai_generate;
-        await tryDebitStars(cost, `Post gerado com IA — ${topic}`);
+        const costKind = "ai_generate" as const;
+        const starsSpent = await tryDebitStars(costKind, `Post gerado com IA — ${topic}`);
 
         return {
           type: "post_generated" as const,
@@ -698,7 +716,7 @@ CTA: [chamada para ação]`;
           url: "/nasa-planner",
           appName: "NASA Planner",
           content: formattedContent,
-          starsSpent: cost,
+          starsSpent,
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute generate post]", err);
@@ -748,8 +766,8 @@ CTA: [chamada para ação]`;
           select: { id: true },
         });
 
-        const cost = STAR_COSTS.create;
-        await tryDebitStars(cost, `Post criado no NASA Planner`);
+        const costKind = "create" as const;
+        const starsSpent = await tryDebitStars(costKind, `Post criado no NASA Planner`);
 
         return {
           type: "created" as const,
@@ -757,7 +775,7 @@ CTA: [chamada para ação]`;
           description: `${postType === "CAROUSEL" ? "Carrossel" : postType === "REEL" ? "Reel" : postType === "STORY" ? "Story" : "Post"} criado como rascunho para ${networks.join(", ")}.`,
           url: `/nasa-planner`,
           appName: "NASA Planner",
-          starsSpent: cost,
+          starsSpent,
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute nasa-planner]", err);
@@ -1022,8 +1040,8 @@ CTA: [chamada para ação]`;
           select: { id: true },
         });
 
-        const cost = STAR_COSTS.create;
-        await tryDebitStars(cost, `Agendamento criado — ${resolvedLead.name}`);
+        const costKind = "create" as const;
+        const starsSpent = await tryDebitStars(costKind, `Agendamento criado — ${resolvedLead.name}`);
 
         return {
           type: "created" as const,
@@ -1031,7 +1049,7 @@ CTA: [chamada para ação]`;
           description: `Reunião com ${resolvedLead.name} em ${startsAt.toLocaleDateString("pt-BR")} às ${finalTime}.`,
           url: "/agendas",
           appName: "Spacetime",
-          starsSpent: cost,
+          starsSpent,
         } satisfies ExecuteOutput;
       } catch (err: unknown) {
         const e = err as { code?: string; message?: string };
@@ -1236,8 +1254,8 @@ CTA: [chamada para ação]`;
           console.error("[nasa-command/execute create tracking statuses]", statusErr);
         }
 
-        const cost = STAR_COSTS.create;
-        await tryDebitStars(cost, `Tracking "${tracking.name}" criado`);
+        const costKind = "create" as const;
+        const starsSpent = await tryDebitStars(costKind, `Tracking "${tracking.name}" criado`);
 
         return {
           type: "created" as const,
@@ -1245,7 +1263,7 @@ CTA: [chamada para ação]`;
           description: `Pipeline criado com as etapas: Prospecção, Contato, Proposta, Fechado. Acesse o app para personalizar.`,
           url: `/tracking`,
           appName: "Tracking",
-          starsSpent: cost,
+          starsSpent,
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute create tracking]", err);
@@ -1283,8 +1301,8 @@ CTA: [chamada para ação]`;
           select: { id: true, name: true },
         });
 
-        const cost = STAR_COSTS.create;
-        await tryDebitStars(cost, `Lead "${lead.name}" criado`);
+        const costKind = "create" as const;
+        const starsSpent = await tryDebitStars(costKind, `Lead "${lead.name}" criado`);
 
         return {
           type: "created" as const,
@@ -1292,7 +1310,7 @@ CTA: [chamada para ação]`;
           description: `Lead "${lead.name}" adicionado ao tracking "${firstTracking.name}".`,
           url: `/tracking`,
           appName: "Tracking",
-          starsSpent: cost,
+          starsSpent,
         } satisfies ExecuteOutput;
       } catch (err: unknown) {
         const e = err as { code?: string };
@@ -1443,8 +1461,8 @@ CTA: [chamada para ação]`;
 
     // ── WORKSPACE-LIST ────────────────────────────────────────────────────────
     if (isWorkspaceQuery) {
-      const cost = STAR_COSTS.query;
-      await tryDebitStars(cost, "busca de workspaces");
+      const costKind = "query" as const;
+      const starsSpent = await tryDebitStars(costKind, "busca de workspaces");
 
       try {
         // Busca todos os workspaces da organização com colunas e contagem de cards
@@ -1478,7 +1496,7 @@ CTA: [chamada para ação]`;
             description: "Você ainda não tem workspaces criados nesta organização.",
             url: "/workspaces",
             appName: "Workspaces",
-            starsSpent: cost,
+            starsSpent,
           } satisfies ExecuteOutput;
         }
 
@@ -1517,7 +1535,7 @@ CTA: [chamada para ação]`;
           description: lines.join("\n").trim(),
           url: "/workspaces",
           appName: "Workspaces",
-          starsSpent: cost,
+          starsSpent,
           resultLinks: links,
         } satisfies ExecuteOutput;
       } catch (err) {
@@ -1578,8 +1596,8 @@ CTA: [chamada para ação]`;
 
         const filterDesc = filterDone ? " concluídas" : filterPending ? " pendentes" : filterUrgent ? " urgentes" : "";
 
-        const cost = STAR_COSTS.query;
-        await tryDebitStars(cost, "busca de tarefas");
+        const costKind = "query" as const;
+        const starsSpent = await tryDebitStars(costKind, "busca de tarefas");
 
         return {
           type: "query_result" as const,
@@ -1591,7 +1609,7 @@ CTA: [chamada para ação]`;
             : "Nenhuma tarefa encontrada com os filtros aplicados.",
           url: "/workspaces",
           appName: "Demand",
-          starsSpent: cost,
+          starsSpent,
           resultLinks: tasks.length > 0 ? resultLinks : undefined,
           extraData: { tasks },
         } satisfies ExecuteOutput;
@@ -1738,8 +1756,8 @@ CTA: [chamada para ação]`;
           ]);
         }
 
-        const cost = STAR_COSTS.create;
-        await tryDebitStars(cost, `Tarefa "${finalTitle}" criada`);
+        const costKind = "create" as const;
+        const starsSpent = await tryDebitStars(costKind, `Tarefa "${finalTitle}" criada`);
 
         const details: string[] = [];
         if (descricao)  details.push(`Descrição: ${descricao.slice(0, 60)}${descricao.length > 60 ? "…" : ""}`);
@@ -1752,7 +1770,7 @@ CTA: [chamada para ação]`;
           description: `"${finalTitle}" adicionada ao workspace "${workspace.name}".${details.length > 0 ? `\n${details.join(" · ")}` : ""}`,
           url: `/workspaces/${workspace.id}`,
           appName: "Demand",
-          starsSpent: cost,
+          starsSpent,
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute task-create]", err);
@@ -1812,8 +1830,8 @@ CTA: [chamada para ação]`;
           url: `/nbox${item.folder ? `?folder=${item.folder.id}` : ""}`,
         }));
 
-        const cost = STAR_COSTS.query;
-        await tryDebitStars(cost, "busca N-Box");
+        const costKind = "query" as const;
+        const starsSpent = await tryDebitStars(costKind, "busca N-Box");
 
         return {
           type: "query_result" as const,
@@ -1825,7 +1843,7 @@ CTA: [chamada para ação]`;
             : `Nenhum arquivo encontrado${folder ? ` na pasta "${folder.name}"` : ""}.`,
           url: "/nbox",
           appName: "N-Box",
-          starsSpent: cost,
+          starsSpent,
           resultLinks: items.length > 0 ? resultLinks : undefined,
           extraData: { items },
         } satisfies ExecuteOutput;
@@ -1857,8 +1875,8 @@ CTA: [chamada para ação]`;
           url: `/form/${f.id}`,
         }));
 
-        const cost = STAR_COSTS.query;
-        await tryDebitStars(cost, "busca de formulários");
+        const costKind = "query" as const;
+        const starsSpent = await tryDebitStars(costKind, "busca de formulários");
 
         return {
           type: "query_result" as const,
@@ -1870,7 +1888,7 @@ CTA: [chamada para ação]`;
             : "Crie seu primeiro formulário no Cosmic.",
           url: "/form",
           appName: "Cosmic",
-          starsSpent: cost,
+          starsSpent,
           resultLinks: forms.length > 0 ? resultLinks : undefined,
           extraData: { forms },
         } satisfies ExecuteOutput;
@@ -1920,8 +1938,8 @@ CTA: [chamada para ação]`;
           select: { id: true, createdAt: true, lead: { select: { name: true } } },
         });
 
-        const cost = STAR_COSTS.query;
-        await tryDebitStars(cost, `respostas formulário ${form.name}`);
+        const costKind = "query" as const;
+        const starsSpent = await tryDebitStars(costKind, `respostas formulário ${form.name}`);
 
         return {
           type: "query_result" as const,
@@ -1931,7 +1949,7 @@ CTA: [chamada para ação]`;
             : "Nenhuma resposta ainda.",
           url: `/form/${form.id}`,
           appName: "Cosmic",
-          starsSpent: cost,
+          starsSpent,
           extraData: { form, recentResponses },
         } satisfies ExecuteOutput;
       } catch (err) {
@@ -1978,8 +1996,8 @@ CTA: [chamada para ação]`;
           };
         });
 
-        const cost = STAR_COSTS.query;
-        await tryDebitStars(cost, "busca de conversas");
+        const costKind = "query" as const;
+        const starsSpent = await tryDebitStars(costKind, "busca de conversas");
 
         const filterDesc = filterOpen ? " abertas" : filterClosed ? " fechadas" : "";
 
@@ -1993,7 +2011,7 @@ CTA: [chamada para ação]`;
             : "Nenhuma conversa encontrada no NASA Chat.",
           url: "/tracking-chat",
           appName: "NASA Chat",
-          starsSpent: cost,
+          starsSpent,
           resultLinks: conversations.length > 0 ? resultLinks : undefined,
           extraData: { conversations },
         } satisfies ExecuteOutput;
@@ -2074,8 +2092,8 @@ CTA: [chamada para ação]`;
           };
         });
 
-        const cost = STAR_COSTS.query;
-        await tryDebitStars(cost, "busca de posts no planner");
+        const costKind = "query" as const;
+        const starsSpent = await tryDebitStars(costKind, "busca de posts no planner");
 
         const filterDesc = filterScheduled ? " agendados" : filterDraft ? " em rascunho" : filterPublished ? " publicados" : "";
 
@@ -2089,7 +2107,7 @@ CTA: [chamada para ação]`;
             : "Crie seu primeiro post no NASA Planner.",
           url: "/nasa-planner",
           appName: "NASA Planner",
-          starsSpent: cost,
+          starsSpent,
           resultLinks: posts.length > 0 ? resultLinks : undefined,
           extraData: { posts },
         } satisfies ExecuteOutput;
@@ -2116,8 +2134,8 @@ CTA: [chamada para ação]`;
           return `• ${signal}${t.amount} ⭐ ${t.description} · ${date}`;
         });
 
-        const cost = STAR_COSTS.query;
-        await tryDebitStars(cost, "histórico de stars");
+        const costKind = "query" as const;
+        const starsSpent = await tryDebitStars(costKind, "histórico de stars");
 
         return {
           type: "query_result" as const,
@@ -2125,7 +2143,7 @@ CTA: [chamada para ação]`;
           description: lines.join("\n") || "Nenhuma transação encontrada.",
           url: "/settings",
           appName: "Stars",
-          starsSpent: cost,
+          starsSpent,
           extraData: { transactions },
         } satisfies ExecuteOutput;
       } catch (err) {

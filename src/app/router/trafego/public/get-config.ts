@@ -21,7 +21,7 @@ export const getPublicTrafegoConfig = base
       extraCreativeBrlCents: z.number().int().nonnegative(),
       pixAvailable: z.boolean(),
       /// Cobrança pelo Asaas ligada: o wizard pede CPF/CNPJ e a tela do PIX
-      /// mostra QR em vez de pedir comprovante (spec 0020).
+      /// mostra QR em vez de pedir comprovante (spec 0022).
       pixAutoConfirms: z.boolean(),
       verification: z.object({
         phone: z.boolean(),

@@ -1,5 +1,6 @@
 import { requireAdminMiddleware } from "@/app/middlewares/admin";
 import { base } from "@/app/middlewares/base";
+import { invalidateCatalog } from "@/features/stars/lib/metering";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -28,6 +29,8 @@ export const updateAppCost = base
         priceBrl:    input.priceBrl ? parseFloat(input.priceBrl) : null,
       },
     });
+
+    invalidateCatalog();
 
     return { success: true };
   });

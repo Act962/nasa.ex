@@ -8,7 +8,7 @@ import {
 
 /**
  * CPF/CNPJ do pagador. Aparece só na trilha PIX: o Asaas exige documento para
- * emitir cobrança nominal, e o cartão não precisa disso (spec 0020 D-1).
+ * emitir cobrança nominal, e o cartão não precisa disso (spec 0022 D-1).
  */
 export function PayerDocumentStep({
   value,

@@ -1,3 +1,4 @@
+import { meter } from "@/features/stars/lib/metering";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -8,7 +9,6 @@ import { createMetaMcpClient } from "@/lib/meta-mcp/client";
 import { getMetaAuth } from "@/app/router/meta-ads/_helpers";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 
 /**
@@ -137,19 +137,20 @@ export const executeMcpAction = base
       });
 
       // 6. Stars debit
-      const stars = STARS_PER_TOOL[pending.toolName] ?? 1;
       try {
-        await debitStars(
-          context.org.id,
-          stars,
-          StarTransactionType.APP_CHARGE,
-          `Astro Meta Ads — ${pending.toolName}`,
-          "meta-ads-mcp",
-          context.user.id,
-        );
+        await meter({
+          organizationId: context.org.id,
+          action: "meta_ads_action",
+          variant: pending.toolName,
+          userId: context.user.id,
+          appSlug: "meta-ads-mcp",
+          description: `Astro Meta Ads — ${pending.toolName}`,
+          feature: "meta-ads.execute",
+          cost: { kind: "OTHER", provider: "meta" },
+        });
       } catch (e) {
         // Saldo insuficiente não desfaz a operação Meta — só loga.
-        // eslint-disable-next-line no-console
+         
         console.warn("[meta-mcp:execute] stars debit failed", e);
       }
 
