@@ -34,6 +34,45 @@ const CATEGORY_LABEL: Record<string, string> = {
   custom: "Personalizada",
 };
 
+interface PricedRule {
+  stars: number;
+  unit: string | null;
+  unitCost: number | null;
+  unitDivisor: number;
+}
+
+const UNIT_LABEL: Record<string, string> = {
+  token: "tokens",
+  minute: "min",
+  second: "s",
+  mb: "MB",
+  image: "imagem",
+  message: "mensagem",
+  conversation: "conversa",
+};
+
+/**
+ * Ação cobrada por quantidade tem `stars` (o campo fixo) igual a zero — o
+ * preço dela é `unitCost` por `unitDivisor` unidades. Exibir só `stars` fazia
+ * o painel anunciar como gratuita uma ação que cobra.
+ */
+function isUnitPriced(rule: PricedRule): boolean {
+  return rule.unit !== null && rule.unitCost !== null;
+}
+
+function formatRulePrice(rule: PricedRule): string {
+  if (!isUnitPriced(rule)) return String(rule.stars);
+  const unit = UNIT_LABEL[rule.unit!] ?? rule.unit!;
+  const scale =
+    rule.unitDivisor >= 1000
+      ? `${rule.unitDivisor / 1000}k `
+      : rule.unitDivisor > 1
+        ? `${rule.unitDivisor} `
+        : "";
+  return `${rule.unitCost}/${scale}${unit}`;
+}
+
+
 function useGlobalStarRules() {
   return useQuery({
     ...orpc.admin.adminGetStarRules.queryOptions({ input: {} }),
@@ -194,6 +233,7 @@ export function StarsRulesAdmin({ allOrgs: _allOrgs }: Props) {
                         )}
                       >
                         <button
+                          disabled={isUnitPriced(rule)}
                           onClick={() =>
                             updateRule({
                               id: rule.id,
@@ -203,9 +243,14 @@ export function StarsRulesAdmin({ allOrgs: _allOrgs }: Props) {
                           className={cn(
                             "w-8 h-5 rounded-full transition-all shrink-0",
                             rule.isActive ? "bg-yellow-500" : "bg-zinc-700",
+                            isUnitPriced(rule) && "cursor-not-allowed",
                           )}
                           title={
-                            rule.isActive ? "Desativar regra" : "Ativar regra"
+                            isUnitPriced(rule)
+                              ? "Cobrança por quantidade — ligar/desligar por aqui gravaria um custo fixo e trocaria o modelo de cobrança"
+                              : rule.isActive
+                                ? "Desativar regra"
+                                : "Ativar regra"
                           }
                         >
                           <div
@@ -244,9 +289,16 @@ export function StarsRulesAdmin({ allOrgs: _allOrgs }: Props) {
                             className="w-16 text-sm bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-yellow-300 font-bold text-right"
                           />
                         ) : (
-                          <span className="text-sm font-bold text-yellow-400 shrink-0 flex items-center gap-1">
+                          <span
+                            className="text-sm font-bold text-yellow-400 shrink-0 flex items-center gap-1"
+                            title={
+                              isUnitPriced(rule)
+                                ? `Cobrança por quantidade — mínimo ${rule.minCharge}★${rule.maxCharge ? `, teto ${rule.maxCharge}★` : ""}`
+                                : undefined
+                            }
+                          >
                             <Star className="w-3 h-3" />
-                            {rule.stars}
+                            {formatRulePrice(rule)}
                           </span>
                         )}
 
@@ -268,9 +320,19 @@ export function StarsRulesAdmin({ allOrgs: _allOrgs }: Props) {
                         ) : (
                           <div className="flex items-center gap-1 shrink-0">
                             <button
+                              disabled={isUnitPriced(rule)}
                               onClick={() => startEditing(rule)}
-                              title="Editar"
-                              className="h-6 w-6 flex items-center justify-center rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700"
+                              title={
+                                isUnitPriced(rule)
+                                  ? "Cobrança por quantidade — o editor daqui só escreve custo fixo"
+                                  : "Editar"
+                              }
+                              className={cn(
+                                "h-6 w-6 flex items-center justify-center rounded text-zinc-500",
+                                isUnitPriced(rule)
+                                  ? "opacity-40 cursor-not-allowed"
+                                  : "hover:text-zinc-300 hover:bg-zinc-700",
+                              )}
                             >
                               <Pencil className="w-3 h-3" />
                             </button>
