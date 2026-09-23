@@ -9,7 +9,24 @@ import {
   priceCurrencySchema,
   priceUnitSchema,
 } from "@/features/forge/schema/simulator-schema";
+import { ORPCError } from "@orpc/server";
 import { z } from "zod";
+
+/**
+ * O índice único é (organização, categoria, código). Sem este tratamento o
+ * P2002 caía no catch genérico e o admin via "Internal server error" ao
+ * repetir um código que já existe.
+ */
+function isDuplicateCodeError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: string }).code === "P2002"
+  );
+}
+
+const DUPLICATE_CODE_MESSAGE =
+  "Já existe um item com esse código nesta categoria. Use outro código ou edite o item existente.";
 
 const priceItemShape = z.object({
   id: z.string(),
@@ -145,6 +162,9 @@ export const createForgePriceItem = base
       });
       return { item: serializePriceItem(item) };
     } catch (err) {
+      if (isDuplicateCodeError(err)) {
+        throw new ORPCError("CONFLICT", { message: DUPLICATE_CODE_MESSAGE });
+      }
       console.error("[forge/price-catalog create]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
@@ -181,6 +201,9 @@ export const updateForgePriceItem = base
       });
       return { item: serializePriceItem(item) };
     } catch (err) {
+      if (isDuplicateCodeError(err)) {
+        throw new ORPCError("CONFLICT", { message: DUPLICATE_CODE_MESSAGE });
+      }
       console.error("[forge/price-catalog update]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
