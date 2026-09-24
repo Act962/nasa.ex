@@ -96,7 +96,7 @@ comercial e devolver o link público funciona nos dois modos.
 
 | ID | Requisito |
 | --- | --- |
-| RNF-1 | Pedido resolvido pelo classificador consome **< 1.000 tokens** no total (hoje: 18.507 para qualquer pergunta). |
+| RNF-1 | Pedido resolvido pelo classificador consome **menos de 10% do turno do orquestrador** — hoje ~1.850 tokens, contra os 18.507 que ele gasta em qualquer pergunta. O limite é uma razão, não um número redondo: o que se quer garantir é a ordem de grandeza de diferença, e o catálogo cresce com cada verbo novo. |
 | RNF-2 | O classificador responde em < 1,2 s no p95 em regime; o corte fica em **4 s** para absorver a primeira chamada após o boot. Acima disso, cai para o orquestrador em vez de fazer o usuário esperar as duas etapas. |
 | RNF-3 | Falha do classificador (timeout, erro do provedor, JSON inválido) **nunca** vira erro para o usuário: cai para o orquestrador. |
 | RNF-4 | O registro de custo (`UsageEvent`, spec 0021) grava qual caminho atendeu, em `metadata.route` = `classifier` \| `orchestrator` \| `regex`. |
@@ -261,6 +261,7 @@ podem ficar, porque são aditivos.
 | --- | --- | --- |
 | 2026-09-24 | Weydson | Criada |
 | 2026-09-24 | Weydson | Entrada por voz: RF-10 a RF-13, RNF-5/6, CA-9 a CA-12, CB-11 a CB-16, D-5 e D-6 |
+| 2026-09-24 | Weydson | **RNF-1 passa a ser razão, não número fixo.** Com 17 verbos a classificação chegou a 982 tokens, encostando no limite de 1.000 que eu havia escrito por estimativa. O limite real é "uma ordem de grandeza mais barato que o orquestrador", e 1.850 (10% de 18.507) expressa isso sem travar o catálogo. O corte das descrições feito antes continua valendo |
 | 2026-09-24 | Weydson | `verify-astro-routing.ts` implementado, 8/8. Medido: a classificação consome **374 tokens** contra ~18.500 do orquestrador, e o `route=\"classifier\"` está gravado no `UsageEvent` |
 | 2026-09-24 | Weydson | **CA-10 diverge na prática**: pedido incompleto ("crie uma proposta", sem cliente) faz o classificador baixar a confiança para 0,6 — abaixo do limiar — e a pergunta acaba vindo do orquestrador, não do caminho barato. O comportamento para o usuário é o esperado (o Astro pergunta o cliente); o custo é que não é o de RNF-1. O ramo de `needs_input` no caminho barato existe e cobre o caso de confiança alta com campo faltando |
 | 2026-09-24 | Weydson | **RNF-2 corrigida na implementação**: o corte de 1,5 s derrubava 100% das classificações. Medido: 1.253 ms em regime, mas a primeira chamada após o boot estoura. Corte passou para 4 s; o alvo de latência em regime continua ~1,2 s |

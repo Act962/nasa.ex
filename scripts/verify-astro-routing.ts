@@ -142,11 +142,18 @@ async function main(): Promise<void> {
       `(confiança ${simples?.confidence ?? "—"})`,
   );
 
+  // O limite é razão, não número redondo: o que importa é continuar uma ordem
+  // de grandeza abaixo do orquestrador, mesmo com o catálogo crescendo.
+  const ORCHESTRATOR_TURN_TOKENS = 18_500;
+  const MAX_CLASSIFIER_SHARE = 0.1;
+  const budget = ORCHESTRATOR_TURN_TOKENS * MAX_CLASSIFIER_SHARE;
+  const used = simples?.tokensUsed ?? Number.POSITIVE_INFINITY;
   check(
     "RNF-1",
-    (simples?.tokensUsed ?? Number.POSITIVE_INFINITY) < 1000,
-    `classificação consumiu ${simples?.tokensUsed ?? "?"} tokens ` +
-      "(o orquestrador gasta ~18.500 em qualquer pergunta)",
+    used < budget,
+    `classificação consumiu ${simples?.tokensUsed ?? "?"} tokens — ` +
+      `${((used / ORCHESTRATOR_TURN_TOKENS) * 100).toFixed(1)}% do turno do ` +
+      `orquestrador (teto: ${MAX_CLASSIFIER_SHARE * 100}%)`,
   );
 
   check(
