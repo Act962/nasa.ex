@@ -45,6 +45,7 @@ function formatDateTime(value: Date): string {
 
 export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
   key: "agenda.reschedule_appointment",
+  app: "agenda",
   toolName: "reschedule_appointment",
   description:
     "Remarca um agendamento existente para outro horário. " +

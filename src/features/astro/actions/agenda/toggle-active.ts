@@ -16,6 +16,7 @@ const inputSchema = z.object({
 
 export const toggleAgendaActiveAction: AstroAction<typeof inputSchema> = {
   key: "agenda.toggle_active",
+  app: "agenda",
   toolName: "toggle_agenda_active",
   description:
     "Ativa ou desativa uma agenda. " +

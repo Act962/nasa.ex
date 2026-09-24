@@ -24,6 +24,7 @@ const inputSchema = z.object({
 
 export const forwardMessageAction: AstroAction<typeof inputSchema> = {
   key: "chat.forward_message",
+  app: "chat",
   toolName: "forward_last_message",
   description:
     "Encaminha a última mensagem da conversa de um lead para outro lead. " +

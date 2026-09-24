@@ -69,6 +69,7 @@ const inputSchema = z.object({
 
 export const createReminderAction: AstroAction<typeof inputSchema> = {
   key: "agenda.create_reminder",
+  app: "agenda",
   toolName: "create_reminder",
   // A primeira frase é a única que chega ao classificador (ver `buildCatalog`),
   // então ela carrega o sinal: "me lembra" é o que distingue lembrete de nota.

@@ -1,6 +1,7 @@
 import "server-only";
 import type { z } from "zod";
 import type { AgentContext } from "@/features/astro/server/agents/types";
+import type { AstroAppId } from "./apps";
 
 // Registro único de ações do Astro (spec 0023). Uma ação é declarada aqui e
 // alcança as três superfícies — orquestrador, classificador e executor por
@@ -55,6 +56,11 @@ export type AstroActionResult =
 export interface AstroAction<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
   /** Identidade no registro e no `metadata.route` do UsageEvent. */
   key: string;
+  /**
+   * App a que a ação pertence (spec 0025, RF-1). A etapa 1 da triagem se monta
+   * a partir daqui: app novo aparece sozinho, sem código novo.
+   */
+  app: AstroAppId;
   /** Nome exposto ao modelo como ferramenta. */
   toolName: string;
   /** Serve ao orquestrador e ao classificador — escreva pensando nos dois. */

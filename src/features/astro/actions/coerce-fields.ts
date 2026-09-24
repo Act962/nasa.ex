@@ -10,6 +10,17 @@ import type { AstroAction } from "./types";
 // falhava, o campo entrava na lista de "faltando" e o Astro perguntava
 // "me diga: published" em vez de publicar.
 
+/**
+ * Pronome não é nome de ninguém. Duas tentativas de resolver isso no prompt
+ * falharam — o modelo às vezes devolve "ele" como `clientName`. Descartar aqui
+ * é determinístico e faz o Astro perguntar, em vez de buscar um lead chamado
+ * "ele" e dizer que não existe.
+ */
+const PRONOUNS = new Set([
+  "ele", "ela", "eles", "elas", "isso", "isto", "aquele", "aquela",
+  "o mesmo", "a mesma", "esse", "essa", "este", "esta", "dele", "dela",
+]);
+
 const TRUTHY = new Set(["true", "sim", "yes", "1", "ativar", "publicar"]);
 const FALSY = new Set(["false", "nao", "não", "no", "0", "desativar", "despublicar"]);
 
@@ -60,6 +71,10 @@ export function coerceFields(
 
   const coerced: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(fields)) {
+    // O modelo preenche campo opcional com "" em vez de omitir, e "" falha em
+    // `min(2)` e em `datetime()`. Ausente é o que ele quis dizer.
+    if (value.trim() === "") continue;
+    if (PRONOUNS.has(value.trim().toLowerCase())) continue;
     const fieldSchema = shape[key];
     coerced[key] = fieldSchema ? coerceValue(fieldSchema, value) : value;
   }

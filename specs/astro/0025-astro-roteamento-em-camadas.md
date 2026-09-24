@@ -2,7 +2,7 @@
 id: 0025
 titulo: Roteamento em camadas — o Astro alcança todos os apps sem perder precisão
 dominio: astro
-status: rascunho
+status: aprovada
 autor: Weydson
 criada: 2026-09-24
 atualizada: 2026-09-24

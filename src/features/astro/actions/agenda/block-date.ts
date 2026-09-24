@@ -52,6 +52,7 @@ const inputSchema = z.object({
 
 export const blockAgendaDateAction: AstroAction<typeof inputSchema> = {
   key: "agenda.block_date",
+  app: "agenda",
   toolName: "block_agenda_date",
   // Primeira frase carrega o sinal (convenção da spec 0024): "bloquear dia"
   // precisa ganhar de "desativar agenda", que é o vizinho mais próximo.

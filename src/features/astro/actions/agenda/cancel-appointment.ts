@@ -31,6 +31,7 @@ function formatDateTime(value: Date): string {
 
 export const cancelAppointmentAction: AstroAction<typeof inputSchema> = {
   key: "agenda.cancel_appointment",
+  app: "agenda",
   toolName: "cancel_appointment",
   description:
     "Cancela um agendamento existente. " +

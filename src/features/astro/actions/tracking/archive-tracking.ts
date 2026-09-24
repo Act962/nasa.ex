@@ -17,6 +17,7 @@ const inputSchema = z.object({
 
 export const archiveTrackingAction: AstroAction<typeof inputSchema> = {
   key: "tracking.archive",
+  app: "tracking",
   toolName: "archive_tracking",
   description:
     "Arquiva um tracking inteiro. " +

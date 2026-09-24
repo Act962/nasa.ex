@@ -55,6 +55,7 @@ async function findClientCandidates(clientName: string, organizationId: string) 
 
 export const createProposalAction: AstroAction<typeof inputSchema> = {
   key: "forge.create_proposal",
+  app: "forge",
   toolName: "create_proposal",
   description:
     "Cria uma proposta comercial no Forge para um cliente e devolve o link público para enviar a ele. " +

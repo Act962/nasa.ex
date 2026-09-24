@@ -27,11 +27,11 @@ const inputSchema = z.object({
 
 export const createStatusAction: AstroAction<typeof inputSchema> = {
   key: "tracking.create_status",
+  app: "tracking",
   toolName: "create_tracking_status",
   description:
-    "Cria uma coluna (etapa) num tracking. " +
-    "Use quando o usuário disser 'cria a coluna X no funil Y', " +
-    "'adiciona a etapa X no tracking Y'.",
+    "Cria uma coluna NOVA no funil — 'cria a coluna X', 'adiciona a etapa X'. Não renomeia coluna existente. " +
+    "Use quando o usuário quiser acrescentar uma etapa ao board.",
   requiresConfirmation: false,
   input: inputSchema,
 

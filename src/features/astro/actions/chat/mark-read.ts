@@ -18,6 +18,7 @@ const inputSchema = z.object({
 
 export const markChatReadAction: AstroAction<typeof inputSchema> = {
   key: "chat.mark_read",
+  app: "chat",
   toolName: "mark_chat_read",
   description:
     "Marca mensagens de conversa como lidas. " +

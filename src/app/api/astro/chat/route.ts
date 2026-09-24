@@ -13,7 +13,7 @@ import type { AgentKey } from "@/features/astro/schemas/agent-config";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { meter } from "@/features/stars/lib/metering";
 import { generateAutoTitle } from "@/features/astro/lib/auto-title";
-import { classifyAstroIntent } from "@/features/astro/actions/classify-intent";
+import { classifyStaged } from "@/features/astro/actions/classify-staged";
 import { runClassifiedAction } from "@/features/astro/actions/run-classified-action";
 
 /**
@@ -223,7 +223,7 @@ export async function POST(req: Request) {
     const routingStartedAt = Date.now();
     const lastUserText = extractLastUserText(uiMessages);
     if (lastUserText) {
-      const classification = await classifyAstroIntent({
+      const classification = await classifyStaged({
         organizationId,
         text: lastUserText,
         history: extractConversationHistory(uiMessages),
@@ -242,8 +242,8 @@ export async function POST(req: Request) {
         });
         if (classified) {
           console.log(
-            `[ASTRO/chat] resolvido pelo classificador: ${classified.actionKey} ` +
-              `(confiança ${classification.confidence})`,
+            `[ASTRO/chat] camada ${classified.route} resolveu: ${classified.actionKey} ` +
+              `(app ${classification.app})`,
           );
           // RNF-4: o caminho barato também entra no registro de custo, senão
           // a economia fica invisível no relatório — some da conta em vez de
@@ -254,7 +254,7 @@ export async function POST(req: Request) {
             userId,
             quantity: { unit: "token", amount: classified.tokensUsed },
             appSlug: "astro",
-            description: `Astro — ${classified.actionKey} pelo classificador`,
+            description: `Astro — ${classified.actionKey} via ${classified.route}`,
             feature: "astro.classifier",
             sessionId,
             cost: {
@@ -264,7 +264,7 @@ export async function POST(req: Request) {
               tokens: { totalTokens: classified.tokensUsed },
               latencyMs: Date.now() - routingStartedAt,
             },
-            metadata: { route: "classifier", action: classified.actionKey },
+            metadata: { route: classified.route, action: classified.actionKey },
           }).catch((error) => {
             console.warn("[ASTRO/chat] métrica do classificador falhou:", error);
           });

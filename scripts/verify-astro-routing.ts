@@ -12,9 +12,9 @@
 import "dotenv/config";
 
 import {
-  classifyAstroIntent,
-  CONFIDENCE_THRESHOLD,
-} from "../src/features/astro/actions/classify-intent";
+  classifyStaged,
+  HIGH_CONFIDENCE,
+} from "../src/features/astro/actions/classify-staged";
 import { ASTRO_ACTIONS, getAstroAction } from "../src/features/astro/actions/registry";
 import { buildActionRegistryTools } from "../src/features/astro/actions/to-tools";
 import { buildActionInput } from "../src/features/astro/actions/coerce-fields";
@@ -60,6 +60,28 @@ async function checkRate(
       `       ⚠ variância: ${ATTEMPTS - successes} de ${ATTEMPTS} não atingiram o esperado`,
     );
   }
+}
+
+/**
+ * Adaptador: a suíte foi escrita para o classificador de etapa única. O de
+ * duas etapas devolve candidatos, e o primeiro é o equivalente ao antigo.
+ */
+async function classifyStagedCompat(params: {
+  organizationId: string;
+  text: string;
+  history?: string[];
+}) {
+  const staged = await classifyStaged(params);
+  const best = staged?.candidates[0];
+  if (!staged || !best) return null;
+  return {
+    action: best.action,
+    fields: best.fields,
+    confidence: best.confidence,
+    tokensUsed: staged.tokensUsed,
+    layer: staged.layer,
+    app: staged.app,
+  };
 }
 
 const PEDIDO_SIMPLES = "crie uma proposta para Kauê do produto Consultoria";
@@ -133,7 +155,7 @@ async function main(): Promise<void> {
   console.log(`Organização: ${organization.name}\n`);
 
   // ── CA-1 / RNF-1 — pedido completo resolve pelo caminho barato ───────────
-  const simples = await classifyAstroIntent({
+  const simples = await classifyStagedCompat({
     organizationId: organization.id,
     text: PEDIDO_SIMPLES,
   });
@@ -166,7 +188,7 @@ async function main(): Promise<void> {
   );
 
   // ── CA-3 — pedido complexo não é sequestrado pelo caminho barato ─────────
-  const complexo = await classifyAstroIntent({
+  const complexo = await classifyStagedCompat({
     organizationId: organization.id,
     text: PEDIDO_COMPLEXO,
   });
@@ -190,7 +212,7 @@ async function main(): Promise<void> {
   };
   for (const name of Object.keys(chavesSalvas)) delete process.env[name];
 
-  const semProvedor = await classifyAstroIntent({
+  const semProvedor = await classifyStagedCompat({
     organizationId: "org-que-nao-existe",
     text: PEDIDO_SIMPLES,
   });
@@ -210,7 +232,7 @@ async function main(): Promise<void> {
     await checkRate(
       `0024 ${key}`,
       async () => {
-        const r = await classifyAstroIntent({
+        const r = await classifyStagedCompat({
           organizationId: organization.id,
           text: frase,
         });
@@ -228,7 +250,7 @@ async function main(): Promise<void> {
     await checkRate(
       `campos ${key}`,
       async () => {
-        const r = await classifyAstroIntent({
+        const r = await classifyStagedCompat({
           organizationId: organization.id,
           text: frase,
         });
@@ -245,7 +267,7 @@ async function main(): Promise<void> {
   await checkRate(
     "contexto ausente",
     async () => {
-      const r = await classifyAstroIntent({
+      const r = await classifyStagedCompat({
         organizationId: organization.id,
         text: "crie uma proposta para ele",
       });
@@ -262,7 +284,7 @@ async function main(): Promise<void> {
   await checkRate(
     "contexto resolvido",
     async () => {
-      const r = await classifyAstroIntent({
+      const r = await classifyStagedCompat({
         organizationId: organization.id,
         text: "crie uma proposta para ele",
         history: HISTORICO,
@@ -275,7 +297,7 @@ async function main(): Promise<void> {
   await checkRate(
     "contexto ignorado quando é assunto novo",
     async () => {
-      const r = await classifyAstroIntent({
+      const r = await classifyStagedCompat({
         organizationId: organization.id,
         text: "remarca a reunião da Maria para segunda às 9h",
         history: HISTORICO,
@@ -338,7 +360,7 @@ async function main(): Promise<void> {
       : 'nenhum UsageEvent com route="classifier" — a economia fica invisível no relatório',
   );
 
-  console.log(`\nLimiar de confiança em uso: ${CONFIDENCE_THRESHOLD}`);
+  console.log(`\nLimiar de confiança alta: ${HIGH_CONFIDENCE}`);
   console.log(
     failures === 0
       ? "Todos os critérios passaram."

@@ -22,6 +22,7 @@ const inputSchema = z.object({
 
 export const addLeadNoteAction: AstroAction<typeof inputSchema> = {
   key: "lead.add_note",
+  app: "tracking",
   toolName: "add_lead_note",
   description:
     "Registra uma anotação na timeline de um lead. " +

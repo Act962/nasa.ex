@@ -16,6 +16,7 @@ const inputSchema = z.object({
 
 export const toggleFormPublishAction: AstroAction<typeof inputSchema> = {
   key: "form.toggle_publish",
+  app: "form",
   toolName: "toggle_form_publish",
   description:
     "Publica um formulário ou tira do ar — 'publica o formulário X', 'tira o formulário X do ar'. " +

@@ -34,6 +34,7 @@ const inputSchema = z.object({
 
 export const startConversationAction: AstroAction<typeof inputSchema> = {
   key: "chat.start_conversation",
+  app: "chat",
   toolName: "start_conversation",
   description:
     "Abre uma conversa com um número de telefone, criando o lead se não existir. " +

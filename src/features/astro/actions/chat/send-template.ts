@@ -32,6 +32,7 @@ const inputSchema = z.object({
 
 export const sendTemplateAction: AstroAction<typeof inputSchema> = {
   key: "chat.send_template",
+  app: "chat",
   toolName: "send_whatsapp_template",
   description:
     "Envia um template aprovado do WhatsApp para um lead. " +

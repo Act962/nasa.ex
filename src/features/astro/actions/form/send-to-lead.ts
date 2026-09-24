@@ -32,6 +32,7 @@ function buildFormUrl(shareUrl: string, leadId: string): string {
 
 export const sendFormToLeadAction: AstroAction<typeof inputSchema> = {
   key: "form.send_to_lead",
+  app: "form",
   toolName: "send_form_to_lead",
   description:
     "Envia o link de um formulário para o WhatsApp de um lead — 'manda o formulário X pro Fulano'. " +

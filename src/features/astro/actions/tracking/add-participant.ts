@@ -22,6 +22,7 @@ const inputSchema = z.object({
 
 export const addTrackingParticipantAction: AstroAction<typeof inputSchema> = {
   key: "tracking.add_participant",
+  app: "tracking",
   toolName: "add_tracking_participant",
   description:
     "Adiciona uma pessoa da organização a um tracking. " +

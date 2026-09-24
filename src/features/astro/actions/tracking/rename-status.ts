@@ -18,10 +18,13 @@ const inputSchema = z.object({
 
 export const renameStatusAction: AstroAction<typeof inputSchema> = {
   key: "tracking.rename_status",
+  app: "tracking",
   toolName: "rename_tracking_status",
+  // Vizinho direto do `create_status`: a primeira frase precisa deixar claro
+  // que aqui a coluna JÁ EXISTE e só troca de nome (convenção da spec 0024).
   description:
-    "Renomeia uma coluna (etapa) de um tracking. " +
-    "Use quando o usuário disser 'renomeia a coluna X para Y'.",
+    "Troca o NOME de uma coluna que já existe — 'renomeia a coluna X para Y', 'muda o nome da etapa X'. Não cria coluna nova. " +
+    "Precisa do nome atual e do novo.",
   requiresConfirmation: false,
   input: inputSchema,
 
