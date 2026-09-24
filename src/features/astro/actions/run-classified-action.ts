@@ -82,8 +82,12 @@ function textFor(result: ClassifiedOutput): string {
   // Confirmação pendente: o cartão já pergunta, o texto não repete a pergunta.
   if (isConfirmation(result)) return result.title;
   if (result.status === "done") {
-    // RF-13: a URL não é lida nem repetida — ela vive no cartão.
-    return `${result.description}\n\nO link para enviar ao cliente está no cartão acima.`;
+    // RF-13: a URL não é lida nem repetida — ela vive no cartão. Só a página
+    // pública é "link para o cliente"; criar um funil não gera link nenhum, e
+    // a frase aparecia mesmo assim.
+    return result.publicUrl
+      ? `${result.description}\n\nO link para enviar ao cliente está no cartão acima.`
+      : result.description;
   }
   return result.description;
 }

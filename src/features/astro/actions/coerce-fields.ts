@@ -57,6 +57,34 @@ function appearsIn(value: string, text: string): boolean {
   return tokens.every((token) => haystack.includes(token));
 }
 
+/**
+ * "Crie um novo tracking" virou um tracking chamado "Novo tracking": o
+ * substantivo da coisa estava na frase, então passou pela regra de citação.
+ * Nome genérico não é nome — é a ausência dele.
+ */
+const GENERIC_NOUNS = new Set([
+  "tracking", "trackings", "funil", "funis", "board", "quadro",
+  "lead", "leads", "cliente", "clientes", "contato", "contatos",
+  "agenda", "agendas", "workspace", "workspaces",
+  "coluna", "colunas", "etapa", "etapas", "status",
+  "proposta", "propostas", "orcamento", "formulario", "briefing",
+  "compromisso", "reuniao", "lembrete", "tarefa", "pagina",
+]);
+
+const NAME_STOPWORDS = new Set([
+  "novo", "nova", "novos", "novas", "um", "uma", "o", "a", "os", "as",
+  "meu", "minha", "esse", "essa", "este", "esta", "de", "do", "da",
+]);
+
+/** Sobrou algum substantivo próprio, ou só o nome da categoria? */
+function isGenericName(value: string): boolean {
+  const words = normalize(value)
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 0 && !NAME_STOPWORDS.has(word));
+  if (words.length === 0) return true;
+  return words.every((word) => GENERIC_NOUNS.has(word));
+}
+
 const TRUTHY = new Set(["true", "sim", "yes", "1", "ativar", "publicar"]);
 const FALSY = new Set(["false", "nao", "não", "no", "0", "desativar", "despublicar"]);
 
@@ -107,6 +135,7 @@ function isInvented(
 ): boolean {
   const userText = context?.userText;
   if (!userText || !isNameField(key)) return false;
+  if (isGenericName(value)) return true;
   if (appearsIn(value, userText)) return false;
 
   const refersBack = ANAPHORA.some((marker) => normalize(userText).includes(marker));
