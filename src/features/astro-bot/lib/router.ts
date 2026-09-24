@@ -191,6 +191,7 @@ export async function handleBotCommand(
         return logAndReturn(binding, loggedText, {
           status: "ok",
           reply: cheap.reply,
+          buttons: cheap.buttons,
           toolsCalled: [cheap.route],
           tokensUsed: cheap.tokensUsed,
           starsCharged: stake.starsCharged + tokenStars,

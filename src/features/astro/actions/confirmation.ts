@@ -35,8 +35,29 @@ function linesFor(input: Record<string, unknown>) {
     .slice(0, 8)
     .map(([key, value]) => ({
       label: capitalize(labelFor(key).replace(/^(o|a|os|as|se) /, "")),
-      value: String(value),
+      value: displayValue(value),
     }));
+}
+
+/** Valor que o código entende, dito como gente fala. */
+const VALUE_LABELS: Record<string, string> = {
+  PAYABLE: "Despesa",
+  expense: "Despesa",
+  cost: "Despesa",
+  despesa: "Despesa",
+  RECEIVABLE: "Receita",
+  revenue: "Receita",
+  income: "Receita",
+  receita: "Receita",
+  true: "Sim",
+  false: "Não",
+  tracking: "Tracking (leads)",
+  workspace: "Workspace (tarefas)",
+};
+
+function displayValue(value: unknown): string {
+  const raw = String(value);
+  return VALUE_LABELS[raw] ?? raw;
 }
 
 function capitalize(text: string): string {

@@ -106,12 +106,34 @@ export async function POST(request: NextRequest) {
       // Uazapi manda texto puro como "Conversation"/"ExtendedTextMessage"
       // (espelha o `mapUazapiMessageType` do normalizador canônico). O antigo
       // "TextMessage" não casava com payload real — por isso o bot não disparava.
-      const bodyForBot = (json.message.text ?? "").trim();
       const botMessageType = json.message.messageType ?? "";
+      // Clique em botão é resposta como qualquer outra: sem isto, o menu
+      // aparecia e o toque não chegava ao Astro — pior que não ter botão.
+      const isInteractiveReplyForBot =
+        botMessageType === "ButtonsResponseMessage" ||
+        botMessageType === "TemplateButtonReplyMessage" ||
+        botMessageType === "ListResponseMessage" ||
+        botMessageType === "InteractiveResponseMessage";
+      const interactiveForBot =
+        json.message.content && typeof json.message.content === "object"
+          ? (json.message.content as Record<string, unknown>)
+          : {};
+      const pickInteractiveText = (): string => {
+        for (const field of ["selectedDisplayText", "title", "selectedButtonId"]) {
+          const value = interactiveForBot[field];
+          if (typeof value === "string" && value.trim()) return value.trim();
+        }
+        const vote = (json.message as { vote?: unknown }).vote;
+        return typeof vote === "string" ? vote.trim() : "";
+      };
+      const bodyForBot = isInteractiveReplyForBot
+        ? pickInteractiveText()
+        : (json.message.text ?? "").trim();
       const isTextForBot =
         botMessageType === "Conversation" ||
         botMessageType === "ExtendedTextMessage" ||
-        botMessageType === "TextMessage";
+        botMessageType === "TextMessage" ||
+        isInteractiveReplyForBot;
       // Documento/imagem de membro allow-listado (spec 0019): o handler só
       // intercepta com `financeEnabled`; senão devolve handled:false e a mídia
       // segue o pipeline normal abaixo.

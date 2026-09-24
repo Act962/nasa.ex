@@ -57,6 +57,8 @@ export interface BotCommandResult {
   /** Texto de resposta a mandar pro user. Sempre presente — mesmo em erro. */
   reply: string;
   /** Tools chamadas pela orquestração (pro audit log). */
+  /** Opções clicáveis; sem isto a escolha volta como lista numerada. */
+  buttons?: Array<{ id: string; text: string }>;
   toolsCalled?: string[];
   tokensUsed?: number;
   starsCharged?: number;

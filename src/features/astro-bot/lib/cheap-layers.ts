@@ -9,6 +9,8 @@ import {
   isConfirmation,
   type ClassifiedOutput,
 } from "@/features/astro/actions/resolve-action";
+import prisma from "@/lib/prisma";
+import { getProposalExecutor } from "@/features/astro/server/tools/_shared/proposals/types";
 import type { AstroTablePayload } from "@/features/astro/lib/astro-table";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 
@@ -52,6 +54,82 @@ function optionsToText(options: { label: string }[]): string {
   return options.map((option, index) => `${index + 1}. ${option.label}`).join("\n");
 }
 
+const YES = /^(sim|s|confirmar|confirma|confirmo|pode|ok|isso|positivo|👍)$/;
+const NO = /^(nao|n|cancela|cancelar|negativo|para|deixa|👎)$/;
+
+/**
+ * "SIM" executa a proposta pendente aqui mesmo.
+ *
+ * Confirmar é a resposta mais previsível do fluxo e ia ao orquestrador só
+ * para ele chamar uma ferramenta que nós podemos chamar direto. Custava um
+ * turno caro no momento em que o usuário menos espera demora.
+ */
+async function tryConfirmation(
+  ctx: AgentContext,
+  text: string,
+): Promise<CheapLayerReply | null> {
+  const normalized = text
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  const isYes = YES.test(normalized);
+  const isNo = NO.test(normalized);
+  if (!isYes && !isNo) return null;
+
+  const pending = await prisma.astroPendingAction.findFirst({
+    where: {
+      organizationId: ctx.organizationId,
+      userId: ctx.userId,
+      channel: ctx.channel ?? "WHATSAPP",
+      status: "PENDING",
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!pending) return null;
+
+  if (isNo) {
+    await prisma.astroPendingAction.update({
+      where: { id: pending.id },
+      data: { status: "CANCELLED", confirmedAt: new Date() },
+    });
+    return { reply: "Cancelado. Nada foi gravado.", route: "confirmacao", tokensUsed: 0 };
+  }
+
+  const executor = getProposalExecutor(pending.actionType);
+  if (!executor) return null;
+
+  try {
+    const result = await executor({
+      ctx,
+      proposalId: pending.id,
+      payload: pending.payload as Record<string, unknown>,
+    });
+    await prisma.astroPendingAction.update({
+      where: { id: pending.id },
+      data: {
+        status: result.ok ? "CONFIRMED" : "FAILED",
+        confirmedAt: new Date(),
+        result: (result.data ?? { summary: result.summary }) as object,
+        errorMessage: result.ok ? null : result.summary,
+      },
+    });
+    return {
+      reply: result.ok ? `✅ ${result.summary}` : `⚠️ ${result.summary}`,
+      route: "confirmacao",
+      tokensUsed: 0,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao executar";
+    await prisma.astroPendingAction.update({
+      where: { id: pending.id },
+      data: { status: "FAILED", confirmedAt: new Date(), errorMessage: message },
+    });
+    return { reply: `⚠️ Não consegui executar: ${message}`, route: "confirmacao", tokensUsed: 0 };
+  }
+}
+
 function outputToText(output: ClassifiedOutput): string {
   if (isConfirmation(output)) {
     const lines = output.lines
@@ -81,6 +159,8 @@ function outputToText(output: ClassifiedOutput): string {
 
 export interface CheapLayerReply {
   reply: string;
+  /** Opções da pergunta atual — viram botões no canal que aceita. */
+  buttons?: Array<{ id: string; text: string }>;
   /** Vai para `WhatsappBotCommand.toolsCalled`, para o custo ficar visível. */
   route: string;
   actionKey?: string;
@@ -98,6 +178,10 @@ export async function tryCheapLayers(params: {
 }): Promise<CheapLayerReply | null> {
   const text = params.text.trim();
   if (!text) return null;
+
+  // 0. "SIM"/"NÃO" respondendo a uma proposta pendente.
+  const confirmed = await tryConfirmation(params.ctx, text);
+  if (confirmed) return confirmed;
 
   const sessionId = params.ctx.sessionId ?? params.ctx.organizationId;
 
@@ -133,15 +217,39 @@ export async function tryCheapLayers(params: {
 
   if (resolved.kind === "choice") {
     return {
-      reply: `${resolved.payload.description}\n\n${optionsToText(resolved.payload.options)}`,
+      reply: resolved.payload.description,
+      buttons: resolved.payload.options.map((option) => ({
+        id: option.id,
+        text: option.label,
+      })),
       route: "dropdown",
       actionKey: resolved.actionKey,
       tokensUsed,
     };
   }
 
+  const output = resolved.output;
+  const buttons = (() => {
+    if ("kind" in output) {
+      // Confirmação também merece toque: digitar "sim" é o atrito mais bobo
+      // do fluxo inteiro.
+      return [
+        { id: "confirmar", text: "SIM" },
+        { id: "cancelar", text: "NÃO" },
+      ];
+    }
+    if (output.status === "ambiguous") {
+      return output.options.map((option) => ({ id: option.id, text: option.label }));
+    }
+    return undefined;
+  })();
+
   return {
-    reply: outputToText(resolved.output),
+    reply:
+      !("kind" in output) && output.status === "ambiguous"
+        ? output.description
+        : outputToText(output),
+    buttons,
     route: resolved.denied ? "denied" : "verbo",
     actionKey: resolved.action.key,
     tokensUsed,

@@ -16,6 +16,8 @@ import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers/
 import type { WhatsappBotChannel, ButtonPayload } from "./types";
 
 const MAX_TEXT_LEN = 4000;
+/** A Uazapi renderiza N botões, mas acima disto a leitura piora. */
+const MAX_BUTTONS = 6;
 const MIN_DELAY_MS = 1500;
 const MAX_DELAY_MS = 4000;
 
@@ -78,12 +80,46 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
     return { messageId: lastId };
   }
 
+  /**
+   * Botões de verdade quando o provider é Uazapi; lista numerada quando não é.
+   *
+   * O degrade para texto era a regra antes porque o canal só lia insights e
+   * não tinha o que oferecer. Com o ciclo guiado ("em qual conta?"), escolher
+   * digitando é atrito puro — e o clique volta como `ButtonsResponseMessage`,
+   * que o webhook agora entrega ao bot.
+   */
   async sendButtons(
     phone: string,
     payload: ButtonPayload,
   ): Promise<{ messageId: string | null }> {
-    // Insights é read-only — não usamos menus interativos. Degrada pra texto
-    // (botões viram lista numerada) pra manter a interface do canal.
+    const resolved = await resolveOutboundProvider(this.trackingId);
+
+    if (resolved.uazapiToken && payload.buttons.length > 0) {
+      try {
+        const { sendButtons } = await import("@/http/uazapi/send-menu");
+        const response = await sendButtons(
+          resolved.uazapiToken,
+          {
+            number: phone,
+            text: payload.bodyText,
+            footer: payload.footerText,
+            buttons: payload.buttons.slice(0, MAX_BUTTONS),
+            readchat: true,
+          },
+          resolved.uazapiBaseUrl,
+        );
+        const messageId =
+          typeof (response as { id?: unknown })?.id === "string"
+            ? (response as { id: string }).id
+            : null;
+        return { messageId };
+      } catch (error) {
+        // Menu recusado não pode engolir a pergunta: cai para texto, que
+        // sempre funciona, em vez de deixar o usuário sem resposta.
+        console.error("[astro-bot/channel] botões falharam, usando texto", error);
+      }
+    }
+
     const lines = payload.buttons.map(
       (button, index) => `${index + 1}. ${button.text}`,
     );

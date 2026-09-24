@@ -182,9 +182,18 @@ export async function maybeHandleBotMessage(
     );
 
     try {
-      await channel.sendText(input.fromPhone, result.reply);
+      // Escolha vira botão; o resto, texto. O canal degrada sozinho quando o
+      // provider não aceita menu.
+      if (result.buttons && result.buttons.length > 0) {
+        await channel.sendButtons(input.fromPhone, {
+          bodyText: result.reply,
+          buttons: result.buttons,
+        });
+      } else {
+        await channel.sendText(input.fromPhone, result.reply);
+      }
     } catch (sendErr) {
-      console.error("[astro-bot/webhook-handler] sendText failed", sendErr);
+      console.error("[astro-bot/webhook-handler] envio falhou", sendErr);
     }
 
     return {

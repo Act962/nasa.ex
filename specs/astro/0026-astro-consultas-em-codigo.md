@@ -86,6 +86,17 @@ marcadores, escolha vira lista numerada, confirmação continua por "SIM".
 
 Mensagem com anexo não passa por aqui — ler boleto é trabalho de modelo.
 
+**Botões (2026-09-24).** A escolha vira botão de verdade quando o provider é
+Uazapi (`sendButtons`), e o clique volta como `ButtonsResponseMessage` — o
+webhook passou a aceitar esse tipo para o bot, senão o menu aparecia e o toque
+não chegava a lugar nenhum, pior do que não ter botão. O rótulo clicado é o
+próprio texto da opção, então o ciclo guiado o recebe como qualquer resposta,
+sem mapa de ids. Provider sem menu (Meta) degrada para lista numerada.
+
+**"SIM" é barato.** Confirmar ia ao orquestrador só para ele chamar uma
+ferramenta que a camada pode chamar direto. Agora executa a proposta pendente
+em código, com botões SIM/NÃO.
+
 ## 5. Fora de escopo
 
 Os relatórios de `/insights` que exigem cálculo (funil com tempo por etapa,
