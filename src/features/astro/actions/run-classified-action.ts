@@ -48,6 +48,7 @@ const FIELD_LABELS: Record<string, string> = {
   personName: "o nome da pessoa",
   formName: "o nome do formulário",
   trackingName: "o nome do tracking",
+  workspaceName: "o nome do workspace",
   agendaName: "o nome da agenda",
   statusName: "o nome da coluna",
   currentName: "o nome atual da coluna",
@@ -165,8 +166,13 @@ export async function runClassifiedAction(params: {
 
   // Dúvida vira dropdown, não chute nem modelo mais caro (spec 0025, D-2):
   // quem sabe a resposta é o usuário, e perguntar custa zero token.
-  if (best.confidence < HIGH_CONFIDENCE && rest.length > 0) {
-    if (best.confidence < LOW_CONFIDENCE) return null;
+  //
+  // Candidato único e incerto não é certeza: "põe o João no tracking de
+  // vendas" voltou uma vez só com `tracking.create` a 0,6, e teria criado um
+  // funil chamado Vendas. Sem alternativa para oferecer, o orquestrador
+  // atende — custa ★, não custa um registro errado no banco.
+  if (best.confidence < HIGH_CONFIDENCE) {
+    if (rest.length === 0 || best.confidence < LOW_CONFIDENCE) return null;
     return buildChoiceRun(params.classification, params.userText ?? "");
   }
 

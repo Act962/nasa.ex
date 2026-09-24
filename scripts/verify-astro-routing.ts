@@ -98,6 +98,10 @@ const FRASES_TIPICAS: Record<string, string> = {
   "agenda.reschedule_appointment": "remarca o Kauê para sexta às 15h",
   "lead.delete": "apaga o lead duplicado do João Silva",
   "lead.create": "quero criar um lead chamado Weydson Lima",
+  "tracking.create": "crie um novo tracking chamado Atendimento",
+  "agenda.create": "cria uma agenda de consultoria",
+  "appointment.create": "marca uma reunião com o Kauê sexta às 15h",
+  "workspace.create": "cria um workspace chamado Operação",
   "lead.add_note": "anota no Kauê que ele pediu desconto",
   "agenda.cancel_appointment": "cancela o agendamento do Kauê",
   "lead.toggle_favorite": "favorita o lead Kauê",
@@ -111,7 +115,7 @@ const FRASES_TIPICAS: Record<string, string> = {
   "agenda.toggle_active": "desativa a agenda de consultoria",
   "agenda.block_date": "bloqueia o dia 30 na minha agenda",
   "agenda.create_reminder": "me lembra de ligar pro Kauê toda segunda às 9h",
-  "tracking.add_participant": "põe o João no tracking de vendas",
+  "tracking.add_participant": "dá acesso ao João no tracking de vendas",
   "form.send_to_lead": "manda o formulário de briefing pro Kauê",
   "form.toggle_publish": "publica o formulário de captação",
 };
@@ -332,6 +336,22 @@ async function main(): Promise<void> {
       return nome === "" || texto.toLowerCase().includes(nome.toLowerCase());
     },
     () => "pedido sem nome não herda o nome da conversa anterior",
+  );
+
+  await checkRate(
+    "frase ambígua não escreve sozinha",
+    async () => {
+      // "põe o João no tracking" é ambíguo em português: pode ser participante,
+      // lead ou coluna. O contrato não é acertar — é não executar sozinho.
+      const staged = await classifyStaged({
+        organizationId: organization.id,
+        text: "põe o João no tracking de vendas",
+      });
+      const best = staged?.candidates[0];
+      if (!best) return true;
+      return best.confidence >= HIGH_CONFIDENCE || staged!.candidates.length > 1;
+    },
+    () => "pedido ambíguo vira pergunta ou orquestrador, nunca escrita silenciosa",
   );
 
   // ── CA-8 — ação do registro aparece nas duas superfícies ────────────────
