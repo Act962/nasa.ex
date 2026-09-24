@@ -34,14 +34,19 @@ específica vem antes da genérica: "leads sem responsável" antes de "quantos
 leads"; "mensagens hoje" antes de "mensagens não lidas". Medido: sem isso,
 `chat.unread` sequestrava `chat.messages_today`.
 
-**D-3 — Ordem nunca vira consulta.** "Crie um lead chamado Ana" não pode casar
+**D-3 — A frase seguinte herda o assunto.** "Me manda a lista deles", logo
+após "quantos leads hoje", devolve os leads de hoje. A referência só resolve
+com histórico: sem ele, o pedido segue para o orquestrador em vez de listar
+qualquer coisa.
+
+**D-4 — Ordem nunca vira consulta.** "Crie um lead chamado Ana" não pode casar
 com leitura. Testado para as quatro formas de escrita mais comuns.
 
-## 3. Cobertura (17 consultas)
+## 3. Cobertura (19 consultas)
 
 | App | Consultas |
 | --- | --- |
-| tracking | contagem de leads, lista de funis, leads por etapa, leads sem responsável, tags |
+| tracking | contagem de leads, leads criados num período, lista de leads, lista de funis, leads por etapa, leads sem responsável, tags |
 | agenda | agendas, compromissos dos próximos 7 dias, lembretes ativos |
 | chat | mensagens de hoje, conversas sem ler |
 | forge | propostas por situação |
@@ -57,8 +62,9 @@ com leitura. Testado para as quatro formas de escrita mais comuns.
   quebra aqui, não no chat)
 - **CA-3** — ordem de escrita não é capturada pela camada de leitura
 - **CA-4** — toda consulta no registro tem frase de teste
+- **CA-5** — "a lista deles" herda o recorte do turno anterior e, sem histórico, não responde
 
-Verificados por `scripts/verify-astro-queries.ts` — 22 checagens, 0 falhas.
+Verificados por `scripts/verify-astro-queries.ts` — 26 checagens, 0 falhas.
 
 ## 5. Fora de escopo
 
@@ -71,4 +77,5 @@ procedures seguem sem alcance — assunto de spec própria.
 
 | Data | Autor | Mudança |
 | --- | --- | --- |
+| 2026-09-24 | Weydson | Lista de leads e recorte por período acrescentados: "quantos leads criados hoje" era respondido pelo orquestrador com o total, e "me manda a lista deles" voltava "não tenho acesso" |
 | 2026-09-24 | Weydson | Criada e implementada a partir do custo medido: 43.141 tokens para não responder "quantos leads temos" |

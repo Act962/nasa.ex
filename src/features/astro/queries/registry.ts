@@ -21,11 +21,14 @@ export const ASTRO_QUERIES: AstroQuery[] = [
 export async function runAstroQuery(params: {
   ctx: AgentContext;
   text: string;
+  /** Turnos anteriores — "me manda a lista deles" só existe com eles. */
+  history?: string[];
 }): Promise<{ key: string; result: AstroQueryResult } | null> {
-  const normalized = normalizeQuestion(params.text);
+  const text = normalizeQuestion(params.text);
+  const history = normalizeQuestion((params.history ?? []).slice(-4).join(" "));
   for (const query of ASTRO_QUERIES) {
-    if (!query.matches(normalized)) continue;
-    const result = await query.run(params.ctx);
+    if (!query.matches(text, history)) continue;
+    const result = await query.run({ ctx: params.ctx, text, history });
     if (result) return { key: query.key, result };
   }
   return null;

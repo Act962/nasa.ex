@@ -264,6 +264,7 @@ export async function POST(req: Request) {
       const queried = await runAstroQuery({
         ctx: { userId, organizationId } as never,
         text: lastUserText,
+        history: extractConversationHistory(uiMessages),
       });
       if (queried) {
         console.log(`[ASTRO/chat] consulta em código resolveu: ${queried.key}`);

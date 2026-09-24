@@ -1,6 +1,13 @@
 import "server-only";
 import prisma from "@/lib/prisma";
-import { ASKS, plural, type AstroQuery } from "./types";
+import {
+  ASKS,
+  REFERS_BACK,
+  periodFrom,
+  plural,
+  type AstroQuery,
+  type AstroQueryResult,
+} from "./types";
 
 // Consultas do Tracking — leads, funis, etapas, tags.
 
@@ -9,8 +16,9 @@ const LEAD = /\blead|\bleads|\bclientes?\b|\bcontatos?\b/;
 const countLeads: AstroQuery = {
   key: "tracking.leads_count",
   app: "tracking",
-  matches: (text) => ASKS.test(text) && LEAD.test(text) && !/\betapa|coluna|status|tag|sem responsavel|hoje\b/.test(text),
-  run: async (ctx) => {
+  matches: (text) => ASKS.test(text) && LEAD.test(text) && !/\betapa|coluna|status|tag|sem responsavel\b/.test(text) &&
+    !periodFrom(text),
+  run: async ({ ctx }) => {
     const trackings = await prisma.tracking.findMany({
       where: { organizationId: ctx.organizationId },
       select: { id: true, name: true, _count: { select: { leads: true } } },
@@ -49,7 +57,7 @@ const listTrackings: AstroQuery = {
   key: "tracking.list",
   app: "tracking",
   matches: (text) => ASKS.test(text) && /\btracking|trackings|funil|funis\b/.test(text) && !LEAD.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const trackings = await prisma.tracking.findMany({
       where: { organizationId: ctx.organizationId },
       select: { id: true, name: true, _count: { select: { leads: true } } },
@@ -81,7 +89,7 @@ const leadsByStatus: AstroQuery = {
   key: "tracking.leads_by_status",
   app: "tracking",
   matches: (text) => ASKS.test(text) && LEAD.test(text) && /\betapa|coluna|status|funil\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const statuses = await prisma.status.findMany({
       where: { tracking: { organizationId: ctx.organizationId } },
       select: {
@@ -121,7 +129,7 @@ const unassignedLeads: AstroQuery = {
   key: "tracking.leads_unassigned",
   app: "tracking",
   matches: (text) => LEAD.test(text) && /\bsem responsavel|sem dono|nao atribuidos?|sem atendente\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const count = await prisma.lead.count({
       where: {
         responsibleId: null,
@@ -141,7 +149,7 @@ const listTags: AstroQuery = {
   key: "tracking.tags_list",
   app: "tracking",
   matches: (text) => ASKS.test(text) && /\btags?|etiquetas?\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const tags = await prisma.tag.findMany({
       where: { organizationId: ctx.organizationId },
       select: { id: true, name: true, _count: { select: { leadTags: true } } },
@@ -170,8 +178,99 @@ const listTags: AstroQuery = {
   },
 };
 
+
+/** Tabela de leads — a mesma para "liste os leads" e para "a lista deles". */
+async function leadsTable(params: {
+  organizationId: string;
+  since?: Date;
+  label: string;
+}): Promise<AstroQueryResult> {
+  const leads = await prisma.lead.findMany({
+    where: {
+      tracking: { organizationId: params.organizationId },
+      ...(params.since ? { createdAt: { gte: params.since } } : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      createdAt: true,
+      status: { select: { name: true } },
+      tracking: { select: { name: true } },
+      responsible: { select: { name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+  });
+  if (leads.length === 0) {
+    return { text: `Nenhum lead ${params.label}.` };
+  }
+  return {
+    text: `${leads.length} ${plural(leads.length, "lead", "leads")} ${params.label}:`,
+    table: {
+      kind: "astro_table",
+      entityType: "lead",
+      title: "Leads",
+      columns: [
+        { key: "name", label: "Lead" },
+        { key: "etapa", label: "Etapa", type: "badge" },
+        { key: "tracking", label: "Tracking" },
+        { key: "responsavel", label: "Responsável" },
+        { key: "criado", label: "Criado", type: "date" },
+      ],
+      rows: leads.map((lead) => ({
+        id: lead.id,
+        name: lead.name,
+        etapa: lead.status?.name ?? "—",
+        tracking: lead.tracking.name,
+        responsavel: lead.responsible?.name ?? "—",
+        criado: lead.createdAt.toISOString(),
+      })),
+      totalCount: leads.length,
+    },
+  };
+}
+
+const leadsCreatedInPeriod: AstroQuery = {
+  key: "tracking.leads_created",
+  app: "tracking",
+  matches: (text) => LEAD.test(text) && periodFrom(text) !== null,
+  run: async ({ ctx, text }) => {
+    const period = periodFrom(text)!;
+    return leadsTable({
+      organizationId: ctx.organizationId,
+      since: period.since,
+      label: `criados ${period.label}`,
+    });
+  },
+};
+
+const listLeads: AstroQuery = {
+  key: "tracking.leads_list",
+  app: "tracking",
+  matches: (text, history) => {
+    const asksForList = /\b(lista|liste|listar|me manda|manda|me mostra|mostra|quais sao|quais)\b/.test(text);
+    if (!asksForList) return false;
+    if (LEAD.test(text)) return true;
+    // "me manda a lista deles" só vale se o turno anterior falava de leads.
+    return REFERS_BACK.test(text) && LEAD.test(history);
+  },
+  run: async ({ ctx, text, history }) => {
+    // O recorte de tempo é herdado quando a frase não repete: quem perguntou
+    // "quantos leads hoje" e pediu "a lista deles" quer os de hoje.
+    const period = periodFrom(text) ?? periodFrom(history);
+    return leadsTable({
+      organizationId: ctx.organizationId,
+      since: period?.since,
+      label: period ? `criados ${period.label}` : "no total",
+    });
+  },
+};
+
 export const TRACKING_QUERIES: AstroQuery[] = [
   unassignedLeads,
+  listLeads,
+  leadsCreatedInPeriod,
   leadsByStatus,
   listTags,
   countLeads,

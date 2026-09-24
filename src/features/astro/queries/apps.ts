@@ -13,7 +13,7 @@ const unreadConversations: AstroQuery = {
     /\bconversas?|mensagens?|whatsapp\b/.test(text) &&
     /\bnao lidas?|sem ler|pendentes?|quantas|quantos\b/.test(text) &&
     !/\bhoje|ontem|semana|mes\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const unread = await prisma.message.count({
       where: {
         seen: false,
@@ -40,7 +40,7 @@ const messagesToday: AstroQuery = {
   key: "chat.messages_today",
   app: "chat",
   matches: (text) => /\bmensagens?\b/.test(text) && /\bhoje\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const where = {
       createdAt: { gte: startOfToday() },
       conversation: { tracking: { organizationId: ctx.organizationId } },
@@ -59,7 +59,7 @@ const proposals: AstroQuery = {
   key: "forge.proposals",
   app: "forge",
   matches: (text) => ASKS.test(text) && /\bpropostas?|orcamentos?\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const grouped = await prisma.forgeProposal.groupBy({
       by: ["status"],
       where: { organizationId: ctx.organizationId },
@@ -100,7 +100,7 @@ const forms: AstroQuery = {
   key: "form.list",
   app: "form",
   matches: (text) => ASKS.test(text) && /\bformularios?|briefings?|fichas?\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const rows = await prisma.form.findMany({
       where: { organizationId: ctx.organizationId },
       select: { id: true, name: true, published: true, responses: true },
@@ -135,7 +135,7 @@ const workspaces: AstroQuery = {
   key: "workspace.list",
   app: "workspaces",
   matches: (text) => ASKS.test(text) && /\bworkspaces?|quadros?\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const rows = await prisma.workspace.findMany({
       where: { organizationId: ctx.organizationId, isArchived: false },
       select: { id: true, name: true, _count: { select: { actions: true } } },
@@ -171,7 +171,7 @@ const pendingActions: AstroQuery = {
   matches: (text) =>
     /\btarefas?|acoes?|atividades?\b/.test(text) &&
     /\bpendentes?|abertas?|atrasadas?|quantas|quantos|vencidas?\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const base = { workspace: { organizationId: ctx.organizationId }, isDone: false };
     const [pending, overdue] = await Promise.all([
       prisma.action.count({ where: base }),
@@ -191,7 +191,7 @@ const financeSummary: AstroQuery = {
   app: "payment",
   matches: (text) =>
     /\bcontas? a (pagar|receber)|financeiro|a pagar|a receber|vencid[oa]s?|inadimplen/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const org = { organizationId: ctx.organizationId };
     const open = { status: { in: ["PENDING", "PARTIAL", "OVERDUE"] as const } };
     const [payable, receivable, overdue] = await Promise.all([
@@ -224,7 +224,7 @@ const paidThisMonth: AstroQuery = {
   key: "payment.paid_month",
   app: "payment",
   matches: (text) => /\b(paguei|recebi|pago|recebido)\b/.test(text) && /\bmes\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const where = {
       organizationId: ctx.organizationId,
       status: "PAID" as const,
@@ -246,7 +246,7 @@ const pages: AstroQuery = {
   key: "pages.list",
   app: "pages",
   matches: (text) => ASKS.test(text) && /\bpaginas?|sites?|landing\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const rows = await prisma.nasaPage.findMany({
       where: { organizationId: ctx.organizationId, status: { not: "ARCHIVED" } },
       select: { id: true, title: true, slug: true, status: true },

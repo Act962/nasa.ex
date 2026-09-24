@@ -8,7 +8,7 @@ const listAgendas: AstroQuery = {
   key: "agenda.list",
   app: "agenda",
   matches: (text) => ASKS.test(text) && /\bagendas?\b/.test(text) && !/\bhoje|semana|compromisso|reuniao|reunioes\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const agendas = await prisma.agenda.findMany({
       where: { organizationId: ctx.organizationId },
       select: { id: true, name: true, isActive: true },
@@ -42,7 +42,7 @@ const appointmentsToday: AstroQuery = {
   matches: (text) =>
     /\bcompromissos?|reuni(ao|oes)|agendamentos?\b/.test(text) &&
     /\bhoje|amanha|semana|essa semana|quais|quantos|tenho\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const from = startOfToday();
     const to = new Date(from.getTime() + 7 * 24 * 60 * 60_000);
     const appointments = await prisma.appointment.findMany({
@@ -93,7 +93,7 @@ const activeReminders: AstroQuery = {
   key: "agenda.reminders_active",
   app: "agenda",
   matches: (text) => ASKS.test(text) && /\blembretes?\b/.test(text),
-  run: async (ctx) => {
+  run: async ({ ctx }) => {
     const reminders = await prisma.reminder.findMany({
       where: { createdByUserId: ctx.userId, isActive: true },
       select: { id: true, message: true, remindTime: true, nextRemindAt: true },

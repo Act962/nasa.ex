@@ -9,6 +9,8 @@ import prisma from "@/lib/prisma";
  */
 const FRASES: Record<string, string> = {
   "tracking.leads_count": "quantos leads temos?",
+  "tracking.leads_created": "quantos leads foram criados hoje?",
+  "tracking.leads_list": "me manda a lista dos leads",
   "tracking.list": "quais trackings temos?",
   "tracking.leads_by_status": "quantos leads em cada etapa?",
   "tracking.leads_unassigned": "quantos leads sem responsável?",
@@ -73,6 +75,25 @@ async function main() {
       check(key, false, `"${frase}" estourou: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+
+  // Referência ao turno anterior: "a lista deles" só resolve com histórico.
+  const comHistorico = await runAstroQuery({
+    ctx,
+    text: "me mande a lista deles",
+    history: ["Usuário: quantos leads foram criados hoje?", "Astro: 2 leads criados hoje."],
+  });
+  check(
+    "lista deles herda o assunto",
+    comHistorico?.key === "tracking.leads_list",
+    comHistorico ? `→ ${comHistorico.key}: ${comHistorico.result.text.slice(0, 60)}` : "não casou",
+  );
+
+  const semHistorico = await runAstroQuery({ ctx, text: "me mande a lista deles" });
+  check(
+    "lista deles sem histórico não inventa",
+    semHistorico === null,
+    semHistorico ? `casou com ${semHistorico.key}` : "segue para o orquestrador",
+  );
 
   // Ordem pedido→ação não pode ser sequestrada pela camada de leitura.
   for (const ordem of [
