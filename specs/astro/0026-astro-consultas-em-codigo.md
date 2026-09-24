@@ -48,7 +48,7 @@ qualquer coisa.
 **D-5 — Ordem nunca vira consulta.** "Crie um lead chamado Ana" não pode casar
 com leitura. Testado para as quatro formas de escrita mais comuns.
 
-## 3. Cobertura (19 consultas)
+## 3. Cobertura (27 consultas)
 
 | App | Consultas |
 | --- | --- |
@@ -60,6 +60,7 @@ com leitura. Testado para as quatro formas de escrita mais comuns.
 | workspaces | workspaces, tarefas pendentes e atrasadas |
 | payment | a pagar / a receber / vencidos, pago e recebido no mês |
 | pages | páginas publicadas e rascunhos |
+| insights | funil com tempo e queda por etapa, ganhos × perdidos com motivos, vendido no mês contra o anterior, canais de aquisição com conversão, leads por responsável, leads por tag |
 
 ## 4. Critérios de aceite
 
@@ -99,10 +100,13 @@ em código, com botões SIM/NÃO.
 
 ## 5. Fora de escopo
 
-Os relatórios de `/insights` que exigem cálculo (funil com tempo por etapa,
-conversão por etapa, tráfego Meta, evolução de campanhas, resgate de leads)
-continuam com o orquestrador, que tem 5 ferramentas de insights. As outras 18
-procedures seguem sem alcance — assunto de spec própria.
+Seis relatórios de `/insights` entraram (2026-09-24), reusando os mesmos
+`compute*` das procedures da tela — o cálculo não é reescrito, porque número
+do Astro que não bate com o dashboard é pior que número nenhum.
+
+Continuam fora: tráfego Meta, evolução de campanhas, resgate de leads,
+conversão por etapa com filtro de tag, relatórios de workspace e a leitura de
+relatórios salvos. Seguem com o orquestrador.
 
 ## 6. Changelog da spec
 

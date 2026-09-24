@@ -9,6 +9,7 @@ import {
 import { TRACKING_QUERIES } from "./tracking";
 import { AGENDA_QUERIES } from "./agenda";
 import { APP_QUERIES } from "./apps";
+import { INSIGHTS_QUERIES } from "./insights";
 import { canAstroRead } from "@/features/astro/actions/permission-gate";
 
 export type { AstroQuery, AstroQueryResult } from "./types";
@@ -19,6 +20,9 @@ export type { AstroQuery, AstroQueryResult } from "./types";
  * de "quantos leads".
  */
 export const ASTRO_QUERIES: AstroQuery[] = [
+  // Insights antes do tracking: "quantos leads com a tag X" é relatório, e
+  // a contagem genérica de leads casaria primeiro.
+  ...INSIGHTS_QUERIES,
   ...TRACKING_QUERIES,
   ...AGENDA_QUERIES,
   ...APP_QUERIES,

@@ -28,6 +28,12 @@ const FRASES: Record<string, string> = {
   "payment.accounts_list": "me envie a lista das contas",
   "payment.paid_month": "quanto recebi esse mês?",
   "pages.list": "quais páginas temos?",
+  "insights.funnel": "como está o funil do FINANCEIRO?",
+  "insights.won_lost": "quantos ganhei e perdi?",
+  "insights.sold_month": "quanto vendi esse mês?",
+  "insights.channels": "de onde vêm meus leads?",
+  "insights.attendants": "quem atendeu mais leads?",
+  "insights.leads_by_tag": "quantos leads por tag?",
 };
 
 let failures = 0;

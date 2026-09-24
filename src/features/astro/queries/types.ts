@@ -124,6 +124,23 @@ export function periodFrom(text: string): AstroPeriod | null {
       label: "nesta semana",
     };
   }
+  if (/\b(mes passado|mes anterior|ultimo mes)\b/.test(text)) {
+    const now = new Date();
+    return {
+      since: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+      until: startOfMonth(),
+      futureUntil: startOfMonth(),
+      label: "no mês passado",
+    };
+  }
+  if (/\b(semana passada|semana anterior|ultima semana)\b/.test(text)) {
+    return {
+      since: new Date(today.getTime() - 14 * DAY_MS),
+      until: new Date(today.getTime() - 7 * DAY_MS),
+      futureUntil: today,
+      label: "na semana passada",
+    };
+  }
   if (/\b(esse|este|neste|no|deste) mes\b/.test(text)) {
     const start = startOfMonth();
     return {
