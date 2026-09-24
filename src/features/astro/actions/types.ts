@@ -69,8 +69,15 @@ export interface AstroAction<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
   /** Avisos exibidos em destaque no cartão — use em ação destrutiva. */
   confirmWarnings?: string[];
   input: TSchema;
+  /**
+   * `dryRun` resolve o alvo, checa permissão e devolve o que ACONTECERIA —
+   * sem escrever. É o que impede a confirmação de propor o impossível: sem
+   * isso, o cartão perguntava "excluir o lead X?" antes de saber se X existe,
+   * e a checagem de homônimo só rodaria depois do "sim".
+   */
   execute: (params: {
     ctx: AgentContext;
     input: z.infer<TSchema>;
+    dryRun?: boolean;
   }) => Promise<AstroActionResult>;
 }

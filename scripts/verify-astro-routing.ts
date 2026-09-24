@@ -38,6 +38,7 @@ const PEDIDO_COMPLEXO =
 const FRASES_TIPICAS: Record<string, string> = {
   "forge.create_proposal": "crie uma proposta para Kauê do produto Consultoria",
   "agenda.reschedule_appointment": "remarca o Kauê para sexta às 15h",
+  "lead.delete": "apaga o lead duplicado do João Silva",
 };
 
 async function main(): Promise<void> {
@@ -194,6 +195,19 @@ async function main(): Promise<void> {
     semLookup.length === 0
       ? "toda ação é resolvível pela chave (o que o classificador usa)"
       : `sem lookup: ${semLookup.map((action) => action.key).join(", ")}`,
+  );
+
+  // ── Spec 0024 D-4 — destrutivo sempre confirma ──────────────────────────
+  const DESTRUTIVOS = ["lead.delete", "tracking.archive", "agenda.cancel_appointment"];
+  const destrutivosSemConfirmacao = ASTRO_ACTIONS.filter(
+    (action) => DESTRUTIVOS.includes(action.key) && !action.requiresConfirmation,
+  );
+  check(
+    "0024 D-4",
+    destrutivosSemConfirmacao.length === 0,
+    destrutivosSemConfirmacao.length === 0
+      ? "toda ação destrutiva no registro exige confirmação"
+      : `sem confirmação: ${destrutivosSemConfirmacao.map((a) => a.key).join(", ")}`,
   );
 
   // ── RNF-4 — o caminho barato aparece no registro de custo ───────────────

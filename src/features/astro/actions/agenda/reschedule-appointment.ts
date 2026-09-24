@@ -51,7 +51,7 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
   requiresConfirmation: true,
   input: inputSchema,
 
-  async execute({ ctx, input }): Promise<AstroActionResult> {
+  async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const candidates = await prisma.appointment.findMany({
       where: {
         agenda: { organizationId: ctx.organizationId },
@@ -125,6 +125,17 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
         description:
           `Já existe "${conflict.title}" em ${formatDateTime(conflict.startsAt)}. ` +
           "Escolha outro horário.",
+        appName: "Agendas",
+      };
+    }
+
+    if (dryRun) {
+      return {
+        status: "done",
+        title: "Remarcar agendamento",
+        description:
+          `"${appointment.title}" sai de ${formatDateTime(appointment.startsAt)} ` +
+          `para ${formatDateTime(newStart)}.`,
         appName: "Agendas",
       };
     }

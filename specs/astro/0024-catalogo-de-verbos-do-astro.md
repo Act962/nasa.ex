@@ -75,7 +75,7 @@ Os três de uso diário, que é onde o custo por token dói mais hoje.
 | `tracking.archive` | "arquiva o tracking de 2025" | ⬜ (destrutivo → C-4) |
 | `lead.add_note` | "anota no Kauê que ele pediu desconto" | ⬜ |
 | `lead.toggle_favorite` | "favorita o Kauê" | ⬜ |
-| `lead.delete` | "apaga o lead duplicado" | ⬜ (destrutivo → C-4) |
+| `lead.delete` | "apaga o lead duplicado" | ✅ implementado (destrutivo → C-4) |
 
 Já cobertos e fora da onda: criar, atualizar, mover e taguear lead; criar tracking.
 
@@ -172,6 +172,18 @@ Cada um entra com seu recorte próprio, pelo mesmo critério da §3.
   com a identidade de quem pediu, com `via: "astro"` no metadata para
   distinguir da ação feita na tela.
 
+### D-6 — A confirmação ensaia antes de perguntar
+
+- **Escolha**: antes de montar o cartão, a ação roda em `dryRun` — resolve o
+  alvo, checa permissão e devolve o que aconteceria, sem escrever.
+- **Alternativa descartada**: *propor direto a partir do texto* — foi o que
+  implementei primeiro, e o teste pegou: o Astro perguntou "excluir o lead
+  Zeta?" para um lead que não existia. Pior: a checagem de homônimo só rodaria
+  **depois** do "sim", ou seja, exatamente quando não adianta mais.
+- **Consequência**: o cartão só aparece quando a ação é de fato executável. Um
+  custo de leitura a mais por confirmação, que é barato perto de confirmar o
+  impossível.
+
 ### D-5 — O classificador enxerga a conversa, com limite
 
 - **Escolha**: as últimas **3 falas**, cortadas em 280 caracteres cada, entram
@@ -237,6 +249,7 @@ sem dado tocado.
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-24 | Weydson | Criada a partir da auditoria: 344 escritas, 33 ferramentas, 29 apps sem verbo |
+| 2026-09-24 | Weydson | `lead.delete` implementado — 2 de 17 da onda 1, primeiro destrutivo. D-6 acrescentada: a confirmação passou a ensaiar antes de perguntar |
 | 2026-09-24 | Weydson | D-4 (CRUD com exclusão confirmada e auditada) e D-5 (contexto conversacional) acrescentadas a pedido do dono do produto |
 | 2026-09-24 | Weydson | **Variância medida**: a mesma frase classificou `null` em 1 de 4 execuções e acertou nas outras 3 (0,90–0,95). O caso do `null` cai no orquestrador — seguro, porém caro (19★ em vez de 2★). Registrado como risco em §9 |
 | 2026-09-24 | Weydson | Aprovada. `agenda.reschedule_appointment` implementado — 1 de 17 da onda 1. A frase típica de cada verbo virou teste automatizado em `verify-astro-routing.ts`; com 2 verbos no catálogo a classificação segue em 0,90 e 0,95 |

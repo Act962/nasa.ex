@@ -40,7 +40,16 @@ export async function proposeAction(params: {
   action: AstroAction;
   input: Record<string, unknown>;
   warnings?: string[];
-}): Promise<AstroConfirmationPayload> {
+}): Promise<AstroConfirmationPayload | AstroActionResult> {
+  // Ensaia primeiro: alvo inexistente, homônimo ou falta de permissão viram
+  // resposta agora, não surpresa depois do "sim".
+  const rehearsal = await params.action.execute({
+    ctx: params.ctx,
+    input: params.input,
+    dryRun: true,
+  });
+  if (rehearsal.status !== "done") return rehearsal;
+
   return createPendingAction({
     ctx: params.ctx,
     actionType: actionTypeFor(params.action),

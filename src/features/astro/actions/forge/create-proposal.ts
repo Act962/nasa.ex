@@ -62,7 +62,7 @@ export const createProposalAction: AstroAction<typeof inputSchema> = {
   requiresConfirmation: true,
   input: inputSchema,
 
-  async execute({ ctx, input }): Promise<AstroActionResult> {
+  async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const organizationId = ctx.organizationId;
 
     const candidates = await findClientCandidates(input.clientName, organizationId);
@@ -103,6 +103,17 @@ export const createProposalAction: AstroAction<typeof inputSchema> = {
           select: { id: true, name: true },
         })
       : null;
+
+    if (dryRun) {
+      return {
+        status: "done",
+        title: "Criar proposta",
+        description:
+          `Proposta para ${client.name}` +
+          (product ? `, com o produto ${product.name}.` : "."),
+        appName: "Forge",
+      };
+    }
 
     const lastProposal = await prisma.forgeProposal.findFirst({
       where: { organizationId },

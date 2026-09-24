@@ -2,6 +2,7 @@ import "server-only";
 import type { AstroAction } from "./types";
 import { createProposalAction } from "./forge/create-proposal";
 import { rescheduleAppointmentAction } from "./agenda/reschedule-appointment";
+import { deleteLeadAction } from "./leads/delete-lead";
 
 // Fonte única das ações do Astro (spec 0023, RF-1/RF-2). Entrar aqui basta:
 // o orquestrador ganha a ferramenta, o classificador ganha o alvo e o executor
@@ -10,6 +11,7 @@ import { rescheduleAppointmentAction } from "./agenda/reschedule-appointment";
 export const ASTRO_ACTIONS: AstroAction[] = [
   createProposalAction,
   rescheduleAppointmentAction,
+  deleteLeadAction,
 ];
 
 const actionsByKey = new Map(ASTRO_ACTIONS.map((action) => [action.key, action]));
