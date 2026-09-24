@@ -10,6 +10,36 @@ import { orpc } from "@/lib/orpc";
  */
 
 export const ASTRO_WIDGET_SESSION_STORAGE_KEY = "astro-widget-session";
+/**
+ * A tela cheia tem chave própria: o painel e o /home são conversas
+ * diferentes, e misturá-las faria o refresh de uma trocar a outra.
+ */
+export const ASTRO_COMMAND_SESSION_STORAGE_KEY = "astro-command-session";
+
+function readStored(key: string): string | null {
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStored(key: string, sessionId: string | null) {
+  try {
+    if (sessionId) window.sessionStorage.setItem(key, sessionId);
+    else window.sessionStorage.removeItem(key);
+  } catch {
+    // Sem storage, a conversa só não é restaurada no refresh.
+  }
+}
+
+export function readStoredCommandSessionId(): string | null {
+  return readStored(ASTRO_COMMAND_SESSION_STORAGE_KEY);
+}
+
+export function storeCommandSessionId(sessionId: string | null) {
+  writeStored(ASTRO_COMMAND_SESSION_STORAGE_KEY, sessionId);
+}
 
 export function readStoredWidgetSessionId(): string | null {
   try {
