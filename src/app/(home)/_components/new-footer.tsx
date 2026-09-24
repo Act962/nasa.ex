@@ -10,15 +10,15 @@ export function NewFooter() {
             tema. */}
         <div className="flex items-center gap-3">
           <Image
-            src="/logo-dark.png"
-            alt="N.A.S.A"
+            src="/orbita-logo-dark.svg"
+            alt="ÓRBITA"
             width={600}
             height={200}
             className="hidden dark:block h-12 w-auto"
           />
           <Image
-            src="/logo.png"
-            alt="N.A.S.A"
+            src="/orbita-logo.svg"
+            alt="ÓRBITA"
             width={600}
             height={200}
             className="dark:hidden h-12 w-auto"

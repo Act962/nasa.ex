@@ -55,8 +55,8 @@ export function NasaFooterPublic() {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Image
-              src="/logo-dark.png"
-              alt="N.A.S.A"
+              src="/orbita-logo-dark.svg"
+              alt="ÓRBITA"
               width={36}
               height={36}
               className="rounded"
