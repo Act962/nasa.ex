@@ -26,6 +26,36 @@ function check(id: string, passed: boolean, detail: string): void {
   if (!passed) failures += 1;
 }
 
+/**
+ * O classificador é probabilístico: medido em 2026-09-24, a mesma frase deu
+ * `null` em 1 de 4 execuções. Afirmar sobre UMA chamada produz suíte instável,
+ * e suíte instável o time aprende a ignorar. Então medimos a taxa.
+ *
+ * O `null` nunca erra — manda ao orquestrador. O que ele custa é dinheiro:
+ * 19★ onde caberiam 2★. Por isso a taxa é o número que importa, não o
+ * booleano da última tentativa.
+ */
+const ATTEMPTS = 3;
+const MIN_SUCCESS = 2;
+
+async function checkRate(
+  id: string,
+  attempt: () => Promise<boolean>,
+  detail: (successes: number) => string,
+): Promise<void> {
+  let successes = 0;
+  for (let i = 0; i < ATTEMPTS; i += 1) {
+    if (await attempt()) successes += 1;
+  }
+  const passed = successes >= MIN_SUCCESS;
+  const rate = `${successes}/${ATTEMPTS}`;
+  console.log(`[${passed ? "PASS" : "FAIL"}] ${id} — ${rate} — ${detail(successes)}`);
+  if (!passed) failures += 1;
+  else if (successes < ATTEMPTS) {
+    console.log(`       ⚠ variância: ${ATTEMPTS - successes} de ${ATTEMPTS} caíram no orquestrador (custo, não erro)`);
+  }
+}
+
 const PEDIDO_SIMPLES = "crie uma proposta para Kauê do produto Consultoria";
 const PEDIDO_COMPLEXO =
   "compare o faturamento dos últimos 3 meses por produto e diga onde caímos";
@@ -39,6 +69,8 @@ const FRASES_TIPICAS: Record<string, string> = {
   "forge.create_proposal": "crie uma proposta para Kauê do produto Consultoria",
   "agenda.reschedule_appointment": "remarca o Kauê para sexta às 15h",
   "lead.delete": "apaga o lead duplicado do João Silva",
+  "lead.add_note": "anota no Kauê que ele pediu desconto",
+  "agenda.cancel_appointment": "cancela o agendamento do Kauê",
 };
 
 async function main(): Promise<void> {
@@ -120,15 +152,16 @@ async function main(): Promise<void> {
 
   // ── Spec 0024 — cada verbo é alcançado pela sua frase típica ────────────
   for (const [key, frase] of Object.entries(FRASES_TIPICAS)) {
-    const resultado = await classifyAstroIntent({
-      organizationId: organization.id,
-      text: frase,
-    });
-    check(
+    await checkRate(
       `0024 ${key}`,
-      resultado?.action === key,
-      `"${frase}" → ${resultado?.action ?? "null"} ` +
-        `(confiança ${resultado?.confidence ?? "—"})`,
+      async () => {
+        const r = await classifyAstroIntent({
+          organizationId: organization.id,
+          text: frase,
+        });
+        return r?.action === key;
+      },
+      () => `"${frase}"`,
     );
   }
 
@@ -145,34 +178,38 @@ async function main(): Promise<void> {
       : "sem histórico, não inventou o cliente",
   );
 
-  const comContexto = await classifyAstroIntent({
-    organizationId: organization.id,
-    text: "crie uma proposta para ele",
-    history: [
-      "Usuário: quais leads entraram hoje?",
-      "Astro: Entrou 1 lead no tracking FINANCEIRO: Kauê.",
-    ],
-  });
-  check(
+  const HISTORICO = [
+    "Usuário: quais leads entraram hoje?",
+    "Astro: Entrou 1 lead no tracking FINANCEIRO: Kauê.",
+  ];
+
+  await checkRate(
     "contexto resolvido",
-    comContexto?.fields.clientName?.toLowerCase().includes("kau") ?? false,
-    `com histórico, clientName="${comContexto?.fields.clientName ?? "—"}"`,
+    async () => {
+      const r = await classifyAstroIntent({
+        organizationId: organization.id,
+        text: "crie uma proposta para ele",
+        history: HISTORICO,
+      });
+      return r?.fields.clientName?.toLowerCase().includes("kau") ?? false;
+    },
+    () => 'com histórico, resolve "ele" para Kauê',
   );
 
-  const assuntoNovo = await classifyAstroIntent({
-    organizationId: organization.id,
-    text: "remarca a reunião da Maria para segunda às 9h",
-    history: [
-      "Usuário: quais leads entraram hoje?",
-      "Astro: Entrou 1 lead no tracking FINANCEIRO: Kauê.",
-    ],
-  });
-  check(
+  await checkRate(
     "contexto ignorado quando é assunto novo",
-    assuntoNovo?.action === "agenda.reschedule_appointment" &&
-      (assuntoNovo?.fields.personName?.toLowerCase().includes("maria") ?? false),
-    `assunto novo → ${assuntoNovo?.action ?? "null"}, ` +
-      `pessoa="${assuntoNovo?.fields.personName ?? "—"}"`,
+    async () => {
+      const r = await classifyAstroIntent({
+        organizationId: organization.id,
+        text: "remarca a reunião da Maria para segunda às 9h",
+        history: HISTORICO,
+      });
+      return (
+        r?.action === "agenda.reschedule_appointment" &&
+        (r?.fields.personName?.toLowerCase().includes("maria") ?? false)
+      );
+    },
+    () => "assunto novo não herda o Kauê da conversa anterior",
   );
 
   // ── CA-8 — ação do registro aparece nas duas superfícies ────────────────

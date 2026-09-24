@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import type { AstroAction, AstroActionResult } from "../types";
+import { resolveSingleLead } from "./resolve-lead";
 
 // Excluir lead (spec 0024, onda 1 — primeiro verbo destrutivo).
 //
@@ -13,7 +14,6 @@ import type { AstroAction, AstroActionResult } from "../types";
 // Confirmação é obrigatória (D-4) e a exclusão entra em `systemActivityLog`,
 // que é de onde os Insights leem o histórico.
 
-const MAX_CANDIDATES = 5;
 const ALLOWED_ORG_ROLES = ["owner", "admin", "moderador"];
 
 const inputSchema = z.object({
@@ -38,49 +38,15 @@ export const deleteLeadAction: AstroAction<typeof inputSchema> = {
   input: inputSchema,
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
-    const candidates = await prisma.lead.findMany({
-      where: {
-        name: { contains: input.leadName.replace(/_/g, " "), mode: "insensitive" },
-        tracking: { organizationId: ctx.organizationId },
-      },
-      select: {
-        id: true,
-        name: true,
-        trackingId: true,
-        tracking: { select: { name: true, organizationId: true } },
-      },
-      take: MAX_CANDIDATES,
+    const resolved = await resolveSingleLead({
+      ctx,
+      name: input.leadName,
+      field: "leadName",
+      appName: "Tracking",
+      ambiguityHint: "Qual deles? Não vou adivinhar numa exclusão.",
     });
-
-    if (candidates.length === 0) {
-      return {
-        status: "needs_input",
-        title: "Lead não encontrado",
-        description: `Não achei nenhum lead com "${input.leadName}".`,
-        missingFields: [{ key: "leadName", label: "nome do lead" }],
-        appName: "Tracking",
-      };
-    }
-
-    // Em exclusão, homônimo é o caso mais perigoso do catálogo inteiro:
-    // apagar o lead errado não tem desfazer.
-    if (candidates.length > 1) {
-      return {
-        status: "ambiguous",
-        title: "Mais de um lead com esse nome",
-        description:
-          `Achei ${candidates.length} leads parecidos com "${input.leadName}". ` +
-          "Qual deles? Não vou adivinhar numa exclusão.",
-        field: "leadName",
-        options: candidates.map((lead) => ({
-          id: lead.id,
-          label: `${lead.name} — ${lead.tracking.name}`,
-        })),
-        appName: "Tracking",
-      };
-    }
-
-    const lead = candidates[0];
+    if ("failure" in resolved) return resolved.failure;
+    const lead = resolved.lead;
 
     const [membership, participation] = await Promise.all([
       prisma.member.findFirst({

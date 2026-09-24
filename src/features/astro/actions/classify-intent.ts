@@ -89,11 +89,28 @@ não use conhecimento externo. Campo não dito simplesmente não aparece.
 
 "confidence" é o quanto você tem certeza da ação escolhida, não dos campos.
 
-Quando houver conversa anterior, use-a para resolver referências como "ele",
-"ela", "esse", "o mesmo", "a última". Se o pedido atual claramente abre assunto
-novo, IGNORE a conversa anterior — nem tudo que vem depois se refere ao que
-veio antes. Referência que você não conseguir resolver com segurança é campo
-ausente, não chute.`;
+RESOLUÇÃO DE REFERÊNCIA — leia com atenção:
+
+Quando o pedido usar "ele", "ela", "esse", "o mesmo", "a última", "dele", você
+DEVE procurar na conversa anterior o nome próprio a que se refere e colocar
+ESSE NOME no campo. Não devolva o pronome, não deixe o campo vazio.
+
+Exemplo:
+  Conversa: "Astro: Entrou 1 lead no tracking VENDAS: Ana Paula."
+  Pedido:   "manda uma proposta para ela"
+  Correto:  fields = [{key:"clientName", value:"Ana Paula"}]
+  Errado:   fields = [] ou value = "ela"
+
+Se o pedido trouxer um nome próprio SEU, use esse nome e ignore a conversa —
+nem tudo que vem depois se refere ao que veio antes.
+
+Quando NÃO houver conversa anterior, ou quando ela não contiver nome próprio
+nenhum, o campo fica AUSENTE. Pronome nunca é valor de campo:
+
+  Conversa: (nenhuma)
+  Pedido:   "manda uma proposta para ele"
+  Correto:  fields = []
+  Errado:   fields = [{key:"clientName", value:"ele"}]`;
 
 /**
  * Devolve a ação escolhida, ou `null` sempre que houver qualquer dúvida ou

@@ -73,7 +73,7 @@ Os três de uso diário, que é onde o custo por token dói mais hoje.
 | `tracking.apply_preset` | "aplica o padrão de vendas nesse tracking" | ⬜ |
 | `tracking.add_participant` | "põe o João nesse tracking" | ⬜ |
 | `tracking.archive` | "arquiva o tracking de 2025" | ⬜ (destrutivo → C-4) |
-| `lead.add_note` | "anota no Kauê que ele pediu desconto" | ⬜ |
+| `lead.add_note` | "anota no Kauê que ele pediu desconto" | ✅ implementado |
 | `lead.toggle_favorite` | "favorita o Kauê" | ⬜ |
 | `lead.delete` | "apaga o lead duplicado" | ✅ implementado (destrutivo → C-4) |
 
@@ -99,7 +99,7 @@ arquivo pelo clipe, e isso é outro fluxo.
 | Verbo | Frase típica | Já existe? |
 | --- | --- | --- |
 | `agenda.reschedule_appointment` | "remarca o Kauê pra sexta às 15h" | ✅ implementado |
-| `agenda.cancel_appointment` | "cancela o agendamento de amanhã" | ⬜ (C-4) |
+| `agenda.cancel_appointment` | "cancela o agendamento de amanhã" | ✅ implementado (C-4) |
 | `agenda.create_reminder` | "me lembra de ligar pro Kauê toda segunda" | ⬜ |
 | `agenda.block_date` | "bloqueia o dia 30 na minha agenda" | ⬜ |
 | `agenda.toggle_active` | "desativa a agenda de consultoria" | ⬜ |
@@ -221,7 +221,7 @@ Cada um entra com seu recorte próprio, pelo mesmo critério da §3.
 | Critério | Tipo | Como verificar |
 | --- | --- | --- |
 | Cada verbo novo | script | `scripts/verify-astro-routing.ts` já afirma que toda ação do registro aparece nas duas superfícies (CA-8) — cresce sozinho |
-| Classificação não degrada | script | Com o catálogo maior, repetir CA-1 e CA-3: pedido direto continua acertando, analítico continua devolvendo `null` |
+| Classificação não degrada | script | Cada frase roda **3 vezes** e o script reporta a taxa (ex.: `3/3`), exigindo ≥2. Afirmar sobre uma chamada só produzia suíte instável, e suíte instável o time aprende a ignorar |
 | Frase típica de cada verbo | script | Automatizado em `verify-astro-routing.ts`: cada verbo do registro é classificado pela sua frase |
 | Resolução de contexto (D-5) | script | Três casos no mesmo script: sem histórico não inventa; com histórico resolve o pronome; assunto novo ignora o histórico |
 
@@ -249,6 +249,7 @@ sem dado tocado.
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-24 | Weydson | Criada a partir da auditoria: 344 escritas, 33 ferramentas, 29 apps sem verbo |
+| 2026-09-24 | Weydson | `lead.add_note` e `agenda.cancel_appointment` implementados — 4 de 17. A medição por taxa revelou que a resolução de pronome estava em **1/3**, defeito que o teste de tentativa única escondia; com exemplo positivo e negativo no prompt, subiu para **3/3** |
 | 2026-09-24 | Weydson | `lead.delete` implementado — 2 de 17 da onda 1, primeiro destrutivo. D-6 acrescentada: a confirmação passou a ensaiar antes de perguntar |
 | 2026-09-24 | Weydson | D-4 (CRUD com exclusão confirmada e auditada) e D-5 (contexto conversacional) acrescentadas a pedido do dono do produto |
 | 2026-09-24 | Weydson | **Variância medida**: a mesma frase classificou `null` em 1 de 4 execuções e acertou nas outras 3 (0,90–0,95). O caso do `null` cai no orquestrador — seguro, porém caro (19★ em vez de 2★). Registrado como risco em §9 |
