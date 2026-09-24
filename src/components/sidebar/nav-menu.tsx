@@ -17,6 +17,18 @@ import {
   isItemVisible,
 } from "@/hooks/use-sidebar-prefs";
 
+/**
+ * No modo recolhido o botão vira coluna: ícone em cima, nome embaixo em
+ * corpo menor. Só o ícone deixava o menu ilegível para quem não decorou a
+ * simbologia. O nome trunca porque a faixa recolhida é estreita de
+ * propósito — "Formulários" vira "Formulá…" e o tooltip mostra o resto.
+ */
+const ICON_MODE_BUTTON =
+  "group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-auto! group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-0.5 group-data-[collapsible=icon]:px-1! group-data-[collapsible=icon]:py-1.5!";
+
+const ICON_MODE_LABEL =
+  "group-data-[collapsible=icon]:block group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:truncate group-data-[collapsible=icon]:text-center group-data-[collapsible=icon]:text-[9px] group-data-[collapsible=icon]:leading-none";
+
 function AstroNavIcon({ className }: { className?: string }) {
   return (
     <>
@@ -69,6 +81,7 @@ export function NavMenu() {
             tooltip="Início"
             asChild
             className={cn(
+              ICON_MODE_BUTTON,
               pathname === "/home" &&
                 "bg-sidebar-accent text-sidebar-accent-foreground",
             )}
@@ -77,7 +90,7 @@ export function NavMenu() {
                 acessível mesmo com outro app definido como inicial. */}
             <Link href="/home?home=1">
               <AstroNavIcon />
-              <span>Início</span>
+              <span className={ICON_MODE_LABEL}>Início</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -98,13 +111,14 @@ export function NavMenu() {
                 tooltip={item.title}
                 asChild
                 className={cn(
+                  ICON_MODE_BUTTON,
                   isActive &&
                     "bg-sidebar-accent text-sidebar-accent-foreground",
                 )}
               >
                 <Link href={item.url}>
                   <Icon />
-                  <span>{item.title}</span>
+                  <span className={ICON_MODE_LABEL}>{item.title}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
