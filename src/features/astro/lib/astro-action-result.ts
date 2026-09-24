@@ -14,6 +14,29 @@ export interface AstroActionDonePayload {
   appName: string;
 }
 
+/** Escolha pendente: o cartão vira botões, um por opção. */
+export interface AstroActionChoicePayload {
+  status: "ambiguous";
+  title: string;
+  description: string;
+  field: string;
+  options: { id: string; label: string }[];
+  appName: string;
+}
+
+export function isAstroActionChoicePayload(
+  value: unknown,
+): value is AstroActionChoicePayload {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Partial<AstroActionChoicePayload>;
+  return (
+    candidate.status === "ambiguous" &&
+    Array.isArray(candidate.options) &&
+    candidate.options.length > 0 &&
+    typeof candidate.title === "string"
+  );
+}
+
 export function isAstroActionDonePayload(
   value: unknown,
 ): value is AstroActionDonePayload {

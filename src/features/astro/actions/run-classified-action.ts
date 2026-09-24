@@ -1,5 +1,6 @@
 import "server-only";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { getAstroAction } from "./registry";
 import { proposeAction } from "./confirmation";
@@ -150,6 +151,57 @@ function shortLabel(description: string): string {
 }
 
 /**
+ * Opções para o campo que faltou. Perguntar "me diga: o nome do tracking"
+ * obriga o usuário a lembrar e digitar o que o sistema já sabe — quando a
+ * lista é curta, botões respondem em um toque.
+ */
+async function optionsForField(
+  ctx: AgentContext,
+  field: string,
+): Promise<{ id: string; label: string }[] | null> {
+  const MAX_OPTIONS = 8;
+  const where = { organizationId: ctx.organizationId };
+
+  if (field === "trackingName") {
+    const rows = await prisma.tracking.findMany({
+      where,
+      select: { id: true, name: true },
+      take: MAX_OPTIONS,
+    });
+    return rows.length > 0 ? rows.map((row) => ({ id: row.id, label: row.name })) : null;
+  }
+
+  if (field === "agendaName") {
+    const rows = await prisma.agenda.findMany({
+      where,
+      select: { id: true, name: true },
+      take: MAX_OPTIONS,
+    });
+    return rows.length > 0 ? rows.map((row) => ({ id: row.id, label: row.name })) : null;
+  }
+
+  if (field === "formName") {
+    const rows = await prisma.form.findMany({
+      where,
+      select: { id: true, name: true },
+      take: MAX_OPTIONS,
+    });
+    return rows.length > 0 ? rows.map((row) => ({ id: row.id, label: row.name })) : null;
+  }
+
+  if (field === "workspaceName") {
+    const rows = await prisma.workspace.findMany({
+      where: { ...where, isArchived: false },
+      select: { id: true, name: true },
+      take: MAX_OPTIONS,
+    });
+    return rows.length > 0 ? rows.map((row) => ({ id: row.id, label: row.name })) : null;
+  }
+
+  return null;
+}
+
+/**
  * Executa a ação classificada e devolve a resposta em stream. `null` significa
  * "não consigo resolver por aqui" — quem chama segue para o orquestrador.
  */
@@ -193,15 +245,28 @@ export async function runClassifiedAction(params: {
   const missing = missingRequiredFields(action, fields);
   const parsed = action.input.safeParse(fields);
 
+  // Campo que nomeia algo já cadastrado vira botão, não pergunta aberta.
+  const askable = missing[0];
+  const choices = askable ? await optionsForField(params.ctx, askable) : null;
+
   const result: ClassifiedOutput =
     missing.length > 0 || !parsed.success
-      ? {
-          status: "needs_input",
-          title: "Falta uma informação",
-          description: `Para continuar, me diga: ${missing.map(labelFor).join(", ")}.`,
-          missingFields: missing.map((field) => ({ key: field, label: labelFor(field) })),
-          appName: "Órbita",
-        }
+      ? choices && missing.length === 1
+        ? {
+            status: "ambiguous",
+            title: "Qual deles?",
+            description: `Escolha ${labelFor(askable!)} para eu continuar.`,
+            field: askable!,
+            options: choices,
+            appName: "Órbita",
+          }
+        : {
+            status: "needs_input",
+            title: "Falta uma informação",
+            description: `Para continuar, me diga: ${missing.map(labelFor).join(", ")}.`,
+            missingFields: missing.map((field) => ({ key: field, label: labelFor(field) })),
+            appName: "Órbita",
+          }
       : action.requiresConfirmation
         ? await proposeAction({
             ctx: params.ctx,

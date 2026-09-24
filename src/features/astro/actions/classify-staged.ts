@@ -76,11 +76,21 @@ function withTimeout<T>(promise: Promise<T>): Promise<T | null> {
 
 const STAGE1_PROMPT = `Você recebe um pedido de usuário de um sistema de gestão
 e diz de qual APP ele é. Responda null quando o pedido for análise, comparação,
-relatório, ou não pertencer claramente a nenhum app.`;
+relatório, ou não pertencer claramente a nenhum app.
+
+Responda null também quando o usuário PERGUNTA em vez de mandar fazer:
+"quantos leads tenho hoje", "quais trackings temos", "quem atendeu mais",
+"me mostra as vendas do mês". Consulta não é ação — quem responde é o
+relatório. Só classifique num app quando houver algo a CRIAR, MUDAR, MOVER,
+APAGAR ou ENVIAR.`;
 
 const STAGE2_PROMPT = `Você recebe um pedido e a lista de ações de um app.
 Devolva até 3 ações possíveis, ordenadas da mais para a menos provável, cada
 uma com os campos que a frase disse.
+
+Se a frase PERGUNTA em vez de mandar fazer — "quais trackings temos",
+"quantos leads tenho", "quem são meus clientes" — devolva a lista VAZIA.
+Consulta não é ação: perguntar quais existem não é criar um.
 
 Extraia apenas o que foi dito. Campo não dito não aparece. Booleano vai como
 "true" ou "false". Campo opcional que a frase não disse: OMITA — nunca mande

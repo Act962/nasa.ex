@@ -16,7 +16,11 @@ import { AstroChartCard } from "@/features/astro/components/astro-chart-card";
 import { isAstroTagSuggestionsPayload } from "@/features/astro/lib/astro-tag-suggestions";
 import { AstroTagSuggestionsCard } from "@/features/astro/components/astro-tag-suggestions-card";
 import { AstroActionResultCard } from "./astro-action-result-card";
-import { isAstroActionDonePayload } from "@/features/astro/lib/astro-action-result";
+import {
+  isAstroActionChoicePayload,
+  isAstroActionDonePayload,
+} from "@/features/astro/lib/astro-action-result";
+import { AstroChoiceCard } from "./astro-choice-card";
 import {
   isAstroConfirmationPayload,
   isAstroConfirmationResultPayload,
@@ -179,6 +183,20 @@ export function AstroMessage({
                 className="self-stretch w-full max-w-[95%] sm:max-w-[85%]"
               >
                 <AstroActionResultCard payload={output} />
+              </div>
+            );
+          }
+          if (isAstroActionChoicePayload(output)) {
+            return (
+              <div
+                key={idx}
+                className="self-stretch w-full max-w-[95%] sm:max-w-[85%]"
+              >
+                <AstroChoiceCard
+                  payload={output}
+                  onRespond={onRespond ?? (() => {})}
+                  disabled={busy || !onRespond}
+                />
               </div>
             );
           }
