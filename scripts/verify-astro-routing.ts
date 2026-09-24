@@ -1,0 +1,163 @@
+/**
+ * Verificação dos critérios de aceite da spec 0023 — roteamento por intenção.
+ *
+ * Exercita o classificador de verdade (chama o provedor), porque o que se quer
+ * provar é justamente a decisão dele: pedido simples resolve barato, pedido
+ * complexo escala. Nada é gravado no banco além do que o `meter` grava, e as
+ * linhas de teste são removidas no fim.
+ *
+ *   pnpm tsx --require ./scripts/_setup-server-only.cjs scripts/verify-astro-routing.ts
+ */
+
+import "dotenv/config";
+
+import {
+  classifyAstroIntent,
+  CONFIDENCE_THRESHOLD,
+} from "../src/features/astro/actions/classify-intent";
+import { ASTRO_ACTIONS, getAstroAction } from "../src/features/astro/actions/registry";
+import { buildActionRegistryTools } from "../src/features/astro/actions/to-tools";
+import prisma from "../src/lib/prisma";
+
+let failures = 0;
+
+function check(id: string, passed: boolean, detail: string): void {
+  console.log(`[${passed ? "PASS" : "FAIL"}] ${id} — ${detail}`);
+  if (!passed) failures += 1;
+}
+
+const PEDIDO_SIMPLES = "crie uma proposta para Kauê do produto Consultoria";
+const PEDIDO_COMPLEXO =
+  "compare o faturamento dos últimos 3 meses por produto e diga onde caímos";
+
+async function main(): Promise<void> {
+  const organization = await prisma.organization.findFirst({
+    select: { id: true, name: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!organization) {
+    console.error("Nenhuma organização no banco — nada a verificar.");
+    process.exit(1);
+  }
+  console.log(`Organização: ${organization.name}\n`);
+
+  // ── CA-1 / RNF-1 — pedido completo resolve pelo caminho barato ───────────
+  const simples = await classifyAstroIntent({
+    organizationId: organization.id,
+    text: PEDIDO_SIMPLES,
+  });
+
+  check(
+    "CA-1",
+    simples?.action === "forge.create_proposal",
+    `pedido direto classificado como "${simples?.action ?? "null"}" ` +
+      `(confiança ${simples?.confidence ?? "—"})`,
+  );
+
+  check(
+    "RNF-1",
+    (simples?.tokensUsed ?? Number.POSITIVE_INFINITY) < 1000,
+    `classificação consumiu ${simples?.tokensUsed ?? "?"} tokens ` +
+      "(o orquestrador gasta ~18.500 em qualquer pergunta)",
+  );
+
+  check(
+    "CA-1 campos",
+    Boolean(simples?.fields.clientName && simples?.fields.productName),
+    `campos extraídos: ${Object.keys(simples?.fields ?? {}).join(", ") || "nenhum"}`,
+  );
+
+  // ── CA-3 — pedido complexo não é sequestrado pelo caminho barato ─────────
+  const complexo = await classifyAstroIntent({
+    organizationId: organization.id,
+    text: PEDIDO_COMPLEXO,
+  });
+  check(
+    "CA-3",
+    complexo === null,
+    complexo === null
+      ? "pedido analítico devolveu null — vai para o orquestrador"
+      : `pedido analítico virou "${complexo.action}", o que sequestraria a análise`,
+  );
+
+  // ── CA-4 / RNF-3 — falha do provedor não vira erro para o usuário ───────
+  // Org inexistente NÃO serve de teste: sem chave da org, o roteador cai na
+  // chave da plataforma e classifica normalmente. Para exercitar a falha de
+  // verdade é preciso tirar todas as chaves do ambiente.
+  const chavesSalvas = {
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+  };
+  for (const name of Object.keys(chavesSalvas)) delete process.env[name];
+
+  const semProvedor = await classifyAstroIntent({
+    organizationId: "org-que-nao-existe",
+    text: PEDIDO_SIMPLES,
+  });
+
+  for (const [name, value] of Object.entries(chavesSalvas)) {
+    if (value !== undefined) process.env[name] = value;
+  }
+
+  check(
+    "CA-4",
+    semProvedor === null,
+    "sem nenhuma chave de IA, a classificação devolveu null em vez de lançar",
+  );
+
+  // ── CA-8 — ação do registro aparece nas duas superfícies ────────────────
+  const fakeContext = { organizationId: organization.id, userId: "verify" };
+  const tools = buildActionRegistryTools(fakeContext as never);
+  const faltandoNoOrquestrador = ASTRO_ACTIONS.filter(
+    (action) => !(action.toolName in tools),
+  );
+  check(
+    "CA-8",
+    faltandoNoOrquestrador.length === 0,
+    `${ASTRO_ACTIONS.length} ação(ões) no registro, ` +
+      `${ASTRO_ACTIONS.length - faltandoNoOrquestrador.length} expostas como ferramenta`,
+  );
+
+  const semLookup = ASTRO_ACTIONS.filter((action) => !getAstroAction(action.key));
+  check(
+    "CA-8 lookup",
+    semLookup.length === 0,
+    semLookup.length === 0
+      ? "toda ação é resolvível pela chave (o que o classificador usa)"
+      : `sem lookup: ${semLookup.map((action) => action.key).join(", ")}`,
+  );
+
+  // ── RNF-4 — o caminho barato aparece no registro de custo ───────────────
+  const eventosDoClassificador = await prisma.usageEvent.count({
+    where: {
+      organizationId: organization.id,
+      metadata: { path: ["route"], equals: "classifier" },
+    },
+  });
+  check(
+    "RNF-4",
+    eventosDoClassificador > 0,
+    eventosDoClassificador > 0
+      ? `${eventosDoClassificador} evento(s) gravados com route="classifier"`
+      : 'nenhum UsageEvent com route="classifier" — a economia fica invisível no relatório',
+  );
+
+  console.log(`\nLimiar de confiança em uso: ${CONFIDENCE_THRESHOLD}`);
+  console.log(
+    failures === 0
+      ? "Todos os critérios passaram."
+      : `${failures} critério(s) falharam.`,
+  );
+}
+
+main()
+  .catch((error) => {
+    console.error(error);
+    failures += 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+    process.exit(failures === 0 ? 0 : 1);
+  });

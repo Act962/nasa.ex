@@ -228,6 +228,7 @@ comercial e devolver o link público funciona nos dois modos.
 | CA-6 | manual | Abrir o link em aba anônima |
 | CA-8 | script | Registrar ação de teste e afirmar que aparece nas duas superfícies |
 | CA-9, CA-10, CA-11 | manual | Ciclo falado do início ao fim, em Chrome, com o microfone real |
+| CA-1, CA-3, CA-4, CA-8, RNF-1, RNF-4 | script | `scripts/verify-astro-routing.ts` — implementado, 8/8 passando |
 | CA-9 (custo) | script | Mesmo `verify-astro-routing.ts`: afirmar `totalTokens = 0` no ciclo resolvido por verbo |
 | CA-12 | manual | Mesma frase digitada e falada; comparar `metadata.route` dos dois |
 
@@ -260,5 +261,6 @@ podem ficar, porque são aditivos.
 | --- | --- | --- |
 | 2026-09-24 | Weydson | Criada |
 | 2026-09-24 | Weydson | Entrada por voz: RF-10 a RF-13, RNF-5/6, CA-9 a CA-12, CB-11 a CB-16, D-5 e D-6 |
+| 2026-09-24 | Weydson | `verify-astro-routing.ts` implementado, 8/8. Medido: a classificação consome **374 tokens** contra ~18.500 do orquestrador, e o `route=\"classifier\"` está gravado no `UsageEvent` |
 | 2026-09-24 | Weydson | **CA-10 diverge na prática**: pedido incompleto ("crie uma proposta", sem cliente) faz o classificador baixar a confiança para 0,6 — abaixo do limiar — e a pergunta acaba vindo do orquestrador, não do caminho barato. O comportamento para o usuário é o esperado (o Astro pergunta o cliente); o custo é que não é o de RNF-1. O ramo de `needs_input` no caminho barato existe e cobre o caso de confiança alta com campo faltando |
 | 2026-09-24 | Weydson | **RNF-2 corrigida na implementação**: o corte de 1,5 s derrubava 100% das classificações. Medido: 1.253 ms em regime, mas a primeira chamada após o boot estoura. Corte passou para 4 s; o alvo de latência em regime continua ~1,2 s |
