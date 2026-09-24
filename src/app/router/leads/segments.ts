@@ -64,6 +64,49 @@ export const leadSegments = base
 
     const leais = (await loyalLeadIds(prisma, scope)).length;
 
+    // Série dos últimos 7 dias para o minigráfico. Só onde há data para
+    // contar: "leal" e "em risco" são fotografias do agora, não acumulam por
+    // dia, e inventar uma curva para eles seria mentir com pixel.
+    const SERIES_DAYS = 7;
+    const seriesStart = new Date();
+    seriesStart.setHours(0, 0, 0, 0);
+    seriesStart.setDate(seriesStart.getDate() - (SERIES_DAYS - 1));
+
+    const [createdRows, wonRows] = await Promise.all([
+      prisma.lead.findMany({
+        where: { ...scope, createdAt: { gte: seriesStart } },
+        select: { createdAt: true },
+      }),
+      prisma.lead.findMany({
+        where: { ...scope, currentAction: "WON", closedAt: { gte: seriesStart } },
+        select: { closedAt: true },
+      }),
+    ]);
+
+    const bucketize = (dates: Array<Date | null>) => {
+      const buckets = Array.from({ length: SERIES_DAYS }, () => 0);
+      for (const date of dates) {
+        if (!date) continue;
+        const day = Math.floor(
+          (date.getTime() - seriesStart.getTime()) / (24 * 60 * 60_000),
+        );
+        if (day >= 0 && day < SERIES_DAYS) buckets[day] += 1;
+      }
+      return buckets;
+    };
+
+    const novosSeries = bucketize(createdRows.map((row) => row.createdAt));
+    const campeoesSeries = bucketize(wonRows.map((row) => row.closedAt));
+
+    /** Últimos 3 dias contra os 3 anteriores — tendência, não previsão. */
+    const trendOf = (series: number[]): number | null => {
+      const half = Math.floor(series.length / 2);
+      const older = series.slice(0, half).reduce((sum, value) => sum + value, 0);
+      const recent = series.slice(-half).reduce((sum, value) => sum + value, 0);
+      if (older === 0) return recent > 0 ? 100 : null;
+      return ((recent - older) / older) * 100;
+    };
+
     const trackings = await prisma.tracking.findMany({
       where: {
         organizationId: org.id,
@@ -74,6 +117,16 @@ export const leadSegments = base
     });
 
     return {
+      series: {
+        total: novosSeries,
+        novos: novosSeries,
+        campeoes: campeoesSeries,
+      },
+      trends: {
+        total: trendOf(novosSeries),
+        novos: trendOf(novosSeries),
+        campeoes: trendOf(campeoesSeries),
+      },
       total,
       novos,
       campeoes,

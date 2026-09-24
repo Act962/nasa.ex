@@ -35,6 +35,8 @@ import {
   X,
 } from "lucide-react";
 import { DateRangeTimePicker } from "@/features/insights/components/activities/date-range-time-picker";
+import { Sparkline } from "./sparkline";
+import { TrendingDown, TrendingUp } from "lucide-react";
 
 type DateField = "createdAt" | "lastInboundAt";
 
@@ -55,6 +57,9 @@ interface SegmentCard {
   hint: string;
   icon: typeof Sparkles;
   tone: string;
+  /** Série de 7 dias; ausente onde a métrica não acumula por dia. */
+  series?: number[];
+  trend?: number | null;
 }
 
 export function SegmentsHeader() {
@@ -86,6 +91,8 @@ export function SegmentsHeader() {
       hint: "Todos os leads do recorte atual",
       icon: Users,
       tone: "text-muted-foreground",
+      series: data?.series?.total,
+      trend: data?.trends?.total,
     },
     {
       key: "novos",
@@ -95,6 +102,8 @@ export function SegmentsHeader() {
       hint: `Criados nos últimos ${rules?.novosDias ?? 30} dias e ainda no funil`,
       icon: Sparkles,
       tone: "text-sky-500",
+      series: data?.series?.novos,
+      trend: data?.trends?.novos,
     },
     {
       key: "campeoes",
@@ -104,6 +113,8 @@ export function SegmentsHeader() {
       hint: "Leads marcados como ganhos",
       icon: Trophy,
       tone: "text-amber-500",
+      series: data?.series?.campeoes,
+      trend: data?.trends?.campeoes,
     },
     {
       key: "leais",
@@ -137,8 +148,10 @@ export function SegmentsHeader() {
     .map((tag) => tag.name);
 
   return (
-    <div className="px-4 py-3 border-b">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="space-y-3 border-b px-4 py-3">
+      {/* Linha 1 — números. Linha 2 — filtros. Misturar as duas fazia o
+          seletor de tracking cair sozinho numa terceira linha. */}
+      <div className="flex flex-wrap items-stretch gap-2">
         {cards.map((card) => {
           const active = segment === card.segment;
           return (
@@ -149,49 +162,69 @@ export function SegmentsHeader() {
             aria-pressed={active}
             onClick={() => filters.toggleSegment(card.segment)}
             className={cn(
-              "flex min-w-[9.5rem] flex-1 items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-colors",
+              "group flex min-w-[11rem] flex-1 items-start gap-3 rounded-xl border px-4 py-3 text-left transition-colors",
               active
-                ? "border-primary bg-primary/10"
-                : "bg-card hover:bg-muted/50",
+                ? "border-primary bg-primary/5"
+                : "bg-card hover:border-muted-foreground/30",
             )}
           >
-            <card.icon className={cn("size-4 shrink-0", card.tone)} />
-            <div className="min-w-0">
-              <p className="truncate text-xs text-muted-foreground">{card.label}</p>
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                <card.icon className={cn("size-3.5 shrink-0", card.tone)} />
+                {card.label}
+              </p>
               {isLoading ? (
-                <Skeleton className="mt-0.5 h-5 w-8" />
+                <Skeleton className="mt-1.5 h-7 w-10" />
               ) : (
-                <p className="text-lg font-semibold leading-tight">
-                  {card.value ?? 0}
-                </p>
+                <div className="mt-0.5 flex items-baseline gap-2">
+                  <span className="text-2xl font-semibold leading-none">
+                    {card.value ?? 0}
+                  </span>
+                  {card.trend !== null && card.trend !== undefined && (
+                    <span
+                      className={cn(
+                        "flex items-center gap-0.5 text-xs font-medium",
+                        card.trend >= 0 ? "text-emerald-500" : "text-rose-500",
+                      )}
+                    >
+                      {card.trend >= 0 ? (
+                        <TrendingUp className="size-3" />
+                      ) : (
+                        <TrendingDown className="size-3" />
+                      )}
+                      {Math.abs(card.trend).toFixed(0)}%
+                    </span>
+                  )}
+                </div>
               )}
             </div>
+            {card.series && card.series.length > 1 && (
+              <Sparkline
+                values={card.series}
+                className={cn("mt-1 h-6 w-16 shrink-0", card.tone)}
+              />
+            )}
           </button>
           );
         })}
 
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
         {/* Tag é multidropdown: um lead tem várias, e filtrar por uma só
             esconderia o cruzamento que o usuário quer ver. */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="h-[3.25rem] min-w-[9.5rem] flex-1 justify-between gap-2 px-3"
-            >
-              <span className="flex items-center gap-2.5 min-w-0">
-                <Tag className="size-4 shrink-0 text-violet-500" />
-                <span className="min-w-0 text-left">
-                  <span className="block text-xs text-muted-foreground">Tag</span>
-                  <span className="block truncate text-sm font-medium">
-                    {selectedTagNames.length === 0
-                      ? "Todas"
-                      : selectedTagNames.length === 1
-                        ? selectedTagNames[0]
-                        : `${selectedTagNames.length} tags`}
-                  </span>
-                </span>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Tag className="size-4 text-violet-500" />
+              <span className="max-w-[10rem] truncate">
+                {selectedTagNames.length === 0
+                  ? "Todas as tags"
+                  : selectedTagNames.length === 1
+                    ? selectedTagNames[0]
+                    : `${selectedTagNames.length} tags`}
               </span>
-              <ChevronDown className="size-4 shrink-0 opacity-60" />
+              <ChevronDown className="size-4 opacity-60" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -236,7 +269,7 @@ export function SegmentsHeader() {
           value={dateField}
           onValueChange={(value) => setDateField(value as DateField)}
         >
-          <SelectTrigger className="h-[3.25rem] min-w-[9.5rem] flex-1">
+          <SelectTrigger size="sm" className="w-[11rem]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -267,7 +300,7 @@ export function SegmentsHeader() {
         </div>
 
         <Select value={trackingId} onValueChange={setTrackingId}>
-          <SelectTrigger className="h-[3.25rem] min-w-[9.5rem] flex-1">
+          <SelectTrigger size="sm" className="w-[12rem]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
