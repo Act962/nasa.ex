@@ -2,7 +2,7 @@
 id: 0024
 titulo: Catálogo de verbos do Astro — recorte por onda
 dominio: astro
-status: rascunho
+status: aprovada
 autor: Weydson
 criada: 2026-09-24
 atualizada: 2026-09-24
@@ -98,7 +98,7 @@ arquivo pelo clipe, e isso é outro fluxo.
 
 | Verbo | Frase típica | Já existe? |
 | --- | --- | --- |
-| `agenda.reschedule_appointment` | "remarca o Kauê pra sexta às 15h" | ⬜ |
+| `agenda.reschedule_appointment` | "remarca o Kauê pra sexta às 15h" | ✅ implementado |
 | `agenda.cancel_appointment` | "cancela o agendamento de amanhã" | ⬜ (C-4) |
 | `agenda.create_reminder` | "me lembra de ligar pro Kauê toda segunda" | ⬜ |
 | `agenda.block_date` | "bloqueia o dia 30 na minha agenda" | ⬜ |
@@ -201,3 +201,4 @@ sem dado tocado.
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-24 | Weydson | Criada a partir da auditoria: 344 escritas, 33 ferramentas, 29 apps sem verbo |
+| 2026-09-24 | Weydson | Aprovada. `agenda.reschedule_appointment` implementado — 1 de 17 da onda 1. A frase típica de cada verbo virou teste automatizado em `verify-astro-routing.ts`; com 2 verbos no catálogo a classificação segue em 0,90 e 0,95 |

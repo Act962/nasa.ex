@@ -183,7 +183,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0022](notifications/0022-web-push-notification-service.md) | notifications | Serviço de notificação Web Push | em-revisao |
 | [0022](trafego/0022-trafego-pix-asaas.md) | trafego | Cobrança PIX automática pelo Asaas no checkout do trafeGO | rascunho |
 | [0023](astro/0023-astro-roteamento-por-intencao-e-proposta-com-link.md) | astro | Roteamento do Astro por intenção, com a proposta comercial como piloto | aprovada |
-| [0024](astro/0024-catalogo-de-verbos-do-astro.md) | astro | Catálogo de verbos do Astro — recorte por onda | rascunho |
+| [0024](astro/0024-catalogo-de-verbos-do-astro.md) | astro | Catálogo de verbos do Astro — recorte por onda | aprovada |
 
 ---
 

@@ -30,6 +30,16 @@ const PEDIDO_SIMPLES = "crie uma proposta para Kauê do produto Consultoria";
 const PEDIDO_COMPLEXO =
   "compare o faturamento dos últimos 3 meses por produto e diga onde caímos";
 
+/**
+ * A "frase típica" de cada verbo, como a spec 0024 a escreve. É o roteiro de
+ * teste dela, automatizado: se um verbo novo torna ambíguo o verbo vizinho,
+ * é aqui que aparece — antes de chegar no usuário.
+ */
+const FRASES_TIPICAS: Record<string, string> = {
+  "forge.create_proposal": "crie uma proposta para Kauê do produto Consultoria",
+  "agenda.reschedule_appointment": "remarca o Kauê para sexta às 15h",
+};
+
 async function main(): Promise<void> {
   const organization = await prisma.organization.findFirst({
     select: { id: true, name: true },
@@ -106,6 +116,20 @@ async function main(): Promise<void> {
     semProvedor === null,
     "sem nenhuma chave de IA, a classificação devolveu null em vez de lançar",
   );
+
+  // ── Spec 0024 — cada verbo é alcançado pela sua frase típica ────────────
+  for (const [key, frase] of Object.entries(FRASES_TIPICAS)) {
+    const resultado = await classifyAstroIntent({
+      organizationId: organization.id,
+      text: frase,
+    });
+    check(
+      `0024 ${key}`,
+      resultado?.action === key,
+      `"${frase}" → ${resultado?.action ?? "null"} ` +
+        `(confiança ${resultado?.confidence ?? "—"})`,
+    );
+  }
 
   // ── CA-8 — ação do registro aparece nas duas superfícies ────────────────
   const fakeContext = { organizationId: organization.id, userId: "verify" };
