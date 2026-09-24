@@ -4,7 +4,7 @@ export function NewFooter() {
   return (
     <footer className="border-t border-white/5 py-10 px-4">
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-        {/* Bloco da marca, logo NASA + tagline.
+        {/* Bloco da marca, logo ÓRBITA + tagline.
             Logo 600×200 PNG renderizada com h-12 (48px) e w-auto
             pra preservar a proporção 3:1. Variante dark/light por
             tema. */}
@@ -35,7 +35,7 @@ export function NewFooter() {
           <button className="hover:text-white/50 transition-colors">
             Termos & Condições
           </button>
-          <span>© 2026 N.A.S.A</span>
+          <span>© 2026 ÓRBITA</span>
         </div>
       </div>
     </footer>

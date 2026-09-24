@@ -189,7 +189,7 @@ export const CartAbandonedCourseEmail = ({
                     de fechar venda.&quot;
                   </Text>
                   <Text className="text-[#737373] text-[12px] m-0 mt-2 font-medium">
-                    — Aluno NASA Route
+                    — Aluno ÓRBITA Route
                   </Text>
                 </Section>
               </Section>
@@ -231,7 +231,7 @@ export const CartAbandonedCourseEmail = ({
 
             <Section className="bg-[#fafafa] px-8 py-4 text-center">
               <Text className="text-[#a3a3a3] text-[11px] leading-5 m-0">
-                © N.A.S.A. Todos os direitos reservados.
+                © ÓRBITA Todos os direitos reservados.
               </Text>
             </Section>
           </Container>

@@ -66,7 +66,7 @@ const REF_TYPE_LABELS: Record<RefType, string> = {
   "forge-contract-template": "Template de contrato",
   "linnker-page": "Página Linnker",
   "nbox-file": "Arquivo Nbox",
-  "nasa-route-course": "Curso NASA Route",
+  "nasa-route-course": "Curso ÓRBITA Route",
   workflow: "Workflow",
 };
 

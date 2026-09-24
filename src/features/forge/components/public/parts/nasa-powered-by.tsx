@@ -28,7 +28,7 @@ export function NasaPoweredBy({ variant = "dark" }: { variant?: Variant }) {
         className="h-7 object-contain opacity-90"
       />
       <p className={cn("text-xs", textCls)}>
-        Proposta gerada por N.A.S.A —{" "}
+        Proposta gerada por ÓRBITA —{" "}
         <a
           href="/"
           target="_blank"

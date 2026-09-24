@@ -56,7 +56,7 @@ export const CoursePurchaseConfirmationEmail = ({
             <Text className="text-[#0a0a0a] text-[15px] leading-[26px] text-center">
               Seu pagamento de <strong>{amountStr}</strong> foi recebido. Falta
               só um último passo: criar sua conta no{" "}
-              <strong className="text-[#7c3aed]">N.A.S.A</strong> pra liberar o
+              <strong className="text-[#7c3aed]">ÓRBITA</strong> pra liberar o
               acesso ao curso.
             </Text>
 
@@ -117,7 +117,7 @@ export const CoursePurchaseConfirmationEmail = ({
             </Text>
 
             <Text className="text-[#a3a3a3] text-[11px] leading-5 text-center mt-6">
-              © N.A.S.A. Todos os direitos reservados.
+              © ÓRBITA Todos os direitos reservados.
             </Text>
           </Container>
         </Body>

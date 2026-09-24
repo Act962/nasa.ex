@@ -55,7 +55,7 @@ function normaliseCommand(raw: string): string {
 export const execute = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
-  .route({ method: "POST", summary: "Execute NASA Command", tags: ["NASA Command"] })
+  .route({ method: "POST", summary: "Execute ÓRBITA Command", tags: ["ÓRBITA Command"] })
   .input(z.object({
     command: z.string().min(1),
     model: z.string().optional(),
@@ -235,7 +235,7 @@ export const execute = base
           variant: kind,
           userId: context.user.id,
           appSlug: "nasa-explorer",
-          description: `NASA Explorer — ${description}`,
+          description: `ÓRBITA Explorer — ${description}`,
           feature: `nasa-command.${kind}`,
         });
         return charge.charged && charge.success ? charge.cost : 0;
@@ -257,7 +257,7 @@ export const execute = base
         type: "query_result" as const,
         title: "Saldo de Estrelas",
         description: `Você tem ${balance.toLocaleString("pt-BR")} estrelas disponíveis. Plano: ${planName}.`,
-        appName: "NASA",
+        appName: "ÓRBITA",
         extraData: { balance, planName },
       } satisfies ExecuteOutput;
     }
@@ -662,9 +662,9 @@ CTA: [chamada para ação]`;
           return {
             type: "created" as const,
             title: "Post criado!",
-            description: `Rascunho criado no NASA Planner. Conecte uma IA para gerar o conteúdo automaticamente.`,
+            description: `Rascunho criado no ÓRBITA Planner. Conecte uma IA para gerar o conteúdo automaticamente.`,
             url: "/nasa-planner",
-            appName: "NASA Planner",
+            appName: "ÓRBITA Planner",
           } satisfies ExecuteOutput;
         }
 
@@ -714,7 +714,7 @@ CTA: [chamada para ação]`;
           title: "Post gerado!",
           description: caption.slice(0, 150) + (caption.length > 150 ? "..." : ""),
           url: "/nasa-planner",
-          appName: "NASA Planner",
+          appName: "ÓRBITA Planner",
           content: formattedContent,
           starsSpent,
         } satisfies ExecuteOutput;
@@ -767,14 +767,14 @@ CTA: [chamada para ação]`;
         });
 
         const costKind = "create" as const;
-        const starsSpent = await tryDebitStars(costKind, `Post criado no NASA Planner`);
+        const starsSpent = await tryDebitStars(costKind, `Post criado no ÓRBITA Planner`);
 
         return {
           type: "created" as const,
-          title: "Post criado no NASA Planner!",
+          title: "Post criado no ÓRBITA Planner!",
           description: `${postType === "CAROUSEL" ? "Carrossel" : postType === "REEL" ? "Reel" : postType === "STORY" ? "Story" : "Post"} criado como rascunho para ${networks.join(", ")}.`,
           url: `/nasa-planner`,
-          appName: "NASA Planner",
+          appName: "ÓRBITA Planner",
           starsSpent,
         } satisfies ExecuteOutput;
       } catch (err) {
@@ -1365,7 +1365,7 @@ CTA: [chamada para ação]`;
           type: "query_result" as const,
           title: "Dados da organização",
           description,
-          appName: "NASA",
+          appName: "ÓRBITA",
           extraData: { leadCount, trackings },
         } satisfies ExecuteOutput;
       } catch (err) {
@@ -1395,7 +1395,7 @@ CTA: [chamada para ação]`;
             type: "query_result" as const,
             title: "Pesquisa",
             description: "Informe o que deseja pesquisar. Ex: /pesquisar Francisco ou /pesquisar Clientes 2026",
-            appName: "NASA",
+            appName: "ÓRBITA",
           } satisfies ExecuteOutput;
         }
 
@@ -1450,7 +1450,7 @@ CTA: [chamada para ação]`;
           title: total > 0 ? `${total} resultado(s) para "${termNorm}"` : `Nenhum resultado para "${termNorm}"`,
           description: total > 0 ? lines.join("\n") : "Tente outro termo. A busca cobre: leads, usuários, trackings e produtos.",
           url: total > 0 ? "/tracking" : undefined,
-          appName: "NASA",
+          appName: "ÓRBITA",
           extraData: { leads, users: users.map((m) => m.user), trackings, products },
         } satisfies ExecuteOutput;
       } catch (err) {
@@ -2007,10 +2007,10 @@ CTA: [chamada para ação]`;
             ? `${conversations.length} conversa(s)${filterDesc} encontrada(s)`
             : `Nenhuma conversa${filterDesc} encontrada`,
           description: conversations.length > 0
-            ? "Clique para abrir no NASA Chat:"
-            : "Nenhuma conversa encontrada no NASA Chat.",
+            ? "Clique para abrir no ÓRBITA Chat:"
+            : "Nenhuma conversa encontrada no ÓRBITA Chat.",
           url: "/tracking-chat",
-          appName: "NASA Chat",
+          appName: "ÓRBITA Chat",
           starsSpent,
           resultLinks: conversations.length > 0 ? resultLinks : undefined,
           extraData: { conversations },
@@ -2036,10 +2036,10 @@ CTA: [chamada para ação]`;
         if (!planner) {
           return {
             type: "query_result" as const,
-            title: "NASA Planner não configurado",
-            description: "Configure seu NASA Planner em /nasa-planner para usar esta funcionalidade.",
+            title: "ÓRBITA Planner não configurado",
+            description: "Configure seu ÓRBITA Planner em /nasa-planner para usar esta funcionalidade.",
             url: "/nasa-planner",
-            appName: "NASA Planner",
+            appName: "ÓRBITA Planner",
           } satisfies ExecuteOutput;
         }
 
@@ -2103,10 +2103,10 @@ CTA: [chamada para ação]`;
             ? `${posts.length} post(s)${filterDesc} no ${planner.name}`
             : `Nenhum post${filterDesc} encontrado`,
           description: posts.length > 0
-            ? "Clique para abrir no NASA Planner:"
-            : "Crie seu primeiro post no NASA Planner.",
+            ? "Clique para abrir no ÓRBITA Planner:"
+            : "Crie seu primeiro post no ÓRBITA Planner.",
           url: "/nasa-planner",
-          appName: "NASA Planner",
+          appName: "ÓRBITA Planner",
           starsSpent,
           resultLinks: posts.length > 0 ? resultLinks : undefined,
           extraData: { posts },
@@ -2318,7 +2318,7 @@ CTA: [chamada para ação]`;
         return {
           type: "query_result" as const,
           title: "O que são Stars",
-          description: "Stars são os créditos de IA da plataforma NASA. Cada ação de IA (chat com IA, agendamento inteligente) consome Stars. Configure a distribuição em Admin → Stars. Os modos são: Pool compartilhado, Divisão igual ou Orçamento por usuário.",
+          description: "Stars são os créditos de IA da plataforma ÓRBITA. Cada ação de IA (chat com IA, agendamento inteligente) consome Stars. Configure a distribuição em Admin → Stars. Os modos são: Pool compartilhado, Divisão igual ou Orçamento por usuário.",
           url: "/admin/stars",
           appName: "Stars",
         } satisfies ExecuteOutput;
@@ -2327,10 +2327,10 @@ CTA: [chamada para ação]`;
       if (/\b(padrão|padrões|template|modelo)\b/.test(cmd)) {
         return {
           type: "query_result" as const,
-          title: "Como usar Padrões NASA",
-          description: "Padrões NASA são configurações prontas para Tracking, Workspace, Propostas e Contratos. Acesse a seção desejada (ex: Trackings), role até \"Padrões NASA disponíveis\" no final da página e clique em \"Usar\" para criar uma cópia com todas as configurações.",
+          title: "Como usar Padrões ÓRBITA",
+          description: "Padrões ÓRBITA são configurações prontas para Tracking, Workspace, Propostas e Contratos. Acesse a seção desejada (ex: Trackings), role até \"Padrões ÓRBITA disponíveis\" no final da página e clique em \"Usar\" para criar uma cópia com todas as configurações.",
           url: "/tracking",
-          appName: "Padrões NASA",
+          appName: "Padrões ÓRBITA",
         } satisfies ExecuteOutput;
       }
       // Lead
@@ -2362,7 +2362,7 @@ CTA: [chamada para ação]`;
     const intentCharge = await chargeStarsByAction(orgId, "nasa_command_intent", {
       userId: context.user.id,
       appSlug: "nasa_command_intent",
-      description: "NASA Comando — interpretação IA",
+      description: "ÓRBITA Comando — interpretação IA",
     });
     const aiIntent = intentCharge.success
       ? await parseCommandIntent(command, orgId)
@@ -2385,7 +2385,7 @@ CTA: [chamada para ação]`;
           type: "needs_input" as const,
           title: `${aiIntent.summary} — informações necessárias`,
           description: `Para ${aiIntent.summary.toLowerCase()}, preciso de: ${missing.join(", ")}.`,
-          appName: aiIntent.app ?? "NASA",
+          appName: aiIntent.app ?? "ÓRBITA",
           missingFields: aiIntent.missingRequired.map((k) => ({
             key: k,
             label: fieldLabels[k] ?? k,
@@ -2398,7 +2398,7 @@ CTA: [chamada para ação]`;
         type: "query_result" as const,
         title: aiIntent.summary,
         description: `Entendi que você quer: ${aiIntent.summary}. Esta funcionalidade estará disponível em breve.`,
-        appName: aiIntent.app ?? "NASA",
+        appName: aiIntent.app ?? "ÓRBITA",
       } satisfies ExecuteOutput;
     }
 
@@ -2407,7 +2407,7 @@ CTA: [chamada para ação]`;
       type: "needs_input" as const,
       title: "Não entendi o comando",
       description: "Pode reformular? Exemplos: \"Crie um agendamento para amanhã às 14h\", \"Mova o lead João para o status Proposta\", \"Crie uma proposta para Maria\".",
-      appName: "NASA",
+      appName: "ÓRBITA",
       missingFields: [],
     } satisfies ExecuteOutput;
   });

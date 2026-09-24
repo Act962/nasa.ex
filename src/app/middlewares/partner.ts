@@ -45,7 +45,7 @@ export const requirePartnerMiddleware = base.middleware(
     });
 
     if (!partner) {
-      throw errors.FORBIDDEN({ message: "Você ainda não é um parceiro NASA" });
+      throw errors.FORBIDDEN({ message: "Você ainda não é um parceiro ÓRBITA" });
     }
 
     if (partner.status === PartnerStatus.SUSPENDED) {

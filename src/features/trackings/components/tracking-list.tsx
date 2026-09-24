@@ -439,7 +439,7 @@ export function TrackingList() {
               <EmptyTitle>Nenhum tracking encontrado</EmptyTitle>
               <EmptyDescription>
                 Você não possui nenhum tracking criado ainda. Escolha um padrão
-                NASA abaixo ou crie do zero.
+                ÓRBITA abaixo ou crie do zero.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
@@ -451,7 +451,7 @@ export function TrackingList() {
         </div>
       )}
 
-      {/* Catálogo NASA inline — substitui o <PatternsSection appType="tracking">
+      {/* Catálogo ÓRBITA inline — substitui o <PatternsSection appType="tracking">
           antigo (que tinha bug de IDs órfãos em node.data). O novo catálogo
           remapeia slugs → IDs reais corretamente. Aparece sempre, abaixo da
           lista de trackings (ou no lugar dela quando empty). */}
@@ -459,7 +459,7 @@ export function TrackingList() {
         <div className="mb-4 flex items-center gap-2 text-amber-500">
           <Sparkles className="size-4" />
           <span className="text-xs font-semibold uppercase tracking-wide">
-            Padrões NASA
+            Padrões ÓRBITA
           </span>
         </div>
         <p className="text-sm text-muted-foreground mb-6 max-w-2xl">

@@ -12,7 +12,7 @@ export function Heading() {
     <div className="max-w-3xl space-y-4">
       <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold">
         Suas ideias e Seus Planos. Bem-vindo ao{" "}
-        <span className="underline">N.A.S.A</span>
+        <span className="underline">ÓRBITA</span>
       </h1>
       <h3 className="text-base sm:text-xl md:text-2xl font-medium">
         Descubra um universo de opções para <br /> gestão de trabalho em equipe

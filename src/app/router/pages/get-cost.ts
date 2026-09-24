@@ -8,7 +8,7 @@ export const getPagesCost = base
   .route({
     method: "GET",
     path: "/pages/cost",
-    summary: "Obter custo em Stars da criação/duplicação de uma página NASA",
+    summary: "Obter custo em Stars da criação/duplicação de uma página ÓRBITA",
   })
   .handler(async ({ context, errors }) => {
     const organizationId = context.session.activeOrganizationId;

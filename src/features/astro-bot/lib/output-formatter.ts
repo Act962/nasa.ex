@@ -207,7 +207,7 @@ export function summarizeStructuredPayload(payload: unknown): string | null {
 
   if (structured.kind === "astro_videos") {
     const videos = Array.isArray(structured.data) ? structured.data : [];
-    return `*${videos.length} vídeo(s) encontrados*\n_Abre no NASA pra assistir._`;
+    return `*${videos.length} vídeo(s) encontrados*\n_Abre no ÓRBITA pra assistir._`;
   }
 
   return null;

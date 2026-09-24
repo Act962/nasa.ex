@@ -140,7 +140,7 @@ async function processSinglePending(p: PendingRow): Promise<{
       to: p.email,
       subject:
         stage === "d1"
-          ? "Sua matrícula NASA Route te espera"
+          ? "Sua matrícula ÓRBITA Route te espera"
           : stage === "d3"
             ? "Vimos que você ainda não finalizou"
             : stage === "d7"

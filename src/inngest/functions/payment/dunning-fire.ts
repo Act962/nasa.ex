@@ -129,7 +129,7 @@ export const paymentDunningFire = inngest.createFunction(
         }
         try {
           const result = await resend.emails.send({
-            from:    process.env.RESEND_FROM ?? "NASA <no-reply@nasaagents.com>",
+            from:    process.env.RESEND_FROM ?? "ÓRBITA <no-reply@nasaagents.com>",
             to:      entry.contact.email,
             subject,
             html:    body.replace(/\n/g, "<br/>"),
@@ -198,7 +198,7 @@ export const paymentDunningFire = inngest.createFunction(
         organizationId,
         userId:    "system",
         userName:  "Sistema (Régua de Cobrança)",
-        userEmail: "system@nasa.ex",
+        userEmail: "system@ÓRBITA",
         userImage: null,
         appSlug:    "payment",
         subAppSlug: "payment-dunning",

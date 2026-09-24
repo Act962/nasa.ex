@@ -8,7 +8,7 @@ export const getPage = base
   .route({
     method: "GET",
     path: "/pages/:id",
-    summary: "Obter página NASA por id",
+    summary: "Obter página ÓRBITA por id",
   })
   .input(z.object({ id: z.string() }))
   .handler(async ({ input, context, errors }) => {

@@ -13,7 +13,7 @@ export function useQueryTracking() {
 
 export type AiUsageProviderFilter =
   | "all"
-  | "NASA"
+  | "ÓRBITA"
   | "OPENAI"
   | "ANTHROPIC"
   | "GOOGLE";

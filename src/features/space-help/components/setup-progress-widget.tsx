@@ -82,7 +82,7 @@ export function SetupProgressWidget({ variant = "full" }: SetupProgressWidgetPro
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-xs font-medium text-violet-700 dark:text-violet-300">
             <Rocket className="size-4" />
-            Setup Inicial NASA
+            Setup Inicial ÓRBITA
           </div>
           <h2 className="mt-1 text-xl md:text-2xl font-bold tracking-tight">
             {isFullyCompleted

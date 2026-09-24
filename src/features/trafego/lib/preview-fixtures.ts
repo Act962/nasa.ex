@@ -373,7 +373,7 @@ export const previewMessages = [
   {
     id: "m2",
     body: "Oi, Marina! Consegue sim. Suba o novo na aba Materiais que a gente substitui sem parar a campanha — o aprendizado do algoritmo não se perde.",
-    authorRole: "NASA" as const,
+    authorRole: "ÓRBITA" as const,
     attachmentKey: null,
     attachmentUrl: null,
     createdAt: daysAgo(7),

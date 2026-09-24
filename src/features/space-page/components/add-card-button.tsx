@@ -66,7 +66,7 @@ export function AddCardButton({ onAdd }: AddCardButtonProps) {
           <DialogHeader>
             <DialogTitle>Adicionar à Spacehome</DialogTitle>
             <DialogDescription>
-              Escolha o tipo de bloco. Você será levado ao app NASA correspondente.
+              Escolha o tipo de bloco. Você será levado ao app ÓRBITA correspondente.
             </DialogDescription>
           </DialogHeader>
 

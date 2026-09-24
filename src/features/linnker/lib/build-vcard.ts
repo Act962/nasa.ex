@@ -121,7 +121,7 @@ export function buildVCard(
   // PRODID identifica o gerador — iOS e Outlook usam pra decidir
   // ícones e fluxo "Adicionar contato". Sem isso, alguns clients
   // tratam como texto puro.
-  lines.push("PRODID:-//NASA.ex//Linnker vCard//PT");
+  lines.push("PRODID:-//ÓRBITA.ex//Linnker vCard//PT");
 
   // FN é display name. N é estruturado: LastName;FirstName;MiddleName;Prefix;Suffix
   lines.push(`FN:${escapeVCard(displayName)}`);

@@ -40,7 +40,7 @@ const APP_LABELS: Record<string, string> = {
   spacetime: "SpaceTime",
   chat: "Chat",
   tracking: "Tracking",
-  "nasa-planner": "NASA Planner",
+  "nasa-planner": "ÓRBITA Planner",
   workspace: "Workspace",
   forms: "Formulários",
   nbox: "N-Box",

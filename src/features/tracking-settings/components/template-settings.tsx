@@ -20,9 +20,9 @@ export function TemplateSettings({ trackingId }: TemplateSettingsProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold mb-2">Padrões NASA</h3>
+        <h3 className="text-lg font-semibold mb-2">Padrões ÓRBITA</h3>
         <p className="text-sm text-muted-foreground mb-6">
-          Marque este tracking como um padrão NASA para que ele possa ser
+          Marque este tracking como um padrão ÓRBITA para que ele possa ser
           duplicado em outras empresas com dados fictícios.
         </p>
       </div>

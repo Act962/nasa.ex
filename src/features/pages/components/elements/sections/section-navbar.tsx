@@ -34,12 +34,12 @@ export function SectionNavbar({ element, tokens }: SectionRendererProps) {
   // element via ElementBox (position: absolute). O comportamento real
   // de fixed/sticky aparece SÓ na página publicada.
   const logoSrc = (element.logoSrc as string) ?? "";
-  const logoText = (element.logoText as string) ?? "N.A.S.A";
+  const logoText = (element.logoText as string) ?? "ÓRBITA";
   const logoHref = (element.logoHref as string) ?? "#top";
   const links =
     (element.links as NavLink[] | undefined) ?? [
       { id: "1", label: "Planos", href: "#planos" },
-      { id: "2", label: "O que é NASA?", href: "#o-que-e-nasa" },
+      { id: "2", label: "O que é ÓRBITA?", href: "#o-que-e-nasa" },
       { id: "3", label: "Como funciona", href: "#como-funciona" },
     ];
   const primaryCta = (element.primaryCta as string) ?? "Começar grátis";

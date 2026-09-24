@@ -74,7 +74,7 @@ export const createActionWithAi = base
       const hasWorkspace = !!initialWorkspaceId;
 
       const systemPrompt = [
-        'Você é o "ASTRO", o assistente inteligente da NASA.ex.',
+        'Você é o "ASTRO", o assistente inteligente da ÓRBITA.ex.',
         "SUA PERSONA E FORMATAÇÃO:",
         "- Profissional, focado e organizado.",
         "- **RETORNO DE EVENTO**: Ao criar uma ação, retorne APENAS o nome do evento acompanhado do botão no formato: [VIEW_ACTION:Nome da Ação|ID_DA_AÇÃO]. Não adicione descrições longas ou resumos a menos que solicitado.",

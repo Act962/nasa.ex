@@ -41,7 +41,7 @@ const PARADIGM_INFO: Record<
   AUTOATENDIMENTO: {
     label: "Autoatendimento",
     description:
-      "Cliente resolve sozinho via formulários, agenda, NASA Route. Sem intervenção humana.",
+      "Cliente resolve sozinho via formulários, agenda, ÓRBITA Route. Sem intervenção humana.",
     color: "#3DB88B",
   },
 };
@@ -85,7 +85,7 @@ export function TrackingPresetsCatalog() {
       <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
         <Sparkles className="size-10 mb-3 text-amber-500" />
         <p className="text-sm">Nenhum padrão disponível no catálogo ainda.</p>
-        <p className="text-xs">A equipe NASA está montando os primeiros.</p>
+        <p className="text-xs">A equipe ÓRBITA está montando os primeiros.</p>
       </div>
     );
   }

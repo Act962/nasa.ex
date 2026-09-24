@@ -92,7 +92,7 @@ export function ChatMock() {
               <div className="bg-[#7C3AED]/25 border border-[#7C3AED]/30 rounded-xl rounded-br-sm px-2 py-1 max-w-[70%]">
                 <p className="text-white/80 text-[8px]">
                   Olá João! Nosso plano Enterprise inclui todos os módulos do
-                  ecossistema NASA...
+                  ecossistema ÓRBITA...
                 </p>
               </div>
               <div className="w-4 h-4 rounded-full bg-[#7C3AED] flex items-center justify-center text-[6px] text-white shrink-0">

@@ -41,7 +41,7 @@ const INSIGHTS_FALLBACK_REPLY =
 const ASSISTANT_FALLBACK_REPLY =
   "Não consegui montar uma resposta pra isso 🤔 Posso consultar os dados desta empresa, o financeiro (contas a pagar e receber, fluxo de caixa, DRE) e ler boleto ou nota fiscal em PDF/foto. Tenta reformular.";
 const STARS_INSUFFICIENT_REPLY =
-  "⭐ Sua empresa está sem saldo de Stars pra usar o Astro. Peça ao admin pra recarregar no NASA e tente de novo.";
+  "⭐ Sua empresa está sem saldo de Stars pra usar o Astro. Peça ao admin pra recarregar no ÓRBITA e tente de novo.";
 const DEFAULT_MEDIA_PROMPT =
   "Leia o documento que acabei de enviar e me mostre o resumo.";
 
@@ -211,7 +211,7 @@ export async function handleBotCommand(
     return logAndReturn(binding, loggedText, {
       status: "error_orchestrator",
       reply:
-        "❌ Tive um problema processando seu comando. Tenta de novo daqui a pouco — se persistir, manda mensagem no NASA pelo computador.",
+        "❌ Tive um problema processando seu comando. Tenta de novo daqui a pouco — se persistir, manda mensagem no ÓRBITA pelo computador.",
       starsCharged: stake.starsCharged,
     });
   }

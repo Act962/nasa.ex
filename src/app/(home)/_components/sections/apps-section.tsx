@@ -111,7 +111,7 @@ const GROUPS: Group[] = [
     subtitle: "A venda fechou, e o processo segue girando",
     apps: [
       {
-        name: "NASA ROUTE",
+        name: "ÓRBITA ROUTE",
         tag: "Trilhas • Cursos",
         desc: "Conteúdo, treinamento e comunidade pra continuar a relação depois da venda.",
         icon: "🛰",

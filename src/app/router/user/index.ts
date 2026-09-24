@@ -47,7 +47,7 @@ export const completeOnboarding = base
         data: {
           userPointId: userPoint.id,
           points: 10,
-          description: "🚀 Missão de Boas-Vindas completa! Bem-vindo ao NASA!",
+          description: "🚀 Missão de Boas-Vindas completa! Bem-vindo ao ÓRBITA!",
           metadata: { source: "onboarding" },
         },
       });

@@ -77,14 +77,14 @@ export function buildBoasVindasNasaRouteBlueprint(
         action: {
           template: "welcome-course",
           subject:
-            "Bem-vindo(a) ao NASA Route — acesso ao curso liberado 🚀",
+            "Bem-vindo(a) ao ÓRBITA Route — acesso ao curso liberado 🚀",
           templateProps: {
             // Interpolação acontece no executor — strings com {{...}} são
             // resolvidas a partir do contexto (lead, trigger, vars).
             studentName: "{{trigger.studentName}}",
             courseTitle: "{{trigger.courseTitle}}",
             planName: "{{trigger.planName}}",
-            creatorName: "NASA Agents",
+            creatorName: "ÓRBITA Agents",
             coursePlayerUrl: "{{trigger.coursePlayerUrl}}",
           },
         },
@@ -148,9 +148,9 @@ export function buildBoasVindasNasaRouteBlueprint(
   ];
 
   return {
-    name: params.name ?? "Boas-vindas NASA Route — Pós-pagamento",
+    name: params.name ?? "Boas-vindas ÓRBITA Route — Pós-pagamento",
     description:
-      "Quando o lead paga um curso NASA Route, aplica tag 'Aluno', envia email caprichado de boas-vindas (Resend + React Email), mensagem WhatsApp com link do curso, e check-in 3 dias depois. Reage ao PAYMENT_RECEIVED enriquecido pelo purchase-side-effects (que injeta courseTitle/planName/coursePlayerUrl no contexto via {{trigger.X}}).",
+      "Quando o lead paga um curso ÓRBITA Route, aplica tag 'Aluno', envia email caprichado de boas-vindas (Resend + React Email), mensagem WhatsApp com link do curso, e check-in 3 dias depois. Reage ao PAYMENT_RECEIVED enriquecido pelo purchase-side-effects (que injeta courseTitle/planName/coursePlayerUrl no contexto via {{trigger.X}}).",
     nodes,
     edges,
   };

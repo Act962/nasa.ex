@@ -79,7 +79,7 @@ export default function NerpHubPage() {
   return (
     <NerpShell
       title="nerp · ERP"
-      description="Gerencie produtos, vendas, clientes e dashboards do seu ERP direto do NASA."
+      description="Gerencie produtos, vendas, clientes e dashboards do seu ERP direto do ÓRBITA."
     >
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">

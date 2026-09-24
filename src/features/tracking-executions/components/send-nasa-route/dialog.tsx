@@ -39,7 +39,7 @@ export function SendNasaRouteDialog({
     <SendAppActionBaseDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Enviar Curso NASA Route"
+      title="Enviar Curso ÓRBITA Route"
       description="Envia link do curso pro lead. Cursos pagos abrem checkout Stripe."
       messageTemplate={messageTemplate}
       onMessageTemplateChange={setMessageTemplate}

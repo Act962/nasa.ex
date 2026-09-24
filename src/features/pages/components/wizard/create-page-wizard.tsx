@@ -275,7 +275,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
         <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="size-5 text-indigo-500" />
-            Novo site NASA Pages
+            Novo site ÓRBITA Pages
           </DialogTitle>
           <DialogDescription>
             Etapa {stepIndex + 1} de {STEPS.length} — {STEPS[stepIndex]}

@@ -27,7 +27,7 @@ export function CommentsConnectionGuard({ children }: { children: ReactNode }) {
         <AlertDescription className="flex flex-col gap-3 mt-2">
           <span>
             Conecte sua organização ao comments pra rodar automações, sorteios
-            e responder DMs/comentários direto do NASA.
+            e responder DMs/comentários direto do ÓRBITA.
           </span>
           <Button asChild size="sm" className="w-fit">
             <Link href="/comments">Ir para conexão</Link>

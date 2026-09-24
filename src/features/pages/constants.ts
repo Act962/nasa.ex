@@ -81,7 +81,7 @@ export const ELEMENT_TYPE_LABELS: Record<
   social: { label: "Social", icon: "🌐" },
   spacer: { label: "Espaço", icon: "↕" },
   embed: { label: "Embed", icon: "<>" },
-  "nasa-link": { label: "Link NASA", icon: "🚀" },
+  "nasa-link": { label: "Link ÓRBITA", icon: "🚀" },
   "section-hero": { label: "Hero", icon: "🎯" },
   "section-features": { label: "Features", icon: "✨" },
   "section-pricing": { label: "Planos", icon: "💎" },

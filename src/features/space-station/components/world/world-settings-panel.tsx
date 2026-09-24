@@ -733,7 +733,7 @@ function WorldTemplateGallery({
           🌍 Templates da Comunidade
         </p>
         <p className="text-xs text-slate-600">
-          Mundos criados pela comunidade NASA
+          Mundos criados pela comunidade ÓRBITA
         </p>
       </div>
 

@@ -918,7 +918,7 @@ function AvatarCommunityTab({ onChange }: { onChange: (partial: Partial<AvatarCo
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-slate-500">Avatares criados pela comunidade NASA</p>
+      <p className="text-xs text-slate-500">Avatares criados pela comunidade ÓRBITA</p>
       <input
         type="text"
         value={search}

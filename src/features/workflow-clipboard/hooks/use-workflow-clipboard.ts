@@ -102,7 +102,7 @@ export function useWorkflowClipboard() {
           const text = await file.text();
           const parsed = tryParseEnvelope(text) ?? tryParseRaw(text);
           if (!parsed) {
-            toast.error("Arquivo inválido — não é um blueprint do NASA");
+            toast.error("Arquivo inválido — não é um blueprint do ÓRBITA");
             return resolve(null);
           }
           resolve(parsed);

@@ -49,7 +49,7 @@ const ROUTE_AGENT_LABELS: Record<string, string> = {
   closer: "Pensando na melhor resposta…",
   task_agent: "Organizando suas tarefas no espaço…",
   automation_agent: "Configurando automação na nave…",
-  analytics_agent: "Explorando no universo NASA…",
+  analytics_agent: "Explorando no universo ÓRBITA…",
 };
 
 export function NasaCommandCenter() {
@@ -308,7 +308,7 @@ export function NasaCommandCenter() {
         if (routeMatch) {
           const agentKey = routeMatch[1]!;
           return {
-            label: ROUTE_AGENT_LABELS[agentKey] ?? "Explorando no universo NASA",
+            label: ROUTE_AGENT_LABELS[agentKey] ?? "Explorando no universo ÓRBITA",
             mode: "rocket" as const,
           };
         }

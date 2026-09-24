@@ -337,7 +337,7 @@ function PresetRow({
             <Field>
               <FieldLabel>Rodapé (opcional)</FieldLabel>
               <Input
-                placeholder="Atendimento NASA"
+                placeholder="Atendimento ÓRBITA"
                 {...form.register("footerText")}
               />
             </Field>

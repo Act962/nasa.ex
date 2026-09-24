@@ -249,7 +249,7 @@ export function PermissionsTab() {
         </div>
       )}
 
-      {/* ── Acesso Financeiro (NASA Payment) ──────────────────────────────── */}
+      {/* ── Acesso Financeiro (ÓRBITA Payment) ──────────────────────────────── */}
       {/* Restrito a OWNER/ADMIN do PaymentAccess — owner da ORG sem registro
           autorizado em PaymentAccess NÃO vê nada aqui (esse é o ponto da
           feature). ADMIN vê em read-only; só OWNER edita. */}

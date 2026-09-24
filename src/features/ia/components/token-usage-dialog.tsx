@@ -39,7 +39,7 @@ import {
 } from "@/features/ia/lib/token-pricing";
 
 const PROVIDER_LABELS: Record<string, string> = {
-  NASA_DEFAULT: "NASA (default)",
+  NASA_DEFAULT: "ÓRBITA (default)",
   OPENAI: "OpenAI (chave custom)",
   ANTHROPIC: "Anthropic (chave custom)",
   GOOGLE: "Google (chave custom)",

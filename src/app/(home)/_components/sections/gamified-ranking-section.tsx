@@ -101,7 +101,7 @@ export function GamifiedRankingSection({
           <div className="inline-flex items-center gap-2 bg-violet-500/15 border border-violet-500/30 rounded-full px-5 py-2 mb-5">
             <Trophy className="size-3.5 text-violet-300" />
             <span className="text-violet-200 text-sm font-semibold tracking-wide">
-              Gamificação N.A.S.A · Space Points
+              Gamificação ÓRBITA · Space Points
             </span>
           </div>
           <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white mb-4 leading-[1.05]">

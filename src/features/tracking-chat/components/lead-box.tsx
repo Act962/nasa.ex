@@ -314,7 +314,7 @@ export function LeadBox({
         <div className="flex flex-col items-end justify-between h-full min-w-15 py-1">
           <div className="flex items-center gap-1">
             {/* Estrela de favoritar — visual igual ao pin do WhatsApp.
-                FAVORITE no NASA é uma tag canônica "Favoritas" (slug
+                FAVORITE no ÓRBITA é uma tag canônica "Favoritas" (slug
                 `favoritas`) anexada ao lead. Mesma heurística do filtro
                 `favoritesOnly` em `conversation/list.ts`. O toggle real
                 chama `leads.toggleFavorite` (create-on-demand da tag +

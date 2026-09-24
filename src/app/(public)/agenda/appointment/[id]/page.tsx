@@ -504,7 +504,7 @@ export default function PublicAppointmentPage() {
         </CardContent>
       </Card>
 
-      <p className="text-xs text-muted-foreground">Powered by NASA Agents</p>
+      <p className="text-xs text-muted-foreground">Powered by ÓRBITA Agents</p>
     </div>
   );
 }

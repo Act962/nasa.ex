@@ -183,8 +183,8 @@ function CommentsSetupDialog({
       body: "No comments, vincule o Instagram/Facebook que vai responder DMs e comentários.",
     },
     {
-      title: "Autorize aqui no NASA",
-      body: "Volte aqui no NASA, abra o app COMMENTS e autorize o acesso quando o comments pedir.",
+      title: "Autorize aqui no ÓRBITA",
+      body: "Volte aqui no ÓRBITA, abra o app COMMENTS e autorize o acesso quando o comments pedir.",
       cta: connected
         ? undefined
         : {
@@ -195,7 +195,7 @@ function CommentsSetupDialog({
     },
     {
       title: "Pronto",
-      body: "Suas credenciais ficam salvas no NASA. Notificações, automações, sorteios e integrações do comments passam a aparecer aqui.",
+      body: "Suas credenciais ficam salvas no ÓRBITA. Notificações, automações, sorteios e integrações do comments passam a aparecer aqui.",
     },
   ];
 
@@ -208,7 +208,7 @@ function CommentsSetupDialog({
             Como conectar o COMMENTS
           </DialogTitle>
           <DialogDescription>
-            4 passos rápidos pra responder DMs e rodar sorteios dentro do NASA.
+            4 passos rápidos pra responder DMs e rodar sorteios dentro do ÓRBITA.
           </DialogDescription>
         </DialogHeader>
 

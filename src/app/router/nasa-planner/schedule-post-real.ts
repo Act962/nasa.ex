@@ -34,7 +34,7 @@ export const schedulePostReal = base
       action: "planner_post_schedule",
       userId: context.user.id,
       appSlug: "nasa-planner",
-      description: "NASA Planner — agendamento de post",
+      description: "ÓRBITA Planner — agendamento de post",
       feature: "planner.post.schedule",
     }, "Saldo de stars insuficiente");
 

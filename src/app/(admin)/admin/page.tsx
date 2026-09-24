@@ -64,7 +64,7 @@ export default async function AdminDashboardPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-xl font-bold text-white">Dashboard</h1>
-        <p className="text-sm text-zinc-400 mt-1">Visão geral do sistema NASA.ex</p>
+        <p className="text-sm text-zinc-400 mt-1">Visão geral do sistema ÓRBITA.ex</p>
       </div>
 
       {/* Stats */}

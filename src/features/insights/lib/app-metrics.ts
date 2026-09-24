@@ -92,8 +92,8 @@ export const APP_METRIC_LABELS: Record<AppMetricSource, string> = {
   chat: "Chat",
   workspace: "Workspace",
   spacetime: "SpaceTime",
-  "nasa-route": "NASA Route",
-  payment: "NASA Payment",
+  "nasa-route": "ÓRBITA Route",
+  payment: "ÓRBITA Payment",
   forge: "Forge",
 };
 

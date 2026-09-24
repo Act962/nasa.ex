@@ -80,7 +80,7 @@ export const DATA_SOURCE_LABELS: Record<
     icon: "💎",
   },
   "nasa-route-courses": {
-    label: "Cursos NASA Route",
+    label: "Cursos ÓRBITA Route",
     description: "Cursos publicados pela org (título, duração, preço)",
     icon: "🛰",
   },

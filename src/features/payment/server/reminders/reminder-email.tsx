@@ -68,7 +68,7 @@ export const PaymentReminderEmail = ({
             )}
 
             <Text className="text-[#a3a3a3] text-[11px] leading-5 text-center mt-8">
-              Enviado por {organizationName} via N.A.S.A.
+              Enviado por {organizationName} via ÓRBITA
             </Text>
           </Container>
         </Body>

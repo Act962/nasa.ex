@@ -66,7 +66,7 @@ export function CourseHero({ course, href, publicHref }: Props) {
         <div className="max-w-2xl">
           <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-violet-300">
             <span className="rounded-sm bg-violet-600/95 px-2 py-1 text-white">
-              NASA Route
+              ÓRBITA Route
             </span>
             {course.format && (
               <span className="rounded-sm bg-white/10 px-2 py-1 text-white backdrop-blur-sm">

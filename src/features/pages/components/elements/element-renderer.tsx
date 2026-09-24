@@ -349,7 +349,7 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
       );
     }
     case "nasa-link": {
-      const label = (element.label as string) ?? "Link NASA";
+      const label = (element.label as string) ?? "Link ÓRBITA";
       const appId = (element.appId as string) ?? "tracking";
       const hrefAttrs = readonly
         ? {

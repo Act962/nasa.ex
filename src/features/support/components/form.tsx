@@ -101,7 +101,7 @@ export function SupportForm() {
           </div>
           <CardTitle className="mb-2 text-2xl">Sugestão Enviada!</CardTitle>
           <CardDescription className="text-lg">
-            Obrigado por ajudar a NASA a evoluir. Nossa equipe analisará sua
+            Obrigado por ajudar a ÓRBITA a evoluir. Nossa equipe analisará sua
             sugestão em breve.
           </CardDescription>
           <Button
@@ -132,7 +132,7 @@ export function SupportForm() {
         </div>
         <CardDescription className="text-muted-foreground/80">
           Tem uma ideia para tornar nossos apps ainda melhores? Compartilhe com
-          a equipe NASA.
+          a equipe ÓRBITA.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -227,7 +227,7 @@ export function SupportForm() {
             ) : (
               <>
                 <Send className="mr-3 h-5 w-5" />
-                Enviar para Equipe NASA
+                Enviar para Equipe ÓRBITA
               </>
             )}
           </Button>

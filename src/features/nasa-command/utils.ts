@@ -43,8 +43,8 @@ export function buildThinkingSteps(cmd: string): string[] {
   if (lower.includes("#forge")) steps.push("Identificando app: Forge");
   if (lower.includes("#agenda")) steps.push("Identificando app: Agenda");
   if (lower.includes("#nasa-planner"))
-    steps.push("Identificando app: NASA Planner");
-  if (lower.includes("#nasa-post")) steps.push("Identificando app: NASA Post");
+    steps.push("Identificando app: ÓRBITA Planner");
+  if (lower.includes("#nasa-post")) steps.push("Identificando app: ÓRBITA Post");
   if (lower.includes("#tracking")) steps.push("Identificando app: Tracking");
 
   const vars = [...cmd.matchAll(/\/([A-Za-zÀ-ÿ0-9_]+)/g)].map((m) => m[1]);
@@ -69,7 +69,7 @@ export function buildThinkingSteps(cmd: string): string[] {
   )
     steps.push("Criando agendamento...");
   if (lower.includes("post") || lower.includes("carrossel"))
-    steps.push("Criando post no NASA Planner...");
+    steps.push("Criando post no ÓRBITA Planner...");
   if (lower.includes("tracking") && lower.includes("crie"))
     steps.push("Criando tracking...");
   if (lower.includes("lead") && lower.includes("crie"))

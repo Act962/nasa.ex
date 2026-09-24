@@ -187,7 +187,7 @@ export const sendLinnkerTool = (userId: string) =>
 export const sendNasaRouteTool = (userId: string) =>
   tool({
     description:
-      "Envia link de curso/conteúdo NASA Route pro lead. Use pra educar antes de vender, ou pra entregar conteúdo pago.",
+      "Envia link de curso/conteúdo ÓRBITA Route pro lead. Use pra educar antes de vender, ou pra entregar conteúdo pago.",
     inputSchema: z.object({
       leadId: z.string(),
       courseId: z.string(),

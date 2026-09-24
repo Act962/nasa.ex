@@ -143,7 +143,7 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   },
   {
     key: "nasa-route",
-    title: "NASA Route",
+    title: "ÓRBITA Route",
     url: "/nasa-route",
     icon: GraduationCap,
     alwaysVisible: false,
@@ -151,7 +151,7 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   },
   {
     key: "nasa-pages",
-    title: "NASA Pages",
+    title: "ÓRBITA Pages",
     url: "/pages",
     icon: LayoutTemplate,
     alwaysVisible: false,

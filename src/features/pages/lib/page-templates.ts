@@ -95,7 +95,7 @@ function institutionalLanding(): Omit<PageTemplate, "id" | "name" | "description
       pushAt({
         type: "section-logo-cloud",
         x: 0, y: 0, w: 1200, h: 140,
-        heading: "Empresas que confiam na N.A.S.A",
+        heading: "Empresas que confiam na ÓRBITA",
         logos: [
           { id: "1", imageUrl: "", alt: "Marca 1" },
           { id: "2", imageUrl: "", alt: "Marca 2" },
@@ -250,7 +250,7 @@ function eventPage(): Omit<PageTemplate, "id" | "name" | "description" | "catego
         type: "section-hero",
         x: 0, y: 0, w: 1200, h: 480,
         badge: "📅 13 de Junho · Online",
-        titleLine1: "Workshop NASA",
+        titleLine1: "Workshop ÓRBITA",
         titleLine2: "vendas com IA.",
         subtitle: "3 horas de prática direta. Vagas limitadas.",
         primaryCta: "Garantir vaga",
@@ -411,12 +411,12 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
       pushAt({
         type: "section-navbar",
         x: 0, y: 0, w: 1200, h: 80,
-        logoText: "N.A.S.A",
+        logoText: "ÓRBITA",
         logoSrc: "",  // ← Edita aqui pra trocar pela URL da sua logo
         logoHref: "#top",
         links: [
           { id: "1", label: "Planos", href: "#planos" },
-          { id: "2", label: "O que é NASA?", href: "#o-que-e-nasa" },
+          { id: "2", label: "O que é ÓRBITA?", href: "#o-que-e-nasa" },
           { id: "3", label: "Como funciona", href: "#como-funciona" },
         ],
         primaryCta: "Começar grátis",
@@ -458,7 +458,7 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
         type: "marquee",
         x: 0, y: 0, w: 1200, h: 100,
         items: [
-          { id: "1", label: "Empresas que confiam na N.A.S.A" },
+          { id: "1", label: "Empresas que confiam na ÓRBITA" },
           { id: "2", label: "Parceiro 1" },
           { id: "3", label: "Parceiro 2" },
           { id: "4", label: "Parceiro 3" },
@@ -497,7 +497,7 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
           { id: "2", icon: "💬", title: "Avança", description: "Mensagem certa sai na hora certa, sem ninguém lembrar." },
           { id: "3", icon: "📄", title: "Fecha", description: "Proposta assinada → atendimento recebe com histórico." },
           { id: "4", icon: "💳", title: "Cobra", description: "Payment gera cobrança e dá baixa sozinho." },
-          { id: "5", icon: "📦", title: "Entrega", description: "NASA Route libera, atendimento segue com tudo." },
+          { id: "5", icon: "📦", title: "Entrega", description: "ÓRBITA Route libera, atendimento segue com tudo." },
         ],
         bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
       }),
@@ -515,7 +515,7 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
           { id: "2", icon: "✨", title: "Astro IA", description: "IA que conhece cada cliente em qualquer etapa." },
           { id: "3", icon: "🔥", title: "Forge", description: "Propostas, contratos com assinatura, link público." },
           { id: "4", icon: "💳", title: "Payment", description: "Cobrança multi-gateway com baixa automática." },
-          { id: "5", icon: "🛰", title: "NASA Route", description: "Cursos, trilhas, comunidade pós-venda." },
+          { id: "5", icon: "🛰", title: "ÓRBITA Route", description: "Cursos, trilhas, comunidade pós-venda." },
           { id: "6", icon: "📈", title: "Insights", description: "Onde o processo trava e quanto cada etapa custa." },
         ],
         bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
@@ -630,9 +630,9 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
       pushAt({
         type: "section-footer",
         x: 0, y: 0, w: 1200, h: 140,
-        logoText: "N.A.S.A",
+        logoText: "ÓRBITA",
         tagline: "Powered pelo Método N.A.S.A.®",
-        copyright: "© 2026 N.A.S.A",
+        copyright: "© 2026 ÓRBITA",
         links: [
           { id: "1", label: "Políticas de Privacidade", href: "#" },
           { id: "2", label: "Termos & Condições", href: "#" },
@@ -1468,9 +1468,9 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
   },
   {
     id: "nasa-orbita-landing",
-    name: "Landing NASA Orbita (PR #82)",
+    name: "Landing ÓRBITA Orbita (PR #82)",
     description:
-      "Réplica da landing institucional do NASA (orbita.nasaex.com). 13 blocos cobrindo a narrativa 'OS do processo': hero, stats, marquee, método, automação, apps, Astro, integrações, leaderboard ao vivo, planos, depoimentos, FAQ, CTA. Mostra na prática 10 dos novos ElementTypes do builder.",
+      "Réplica da landing institucional do ÓRBITA (orbita.nasaex.com). 13 blocos cobrindo a narrativa 'OS do processo': hero, stats, marquee, método, automação, apps, Astro, integrações, leaderboard ao vivo, planos, depoimentos, FAQ, CTA. Mostra na prática 10 dos novos ElementTypes do builder.",
     intent: "INSTITUTIONAL",
     category: "Sales",
     ...nasaOrbitaLanding(),

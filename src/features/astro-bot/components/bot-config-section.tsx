@@ -198,7 +198,7 @@ export function BotConfigSection() {
           <p className="text-xs text-muted-foreground">
             Libera consultas financeiras, leitura de boleto/nota em PDF ou foto
             e lançamentos — sempre com confirmação por SIM/NÃO. Só vale pra
-            números com acesso ao NASA Payment. Cada mensagem ao Astro consome
+            números com acesso ao ÓRBITA Payment. Cada mensagem ao Astro consome
             Stars; leitura de documento cobra à parte.
           </p>
         </div>

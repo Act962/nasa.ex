@@ -85,7 +85,7 @@ export const generatePostImage = base
     method: "POST",
     path: "/nasa-planner/posts/generate-image",
     summary: "Generate image for a post with explicit model selection",
-    tags: ["NASA Planner"],
+    tags: ["ÓRBITA Planner"],
   })
   .input(
     z.object({
@@ -138,7 +138,7 @@ export const generatePostImage = base
       variant: input.model,
       userId: context.user.id,
       appSlug: "nasa-planner",
-      description: `NASA Planner — imagem ${MODEL_TO_LABEL[input.model]}`,
+      description: `ÓRBITA Planner — imagem ${MODEL_TO_LABEL[input.model]}`,
       feature: "planner.image.post",
       quantity: { unit: "image", amount: 1 },
       cost: { kind: "IMAGE", modelId: input.model },

@@ -19,9 +19,9 @@ interface OrgOption { id: string; name: string; slug: string; logo?: string | nu
 
 const CATEGORY_LABEL: Record<string, string> = {
   leads: "CRM / Leads",
-  ai: "IA & NASA Command",
+  ai: "IA & ÓRBITA Command",
   forge: "Forge",
-  planner: "NASA Planner",
+  planner: "ÓRBITA Planner",
   automation: "Workflows & Automações",
   agenda: "Agenda",
   chat: "Chat & Mensagens",

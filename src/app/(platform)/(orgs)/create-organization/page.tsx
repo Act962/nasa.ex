@@ -10,7 +10,7 @@ export default async function OrganizationPage() {
             <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
               <GalleryVerticalEnd className="size-4" />
             </div>
-            Nasa.ex
+            ÓRBITA
           </a>
         </div>
       </div>

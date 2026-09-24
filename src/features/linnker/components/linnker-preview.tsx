@@ -179,7 +179,7 @@ export function LinnkerPreview({ page }: Props) {
           </div>
         )}
 
-        <p className="text-center text-[10px] text-zinc-400 pb-4 relative">Linnker · NASA</p>
+        <p className="text-center text-[10px] text-zinc-400 pb-4 relative">Linnker · ÓRBITA</p>
       </div>
 
       {/* Bottom bar */}

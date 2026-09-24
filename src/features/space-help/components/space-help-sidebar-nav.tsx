@@ -41,7 +41,7 @@ export function SpaceHelpSidebarNav() {
           className="flex items-center gap-2 text-sm font-semibold tracking-tight"
         >
           <Sparkles className="size-4 text-violet-600" />
-          NASA Space Help
+          ÓRBITA Space Help
         </Link>
       </div>
 

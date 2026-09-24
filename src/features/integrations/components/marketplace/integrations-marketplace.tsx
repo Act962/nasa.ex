@@ -118,7 +118,7 @@ export function IntegrationsMarketplace() {
                 </Badge>
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
-                Conecte o NASA ao seu<br />
+                Conecte o ÓRBITA ao seu<br />
                 <span className="text-transparent bg-clip-text bg-linear-to-r from-[#c4b5fd] to-[#a78bfa]">ecossistema de vendas</span>
               </h1>
               <p className="text-sm text-white/60 max-w-md leading-relaxed">

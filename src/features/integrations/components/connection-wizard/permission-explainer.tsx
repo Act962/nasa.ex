@@ -17,7 +17,7 @@ const META_PERMISSIONS: Permission[] = [
   {
     icon: Settings,
     title: "Gerenciar campanhas Meta Ads",
-    description: "Para criar, pausar e ajustar campanhas direto pelo NASA.",
+    description: "Para criar, pausar e ajustar campanhas direto pelo ÓRBITA.",
   },
   {
     icon: MessageSquare,
@@ -56,7 +56,7 @@ export function PermissionExplainer({ provider }: { provider: "meta" | "google" 
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-sm font-medium">
         <Shield className="size-4 text-emerald-500" />
-        O que o NASA vai poder fazer:
+        O que o ÓRBITA vai poder fazer:
       </div>
       <ul className="space-y-2.5">
         {items.map((p, i) => (

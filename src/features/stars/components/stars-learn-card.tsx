@@ -8,7 +8,7 @@ import { StarIcon } from "./star-icon";
 const ITEMS = [
   {
     q: "O que são Stars (★)?",
-    a: "Stars são a moeda interna da plataforma NASA. Você usa Stars para ativar e manter integrações com ferramentas externas (WhatsApp, CRMs, plataformas de anúncios etc.).",
+    a: "Stars são a moeda interna da plataforma ÓRBITA. Você usa Stars para ativar e manter integrações com ferramentas externas (WhatsApp, CRMs, plataformas de anúncios etc.).",
   },
   {
     q: "Como ganho Stars?",
@@ -37,7 +37,7 @@ export function StarsLearnCard({ className }: { className?: string }) {
         <div>
           <p className="text-sm font-semibold">Como funcionam as ★ Stars</p>
           <p className="text-[11px] text-muted-foreground">
-            Moeda interna da plataforma NASA
+            Moeda interna da plataforma ÓRBITA
           </p>
         </div>
       </div>

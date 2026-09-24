@@ -30,10 +30,10 @@ export const ALL_APPS = [
   // Análise & Navegação
   { key: "insights",              label: "Insights",                icon: "📊" },
   { key: "insights-layout",       label: "Insights · Layout",       icon: "🧩" },
-  { key: "nasa-route",            label: "NASA Route",              icon: "🗺️" },
+  { key: "nasa-route",            label: "ÓRBITA Route",              icon: "🗺️" },
   // Infra
   { key: "integrations",          label: "Integrações",             icon: "🔌" },
-  { key: "explorer",              label: "NASA Explorer",           icon: "🚀" },
+  { key: "explorer",              label: "ÓRBITA Explorer",           icon: "🚀" },
   { key: "nbox",                  label: "NBox",                    icon: "📦" },
 ];
 
