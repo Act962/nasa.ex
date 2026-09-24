@@ -1,6 +1,15 @@
 import "server-only";
 import prisma from "@/lib/prisma";
-import { ASKS, money, plural, startOfMonth, startOfToday, type AstroQuery } from "./types";
+import {
+  ASKS,
+  createdWithin,
+  money,
+  periodFrom,
+  plural,
+  startOfMonth,
+  startOfToday,
+  type AstroQuery,
+} from "./types";
 
 // Consultas dos demais apps — chat, forge, formulários, workspaces,
 // financeiro e páginas. Um arquivo só porque cada app tem poucas perguntas
@@ -39,10 +48,11 @@ const unreadConversations: AstroQuery = {
 const messagesToday: AstroQuery = {
   key: "chat.messages_today",
   app: "chat",
-  matches: (text) => /\bmensagens?\b/.test(text) && /\bhoje\b/.test(text),
-  run: async ({ ctx }) => {
+  matches: (text) => /\bmensagens?\b/.test(text) && periodFrom(text) !== null,
+  run: async ({ ctx, text }) => {
+    const period = periodFrom(text)!;
     const where = {
-      createdAt: { gte: startOfToday() },
+      createdAt: { gte: period.since, lt: period.until },
       conversation: { tracking: { organizationId: ctx.organizationId } },
     };
     const [received, sent] = await Promise.all([
@@ -50,7 +60,7 @@ const messagesToday: AstroQuery = {
       prisma.message.count({ where: { ...where, fromMe: true } }),
     ]);
     return {
-      text: `Hoje: ${received} ${plural(received, "mensagem recebida", "mensagens recebidas")} e ${sent} ${plural(sent, "enviada", "enviadas")}.`,
+      text: `${period.label[0].toUpperCase()}${period.label.slice(1)}: ${received} ${plural(received, "mensagem recebida", "mensagens recebidas")} e ${sent} ${plural(sent, "enviada", "enviadas")}.`,
     };
   },
 };
@@ -59,13 +69,16 @@ const proposals: AstroQuery = {
   key: "forge.proposals",
   app: "forge",
   matches: (text) => ASKS.test(text) && /\bpropostas?|orcamentos?\b/.test(text),
-  run: async ({ ctx }) => {
+  run: async ({ ctx, text }) => {
+    const period = periodFrom(text);
     const grouped = await prisma.forgeProposal.groupBy({
       by: ["status"],
-      where: { organizationId: ctx.organizationId },
+      where: { organizationId: ctx.organizationId, ...createdWithin(period) },
       _count: { _all: true },
     });
-    if (grouped.length === 0) return { text: "Nenhuma proposta criada ainda." };
+    if (grouped.length === 0) {
+      return { text: period ? `Nenhuma proposta criada ${period.label}.` : "Nenhuma proposta criada ainda." };
+    }
     const total = grouped.reduce((sum, row) => sum + row._count._all, 0);
     const LABEL: Record<string, string> = {
       RASCUNHO: "Rascunho",
@@ -76,7 +89,7 @@ const proposals: AstroQuery = {
       CANCELADA: "Cancelada",
     };
     return {
-      text: `${total} ${plural(total, "proposta", "propostas")}, por situação:`,
+      text: `${total} ${plural(total, "proposta", "propostas")}${period ? ` ${period.label}` : ""}, por situação:`,
       table: {
         kind: "astro_table",
         entityType: "proposal",
@@ -100,16 +113,19 @@ const forms: AstroQuery = {
   key: "form.list",
   app: "form",
   matches: (text) => ASKS.test(text) && /\bformularios?|briefings?|fichas?\b/.test(text),
-  run: async ({ ctx }) => {
+  run: async ({ ctx, text }) => {
+    const period = periodFrom(text);
     const rows = await prisma.form.findMany({
-      where: { organizationId: ctx.organizationId },
+      where: { organizationId: ctx.organizationId, ...createdWithin(period) },
       select: { id: true, name: true, published: true, responses: true },
       orderBy: { name: "asc" },
       take: 30,
     });
-    if (rows.length === 0) return { text: "Nenhum formulário criado ainda." };
+    if (rows.length === 0) {
+      return { text: period ? `Nenhum formulário criado ${period.label}.` : "Nenhum formulário criado ainda." };
+    }
     return {
-      text: `Você tem ${rows.length} ${plural(rows.length, "formulário", "formulários")}:`,
+      text: `${rows.length} ${plural(rows.length, "formulário", "formulários")}${period ? ` criado${plural(rows.length, "", "s")} ${period.label}` : ""}:`,
       table: {
         kind: "astro_table",
         entityType: "lead",
@@ -135,16 +151,23 @@ const workspaces: AstroQuery = {
   key: "workspace.list",
   app: "workspaces",
   matches: (text) => ASKS.test(text) && /\bworkspaces?|quadros?\b/.test(text),
-  run: async ({ ctx }) => {
+  run: async ({ ctx, text }) => {
+    const period = periodFrom(text);
     const rows = await prisma.workspace.findMany({
-      where: { organizationId: ctx.organizationId, isArchived: false },
+      where: {
+        organizationId: ctx.organizationId,
+        isArchived: false,
+        ...createdWithin(period),
+      },
       select: { id: true, name: true, _count: { select: { actions: true } } },
       orderBy: { name: "asc" },
       take: 30,
     });
-    if (rows.length === 0) return { text: "Nenhum workspace criado ainda." };
+    if (rows.length === 0) {
+      return { text: period ? `Nenhum workspace criado ${period.label}.` : "Nenhum workspace criado ainda." };
+    }
     return {
-      text: `Você tem ${rows.length} ${plural(rows.length, "workspace", "workspaces")}:`,
+      text: `${rows.length} ${plural(rows.length, "workspace", "workspaces")}${period ? ` criado${plural(rows.length, "", "s")} ${period.label}` : ""}:`,
       table: {
         kind: "astro_table",
         entityType: "action",
@@ -171,16 +194,24 @@ const pendingActions: AstroQuery = {
   matches: (text) =>
     /\btarefas?|acoes?|atividades?\b/.test(text) &&
     /\bpendentes?|abertas?|atrasadas?|quantas|quantos|vencidas?\b/.test(text),
-  run: async ({ ctx }) => {
-    const base = { workspace: { organizationId: ctx.organizationId }, isDone: false };
+  run: async ({ ctx, text }) => {
+    const period = periodFrom(text);
+    const base = {
+      workspace: { organizationId: ctx.organizationId },
+      isDone: false,
+      ...createdWithin(period),
+    };
     const [pending, overdue] = await Promise.all([
       prisma.action.count({ where: base }),
       prisma.action.count({ where: { ...base, dueDate: { lt: new Date() } } }),
     ]);
-    if (pending === 0) return { text: "Nenhuma tarefa em aberto." };
+    if (pending === 0) {
+      return { text: period ? `Nenhuma tarefa em aberto criada ${period.label}.` : "Nenhuma tarefa em aberto." };
+    }
     return {
       text:
         `${pending} ${plural(pending, "tarefa em aberto", "tarefas em aberto")}` +
+        (period ? ` criada${plural(pending, "", "s")} ${period.label}` : "") +
         (overdue > 0 ? `, sendo ${overdue} ${plural(overdue, "atrasada", "atrasadas")}.` : "."),
     };
   },
@@ -223,12 +254,15 @@ const financeSummary: AstroQuery = {
 const paidThisMonth: AstroQuery = {
   key: "payment.paid_month",
   app: "payment",
-  matches: (text) => /\b(paguei|recebi|pago|recebido)\b/.test(text) && /\bmes\b/.test(text),
-  run: async ({ ctx }) => {
+  matches: (text) => /\b(paguei|recebi|pago|recebido)\b/.test(text),
+  run: async ({ ctx, text }) => {
+    const period = periodFrom(text);
     const where = {
       organizationId: ctx.organizationId,
       status: "PAID" as const,
-      paidAt: { gte: startOfMonth() },
+      paidAt: period
+        ? { gte: period.since, lt: period.until }
+        : { gte: startOfMonth() },
     };
     const [payable, receivable] = await Promise.all([
       prisma.paymentEntry.aggregate({ where: { ...where, type: "PAYABLE" }, _sum: { paidAmount: true } }),
@@ -236,7 +270,8 @@ const paidThisMonth: AstroQuery = {
     ]);
     return {
       text:
-        `Neste mês: ${money(receivable._sum.paidAmount ?? 0)} recebido e ` +
+        `${period ? period.label[0].toUpperCase() + period.label.slice(1) : "Neste mês"}: ` +
+        `${money(receivable._sum.paidAmount ?? 0)} recebido e ` +
         `${money(payable._sum.paidAmount ?? 0)} pago.`,
     };
   },
@@ -246,16 +281,23 @@ const pages: AstroQuery = {
   key: "pages.list",
   app: "pages",
   matches: (text) => ASKS.test(text) && /\bpaginas?|sites?|landing\b/.test(text),
-  run: async ({ ctx }) => {
+  run: async ({ ctx, text }) => {
+    const period = periodFrom(text);
     const rows = await prisma.nasaPage.findMany({
-      where: { organizationId: ctx.organizationId, status: { not: "ARCHIVED" } },
+      where: {
+        organizationId: ctx.organizationId,
+        status: { not: "ARCHIVED" },
+        ...createdWithin(period),
+      },
       select: { id: true, title: true, slug: true, status: true },
       orderBy: { updatedAt: "desc" },
       take: 30,
     });
-    if (rows.length === 0) return { text: "Nenhuma página criada ainda." };
+    if (rows.length === 0) {
+      return { text: period ? `Nenhuma página criada ${period.label}.` : "Nenhuma página criada ainda." };
+    }
     return {
-      text: `Você tem ${rows.length} ${plural(rows.length, "página", "páginas")}:`,
+      text: `${rows.length} ${plural(rows.length, "página", "páginas")}${period ? ` criada${plural(rows.length, "", "s")} ${period.label}` : ""}:`,
       table: {
         kind: "astro_table",
         entityType: "lead",

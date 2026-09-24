@@ -39,28 +39,12 @@ export interface AstroQuery {
 /** "deles", "dessas", "isso" — o pedido se apoia no turno anterior. */
 export const REFERS_BACK = /\b(deles|delas|desses|dessas|disso|dele|dela|eles|elas|mesmos?)\b/;
 
-/** Recorte de tempo dito na frase, ou herdado do turno anterior. */
-export function periodFrom(text: string): { since: Date; label: string } | null {
-  if (/\bhoje\b/.test(text)) return { since: startOfToday(), label: "hoje" };
-  if (/\bontem\b/.test(text)) {
-    const since = new Date(startOfToday().getTime() - 24 * 60 * 60_000);
-    return { since, label: "ontem" };
-  }
-  if (/\b(essa|esta|nesta|na) semana|ultimos 7 dias\b/.test(text)) {
-    return { since: new Date(startOfToday().getTime() - 7 * 24 * 60 * 60_000), label: "nos últimos 7 dias" };
-  }
-  if (/\b(esse|este|neste|no) mes\b/.test(text)) {
-    return { since: startOfMonth(), label: "neste mês" };
-  }
-  return null;
-}
-
 export function normalizeQuestion(text: string): string {
   return text
     .trim()
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 /** "Quantos", "quais", "liste", "me mostra" — o pedido é de leitura. */
@@ -86,4 +70,59 @@ export function startOfToday(): Date {
 export function startOfMonth(): Date {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+/**
+ * Recorte de tempo dito na frase. `since`/`until` olham para trás (o que já
+ * aconteceu); `futureUntil` existe porque "essa semana" significa coisas
+ * opostas em criação e em compromisso — um olha o passado, o outro o que vem.
+ */
+export interface AstroPeriod {
+  since: Date;
+  until: Date;
+  /** Fim da janela quando o que se pergunta está no futuro. */
+  futureUntil: Date;
+  label: string;
+}
+
+const DAY_MS = 24 * 60 * 60_000;
+
+export function periodFrom(text: string): AstroPeriod | null {
+  const today = startOfToday();
+  const tomorrow = new Date(today.getTime() + DAY_MS);
+
+  if (/\bhoje\b/.test(text)) {
+    return { since: today, until: tomorrow, futureUntil: tomorrow, label: "hoje" };
+  }
+  if (/\bamanha\b/.test(text)) {
+    const afterTomorrow = new Date(tomorrow.getTime() + DAY_MS);
+    return { since: tomorrow, until: afterTomorrow, futureUntil: afterTomorrow, label: "amanhã" };
+  }
+  if (/\bontem\b/.test(text)) {
+    const yesterday = new Date(today.getTime() - DAY_MS);
+    return { since: yesterday, until: today, futureUntil: today, label: "ontem" };
+  }
+  if (/\b(essa|esta|nesta|na|proxima) semana\b|\bultimos 7 dias\b|\b7 dias\b/.test(text)) {
+    return {
+      since: new Date(today.getTime() - 7 * DAY_MS),
+      until: tomorrow,
+      futureUntil: new Date(today.getTime() + 7 * DAY_MS),
+      label: "nesta semana",
+    };
+  }
+  if (/\b(esse|este|neste|no|deste) mes\b/.test(text)) {
+    const start = startOfMonth();
+    return {
+      since: start,
+      until: tomorrow,
+      futureUntil: new Date(start.getFullYear(), start.getMonth() + 1, 1),
+      label: "neste mês",
+    };
+  }
+  return null;
+}
+
+/** Filtro Prisma de um campo de data, ou nada quando não há recorte. */
+export function createdWithin(period: AstroPeriod | null) {
+  return period ? { createdAt: { gte: period.since, lt: period.until } } : {};
 }

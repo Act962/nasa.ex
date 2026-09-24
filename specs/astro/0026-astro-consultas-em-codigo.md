@@ -34,12 +34,18 @@ específica vem antes da genérica: "leads sem responsável" antes de "quantos
 leads"; "mensagens hoje" antes de "mensagens não lidas". Medido: sem isso,
 `chat.unread` sequestrava `chat.messages_today`.
 
-**D-3 — A frase seguinte herda o assunto.** "Me manda a lista deles", logo
+**D-3 — "Hoje" vale em todos os apps.** Um só leitor de recorte (`periodFrom`)
+serve a todas as consultas: hoje, amanhã, ontem, esta semana, este mês. Ele
+devolve `since`/`until` para o que já aconteceu e `futureUntil` para o que
+vem — "esta semana" são os 7 dias passados em criação e os 7 próximos em
+compromisso, e tratar os dois como um só dava resposta errada sem erro.
+
+**D-4 — A frase seguinte herda o assunto.** "Me manda a lista deles", logo
 após "quantos leads hoje", devolve os leads de hoje. A referência só resolve
 com histórico: sem ele, o pedido segue para o orquestrador em vez de listar
 qualquer coisa.
 
-**D-4 — Ordem nunca vira consulta.** "Crie um lead chamado Ana" não pode casar
+**D-5 — Ordem nunca vira consulta.** "Crie um lead chamado Ana" não pode casar
 com leitura. Testado para as quatro formas de escrita mais comuns.
 
 ## 3. Cobertura (19 consultas)
@@ -63,8 +69,9 @@ com leitura. Testado para as quatro formas de escrita mais comuns.
 - **CA-3** — ordem de escrita não é capturada pela camada de leitura
 - **CA-4** — toda consulta no registro tem frase de teste
 - **CA-5** — "a lista deles" herda o recorte do turno anterior e, sem histórico, não responde
+- **CA-6** — "hoje" é respeitado por todos os apps, e a resposta diz o recorte que aplicou
 
-Verificados por `scripts/verify-astro-queries.ts` — 26 checagens, 0 falhas.
+Verificados por `scripts/verify-astro-queries.ts` — 35 checagens, 0 falhas.
 
 ## 5. Fora de escopo
 
@@ -77,5 +84,6 @@ procedures seguem sem alcance — assunto de spec própria.
 
 | Data | Autor | Mudança |
 | --- | --- | --- |
+| 2026-09-24 | Weydson | **Recorte de tempo era só do tracking**: "quantas propostas hoje", "quanto recebi hoje" e "compromissos hoje" ignoravam o "hoje" — o de compromissos devolvia a semana inteira. `periodFrom` passou a servir os 9 apps, e a resposta agora declara o recorte aplicado |
 | 2026-09-24 | Weydson | Lista de leads e recorte por período acrescentados: "quantos leads criados hoje" era respondido pelo orquestrador com o total, e "me manda a lista deles" voltava "não tenho acesso" |
 | 2026-09-24 | Weydson | Criada e implementada a partir do custo medido: 43.141 tokens para não responder "quantos leads temos" |

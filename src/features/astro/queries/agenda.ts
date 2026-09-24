@@ -1,6 +1,6 @@
 import "server-only";
 import prisma from "@/lib/prisma";
-import { ASKS, plural, startOfToday, type AstroQuery } from "./types";
+import { ASKS, periodFrom, plural, startOfToday, type AstroQuery } from "./types";
 
 // Consultas da Agenda — agendas, compromissos e lembretes.
 
@@ -42,9 +42,14 @@ const appointmentsToday: AstroQuery = {
   matches: (text) =>
     /\bcompromissos?|reuni(ao|oes)|agendamentos?\b/.test(text) &&
     /\bhoje|amanha|semana|essa semana|quais|quantos|tenho\b/.test(text),
-  run: async ({ ctx }) => {
-    const from = startOfToday();
-    const to = new Date(from.getTime() + 7 * 24 * 60 * 60_000);
+  run: async ({ ctx, text }) => {
+    // "Hoje" é hoje; sem recorte, a janela útil é a semana que vem.
+    const period = periodFrom(text);
+    const from = period ? period.since : startOfToday();
+    const to = period
+      ? period.futureUntil
+      : new Date(startOfToday().getTime() + 7 * 24 * 60 * 60_000);
+    const when = period ? period.label : "nos próximos 7 dias";
     const appointments = await prisma.appointment.findMany({
       where: {
         agenda: { organizationId: ctx.organizationId },
@@ -62,14 +67,14 @@ const appointmentsToday: AstroQuery = {
       take: 30,
     });
     if (appointments.length === 0) {
-      return { text: "Nenhum compromisso marcado para os próximos 7 dias." };
+      return { text: `Nenhum compromisso marcado ${when}.` };
     }
     return {
-      text: `${appointments.length} ${plural(appointments.length, "compromisso", "compromissos")} nos próximos 7 dias:`,
+      text: `${appointments.length} ${plural(appointments.length, "compromisso", "compromissos")} ${when}:`,
       table: {
         kind: "astro_table",
         entityType: "appointment",
-        title: "Próximos compromissos",
+        title: "Compromissos",
         columns: [
           { key: "quando", label: "Quando", type: "date" },
           { key: "title", label: "Assunto" },

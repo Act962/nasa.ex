@@ -76,6 +76,31 @@ async function main() {
     }
   }
 
+  // "Hoje" tem de valer em TODOS os apps — não só no tracking.
+  const HOJE: [string, string][] = [
+    ["tracking.leads_created", "quantos leads foram criados hoje?"],
+    ["agenda.appointments_today", "quais compromissos tenho hoje?"],
+    ["chat.messages_today", "quantas mensagens hoje?"],
+    ["forge.proposals", "quantas propostas criamos hoje?"],
+    ["form.list", "quais formulários criamos hoje?"],
+    ["workspace.list", "quais workspaces criamos hoje?"],
+    ["workspace.actions_pending", "quantas tarefas pendentes criadas hoje?"],
+    ["payment.paid_month", "quanto recebi hoje?"],
+    ["pages.list", "quais páginas criamos hoje?"],
+  ];
+  for (const [key, frase] of HOJE) {
+    try {
+      const hit = await runAstroQuery({ ctx, text: frase });
+      check(
+        `hoje ${key}`,
+        hit?.key === key && /hoje/i.test(hit.result.text),
+        hit ? `"${frase}" → ${hit.key}: ${hit.result.text.slice(0, 70)}` : `"${frase}" não casou`,
+      );
+    } catch (error) {
+      check(`hoje ${key}`, false, `"${frase}" estourou: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   // Referência ao turno anterior: "a lista deles" só resolve com histórico.
   const comHistorico = await runAstroQuery({
     ctx,
