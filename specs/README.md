@@ -182,7 +182,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0021](trafego/0021-trafego-captura-lead-e-notificacao-admin.md) | trafego | Captura de lead no wizard e notificação do admin | em-revisao |
 | [0022](notifications/0022-web-push-notification-service.md) | notifications | Serviço de notificação Web Push | em-revisao |
 | [0022](trafego/0022-trafego-pix-asaas.md) | trafego | Cobrança PIX automática pelo Asaas no checkout do trafeGO | rascunho |
-| [0023](astro/0023-astro-roteamento-por-intencao-e-proposta-com-link.md) | astro | Roteamento do Astro por intenção, com a proposta comercial como piloto | rascunho |
+| [0023](astro/0023-astro-roteamento-por-intencao-e-proposta-com-link.md) | astro | Roteamento do Astro por intenção, com a proposta comercial como piloto | aprovada |
 
 ---
 

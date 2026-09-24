@@ -22,6 +22,7 @@ import {
   type ExecuteOutput,
 } from "./execute-helpers";
 import { parseCommandIntent } from "./ai-intent";
+import { createProposalAction } from "@/features/astro/actions/forge/create-proposal";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 // ─── Fuzzy normaliser ─────────────────────────────────────────────────────────
@@ -310,52 +311,76 @@ export const execute = base
           };
         }
 
-        // Look up product and lead
-        const foundProduct = resolvedProduct ?? await resolveProduct(productName, orgId);
-        const foundContact = resolvedContact ?? await resolveContact(clientName, orgId);
-
-        const last = await prisma.forgeProposal.findFirst({
-          where: { organizationId: orgId },
-          orderBy: { number: "desc" },
-          select: { number: true },
-        });
-        const number = (last?.number ?? 0) + 1;
-
-        // Parse validUntil
+        // Criação delegada ao registro único de ações (spec 0023, RF-7): a
+        // cópia que existia aqui devolvia link interno, que o cliente não abre.
         const validUntilRaw = parsedVars["validade"] ?? parsedVars["validuntil"] ?? null;
-        let validUntil: Date | null = null;
-        if (validUntilRaw) validUntil = parseDate(validUntilRaw);
-        else if (dateVars.length > 0) validUntil = parseDate(cmd);
+        const validUntil = validUntilRaw
+          ? parseDate(validUntilRaw)
+          : dateVars.length > 0
+            ? parseDate(cmd)
+            : null;
 
-        const proposalTitle = `Proposta - ${clientName}`;
-
-        const proposal = await prisma.forgeProposal.create({
-          data: {
+        const result = await createProposalAction.execute({
+          ctx: {
+            userId: resolvedUser?.id ?? context.user.id,
             organizationId: orgId,
-            title: proposalTitle,
-            number,
-            clientId: foundContact?.id ?? null,
-            responsibleId: resolvedUser?.id ?? context.user.id,
-            participants: [],
-            validUntil,
-            status: "RASCUNHO" as never,
-            description: foundProduct ? `Produto: ${foundProduct.name}\n\n${command}` : command,
-            headerConfig: {},
-            createdById: context.user.id,
+            route: {},
+            channel: "CHAT",
+          } as never,
+          input: {
+            clientName,
+            productName,
+            validUntil: validUntil ? validUntil.toISOString() : undefined,
+            notes: command,
           },
-          select: { id: true, number: true },
         });
 
-        const costKind = "create" as const;
-        const starsSpent = await tryDebitStars(costKind, `Proposta criada — ${proposalTitle}`);
+        if (result.status === "needs_input") {
+          return {
+            type: "needs_input" as const,
+            title: result.title,
+            description: result.description,
+            appName: result.appName,
+            missingFields: result.missingFields,
+          } satisfies ExecuteOutput;
+        }
+
+        if (result.status === "ambiguous") {
+          return {
+            type: "needs_input" as const,
+            title: result.title,
+            description: result.description,
+            appName: result.appName,
+            missingFields: [{ key: result.field, label: "qual cliente" }],
+            resultLinks: result.options.map((option) => ({
+              label: option.label,
+              url: `/contatos/${option.id}`,
+            })),
+          } satisfies ExecuteOutput;
+        }
+
+        if (result.status === "error") {
+          return {
+            type: "error" as const,
+            title: result.title,
+            description: result.description,
+            appName: result.appName,
+          } satisfies ExecuteOutput;
+        }
+
+        const starsSpent = await tryDebitStars("create", `Proposta criada — ${result.title}`);
 
         return {
           type: "created" as const,
-          title: "Proposta criada!",
-          description: `Proposta "${proposalTitle}" criada no Forge.${foundProduct ? ` Produto: ${foundProduct.name}.` : ""}`,
-          url: `/forge?tab=proposals&id=${proposal.id}`,
-          appName: "Forge",
+          title: result.title,
+          description: result.description,
+          // O link que vai ao cliente é o público; o interno fica ao lado.
+          url: result.publicUrl,
+          appName: result.appName,
           starsSpent,
+          resultLinks: result.internalUrl
+            ? [{ label: "Abrir no Forge", url: result.internalUrl }]
+            : undefined,
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute forge proposal enhanced]", err);

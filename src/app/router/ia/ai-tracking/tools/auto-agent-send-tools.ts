@@ -312,7 +312,7 @@ export const sendProposalTool = (userId: string) =>
           select: { id: true, title: true, publicToken: true, number: true },
         });
 
-        const url = `${baseUrl()}/forge/proposta/${proposal.publicToken}`;
+        const url = `${baseUrl()}/proposta/${proposal.publicToken}`;
         const template =
           messageTemplate?.trim() ||
           "Olá {{nome}}! Sua proposta #{{proposta_numero}} está pronta: {{url}}";

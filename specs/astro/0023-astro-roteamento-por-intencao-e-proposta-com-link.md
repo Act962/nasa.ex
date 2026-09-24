@@ -2,7 +2,7 @@
 id: 0023
 titulo: Roteamento do Astro por intenção, com a proposta comercial como piloto
 dominio: astro
-status: rascunho
+status: aprovada
 autor: Weydson
 criada: 2026-09-24
 atualizada: 2026-09-24
