@@ -1,133 +1,76 @@
 "use client";
 
-import Link from "next/link";
-import {
-  Bell,
-  Zap,
-  Plug,
-  KeyRound,
-  Trophy,
-  CreditCard,
-  Users,
-  Headphones,
-  Webhook,
-} from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { CommentsShell } from "@/features/comments/components/comments-shell";
-import { CommentsConnectCard } from "@/features/comments/components/comments-connect-card";
-import { useCommentsConnection } from "@/features/comments/hooks/use-comments-connection";
+import { useState } from "react";
+import { Plug, Radio, Zap } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AutomationsList } from "@/features/comments/components/automations-list";
+import { ChannelConnectCard } from "@/features/comments/components/channel-connect-card";
+import { RunsPanel } from "@/features/comments/components/runs-panel";
+import { useCommentsChannel } from "@/features/comments/hooks/use-comments-channel";
 
-const DOMAINS = [
-  {
-    href: "/comments/notifications",
-    label: "Notificações",
-    desc: "Eventos da plataforma",
-    icon: Bell,
-  },
-  {
-    href: "/comments/automations",
-    label: "Automações",
-    desc: "Fluxos de DM/Comentário",
-    icon: Zap,
-  },
-  {
-    href: "/comments/listeners",
-    label: "Listeners",
-    desc: "Configurar respostas",
-    icon: Headphones,
-  },
-  {
-    href: "/comments/triggers",
-    label: "Gatilhos",
-    desc: "Quando disparar",
-    icon: Webhook,
-  },
-  {
-    href: "/comments/keywords",
-    label: "Palavras-chave",
-    desc: "Termos que ativam",
-    icon: KeyRound,
-  },
-  {
-    href: "/comments/integrations",
-    label: "Integrações",
-    desc: "Contas Meta conectadas",
-    icon: Plug,
-  },
-  {
-    href: "/comments/sorteios",
-    label: "Sorteios",
-    desc: "Coleta de comentários e sorteios",
-    icon: Trophy,
-  },
-  {
-    href: "/comments/subscription",
-    label: "Plano",
-    desc: "Assinatura comments",
-    icon: CreditCard,
-  },
-  {
-    href: "/comments/profile",
-    label: "Perfil",
-    desc: "Dados e posts do usuário",
-    icon: Users,
-  },
-];
+export default function CommentsPage() {
+  const { data: channel } = useCommentsChannel();
+  const isConnected = Boolean(channel?.connected);
+  const needsAttention =
+    channel?.connected && channel.status === "NEEDS_RECONNECT";
 
-export default function CommentsHubPage() {
-  const conn = useCommentsConnection();
+  // Controlada, não `defaultValue`: o status da conta chega depois do primeiro
+  // render, e uma aba padrão decidida antes disso nunca mais se corrige. Assim
+  // quem não tem conta cai em Integrações — e a escolha do usuário vence dali
+  // em diante.
+  const [selectedTab, setSelectedTab] = useState<string | null>(null);
+  const activeTab =
+    selectedTab ??
+    (channel === undefined ? "automacoes" : isConnected ? "automacoes" : "integracoes");
 
   return (
-    <CommentsShell
-      title="comments · Engajamento"
-      description="Automatize respostas, rode sorteios e centralize comentários e DMs do Instagram/Facebook."
-    >
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-4">
-          {conn.connected && conn.isActive ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {DOMAINS.map(({ href, label, desc, icon: Icon }) => (
-                <Link key={href} href={href}>
-                  <Card className="h-full transition-colors hover:bg-muted/50">
-                    <CardHeader className="space-y-1">
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Icon className="size-4" />
-                        {label}
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        {desc}
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Conecte primeiro</CardTitle>
-                <CardDescription>
-                  Após conectar, os domínios do comments aparecem aqui pra
-                  navegação.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                Use o card ao lado pra iniciar o fluxo de consentimento.
-              </CardContent>
-            </Card>
-          )}
-        </div>
+    <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-8 pt-2">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight">COMMENTS</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Responda comentários e directs do Instagram automaticamente.
+        </p>
+      </header>
 
-        <div>
-          <CommentsConnectCard />
-        </div>
-      </div>
-    </CommentsShell>
+      <Tabs value={activeTab} onValueChange={setSelectedTab}>
+        <TabsList>
+          <TabsTrigger value="automacoes" className="gap-1.5">
+            <Zap className="size-3.5" />
+            Automações
+          </TabsTrigger>
+          <TabsTrigger value="integracoes" className="gap-1.5">
+            <Plug className="size-3.5" />
+            Integrações
+            {/* Sem conta conectada nada funciona — a aba avisa sem precisar
+                abrir. */}
+            {(!isConnected || needsAttention) && (
+              <Badge
+                variant={needsAttention ? "destructive" : "secondary"}
+                className="px-1.5 py-0 text-[10px]"
+              >
+                {needsAttention ? "!" : "conectar"}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="execucoes" className="gap-1.5">
+            <Radio className="size-3.5" />
+            Execuções
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="automacoes" className="mt-4">
+          <AutomationsList canCreate={isConnected} />
+        </TabsContent>
+
+        <TabsContent value="integracoes" className="mt-4 max-w-xl">
+          <ChannelConnectCard />
+        </TabsContent>
+
+        <TabsContent value="execucoes" className="mt-4">
+          <RunsPanel />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
