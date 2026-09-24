@@ -53,6 +53,14 @@ export function normalizeQuestion(text: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+/**
+ * Verbo de escrita no começo da frase. Ler nunca é ordem: "lança 500 a
+ * receber" casava com o resumo financeiro por causa do "a receber", e o
+ * usuário recebia um relatório em vez do lançamento.
+ */
+export const WRITE_VERB =
+  /^(adicione|adiciona|adicionar|lanca|lancar|lance|registra|registre|registrar|cria|crie|criar|cadastra|cadastre|cadastrar|apaga|apague|apagar|exclui|exclua|excluir|move|mova|mover|manda|mande|mandar|envia|envie|enviar|marca|marque|marcar|remarca|remarque|cancela|cancele|cancelar|renomeia|renomeie|arquiva|arquive|publica|publique|anota|anote|anotar|favorita|favorite|bloqueia|bloqueie|ativa|ative|desativa|desative|poe|poem|bota|da acesso|libera)\b/;
+
 /** "Quantos", "quais", "liste", "me mostra" — o pedido é de leitura. */
 export const ASKS = /\b(quantos|quantas|quais|que|liste|lista|listar|me mostra|mostra|tem quantos|total de|qual o total|qual a quantidade)\b/;
 

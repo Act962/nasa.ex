@@ -1,6 +1,11 @@
 import "server-only";
 import type { AgentContext } from "@/features/astro/server/agents/types";
-import { normalizeQuestion, type AstroQuery, type AstroQueryResult } from "./types";
+import {
+  WRITE_VERB,
+  normalizeQuestion,
+  type AstroQuery,
+  type AstroQueryResult,
+} from "./types";
 import { TRACKING_QUERIES } from "./tracking";
 import { AGENDA_QUERIES } from "./agenda";
 import { APP_QUERIES } from "./apps";
@@ -26,6 +31,9 @@ export async function runAstroQuery(params: {
   history?: string[];
 }): Promise<{ key: string; result: AstroQueryResult } | null> {
   const text = normalizeQuestion(params.text);
+  // Ordem não é consulta. Sem isto, "lança 500 a receber" casava com o resumo
+  // financeiro e devolvia relatório em vez de lançar.
+  if (WRITE_VERB.test(text)) return null;
   const history = normalizeQuestion((params.history ?? []).slice(-4).join(" "));
   for (const query of ASTRO_QUERIES) {
     if (!query.matches(text, history)) continue;

@@ -103,6 +103,7 @@ const FRASES_TIPICAS: Record<string, string> = {
   "lead.create": "quero criar um lead chamado Weydson Lima",
   "tag.create": "crie uma tag chamada Urgente para o tracking",
   "lead.move": "move o Kauê para a coluna Em andamento",
+  "payment.create_entry": "adicione R$ 100,00 de despesa em combustível",
   "tracking.create": "crie um novo tracking chamado Atendimento",
   "agenda.create": "cria uma agenda de consultoria",
   "appointment.create": "marca uma reunião com o Kauê sexta às 15h",

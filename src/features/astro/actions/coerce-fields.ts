@@ -120,8 +120,15 @@ function coerceValue(schema: z.ZodTypeAny, raw: string): unknown {
   }
 
   if (target instanceof z.ZodNumber) {
-    const parsed = Number(raw.replace(",", "."));
-    return Number.isFinite(parsed) ? parsed : raw;
+    // "R$ 1.250,50" é como se escreve dinheiro em português, e Number() lê
+    // isso como NaN. Sem tratar, o Astro pedia o valor que o usuário já disse.
+    const digits = raw.replace(/[^0-9.,-]/g, "");
+    const normalized =
+      digits.includes(",") && digits.includes(".")
+        ? digits.replace(/\./g, "").replace(",", ".")
+        : digits.replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) && normalized !== "" ? parsed : raw;
   }
 
   return raw;

@@ -17,7 +17,8 @@ export const ASTRO_APPS = {
     "Propostas comerciais e orçamentos: criar proposta com valor para um cliente",
   form:
     "Formulários, briefings e fichas de cadastro: mandar o FORMULÁRIO ao cliente, publicar, tirar do ar. Só quando a palavra formulário, briefing ou ficha aparecer",
-  payment: "Financeiro: contas a pagar e receber, lançamentos, conciliação",
+  payment:
+    "Financeiro/dinheiro: LANÇAR despesa ou receita, contas a pagar e receber, conciliação. Use quando a frase falar em R$, valor, despesa, gasto, receita ou pagamento",
   pages: "Sites e páginas publicadas",
   workspaces:
     "Quadros de trabalho interno da equipe: criar workspace, organizar tarefas do time (não é funil de leads)",

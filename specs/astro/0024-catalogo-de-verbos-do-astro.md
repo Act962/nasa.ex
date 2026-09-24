@@ -266,6 +266,10 @@ sem dado tocado.
 
 | Data | Autor | Mudança |
 | --- | --- | --- |
+| 2026-09-24 | Weydson | `payment.create_entry` implementado. "Adicione R$ 100,00 de despesa em combustível" caía em `tracking.create_status` e pedia o nome de uma coluna — o buraco de verbo ausente, agora no financeiro. Pergunta a conta quando há mais de uma, e a escrita passa por confirmação (spec 0019) |
+| 2026-09-24 | Weydson | **Vocabulário em português, de novo**: o classificador devolveu `type: "despesa"` e depois `"expense"`; o enum recusou os dois e o verbo morria depois da ação certa. Mesma correção da recorrência do lembrete — string livre no schema, tradução em código |
+| 2026-09-24 | Weydson | `invalid_value` entrou na detecção de campo faltando: um enum recusado devolvia lista vazia e o Astro perguntava **"me diga: ."** — pergunta sem pergunta |
+| 2026-09-24 | Weydson | **Ordem nunca é consulta**: "lança 500 reais a receber" casava com o resumo financeiro por causa do "a receber" e devolvia relatório em vez de lançar. Verbo de escrita no início da frase agora pula a camada de leitura inteira |
 | 2026-09-24 | Weydson | `lead.move` implementado — mover lead de coluna é o gesto mais repetido do board e só existia no orquestrador. Sem o verbo, "mover para a coluna Em andamento" caía em `tracking.create_status` e terminava pedindo o nome de uma coluna nova |
 | 2026-09-24 | Weydson | **Herança de sujeito, e por que ela saiu do prompt.** "Mover para Em andamento", logo após "encontrei o lead João de Souza", fala do João — mas a frase não o nomeia. Ensinar isso ao classificador pelo prompt derrubou "assunto novo não herda" de 3/3 para **0/3**: o modelo passou a preferir o histórico mesmo com a frase nomeando alguém. A herança virou código (`subjectFromHistory`), e só vale quando o nome existe nos DOIS lugares — na conversa e no banco. Nome ambíguo mantém a pergunta, e campo de `newNameFields` nunca herda |
 | 2026-09-24 | Weydson | `tag.create` implementado, com o escopo (tracking/workspace) lido da frase por `inferFields`. Tag de workspace pertence a UM workspace, não à organização — o escopo workspace pergunta qual |

@@ -41,8 +41,16 @@ function missingRequiredFields(
 ): string[] {
   const parsed = action.input.safeParse(fields);
   if (parsed.success) return [];
+  // `invalid_value` entra na lista: sem ele, um enum recusado devolvia lista
+  // vazia e o Astro perguntava "me diga: ." — pergunta sem pergunta.
   return parsed.error.issues
-    .filter((issue) => issue.code === "invalid_type" || issue.code === "too_small")
+    .filter(
+      (issue) =>
+        issue.code === "invalid_type" ||
+        issue.code === "too_small" ||
+        issue.code === "invalid_value" ||
+        issue.code === "invalid_format",
+    )
     .map((issue) => String(issue.path[0] ?? ""))
     .filter(Boolean);
 }
@@ -61,6 +69,11 @@ const FIELD_LABELS: Record<string, string> = {
   tagName: "o nome da tag",
   scope: "se a tag é para tracking (leads) ou workspace (tarefas)",
   agendaName: "o nome da agenda",
+  accountName: "o nome da conta",
+  amount: "o valor",
+  description: "a descrição do lançamento",
+  type: "se é despesa ou receita",
+  dueDate: "o vencimento",
   statusName: "o nome da coluna",
   currentName: "o nome atual da coluna",
   newName: "o novo nome",
