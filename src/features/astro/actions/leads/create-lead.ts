@@ -35,6 +35,7 @@ export const createLeadAction: AstroAction<typeof inputSchema> = {
     "É sobre alguém de fora da empresa que ainda não está no sistema. " +
     "Não serve para anotar em lead existente nem para dar acesso a colega de equipe.",
   requiresConfirmation: false,
+  newNameFields: ["leadName"],
   input: inputSchema,
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {

@@ -50,6 +50,7 @@ export const createAgendaAction: AstroAction<typeof inputSchema> = {
     "Cria uma AGENDA nova, o calendário em si — 'cria uma agenda de consultoria', 'nova agenda para atendimento'. " +
     "Não é marcar compromisso nem ativar agenda existente.",
   requiresConfirmation: false,
+  newNameFields: ["agendaName"],
   input: inputSchema,
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {

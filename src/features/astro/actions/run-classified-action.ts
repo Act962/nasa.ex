@@ -251,7 +251,13 @@ export async function runClassifiedAction(params: {
 
   // Campo que nomeia algo já cadastrado vira botão, não pergunta aberta.
   const askable = missing[0];
-  const choices = askable ? await optionsForField(params.ctx, askable) : null;
+  const namesSomethingNew = askable
+    ? (action.newNameFields ?? []).includes(askable)
+    : false;
+  const choices =
+    askable && !namesSomethingNew
+      ? await optionsForField(params.ctx, askable)
+      : null;
 
   const result: ClassifiedOutput =
     missing.length > 0 || !parsed.success

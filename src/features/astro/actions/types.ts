@@ -85,6 +85,12 @@ export interface AstroAction<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
    */
   inferFields?: (text: string) => Record<string, unknown>;
   /**
+   * Campos que nomeiam algo NOVO. Faltando um deles, o Astro pergunta em vez
+   * de listar o que já existe: oferecer os funis atuais a quem pediu um funil
+   * novo é oferecer exatamente o que a pessoa não quer.
+   */
+  newNameFields?: string[];
+  /**
    * `dryRun` resolve o alvo, checa permissão e devolve o que ACONTECERIA —
    * sem escrever. É o que impede a confirmação de propor o impossível: sem
    * isso, o cartão perguntava "excluir o lead X?" antes de saber se X existe,
