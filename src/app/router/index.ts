@@ -138,7 +138,8 @@ export const router = {
   metaMcp: metaMcpRouter,
   astro: astroRoutes,
   nerp: nerpRouter,
-  commentsApp: commentsRouter,
+  /** App COMMENTS — automações de Instagram nativas (spec 0024). */
+  comments: commentsRouter,
   livekit: livekitRouter,
   stickers: stickersRouter,
   brand: brandRouter,
