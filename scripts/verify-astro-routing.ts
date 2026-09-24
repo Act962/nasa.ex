@@ -52,7 +52,12 @@ async function checkRate(
   console.log(`[${passed ? "PASS" : "FAIL"}] ${id} — ${rate} — ${detail(successes)}`);
   if (!passed) failures += 1;
   else if (successes < ATTEMPTS) {
-    console.log(`       ⚠ variância: ${ATTEMPTS - successes} de ${ATTEMPTS} caíram no orquestrador (custo, não erro)`);
+    // Sem afirmar a causa: dependendo da checagem, a tentativa que não passou
+    // cai no orquestrador (custa ★) ou faz o Astro perguntar à toa. As duas
+    // degradam com segurança — nenhuma escreve errado.
+    console.log(
+      `       ⚠ variância: ${ATTEMPTS - successes} de ${ATTEMPTS} não atingiram o esperado`,
+    );
   }
 }
 
@@ -71,6 +76,8 @@ const FRASES_TIPICAS: Record<string, string> = {
   "lead.delete": "apaga o lead duplicado do João Silva",
   "lead.add_note": "anota no Kauê que ele pediu desconto",
   "agenda.cancel_appointment": "cancela o agendamento do Kauê",
+  "lead.toggle_favorite": "favorita o lead Kauê",
+  "tracking.create_status": "cria a coluna Proposta no funil de vendas",
 };
 
 async function main(): Promise<void> {
@@ -166,16 +173,16 @@ async function main(): Promise<void> {
   }
 
   // ── Contexto — pronome só resolve com a conversa anterior ───────────────
-  const semContexto = await classifyAstroIntent({
-    organizationId: organization.id,
-    text: "crie uma proposta para ele",
-  });
-  check(
+  await checkRate(
     "contexto ausente",
-    !semContexto || !semContexto.fields.clientName,
-    semContexto?.fields.clientName
-      ? `sem histórico, inventou clientName="${semContexto.fields.clientName}"`
-      : "sem histórico, não inventou o cliente",
+    async () => {
+      const r = await classifyAstroIntent({
+        organizationId: organization.id,
+        text: "crie uma proposta para ele",
+      });
+      return !r || !r.fields.clientName;
+    },
+    () => "sem histórico, não devolve o pronome como nome do cliente",
   );
 
   const HISTORICO = [

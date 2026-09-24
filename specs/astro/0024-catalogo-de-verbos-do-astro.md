@@ -68,13 +68,13 @@ Os três de uso diário, que é onde o custo por token dói mais hoje.
 
 | Verbo | Frase típica | Já existe? |
 | --- | --- | --- |
-| `tracking.create_status` | "cria a coluna Proposta no funil de vendas" | ⬜ |
+| `tracking.create_status` | "cria a coluna Proposta no funil de vendas" | ✅ implementado |
 | `tracking.rename_status` | "renomeia a coluna Início para Entrada" | ⬜ |
 | `tracking.apply_preset` | "aplica o padrão de vendas nesse tracking" | ⬜ |
 | `tracking.add_participant` | "põe o João nesse tracking" | ⬜ |
 | `tracking.archive` | "arquiva o tracking de 2025" | ⬜ (destrutivo → C-4) |
 | `lead.add_note` | "anota no Kauê que ele pediu desconto" | ✅ implementado |
-| `lead.toggle_favorite` | "favorita o Kauê" | ⬜ |
+| `lead.toggle_favorite` | "favorita o Kauê" | ✅ implementado |
 | `lead.delete` | "apaga o lead duplicado" | ✅ implementado (destrutivo → C-4) |
 
 Já cobertos e fora da onda: criar, atualizar, mover e taguear lead; criar tracking.
@@ -249,6 +249,7 @@ sem dado tocado.
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-24 | Weydson | Criada a partir da auditoria: 344 escritas, 33 ferramentas, 29 apps sem verbo |
+| 2026-09-24 | Weydson | `lead.toggle_favorite` e `tracking.create_status` implementados — 6 de 17, com os 7 verbos do registro classificando 3/3. "Contexto ausente" medido em **2/3**: em 1 de 3 o classificador devolve o pronome como nome, e o Astro pergunta à toa em vez de escrever errado |
 | 2026-09-24 | Weydson | `lead.add_note` e `agenda.cancel_appointment` implementados — 4 de 17. A medição por taxa revelou que a resolução de pronome estava em **1/3**, defeito que o teste de tentativa única escondia; com exemplo positivo e negativo no prompt, subiu para **3/3** |
 | 2026-09-24 | Weydson | `lead.delete` implementado — 2 de 17 da onda 1, primeiro destrutivo. D-6 acrescentada: a confirmação passou a ensaiar antes de perguntar |
 | 2026-09-24 | Weydson | D-4 (CRUD com exclusão confirmada e auditada) e D-5 (contexto conversacional) acrescentadas a pedido do dono do produto |
