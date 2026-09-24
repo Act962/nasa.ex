@@ -49,6 +49,7 @@ export const createAgendaAction: AstroAction<typeof inputSchema> = {
   description:
     "Cria uma AGENDA nova, o calendário em si — 'cria uma agenda de consultoria', 'nova agenda para atendimento'. " +
     "Não é marcar compromisso nem ativar agenda existente.",
+  permission: { appKey: "spacetime", action: "create" },
   requiresConfirmation: false,
   newNameFields: ["agendaName"],
   input: inputSchema,

@@ -25,6 +25,7 @@ export const renameStatusAction: AstroAction<typeof inputSchema> = {
   description:
     "Troca o NOME de uma coluna que já existe — 'renomeia a coluna X para Y', 'muda o nome da etapa X'. Não cria coluna nova. " +
     "Precisa do nome atual e do novo.",
+  permission: { appKey: "tracking", action: "edit" },
   requiresConfirmation: false,
   input: inputSchema,
 

@@ -55,6 +55,7 @@ export const createAppointmentAction: AstroAction<typeof inputSchema> = {
   description:
     "MARCA um compromisso novo — 'marca uma reunião com o Fulano sexta às 15h', 'agenda uma call amanhã às 9h'. " +
     "É criar do zero; remarcar um que já existe é outro verbo.",
+  permission: { appKey: "spacetime", action: "create" },
   requiresConfirmation: false,
   input: inputSchema,
 

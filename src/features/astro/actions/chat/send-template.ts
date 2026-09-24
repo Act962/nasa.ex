@@ -38,6 +38,7 @@ export const sendTemplateAction: AstroAction<typeof inputSchema> = {
     "Envia um template aprovado do WhatsApp para um lead. " +
     "Use quando o usuário disser 'manda o template de boas-vindas pro Fulano', " +
     "'dispara o modelo X pro Fulano'.",
+  permission: { appKey: "chat", action: "create" },
   requiresConfirmation: true,
   confirmTitle: "Enviar template ao cliente",
   confirmWarnings: [

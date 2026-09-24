@@ -28,6 +28,7 @@ export const addLeadNoteAction: AstroAction<typeof inputSchema> = {
     "Registra uma anotação na timeline de um lead que JÁ existe. Não cria lead. " +
     "Use quando o usuário disser 'anota no Fulano que...', 'registra que o Fulano pediu...', " +
     "'adiciona uma observação no Fulano'.",
+  permission: { appKey: "tracking", action: "create" },
   requiresConfirmation: false,
   input: inputSchema,
 

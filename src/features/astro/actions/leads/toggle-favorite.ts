@@ -34,6 +34,7 @@ export const toggleLeadFavoriteAction: AstroAction<typeof inputSchema> = {
     "Favorita ou desfavorita um lead. " +
     "Use quando o usuário disser 'favorita o Fulano', 'marca o Fulano como favorito', " +
     "'tira o Fulano dos favoritos'.",
+  permission: { appKey: "tracking", action: "edit" },
   requiresConfirmation: false,
   input: inputSchema,
   inferFields: (text) =>

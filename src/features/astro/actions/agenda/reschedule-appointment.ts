@@ -51,6 +51,7 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
     "Remarca um agendamento existente para outro horário. " +
     "Use quando o usuário disser 'remarca o Fulano para sexta às 15h', " +
     "'muda o horário do agendamento do Fulano', 'adia a reunião do Fulano'.",
+  permission: { appKey: "spacetime", action: "edit" },
   requiresConfirmation: true,
   input: inputSchema,
 

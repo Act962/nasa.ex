@@ -37,6 +37,7 @@ export const sendFormToLeadAction: AstroAction<typeof inputSchema> = {
   description:
     "Envia o link de um formulário para o WhatsApp de um lead — 'manda o formulário X pro Fulano'. " +
     "Use também para 'envia o briefing pro Fulano', 'dispara a ficha de cadastro pro cliente'.",
+  permission: { appKey: "formularios", action: "create" },
   requiresConfirmation: true,
   confirmTitle: "Enviar formulário ao cliente",
   confirmWarnings: [

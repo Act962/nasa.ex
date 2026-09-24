@@ -34,6 +34,7 @@ export const createLeadAction: AstroAction<typeof inputSchema> = {
     "Cria um CLIENTE novo no funil — 'cria um lead', 'cadastra o Fulano', 'novo contato Fulano'. " +
     "É sobre alguém de fora da empresa que ainda não está no sistema. " +
     "Não serve para anotar em lead existente nem para dar acesso a colega de equipe.",
+  permission: { appKey: "tracking", action: "create" },
   requiresConfirmation: false,
   newNameFields: ["leadName"],
   input: inputSchema,

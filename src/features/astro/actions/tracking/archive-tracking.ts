@@ -22,6 +22,7 @@ export const archiveTrackingAction: AstroAction<typeof inputSchema> = {
   description:
     "Arquiva um tracking inteiro. " +
     "Use quando o usuário disser 'arquiva o tracking X', 'tira o funil X da lista'.",
+  permission: { appKey: "tracking", action: "delete" },
   requiresConfirmation: true,
   confirmTitle: "Arquivar tracking",
   confirmWarnings: [

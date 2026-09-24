@@ -2,6 +2,7 @@ import "server-only";
 import type { z } from "zod";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import type { AstroAppId } from "./apps";
+import type { AppKey, OrgAction } from "@/features/permissions/lib/catalog";
 
 // Registro único de ações do Astro (spec 0023). Uma ação é declarada aqui e
 // alcança as três superfícies — orquestrador, classificador e executor por
@@ -67,6 +68,12 @@ export interface AstroAction<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
   toolName: string;
   /** Serve ao orquestrador e ao classificador — escreva pensando nos dois. */
   description: string;
+  /**
+   * Permissão exigida, na mesma matriz que o Master configura em Settings ›
+   * Permissões. Obrigatória: o Astro é um caminho a mais para o que a tela já
+   * faz, e um caminho a mais sem gate é um atalho para burlar o gate.
+   */
+  permission: { appKey: AppKey; action: OrgAction };
   /**
    * Ação de escrita passa pela confirmação da spec 0014 antes de gravar.
    * Obrigatório em exclusão: o registro devolve o cartão e só grava no "sim".

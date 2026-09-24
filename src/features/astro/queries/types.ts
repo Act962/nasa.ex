@@ -31,6 +31,12 @@ export interface AstroQuery {
   key: string;
   /** App a que pertence — serve ao inventário e ao relatório de cobertura. */
   app: string;
+  /**
+   * Chave na matriz de permissões (Settings › Permissões). Sem `canView`
+   * nela, a consulta não roda: "quanto tenho a receber" respondia para
+   * qualquer membro da organização, tivesse ou não acesso ao financeiro.
+   */
+  appKey: string;
   /** Recebe o texto normalizado e a conversa até aqui. */
   matches: (normalizedText: string, normalizedHistory: string) => boolean;
   run: (params: AstroQueryParams) => Promise<AstroQueryResult | null>;

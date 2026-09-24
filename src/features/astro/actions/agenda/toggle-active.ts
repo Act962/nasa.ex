@@ -21,6 +21,7 @@ export const toggleAgendaActiveAction: AstroAction<typeof inputSchema> = {
   description:
     "Ativa ou desativa uma agenda. " +
     "Use quando o usuário disser 'desativa a agenda X', 'reativa a agenda X'.",
+  permission: { appKey: "spacetime", action: "edit" },
   requiresConfirmation: false,
   input: inputSchema,
   inferFields: (text) =>

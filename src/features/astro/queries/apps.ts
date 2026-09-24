@@ -18,6 +18,7 @@ import {
 const unreadConversations: AstroQuery = {
   key: "chat.unread",
   app: "chat",
+  appKey: "chat",
   matches: (text) =>
     /\bconversas?|mensagens?|whatsapp\b/.test(text) &&
     /\bnao lidas?|sem ler|pendentes?|quantas|quantos\b/.test(text) &&
@@ -48,6 +49,7 @@ const unreadConversations: AstroQuery = {
 const messagesToday: AstroQuery = {
   key: "chat.messages_today",
   app: "chat",
+  appKey: "chat",
   matches: (text) => /\bmensagens?\b/.test(text) && periodFrom(text) !== null,
   run: async ({ ctx, text }) => {
     const period = periodFrom(text)!;
@@ -68,6 +70,7 @@ const messagesToday: AstroQuery = {
 const proposals: AstroQuery = {
   key: "forge.proposals",
   app: "forge",
+  appKey: "forge",
   matches: (text) => ASKS.test(text) && /\bpropostas?|orcamentos?\b/.test(text),
   run: async ({ ctx, text }) => {
     const period = periodFrom(text);
@@ -112,6 +115,7 @@ const proposals: AstroQuery = {
 const forms: AstroQuery = {
   key: "form.list",
   app: "form",
+  appKey: "formularios",
   matches: (text) => ASKS.test(text) && /\bformularios?|briefings?|fichas?\b/.test(text),
   run: async ({ ctx, text }) => {
     const period = periodFrom(text);
@@ -150,6 +154,7 @@ const forms: AstroQuery = {
 const workspaces: AstroQuery = {
   key: "workspace.list",
   app: "workspaces",
+  appKey: "workspace",
   matches: (text) => ASKS.test(text) && /\bworkspaces?|quadros?\b/.test(text),
   run: async ({ ctx, text }) => {
     const period = periodFrom(text);
@@ -191,6 +196,7 @@ const workspaces: AstroQuery = {
 const pendingActions: AstroQuery = {
   key: "workspace.actions_pending",
   app: "workspaces",
+  appKey: "workspace",
   matches: (text) =>
     /\btarefas?|acoes?|atividades?\b/.test(text) &&
     /\bpendentes?|abertas?|atrasadas?|quantas|quantos|vencidas?\b/.test(text),
@@ -220,6 +226,7 @@ const pendingActions: AstroQuery = {
 const financeSummary: AstroQuery = {
   key: "payment.summary",
   app: "payment",
+  appKey: "financeiro",
   matches: (text) =>
     // "Financeiro" sozinho é resposta a uma pergunta, não pedido de relatório.
     /\bcontas? a (pagar|receber)|\ba pagar\b|\ba receber\b|vencid[oa]s?|inadimplen/.test(text) ||
@@ -256,6 +263,7 @@ const financeSummary: AstroQuery = {
 const paidThisMonth: AstroQuery = {
   key: "payment.paid_month",
   app: "payment",
+  appKey: "financeiro",
   matches: (text) => /\b(paguei|recebi|pago|recebido)\b/.test(text),
   run: async ({ ctx, text }) => {
     const period = periodFrom(text);
@@ -282,6 +290,7 @@ const paidThisMonth: AstroQuery = {
 const pages: AstroQuery = {
   key: "pages.list",
   app: "pages",
+  appKey: "explorer",
   matches: (text) => ASKS.test(text) && /\bpaginas?|sites?|landing\b/.test(text),
   run: async ({ ctx, text }) => {
     const period = periodFrom(text);

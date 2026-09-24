@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { getAstroAction } from "./registry";
 import { proposeAction } from "./confirmation";
+import { checkAstroPermission } from "./permission-gate";
 import { appearsIn, buildActionInput } from "./coerce-fields";
 import type { AstroConfirmationPayload } from "@/features/astro/lib/astro-confirmation";
 import type { AstroAction, AstroActionResult } from "./types";
@@ -147,6 +148,44 @@ function buildChoiceRun(
     tokensUsed: classification.tokensUsed,
     provider: classification.provider,
     modelId: classification.modelId,
+  };
+}
+
+/** Recusa por permissão: cartão de erro, sem tocar no banco. */
+function buildDenialRun(params: {
+  classification: StagedClassification;
+  action: AstroAction;
+  message: string;
+}): ClassifiedRun {
+  const payload: AstroActionResult = {
+    status: "error",
+    title: "Sem permissão",
+    description: params.message,
+    appName: params.action.app,
+  };
+  const toolCallId = `astro-denied-${Date.now()}`;
+  const stream = createUIMessageStream({
+    execute: async ({ writer }) => {
+      writer.write({
+        type: "tool-input-available",
+        toolCallId,
+        toolName: params.action.toolName,
+        input: {},
+      });
+      writer.write({ type: "tool-output-available", toolCallId, output: payload });
+      const textId = `${toolCallId}-text`;
+      writer.write({ type: "text-start", id: textId });
+      writer.write({ type: "text-delta", id: textId, delta: params.message });
+      writer.write({ type: "text-end", id: textId });
+    },
+  });
+  return {
+    response: createUIMessageStreamResponse({ stream }),
+    route: "denied",
+    actionKey: params.action.key,
+    tokensUsed: params.classification.tokensUsed,
+    provider: params.classification.provider,
+    modelId: params.classification.modelId,
   };
 }
 
@@ -314,6 +353,22 @@ export async function runClassifiedAction(params: {
     askable && !namesSomethingNew
       ? await optionsForField(params.ctx, askable)
       : null;
+
+  // Permissão antes de qualquer coisa: antes do ensaio, antes da confirmação,
+  // antes até de perguntar o que falta — perguntar o nome do lead para depois
+  // recusar a exclusão é desperdiçar o tempo de quem não podia mesmo.
+  const allowed = await checkAstroPermission({
+    ctx: params.ctx,
+    appKey: action.permission.appKey,
+    action: action.permission.action,
+  });
+  if (!allowed.ok) {
+    return buildDenialRun({
+      classification: params.classification,
+      action,
+      message: allowed.error,
+    });
+  }
 
   const result: ClassifiedOutput =
     missing.length > 0 || !parsed.success

@@ -59,6 +59,7 @@ export const blockAgendaDateAction: AstroAction<typeof inputSchema> = {
   description:
     "Bloqueia ou libera UM DIA do calendário de uma agenda, sem desativar a agenda inteira — 'bloqueia o dia 30', 'libera o dia 5'. " +
     "Converta o dia dito para a data absoluta mais próxima no futuro.",
+  permission: { appKey: "spacetime", action: "edit" },
   requiresConfirmation: false,
   input: inputSchema,
   inferFields: (text) =>

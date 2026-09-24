@@ -31,6 +31,7 @@ export const deleteLeadAction: AstroAction<typeof inputSchema> = {
   description:
     "Exclui um lead do tracking, de forma permanente. " +
     "Use quando o usuário disser 'apaga o lead X', 'exclui o X', 'remove o lead duplicado'.",
+  permission: { appKey: "tracking", action: "delete" },
   requiresConfirmation: true,
   confirmTitle: "Excluir lead permanentemente",
   confirmWarnings: [

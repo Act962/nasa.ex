@@ -26,6 +26,7 @@ export const createTrackingAction: AstroAction<typeof inputSchema> = {
   description:
     "Cria um FUNIL inteiro, um board novo — 'cria um tracking', 'novo funil de atendimento'. " +
     "Não confunda com coluna: aqui nasce o quadro, não uma etapa dentro de um quadro que já existe.",
+  permission: { appKey: "tracking", action: "create" },
   requiresConfirmation: false,
   newNameFields: ["trackingName"],
   input: inputSchema,

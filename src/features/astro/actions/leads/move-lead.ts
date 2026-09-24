@@ -24,6 +24,7 @@ export const moveLeadAction: AstroAction<typeof inputSchema> = {
   description:
     "MOVE um lead para outra coluna do funil — 'move o Fulano para Em andamento', 'passa o Fulano para Ganhos'. " +
     "É mudar a etapa de um lead que já existe; não cria coluna nem renomeia nenhuma.",
+  permission: { appKey: "tracking", action: "edit" },
   requiresConfirmation: false,
   input: inputSchema,
 

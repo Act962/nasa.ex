@@ -37,6 +37,7 @@ export const cancelAppointmentAction: AstroAction<typeof inputSchema> = {
     "Cancela um agendamento existente. " +
     "Use quando o usuário disser 'cancela o agendamento do Fulano', " +
     "'desmarca a reunião do Fulano'.",
+  permission: { appKey: "spacetime", action: "delete" },
   requiresConfirmation: true,
   confirmTitle: "Cancelar agendamento",
   confirmWarnings: [

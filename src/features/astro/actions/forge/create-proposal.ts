@@ -60,6 +60,7 @@ export const createProposalAction: AstroAction<typeof inputSchema> = {
   description:
     "Cria uma proposta comercial no Forge para um cliente e devolve o link público para enviar a ele. " +
     "Use quando o usuário pedir 'cria uma proposta para X', 'monta um orçamento para X'.",
+  permission: { appKey: "forge", action: "create" },
   requiresConfirmation: true,
   input: inputSchema,
 

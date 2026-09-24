@@ -4,6 +4,7 @@ import { normalizeQuestion, type AstroQuery, type AstroQueryResult } from "./typ
 import { TRACKING_QUERIES } from "./tracking";
 import { AGENDA_QUERIES } from "./agenda";
 import { APP_QUERIES } from "./apps";
+import { canAstroRead } from "@/features/astro/actions/permission-gate";
 
 export type { AstroQuery, AstroQueryResult } from "./types";
 
@@ -28,6 +29,10 @@ export async function runAstroQuery(params: {
   const history = normalizeQuestion((params.history ?? []).slice(-4).join(" "));
   for (const query of ASTRO_QUERIES) {
     if (!query.matches(text, history)) continue;
+    // Casou a frase, mas ainda não pode ver: a consulta nem roda, e o pedido
+    // segue o caminho normal — onde as tools do orquestrador têm o próprio
+    // gate — em vez de devolver número que a tela esconderia.
+    if (!(await canAstroRead(params.ctx, query.appKey))) continue;
     const result = await query.run({ ctx: params.ctx, text, history });
     if (result) return { key: query.key, result };
   }

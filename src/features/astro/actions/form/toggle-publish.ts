@@ -21,6 +21,7 @@ export const toggleFormPublishAction: AstroAction<typeof inputSchema> = {
   description:
     "Publica um formulário ou tira do ar — 'publica o formulário X', 'tira o formulário X do ar'. " +
     "Formulário publicado passa a abrir pelo link público.",
+  permission: { appKey: "formularios", action: "edit" },
   requiresConfirmation: true,
   confirmTitle: "Mudar publicação do formulário",
   confirmWarnings: [

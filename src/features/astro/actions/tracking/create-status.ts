@@ -32,6 +32,7 @@ export const createStatusAction: AstroAction<typeof inputSchema> = {
   description:
     "Cria uma coluna NOVA no funil — 'cria a coluna X', 'adiciona a etapa X'. Não renomeia coluna existente. " +
     "Use quando o usuário quiser acrescentar uma etapa ao board.",
+  permission: { appKey: "tracking", action: "create" },
   requiresConfirmation: false,
   newNameFields: ["statusName"],
   input: inputSchema,

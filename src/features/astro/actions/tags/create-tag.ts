@@ -49,6 +49,7 @@ export const createTagAction: AstroAction<typeof inputSchema> = {
   description:
     "Cria uma TAG/etiqueta nova — 'cria uma tag chamada X', 'nova etiqueta X'. " +
     "Pergunte o escopo quando o usuário não disser: tag de tracking marca leads, tag de workspace marca tarefas.",
+  permission: { appKey: "tracking", action: "create" },
   requiresConfirmation: false,
   newNameFields: ["tagName"],
   inferFields: inferTagScope,

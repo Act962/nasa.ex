@@ -28,6 +28,7 @@ export const addTrackingParticipantAction: AstroAction<typeof inputSchema> = {
     "Dá acesso a um COLEGA DE EQUIPE em um tracking — é sobre usuário da organização, nunca sobre cliente. " +
     "Use quando o usuário disser 'põe o Fulano no tracking X', 'adiciona a Fulana como participante do funil Y', " +
     "'libera o acesso do Fulano ao board'.",
+  permission: { appKey: "tracking", action: "edit" },
   requiresConfirmation: false,
   input: inputSchema,
 

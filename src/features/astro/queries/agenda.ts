@@ -7,6 +7,7 @@ import { ASKS, periodFrom, plural, startOfToday, type AstroQuery } from "./types
 const listAgendas: AstroQuery = {
   key: "agenda.list",
   app: "agenda",
+  appKey: "spacetime",
   matches: (text) => ASKS.test(text) && /\bagendas?\b/.test(text) && !/\bhoje|semana|compromisso|reuniao|reunioes\b/.test(text),
   run: async ({ ctx }) => {
     const agendas = await prisma.agenda.findMany({
@@ -39,6 +40,7 @@ const listAgendas: AstroQuery = {
 const appointmentsToday: AstroQuery = {
   key: "agenda.appointments_today",
   app: "agenda",
+  appKey: "spacetime",
   matches: (text) =>
     /\bcompromissos?|reuni(ao|oes)|agendamentos?\b/.test(text) &&
     /\bhoje|amanha|semana|essa semana|quais|quantos|tenho\b/.test(text),
@@ -97,6 +99,7 @@ const appointmentsToday: AstroQuery = {
 const activeReminders: AstroQuery = {
   key: "agenda.reminders_active",
   app: "agenda",
+  appKey: "spacetime",
   matches: (text) => ASKS.test(text) && /\blembretes?\b/.test(text),
   run: async ({ ctx }) => {
     const reminders = await prisma.reminder.findMany({

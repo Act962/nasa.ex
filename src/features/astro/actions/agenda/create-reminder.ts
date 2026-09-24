@@ -118,6 +118,7 @@ export const createReminderAction: AstroAction<typeof inputSchema> = {
     "Cria lembrete para avisar o usuário depois — 'me lembra de', 'não me deixa esquecer', com hora e recorrência. " +
     "Use quando o usuário disser 'me lembra de ligar pro Fulano toda segunda', " +
     "'cria um lembrete de cobrar o Fulano dia 5'.",
+  permission: { appKey: "spacetime", action: "create" },
   requiresConfirmation: false,
   input: inputSchema,
   inferFields: inferReminderFields,

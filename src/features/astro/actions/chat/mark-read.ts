@@ -24,6 +24,7 @@ export const markChatReadAction: AstroAction<typeof inputSchema> = {
     "Marca mensagens de conversa como lidas. " +
     "Use quando o usuário disser 'marca as conversas como lidas', " +
     "'zera o não lido', 'marca o chat do Fulano como lido'.",
+  permission: { appKey: "chat", action: "edit" },
   requiresConfirmation: false,
   input: inputSchema,
 

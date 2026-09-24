@@ -24,6 +24,7 @@ export const createWorkspaceAction: AstroAction<typeof inputSchema> = {
   description:
     "Cria um WORKSPACE novo — 'cria um workspace', 'novo quadro de tarefas chamado X'. " +
     "É o espaço de trabalho interno da equipe, não o funil de leads.",
+  permission: { appKey: "workspace", action: "create" },
   requiresConfirmation: false,
   newNameFields: ["workspaceName"],
   input: inputSchema,

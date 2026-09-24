@@ -30,6 +30,7 @@ export const forwardMessageAction: AstroAction<typeof inputSchema> = {
     "Encaminha a última mensagem da conversa de um lead para outro lead. " +
     "Use quando o usuário disser 'encaminha a última mensagem do Fulano pro Beltrano', " +
     "'manda o que o Fulano falou pro Beltrano'.",
+  permission: { appKey: "chat", action: "create" },
   requiresConfirmation: true,
   confirmTitle: "Encaminhar mensagem",
   confirmWarnings: [

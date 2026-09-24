@@ -40,6 +40,7 @@ export const startConversationAction: AstroAction<typeof inputSchema> = {
     "Abre uma conversa com um número de telefone, criando o lead se não existir. " +
     "Use quando o usuário disser 'abre conversa com o 86 99999-9999', " +
     "'inicia um chat com esse número'.",
+  permission: { appKey: "chat", action: "create" },
   requiresConfirmation: true,
   confirmTitle: "Abrir conversa",
   input: inputSchema,

@@ -16,6 +16,7 @@ const LEAD = /\blead|\bleads|\bclientes?\b|\bcontatos?\b/;
 const countLeads: AstroQuery = {
   key: "tracking.leads_count",
   app: "tracking",
+  appKey: "tracking",
   matches: (text) => ASKS.test(text) && LEAD.test(text) && !/\betapa|coluna|status|tag|sem responsavel\b/.test(text) &&
     !periodFrom(text),
   run: async ({ ctx }) => {
@@ -56,6 +57,7 @@ const countLeads: AstroQuery = {
 const listTrackings: AstroQuery = {
   key: "tracking.list",
   app: "tracking",
+  appKey: "tracking",
   matches: (text) => ASKS.test(text) && /\btracking|trackings|funil|funis\b/.test(text) && !LEAD.test(text),
   run: async ({ ctx }) => {
     const trackings = await prisma.tracking.findMany({
@@ -88,6 +90,7 @@ const listTrackings: AstroQuery = {
 const leadsByStatus: AstroQuery = {
   key: "tracking.leads_by_status",
   app: "tracking",
+  appKey: "tracking",
   matches: (text) => ASKS.test(text) && LEAD.test(text) && /\betapa|coluna|status|funil\b/.test(text),
   run: async ({ ctx }) => {
     const statuses = await prisma.status.findMany({
@@ -128,6 +131,7 @@ const leadsByStatus: AstroQuery = {
 const unassignedLeads: AstroQuery = {
   key: "tracking.leads_unassigned",
   app: "tracking",
+  appKey: "tracking",
   matches: (text) => LEAD.test(text) && /\bsem responsavel|sem dono|nao atribuidos?|sem atendente\b/.test(text),
   run: async ({ ctx }) => {
     const count = await prisma.lead.count({
@@ -148,6 +152,7 @@ const unassignedLeads: AstroQuery = {
 const listTags: AstroQuery = {
   key: "tracking.tags_list",
   app: "tracking",
+  appKey: "tracking",
   matches: (text) => ASKS.test(text) && /\btags?|etiquetas?\b/.test(text),
   run: async ({ ctx }) => {
     const tags = await prisma.tag.findMany({
@@ -234,6 +239,7 @@ async function leadsTable(params: {
 const leadsCreatedInPeriod: AstroQuery = {
   key: "tracking.leads_created",
   app: "tracking",
+  appKey: "tracking",
   matches: (text) => LEAD.test(text) && periodFrom(text) !== null,
   run: async ({ ctx, text }) => {
     const period = periodFrom(text)!;
@@ -248,6 +254,7 @@ const leadsCreatedInPeriod: AstroQuery = {
 const listLeads: AstroQuery = {
   key: "tracking.leads_list",
   app: "tracking",
+  appKey: "tracking",
   matches: (text, history) => {
     const asksForList = /\b(lista|liste|listar|me manda|manda|me mostra|mostra|quais sao|quais)\b/.test(text);
     if (!asksForList) return false;
