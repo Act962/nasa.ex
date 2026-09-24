@@ -33,7 +33,7 @@ export interface SidebarNavItem {
 
 export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   // ── Visíveis por padrão (primeiro acesso) ───────────────────────────────
-  // Núcleo essencial pra novo user: 5 apps + página de Apps. Resto opt-in
+  // Núcleo essencial pra novo user: 6 apps + página de Apps. Resto opt-in
   // via página /apps (botão "+" no card adiciona ao menu).
   {
     key: "tracking",
@@ -84,15 +84,15 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     alwaysVisible: false,
     defaultVisible: true,
   },
-  // ── Ocultos por padrão (opt-in via /apps "+") ───────────────────────────
   {
     key: "contatos",
     title: "Contatos",
     url: "/contatos",
     icon: Users,
     alwaysVisible: false,
-    defaultVisible: false,
+    defaultVisible: true,
   },
+  // ── Ocultos por padrão (opt-in via /apps "+") ───────────────────────────
   {
     key: "integrations",
     title: "Integrações",
