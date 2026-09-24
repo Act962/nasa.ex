@@ -87,6 +87,10 @@ comercial e devolver o link público funciona nos dois modos.
 | RF-7 | O executor por regex (`execute.ts`) passa a chamar `forge.create_proposal` do registro em vez da sua própria cópia, e devolve o mesmo link público. |
 | RF-8 | Criar proposta exige confirmação antes de gravar, pelo fluxo de `astro_confirmation` já existente (spec 0014). |
 | RF-9 | O cartão de resposta traz o link público copiável e o link interno do Forge, rotulados. |
+| RF-10 | A fala capturada pelo orb entra **no mesmo roteador** que o texto digitado — regex, classificador, orquestrador, nessa ordem. Não existe caminho de voz separado. |
+| RF-11 | Ação que devolve `needs_input` pergunta o campo que falta por TTS e reabre a escuta, sem o usuário digitar. O ciclo repete até os campos obrigatórios estarem completos ou o usuário desistir. |
+| RF-12 | A confirmação de escrita (RF-8) aceita "sim" / "confirma" / "pode criar" por voz, e "não" / "cancela" cancela. Qualquer outra resposta repete a pergunta uma vez e depois cancela. |
+| RF-13 | Concluída a ação, o Astro lê em voz alta um resumo curto e **não** lê a URL caractere a caractere: fala "o link está no cartão" e o cartão mostra o link copiável. |
 
 ### Não-funcionais
 
@@ -96,6 +100,8 @@ comercial e devolver o link público funciona nos dois modos.
 | RNF-2 | O classificador responde em < 1,5 s no p95; acima disso, cai para o orquestrador em vez de fazer o usuário esperar as duas etapas. |
 | RNF-3 | Falha do classificador (timeout, erro do provedor, JSON inválido) **nunca** vira erro para o usuário: cai para o orquestrador. |
 | RNF-4 | O registro de custo (`UsageEvent`, spec 0021) grava qual caminho atendeu, em `metadata.route` = `classifier` \| `orchestrator` \| `regex`. |
+| RNF-5 | Voz **não** adiciona custo de IA: STT e TTS continuam sendo Web Speech API e Piper, nenhum dos dois passa por LLM. Um ciclo guiado inteiro resolvido por verbo consome **0 token**. |
+| RNF-6 | O ciclo guiado por voz não fica escutando indefinidamente: cada turno respeita o `CAPTURE_TIMEOUT_MS` já usado hoje (8 s), e o microfone fecha ao fim da ação. |
 
 ## 4. Critérios de aceite
 
@@ -107,6 +113,10 @@ comercial e devolver o link público funciona nos dois modos.
 - [ ] **CA-6** — Dada a proposta criada por qualquer um dos três caminhos, quando aberto o link público em aba anônima, então a proposta renderiza.
 - [ ] **CA-7** — Dado o mesmo comando na aba Comando, então o resultado e o link são idênticos aos da Conversa.
 - [ ] **CA-8** — Dada uma ação nova adicionada ao registro, então ela aparece nos dois caminhos sem edição em `execute.ts` nem no catálogo de ferramentas.
+- [ ] **CA-9** — Dado o usuário falando "crie uma proposta para a Maria", quando o ciclo termina no "sim" falado, então a proposta é criada **sem nenhuma digitação** e o `UsageEvent` do ciclo inteiro registra `totalTokens = 0`.
+- [ ] **CA-10** — Dado "crie uma proposta" falado sem cliente, então o Astro pergunta o cliente por voz, reabre a escuta e completa a ação com a resposta falada.
+- [ ] **CA-11** — Dada a pergunta de confirmação, quando o usuário responde algo que não é sim nem não, então o Astro repete a pergunta uma vez e, na segunda resposta inválida, cancela sem gravar.
+- [ ] **CA-12** — Dada a mesma frase digitada e falada, então o caminho escolhido e o resultado são idênticos — a origem da entrada não muda o roteamento.
 
 ## 5. Casos de borda
 
@@ -122,6 +132,12 @@ comercial e devolver o link público funciona nos dois modos.
 | CB-8 | Usuário sem permissão no Forge | Barrado no executor da ação, não no classificador — a permissão é do domínio. |
 | CB-9 | `publicToken` de proposta cancelada | A rota pública decide; esta spec não muda esse comportamento. |
 | CB-10 | Org com chave de IA própria (BYO) | O classificador usa a mesma resolução de chave do orquestrador (roteador da Fase 4, PR #400). |
+| CB-11 | STT transcreve errado o nome do cliente ("Maria" → "Mariah") | A busca por nome já é difusa e devolve candidatos; com mais de um, pergunta qual (CB-2). A confirmação mostra o nome resolvido, não o transcrito. |
+| CB-12 | Ruído dispara a escuta e transcreve frase sem sentido | Classificador devolve `null` → cairia no orquestrador e gastaria 19★ por um ruído. **Por isso** entrada de voz com confiança baixa pede confirmação falada em vez de escalar sozinha. |
+| CB-13 | Usuário fala durante a resposta do TTS | A pausa da wake word durante o TTS já existe hoje e é mantida: o Astro não captura a própria voz. |
+| CB-14 | Safari / iOS | A Web Speech API é instável ali, com desconexões frequentes — limitação já documentada em `use-wake-word.ts`. A voz degrada para o campo de texto; o roteamento não muda. |
+| CB-15 | Microfone negado ou indisponível | Fluxo atual do `mic-permission-guide` é mantido. Nada da ação é perdido: o que já foi coletado vira o formulário do `needs_input`. |
+| CB-16 | Usuário abandona o ciclo no meio | Timeout de captura fecha o microfone e a ação é descartada sem gravar. Nada de pendência em aberto. |
 
 ## 6. Decisões de design
 
@@ -165,6 +181,30 @@ comercial e devolver o link público funciona nos dois modos.
 - **Consequência**: um passo a mais no caminho feliz, e é ele que torna CB-1
   aceitável.
 
+### D-5 — Voz é uma entrada a mais no mesmo roteador, não um caminho próprio
+
+- **Escolha**: o orb continua só capturando a fala; a string transcrita entra
+  exatamente onde entra o texto digitado. Regex → classificador → orquestrador.
+- **Alternativas descartadas**:
+  - *Um interpretador de voz separado* — seriam duas gramáticas para manter, e
+    a divergência entre elas viraria "funciona falando, não funciona digitando".
+  - *Mandar toda fala direto ao orquestrador*, que é o comportamento de hoje —
+    é o pior par possível: a voz convida a pedidos curtos e frequentes, que são
+    justamente os que não precisam de orquestrador e custam 19★ cada.
+- **Consequência**: a voz herda de graça toda ação nova do registro. E o
+  argumento de custo fica mais forte do que no texto: um ciclo falado inteiro
+  resolvido por verbo custa **zero token**, porque STT e TTS não passam por LLM.
+
+### D-6 — Entrada por voz com baixa confiança confirma, não escala
+
+- **Escolha**: quando a fala não casa com verbo nem atinge o limiar do
+  classificador, o Astro pergunta o que entendeu em vez de mandar para o
+  orquestrador.
+- **Alternativas descartadas**: *escalar como no texto* — texto é deliberado,
+  fala pega ruído de sala. Escalar ruído custa 19★ por acidente (CB-12).
+- **Consequência**: um turno a mais no caso ambíguo, e o usuário sabe o que o
+  Astro ouviu antes de qualquer coisa acontecer.
+
 ## 7. Impacto
 
 - [ ] Schema / migration — **nada**. `publicToken` e a rota pública já existem.
@@ -187,6 +227,9 @@ comercial e devolver o link público funciona nos dois modos.
 | CA-3, CA-4 | script | Mesmo script, forçando `null` e erro no classificador |
 | CA-6 | manual | Abrir o link em aba anônima |
 | CA-8 | script | Registrar ação de teste e afirmar que aparece nas duas superfícies |
+| CA-9, CA-10, CA-11 | manual | Ciclo falado do início ao fim, em Chrome, com o microfone real |
+| CA-9 (custo) | script | Mesmo `verify-astro-routing.ts`: afirmar `totalTokens = 0` no ciclo resolvido por verbo |
+| CA-12 | manual | Mesma frase digitada e falada; comparar `metadata.route` dos dois |
 
 ## 9. Riscos e rollback
 
@@ -198,6 +241,14 @@ cartão de confirmação errado, que se cancela.
 orquestração. Pelos números de hoje isso adiciona ~0,2★ sobre 19★ — ~1%. Aceito,
 mas medir em produção antes de espalhar para outras ações.
 
+**Risco de voz — ruído virando ação.** Mitigado em duas camadas: confirmação
+falada antes de qualquer escrita (D-4) e não-escalonamento de fala ambígua
+(D-6). O pior caso é o Astro perguntar algo que ninguém pediu.
+
+**Dependência de navegador.** A Web Speech API é instável em Safari e iOS, o que
+já está documentado em `use-wake-word.ts`. A voz é um atalho, nunca o único
+caminho: tudo que se faz falando se faz digitando (CB-14).
+
 **Rollback**: constante `ASTRO_INTENT_ROUTING` desligada faz todo pedido ir
 direto ao orquestrador, que é o comportamento atual. Sem migration, sem dado
 reescrito — nada a desfazer no banco. O registro de ações e o link público
@@ -208,3 +259,4 @@ podem ficar, porque são aditivos.
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-24 | Weydson | Criada |
+| 2026-09-24 | Weydson | Entrada por voz: RF-10 a RF-13, RNF-5/6, CA-9 a CA-12, CB-11 a CB-16, D-5 e D-6 |
