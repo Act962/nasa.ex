@@ -107,7 +107,7 @@ export function TeamSwitcher() {
                   <GalleryVerticalEnd className="size-4" />
                 </div>
               )}
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                 {organizationActive?.name ? (
                   <span className="truncate font-medium">
                     {organizationActive.name}
@@ -116,7 +116,7 @@ export function TeamSwitcher() {
                   <span className="truncate font-medium">Nenhuma empresa</span>
                 )}
               </div>
-              <ChevronsUpDown className="ml-auto" />
+              <ChevronsUpDown className="ml-auto group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

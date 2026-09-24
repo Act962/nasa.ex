@@ -20,6 +20,7 @@ import { TeamSwitcher } from "./team-switcher";
 import { NavUser } from "./nav-user";
 import { NotificationBell } from "./notification-bell";
 import { NavMenu } from "./nav-menu";
+import { ICON_MODE_BUTTON, ICON_MODE_LABEL } from "./icon-mode";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
@@ -61,10 +62,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <NotificationBell />
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip={"Space Help"} asChild>
+            <SidebarMenuButton
+              tooltip={"Space Help"}
+              asChild
+              className={ICON_MODE_BUTTON}
+            >
               <Link href="/space-help">
                 <GraduationCap className="size-4" />
-                <span>Space Help</span>
+                <span className={ICON_MODE_LABEL}>Space Help</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -153,7 +153,7 @@ export function NavUser() {
                       </AvatarFallback>
                     )}
                   </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
+                  <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                     {session?.user.name && (
                       <div className="flex items-baseline gap-1">
                         <span className="truncate font-medium">
@@ -174,7 +174,7 @@ export function NavUser() {
                   </div>
                 </>
               )}
-              <ChevronsUpDown className="ml-auto size-4" />
+              <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

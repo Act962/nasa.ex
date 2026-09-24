@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { Bell, Check, CheckCheck, ExternalLink, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { ICON_MODE_BUTTON, ICON_MODE_LABEL } from "./icon-mode";
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -113,6 +114,7 @@ export function NotificationBell() {
             size="default"
             className={cn(
               "relative transition-all duration-200",
+              ICON_MODE_BUTTON,
               open &&
                 "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm",
             )}
@@ -132,10 +134,10 @@ export function NotificationBell() {
               )}
             </span>
 
-            <span>Notificações</span>
+            <span className={ICON_MODE_LABEL}>Notificações</span>
 
             {isLoading && (
-              <Loader2 className="ml-auto size-3 animate-spin opacity-40 shrink-0" />
+              <Loader2 className="ml-auto size-3 animate-spin opacity-40 shrink-0 group-data-[collapsible=icon]:hidden" />
             )}
           </SidebarMenuButton>
         </PopoverTrigger>
