@@ -18,6 +18,7 @@ import {
   Rocket,
   Send,
   TrendingUp,
+  AtSign,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type React from "react";
@@ -164,6 +165,14 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     icon: Rocket,
     alwaysVisible: false,
     defaultVisible: false,
+  },
+  {
+    key: "comments",
+    title: "COMMENTS",
+    url: "/comments",
+    icon: AtSign,
+    alwaysVisible: false,
+    defaultVisible: true,
   },
   {
     key: "campanhas",

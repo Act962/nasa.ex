@@ -127,6 +127,7 @@ export const APPS: AppDef[] = [
     href: "/comments",
     activeUsers: null,
     theme: "purple",
+    sidebarKey: "comments",
   },
   {
     id: "forge",
