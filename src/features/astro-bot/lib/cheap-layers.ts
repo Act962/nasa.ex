@@ -1,9 +1,12 @@
 import "server-only";
 import { runAstroQuery } from "@/features/astro/queries/registry";
-import { classifyStaged } from "@/features/astro/actions/classify-staged";
+import {
+  hasGuidedSlot,
+  resolveGuided,
+  takeLastTokensUsed,
+} from "@/features/astro/actions/guided-slots";
 import {
   isConfirmation,
-  resolveClassifiedAction,
   type ClassifiedOutput,
 } from "@/features/astro/actions/resolve-action";
 import type { AstroTablePayload } from "@/features/astro/lib/astro-table";
@@ -96,12 +99,18 @@ export async function tryCheapLayers(params: {
   const text = params.text.trim();
   if (!text) return null;
 
-  // 1. Consulta em código — custo zero.
-  const queried = await runAstroQuery({
-    ctx: params.ctx,
-    text,
-    history: params.history,
-  });
+  const sessionId = params.ctx.sessionId ?? params.ctx.organizationId;
+
+  // 1. Consulta em código — custo zero. Pulada quando há pergunta no ar:
+  // "despesa", respondendo a "despesa ou receita?", não é pedido de
+  // relatório financeiro.
+  const queried = hasGuidedSlot(sessionId)
+    ? null
+    : await runAstroQuery({
+        ctx: params.ctx,
+        text,
+        history: params.history,
+      });
   if (queried) {
     const table = queried.result.table ? `\n\n${tableToText(queried.result.table)}` : "";
     return {
@@ -111,39 +120,30 @@ export async function tryCheapLayers(params: {
     };
   }
 
-  // 2. Verbo classificado — duas chamadas curtas em vez do turno inteiro.
-  const classification = await classifyStaged({
-    organizationId: params.ctx.organizationId,
+  // 2. Verbo — classificado quando é pedido novo, continuado quando é
+  // resposta ao que o Astro perguntou.
+  const resolved = await resolveGuided({
+    ctx: params.ctx,
     text,
     history: params.history,
+    sessionId,
   });
-  if (!classification) return null;
-
-  const resolved = await resolveClassifiedAction({
-    ctx: params.ctx,
-    classification,
-    userText: text,
-    history: params.history,
-  });
-  if (!resolved) {
-    // Classificou mas não resolveu: o orquestrador atende, e os tokens já
-    // gastos na triagem precisam entrar na conta.
-    return null;
-  }
+  const tokensUsed = takeLastTokensUsed(sessionId);
+  if (!resolved) return null;
 
   if (resolved.kind === "choice") {
     return {
       reply: `${resolved.payload.description}\n\n${optionsToText(resolved.payload.options)}`,
       route: "dropdown",
       actionKey: resolved.actionKey,
-      tokensUsed: classification.tokensUsed,
+      tokensUsed,
     };
   }
 
   return {
     reply: outputToText(resolved.output),
-    route: resolved.denied ? "denied" : classification.layer,
+    route: resolved.denied ? "denied" : "verbo",
     actionKey: resolved.action.key,
-    tokensUsed: classification.tokensUsed,
+    tokensUsed,
   };
 }

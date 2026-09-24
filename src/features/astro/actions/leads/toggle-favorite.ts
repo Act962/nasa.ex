@@ -28,7 +28,7 @@ const inputSchema = z.object({
 
 export const toggleLeadFavoriteAction: AstroAction<typeof inputSchema> = {
   key: "lead.toggle_favorite",
-  app: "tracking",
+  app: "leads",
   toolName: "toggle_lead_favorite",
   description:
     "Favorita ou desfavorita um lead. " +

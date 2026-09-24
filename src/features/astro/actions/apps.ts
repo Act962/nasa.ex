@@ -7,8 +7,13 @@ import "server-only";
 // o que ele é — "onde ficam os leads" separa melhor que "CRM".
 
 export const ASTRO_APPS = {
+  // Dois apps porque a etapa 2 perde precisão acima de ~12 verbos (spec
+  // 0025): o funil é a ESTRUTURA (quadro, colunas, quem participa); o lead é
+  // a PESSOA que anda por ela.
+  leads:
+    "Clientes e contatos: criar lead, EDITAR dados do lead (telefone, e-mail, valor, temperatura), MOVER lead de coluna, apagar lead, favoritar, ANOTAR observação sobre um cliente",
   tracking:
-    "Leads e funis: criar FUNIL/tracking, criar lead, MOVER lead de coluna, apagar, favoritar, ANOTAR/registrar observação em um cliente, colunas e participantes do board",
+    "Estrutura do funil: criar ou renomear TRACKING/funil, criar ou renomear COLUNA/etapa, criar ETIQUETA/tag, arquivar funil, dar acesso a colega no board. É o quadro e sua configuração, não as pessoas dentro dele",
   agenda:
     "Compromissos e tempo: criar AGENDA, marcar, remarcar, cancelar reunião, criar LEMBRETE, bloquear dia, ativar agenda",
   chat:
@@ -18,7 +23,7 @@ export const ASTRO_APPS = {
   form:
     "Formulários, briefings e fichas de cadastro: mandar o FORMULÁRIO ao cliente, publicar, tirar do ar. Só quando a palavra formulário, briefing ou ficha aparecer",
   payment:
-    "Financeiro/dinheiro: LANÇAR despesa ou receita, contas a pagar e receber, conciliação. Use quando a frase falar em R$, valor, despesa, gasto, receita ou pagamento",
+    "Financeiro/dinheiro: LANÇAR despesa ou receita, DAR BAIXA em conta paga/recebida, contas a pagar e receber, conciliação. Use quando a frase falar em R$, valor, despesa, gasto, receita ou pagamento",
   pages: "Sites e páginas publicadas",
   workspaces:
     "Quadros de trabalho interno da equipe: criar workspace, organizar tarefas do time (não é funil de leads)",

@@ -26,7 +26,7 @@ const inputSchema = z.object({
 
 export const deleteLeadAction: AstroAction<typeof inputSchema> = {
   key: "lead.delete",
-  app: "tracking",
+  app: "leads",
   toolName: "delete_lead",
   description:
     "Exclui um lead do tracking, de forma permanente. " +

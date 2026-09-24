@@ -27,7 +27,18 @@ export type ClassifiedOutput = AstroActionResult | AstroConfirmationPayload;
 
 export type ResolvedClassification =
   | { kind: "choice"; payload: AstroActionResult; actionKey: string }
-  | { kind: "result"; action: AstroAction; output: ClassifiedOutput; denied?: boolean };
+  | {
+      kind: "result";
+      action: AstroAction;
+      output: ClassifiedOutput;
+      denied?: boolean;
+      /** O que já foi coletado — o próximo turno soma a isto. */
+      pendingFields?: Record<string, unknown>;
+      /** Campo que a pergunta atual espera. */
+      awaitingField?: string;
+      /** Opções mostradas, para "2" virar a segunda delas. */
+      awaitingOptions?: { id: string; label: string }[];
+    };
 
 export function isConfirmation(
   value: ClassifiedOutput,
@@ -243,9 +254,35 @@ export async function resolveClassifiedAction(params: {
   const action = getAstroAction(best.action);
   if (!action) return null;
 
+  return resolveActionWithFields({
+    ctx: params.ctx,
+    action,
+    rawFields: best.fields,
+    userText: params.userText,
+    history: params.history,
+  });
+}
+
+/**
+ * Resolve uma ação com os campos já em mãos — sem classificar de novo.
+ *
+ * É o que sustenta o ciclo guiado: o usuário responde "2", depois "despesa",
+ * depois "100,00", e cada resposta soma à anterior. Antes, cada turno voltava
+ * ao classificador e perdia o que já tinha sido dito — o lançamento perguntava
+ * o valor duas vezes e nunca saía.
+ */
+export async function resolveActionWithFields(params: {
+  ctx: AgentContext;
+  action: AstroAction;
+  /** Campos crus (strings do classificador ou respostas do usuário). */
+  rawFields: Record<string, string>;
+  userText?: string;
+  history?: string[];
+}): Promise<ResolvedClassification | null> {
+  const { action } = params;
   const rawFields = buildActionInput(
     action,
-    best.fields,
+    params.rawFields,
     params.userText ?? "",
     params.history,
   );
@@ -328,5 +365,26 @@ export async function resolveClassifiedAction(params: {
           })
         : await action.execute({ ctx: params.ctx, input: parsed.data });
 
-  return { kind: "result", action, output };
+  // O campo esperado sai do PRÓPRIO resultado, não de `missing`: "Em qual
+  // conta?" nasce dentro do `execute`, quando a resolução por nome encontra
+  // mais de um registro, e aí `missing` está vazio. Ler só `missing` fazia a
+  // resposta cair no vazio e a pergunta se repetir para sempre.
+  const awaiting = (() => {
+    if ("kind" in output) return undefined;
+    if (output.status === "ambiguous") return output.field;
+    if (output.status === "needs_input") return output.missingFields[0]?.key;
+    return undefined;
+  })();
+
+  return {
+    kind: "result",
+    action,
+    output,
+    // Quem chama guarda isto para somar a próxima resposta em vez de
+    // recomeçar: é o estado do ciclo guiado.
+    pendingFields: fields as Record<string, unknown>,
+    awaitingField: awaiting ?? askable,
+    awaitingOptions:
+      !("kind" in output) && output.status === "ambiguous" ? output.options : undefined,
+  };
 }

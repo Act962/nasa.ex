@@ -28,7 +28,7 @@ const inputSchema = z.object({
 
 export const createLeadAction: AstroAction<typeof inputSchema> = {
   key: "lead.create",
-  app: "tracking",
+  app: "leads",
   toolName: "create_lead_in_tracking",
   description:
     "Cria um CLIENTE novo no funil — 'cria um lead', 'cadastra o Fulano', 'novo contato Fulano'. " +

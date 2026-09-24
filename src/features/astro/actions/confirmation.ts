@@ -7,6 +7,7 @@ import {
 } from "@/features/astro/server/tools/_shared/proposals/types";
 import type { AstroConfirmationPayload } from "@/features/astro/lib/astro-confirmation";
 import { ASTRO_ACTIONS, getAstroAction } from "./registry";
+import { labelFor } from "./resolve-action";
 import type { AstroAction, AstroActionResult } from "./types";
 
 /**
@@ -23,12 +24,23 @@ function actionTypeFor(action: AstroAction): string {
   return `${ACTION_TYPE_PREFIX}${action.key}`;
 }
 
-/** Transforma os campos em linhas legíveis do cartão de confirmação. */
+/**
+ * Transforma os campos em linhas legíveis. O nome do campo no código não é
+ * palavra de gente: o cartão mostrava "accountName" e "amount" para quem só
+ * queria conferir a conta e o valor.
+ */
 function linesFor(input: Record<string, unknown>) {
   return Object.entries(input)
     .filter(([, value]) => value !== undefined && value !== null && value !== "")
     .slice(0, 8)
-    .map(([label, value]) => ({ label, value: String(value) }));
+    .map(([key, value]) => ({
+      label: capitalize(labelFor(key).replace(/^(o|a|os|as|se) /, "")),
+      value: String(value),
+    }));
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /**

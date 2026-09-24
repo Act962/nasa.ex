@@ -19,7 +19,7 @@ const inputSchema = z.object({
 
 export const moveLeadAction: AstroAction<typeof inputSchema> = {
   key: "lead.move",
-  app: "tracking",
+  app: "leads",
   toolName: "move_lead_to_status",
   description:
     "MOVE um lead para outra coluna do funil — 'move o Fulano para Em andamento', 'passa o Fulano para Ganhos'. " +
