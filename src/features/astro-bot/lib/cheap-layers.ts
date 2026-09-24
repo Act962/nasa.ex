@@ -1,7 +1,7 @@
 import "server-only";
 import { runAstroQuery } from "@/features/astro/queries/registry";
 import {
-  hasGuidedSlot,
+  shouldSkipReading,
   resolveGuided,
   takeLastTokensUsed,
 } from "@/features/astro/actions/guided-slots";
@@ -188,7 +188,7 @@ export async function tryCheapLayers(params: {
   // 1. Consulta em código — custo zero. Pulada quando há pergunta no ar:
   // "despesa", respondendo a "despesa ou receita?", não é pedido de
   // relatório financeiro.
-  const queried = hasGuidedSlot(sessionId)
+  const queried = shouldSkipReading(sessionId, text)
     ? null
     : await runAstroQuery({
         ctx: params.ctx,

@@ -126,9 +126,14 @@ export async function POST(request: NextRequest) {
         const vote = (json.message as { vote?: unknown }).vote;
         return typeof vote === "string" ? vote.trim() : "";
       };
+      // A Uazapi prefixa o nome de quem enviou numa primeira linha em
+      // negrito. Sem tirar, o comando virava "*Weydson Lima* adicione..." e
+      // o Astro procurava conta com o nome do remetente junto.
+      const stripSenderPrefix = (text: string): string =>
+        text.replace(/^\*[^*\n]{2,60}\*\s*\n+/, "").trim();
       const bodyForBot = isInteractiveReplyForBot
-        ? pickInteractiveText()
-        : (json.message.text ?? "").trim();
+        ? stripSenderPrefix(pickInteractiveText())
+        : stripSenderPrefix((json.message.text ?? "").trim());
       const isTextForBot =
         botMessageType === "Conversation" ||
         botMessageType === "ExtendedTextMessage" ||

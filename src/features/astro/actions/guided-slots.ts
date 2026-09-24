@@ -2,6 +2,7 @@ import "server-only";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { getAstroAction } from "./registry";
 import { classifyStaged } from "./classify-staged";
+import { ASKS, WRITE_VERB, normalizeQuestion } from "@/features/astro/queries/types";
 import {
   resolveActionWithFields,
   resolveClassifiedAction,
@@ -47,13 +48,66 @@ function readSlot(sessionId: string): GuidedSlot | null {
   return slot;
 }
 
-/** Há pergunta no ar? Quem chama pula a camada de leitura nesse caso. */
-export function hasGuidedSlot(sessionId: string): boolean {
-  return readSlot(sessionId) !== null;
+/**
+ * A camada de leitura deve ficar de fora desta mensagem?
+ *
+ * Só quando há pergunta no ar E a mensagem responde a ela. Checar apenas a
+ * pergunta pendente tapava a consulta: "me envie a lista das contas" ficava
+ * sem resposta porque a leitura estava desligada enquanto o Astro esperava
+ * o nome de uma conta.
+ */
+export function shouldSkipReading(sessionId: string, text: string): boolean {
+  const slot = readSlot(sessionId);
+  if (!slot) return false;
+  return !looksLikeNewRequest(text, slot.options);
 }
 
 export function clearGuidedSlot(sessionId: string): void {
   slots.delete(sessionId);
+}
+
+/** Escapes explícitos: o usuário desiste e precisa ser ouvido na hora. */
+const ABANDON = /^(cancela|cancelar|esquece|esqueca|deixa|deixa pra la|para|parar|zerar|zera|limpa|limpar|recomecar|recomeca|sair|nao quero)\b/;
+
+/**
+ * A resposta fez o ciclo andar?
+ *
+ * Sem esta pergunta o slot vira armadilha: o Astro perguntou a conta, o
+ * usuário mudou de assunto, e tudo que ele digitou virou tentativa de
+ * responder "qual conta" — inclusive "me envie a lista das contas", que
+ * voltava "não achei conta com me envie a lista das contas".
+ */
+function madeProgress(
+  before: GuidedSlot,
+  resolved: ResolvedClassification,
+): boolean {
+  if (resolved.kind !== "result") return true;
+  const { output } = resolved;
+  if ("kind" in output) return true;
+  if (output.status === "done" || output.status === "error") return true;
+  // Mesma pergunta de novo: a resposta não serviu.
+  return resolved.awaitingField !== before.awaitingField;
+}
+
+/**
+ * Isto é resposta à pergunta, ou assunto novo?
+ *
+ * "Me envie a lista das contas", respondendo a "em qual conta?", virava o
+ * NOME de uma conta inexistente — e o Astro respondia "não achei conta com
+ * me envie a lista das contas". Resposta é curta, ou casa com uma das opções
+ * oferecidas. Pedido novo tem verbo e tamanho.
+ */
+function looksLikeNewRequest(text: string, options?: { label: string }[]): boolean {
+  const normalized = normalizeQuestion(text);
+  if (options?.some((option) => normalizeQuestion(option.label) === normalized)) {
+    return false;
+  }
+  // Pergunta é sempre assunto novo: ninguém responde "em qual conta?" com
+  // "quantos leads temos?". Ordem precisa de corpo — "2" e "Banco Teste"
+  // também começam frase, mas não são pedido.
+  if (ASKS.test(normalized)) return true;
+  const words = normalized.split(/\s+/).filter(Boolean);
+  return words.length > 3 && WRITE_VERB.test(normalized);
 }
 
 /** "2" responde a lista; "Nu bank" também. Número só vale dentro da faixa. */
@@ -119,7 +173,31 @@ export async function resolveGuided(params: {
   const pending = readSlot(params.sessionId);
 
   if (pending) {
-    const action = getAstroAction(pending.actionKey);
+    const normalized = params.text
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    if (ABANDON.test(normalized)) {
+      slots.delete(params.sessionId);
+      return {
+        kind: "result",
+        action: getAstroAction(pending.actionKey)!,
+        output: {
+          status: "error",
+          title: "Cancelado",
+          description: "Ok, cancelei. Nada foi gravado. O que você quer fazer?",
+          appName: "Órbita",
+        },
+      };
+    }
+
+    if (looksLikeNewRequest(params.text, pending.options)) {
+      slots.delete(params.sessionId);
+    }
+
+    const action = readSlot(params.sessionId) ? getAstroAction(pending.actionKey) : null;
     if (action) {
       const answer = answerToValue(params.text, pending.options);
       const fields = { ...pending.fields };
@@ -134,7 +212,9 @@ export async function resolveGuided(params: {
         userText: "",
         history: params.history,
       });
-      if (resolved) {
+      // Só continua o ciclo se ele andou. Repetir a mesma pergunta significa
+      // que o usuário falou de outra coisa — aí vale reclassificar.
+      if (resolved && madeProgress(pending, resolved)) {
         remember(params.sessionId, pending.actionKey, resolved);
         return resolved;
       }

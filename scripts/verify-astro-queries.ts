@@ -25,6 +25,7 @@ const FRASES: Record<string, string> = {
   "workspace.list": "quais workspaces temos?",
   "workspace.actions_pending": "quantas tarefas pendentes?",
   "payment.summary": "quanto tenho a receber?",
+  "payment.accounts_list": "me envie a lista das contas",
   "payment.paid_month": "quanto recebi esse mês?",
   "pages.list": "quais páginas temos?",
 };

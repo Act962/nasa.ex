@@ -287,6 +287,36 @@ const paidThisMonth: AstroQuery = {
   },
 };
 
+const paymentAccounts: AstroQuery = {
+  key: "payment.accounts_list",
+  app: "payment",
+  appKey: "financeiro",
+  matches: (text) =>
+    /\bcontas?\b/.test(text) &&
+    /\b(quais|liste|lista|me envie|envie|me manda|manda|me mostra|mostra|quantas)\b/.test(text) &&
+    !/\ba pagar\b|\ba receber\b|vencid/.test(text),
+  run: async ({ ctx }) => {
+    const rows = await prisma.paymentBankAccount.findMany({
+      where: { organizationId: ctx.organizationId, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+      take: 20,
+    });
+    if (rows.length === 0) return { text: "Nenhuma conta bancária cadastrada." };
+    return {
+      text: `Você tem ${rows.length} ${plural(rows.length, "conta", "contas")}:`,
+      table: {
+        kind: "astro_table",
+        entityType: "lead",
+        title: "Contas bancárias",
+        columns: [{ key: "name", label: "Conta" }],
+        rows: rows.map((account) => ({ id: account.id, name: account.name })),
+        totalCount: rows.length,
+      },
+    };
+  },
+};
+
 const pages: AstroQuery = {
   key: "pages.list",
   app: "pages",
@@ -329,6 +359,7 @@ const pages: AstroQuery = {
 };
 
 export const APP_QUERIES: AstroQuery[] = [
+  paymentAccounts,
   messagesToday,
   unreadConversations,
   proposals,
