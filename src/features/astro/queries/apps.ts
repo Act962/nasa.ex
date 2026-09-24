@@ -221,7 +221,9 @@ const financeSummary: AstroQuery = {
   key: "payment.summary",
   app: "payment",
   matches: (text) =>
-    /\bcontas? a (pagar|receber)|financeiro|a pagar|a receber|vencid[oa]s?|inadimplen/.test(text),
+    // "Financeiro" sozinho é resposta a uma pergunta, não pedido de relatório.
+    /\bcontas? a (pagar|receber)|\ba pagar\b|\ba receber\b|vencid[oa]s?|inadimplen/.test(text) ||
+    (/\bfinanceiro\b/.test(text) && /\b(quanto|quantos|resumo|situacao|como esta|saldo)\b/.test(text)),
   run: async ({ ctx }) => {
     const org = { organizationId: ctx.organizationId };
     const open = { status: { in: ["PENDING", "PARTIAL", "OVERDUE"] as const } };

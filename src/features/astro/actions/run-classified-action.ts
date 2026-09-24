@@ -50,6 +50,8 @@ const FIELD_LABELS: Record<string, string> = {
   formName: "o nome do formulário",
   trackingName: "o nome do tracking",
   workspaceName: "o nome do workspace",
+  tagName: "o nome da tag",
+  scope: "se a tag é para tracking (leads) ou workspace (tarefas)",
   agendaName: "o nome da agenda",
   statusName: "o nome da coluna",
   currentName: "o nome atual da coluna",

@@ -101,6 +101,16 @@ async function main() {
     }
   }
 
+  // Resposta curta a pergunta pendente não pode virar consulta nova.
+  for (const resposta of ["Financeiro", "Tracking", "FINANCEIRO"]) {
+    const hit = await runAstroQuery({ ctx, text: resposta });
+    check(
+      "resposta curta não vira consulta",
+      hit === null,
+      hit ? `"${resposta}" casou com ${hit.key}` : `"${resposta}" não casa com consulta nenhuma`,
+    );
+  }
+
   // Referência ao turno anterior: "a lista deles" só resolve com histórico.
   const comHistorico = await runAstroQuery({
     ctx,

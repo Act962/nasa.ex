@@ -100,6 +100,30 @@ function extractConversationHistory(messages: UIMessage[]): string[] {
     .filter(Boolean);
 }
 
+/**
+ * O turno anterior do Astro deixou uma pergunta no ar?
+ *
+ * "Financeiro", respondendo a "qual tracking?", casou com a consulta do
+ * financeiro e devolveu contas a pagar. Resposta curta a uma pergunta
+ * pendente não é pedido novo — e enquanto houver pergunta no ar, a camada
+ * de consulta fica de fora.
+ */
+const PENDING_QUESTION =
+  /me diga:|para eu continuar|qual deles\?|escolha |ou workspace\?|me diga o |qual o nome|em qual /i;
+
+function lastAssistantAsked(messages: UIMessage[]): boolean {
+  const lastAssistant = [...messages]
+    .slice(0, -1)
+    .reverse()
+    .find((message) => message.role === "assistant");
+  if (!lastAssistant || !Array.isArray(lastAssistant.parts)) return false;
+  const text = lastAssistant.parts
+    .filter((part): part is { type: "text"; text: string } => part.type === "text")
+    .map((part) => part.text)
+    .join(" ");
+  return PENDING_QUESTION.test(text);
+}
+
 function extractLastUserText(messages: UIMessage[]): string {
   const lastUser = [...messages].reverse().find((message) => message.role === "user");
   if (!lastUser || !Array.isArray(lastUser.parts)) return "";
@@ -261,11 +285,14 @@ export async function POST(req: Request) {
       // Consulta simples responde em código, antes de qualquer modelo:
       // "quantos leads temos" é um count(), e ia custar 43 mil tokens para
       // voltar "não tenho acesso aos dados".
-      const queried = await runAstroQuery({
-        ctx: { userId, organizationId } as never,
-        text: lastUserText,
-        history: extractConversationHistory(uiMessages),
-      });
+      const answeringAQuestion = lastAssistantAsked(uiMessages);
+      const queried = answeringAQuestion
+        ? null
+        : await runAstroQuery({
+            ctx: { userId, organizationId } as never,
+            text: lastUserText,
+            history: extractConversationHistory(uiMessages),
+          });
       if (queried) {
         console.log(`[ASTRO/chat] consulta em código resolveu: ${queried.key}`);
         return buildQueryResponse(queried.result);

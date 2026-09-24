@@ -98,6 +98,7 @@ const FRASES_TIPICAS: Record<string, string> = {
   "agenda.reschedule_appointment": "remarca o Kauê para sexta às 15h",
   "lead.delete": "apaga o lead duplicado do João Silva",
   "lead.create": "quero criar um lead chamado Weydson Lima",
+  "tag.create": "crie uma tag chamada Urgente para o tracking",
   "tracking.create": "crie um novo tracking chamado Atendimento",
   "agenda.create": "cria uma agenda de consultoria",
   "appointment.create": "marca uma reunião com o Kauê sexta às 15h",

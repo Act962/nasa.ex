@@ -62,14 +62,20 @@ function appearsIn(value: string, text: string): boolean {
  * substantivo da coisa estava na frase, então passou pela regra de citação.
  * Nome genérico não é nome — é a ausência dele.
  */
-const GENERIC_NOUNS = new Set([
-  "tracking", "trackings", "funil", "funis", "board", "quadro",
-  "lead", "leads", "cliente", "clientes", "contato", "contatos",
-  "agenda", "agendas", "workspace", "workspaces",
-  "coluna", "colunas", "etapa", "etapas", "status",
-  "proposta", "propostas", "orcamento", "formulario", "briefing",
-  "compromisso", "reuniao", "lembrete", "tarefa", "pagina",
-]);
+/**
+ * O substantivo da categoria, por campo. Genérico é relativo: "Proposta" é
+ * nome legítimo de coluna, e a lista única derrubava esse caso junto com
+ * "Novo tracking". Só vale para campo que nomeia algo NOVO — em campo que
+ * procura algo existente, "briefing" é busca válida.
+ */
+const CATEGORY_NOUNS: Record<string, string[]> = {
+  trackingName: ["tracking", "trackings", "funil", "funis", "board"],
+  leadName: ["lead", "leads", "cliente", "clientes", "contato", "contatos"],
+  statusName: ["coluna", "colunas", "etapa", "etapas", "status"],
+  workspaceName: ["workspace", "workspaces", "quadro", "quadros"],
+  agendaName: ["agenda", "agendas"],
+  tagName: ["tag", "tags", "etiqueta", "etiquetas"],
+};
 
 const NAME_STOPWORDS = new Set([
   "novo", "nova", "novos", "novas", "um", "uma", "o", "a", "os", "as",
@@ -77,12 +83,14 @@ const NAME_STOPWORDS = new Set([
 ]);
 
 /** Sobrou algum substantivo próprio, ou só o nome da categoria? */
-function isGenericName(value: string): boolean {
+function isCategoryOnly(field: string, value: string): boolean {
+  const nouns = CATEGORY_NOUNS[field];
+  if (!nouns) return false;
   const words = normalize(value)
     .split(/[^a-z0-9]+/)
     .filter((word) => word.length > 0 && !NAME_STOPWORDS.has(word));
   if (words.length === 0) return true;
-  return words.every((word) => GENERIC_NOUNS.has(word));
+  return words.every((word) => nouns.includes(word));
 }
 
 const TRUTHY = new Set(["true", "sim", "yes", "1", "ativar", "publicar"]);
@@ -131,11 +139,14 @@ function coerceValue(schema: z.ZodTypeAny, raw: string): unknown {
 function isInvented(
   key: string,
   value: string,
-  context?: { userText?: string; history?: string[] },
+  context?: { userText?: string; history?: string[]; newNameFields?: string[] },
 ): boolean {
   const userText = context?.userText;
   if (!userText || !isNameField(key)) return false;
-  if (isGenericName(value)) return true;
+  // Campo que nomeia algo novo não aceita o nome da própria categoria.
+  if ((context?.newNameFields ?? []).includes(key) && isCategoryOnly(key, value)) {
+    return true;
+  }
   if (appearsIn(value, userText)) return false;
 
   const refersBack = ANAPHORA.some((marker) => normalize(userText).includes(marker));
@@ -153,7 +164,7 @@ function isInvented(
 export function coerceFields(
   action: AstroAction,
   fields: Record<string, string>,
-  context?: { userText?: string; history?: string[] },
+  context?: { userText?: string; history?: string[]; newNameFields?: string[] },
 ): Record<string, unknown> {
   const shape =
     action.input instanceof z.ZodObject
@@ -189,6 +200,10 @@ export function buildActionInput(
 ): Record<string, unknown> {
   return {
     ...(action.inferFields?.(userText) ?? {}),
-    ...coerceFields(action, fields, { userText, history }),
+    ...coerceFields(action, fields, {
+      userText,
+      history,
+      newNameFields: action.newNameFields,
+    }),
   };
 }
