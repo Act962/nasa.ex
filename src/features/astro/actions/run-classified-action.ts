@@ -31,6 +31,18 @@ function missingRequiredFields(
     .filter(Boolean);
 }
 
+/** Rótulo falado do campo. Sem isso o Astro pediria "clientName" em voz alta. */
+const FIELD_LABELS: Record<string, string> = {
+  clientName: "o nome do cliente",
+  productName: "o produto",
+  title: "o título",
+  validUntil: "a validade",
+};
+
+function labelFor(field: string): string {
+  return FIELD_LABELS[field] ?? field;
+}
+
 function textFor(result: AstroActionResult): string {
   if (result.status === "done") {
     // RF-13: a URL não é lida nem repetida — ela vive no cartão.
@@ -50,18 +62,22 @@ export async function runClassifiedAction(params: {
   const action = getAstroAction(params.classification.action ?? "");
   if (!action) return null;
 
-  // Campo obrigatório faltando é caso do orquestrador, que sabe conversar para
-  // colher o que falta em vez de devolver um formulário seco (RF-5).
+  // Campo obrigatório faltando não escala para o orquestrador: perguntar o que
+  // falta é barato e é o que sustenta o ciclo guiado por voz (RF-11). Quem lê
+  // a pergunta em voz alta é o auto-narrate, que já existe.
   const missing = missingRequiredFields(action, params.classification.fields);
-  if (missing.length > 0) {
-    console.log(`[astro/classifier] campos faltando: ${missing.join(",")} — orquestrador`);
-    return null;
-  }
-
   const parsed = action.input.safeParse(params.classification.fields);
-  if (!parsed.success) return null;
 
-  const result = await action.execute({ ctx: params.ctx, input: parsed.data });
+  const result: AstroActionResult =
+    missing.length > 0 || !parsed.success
+      ? {
+          status: "needs_input",
+          title: "Falta uma informação",
+          description: `Para continuar, me diga: ${missing.map(labelFor).join(", ")}.`,
+          missingFields: missing.map((field) => ({ key: field, label: labelFor(field) })),
+          appName: "Órbita",
+        }
+      : await action.execute({ ctx: params.ctx, input: parsed.data });
 
   const toolCallId = `astro-action-${Date.now()}`;
   const stream = createUIMessageStream({
@@ -72,7 +88,7 @@ export async function runClassifiedAction(params: {
         type: "tool-input-available",
         toolCallId,
         toolName: action.toolName,
-        input: parsed.data,
+        input: parsed.success ? parsed.data : params.classification.fields,
       });
       writer.write({
         type: "tool-output-available",
