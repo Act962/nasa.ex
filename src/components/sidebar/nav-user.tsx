@@ -39,6 +39,7 @@ import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/lib/orpc";
+import { AccountMenuItems } from "./account-menu-items";
 import { ShortcutsDialog } from "@/components/shortcuts-dialog";
 import { useTheme } from "next-themes";
 
@@ -282,6 +283,8 @@ export function NavUser() {
                 <Keyboard />
                 Atalhos
               </DropdownMenuItem>
+
+              <AccountMenuItems />
             </DropdownMenuGroup>
 
             <DropdownMenuSeparator />

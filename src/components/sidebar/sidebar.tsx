@@ -20,7 +20,6 @@ import { TeamSwitcher } from "./team-switcher";
 import { NavUser } from "./nav-user";
 import { NotificationBell } from "./notification-bell";
 import { NavMenu } from "./nav-menu";
-import { SettingsGroup } from "./settings-group";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
@@ -70,7 +69,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        <SettingsGroup />
         <NavUser />
       </SidebarFooter>
       <SidebarRail className="flex items-center justify-center group/rail">
