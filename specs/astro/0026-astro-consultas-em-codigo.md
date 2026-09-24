@@ -73,6 +73,19 @@ com leitura. Testado para as quatro formas de escrita mais comuns.
 
 Verificados por `scripts/verify-astro-queries.ts` — 35 checagens, 0 falhas.
 
+## 4b. WhatsApp
+
+As mesmas camadas valem no WhatsApp desde 2026-09-24. `astro-bot/router.ts`
+chamava `streamAstro` direto: "Quantos leads temos?" ia ao modelo caro e
+voltava *"Não consegui montar uma resposta pra isso"*.
+
+A decisão saiu de `run-classified-action.ts` para `resolve-action.ts`, que não
+conhece formato de saída. O chat embrulha em stream com cartões; o WhatsApp
+traduz para texto (`astro-bot/lib/cheap-layers.ts`): tabela vira lista com
+marcadores, escolha vira lista numerada, confirmação continua por "SIM".
+
+Mensagem com anexo não passa por aqui — ler boleto é trabalho de modelo.
+
 ## 5. Fora de escopo
 
 Os relatórios de `/insights` que exigem cálculo (funil com tempo por etapa,

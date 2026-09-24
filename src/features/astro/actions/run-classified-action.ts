@@ -1,22 +1,20 @@
 import "server-only";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
-import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
-import { getAstroAction } from "./registry";
-import { proposeAction } from "./confirmation";
-import { checkAstroPermission } from "./permission-gate";
-import { appearsIn, buildActionInput } from "./coerce-fields";
-import type { AstroConfirmationPayload } from "@/features/astro/lib/astro-confirmation";
-import type { AstroAction, AstroActionResult } from "./types";
+import type { AstroActionResult } from "./types";
 import {
-  HIGH_CONFIDENCE,
-  LOW_CONFIDENCE,
-  type StagedClassification,
-} from "./classify-staged";
+  isConfirmation,
+  resolveClassifiedAction,
+  type ClassifiedOutput,
+} from "./resolve-action";
+import type { StagedClassification } from "./classify-staged";
 
 // Caminho curto do roteamento (spec 0023, RF-4): a ação escolhida pelo
-// classificador executa aqui, em código, e a resposta volta no mesmo formato
-// de stream que o cliente já sabe renderizar — sem passar pelo orquestrador.
+// classificador executa em código, e a resposta volta no mesmo formato de
+// stream que o cliente já sabe renderizar — sem passar pelo orquestrador.
+//
+// A DECISÃO mora em `resolve-action.ts`, compartilhada com o WhatsApp. Aqui
+// só há o embrulho em stream.
 
 export interface ClassifiedRun {
   response: Response;
@@ -28,66 +26,12 @@ export interface ClassifiedRun {
   modelId: string;
 }
 
-function missingRequiredFields(
-  action: AstroAction,
-  fields: Record<string, unknown>,
-): string[] {
-  const parsed = action.input.safeParse(fields);
-  if (parsed.success) return [];
-  return parsed.error.issues
-    .filter((issue) => issue.code === "invalid_type" || issue.code === "too_small")
-    .map((issue) => String(issue.path[0] ?? ""))
-    .filter(Boolean);
-}
-
-/** Rótulo falado do campo. Sem isso o Astro pediria "clientName" em voz alta. */
-const FIELD_LABELS: Record<string, string> = {
-  clientName: "o nome do cliente",
-  productName: "o produto",
-  title: "o título",
-  validUntil: "a validade",
-  leadName: "o nome do lead",
-  personName: "o nome da pessoa",
-  formName: "o nome do formulário",
-  trackingName: "o nome do tracking",
-  workspaceName: "o nome do workspace",
-  tagName: "o nome da tag",
-  scope: "se a tag é para tracking (leads) ou workspace (tarefas)",
-  agendaName: "o nome da agenda",
-  statusName: "o nome da coluna",
-  currentName: "o nome atual da coluna",
-  newName: "o novo nome",
-  startsAt: "o novo horário",
-  remindTime: "o horário",
-  recurrence: "a frequência",
-  message: "a mensagem",
-  note: "o que anotar",
-  date: "o dia",
-  phone: "o telefone",
-  templateName: "o nome do template",
-  published: "se é para publicar ou tirar do ar",
-  favorite: "se é para favoritar ou desfavoritar",
-  active: "se é para ativar ou desativar",
-  blocked: "se é para bloquear ou liberar",
-};
-
-function labelFor(field: string): string {
-  return FIELD_LABELS[field] ?? field;
-}
-
-type ClassifiedOutput = AstroActionResult | AstroConfirmationPayload;
-
-function isConfirmation(value: ClassifiedOutput): value is AstroConfirmationPayload {
-  return "kind" in value && value.kind === "astro_confirmation";
-}
-
 function textFor(result: ClassifiedOutput): string {
   // Confirmação pendente: o cartão já pergunta, o texto não repete a pergunta.
   if (isConfirmation(result)) return result.title;
   if (result.status === "done") {
-    // RF-13: a URL não é lida nem repetida — ela vive no cartão. Só a página
-    // pública é "link para o cliente"; criar um funil não gera link nenhum, e
-    // a frase aparecia mesmo assim.
+    // RF-13: a URL não é lida nem repetida — ela vive no cartão. Só página
+    // pública é "link para o cliente"; criar um funil não gera link nenhum.
     return result.publicUrl
       ? `${result.description}\n\nO link para enviar ao cliente está no cartão acima.`
       : result.description;
@@ -95,192 +39,35 @@ function textFor(result: ClassifiedOutput): string {
   return result.description;
 }
 
-/**
- * Cartão de escolha: o Astro mostra as ações que considerou e o usuário toca
- * na certa. Não gasta token nenhum — os candidatos já vieram da etapa 2 — e
- * acerta sempre, porque quem responde é quem sabe (spec 0025, RF-4/RNF-3).
- */
-function buildChoiceRun(
-  classification: StagedClassification,
-  userText: string,
-): ClassifiedRun {
-  const options = classification.candidates
-    .map((candidate) => {
-      const action = getAstroAction(candidate.action);
-      if (!action) return null;
-      return {
-        id: candidate.action,
-        label: action.confirmTitle ?? shortLabel(action.description),
-      };
-    })
-    .filter((option): option is { id: string; label: string } => option !== null);
-
-  const payload: AstroActionResult = {
-    status: "ambiguous",
-    title: "O que você quer fazer?",
-    description: `Entendi "${userText}" de mais de um jeito. Qual deles?`,
-    field: "action",
-    options,
-    appName: classification.app,
-  };
-
-  const toolCallId = `astro-choice-${Date.now()}`;
+function streamed(params: {
+  toolCallId: string;
+  toolName: string;
+  input: unknown;
+  output: unknown;
+  text: string;
+}): Response {
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
+      // Emitido como tool part porque é assim que o cliente já reconhece
+      // payload estruturado e monta o cartão (`astro-message.tsx`).
       writer.write({
         type: "tool-input-available",
-        toolCallId,
-        toolName: "choose_action",
-        input: { text: userText },
+        toolCallId: params.toolCallId,
+        toolName: params.toolName,
+        input: params.input,
       });
-      writer.write({ type: "tool-output-available", toolCallId, output: payload });
-      const textId = `${toolCallId}-text`;
+      writer.write({
+        type: "tool-output-available",
+        toolCallId: params.toolCallId,
+        output: params.output,
+      });
+      const textId = `${params.toolCallId}-text`;
       writer.write({ type: "text-start", id: textId });
-      writer.write({ type: "text-delta", id: textId, delta: payload.description });
+      writer.write({ type: "text-delta", id: textId, delta: params.text });
       writer.write({ type: "text-end", id: textId });
     },
   });
-
-  return {
-    response: createUIMessageStreamResponse({ stream }),
-    route: "dropdown",
-    actionKey: classification.candidates[0]?.action ?? "—",
-    tokensUsed: classification.tokensUsed,
-    provider: classification.provider,
-    modelId: classification.modelId,
-  };
-}
-
-/** Recusa por permissão: cartão de erro, sem tocar no banco. */
-function buildDenialRun(params: {
-  classification: StagedClassification;
-  action: AstroAction;
-  message: string;
-}): ClassifiedRun {
-  const payload: AstroActionResult = {
-    status: "error",
-    title: "Sem permissão",
-    description: params.message,
-    appName: params.action.app,
-  };
-  const toolCallId = `astro-denied-${Date.now()}`;
-  const stream = createUIMessageStream({
-    execute: async ({ writer }) => {
-      writer.write({
-        type: "tool-input-available",
-        toolCallId,
-        toolName: params.action.toolName,
-        input: {},
-      });
-      writer.write({ type: "tool-output-available", toolCallId, output: payload });
-      const textId = `${toolCallId}-text`;
-      writer.write({ type: "text-start", id: textId });
-      writer.write({ type: "text-delta", id: textId, delta: params.message });
-      writer.write({ type: "text-end", id: textId });
-    },
-  });
-  return {
-    response: createUIMessageStreamResponse({ stream }),
-    route: "denied",
-    actionKey: params.action.key,
-    tokensUsed: params.classification.tokensUsed,
-    provider: params.classification.provider,
-    modelId: params.classification.modelId,
-  };
-}
-
-/** Primeira frase da descrição, que é o rótulo humano da ação. */
-function shortLabel(description: string): string {
-  const [first] = description.split(" — ");
-  return first.split(". ")[0];
-}
-
-/**
- * Opções para o campo que faltou. Perguntar "me diga: o nome do tracking"
- * obriga o usuário a lembrar e digitar o que o sistema já sabe — quando a
- * lista é curta, botões respondem em um toque.
- */
-async function optionsForField(
-  ctx: AgentContext,
-  field: string,
-): Promise<{ id: string; label: string }[] | null> {
-  const MAX_OPTIONS = 8;
-  const where = { organizationId: ctx.organizationId };
-
-  if (field === "trackingName") {
-    const rows = await prisma.tracking.findMany({
-      where,
-      select: { id: true, name: true },
-      take: MAX_OPTIONS,
-    });
-    return rows.length > 0 ? rows.map((row) => ({ id: row.id, label: row.name })) : null;
-  }
-
-  if (field === "agendaName") {
-    const rows = await prisma.agenda.findMany({
-      where,
-      select: { id: true, name: true },
-      take: MAX_OPTIONS,
-    });
-    return rows.length > 0 ? rows.map((row) => ({ id: row.id, label: row.name })) : null;
-  }
-
-  if (field === "formName") {
-    const rows = await prisma.form.findMany({
-      where,
-      select: { id: true, name: true },
-      take: MAX_OPTIONS,
-    });
-    return rows.length > 0 ? rows.map((row) => ({ id: row.id, label: row.name })) : null;
-  }
-
-  if (field === "workspaceName") {
-    const rows = await prisma.workspace.findMany({
-      where: { ...where, isArchived: false },
-      select: { id: true, name: true },
-      take: MAX_OPTIONS,
-    });
-    return rows.length > 0 ? rows.map((row) => ({ id: row.id, label: row.name })) : null;
-  }
-
-  return null;
-}
-
-/**
- * O sujeito que o turno anterior nomeou.
- *
- * "Mover para a coluna Em andamento", logo após "encontrei o lead João de
- * Souza", fala do João — mas a frase não o nomeia, e a regra de citação da
- * spec 0024 (com razão) recusa nome que não está na frase.
- *
- * A herança acontece aqui, em código, e só quando o nome existe nos DOIS
- * lugares: na conversa e no banco. Assim o Astro não inventa um sujeito —
- * ele reconhece um que já disse. Ensinar isso ao classificador pelo prompt
- * foi tentado e medido: derrubou "assunto novo não herda" de 3/3 para 0/3,
- * porque o modelo passou a preferir o histórico mesmo com a frase nomeando
- * alguém.
- *
- * Ambiguidade mantém a pergunta: dois leads citados não viram escolha cega.
- */
-async function subjectFromHistory(params: {
-  ctx: AgentContext;
-  field: string;
-  history?: string[];
-}): Promise<string | null> {
-  if (params.field !== "leadName") return null;
-  const history = (params.history ?? []).slice(-4).join(" ");
-  if (!history) return null;
-
-  const leads = await prisma.lead.findMany({
-    where: { tracking: { organizationId: params.ctx.organizationId } },
-    select: { name: true },
-    take: 200,
-  });
-  const mentioned = leads.filter(
-    (lead) => lead.name.trim().length >= 3 && appearsIn(lead.name, history),
-  );
-  const unique = [...new Set(mentioned.map((lead) => lead.name))];
-  return unique.length === 1 ? unique[0] : null;
+  return createUIMessageStreamResponse({ stream });
 }
 
 /**
@@ -295,138 +82,41 @@ export async function runClassifiedAction(params: {
   /** Turnos anteriores — só eles autorizam um nome que a frase não disse. */
   history?: string[];
 }): Promise<ClassifiedRun | null> {
-  const [best, ...rest] = params.classification.candidates;
-  if (!best) return null;
+  const resolved = await resolveClassifiedAction(params);
+  if (!resolved) return null;
 
-  // Dúvida vira dropdown, não chute nem modelo mais caro (spec 0025, D-2):
-  // quem sabe a resposta é o usuário, e perguntar custa zero token.
-  //
-  // Candidato único e incerto não é certeza: "põe o João no tracking de
-  // vendas" voltou uma vez só com `tracking.create` a 0,6, e teria criado um
-  // funil chamado Vendas. Sem alternativa para oferecer, o orquestrador
-  // atende — custa ★, não custa um registro errado no banco.
-  if (best.confidence < HIGH_CONFIDENCE) {
-    if (rest.length === 0 || best.confidence < LOW_CONFIDENCE) return null;
-    return buildChoiceRun(params.classification, params.userText ?? "");
-  }
-
-  const action = getAstroAction(best.action);
-  if (!action) return null;
-
-  // Campo obrigatório faltando não escala para o orquestrador: perguntar o que
-  // falta é barato e é o que sustenta o ciclo guiado por voz (RF-11). Quem lê
-  // a pergunta em voz alta é o auto-narrate, que já existe.
-  // O que o verbo já diz (polaridade) entra por código; o que o modelo
-  // extraiu vence, caso tenha dito algo explícito.
-  const rawFields = buildActionInput(
-    action,
-    best.fields,
-    params.userText ?? "",
-    params.history,
-  );
-
-  // Campo que aponta para algo existente pode vir do turno anterior.
-  let fields = rawFields;
-  let missing = missingRequiredFields(action, fields);
-  const inheritable = missing.find(
-    (field) => !(action.newNameFields ?? []).includes(field),
-  );
-  if (inheritable) {
-    const inherited = await subjectFromHistory({
-      ctx: params.ctx,
-      field: inheritable,
-      history: params.history,
-    });
-    if (inherited) {
-      fields = { ...fields, [inheritable]: inherited };
-      missing = missingRequiredFields(action, fields);
-    }
-  }
-  const parsed = action.input.safeParse(fields);
-
-  // Campo que nomeia algo já cadastrado vira botão, não pergunta aberta.
-  const askable = missing[0];
-  const namesSomethingNew = askable
-    ? (action.newNameFields ?? []).includes(askable)
-    : false;
-  const choices =
-    askable && !namesSomethingNew
-      ? await optionsForField(params.ctx, askable)
-      : null;
-
-  // Permissão antes de qualquer coisa: antes do ensaio, antes da confirmação,
-  // antes até de perguntar o que falta — perguntar o nome do lead para depois
-  // recusar a exclusão é desperdiçar o tempo de quem não podia mesmo.
-  const allowed = await checkAstroPermission({
-    ctx: params.ctx,
-    appKey: action.permission.appKey,
-    action: action.permission.action,
-  });
-  if (!allowed.ok) {
-    return buildDenialRun({
-      classification: params.classification,
-      action,
-      message: allowed.error,
-    });
-  }
-
-  const result: ClassifiedOutput =
-    missing.length > 0 || !parsed.success
-      ? choices && missing.length === 1
-        ? {
-            status: "ambiguous",
-            title: "Qual deles?",
-            description: `Escolha ${labelFor(askable!)} para eu continuar.`,
-            field: askable!,
-            options: choices,
-            appName: "Órbita",
-          }
-        : {
-            status: "needs_input",
-            title: "Falta uma informação",
-            description: `Para continuar, me diga: ${missing.map(labelFor).join(", ")}.`,
-            missingFields: missing.map((field) => ({ key: field, label: labelFor(field) })),
-            appName: "Órbita",
-          }
-      : action.requiresConfirmation
-        ? await proposeAction({
-            ctx: params.ctx,
-            action,
-            input: parsed.data as Record<string, unknown>,
-            warnings: action.confirmWarnings,
-          })
-        : await action.execute({ ctx: params.ctx, input: parsed.data });
-
-  const toolCallId = `astro-action-${Date.now()}`;
-  const stream = createUIMessageStream({
-    execute: async ({ writer }) => {
-      // Emitido como tool part porque é assim que o cliente já reconhece
-      // payload estruturado e monta o cartão (`astro-message.tsx`).
-      writer.write({
-        type: "tool-input-available",
-        toolCallId,
-        toolName: action.toolName,
-        input: parsed.success ? parsed.data : fields,
-      });
-      writer.write({
-        type: "tool-output-available",
-        toolCallId,
-        output: result,
-      });
-
-      const textId = `${toolCallId}-text`;
-      writer.write({ type: "text-start", id: textId });
-      writer.write({ type: "text-delta", id: textId, delta: textFor(result) });
-      writer.write({ type: "text-end", id: textId });
-    },
-  });
-
-  return {
-    response: createUIMessageStreamResponse({ stream }),
-    route: params.classification.layer,
-    actionKey: action.key,
+  const common = {
     tokensUsed: params.classification.tokensUsed,
     provider: params.classification.provider,
     modelId: params.classification.modelId,
+  };
+
+  if (resolved.kind === "choice") {
+    const payload: AstroActionResult = resolved.payload;
+    return {
+      response: streamed({
+        toolCallId: `astro-choice-${Date.now()}`,
+        toolName: "choose_action",
+        input: { text: params.userText ?? "" },
+        output: payload,
+        text: payload.description,
+      }),
+      route: "dropdown",
+      actionKey: resolved.actionKey,
+      ...common,
+    };
+  }
+
+  return {
+    response: streamed({
+      toolCallId: `astro-action-${Date.now()}`,
+      toolName: resolved.action.toolName,
+      input: {},
+      output: resolved.output,
+      text: textFor(resolved.output),
+    }),
+    route: resolved.denied ? "denied" : params.classification.layer,
+    actionKey: resolved.action.key,
+    ...common,
   };
 }
