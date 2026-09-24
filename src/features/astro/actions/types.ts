@@ -59,8 +59,15 @@ export interface AstroAction<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
   toolName: string;
   /** Serve ao orquestrador e ao classificador — escreva pensando nos dois. */
   description: string;
-  /** Ação de escrita passa pela confirmação da spec 0014 antes de gravar. */
+  /**
+   * Ação de escrita passa pela confirmação da spec 0014 antes de gravar.
+   * Obrigatório em exclusão: o registro devolve o cartão e só grava no "sim".
+   */
   requiresConfirmation: boolean;
+  /** Título do cartão de confirmação. Sem isso, usa o nome da ferramenta. */
+  confirmTitle?: string;
+  /** Avisos exibidos em destaque no cartão — use em ação destrutiva. */
+  confirmWarnings?: string[];
   input: TSchema;
   execute: (params: {
     ctx: AgentContext;

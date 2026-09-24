@@ -49,6 +49,25 @@ function toFieldRecord(pairs: RawClassification["fields"]): Record<string, strin
   return Object.fromEntries(pairs.map((pair) => [pair.key, pair.value]));
 }
 
+/** Quantas falas anteriores entram. Três cobre "ele/ela/isso" sem inchar. */
+const HISTORY_TURNS = 3;
+/** Corte por fala: o que importa é a referência, não o texto inteiro. */
+const HISTORY_CHARS = 280;
+
+function buildPrompt(text: string, history?: string[]): string {
+  const recent = (history ?? [])
+    .slice(-HISTORY_TURNS)
+    .map((line) => line.slice(0, HISTORY_CHARS).trim())
+    .filter(Boolean);
+  if (recent.length === 0) return text;
+  return [
+    "Conversa até aqui (a mais recente por último):",
+    ...recent.map((line) => `- ${line}`),
+    "",
+    `Pedido atual: ${text}`,
+  ].join("\n");
+}
+
 function buildCatalog(): string {
   return ASTRO_ACTIONS.map((action) => {
     const shape = action.input instanceof z.ZodObject ? action.input.shape : {};
@@ -68,7 +87,13 @@ Devolva action=null quando:
 Extraia em "fields" apenas o que a frase disse. Não complete, não adivinhe,
 não use conhecimento externo. Campo não dito simplesmente não aparece.
 
-"confidence" é o quanto você tem certeza da ação escolhida, não dos campos.`;
+"confidence" é o quanto você tem certeza da ação escolhida, não dos campos.
+
+Quando houver conversa anterior, use-a para resolver referências como "ele",
+"ela", "esse", "o mesmo", "a última". Se o pedido atual claramente abre assunto
+novo, IGNORE a conversa anterior — nem tudo que vem depois se refere ao que
+veio antes. Referência que você não conseguir resolver com segurança é campo
+ausente, não chute.`;
 
 /**
  * Devolve a ação escolhida, ou `null` sempre que houver qualquer dúvida ou
@@ -78,6 +103,13 @@ não use conhecimento externo. Campo não dito simplesmente não aparece.
 export async function classifyAstroIntent(params: {
   organizationId: string;
   text: string;
+  /**
+   * Últimas falas da conversa, da mais antiga para a mais recente. Sem isto,
+   * "crie uma proposta para ele" não tem antecedente e o classificador não
+   * resolve o pronome — o pedido acaba escalando por falta de contexto, não
+   * por complexidade.
+   */
+  history?: string[];
 }): Promise<AstroIntentClassification | null> {
   if (ASTRO_ACTIONS.length === 0) return null;
 
@@ -93,7 +125,7 @@ export async function classifyAstroIntent(params: {
         model: resolved.model,
         schema: classificationSchema,
         system: `${SYSTEM_PROMPT}\n\nAções disponíveis:\n${buildCatalog()}`,
-        prompt: params.text,
+        prompt: buildPrompt(params.text, params.history),
       }).then((result) => ({
         object: result.object,
         tokensUsed: result.usage?.totalTokens ?? 0,

@@ -159,6 +159,34 @@ Cada um entra com seu recorte próprio, pelo mesmo critério da §3.
 - **Consequência**: a onda 1 tem 17 verbos e cobre o caminho que o usuário
   percorre todo dia.
 
+### D-4 — CRUD completo, com exclusão sempre confirmada e sempre auditada
+
+- **Escolha**: cada família de verbo cobre criar, ler, atualizar e excluir.
+  Exclusão tem `requiresConfirmation: true` **obrigatório** e grava em
+  `systemActivityLog`, que é de onde os Insights leem o histórico
+  (`get-activity-summary.ts`, `get-member-activity-report.ts`).
+- **Alternativa descartada**: *só criar e atualizar* — deixa o usuário na tela
+  justamente no momento de maior risco, sem reduzir risco nenhum.
+- **Consequência**: quem apagou, o quê e quando fica no mesmo relatório que
+  todas as outras ações da organização. Escrita feita pelo Astro entra no log
+  com a identidade de quem pediu, com `via: "astro"` no metadata para
+  distinguir da ação feita na tela.
+
+### D-5 — O classificador enxerga a conversa, com limite
+
+- **Escolha**: as últimas **3 falas**, cortadas em 280 caracteres cada, entram
+  no prompt do classificador. É o que resolve "crie uma proposta para **ele**".
+- **Alternativas descartadas**:
+  - *Sem histórico* — era o estado anterior: o pronome não tinha antecedente,
+    o pedido escalava por falta de contexto e não por complexidade, e custava
+    19★ em vez de 2★.
+  - *Conversa inteira* — devolveria ao classificador o problema de tamanho que
+    ele existe para evitar.
+- **Consequência**: o prompt cresce algumas centenas de tokens e continua duas
+  ordens de grandeza abaixo do orquestrador. O prompt instrui explicitamente a
+  **ignorar** o histórico quando o pedido abre assunto novo — nem tudo que vem
+  depois se refere ao que veio antes.
+
 ### D-3 — Destrutivo entra, com confirmação
 
 - **Escolha**: `lead.delete`, `tracking.archive` e `agenda.cancel_appointment`
@@ -182,7 +210,8 @@ Cada um entra com seu recorte próprio, pelo mesmo critério da §3.
 | --- | --- | --- |
 | Cada verbo novo | script | `scripts/verify-astro-routing.ts` já afirma que toda ação do registro aparece nas duas superfícies (CA-8) — cresce sozinho |
 | Classificação não degrada | script | Com o catálogo maior, repetir CA-1 e CA-3: pedido direto continua acertando, analítico continua devolvendo `null` |
-| Frase típica de cada verbo | manual | A coluna "frase típica" desta spec é o roteiro de teste |
+| Frase típica de cada verbo | script | Automatizado em `verify-astro-routing.ts`: cada verbo do registro é classificado pela sua frase |
+| Resolução de contexto (D-5) | script | Três casos no mesmo script: sem histórico não inventa; com histórico resolve o pronome; assunto novo ignora o histórico |
 
 ## 9. Riscos e rollback
 
@@ -191,6 +220,13 @@ classificador acerta com 0,9–0,95 de confiança; com 30 as fronteiras ficam ma
 finas. Por isso o plano de testes repete CA-1 e CA-3 a cada onda: se a confiança
 cair ou pedido analítico começar a virar ação, o catálogo cresceu demais ou as
 descrições estão ambíguas.
+
+**O classificador é probabilístico, e isso tem custo.** Medido em 4 execuções da
+mesma frase: 3 acertos (0,90–0,95) e 1 `null`. O `null` não erra — manda ao
+orquestrador, que resolve. Mas custa 19★ onde custaria 2★. Ou seja, a economia
+da spec 0023 é estatística, não garantida por chamada. Se a taxa de `null`
+subir com o catálogo maior, o remédio é descrição mais nítida por verbo, não
+baixar o limiar.
 
 **Rollback**: `ASTRO_INTENT_ROUTING=false` continua desligando o roteamento
 inteiro. Verbo individual sai removendo a entrada do registro — sem migration,
@@ -201,4 +237,6 @@ sem dado tocado.
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-24 | Weydson | Criada a partir da auditoria: 344 escritas, 33 ferramentas, 29 apps sem verbo |
+| 2026-09-24 | Weydson | D-4 (CRUD com exclusão confirmada e auditada) e D-5 (contexto conversacional) acrescentadas a pedido do dono do produto |
+| 2026-09-24 | Weydson | **Variância medida**: a mesma frase classificou `null` em 1 de 4 execuções e acertou nas outras 3 (0,90–0,95). O caso do `null` cai no orquestrador — seguro, porém caro (19★ em vez de 2★). Registrado como risco em §9 |
 | 2026-09-24 | Weydson | Aprovada. `agenda.reschedule_appointment` implementado — 1 de 17 da onda 1. A frase típica de cada verbo virou teste automatizado em `verify-astro-routing.ts`; com 2 verbos no catálogo a classificação segue em 0,90 e 0,95 |

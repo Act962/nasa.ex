@@ -131,6 +131,49 @@ async function main(): Promise<void> {
     );
   }
 
+  // ── Contexto — pronome só resolve com a conversa anterior ───────────────
+  const semContexto = await classifyAstroIntent({
+    organizationId: organization.id,
+    text: "crie uma proposta para ele",
+  });
+  check(
+    "contexto ausente",
+    !semContexto || !semContexto.fields.clientName,
+    semContexto?.fields.clientName
+      ? `sem histórico, inventou clientName="${semContexto.fields.clientName}"`
+      : "sem histórico, não inventou o cliente",
+  );
+
+  const comContexto = await classifyAstroIntent({
+    organizationId: organization.id,
+    text: "crie uma proposta para ele",
+    history: [
+      "Usuário: quais leads entraram hoje?",
+      "Astro: Entrou 1 lead no tracking FINANCEIRO: Kauê.",
+    ],
+  });
+  check(
+    "contexto resolvido",
+    comContexto?.fields.clientName?.toLowerCase().includes("kau") ?? false,
+    `com histórico, clientName="${comContexto?.fields.clientName ?? "—"}"`,
+  );
+
+  const assuntoNovo = await classifyAstroIntent({
+    organizationId: organization.id,
+    text: "remarca a reunião da Maria para segunda às 9h",
+    history: [
+      "Usuário: quais leads entraram hoje?",
+      "Astro: Entrou 1 lead no tracking FINANCEIRO: Kauê.",
+    ],
+  });
+  check(
+    "contexto ignorado quando é assunto novo",
+    assuntoNovo?.action === "agenda.reschedule_appointment" &&
+      (assuntoNovo?.fields.personName?.toLowerCase().includes("maria") ?? false),
+    `assunto novo → ${assuntoNovo?.action ?? "null"}, ` +
+      `pessoa="${assuntoNovo?.fields.personName ?? "—"}"`,
+  );
+
   // ── CA-8 — ação do registro aparece nas duas superfícies ────────────────
   const fakeContext = { organizationId: organization.id, userId: "verify" };
   const tools = buildActionRegistryTools(fakeContext as never);

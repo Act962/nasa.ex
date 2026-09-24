@@ -78,6 +78,23 @@ function describeStreamError(streamError: unknown): string {
  */
 const ASTRO_INTENT_ROUTING = process.env.ASTRO_INTENT_ROUTING !== "false";
 
+/** Falas anteriores, para o classificador resolver "ele", "a última", etc. */
+function extractConversationHistory(messages: UIMessage[]): string[] {
+  return messages
+    .slice(0, -1)
+    .filter((message) => message.role === "user" || message.role === "assistant")
+    .map((message) => {
+      if (!Array.isArray(message.parts)) return "";
+      const text = message.parts
+        .filter((part): part is { type: "text"; text: string } => part.type === "text")
+        .map((part) => part.text)
+        .join(" ")
+        .trim();
+      return text ? `${message.role === "user" ? "Usuário" : "Astro"}: ${text}` : "";
+    })
+    .filter(Boolean);
+}
+
 function extractLastUserText(messages: UIMessage[]): string {
   const lastUser = [...messages].reverse().find((message) => message.role === "user");
   if (!lastUser || !Array.isArray(lastUser.parts)) return "";
@@ -209,6 +226,7 @@ export async function POST(req: Request) {
       const classification = await classifyAstroIntent({
         organizationId,
         text: lastUserText,
+        history: extractConversationHistory(uiMessages),
       });
       if (classification) {
         const classified = await runClassifiedAction({

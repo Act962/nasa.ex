@@ -2,6 +2,7 @@ import "server-only";
 import { tool, type ToolSet } from "ai";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { ASTRO_ACTIONS } from "./registry";
+import { proposeAction } from "./confirmation";
 import type { AstroActionResult } from "./types";
 
 // Adaptador registro → ferramentas do orquestrador (spec 0023, RF-2).
@@ -31,8 +32,19 @@ export function buildActionRegistryTools(ctx: AgentContext): ToolSet {
     tools[action.toolName] = tool({
       description: action.description,
       inputSchema: action.input,
-      execute: async (input) =>
-        describeForModel(await action.execute({ ctx, input })),
+      execute: async (input) => {
+        // RF-8: escrita que pede confirmação devolve o cartão e para aqui.
+        // Quem grava é `confirm_action`, depois do "sim" do usuário.
+        if (action.requiresConfirmation) {
+          return proposeAction({
+            ctx,
+            action,
+            input: input as Record<string, unknown>,
+            warnings: action.confirmWarnings,
+          });
+        }
+        return describeForModel(await action.execute({ ctx, input }));
+      },
     });
   }
   return tools;

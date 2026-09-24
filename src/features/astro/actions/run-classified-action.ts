@@ -2,6 +2,8 @@ import "server-only";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { getAstroAction } from "./registry";
+import { proposeAction } from "./confirmation";
+import type { AstroConfirmationPayload } from "@/features/astro/lib/astro-confirmation";
 import type { AstroAction, AstroActionResult } from "./types";
 import type { AstroIntentClassification } from "./classify-intent";
 
@@ -43,7 +45,15 @@ function labelFor(field: string): string {
   return FIELD_LABELS[field] ?? field;
 }
 
-function textFor(result: AstroActionResult): string {
+type ClassifiedOutput = AstroActionResult | AstroConfirmationPayload;
+
+function isConfirmation(value: ClassifiedOutput): value is AstroConfirmationPayload {
+  return "kind" in value && value.kind === "astro_confirmation";
+}
+
+function textFor(result: ClassifiedOutput): string {
+  // Confirmação pendente: o cartão já pergunta, o texto não repete a pergunta.
+  if (isConfirmation(result)) return result.title;
   if (result.status === "done") {
     // RF-13: a URL não é lida nem repetida — ela vive no cartão.
     return `${result.description}\n\nO link para enviar ao cliente está no cartão acima.`;
@@ -68,7 +78,7 @@ export async function runClassifiedAction(params: {
   const missing = missingRequiredFields(action, params.classification.fields);
   const parsed = action.input.safeParse(params.classification.fields);
 
-  const result: AstroActionResult =
+  const result: ClassifiedOutput =
     missing.length > 0 || !parsed.success
       ? {
           status: "needs_input",
@@ -77,7 +87,14 @@ export async function runClassifiedAction(params: {
           missingFields: missing.map((field) => ({ key: field, label: labelFor(field) })),
           appName: "Órbita",
         }
-      : await action.execute({ ctx: params.ctx, input: parsed.data });
+      : action.requiresConfirmation
+        ? await proposeAction({
+            ctx: params.ctx,
+            action,
+            input: parsed.data as Record<string, unknown>,
+            warnings: action.confirmWarnings,
+          })
+        : await action.execute({ ctx: params.ctx, input: parsed.data });
 
   const toolCallId = `astro-action-${Date.now()}`;
   const stream = createUIMessageStream({
