@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { Decimal } from "decimal.js";
+import { Decimal } from "@prisma/client/runtime/client";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleTracking } from "./resolve-tracking";

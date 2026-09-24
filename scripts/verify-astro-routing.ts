@@ -80,7 +80,35 @@ const FRASES_TIPICAS: Record<string, string> = {
   "tracking.create_status": "cria a coluna Proposta no funil de vendas",
 };
 
+/**
+ * O script roda em tsx, que resolve módulo diferente do bundler do Next: um
+ * import inexistente para o app passou batido aqui e derrubou /forge com 500.
+ * Bater numa rota real é o que fecha essa brecha.
+ */
+async function checkAppIsUp(): Promise<void> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  try {
+    const response = await fetch(`${baseUrl}/api/rpc/public/listPlans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ json: {} }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    check(
+      "app compila",
+      response.ok,
+      response.ok
+        ? "o dev server responde — nenhum import quebrado no bundler"
+        : `dev server devolveu ${response.status}; veja o log do Next`,
+    );
+  } catch {
+    console.log("[SKIP] app compila — dev server não respondeu (não está no ar?)");
+  }
+}
+
 async function main(): Promise<void> {
+  await checkAppIsUp();
+
   const organization = await prisma.organization.findFirst({
     select: { id: true, name: true },
     orderBy: { createdAt: "asc" },
