@@ -66,16 +66,6 @@ export default function HeadingContacts() {
           </h1>
         </div>
 
-        <InputGroup
-          className="w-fit"
-          onClick={() => searchLead.setIsOpen(true)}
-        >
-          <InputGroupInput placeholder="Buscar contato" />
-          <InputGroupAddon>
-            <Search />
-          </InputGroupAddon>
-        </InputGroup>
-
         <div className="hidden sm:flex items-center gap-2">
           {!isSingle && (
             <>

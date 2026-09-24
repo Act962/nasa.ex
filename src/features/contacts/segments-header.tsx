@@ -21,6 +21,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { useSearchModal } from "@/hooks/modal/use-search-modal";
+import { Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useLeadSegments } from "./hooks/use-lead-segments";
@@ -63,6 +70,7 @@ interface SegmentCard {
 }
 
 export function SegmentsHeader() {
+  const searchLead = useSearchModal();
   const filters = useContactsFilters();
   const trackingId = filters.trackingId ?? ALL_TRACKINGS;
   const { tagIds, dateField, segment } = filters;
@@ -211,6 +219,17 @@ export function SegmentsHeader() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {/* Busca abre a mesma janela do topo, agora onde se procura filtro. */}
+        <InputGroup
+          className="h-8 w-full sm:w-64"
+          onClick={() => searchLead.setIsOpen(true)}
+        >
+          <InputGroupInput placeholder="Buscar contato" readOnly />
+          <InputGroupAddon>
+            <Search className="size-4" />
+          </InputGroupAddon>
+        </InputGroup>
+
         {/* Tag é multidropdown: um lead tem várias, e filtrar por uma só
             esconderia o cruzamento que o usuário quer ver. */}
         <DropdownMenu>
