@@ -82,7 +82,7 @@ export function PaymentGate({ children }: { children: React.ReactNode }) {
           <h1 className="text-xl font-bold">Liberar seu acesso financeiro</h1>
           <p className="text-sm text-muted-foreground">
             Você é responsável por esta empresa, então pode liberar o próprio
-            acesso ao NASA Payment. Vale só para esta organização e fica
+            acesso ao ÓRBITA Payment. Vale só para esta organização e fica
             registrado no histórico de acessos.
           </p>
         </div>
@@ -111,7 +111,7 @@ export function PaymentGate({ children }: { children: React.ReactNode }) {
         <p className="text-sm text-muted-foreground">
           Apenas pessoas autorizadas em{" "}
           <strong>Permissões → Acesso Financeiro</strong> podem entrar no módulo
-          NASA Payment. Procure o responsável pelo financeiro da sua organização
+          ÓRBITA Payment. Procure o responsável pelo financeiro da sua organização
           para solicitar acesso.
         </p>
       </div>

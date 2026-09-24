@@ -145,7 +145,7 @@ export function PublicCheckoutModal({
               placeholder="voce@exemplo.com"
             />
             <p className="text-[11px] text-muted-foreground">
-              Vamos enviar o link de acesso pra esse e-mail. Sua conta NASA
+              Vamos enviar o link de acesso pra esse e-mail. Sua conta ÓRBITA
               será criada com ele.
             </p>
           </div>

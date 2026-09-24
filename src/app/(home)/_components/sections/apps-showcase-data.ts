@@ -45,7 +45,7 @@ export const ALL_APPS: {
     icon: "🎵",
     category: "Mensageiros",
     cost: 50,
-    desc: "Leads e mensagens TikTok Business no NASA",
+    desc: "Leads e mensagens TikTok Business no ÓRBITA",
   },
   {
     slug: "linkedin",
@@ -78,7 +78,7 @@ export const ALL_APPS: {
     icon: "🤝",
     category: "CRM & Vendas",
     cost: 60,
-    desc: "Sincronize leads entre Kommo e NASA",
+    desc: "Sincronize leads entre Kommo e ÓRBITA",
   },
   {
     slug: "hubspot",
@@ -94,7 +94,7 @@ export const ALL_APPS: {
     icon: "☁️",
     category: "CRM & Vendas",
     cost: 100,
-    desc: "Sync em tempo real Salesforce ↔ NASA",
+    desc: "Sync em tempo real Salesforce ↔ ÓRBITA",
   },
   {
     slug: "pipedrive",
@@ -102,7 +102,7 @@ export const ALL_APPS: {
     icon: "🔵",
     category: "CRM & Vendas",
     cost: 60,
-    desc: "Negócios do Pipedrive no pipeline NASA",
+    desc: "Negócios do Pipedrive no pipeline ÓRBITA",
   },
   {
     slug: "rd-station",
@@ -118,7 +118,7 @@ export const ALL_APPS: {
     icon: "📋",
     category: "CRM & Vendas",
     cost: 40,
-    desc: "Migre dados do Agendor para o NASA",
+    desc: "Migre dados do Agendor para o ÓRBITA",
   },
   {
     slug: "piperun",
@@ -126,7 +126,7 @@ export const ALL_APPS: {
     icon: "🔄",
     category: "CRM & Vendas",
     cost: 40,
-    desc: "Negócios Piperun integrados ao NASA",
+    desc: "Negócios Piperun integrados ao ÓRBITA",
   },
   // Marketing
   {
@@ -143,7 +143,7 @@ export const ALL_APPS: {
     icon: "🎯",
     category: "Marketing",
     cost: 40,
-    desc: "Leads Google Ads com rastreamento NASA",
+    desc: "Leads Google Ads com rastreamento ÓRBITA",
   },
   {
     slug: "rd-station-mkt",
@@ -167,7 +167,7 @@ export const ALL_APPS: {
     icon: "🐒",
     category: "Marketing",
     cost: 30,
-    desc: "Campanhas Mailchimp → leads NASA",
+    desc: "Campanhas Mailchimp → leads ÓRBITA",
   },
   {
     slug: "leadlovers",
@@ -208,7 +208,7 @@ export const ALL_APPS: {
     icon: "⚡",
     category: "IA & Automação",
     cost: 50,
-    desc: "Automatize entre NASA e +5.000 apps",
+    desc: "Automatize entre ÓRBITA e +5.000 apps",
   },
   {
     slug: "make",
@@ -216,7 +216,7 @@ export const ALL_APPS: {
     icon: "🔧",
     category: "IA & Automação",
     cost: 50,
-    desc: "Fluxos complexos entre NASA e centenas de tools",
+    desc: "Fluxos complexos entre ÓRBITA e centenas de tools",
   },
   {
     slug: "n8n",
@@ -265,7 +265,7 @@ export const ALL_APPS: {
     icon: "💵",
     category: "Pagamentos",
     cost: 40,
-    desc: "Cobranças PagSeguro no pipeline NASA",
+    desc: "Cobranças PagSeguro no pipeline ÓRBITA",
   },
   // Formulários
   {
@@ -323,7 +323,7 @@ export const ALL_APPS: {
     icon: "🔭",
     category: "Analytics",
     cost: 20,
-    desc: "Dashboards NASA no Looker Studio",
+    desc: "Dashboards ÓRBITA no Looker Studio",
   },
   // E-Commerce
   {
@@ -348,7 +348,7 @@ export const ALL_APPS: {
     icon: "☁️",
     category: "E-Commerce",
     cost: 60,
-    desc: "Pedidos Nuvemshop → funil NASA",
+    desc: "Pedidos Nuvemshop → funil ÓRBITA",
   },
   {
     slug: "mercado-livre",
@@ -406,7 +406,7 @@ export const ALL_APPS: {
     icon: "💻",
     category: "Produtividade",
     cost: 30,
-    desc: "Outlook, Teams e OneDrive no NASA",
+    desc: "Outlook, Teams e OneDrive no ÓRBITA",
   },
   {
     slug: "zoom",
@@ -422,7 +422,7 @@ export const ALL_APPS: {
     icon: "📅",
     category: "Produtividade",
     cost: 20,
-    desc: "Agendamentos Calendly na Agenda NASA",
+    desc: "Agendamentos Calendly na Agenda ÓRBITA",
   },
 ];
 

@@ -19,7 +19,7 @@ export const getAiUsage = base
       // "NASA" → provider IS NULL (default da plataforma)
       // enum   → provider = <valor>
       provider: z
-        .union([z.literal("all"), z.literal("NASA"), z.nativeEnum(AiProvider)])
+        .union([z.literal("all"), z.literal("ÓRBITA"), z.nativeEnum(AiProvider)])
         .default("all"),
     }),
   )
@@ -34,7 +34,7 @@ export const getAiUsage = base
     const providerFilter: Prisma.AiChatRunWhereInput =
       provider === "all"
         ? {}
-        : provider === "NASA"
+        : provider === "ÓRBITA"
           ? { provider: null }
           : { provider };
 
@@ -47,7 +47,7 @@ export const getAiUsage = base
     const providerSql =
       provider === "all"
         ? Prisma.sql``
-        : provider === "NASA"
+        : provider === "ÓRBITA"
           ? Prisma.sql`AND provider IS NULL`
           : Prisma.sql`AND provider = ${provider}::"AiProvider"`;
 

@@ -26,7 +26,7 @@ import { EXPLORER_GRADIENT_COLORS } from "../elements/animated-border";
 const PRESETS = [
   {
     id: "explorer",
-    label: "NASA Explorer",
+    label: "ÓRBITA Explorer",
     colors: [...EXPLORER_GRADIENT_COLORS],
     preview: "linear-gradient(270deg, #7C3AED, #a855f7, #EC4899, #fff)",
   },
@@ -98,7 +98,7 @@ export function AnimatedBorderEditor({ el, update }: Props) {
       {!enabled ? (
         <p className="text-[10px] text-muted-foreground mt-1.5 leading-snug px-1">
           Adiciona uma borda com gradiente colorido em movimento ao redor do
-          elemento — estilo NASA Explorer.
+          elemento — estilo ÓRBITA Explorer.
         </p>
       ) : (
         <div className="mt-2 border rounded-md p-2 bg-muted/10 space-y-2.5">

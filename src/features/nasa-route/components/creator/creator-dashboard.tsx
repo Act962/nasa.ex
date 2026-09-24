@@ -38,7 +38,7 @@ export function CreatorDashboard() {
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ChevronLeft className="size-4" />
-        Voltar para NASA Route
+        Voltar para ÓRBITA Route
       </Link>
 
       <div className="flex flex-wrap items-center justify-between gap-4">

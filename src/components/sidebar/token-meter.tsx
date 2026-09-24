@@ -38,7 +38,7 @@ import { formatBrl, formatTokens } from "@/features/ia/lib/token-pricing";
 import { TokenUsageDialog } from "@/features/ia/components/token-usage-dialog";
 
 const PROVIDER_LABELS: Record<string, string> = {
-  NASA_DEFAULT: "NASA (default)",
+  NASA_DEFAULT: "ÓRBITA (default)",
   OPENAI: "OpenAI (custom)",
   ANTHROPIC: "Anthropic (custom)",
   GOOGLE: "Google (custom)",

@@ -168,7 +168,7 @@ export const creatorCompleteVideoUpload = base
           "nasa_route_video_upload_complete",
           {
             userId: upload.userId,
-            description: "NASA Route — vídeo de aula finalizado",
+            description: "ÓRBITA Route — vídeo de aula finalizado",
             appSlug: "nasa-route",
           },
         );

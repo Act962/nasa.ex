@@ -14,6 +14,10 @@ import { HeaderTracking } from "@/features/leads/components/header-tracking";
 import { useAstroChat } from "@/features/astro/hooks/use-astro-chat";
 import { useAstroAttachments } from "@/features/astro/hooks/use-astro-attachments";
 import { useAstro } from "@/features/astro/components/astro-provider";
+import {
+  readStoredCommandSessionId,
+  storeCommandSessionId,
+} from "@/features/astro/hooks/use-astro-widget-session";
 import { AstroMessage } from "@/features/astro/components/astro-message";
 import { useAutoNarrate } from "@/features/astro/voice/use-auto-narrate";
 import { useVoiceModeStore } from "@/features/astro/voice/use-voice-mode-store";
@@ -49,7 +53,7 @@ const ROUTE_AGENT_LABELS: Record<string, string> = {
   closer: "Pensando na melhor resposta…",
   task_agent: "Organizando suas tarefas no espaço…",
   automation_agent: "Configurando automação na nave…",
-  analytics_agent: "Explorando no universo NASA…",
+  analytics_agent: "Explorando no universo ÓRBITA…",
 };
 
 export function NasaCommandCenter() {
@@ -131,12 +135,34 @@ export function NasaCommandCenter() {
     [setMessages, setSessionId, clearError],
   );
 
+  // A conversa desta aba sobrevive ao refresh. Antes, atualizar a página
+  // abria um chat vazio e o usuário precisava caçar a conversa nos recentes
+  // — ela estava salva, mas parecia perdida.
+  // Lido na primeira renderização, antes de qualquer efeito: o efeito que
+  // grava roda com `sessionId` ainda nulo e apagaria o id a restaurar.
+  const [storedSessionId] = useState(readStoredCommandSessionId);
+  const restoredRef = useRef(false);
+
+  useEffect(() => {
+    if (restoredRef.current || sessionId || !storedSessionId) return;
+    restoredRef.current = true;
+    // Sessão apagada ou de outro usuário: começa vazio, sem quebrar a tela.
+    void handleSelectSession(storedSessionId).catch(() =>
+      storeCommandSessionId(null),
+    );
+  }, [sessionId, storedSessionId, handleSelectSession]);
+
+  useEffect(() => {
+    if (sessionId) storeCommandSessionId(sessionId);
+  }, [sessionId]);
+
   const handleDeleteSession = useCallback(
     (id: string) => {
       // Se a sessão atual foi apagada, limpa também o chat ativo.
       if (id === sessionId) {
         setMessages([]);
         setSessionId(null);
+        storeCommandSessionId(null);
         setHydrated(undefined);
       }
       deleteSessionMutation.mutate({ id });
@@ -152,6 +178,7 @@ export function NasaCommandCenter() {
   const handleNewSession = useCallback(() => {
     setMessages([]);
     setSessionId(null);
+    storeCommandSessionId(null);
     setHydrated(undefined);
     setCommand("");
     clearError();
@@ -308,7 +335,7 @@ export function NasaCommandCenter() {
         if (routeMatch) {
           const agentKey = routeMatch[1]!;
           return {
-            label: ROUTE_AGENT_LABELS[agentKey] ?? "Explorando no universo NASA",
+            label: ROUTE_AGENT_LABELS[agentKey] ?? "Explorando no universo ÓRBITA",
             mode: "rocket" as const,
           };
         }

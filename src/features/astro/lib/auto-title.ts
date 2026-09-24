@@ -77,7 +77,7 @@ const APP_PATTERNS: { app: string; tokens: RegExp[] }[] = [
     ],
   },
   {
-    app: "NASA Route",
+    app: "ÓRBITA Route",
     tokens: [/\bcursos?\b/i, /\bnasa\s+route\b/i, /\baulas?\b/i, /\btrilhas?\b/i, /\bmatr[íi]cula\b/i],
   },
   {

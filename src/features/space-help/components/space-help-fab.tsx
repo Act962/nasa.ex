@@ -50,7 +50,7 @@ export function SpaceHelpFab() {
             <SheetDescription className="text-xs">
               {detected?.categorySlug
                 ? `Tutorial contextual: ${detected.categorySlug}`
-                : "Hub educacional NASA"}
+                : "Hub educacional ÓRBITA"}
             </SheetDescription>
           </SheetHeader>
           <div className="p-2">

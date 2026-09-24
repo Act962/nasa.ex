@@ -67,7 +67,7 @@ const tabsLink = [
     singleAllowed: true,
   },
   {
-    label: "NASA Route",
+    label: "ÓRBITA Route",
     href: "/nasa-route",
     icon: GraduationCap,
     singleAllowed: false,

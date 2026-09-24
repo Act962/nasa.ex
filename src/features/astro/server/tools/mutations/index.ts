@@ -34,7 +34,10 @@ export function buildMutationTools(ctx: AgentContext) {
           .string()
           .optional()
           .describe("Telefone com DDD (ex: '11 99999-9999')"),
-        email: z.string().email().optional(),
+        email: z
+          .string()
+          .optional()
+          .describe("E-mail do lead"),
         document: z.string().optional().describe("CPF/CNPJ"),
         trackingId: z
           .string()
@@ -135,9 +138,12 @@ export function buildMutationTools(ctx: AgentContext) {
             organizationId: ctx.organizationId,
           });
           return {
-            success: true,
-            leadId: lead.id,
-            summary: `Lead "${lead.name}" criado em "${tracking.name}", status inicial "${firstStatus.name}".`,
+            status: "done" as const,
+            title: "Lead criado",
+            description: `${lead.name} entrou em "${tracking.name}", na coluna "${firstStatus.name}".`,
+            internalUrl: `/contatos/${lead.id}`,
+            openLabel: "Abrir lead",
+            appName: "Tracking",
           };
         } catch (err) {
           if (
@@ -235,6 +241,8 @@ export function buildMutationTools(ctx: AgentContext) {
         if (!(await userBelongsToOrg(ctx.userId, ctx.organizationId))) {
           return { error: "Sem acesso à organização" };
         }
+        // Criador vira membro: a listagem filtra por participação e o
+        // workspace nasceria invisível.
         const ws = await prisma.workspace.create({
           data: {
             name,
@@ -242,13 +250,17 @@ export function buildMutationTools(ctx: AgentContext) {
             color: color ?? "#1447e6",
             organizationId: ctx.organizationId,
             createdBy: ctx.userId,
+            members: { create: { userId: ctx.userId, role: "OWNER" } },
           },
           select: { id: true, name: true },
         });
         return {
-          success: true,
-          workspaceId: ws.id,
-          summary: `Workspace "${ws.name}" criado.`,
+          status: "done" as const,
+          title: "Workspace criado",
+          description: `"${ws.name}" está pronto para uso.`,
+          internalUrl: `/workspaces/${ws.id}`,
+          openLabel: "Abrir Workspace",
+          appName: "Workspaces",
         };
       },
     }),
@@ -276,9 +288,12 @@ export function buildMutationTools(ctx: AgentContext) {
           select: { id: true, name: true },
         });
         return {
-          success: true,
-          trackingId: tracking.id,
-          summary: `Tracking "${tracking.name}" criado. Configure as etapas em [Tracking](/tracking/${tracking.id}/settings).`,
+          status: "done" as const,
+          title: "Tracking criado",
+          description: `"${tracking.name}" está pronto. Falta configurar as etapas.`,
+          internalUrl: `/tracking/${tracking.id}/settings`,
+          openLabel: "Configurar etapas",
+          appName: "Tracking",
         };
       },
     }),
@@ -364,9 +379,12 @@ export function buildMutationTools(ctx: AgentContext) {
             select: { id: true, name: true },
           });
           return {
-            success: true,
-            agendaId: agenda.id,
-            summary: `Agenda "${agenda.name}" criada com slot de ${slotDuration ?? 30} min.`,
+            status: "done" as const,
+            title: "Agenda criada",
+            description: `"${agenda.name}", com slots de ${slotDuration ?? 30} min.`,
+            internalUrl: "/agendas",
+            openLabel: "Abrir Agendas",
+            appName: "Agendas",
           };
         } catch (err) {
           return {
@@ -383,7 +401,10 @@ export function buildMutationTools(ctx: AgentContext) {
         leadId: z.string(),
         name: z.string().optional(),
         phone: z.string().optional(),
-        email: z.string().email().optional(),
+        email: z
+          .string()
+          .optional()
+          .describe("E-mail do lead"),
         document: z.string().optional(),
         description: z.string().optional(),
       }),
@@ -783,6 +804,12 @@ export function buildMutationTools(ctx: AgentContext) {
           success: true,
           appointmentId: appointment.id,
           summary: `Agendamento criado pra ${start.toLocaleString("pt-BR")} na agenda "${agenda.name}".`,
+          status: "done" as const,
+          title: "Agendamento criado",
+          description: `${start.toLocaleString("pt-BR")} na agenda "${agenda.name}".`,
+          internalUrl: "/agendas",
+          openLabel: "Abrir Agendas",
+          appName: "Agendas",
           // Link público de reagendar / cancelar — Astro mostra na resposta.
           publicLink: `/agenda/appointment/${appointment.id}`,
           // Flag pra Astro saber se pode oferecer compartilhar via WhatsApp.

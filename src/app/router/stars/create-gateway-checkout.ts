@@ -165,8 +165,8 @@ export const createGatewayCheckout = base
               product_data: {
                 name:        `${pkg.stars} Stars — ${pkg.label}`,
                 description: partnerDiscountSnapshot
-                  ? `NASA.ex Platform Credits — Desconto Parceiro ${partnerDiscountSnapshot.ratePercent}%`
-                  : "NASA.ex Platform Credits",
+                  ? `ÓRBITA.ex Platform Credits — Desconto Parceiro ${partnerDiscountSnapshot.ratePercent}%`
+                  : "ÓRBITA.ex Platform Credits",
               },
             },
             quantity: 1,
@@ -227,8 +227,8 @@ export const createGatewayCheckout = base
         value:              paidBrl,
         dueDate:            dueDatePlus(3),
         description:        partnerDiscountSnapshot
-          ? `${pkg.stars} Stars — ${pkg.label} — NASA.ex (Parceiro ${partnerDiscountSnapshot.ratePercent}% off)`
-          : `${pkg.stars} Stars — ${pkg.label} — NASA.ex`,
+          ? `${pkg.stars} Stars — ${pkg.label} — ÓRBITA.ex (Parceiro ${partnerDiscountSnapshot.ratePercent}% off)`
+          : `${pkg.stars} Stars — ${pkg.label} — ÓRBITA.ex`,
         externalReference:  payment.id,
         callbackSuccessUrl: successUrl,
       });

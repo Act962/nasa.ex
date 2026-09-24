@@ -12,7 +12,7 @@ export default async function AdminPatternsPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <LayoutTemplate className="w-5 h-5 text-violet-400" /> Padrões NASA
+            <LayoutTemplate className="w-5 h-5 text-violet-400" /> Padrões ÓRBITA
           </h1>
           <p className="text-sm text-zinc-400 mt-1">
             Gerencie os modelos pré-configurados disponíveis para as

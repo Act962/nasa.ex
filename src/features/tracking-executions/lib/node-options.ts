@@ -502,7 +502,7 @@ export const executionNodes: NodeTypeOption[] = [
     type: NodeType.SEND_NASA_ROUTE,
     category: "execution",
     group: "send-to-app",
-    label: "Enviar Curso NASA Route",
+    label: "Enviar Curso ÓRBITA Route",
     description: "Envia link do curso (matrícula direta se free, checkout se pago)",
     icon: GraduationCapIcon,
   },

@@ -96,7 +96,7 @@ const PUBLIC_PLANS = [
       "25% de rollover de Stars",
       "Suporta ~80 usuários ativos/mês",
       "IA ASTRO completo",
-      "NASA Planner + Mind Maps",
+      "ÓRBITA Planner + Mind Maps",
       "Space Points gamificado",
       "Suporte dedicado",
     ],
@@ -452,7 +452,7 @@ export function PlansPublicSection({ isLoggedIn }: { isLoggedIn: boolean }) {
           <div className="inline-flex items-center gap-2 bg-[#7C3AED]/15 border border-[#7C3AED]/30 rounded-full px-5 py-2">
             <Sparkles className="size-3.5 text-violet-400" />
             <span className="text-violet-300 text-sm font-semibold tracking-wide">
-              Planos NASA
+              Planos ÓRBITA
             </span>
           </div>
         </div>
@@ -522,14 +522,14 @@ export function PlansPublicSection({ isLoggedIn }: { isLoggedIn: boolean }) {
         </p>
 
         {/* Linha de fecho, briefing § 3.11.
-            Posiciona NASA como agregador econômico de stack, sem
+            Posiciona ÓRBITA como agregador econômico de stack, sem
             comparar concorrente nominalmente (pra não criar atrito
             de marca). */}
         <p className="mt-10 text-center text-white/55 text-base sm:text-lg max-w-3xl mx-auto leading-relaxed italic">
           Some o que você paga hoje em CRM, atendimento, agenda, contrato e
           financeiro separados.{" "}
           <span className="text-white/85 not-italic font-semibold">
-            O NASA costuma custar menos, e entrega o que nenhum deles
+            O ÓRBITA costuma custar menos, e entrega o que nenhum deles
             entrega sozinho: o processo inteiro, junto.
           </span>
         </p>

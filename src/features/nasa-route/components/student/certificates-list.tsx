@@ -20,7 +20,7 @@ export function CertificatesList() {
       <header className="mb-8 flex items-end justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-violet-700 dark:text-violet-300">
-            NASA Route
+            ÓRBITA Route
           </p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">
             Meus certificados
@@ -47,7 +47,7 @@ export function CertificatesList() {
             Você ainda não possui certificados
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Conclua um curso no NASA Route para receber seu primeiro certificado.
+            Conclua um curso no ÓRBITA Route para receber seu primeiro certificado.
           </p>
           <Button asChild className="mt-6">
             <Link href="/nasa-route">Explorar cursos</Link>

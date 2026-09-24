@@ -197,7 +197,7 @@ export const importExistingChats = base
           );
         }
         userFacing =
-          "Token da uazapi inválido — a instância parece conectada no NASA " +
+          "Token da uazapi inválido — a instância parece conectada no ÓRBITA " +
           "mas a uazapi rejeitou a chave. Clique em 'Reconectar' nas " +
           "configurações de WhatsApp e escaneie o QR de novo. " +
           "(Marquei a instância como desconectada pra forçar o reconect.)";

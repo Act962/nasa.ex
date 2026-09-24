@@ -140,7 +140,7 @@ async function runRealSend(): Promise<boolean> {
   try {
     const response = await sendOfficialText(accessToken, phoneNumberId, {
       to,
-      body: `Hello da NASA — teste Fase 1 (${new Date().toISOString()})`,
+      body: `Hello da ÓRBITA — teste Fase 1 (${new Date().toISOString()})`,
     });
     const wamid = response.messages[0]?.id;
     ok("envio aceito", `wamid=${wamid}`);

@@ -49,7 +49,7 @@ export const generateImageFromPrompt = base
       variant: imageVariant,
       userId: context.user.id,
       appSlug: "nasa-planner",
-      description: `NASA Planner — geração de imagem (${providerInfo.provider})`,
+      description: `ÓRBITA Planner — geração de imagem (${providerInfo.provider})`,
       feature: "planner.image.prompt",
       quantity: { unit: "image", amount: 1 },
       cost: { kind: "IMAGE", provider: providerInfo.provider },

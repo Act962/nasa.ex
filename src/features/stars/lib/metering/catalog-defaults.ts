@@ -38,25 +38,25 @@ export const CATALOG_DEFAULTS: Record<string, CatalogDefault> = {
     unit: "image",
     maxCharge: 50,
     variantMode: "absolute",
-    displayName: "NASA Planner — geração de imagem",
+    displayName: "ÓRBITA Planner — geração de imagem",
   },
   planner_video: {
     unit: "second",
     maxCharge: 300,
     variantMode: "absolute",
-    displayName: "NASA Planner — geração de vídeo",
+    displayName: "ÓRBITA Planner — geração de vídeo",
   },
   planner_transcription: {
     unit: "minute",
     minCharge: 1,
     maxCharge: 200,
-    displayName: "NASA Planner — transcrição de áudio",
+    displayName: "ÓRBITA Planner — transcrição de áudio",
   },
   route_video_upload: {
     unit: "mb",
     minCharge: 1,
     maxCharge: 5000,
-    displayName: "NASA Route — upload de vídeo",
+    displayName: "ÓRBITA Route — upload de vídeo",
   },
 };
 

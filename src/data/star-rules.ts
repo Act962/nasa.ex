@@ -241,7 +241,7 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
   },
   {
     action: "nasa_command_intent",
-    label: "NASA Command — parser de intent (IA)",
+    label: "ÓRBITA Command — parser de intent (IA)",
     stars: 1,
     cooldownHours: null,
     category: "ai",
@@ -407,9 +407,9 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
 
 export const STAR_RULE_CATEGORY_LABEL: Record<string, string> = {
   leads: "CRM / Leads",
-  ai: "IA & NASA Command",
+  ai: "IA & ÓRBITA Command",
   forge: "Forge",
-  planner: "NASA Planner",
+  planner: "ÓRBITA Planner",
   automation: "Workflows & Automações",
   agenda: "Agenda",
   chat: "Chat & Mensagens",

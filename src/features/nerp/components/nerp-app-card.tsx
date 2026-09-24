@@ -189,7 +189,7 @@ function NerpSetupDialog({
     },
     {
       title: "Conecte a integração",
-      body: "Volte aqui no NASA, abra o app NERP e autorize o acesso quando o nerp pedir.",
+      body: "Volte aqui no ÓRBITA, abra o app NERP e autorize o acesso quando o nerp pedir.",
       cta: connected
         ? undefined
         : {
@@ -200,7 +200,7 @@ function NerpSetupDialog({
     },
     {
       title: "Pronto",
-      body: "Suas credenciais ficam salvas no NASA. Produtos, vendas, estoque e dashboards do nerp passam a aparecer aqui.",
+      body: "Suas credenciais ficam salvas no ÓRBITA. Produtos, vendas, estoque e dashboards do nerp passam a aparecer aqui.",
     },
   ];
 
@@ -213,7 +213,7 @@ function NerpSetupDialog({
             Como conectar o NERP
           </DialogTitle>
           <DialogDescription>
-            4 passos rápidos pra usar o ERP dentro do NASA.
+            4 passos rápidos pra usar o ERP dentro do ÓRBITA.
           </DialogDescription>
         </DialogHeader>
 

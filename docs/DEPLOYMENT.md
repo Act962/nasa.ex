@@ -72,22 +72,28 @@ A voz oficial do Astro (**Faber pt-BR VITS**) precisa de um container
 rodando em algum lugar acessível pelo Next.js prod. **Não existe versão
 "serverless" disso** — TTS precisa estado (modelo ONNX em memória).
 
-### Opção A — Mesmo host do app (VPS/Hetzner/Digital Ocean)
+> ⚠️ **Verificado em 2026-09-24**: `docker-compose.prod.yml` **não existe** no
+> repositório, não há nenhum workflow em `.github/workflows/` e, portanto, a
+> imagem `ghcr.io/weydsonlima/nasaex-wey/piper-tts:latest` **nunca foi
+> publicada**. As instruções abaixo foram corrigidas para o que de fato
+> funciona: buildar a partir do `docker/piper/` que está versionado.
+
+### Opção A — Mesmo host do app (VPS / Coolify / Hetzner / Digital Ocean)
 
 ```bash
 # No servidor de produção
 git pull origin main
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up piper -d
+docker compose up piper -d --build
 
 # Verifica
 curl http://localhost:10200/health
 # {"status":"ok","voices_dir":"/voices"}
 ```
 
-`docker-compose.prod.yml` puxa a imagem pré-buildada via GitHub Actions
-do `ghcr.io/weydsonlima/nasaex-wey/piper-tts:latest` (multi-arch
-amd64+arm64). Volume `piper_voices` mantém o modelo cacheado entre
-redeploys.
+O serviço `piper` do `docker-compose.yml` builda de `docker/piper/Dockerfile`,
+que está completo no repositório (Dockerfile, `entrypoint.sh`, `server.py`). O
+primeiro start baixa a voz `pt_BR-faber-medium` (~63 MB) e a guarda no volume
+`piper_voices`, que sobrevive a redeploys. Limite de memória: 512 MB.
 
 No Next.js, seta:
 ```env
@@ -98,13 +104,13 @@ PIPER_HTTP_URL=http://localhost:10200
 
 Vercel não roda containers persistentes. Hospede o Piper separado:
 
-1. **Fly.io** (mais econômico ~$5/mês):
+1. **Fly.io** (mais econômico ~$5/mês) — a partir do Dockerfile do repo:
    ```bash
-   fly launch --image ghcr.io/weydsonlima/nasaex-wey/piper-tts:latest \
-              --name nasa-piper --internal-port 10200 --memory 512
+   fly launch --dockerfile docker/piper/Dockerfile \
+              --name nasa-piper --internal-port 10200 --vm-memory 512
    ```
-2. **Railway / Render**: import via GHCR, expose port 10200.
-3. **Próprio VPS**: docker run -d com a imagem.
+2. **Railway / Render**: apontar para `docker/piper/Dockerfile`, expor a 10200.
+3. **Próprio VPS**: `docker build -t piper docker/piper && docker run -d -p 10200:10200 piper`.
 
 Depois seta no Vercel:
 ```env
@@ -119,14 +125,15 @@ não é prioridade pro seu launch.
 
 ---
 
-## 5. GitHub Actions — build automático
+## 5. GitHub Actions — build automático (NÃO EXISTE)
 
-Toda alteração em `docker/piper/**` na branch `main` aciona o workflow
-`piper-build-push.yml` que:
+> ⚠️ **Verificado em 2026-09-24**: não há diretório `.github/workflows/` no
+> repositório. O workflow `piper-build-push.yml` descrito aqui nunca foi
+> criado, e nenhuma imagem é publicada automaticamente.
 
-1. Builda multi-arch (amd64 + arm64)
-2. Publica em `ghcr.io/weydsonlima/nasaex-wey/piper-tts:latest`
-3. Também tagueia com `sha-<short>` pra pin reproduzível
+Enquanto não existir, o build do Piper é feito no próprio servidor, a partir de
+`docker/piper/Dockerfile` (ver §4, Opção A). Criar o workflow é trabalho em
+aberto — só vale a pena quando houver mais de um host consumindo a imagem.
 
 **Pré-requisito (uma vez)**: na primeira execução, o package no GHCR
 precisa virar público OU prod precisa autenticar com PAT. Pra deixar

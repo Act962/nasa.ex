@@ -16,6 +16,8 @@ import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers/
 import type { WhatsappBotChannel, ButtonPayload } from "./types";
 
 const MAX_TEXT_LEN = 4000;
+/** A Uazapi renderiza N botões, mas acima disto a leitura piora. */
+const MAX_BUTTONS = 6;
 const MIN_DELAY_MS = 1500;
 const MAX_DELAY_MS = 4000;
 
@@ -78,14 +80,64 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
     return { messageId: lastId };
   }
 
+  /**
+   * Botões de verdade quando o provider é Uazapi; lista numerada quando não é.
+   *
+   * O degrade para texto era a regra antes porque o canal só lia insights e
+   * não tinha o que oferecer. Com o ciclo guiado ("em qual conta?"), escolher
+   * digitando é atrito puro — e o clique volta como `ButtonsResponseMessage`,
+   * que o webhook agora entrega ao bot.
+   */
   async sendButtons(
     phone: string,
     payload: ButtonPayload,
   ): Promise<{ messageId: string | null }> {
-    // Insights é read-only — não usamos menus interativos. Degrada pra texto
-    // (botões viram lista numerada) pra manter a interface do canal.
+    const resolved = await resolveOutboundProvider(this.trackingId);
+
+    // Botões ficam atrás de flag, desligados.
+    //
+    // Medido três vezes com esta instância: a Uazapi aceita o /send/menu e a
+    // mensagem NÃO chega ao aparelho, enquanto texto puro chega sempre. O
+    // preço do experimento é o pior possível — o Astro pergunta, o usuário
+    // não vê nada, e o ciclo fica esperando resposta de uma pergunta
+    // invisível. Lista numerada é feia e funciona.
+    if (
+      process.env.ASTRO_BOT_BUTTONS === "true" &&
+      resolved.uazapiToken &&
+      payload.buttons.length > 0
+    ) {
+      try {
+        const { sendButtons } = await import("@/http/uazapi/send-menu");
+        const response = await sendButtons(
+          resolved.uazapiToken,
+          {
+            number: phone,
+            text: payload.bodyText,
+            footer: payload.footerText,
+            buttons: payload.buttons.slice(0, MAX_BUTTONS),
+            readchat: true,
+          },
+          resolved.uazapiBaseUrl,
+        );
+        const sent = response as { id?: unknown; messageid?: unknown };
+        const messageId =
+          typeof sent?.id === "string"
+            ? sent.id
+            : typeof sent?.messageid === "string"
+              ? sent.messageid
+              : null;
+        if (messageId) return { messageId };
+        console.error(
+          "[astro-bot/channel] menu sem id, caindo para texto:",
+          JSON.stringify(response).slice(0, 300),
+        );
+      } catch (error) {
+        console.error("[astro-bot/channel] botões falharam, usando texto", error);
+      }
+    }
+
     const lines = payload.buttons.map(
-      (button, index) => `${index + 1}. ${button.text}`,
+      (button, index) => `*${index + 1}.* ${button.text}`,
     );
     const body = [payload.bodyText, ...lines, payload.footerText]
       .filter(Boolean)

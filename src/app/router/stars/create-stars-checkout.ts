@@ -186,7 +186,7 @@ export const createStarsCheckout = base
               currency: "brl",
               unit_amount: amountBrlCents,
               product_data: {
-                name: `${input.stars.toLocaleString("pt-BR")} Stars — NASA.ex`,
+                name: `${input.stars.toLocaleString("pt-BR")} Stars — ÓRBITA.ex`,
                 description: partnerDiscountSnapshot
                   ? `Recarga de Stars — Desconto Parceiro ${partnerDiscountSnapshot.ratePercent}%`
                   : "Recarga de Stars",

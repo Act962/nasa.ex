@@ -124,7 +124,7 @@ export function LinnkerCapturePage({ page, link }: Props) {
         )}
 
         <p className="text-xs text-zinc-400">
-          Feito com <span className="font-semibold" style={{ color: page.coverColor }}>Linnker</span> · NASA
+          Feito com <span className="font-semibold" style={{ color: page.coverColor }}>Linnker</span> · ÓRBITA
         </p>
       </div>
     </div>

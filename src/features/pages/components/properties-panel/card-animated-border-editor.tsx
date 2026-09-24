@@ -22,7 +22,7 @@ import type { ElementBase } from "../../types";
 const PRESETS = [
   {
     id: "explorer",
-    label: "NASA Explorer",
+    label: "ÓRBITA Explorer",
     colors: [...EXPLORER_GRADIENT_COLORS],
     preview: "linear-gradient(270deg, #7C3AED, #a855f7, #EC4899, #fff)",
   },

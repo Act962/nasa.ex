@@ -44,7 +44,7 @@ export default async function PublicReportPage({ params }: PublicReportPageProps
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Relatório NASA Insights
+                Relatório ÓRBITA Insights
               </p>
               <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
                 {report.name}
@@ -97,7 +97,7 @@ export default async function PublicReportPage({ params }: PublicReportPageProps
         )}
 
         <footer className="mt-12 pt-6 border-t text-center text-xs text-muted-foreground">
-          <p>Powered by NASA Insights</p>
+          <p>Powered by ÓRBITA Insights</p>
         </footer>
       </div>
     </div>

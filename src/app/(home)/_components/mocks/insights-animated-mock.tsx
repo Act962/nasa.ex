@@ -39,7 +39,7 @@ export function InsightsAnimatedMock() {
   ];
 
   return (
-    <MacWindow title="NASA Insights, Tráfego Pago">
+    <MacWindow title="ÓRBITA Insights, Tráfego Pago">
       <div className="bg-[#0d0a1a] p-4">
         {/* KPI row */}
         <div className="grid grid-cols-4 gap-2 mb-4">
@@ -139,7 +139,7 @@ export function InsightsAnimatedMock() {
               <BarChart2 className="size-2.5 text-[#a78bfa]" />
             </div>
             <span className="text-white/50 text-[8px] font-semibold">
-              NASA Insights
+              ÓRBITA Insights
             </span>
           </div>
         </div>

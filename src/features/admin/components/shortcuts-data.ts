@@ -15,7 +15,7 @@ export const SHORTCUTS: Shortcut[] = [
   {
     keys: ["⌘", "A"],
     keysWin: ["Ctrl", "A"],
-    description: "Abrir NASA Explorer (foco no campo de comando)",
+    description: "Abrir ÓRBITA Explorer (foco no campo de comando)",
     category: "Navegação",
     action: "open_explorer",
   },

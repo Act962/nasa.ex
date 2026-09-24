@@ -93,7 +93,7 @@ function PrintFooter({ orgName }: { orgName: string }) {
   return (
     <div className="forge-print-footer" aria-hidden="true">
       <span>Assinatura digital — documento com validade jurídica</span>
-      <span>{orgName} · FORGE · N.A.S.A®</span>
+      <span>{orgName} · FORGE · ÓRBITA®</span>
     </div>
   );
 }
@@ -604,7 +604,7 @@ export function PublicContractView({ contract }: { contract: Contract }) {
             />
           ) : (
             <div className="px-8 py-4 text-xs text-muted-foreground text-center">
-              {contract.organization.name} — Assinatura digital via FORGE · N.A.S.A®
+              {contract.organization.name} — Assinatura digital via FORGE · ÓRBITA®
             </div>
           )}
         </div>

@@ -11,7 +11,7 @@ export type TemplateId = "standard";
 export const TEMPLATE_LIST = [
   {
     id: "standard" as const,
-    name: "Proposta N.A.S.A.",
+    name: "Proposta ÓRBITA",
     desc: "Modelo único, legível e otimizado para conversão.",
     preview: "bg-gradient-to-br from-slate-950 via-slate-900 to-violet-950",
   },

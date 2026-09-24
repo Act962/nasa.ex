@@ -16,6 +16,7 @@ import {
   useSidebarScope,
   isItemVisible,
 } from "@/hooks/use-sidebar-prefs";
+import { ICON_MODE_BUTTON, ICON_MODE_LABEL } from "./icon-mode";
 
 function AstroNavIcon({ className }: { className?: string }) {
   return (
@@ -69,6 +70,7 @@ export function NavMenu() {
             tooltip="Início"
             asChild
             className={cn(
+              ICON_MODE_BUTTON,
               pathname === "/home" &&
                 "bg-sidebar-accent text-sidebar-accent-foreground",
             )}
@@ -77,7 +79,7 @@ export function NavMenu() {
                 acessível mesmo com outro app definido como inicial. */}
             <Link href="/home?home=1">
               <AstroNavIcon />
-              <span>Início</span>
+              <span className={ICON_MODE_LABEL}>Início</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -98,13 +100,14 @@ export function NavMenu() {
                 tooltip={item.title}
                 asChild
                 className={cn(
+                  ICON_MODE_BUTTON,
                   isActive &&
                     "bg-sidebar-accent text-sidebar-accent-foreground",
                 )}
               >
                 <Link href={item.url}>
                   <Icon />
-                  <span>{item.title}</span>
+                  <span className={ICON_MODE_LABEL}>{item.title}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

@@ -36,7 +36,7 @@ export function ManifestoSection() {
           </p>
 
           <p className="mt-8 text-lg sm:text-xl text-white/65 leading-relaxed">
-            O NASA existe pra que{" "}
+            O ÓRBITA existe pra que{" "}
             <span className="text-nasa font-semibold">
               nenhuma dessas trocas falhe
             </span>,{" "}
@@ -272,7 +272,7 @@ function RocketStageSimulation() {
               fill="white"
               fontFamily="system-ui"
             >
-              N.A.S.A
+              ÓRBITA
             </text>
 
             {/* Anel de ignição do estágio 2 */}

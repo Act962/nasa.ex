@@ -134,7 +134,7 @@ export function NasaPlannerListPage() {
             <BrainCircuitIcon className="size-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">NASA PLANNER</h1>
+            <h1 className="text-xl font-bold">ÓRBITA PLANNER</h1>
             <p className="text-sm text-muted-foreground">
               Planejamento estratégico de marketing com IA
             </p>

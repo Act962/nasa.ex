@@ -194,7 +194,7 @@ export default async function PublicActionPage({ params }: Props) {
               <form action={openInNasa}>
                 <Button type="submit" className="w-full sm:w-auto">
                   <ExternalLinkIcon className="size-4" />
-                  Abrir no N.A.S.A
+                  Abrir no ÓRBITA
                 </Button>
               </form>
             </div>

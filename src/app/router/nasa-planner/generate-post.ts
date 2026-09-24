@@ -43,7 +43,7 @@ export const generatePost = base
         action: "planner_post_generate",
         userId: context.user.id,
         appSlug: "nasa-planner",
-        description: "NASA Planner — geração de conteúdo IA",
+        description: "ÓRBITA Planner — geração de conteúdo IA",
         feature: "planner.post.generate",
         cost: { kind: "LLM" },
       }, "Saldo de stars insuficiente para gerar o post");
@@ -200,7 +200,7 @@ INSTRUÇÕES:
       return { post: updatedPost, starsSpent: debit.stars, balanceAfter: debit.balanceAfter };
     } catch (err: any) {
       if (err instanceof ORPCError) throw err;
-      console.error("[NASA Planner] Unexpected error:", err?.message ?? err);
+      console.error("[ÓRBITA Planner] Unexpected error:", err?.message ?? err);
       throw new ORPCError("INTERNAL_SERVER_ERROR", {
         message: err?.message ? `Erro interno: ${err.message}` : "Erro interno. Tente novamente.",
       });

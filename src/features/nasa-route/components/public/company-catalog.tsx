@@ -87,7 +87,7 @@ export function CompanyCatalog({ companySlug }: CompanyCatalogProps) {
           )}
           <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wider text-violet-700 dark:text-violet-300">
-              Área de Membros · NASA Route
+              Área de Membros · ÓRBITA Route
             </p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">
               {org.name}

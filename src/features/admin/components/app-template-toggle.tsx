@@ -35,7 +35,7 @@ export function AppTemplateToggle({
   return (
     <div className="flex items-center gap-3 p-4 border border-zinc-800 rounded-lg bg-zinc-900">
       <div className="flex-1">
-        <p className="text-sm font-medium text-white">Marcar como Padrão NASA</p>
+        <p className="text-sm font-medium text-white">Marcar como Padrão ÓRBITA</p>
         <p className="text-xs text-zinc-400 mt-1">
           Este {appType} será disponível como modelo pré-configurado para outras
           empresas

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 type Variant = "dark" | "light";
 
 export function NasaPoweredBy({ variant = "dark" }: { variant?: Variant }) {
-  const logoSrc = variant === "dark" ? "/logo-dark.png" : "/logo.png";
+  const logoSrc = variant === "dark" ? "/orbita-logo-dark.svg" : "/orbita-logo.svg";
   const textCls =
     variant === "dark" ? "text-slate-500" : "text-gray-500";
   const linkCls =
@@ -24,11 +24,11 @@ export function NasaPoweredBy({ variant = "dark" }: { variant?: Variant }) {
     >
       <img
         src={logoSrc}
-        alt="N.A.S.A"
+        alt="ÓRBITA"
         className="h-7 object-contain opacity-90"
       />
       <p className={cn("text-xs", textCls)}>
-        Proposta gerada por N.A.S.A —{" "}
+        Proposta gerada por ÓRBITA —{" "}
         <a
           href="/"
           target="_blank"

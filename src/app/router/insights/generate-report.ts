@@ -169,7 +169,7 @@ export const generateReport = base
       const networks = Object.entries(n.byNetwork)
         .map(([net, count]) => `${net}: ${count}`)
         .join(", ");
-      sections.push(`**NASA PLANNER (Conteúdo)**
+      sections.push(`**ÓRBITA PLANNER (Conteúdo)**
 - Posts criados: ${fmtN(n.total)}
 - Publicados: ${fmtN(n.published)} | Agendados: ${fmtN(n.scheduled)} | Rascunhos: ${fmtN(n.draft)}
 - Stars consumidas (IA): ${fmtN(n.starsSpent)}

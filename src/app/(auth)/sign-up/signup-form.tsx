@@ -263,7 +263,7 @@ export function SignupForm() {
               method: "email",
               company_type: data.companyType,
             });
-            toast.success("🚀 Conta criada! Bem-vindo ao NASA.ex!");
+            toast.success("🚀 Conta criada! Bem-vindo ao ÓRBITA.ex!");
             // Hard navigation — bypassa o Router Cache do Next (RSC),
             // que mantém versão "deslogada" e causa loop sign-up → sign-in.
             window.location.assign(callbackUrl ?? "/home");
@@ -296,7 +296,7 @@ export function SignupForm() {
         method: "email",
         company_type: data.companyType,
       });
-      toast.success("🚀 Conta criada! Bem-vindo ao NASA.ex!");
+      toast.success("🚀 Conta criada! Bem-vindo ao ÓRBITA.ex!");
       // Hard navigation — invalida Router Cache do Next que estaria
       // com versão "deslogada" da home, causando loop pós cadastro.
       window.location.assign(callbackUrl ?? "/home");
@@ -329,7 +329,7 @@ export function SignupForm() {
           Crie sua conta
         </h1>
         <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
-          Junte-se a centenas de times que vendem mais com NASA
+          Junte-se a centenas de times que vendem mais com ÓRBITA
         </p>
       </div>
 

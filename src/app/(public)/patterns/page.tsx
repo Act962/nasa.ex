@@ -30,7 +30,7 @@ export default async function PatternsPage() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Padrões NASA</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Padrões ÓRBITA</h1>
           <p className="text-zinc-400">
             Explore modelos pré-configurados para acelerar a criação de seus apps
           </p>
@@ -39,7 +39,7 @@ export default async function PatternsPage() {
         {/* Info Box */}
         <div className="bg-violet-600/10 border border-violet-600/30 rounded-lg p-4 mb-8">
           <p className="text-sm text-violet-300">
-            ✨ Estes padrões foram criados por moderadores NASA como exemplos de como
+            ✨ Estes padrões foram criados por moderadores ÓRBITA como exemplos de como
             configurar e usar cada app. Você pode duplicar qualquer padrão para sua
             organização e adaptá-lo conforme suas necessidades.
           </p>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Space Station | NASA Agents",
+  title: "Space Station | ÓRBITA Agents",
   description: "Espaço virtual de networking e colaboração",
 };
 

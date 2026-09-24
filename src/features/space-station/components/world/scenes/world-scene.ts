@@ -3513,7 +3513,7 @@ export class WorldScene extends PhaserNS.Scene {
     // Logo area
     this.fillRect(g, 0x4f46e5, x + w / 2 - 24, y + 8, 48, 20);
     this.add
-      .text(x + w / 2, y + 18, "NASA", {
+      .text(x + w / 2, y + 18, "ÓRBITA", {
         fontSize: "8px",
         color: "#ffffff",
         fontFamily: "monospace",

@@ -50,7 +50,7 @@ const PROVIDER_FILTER_OPTIONS: {
   label: string;
 }[] = [
   { value: "all", label: "Todos os providers" },
-  { value: "NASA", label: "Padrão NASA" },
+  { value: "ÓRBITA", label: "Padrão ÓRBITA" },
   { value: "OPENAI", label: "OpenAI" },
   { value: "ANTHROPIC", label: "Anthropic" },
   { value: "GOOGLE", label: "Google" },
@@ -58,7 +58,7 @@ const PROVIDER_FILTER_OPTIONS: {
 
 function ProviderFilterIcon({ value }: { value: AiUsageProviderFilter }) {
   if (value === "all") return <Layers className="size-4 shrink-0" />;
-  if (value === "NASA") return <Sparkles className="size-4 shrink-0" />;
+  if (value === "ÓRBITA") return <Sparkles className="size-4 shrink-0" />;
   return <ProviderIcon provider={value} className="size-4 shrink-0" />;
 }
 
@@ -275,7 +275,7 @@ export function ChatBotIaUsageTab({ trackingId }: { trackingId: string }) {
                           {row.provider ?? "Custom"}
                         </Badge>
                       ) : (
-                        <Badge variant="outline">NASA</Badge>
+                        <Badge variant="outline">ÓRBITA</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">

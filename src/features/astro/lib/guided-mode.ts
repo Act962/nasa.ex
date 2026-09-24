@@ -54,7 +54,7 @@ const FAQ: Array<{ keywords: string[]; answer: string }> = [
   {
     keywords: ["seguro", "segurança", "criptograf"],
     answer:
-      "Usamos OAuth oficial — você autoriza direto na Meta ou Google, e o NASA recebe um token criptografado. Nunca pedimos sua senha. Pode revogar tudo a qualquer momento na conta da plataforma.",
+      "Usamos OAuth oficial — você autoriza direto na Meta ou Google, e o ÓRBITA recebe um token criptografado. Nunca pedimos sua senha. Pode revogar tudo a qualquer momento na conta da plataforma.",
   },
   {
     keywords: ["revogar", "cancelar", "desconectar", "remover"],
@@ -64,7 +64,7 @@ const FAQ: Array<{ keywords: string[]; answer: string }> = [
   {
     keywords: ["ads_management", "permiss", "scope", "escopo", "por que"],
     answer:
-      "ads_management permite que o NASA leia E ajuste suas campanhas direto pelo painel de Insights. ads_read sozinho seria só leitura — mas a gente perderia a função de pausar/ativar campanhas pelo NASA.",
+      "ads_management permite que o ÓRBITA leia E ajuste suas campanhas direto pelo painel de Insights. ads_read sozinho seria só leitura — mas a gente perderia a função de pausar/ativar campanhas pelo ÓRBITA.",
   },
   {
     keywords: ["janela", "popup", "abriu", "redirec"],

@@ -281,7 +281,7 @@ export function validateNode(
 
     case "SEND_NASA_ROUTE":
       if (!hasNonEmptyString(d.courseId))
-        errs.push("Selecione o curso NASA Route");
+        errs.push("Selecione o curso ÓRBITA Route");
       break;
 
     // ─── Modo Agente IA (N8n-style) ─────────────────────────────────────

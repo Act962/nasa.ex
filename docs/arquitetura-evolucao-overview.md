@@ -151,6 +151,7 @@ as novas regras serem levadas a sério.**
 | CLAUDE.md: hook `PreToolUse` bloqueia commit na main | `.claude/settings.json` não existe — e `.claude` está no `.gitignore` |
 | `docs/DEPLOYMENT.md:10`: "Copie `.env.example`" | **`.env.example` não existe** |
 | `docs/DEPLOYMENT.md:40`: `psql -f prisma/migrations/MANUAL_*.sql` | **Arquivos não existem.** `scripts/apply-prod-migrations.sh` tem `set -euo pipefail` → **quebra** |
+| `docs/DEPLOYMENT.md` §4/§5: `docker-compose.prod.yml`, imagem `ghcr.io/.../piper-tts` e workflow `piper-build-push.yml` | **Nenhum dos três existe** — não há `.github/workflows/`. O deploy do Piper travaria no primeiro comando. Corrigido em 2026-09-24 para buildar de `docker/piper/` |
 | `prisma/PENDING_MIGRATIONS.md` com alarme 🚨 ativo | Já resolvido; arquivo obsoleto induz dev novo a erro |
 | CLAUDE.md: `schema(s)/` por feature | Adotado por **3 de 65** |
 

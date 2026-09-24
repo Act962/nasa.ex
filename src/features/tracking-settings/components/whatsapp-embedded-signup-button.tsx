@@ -85,7 +85,7 @@ function EmbeddedSignupReady({
             <h4 className="text-sm font-semibold">Conectar via Meta</h4>
             <p className="text-xs text-muted-foreground mt-1">
               Fluxo oficial: faça login com sua conta Meta, escolha a WABA
-              e o número, e a NASA recebe as credenciais automaticamente
+              e o número, e a ÓRBITA recebe as credenciais automaticamente
               (sem colar token manualmente).
             </p>
           </div>

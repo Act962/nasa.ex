@@ -57,7 +57,7 @@ export async function requireModerator(userId: string) {
   });
   if (!user?.isSystemAdmin) {
     throw new ORPCError("FORBIDDEN", {
-      message: "Apenas moderadores da plataforma NASA podem editar o Space Help",
+      message: "Apenas moderadores da plataforma ÓRBITA podem editar o Space Help",
     });
   }
   return user;
@@ -313,7 +313,7 @@ export async function computeSetupProgress(opts: {
     {
       key: "whatsapp",
       label: "Conectar instância WhatsApp",
-      description: "Conecte seu número WhatsApp para receber mensagens dentro do NASA.",
+      description: "Conecte seu número WhatsApp para receber mensagens dentro do ÓRBITA.",
       isCompleted: whatsappCount > 0,
       helpCategorySlug: "integrations",
       helpFeatureSlug: "conectar-instancia-whatsapp",
@@ -446,7 +446,7 @@ export async function awardSetupRewards(opts: {
         data: {
           userPointId: userPoint.id,
           points: SETUP_REWARD_SP,
-          description: "Setup Inicial NASA — 100% concluído",
+          description: "Setup Inicial ÓRBITA — 100% concluído",
           metadata: { source: "spacehelp-setup" } as any,
         },
       }),
@@ -482,7 +482,7 @@ export async function awardSetupRewards(opts: {
             type: StarTransactionType.MANUAL_ADJUST,
             amount: SETUP_REWARD_STARS,
             balanceAfter: newBalance,
-            description: "Setup Inicial NASA — 100% concluído",
+            description: "Setup Inicial ÓRBITA — 100% concluído",
             appSlug: "spacehelp",
           },
         }),

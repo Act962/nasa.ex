@@ -171,10 +171,10 @@ function buildSteps(): Step[] {
     // ── Step 1: Welcome ─────────────────────────────────────────────────────
     {
       id: 1,
-      title: "Bem-vindo ao NASA! 🚀",
+      title: "Bem-vindo ao ÓRBITA! 🚀",
       subtitle: "Sua plataforma de vendas inteligente",
       description:
-        "Olá! Eu sou o ASTRO, seu guia espacial. Vou te mostrar tudo que você precisa para decolar no universo NASA. São só 10 passos rápidos e você já sabe navegar!",
+        "Olá! Eu sou o ASTRO, seu guia espacial. Vou te mostrar tudo que você precisa para decolar no universo ÓRBITA. São só 10 passos rápidos e você já sabe navegar!",
       accent: "from-violet-900 via-violet-800 to-indigo-900",
       accentHex: "#7c3aed",
       astroPos: "bottom-right",
@@ -273,7 +273,7 @@ function buildSteps(): Step[] {
       title: "Tracking — Seu CRM 📊",
       subtitle: "Gerencie leads em um Kanban visual",
       description:
-        "O Tracking é o coração do NASA. Acompanhe leads e clientes em colunas visuais, atribua responsáveis e feche negócios com mais agilidade.",
+        "O Tracking é o coração do ÓRBITA. Acompanhe leads e clientes em colunas visuais, atribua responsáveis e feche negócios com mais agilidade.",
       accent: "from-orange-900 via-amber-800 to-yellow-900",
       accentHex: "#d97706",
       astroPos: "top-right",
@@ -313,7 +313,7 @@ function buildSteps(): Step[] {
     // ── Step 5: Explorer ─────────────────────────────────────────────────────
     {
       id: 5,
-      title: "NASA Explorer 🌌",
+      title: "ÓRBITA Explorer 🌌",
       subtitle: "Seu painel de controle central",
       description:
         "O Explorer é onde você acessa todos os apps instalados, gerencia sua assinatura, vê métricas e descobre novas funcionalidades da plataforma.",
@@ -350,7 +350,7 @@ function buildSteps(): Step[] {
       title: "ASTRO — IA Integrada 🤖",
       subtitle: "Seu assistente inteligente 24/7",
       description:
-        "Sou eu! O ASTRO é a inteligência artificial do NASA. Posso responder dúvidas, criar leads, configurar integrações e muito mais. É só me chamar!",
+        "Sou eu! O ASTRO é a inteligência artificial do ÓRBITA. Posso responder dúvidas, criar leads, configurar integrações e muito mais. É só me chamar!",
       accent: "from-violet-900 via-purple-800 to-fuchsia-900",
       accentHex: "#7c3aed",
       astroPos: "right",
@@ -377,10 +377,10 @@ function buildSteps(): Step[] {
     // ── Step 7: Stars ────────────────────────────────────────────────────────
     {
       id: 7,
-      title: "Stars ⭐ — A Moeda do NASA",
+      title: "Stars ⭐ — A Moeda do ÓRBITA",
       subtitle: "Créditos para usar os apps da plataforma",
       description:
-        "Stars são a moeda virtual do NASA. Use-as para ativar aplicativos, fazer recargas de mensagens e acessar recursos premium da plataforma.",
+        "Stars são a moeda virtual do ÓRBITA. Use-as para ativar aplicativos, fazer recargas de mensagens e acessar recursos premium da plataforma.",
       accent: "from-yellow-900 via-amber-800 to-orange-900",
       accentHex: "#f59e0b",
       astroPos: "bottom-left",
@@ -406,7 +406,7 @@ function buildSteps(): Step[] {
       title: "Space Points & Ranking 🏆",
       subtitle: "Gamificação que motiva sua equipe",
       description:
-        "Ganhe pontos realizando ações no NASA! Adicione leads, faça login diário, complete tarefas e suba no ranking da sua empresa para ganhar prêmios.",
+        "Ganhe pontos realizando ações no ÓRBITA! Adicione leads, faça login diário, complete tarefas e suba no ranking da sua empresa para ganhar prêmios.",
       accent: "from-cyan-900 via-sky-800 to-blue-900",
       accentHex: "#0891b2",
       astroPos: "top-right",
@@ -456,7 +456,7 @@ function buildSteps(): Step[] {
       title: "Apps e Integrações 🔌",
       subtitle: "Um ecossistema completo para seu negócio",
       description:
-        "O NASA é modular: ative apenas o que precisa. Conecte WhatsApp, Instagram, e-mail e dezenas de outras plataformas diretamente no Marketplace.",
+        "O ÓRBITA é modular: ative apenas o que precisa. Conecte WhatsApp, Instagram, e-mail e dezenas de outras plataformas diretamente no Marketplace.",
       accent: "from-pink-900 via-rose-800 to-red-900",
       accentHex: "#e11d48",
       astroPos: "bottom-left",
@@ -531,7 +531,7 @@ function buildSteps(): Step[] {
       title: "Missão Completa! 🎉",
       subtitle: "Você está pronto para decolar!",
       description:
-        "Parabéns! Você completou a Missão de Boas-Vindas ao NASA. Como recompensa, você ganhou 10 Space Points para começar sua jornada! Agora é hora de explorar.",
+        "Parabéns! Você completou a Missão de Boas-Vindas ao ÓRBITA. Como recompensa, você ganhou 10 Space Points para começar sua jornada! Agora é hora de explorar.",
       accent: "from-violet-900 via-indigo-800 to-purple-900",
       accentHex: "#6d28d9",
       astroPos: "bottom-left",

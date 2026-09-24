@@ -82,16 +82,16 @@ export function AppsPage() {
               ))}
             </div>
             <span className="text-xs text-muted-foreground font-medium tracking-widest uppercase">
-              Ecossistema NASA
+              Ecossistema ÓRBITA
             </span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight mt-2">
             Universo de Soluções{" "}
-            <span className="text-[#7C3AED]">N.A.S.A®</span>
+            <span className="text-[#7C3AED]">ÓRBITA®</span>
           </h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-            Todas as ferramentas do ecossistema NASA em um só lugar
+            Todas as ferramentas do ecossistema ÓRBITA em um só lugar
           </p>
 
           {/* Stats */}

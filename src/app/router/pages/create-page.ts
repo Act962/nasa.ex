@@ -11,7 +11,7 @@ export const createPage = base
   .route({
     method: "POST",
     path: "/pages",
-    summary: "Criar nova página NASA (cobra 2000 Stars)",
+    summary: "Criar nova página ÓRBITA (cobra 2000 Stars)",
   })
   .input(
     z.object({
@@ -68,7 +68,7 @@ export const createPage = base
       action: "page_create",
       userId: context.user.id,
       appSlug: "pages",
-      description: `NASA Pages — criação de site "${input.title}"`,
+      description: `ÓRBITA Pages — criação de site "${input.title}"`,
       feature: "pages.page_create",
       transactionType: StarTransactionType.APP_SETUP,
     }, `Saldo de Stars insuficiente (necessário ${PAGES_STARS_COST} ★)`);

@@ -373,7 +373,7 @@ export function ConversationsList() {
               size="icon-sm"
               className="rounded-full"
               onClick={() =>
-                toast.info("Em breve — ligações dentro do NASA Chat", {
+                toast.info("Em breve — ligações dentro do ÓRBITA Chat", {
                   position: "bottom-right",
                 })
               }

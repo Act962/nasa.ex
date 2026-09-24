@@ -41,7 +41,7 @@ export function AcceptTermsForm({
           className="mt-1 w-4 h-4 accent-amber-500 cursor-pointer"
         />
         <span className="text-sm text-zinc-200">
-          Li e concordo com as <strong>Regras do Programa NASA Partner</strong>,
+          Li e concordo com as <strong>Regras do Programa ÓRBITA Partner</strong>,
           a <strong>Política de Privacidade</strong> e estou ciente das minhas
           responsabilidades sob a <strong>LGPD</strong>, incluindo
           confidencialidade dos dados das empresas indicadas, vedação de uso

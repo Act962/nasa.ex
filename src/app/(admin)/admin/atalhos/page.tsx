@@ -23,7 +23,7 @@ export default async function AdminShortcutsPage() {
           <Keyboard className="w-5 h-5 text-violet-400" /> Atalhos de Teclado
         </h1>
         <p className="text-sm text-zinc-400 mt-1">
-          Navegue pela plataforma NASA com velocidade usando atalhos globais.
+          Navegue pela plataforma ÓRBITA com velocidade usando atalhos globais.
         </p>
       </div>
 

@@ -33,7 +33,7 @@ export const InviteUserEmail = ({
   teamImage,
   inviteLink,
 }: NasaInviteUserEmailProps) => {
-  const previewText = `Junte-se a ${invitedByUsername} no N.A.S.A`;
+  const previewText = `Junte-se a ${invitedByUsername} no ÓRBITA`;
 
   return (
     <Html>
@@ -45,7 +45,7 @@ export const InviteUserEmail = ({
             <Heading className="text-[#0a0a0a] text-[28px] font-semibold text-center p-0 my-6 mx-0">
               Junte-se a{" "}
               <strong className="text-[#7c3aed]">{invitedByUsername}</strong> no{" "}
-              <strong className="text-[#7c3aed]">N.A.S.A</strong>
+              <strong className="text-[#7c3aed]">ÓRBITA</strong>
             </Heading>
 
             <Text className="text-[#0a0a0a] text-[15px] leading-[26px]">
@@ -61,7 +61,7 @@ export const InviteUserEmail = ({
                 {invitedByEmail}
               </Link>
               ) convidou você para a equipe <strong>{teamName}</strong> no{" "}
-              <strong>N.A.S.A</strong>.
+              <strong>ÓRBITA</strong>.
             </Text>
 
             {teamImage ? (
@@ -111,7 +111,7 @@ export const InviteUserEmail = ({
             </Text>
 
             <Text className="text-[#a3a3a3] text-[11px] leading-5 text-center mt-6">
-              © 2024 N.A.S.A. Todos os direitos reservados.
+              © 2024 ÓRBITA Todos os direitos reservados.
             </Text>
           </Container>
         </Body>

@@ -58,7 +58,7 @@ export function SupportThread({ orderId }: { orderId: string }) {
         )}
 
         {messages?.map((message) => {
-          const isTeam = message.authorRole === "NASA";
+          const isTeam = message.authorRole === "ÓRBITA";
           return (
             <div
               key={message.id}
@@ -72,7 +72,7 @@ export function SupportThread({ orderId }: { orderId: string }) {
               >
                 {isTeam && (
                   <p className="text-xs font-medium opacity-70">
-                    {message.author.name ?? "Equipe NASA"}
+                    {message.author.name ?? "Equipe ÓRBITA"}
                   </p>
                 )}
                 <p className="whitespace-pre-wrap text-sm">{message.body}</p>

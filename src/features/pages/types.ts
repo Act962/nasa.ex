@@ -181,7 +181,7 @@ export const ELEMENT_CATEGORIES = {
   basic: "Básicos",
   sections: "Sections prontas",
   interactive: "Interativos",
-  app: "Apps NASA",
+  app: "Apps ÓRBITA",
   data: "Dados ao vivo",
 } as const;
 export type ElementCategory = keyof typeof ELEMENT_CATEGORIES;

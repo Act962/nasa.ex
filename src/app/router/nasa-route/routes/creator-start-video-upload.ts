@@ -87,7 +87,7 @@ export const creatorStartVideoUpload = base
         computedBy: "computeVideoUploadCost",
       },
       appSlug: "nasa-route-storage",
-      description: `Upload vídeo NASA Route — ${breakdown.sizeGb.toFixed(2)} GB`,
+      description: `Upload vídeo ÓRBITA Route — ${breakdown.sizeGb.toFixed(2)} GB`,
       feature: "nasa-route.video-upload",
       disallowBonus: true, // bônus não cobre hospedagem
       quantity: { unit: "mb", amount: breakdown.sizeMb },

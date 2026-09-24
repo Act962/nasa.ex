@@ -75,7 +75,7 @@ export function PublishDialog({ open, onOpenChange, pageId }: Props) {
         <DialogHeader>
           <DialogTitle>Domínio do site</DialogTitle>
           <DialogDescription>
-            Publique em um slug NASA, em um domínio próprio ou registre um novo
+            Publique em um slug ÓRBITA, em um domínio próprio ou registre um novo
             diretamente.
           </DialogDescription>
         </DialogHeader>
@@ -84,7 +84,7 @@ export function PublishDialog({ open, onOpenChange, pageId }: Props) {
           <TabsList>
             <TabsTrigger value="external">Já tenho um domínio</TabsTrigger>
             <TabsTrigger value="register">Registrar domínio</TabsTrigger>
-            <TabsTrigger value="nasa">Slug NASA</TabsTrigger>
+            <TabsTrigger value="nasa">Slug ÓRBITA</TabsTrigger>
           </TabsList>
 
           <TabsContent value="external" className="space-y-3">

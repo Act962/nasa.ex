@@ -229,7 +229,7 @@ export function CoursePublicPage({
             </h1>
             <CourseShareMenu
               url={`/c/${companySlug}/${courseSlug}`}
-              text={`${course.title} — ${course.subtitle ?? "Confira este curso na NASA Route"}`}
+              text={`${course.title} — ${course.subtitle ?? "Confira este curso na ÓRBITA Route"}`}
               variant="button"
               label="Compartilhar"
             />

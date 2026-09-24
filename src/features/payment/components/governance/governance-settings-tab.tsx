@@ -161,7 +161,7 @@ export function GovernanceSettingsTab() {
 
       <div className="rounded-md border border-[#1E90FF]/30 bg-[#1E90FF]/5 p-3 space-y-3">
         <p className="text-xs font-medium text-[#1E90FF]">
-          Segurança de Acesso (NASA Payment Gate)
+          Segurança de Acesso (ÓRBITA Payment Gate)
         </p>
 
         <div className="grid grid-cols-2 gap-3">

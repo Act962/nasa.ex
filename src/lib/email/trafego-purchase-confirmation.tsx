@@ -150,7 +150,7 @@ export const TrafegoPurchaseConfirmationEmail = ({
           </Text>
 
           <Text className="text-[#a3a3a3] text-[11px] leading-5 text-center mt-[24px]">
-            © N.A.S.A. Todos os direitos reservados.
+            © ÓRBITA Todos os direitos reservados.
           </Text>
         </Container>
       </Body>

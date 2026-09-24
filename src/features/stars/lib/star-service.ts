@@ -84,7 +84,7 @@ export async function checkBalance(
           type: StarTransactionType.WELCOME_BONUS,
           amount: WELCOME_BONUS,
           balanceAfter: org.starsBalance,
-          description: "🎉 Bônus de boas-vindas ao NASA",
+          description: "🎉 Bônus de boas-vindas ao ÓRBITA",
         },
       }),
     ]);
@@ -627,7 +627,7 @@ export async function runMonthlyCycle(
     monthlyStars,
     StarTransactionType.PLAN_CREDIT,
     lifetime
-      ? `Crédito mensal do plano ${org.plan.name} (${monthlyStars} ★) — Cortesia NASA Partner Infinity`
+      ? `Crédito mensal do plano ${org.plan.name} (${monthlyStars} ★) — Cortesia ÓRBITA Partner Infinity`
       : `Crédito mensal do plano ${org.plan.name} (${monthlyStars} ★)`,
   );
 

@@ -81,8 +81,8 @@ export const sendEmailExecutor: NodeExecutor = async ({
       (template === "welcome-course"
         ? "Bem-vindo(a)! Acesso ao curso liberado 🚀"
         : template === "cart-abandoned"
-          ? "Sua matrícula NASA Route te aguarda"
-          : "Mensagem da NASA Agents"),
+          ? "Sua matrícula ÓRBITA Route te aguarda"
+          : "Mensagem da ÓRBITA Agents"),
   );
   const subject = interpolate(context, subjectRaw);
 
@@ -116,9 +116,9 @@ export const sendEmailExecutor: NodeExecutor = async ({
           props.studentName ?? leadCtx.name ?? "Aluno(a)",
         ),
         studentEmail: toEmail,
-        courseTitle: String(props.courseTitle ?? "seu curso NASA Route"),
+        courseTitle: String(props.courseTitle ?? "seu curso ÓRBITA Route"),
         planName: String(props.planName ?? "Acesso ao curso"),
-        creatorName: String(props.creatorName ?? "NASA Agents"),
+        creatorName: String(props.creatorName ?? "ÓRBITA Agents"),
         coursePlayerUrl: String(props.coursePlayerUrl ?? ""),
         totalLessons:
           typeof props.totalLessons === "number"
@@ -139,9 +139,9 @@ export const sendEmailExecutor: NodeExecutor = async ({
           props.studentName ?? leadCtx.name ?? "Aluno(a)",
         ),
         studentEmail: toEmail,
-        courseTitle: String(props.courseTitle ?? "seu curso NASA Route"),
+        courseTitle: String(props.courseTitle ?? "seu curso ÓRBITA Route"),
         planName: String(props.planName ?? "Acesso ao curso"),
-        creatorName: String(props.creatorName ?? "NASA Agents"),
+        creatorName: String(props.creatorName ?? "ÓRBITA Agents"),
         amountBrl: Number(props.amountBrl ?? 0),
         checkoutUrl: String(props.checkoutUrl ?? ""),
         stage: (props.stage as CartAbandonedStage) ?? "d3",

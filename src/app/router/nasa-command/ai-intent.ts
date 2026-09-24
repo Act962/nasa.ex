@@ -18,7 +18,7 @@ export interface ParsedIntent {
 
 // ─── System Prompt ────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `Você é um assistente de IA do NASA Explorer que extrai intenções estruturadas de comandos em linguagem natural em português.
+const SYSTEM_PROMPT = `Você é um assistente de IA do ÓRBITA Explorer que extrai intenções estruturadas de comandos em linguagem natural em português.
 
 INTENÇÕES DISPONÍVEIS e campos:
 - create_proposal → app:forge, obrigatórios: productName OU productDescription, clientName. opcionais: validUntil

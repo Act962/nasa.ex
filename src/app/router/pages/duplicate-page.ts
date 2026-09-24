@@ -44,7 +44,7 @@ export const duplicatePage = base
       action: "page_duplicate",
       userId: context.user.id,
       appSlug: "pages",
-      description: `NASA Pages — duplicação de "${src.title}" → "${input.newTitle}"`,
+      description: `ÓRBITA Pages — duplicação de "${src.title}" → "${input.newTitle}"`,
       feature: "pages.page_duplicate",
       transactionType: StarTransactionType.APP_SETUP,
     }, `Saldo de Stars insuficiente (necessário ${PAGES_STARS_COST} ★)`);

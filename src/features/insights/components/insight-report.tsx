@@ -123,11 +123,11 @@ async function downloadPDF(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.setTextColor(255, 255, 255);
-  doc.text("NASA", marginL, 17);
+  doc.text("ÓRBITA", marginL, 17);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(160, 160, 180);
-  doc.text("by NASA Explorer", marginL + 22, 17);
+  doc.text("by ÓRBITA Explorer", marginL + 22, 17);
 
   // Org + period top right
   doc.setFontSize(8);
@@ -204,7 +204,7 @@ async function downloadPDF(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(160, 160, 180);
-    doc.text(`NASA Explorer · ${orgName} · ${period}`, marginL, 291);
+    doc.text(`ÓRBITA Explorer · ${orgName} · ${period}`, marginL, 291);
     doc.text(`Página ${i} de ${pageCount}`, W - marginR, 291, {
       align: "right",
     });
@@ -270,7 +270,7 @@ export function InsightReport({
         chat: "Chat",
         forge: "Forge",
         spacetime: "SpaceTime",
-        "nasa-planner": "NASA Planner",
+        "nasa-planner": "ÓRBITA Planner",
         integrations: "Integrações",
       };
       const moduleNames = selectedModules.map((m) => moduleLabels[m] ?? m);

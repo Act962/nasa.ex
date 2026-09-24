@@ -30,7 +30,7 @@ export function SeiActionDialog({ open, onOpenChange, defaultValues, onSubmit }:
         <DialogHeader>
           <DialogTitle>Consultar processo SEI</DialogTitle>
           <DialogDescription>
-            Atualiza os dados do processo no NASA para que os próximos nós possam decidir e enviar mensagens ao lead.
+            Atualiza os dados do processo no ÓRBITA para que os próximos nós possam decidir e enviar mensagens ao lead.
           </DialogDescription>
         </DialogHeader>
         <FieldGroup>

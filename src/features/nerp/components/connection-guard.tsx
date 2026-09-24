@@ -27,7 +27,7 @@ export function NerpConnectionGuard({ children }: { children: ReactNode }) {
         <AlertDescription className="flex flex-col gap-3 mt-2">
           <span>
             Conecte sua organização ao nerp pra acessar produtos, vendas,
-            clientes e dashboards direto do NASA.
+            clientes e dashboards direto do ÓRBITA.
           </span>
           <Button asChild size="sm" className="w-fit">
             <Link href="/settings/integration?from=nerp">Ir para conexão</Link>

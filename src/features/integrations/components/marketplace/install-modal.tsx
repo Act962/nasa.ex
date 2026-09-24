@@ -484,7 +484,7 @@ export function InstallModal({
                 <span className="size-5 rounded-full bg-[#7C3AED] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
                   1
                 </span>
-                Habilitar {integration.name} no NASA
+                Habilitar {integration.name} no ÓRBITA
               </p>
               <p className="text-xs text-muted-foreground pl-7 leading-relaxed">
                 Clique em <strong>Confirmar</strong> para habilitar esta
@@ -496,7 +496,7 @@ export function InstallModal({
             <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 dark:bg-amber-950/20 dark:border-amber-900/50 flex items-start gap-2">
               <Zap className="size-4 text-amber-500 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
-                O NASA fornece o caminho. As credenciais (Token, API Key)
+                O ÓRBITA fornece o caminho. As credenciais (Token, API Key)
                 pertencem à <strong>sua conta</strong> na plataforma.
               </p>
             </div>
@@ -589,7 +589,7 @@ export function InstallModal({
                 {integration.name} habilitado!
               </p>
               <p className="text-sm text-muted-foreground">
-                Integração ativa no seu painel NASA.
+                Integração ativa no seu painel ÓRBITA.
               </p>
             </div>
           </div>

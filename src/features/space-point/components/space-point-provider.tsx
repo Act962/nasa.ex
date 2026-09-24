@@ -189,7 +189,7 @@ export function SpacePointProvider({
           setAchievement({
             type: "level_up",
             title: `Você chegou a ${seal.name}!`,
-            message: `Parabéns! Você desbloqueou ${seal.planetEmoji} ${seal.name}. Continue explorando o NASA!`,
+            message: `Parabéns! Você desbloqueou ${seal.planetEmoji} ${seal.name}. Continue explorando o ÓRBITA!`,
             badgeNumber: seal.badgeNumber,
             badgeUrl: seal.badgeUrl,
             planetEmoji: seal.planetEmoji,

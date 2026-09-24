@@ -57,7 +57,7 @@ export function PlansSection({
     <div className="space-y-5">
       <SettingsCard
         title="Valores padrão"
-        description="Usados quando o plano não define o seu. A verba vira investimento no anúncio; a taxa é a receita da NASA."
+        description="Usados quando o plano não define o seu. A verba vira investimento no anúncio; a taxa é a receita da ÓRBITA."
       >
         <SettingsGrid>
           <SettingsField

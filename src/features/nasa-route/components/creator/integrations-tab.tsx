@@ -207,7 +207,7 @@ export function IntegrationsTab({
         </div>
         <p className="text-xs text-muted-foreground">
           Gere variantes do link público do curso com parâmetros UTM —
-          rastreáveis no Insights da NASA Route, Google Analytics e Meta
+          rastreáveis no Insights da ÓRBITA Route, Google Analytics e Meta
           Pixel. Útil pra mensurar campanhas de cada canal (Instagram,
           E-mail, WhatsApp, etc).
         </p>

@@ -315,7 +315,7 @@ export function MetaInsights() {
       {/* 📣 Gerenciamento */}
       <section className="space-y-4">
         <SectionHeader icon="📣" title="Gerenciar campanhas"
-          description="Crie, pause, ative ou exclua campanhas Meta Ads diretamente do NASA"
+          description="Crie, pause, ative ou exclua campanhas Meta Ads diretamente do ÓRBITA"
           color="border-fuchsia-500 bg-fuchsia-50/50 dark:bg-fuchsia-950/20" />
         <MetaAdsCampaignManager />
       </section>

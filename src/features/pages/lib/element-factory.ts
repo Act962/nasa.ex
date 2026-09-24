@@ -334,11 +334,11 @@ const DEFAULTS: Record<ElementType, (palette: Record<string, string>) => Omit<El
     type: "section-navbar",
     x: 0, y: 0, w: 1200, h: 80,
     logoSrc: "",            // ← URL da imagem (vazio = mostra logoText)
-    logoText: "N.A.S.A",    // ← Texto fallback se logoSrc vazio
+    logoText: "ÓRBITA",    // ← Texto fallback se logoSrc vazio
     logoHref: "#top",       // ← Destino do click na logo
     links: [
       { id: "1", label: "Planos", href: "#planos" },
-      { id: "2", label: "O que é NASA?", href: "#o-que-e-nasa" },
+      { id: "2", label: "O que é ÓRBITA?", href: "#o-que-e-nasa" },
       { id: "3", label: "Como funciona", href: "#como-funciona" },
     ],
     primaryCta: "Começar grátis",
@@ -355,9 +355,9 @@ const DEFAULTS: Record<ElementType, (palette: Record<string, string>) => Omit<El
     type: "section-footer",
     x: 0, y: 0, w: 1200, h: 140,
     logoSrc: "",
-    logoText: "N.A.S.A",
+    logoText: "ÓRBITA",
     tagline: "Powered pelo Método N.A.S.A.®",
-    copyright: "© 2026 N.A.S.A",
+    copyright: "© 2026 ÓRBITA",
     links: [
       { id: "1", label: "Políticas de Privacidade", href: "#" },
       { id: "2", label: "Termos & Condições", href: "#" },
