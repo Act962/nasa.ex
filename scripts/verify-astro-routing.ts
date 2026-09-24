@@ -311,6 +311,29 @@ async function main(): Promise<void> {
     () => "assunto novo não herda o Kauê da conversa anterior",
   );
 
+  await checkRate(
+    "nome não dito não é inventado",
+    async () => {
+      const texto = "quero criar um novo lead";
+      const r = await classifyStagedCompat({
+        organizationId: organization.id,
+        text: texto,
+        history: HISTORICO,
+      });
+      const action = r ? getAstroAction(r.action) : undefined;
+      if (!action) return true; // não classificou como ação: nada foi criado
+      const input = buildActionInput(action, r!.fields, texto, HISTORICO) as Record<
+        string,
+        unknown
+      >;
+      // Pedido sem nome não pode virar criação: ou falta campo, ou o nome
+      // veio da frase — nunca da conversa anterior.
+      const nome = String(input.leadName ?? "");
+      return nome === "" || texto.toLowerCase().includes(nome.toLowerCase());
+    },
+    () => "pedido sem nome não herda o nome da conversa anterior",
+  );
+
   // ── CA-8 — ação do registro aparece nas duas superfícies ────────────────
   const fakeContext = { organizationId: organization.id, userId: "verify" };
   const tools = buildActionRegistryTools(fakeContext as never);

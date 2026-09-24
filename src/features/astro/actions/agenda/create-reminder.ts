@@ -34,6 +34,14 @@ function normalizeRecurrence(raw: string): ReminderRecurrenceType | null {
   return RECURRENCE_ALIASES[key] ?? null;
 }
 
+/** "9h", "9", "9:5" → "09:00", "09:00", "09:05". */
+function normalizeTime(raw: string): string {
+  const [hour, minute] = raw.trim().replace(/[hH]/, ":").split(":");
+  const paddedHour = hour.padStart(2, "0");
+  const paddedMinute = (minute ?? "").padEnd(2, "0").slice(0, 2) || "00";
+  return `${paddedHour}:${paddedMinute}`;
+}
+
 const inputSchema = z.object({
   message: z.string().trim().min(2).max(500).describe("O que lembrar."),
   // String livre, não enum: o classificador responde em português ("semanal")
@@ -44,10 +52,15 @@ const inputSchema = z.object({
     .trim()
     .min(3)
     .describe("Frequência: uma vez, semanal, quinzenal ou mensal."),
+  // Aceita como o usuário fala ("9h", "9:30", "09h00") e normaliza em código:
+  // exigir HH:MM do modelo derrubava o verbo inteiro depois da ação certa,
+  // e zerar um minuto é regra, não julgamento.
   remindTime: z
     .string()
-    .regex(/^\d{2}:\d{2}$/)
-    .describe("Horário no formato HH:MM."),
+    .trim()
+    .regex(/^\d{1,2}\s*[:hH]\s*\d{0,2}$|^\d{1,2}$/)
+    .transform(normalizeTime)
+    .describe("Horário, ex: '9h', '09:30'."),
   firstRemindAt: z
     .string()
     .trim()
@@ -67,6 +80,34 @@ const inputSchema = z.object({
     .describe("Lead a que o lembrete se refere, quando houver."),
 });
 
+/**
+ * Frequência e hora estão na própria frase e seguem regra fixa — quando o
+ * modelo omite um deles, o verbo inteiro morre depois de já ter acertado a
+ * ação. Ler daqui é determinístico; o que o modelo extraiu continua vencendo.
+ */
+function inferReminderFields(text: string): Record<string, unknown> {
+  const normalized = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  const inferred: Record<string, unknown> = {};
+
+  if (/\b(toda|todo|todas|todos|semanal)\b/.test(normalized)) {
+    inferred.recurrence = /\bmes\b|\bmensal\b/.test(normalized) ? "mensal" : "semanal";
+  } else if (/\bquinzenal\b|\bcada duas semanas\b/.test(normalized)) {
+    inferred.recurrence = "quinzenal";
+  } else if (/\bmensal\b|\btodo mes\b/.test(normalized)) {
+    inferred.recurrence = "mensal";
+  }
+
+  const time = normalized.match(/\b(\d{1,2})\s*(?::|h)\s*(\d{2})?\b/);
+  if (time) {
+    inferred.remindTime = `${time[1].padStart(2, "0")}:${time[2] ?? "00"}`;
+  }
+
+  return inferred;
+}
+
 export const createReminderAction: AstroAction<typeof inputSchema> = {
   key: "agenda.create_reminder",
   app: "agenda",
@@ -79,6 +120,7 @@ export const createReminderAction: AstroAction<typeof inputSchema> = {
     "'cria um lembrete de cobrar o Fulano dia 5'.",
   requiresConfirmation: false,
   input: inputSchema,
+  inferFields: inferReminderFields,
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     // MONTHLY com dia fixo dispensa data inicial; o resto exige.

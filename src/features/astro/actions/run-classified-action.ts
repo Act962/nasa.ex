@@ -157,6 +157,8 @@ export async function runClassifiedAction(params: {
   classification: StagedClassification;
   /** Frase original — `inferFields` lê dela a polaridade do verbo. */
   userText?: string;
+  /** Turnos anteriores — só eles autorizam um nome que a frase não disse. */
+  history?: string[];
 }): Promise<ClassifiedRun | null> {
   const [best, ...rest] = params.classification.candidates;
   if (!best) return null;
@@ -176,7 +178,12 @@ export async function runClassifiedAction(params: {
   // a pergunta em voz alta é o auto-narrate, que já existe.
   // O que o verbo já diz (polaridade) entra por código; o que o modelo
   // extraiu vence, caso tenha dito algo explícito.
-  const fields = buildActionInput(action, best.fields, params.userText ?? "");
+  const fields = buildActionInput(
+    action,
+    best.fields,
+    params.userText ?? "",
+    params.history,
+  );
   const missing = missingRequiredFields(action, fields);
   const parsed = action.input.safeParse(fields);
 

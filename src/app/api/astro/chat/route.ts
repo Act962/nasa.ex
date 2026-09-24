@@ -223,10 +223,11 @@ export async function POST(req: Request) {
     const routingStartedAt = Date.now();
     const lastUserText = extractLastUserText(uiMessages);
     if (lastUserText) {
+      const conversationHistory = extractConversationHistory(uiMessages);
       const classification = await classifyStaged({
         organizationId,
         text: lastUserText,
-        history: extractConversationHistory(uiMessages),
+        history: conversationHistory,
       });
       if (classification) {
         const classified = await runClassifiedAction({
@@ -239,6 +240,7 @@ export async function POST(req: Request) {
           } as never,
           classification,
           userText: lastUserText,
+          history: conversationHistory,
         });
         if (classified) {
           console.log(

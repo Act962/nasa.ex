@@ -21,6 +21,42 @@ const PRONOUNS = new Set([
   "o mesmo", "a mesma", "esse", "essa", "este", "esta", "dele", "dela",
 ]);
 
+/**
+ * Marcas de referência ao que já foi dito. Só na presença de uma delas um
+ * nome pode vir da conversa anterior em vez da frase atual.
+ */
+const ANAPHORA = [
+  "ele", "ela", "eles", "elas", "dele", "dela", "esse", "essa", "este", "esta",
+  "isso", "isto", "aquele", "aquela", "o mesmo", "a mesma", "mesmo cliente",
+  "a última", "o último", "a ultima", "o ultimo", "anterior", "de novo",
+];
+
+/**
+ * Nome é sempre citação: ninguém calcula o nome de um cliente, ele aparece na
+ * frase. Data, frequência e booleano, não — esses o modelo deriva ("toda
+ * segunda" vira WEEKLY), e por isso a regra vale só para campos de nome.
+ */
+function isNameField(key: string): boolean {
+  return /name$/i.test(key);
+}
+
+function normalize(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+/** Todo pedaço significativo do valor precisa estar no texto. */
+function appearsIn(value: string, text: string): boolean {
+  const haystack = normalize(text);
+  const tokens = normalize(value)
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length >= 3);
+  if (tokens.length === 0) return normalize(value).length > 0 && haystack.includes(normalize(value));
+  return tokens.every((token) => haystack.includes(token));
+}
+
 const TRUTHY = new Set(["true", "sim", "yes", "1", "ativar", "publicar"]);
 const FALSY = new Set(["false", "nao", "não", "no", "0", "desativar", "despublicar"]);
 
@@ -56,6 +92,31 @@ function coerceValue(schema: z.ZodTypeAny, raw: string): unknown {
 }
 
 /**
+ * "Quero criar um novo lead" criou um lead chamado "Weydson Lima" — nome que
+ * só existia na conversa anterior. O modelo preenche o campo obrigatório com
+ * o que tem à mão em vez de deixá-lo vazio, e o Astro executa sem perguntar.
+ *
+ * Nome ausente da frase atual só vale se a frase apontar para trás ("manda
+ * pra ele"). Sem isso, o campo cai e o Astro pergunta — que é o que alguém
+ * faria.
+ */
+function isInvented(
+  key: string,
+  value: string,
+  context?: { userText?: string; history?: string[] },
+): boolean {
+  const userText = context?.userText;
+  if (!userText || !isNameField(key)) return false;
+  if (appearsIn(value, userText)) return false;
+
+  const refersBack = ANAPHORA.some((marker) => normalize(userText).includes(marker));
+  if (!refersBack) return true;
+
+  const history = (context.history ?? []).join(" ");
+  return !appearsIn(value, history);
+}
+
+/**
  * Converte os pares do classificador para os tipos que o schema da ação
  * espera. Valor que não converte passa intacto — o `safeParse` seguinte é
  * quem decide se serve.
@@ -63,6 +124,7 @@ function coerceValue(schema: z.ZodTypeAny, raw: string): unknown {
 export function coerceFields(
   action: AstroAction,
   fields: Record<string, string>,
+  context?: { userText?: string; history?: string[] },
 ): Record<string, unknown> {
   const shape =
     action.input instanceof z.ZodObject
@@ -75,6 +137,7 @@ export function coerceFields(
     // `min(2)` e em `datetime()`. Ausente é o que ele quis dizer.
     if (value.trim() === "") continue;
     if (PRONOUNS.has(value.trim().toLowerCase())) continue;
+    if (isInvented(key, value, context)) continue;
     const fieldSchema = shape[key];
     coerced[key] = fieldSchema ? coerceValue(fieldSchema, value) : value;
   }
@@ -93,9 +156,10 @@ export function buildActionInput(
   action: AstroAction,
   fields: Record<string, string>,
   userText: string,
+  history?: string[],
 ): Record<string, unknown> {
   return {
     ...(action.inferFields?.(userText) ?? {}),
-    ...coerceFields(action, fields),
+    ...coerceFields(action, fields, { userText, history }),
   };
 }
