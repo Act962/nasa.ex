@@ -538,6 +538,52 @@ export function cancel(): void {
 }
 
 /**
+ * Pausa a fala sem perder o que falta (spec 0023 — o `cancel()` existente
+ * descarta a fila inteira, que não serve para "só um instante").
+ *
+ * Os dois engines pausam de verdade: `speechSynthesis.pause()` retoma na
+ * mesma palavra, e o `<audio>` do Piper retoma no mesmo ponto do arquivo.
+ */
+export function pause(): void {
+  if (typeof window === "undefined") return;
+  if (currentPiperAudio) {
+    try {
+      currentPiperAudio.pause();
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+  window.speechSynthesis?.pause();
+}
+
+/** Retoma de onde parou. Sem efeito se nada estava pausado. */
+export function resume(): void {
+  if (typeof window === "undefined") return;
+  if (currentPiperAudio) {
+    void currentPiperAudio.play().catch(() => {
+      /* autoplay bloqueado — o usuário clica de novo */
+    });
+    return;
+  }
+  window.speechSynthesis?.resume();
+}
+
+/** Há fala tocando ou pausada agora? Serve para o botão escolher o ícone. */
+export function isSpeaking(): boolean {
+  if (typeof window === "undefined") return false;
+  if (currentPiperAudio) return !currentPiperAudio.ended;
+  const synth = window.speechSynthesis;
+  return Boolean(synth && (synth.speaking || synth.pending));
+}
+
+export function isPaused(): boolean {
+  if (typeof window === "undefined") return false;
+  if (currentPiperAudio) return currentPiperAudio.paused && !currentPiperAudio.ended;
+  return Boolean(window.speechSynthesis?.paused);
+}
+
+/**
  * Retorna true se algum engine TTS pode rodar:
  *   - Piper habilitado e online (verificação assíncrona, mas se PIPER_ENABLED
  *     pelo menos pode tentar)

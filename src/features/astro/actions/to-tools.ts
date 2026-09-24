@@ -15,7 +15,13 @@ function describeForModel(result: AstroActionResult) {
   if (result.status !== "done") return result;
   return {
     ...result,
-    hint: "Diga que o link está no cartão. Não repita a URL inteira na resposta.",
+    // O balão do chat renderiza texto puro, sem markdown: um "[aqui](url)"
+    // escrito pelo modelo aparece literal e estoura a largura. O link vive no
+    // cartão, que tem botão de copiar e prévia da página.
+    hint:
+      "NÃO escreva a URL nem markdown de link na sua resposta. " +
+      "O cartão acima já mostra a prévia e o botão de copiar. " +
+      "Responda em uma frase curta, ex: 'Proposta criada — o link está no cartão.'",
   };
 }
 
