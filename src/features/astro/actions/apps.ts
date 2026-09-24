@@ -26,7 +26,7 @@ export const ASTRO_APPS = {
     "Financeiro/dinheiro: LANÇAR despesa ou receita, DAR BAIXA em conta paga/recebida, contas a pagar e receber, conciliação. Use quando a frase falar em R$, valor, despesa, gasto, receita ou pagamento",
   pages: "Sites e páginas publicadas",
   workspaces:
-    "Quadros de trabalho interno da equipe: criar workspace, organizar tarefas do time (não é funil de leads)",
+    "Trabalho interno da equipe: criar DEMANDA/tarefa dentro de um quadro, criar workspace, tarefas pendentes. Não é funil de leads",
 } as const;
 
 export type AstroAppId = keyof typeof ASTRO_APPS;
