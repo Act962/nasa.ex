@@ -164,11 +164,15 @@ export const createPaymentEntryAction: AstroAction<typeof inputSchema> = {
         status: "done",
         title: `${label} de ${money(amountCents)}`,
         description:
-          `"${input.description}" em ${account.name}, vencendo ${dueDate.toLocaleDateString("pt-BR")}.`,
+          `"${input.description}" em ${account.name}, já ${entryType === "PAYABLE" ? "paga" : "recebida"}.`,
         appName: "Financeiro",
       };
     }
 
+    // Quem diz "adicione R$ 100 de despesa" já gastou: o lançamento nasce
+    // baixado, não pendente. Pendente é o que ainda vai acontecer, e para
+    // isso existe o vencimento dito na frase.
+    const isFuture = dueDate.getTime() > Date.now();
     const entry = await prisma.paymentEntry.create({
       data: {
         organizationId: ctx.organizationId,
@@ -178,6 +182,9 @@ export const createPaymentEntryAction: AstroAction<typeof inputSchema> = {
         dueDate,
         accountId: account.id,
         createdById: ctx.userId,
+        status: isFuture ? "PENDING" : "PAID",
+        paidAmount: isFuture ? 0 : amountCents,
+        paidAt: isFuture ? null : new Date(),
       },
       select: { id: true },
     });
@@ -187,7 +194,9 @@ export const createPaymentEntryAction: AstroAction<typeof inputSchema> = {
       title: `${label} lançada`,
       description:
         `${money(amountCents)} — "${input.description}" em ${account.name}, ` +
-        `vencendo ${dueDate.toLocaleDateString("pt-BR")}.`,
+        (isFuture
+          ? `vencendo ${dueDate.toLocaleDateString("pt-BR")}.`
+          : `já ${entryType === "PAYABLE" ? "paga" : "recebida"}.`),
       internalUrl: `/payment?entry=${entry.id}`,
       openLabel: "Abrir no Financeiro",
       appName: "Financeiro",
