@@ -97,7 +97,7 @@ comercial e devolver o link público funciona nos dois modos.
 | ID | Requisito |
 | --- | --- |
 | RNF-1 | Pedido resolvido pelo classificador consome **< 1.000 tokens** no total (hoje: 18.507 para qualquer pergunta). |
-| RNF-2 | O classificador responde em < 1,5 s no p95; acima disso, cai para o orquestrador em vez de fazer o usuário esperar as duas etapas. |
+| RNF-2 | O classificador responde em < 1,2 s no p95 em regime; o corte fica em **4 s** para absorver a primeira chamada após o boot. Acima disso, cai para o orquestrador em vez de fazer o usuário esperar as duas etapas. |
 | RNF-3 | Falha do classificador (timeout, erro do provedor, JSON inválido) **nunca** vira erro para o usuário: cai para o orquestrador. |
 | RNF-4 | O registro de custo (`UsageEvent`, spec 0021) grava qual caminho atendeu, em `metadata.route` = `classifier` \| `orchestrator` \| `regex`. |
 | RNF-5 | Voz **não** adiciona custo de IA: STT e TTS continuam sendo Web Speech API e Piper, nenhum dos dois passa por LLM. Um ciclo guiado inteiro resolvido por verbo consome **0 token**. |
@@ -260,3 +260,4 @@ podem ficar, porque são aditivos.
 | --- | --- | --- |
 | 2026-09-24 | Weydson | Criada |
 | 2026-09-24 | Weydson | Entrada por voz: RF-10 a RF-13, RNF-5/6, CA-9 a CA-12, CB-11 a CB-16, D-5 e D-6 |
+| 2026-09-24 | Weydson | **RNF-2 corrigida na implementação**: o corte de 1,5 s derrubava 100% das classificações. Medido: 1.253 ms em regime, mas a primeira chamada após o boot estoura. Corte passou para 4 s; o alvo de latência em regime continua ~1,2 s |

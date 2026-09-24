@@ -13,6 +13,8 @@ import type { AgentKey } from "@/features/astro/schemas/agent-config";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { meter } from "@/features/stars/lib/metering";
 import { generateAutoTitle } from "@/features/astro/lib/auto-title";
+import { classifyAstroIntent } from "@/features/astro/actions/classify-intent";
+import { runClassifiedAction } from "@/features/astro/actions/run-classified-action";
 
 /**
  * Ratio de cobrança em Stars por tokens consumidos pelo Astro.
@@ -70,6 +72,22 @@ function describeStreamError(streamError: unknown): string {
  * Retorna:
  *   - UI message stream do AI SDK (`toUIMessageStreamResponse`).
  */
+/**
+ * Chave de rollback da spec 0023: desligada, todo pedido vai direto ao
+ * orquestrador — que é exatamente o comportamento anterior à spec.
+ */
+const ASTRO_INTENT_ROUTING = process.env.ASTRO_INTENT_ROUTING !== "false";
+
+function extractLastUserText(messages: UIMessage[]): string {
+  const lastUser = [...messages].reverse().find((message) => message.role === "user");
+  if (!lastUser || !Array.isArray(lastUser.parts)) return "";
+  return lastUser.parts
+    .filter((part): part is { type: "text"; text: string } => part.type === "text")
+    .map((part) => part.text)
+    .join(" ")
+    .trim();
+}
+
 export async function POST(req: Request) {
   console.log("[ASTRO/chat] POST start");
   const sessionData = await auth.api.getSession({ headers: await headers() });
@@ -178,6 +196,63 @@ export async function POST(req: Request) {
     }
   } catch (e) {
     console.error("[ASTRO/chat] charge failed (continuing)", e);
+  }
+
+  // ── Roteamento por intenção (spec 0023, RF-3/RF-4) ──────────────────────
+  // Antes de montar o orquestrador com as 91 ferramentas, um classificador
+  // barato tenta resolver o pedido como ação direta. Qualquer dúvida, falha
+  // ou campo faltando cai no orquestrador, que é o comportamento de sempre.
+  if (ASTRO_INTENT_ROUTING && !isTrafegoScope) {
+    const routingStartedAt = Date.now();
+    const lastUserText = extractLastUserText(uiMessages);
+    if (lastUserText) {
+      const classification = await classifyAstroIntent({
+        organizationId,
+        text: lastUserText,
+      });
+      if (classification) {
+        const classified = await runClassifiedAction({
+          ctx: {
+            userId,
+            organizationId,
+            route: parsed.context ?? {},
+            sessionId,
+            channel: "CHAT",
+          } as never,
+          classification,
+        });
+        if (classified) {
+          console.log(
+            `[ASTRO/chat] resolvido pelo classificador: ${classified.actionKey} ` +
+              `(confiança ${classification.confidence})`,
+          );
+          // RNF-4: o caminho barato também entra no registro de custo, senão
+          // a economia fica invisível no relatório — some da conta em vez de
+          // aparecer como zero.
+          void meter({
+            organizationId,
+            action: "astro_tokens",
+            userId,
+            quantity: { unit: "token", amount: classified.tokensUsed },
+            appSlug: "astro",
+            description: `Astro — ${classified.actionKey} pelo classificador`,
+            feature: "astro.classifier",
+            sessionId,
+            cost: {
+              kind: "LLM",
+              provider: classified.provider,
+              modelId: classified.modelId,
+              tokens: { totalTokens: classified.tokensUsed },
+              latencyMs: Date.now() - routingStartedAt,
+            },
+            metadata: { route: "classifier", action: classified.actionKey },
+          }).catch((error) => {
+            console.warn("[ASTRO/chat] métrica do classificador falhou:", error);
+          });
+          return classified.response;
+        }
+      }
+    }
   }
 
   // Anexos declarados na última mensagem do usuário (spec 0014, D-3). O
