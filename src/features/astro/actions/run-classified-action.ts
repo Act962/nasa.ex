@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { getAstroAction } from "./registry";
 import { proposeAction } from "./confirmation";
-import { buildActionInput } from "./coerce-fields";
+import { appearsIn, buildActionInput } from "./coerce-fields";
 import type { AstroConfirmationPayload } from "@/features/astro/lib/astro-confirmation";
 import type { AstroAction, AstroActionResult } from "./types";
 import {
@@ -208,6 +208,43 @@ async function optionsForField(
 }
 
 /**
+ * O sujeito que o turno anterior nomeou.
+ *
+ * "Mover para a coluna Em andamento", logo após "encontrei o lead João de
+ * Souza", fala do João — mas a frase não o nomeia, e a regra de citação da
+ * spec 0024 (com razão) recusa nome que não está na frase.
+ *
+ * A herança acontece aqui, em código, e só quando o nome existe nos DOIS
+ * lugares: na conversa e no banco. Assim o Astro não inventa um sujeito —
+ * ele reconhece um que já disse. Ensinar isso ao classificador pelo prompt
+ * foi tentado e medido: derrubou "assunto novo não herda" de 3/3 para 0/3,
+ * porque o modelo passou a preferir o histórico mesmo com a frase nomeando
+ * alguém.
+ *
+ * Ambiguidade mantém a pergunta: dois leads citados não viram escolha cega.
+ */
+async function subjectFromHistory(params: {
+  ctx: AgentContext;
+  field: string;
+  history?: string[];
+}): Promise<string | null> {
+  if (params.field !== "leadName") return null;
+  const history = (params.history ?? []).slice(-4).join(" ");
+  if (!history) return null;
+
+  const leads = await prisma.lead.findMany({
+    where: { tracking: { organizationId: params.ctx.organizationId } },
+    select: { name: true },
+    take: 200,
+  });
+  const mentioned = leads.filter(
+    (lead) => lead.name.trim().length >= 3 && appearsIn(lead.name, history),
+  );
+  const unique = [...new Set(mentioned.map((lead) => lead.name))];
+  return unique.length === 1 ? unique[0] : null;
+}
+
+/**
  * Executa a ação classificada e devolve a resposta em stream. `null` significa
  * "não consigo resolver por aqui" — quem chama segue para o orquestrador.
  */
@@ -242,13 +279,30 @@ export async function runClassifiedAction(params: {
   // a pergunta em voz alta é o auto-narrate, que já existe.
   // O que o verbo já diz (polaridade) entra por código; o que o modelo
   // extraiu vence, caso tenha dito algo explícito.
-  const fields = buildActionInput(
+  const rawFields = buildActionInput(
     action,
     best.fields,
     params.userText ?? "",
     params.history,
   );
-  const missing = missingRequiredFields(action, fields);
+
+  // Campo que aponta para algo existente pode vir do turno anterior.
+  let fields = rawFields;
+  let missing = missingRequiredFields(action, fields);
+  const inheritable = missing.find(
+    (field) => !(action.newNameFields ?? []).includes(field),
+  );
+  if (inheritable) {
+    const inherited = await subjectFromHistory({
+      ctx: params.ctx,
+      field: inheritable,
+      history: params.history,
+    });
+    if (inherited) {
+      fields = { ...fields, [inheritable]: inherited };
+      missing = missingRequiredFields(action, fields);
+    }
+  }
   const parsed = action.input.safeParse(fields);
 
   // Campo que nomeia algo já cadastrado vira botão, não pergunta aberta.

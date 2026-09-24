@@ -17,7 +17,10 @@ import {
 } from "../src/features/astro/actions/classify-staged";
 import { ASTRO_ACTIONS, getAstroAction } from "../src/features/astro/actions/registry";
 import { buildActionRegistryTools } from "../src/features/astro/actions/to-tools";
-import { buildActionInput } from "../src/features/astro/actions/coerce-fields";
+import {
+  appearsIn,
+  buildActionInput,
+} from "../src/features/astro/actions/coerce-fields";
 import prisma from "../src/lib/prisma";
 
 let failures = 0;
@@ -99,6 +102,7 @@ const FRASES_TIPICAS: Record<string, string> = {
   "lead.delete": "apaga o lead duplicado do João Silva",
   "lead.create": "quero criar um lead chamado Weydson Lima",
   "tag.create": "crie uma tag chamada Urgente para o tracking",
+  "lead.move": "move o Kauê para a coluna Em andamento",
   "tracking.create": "crie um novo tracking chamado Atendimento",
   "agenda.create": "cria uma agenda de consultoria",
   "appointment.create": "marca uma reunião com o Kauê sexta às 15h",
@@ -145,6 +149,38 @@ async function checkAppIsUp(): Promise<void> {
   } catch {
     console.log("[SKIP] app compila — dev server não respondeu (não está no ar?)");
   }
+}
+
+/**
+ * Espelha a herança de sujeito do `run-classified-action` sem montar stream:
+ * devolve os campos quando o histórico resolveu o lead, ou null.
+ */
+async function subjectAwareInput(
+  action: ReturnType<typeof getAstroAction> & object,
+  organizationId: string,
+  history: string[],
+): Promise<Record<string, unknown> | null> {
+  const fields = buildActionInput(
+    action,
+    { statusName: "Em andamento" },
+    "mover para a coluna Em andamento",
+    history,
+  );
+  const leads = await prisma.lead.findMany({
+    where: { tracking: { organizationId } },
+    select: { name: true },
+    take: 200,
+  });
+  const joined = history.join(" ");
+  const mentioned = [
+    ...new Set(
+      leads
+        .filter((lead) => lead.name.trim().length >= 3 && appearsIn(lead.name, joined))
+        .map((lead) => lead.name),
+    ),
+  ];
+  if (mentioned.length !== 1) return null;
+  return { ...fields, leadName: mentioned[0] };
 }
 
 async function main(): Promise<void> {
@@ -354,6 +390,34 @@ async function main(): Promise<void> {
     },
     () => "pedido ambíguo vira pergunta ou orquestrador, nunca escrita silenciosa",
   );
+
+  // Herança do sujeito: acontece em código, contra o banco, e só quando o
+  // histórico cita UM lead que existe.
+  {
+    const lead = await prisma.lead.findFirst({
+      where: { tracking: { organizationId: organization.id } },
+      select: { name: true },
+    });
+    const move = getAstroAction("lead.move")!;
+    if (lead) {
+      const comLead = await subjectAwareInput(move, organization.id, [
+        `Astro: Encontrei o lead ${lead.name} no tracking FINANCEIRO.`,
+      ]);
+      check(
+        "sujeito herdado do turno anterior",
+        comLead?.leadName === lead.name,
+        comLead ? `leadName = ${String(comLead.leadName)}` : "não herdou",
+      );
+    }
+    const semLead = await subjectAwareInput(move, organization.id, [
+      "Astro: Você tem 3 trackings.",
+    ]);
+    check(
+      "sem lead citado, não herda",
+      semLead === null,
+      semLead ? `herdou ${String(semLead.leadName)} à toa` : "continua perguntando",
+    );
+  }
 
   // ── CA-8 — ação do registro aparece nas duas superfícies ────────────────
   const fakeContext = { organizationId: organization.id, userId: "verify" };

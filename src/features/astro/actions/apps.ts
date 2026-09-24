@@ -8,7 +8,7 @@ import "server-only";
 
 export const ASTRO_APPS = {
   tracking:
-    "Leads e funis: criar FUNIL/tracking, criar lead, mover, apagar, favoritar, ANOTAR/registrar observação em um cliente, colunas e participantes do board",
+    "Leads e funis: criar FUNIL/tracking, criar lead, MOVER lead de coluna, apagar, favoritar, ANOTAR/registrar observação em um cliente, colunas e participantes do board",
   agenda:
     "Compromissos e tempo: criar AGENDA, marcar, remarcar, cancelar reunião, criar LEMBRETE, bloquear dia, ativar agenda",
   chat:

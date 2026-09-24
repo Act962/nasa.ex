@@ -10,6 +10,7 @@ import { createAgendaAction } from "./agenda/create-agenda";
 import { createAppointmentAction } from "./agenda/create-appointment";
 import { createWorkspaceAction } from "./workspace/create-workspace";
 import { createTagAction } from "./tags/create-tag";
+import { moveLeadAction } from "./leads/move-lead";
 import { cancelAppointmentAction } from "./agenda/cancel-appointment";
 import { toggleLeadFavoriteAction } from "./leads/toggle-favorite";
 import { createStatusAction } from "./tracking/create-status";
@@ -41,6 +42,7 @@ export const ASTRO_ACTIONS: AstroAction[] = [
   createAppointmentAction,
   createWorkspaceAction,
   createTagAction,
+  moveLeadAction,
   cancelAppointmentAction,
   toggleLeadFavoriteAction,
   createStatusAction,

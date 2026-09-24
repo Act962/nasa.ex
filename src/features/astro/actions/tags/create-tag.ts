@@ -31,6 +31,17 @@ function toSlug(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+/** O escopo está na frase: "para o tracking", "no workspace". */
+function inferTagScope(text: string): Record<string, unknown> {
+  const normalized = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (/\bworkspace|tarefas?|quadro\b/.test(normalized)) return { scope: "workspace" };
+  if (/\btracking|funil|leads?|clientes?\b/.test(normalized)) return { scope: "tracking" };
+  return {};
+}
+
 export const createTagAction: AstroAction<typeof inputSchema> = {
   key: "tag.create",
   app: "tracking",
@@ -40,6 +51,7 @@ export const createTagAction: AstroAction<typeof inputSchema> = {
     "Pergunte o escopo quando o usuário não disser: tag de tracking marca leads, tag de workspace marca tarefas.",
   requiresConfirmation: false,
   newNameFields: ["tagName"],
+  inferFields: inferTagScope,
   input: inputSchema,
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {

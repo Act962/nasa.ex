@@ -40,7 +40,7 @@ function isNameField(key: string): boolean {
   return /name$/i.test(key);
 }
 
-function normalize(text: string): string {
+export function normalize(text: string): string {
   return text
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -48,7 +48,7 @@ function normalize(text: string): string {
 }
 
 /** Todo pedaço significativo do valor precisa estar no texto. */
-function appearsIn(value: string, text: string): boolean {
+export function appearsIn(value: string, text: string): boolean {
   const haystack = normalize(text);
   const tokens = normalize(value)
     .split(/[^a-z0-9]+/)
@@ -149,11 +149,21 @@ function isInvented(
   }
   if (appearsIn(value, userText)) return false;
 
+  const history = (context.history ?? []).join(" ");
+  const namedBefore = appearsIn(value, history);
+
+  // Agir sobre algo que o turno anterior nomeou é legítimo sem pronome:
+  // "mover para Em andamento", logo após "encontrei o lead João de Souza",
+  // fala do João. Isso vale só para campo que APONTA para algo existente —
+  // nome de coisa nova nunca vem da conversa, que foi como um pedido de
+  // criar lead virou um lead com o nome citado três turnos antes.
+  const namesSomethingNew = (context?.newNameFields ?? []).includes(key);
+  if (namedBefore && !namesSomethingNew) return false;
+
   const refersBack = ANAPHORA.some((marker) => normalize(userText).includes(marker));
   if (!refersBack) return true;
 
-  const history = (context.history ?? []).join(" ");
-  return !appearsIn(value, history);
+  return !namedBefore;
 }
 
 /**
