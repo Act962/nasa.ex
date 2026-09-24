@@ -94,7 +94,18 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
   ): Promise<{ messageId: string | null }> {
     const resolved = await resolveOutboundProvider(this.trackingId);
 
-    if (resolved.uazapiToken && payload.buttons.length > 0) {
+    // Botões ficam atrás de flag, desligados.
+    //
+    // Medido três vezes com esta instância: a Uazapi aceita o /send/menu e a
+    // mensagem NÃO chega ao aparelho, enquanto texto puro chega sempre. O
+    // preço do experimento é o pior possível — o Astro pergunta, o usuário
+    // não vê nada, e o ciclo fica esperando resposta de uma pergunta
+    // invisível. Lista numerada é feia e funciona.
+    if (
+      process.env.ASTRO_BOT_BUTTONS === "true" &&
+      resolved.uazapiToken &&
+      payload.buttons.length > 0
+    ) {
       try {
         const { sendButtons } = await import("@/http/uazapi/send-menu");
         const response = await sendButtons(
@@ -115,9 +126,6 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
             : typeof sent?.messageid === "string"
               ? sent.messageid
               : null;
-        // Sem id a mensagem não saiu, mesmo com HTTP 200. Confiar no 200
-        // fez a pergunta sumir: o Astro respondeu e o usuário não recebeu
-        // nada — o pior dos dois mundos, porque o ciclo ficou esperando.
         if (messageId) return { messageId };
         console.error(
           "[astro-bot/channel] menu sem id, caindo para texto:",
@@ -129,7 +137,7 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
     }
 
     const lines = payload.buttons.map(
-      (button, index) => `${index + 1}. ${button.text}`,
+      (button, index) => `*${index + 1}.* ${button.text}`,
     );
     const body = [payload.bodyText, ...lines, payload.footerText]
       .filter(Boolean)
