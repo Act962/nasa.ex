@@ -205,6 +205,28 @@ export class PrismaAutomationRepository implements AutomationRepository {
   }
 
   /**
+   * Desativa o que só faz sentido na conta anterior.
+   *
+   * O alvo guarda o id da publicação; trocada a conta, aquele id não existe do
+   * outro lado e o gatilho nunca casa. Desativar é mais honesto que deixar o
+   * selo "Ativa" numa automação incapaz de disparar — e preserva a
+   * configuração, que o usuário só precisa reapontar para os posts novos.
+   */
+  async deactivateTargetingContent(channelId: string): Promise<number> {
+    const result = await prisma.socialAutomation.updateMany({
+      where: {
+        channelId,
+        organizationId: this.tenant.organizationId,
+        isActive: true,
+        triggers: { some: { targets: { some: {} } } },
+      },
+      data: { isActive: false },
+    });
+
+    return result.count;
+  }
+
+  /**
    * Salva o gatilho inteiro de uma vez — alvos, regras e passos.
    *
    * O painel do editor edita o conjunto, então gravar por partes abriria janela

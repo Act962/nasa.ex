@@ -134,12 +134,23 @@ function CredentialsForm({
             { provider: "INSTAGRAM", ...form },
             {
               onSuccess: (result) => {
-                if (result.subscribed) {
-                  toast.success("Conta conectada e recebendo eventos");
-                } else {
+                const account = result.handle
+                  ? `@${result.handle}`
+                  : result.externalAccountId;
+
+                if (!result.subscribed) {
                   toast.warning(
-                    `Conta conectada, mas a inscrição nos eventos falhou: ${result.subscriptionError ?? "motivo desconhecido"}`,
+                    `Conectado em ${account}, mas a inscrição nos eventos falhou: ${result.subscriptionError ?? "motivo desconhecido"}`,
                   );
+                } else if (result.replacedExternalAccountId) {
+                  toast.success(`Conta trocada para ${account}`, {
+                    description:
+                      result.deactivatedAutomations > 0
+                        ? `${result.deactivatedAutomations} ${result.deactivatedAutomations === 1 ? "automação foi desativada porque apontava" : "automações foram desativadas porque apontavam"} para publicações da conta anterior. Reescolha os posts e ative de novo.`
+                        : "A URL do webhook continua a mesma.",
+                  });
+                } else {
+                  toast.success(`Conectado em ${account} e recebendo eventos`);
                 }
                 onDone?.();
               },
@@ -302,7 +313,7 @@ export function ChannelConnectCard() {
               onClick={() => setEditingCredentials((current) => !current)}
             >
               <KeyRound className="size-4" />
-              {isEditingCredentials ? "Cancelar" : "Atualizar credenciais"}
+              {isEditingCredentials ? "Cancelar" : "Trocar conta ou credenciais"}
             </Button>
 
             <Button
@@ -327,8 +338,9 @@ export function ChannelConnectCard() {
           {isEditingCredentials && (
             <div className="space-y-3 border-t pt-4">
               <p className="text-xs text-muted-foreground">
-                Atualizar mantém a mesma URL de webhook — não precisa mexer na
-                Meta de novo.
+                Serve para renovar o token e também para trocar de conta: mude o
+                Instagram Account ID e informe as credenciais da nova. A URL do
+                webhook continua a mesma — não precisa mexer na Meta de novo.
               </p>
               <CredentialsForm
                 initialAccountId={channel.externalAccountId}

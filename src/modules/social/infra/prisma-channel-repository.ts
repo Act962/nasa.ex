@@ -91,22 +91,46 @@ export class PrismaChannelLookupRepository implements ChannelLookupRepository {
 export class PrismaChannelRepository implements ChannelRepository {
   constructor(private readonly tenant: TenantScope) {}
 
-  async findForTenant(): Promise<ChannelSummary | null> {
+  /**
+   * A conexão da organização é **uma linha só** (spec 0024 D-13), e é a mais
+   * antiga: é ela que as automações, os contatos e o histórico referenciam, e é
+   * o `webhookPathToken` dela que já está colado no App da Meta. Toda leitura e
+   * toda escrita passam por aqui — foi a divergência entre as duas que fez a
+   * troca de conta gravar numa linha que nenhuma leitura enxergava.
+   */
+  private async currentRow(
+    provider?: SocialProviderValue,
+  ): Promise<ChannelRow | null> {
     const row = await prisma.socialChannel.findFirst({
-      where: { organizationId: this.tenant.organizationId },
+      where: {
+        organizationId: this.tenant.organizationId,
+        ...(provider ? { provider } : {}),
+      },
       orderBy: { createdAt: "asc" },
     });
-    return row ? toSummary(row as unknown as ChannelRow) : null;
+    return (row as unknown as ChannelRow) ?? null;
+  }
+
+  async findForTenant(): Promise<ChannelSummary | null> {
+    const row = await this.currentRow();
+    return row ? toSummary(row) : null;
   }
 
   async findWithCredentials(): Promise<Channel | null> {
-    const row = await prisma.socialChannel.findFirst({
-      where: { organizationId: this.tenant.organizationId },
-      orderBy: { createdAt: "asc" },
-    });
-    return row ? toChannel(row as unknown as ChannelRow) : null;
+    const row = await this.currentRow();
+    return row ? toChannel(row) : null;
   }
 
+  /**
+   * Conecta ou troca a conta da organização.
+   *
+   * Trocar de conta **reaproveita a linha existente** em vez de criar outra.
+   * Criar outra era o bug: o unique é `(provider, externalAccountId)`, então um
+   * ID de conta novo não colidia com nada, nascia uma segunda linha e as
+   * leituras continuavam devolvendo a primeira — a UI dizia "conectada" e
+   * mostrava a conta antiga. Reaproveitar também preserva a URL do webhook já
+   * configurada na Meta e tudo que aponta para o canal.
+   */
   async connect(input: {
     provider: SocialProviderValue;
     externalAccountId: string;
@@ -115,50 +139,113 @@ export class PrismaChannelRepository implements ChannelRepository {
     credentials: Channel["credentials"];
     webhookPathToken: string;
     connectedById?: string | null;
-  }): Promise<ChannelSummary> {
-    const existing = await prisma.socialChannel.findUnique({
+  }): Promise<{
+    channel: ChannelSummary;
+    replacedExternalAccountId: string | null;
+  }> {
+    const owner = await prisma.socialChannel.findUnique({
       where: {
         provider_externalAccountId: {
           provider: input.provider,
           externalAccountId: input.externalAccountId,
         },
       },
-      select: { id: true, organizationId: true, webhookPathToken: true },
+      select: { id: true, organizationId: true },
     });
 
-    if (existing && existing.organizationId !== this.tenant.organizationId) {
+    if (owner && owner.organizationId !== this.tenant.organizationId) {
       throw new ChannelAlreadyTakenError();
     }
 
     const credentials = encryptCredentials(input.credentials);
+    const current = await this.currentRow(input.provider);
+
+    if (!current) {
+      const row = await prisma.socialChannel.create({
+        data: {
+          organizationId: this.tenant.organizationId,
+          provider: input.provider,
+          externalAccountId: input.externalAccountId,
+          webhookPathToken: input.webhookPathToken,
+          handle: input.handle,
+          displayName: input.displayName,
+          credentials,
+          connectedById: input.connectedById,
+        },
+      });
+      return {
+        channel: toSummary(row as unknown as ChannelRow),
+        replacedExternalAccountId: null,
+      };
+    }
+
+    const isAccountChange = current.externalAccountId !== input.externalAccountId;
 
     try {
-      const row = existing
-        ? await prisma.socialChannel.update({
-            where: { id: existing.id },
-            data: {
-              credentials,
-              handle: input.handle,
-              displayName: input.displayName,
-              status: "ACTIVE",
-              lastErrorMessage: null,
-              lastErrorAt: null,
+      const row = await prisma.$transaction(async (transaction) => {
+        // Tentativas de troca feitas antes desta correção deixaram linhas
+        // órfãs: invisíveis para a UI, mas segurando o unique da conta que
+        // agora está entrando. Só saem se não carregarem nada — nenhuma
+        // deveria, porque a URL delas nunca chegou a aparecer para o usuário.
+        const orphans = await transaction.socialChannel.findMany({
+          where: {
+            organizationId: this.tenant.organizationId,
+            provider: input.provider,
+            id: { not: current.id },
+          },
+          select: {
+            id: true,
+            _count: {
+              select: {
+                automations: true,
+                contacts: true,
+                inboundEvents: true,
+                runs: true,
+              },
             },
-          })
-        : await prisma.socialChannel.create({
-            data: {
-              organizationId: this.tenant.organizationId,
-              provider: input.provider,
-              externalAccountId: input.externalAccountId,
-              webhookPathToken: input.webhookPathToken,
-              handle: input.handle,
-              displayName: input.displayName,
-              credentials,
-              connectedById: input.connectedById,
-            },
-          });
+          },
+        });
 
-      return toSummary(row as unknown as ChannelRow);
+        for (const orphan of orphans) {
+          const isEmpty =
+            orphan._count.automations === 0 &&
+            orphan._count.contacts === 0 &&
+            orphan._count.inboundEvents === 0 &&
+            orphan._count.runs === 0;
+
+          if (isEmpty) {
+            await transaction.socialChannel.delete({ where: { id: orphan.id } });
+          } else {
+            await transaction.socialChannel.update({
+              where: { id: orphan.id },
+              data: { status: "DISABLED" },
+            });
+          }
+        }
+
+        return transaction.socialChannel.update({
+          where: { id: current.id },
+          data: {
+            externalAccountId: input.externalAccountId,
+            credentials,
+            handle: input.handle,
+            displayName: input.displayName,
+            status: "ACTIVE",
+            lastErrorMessage: null,
+            lastErrorAt: null,
+            ...(input.connectedById
+              ? { connectedById: input.connectedById }
+              : {}),
+          },
+        });
+      });
+
+      return {
+        channel: toSummary(row as unknown as ChannelRow),
+        replacedExternalAccountId: isAccountChange
+          ? current.externalAccountId
+          : null,
+      };
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

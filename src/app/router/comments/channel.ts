@@ -60,7 +60,7 @@ export const connectChannelProcedure = commentsProcedure
     await requireOrgAdmin(context.org.id, context.user.id);
 
     return withDomainErrors(async () => {
-      const { channels } = repositoriesFor(context.org.id);
+      const { channels, automations } = repositoriesFor(context.org.id);
 
       const result = await connectChannel(
         {
@@ -75,6 +75,7 @@ export const connectChannelProcedure = commentsProcedure
         },
         {
           channels,
+          automations,
           gateway: createGatewayForCredentials(
             input.provider,
             input.externalAccountId,
@@ -88,6 +89,7 @@ export const connectChannelProcedure = commentsProcedure
         id: result.channel.id,
         handle: result.channel.handle,
         displayName: result.channel.displayName,
+        externalAccountId: result.channel.externalAccountId,
         status: result.channel.status,
         webhookUrl: webhookUrlFor(
           result.channel.provider,
@@ -96,6 +98,8 @@ export const connectChannelProcedure = commentsProcedure
         ),
         subscribed: result.subscribed,
         subscriptionError: result.subscriptionError,
+        replacedExternalAccountId: result.replacedExternalAccountId,
+        deactivatedAutomations: result.deactivatedAutomations,
       };
     });
   });

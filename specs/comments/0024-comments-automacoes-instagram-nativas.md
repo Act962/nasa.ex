@@ -435,6 +435,13 @@ no enum e um registro no composition root. `domain/` e `application/` não mudam
 - **Alternativas descartadas**: passar `organizationId` como parâmetro em cada query — é o desenho que produziu o IDOR sistêmico apontado na auditoria, porque esquecer o filtro é sempre possível.
 - **Consequência**: existe exatamente um lugar auditável onde o tenant é estabelecido a partir de uma requisição anônima. Quem revisa o PR olha uma função, não 40 queries.
 
+### D-13 — Uma conexão por organização, e a linha canônica é a mais antiga
+
+- **Contexto**: descoberto em produção. Com a conta errada conectada, trocar de conta gravava a nova credencial numa **segunda linha** — o unique é `(provider, externalAccountId)`, então um ID de conta diferente não colidia com nada — enquanto `findForTenant`/`findWithCredentials` liam `findFirst(orderBy: createdAt asc)`. A escrita ia para uma linha que nenhuma leitura enxergava: a UI confirmava "conectada" e continuava mostrando a conta anterior, sem caminho de saída (desconectar só desativa, e o formulário de conexão nova nunca reaparece).
+- **Escolha**: a organização tem **uma** conexão por provider, e ela é a linha mais antiga — a que `SocialAutomation`, `SocialContact`, `SocialAutomationRun` e `SocialInboundEvent` referenciam, e cujo `webhookPathToken` já está colado no App da Meta. `connect` reaproveita essa linha, trocando `externalAccountId` e credenciais; leitura e escrita passam pelo mesmo resolvedor (`currentRow`), que é o que impede as duas de divergirem de novo. Linhas órfãs de tentativas anteriores são removidas quando não carregam nada (e apenas desativadas se carregarem), porque seguram o unique da conta que está entrando.
+- **Alternativas descartadas**: (a) fazer as leituras pegarem a linha **mais recente** — resolvia a tela, mas órfãnava as automações, que apontam para o `channelId` antigo; (b) unique parcial `(organization_id, provider) WHERE status <> 'DISABLED'` no banco — enforce real, porém exige SQL fora do schema Prisma, o que gera drift permanente (CLAUDE.md §20) e falharia na migração enquanto a duplicata de produção existisse; (c) deletar a linha antiga e criar outra — repete a perda de dados já corrigida no `disconnect`, e invalida a URL registrada na Meta.
+- **Consequência**: trocar de conta preserva URL do webhook, histórico e configuração. Em troca, os alvos de publicação específica ficam apontando para posts que não existem na conta nova — então `connectChannel` desativa essas automações e devolve a contagem, para a UI dizer que precisam de novos posts. Trocar apenas o token (mesma conta) não mexe em automação nenhuma.
+
 ## 7. Impacto
 
 - [x] Schema / migration (`prisma/schema.prisma`) — 10 tabelas novas + 11 enums, aditivas. Aplicada em `20260924120000_social_automations_channel_agnostic`
@@ -520,6 +527,7 @@ ficam órfãs e inertes. Nenhum dado existente é alterado ou removido.
 | 2026-09-24 | João Gabriel | D-9 + RF-20..RF-23: editor é painel guiado + canvas `@xyflow` derivado. Não-objetivo corrigido: o excluído é a edição livre do grafo, não o canvas |
 | 2026-09-24 | João Gabriel | **Implementado.** Migration `20260924120000`, módulo `src/modules/social`, webhook por conexão, router `comments` nativo, editor painel+canvas, proxy desregistrado. Duas divergências registradas: IA roda dentro do request (ver D-4) e o job de limpeza de `SocialInboundEvent` ficou como dívida. Doc do domínio: `docs/comments-overview.md` |
 | 2026-09-24 | João Gabriel | Modelo reescrito como **agnóstico de canal** (`Social*`, D-8) e núcleo movido para `src/modules/social/` em Ports & Adapters (D-10), conforme §5.2/§5.3 de `arquitetura-evolucao-overview.md`. Novas decisões D-11 (webhook por canal) e D-12 (tenancy num ponto só). §8 ganhou o mapa de testes por camada; §11 ganhou a Fase 3.5 (outros canais) |
+| 2026-09-24 | João Gabriel | **D-13** — bug crítico encontrado em produção: não era possível trocar a conta conectada. `connect` criava uma segunda linha que nenhuma leitura enxergava. Passa a valer a invariante "uma conexão por organização", com a linha mais antiga como canônica e um resolvedor único para leitura e escrita |
 
 ---
 
