@@ -2,7 +2,7 @@ import "server-only";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { getAstroAction } from "./registry";
 import { classifyStaged } from "./classify-staged";
-import { ASKS, WRITE_VERB, normalizeQuestion } from "@/features/astro/queries/types";
+import { WRITE_VERB, normalizeQuestion } from "@/features/astro/queries/types";
 import {
   resolveActionWithFields,
   resolveClassifiedAction,
@@ -66,8 +66,21 @@ export function clearGuidedSlot(sessionId: string): void {
   slots.delete(sessionId);
 }
 
-/** Escapes explícitos: o usuário desiste e precisa ser ouvido na hora. */
-const ABANDON = /^(cancela|cancelar|esquece|esqueca|deixa|deixa pra la|para|parar|zerar|zera|limpa|limpar|recomecar|recomeca|sair|nao quero)\b/;
+/**
+ * Desistência é a MENSAGEM INTEIRA, nunca um começo de frase.
+ *
+ * A lista antiga casava por prefixo e incluía "para" e "deixa" — que em
+ * português são preposição e verbo comuns. "Para o Banco Teste" e "deixa no
+ * Nubank" são respostas legítimas à pergunta da conta, e viravam
+ * cancelamento do lançamento inteiro.
+ */
+const ABANDON_PHRASES = new Set([
+  "cancela", "cancelar", "cancele", "cancela tudo", "cancelar tudo",
+  "esquece", "esqueca", "esquece isso", "deixa pra la", "deixa pra depois",
+  "para", "parar", "pare", "zerar", "zera", "zerar interacao",
+  "limpa", "limpar", "recomecar", "recomeca", "sair", "nao quero",
+  "nao quero mais", "desisto", "chega",
+]);
 
 /**
  * A resposta fez o ciclo andar?
@@ -97,31 +110,89 @@ function madeProgress(
  * me envie a lista das contas". Resposta é curta, ou casa com uma das opções
  * oferecidas. Pedido novo tem verbo e tamanho.
  */
+/**
+ * Pergunta de verdade, não qualquer frase com "que" dentro.
+ *
+ * `ASKS` serve à camada de leitura, onde falso positivo custa uma consulta a
+ * mais. Aqui custa o lançamento inteiro do usuário, então a régua é outra: a
+ * frase precisa COMEÇAR como pergunta, ou trazer verbo de escrita com corpo.
+ */
+const NEW_QUESTION =
+  /^(quantos|quantas|quais|qual|quem|onde|quando|como|me mostra|me manda|me envia|me envie|mostra|liste|lista as|lista os|lista de)\b/;
+
 function looksLikeNewRequest(text: string, options?: { label: string }[]): boolean {
   const normalized = normalizeQuestion(text);
-  if (options?.some((option) => normalizeQuestion(option.label) === normalized)) {
+  // Casou com uma opção oferecida: é resposta, ponto final.
+  if (
+    options?.some(
+      (option) =>
+        normalizeQuestion(option.label) === normalized ||
+        normalizeQuestion(option.label).includes(normalized),
+    )
+  ) {
     return false;
   }
-  // Pergunta é sempre assunto novo: ninguém responde "em qual conta?" com
-  // "quantos leads temos?". Ordem precisa de corpo — "2" e "Banco Teste"
-  // também começam frase, mas não são pedido.
-  if (ASKS.test(normalized)) return true;
+  if (NEW_QUESTION.test(normalized)) return true;
   const words = normalized.split(/\s+/).filter(Boolean);
   return words.length > 3 && WRITE_VERB.test(normalized);
 }
 
-/** "2" responde a lista; "Nu bank" também. Número só vale dentro da faixa. */
+const ORDINALS: Record<string, number> = {
+  primeira: 1, primeiro: 1, segunda: 2, segundo: 2, terceira: 3, terceiro: 3,
+  quarta: 4, quarto: 4, quinta: 5, quinto: 5, ultima: -1, ultimo: -1,
+};
+
+/**
+ * Traduz a resposta para uma das opções oferecidas.
+ *
+ * Gente não responde "Banco Teste" — responde "para o Banco Teste", "no
+ * Nubank mesmo", "a primeira". Passar o texto cru adiante fazia a busca
+ * procurar uma conta chamada "para o Banco Teste" e não achar nada, e o
+ * ciclo morria com a resposta certa na mão.
+ */
 function answerToValue(
   text: string,
   options?: { id: string; label: string }[],
 ): string {
   const trimmed = text.trim();
   if (!options || options.length === 0) return trimmed;
-  const index = Number(trimmed);
+  const normalized = normalizeQuestion(trimmed);
+
+  const index = Number(normalized);
   if (Number.isInteger(index) && index >= 1 && index <= options.length) {
     return options[index - 1].label;
   }
-  return trimmed;
+
+  const ordinalWord = Object.keys(ORDINALS).find((word) =>
+    new RegExp(`\\b${word}\\b`).test(normalized),
+  );
+  if (ordinalWord) {
+    const position = ORDINALS[ordinalWord];
+    const chosen = position === -1 ? options[options.length - 1] : options[position - 1];
+    if (chosen) return chosen.label;
+  }
+
+  // Rótulo citado dentro da frase, ou a frase dentro do rótulo.
+  const matched = options.find((option) => {
+    const label = normalizeQuestion(option.label);
+    return label === normalized || normalized.includes(label) || label.includes(normalized);
+  });
+  if (matched) return matched.label;
+
+  // Sem correspondência exata, vale a opção com mais palavras em comum.
+  // A comparação ignora espaço e pontuação: "Nubank" precisa achar
+  // "Nu bank - 526337699-7", e ninguém digita o traço.
+  const squash = (value: string) => value.replace(/[^a-z0-9]/g, "");
+  const words = normalized.split(/[^a-z0-9]+/).filter((word) => word.length >= 3);
+  let best: { label: string; score: number } | null = null;
+  for (const option of options) {
+    const label = squash(normalizeQuestion(option.label));
+    const score = words.filter((word) => label.includes(squash(word))).length;
+    if (score > 0 && (!best || score > best.score)) {
+      best = { label: option.label, score };
+    }
+  }
+  return best ? best.label : trimmed;
 }
 
 /** Só strings entram no slot; o resto se reconstrói no `buildActionInput`. */
@@ -179,7 +250,7 @@ export async function resolveGuided(params: {
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
-    if (ABANDON.test(normalized)) {
+    if (ABANDON_PHRASES.has(normalized.replace(/[.!?]+$/, ""))) {
       slots.delete(params.sessionId);
       return {
         kind: "result",
