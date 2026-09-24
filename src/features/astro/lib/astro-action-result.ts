@@ -9,6 +9,8 @@ export interface AstroActionDonePayload {
   description: string;
   publicUrl?: string;
   internalUrl?: string;
+  /** Rótulo do botão, ex: "Abrir Workspace". Sem isso, "Abrir no <app>". */
+  openLabel?: string;
   appName: string;
 }
 

@@ -102,6 +102,18 @@ export function AstroActionResultCard({
             ) : null}
           </div>
         </>
+      ) : payload.internalUrl ? (
+        // Sem página pública ainda há destino: criar algo e não oferecer o
+        // caminho até ele obriga o usuário a procurar o que acabou de pedir.
+        <div className="px-3.5 pb-3">
+          <a
+            href={payload.internalUrl}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500/15 px-2.5 py-1.5 text-xs font-medium text-violet-200 transition-colors hover:bg-violet-500/25"
+          >
+            <ExternalLink className="h-3 w-3" />
+            {payload.openLabel ?? `Abrir no ${payload.appName}`}
+          </a>
+        </div>
       ) : null}
     </div>
   );

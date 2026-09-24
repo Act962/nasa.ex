@@ -29,6 +29,8 @@ export type AstroActionResult =
       publicUrl?: string;
       /** Link de dentro da plataforma, para quem vai editar. */
       internalUrl?: string;
+      /** Rótulo do botão, ex: "Abrir Workspace". */
+      openLabel?: string;
       appName: string;
     }
   | {
