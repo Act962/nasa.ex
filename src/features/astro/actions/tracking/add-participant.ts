@@ -25,8 +25,9 @@ export const addTrackingParticipantAction: AstroAction<typeof inputSchema> = {
   app: "tracking",
   toolName: "add_tracking_participant",
   description:
-    "Adiciona uma pessoa da organização a um tracking. " +
-    "Use quando o usuário disser 'põe o Fulano no tracking X', 'adiciona a Fulana no funil Y'.",
+    "Dá acesso a um COLEGA DE EQUIPE em um tracking — é sobre usuário da organização, nunca sobre cliente. " +
+    "Use quando o usuário disser 'põe o Fulano no tracking X', 'adiciona a Fulana como participante do funil Y', " +
+    "'libera o acesso do Fulano ao board'.",
   requiresConfirmation: false,
   input: inputSchema,
 

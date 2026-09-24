@@ -97,6 +97,7 @@ const FRASES_TIPICAS: Record<string, string> = {
   "forge.create_proposal": "crie uma proposta para Kauê do produto Consultoria",
   "agenda.reschedule_appointment": "remarca o Kauê para sexta às 15h",
   "lead.delete": "apaga o lead duplicado do João Silva",
+  "lead.create": "quero criar um lead chamado Weydson Lima",
   "lead.add_note": "anota no Kauê que ele pediu desconto",
   "agenda.cancel_appointment": "cancela o agendamento do Kauê",
   "lead.toggle_favorite": "favorita o lead Kauê",

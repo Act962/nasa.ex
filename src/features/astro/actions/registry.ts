@@ -4,6 +4,7 @@ import { createProposalAction } from "./forge/create-proposal";
 import { rescheduleAppointmentAction } from "./agenda/reschedule-appointment";
 import { deleteLeadAction } from "./leads/delete-lead";
 import { addLeadNoteAction } from "./leads/add-lead-note";
+import { createLeadAction } from "./leads/create-lead";
 import { cancelAppointmentAction } from "./agenda/cancel-appointment";
 import { toggleLeadFavoriteAction } from "./leads/toggle-favorite";
 import { createStatusAction } from "./tracking/create-status";
@@ -29,6 +30,7 @@ export const ASTRO_ACTIONS: AstroAction[] = [
   rescheduleAppointmentAction,
   deleteLeadAction,
   addLeadNoteAction,
+  createLeadAction,
   cancelAppointmentAction,
   toggleLeadFavoriteAction,
   createStatusAction,
