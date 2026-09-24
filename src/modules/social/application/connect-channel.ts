@@ -1,7 +1,11 @@
 import { InvalidCredentialsError } from "../domain/errors";
 import type { ChannelCredentials, SocialProviderValue } from "../domain/types";
 import type { ChannelGateway } from "../ports/channel-gateway";
-import type { ChannelRepository, ChannelSummary } from "../ports/repositories";
+import type {
+  AutomationRepository,
+  ChannelRepository,
+  ChannelSummary,
+} from "../ports/repositories";
 
 export type ConnectChannelInput = {
   provider: SocialProviderValue;
@@ -12,6 +16,7 @@ export type ConnectChannelInput = {
 
 export type ConnectChannelDeps = {
   channels: ChannelRepository;
+  automations: Pick<AutomationRepository, "deactivateTargetingContent">;
   /** Gateway já construído com as credenciais que estão sendo testadas. */
   gateway: ChannelGateway;
   generateWebhookPathToken: () => string;
@@ -29,6 +34,10 @@ export type ConnectChannelResult = {
   /** A conta passou a entregar eventos? Falso vira aviso na UI. */
   subscribed: boolean;
   subscriptionError: string | null;
+  /** Conta anterior, quando a conexão trocou de conta — `null` se não trocou. */
+  replacedExternalAccountId: string | null;
+  /** Automações desativadas por apontarem para posts da conta anterior. */
+  deactivatedAutomations: number;
 };
 
 export async function connectChannel(
@@ -55,7 +64,7 @@ export async function connectChannel(
     );
   }
 
-  const summary = await deps.channels.connect({
+  const { channel, replacedExternalAccountId } = await deps.channels.connect({
     provider: input.provider,
     externalAccountId: input.externalAccountId,
     handle: profile.handle ?? null,
@@ -65,14 +74,23 @@ export async function connectChannel(
     connectedById: input.connectedById ?? null,
   });
 
+  // Trocou de conta: o que aponta para publicação específica da conta anterior
+  // não tem como casar na nova. Desativa e devolve a contagem para a UI avisar,
+  // em vez de deixar automação ativa que nunca dispara.
+  const deactivatedAutomations = replacedExternalAccountId
+    ? await deps.automations.deactivateTargetingContent(channel.id)
+    : 0;
+
   // Sem isto a conta nunca entrega evento nenhum — a verificação da URL passa,
   // e o silêncio depois é indistinguível de "automação errada". Best-effort:
   // não desfaz a conexão, mas o resultado vai para a UI.
   const subscription = await deps.gateway.subscribeToEvents();
 
   return {
-    channel: summary,
+    channel,
     subscribed: subscription.ok,
     subscriptionError: subscription.ok ? null : subscription.error,
+    replacedExternalAccountId,
+    deactivatedAutomations,
   };
 }

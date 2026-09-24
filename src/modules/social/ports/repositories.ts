@@ -37,6 +37,16 @@ export interface ChannelLookupRepository {
   ): Promise<{ channel: Channel; tenant: TenantScope } | null>;
 }
 
+export type ConnectChannelOutcome = {
+  channel: ChannelSummary;
+  /**
+   * Conta que ocupava a conexão antes, quando a troca mudou de conta — `null`
+   * na primeira conexão e na troca só de credencial. Quem chama usa isso para
+   * decidir o que fazer com o que foi configurado para a conta anterior.
+   */
+  replacedExternalAccountId: string | null;
+};
+
 export interface ChannelRepository {
   findForTenant(): Promise<ChannelSummary | null>;
   findWithCredentials(): Promise<Channel | null>;
@@ -48,7 +58,7 @@ export interface ChannelRepository {
     credentials: ChannelCredentials;
     webhookPathToken: string;
     connectedById?: string | null;
-  }): Promise<ChannelSummary>;
+  }): Promise<ConnectChannelOutcome>;
   disconnect(channelId: string): Promise<void>;
   markNeedsReconnect(channelId: string, reason: string): Promise<void>;
   markActive(channelId: string): Promise<void>;
@@ -103,6 +113,13 @@ export interface AutomationRepository {
   remove(automationId: string): Promise<void>;
   upsertTrigger(input: UpsertTriggerInput): Promise<{ triggerId: string }>;
   removeTrigger(automationId: string, triggerId: string): Promise<void>;
+  /**
+   * Desativa as automações do canal que dependem de publicações específicas e
+   * devolve quantas foram. Serve para a troca de conta: o id de post da conta
+   * antiga não existe na nova, e a automação ficaria marcada como ativa sem ter
+   * como disparar.
+   */
+  deactivateTargetingContent(channelId: string): Promise<number>;
 }
 
 export interface InboundEventRepository {

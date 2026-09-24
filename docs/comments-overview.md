@@ -109,6 +109,7 @@ Sem contadores denormalizados: `sentCount` é derivado dos runs.
 | Conta duplicada | `@@unique([provider, external_account_id])` impede duas orgs na mesma conta |
 | Papel | Conectar/desconectar exige owner ou admin |
 | Desconectar | **Desativa, não apaga.** `SocialAutomation`/`SocialContact`/`SocialInboundEvent` cascateiam do canal — deletar a linha destruía a configuração do usuário. Também preserva o `webhook_path_token`, mantendo válida a URL já registrada na Meta |
+| Uma conexão por organização | Invariante do módulo (spec 0024 D-13): `connect` **reaproveita a linha existente**, inclusive ao trocar de conta. Criar uma segunda linha fazia as leituras (`findFirst` pela mais antiga) continuarem devolvendo a conta anterior. A linha mais antiga é a canônica — é ela que automações, contatos, histórico e a URL registrada na Meta referenciam |
 
 ## 5. Configuração pelo usuário
 
@@ -173,6 +174,11 @@ cria lead, o outro responde. Sem dedupe entre sistemas nesta fase.
   caminho (D-4); ficou como dívida para não segurar a entrega. Com prompt longo,
   pode passar do tempo confortável de resposta à Meta.
 - **`social_contacts.lead_id` não é FK** e ninguém escreve nele ainda.
+- **Alvo de publicação não é validado contra a conta conectada.** Na troca de
+  conta, as automações com alvo específico são desativadas e o usuário é avisado
+  (D-13), mas nada impede reativá-las sem reescolher os posts — e aí o gatilho
+  não casa, porque o id do post é de outra conta. A validação na ativação exige
+  uma consulta ao provider e ficou para depois.
 - O proxy antigo segue no repo, desregistrado, em `src/app/router/comments-remote/`
   e `src/http/comments/`.
 
@@ -180,6 +186,7 @@ cria lead, o outro responde. Sem dedupe entre sistemas nesta fase.
 
 | Data | Mudança |
 | --- | --- |
+| 2026-09-24 | **Trocar de conta passou a funcionar.** `connect` criava uma linha nova quando o `external_account_id` mudava — o unique é `(provider, account)`, então não havia colisão — e as leituras, que pegam a linha mais antiga da organização, seguiam devolvendo a conta anterior: a UI dizia "conectada" e mostrava a conta errada, sem como sair dela. Agora a troca reaproveita a linha canônica (preserva automações, histórico e a URL na Meta), remove linhas órfãs de tentativas anteriores e desativa as automações que apontavam para publicações da conta antiga, informando quantas |
 | 2026-09-24 | Credencial recusada passou a ser sinalizada pelo `DispatchResult.authError` do gateway (status 401/403) em vez de regex sobre o texto do erro, que marcaria a conexão como quebrada em qualquer mensagem contendo "token" |
 | 2026-09-24 | Publicação escolhida volta a mostrar miniatura: o editor descartava `contentType`/`mediaUrl` ao carregar e gravava o vazio por cima no save seguinte. `TriggerTarget` passou a carregar os campos de apresentação, e a miniatura cai para ícone por tipo quando a URL da Meta expira |
 | 2026-09-24 | Limite de texto passou de bytes (950) para **caracteres** (1000 sem botão / 640 com botão) — medir bytes roubava caracteres em português. Botões deixaram de ser descartados em silêncio no salvar: viraram lista clicável com diálogo de edição, validação de título e URL, e `https://` automático |
