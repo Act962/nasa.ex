@@ -241,6 +241,8 @@ export function buildMutationTools(ctx: AgentContext) {
         if (!(await userBelongsToOrg(ctx.userId, ctx.organizationId))) {
           return { error: "Sem acesso à organização" };
         }
+        // Criador vira membro: a listagem filtra por participação e o
+        // workspace nasceria invisível.
         const ws = await prisma.workspace.create({
           data: {
             name,
@@ -248,6 +250,7 @@ export function buildMutationTools(ctx: AgentContext) {
             color: color ?? "#1447e6",
             organizationId: ctx.organizationId,
             createdBy: ctx.userId,
+            members: { create: { userId: ctx.userId, role: "OWNER" } },
           },
           select: { id: true, name: true },
         });

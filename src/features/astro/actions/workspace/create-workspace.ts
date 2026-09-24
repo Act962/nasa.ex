@@ -57,12 +57,16 @@ export const createWorkspaceAction: AstroAction<typeof inputSchema> = {
       };
     }
 
+    // O criador precisa virar membro: a listagem de workspaces filtra por
+    // participação, então sem esta linha o quadro nasce invisível — existe no
+    // banco e não aparece para ninguém, nem para quem pediu.
     const workspace = await prisma.workspace.create({
       data: {
         name: input.workspaceName,
         color: DEFAULT_COLOR,
         organizationId: ctx.organizationId,
         createdBy: ctx.userId,
+        members: { create: { userId: ctx.userId, role: "OWNER" } },
       },
       select: { id: true, name: true },
     });
