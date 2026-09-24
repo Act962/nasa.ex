@@ -91,12 +91,15 @@ export function DataTable<TData, TValue>({
     if (clearSelectionToken !== undefined) setRowSelection({});
   }, [clearSelectionToken]);
 
+  // Avisa só quando a seleção muda de verdade. Notificar a cada render
+  // devolvia um array novo para quem chama, que guardava em estado e
+  // renderizava de novo — sem fim.
   useEffect(() => {
     onSelectionChange?.(
       table.getSelectedRowModel().rows.map((row) => row.original),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rowSelection, data]);
+  }, [Object.keys(rowSelection).join(",")]);
 
   return (
     <>

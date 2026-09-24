@@ -6,7 +6,7 @@ import { orpc } from "@/lib/orpc";
 import { useQuery } from "@tanstack/react-query";
 import { useContactsFilters } from "../hooks/use-contacts-filters";
 import { SelectionBar } from "../selection-bar";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { LeadWithTrackingAndStatus } from "./columns";
 
 export function TableLeads() {
@@ -30,11 +30,15 @@ export function TableLeads() {
   const [selected, setSelected] = useState<LeadWithTrackingAndStatus[]>([]);
   const [clearToken, setClearToken] = useState(0);
 
+  // `data?.leads ?? []` criava um array novo a cada render, e a tabela limpa
+  // a seleção quando os dados mudam — os dois juntos viravam laço infinito.
+  const rows = useMemo(() => data?.leads ?? [], [data?.leads]);
+
   return (
     <div className={isFetching ? "opacity-60 transition-opacity" : undefined}>
       <DataTable
         columns={columns}
-        data={data?.leads ?? []}
+        data={rows}
         onSelectionChange={setSelected}
         clearSelectionToken={clearToken}
       />
