@@ -3,76 +3,65 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 
-function useInvalidate() {
-  const qc = useQueryClient();
-  return () =>
-    qc.invalidateQueries({ queryKey: ["commentsApp", "automations"] });
+function useInvalidateAutomations() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: orpc.comments.key() });
 }
 
 export function useCommentsAutomations() {
-  return useQuery(orpc.commentsApp.automations.getMany.queryOptions({ input: {} }));
+  return useQuery(orpc.comments.automations.list.queryOptions({ input: {} }));
 }
 
 export function useCommentsAutomation(id: string, enabled = true) {
   return useQuery({
-    ...orpc.commentsApp.automations.getOne.queryOptions({ input: { id } }),
+    ...orpc.comments.automations.get.queryOptions({ input: { id } }),
     enabled: Boolean(id) && enabled,
   });
 }
 
 export function useCreateCommentsAutomation() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidateAutomations();
   return useMutation(
-    orpc.commentsApp.automations.create.mutationOptions({ onSuccess: invalidate }),
+    orpc.comments.automations.create.mutationOptions({ onSuccess: invalidate }),
+  );
+}
+
+export function useRenameCommentsAutomation() {
+  const invalidate = useInvalidateAutomations();
+  return useMutation(
+    orpc.comments.automations.rename.mutationOptions({ onSuccess: invalidate }),
+  );
+}
+
+export function useSetCommentsAutomationActive() {
+  const invalidate = useInvalidateAutomations();
+  return useMutation(
+    orpc.comments.automations.setActive.mutationOptions({
+      onSuccess: invalidate,
+    }),
   );
 }
 
 export function useDeleteCommentsAutomation() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidateAutomations();
   return useMutation(
-    orpc.commentsApp.automations.delete.mutationOptions({ onSuccess: invalidate }),
+    orpc.comments.automations.delete.mutationOptions({ onSuccess: invalidate }),
   );
 }
 
-export function useUpdateCommentsAutomationName() {
-  const invalidate = useInvalidate();
+export function useSaveCommentsTrigger() {
+  const invalidate = useInvalidateAutomations();
   return useMutation(
-    orpc.commentsApp.automations.updateName.mutationOptions({
+    orpc.comments.automations.saveTrigger.mutationOptions({
       onSuccess: invalidate,
     }),
   );
 }
 
-export function useUpdateCommentsAutomationActive() {
-  const invalidate = useInvalidate();
-  return useMutation(
-    orpc.commentsApp.automations.updateActive.mutationOptions({
-      onSuccess: invalidate,
-    }),
-  );
-}
-
-export function useSaveCommentsAutomationPost() {
-  const invalidate = useInvalidate();
-  return useMutation(
-    orpc.commentsApp.automations.savePost.mutationOptions({ onSuccess: invalidate }),
-  );
-}
-
-export function useDeleteCommentsAutomationPost() {
-  const invalidate = useInvalidate();
-  return useMutation(
-    orpc.commentsApp.automations.deletePost.mutationOptions({
-      onSuccess: invalidate,
-    }),
-  );
-}
-
-export function useUpdateCommentsAutomationIntegrationToken() {
-  const invalidate = useInvalidate();
-  return useMutation(
-    orpc.commentsApp.automations.updateIntegrationToken.mutationOptions({
-      onSuccess: invalidate,
+export function useCommentsRuns(automationId?: string) {
+  return useQuery(
+    orpc.comments.automations.listRuns.queryOptions({
+      input: { automationId, limit: 20 },
     }),
   );
 }

@@ -6,6 +6,10 @@ import type { AgentContext } from "@/features/astro/server/agents/types";
 import type { AstroTablePayload } from "@/features/astro/lib/astro-table";
 import { queryPaymentEntries } from "@/features/payment/server/entries/query-entries";
 import { ATTACHMENT_KIND_LABELS, PAYMENT_ATTACHMENT_KINDS } from "@/features/payment/lib/attachments";
+import {
+  loadSettledMovementsByAccount,
+  withComputedBalance,
+} from "@/features/payment/server/accounts/settled-movements";
 import { assertPaymentToolAccess } from "./access";
 import { buildEntriesTable, formatBRL } from "./payloads";
 
@@ -166,22 +170,31 @@ export function buildFinanceListTools(ctx: AgentContext) {
 
     list_payment_accounts: tool({
       description:
-        "Contas bancárias do financeiro (PaymentBankAccount) com saldo. Use pra resolver accountId numa baixa ou quando o user pedir 'saldo por conta'.",
+        "Contas bancárias do financeiro (PaymentBankAccount). `balanceCents` é o saldo calculado (inicial + baixas registradas), `openingBalanceCents` é só o inicial digitado. Use pra resolver accountId numa baixa ou quando o user pedir 'saldo por conta'.",
       inputSchema: z.object({}),
       execute: async () => {
         const access = await assertPaymentToolAccess(ctx, "accounts", "view");
         if (!access.ok) return { error: access.error };
-        const accounts = await prisma.paymentBankAccount.findMany({
-          where: { organizationId: ctx.organizationId, isActive: true },
-          select: { id: true, name: true, bankName: true, type: true, balance: true, isDefault: true },
-          orderBy: [{ isDefault: "desc" }, { name: "asc" }],
-        });
+        const [accounts, movements] = await Promise.all([
+          prisma.paymentBankAccount.findMany({
+            where: { organizationId: ctx.organizationId, isActive: true },
+            select: { id: true, name: true, bankName: true, type: true, balance: true, isDefault: true },
+            orderBy: [{ isDefault: "desc" }, { name: "asc" }],
+          }),
+          loadSettledMovementsByAccount(ctx.organizationId),
+        ]);
         return {
-          accounts: accounts.map((account) => ({
-            ...account,
-            balanceCents: account.balance,
-            balanceFormatted: formatBRL(account.balance),
-          })),
+          accounts: accounts.map((account) => {
+            const computed = withComputedBalance(account, movements);
+            return {
+              ...computed,
+              // O saldo que o Astro deve citar é o mesmo da tela: inicial + baixas.
+              balanceCents: computed.computedBalance,
+              balanceFormatted: formatBRL(computed.computedBalance),
+              openingBalanceCents: account.balance,
+              openingBalanceFormatted: formatBRL(account.balance),
+            };
+          }),
         };
       },
     }),

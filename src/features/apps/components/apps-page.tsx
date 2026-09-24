@@ -9,7 +9,6 @@ import { AppCard, ComingSoonModal } from "./app-card";
 import { PersonalizarMenu } from "./personalizar-menu";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
 import { NerpAppCard } from "@/features/nerp/components/nerp-app-card";
-import { CommentsAppCard } from "@/features/comments/components/comments-app-card";
 
 // ─── Filter Bar ───────────────────────────────────────────────────────────────
 
@@ -174,8 +173,6 @@ export function AppsPage() {
             {filteredApps.map((app) =>
               app.id === "nerp" ? (
                 <NerpAppCard key={app.id} app={app} />
-              ) : app.id === "comments" ? (
-                <CommentsAppCard key={app.id} app={app} />
               ) : (
                 <AppCard key={app.id} app={app} onAction={handleAction} />
               ),

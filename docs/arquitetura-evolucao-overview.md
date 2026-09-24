@@ -22,6 +22,7 @@
 | Fase anterior | **Auditoria completa** ✅ (2026-08-18) — diagnóstico sobre `f67796d2`, sem alteração de código |
 | Bloqueio ativo | 🔴 **5 falhas exploráveis anonimamente em produção.** Ver [`seguranca-auditoria-2026-08.md`](seguranca-auditoria-2026-08.md). Precedem qualquer trabalho de arquitetura |
 | Escopo travado | Piloto profundo (`form`) + regras automatizadas de fronteira. **Não** é migração ampla dos 65 domínios |
+| `src/modules/` | **Existe desde 2026-09-24.** Estreado por `social` (app COMMENTS, [spec 0024](../specs/comments/0024-comments-automacoes-instagram-nativas.md)) — código **novo** nascido na forma alvo, não migração. `modules/shared/` já está no lugar para o piloto `form` reusar |
 | Arquitetura alvo | **Hexagonal seletivo** — Ports & Adapters aplicado só ao núcleo dos módulos críticos; não Clean Architecture ampla |
 | Em aberto | Split Fastify (`api.nasaex.com`) — recomendação é **adiar e inverter a ordem planejada**; ver §5.5 |
 
@@ -722,5 +723,6 @@ acrescentar itens à Fase 0**.
 
 | Data | O quê |
 | --- | --- |
+| 2026-09-24 | **`src/modules/` estreado** pelo módulo `social` (app COMMENTS, spec 0024): `shared/{domain,ports,infra}` + `social/{domain,ports,application,infra,index.ts}`, na forma da §5.2. Aplica a §5.3 na prática — `TenantScope` é dependência de construtor dos repositórios e há **um** único ponto de leitura sem escopo (`findByWebhookPathToken`, no webhook anônimo). Não altera D2/D4: o piloto de **migração** segue sendo `form`; `social` é código novo. Ports `Clock` e `RandomPicker` existem para tirar o não-determinismo do domínio, como previa `testes-estrategia.md`. Nenhum runner instalado ainda — os *seams* estão prontos, os testes não |
 | 2026-08-26 | Item aberto **5** (`PAYMENT_MASTER_HASH`) resolvido pela [spec 0007](../specs/payment/0007-acesso-financeiro-por-whitelist.md): o acesso ao módulo financeiro passou a ser determinado só pela whitelist, o PIN próprio e o OTP por WhatsApp foram desativados e o backdoor saiu do código. O item **1** (topologia de deploy) segue aberto e ficou mais relevante — a fase de biometria depende dele, porque os desafios WebAuthn ainda vivem em memória. Item aberto **7** também respondido: `tsc --noEmit` passa limpo, mas só com heap ampliado — ver a ressalva de CI na linha do item. |
 | 2026-08-18 | Auditoria técnica completa sobre `f67796d2`. Diagnóstico, arquitetura alvo (Hexagonal seletivo), regras R1–R10, roadmap em 5 fases e documentos satélite de segurança e testes. Recomendação de **adiar o split Fastify e inverter a ordem** registrada em §5.5. Turborepo adotado em duas etapas (§7.1). Nenhuma alteração de código. |

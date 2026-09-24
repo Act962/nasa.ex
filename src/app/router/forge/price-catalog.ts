@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { requireSystemAdminMiddleware } from "@/app/middlewares/system-admin";
 import prisma from "@/lib/prisma";
+import type { ForgePriceItem } from "@/generated/prisma/client";
 import { seedForgePriceCatalog } from "@/features/forge/lib/seed-price-catalog";
 import {
   priceCategorySchema,
@@ -51,17 +52,12 @@ const priceItemShape = z.object({
   updatedAt: z.date(),
 });
 
-type PriceItemRow = {
-  unitPrice: unknown;
-  inputPer1k: unknown;
-  outputPer1k: unknown;
-  cachedInputPer1k: unknown;
-} & Record<string, unknown>;
+type SerializedPriceItem = z.infer<typeof priceItemShape>;
 
 const decimalToString = (value: unknown): string | null =>
   value === null || value === undefined ? null : value.toString();
 
-const serializePriceItem = (item: PriceItemRow) => ({
+const serializePriceItem = (item: ForgePriceItem): SerializedPriceItem => ({
   ...item,
   unitPrice: decimalToString(item.unitPrice),
   inputPer1k: decimalToString(item.inputPer1k),

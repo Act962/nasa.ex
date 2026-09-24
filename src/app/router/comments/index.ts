@@ -1,27 +1,48 @@
-import { getCommentsConnectionStatus } from "./get-connection-status";
-import { disconnectComments } from "./disconnect";
-import { commentsUserRouter } from "./user";
-import { commentsAutomationsRouter } from "./automations";
-import { commentsListenerRouter } from "./listener";
-import { commentsTriggerRouter } from "./trigger";
-import { commentsKeywordRouter } from "./keyword";
-import { commentsIntegrationRouter } from "./integration";
-import { commentsNotificationsRouter } from "./notifications";
-import { commentsSubscriptionRouter } from "./subscription";
-import { commentsSorteioRouter } from "./sorteio";
-import { commentsSorteioPublicRouter } from "./sorteio-public";
+import {
+  connectChannelProcedure,
+  disconnectChannel,
+  getChannel,
+  listContent,
+  reactivateChannel,
+  repairSubscription,
+} from "./channel";
+import {
+  createAutomation,
+  deleteAutomation,
+  deleteTrigger,
+  getAutomation,
+  listAutomations,
+  listRuns,
+  renameAutomation,
+  saveTrigger,
+  setActiveAutomation,
+} from "./automations";
 
+/**
+ * App COMMENTS — automações de Instagram nativas (spec 0024).
+ *
+ * Adapter primário do módulo `src/modules/social`. Não há Prisma de domínio
+ * aqui: as procedures validam entrada, resolvem tenancy pelo middleware e
+ * chamam use case ou repositório.
+ */
 export const commentsRouter = {
-  getConnectionStatus: getCommentsConnectionStatus,
-  disconnect: disconnectComments,
-  user: commentsUserRouter,
-  automations: commentsAutomationsRouter,
-  listener: commentsListenerRouter,
-  trigger: commentsTriggerRouter,
-  keyword: commentsKeywordRouter,
-  integration: commentsIntegrationRouter,
-  notifications: commentsNotificationsRouter,
-  subscription: commentsSubscriptionRouter,
-  sorteio: commentsSorteioRouter,
-  sorteioPublic: commentsSorteioPublicRouter,
+  channel: {
+    get: getChannel,
+    connect: connectChannelProcedure,
+    disconnect: disconnectChannel,
+    reactivate: reactivateChannel,
+    listContent,
+    repairSubscription,
+  },
+  automations: {
+    list: listAutomations,
+    get: getAutomation,
+    create: createAutomation,
+    rename: renameAutomation,
+    setActive: setActiveAutomation,
+    delete: deleteAutomation,
+    saveTrigger,
+    deleteTrigger,
+    listRuns,
+  },
 };
