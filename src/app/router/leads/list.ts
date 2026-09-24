@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
@@ -11,19 +12,51 @@ export const listLead = base
     path: "/leads",
     summary: "Get all leads",
   })
-
-  .handler(async ({ errors, context }) => {
+  // Filtros do cabeçalho de /contatos. Todos opcionais: sem eles a procedure
+  // responde como sempre respondeu.
+  .input(
+    z
+      .object({
+        trackingId: z.string().optional(),
+        tagIds: z.array(z.string()).optional(),
+        dateField: z.enum(["createdAt", "lastInboundAt"]).optional(),
+        from: z.string().optional(),
+        to: z.string().optional(),
+        segment: z.enum(["novos", "campeoes", "leais", "risco"]).optional(),
+      })
+      .optional(),
+  )
+  .handler(async ({ errors, context, input }) => {
     try {
       const { org, user } = context;
+      const { buildSegmentWhere, buildScopeWhere, loyalLeadIds } = await import(
+        "./segment-rules"
+      );
+      const scope = {
+        tracking: {
+          organizationId: org.id,
+          participants: { some: { userId: user.id } },
+        },
+      };
+      // "Leal" não cabe em `where`: resolve os ids com a mesma função que o
+      // card usa, para a lista mostrar exatamente o que o número prometeu.
+      const loyalFilter =
+        input?.segment === "leais"
+          ? {
+              id: {
+                in: await loyalLeadIds(prisma, {
+                  ...scope,
+                  ...buildScopeWhere(input),
+                }),
+              },
+            }
+          : {};
 
       const leads = await prisma.lead.findMany({
         where: {
-          tracking: {
-            organizationId: org.id,
-            participants: {
-              some: { userId: user.id },
-            },
-          },
+          ...scope,
+          ...buildSegmentWhere(input),
+          ...loyalFilter,
         },
         select: {
           id: true,

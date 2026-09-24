@@ -8,7 +8,10 @@ import { orpc } from "@/lib/orpc";
 export default async function ContatosPage() {
   const queryClient = getQueryClient();
 
-  await queryClient.prefetchQuery(orpc.leads.list.queryOptions());
+  // Prefetch sem filtro: é o estado inicial (Total, sem recorte).
+  await queryClient.prefetchQuery(
+    orpc.leads.list.queryOptions({ input: { dateField: "createdAt" } }),
+  );
   return (
     <SidebarInset className="min-h-full pb-8">
       <HeadingContacts />

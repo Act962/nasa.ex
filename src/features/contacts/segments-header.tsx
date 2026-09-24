@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import {
+  useContactsFilters,
+  type LeadSegment,
+} from "./hooks/use-contacts-filters";
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -44,6 +48,8 @@ const ALL_TRACKINGS = "todos";
 
 interface SegmentCard {
   key: string;
+  /** `undefined` no Total: ele é a ausência de recorte, não um recorte. */
+  segment?: LeadSegment;
   label: string;
   value?: number;
   hint: string;
@@ -52,17 +58,23 @@ interface SegmentCard {
 }
 
 export function SegmentsHeader() {
-  const [trackingId, setTrackingId] = useState<string>(ALL_TRACKINGS);
-  const [tagIds, setTagIds] = useState<string[]>([]);
-  const [dateField, setDateField] = useState<DateField>("createdAt");
-  const [range, setRange] = useState<{ from?: Date; to?: Date }>({});
+  const filters = useContactsFilters();
+  const trackingId = filters.trackingId ?? ALL_TRACKINGS;
+  const { tagIds, dateField, segment } = filters;
+  const range = { from: filters.from, to: filters.to };
+
+  const setTrackingId = (value: string) =>
+    filters.setTrackingId(value === ALL_TRACKINGS ? undefined : value);
+  const setTagIds = (ids: string[]) => filters.setTagIds(ids);
+  const setDateField = (field: DateField) => filters.setDateField(field);
+  const setRange = (value: { from?: Date; to?: Date }) => filters.setRange(value);
 
   const { data, isLoading } = useLeadSegments({
-    trackingId: trackingId === ALL_TRACKINGS ? undefined : trackingId,
+    trackingId: filters.trackingId,
     tagIds,
     dateField,
-    from: range.from,
-    to: range.to,
+    from: filters.from,
+    to: filters.to,
   });
 
   const rules = data?.regras;
@@ -77,6 +89,7 @@ export function SegmentsHeader() {
     },
     {
       key: "novos",
+      segment: "novos",
       label: "Novos",
       value: data?.novos,
       hint: `Criados nos últimos ${rules?.novosDias ?? 30} dias e ainda no funil`,
@@ -85,6 +98,7 @@ export function SegmentsHeader() {
     },
     {
       key: "campeoes",
+      segment: "campeoes",
       label: "Lead campeão",
       value: data?.campeoes,
       hint: "Leads marcados como ganhos",
@@ -93,6 +107,7 @@ export function SegmentsHeader() {
     },
     {
       key: "leais",
+      segment: "leais",
       label: "Leais",
       value: data?.leais,
       hint: `Conversa com ${rules?.leaisMensagens ?? 10} mensagens ou mais`,
@@ -101,6 +116,7 @@ export function SegmentsHeader() {
     },
     {
       key: "risco",
+      segment: "risco",
       label: "Risco",
       value: data?.emRisco,
       hint: `Sem mensagem recebida há mais de ${rules?.riscoDias ?? 7} dias`,
@@ -110,10 +126,10 @@ export function SegmentsHeader() {
   ];
 
   const toggleTag = (id: string) =>
-    setTagIds((current) =>
-      current.includes(id)
-        ? current.filter((tagId) => tagId !== id)
-        : [...current, id],
+    setTagIds(
+      tagIds.includes(id)
+        ? tagIds.filter((tagId) => tagId !== id)
+        : [...tagIds, id],
     );
 
   const selectedTagNames = (data?.tags ?? [])
@@ -123,11 +139,21 @@ export function SegmentsHeader() {
   return (
     <div className="px-4 py-3 border-b">
       <div className="flex flex-wrap items-center gap-2">
-        {cards.map((card) => (
-          <div
+        {cards.map((card) => {
+          const active = segment === card.segment;
+          return (
+          <button
             key={card.key}
-            title={card.hint}
-            className="flex min-w-[9.5rem] flex-1 items-center gap-2.5 rounded-lg border bg-card px-3 py-2"
+            type="button"
+            title={`${card.hint}. Clique para filtrar a lista.`}
+            aria-pressed={active}
+            onClick={() => filters.toggleSegment(card.segment)}
+            className={cn(
+              "flex min-w-[9.5rem] flex-1 items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-colors",
+              active
+                ? "border-primary bg-primary/10"
+                : "bg-card hover:bg-muted/50",
+            )}
           >
             <card.icon className={cn("size-4 shrink-0", card.tone)} />
             <div className="min-w-0">
@@ -140,8 +166,9 @@ export function SegmentsHeader() {
                 </p>
               )}
             </div>
-          </div>
-        ))}
+          </button>
+          );
+        })}
 
         {/* Tag é multidropdown: um lead tem várias, e filtrar por uma só
             esconderia o cruzamento que o usuário quer ver. */}
