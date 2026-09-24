@@ -108,14 +108,22 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
           },
           resolved.uazapiBaseUrl,
         );
+        const sent = response as { id?: unknown; messageid?: unknown };
         const messageId =
-          typeof (response as { id?: unknown })?.id === "string"
-            ? (response as { id: string }).id
-            : null;
-        return { messageId };
+          typeof sent?.id === "string"
+            ? sent.id
+            : typeof sent?.messageid === "string"
+              ? sent.messageid
+              : null;
+        // Sem id a mensagem não saiu, mesmo com HTTP 200. Confiar no 200
+        // fez a pergunta sumir: o Astro respondeu e o usuário não recebeu
+        // nada — o pior dos dois mundos, porque o ciclo ficou esperando.
+        if (messageId) return { messageId };
+        console.error(
+          "[astro-bot/channel] menu sem id, caindo para texto:",
+          JSON.stringify(response).slice(0, 300),
+        );
       } catch (error) {
-        // Menu recusado não pode engolir a pergunta: cai para texto, que
-        // sempre funciona, em vez de deixar o usuário sem resposta.
         console.error("[astro-bot/channel] botões falharam, usando texto", error);
       }
     }
