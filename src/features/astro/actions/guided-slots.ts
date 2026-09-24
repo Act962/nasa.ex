@@ -56,6 +56,11 @@ function readSlot(sessionId: string): GuidedSlot | null {
  * sem resposta porque a leitura estava desligada enquanto o Astro esperava
  * o nome de uma conta.
  */
+/** Há pergunta do ciclo guiado esperando resposta? */
+export function isAwaitingAnswer(sessionId: string): boolean {
+  return readSlot(sessionId) !== null;
+}
+
 export function shouldSkipReading(sessionId: string, text: string): boolean {
   const slot = readSlot(sessionId);
   if (!slot) return false;

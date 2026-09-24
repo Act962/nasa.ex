@@ -1,6 +1,7 @@
 import "server-only";
 import { runAstroQuery } from "@/features/astro/queries/registry";
 import {
+  isAwaitingAnswer,
   shouldSkipReading,
   resolveGuided,
   takeLastTokensUsed,
@@ -54,8 +55,11 @@ function optionsToText(options: { label: string }[]): string {
   return options.map((option, index) => `${index + 1}. ${option.label}`).join("\n");
 }
 
-const YES = /^(sim|s|confirmar|confirma|confirmo|pode|ok|isso|positivo|👍)$/;
-const NO = /^(nao|n|cancela|cancelar|negativo|para|deixa|👎)$/;
+// "1" e "2" entram porque a confirmação chega como lista numerada — o canal
+// não entrega botão. Sem isso o usuário respondia "1", nada acontecia, e uma
+// proposta nova era criada a cada tentativa.
+const YES = /^(1|sim|s|confirmar|confirma|confirmo|pode|ok|isso|positivo|👍)$/;
+const NO = /^(2|nao|n|cancela|cancelar|negativo|👎)$/;
 
 /**
  * "SIM" executa a proposta pendente aqui mesmo.
@@ -67,12 +71,19 @@ const NO = /^(nao|n|cancela|cancelar|negativo|para|deixa|👎)$/;
 async function tryConfirmation(
   ctx: AgentContext,
   text: string,
+  /**
+   * "1" e "2" só valem como SIM/NÃO quando NÃO há pergunta do ciclo no ar.
+   * Sem isto, escolher a conta na lista ("2") cancelava uma proposta antiga
+   * que ainda estava pendente — o número pertence à última lista mostrada.
+   */
+  allowNumeric: boolean,
 ): Promise<CheapLayerReply | null> {
   const normalized = text
     .trim()
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+  if (!allowNumeric && /^\d+$/.test(normalized)) return null;
   const isYes = YES.test(normalized);
   const isNo = NO.test(normalized);
   if (!isYes && !isNo) return null;
@@ -179,11 +190,15 @@ export async function tryCheapLayers(params: {
   const text = params.text.trim();
   if (!text) return null;
 
-  // 0. "SIM"/"NÃO" respondendo a uma proposta pendente.
-  const confirmed = await tryConfirmation(params.ctx, text);
-  if (confirmed) return confirmed;
-
   const sessionId = params.ctx.sessionId ?? params.ctx.organizationId;
+
+  // 0. "SIM"/"NÃO" respondendo a uma proposta pendente.
+  const confirmed = await tryConfirmation(
+    params.ctx,
+    text,
+    !isAwaitingAnswer(sessionId),
+  );
+  if (confirmed) return confirmed;
 
   // 1. Consulta em código — custo zero. Pulada quando há pergunta no ar:
   // "despesa", respondendo a "despesa ou receita?", não é pedido de
