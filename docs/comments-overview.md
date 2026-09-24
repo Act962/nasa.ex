@@ -125,7 +125,16 @@ Sem contadores denormalizados: `sentCount` é derivado dos runs.
 > quem está sem inscrição: a verificação da URL responde 200 e **nenhum POST**
 > chega depois. Mesmo papel de `src/http/whats-oficial/subscribe-app.ts`.
 
-Env: nenhuma nova. Usa `AI_SECRETS_KEY` e `NEXT_PUBLIC_BASE_URL`.
+Env: nenhuma nova. Usa `AI_SECRETS_KEY` e, para montar a URL do webhook,
+`NEXT_PUBLIC_BASE_URL` (ou `NEXT_PUBLIC_APP_URL`).
+
+> A URL mostrada na tela resolve nesta ordem: **env** → **headers da requisição**
+> (`x-forwarded-host`/`x-forwarded-proto`, preenchidos pelo proxy) → `localhost`.
+> `NEXT_PUBLIC_*` é congelada no build: se o deploy não receber a variável como
+> build arg, o valor sai `undefined` no bundle e variável de runtime não
+> conserta. O fallback por header garante a URL correta mesmo nesse caso. A env
+> tem precedência porque é o único jeito de apontar o webhook para um túnel
+> enquanto se navega em `localhost`.
 
 ## 6. Coexistência com a integração Instagram existente
 

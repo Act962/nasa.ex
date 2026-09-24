@@ -34,7 +34,11 @@ export const getChannel = commentsProcedure
       lastErrorMessage: channel.lastErrorMessage,
       lastErrorAt: channel.lastErrorAt,
       accessTokenLast4: channel.accessTokenLast4,
-      webhookUrl: webhookUrlFor(channel.provider, channel.webhookPathToken),
+      webhookUrl: webhookUrlFor(
+        channel.provider,
+        channel.webhookPathToken,
+        context.headers,
+      ),
       connectedAt: channel.createdAt,
     };
   });
@@ -88,6 +92,7 @@ export const connectChannelProcedure = commentsProcedure
         webhookUrl: webhookUrlFor(
           result.channel.provider,
           result.channel.webhookPathToken,
+          context.headers,
         ),
         subscribed: result.subscribed,
         subscriptionError: result.subscriptionError,
