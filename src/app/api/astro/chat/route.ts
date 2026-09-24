@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import type { UIMessage } from "ai";
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { streamAstro } from "@/features/astro/server/orchestrator";
@@ -14,6 +15,10 @@ import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { meter } from "@/features/stars/lib/metering";
 import { generateAutoTitle } from "@/features/astro/lib/auto-title";
 import { classifyStaged } from "@/features/astro/actions/classify-staged";
+import {
+  runAstroQuery,
+  type AstroQueryResult,
+} from "@/features/astro/queries/registry";
 import { runClassifiedAction } from "@/features/astro/actions/run-classified-action";
 
 /**
@@ -103,6 +108,36 @@ function extractLastUserText(messages: UIMessage[]): string {
     .map((part) => part.text)
     .join(" ")
     .trim();
+}
+
+/**
+ * Resposta de consulta em código, no mesmo formato de stream que o cliente já
+ * renderiza — tabela vira cartão, texto vira mensagem.
+ */
+function buildQueryResponse(result: AstroQueryResult): Response {
+  const toolCallId = `astro-query-${Date.now()}`;
+  const stream = createUIMessageStream({
+    execute: async ({ writer }) => {
+      if (result.table) {
+        writer.write({
+          type: "tool-input-available",
+          toolCallId,
+          toolName: "consulta",
+          input: {},
+        });
+        writer.write({
+          type: "tool-output-available",
+          toolCallId,
+          output: result.table,
+        });
+      }
+      const textId = `${toolCallId}-text`;
+      writer.write({ type: "text-start", id: textId });
+      writer.write({ type: "text-delta", id: textId, delta: result.text });
+      writer.write({ type: "text-end", id: textId });
+    },
+  });
+  return createUIMessageStreamResponse({ stream });
 }
 
 export async function POST(req: Request) {
@@ -223,6 +258,18 @@ export async function POST(req: Request) {
     const routingStartedAt = Date.now();
     const lastUserText = extractLastUserText(uiMessages);
     if (lastUserText) {
+      // Consulta simples responde em código, antes de qualquer modelo:
+      // "quantos leads temos" é um count(), e ia custar 43 mil tokens para
+      // voltar "não tenho acesso aos dados".
+      const queried = await runAstroQuery({
+        ctx: { userId, organizationId } as never,
+        text: lastUserText,
+      });
+      if (queried) {
+        console.log(`[ASTRO/chat] consulta em código resolveu: ${queried.key}`);
+        return buildQueryResponse(queried.result);
+      }
+
       const conversationHistory = extractConversationHistory(uiMessages);
       const classification = await classifyStaged({
         organizationId,
