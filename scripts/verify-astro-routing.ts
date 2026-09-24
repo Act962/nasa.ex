@@ -221,18 +221,12 @@ async function main(): Promise<void> {
   }
 
   // ── Campos obrigatórios precisam PARSEAR, não só a ação acertar ─────────
-  // O teste antigo só olhava `action`, e por isso não viu que todo verbo com
-  // campo booleano estava quebrado: o classificador acertava a ação e o
-  // parse falhava depois, virando "me diga: published".
-  const FRASES_COM_BOOLEANO: Array<[string, string]> = [
-    ["lead.toggle_favorite", "favorita o lead Kauê"],
-    ["form.toggle_publish", "publica o formulário de captação"],
-    ["agenda.toggle_active", "desativa a agenda de consultoria"],
-    ["agenda.block_date", "bloqueia o dia 30 na minha agenda"],
-  ];
-  for (const [key, frase] of FRASES_COM_BOOLEANO) {
+  // A versão antiga cobria só os 4 verbos booleanos, e por isso não via que
+  // o parse falhava depois da ação certa. Agora vale para TODO verbo: é a
+  // diferença entre "o Astro entendeu" e "o Astro consegue executar".
+  for (const [key, frase] of Object.entries(FRASES_TIPICAS)) {
     await checkRate(
-      `0024 ${key} (campos)`,
+      `campos ${key}`,
       async () => {
         const r = await classifyAstroIntent({
           organizationId: organization.id,

@@ -237,6 +237,7 @@ Cada um entra com seu recorte próprio, pelo mesmo critério da §3.
 | Critério | Tipo | Como verificar |
 | --- | --- | --- |
 | Cada verbo novo | script | `scripts/verify-astro-routing.ts` já afirma que toda ação do registro aparece nas duas superfícies (CA-8) — cresce sozinho |
+| Campos parseiam, não só a ação | script | Cada verbo do registro tem a frase típica classificada **e** os campos validados contra o schema. A versão anterior só olhava a ação escolhida, e por isso 6 verbos estavam quebrados depois dela |
 | Descrição discriminativa | convenção | Só a **primeira frase** da `description` vai ao classificador. Ela precisa conter o que separa o verbo dos vizinhos, não uma definição genérica: "Cria um lembrete" perdia para `lead.add_note`; "Cria lembrete para avisar o usuário depois — 'me lembra de'" ganha |
 | Classificação não degrada | script | Cada frase roda **3 vezes** e o script reporta a taxa (ex.: `3/3`), exigindo ≥2. Afirmar sobre uma chamada só produzia suíte instável, e suíte instável o time aprende a ignorar |
 | Frase típica de cada verbo | script | Automatizado em `verify-astro-routing.ts`: cada verbo do registro é classificado pela sua frase |
@@ -267,6 +268,8 @@ sem dado tocado.
 | --- | --- | --- |
 | 2026-09-24 | Weydson | Criada a partir da auditoria: 344 escritas, 33 ferramentas, 29 apps sem verbo |
 | 2026-09-24 | Weydson | Efeito colateral do corte das descrições: `agenda.create_reminder` caiu para **1/3**, sendo classificado como `lead.add_note`. Os exemplos de fala ("me lembra de...") ficaram na segunda frase, que não chega ao classificador. Regra que passa a valer: **a primeira frase da descrição carrega o sinal que distingue o verbo dos vizinhos** — voltou a 3/3 |
+| 2026-09-24 | Weydson | **Varredura de campos em todos os 19 verbos** achou 6 quebrados depois da ação certa: 4 booleanos (string vs `z.boolean()`), 2 de data (`z.string().datetime()` contra "sexta às 15h") e a recorrência em português ("semanal" contra o enum). Consertados fora do prompt: `coerceFields`, `inferPolarity`, `parseWhen` e tradução de vocabulário na própria ação |
+| 2026-09-24 | Weydson | **Tentativa descartada**: injetar contexto temporal no prompt do classificador para ele resolver datas. Piorou de 2 para 7 falhas — `tracking.create_status` caiu de 3/3 para 0/3. Prompt maior custa precisão nos verbos vizinhos; calendário foi para código |
 | 2026-09-24 | Weydson | **Onda 1 fechada**: 16 verbos implementados, 1 descartado (`tracking.apply_preset`, por C-2). Registro com 17 ações contando a proposta da spec 0023, todas classificando 3/3 |
 | 2026-09-24 | Weydson | **O catálogo chegou ao teto da RNF-1**: 982 tokens com 17 ações, contra o limite de 1.000. Verbo novo agora exige decisão estrutural (agrupar por domínio, ou rever o limite com justificativa), não mais um corte de texto |
 | 2026-09-24 | Weydson | Bloco de chat escrito (4 verbos) — 10 de 17. Com 11 verbos no registro a **RNF-1 estourou (1.177 tokens)** e o "contexto ausente" caiu para 1/3. Corrigido enviando ao classificador só a primeira frase da descrição: voltou a 836 tokens e 3/3. A descrição completa, com exemplos de fala, continua indo ao orquestrador |

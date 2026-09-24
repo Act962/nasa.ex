@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import type { AstroAction, AstroActionResult } from "../types";
+import { parseWhen } from "../parse-when";
 
 // Remarcar agendamento (spec 0024, onda 1). É o pedido mais frequente da
 // agenda e hoje custa navegação: abrir, achar o card, arrastar.
@@ -21,8 +22,9 @@ const inputSchema = z.object({
     .describe("Nome de quem tem o agendamento. Pode ser parcial."),
   startsAt: z
     .string()
-    .datetime()
-    .describe("Novo início, em ISO 8601, já resolvido para data absoluta."),
+    .trim()
+    .min(2)
+    .describe("Quando, com as palavras do usuário: 'sexta às 15h', 'amanhã 9h'."),
   durationMinutes: z
     .number()
     .int()
@@ -100,7 +102,18 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
     }
 
     const appointment = candidates[0];
-    const newStart = new Date(input.startsAt);
+
+    const resolvedStart = parseWhen(input.startsAt);
+    if (!resolvedStart) {
+      return {
+        status: "needs_input",
+        title: "Quando?",
+        description: `Não consegui ler "${input.startsAt}" como data e hora.`,
+        missingFields: [{ key: "startsAt", label: "o novo horário" }],
+        appName: "Agendas",
+      };
+    }
+    const newStart = new Date(resolvedStart);
     const durationMs = input.durationMinutes
       ? input.durationMinutes * 60_000
       : appointment.endsAt.getTime() - appointment.startsAt.getTime() ||
