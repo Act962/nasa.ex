@@ -1,6 +1,7 @@
 import { SidebarInset } from "@/components/ui/sidebar";
 import HeadingContacts from "@/features/contacts/heading-contact";
 import { TableLeads } from "@/features/contacts/table-leads";
+import { SegmentsHeader } from "@/features/contacts/segments-header";
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
 
@@ -11,6 +12,7 @@ export default async function ContatosPage() {
   return (
     <SidebarInset className="min-h-full pb-8">
       <HeadingContacts />
+      <SegmentsHeader />
 
       <div className="mt-6 px-6">
         <HydrateClient client={queryClient}>
