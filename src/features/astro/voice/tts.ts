@@ -94,6 +94,59 @@ export function unlockAudio(): void {
 let piperHealthCache: { isUp: boolean; checkedAt: number } | null = null;
 const PIPER_HEALTH_TTL_MS = 30_000;
 
+/**
+ * Engine que de fato falou da última vez. Existe porque a queda do Piper era
+ * silenciosa: o fallback entrava sozinho e o usuário concluía que a voz do
+ * produto é ruim, quando o motor bom é que estava fora do ar.
+ */
+export type TtsEngine = "piper" | "browser" | null;
+let lastEngineUsed: TtsEngine = null;
+const engineListeners = new Set<(engine: TtsEngine) => void>();
+
+function setEngineUsed(engine: TtsEngine): void {
+  if (lastEngineUsed === engine) return;
+  lastEngineUsed = engine;
+  for (const listener of engineListeners) listener(engine);
+}
+
+export function getEngineUsed(): TtsEngine {
+  return lastEngineUsed;
+}
+
+/** Avisa quando o engine muda. Devolve a função de desinscrição. */
+export function onEngineChange(listener: (engine: TtsEngine) => void): () => void {
+  engineListeners.add(listener);
+  return () => engineListeners.delete(listener);
+}
+
+/** True quando o Piper está configurado mas caiu — é o caso que merece aviso. */
+export function isPiperDegraded(): boolean {
+  return PIPER_ENABLED && lastEngineUsed === "browser";
+}
+
+/**
+ * Pergunta ao servidor se o Piper responde, sem esperar a primeira fala.
+ * Só assim o aviso aparece ANTES de o usuário ouvir a voz ruim — que era o
+ * ponto de existir o aviso.
+ */
+export async function probePiperHealth(): Promise<boolean> {
+  if (!PIPER_ENABLED || typeof window === "undefined") return false;
+  try {
+    const response = await fetch("/api/astro/tts", {
+      method: "GET",
+      signal: AbortSignal.timeout(4_000),
+    });
+    const isUp = response.ok;
+    piperHealthCache = { isUp, checkedAt: Date.now() };
+    if (!isUp) setEngineUsed("browser");
+    return isUp;
+  } catch {
+    piperHealthCache = { isUp: false, checkedAt: Date.now() };
+    setEngineUsed("browser");
+    return false;
+  }
+}
+
 let cachedVoices: SpeechSynthesisVoice[] | null = null;
 let voicesLoaded = false;
 
@@ -305,6 +358,7 @@ async function trySpeakViaPiper(
       }
       return false;
     }
+    setEngineUsed("piper");
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
 
@@ -419,6 +473,7 @@ function speakViaWebSpeech(text: string, opts: SpeakOptions): void {
         if (!isLast) setTimeout(speakNext, SENTENCE_PAUSE_MS);
       };
 
+      setEngineUsed("browser");
       synth.speak(utter);
     };
     speakNext();
