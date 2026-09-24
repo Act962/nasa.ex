@@ -68,11 +68,22 @@ function buildPrompt(text: string, history?: string[]): string {
   ].join("\n");
 }
 
+/**
+ * Só a primeira frase da descrição entra aqui. A descrição completa existe
+ * para o orquestrador, e traz exemplos de fala ("use quando o usuário
+ * disser...") que ajudam lá e só incham o catálogo aqui: com 11 verbos o
+ * prompt passou de 1.000 tokens, estourando a RNF-1 da spec 0023.
+ */
+function shortDescription(description: string): string {
+  const [first] = description.split(". ");
+  return first.endsWith(".") ? first : `${first}.`;
+}
+
 function buildCatalog(): string {
   return ASTRO_ACTIONS.map((action) => {
     const shape = action.input instanceof z.ZodObject ? action.input.shape : {};
     const fields = Object.keys(shape).join(", ") || "—";
-    return `- ${action.key}: ${action.description}\n  campos: ${fields}`;
+    return `- ${action.key}: ${shortDescription(action.description)} [${fields}]`;
   }).join("\n");
 }
 

@@ -83,12 +83,22 @@ Já cobertos e fora da onda: criar, atualizar, mover e taguear lead; criar track
 
 | Verbo | Frase típica | Já existe? |
 | --- | --- | --- |
-| `chat.send_template` | "manda o template de boas-vindas pro Kauê" | ⬜ |
-| `chat.start_conversation` | "abre conversa com o 86 99999-9999" | ⬜ |
-| `chat.forward_message` | "encaminha essa mensagem pro comercial" | ⬜ |
-| `chat.mark_read` | "marca as conversas do dia como lidas" | ⬜ |
+| `chat.send_template` | "manda o template de boas-vindas pro Kauê" | ✅ escrito |
+| `chat.start_conversation` | "abre conversa com o 86 99999-9999" | ✅ escrito |
+| `chat.forward_message` | "encaminha essa mensagem pro comercial" | ✅ escrito |
+| `chat.mark_read` | "marca as conversas do dia como lidas" | ✅ escrito |
 
 Já cobertos: enviar mensagem de WhatsApp para lead e para número avulso.
+
+> ⚠️ **Os três que dependem do WhatsApp — `send_template`, `start_conversation`
+> e `forward_message` — estão escritos mas NÃO foram executados**: não há
+> instância conectada no ambiente. Testar quando houver. `mark_read` é update
+> local e foi verificado.
+>
+> `forward_message` mudou de recorte na implementação: "encaminha **essa**
+> mensagem" era irrealizável, porque o Astro não enxerga a tela. O verbo passou
+> a ser sempre sobre a **última mensagem de uma conversa nomeada**, e recusa
+> mensagem com anexo — encaminhar mídia continua sendo trabalho da tela.
 
 **Fora por C-2**: enviar imagem, vídeo, áudio, arquivo, localização, contato,
 sticker e botões interativos. O anexo não cabe na frase — o Astro já recebe
@@ -249,6 +259,7 @@ sem dado tocado.
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-24 | Weydson | Criada a partir da auditoria: 344 escritas, 33 ferramentas, 29 apps sem verbo |
+| 2026-09-24 | Weydson | Bloco de chat escrito (4 verbos) — 10 de 17. Com 11 verbos no registro a **RNF-1 estourou (1.177 tokens)** e o "contexto ausente" caiu para 1/3. Corrigido enviando ao classificador só a primeira frase da descrição: voltou a 836 tokens e 3/3. A descrição completa, com exemplos de fala, continua indo ao orquestrador |
 | 2026-09-24 | Weydson | `lead.toggle_favorite` e `tracking.create_status` implementados — 6 de 17, com os 7 verbos do registro classificando 3/3. "Contexto ausente" medido em **2/3**: em 1 de 3 o classificador devolve o pronome como nome, e o Astro pergunta à toa em vez de escrever errado |
 | 2026-09-24 | Weydson | `lead.add_note` e `agenda.cancel_appointment` implementados — 4 de 17. A medição por taxa revelou que a resolução de pronome estava em **1/3**, defeito que o teste de tentativa única escondia; com exemplo positivo e negativo no prompt, subiu para **3/3** |
 | 2026-09-24 | Weydson | `lead.delete` implementado — 2 de 17 da onda 1, primeiro destrutivo. D-6 acrescentada: a confirmação passou a ensaiar antes de perguntar |

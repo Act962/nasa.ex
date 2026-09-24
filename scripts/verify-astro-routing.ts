@@ -78,6 +78,10 @@ const FRASES_TIPICAS: Record<string, string> = {
   "agenda.cancel_appointment": "cancela o agendamento do Kauê",
   "lead.toggle_favorite": "favorita o lead Kauê",
   "tracking.create_status": "cria a coluna Proposta no funil de vendas",
+  "chat.mark_read": "marca as conversas como lidas",
+  "chat.start_conversation": "abre conversa com o 86 99999-8888",
+  "chat.send_template": "manda o template de boas-vindas pro Kauê",
+  "chat.forward_message": "encaminha a última mensagem do Kauê pro João",
 };
 
 /**
