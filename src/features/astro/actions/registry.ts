@@ -11,6 +11,12 @@ import { markChatReadAction } from "./chat/mark-read";
 import { startConversationAction } from "./chat/start-conversation";
 import { sendTemplateAction } from "./chat/send-template";
 import { forwardMessageAction } from "./chat/forward-message";
+import { renameStatusAction } from "./tracking/rename-status";
+import { archiveTrackingAction } from "./tracking/archive-tracking";
+import { toggleAgendaActiveAction } from "./agenda/toggle-active";
+import { blockAgendaDateAction } from "./agenda/block-date";
+import { createReminderAction } from "./agenda/create-reminder";
+import { addTrackingParticipantAction } from "./tracking/add-participant";
 
 // Fonte única das ações do Astro (spec 0023, RF-1/RF-2). Entrar aqui basta:
 // o orquestrador ganha a ferramenta, o classificador ganha o alvo e o executor
@@ -28,6 +34,12 @@ export const ASTRO_ACTIONS: AstroAction[] = [
   startConversationAction,
   sendTemplateAction,
   forwardMessageAction,
+  renameStatusAction,
+  archiveTrackingAction,
+  toggleAgendaActiveAction,
+  blockAgendaDateAction,
+  createReminderAction,
+  addTrackingParticipantAction,
 ];
 
 const actionsByKey = new Map(ASTRO_ACTIONS.map((action) => [action.key, action]));

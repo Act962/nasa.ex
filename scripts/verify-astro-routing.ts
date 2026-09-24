@@ -82,6 +82,12 @@ const FRASES_TIPICAS: Record<string, string> = {
   "chat.start_conversation": "abre conversa com o 86 99999-8888",
   "chat.send_template": "manda o template de boas-vindas pro Kauê",
   "chat.forward_message": "encaminha a última mensagem do Kauê pro João",
+  "tracking.rename_status": "renomeia a coluna Início para Entrada",
+  "tracking.archive": "arquiva o tracking de 2025",
+  "agenda.toggle_active": "desativa a agenda de consultoria",
+  "agenda.block_date": "bloqueia o dia 30 na minha agenda",
+  "agenda.create_reminder": "me lembra de ligar pro Kauê toda segunda às 9h",
+  "tracking.add_participant": "põe o João no tracking de vendas",
 };
 
 /**

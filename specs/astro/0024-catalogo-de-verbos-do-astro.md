@@ -69,15 +69,21 @@ Os três de uso diário, que é onde o custo por token dói mais hoje.
 | Verbo | Frase típica | Já existe? |
 | --- | --- | --- |
 | `tracking.create_status` | "cria a coluna Proposta no funil de vendas" | ✅ implementado |
-| `tracking.rename_status` | "renomeia a coluna Início para Entrada" | ⬜ |
-| `tracking.apply_preset` | "aplica o padrão de vendas nesse tracking" | ⬜ |
-| `tracking.add_participant` | "põe o João nesse tracking" | ⬜ |
-| `tracking.archive` | "arquiva o tracking de 2025" | ⬜ (destrutivo → C-4) |
+| `tracking.rename_status` | "renomeia a coluna Início para Entrada" | ✅ implementado |
+| `tracking.apply_preset` | "aplica o padrão de vendas nesse tracking" | ❌ **descartado — falha no C-2** |
+| `tracking.add_participant` | "põe o João nesse tracking" | ✅ implementado |
+| `tracking.archive` | "arquiva o tracking de 2025" | ✅ implementado (destrutivo → C-4) |
 | `lead.add_note` | "anota no Kauê que ele pediu desconto" | ✅ implementado |
 | `lead.toggle_favorite` | "favorita o Kauê" | ✅ implementado |
 | `lead.delete` | "apaga o lead duplicado" | ✅ implementado (destrutivo → C-4) |
 
 Já cobertos e fora da onda: criar, atualizar, mover e taguear lead; criar tracking.
+
+> **`tracking.apply_preset` saiu da onda.** Aplicar um padrão não é uma frase:
+> a procedure pede modo (`create` ou `merge`), resolução de conflito **por
+> tag** e decisão sobre sobrescrever o prompt de IA. Isso é assistente de
+> várias etapas, não verbo — falha no C-2 desta própria spec. O Astro pode
+> abrir a tela certa; aplicar, não.
 
 ### 4.2 Chat
 
@@ -110,9 +116,9 @@ arquivo pelo clipe, e isso é outro fluxo.
 | --- | --- | --- |
 | `agenda.reschedule_appointment` | "remarca o Kauê pra sexta às 15h" | ✅ implementado |
 | `agenda.cancel_appointment` | "cancela o agendamento de amanhã" | ✅ implementado (C-4) |
-| `agenda.create_reminder` | "me lembra de ligar pro Kauê toda segunda" | ⬜ |
-| `agenda.block_date` | "bloqueia o dia 30 na minha agenda" | ⬜ |
-| `agenda.toggle_active` | "desativa a agenda de consultoria" | ⬜ |
+| `agenda.create_reminder` | "me lembra de ligar pro Kauê toda segunda" | ✅ implementado |
+| `agenda.block_date` | "bloqueia o dia 30 na minha agenda" | ✅ implementado |
+| `agenda.toggle_active` | "desativa a agenda de consultoria" | ✅ implementado |
 
 Já cobertos: criar agenda, criar agendamento.
 
@@ -259,6 +265,8 @@ sem dado tocado.
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-24 | Weydson | Criada a partir da auditoria: 344 escritas, 33 ferramentas, 29 apps sem verbo |
+| 2026-09-24 | Weydson | **Onda 1 fechada**: 16 verbos implementados, 1 descartado (`tracking.apply_preset`, por C-2). Registro com 17 ações contando a proposta da spec 0023, todas classificando 3/3 |
+| 2026-09-24 | Weydson | **O catálogo chegou ao teto da RNF-1**: 982 tokens com 17 ações, contra o limite de 1.000. Verbo novo agora exige decisão estrutural (agrupar por domínio, ou rever o limite com justificativa), não mais um corte de texto |
 | 2026-09-24 | Weydson | Bloco de chat escrito (4 verbos) — 10 de 17. Com 11 verbos no registro a **RNF-1 estourou (1.177 tokens)** e o "contexto ausente" caiu para 1/3. Corrigido enviando ao classificador só a primeira frase da descrição: voltou a 836 tokens e 3/3. A descrição completa, com exemplos de fala, continua indo ao orquestrador |
 | 2026-09-24 | Weydson | `lead.toggle_favorite` e `tracking.create_status` implementados — 6 de 17, com os 7 verbos do registro classificando 3/3. "Contexto ausente" medido em **2/3**: em 1 de 3 o classificador devolve o pronome como nome, e o Astro pergunta à toa em vez de escrever errado |
 | 2026-09-24 | Weydson | `lead.add_note` e `agenda.cancel_appointment` implementados — 4 de 17. A medição por taxa revelou que a resolução de pronome estava em **1/3**, defeito que o teste de tentativa única escondia; com exemplo positivo e negativo no prompt, subiu para **3/3** |
