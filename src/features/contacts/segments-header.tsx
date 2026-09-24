@@ -20,7 +20,24 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useLeadSegments } from "./hooks/use-lead-segments";
-import { ChevronDown, Sparkles, Trophy, HeartHandshake, AlertTriangle, Tag } from "lucide-react";
+import {
+  ChevronDown,
+  Sparkles,
+  Trophy,
+  HeartHandshake,
+  AlertTriangle,
+  Tag,
+  Users,
+  X,
+} from "lucide-react";
+import { DateRangeTimePicker } from "@/features/insights/components/activities/date-range-time-picker";
+
+type DateField = "createdAt" | "lastInboundAt";
+
+const DATE_FIELD_LABELS: Record<DateField, string> = {
+  createdAt: "Data de criação",
+  lastInboundAt: "Última interação",
+};
 
 /** Todos os trackings; o filtro é opt-in, não um funil escolhido por nós. */
 const ALL_TRACKINGS = "todos";
@@ -37,14 +54,27 @@ interface SegmentCard {
 export function SegmentsHeader() {
   const [trackingId, setTrackingId] = useState<string>(ALL_TRACKINGS);
   const [tagIds, setTagIds] = useState<string[]>([]);
+  const [dateField, setDateField] = useState<DateField>("createdAt");
+  const [range, setRange] = useState<{ from?: Date; to?: Date }>({});
 
   const { data, isLoading } = useLeadSegments({
     trackingId: trackingId === ALL_TRACKINGS ? undefined : trackingId,
     tagIds,
+    dateField,
+    from: range.from,
+    to: range.to,
   });
 
   const rules = data?.regras;
   const cards: SegmentCard[] = [
+    {
+      key: "total",
+      label: "Total",
+      value: data?.total,
+      hint: "Todos os leads do recorte atual",
+      icon: Users,
+      tone: "text-muted-foreground",
+    },
     {
       key: "novos",
       label: "Novos",
@@ -174,6 +204,40 @@ export function SegmentsHeader() {
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Select
+          value={dateField}
+          onValueChange={(value) => setDateField(value as DateField)}
+        >
+          <SelectTrigger className="h-[3.25rem] min-w-[9.5rem] flex-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(DATE_FIELD_LABELS) as DateField[]).map((field) => (
+              <SelectItem key={field} value={field}>
+                {DATE_FIELD_LABELS[field]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center gap-1">
+          <DateRangeTimePicker
+            from={range.from}
+            to={range.to}
+            onChange={setRange}
+          />
+          {(range.from || range.to) && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Limpar período"
+              onClick={() => setRange({})}
+            >
+              <X className="size-4" />
+            </Button>
+          )}
+        </div>
 
         <Select value={trackingId} onValueChange={setTrackingId}>
           <SelectTrigger className="h-[3.25rem] min-w-[9.5rem] flex-1">

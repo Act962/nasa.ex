@@ -29,6 +29,10 @@ export const leadSegments = base
     z.object({
       trackingId: z.string().optional(),
       tagIds: z.array(z.string()).optional(),
+      /** Qual data o recorte olha — nascer no funil ou dar sinal de vida. */
+      dateField: z.enum(["createdAt", "lastInboundAt"]).optional(),
+      from: z.string().optional(),
+      to: z.string().optional(),
     }).optional(),
   )
   .handler(async ({ input, context }) => {
@@ -39,6 +43,21 @@ export const leadSegments = base
       now - DEFAULT_RESCUE_CONFIG.stuckDays * 24 * 60 * 60_000,
     );
 
+    // O recorte de data vale para TODOS os cards, inclusive o total: um
+    // painel em que cada número olha um período diferente não se soma.
+    const dateField = input?.dateField ?? "createdAt";
+    const from = input?.from ? new Date(input.from) : undefined;
+    const to = input?.to ? new Date(input.to) : undefined;
+    const dateFilter =
+      from || to
+        ? {
+            [dateField]: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {};
+
     const scope = {
       tracking: {
         organizationId: org.id,
@@ -48,10 +67,12 @@ export const leadSegments = base
       ...(input?.tagIds && input.tagIds.length > 0
         ? { tags: { some: { tagId: { in: input.tagIds } } } }
         : {}),
+      ...dateFilter,
       isArchived: false,
     };
 
-    const [novos, campeoes, emRisco, tags] = await Promise.all([
+    const [total, novos, campeoes, emRisco, tags] = await Promise.all([
+      prisma.lead.count({ where: scope }),
       prisma.lead.count({
         where: { ...scope, currentAction: "ACTIVE", createdAt: { gte: newSince } },
       }),
@@ -96,6 +117,7 @@ export const leadSegments = base
     });
 
     return {
+      total,
       novos,
       campeoes,
       leais,
