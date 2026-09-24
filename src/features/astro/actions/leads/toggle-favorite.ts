@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import type { AstroAction, AstroActionResult } from "../types";
+import { inferPolarity } from "../infer-polarity";
 import { resolveSingleLead } from "./resolve-lead";
 
 // Favoritar lead (spec 0024, onda 1). Favorito não é campo próprio: é a tag
@@ -34,6 +35,8 @@ export const toggleLeadFavoriteAction: AstroAction<typeof inputSchema> = {
     "'tira o Fulano dos favoritos'.",
   requiresConfirmation: false,
   input: inputSchema,
+  inferFields: (text) =>
+    inferPolarity(text, "favorite", /\b(desfavorit|tira\w*\s+d\w*\s+favorit|remove\w*\s+d\w*\s+favorit)/i, /\bfavorit/i),
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const resolved = await resolveSingleLead({

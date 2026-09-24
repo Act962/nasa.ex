@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
+import { inferPolarity } from "../infer-polarity";
 
 // Ativar/desativar agenda (spec 0024, onda 1). Agenda desativada para de
 // aceitar agendamento público; os já marcados continuam de pé.
@@ -21,6 +22,8 @@ export const toggleAgendaActiveAction: AstroAction<typeof inputSchema> = {
     "Use quando o usuário disser 'desativa a agenda X', 'reativa a agenda X'.",
   requiresConfirmation: false,
   input: inputSchema,
+  inferFields: (text) =>
+    inferPolarity(text, "active", /\bdesativ|\bdesabilit|\bpaus/i, /\bativ|\breativ|\bhabilit/i),
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const candidates = await prisma.agenda.findMany({

@@ -41,6 +41,17 @@ export interface ProviderKey {
   source: KeySource;
 }
 
+/**
+ * Barra o erro de digitação mais comum: colar a linha inteira do `.env`
+ * ("OPENAI_API_KEY=sk-...") no campo de chave. Não valida o segredo — só
+ * descarta o que claramente não é uma chave.
+ */
+function looksLikeApiKey(value: string): boolean {
+  if (/\s/.test(value)) return false;
+  if (value.includes("=")) return false;
+  return true;
+}
+
 export function envKeyFor(provider: AiProviderId): string | null {
   for (const name of ENV_KEYS[provider]) {
     const value = process.env[name];
@@ -87,6 +98,16 @@ export async function loadOrganizationKeys(
   for (const integration of integrations) {
     const apiKey = (integration.config as Record<string, unknown> | null)?.apiKey;
     if (typeof apiKey !== "string" || apiKey.length === 0) continue;
+    if (!looksLikeApiKey(apiKey)) {
+      // Chave malformada da organização não pode derrubar a IA dela inteira:
+      // ignorar aqui faz cair na chave da plataforma, que funciona. Visto em
+      // produção — alguém colou a linha inteira do .env no campo.
+      console.warn(
+        `[ia/router] chave de ${integration.platform} da organização ` +
+          `${organizationId} parece malformada — usando a chave da plataforma.`,
+      );
+      continue;
+    }
 
     const provider = AI_PROVIDER_IDS.find(
       (candidate) => INTEGRATION_PLATFORM[candidate] === integration.platform,

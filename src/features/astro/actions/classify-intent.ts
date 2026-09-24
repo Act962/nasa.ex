@@ -98,6 +98,16 @@ Devolva action=null quando:
 Extraia em "fields" apenas o que a frase disse. Não complete, não adivinhe,
 não use conhecimento externo. Campo não dito simplesmente não aparece.
 
+EXCEÇÃO — campo booleano implícito no próprio verbo. Quando a ação tem um
+campo de liga/desliga e o verbo já diz o sentido, PREENCHA-O:
+  "favorita o X"     → favorite = "true"
+  "desfavorita o X"  → favorite = "false"
+  "publica o X"      → published = "true"
+  "tira o X do ar"   → published = "false"
+  "desativa a X"     → active = "false"
+  "bloqueia o dia 5" → blocked = "true"
+Booleano vai como a string "true" ou "false".
+
 "confidence" é o quanto você tem certeza da ação escolhida, não dos campos.
 
 RESOLUÇÃO DE REFERÊNCIA — leia com atenção:

@@ -17,6 +17,8 @@ import { toggleAgendaActiveAction } from "./agenda/toggle-active";
 import { blockAgendaDateAction } from "./agenda/block-date";
 import { createReminderAction } from "./agenda/create-reminder";
 import { addTrackingParticipantAction } from "./tracking/add-participant";
+import { sendFormToLeadAction } from "./form/send-to-lead";
+import { toggleFormPublishAction } from "./form/toggle-publish";
 
 // Fonte única das ações do Astro (spec 0023, RF-1/RF-2). Entrar aqui basta:
 // o orquestrador ganha a ferramenta, o classificador ganha o alvo e o executor
@@ -40,6 +42,8 @@ export const ASTRO_ACTIONS: AstroAction[] = [
   blockAgendaDateAction,
   createReminderAction,
   addTrackingParticipantAction,
+  sendFormToLeadAction,
+  toggleFormPublishAction,
 ];
 
 const actionsByKey = new Map(ASTRO_ACTIONS.map((action) => [action.key, action]));

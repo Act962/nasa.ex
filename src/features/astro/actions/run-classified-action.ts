@@ -3,6 +3,7 @@ import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { getAstroAction } from "./registry";
 import { proposeAction } from "./confirmation";
+import { buildActionInput } from "./coerce-fields";
 import type { AstroConfirmationPayload } from "@/features/astro/lib/astro-confirmation";
 import type { AstroAction, AstroActionResult } from "./types";
 import type { AstroIntentClassification } from "./classify-intent";
@@ -23,7 +24,7 @@ export interface ClassifiedRun {
 
 function missingRequiredFields(
   action: AstroAction,
-  fields: Record<string, string>,
+  fields: Record<string, unknown>,
 ): string[] {
   const parsed = action.input.safeParse(fields);
   if (parsed.success) return [];
@@ -39,6 +40,26 @@ const FIELD_LABELS: Record<string, string> = {
   productName: "o produto",
   title: "o título",
   validUntil: "a validade",
+  leadName: "o nome do lead",
+  personName: "o nome da pessoa",
+  formName: "o nome do formulário",
+  trackingName: "o nome do tracking",
+  agendaName: "o nome da agenda",
+  statusName: "o nome da coluna",
+  currentName: "o nome atual da coluna",
+  newName: "o novo nome",
+  startsAt: "o novo horário",
+  remindTime: "o horário",
+  recurrence: "a frequência",
+  message: "a mensagem",
+  note: "o que anotar",
+  date: "o dia",
+  phone: "o telefone",
+  templateName: "o nome do template",
+  published: "se é para publicar ou tirar do ar",
+  favorite: "se é para favoritar ou desfavoritar",
+  active: "se é para ativar ou desativar",
+  blocked: "se é para bloquear ou liberar",
 };
 
 function labelFor(field: string): string {
@@ -68,6 +89,8 @@ function textFor(result: ClassifiedOutput): string {
 export async function runClassifiedAction(params: {
   ctx: AgentContext;
   classification: AstroIntentClassification;
+  /** Frase original — `inferFields` lê dela a polaridade do verbo. */
+  userText?: string;
 }): Promise<ClassifiedRun | null> {
   const action = getAstroAction(params.classification.action ?? "");
   if (!action) return null;
@@ -75,8 +98,15 @@ export async function runClassifiedAction(params: {
   // Campo obrigatório faltando não escala para o orquestrador: perguntar o que
   // falta é barato e é o que sustenta o ciclo guiado por voz (RF-11). Quem lê
   // a pergunta em voz alta é o auto-narrate, que já existe.
-  const missing = missingRequiredFields(action, params.classification.fields);
-  const parsed = action.input.safeParse(params.classification.fields);
+  // O que o verbo já diz (polaridade) entra por código; o que o modelo
+  // extraiu vence, caso tenha dito algo explícito.
+  const fields = buildActionInput(
+    action,
+    params.classification.fields,
+    params.userText ?? "",
+  );
+  const missing = missingRequiredFields(action, fields);
+  const parsed = action.input.safeParse(fields);
 
   const result: ClassifiedOutput =
     missing.length > 0 || !parsed.success
@@ -105,7 +135,7 @@ export async function runClassifiedAction(params: {
         type: "tool-input-available",
         toolCallId,
         toolName: action.toolName,
-        input: parsed.success ? parsed.data : params.classification.fields,
+        input: parsed.success ? parsed.data : fields,
       });
       writer.write({
         type: "tool-output-available",

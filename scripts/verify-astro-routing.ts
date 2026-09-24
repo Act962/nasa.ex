@@ -17,6 +17,7 @@ import {
 } from "../src/features/astro/actions/classify-intent";
 import { ASTRO_ACTIONS, getAstroAction } from "../src/features/astro/actions/registry";
 import { buildActionRegistryTools } from "../src/features/astro/actions/to-tools";
+import { buildActionInput } from "../src/features/astro/actions/coerce-fields";
 import prisma from "../src/lib/prisma";
 
 let failures = 0;
@@ -88,6 +89,8 @@ const FRASES_TIPICAS: Record<string, string> = {
   "agenda.block_date": "bloqueia o dia 30 na minha agenda",
   "agenda.create_reminder": "me lembra de ligar pro Kauê toda segunda às 9h",
   "tracking.add_participant": "põe o João no tracking de vendas",
+  "form.send_to_lead": "manda o formulário de briefing pro Kauê",
+  "form.toggle_publish": "publica o formulário de captação",
 };
 
 /**
@@ -214,6 +217,33 @@ async function main(): Promise<void> {
         return r?.action === key;
       },
       () => `"${frase}"`,
+    );
+  }
+
+  // ── Campos obrigatórios precisam PARSEAR, não só a ação acertar ─────────
+  // O teste antigo só olhava `action`, e por isso não viu que todo verbo com
+  // campo booleano estava quebrado: o classificador acertava a ação e o
+  // parse falhava depois, virando "me diga: published".
+  const FRASES_COM_BOOLEANO: Array<[string, string]> = [
+    ["lead.toggle_favorite", "favorita o lead Kauê"],
+    ["form.toggle_publish", "publica o formulário de captação"],
+    ["agenda.toggle_active", "desativa a agenda de consultoria"],
+    ["agenda.block_date", "bloqueia o dia 30 na minha agenda"],
+  ];
+  for (const [key, frase] of FRASES_COM_BOOLEANO) {
+    await checkRate(
+      `0024 ${key} (campos)`,
+      async () => {
+        const r = await classifyAstroIntent({
+          organizationId: organization.id,
+          text: frase,
+        });
+        if (r?.action !== key) return false;
+        const action = getAstroAction(key);
+        if (!action) return false;
+        return action.input.safeParse(buildActionInput(action, r.fields, frase)).success;
+      },
+      () => `"${frase}" — campos obrigatórios parseiam`,
     );
   }
 

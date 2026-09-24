@@ -70,6 +70,13 @@ export interface AstroAction<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
   confirmWarnings?: string[];
   input: TSchema;
   /**
+   * Campos deduzidos da própria frase, sem IA. Existe porque booleano
+   * implícito no verbo ("favorita" = true, "desfavorita" = false) é regra
+   * determinística: pedir ao modelo que o preencha briga com a instrução de
+   * só extrair o que foi dito, e ele erra em boa parte das vezes.
+   */
+  inferFields?: (text: string) => Record<string, unknown>;
+  /**
    * `dryRun` resolve o alvo, checa permissão e devolve o que ACONTECERIA —
    * sem escrever. É o que impede a confirmação de propor o impossível: sem
    * isso, o cartão perguntava "excluir o lead X?" antes de saber se X existe,

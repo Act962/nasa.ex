@@ -238,6 +238,7 @@ export async function POST(req: Request) {
             channel: "CHAT",
           } as never,
           classification,
+          userText: lastUserText,
         });
         if (classified) {
           console.log(
