@@ -54,7 +54,7 @@ export function LessonFormVideoSection({
           </TabsTrigger>
           <TabsTrigger value="upload" className="gap-1.5">
             <Upload className="size-3.5" />
-            Upload (storage NASA Route)
+            Upload (storage ÓRBITA Route)
           </TabsTrigger>
         </TabsList>
 

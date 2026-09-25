@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
   const anthropic = createAnthropic({ apiKey });
 
-  const prompt = `Você é o ASTRO, assistente de IA do NASA CRM. Gere um guia passo a passo DETALHADO em português brasileiro para configurar a integração "${integration}".
+  const prompt = `Você é o ASTRO, assistente de IA do ÓRBITA CRM. Gere um guia passo a passo DETALHADO em português brasileiro para configurar a integração "${integration}".
 
 Para Google Calendar, explique:
 1. Como criar/selecionar projeto no Google Cloud Console (console.cloud.google.com)

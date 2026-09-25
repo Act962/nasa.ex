@@ -1310,7 +1310,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
     // ── NASA ROUTE (cursos, matrículas, certificados, receita Stars) ────
     get_route_metrics: tool({
       description:
-        "Resume métricas de NASA ROUTE (cursos): total de cursos publicados/rascunho, matrículas ativas vs reembolsadas, certificados emitidos, receita em Stars (paidStars), top cursos por alunos. Use quando o user perguntar sobre cursos, alunos, certificados, receita de cursos.",
+        "Resume métricas de ÓRBITA ROUTE (cursos): total de cursos publicados/rascunho, matrículas ativas vs reembolsadas, certificados emitidos, receita em Stars (paidStars), top cursos por alunos. Use quando o user perguntar sobre cursos, alunos, certificados, receita de cursos.",
       inputSchema: z.object({
         fromIso: z.string().optional(),
         toIso: z.string().optional(),

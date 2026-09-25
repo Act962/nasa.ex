@@ -31,7 +31,7 @@ import {
  *
  * Padrão Pusher copiado do SpacePointProvider.
  */
-export function AlertProvider({ children }: { children: React.ReactNode }) {
+export function AlertProvider({ children }: { children?: React.ReactNode }) {
   const { data: session } = authClient.useSession();
   const { data: orgs } = authClient.useListOrganizations();
   const { data: activeOrg } = authClient.useActiveOrganization();

@@ -298,7 +298,7 @@ export type AreaType =
   | "prateleira"    // loja de produtos (Stars ou cartão)
   | "auditorio"     // sala de vídeo em grupo (palestra / curso ao vivo)
   | "nasa-route"    // compra de acesso (auditório, curso, etc.)
-  | "formulario"    // preenchimento de formulário NASA
+  | "formulario"    // preenchimento de formulário ÓRBITA
   | "rede-social"   // abre rede social interna da empresa
   | "imagem-link";  // imagem clicável que abre URL externa autenticada
 
@@ -458,8 +458,8 @@ export const AREA_TYPE_META: Record<AreaType, { label: string; emoji: string; co
   profile:      { label: "Profile",      emoji: "👤", color: "#14b8a6", description: "Currículo + book de fotos do user" },
   prateleira:   { label: "Prateleira",   emoji: "🛒", color: "#fb923c", description: "Loja de produtos (Stars ou cartão)" },
   auditorio:    { label: "Auditório",    emoji: "🎤", color: "#6366f1", description: "Vídeo em grupo (palestra / curso ao vivo)" },
-  "nasa-route": { label: "NASA Route",   emoji: "🛤️", color: "#8b5cf6", description: "Comprar acesso (auditório, curso)" },
-  formulario:   { label: "Formulário",   emoji: "📋", color: "#84cc16", description: "Preencher formulário NASA" },
+  "nasa-route": { label: "ÓRBITA Route",   emoji: "🛤️", color: "#8b5cf6", description: "Comprar acesso (auditório, curso)" },
+  formulario:   { label: "Formulário",   emoji: "📋", color: "#84cc16", description: "Preencher formulário ÓRBITA" },
   "rede-social": { label: "Rede social", emoji: "💬", color: "#ec4899", description: "Rede social interna da empresa" },
   "imagem-link": { label: "Imagem-link", emoji: "🖼️", color: "#06b6d4", description: "Imagem clicável com link externo" },
 };

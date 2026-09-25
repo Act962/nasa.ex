@@ -40,16 +40,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
   if (!station.org.isSpacehomePublic) {
     // Não vaza informações se for privada
-    return { title: "Spacehome privada · NASA" };
+    return { title: "Spacehome privada · ÓRBITA" };
   }
 
   return {
     title: `${station.org.name} · Spacehome`,
     description:
       station.org.bio ??
-      `Descubra ${station.org.name} no NASA Agents — projetos, eventos, organograma e mais.`,
+      `Descubra ${station.org.name} no ÓRBITA Agents — projetos, eventos, organograma e mais.`,
     openGraph: {
-      title: `${station.org.name} · NASA`,
+      title: `${station.org.name} · ÓRBITA`,
       description: station.org.bio ?? undefined,
       images: station.org.bannerUrl ? [station.org.bannerUrl] : undefined,
     },

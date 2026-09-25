@@ -924,7 +924,7 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
       <Input
         value={(el.logoText as string) ?? ""}
         onChange={(e) => update({ logoText: e.target.value })}
-        placeholder="N.A.S.A"
+        placeholder="ÓRBITA"
         className="text-xs"
       />
       <Label className="text-[10px] text-muted-foreground mt-2">
@@ -1115,7 +1115,7 @@ function FooterProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
       <Input
         value={(el.logoText as string) ?? ""}
         onChange={(e) => update({ logoText: e.target.value })}
-        placeholder="N.A.S.A"
+        placeholder="ÓRBITA"
         className="text-xs"
       />
       <Label className="text-[10px] text-muted-foreground mt-2">Tagline</Label>
@@ -1129,7 +1129,7 @@ function FooterProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
       <Input
         value={(el.copyright as string) ?? ""}
         onChange={(e) => update({ copyright: e.target.value })}
-        placeholder="© 2026 N.A.S.A"
+        placeholder="© 2026 ÓRBITA"
         className="text-xs"
       />
 
@@ -3617,7 +3617,7 @@ const NASA_APPS: Array<{ id: string; label: string }> = [
   { id: "chat", label: "In-Chat" },
   { id: "payment", label: "Payment" },
   { id: "forge", label: "Forge" },
-  { id: "page", label: "Outra page NASA" },
+  { id: "page", label: "Outra page ÓRBITA" },
 ];
 
 function NasaLinkProps({
@@ -3634,7 +3634,7 @@ function NasaLinkProps({
     <>
       <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
-        Link NASA
+        Link ÓRBITA
       </p>
       <Field label="Rótulo">
         <Input
@@ -3646,7 +3646,7 @@ function NasaLinkProps({
       </Field>
 
       <Label className="text-[10px] text-muted-foreground mt-2">
-        App NASA de destino
+        App ÓRBITA de destino
       </Label>
       <select
         value={appId}
@@ -4097,7 +4097,7 @@ function EmbeddedFormProps({
     <>
       <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
-        Formulário NASA
+        Formulário ÓRBITA
       </p>
       <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
         Embeda um formulário existente. Submissão cria lead no
@@ -4258,7 +4258,7 @@ function ExitIntentProps({
 const TYPE_LABELS: Record<string, string> = {
   text: "Texto", image: "Imagem", shape: "Forma", button: "Botão",
   video: "Vídeo", embed: "Embed", icon: "Ícone", divider: "Divisor",
-  social: "Social", spacer: "Espaço", svg: "SVG", "nasa-link": "Link NASA", group: "Grupo",
+  social: "Social", spacer: "Espaço", svg: "SVG", "nasa-link": "Link ÓRBITA", group: "Grupo",
   // Sections — labels editor-friendly pra usuário identificar
   "section-navbar": "Navbar / Cabeçalho",
   "section-hero": "Hero (cabeçalho da landing)",

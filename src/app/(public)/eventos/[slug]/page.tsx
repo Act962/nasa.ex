@@ -60,8 +60,8 @@ export async function generateMetadata({ params }: Props) {
   });
   if (!event || !event.isPublic) return { title: "Evento não encontrado" };
   return {
-    title: `${event.title} · NASA World`,
-    description: event.description ?? "Evento no NASA World",
+    title: `${event.title} · ÓRBITA World`,
+    description: event.description ?? "Evento no ÓRBITA World",
     openGraph: {
       title: event.title,
       description: event.description ?? undefined,

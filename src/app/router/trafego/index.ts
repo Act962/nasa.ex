@@ -2,6 +2,7 @@ import { listPublicTrafegoPlans } from "./public/list-plans";
 import { getPendingTrafegoPurchase } from "./public/get-pending-purchase";
 import { getPublicTrafegoConfig } from "./public/get-config";
 import { redeemTrafegoPurchase } from "./public/redeem-purchase";
+import { captureTrafegoLeadProcedure } from "./public/capture-lead";
 import { confirmTrafegoPixPayment } from "./ops/confirm-pix";
 import { reconcileTrafegoPix } from "./ops/reconcile-pix";
 import { listTrafegoPendingPix } from "./ops/list-pending-pix";
@@ -77,6 +78,7 @@ export const trafegoRouter = {
   getPublicConfig: getPublicTrafegoConfig,
   getPendingPurchase: getPendingTrafegoPurchase,
   redeemPurchase: redeemTrafegoPurchase,
+  captureLead: captureTrafegoLeadProcedure,
   verification: {
     startPhone: startTrafegoPhoneVerificationProcedure,
     confirmPhone: confirmTrafegoPhoneVerificationProcedure,

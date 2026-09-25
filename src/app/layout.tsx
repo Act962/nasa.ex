@@ -7,6 +7,7 @@ import { Toaster } from "sonner";
 
 import { Providers } from "@/components/providers";
 import { DevInspectorMount } from "@/components/dev-inspector";
+import { GlobalAlerts } from "@/features/alerts/components/global-alerts";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -81,6 +82,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${bungee.variable} antialiased`}>
         <Providers>
           <Toaster position="bottom-left" />
+          <GlobalAlerts />
           {children}
           {/* Dev Inspector: hover 3s revela componente + texto + classes
               + cadeia de owners. Gated por NODE_ENV — em prod vira

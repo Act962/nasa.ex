@@ -222,6 +222,14 @@ export function useUpdatePaymentEntry() {
   });
 }
 
+export function useGenerateEntryInstallments() {
+  const qc = useQueryClient();
+  return useMutation({
+    ...orpc.payment.entries.generateInstallments.mutationOptions(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.payment.key() }),
+  });
+}
+
 export function usePayEntry() {
   const qc = useQueryClient();
   return useMutation({

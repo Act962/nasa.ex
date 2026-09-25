@@ -72,7 +72,7 @@ export function SupportThread({ orderId }: { orderId: string }) {
               >
                 {isTeam && (
                   <p className="text-xs font-medium opacity-70">
-                    {message.author.name ?? "Equipe NASA"}
+                    {message.author.name ?? "Equipe ÓRBITA"}
                   </p>
                 )}
                 <p className="whitespace-pre-wrap text-sm">{message.body}</p>

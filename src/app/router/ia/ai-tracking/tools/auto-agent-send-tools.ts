@@ -187,7 +187,7 @@ export const sendLinnkerTool = (userId: string) =>
 export const sendNasaRouteTool = (userId: string) =>
   tool({
     description:
-      "Envia link de curso/conteúdo NASA Route pro lead. Use pra educar antes de vender, ou pra entregar conteúdo pago.",
+      "Envia link de curso/conteúdo ÓRBITA Route pro lead. Use pra educar antes de vender, ou pra entregar conteúdo pago.",
     inputSchema: z.object({
       leadId: z.string(),
       courseId: z.string(),
@@ -312,7 +312,7 @@ export const sendProposalTool = (userId: string) =>
           select: { id: true, title: true, publicToken: true, number: true },
         });
 
-        const url = `${baseUrl()}/forge/proposta/${proposal.publicToken}`;
+        const url = `${baseUrl()}/proposta/${proposal.publicToken}`;
         const template =
           messageTemplate?.trim() ||
           "Olá {{nome}}! Sua proposta #{{proposta_numero}} está pronta: {{url}}";

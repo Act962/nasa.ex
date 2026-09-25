@@ -202,7 +202,9 @@ src/inngest/functions/crons/   trafego-kanban-drift-sweep · trafego-pix-pending
 src/inngest/functions/trafego/  asaas-payment-event (webhook do Asaas, fora do request)
                                sync-meta-ads-structure (vincula TG-NNNN)
 src/lib/email/                 trafego-purchase-confirmation · trafego-status-update
-src/features/admin/components/trafego/ orders-table · order-detail · plans-manager · settings-form
+src/features/admin/components/trafego/ orders-table · order-detail · public-link-card
+src/features/admin/components/trafego/settings/ ajustes em /admin/trafego/settings (7 seções)
+src/features/admin/lib/trafego-settings-form.ts   estado do formulário de ajustes, fora da UI
 instrumentation.ts             registra o subscriber do kanban
 src/features/astro/server/orchestrator.ts  toolScope "trafego" (só as tools do pedido)
 src/app/api/astro/chat/route.ts            isenta Stars quando appScope === "trafego"

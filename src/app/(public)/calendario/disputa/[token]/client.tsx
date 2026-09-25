@@ -287,7 +287,7 @@ function RejectForm({
           maxLength={2000}
         />
         <p className="mt-1 text-[10px] text-muted-foreground">
-          Sua justificativa vai pro admin da NASA + pro reivindicante.
+          Sua justificativa vai pro admin da ÓRBITA + pro reivindicante.
         </p>
       </div>
       <div className="flex justify-end gap-2">

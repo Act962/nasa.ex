@@ -60,11 +60,11 @@ export const auth = betterAuth({
         .send({
           from: "Nasaex <noreply@notifications.nasaex.com>",
           to: user.email,
-          subject: "Redefina sua senha no NASA.ex",
+          subject: "Redefina sua senha no ÓRBITA.ex",
           react: reactResetPasswordEmail({
             username: user.name,
             resetLink: url,
-            appName: "NASA.ex",
+            appName: "ÓRBITA.ex",
             expirationMinutes: "60",
           }),
         })

@@ -82,7 +82,7 @@ export const publishPost = base
       action: "planner_post_publish",
       userId: context.user.id,
       appSlug: "nasa-planner",
-      description: "NASA Planner — publicação de post",
+      description: "ÓRBITA Planner — publicação de post",
       feature: "planner.post.publish",
     }, "Saldo de stars insuficiente");
 

@@ -109,7 +109,7 @@ async function sendWhatsappOtp(phone: string, name: string, code: string) {
   const token = process.env.UAZAPI_TOKEN;
   if (!token) throw new Error("UAZAPI_TOKEN not set");
   const text =
-    `🔐 *NASA Payment*\n\n` +
+    `🔐 *ÓRBITA Payment*\n\n` +
     `Olá, ${name}.\n` +
     `Seu código de verificação é:\n\n*${code}*\n\n` +
     `Expira em 5 minutos. Nunca compartilhe este código.`;
@@ -660,10 +660,10 @@ export const grantPaymentAccess = base
       });
 
       const message =
-        `🔐 *NASA Payment* — Acesso liberado\n\n` +
+        `🔐 *ÓRBITA Payment* — Acesso liberado\n\n` +
         `Olá, ${targetUser.name}.\n` +
         `Você recebeu acesso ao módulo financeiro da sua organização.\n` +
-        `Basta entrar na plataforma e abrir o NASA Payment — não há senha ` +
+        `Basta entrar na plataforma e abrir o ÓRBITA Payment — não há senha ` +
         `separada.\n\n` +
         `Nível de acesso: ${input.role}.`;
 
@@ -687,12 +687,12 @@ export const grantPaymentAccess = base
         await resend.emails.send({
           from: process.env.BETTER_AUTH_EMAIL ?? "noreply@nasaex.com",
           to: targetUser!.email,
-          subject: "🔐 NASA Payment — Acesso liberado",
+          subject: "🔐 ÓRBITA Payment — Acesso liberado",
           html: `<div style="font-family:sans-serif;max-width:480px;margin:auto">
-            <h2>NASA Payment — Acesso liberado</h2>
+            <h2>ÓRBITA Payment — Acesso liberado</h2>
             <p>Olá, <strong>${targetUser!.name}</strong>.</p>
             <p>Você recebeu acesso ao módulo financeiro da sua organização.</p>
-            <p>Basta entrar na plataforma e abrir o <strong>NASA Payment</strong> — não há senha separada.</p>
+            <p>Basta entrar na plataforma e abrir o <strong>ÓRBITA Payment</strong> — não há senha separada.</p>
             <p>Nível de acesso: <strong>${input.role}</strong></p>
           </div>`,
         });
@@ -1013,7 +1013,7 @@ export const startWebauthnRegistration = base
       const { rpID } = getRpIdAndOrigin();
       const existing = parseCredentials(access.webauthnCredentials);
       const options = await generateRegistrationOptions({
-        rpName: "NASA Payment",
+        rpName: "ÓRBITA Payment",
         rpID,
         userID: new TextEncoder().encode(access.userId),
         userName: context.user.email ?? context.user.name ?? access.userId,

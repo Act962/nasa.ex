@@ -135,7 +135,7 @@ export const requestActionDelivery = base
                       : ""
                   }
                   <a href="${actionUrl}" style="display: inline-block; background: #6d28d9; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; margin: 8px 0;">
-                    Abrir a ação no NASA →
+                    Abrir a ação no ÓRBITA →
                   </a>
                   <p style="font-size: 12px; color: #71717a; margin-top: 24px;">
                     Você recebeu esse email porque é participante dessa ação no Nasaex.

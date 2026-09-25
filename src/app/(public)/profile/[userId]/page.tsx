@@ -34,10 +34,10 @@ export async function generateMetadata({
   const bio      = card?.isPublic && card.showBio      ? card.bio      : null;
 
   return {
-    title:       `${user.name ?? "Perfil"} · NASA`,
+    title:       `${user.name ?? "Perfil"} · ÓRBITA`,
     description: headline ?? bio ?? `Perfil público de ${user.name ?? ""}`,
     openGraph: {
-      title:       user.name ?? "Perfil NASA",
+      title:       user.name ?? "Perfil ÓRBITA",
       description: headline ?? bio ?? undefined,
       images:      user.image ? [user.image] : undefined,
     },

@@ -200,7 +200,7 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
       </div>
 
       <p className="text-xs text-muted-foreground leading-relaxed">
-        Apenas as pessoas abaixo conseguem entrar no NASA Payment. Não há senha
+        Apenas as pessoas abaixo conseguem entrar no ÓRBITA Payment. Não há senha
         separada: quem está nesta lista entra com o próprio login da plataforma.
         O owner da empresa é liberado automaticamente e volta à lista mesmo se
         for revogado aqui.
@@ -440,7 +440,7 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              {revokeTarget?.name} deixará de ver o módulo NASA Payment.
+              {revokeTarget?.name} deixará de ver o módulo ÓRBITA Payment.
             </p>
             {revokeTarget?.isOrgOwner && (
               <p className="text-xs text-amber-600 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 leading-relaxed">

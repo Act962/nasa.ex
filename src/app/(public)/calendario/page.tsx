@@ -7,13 +7,13 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { NasaFooterPublic } from "@/components/nasa-footer-public";
 
 export const metadata: Metadata = {
-  title: "Calendário Público · NASA",
+  title: "Calendário Público · ÓRBITA",
   description:
-    "Descubra eventos públicos da comunidade NASA — workshops, palestras, lançamentos, hackathons e networking.",
+    "Descubra eventos públicos da comunidade ÓRBITA — workshops, palestras, lançamentos, hackathons e networking.",
   openGraph: {
-    title: "Calendário Público · NASA",
+    title: "Calendário Público · ÓRBITA",
     description:
-      "Descubra eventos públicos da comunidade NASA — workshops, palestras, lançamentos, hackathons e networking.",
+      "Descubra eventos públicos da comunidade ÓRBITA — workshops, palestras, lançamentos, hackathons e networking.",
   },
 };
 

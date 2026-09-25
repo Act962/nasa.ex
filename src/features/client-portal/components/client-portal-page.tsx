@@ -311,7 +311,7 @@ export function ClientPortalPage({ clientCode }: { clientCode: string }) {
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground pb-8">
-          Powered by NASA — Código do cliente: {portal.clientPortalCode}
+          Powered by ÓRBITA — Código do cliente: {portal.clientPortalCode}
         </p>
       </div>
     </div>

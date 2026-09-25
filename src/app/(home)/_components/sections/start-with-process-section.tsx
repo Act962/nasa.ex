@@ -40,7 +40,7 @@ export function StartWithProcessSection() {
         <p className="text-white/55 text-lg sm:text-xl text-center max-w-3xl mx-auto leading-relaxed mb-10">
           Não precisa trocar tudo que você usa hoje de uma vez. Escolha o
           processo que mais te dá dor de cabeça. A gente monta ele inteiro no
-          NASA, do começo ao fim, e você vê funcionar com um caso real antes de
+          ÓRBITA, do começo ao fim, e você vê funcionar com um caso real antes de
           mexer em qualquer outra coisa.{" "}
           <span className="text-white/85 font-semibold">
             O resto da sua operação entra no seu tempo
@@ -49,7 +49,7 @@ export function StartWithProcessSection() {
         </p>
 
         {/* CTAs: primário leva pro sign-up assistido; secundário pro
-            catálogo de Padrões NASA (CTA absorvido do antigo
+            catálogo de Padrões ÓRBITA (CTA absorvido do antigo
             PatternsFeatureSection). */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button
@@ -70,7 +70,7 @@ export function StartWithProcessSection() {
           >
             <Link href="/patterns">
               <Sparkles className="size-4 mr-2 text-violet-300" />
-              Ver Padrões NASA prontos
+              Ver Padrões ÓRBITA prontos
               <ArrowRight className="size-4 ml-2" />
             </Link>
           </Button>

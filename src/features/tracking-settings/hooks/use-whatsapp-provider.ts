@@ -47,7 +47,7 @@ export const useUpdateWhatsAppProviderSettings = (trackingId: string) => {
             : undefined;
         if (subscriptionStatus === "missing_business_account_id") {
           toast.warning(
-            "Informe o WABA ID (Business Account ID): sem ele a Meta não envia mensagens recebidas ao NASA.",
+            "Informe o WABA ID (Business Account ID): sem ele a Meta não envia mensagens recebidas ao ÓRBITA.",
           );
         } else if (subscriptionStatus === "failed") {
           toast.warning(

@@ -6,7 +6,6 @@ import { AstroProvider } from "./astro-provider";
 import { AstroWidgetPanel } from "./widget/astro-widget-panel";
 import { HeartbeatProvider } from "@/components/heartbeat-provider";
 import { SpacePointProvider } from "@/features/space-point";
-import { AlertProvider } from "@/features/alerts/components/alert-provider";
 import { AstroOrb } from "@/features/astro/voice/astro-orb";
 import { CmdkPalette } from "@/features/astro/composer/cmdk-palette";
 import { TourProvider } from "@/features/tour/context";
@@ -33,13 +32,11 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
       <TourProvider>
         <MarketplaceProvider>
           <SpacePointProvider>
-            <AlertProvider>
-              <AstroProvider>
-                {children}
-                <TourOverlay />
-                <HeartbeatProvider />
-              </AstroProvider>
-            </AlertProvider>
+            <AstroProvider>
+              {children}
+              <TourOverlay />
+              <HeartbeatProvider />
+            </AstroProvider>
           </SpacePointProvider>
         </MarketplaceProvider>
       </TourProvider>
@@ -50,18 +47,16 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
     <TourProvider>
       <MarketplaceProvider>
         <SpacePointProvider>
-          <AlertProvider>
-            <AstroProvider>
-              {children}
-              <GlobalShortcutsRegistrar />
-              <AstroOrb />
-              <AstroWidgetPanel />
-              <CmdkPalette />
-              <ConnectionWizardDialog />
-              <TourOverlay />
-              <HeartbeatProvider />
-            </AstroProvider>
-          </AlertProvider>
+          <AstroProvider>
+            {children}
+            <GlobalShortcutsRegistrar />
+            <AstroOrb />
+            <AstroWidgetPanel />
+            <CmdkPalette />
+            <ConnectionWizardDialog />
+            <TourOverlay />
+            <HeartbeatProvider />
+          </AstroProvider>
         </SpacePointProvider>
       </MarketplaceProvider>
     </TourProvider>

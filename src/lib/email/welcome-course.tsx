@@ -72,7 +72,7 @@ export const WelcomeCourseEmail = ({
                 🚀 acesso liberado
               </Text>
               <Heading className="text-white text-[28px] font-bold m-0 leading-tight">
-                Bem-vindo(a) ao NASA Route, {firstName}!
+                Bem-vindo(a) ao ÓRBITA Route, {firstName}!
               </Heading>
               <Text className="text-white text-[15px] mt-3 mb-0 opacity-95 leading-[24px]">
                 Sua jornada de aprendizado começa agora. Tudo pronto pra você
@@ -210,7 +210,7 @@ export const WelcomeCourseEmail = ({
               <Text className="text-[#a3a3a3] text-[11px] leading-5 m-0">
                 Bom estudo! 🚀
                 <br />
-                Time N.A.S.A.
+                Time ÓRBITA
               </Text>
             </Section>
           </Container>

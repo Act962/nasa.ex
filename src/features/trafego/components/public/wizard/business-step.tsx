@@ -8,6 +8,7 @@ import {
 } from "@/features/trafego/lib/audience";
 import { AudienceChips } from "./audience-chips";
 import { Field, fieldClass } from "./field";
+import { SelectField } from "./select-field";
 import { TechnicalTerm } from "../../technical-term";
 
 export interface BusinessDraft {
@@ -47,20 +48,14 @@ export function BusinessStep({
       </Field>
 
       <Field label="Segmento" required>
-        <select
+        <SelectField
           value={value.segment}
-          onChange={(event) => patch({ segment: event.target.value })}
-          className={`${fieldClass} appearance-none`}
-        >
-          <option value="" className="bg-[#15151a]">
-            Selecione…
-          </option>
-          {BUSINESS_SEGMENTS.map((segment) => (
-            <option key={segment} value={segment} className="bg-[#15151a]">
-              {segment}
-            </option>
-          ))}
-        </select>
+          onChange={(segment) => patch({ segment })}
+          options={BUSINESS_SEGMENTS.map((segment) => ({
+            value: segment,
+            label: segment,
+          }))}
+        />
       </Field>
 
       <Field
@@ -113,10 +108,10 @@ export function BusinessStep({
             : undefined
         }
       >
-        <select
+        <SelectField
           value={value.specialCategory}
-          onChange={(event) => {
-            const specialCategory = event.target.value as SpecialAdCategory;
+          onChange={(selected) => {
+            const specialCategory = selected as SpecialAdCategory;
             // Categoria especial derruba gênero e idade — tira os chips agora
             // para o cliente não achar que a segmentação dele ficou valendo.
             patch({
@@ -130,18 +125,11 @@ export function BusinessStep({
                     ),
             });
           }}
-          className={`${fieldClass} appearance-none`}
-        >
-          {SPECIAL_AD_CATEGORIES.map((category) => (
-            <option
-              key={category.id}
-              value={category.id}
-              className="bg-[#15151a]"
-            >
-              {category.label}
-            </option>
-          ))}
-        </select>
+          options={SPECIAL_AD_CATEGORIES.map((category) => ({
+            value: category.id,
+            label: category.label,
+          }))}
+        />
       </Field>
     </div>
   );

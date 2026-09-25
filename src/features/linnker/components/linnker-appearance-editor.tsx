@@ -533,7 +533,7 @@ export function LinnkerAppearanceEditor({ page, onRefetch, onPreviewChange }: Pr
             <Input
               value={vcardCompany}
               onChange={(e) => setVcardCompany(e.target.value)}
-              placeholder="Default: nome da sua organização NASA"
+              placeholder="Default: nome da sua organização ÓRBITA"
               className="text-xs h-9 mt-1"
               maxLength={200}
             />
@@ -571,7 +571,7 @@ export function LinnkerAppearanceEditor({ page, onRefetch, onPreviewChange }: Pr
               type="email"
               value={vcardEmail}
               onChange={(e) => setVcardEmail(e.target.value)}
-              placeholder="Default: email do seu usuário NASA"
+              placeholder="Default: email do seu usuário ÓRBITA"
               className="text-xs h-9 mt-1"
               maxLength={200}
             />

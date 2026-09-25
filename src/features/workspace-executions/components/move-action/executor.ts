@@ -82,7 +82,7 @@ export const wsMoveActionExecutor: NodeExecutor<Data> = async ({
           organizationId: dbAction.organizationId,
           userId: dbAction.createdBy,
           userName: "Workflow",
-          userEmail: "workflow@nasa.ex",
+          userEmail: "workflow@ÓRBITA",
           action: "action.moved",
           resource: "action",
           resourceId: dbAction.id,

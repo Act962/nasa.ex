@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "NASA.EX",
-    short_name: "NASA.EX",
-    description: "NASA.EX",
+    name: "ÓRBITA",
+    short_name: "ÓRBITA",
+    description: "Órbita Hub",
     start_url: "/",
     display: "standalone",
     background_color: "#fff",

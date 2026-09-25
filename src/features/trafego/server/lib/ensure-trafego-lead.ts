@@ -80,6 +80,38 @@ interface EnsureLeadOptions {
 
 const LEAD_SELECT = { id: true, email: true, statusId: true } as const;
 
+/**
+ * Card já existente no tracking, pelo telefone e, em último caso, pelo e-mail.
+ *
+ * Busca pelas duas grafias possíveis do telefone: se o cliente já mandou
+ * mensagem antes de comprar, o card dele foi criado com o `wa_id` cru — que
+ * para conta antiga não tem o 9º dígito que normalizamos aqui.
+ */
+export async function findLeadInTracking(
+  trackingId: string,
+  phone: string | null,
+  email: string | null,
+) {
+  const byPhone = phone
+    ? await prisma.lead.findFirst({
+        where: { trackingId, phone: { in: waIdLookupVariants(phone) } },
+        // Se as duas grafias já existirem como cards separados (estrago
+        // anterior a esta busca), fica com o mais antigo: é o que carrega a
+        // conversa e o histórico.
+        orderBy: { createdAt: "asc" },
+        select: LEAD_SELECT,
+      })
+    : null;
+  if (byPhone) return byPhone;
+
+  return email
+    ? prisma.lead.findFirst({
+        where: { trackingId, email: { equals: email, mode: "insensitive" } },
+        select: LEAD_SELECT,
+      })
+    : null;
+}
+
 export async function ensureTrafegoLead(
   identity: LeadIdentity,
   options: EnsureLeadOptions,
@@ -100,26 +132,7 @@ export async function ensureTrafegoLead(
   const phone = normalizeWhatsappPhoneBr(identity.phone);
   const email = identity.email?.trim().toLowerCase() || null;
 
-  // Busca pelas duas grafias possíveis: se o cliente já mandou mensagem antes
-  // de comprar, o card dele foi criado com o `wa_id` cru — que para conta
-  // antiga não tem o 9º dígito que normalizamos aqui.
-  const existing =
-    (phone
-      ? await prisma.lead.findFirst({
-          where: { trackingId, phone: { in: waIdLookupVariants(phone) } },
-          // Se as duas grafias já existirem como cards separados (estrago
-          // anterior a esta busca), fica com o mais antigo: é o que carrega a
-          // conversa e o histórico.
-          orderBy: { createdAt: "asc" },
-          select: LEAD_SELECT,
-        })
-      : null) ??
-    (email
-      ? await prisma.lead.findFirst({
-          where: { trackingId, email: { equals: email, mode: "insensitive" } },
-          select: LEAD_SELECT,
-        })
-      : null);
+  const existing = await findLeadInTracking(trackingId, phone, email);
 
   const now = new Date();
 

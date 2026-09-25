@@ -108,7 +108,7 @@ export default async function Page({
       ),
     },
     {
-      name: "Padrões NASA",
+      name: "Padrões ÓRBITA",
       value: "templates",
       content: <TemplateSettings trackingId={trackingId} />,
     },

@@ -23,6 +23,7 @@ import {
 } from "./output-formatter";
 import { assessBotInboundMedia, storeBotInboundDocument } from "./inbound-media";
 import { chargeBotPromptStake, debitBotTokenUsage } from "./stars-billing";
+import { tryCheapLayers } from "./cheap-layers";
 import type { BotCommandResult, BotInboundMedia, WhatsappBotChannel } from "./types";
 
 interface RouteContext {
@@ -41,7 +42,7 @@ const INSIGHTS_FALLBACK_REPLY =
 const ASSISTANT_FALLBACK_REPLY =
   "Não consegui montar uma resposta pra isso 🤔 Posso consultar os dados desta empresa, o financeiro (contas a pagar e receber, fluxo de caixa, DRE) e ler boleto ou nota fiscal em PDF/foto. Tenta reformular.";
 const STARS_INSUFFICIENT_REPLY =
-  "⭐ Sua empresa está sem saldo de Stars pra usar o Astro. Peça ao admin pra recarregar no NASA e tente de novo.";
+  "⭐ Sua empresa está sem saldo de Stars pra usar o Astro. Peça ao admin pra recarregar no ÓRBITA e tente de novo.";
 const DEFAULT_MEDIA_PROMPT =
   "Leia o documento que acabei de enviar e me mostre o resumo.";
 
@@ -54,6 +55,25 @@ function buildLoggedMessageText(messageText: string, media?: BotInboundMedia): s
   if (!media) return messageText;
   const mediaLabel = `[${media.kind === "image" ? "foto" : "documento"}${media.fileName ? `: ${media.fileName}` : ""}]`;
   return messageText ? `${mediaLabel} ${messageText}` : mediaLabel;
+}
+
+/** O histórico do bot vem como UIMessage; a triagem lê linhas de texto. */
+function historyToLines(history: unknown[]): string[] {
+  return history
+    .map((message) => {
+      const entry = message as {
+        role?: string;
+        parts?: Array<{ type?: string; text?: string }>;
+      };
+      const text = (entry.parts ?? [])
+        .filter((part) => part.type === "text")
+        .map((part) => part.text ?? "")
+        .join(" ")
+        .trim();
+      if (!text) return "";
+      return `${entry.role === "user" ? "Usuário" : "Astro"}: ${text}`;
+    })
+    .filter(Boolean);
 }
 
 export async function handleBotCommand(
@@ -151,6 +171,34 @@ export async function handleBotCommand(
     const history = await loadRecentBotHistory(binding.id);
     const promptText = messageText.trim() || DEFAULT_MEDIA_PROMPT;
 
+    // Antes do orquestrador, as mesmas camadas baratas do widget. "Quantos
+    // leads temos" é `count()`, e os verbos executam em código — pelo
+    // WhatsApp isso ia ao modelo caro e voltava "não consegui montar uma
+    // resposta". Só vale sem anexo: documento é trabalho de modelo.
+    if (!media) {
+      const cheap = await tryCheapLayers({
+        ctx: agentCtx,
+        text: promptText,
+        history: historyToLines(history),
+      });
+      if (cheap) {
+        const tokenStars = stake.isExempt
+          ? 0
+          : await debitBotTokenUsage(binding, cheap.tokensUsed);
+        console.log(
+          `[astro-bot/router] camada ${cheap.route} resolveu${cheap.actionKey ? `: ${cheap.actionKey}` : ""}`,
+        );
+        return logAndReturn(binding, loggedText, {
+          status: "ok",
+          reply: cheap.reply,
+          buttons: cheap.buttons,
+          toolsCalled: [cheap.route],
+          tokensUsed: cheap.tokensUsed,
+          starsCharged: stake.starsCharged + tokenStars,
+        });
+      }
+    }
+
     const stream = await streamAstro({
       ctx: agentCtx,
       toolScope: isFinanceEnabled ? "assistant" : "insights",
@@ -211,7 +259,7 @@ export async function handleBotCommand(
     return logAndReturn(binding, loggedText, {
       status: "error_orchestrator",
       reply:
-        "❌ Tive um problema processando seu comando. Tenta de novo daqui a pouco — se persistir, manda mensagem no NASA pelo computador.",
+        "❌ Tive um problema processando seu comando. Tenta de novo daqui a pouco — se persistir, manda mensagem no ÓRBITA pelo computador.",
       starsCharged: stake.starsCharged,
     });
   }

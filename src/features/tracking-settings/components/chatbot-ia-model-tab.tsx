@@ -185,7 +185,7 @@ export function ChatBotIaModelTab({ trackingId }: { trackingId: string }) {
         <InfoIcon />
         <AlertTitle>Modelo de IA do atendimento</AlertTitle>
         <AlertDescription>
-          Por padrão, a NASA usa o modelo que está no seu plano. Ative a opção
+          Por padrão, a ÓRBITA usa o modelo que está no seu plano. Ative a opção
           abaixo para conectar seu próprio provider e API key — o custo das
           chamadas passa a ser do seu provider.
         </AlertDescription>
@@ -199,7 +199,7 @@ export function ChatBotIaModelTab({ trackingId }: { trackingId: string }) {
                 Usar meu próprio modelo de IA
               </FieldLabel>
               <FieldDescription>
-                Quando desativado, a NASA usa o modelo padrão (custo coberto
+                Quando desativado, a ÓRBITA usa o modelo padrão (custo coberto
                 pelo seu plano).
               </FieldDescription>
             </FieldContent>
@@ -343,7 +343,7 @@ export function ChatBotIaModelTab({ trackingId }: { trackingId: string }) {
                 )}
                 <FieldDescription className="flex items-center gap-1">
                   <KeyRound className="size-3" />
-                  Sua key é armazenada criptografada. A NASA não consegue
+                  Sua key é armazenada criptografada. A ÓRBITA não consegue
                   lê-la em texto plano depois de salvar.
                 </FieldDescription>
               </Field>

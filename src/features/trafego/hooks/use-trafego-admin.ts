@@ -184,10 +184,10 @@ export const useTrafegoSettings = () => {
 };
 
 /** Organizações disponíveis para configurar a agência que opera o trafeGO. */
-export const useTrafegoAgencyOrganizations = (search: string) => {
+export const useTrafegoAgencyOrganizations = (search: string, limit = 50) => {
   return useQuery(
     orpc.admin.listOrganizationsForSelection.queryOptions({
-      input: { search: search.trim() || undefined, limit: 50 },
+      input: { search: search.trim() || undefined, limit },
     }),
   );
 };

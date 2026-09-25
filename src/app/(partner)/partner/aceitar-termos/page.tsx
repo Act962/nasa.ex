@@ -37,7 +37,7 @@ export default async function AcceptTermsPage() {
       <div>
         <h1 className="text-xl font-bold text-white flex items-center gap-2">
           <ScrollText className="w-5 h-5 text-amber-400" />
-          Termos NASA Partner — versão {activeTerms.version}
+          Termos ÓRBITA Partner — versão {activeTerms.version}
         </h1>
         <p className="text-sm text-zinc-400 mt-1">
           {activeTerms.title}
@@ -70,7 +70,7 @@ export default async function AcceptTermsPage() {
               href="/space-help/nasa-partner-regras"
               className="text-amber-400 hover:text-amber-300 underline"
             >
-              "NASA Partner — Regras, Privacidade e LGPD"
+              "ÓRBITA Partner — Regras, Privacidade e LGPD"
             </Link>{" "}
             antes de aceitar. Você é responsável por compreender as regras do
             programa, suas obrigações sobre dados das empresas indicadas, a

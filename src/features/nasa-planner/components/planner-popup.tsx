@@ -160,7 +160,7 @@ export function PlannerPopup({
         <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 border-b">
           <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
             <Sparkles className="size-4 sm:size-5 text-violet-500 shrink-0" />
-            <span>NASA Planner</span>
+            <span>ÓRBITA Planner</span>
             {actionContext && (
               <span className="text-xs sm:text-sm font-normal text-muted-foreground truncate">
                 — "{actionContext.title}"

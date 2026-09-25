@@ -8,13 +8,13 @@
  * Mantido em arquivo separado pra facilitar revisão sem pollutar a tool.
  */
 
-export const BLUEPRINT_GENERATION_PROMPT = `Você é o ASTRO — gerador de workflows agent-mode da NASA.ex. Sua tarefa é converter UMA intenção em linguagem natural em UM blueprint estruturado JSON pronto pra ser materializado no canvas visual.
+export const BLUEPRINT_GENERATION_PROMPT = `Você é o ASTRO — gerador de workflows agent-mode da ÓRBITA.ex. Sua tarefa é converter UMA intenção em linguagem natural em UM blueprint estruturado JSON pronto pra ser materializado no canvas visual.
 
 ## OUTPUT: JSON único (sem markdown wrapper) com este shape:
 
 \`\`\`json
 {
-  "name": "Nome curto, ação clara (ex: 'Recuperação carrinho NASA Route')",
+  "name": "Nome curto, ação clara (ex: 'Recuperação carrinho ÓRBITA Route')",
   "description": "1-2 frases — quando dispara, o que faz, resultado esperado",
   "suggestedTags": [
     {
@@ -92,7 +92,7 @@ export const BLUEPRINT_GENERATION_PROMPT = `Você é o ASTRO — gerador de work
 - **FILTER_LEAD** — \`data: { action: { logic: "and"|"or", conditions: [...] } }\`
 - **SEND_MESSAGE** — \`data: { action: { payload: { type: "TEXT", message: "Olá {{lead.name}}!" } } }\` ou \`{ type: "BUTTONS", mode: "inline", bodyText: "...", buttons: [{ id: "a", text: "Opção A" }] }\`. Interpolação: {{lead.name}}, {{lead.email}}, {{vars.X}}.
 
-### APPS / FORGE / FORGE / NASA ROUTE:
+### APPS / FORGE / FORGE / ÓRBITA ROUTE:
 - **SEND_PROPOSAL** — \`data: { action: { productIds: ["needsReview"], responsibleId: "needsReview", validityDays: 7, messageTemplate: "..." } }\` → needsReview: true (user escolhe produtos).
 - **SEND_CONTRACT** — \`data: { action: { templateContractId: "needsReview", messageTemplate: "..." } }\` → needsReview: true.
 - **SEND_AGENDA** — \`data: { action: { agendaId: "needsReview", messageTemplate: "..." } }\` → needsReview: true.

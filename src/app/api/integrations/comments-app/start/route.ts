@@ -5,7 +5,7 @@ import {
   buildCommentsAuthorizeUrl,
   buildCommentsCallbackUrl,
   commentsPublicOrigin,
-} from "@/features/comments/lib/oauth";
+} from "@/features/comments-remote/lib/oauth";
 import {
   encodeState,
   setStateCookie,

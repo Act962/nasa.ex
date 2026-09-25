@@ -179,8 +179,13 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0019](astro-bot/0019-whatsapp-escopo-financeiro-e-stars.md) | astro-bot | Astro pelo WhatsApp — escopo financeiro, mídia inbound e Stars | em-revisao |
 | [0020](stars/0020-catalogo-unico-de-preco-e-ponto-unico-de-cobranca.md) | stars | Catálogo único de preço e ponto único de cobrança de Stars | em-revisao |
 | [0021](stars/0021-registro-de-custo-por-evento-e-instrumentacao.md) | stars | Registro de custo por evento e instrumentação das chamadas pagas | em-revisao |
+| [0021](trafego/0021-trafego-captura-lead-e-notificacao-admin.md) | trafego | Captura de lead no wizard e notificação do admin | em-revisao |
+| [0022](notifications/0022-web-push-notification-service.md) | notifications | Serviço de notificação Web Push | em-revisao |
 | [0022](trafego/0022-trafego-pix-asaas.md) | trafego | Cobrança PIX automática pelo Asaas no checkout do trafeGO | rascunho |
-| [0023](astro/0023-astro-commander.md) | astro | ASTRO COMMANDER — comandos persistentes, execução headless e App ASTRO | aprovada |
+| [0023](astro/0023-astro-roteamento-por-intencao-e-proposta-com-link.md) | astro | Roteamento do Astro por intenção, com a proposta comercial como piloto | aprovada |
+| [0024](astro/0024-catalogo-de-verbos-do-astro.md) | astro | Catálogo de verbos do Astro — recorte por onda | aprovada |
+| [0025](astro/0025-astro-roteamento-em-camadas.md) | astro | Roteamento em camadas — todos os apps sem perder precisão | aprovada |
+| [0028](astro/0028-astro-commander.md) | astro | ASTRO COMMANDER — comandos persistentes, execução headless e App ASTRO | aprovada |
 
 ---
 

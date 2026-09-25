@@ -62,6 +62,7 @@ model User {
   workspacesMembers                  WorkspaceMember[]
   userNotifications                  UserNotification[]
   notificationPrefs                  UserNotificationPreference[]
+  pushSubscriptions                  PushSubscription[]
   sidebarPrefs                       UserSidebarPreference[]
   spacePoints                        UserSpacePoint[]
   memberStarBudgets                  MemberStarBudget[]
@@ -315,6 +316,9 @@ model Organization {
   forgeContracts         ForgeContract[]
   forgeTemplates         ForgeContractTemplate[]
   forgeSettings          ForgeSettings?
+  forgePriceItems        ForgePriceItem[]
+  forgePriceSuggestions  ForgePriceSuggestion[]
+  forgeSimulations       ForgeSimulation[]
   plan                   Plan?                      @relation(fields: [planId], references: [id], onDelete: SetNull)
   starTransactions       StarTransaction[]
   usageEvents            UsageEvent[]
@@ -485,6 +489,9 @@ model Organization {
   // ── Ranking de Vendas com Metas (import Winthor/Totvs) ──────
   salesGoalPeriods         SalesGoalPeriod[]
   salesGoalRankingSettings SalesGoalRankingSettings?
+
+  // ── Automações de redes sociais (app COMMENTS — spec 0024) ──
+  socialChannels SocialChannel[]
 
   @@unique([slug])
   @@map("organization")
@@ -3124,6 +3131,7 @@ model ForgeProposal {
   campaignPlanners        NasaCampaignPlanner[]
   orgProject              OrgProject?              @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
   clientOnboardingProcess ClientOnboardingProcess?
+  simulation              ForgeSimulation?
 
   @@unique([organizationId, number])
   @@index([organizationId])
@@ -3220,6 +3228,197 @@ model ForgeSettings {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("forge_settings")
+}
+
+// ─────────────────────────────────────────────
+// FORGE — Simulador de Custos & Proposta
+// ─────────────────────────────────────────────
+
+enum ForgePriceCategory {
+  AI_MODEL
+  WHATSAPP_CONVERSATION
+  INFRA_SERVER
+  HOSTING
+  STORAGE
+  DATABASE
+  LABOR
+  OTHER
+}
+
+enum ForgePriceUnit {
+  PER_1K_TOKENS
+  PER_CONVERSATION
+  PER_MONTH
+  PER_HOUR
+  PER_GB_MONTH
+  PER_COMPUTE_HOUR
+  FLAT
+}
+
+enum ForgePriceCurrency {
+  BRL
+  USD
+}
+
+enum ForgePriceSuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ForgeSimulationMode {
+  COMERCIAL
+  LICITACAO
+}
+
+enum ForgeExequibilidadeFlag {
+  OK
+  EXCESSIVO
+  INEXEQUIVEL
+}
+
+model ForgePriceItem {
+  id               String             @id @default(cuid())
+  organizationId   String             @map("organization_id")
+  category         ForgePriceCategory
+  name             String
+  code             String?
+  description      String?
+  provider         String?
+  currency         ForgePriceCurrency @default(BRL)
+  unit             ForgePriceUnit
+  unitPrice        Decimal?           @map("unit_price") @db.Decimal(18, 8)
+  inputPer1k       Decimal?           @map("input_per_1k") @db.Decimal(18, 8)
+  outputPer1k      Decimal?           @map("output_per_1k") @db.Decimal(18, 8)
+  cachedInputPer1k Decimal?           @map("cached_input_per_1k") @db.Decimal(18, 8)
+  metadata         Json               @default("{}")
+  isActive         Boolean            @default(true) @map("is_active")
+  isSeeded         Boolean            @default(false) @map("is_seeded")
+  source           String?
+  sortOrder        Int                @default(0) @map("sort_order")
+  createdById      String?            @map("created_by")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  suggestions  ForgePriceSuggestion[]
+  simLines     ForgeSimulationLineItem[]
+  bidItems     ForgeBidItem[]
+
+  @@unique([organizationId, category, code])
+  @@index([organizationId, category])
+  @@index([organizationId, isActive])
+  @@map("forge_price_items")
+}
+
+model ForgePriceSuggestion {
+  id             String                     @id @default(cuid())
+  organizationId String                     @map("organization_id")
+  priceItemId    String?                    @map("price_item_id")
+  category       ForgePriceCategory
+  code           String?
+  name           String
+  currency       ForgePriceCurrency         @default(BRL)
+  currentValue   Json?                      @map("current_value")
+  suggestedValue Json                       @map("suggested_value")
+  sourceUrl      String?                    @map("source_url")
+  sourceLabel    String?                    @map("source_label")
+  fetchedAt      DateTime                   @default(now()) @map("fetched_at")
+  status         ForgePriceSuggestionStatus @default(PENDING)
+  reviewedById   String?                    @map("reviewed_by")
+  reviewedAt     DateTime?                  @map("reviewed_at")
+  createdAt      DateTime                   @default(now()) @map("created_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  priceItem    ForgePriceItem? @relation(fields: [priceItemId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@map("forge_price_suggestions")
+}
+
+model ForgeSimulation {
+  id                  String              @id @default(cuid())
+  organizationId      String              @map("organization_id")
+  name                String
+  mode                ForgeSimulationMode @default(COMERCIAL)
+  markupPercentage    Decimal             @default(0) @map("markup_percentage") @db.Decimal(6, 2)
+  usdToBrlRate        Decimal             @map("usd_to_brl_rate") @db.Decimal(10, 4)
+  internalCostTotal   Decimal             @default(0) @map("internal_cost_total") @db.Decimal(15, 2)
+  clientPriceTotal    Decimal             @default(0) @map("client_price_total") @db.Decimal(15, 2)
+  computedAt          DateTime?           @map("computed_at")
+  proposalId          String?             @unique @map("proposal_id")
+  // Modo Comercial
+  userCount           Int                 @default(1) @map("user_count")
+  aiPriceItemId       String?             @map("ai_price_item_id")
+  aiModelCode         String?             @map("ai_model_code")
+  inputTokensPerUser  Int                 @default(0) @map("input_tokens_per_user")
+  outputTokensPerUser Int                 @default(0) @map("output_tokens_per_user")
+  cachedTokensPerUser Int                 @default(0) @map("cached_tokens_per_user")
+  whatsappEnabled     Boolean             @default(false) @map("whatsapp_enabled")
+  whatsappMix         Json                @default("[]") @map("whatsapp_mix")
+  // Modo Licitação
+  bidOrg              String?             @map("bid_org")
+  bidNumber           String?             @map("bid_number")
+  contractMonths      Int                 @default(12) @map("contract_months")
+  ceilingTotalBrl     Decimal?            @map("ceiling_total_brl") @db.Decimal(15, 2)
+  createdById         String              @map("created_by")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  proposal     ForgeProposal?            @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  lineItems    ForgeSimulationLineItem[]
+  bidItems     ForgeBidItem[]
+
+  @@index([organizationId])
+  @@map("forge_simulations")
+}
+
+model ForgeSimulationLineItem {
+  id           String             @id @default(cuid())
+  simulationId String             @map("simulation_id")
+  priceItemId  String?            @map("price_item_id")
+  category     ForgePriceCategory
+  label        String
+  quantity     Decimal            @db.Decimal(18, 4)
+  unit         ForgePriceUnit
+  unitCostBrl  Decimal            @map("unit_cost_brl") @db.Decimal(18, 8)
+  internalCost Decimal            @map("internal_cost") @db.Decimal(15, 2)
+  meta         Json               @default("{}")
+  order        Int                @default(0)
+
+  simulation ForgeSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  priceItem  ForgePriceItem? @relation(fields: [priceItemId], references: [id], onDelete: SetNull)
+
+  @@index([simulationId])
+  @@map("forge_simulation_line_items")
+}
+
+model ForgeBidItem {
+  id                  String                  @id @default(cuid())
+  simulationId        String                  @map("simulation_id")
+  parentId            String?                 @map("parent_id")
+  priceItemId         String?                 @map("price_item_id")
+  code                String
+  description         String
+  unit                String                  @default("SV")
+  quantity            Decimal                 @db.Decimal(15, 4)
+  internalUnitCostBrl Decimal                 @map("internal_unit_cost_brl") @db.Decimal(18, 8)
+  markupPercentage    Decimal                 @default(0) @map("markup_percentage") @db.Decimal(6, 2)
+  bidUnitBrl          Decimal                 @map("bid_unit_brl") @db.Decimal(15, 2)
+  bidMonthlyBrl       Decimal                 @map("bid_monthly_brl") @db.Decimal(15, 2)
+  bidTotalBrl         Decimal                 @map("bid_total_brl") @db.Decimal(15, 2)
+  ceilingUnitBrl      Decimal?                @map("ceiling_unit_brl") @db.Decimal(15, 2)
+  exequibilidade      ForgeExequibilidadeFlag @default(OK)
+  order               Int                     @default(0)
+
+  simulation ForgeSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  parent     ForgeBidItem?   @relation("ForgeBidItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children   ForgeBidItem[]  @relation("ForgeBidItemChildren")
+  priceItem  ForgePriceItem? @relation(fields: [priceItemId], references: [id], onDelete: SetNull)
+
+  @@index([simulationId])
+  @@map("forge_bid_items")
 }
 
 // ─────────────────────────────────────────────
@@ -4249,6 +4448,34 @@ model UserChatPreferences {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_chat_preferences")
+}
+
+/// Inscrição de Web Push de um browser (spec 0022).
+///
+/// Um usuário tem N inscrições — uma por browser/dispositivo. Quem identifica
+/// é o `endpoint`, único globalmente: o mesmo browser depois de trocar de conta
+/// reaproveita a linha, só mudando o `userId`.
+model PushSubscription {
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id")
+  /// URL do push service (FCM, Mozilla, WNS…). Identidade da inscrição.
+  endpoint     String    @unique
+  /// Chave pública do cliente para criptografar o payload (ECDH P-256).
+  p256dh       String
+  /// Segredo de autenticação do cliente.
+  auth         String
+  userAgent    String?   @map("user_agent")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  /// Último envio aceito pelo push service — base para limpeza futura.
+  lastUsedAt   DateTime? @map("last_used_at")
+  /// Falhas consecutivas que NÃO são 404/410 (403 de VAPID trocado, 429…).
+  /// Serve para diagnóstico: 404/410 apagam a linha na hora (spec 0022, D-4).
+  failureCount Int       @default(0) @map("failure_count")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscription")
 }
 
 // ─── Admin Notifications ──────────────────────────────────────────────────────
@@ -8518,6 +8745,9 @@ enum TrafegoCopySource {
   AI
 }
 
+/// `NASA` é o time da plataforma. O nome ficou do batismo anterior: a marca
+/// virou ÓRBITA na interface, mas o valor gravado no banco não muda sem
+/// migração. Renomear só o literal no código já quebrou o build uma vez.
 enum TrafegoSupportAuthorRole {
   CLIENT
   NASA
@@ -9015,8 +9245,17 @@ model TrafegoSettings {
   statusColumnMap      Json    @default("{}") @map("status_column_map")
   /// Formulário "Briefing TrafeGO" (org da agência) que recebe as respostas do wizard.
   briefingFormId       String? @map("briefing_form_id")
+
+  // ── Captura de lead no wizard (spec 0021) ──
+  /// Destino do lead captado no passo Contato, ANTES do pagamento. Separado de
+  /// `operationsTrackingId` de propósito: aquele board é a mesa do gestor (um
+  /// card por pedido pago); este é o funil comercial, e pode ser de outra org.
+  /// Nulo em qualquer um dos três = captura desligada, o wizard segue igual.
+  captureOrganizationId String? @map("capture_organization_id")
+  captureTrackingId     String? @map("capture_tracking_id")
+  captureStatusId       String? @map("capture_status_id")
   /// Business ID da Órbita — vai no pedido de acesso de parceiro à BM do cliente.
-  partnerBusinessId    String? @map("partner_business_id")
+  partnerBusinessId     String? @map("partner_business_id")
 
   // ── Avisos ao cliente ──
   whatsappActivationTemplate String? @map("whatsapp_activation_template")
@@ -9046,4 +9285,365 @@ model TrafegoSettings {
   updatedById String?  @map("updated_by_id")
 
   @@map("trafego_settings")
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  AUTOMAÇÕES DE REDES SOCIAIS — app COMMENTS (spec 0024)                  ║
+// ║                                                                          ║
+// ║  A rede social é um VALOR (`SocialProvider`), não uma estrutura: nenhum  ║
+// ║  nome de tabela ou coluna cita Instagram. Acrescentar Facebook, WhatsApp ║
+// ║  ou Telegram é um valor no enum + um adapter em `src/modules/social/`,   ║
+// ║  sem migration e sem tocar em `domain/` nem `application/`.              ║
+// ║                                                                          ║
+// ║  O que é específico de cada rede vive em `Json` validado por Zod         ║
+// ║  (`SocialChannel.credentials`, `SocialTrigger.config`,                   ║
+// ║  `SocialFlowStep.config`) — mesmo padrão de `Node.data` no editor de     ║
+// ║  workflows.                                                              ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+
+enum SocialProvider {
+  INSTAGRAM
+  // FACEBOOK, WHATSAPP, TELEGRAM, TIKTOK entram aqui — ver spec 0024 §11 Fase 3.5
+}
+
+enum SocialChannelStatus {
+  ACTIVE
+  /// Credencial recusada pelo provider (401/403). O webhook segue registrando
+  /// evento, mas nada é enviado até reconectar (spec 0024 CB-10).
+  NEEDS_RECONNECT
+  DISABLED
+}
+
+enum SocialContentType {
+  IMAGE
+  VIDEO
+  CAROUSEL
+  REEL
+  STORY
+  OTHER
+}
+
+enum SocialEventType {
+  COMMENT_CREATED
+  DIRECT_MESSAGE_RECEIVED
+  // MENTION_CREATED, STORY_REPLY_RECEIVED, POSTBACK_CLICKED… nas fases seguintes
+}
+
+enum SocialTargetScope {
+  ALL_CONTENT
+  SPECIFIC_CONTENT
+  /// Reservado (ManyChat "próxima publicação"): vincula ao próximo conteúdo
+  /// publicado. Sem implementação no PR 1.
+  NEXT_CONTENT
+}
+
+enum SocialMatchKind {
+  INCLUDE
+  EXCLUDE
+}
+
+enum SocialMatchOperator {
+  /// Casa qualquer texto, inclusive vazio — é o "qualquer comentário".
+  ANY_TEXT
+  CONTAINS
+  EXACT
+  STARTS_WITH
+  // REGEX reservado: exige limite de passos e timeout antes de liberar.
+}
+
+enum SocialMatchLogic {
+  ANY_RULE
+  ALL_RULES
+}
+
+enum SocialStepKind {
+  SEND_DIRECT_MESSAGE
+  REPLY_TO_COMMENT
+  // WAIT, CONDITION, ADD_TAG, CREATE_LEAD, HANDOFF_HUMAN… nas fases seguintes
+}
+
+enum SocialInboundStatus {
+  RECEIVED
+  MATCHED
+  SKIPPED
+  FAILED
+}
+
+enum SocialRunStatus {
+  PENDING
+  SENT
+  SKIPPED
+  FAILED
+}
+
+/// Conexão de uma conta de rede social com uma organização.
+///
+/// `credentials` é um blob **cifrado** (AES-256-GCM via `@/lib/crypto`) cujo
+/// shape depende do provider — no Instagram: `{ accessToken, appSecret,
+/// verifyToken }`. Campo cifrado não é consultável, por isso o roteamento do
+/// webhook usa `webhookPathToken` na URL em vez de procurar pelo verify token
+/// (spec 0024 D-11).
+model SocialChannel {
+  id             String         @id @default(cuid())
+  organizationId String         @map("organization_id")
+  provider       SocialProvider
+
+  /// Identificador da conta no provider (IG Account ID). Texto puro: serve de
+  /// conferência do payload — se não bate com o `entry.id`, o evento é descartado.
+  externalAccountId String @map("external_account_id")
+
+  /// 32 hex aleatórios que compõem a URL do webhook desta conexão:
+  /// `/api/social/webhook/<provider>/<webhookPathToken>`.
+  webhookPathToken String @unique @map("webhook_path_token")
+
+  handle      String?
+  displayName String? @map("display_name")
+  avatarUrl   String? @map("avatar_url")
+
+  credentials String
+
+  status           SocialChannelStatus @default(ACTIVE)
+  lastErrorMessage String?             @map("last_error_message")
+  lastErrorAt      DateTime?           @map("last_error_at")
+
+  /// Ponteiro solto para `User.id` — sem relation de propósito, para não somar
+  /// mais uma aresta ao god-model `User` (73 relations hoje).
+  connectedById String?  @map("connected_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  organization  Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  automations   SocialAutomation[]
+  contacts      SocialContact[]
+  inboundEvents SocialInboundEvent[]
+  runs          SocialAutomationRun[]
+
+  /// Impede que duas organizações conectem a mesma conta (spec 0024 CB-12).
+  @@unique([provider, externalAccountId])
+  @@index([organizationId, provider])
+  @@map("social_channels")
+}
+
+/// Quem interage com o canal. Base do atendimento completo das fases futuras:
+/// `lastInboundAt` é o relógio da janela de 24h da Meta e `leadId` é a ponte
+/// com o Tracking, que só passa a ser escrita na Fase 4.
+model SocialContact {
+  id             String  @id @default(cuid())
+  channelId      String  @map("channel_id")
+  externalUserId String  @map("external_user_id")
+  username       String?
+  name           String?
+  avatarUrl      String? @map("avatar_url")
+
+  firstSeenAt    DateTime  @default(now()) @map("first_seen_at")
+  lastInboundAt  DateTime? @map("last_inbound_at")
+  lastOutboundAt DateTime? @map("last_outbound_at")
+
+  /// Ponteiro solto para `Lead.id` — sem FK enquanto a ponte com o Tracking
+  /// não existir; a semântica é definida na Fase 4 (spec 0024 §11).
+  leadId String? @map("lead_id")
+
+  channel SocialChannel         @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  runs    SocialAutomationRun[]
+
+  @@unique([channelId, externalUserId])
+  @@index([channelId, lastInboundAt])
+  @@index([leadId])
+  @@map("social_contacts")
+}
+
+model SocialAutomation {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  channelId      String  @map("channel_id")
+  name           String  @default("Sem título")
+  isActive       Boolean @default(false) @map("is_active")
+
+  /// Ponteiro solto para `User.id` — ver nota em `SocialChannel.connectedById`.
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  channel  SocialChannel         @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  triggers SocialTrigger[]
+  runs     SocialAutomationRun[]
+
+  /// Caminho quente: o webhook busca automações ativas de um canal.
+  @@index([channelId, isActive])
+  @@index([organizationId])
+  @@map("social_automations")
+}
+
+/// "Quando" da automação. Um gatilho escuta um tipo de evento, opcionalmente
+/// restrito a conteúdos específicos, e decide por `SocialMatchRule`.
+model SocialTrigger {
+  id           String            @id @default(cuid())
+  automationId String            @map("automation_id")
+  eventType    SocialEventType   @map("event_type")
+  targetScope  SocialTargetScope @default(ALL_CONTENT) @map("target_scope")
+  matchLogic   SocialMatchLogic  @default(ANY_RULE) @map("match_logic")
+  isEnabled    Boolean           @default(true) @map("is_enabled")
+
+  /// Nuances específicas do provider que não merecem coluna própria.
+  config Json @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  automation SocialAutomation      @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  targets    SocialTriggerTarget[]
+  rules      SocialMatchRule[]
+  steps      SocialFlowStep[]
+  runs       SocialAutomationRun[]
+
+  @@index([automationId, eventType])
+  @@map("social_triggers")
+}
+
+/// Conteúdo que o gatilho observa — "post", "reel" e "vídeo" generalizados.
+/// Só é consultado quando `targetScope = SPECIFIC_CONTENT`.
+model SocialTriggerTarget {
+  id                String            @id @default(cuid())
+  triggerId         String            @map("trigger_id")
+  externalContentId String            @map("external_content_id")
+  contentType       SocialContentType @default(OTHER) @map("content_type")
+  permalink         String?
+  caption           String?
+  mediaUrl          String?           @map("media_url")
+  /// Última vez que mídia e legenda foram recarregadas do provider — a URL de
+  /// mídia da Meta expira.
+  syncedAt          DateTime?         @map("synced_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+
+  trigger SocialTrigger @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+
+  @@unique([triggerId, externalContentId])
+  @@index([externalContentId])
+  @@map("social_trigger_targets")
+}
+
+/// Regra de correspondência do texto recebido.
+///
+/// `kind` + `operator` + `terms` cobrem os três modos do ManyChat: incluir
+/// ("contém"), excluir ("não contém") e `ANY_TEXT` ("qualquer comentário").
+/// Ausência de regra `INCLUDE` é lida como `ANY_TEXT` (spec 0024 RF-10).
+model SocialMatchRule {
+  id        String              @id @default(cuid())
+  triggerId String              @map("trigger_id")
+  kind      SocialMatchKind     @default(INCLUDE)
+  operator  SocialMatchOperator @default(CONTAINS)
+  terms     String[]
+  order     Int                 @default(0)
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  trigger SocialTrigger @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+
+  @@index([triggerId])
+  @@map("social_match_rules")
+}
+
+/// "Então" da automação. O PR 1 cria no máximo dois passos raiz por gatilho
+/// (DM + resposta pública); `parentStepId`/`branchKey` existem para o fluxo
+/// encadeado da Fase 2 sem exigir migration nova.
+///
+/// `config` é validado por Zod discriminado por `kind`:
+///   SEND_DIRECT_MESSAGE → { source: "STATIC" | "AI", text?, aiPrompt?, buttons[] }
+///   REPLY_TO_COMMENT    → { variants: string[], strategy: "RANDOM" | "SEQUENTIAL" }
+model SocialFlowStep {
+  id           String         @id @default(cuid())
+  triggerId    String         @map("trigger_id")
+  order        Int            @default(0)
+  kind         SocialStepKind
+  config       Json           @default("{}")
+  parentStepId String?        @map("parent_step_id")
+  /// Saída do passo anterior que leva a este. "main" enquanto não há condição.
+  branchKey    String?        @default("main") @map("branch_key")
+  isEnabled    Boolean        @default(true) @map("is_enabled")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  trigger  SocialTrigger    @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+  parent   SocialFlowStep?  @relation("SocialFlowStepTree", fields: [parentStepId], references: [id], onDelete: Cascade)
+  children SocialFlowStep[] @relation("SocialFlowStepTree")
+  stepRuns SocialStepRun[]
+
+  @@index([triggerId, order])
+  @@index([parentStepId])
+  @@map("social_flow_steps")
+}
+
+/// Idempotência do webhook: a Meta reentrega o mesmo evento. O registro é
+/// gravado ANTES de qualquer envio; colisão de `[provider, externalEventId]`
+/// significa reentrega e o evento é descartado (spec 0024 CA-4).
+///
+/// Cresce para sempre — job de limpeza com janela de 30 dias acompanha.
+model SocialInboundEvent {
+  id                String              @id @default(cuid())
+  channelId         String              @map("channel_id")
+  provider          SocialProvider
+  externalEventId   String              @map("external_event_id")
+  eventType         SocialEventType     @map("event_type")
+  externalUserId    String?             @map("external_user_id")
+  externalContentId String?             @map("external_content_id")
+  status            SocialInboundStatus @default(RECEIVED)
+  /// Por que não gerou envio — "sem gatilho", "canal desconectado", "autor é o dono".
+  skipReason        String?             @map("skip_reason")
+  receivedAt        DateTime            @default(now()) @map("received_at")
+
+  channel SocialChannel         @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  runs    SocialAutomationRun[]
+
+  @@unique([provider, externalEventId])
+  @@index([channelId, receivedAt])
+  @@map("social_inbound_events")
+}
+
+/// Execução de uma automação. Espelha `WorkflowRun` — os contadores que o
+/// comments-app mantinha denormalizados (`dmCount`, `commentCount`) são
+/// derivados daqui.
+model SocialAutomationRun {
+  id             String          @id @default(cuid())
+  automationId   String          @map("automation_id")
+  triggerId      String          @map("trigger_id")
+  channelId      String          @map("channel_id")
+  inboundEventId String?         @map("inbound_event_id")
+  contactId      String?         @map("contact_id")
+  status         SocialRunStatus @default(PENDING)
+  error          String?
+  startedAt      DateTime        @default(now()) @map("started_at")
+  finishedAt     DateTime?       @map("finished_at")
+
+  automation   SocialAutomation    @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  trigger      SocialTrigger       @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+  channel      SocialChannel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  inboundEvent SocialInboundEvent? @relation(fields: [inboundEventId], references: [id], onDelete: SetNull)
+  contact      SocialContact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  stepRuns     SocialStepRun[]
+
+  @@index([automationId, startedAt])
+  @@index([channelId, startedAt])
+  @@index([contactId])
+  @@index([inboundEventId])
+  @@map("social_automation_runs")
+}
+
+/// Passo executado dentro de um run. Espelha `WorkflowNodeRun`.
+model SocialStepRun {
+  id                String          @id @default(cuid())
+  runId             String          @map("run_id")
+  stepId            String?         @map("step_id")
+  kind              SocialStepKind
+  status            SocialRunStatus @default(PENDING)
+  error             String?
+  /// Id da mensagem/resposta no provider — rastreia o envio de ponta a ponta.
+  externalMessageId String?         @map("external_message_id")
+  durationMs        Int?            @map("duration_ms")
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  run  SocialAutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  step SocialFlowStep?     @relation(fields: [stepId], references: [id], onDelete: SetNull)
+
+  @@index([runId])
+  @@index([stepId])
+  @@map("social_step_runs")
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { NasaLogo } from "./nasa-logo";
+import { OrbitaLogo } from "./orbita-logo";
 import { RotatingExample } from "./rotating-example";
 import { CommandInput, CommandInputProps } from "./command-input";
 import { ExampleLibrary } from "./example-library";
@@ -56,7 +56,7 @@ export function WelcomeScreen({
       <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col items-center gap-6">
         {/* 1. Logo */}
         <div className="flex flex-col items-center gap-2">
-          <NasaLogo className="w-[180px] sm:w-[240px] h-auto opacity-95" />
+          <OrbitaLogo className="w-[180px] sm:w-[240px] h-auto opacity-95" />
           <p className="text-[10px] font-bold tracking-[0.35em] text-zinc-500 uppercase">
             EXPLORER
           </p>

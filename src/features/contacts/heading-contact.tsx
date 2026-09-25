@@ -29,12 +29,24 @@ import {
 import { LeadImportDialog } from "./lead-import-dialog";
 import { LeadExportDialog } from "./lead-export-dialog";
 import { useState } from "react";
+import { useContactsFilters } from "./hooks/use-contacts-filters";
+import { useLeadSegments } from "./hooks/use-lead-segments";
 
 export default function HeadingContacts() {
   const searchLead = useSearchModal();
   const [modalImportIsOpen, setImportIsModal] = useState(false);
   const [modalExportIsOpen, setExportIsModal] = useState(false);
   const { isSingle } = useOrgRole();
+  const filters = useContactsFilters();
+  // O total no título é o do recorte atual: um número fixo ao lado de uma
+  // lista filtrada faria o usuário duvidar dos dois.
+  const { data: segments } = useLeadSegments({
+    trackingId: filters.trackingId,
+    tagIds: filters.tagIds,
+    dateField: filters.dateField,
+    from: filters.from,
+    to: filters.to,
+  });
   const { checkPermission } = useCheckPermission();
 
   const canExport = checkPermission("tracking", "canView");
@@ -44,18 +56,15 @@ export default function HeadingContacts() {
       <div className="flex items-center justify-between px-4 py-2 gap-2 border-b">
         <div className="flex items-center gap-2">
           <SidebarTrigger />
-          <h1 className="hidden sm:block">Leads</h1>
+          <h1 className="hidden items-center gap-2 sm:flex">
+            Leads
+            {segments ? (
+              <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                {segments.total}
+              </span>
+            ) : null}
+          </h1>
         </div>
-
-        <InputGroup
-          className="w-fit"
-          onClick={() => searchLead.setIsOpen(true)}
-        >
-          <InputGroupInput placeholder="Buscar contato" />
-          <InputGroupAddon>
-            <Search />
-          </InputGroupAddon>
-        </InputGroup>
 
         <div className="hidden sm:flex items-center gap-2">
           {!isSingle && (

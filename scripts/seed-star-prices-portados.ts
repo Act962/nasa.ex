@@ -110,6 +110,18 @@ const PORTED: PortedPrice[] = [
     maxCharge: 200,
   },
 
+  // ── ASTRO ───────────────────────────────────────────────────────────────
+  {
+    action: "astro_tokens",
+    label: "ASTRO — consumo por tokens",
+    origem: "chat/route.ts e astro-bot/stars-billing.ts STARS_PER_1K_TOKENS = 1",
+    unit: "token",
+    unitCost: 1,
+    unitDivisor: 1000,
+    minCharge: 1,
+    maxCharge: 500,
+  },
+
   // ── NASA Pages ──────────────────────────────────────────────────────────
   {
     action: "page_create",

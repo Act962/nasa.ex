@@ -661,7 +661,7 @@ export function FormSettings() {
         selectedChatIds={whatsappChats.map((e) => e.chatId)}
         onSelect={onSelectSendMessage}
       />
-      {/* ─── Padrão NASA ────────────────────────────────── */}
+      {/* ─── Padrão ÓRBITA ────────────────────────────────── */}
       {formId && (
         <>
           <Separator />

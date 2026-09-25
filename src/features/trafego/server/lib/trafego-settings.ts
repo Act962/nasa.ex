@@ -18,6 +18,10 @@ export interface TrafegoOperationsSettings {
   operationsTrackingId: string | null;
   statusColumnMap: TrafegoStatusColumnMap;
   briefingFormId: string | null;
+  /** Destino do lead captado no passo Contato (spec 0021). */
+  captureOrganizationId: string | null;
+  captureTrackingId: string | null;
+  captureStatusId: string | null;
   salesTrackingId: string | null;
   supportWhatsapp: string | null;
   includedCreatives: number;
@@ -42,6 +46,9 @@ const EMPTY_SETTINGS: TrafegoOperationsSettings = {
   operationsTrackingId: null,
   statusColumnMap: {},
   briefingFormId: null,
+  captureOrganizationId: null,
+  captureTrackingId: null,
+  captureStatusId: null,
   salesTrackingId: null,
   supportWhatsapp: null,
   includedCreatives: 3,
@@ -86,6 +93,9 @@ export async function loadTrafegoSettings(options?: {
         operationsTrackingId: row.operationsTrackingId,
         statusColumnMap: parseStatusColumnMap(row.statusColumnMap),
         briefingFormId: row.briefingFormId,
+        captureOrganizationId: row.captureOrganizationId,
+        captureTrackingId: row.captureTrackingId,
+        captureStatusId: row.captureStatusId,
         salesTrackingId: row.salesTrackingId,
         supportWhatsapp: row.supportWhatsapp,
         includedCreatives: row.includedCreatives,

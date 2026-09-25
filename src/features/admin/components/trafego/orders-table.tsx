@@ -58,9 +58,9 @@ export function TrafegoOrdersTable() {
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link href={`${adminPath}/planos`}>
+          <Link href={`${adminPath}/settings`}>
             <Settings2 className="mr-1.5 size-4" />
-            Planos e ajustes
+            Ajustes
           </Link>
         </Button>
       </div>

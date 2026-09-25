@@ -43,7 +43,7 @@ const NAV = [
   { href: "/admin/payments", icon: Landmark, label: "Gateways" },
   { href: "/admin/partners", icon: Handshake, label: "Parceiros" },
   { href: "/admin/moderators", icon: ShieldCheck, label: "Moderadores" },
-  { href: "/admin/patterns", icon: LayoutTemplate, label: "Padrões NASA" },
+  { href: "/admin/patterns", icon: LayoutTemplate, label: "Padrões ÓRBITA" },
   { href: "/admin/space-help", icon: GraduationCap, label: "Space Help" },
   { href: "/admin/space_station", icon: Globe, label: "Space Station" },
   { href: "/admin/atalhos", icon: Keyboard, label: "Atalhos" },
@@ -60,7 +60,7 @@ export function AdminSidebar() {
       <div className="px-5 py-5 border-b border-zinc-800 flex items-center gap-2">
         <ShieldCheck className="w-5 h-5 text-violet-400" />
         <span className="text-sm font-bold text-white tracking-wide">
-          NASA Admin
+          ÓRBITA Admin
         </span>
       </div>
 

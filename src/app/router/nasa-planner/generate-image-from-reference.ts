@@ -49,7 +49,7 @@ export const generateImageFromReference = base
       action: "planner_image_reference",
       userId: context.user.id,
       appSlug: "nasa-planner",
-      description: "NASA Planner — img2img Replicate SDXL",
+      description: "ÓRBITA Planner — img2img Replicate SDXL",
       feature: "planner.image.reference",
       cost: { kind: "IMAGE", provider: "replicate" },
     }, "Saldo de stars insuficiente");

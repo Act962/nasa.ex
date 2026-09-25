@@ -21,8 +21,8 @@ export function FormPdfDocument({
     <Document
       language="pt-BR"
       title={formName}
-      creator="NASA Platform"
-      producer="NASA Platform"
+      creator="ÓRBITA Platform"
+      producer="ÓRBITA Platform"
     >
       <Page size="A4" style={styles.page}>
         <View style={styles.pageHeader} fixed>

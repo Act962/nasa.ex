@@ -19,10 +19,10 @@ export function SpaceHelpHome() {
       <div className="rounded-3xl border border-border bg-gradient-to-br from-violet-600/10 via-fuchsia-500/5 to-amber-500/5 p-6 md:p-10">
         <div className="flex items-center gap-2 text-xs font-medium text-violet-700 dark:text-violet-300">
           <Sparkles className="size-4" />
-          NASA Space Help
+          ÓRBITA Space Help
         </div>
         <h1 className="mt-2 text-3xl md:text-5xl font-bold tracking-tight">
-          Aprenda. Evolua. Domine o NASA.
+          Aprenda. Evolua. Domine o ÓRBITA.
         </h1>
         <p className="mt-3 text-base md:text-lg text-muted-foreground max-w-3xl">
           Rotas de Conhecimento para escalar seu negócio + tutoriais práticos de cada
@@ -31,7 +31,7 @@ export function SpaceHelpHome() {
         </p>
       </div>
 
-      {/* Widget de progresso do Setup Inicial NASA — gamifica os 5 passos críticos */}
+      {/* Widget de progresso do Setup Inicial ÓRBITA — gamifica os 5 passos críticos */}
       <div className="mt-6">
         <SetupProgressWidget />
       </div>

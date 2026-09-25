@@ -13,7 +13,7 @@ export function SendNasaRouteNode(props: NodeProps<SendNasaRouteNodeType>) {
     <BaseSendAppActionNode<SendNasaRouteData>
       nodeProps={props}
       icon={GraduationCapIcon}
-      name="Enviar Curso NASA Route"
+      name="Enviar Curso ÓRBITA Route"
       description={
         props.data?.courseId
           ? `Curso: ${props.data.courseId.slice(0, 8)}…`

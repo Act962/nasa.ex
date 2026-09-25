@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
 import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { pusherServer } from "@/lib/pusher";
+import { notificationService } from "@/lib/notifications";
 import {
   isSeverity,
   resolveDisplaySurface,
@@ -34,6 +35,8 @@ export const NOTIF_TYPES = {
   PAYMENT_GOAL_REACHED:      "PAYMENT_GOAL_REACHED",
   PAYMENT_GOAL_WEEKLY:       "PAYMENT_GOAL_WEEKLY",
   PAYMENT_EXPENSE_CRITICAL:  "PAYMENT_EXPENSE_CRITICAL",
+  // ── trafeGO: lead captado no wizard (spec 0021) ───────────────────────
+  TRAFEGO_LEAD_CAPTURED:     "TRAFEGO_LEAD_CAPTURED",
 } as const;
 
 export type NotifType = (typeof NOTIF_TYPES)[keyof typeof NOTIF_TYPES];
@@ -60,6 +63,7 @@ export const NOTIF_META: Record<NotifType, { label: string; appKey: string; desc
   PAYMENT_GOAL_REACHED:      { label: "Meta de vendas batida",              appKey: "financeiro", description: "A receita recebida no mês atingiu a meta" },
   PAYMENT_GOAL_WEEKLY:       { label: "Resumo semanal do financeiro",       appKey: "financeiro", description: "Toda segunda: meta, despesas a pagar e caixa projetado" },
   PAYMENT_EXPENSE_CRITICAL:  { label: "Despesa derruba a reserva",          appKey: "financeiro", description: "Uma despesa lançada joga o caixa projetado abaixo da reserva" },
+  TRAFEGO_LEAD_CAPTURED:     { label: "Lead novo do trafeGO",               appKey: "trafego",    description: "Alguém preencheu o contato no wizard do trafeGO, mesmo sem pagar" },
 };
 
 interface CreateNotificationOptions {
@@ -170,6 +174,26 @@ export async function createNotification(opts: CreateNotificationOptions) {
     } catch {
       /* silencioso pra info */
     }
+  }
+
+  // Web Push — alcança quem está com o app fechado, onde o Pusher acima não
+  // chega. Best-effort por desenho: o registro no bell já está gravado e não
+  // pode ser invalidado por falha de entrega (spec 0022, RNF-1).
+  try {
+    await notificationService.send({
+      userIds: [userId],
+      notification: {
+        title,
+        body,
+        url: actionUrl ?? "/",
+        // Mesma notificação substitui a anterior em vez de empilhar.
+        tag: `${type}:${notif.id}`,
+        data: { notificationId: notif.id, eventType: type },
+      },
+      channels: ["web-push"],
+    });
+  } catch (err) {
+    console.error("[notification-service] web push falhou:", err);
   }
 
   // WhatsApp delivery

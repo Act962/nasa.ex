@@ -244,7 +244,7 @@ export const onProposalPaid = inngest.createFunction(
             <h3>🌐 Seu portal do cliente</h3>
             <p>Acompanhe tudo o que estamos fazendo para você em tempo real:<br>
             <a href="${portalUrl}" style="color:#7c3aed;font-weight:bold">${portalUrl}</a></p>
-            <p style="color:#888;font-size:12px;margin-top:32px">NASA — Resultados rápidos, organizados e transparentes.</p>
+            <p style="color:#888;font-size:12px;margin-top:32px">ÓRBITA — Resultados rápidos, organizados e transparentes.</p>
           </div>
         `,
       });

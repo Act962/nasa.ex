@@ -139,7 +139,7 @@ function ProductFormDialog({
                   <FormItem className="col-span-2">
                     <FormLabel>Nome</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Ex: Camiseta NASA Apollo" />
+                      <Input {...field} placeholder="Ex: Camiseta ÓRBITA Apollo" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -152,7 +152,7 @@ function ProductFormDialog({
                   <FormItem>
                     <FormLabel>SKU</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Ex: NASA-CAM-001" />
+                      <Input {...field} placeholder="Ex: ÓRBITA-CAM-001" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

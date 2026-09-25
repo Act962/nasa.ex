@@ -125,7 +125,7 @@ export const LABELS: Record<ElementType, string> = {
   video: "Vídeo",
   social: "Social",
   spacer: "Espaço",
-  "nasa-link": "Link NASA",
+  "nasa-link": "Link ÓRBITA",
   embed: "Embed",
   group: "Grupo",
   "section-hero": "Hero",

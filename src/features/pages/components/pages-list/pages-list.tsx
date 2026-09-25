@@ -63,10 +63,10 @@ export function PagesList() {
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             <Sparkles className="size-6 text-indigo-500" />
-            NASA Pages
+            ÓRBITA Pages
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Construa sites e landing pages integradas ao ecossistema NASA.
+            Construa sites e landing pages integradas ao ecossistema ÓRBITA.
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
@@ -97,7 +97,7 @@ export function PagesList() {
             <Sparkles className="size-8 text-muted-foreground" />
             <p className="font-medium">Nenhum site ainda</p>
             <p className="text-sm text-muted-foreground max-w-md">
-              Crie seu primeiro site NASA Pages por {cost?.stars ?? 2000} Stars. Você pode ter
+              Crie seu primeiro site ÓRBITA Pages por {cost?.stars ?? 2000} Stars. Você pode ter
               quantos sites quiser por organização.
             </p>
             <Button onClick={() => setWizardOpen(true)} className="mt-2 gap-2">

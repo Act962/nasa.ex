@@ -19,6 +19,7 @@ import {
   Send,
   TrendingUp,
   Sparkles,
+  AtSign,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type React from "react";
@@ -34,7 +35,7 @@ export interface SidebarNavItem {
 
 export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   // ── Visíveis por padrão (primeiro acesso) ───────────────────────────────
-  // Núcleo essencial pra novo user: 5 apps + página de Apps. Resto opt-in
+  // Núcleo essencial pra novo user: 6 apps + página de Apps. Resto opt-in
   // via página /apps (botão "+" no card adiciona ao menu).
   {
     key: "astro",
@@ -93,15 +94,15 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     alwaysVisible: false,
     defaultVisible: true,
   },
-  // ── Ocultos por padrão (opt-in via /apps "+") ───────────────────────────
   {
     key: "contatos",
     title: "Contatos",
     url: "/contatos",
     icon: Users,
     alwaysVisible: false,
-    defaultVisible: false,
+    defaultVisible: true,
   },
+  // ── Ocultos por padrão (opt-in via /apps "+") ───────────────────────────
   {
     key: "integrations",
     title: "Integrações",
@@ -152,7 +153,7 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   },
   {
     key: "nasa-route",
-    title: "NASA Route",
+    title: "ÓRBITA Route",
     url: "/nasa-route",
     icon: GraduationCap,
     alwaysVisible: false,
@@ -160,7 +161,7 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   },
   {
     key: "nasa-pages",
-    title: "NASA Pages",
+    title: "ÓRBITA Pages",
     url: "/pages",
     icon: LayoutTemplate,
     alwaysVisible: false,
@@ -173,6 +174,14 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     icon: Rocket,
     alwaysVisible: false,
     defaultVisible: false,
+  },
+  {
+    key: "comments",
+    title: "COMMENTS",
+    url: "/comments",
+    icon: AtSign,
+    alwaysVisible: false,
+    defaultVisible: true,
   },
   {
     key: "campanhas",

@@ -49,7 +49,7 @@ export const APPS: AppDef[] = [
   {
     id: "spacetime",
     name: "Agenda",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: SpaceTimeIcon,
     shortDesc: "Múltiplas agendas conectadas ao CRM e equipe",
@@ -66,7 +66,7 @@ export const APPS: AppDef[] = [
   {
     id: "astro",
     name: "ASTRO",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: AstroIcon,
     shortDesc: "IA treinada para informar, preparar e quebrar objeções",
@@ -83,7 +83,7 @@ export const APPS: AppDef[] = [
   {
     id: "trafego",
     name: "trafeGO",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: BoostIcon,
     shortDesc: "Contrate tráfego pago e disparos sem passar por agência",
@@ -100,7 +100,7 @@ export const APPS: AppDef[] = [
   {
     id: "campanhas",
     name: "CAMPANHAS",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: BoostIcon,
     shortDesc: "Disparos em massa via WhatsApp API Oficial (Meta)",
@@ -117,7 +117,7 @@ export const APPS: AppDef[] = [
   {
     id: "comments",
     name: "COMMENTS",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: CommentsIcon,
     shortDesc: "Automatize respostas nos comentários do Instagram",
@@ -129,11 +129,12 @@ export const APPS: AppDef[] = [
     href: "/comments",
     activeUsers: null,
     theme: "purple",
+    sidebarKey: "comments",
   },
   {
     id: "forge",
     name: "FORGE",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: ForgeIcon,
     shortDesc: "Propostas comerciais e contratos com assinatura digital",
@@ -150,7 +151,7 @@ export const APPS: AppDef[] = [
   {
     id: "cosmic",
     name: "Formulários",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: CosmicIcon,
     shortDesc: "Formulários inteligentes que viram dados estratégicos no CRM",
@@ -167,7 +168,7 @@ export const APPS: AppDef[] = [
   {
     id: "linnker",
     name: "LINNKER",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: LinnkerIcon,
     shortDesc: "Links personalizados que direcionam, organizam e viram dados",
@@ -184,7 +185,7 @@ export const APPS: AppDef[] = [
   {
     id: "nbox",
     name: "N-BOX",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: NBoxIcon,
     shortDesc: "Gestão de documentos, arquivos e links da organização",
@@ -204,8 +205,8 @@ export const APPS: AppDef[] = [
     // manualmente em "Personalizar menu" (entry em sidebar-items.ts
     // com defaultVisible: false).
     id: "nasa-pages",
-    name: "NASA PAGES",
-    byline: "by NASA®",
+    name: "ÓRBITA PAGES",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: LinnkerIcon, // ← TODO: substituir por NasaPagesIcon dedicado
     shortDesc: "Construa landing pages completas com templates prontos",
@@ -221,14 +222,14 @@ export const APPS: AppDef[] = [
   },
   {
     id: "nasa-planner",
-    name: "NASA PLANNER",
-    byline: "by NASA®",
+    name: "ÓRBITA PLANNER",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: NasaPlannerIcon,
     shortDesc:
       "Planeje, crie e execute estratégias de marketing com IA e Mapas Mentais",
     fullDesc:
-      "Planejamento estratégico de marketing com IA e Mapas Mentais. Crie múltiplos planners com identidade de marca, Voz & Tom, SWOT e IA integrados. Gere posts para redes sociais, organize ações em mapas mentais (Gantt, diagrama, checklist), acompanhe no calendário e compartilhe com clientes via link. Conectado a todos os apps do NASA.",
+      "Planejamento estratégico de marketing com IA e Mapas Mentais. Crie múltiplos planners com identidade de marca, Voz & Tom, SWOT e IA integrados. Gere posts para redes sociais, organize ações em mapas mentais (Gantt, diagrama, checklist), acompanhe no calendário e compartilhe com clientes via link. Conectado a todos os apps do ÓRBITA.",
     category: "Marketing",
     integration: "Demand · Tracking · N-Box · Spacetime · Nasachat · Insights",
     action: "internal",
@@ -239,13 +240,13 @@ export const APPS: AppDef[] = [
   },
   {
     id: "nasa-route",
-    name: "NASA ROUTE",
-    byline: "by NASA®",
+    name: "ÓRBITA ROUTE",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: NasaRouteIcon,
     shortDesc: "Cursos, treinamentos e mentorias pagos com STARs",
     fullDesc:
-      "Área de membros estilo Hotmart dentro do NASA. Crie e venda cursos gravados, treinamentos e mentorias usando STARs como moeda. Cada aula concluída concede Space Points para o aluno e o criador recebe 90% do valor em STARs (10% taxa da plataforma). Suporta vídeos do YouTube e Vimeo.",
+      "Área de membros estilo Hotmart dentro do ÓRBITA. Crie e venda cursos gravados, treinamentos e mentorias usando STARs como moeda. Cada aula concluída concede Space Points para o aluno e o criador recebe 90% do valor em STARs (10% taxa da plataforma). Suporta vídeos do YouTube e Vimeo.",
     category: "Educação",
     integration: "STARs · Space Points · YouTube · Vimeo",
     action: "internal",
@@ -257,7 +258,7 @@ export const APPS: AppDef[] = [
   {
     id: "nasachat",
     name: "NASACHAT",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: NasaChatIcon,
     shortDesc: "WhatsApp organizado com histórico, CRM e IA integrados",
@@ -274,12 +275,12 @@ export const APPS: AppDef[] = [
   {
     id: "nerp",
     name: "NERP",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: NerpIcon,
     shortDesc: "ERP inteligente integrado ao comercial e ao atendimento",
     fullDesc:
-      "Controle financeiro, loja online, frente de caixa e dados do negócio em um só lugar — tudo integrado ao restante do ecossistema NASA.",
+      "Controle financeiro, loja online, frente de caixa e dados do negócio em um só lugar — tudo integrado ao restante do ecossistema ÓRBITA.",
     category: "Gestão",
     integration: "ERP",
     action: "internal",
@@ -290,7 +291,7 @@ export const APPS: AppDef[] = [
   {
     id: "payment",
     name: "PAYMENT",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: PaymentIcon,
     shortDesc: "Gestão financeira: contas, fluxo de caixa, boletos e PIX",
@@ -307,7 +308,7 @@ export const APPS: AppDef[] = [
   {
     id: "space-station",
     name: "SPACE STATION",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: SpaceStationIcon,
     shortDesc:
@@ -325,7 +326,7 @@ export const APPS: AppDef[] = [
   {
     id: "tracking",
     name: "TRACKING",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: TrackingIcon,
     shortDesc: "Rota completa do cliente do primeiro contato à venda",
@@ -342,7 +343,7 @@ export const APPS: AppDef[] = [
   {
     id: "demand",
     name: "Workspace",
-    byline: "by NASA®",
+    byline: "by ÓRBITA®",
     status: "installed",
     icon: DemandIcon,
     shortDesc:

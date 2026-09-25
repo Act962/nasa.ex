@@ -182,7 +182,7 @@ function TemplatePreview({
   const PREVIEW_VARS: Record<string, string> = {
     nome_usuario: "Astronauta",
     quantidade_stars: "250",
-    nome_plano: "NASA Pro",
+    nome_plano: "ÓRBITA Pro",
     quantidade_space_points: "1.200",
     nova_conquista: template.name || "Nova conquista",
     meu_ranking: "12º",

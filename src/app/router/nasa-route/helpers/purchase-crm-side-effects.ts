@@ -73,7 +73,7 @@ export async function createPurchaseSideEffects(
         organizationId: input.creatorOrgId,
         type: "RECEIVABLE",
         status: "PAID", // já foi pago via STARs no momento da compra
-        description: `Venda NASA Route — ${input.course.title} (${input.planName})`,
+        description: `Venda ÓRBITA Route — ${input.course.title} (${input.planName})`,
         amount: amountCents,
         paidAmount: amountCents,
         dueDate: new Date(),
@@ -197,7 +197,7 @@ async function createOrActivateLead(args: {
     data: {
       trackingId,
       statusId,
-      name: buyer.name ?? buyer.email ?? "Comprador NASA Route",
+      name: buyer.name ?? buyer.email ?? "Comprador ÓRBITA Route",
       email: buyer.email ?? null,
       phone: buyer.phone ?? null,
       description: `Comprou: ${courseTitle}`,

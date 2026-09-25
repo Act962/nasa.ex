@@ -1,30 +1,25 @@
 import Image from "next/image";
 
 /**
- * Logo NASA. Texto "Nasa.ex" removido por decisão visual, só o
- * símbolo. Tamanho aumentado 5× (40px → 200px) pra ganhar
- * presença na navbar. width/height intrínsecos foram escalados
- * mantendo proporção 1:1.
+ * Logo da ÓRBITA. Duas artes do mesmo SVG: a branca para fundo escuro e a
+ * escura para fundo claro — o arquivo tem cor fixa, não herda `currentColor`.
  */
 export function Logo() {
   return (
     <div className="hidden md:flex items-center">
-      {/* Logo PNG intrínseca: 600×200 (proporção 3:1).
-          Em 500% baseado na altura original de 40px → altura 200px,
-          largura proporcional (600px) via `w-auto`. */}
       <Image
-        src={"/logo-dark.png"}
-        height={200}
-        width={300}
-        alt="N.A.S.A"
+        src={"/orbita-logo-dark.svg"}
+        height={60}
+        width={225}
+        alt="ÓRBITA"
         className="hidden dark:block h-[35px] w-auto"
         priority
       />
       <Image
-        src={"/logo.png"}
-        height={200}
-        width={300}
-        alt="N.A.S.A"
+        src={"/orbita-logo.svg"}
+        height={60}
+        width={225}
+        alt="ÓRBITA"
         className="dark:hidden h-[35px] w-auto"
         priority
       />

@@ -1,18 +1,14 @@
 "use client";
 
-import {
-  CalendarClock,
-  CalendarDays,
-  Check,
-  TriangleAlert,
-} from "lucide-react";
+import { CalendarClock, Check, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   estimateEarliestStart,
   formatStartDate,
   isDesiredStartTooSoon,
 } from "@/features/trafego/lib/timeline";
-import { Field, fieldClass } from "./field";
+import { DateField } from "./date-field";
+import { Field } from "./field";
 import { TechnicalTerm } from "../../technical-term";
 
 export interface TimingDraft {
@@ -56,18 +52,12 @@ export function TimingStep({
   return (
     <div className="space-y-5">
       <Field label="Quando você quer começar?" wide>
-        <div className="relative">
-          <CalendarDays className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-white/30" />
-          <input
-            type="date"
-            value={value.desiredStartAt}
-            min={new Date().toISOString().slice(0, 10)}
-            onChange={(event) =>
-              patch({ desiredStartAt: event.target.value, acknowledged: false })
-            }
-            className={`${fieldClass} [color-scheme:dark]`}
-          />
-        </div>
+        <DateField
+          value={value.desiredStartAt}
+          onChange={(desiredStartAt) =>
+            patch({ desiredStartAt, acknowledged: false })
+          }
+        />
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">

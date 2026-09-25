@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import type { UIMessage } from "ai";
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { streamAstro } from "@/features/astro/server/orchestrator";
@@ -13,6 +14,12 @@ import type { AgentKey } from "@/features/astro/schemas/agent-config";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { meter } from "@/features/stars/lib/metering";
 import { generateAutoTitle } from "@/features/astro/lib/auto-title";
+import { classifyStaged } from "@/features/astro/actions/classify-staged";
+import {
+  runAstroQuery,
+  type AstroQueryResult,
+} from "@/features/astro/queries/registry";
+import { runClassifiedAction } from "@/features/astro/actions/run-classified-action";
 
 /**
  * Ratio de cobrança em Stars por tokens consumidos pelo Astro.
@@ -70,6 +77,93 @@ function describeStreamError(streamError: unknown): string {
  * Retorna:
  *   - UI message stream do AI SDK (`toUIMessageStreamResponse`).
  */
+/**
+ * Chave de rollback da spec 0023: desligada, todo pedido vai direto ao
+ * orquestrador — que é exatamente o comportamento anterior à spec.
+ */
+const ASTRO_INTENT_ROUTING = process.env.ASTRO_INTENT_ROUTING !== "false";
+
+/** Falas anteriores, para o classificador resolver "ele", "a última", etc. */
+function extractConversationHistory(messages: UIMessage[]): string[] {
+  return messages
+    .slice(0, -1)
+    .filter((message) => message.role === "user" || message.role === "assistant")
+    .map((message) => {
+      if (!Array.isArray(message.parts)) return "";
+      const text = message.parts
+        .filter((part): part is { type: "text"; text: string } => part.type === "text")
+        .map((part) => part.text)
+        .join(" ")
+        .trim();
+      return text ? `${message.role === "user" ? "Usuário" : "Astro"}: ${text}` : "";
+    })
+    .filter(Boolean);
+}
+
+/**
+ * O turno anterior do Astro deixou uma pergunta no ar?
+ *
+ * "Financeiro", respondendo a "qual tracking?", casou com a consulta do
+ * financeiro e devolveu contas a pagar. Resposta curta a uma pergunta
+ * pendente não é pedido novo — e enquanto houver pergunta no ar, a camada
+ * de consulta fica de fora.
+ */
+const PENDING_QUESTION =
+  /me diga:|para eu continuar|qual deles\?|escolha |ou workspace\?|me diga o |qual o nome|em qual /i;
+
+function lastAssistantAsked(messages: UIMessage[]): boolean {
+  const lastAssistant = [...messages]
+    .slice(0, -1)
+    .reverse()
+    .find((message) => message.role === "assistant");
+  if (!lastAssistant || !Array.isArray(lastAssistant.parts)) return false;
+  const text = lastAssistant.parts
+    .filter((part): part is { type: "text"; text: string } => part.type === "text")
+    .map((part) => part.text)
+    .join(" ");
+  return PENDING_QUESTION.test(text);
+}
+
+function extractLastUserText(messages: UIMessage[]): string {
+  const lastUser = [...messages].reverse().find((message) => message.role === "user");
+  if (!lastUser || !Array.isArray(lastUser.parts)) return "";
+  return lastUser.parts
+    .filter((part): part is { type: "text"; text: string } => part.type === "text")
+    .map((part) => part.text)
+    .join(" ")
+    .trim();
+}
+
+/**
+ * Resposta de consulta em código, no mesmo formato de stream que o cliente já
+ * renderiza — tabela vira cartão, texto vira mensagem.
+ */
+function buildQueryResponse(result: AstroQueryResult): Response {
+  const toolCallId = `astro-query-${Date.now()}`;
+  const stream = createUIMessageStream({
+    execute: async ({ writer }) => {
+      if (result.table) {
+        writer.write({
+          type: "tool-input-available",
+          toolCallId,
+          toolName: "consulta",
+          input: {},
+        });
+        writer.write({
+          type: "tool-output-available",
+          toolCallId,
+          output: result.table,
+        });
+      }
+      const textId = `${toolCallId}-text`;
+      writer.write({ type: "text-start", id: textId });
+      writer.write({ type: "text-delta", id: textId, delta: result.text });
+      writer.write({ type: "text-end", id: textId });
+    },
+  });
+  return createUIMessageStreamResponse({ stream });
+}
+
 export async function POST(req: Request) {
   console.log("[ASTRO/chat] POST start");
   const sessionData = await auth.api.getSession({ headers: await headers() });
@@ -178,6 +272,83 @@ export async function POST(req: Request) {
     }
   } catch (e) {
     console.error("[ASTRO/chat] charge failed (continuing)", e);
+  }
+
+  // ── Roteamento por intenção (spec 0023, RF-3/RF-4) ──────────────────────
+  // Antes de montar o orquestrador com as 91 ferramentas, um classificador
+  // barato tenta resolver o pedido como ação direta. Qualquer dúvida, falha
+  // ou campo faltando cai no orquestrador, que é o comportamento de sempre.
+  if (ASTRO_INTENT_ROUTING && !isTrafegoScope) {
+    const routingStartedAt = Date.now();
+    const lastUserText = extractLastUserText(uiMessages);
+    if (lastUserText) {
+      // Consulta simples responde em código, antes de qualquer modelo:
+      // "quantos leads temos" é um count(), e ia custar 43 mil tokens para
+      // voltar "não tenho acesso aos dados".
+      const answeringAQuestion = lastAssistantAsked(uiMessages);
+      const queried = answeringAQuestion
+        ? null
+        : await runAstroQuery({
+            ctx: { userId, organizationId } as never,
+            text: lastUserText,
+            history: extractConversationHistory(uiMessages),
+          });
+      if (queried) {
+        console.log(`[ASTRO/chat] consulta em código resolveu: ${queried.key}`);
+        return buildQueryResponse(queried.result);
+      }
+
+      const conversationHistory = extractConversationHistory(uiMessages);
+      const classification = await classifyStaged({
+        organizationId,
+        text: lastUserText,
+        history: conversationHistory,
+      });
+      if (classification) {
+        const classified = await runClassifiedAction({
+          ctx: {
+            userId,
+            organizationId,
+            route: parsed.context ?? {},
+            sessionId,
+            channel: "CHAT",
+          } as never,
+          classification,
+          userText: lastUserText,
+          history: conversationHistory,
+        });
+        if (classified) {
+          console.log(
+            `[ASTRO/chat] camada ${classified.route} resolveu: ${classified.actionKey} ` +
+              `(app ${classification.app})`,
+          );
+          // RNF-4: o caminho barato também entra no registro de custo, senão
+          // a economia fica invisível no relatório — some da conta em vez de
+          // aparecer como zero.
+          void meter({
+            organizationId,
+            action: "astro_tokens",
+            userId,
+            quantity: { unit: "token", amount: classified.tokensUsed },
+            appSlug: "astro",
+            description: `Astro — ${classified.actionKey} via ${classified.route}`,
+            feature: "astro.classifier",
+            sessionId,
+            cost: {
+              kind: "LLM",
+              provider: classified.provider,
+              modelId: classified.modelId,
+              tokens: { totalTokens: classified.tokensUsed },
+              latencyMs: Date.now() - routingStartedAt,
+            },
+            metadata: { route: classified.route, action: classified.actionKey },
+          }).catch((error) => {
+            console.warn("[ASTRO/chat] métrica do classificador falhou:", error);
+          });
+          return classified.response;
+        }
+      }
+    }
   }
 
   // Anexos declarados na última mensagem do usuário (spec 0014, D-3). O

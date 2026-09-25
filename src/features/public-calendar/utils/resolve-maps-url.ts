@@ -15,7 +15,7 @@
 
 const USER_AGENT =
   process.env.NOMINATIM_USER_AGENT ??
-  "NASA-SpaceStation/1.0 (contato@nasaagents.com)";
+  "ÓRBITA-SpaceStation/1.0 (contato@nasaagents.com)";
 
 // Cache em memória (process-local). Mesmo dado de geocode, expira em 30
 // dias. URLs do Maps tendem a ser estáveis (não mudam), então cache aqui

@@ -263,7 +263,7 @@ export const SECTION_META: Partial<Record<AppModule, SectionMeta>> = {
   tracking: { label: "Performance de Tracking", description: "Tempo por status, performance por atendente e conversão", icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/40" },
   forge: { label: "Forge — Propostas & Contratos", description: "Propostas comerciais geradas e contratos assinados no período", icon: Flame, color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-950/40" },
   spacetime: { label: "SpaceTime — Agendamentos", description: "Reuniões e compromissos agendados no período", icon: Calendar, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/40" },
-  "nasa-planner": { label: "NASA Post — Conteúdo", description: "Posts criados e publicados no período", icon: Sparkles, color: "text-pink-600", bg: "bg-pink-50 dark:bg-pink-950/40" },
+  "nasa-planner": { label: "ÓRBITA Post — Conteúdo", description: "Posts criados e publicados no período", icon: Sparkles, color: "text-pink-600", bg: "bg-pink-50 dark:bg-pink-950/40" },
   integrations: { label: "Integrações — Meta Ads", description: "Investimento e performance em campanhas Meta", icon: Plug, color: "text-cyan-600", bg: "bg-cyan-50 dark:bg-cyan-950/40" },
   workspace: { label: "Workspace — Ações", description: "Tarefas e ações registradas no Workspace", icon: ListTodo, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/40" },
   forms: { label: "Formulários", description: "Formulários publicados e respostas recebidas", icon: FormInput, color: "text-teal-600", bg: "bg-teal-50 dark:bg-teal-950/40" },
@@ -273,7 +273,7 @@ export const SECTION_META: Partial<Record<AppModule, SectionMeta>> = {
   "space-points": { label: "Space Points", description: "Saldo e movimentação de pontos da empresa", icon: Coins, color: "text-yellow-600", bg: "bg-yellow-50 dark:bg-yellow-950/40" },
   stars: { label: "Stars", description: "Saldo e movimentação de Stars da empresa", icon: Star, color: "text-fuchsia-600", bg: "bg-fuchsia-50 dark:bg-fuchsia-950/40" },
   "space-station": { label: "Space Station", description: "Estações, acessos e stars trocadas", icon: Rocket, color: "text-indigo-600", bg: "bg-indigo-50 dark:bg-indigo-950/40" },
-  "nasa-route": { label: "NASA Route — Cursos", description: "Cursos publicados, matrículas e conclusões", icon: MapIcon, color: "text-sky-600", bg: "bg-sky-50 dark:bg-sky-950/40" },
+  "nasa-route": { label: "ÓRBITA Route — Cursos", description: "Cursos publicados, matrículas e conclusões", icon: MapIcon, color: "text-sky-600", bg: "bg-sky-50 dark:bg-sky-950/40" },
 };
 
 // ─── Catálogo agregado ──────────────────────────────────────────────────────

@@ -177,7 +177,7 @@ export function AstroAnimatedMock() {
                 Proposta Comercial, João Silva
               </p>
               <p className="text-white/40 text-[9px] leading-relaxed">
-                Plano NASA Explore · 3 usuários · WhatsApp + CRM + Insights
+                Plano ÓRBITA Explore · 3 usuários · WhatsApp + CRM + Insights
               </p>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-emerald-400 text-[10px] font-bold">

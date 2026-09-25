@@ -21,10 +21,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useUpdatePaymentEntry,
+  useGenerateEntryInstallments,
   usePaymentCategories,
   usePaymentContacts,
   usePaymentAccounts,
 } from "../../hooks/use-payment";
+import { Checkbox } from "@/components/ui/checkbox";
+import { MAX_INSTALLMENTS } from "../../schemas/entry-form-schema";
 import { formatCurrency, parseCurrencyToCents } from "../../lib/format";
 import { toDateInputValue } from "../../lib/dates";
 import { describePaymentError } from "../../lib/describe-error";
@@ -48,6 +51,8 @@ interface EditableEntry {
   accountId: string | null;
   documentNumber: string | null;
   notes: string | null;
+  installmentTotal: number | null;
+  installmentCurrent: number | null;
 }
 
 interface EntryEditDialogProps {
@@ -67,8 +72,12 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
   const [documentNumber, setDocumentNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [isInstallment, setIsInstallment] = useState(false);
+  const [installmentCurrentStr, setInstallmentCurrentStr] = useState("");
+  const [installmentTotalStr, setInstallmentTotalStr] = useState("");
   const [fieldErrors, setFieldErrors] = useState<EntryFieldErrors>({});
   const updateEntry = useUpdatePaymentEntry();
+  const generateInstallments = useGenerateEntryInstallments();
 
   function clearFieldError(field: keyof EntryFieldErrors) {
     setFieldErrors((current) =>
@@ -93,9 +102,14 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
     setAccountId(entry.accountId ?? NONE);
     setDocumentNumber(entry.documentNumber ?? "");
     setNotes(entry.notes ?? "");
+    setIsInstallment(Boolean(entry.installmentTotal));
+    setInstallmentCurrentStr(String(entry.installmentCurrent ?? 1));
+    setInstallmentTotalStr(String(entry.installmentTotal ?? 2));
     // Abre já expandido quando há algo preenchido lá dentro, senão o campo
     // some da vista de quem veio justamente conferi-lo.
-    setShowMoreOptions(Boolean(entry.contactId || entry.documentNumber));
+    setShowMoreOptions(
+      Boolean(entry.contactId || entry.documentNumber || entry.installmentTotal),
+    );
     setFieldErrors({});
   }, [entry]);
 
@@ -114,6 +128,11 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
       return;
     }
 
+    if (isInstallment && installmentCurrent > installmentTotal) {
+      toast.error("A parcela não pode ser maior que o total de parcelas");
+      return;
+    }
+
     setFieldErrors({});
     try {
       await updateEntry.mutateAsync({
@@ -126,11 +145,35 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
         accountId: accountId === NONE ? null : accountId,
         documentNumber: documentNumber.trim() ? documentNumber.trim() : null,
         notes: notes.trim() ? notes : null,
+        installmentTotal: isInstallment ? installmentTotal : null,
+        installmentCurrent: isInstallment ? installmentCurrent : null,
       });
       toast.success("Lançamento atualizado");
       onClose();
     } catch (error) {
       toast.error(describePaymentError(error, "Não foi possível atualizar o lançamento"));
+    }
+  }
+
+  const installmentCurrent = Number(installmentCurrentStr) || 1;
+  const installmentTotal = Number(installmentTotalStr) || 1;
+  const missingInstallments = Math.max(0, installmentTotal - installmentCurrent);
+
+  async function handleGenerateInstallments() {
+    if (!entry) return;
+    try {
+      const result = await generateInstallments.mutateAsync({
+        id: entry.id,
+        installmentTotal,
+      });
+      toast.success(
+        result.createdCount === 1
+          ? "1 parcela criada"
+          : `${result.createdCount} parcelas criadas`,
+      );
+      onClose();
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível gerar as parcelas"));
     }
   }
 
@@ -252,6 +295,66 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
                     value={documentNumber}
                     onChange={(event) => setDocumentNumber(event.target.value)}
                   />
+                </div>
+
+                <div className="space-y-2 border-t border-border/60 pt-3">
+                  <Label>Parcelas</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Parcela</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={MAX_INSTALLMENTS}
+                      className="w-16"
+                      value={installmentCurrentStr}
+                      disabled={!isInstallment}
+                      onChange={(event) => setInstallmentCurrentStr(event.target.value)}
+                    />
+                    <span className="text-sm text-muted-foreground">de</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={MAX_INSTALLMENTS}
+                      className="w-16"
+                      value={installmentTotalStr}
+                      disabled={!isInstallment}
+                      onChange={(event) => setInstallmentTotalStr(event.target.value)}
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Checkbox
+                      checked={!isInstallment}
+                      onCheckedChange={(checked) => setIsInstallment(!checked)}
+                    />
+                    Lançamento avulso (sem parcela)
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Corrige só o rótulo deste lançamento. Não cria nem apaga nada.
+                  </p>
+
+                  {isInstallment && (
+                    <div className="space-y-1.5 rounded-lg border border-border/60 p-2.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        disabled={missingInstallments === 0 || generateInstallments.isPending}
+                        onClick={handleGenerateInstallments}
+                      >
+                        {generateInstallments.isPending
+                          ? "Gerando..."
+                          : "Gerar parcelas seguintes"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        {missingInstallments === 0
+                          ? "Esta já é a última parcela da série."
+                          : `Cria as parcelas ${installmentCurrent + 1} a ${installmentTotal}, ` +
+                            `mês a mês a partir deste vencimento, no mesmo valor. ` +
+                            `As que já existirem são preservadas.`}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

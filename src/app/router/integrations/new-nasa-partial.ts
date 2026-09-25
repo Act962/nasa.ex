@@ -56,7 +56,7 @@ const slugify = (text: string) => {
 export const newNasaIntegrationPartial = base
   .route({
     method: "POST",
-    summary: "Integrate with NASA Bubble API",
+    summary: "Integrate with ÓRBITA Bubble API",
     tags: ["Integrations"],
   })
   .input(

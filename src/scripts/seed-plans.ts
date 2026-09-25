@@ -77,7 +77,7 @@ const PLANS: PlanSeed[] = [
       "25% de rollover de Stars",
       "Suporta ~80 usuários ativos/mês",
       "IA ASTRO completo",
-      "NASA Planner + Mind Maps",
+      "ÓRBITA Planner + Mind Maps",
       "Space Points gamificado",
       "Suporte dedicado",
     ],

@@ -327,7 +327,7 @@ export function AreaEditor({ areas, onChange }: Props) {
             </div>
           )}
 
-          {/* ─── Funções NASA ──────────────────────────────────────────── */}
+          {/* ─── Funções ÓRBITA ──────────────────────────────────────────── */}
           {selected.type === "n-box" && (
             <NBoxItemPicker
               value={selected.props?.nboxItemId ?? ""}
@@ -516,10 +516,10 @@ export function AreaEditor({ areas, onChange }: Props) {
             </>
           )}
 
-          {/* TODO runtime: o comportamento de cada Função NASA ao o player
+          {/* TODO runtime: o comportamento de cada Função ÓRBITA ao o player
               entrar/clicar é wireado em world-scene.ts (handleAreaEnter /
               handleAreaClick). Como cada função integra com módulos
-              diferentes (N-Box files, Workspace actions, Tracking, NASA
+              diferentes (N-Box files, Workspace actions, Tracking, ÓRBITA
               Route, formulários, etc.), a implementação é incremental. */}
 
           <div className="grid grid-cols-2 gap-2">
@@ -744,7 +744,7 @@ function CoursePicker({
       </select>
       {!isLoading && courses.length === 0 && (
         <p className="mt-1 text-[10px] text-slate-500">
-          Nenhum curso cadastrado — crie um em NASA Route.
+          Nenhum curso cadastrado — crie um em ÓRBITA Route.
         </p>
       )}
     </Field>

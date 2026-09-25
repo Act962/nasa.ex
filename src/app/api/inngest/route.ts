@@ -37,6 +37,7 @@ import { publishPostHandler } from "@/inngest/functions/nasa-planner/publish-pos
 import { publishScheduledPosts } from "@/inngest/functions/nasa-planner/publish-scheduled-posts";
 import { refreshMetaTokens } from "@/inngest/functions/nasa-planner/refresh-meta-tokens";
 import { syncPostMetricsCron } from "@/inngest/functions/nasa-planner/sync-post-metrics-cron";
+import { syncPriceSuggestionsCron } from "@/inngest/functions/forge/sync-price-suggestions-cron";
 import { syncMetaAdsKpis } from "@/inngest/functions/crons/sync-meta-ads-kpis";
 import { astroCommanderTick } from "@/inngest/functions/astro-commander/commander-tick";
 import { astroCommandRun } from "@/inngest/functions/astro-commander/run-command";
@@ -216,5 +217,7 @@ export const { GET, POST, PUT } = serve({
     // checkMilestones,
     // onProposalPaid,
     // onOnboardingFormsCompleted,
+    // ── FORGE (simulador de custos: sync de preços suggest-only) ──
+    syncPriceSuggestionsCron,
   ],
 });

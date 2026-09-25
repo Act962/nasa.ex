@@ -50,7 +50,7 @@ export function AutomationSection() {
     {
       key: "entrega",
       label: "Entrega",
-      desc: "NASA Route libera o conteúdo, atendimento segue com tudo",
+      desc: "ÓRBITA Route libera o conteúdo, atendimento segue com tudo",
       color: "from-orange-500/30 to-orange-500/10",
       ring: "ring-orange-500/30",
       text: "text-orange-300",
@@ -86,7 +86,7 @@ export function AutomationSection() {
             cliente chega e a mensagem certa sai na hora certa. A venda fecha e
             o atendimento já recebe tudo, com o histórico junto. Chega a hora
             de cobrar, o Payment gera a cobrança e dá baixa sozinho. A entrega
-            é liberada no NASA Route. É um ciclo que não para, e a sua equipe
+            é liberada no ÓRBITA Route. É um ciclo que não para, e a sua equipe
             só entra onde precisa de decisão de gente.
           </p>
         </div>

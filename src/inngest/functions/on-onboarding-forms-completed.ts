@@ -45,7 +45,7 @@ async function callPollinationsJSON<T>(prompt: string, fallback: T): Promise<T> 
 
 function generateCompanyCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "NASA-";
+  let code = "ÓRBITA-";
   for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
   return code;
 }

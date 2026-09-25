@@ -37,6 +37,9 @@ export const getTrafegoSettings = base
         operationsTrackingId: null,
         statusColumnMap: {},
         briefingFormId: null,
+        captureOrganizationId: null,
+        captureTrackingId: null,
+        captureStatusId: null,
         partnerBusinessId: null,
         whatsappActivationTemplate: null,
         whatsappStatusTemplate: null,
@@ -77,6 +80,9 @@ export const updateTrafegoSettings = base
       operationsTrackingId: nullableId,
       statusColumnMap: z.record(z.string(), z.string()).optional(),
       briefingFormId: nullableId,
+      captureOrganizationId: nullableId,
+      captureTrackingId: nullableId,
+      captureStatusId: nullableId,
       partnerBusinessId: z.string().trim().max(40).nullable(),
       whatsappActivationTemplate: z.string().trim().max(120).nullable(),
       whatsappStatusTemplate: z.string().trim().max(120).nullable(),
@@ -155,6 +161,31 @@ export const updateTrafegoSettings = base
           "O formulário de briefing não pertence à organização da agência.",
         );
       }
+    }
+
+    // A captura tem org própria: o funil comercial não precisa morar na org da
+    // agência (spec 0021, D-1). Por isso confere contra `captureOrganizationId`.
+    if (input.captureOrganizationId && input.captureTrackingId) {
+      await assertBelongsToOrg(
+        prisma.tracking.count({
+          where: {
+            id: input.captureTrackingId,
+            organizationId: input.captureOrganizationId,
+          },
+        }),
+        "O tracking de captura não pertence à organização escolhida.",
+      );
+    }
+    if (input.captureTrackingId && input.captureStatusId) {
+      await assertBelongsToOrg(
+        prisma.status.count({
+          where: {
+            id: input.captureStatusId,
+            trackingId: input.captureTrackingId,
+          },
+        }),
+        "A coluna de captura não pertence ao tracking escolhido.",
+      );
     }
 
     const statusColumnMap = parseStatusColumnMap(input.statusColumnMap ?? {});

@@ -89,6 +89,10 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 - `SYNC_SHARED_SECRET` — chave master HMAC do sync bidirecional de auth NASA ↔ NERP (`feature/sync`). **Mesmo valor** nos dois apps (`openssl rand -hex 32`). Assina/verifica `User/Account/Organization/Member` replicados via `src/features/sync/lib/system-cred.ts`.
 - `SYNC_API_KEY` — identifica o caller app↔app no sync (mesmo valor nos dois).
 - `NERP_BASE_URL` — base do NERP (mesma usada pela integração por-org e pelo sync). O sync (`src/http/sync-nerp/client.ts`) entrega em `NERP_BASE_URL + /api/sync/nasa`; `NERP_SYNC_BASE_URL` é override opcional caso o sync precise de um host diferente.
+- `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — par de chaves do Web Push (spec 0022). Gerar com `npx web-push generate-vapid-keys`. **A privada nunca pode ganhar prefixo `NEXT_PUBLIC_`** — iria para o bundle do browser.
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY` — mesma chave pública acima, exposta ao client para `pushManager.subscribe`. Pública por definição do protocolo. Trocar o par invalida todas as inscrições existentes (elas passam a devolver 403 e ficam no banco de propósito — ver spec 0022, D-4).
+- `VAPID_SUBJECT` — contato exigido pelo protocolo (`mailto:...` ou URL). Padrão: `mailto:suporte@nasaex.com`. Ausente não quebra.
+- Sem `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`, o canal Web Push se declara indisponível e o envio vira no-op — o resto das notificações (bell, popup, Pusher) segue funcionando.
 
 ## Estrutura do Projeto
 

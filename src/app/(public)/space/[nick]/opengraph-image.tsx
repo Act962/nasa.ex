@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import prisma from "@/lib/prisma";
 
 export const runtime = "nodejs";
-export const alt = "Spacehome NASA";
+export const alt = "Spacehome ÓRBITA";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -39,10 +39,10 @@ export default async function SpaceOgImage({ params }: Props) {
     !station.org ||
     !station.org.isSpacehomePublic;
 
-  const name = isPrivate ? "Spacehome · N.A.S.A" : station!.org!.name;
+  const name = isPrivate ? "Spacehome · ÓRBITA" : station!.org!.name;
   const bio = isPrivate
-    ? "Uma empresa no universo NASA"
-    : station!.org!.bio ?? "Descubra esta empresa no N.A.S.A Agents";
+    ? "Uma empresa no universo ÓRBITA"
+    : station!.org!.bio ?? "Descubra esta empresa no ÓRBITA Agents";
   const logo =
     !isPrivate && station?.org?.logo ? station.org.logo : null;
 
@@ -71,7 +71,7 @@ export default async function SpaceOgImage({ params }: Props) {
             color: "#fdba74",
           }}
         >
-          <span style={{ fontWeight: 700 }}>N.A.S.A</span>
+          <span style={{ fontWeight: 700 }}>ÓRBITA</span>
           <span style={{ opacity: 0.6 }}>/ Spacehome</span>
         </div>
 

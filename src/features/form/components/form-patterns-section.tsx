@@ -188,7 +188,7 @@ export function FormPatternsSection() {
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="w-4 h-4 text-violet-500" />
           <h3 className="text-sm font-semibold text-violet-400 uppercase tracking-wide">
-            Padrões NASA disponíveis
+            Padrões ÓRBITA disponíveis
           </h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5 gap-4">

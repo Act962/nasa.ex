@@ -9,7 +9,7 @@ export const listPageTemplates = base
   .route({
     method: "GET",
     path: "/pages/templates",
-    summary: "Listar templates NASA de páginas (públicos + da própria org)",
+    summary: "Listar templates ÓRBITA de páginas (públicos + da própria org)",
   })
   .input(
     z

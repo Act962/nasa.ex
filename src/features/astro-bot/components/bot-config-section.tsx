@@ -113,7 +113,18 @@ export function BotConfigSection() {
               return (
                 <label
                   key={tracking.id}
-                  className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/40"
+                  title={
+                    instance
+                      ? undefined
+                      : "O Astro responde pelo número da tracking. Conecte um WhatsApp a ela em Integrações."
+                  }
+                  className={
+                    instance
+                      ? "flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/40"
+                      : // Sem número não há por onde responder. O clique não fazia
+                        // nada e nada dizia o porquê — parecia defeito.
+                        "flex items-center gap-3 rounded-md border border-dashed p-3 cursor-not-allowed opacity-60"
+                  }
                 >
                   <Checkbox
                     checked={checked}
@@ -133,7 +144,7 @@ export function BotConfigSection() {
                               ? ` · ${instance.status}`
                               : ""
                           }`
-                        : "Sem número WhatsApp conectado"}
+                        : "Sem número WhatsApp conectado — conecte em Integrações para habilitar"}
                     </p>
                   </div>
                 </label>
@@ -198,7 +209,7 @@ export function BotConfigSection() {
           <p className="text-xs text-muted-foreground">
             Libera consultas financeiras, leitura de boleto/nota em PDF ou foto
             e lançamentos — sempre com confirmação por SIM/NÃO. Só vale pra
-            números com acesso ao NASA Payment. Cada mensagem ao Astro consome
+            números com acesso ao ÓRBITA Payment. Cada mensagem ao Astro consome
             Stars; leitura de documento cobra à parte.
           </p>
         </div>

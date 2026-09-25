@@ -237,7 +237,7 @@ export const CreateActionModal = ({
           </DialogTitle>
           <DialogDescription>
             {presetPublic
-              ? "Este evento será exibido no Calendário Público da NASA. Depois de criar, você pode adicionar cidade, categoria e link de inscrição no painel lateral."
+              ? "Este evento será exibido no Calendário Público da ÓRBITA. Depois de criar, você pode adicionar cidade, categoria e link de inscrição no painel lateral."
               : "Preencha os campos abaixo para criar uma nova ação no seu workspace."}
           </DialogDescription>
         </DialogHeader>

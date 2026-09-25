@@ -430,7 +430,7 @@ Responda APENAS o id (assinou | nao_assinou).`,
     tagNode(ids.tagAssinado, PH_TAG_ASSINADO, { x: 3520, y: -240 }),
     msgNode(
       ids.msgWelcome,
-      "Show, {{lead.name}}! Contrato assinado. Bem-vindo(a) à NASA Agents. Em breve nosso time entra em contato com os próximos passos. 🚀",
+      "Show, {{lead.name}}! Contrato assinado. Bem-vindo(a) à ÓRBITA Agents. Em breve nosso time entra em contato com os próximos passos. 🚀",
       { x: 3840, y: -240 },
     ),
   ];

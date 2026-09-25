@@ -25,6 +25,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
 import { LeadActionsPopover } from "@/features/leads/components/lead-actions/lead-actions-popover";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function getInitials(name: string): string {
   if (!name) return "";
@@ -60,6 +61,30 @@ export type LeadWithTrackingAndStatus = {
 };
 
 export const columns: ColumnDef<LeadWithTrackingAndStatus>[] = [
+  {
+    id: "select",
+    enableSorting: false,
+    enableHiding: false,
+    header: ({ table }) => (
+      <Checkbox
+        aria-label="Selecionar todos"
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        aria-label={`Selecionar ${row.original.name}`}
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        // O clique no checkbox não pode abrir o lead: são gestos diferentes.
+        onClick={(event) => event.stopPropagation()}
+      />
+    ),
+  },
   {
     id: "Nome",
     accessorKey: "name",

@@ -65,7 +65,7 @@ export const listTrafegoMessages = base
         createdAt: message.createdAt,
         author: {
           id: "conversation",
-          name: message.fromMe ? message.senderName ?? "Equipe NASA" : "Você",
+          name: message.fromMe ? message.senderName ?? "Equipe ÓRBITA" : "Você",
           image: null,
         },
       })),

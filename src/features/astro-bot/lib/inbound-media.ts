@@ -47,7 +47,7 @@ export type StoreBotInboundDocumentResult =
 const UNSUPPORTED_REPLY =
   "📎 Por aqui eu só leio *PDF* ou *foto* de boleto, nota fiscal, recibo ou extrato. Manda nesse formato que eu dou uma olhada.";
 const FORBIDDEN_REPLY =
-  "🔒 Seu usuário não tem permissão pra lançar no financeiro desta empresa. Peça ao admin acesso de criação em Lançamentos no NASA Payment.";
+  "🔒 Seu usuário não tem permissão pra lançar no financeiro desta empresa. Peça ao admin acesso de criação em Lançamentos no ÓRBITA Payment.";
 const FAILED_REPLY =
   "❌ Não consegui baixar esse arquivo do WhatsApp. Tenta mandar de novo daqui a pouco.";
 

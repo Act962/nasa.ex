@@ -79,6 +79,34 @@ export function getPricing(
   return candidates[0] ? PRICING[candidates[0]] : null;
 }
 
+/** Provider inferido pelo prefixo do modelId, para exibição/seed. */
+export type PricedModelProvider = "openai" | "anthropic" | "google" | "other";
+
+function inferProvider(modelId: string): PricedModelProvider {
+  if (modelId.startsWith("gpt") || modelId.startsWith("o1")) return "openai";
+  if (modelId.startsWith("claude")) return "anthropic";
+  if (modelId.startsWith("gemini")) return "google";
+  return "other";
+}
+
+export interface PricedModel {
+  modelId: string;
+  provider: PricedModelProvider;
+  pricing: ModelPricing;
+}
+
+/**
+ * Lista toda a tabela de preços — usada pelo seed do Simulador do Forge para
+ * catalogar todos os modelos, inclusive os que já saíram do roteador (legados).
+ */
+export function listPricedModels(): PricedModel[] {
+  return Object.entries(PRICING).map(([modelId, pricing]) => ({
+    modelId,
+    provider: inferProvider(modelId),
+    pricing,
+  }));
+}
+
 /** De onde veio o preço aplicado. `unknown` = modelo fora da tabela. */
 export type CostPriceSource = "table" | "unknown";
 

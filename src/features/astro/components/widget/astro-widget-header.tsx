@@ -12,7 +12,7 @@ function describeScreen(pathname: string): string {
   if (pathname.startsWith("/tracking")) return "No tracking";
   if (pathname.startsWith("/agendas")) return "Na agenda";
   if (pathname.startsWith("/workspaces")) return "No workspace";
-  return "Seu copiloto no NASA";
+  return "Seu copiloto no ÓRBITA";
 }
 
 export function AstroWidgetHeader({

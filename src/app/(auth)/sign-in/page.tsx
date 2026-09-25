@@ -80,41 +80,17 @@ export default function LoginPage() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 10,
               textDecoration: "none",
             }}
           >
-            <div
-              style={{
-                width: 34,
-                height: 34,
-                background: "linear-gradient(135deg, #7c3aed, #a855f7)",
-                borderRadius: 9,
-                flexShrink: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 0 16px rgba(124,58,237,0.45)",
-              }}
-            >
-              <Image
-                src="/icon-astro.svg"
-                alt="NASA"
-                width={20}
-                height={20}
-                unoptimized
-              />
-            </div>
-            <span
-              style={{
-                fontSize: 18,
-                fontWeight: 800,
-                color: "white",
-                letterSpacing: "-0.4px",
-              }}
-            >
-              NASA<span style={{ color: "#a78bfa" }}>.ex</span>
-            </span>
+            <Image
+              src="/orbita-logo-dark.svg"
+              alt="ÓRBITA"
+              width={225}
+              height={60}
+              style={{ height: 34, width: "auto" }}
+              priority
+            />
           </a>
         </div>
 
@@ -273,7 +249,7 @@ export default function LoginPage() {
               }}
             >
               &ldquo;Em 3 meses triplicamos nossa conversão de leads com o
-              NASA.&rdquo;
+              ÓRBITA.&rdquo;
             </p>
             <p
               style={{
@@ -363,28 +339,14 @@ export default function LoginPage() {
           }}
           className="lg:hidden"
         >
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              background: "linear-gradient(135deg, #7c3aed, #a855f7)",
-              borderRadius: 8,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Image
-              src="/icon-astro.svg"
-              alt="NASA"
-              width={18}
-              height={18}
-              unoptimized
-            />
-          </div>
-          <span style={{ fontSize: 17, fontWeight: 800, color: "white" }}>
-            NASA<span style={{ color: "#a78bfa" }}>.ex</span>
-          </span>
+          <Image
+            src="/orbita-logo-dark.svg"
+            alt="ÓRBITA"
+            width={225}
+            height={60}
+            style={{ height: 30, width: "auto" }}
+            priority
+          />
         </a>
 
         {/* Form card */}

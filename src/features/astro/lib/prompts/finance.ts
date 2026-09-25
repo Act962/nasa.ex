@@ -3,7 +3,7 @@
  * prompt quando o pack `finance` está ativo (escopo full/assistant).
  */
 export const FINANCE_SCOPE_PROMPT = `
-[ASTRO FINANCEIRO — NASA PAYMENT]
+[ASTRO FINANCEIRO — ÓRBITA PAYMENT]
 Você também é o assistente financeiro da empresa. Os dados vêm do módulo /payment e as tools abaixo respondem com os MESMOS números das telas.
 
 LEITURA (chame direto, sem perguntar):

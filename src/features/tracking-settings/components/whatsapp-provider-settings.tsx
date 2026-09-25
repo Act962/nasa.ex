@@ -380,7 +380,7 @@ export function WhatsAppProviderSettings({
                 configurado no Meta App apontando pra{" "}
                 <code>/api/chat/webhook/official</code>, mensagens
                 inbound já criam Lead/Conversation/Message via o mesmo
-                pipeline canônico do Uazapi. Ao salvar, o NASA inscreve o
+                pipeline canônico do Uazapi. Ao salvar, o ÓRBITA inscreve o
                 App na WABA automaticamente — sem isso a Meta não entrega
                 as mensagens.
               </AlertDescription>

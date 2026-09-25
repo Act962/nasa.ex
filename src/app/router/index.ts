@@ -33,6 +33,7 @@ import { adminRouter } from "./admin";
 import { userNotificationsRouter } from "./user-notifications";
 import { userChatPreferencesRoutes } from "./user-chat-preferences";
 import { alertsRouter } from "./alerts";
+import { pushRouter } from "./push";
 import { sidebarPrefsRouter } from "./sidebar-prefs";
 import { spacePointRouter } from "./space-point";
 import { userRouter } from "./user";
@@ -113,6 +114,7 @@ export const router = {
   userNotifications: userNotificationsRouter,
   userChatPreferences: userChatPreferencesRoutes,
   alerts: alertsRouter,
+  push: pushRouter,
   sidebarPrefs: sidebarPrefsRouter,
   spacePoint: spacePointRouter,
   user: userRouter,
@@ -138,7 +140,8 @@ export const router = {
   metaMcp: metaMcpRouter,
   astro: astroRoutes,
   nerp: nerpRouter,
-  commentsApp: commentsRouter,
+  /** App COMMENTS — automações de Instagram nativas (spec 0024). */
+  comments: commentsRouter,
   livekit: livekitRouter,
   stickers: stickersRouter,
   brand: brandRouter,
