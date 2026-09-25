@@ -159,7 +159,7 @@ export const sendFormToLeadAction: AstroAction<typeof inputSchema> = {
     const provider = await resolveOutboundProviderOrBadRequest(lead.trackingId);
 
     try {
-      await provider.provider.sendText({ kind: "text", to: details.phone, text });
+      await provider.provider.sendText({ kind: "text", to: details.phone, body: text });
     } catch (error) {
       return {
         status: "error",

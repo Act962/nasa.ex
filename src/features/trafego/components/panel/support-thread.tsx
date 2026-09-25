@@ -58,7 +58,7 @@ export function SupportThread({ orderId }: { orderId: string }) {
         )}
 
         {messages?.map((message) => {
-          const isTeam = message.authorRole === "ÓRBITA";
+          const isTeam = message.authorRole === "NASA";
           return (
             <div
               key={message.id}

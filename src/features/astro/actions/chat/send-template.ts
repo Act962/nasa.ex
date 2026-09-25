@@ -103,7 +103,11 @@ export const sendTemplateAction: AstroAction<typeof inputSchema> = {
     const conversation =
       details.conversation ??
       (await prisma.conversation.create({
-        data: { leadId: lead.id },
+        data: {
+          leadId: lead.id,
+          trackingId: lead.trackingId,
+          remoteJid: `${details.phone.replace(/\D/g, "")}@s.whatsapp.net`,
+        },
         select: { id: true },
       }));
 

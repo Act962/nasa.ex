@@ -1,5 +1,6 @@
 import "server-only";
 import prisma from "@/lib/prisma";
+import type { FinancialEntryStatus } from "@/generated/prisma/client";
 import {
   ASKS,
   createdWithin,
@@ -223,6 +224,12 @@ const pendingActions: AstroQuery = {
   },
 };
 
+/**
+ * Em aberto = ainda cobra alguma coisa. `as const` aqui não serve: o `in` do
+ * Prisma pede array mutável.
+ */
+const OPEN_ENTRY_STATUSES: FinancialEntryStatus[] = ["PENDING", "PARTIAL", "OVERDUE"];
+
 const financeSummary: AstroQuery = {
   key: "payment.summary",
   app: "payment",
@@ -233,7 +240,7 @@ const financeSummary: AstroQuery = {
     (/\bfinanceiro\b/.test(text) && /\b(quanto|quantos|resumo|situacao|como esta|saldo)\b/.test(text)),
   run: async ({ ctx }) => {
     const org = { organizationId: ctx.organizationId };
-    const open = { status: { in: ["PENDING", "PARTIAL", "OVERDUE"] as const } };
+    const open = { status: { in: OPEN_ENTRY_STATUSES } };
     const [payable, receivable, overdue] = await Promise.all([
       prisma.paymentEntry.aggregate({
         where: { ...org, ...open, type: "PAYABLE" },

@@ -133,7 +133,7 @@ export const forwardMessageAction: AstroAction<typeof inputSchema> = {
       await resolvedProvider.provider.sendText({
         kind: "text",
         to: details.phone,
-        text: lastMessage.body ?? "",
+        body: lastMessage.body ?? "",
       });
     } catch (error) {
       return {

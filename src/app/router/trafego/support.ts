@@ -59,7 +59,7 @@ export const listTrafegoMessages = base
       ...conversationMessages.map((message) => ({
         id: message.id,
         body: message.body ?? "",
-        authorRole: message.fromMe ? ("ÓRBITA" as const) : ("CLIENT" as const),
+        authorRole: message.fromMe ? ("NASA" as const) : ("CLIENT" as const),
         attachmentKey: message.mediaUrl,
         attachmentUrl: message.mediaUrl,
         createdAt: message.createdAt,

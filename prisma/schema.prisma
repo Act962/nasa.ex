@@ -8476,6 +8476,9 @@ enum TrafegoCopySource {
   AI
 }
 
+/// `NASA` é o time da plataforma. O nome ficou do batismo anterior: a marca
+/// virou ÓRBITA na interface, mas o valor gravado no banco não muda sem
+/// migração. Renomear só o literal no código já quebrou o build uma vez.
 enum TrafegoSupportAuthorRole {
   CLIENT
   NASA

@@ -323,7 +323,7 @@ export const replyTrafegoMessageAdmin = base
       data: {
         orderId: input.orderId,
         authorUserId: context.adminUser.id,
-        authorRole: "ÓRBITA",
+        authorRole: "NASA",
         body: input.body,
         attachmentKey: input.attachmentKey,
         readByNasaAt: new Date(),

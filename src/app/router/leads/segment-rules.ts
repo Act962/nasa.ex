@@ -1,5 +1,7 @@
 import { DEFAULT_RESCUE_CONFIG } from "@/lib/lead-journey/sla";
 
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+
 /**
  * As réguas dos segmentos de /contatos, em um lugar só.
  *
@@ -82,15 +84,23 @@ export function buildSegmentWhere(filters?: SegmentFilters) {
 const MAX_LOYAL_SCAN = 2000;
 
 /**
+ * Aceita o cliente Prisma ou uma transação: as duas expõem `lead`. Tipar o
+ * parâmetro estruturalmente com `(args: unknown)` não funciona — sob
+ * `strictFunctionTypes` o `findMany` real, que aceita só os args do Prisma,
+ * não é atribuível a um que aceita qualquer coisa.
+ */
+type LeadFinder = Pick<PrismaClient, "lead">;
+
+/**
  * "Leal" exige contar mensagens, e `where` do Prisma não compara contagem de
  * relação. Resolver aqui — e nos DOIS lados — é o que impede o card dizer 3
  * e a lista mostrar 40.
  */
 export async function loyalLeadIds(
-  prisma: { lead: { findMany: (args: unknown) => Promise<unknown> } },
-  where: Record<string, unknown>,
+  client: LeadFinder,
+  where: Prisma.LeadWhereInput,
 ): Promise<string[]> {
-  const rows = (await prisma.lead.findMany({
+  const rows = (await client.lead.findMany({
     where: { ...where, ...segmentWhere("leais") },
     select: {
       id: true,
