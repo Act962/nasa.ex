@@ -10,8 +10,6 @@ import {
   FolderIcon,
   CreditCard,
   GraduationCap,
-  Sparkles,
-  MessageCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -71,18 +69,6 @@ const tabsLink = [
     href: "/nasa-route",
     icon: GraduationCap,
     singleAllowed: false,
-  },
-  {
-    label: "Agentes IA",
-    href: "/astro",
-    icon: Sparkles,
-    singleAllowed: true,
-  },
-  {
-    label: "Astro Bot WhatsApp",
-    href: "/astro-bot",
-    icon: MessageCircle,
-    singleAllowed: true,
   },
 ];
 

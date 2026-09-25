@@ -32,7 +32,7 @@ interface AgentCardProps {
  * Card de um agente IA. Mostra status + 2 contadores (sessões ativas, total),
  * tem toggle individual + dropdown de ações (editar, excluir).
  *
- * Toggle = `Agent.isActive`. Pausa global via /settings/astro é separada
+ * Toggle = `Agent.isActive`. Pausa global via /astro é separada
  * (não tem indicador aqui — fica numa banner global no /tracking/.../agente).
  */
 export function AgentCard({ agent, onEdit }: AgentCardProps) {

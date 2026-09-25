@@ -74,9 +74,11 @@ export const APPS: AppDef[] = [
       "IA treinada para informar, preparar, quebrar objeções e sair de cena. Sem invadir a venda do humano. Sem parecer robô.",
     category: "Inteligência Artificial",
     integration: "—",
-    action: "modal",
+    action: "internal",
+    href: "/astro",
     activeUsers: null,
     theme: "purple",
+    sidebarKey: "astro",
   },
   {
     id: "trafego",

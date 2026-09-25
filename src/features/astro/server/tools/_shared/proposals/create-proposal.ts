@@ -21,9 +21,17 @@ export async function createPendingAction(params: {
   title: string;
   lines: AstroConfirmationLine[];
   warnings?: string[];
+  /**
+   * Sobrescreve o TTL. Proposta criada por comando do ASTRO COMMANDER espera a
+   * fila de aprovação, não alguém olhando a tela — 30 minutos venceriam antes
+   * de qualquer um abrir o app (spec 0023).
+   */
+  ttlMinutes?: number;
 }): Promise<AstroConfirmationPayload> {
   const channel = params.ctx.channel ?? "CHAT";
-  const ttlMinutes = channel === "WHATSAPP" ? WHATSAPP_TTL_MINUTES : CHAT_TTL_MINUTES;
+  const ttlMinutes =
+    params.ttlMinutes ??
+    (channel === "WHATSAPP" ? WHATSAPP_TTL_MINUTES : CHAT_TTL_MINUTES);
   const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
   const summary = [params.title, ...params.lines.map((line) => `${line.label}: ${line.value}`)]
     .join(" · ")

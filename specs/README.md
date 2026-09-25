@@ -180,6 +180,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0020](stars/0020-catalogo-unico-de-preco-e-ponto-unico-de-cobranca.md) | stars | Catálogo único de preço e ponto único de cobrança de Stars | em-revisao |
 | [0021](stars/0021-registro-de-custo-por-evento-e-instrumentacao.md) | stars | Registro de custo por evento e instrumentação das chamadas pagas | em-revisao |
 | [0022](trafego/0022-trafego-pix-asaas.md) | trafego | Cobrança PIX automática pelo Asaas no checkout do trafeGO | rascunho |
+| [0023](astro/0023-astro-commander.md) | astro | ASTRO COMMANDER — comandos persistentes, execução headless e App ASTRO | aprovada |
 
 ---
 

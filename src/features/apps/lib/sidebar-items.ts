@@ -18,6 +18,7 @@ import {
   Rocket,
   Send,
   TrendingUp,
+  Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type React from "react";
@@ -35,6 +36,14 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   // ── Visíveis por padrão (primeiro acesso) ───────────────────────────────
   // Núcleo essencial pra novo user: 5 apps + página de Apps. Resto opt-in
   // via página /apps (botão "+" no card adiciona ao menu).
+  {
+    key: "astro",
+    title: "ASTRO",
+    url: "/astro",
+    icon: Sparkles,
+    alwaysVisible: false,
+    defaultVisible: true,
+  },
   {
     key: "tracking",
     title: "Trackings",

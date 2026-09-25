@@ -34,6 +34,11 @@ export const CATALOG_DEFAULTS: Record<string, CatalogDefault> = {
     maxCharge: 500,
     displayName: "ASTRO — consumo por tokens",
   },
+  astro_command_run: {
+    unit: "call",
+    maxCharge: 200,
+    displayName: "ASTRO Commander — execução de comando",
+  },
   planner_image: {
     unit: "image",
     maxCharge: 50,
@@ -76,6 +81,9 @@ export const CATALOG_DEFAULTS: Record<string, CatalogDefault> = {
  * Ver docs/relatorios/inventario-stars-2026-09-18.md §3.1.
  */
 export const ACTIONS_WITHOUT_PRICE = [
+  // ASTRO COMMANDER (spec 0023): a taxa por execução espera a decisão de
+  // preço do plano. Até lá, só os tokens são cobrados.
+  "astro_command_run",
   "check_payment_query",
   "form_publish",
   "linnker_page_create",

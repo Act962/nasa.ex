@@ -38,6 +38,8 @@ import { publishScheduledPosts } from "@/inngest/functions/nasa-planner/publish-
 import { refreshMetaTokens } from "@/inngest/functions/nasa-planner/refresh-meta-tokens";
 import { syncPostMetricsCron } from "@/inngest/functions/nasa-planner/sync-post-metrics-cron";
 import { syncMetaAdsKpis } from "@/inngest/functions/crons/sync-meta-ads-kpis";
+import { astroCommanderTick } from "@/inngest/functions/astro-commander/commander-tick";
+import { astroCommandRun } from "@/inngest/functions/astro-commander/run-command";
 import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-structure";
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
 import { nasaRouteVideoUploadsCleanup } from "@/inngest/functions/crons/nasa-route-video-uploads-cleanup";
@@ -129,6 +131,9 @@ export const { GET, POST, PUT } = serve({
     trafegoAsaasPaymentEvent,
     // ── trafeGO: acompanha cada cobrança PIX até resolver (spec 0022) ──
     trafegoAsaasChargeWatch,
+    // ── ASTRO COMMANDER (spec 0023): agenda a cada minuto + execução ──
+    astroCommanderTick,
+    astroCommandRun,
     // ── NASA Planner ──
     publishPostHandler,
     publishScheduledPosts,

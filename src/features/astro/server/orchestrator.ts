@@ -236,11 +236,182 @@ async function runSubAgent(opts: {
 }
 
 /**
+ * Agente montado: modelo, system prompt e tools prontos para `streamText`
+ * (chat) ou `generateText` (ASTRO COMMANDER, spec 0023 D-2).
+ */
+export interface BuiltAstroAgent {
+  model: ResolvedModel["model"];
+  provider: string;
+  modelId: string;
+  system: string;
+  tools: ToolSet;
+  /** Teto de rodadas de tool-call. */
+  maxSteps: number;
+  telemetryFunctionId: string;
+}
+
+/**
+ * Monta o agente do ASTRO sem executá-lo. O chat embrulha em `streamText`; o
+ * Commander roda headless em `generateText`. Um único lugar decide modelo,
+ * escopo de tools e system prompt — sem isso os dois divergiriam (spec 0023, D-2).
+ */
+export async function buildAstroAgent(opts: {
+  ctx: AgentContext;
+  /** Texto usado pela heurística de complexidade. */
+  lastUserText: string;
+  toolScope?: AstroToolScope;
+  forceComplexModel?: boolean;
+  outputStyle?: "default" | "whatsapp";
+  /** Bloco extra no fim do system prompt (instrução do comando, memórias). */
+  extraSystem?: string;
+  /** Restringe as tools às chaves listadas (aba Ações do comando). */
+  allowedTools?: string[];
+}): Promise<BuiltAstroAgent> {
+  const { ctx, lastUserText } = opts;
+  const toolScope = opts.toolScope ?? "full";
+  const enabled = await loadAgentEnabledMap(ctx.organizationId);
+
+  const subAgentModel = await resolvePrimaryModel({
+    organizationId: ctx.organizationId,
+    tier: SUB_AGENT_TIER,
+    requires: { tools: true },
+    forceModelId: process.env.ASTRO_DEFAULT_MODEL,
+  });
+
+  if (ctx.pinnedAgentKey) {
+    const pinned = getAgent(ctx.pinnedAgentKey);
+    if (pinned && enabled[ctx.pinnedAgentKey]) {
+      return {
+        model: subAgentModel.model,
+        provider: subAgentModel.provider,
+        modelId: subAgentModel.modelId,
+        system: `${pinned.systemPrompt}${buildRouteContextBlock(ctx.route)}${buildTemporalBlock()}${opts.extraSystem ?? ""}`,
+        tools: filterTools(pinned.buildTools(ctx), opts.allowedTools),
+        maxSteps: 8,
+        telemetryFunctionId: `astro-pinned-${ctx.pinnedAgentKey}`,
+      };
+    }
+  }
+
+  // Quem monta o conjunto de tools de cada escopo é `tool-scope.ts` — lá
+  // moram os packs por app (financeiro hoje, outras ferramentas do Órbita
+  // depois) e a regra de qual escopo enxerga escrita.
+  //
+  // As tools ficam expostas DIRETO no orquestrador (não via sub-agent)
+  // porque o sub-agent (generateText interno) consome os outputs e devolve
+  // só texto: payloads `astro_table`/`astro_chart`/`astro_confirmation`
+  // viram prosa reescrita e o erro real de uma escrita some. Sub-agents
+  // seguem disponíveis por `route_to_*` para os fluxos com persona.
+  const scope = resolveToolSetForScope(toolScope, ctx);
+  const routingTools = scope.allowsRouting
+    ? buildRoutingTools({ ctx, enabled, subAgentModel })
+    : {};
+  const systemSuffix =
+    toolScope === "trafego"
+      ? TRAFEGO_SCOPE_PROMPT
+      : toolScope === "insights"
+      ? INSIGHTS_SCOPE_PROMPT
+      : `${buildAgentsBriefing(enabled)}${scope.packPrompts}`;
+
+  // ── Roteamento de modelo (custo) ──
+  // Classifica a última mensagem do user pra escolher entre mini e 4o.
+  // Override via env ASTRO_DEFAULT_MODEL ignora isso.
+  const complexity = opts.forceComplexModel
+    ? "complex"
+    : classifyComplexity(lastUserText);
+
+  // `forceComplexModel` mantém nome e semântica externa. Internamente vira
+  // nível DEEP mais exigência de tool-calling, que é a razão real de existir:
+  // o modelo do nível de baixo hesita em tool-call no caminho do WhatsApp.
+  const orchestratorCandidates = await resolveModels({
+    organizationId: ctx.organizationId,
+    tier: tierFor(complexity),
+    requires: { tools: true },
+    forceModelId: process.env.ASTRO_DEFAULT_MODEL,
+  });
+  // Sem candidato no nível pedido, cai para o modelo dos sub-agentes em vez
+  // de derrubar a conversa.
+  const orchestratorModel = orchestratorCandidates[0] ?? subAgentModel;
+
+  console.log(
+    `[ASTRO/orchestrator] model=${orchestratorModel.provider}/${orchestratorModel.modelId} ` +
+      `(tier="${orchestratorModel.tier}", heur="${complexity}", forced=${opts.forceComplexModel ?? false}, ` +
+      `chave="${orchestratorModel.keySource}", text="${lastUserText.slice(0, 80)}")`,
+  );
+
+  const styleBlock =
+    opts.outputStyle === "whatsapp" ? WHATSAPP_STYLE_PROMPT : "";
+
+  return {
+    model: orchestratorModel.model,
+    provider: orchestratorModel.provider,
+    modelId: orchestratorModel.modelId,
+    system: `${ASTRO_ORCHESTRATOR_PROMPT}\n\n${systemSuffix}${buildRouteContextBlock(ctx.route)}${buildAttachmentsBlock(ctx.attachments)}${buildTemporalBlock()}${styleBlock}${opts.extraSystem ?? ""}`,
+    tools: filterTools({ ...scope.tools, ...routingTools }, opts.allowedTools),
+    // Mais steps: orchestrator pode chamar várias tools de leitura
+    // antes de responder (ex: get_tracking_overview + list_leads).
+    maxSteps: 10,
+    telemetryFunctionId: "astro-orchestrator",
+  };
+}
+
+/**
+ * Lista branca da aba Ações do comando. Sem lista, o conjunto do escopo
+ * passa inteiro — é o caminho do chat, que não mudou.
+ */
+function filterTools(tools: ToolSet, allowed?: string[]): ToolSet {
+  if (!allowed || allowed.length === 0) return tools;
+  const allowedSet = new Set(allowed);
+  const filtered: ToolSet = {};
+  for (const [name, definition] of Object.entries(tools)) {
+    if (allowedSet.has(name)) filtered[name] = definition;
+  }
+  return filtered;
+}
+
+/**
+ * Injeta a data/hora atual no system prompt pra o LLM resolver datas
+ * relativas ("amanhã", "sexta") corretamente. GPT-4o-mini tem knowledge
+ * cutoff antigo (2023) e inventava ano errado.
+ */
+function buildTemporalBlock(): string {
+  const nowSP = new Date().toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    dateStyle: "full",
+    timeStyle: "short",
+  });
+  const todayIso = new Date()
+    .toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })
+    .slice(0, 10);
+  return `\n\n[CONTEXTO TEMPORAL]\nHoje é ${nowSP} (fuso América/São Paulo, offset -03:00).\nData ISO de hoje: ${todayIso}.\nUse esta data como referência absoluta pra resolver "hoje", "amanhã", "sexta", etc. NUNCA invente ano — use SEMPRE o ano de hoje (${todayIso.slice(0, 4)}).`;
+}
+
+/** Texto da última mensagem do usuário — entrada da heurística de complexidade. */
+export function extractLastUserText(uiMessages: UIMessage[]): string {
+  for (let i = uiMessages.length - 1; i >= 0; i--) {
+    const message = uiMessages[i]!;
+    if (message.role !== "user") continue;
+    const parts = (message as { parts?: unknown[] }).parts ?? [];
+    return parts
+      .filter(
+        (part): part is { type: string; text: string } =>
+          typeof part === "object" &&
+          part !== null &&
+          (part as { type?: unknown }).type === "text" &&
+          typeof (part as { text?: unknown }).text === "string",
+      )
+      .map((part) => part.text)
+      .join(" ");
+  }
+  return "";
+}
+
+/**
  * Streamer principal do ASTRO. O route handler chama esta função e devolve
  * `result.toUIMessageStreamResponse()`. `onFinish` é responsabilidade do
  * caller (precisa do `sessionId` para persistir).
  */
-export function streamAstro(opts: {
+export async function streamAstro(opts: {
   ctx: AgentContext;
   uiMessages: UIMessage[];
   /**
@@ -276,157 +447,27 @@ export function streamAstro(opts: {
    */
   onModelResolved?: (info: { provider: string; modelId: string }) => void;
 }) {
-  const { ctx, uiMessages } = opts;
-  const toolScope = opts.toolScope ?? "full";
+  const agent = await buildAstroAgent({
+    ctx: opts.ctx,
+    lastUserText: extractLastUserText(opts.uiMessages),
+    toolScope: opts.toolScope,
+    forceComplexModel: opts.forceComplexModel,
+    outputStyle: opts.outputStyle,
+  });
+  opts.onModelResolved?.({ provider: agent.provider, modelId: agent.modelId });
 
-  return (async () => {
-    const enabled = await loadAgentEnabledMap(ctx.organizationId);
-
-    // Uma resolução por requisição, não uma por sub-agente. Sub-agentes e
-    // agentes fixados exigem tool-calling: modelo que não chama ferramenta não
-    // serve, por mais barato que seja.
-    const subAgentModel = await resolvePrimaryModel({
-      organizationId: ctx.organizationId,
-      tier: SUB_AGENT_TIER,
-      requires: { tools: true },
-      forceModelId: process.env.ASTRO_DEFAULT_MODEL,
-    });
-
-    // Pinned agent (embeds): pula o orquestrador, vai direto para o sub-agente.
-    const modelMessages = await convertToModelMessages(uiMessages);
-
-    if (ctx.pinnedAgentKey) {
-      const pinned = getAgent(ctx.pinnedAgentKey);
-      if (pinned && enabled[ctx.pinnedAgentKey]) {
-        // Mesmo contexto temporal + route snapshot do path principal —
-        // sem isso o sub-agent pinned (ex: Closer no copilot do
-        // tracking-chat) não enxerga conversationId/leadId/trackingId
-        // e responde "não consigo acessar a conversa".
-        const nowSPpin = new Date().toLocaleString("pt-BR", {
-          timeZone: "America/Sao_Paulo",
-          dateStyle: "full",
-          timeStyle: "short",
-        });
-        const todayIsoPin = new Date()
-          .toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })
-          .slice(0, 10);
-        const dateContextPin = `\n\n[CONTEXTO TEMPORAL]\nHoje é ${nowSPpin} (fuso América/São Paulo, offset -03:00). Data ISO: ${todayIsoPin}. Use SEMPRE o ano corrente (${todayIsoPin.slice(0, 4)}).`;
-        return streamText({
-          model: subAgentModel.model,
-          system: `${pinned.systemPrompt}${buildRouteContextBlock(ctx.route)}${dateContextPin}`,
-          tools: pinned.buildTools(ctx),
-          messages: modelMessages,
-          stopWhen: ({ steps }) => steps.length >= 8,
-          experimental_telemetry: {
-            isEnabled: true,
-            functionId: `astro-pinned-${ctx.pinnedAgentKey}`,
-            metadata: { posthog_distinct_id: ctx.userId },
-          },
-        });
-      }
-    }
-
-    // Quem monta o conjunto de tools de cada escopo é `tool-scope.ts` — lá
-    // moram os packs por app (financeiro hoje, outras ferramentas do Órbita
-    // depois) e a regra de qual escopo enxerga escrita.
-    //
-    // As tools ficam expostas DIRETO no orquestrador (não via sub-agent)
-    // porque o sub-agent (generateText interno) consome os outputs e devolve
-    // só texto: payloads `astro_table`/`astro_chart`/`astro_confirmation`
-    // viram prosa reescrita e o erro real de uma escrita some. Sub-agents
-    // seguem disponíveis por `route_to_*` para os fluxos com persona.
-    const scope = resolveToolSetForScope(toolScope, ctx);
-    const routingTools = scope.allowsRouting
-      ? buildRoutingTools({ ctx, enabled, subAgentModel })
-      : {};
-    const directTools: ToolSet = scope.tools;
-    const systemSuffix =
-      toolScope === "trafego"
-        ? TRAFEGO_SCOPE_PROMPT
-        : toolScope === "insights"
-        ? INSIGHTS_SCOPE_PROMPT
-        : `${buildAgentsBriefing(enabled)}${scope.packPrompts}`;
-    // Injeta a data/hora atual no system prompt pra o LLM resolver datas
-    // relativas ("amanhã", "sexta") corretamente. GPT-4o-mini tem
-    // knowledge cutoff antigo (2023) e tava inventando ano errado.
-    const nowSP = new Date().toLocaleString("pt-BR", {
-      timeZone: "America/Sao_Paulo",
-      dateStyle: "full",
-      timeStyle: "short",
-    });
-    const todayIso = new Date()
-      .toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })
-      .slice(0, 10); // YYYY-MM-DD
-    const dateContext = `\n\n[CONTEXTO TEMPORAL]\nHoje é ${nowSP} (fuso América/São Paulo, offset -03:00).\nData ISO de hoje: ${todayIso}.\nUse esta data como referência absoluta pra resolver "hoje", "amanhã", "sexta", etc. NUNCA invente ano — use SEMPRE o ano de hoje (${todayIso.slice(0, 4)}).`;
-
-    // ── Roteamento de modelo (custo) ──
-    // Classifica a última mensagem do user pra escolher entre mini e 4o.
-    // - simple → gpt-4o-mini (barato, 5x mais barato no output)
-    // - complex → gpt-4o (multi-domínio / multi-tool / comparações)
-    // Override via env ASTRO_DEFAULT_MODEL ignora isso.
-    const lastUserText = (() => {
-      for (let i = uiMessages.length - 1; i >= 0; i--) {
-        const m = uiMessages[i]!;
-        if (m.role !== "user") continue;
-        const parts = (m as { parts?: unknown[] }).parts ?? [];
-        return parts
-          .filter(
-            (p): p is { type: string; text: string } =>
-              typeof p === "object" &&
-              p !== null &&
-              (p as { type?: unknown }).type === "text" &&
-              typeof (p as { text?: unknown }).text === "string",
-          )
-          .map((p) => p.text)
-          .join(" ");
-      }
-      return "";
-    })();
-    const complexity = opts.forceComplexModel
-      ? "complex"
-      : classifyComplexity(lastUserText);
-
-    // `forceComplexModel` mantém nome e semântica externa. Internamente vira
-    // nível DEEP mais exigência de tool-calling, que é a razão real de existir:
-    // o modelo do nível de baixo hesita em tool-call no caminho do WhatsApp.
-    const orchestratorCandidates = await resolveModels({
-      organizationId: ctx.organizationId,
-      tier: tierFor(complexity),
-      requires: { tools: true },
-      forceModelId: process.env.ASTRO_DEFAULT_MODEL,
-    });
-    // Sem candidato no nível pedido, cai para o modelo dos sub-agentes em vez
-    // de derrubar a conversa.
-    const orchestratorModel = orchestratorCandidates[0] ?? subAgentModel;
-
-    console.log(
-      `[ASTRO/orchestrator] model=${orchestratorModel.provider}/${orchestratorModel.modelId} ` +
-        `(tier="${orchestratorModel.tier}", heur="${complexity}", forced=${opts.forceComplexModel ?? false}, ` +
-        `chave="${orchestratorModel.keySource}", text="${lastUserText.slice(0, 80)}")`,
-    );
-    opts.onModelResolved?.({
-      provider: orchestratorModel.provider,
-      modelId: orchestratorModel.modelId,
-    });
-
-    const styleBlock =
-      opts.outputStyle === "whatsapp" ? WHATSAPP_STYLE_PROMPT : "";
-
-    return streamText({
-      model: orchestratorModel.model,
-      system: `${ASTRO_ORCHESTRATOR_PROMPT}\n\n${systemSuffix}${buildRouteContextBlock(ctx.route)}${buildAttachmentsBlock(ctx.attachments)}${dateContext}${styleBlock}`,
-      tools: { ...directTools, ...routingTools },
-      messages: modelMessages,
-      // Mais steps: orchestrator pode chamar várias tools de leitura
-      // antes de responder (ex: get_tracking_overview + list_leads).
-      stopWhen: ({ steps }) => steps.length >= 10,
-      experimental_telemetry: {
-        isEnabled: true,
-        functionId: "astro-orchestrator",
-        metadata: { posthog_distinct_id: ctx.userId },
-      },
-    });
-  })();
+  return streamText({
+    model: agent.model,
+    system: agent.system,
+    tools: agent.tools,
+    messages: await convertToModelMessages(opts.uiMessages),
+    stopWhen: ({ steps }) => steps.length >= agent.maxSteps,
+    experimental_telemetry: {
+      isEnabled: true,
+      functionId: agent.telemetryFunctionId,
+      metadata: { posthog_distinct_id: opts.ctx.userId },
+    },
+  });
 }
 
 /**

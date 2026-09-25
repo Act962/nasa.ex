@@ -135,6 +135,10 @@ model User {
   // ── ASTRO (Agentes IA) ──
   aiSessions              AiSession[]
   astroPendingActions     AstroPendingAction[]
+  astroCommandsCreated    AstroCommand[]       @relation("AstroCommandCreatedBy")
+  astroMemoriesCreated    AstroMemory[]        @relation("AstroMemoryCreatedBy")
+  astroMemoriesApproved   AstroMemory[]        @relation("AstroMemoryApprovedBy")
+  astroFeedbacks          AstroFeedback[]
   paymentRemindersCreated PaymentReminder[]    @relation("PaymentReminderCreatedBy")
   aiKnowledgeMade         AiKnowledge[]        @relation("AiKnowledgeCreatedBy")
 
@@ -229,23 +233,26 @@ model Organization {
   companyCep   String?  @map("company_cep")
 
   // ── STARS ──────────────────────────────────
-  planId               String?   @map("plan_id")
-  starsBalance         Int       @default(0) @map("stars_balance")
-  starsBonusBalance    Int       @default(0) @map("stars_bonus_balance")
+  planId                 String?   @map("plan_id")
+  starsBalance           Int       @default(0) @map("stars_balance")
+  starsBonusBalance      Int       @default(0) @map("stars_bonus_balance")
   // Saldo de bônus (welcome, promoções) — não pode pagar curso no NASA Router,
   // mas pode ser consumido por integrações (Planner IA, Command IA, APP_CHARGE/SETUP).
-  starsCycleStart      DateTime? @map("stars_cycle_start")
+  starsCycleStart        DateTime? @map("stars_cycle_start")
   // ── Grace period / suspensão (pay-per-use) ────────────────
   // Quando saldo zera, `starsGraceStartedAt` é setado. Org tem 15 dias
   // pra recarregar. Cron `stars-grace-period-monitor` notifica em dias
   // 1/3/7/12/14 e seta `starsSuspendedAt` em dia 15+. Suspensão zera o
   // acesso a todas as procedures que cobram via `requireStarsMiddleware`.
-  starsGraceStartedAt  DateTime? @map("stars_grace_started_at")
-  starsSuspendedAt     DateTime? @map("stars_suspended_at")
+  starsGraceStartedAt    DateTime? @map("stars_grace_started_at")
+  starsSuspendedAt       DateTime? @map("stars_suspended_at")
+  /// Botão "pausar tudo" do ASTRO COMMANDER (spec 0023, RF-7). Setado, nenhum
+  /// comando da org executa — nem por agenda, nem por evento.
+  astroCommanderPausedAt DateTime? @map("astro_commander_paused_at")
   // Anti-spam de notificações pós-débito (1 dispatch/dia/severidade).
-  starsLastAlertAt     DateTime? @map("stars_last_alert_at")
-  starsAlertConfig     Json      @default("{}") @map("stars_alert_config")
-  starDistributionMode String    @default("org") @map("star_distribution_mode")
+  starsLastAlertAt       DateTime? @map("stars_last_alert_at")
+  starsAlertConfig       Json      @default("{}") @map("stars_alert_config")
+  starDistributionMode   String    @default("org") @map("star_distribution_mode")
   // "org"    = pool compartilhado (padrão)
   // "equal"  = dividido igualmente entre usuários ativos
   // "custom" = orçamento personalizado por usuário
@@ -456,6 +463,10 @@ model Organization {
   aiSessions          AiSession[]
   astroPendingActions AstroPendingAction[]
   aiKnowledge         AiKnowledge[]
+  astroCommands       AstroCommand[]
+  astroCommandRuns    AstroCommandRun[]
+  astroMemories       AstroMemory[]
+  astroFeedbacks      AstroFeedback[]
 
   // ── Tracking Chat — figurinhas personalizadas do composer ──
   userStickers UserSticker[]
@@ -2855,20 +2866,20 @@ model PlatformIntegration {
 // do SEI não oferece descoberta completa em todas as versões; por isso a
 // sincronização parte de protocolos explicitamente vinculados a um lead.
 model SeiProcessLink {
-  id                    String   @id @default(cuid())
-  organizationId        String   @map("organization_id")
-  leadId                String   @map("lead_id")
-  protocoloProcedimento String   @map("protocolo_procedimento")
-  idProcedimento        String?  @map("id_procedimento")
+  id                    String    @id @default(cuid())
+  organizationId        String    @map("organization_id")
+  leadId                String    @map("lead_id")
+  protocoloProcedimento String    @map("protocolo_procedimento")
+  idProcedimento        String?   @map("id_procedimento")
   especificacao         String?
-  tipoProcedimento      String?  @map("tipo_procedimento")
-  nivelAcesso           String?  @map("nivel_acesso")
-  ultimoAndamento       String?  @map("ultimo_andamento")
-  linkAcesso            String?  @map("link_acesso")
-  snapshot              Json     @default("{}")
+  tipoProcedimento      String?   @map("tipo_procedimento")
+  nivelAcesso           String?   @map("nivel_acesso")
+  ultimoAndamento       String?   @map("ultimo_andamento")
+  linkAcesso            String?   @map("link_acesso")
+  snapshot              Json      @default("{}")
   lastSyncedAt          DateTime? @map("last_synced_at")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -3216,27 +3227,32 @@ model ForgeSettings {
 // ─────────────────────────────────────────────
 
 model Plan {
-  id              String   @id @default(cuid())
-  slug            String   @unique
-  name            String
-  slogan          String?
-  sortOrder       Int      @default(0) @map("sort_order")
-  monthlyStars    Int      @map("monthly_stars")
-  priceMonthly    Decimal  @map("price_monthly") @db.Decimal(10, 2)
-  priceLabel      String?  @map("price_label") // override do texto no canto direito do card (ex: "Gratuito", "Sob consulta"). Quando nulo cai no default ("R$ X" ou "Consultar" se price=0).
-  billingType     String   @default("monthly") @map("billing_type") // monthly | annual | weekly
-  maxUsers        Int      @default(3) @map("max_users")
-  rolloverPct     Int      @default(30) @map("rollover_pct")
-  benefits        Json     @default("[]") // string[]
-  ctaLabel        String   @default("Assinar agora") @map("cta_label")
-  ctaLink         String?  @map("cta_link") // external URL (optional, overrides gateway)
-  ctaGatewayId    String?  @map("cta_gateway_id") // PaymentGatewayConfig.id
-  highlighted     Boolean  @default(false) // destaque "Mais popular"
-  isActive        Boolean  @default(true) @map("is_active")
-  stripeProductId String?  @map("stripe_product_id")
-  stripePriceId   String?  @map("stripe_price_id")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+  id                         String   @id @default(cuid())
+  slug                       String   @unique
+  name                       String
+  slogan                     String?
+  sortOrder                  Int      @default(0) @map("sort_order")
+  monthlyStars               Int      @map("monthly_stars")
+  priceMonthly               Decimal  @map("price_monthly") @db.Decimal(10, 2)
+  priceLabel                 String?  @map("price_label") // override do texto no canto direito do card (ex: "Gratuito", "Sob consulta"). Quando nulo cai no default ("R$ X" ou "Consultar" se price=0).
+  billingType                String   @default("monthly") @map("billing_type") // monthly | annual | weekly
+  maxUsers                   Int      @default(3) @map("max_users")
+  rolloverPct                Int      @default(30) @map("rollover_pct")
+  /// ASTRO COMMANDER (spec 0023): execuções de comando incluídas por mês.
+  /// Acima disso, o excedente é cobrado em Stars pelo catálogo.
+  commanderRunsIncluded      Int      @default(0) @map("commander_runs_included")
+  /// Teto de comandos ativos simultâneos. 0 = Commander indisponível no plano.
+  commanderMaxActiveCommands Int      @default(0) @map("commander_max_active_commands")
+  benefits                   Json     @default("[]") // string[]
+  ctaLabel                   String   @default("Assinar agora") @map("cta_label")
+  ctaLink                    String?  @map("cta_link") // external URL (optional, overrides gateway)
+  ctaGatewayId               String?  @map("cta_gateway_id") // PaymentGatewayConfig.id
+  highlighted                Boolean  @default(false) // destaque "Mais popular"
+  isActive                   Boolean  @default(true) @map("is_active")
+  stripeProductId            String?  @map("stripe_product_id")
+  stripePriceId              String?  @map("stripe_price_id")
+  createdAt                  DateTime @default(now()) @map("created_at")
+  updatedAt                  DateTime @default(now()) @updatedAt @map("updated_at")
 
   organizations Organization[]
 
@@ -5234,21 +5250,21 @@ model PaymentBankTransaction {
   counterpartyDocument       String?                @map("counterparty_document")
   // O extrato às vezes entrega o CPF mascarado. Guardamos como veio e nunca
   // tentamos desmascarar — é dado de terceiro.
-  counterpartyDocumentMasked Boolean    @default(false) @map("counterparty_document_masked")
-  rawPayload     Json?                  @map("raw_payload")
-  status         PaymentBankTxStatus    @default(PENDING)
-  matchedEntryId String?                @map("matched_entry_id")
-  matchedAt      DateTime?              @map("matched_at")
-  matchedById    String?                @map("matched_by_id")
-  matchMethod    String?                @map("match_method")
-  ignoredReason  String?                @map("ignored_reason")
+  counterpartyDocumentMasked Boolean                @default(false) @map("counterparty_document_masked")
+  rawPayload                 Json?                  @map("raw_payload")
+  status                     PaymentBankTxStatus    @default(PENDING)
+  matchedEntryId             String?                @map("matched_entry_id")
+  matchedAt                  DateTime?              @map("matched_at")
+  matchedById                String?                @map("matched_by_id")
+  matchMethod                String?                @map("match_method")
+  ignoredReason              String?                @map("ignored_reason")
   // Conferência da conciliação: marca manual "Conferido" e o resultado da
   // leitura do comprovante pela IA (Astro) — pagador × valor × data.
-  reviewedAt     DateTime?              @map("reviewed_at")
-  reviewedById   String?                @map("reviewed_by_id")
-  reviewResult   Json?                  @map("review_result")
-  createdAt      DateTime               @default(now()) @map("created_at")
-  updatedAt      DateTime               @updatedAt @map("updated_at")
+  reviewedAt                 DateTime?              @map("reviewed_at")
+  reviewedById               String?                @map("reviewed_by_id")
+  reviewResult               Json?                  @map("review_result")
+  createdAt                  DateTime               @default(now()) @map("created_at")
+  updatedAt                  DateTime               @updatedAt @map("updated_at")
 
   organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   account      PaymentBankAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -7781,6 +7797,259 @@ model AstroPendingAction {
   @@map("astro_pending_actions")
 }
 
+// ─────────────────────────────────────────────────────────────
+// ASTRO COMMANDER (spec 0023) — comandos persistentes que o ASTRO
+// executa sozinho: uma vez, por agenda ou por evento. O ASTRO segue
+// sendo o único assistente; o que se cria e configura é o COMANDO.
+// ─────────────────────────────────────────────────────────────
+
+enum AstroCommandPersona {
+  SALES
+  FINANCE
+  ADMIN
+  ACCOUNTING
+  CUSTOM
+}
+
+enum AstroCommandTrigger {
+  /// Roda uma vez (agora ou em `runAt`).
+  ONCE
+  /// Cron + fuso da organização.
+  SCHEDULE
+  /// Reage a um evento da plataforma (`eventKey`).
+  EVENT
+}
+
+enum AstroCommandAutonomy {
+  /// Padrão: toda escrita vira AstroPendingAction.
+  DRAFT
+  /// Executa sozinho abaixo de `approvalThreshold`; acima, pede aprovação.
+  APPROVE_ABOVE
+  /// Executa sozinho. Tools financeiras continuam exigindo aprovação (RF-4).
+  AUTO
+}
+
+enum AstroCommandStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum AstroCommandRunTrigger {
+  SCHEDULE
+  EVENT
+  MANUAL
+  /// "Testar comando": força DRAFT e não envia nada pra fora (RF-26).
+  TEST
+}
+
+enum AstroCommandRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  WAITING_APPROVAL
+  /// Barrado por guardrail ou saldo — não chamou o LLM, não cobrou (CA-7).
+  SKIPPED_LIMIT
+  /// Nada a fazer (entidade sumiu, comando pausado, evento próprio).
+  SKIPPED
+}
+
+/// Um comando do ASTRO. Concentra a configuração que a página
+/// `/astro/comandos/[id]` edita: modelo, prompt, voz, ferramentas,
+/// apps conectados e limites.
+model AstroCommand {
+  id             String              @id @default(cuid())
+  organizationId String              @map("organization_id")
+  createdById    String              @map("created_by_id")
+  title          String
+  /// Frase original do usuário ("todo dia às 8h conciliar extrato").
+  instruction    String
+  persona        AstroCommandPersona @default(CUSTOM)
+  iconUrl        String?             @map("icon_url")
+
+  // ── Gatilho ──────────────────────────────────────────────
+  triggerType AstroCommandTrigger @default(ONCE) @map("trigger_type")
+  /// Expressão cron quando `triggerType = SCHEDULE`.
+  cron        String?
+  timezone    String              @default("America/Sao_Paulo")
+  /// Momento único quando `triggerType = ONCE`.
+  runAt       DateTime?           @map("run_at")
+  /// `lead.created`, `chat.message.received`, `bank.statement.imported`.
+  eventKey    String?             @map("event_key")
+
+  // ── Configuração do agente ───────────────────────────────
+  /// Modelo escolhido na aba Configurar › Geral. Vazio = roteamento padrão.
+  modelId         String?  @map("model_id")
+  systemPrompt    String?  @map("system_prompt")
+  /// Mensagem de abertura quando o comando fala com um lead.
+  greetingMessage String?  @map("greeting_message")
+  vocabulary      String[] @default([])
+  blockedWords    String[] @default([]) @map("blocked_words")
+  knowledgeIds    String[] @default([]) @map("knowledge_ids")
+  /// Tools liberadas (aba Ações). Vazio = pack padrão da persona.
+  toolScope       String[] @default([]) @map("tool_scope")
+  /// { "<tool>": true } — tools que exigem aprovação mesmo em AUTO.
+  toolApprovals   Json     @default("{}") @map("tool_approvals")
+  /// Instância de WhatsApp, trackings, agenda, conta financeira, caixa Gmail.
+  connectedApps   Json     @default("{}") @map("connected_apps")
+  /// Idioma, voz e resposta em áudio (aba Configurar › Voz).
+  voiceConfig     Json     @default("{}") @map("voice_config")
+  /// Timeout, janela de horário permitida e toggles (Configurar › Execução).
+  executionConfig Json     @default("{}") @map("execution_config")
+
+  // ── Autonomia e guardrails ───────────────────────────────
+  autonomy          AstroCommandAutonomy @default(DRAFT)
+  /// Valor em reais acima do qual APPROVE_ABOVE exige aprovação.
+  approvalThreshold Decimal?             @map("approval_threshold") @db.Decimal(12, 2)
+  maxRunsPerDay     Int                  @default(24) @map("max_runs_per_day")
+  maxStarsPerRun    Int                  @default(200) @map("max_stars_per_run")
+
+  // ── Estado ───────────────────────────────────────────────
+  status       AstroCommandStatus @default(DRAFT)
+  lastRunAt    DateTime?          @map("last_run_at")
+  /// Próximo disparo agendado. O tick do Inngest varre por este campo.
+  nextRunAt    DateTime?          @map("next_run_at")
+  /// Motivo da pausa automática (ex.: criador perdeu permissão — CB-1).
+  pausedReason String?            @map("paused_reason")
+
+  // ── Templates ────────────────────────────────────────────
+  isTemplate       Boolean @default(false) @map("is_template")
+  templateSourceId String? @map("template_source_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User              @relation("AstroCommandCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  runs         AstroCommandRun[]
+
+  @@index([organizationId, status, updatedAt(sort: Desc)], map: "astro_commands_org_status_updated_idx")
+  /// Varredura do tick: comandos ativos com disparo vencido.
+  @@index([status, nextRunAt], map: "astro_commands_status_next_run_idx")
+  /// Listeners de evento: quem reage a `lead.created` nesta org.
+  @@index([organizationId, eventKey, status], map: "astro_commands_org_event_status_idx")
+  @@map("astro_commands")
+}
+
+/// Uma execução de comando. É a unidade cobrada no plano e a trilha de
+/// auditoria que a aba Execuções mostra.
+model AstroCommandRun {
+  id               String                 @id @default(cuid())
+  commandId        String                 @map("command_id")
+  organizationId   String                 @map("organization_id")
+  trigger          AstroCommandRunTrigger
+  status           AstroCommandRunStatus  @default(RUNNING)
+  /// Horário para o qual este run foi agendado. Com `commandId`, dá a chave
+  /// de idempotência que impede tick duplicado de rodar duas vezes (CB-3).
+  scheduledFor     DateTime?              @map("scheduled_for")
+  /// Entidade que disparou o evento (`lead:<id>`) — idempotência do EVENT (CA-5).
+  triggerKey       String?                @map("trigger_key")
+  /// Passos: [{ tool, input, output, startedAt, ms }].
+  steps            Json                   @default("[]")
+  summary          String?
+  tokensIn         Int                    @default(0) @map("tokens_in")
+  tokensOut        Int                    @default(0) @map("tokens_out")
+  starsCharged     Int                    @default(0) @map("stars_charged")
+  /// Propostas criadas por este run (aparecem na fila de aprovação).
+  pendingActionIds String[]               @default([]) @map("pending_action_ids")
+  error            String?
+  startedAt        DateTime               @default(now()) @map("started_at")
+  finishedAt       DateTime?              @map("finished_at")
+
+  command      AstroCommand @relation(fields: [commandId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([commandId, scheduledFor], map: "astro_command_runs_command_scheduled_key")
+  @@unique([commandId, triggerKey], map: "astro_command_runs_command_trigger_key")
+  @@index([organizationId, startedAt(sort: Desc)], map: "astro_command_runs_org_started_idx")
+  @@index([commandId, startedAt(sort: Desc)], map: "astro_command_runs_command_started_idx")
+  @@map("astro_command_runs")
+}
+
+enum AstroMemoryKind {
+  FACT
+  RULE
+  PREFERENCE
+}
+
+enum AstroMemorySource {
+  MANUAL
+  FEEDBACK
+  EXECUTION
+}
+
+enum AstroMemoryStatus {
+  /// Sugerida pelo digest diário. Só entra no prompt depois de ativada.
+  SUGGESTED
+  ACTIVE
+  ARCHIVED
+}
+
+/// Fatos, regras e preferências da organização (aba Auto Inteligência).
+/// Memória ACTIVE entra no prompt do chat e dos comandos; regra com valor
+/// numérico também vira limite no código (RNF-5).
+model AstroMemory {
+  id             String            @id @default(cuid())
+  organizationId String            @map("organization_id")
+  kind           AstroMemoryKind   @default(FACT)
+  content        String
+  /// Chave estável da regra ("desconto_maximo") — ativar uma arquiva a
+  /// anterior com a mesma chave (CB-13).
+  ruleKey        String?           @map("rule_key")
+  /// Limite numérico que o código aplica, quando a regra tiver um.
+  numericValue   Decimal?          @map("numeric_value") @db.Decimal(12, 2)
+  /// "org" | "persona:<persona>" | "command:<id>".
+  scope          String            @default("org")
+  source         AstroMemorySource @default(MANUAL)
+  status         AstroMemoryStatus @default(SUGGESTED)
+  /// De onde a sugestão nasceu (feedbackId, runId).
+  sourceRef      String?           @map("source_ref")
+  createdById    String?           @map("created_by_id")
+  approvedById   String?           @map("approved_by_id")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("AstroMemoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy   User?        @relation("AstroMemoryApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status, updatedAt(sort: Desc)], map: "astro_memories_org_status_updated_idx")
+  @@index([organizationId, ruleKey, status], map: "astro_memories_org_rule_status_idx")
+  @@map("astro_memories")
+}
+
+enum AstroFeedbackRating {
+  POSITIVE
+  NEGATIVE
+}
+
+/// 👍/👎 com correção opcional nas respostas do ASTRO. Alimenta o digest
+/// diário que sugere memórias.
+model AstroFeedback {
+  id             String              @id @default(cuid())
+  organizationId String              @map("organization_id")
+  userId         String              @map("user_id")
+  sessionId      String?             @map("session_id")
+  runId          String?             @map("run_id")
+  /// id da UIMessage avaliada dentro da sessão.
+  messageId      String?             @map("message_id")
+  rating         AstroFeedbackRating
+  correction     String?
+  /// Trecho da resposta avaliada, pra sugestão ter contexto sem reabrir a sessão.
+  answerExcerpt  String?             @map("answer_excerpt")
+  /// Já virou memória sugerida no digest.
+  processedAt    DateTime?           @map("processed_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt(sort: Desc)], map: "astro_feedbacks_org_created_idx")
+  @@index([organizationId, processedAt], map: "astro_feedbacks_org_processed_idx")
+  @@map("astro_feedbacks")
+}
+
 model AiKnowledge {
   id             String            @id @default(cuid())
   organizationId String            @map("organization_id")
@@ -8413,14 +8682,14 @@ model TrafegoPendingPurchase {
   // ── PIX pelo Asaas (spec 0022) ──
   /// Cobrança no Asaas ("pay_..."). Conciliação e idempotência do webhook:
   /// é por ele que um evento vira ESTA pendência, e não outra.
-  asaasPaymentId        String?                      @unique @map("asaas_payment_id")
+  asaasPaymentId   String? @unique @map("asaas_payment_id")
   /// Pagador no Asaas, para não recadastrar a cada compra.
-  asaasCustomerId       String?                      @map("asaas_customer_id")
+  asaasCustomerId  String? @map("asaas_customer_id")
   /// CPF/CNPJ do pagador, só dígitos. Exigido pela API para emitir cobrança
   /// nominal. Não é copiado para o pedido — ver spec 0022 D-6.
-  payerDocument         String?                      @map("payer_document")
+  payerDocument    String? @map("payer_document")
   /// Copia-e-cola do QR, para reexibir a tela sem nova chamada ao Asaas.
-  pixQrCodePayload      String?                      @map("pix_qr_code_payload") @db.Text
+  pixQrCodePayload String? @map("pix_qr_code_payload") @db.Text
 
   // ── Políticas de publicidade ──
   complianceLevel            TrafegoComplianceLevel? @map("compliance_level")
@@ -8764,9 +9033,9 @@ model TrafegoSettings {
   /// confirmável: quem paga atrasado tem o dinheiro na nossa conta do mesmo
   /// jeito. Atenção — isto é o NOSSO relógio: a cobrança no Asaas continua
   /// pagável, porque o `dueDate` de lá é data, sem hora (spec 0022 CB-28).
-  pixExpiryMinutes           Int      @default(10) @map("pix_expiry_minutes")
-  whatsappTemplateLanguage   String   @default("pt_BR") @map("whatsapp_template_language")
-  clientNotificationsEnabled Boolean  @default(true) @map("client_notifications_enabled")
+  pixExpiryMinutes           Int     @default(10) @map("pix_expiry_minutes")
+  whatsappTemplateLanguage   String  @default("pt_BR") @map("whatsapp_template_language")
+  clientNotificationsEnabled Boolean @default(true) @map("client_notifications_enabled")
 
   // ── Financeiro (org da agência) ──
   financeAccountId             String? @map("finance_account_id")
