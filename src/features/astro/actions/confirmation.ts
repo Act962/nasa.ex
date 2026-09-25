@@ -99,7 +99,7 @@ function toExecutionResult(result: AstroActionResult): ProposalExecutionResult {
       ok: true,
       summary: result.description,
       links: result.publicUrl
-        ? [{ label: "Link do cliente", url: result.publicUrl }]
+        ? [{ label: "Link do cliente", href: result.publicUrl }]
         : undefined,
       data: { publicUrl: result.publicUrl, internalUrl: result.internalUrl },
     };

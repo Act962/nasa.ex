@@ -53,8 +53,17 @@ export type AstroActionResult =
       status: "error";
       title: string;
       description: string;
+      /**
+       * Erro também aponta caminho: “agenda já existe” sem link para a agenda
+       * obriga a pessoa a procurar o que ela acabou de pedir.
+       */
+      internalUrl?: string;
+      openLabel?: string;
       appName: string;
     };
+
+/** A variante de escolha, para quem só aceita um cartão com `options`. */
+export type AstroAmbiguousResult = Extract<AstroActionResult, { status: "ambiguous" }>;
 
 export interface AstroAction<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
   /** Identidade no registro e no `metadata.route` do UsageEvent. */

@@ -118,7 +118,11 @@ export const startConversationAction: AstroAction<typeof inputSchema> = {
       }));
 
     const conversation = await prisma.conversation.create({
-      data: { leadId: lead.id },
+      data: {
+        leadId: lead.id,
+        trackingId: tracking.id,
+        remoteJid: `${phone}@s.whatsapp.net`,
+      },
       select: { id: true },
     });
 

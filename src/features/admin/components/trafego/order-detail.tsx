@@ -507,7 +507,7 @@ function AdminSupportThread({ orderId }: { orderId: string }) {
     <div>
       <div className="space-y-3">
         {messages?.map((message) => {
-          const isTeam = message.authorRole === "ÓRBITA";
+          const isTeam = message.authorRole === "NASA";
           return (
             <div
               key={message.id}

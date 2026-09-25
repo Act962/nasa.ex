@@ -6,7 +6,7 @@ import { proposeAction } from "./confirmation";
 import { appearsIn, buildActionInput } from "./coerce-fields";
 import { checkAstroPermission } from "./permission-gate";
 import type { AstroConfirmationPayload } from "@/features/astro/lib/astro-confirmation";
-import type { AstroAction, AstroActionResult } from "./types";
+import type { AstroAction, AstroActionResult, AstroAmbiguousResult } from "./types";
 import {
   HIGH_CONFIDENCE,
   LOW_CONFIDENCE,
@@ -26,7 +26,7 @@ import {
 export type ClassifiedOutput = AstroActionResult | AstroConfirmationPayload;
 
 export type ResolvedClassification =
-  | { kind: "choice"; payload: AstroActionResult; actionKey: string }
+  | { kind: "choice"; payload: AstroAmbiguousResult; actionKey: string }
   | {
       kind: "result";
       action: AstroAction;
@@ -199,7 +199,7 @@ async function subjectFromHistory(params: {
 function buildChoicePayload(
   classification: StagedClassification,
   userText: string,
-): AstroActionResult {
+): AstroAmbiguousResult {
   const options = classification.candidates
     .map((candidate) => {
       const action = getAstroAction(candidate.action);
