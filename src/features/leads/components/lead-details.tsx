@@ -14,6 +14,7 @@ import {
   FileIcon,
   FileSignature,
   RouteIcon,
+  ShoppingBasket,
   StickyNoteIcon,
 } from "lucide-react";
 import { LeadContracts } from "./lead-contracts";
@@ -22,6 +23,9 @@ import { LeadAttachmentsByFolder } from "./lead-files/lead-attachments-by-folder
 import { ObservationLead } from "./observations";
 import { JourneyTimeline } from "./journey-timeline";
 import { LeadFormResponses } from "./lead-form-responses";
+import { LeadProducts } from "./lead-products";
+import { LeadStarFriendsCard } from "@/features/star-friends/components/lead-star-friends-card";
+import { leadProductsQueryKey } from "../hooks/use-lead-products";
 import { pusherClient } from "@/lib/pusher";
 import { orpc } from "@/lib/orpc";
 
@@ -54,6 +58,9 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       });
       queryClient.invalidateQueries({
         queryKey: orpc.leads.listFormResponses.queryKey({ input: { leadId } }),
+      });
+      queryClient.invalidateQueries({
+        queryKey: leadProductsQueryKey(leadId),
       });
       // tags do lead — view list e dropdown lateral
       queryClient.invalidateQueries({ queryKey: orpc.leads.list.queryKey() });
@@ -105,6 +112,17 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       value: "contracts",
       icon: FileSignature,
       content: <LeadContracts leadId={initialData.lead.id} />,
+    },
+    {
+      name: "Produtos/Serviços",
+      value: "products",
+      icon: ShoppingBasket,
+      content: (
+        <LeadProducts
+          leadId={initialData.lead.id}
+          starFriendsSlot={<LeadStarFriendsCard leadId={initialData.lead.id} />}
+        />
+      ),
     },
   ];
 

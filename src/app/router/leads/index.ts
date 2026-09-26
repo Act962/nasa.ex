@@ -38,6 +38,7 @@ import { getLeadByPublicToken } from "./get-by-public-token";
 import { getLeadPrefillByToken } from "./get-prefill-by-token";
 import { listAllAttachments } from "./list-all-attachments";
 import { listAttachmentsByToken } from "./list-attachments-by-token";
+import { listLeadProducts } from "./list-products";
 
 export const leadRoutes = {
   list: listLead,
@@ -63,6 +64,7 @@ export const leadRoutes = {
   listLeadsByStatus,
   updateManyStatus: updateManyStatusLead,
   listFiles: listLeadFiles,
+  listProducts: listLeadProducts,
   createFile: createLeadFile,
   deleteFile: deleteLeadFile,
   updateWhatsappTags: updateWhatsappTagsLead,

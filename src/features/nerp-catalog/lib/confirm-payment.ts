@@ -5,6 +5,8 @@ import { moveLeadToStage } from "@/features/leads/lib/move-lead";
 import { nerpPublicOrigin } from "@/features/nerp/lib/oauth";
 import { buildOrderPortalUrl, formatBrl } from "../utils/format-order";
 import { deliverTextToLead } from "./order-channel";
+import { awardPurchaseStars } from "@/features/star-friends/lib/earn";
+import type { CatalogOrderItem } from "../schemas/order-payload";
 
 export const CATALOG_ORDER_PAID_EVENT = "nerp/catalog-order.paid";
 
@@ -73,6 +75,24 @@ export async function confirmCatalogOrderPayment(orderId: string, payment: Confi
     });
   } catch (error) {
     console.error("[nerp-catalog] payment_entry_failed", error);
+  }
+
+  try {
+    await awardPurchaseStars({
+      organizationId: order.organizationId,
+      source: "CATALOG_ORDER",
+      sourceId: order.id,
+      leadId: order.lead.id,
+      amount: payment.amount,
+      items: (order.items as CatalogOrderItem[]).map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        total: item.total,
+      })),
+      purchaseLabel: `Pedido #${order.nerpSaleNumber} — Catálogo online`,
+    });
+  } catch (error) {
+    console.error("[nerp-catalog] star_friends_award_failed", error);
   }
 
   if (integration) {

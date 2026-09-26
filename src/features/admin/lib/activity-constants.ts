@@ -5,6 +5,7 @@ export const APP_LABELS: Record<string, string> = {
   tracking:         "Tracking / CRM",
   chat:             "Chat",
   forge:            "Forge",
+  "star-friends":   "STAR FRIENDS",
   spacetime:        "SpaceTime / Agenda",
   contacts:         "Contatos",
   settings:         "Configurações",

@@ -9,6 +9,7 @@ import { formatBrl } from "../../utils/format-order";
 import { OrderStatusTimeline } from "./order-status-timeline";
 import { OrderPaymentCard } from "./order-payment-card";
 import { OrderChat } from "./order-chat";
+import { OrderStarFriendsCard } from "./order-star-friends-card";
 
 export function OrderPortal({ token }: { token: string }) {
   const orderQuery = useCatalogOrderPortal(token);
@@ -75,6 +76,8 @@ export function OrderPortal({ token }: { token: string }) {
               </CardContent>
             </Card>
           )}
+
+          <OrderStarFriendsCard token={token} />
 
           <Card>
             <CardHeader>

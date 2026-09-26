@@ -13,7 +13,7 @@
  *    onde o lead da conversa aberta aparece em sua coluna de status.
  *    Sempre habilitado quando há um tracking selecionado na sidebar.
  * 4. **Canal** — cicla pelo filtro de canal (`ALL` → `WHATSAPP` →
- *    `INSTAGRAM` → `FACEBOOK` → ALL). Ícone reflete o canal atual; rótulo
+ *    `INSTAGRAM` → `FACEBOOK` → `CATALOG` → ALL). Ícone reflete o canal atual; rótulo
  *    mostra o nome.
  * 5. **Tags** — abre dropdown com etiquetas pra filtrar a lista.
  *
@@ -39,12 +39,16 @@ import {
   KanbanSquareIcon,
   TagIcon,
   EllipsisIcon,
+  ShoppingBasket,
 } from "lucide-react";
 import { WhatsappIcon } from "@/components/whatsapp";
 import { toast } from "sonner";
 import type { ReactNode } from "react";
+import {
+  CATALOG_CHANNEL_LABEL,
+  type ChannelFilter,
+} from "../utils/channel-filter";
 
-type ChannelFilter = "ALL" | "WHATSAPP" | "INSTAGRAM" | "TIKTOK" | "FACEBOOK";
 
 interface BottomTabsProps {
   trackingId: string | null;
@@ -60,6 +64,7 @@ const CHANNEL_CYCLE: ChannelFilter[] = [
   "WHATSAPP",
   "INSTAGRAM",
   "FACEBOOK",
+  "CATALOG",
 ];
 
 const CHANNEL_LABEL: Record<ChannelFilter, string> = {
@@ -68,6 +73,7 @@ const CHANNEL_LABEL: Record<ChannelFilter, string> = {
   INSTAGRAM: "Instagram",
   TIKTOK: "TikTok",
   FACEBOOK: "Facebook",
+  CATALOG: CATALOG_CHANNEL_LABEL,
 };
 
 export function TrackingChatBottomTabs({
@@ -280,6 +286,9 @@ function ChannelIcon({ channel }: { channel: ChannelFilter }) {
   }
   if (channel === "FACEBOOK") {
     return <span className="size-4 rounded-full bg-[#0082FB]" />;
+  }
+  if (channel === "CATALOG") {
+    return <ShoppingBasket className="size-4 text-emerald-500" />;
   }
   // ALL ou TIKTOK
   return <EllipsisIcon className="size-4" />;

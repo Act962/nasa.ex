@@ -58,6 +58,7 @@ import { metaAdsRouter } from "./meta-ads";
 import { metaMcpRouter } from "./meta-mcp";
 import { astroRoutes } from "@/features/astro/server/routes";
 import { nerpRouter } from "./nerp";
+import { starFriendsRouter } from "./star-friends";
 import { commentsRouter } from "./comments";
 import { livekitRouter } from "./livekit";
 import { stickersRouter } from "./stickers";
@@ -133,6 +134,7 @@ export const router = {
   metaMcp: metaMcpRouter,
   astro: astroRoutes,
   nerp: nerpRouter,
+  starFriends: starFriendsRouter,
   commentsApp: commentsRouter,
   livekit: livekitRouter,
   stickers: stickersRouter,

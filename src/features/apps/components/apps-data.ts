@@ -15,6 +15,7 @@ import {
   NasaPlannerIcon,
   NasaRouteIcon,
   SpaceStationIcon,
+  StarFriendsIcon,
 } from "./app-icons";
 
 export type AppStatus = "installed" | "development" | "available";
@@ -75,6 +76,23 @@ export const APPS: AppDef[] = [
     href: "/nerp",
     activeUsers: null,
     theme: "dark",
+  },
+  {
+    id: "star-friends",
+    name: "STAR FRIENDS",
+    byline: "by NASA®",
+    status: "available",
+    icon: StarFriendsIcon,
+    shortDesc: "Programa de fidelidade: cada compra vira star",
+    fullDesc:
+      "Cada compra paga no Catálogo online ou no Forge vira star para o cliente. Ele acumula e troca por produtos, descontos ou prêmios da sua lista — com histórico completo de quem lançou, quando e o quê.",
+    category: "Vendas",
+    integration: "Fidelidade",
+    action: "internal",
+    href: "/star-friends",
+    activeUsers: null,
+    theme: "purple",
+    sidebarKey: "star-friends",
   },
   {
     id: "cosmic",

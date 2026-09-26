@@ -47,6 +47,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SearchConversations } from "./search-conversaitons";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { Instance } from "../types";
+import type { ChannelFilter } from "../utils/channel-filter";
 import {
   Select,
   SelectContent,
@@ -72,9 +73,7 @@ export function ConversationsList() {
   );
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
-  const [selectedChannel, setSelectedChannel] = useState<
-    "ALL" | "WHATSAPP" | "INSTAGRAM" | "TIKTOK" | "FACEBOOK"
-  >("ALL");
+  const [selectedChannel, setSelectedChannel] = useState<ChannelFilter>("ALL");
   const [statusFlowFilter, setStatusFlowFilter] = useState<
     "FINISHED" | "ACTIVE" | null
   >(null);

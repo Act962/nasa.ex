@@ -2,6 +2,27 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import z from "zod";
 import prisma from "@/lib/prisma";
+import type { LeadSource, MessageChannel } from "@/generated/prisma/enums";
+import {
+  CONVERSATION_CHANNEL_FILTERS,
+  type ConversationChannelFilter,
+} from "@/features/tracking-chat/utils/channel-filter";
+
+// Filtros que não existem em Conversation.channel viram filtro por origem do lead.
+const LEAD_SOURCE_BY_CHANNEL_FILTER: Partial<
+  Record<ConversationChannelFilter, LeadSource>
+> = {
+  CATALOG: "NERP_CATALOG",
+  TIKTOK: "TIKTOK",
+};
+
+const MESSAGE_CHANNEL_BY_CHANNEL_FILTER: Partial<
+  Record<ConversationChannelFilter, MessageChannel>
+> = {
+  WHATSAPP: "WHATSAPP",
+  INSTAGRAM: "INSTAGRAM",
+  FACEBOOK: "FACEBOOK",
+};
 
 export const listConversation = base
   .use(requiredAuthMiddleware)
@@ -21,7 +42,7 @@ export const listConversation = base
         .enum(["NEW", "ACTIVE", "WAITING", "FINISHED"])
         .nullable()
         .optional(),
-      channel: z.string().nullable().optional(),
+      channel: z.enum(CONVERSATION_CHANNEL_FILTERS).nullable().optional(),
       tagIds: z.array(z.string()).optional(),
       favoritesOnly: z.boolean().optional(),
       /**
@@ -36,11 +57,18 @@ export const listConversation = base
   .handler(async ({ input, context, errors }) => {
     try {
       const limit = input.limit ?? 30;
+      const messageChannel = input.channel
+        ? MESSAGE_CHANNEL_BY_CHANNEL_FILTER[input.channel]
+        : undefined;
+      const leadSource = input.channel
+        ? LEAD_SOURCE_BY_CHANNEL_FILTER[input.channel]
+        : undefined;
       const conversations = await prisma.conversation.findMany({
         where: {
           trackingId: input.trackingId,
-          ...(input.channel && { channel: input.channel as any }),
+          ...(messageChannel && { channel: messageChannel }),
           lead: {
+            ...(leadSource && { source: leadSource }),
             // Arquivados: filtro orthogonal aos outros.
             // - `archivedOnly: true` → SOMENTE arquivados (filtro
             //   "Arquivados" da sidebar).

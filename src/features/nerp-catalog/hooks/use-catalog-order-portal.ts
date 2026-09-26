@@ -34,3 +34,20 @@ export function useSendCatalogOrderMessage(token: string) {
     }),
   );
 }
+
+export function useCatalogOrderStarFriends(token: string) {
+  return useQuery(orpc.public.catalogOrder.starFriends.queryOptions({ input: { token } }));
+}
+
+export function useRequestCatalogOrderRedemption(token: string) {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.public.catalogOrder.requestRedemption.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.public.catalogOrder.starFriends.queryKey({ input: { token } }),
+        });
+      },
+    }),
+  );
+}

@@ -13,6 +13,8 @@ import {
   ClipboardListIcon,
   GlobeIcon,
   UserIcon,
+  ShoppingBasket,
+  MessagesSquareIcon,
   Sparkles,
   MessageCircle,
   Clock,
@@ -497,6 +499,10 @@ export function LeadSourceIcon({
       return <UserIcon className={`${className} text-gray-400`} />;
     case LeadSource.OTHER:
       return <GlobeIcon className={`${className} text-purple-500`} />;
+    case LeadSource.NERP_CATALOG:
+      return <ShoppingBasket className={`${className} text-emerald-500`} />;
+    case LeadSource.IN_CHAT:
+      return <MessagesSquareIcon className={`${className} text-violet-500`} />;
     default:
       return <UserIcon className={`${className} text-gray-400`} />;
   }

@@ -20,13 +20,16 @@ import {
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDownIcon, EllipsisIcon } from "lucide-react";
+import { ChevronDownIcon, EllipsisIcon, ShoppingBasket } from "lucide-react";
 import Link from "next/link";
 import type { SVGProps } from "react";
 import { integrations } from "@/data/integrations";
 import { useMarketplace } from "@/features/integrations/context/marketplace-context";
+import {
+  CATALOG_CHANNEL_LABEL,
+  type ChannelFilter,
+} from "../utils/channel-filter";
 
-type ChannelFilter = "ALL" | "WHATSAPP" | "INSTAGRAM" | "TIKTOK" | "FACEBOOK";
 
 interface ConversationFiltersProps {
   trackingId: string | null;
@@ -115,6 +118,23 @@ export function ConversationFilters({
             </button>
           );
         })}
+
+        <button
+          type="button"
+          title={CATALOG_CHANNEL_LABEL}
+          aria-label={CATALOG_CHANNEL_LABEL}
+          onClick={() =>
+            onChannelChange(selectedChannel === "CATALOG" ? "ALL" : "CATALOG")
+          }
+          className={cn(
+            "flex size-11 items-center justify-center rounded-full border transition-colors bg-background",
+            selectedChannel === "CATALOG"
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border/70 text-muted-foreground hover:bg-accent",
+          )}
+        >
+          <ShoppingBasket className="size-5 text-emerald-500" />
+        </button>
 
         <Link href="/integrations?category=mensageiros">
           <button

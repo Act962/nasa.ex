@@ -7,6 +7,7 @@ import { makeTransferToHumanTool } from "./transfer-to-human";
 import { makeAddTagsToLeadTool } from "./add-tags-to-lead";
 import { makeSendButtonsTool } from "./send-buttons";
 import { makeCatalogOrderTools } from "@/features/nerp-catalog/server/tools/catalog-order-tools";
+import { makeStarFriendsTools } from "@/features/star-friends/server/tools";
 
 export function buildAgentTools(ctx: AgentContext): ToolSet {
   const tools: ToolSet = {
@@ -37,6 +38,17 @@ export function buildAgentTools(ctx: AgentContext): ToolSet {
         order: ctx.catalogOrder,
         conversationId: ctx.conversation.id,
         assistantName: ctx.settings?.assistantName ?? "Astro",
+      }),
+    );
+  }
+
+  if (ctx.starFriendsProgramName) {
+    Object.assign(
+      tools,
+      makeStarFriendsTools({
+        organizationId: ctx.organizationId,
+        leadId: ctx.lead.id,
+        programName: ctx.starFriendsProgramName,
       }),
     );
   }
