@@ -68,6 +68,60 @@ export const ALL_APPS: AppPermissionDefinition[] = [
       canApprove: "Aprovar, recusar e marcar como entregues os resgates pendentes",
     },
   },
+  // Apps da loja
+  {
+    key: "nerp",
+    label: "NERP · ERP",
+    icon: "🧾",
+    actionHints: {
+      canView: "Ver produtos, estoque, vendas, clientes e dashboards do NERP",
+      canCreate: "Cadastrar produtos, categorias, vendas e clientes no NERP",
+      canEdit: "Editar dados do NERP (preços, estoque, configurações)",
+      canDelete: "Excluir registros no NERP",
+    },
+  },
+  {
+    key: "comments",
+    label: "Comments",
+    icon: "💭",
+    actionHints: {
+      canView: "Ver automações, gatilhos e sorteios de comentários",
+      canCreate: "Criar automações, palavras-chave e sorteios",
+      canEdit: "Editar automações, integrações e notificações",
+      canDelete: "Excluir automações e desconectar o Comments",
+    },
+  },
+  {
+    key: "nasa-pages",
+    label: "NASA Pages",
+    icon: "🌐",
+    actionHints: {
+      canView: "Ver páginas, versões e analytics",
+      canCreate: "Criar, duplicar e publicar páginas",
+      canEdit: "Editar páginas, domínios e subpáginas",
+      canDelete: "Excluir páginas",
+    },
+  },
+  {
+    key: "astro",
+    label: "Astro (copiloto)",
+    icon: "🤖",
+    actionHints: {
+      canView: "Usar o chat do Astro dentro do Órbita",
+      canEdit: "Alterar configurações e conhecimento do Astro",
+      canDelete: "Excluir conversas e conhecimento do Astro",
+    },
+  },
+  {
+    key: "space-station",
+    label: "Space Station",
+    icon: "🛰️",
+    actionHints: {
+      canView: "Ver as estações e a página da empresa",
+      canCreate: "Criar estação e pedir acesso",
+      canEdit: "Editar estação, módulos e modo de acesso",
+    },
+  },
   // Gamificação
   { key: "stars",                 label: "Stars",                   icon: "⭐" },
   { key: "space-points",          label: "Space Points",            icon: "🏅" },
@@ -113,10 +167,30 @@ export const EXTENDED_ACTIONS_BY_APP: Record<string, ExtendedPermissionAction[]>
 
 export const APPS_WITH_EXTENDED_ACTIONS = new Set<string>(Object.keys(EXTENDED_ACTIONS_BY_APP));
 
+// Apps que já existiam sem nenhuma restrição por papel: começam liberados
+// para todos, para o deploy não tirar acesso de ninguém. O Master restringe.
+const PREVIOUSLY_UNRESTRICTED_APPS = new Set(["nerp", "comments", "nasa-pages", "astro", "space-station"]);
+
+const UNRESTRICTED_DEFAULT: AppPermissions = {
+  canView: true,
+  canCreate: true,
+  canEdit: true,
+  canDelete: true,
+  canApprove: false,
+  canPay: false,
+};
+
+export function getDefaultAppPermissions(role: string, appKey: string): AppPermissions {
+  if (role === "owner") return { ...DEFAULT_PERMISSIONS.owner };
+  if (PREVIOUSLY_UNRESTRICTED_APPS.has(appKey)) return { ...UNRESTRICTED_DEFAULT };
+  return { ...(DEFAULT_PERMISSIONS[role] ?? DEFAULT_PERMISSIONS.member) };
+}
+
 export function resolveAppPermissions(
   role: string,
+  appKey: string,
   override: AppPermissions | null,
 ): AppPermissions {
   if (role === "owner") return { ...DEFAULT_PERMISSIONS.owner };
-  return override ?? { ...(DEFAULT_PERMISSIONS[role] ?? DEFAULT_PERMISSIONS.member) };
+  return override ?? getDefaultAppPermissions(role, appKey);
 }

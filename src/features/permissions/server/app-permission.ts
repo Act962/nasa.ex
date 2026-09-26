@@ -22,7 +22,7 @@ export async function getUserAppPermissions(
     where: { organizationId_role_appKey: { organizationId, role: member.role, appKey } },
     select: { canView: true, canCreate: true, canEdit: true, canDelete: true, canApprove: true, canPay: true },
   });
-  return resolveAppPermissions(member.role, override);
+  return resolveAppPermissions(member.role, appKey, override);
 }
 
 export async function hasAppPermission(

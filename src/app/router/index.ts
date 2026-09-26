@@ -59,6 +59,8 @@ import { metaMcpRouter } from "./meta-mcp";
 import { astroRoutes } from "@/features/astro/server/routes";
 import { nerpRouter } from "./nerp";
 import { starFriendsRouter } from "./star-friends";
+import { base } from "@/app/middlewares/base";
+import { appRouterPermission } from "@/app/middlewares/app-router-permission";
 import { commentsRouter } from "./comments";
 import { livekitRouter } from "./livekit";
 import { stickersRouter } from "./stickers";
@@ -119,23 +121,26 @@ export const router = {
   support: supportRouter,
   scripts: scriptsRouter,
   linnker: linnkerRouter,
-  spaceStation: spaceStationRouter,
+  spaceStation: base.use(appRouterPermission("space-station")).router(spaceStationRouter),
   worldEvents: worldEventsRouter,
   companySpace: companySpaceRouter,
   profileCard: profileCardRouter,
   spaceHelp: spaceHelpRouter,
   nasaRoute: nasaRouteRouter,
-  pages: pagesRouter,
+  pages: base.use(appRouterPermission("nasa-pages", { skipPathSegments: ["registerVisit"] })).router(pagesRouter),
   inviteLinks: inviteLinksRouter,
   workspaceWorkflow: workspaceWorkflowRoutes,
   reminder: reminderRouter,
   partner: partnerRouter,
   metaAds: metaAdsRouter,
   metaMcp: metaMcpRouter,
-  astro: astroRoutes,
-  nerp: nerpRouter,
+  astro: base.use(appRouterPermission("astro")).router(astroRoutes),
+  // Integração/conexão do NERP têm chave própria ("catalogo-online").
+  nerp: base
+    .use(appRouterPermission("nerp", { skipPathSegments: ["catalogIntegration", "disconnect", "getConnectionStatus"] }))
+    .router(nerpRouter),
   starFriends: starFriendsRouter,
-  commentsApp: commentsRouter,
+  commentsApp: base.use(appRouterPermission("comments")).router(commentsRouter),
   livekit: livekitRouter,
   stickers: stickersRouter,
   brand: brandRouter,

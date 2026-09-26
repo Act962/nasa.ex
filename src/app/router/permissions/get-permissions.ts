@@ -8,6 +8,7 @@ import {
   APPS_WITH_EXTENDED_ACTIONS,
   DEFAULT_PERMISSIONS,
   EXTENDED_ACTIONS_BY_APP,
+  getDefaultAppPermissions,
   NASA_ROLES,
   ROLE_COLORS,
   ROLE_LABELS,
@@ -64,7 +65,7 @@ export const getPermissions = base
               canApprove: override.canApprove,
               canPay:     override.canPay,
             }
-          : { ...DEFAULT_PERMISSIONS[role] };
+          : getDefaultAppPermissions(role, app.key);
       }
     }
 
