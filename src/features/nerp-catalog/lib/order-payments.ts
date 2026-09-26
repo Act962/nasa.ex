@@ -12,7 +12,7 @@ import {
 import type { CatalogOrderPaymentMethod } from "@/generated/prisma/enums";
 import type { CatalogOrderCustomer } from "../schemas/order-payload";
 import { loadAsaasCredentials } from "./integration-config";
-import { confirmCatalogOrderPayment } from "./confirm-payment";
+import { confirmCatalogOrderPayment, resendNerpSyncIfPending } from "./confirm-payment";
 
 export const CATALOG_ORDER_REFERENCE_PREFIX = "catalog-order:";
 export const CATALOG_ORDER_PAYMENT_CREATED_EVENT = "nerp/catalog-order.payment-created";
@@ -152,6 +152,7 @@ export async function refreshOrderPaymentStatus(orderId: string) {
   });
   if (!order.asaasPaymentId) return { isPaid: false, asaasStatus: null };
   if ((SETTLED_STATUSES as readonly string[]).includes(order.status)) {
+    await resendNerpSyncIfPending(order.id);
     return { isPaid: order.status !== "CANCELED", asaasStatus: order.status };
   }
 

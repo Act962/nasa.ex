@@ -15,6 +15,19 @@ export type ConfirmedPayment = {
   paidAt: string | null;
 };
 
+export async function resendNerpSyncIfPending(orderId: string) {
+  const order = await prisma.catalogOrder.findUnique({
+    where: { id: orderId },
+    select: { organizationId: true, status: true, nerpSyncedAt: true },
+  });
+  const isPaid = order?.status === "PAID" || order?.status === "IN_LOGISTICS";
+  if (!order || !isPaid || order.nerpSyncedAt) return;
+  await inngest.send({
+    name: CATALOG_ORDER_PAID_EVENT,
+    data: { orderId, organizationId: order.organizationId },
+  });
+}
+
 // Idempotente: webhook do Asaas, polling do Inngest e a tool do Astro podem
 // chegar juntos — só quem vence o updateMany segue com os efeitos.
 export async function confirmCatalogOrderPayment(orderId: string, payment: ConfirmedPayment) {
@@ -23,7 +36,12 @@ export async function confirmCatalogOrderPayment(orderId: string, payment: Confi
     where: { id: orderId, status: { in: ["RECEIVED", "NEGOTIATING", "AWAITING_PAYMENT"] } },
     data: { status: "PAID", paidAt, asaasPaymentId: payment.asaasPaymentId },
   });
-  if (claim.count === 0) return { alreadyConfirmed: true };
+  if (claim.count === 0) {
+    // Reenvio do webhook/polling cobre o caso em que o evento pro NERP falhou
+    // depois do claim: sem isso a venda ficaria pendente lá para sempre.
+    await resendNerpSyncIfPending(orderId);
+    return { alreadyConfirmed: true };
+  }
 
   const order = await prisma.catalogOrder.findUniqueOrThrow({
     where: { id: orderId },
