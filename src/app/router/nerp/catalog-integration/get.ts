@@ -2,6 +2,7 @@ import { z } from "zod";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requireAppPermission } from "@/app/middlewares/app-permission";
 import prisma from "@/lib/prisma";
 import { IntegrationPlatform } from "@/generated/prisma/enums";
 import { readNerpScopes, type StoredNerpConfig } from "@/features/nerp/lib/credentials";
@@ -11,6 +12,7 @@ import { buildAsaasWebhookUrl } from "@/features/nerp-catalog/lib/asaas-webhook-
 export const getNerpCatalogIntegration = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requireAppPermission("catalogo-online", "canView"))
   .input(z.object({}).optional())
   .handler(async ({ context }) => {
     const organizationId = context.org.id;

@@ -25,6 +25,7 @@ import { JourneyTimeline } from "./journey-timeline";
 import { LeadFormResponses } from "./lead-form-responses";
 import { LeadProducts } from "./lead-products";
 import { LeadStarFriendsCard } from "@/features/star-friends/components/lead-star-friends-card";
+import { useCheckPermission } from "@/hooks/use-check-permission";
 import { leadProductsQueryKey } from "../hooks/use-lead-products";
 import { pusherClient } from "@/lib/pusher";
 import { orpc } from "@/lib/orpc";
@@ -71,7 +72,10 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       pusherClient.unsubscribe(`lead-internal-${leadId}`);
     };
   }, [leadId, queryClient]);
-  const tabs = [
+  const { checkPermission } = useCheckPermission();
+  const canViewProducts = checkPermission("lead-produtos", "canView");
+
+  const allTabs = [
     {
       name: "Observações",
       value: "observations",
@@ -125,6 +129,7 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       ),
     },
   ];
+  const tabs = allTabs.filter((tab) => tab.value !== "products" || canViewProducts);
 
   return (
     <div className="flex-1 flex flex-col">

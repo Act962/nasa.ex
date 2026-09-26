@@ -29,6 +29,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDisconnectNerp } from "@/features/nerp/hooks/use-nerp-connection";
 import { useNerpCatalogIntegration } from "../../hooks/use-nerp-catalog-integration";
+import { useCheckPermission } from "@/hooks/use-check-permission";
 import { CatalogOnlineSettingsForm } from "./catalog-online-settings-form";
 
 const CONNECT_URL = `/api/integrations/nerp/start?returnUrl=${encodeURIComponent("/integrations/nerp")}`;
@@ -106,6 +107,10 @@ export function NerpIntegrationHub() {
   const searchParams = useSearchParams();
   const integration = useNerpCatalogIntegration();
   const disconnect = useDisconnectNerp();
+  const { checkPermission, isLoading: isLoadingPermissions } = useCheckPermission();
+  const canViewCatalog = checkPermission("catalogo-online", "canView");
+  const canConfigureCatalog = checkPermission("catalogo-online", "canEdit");
+  const canDisconnect = checkPermission("catalogo-online", "canDelete");
   const data = integration.data;
   const isConnected = !!data?.connection.isConnected;
   const hasError = searchParams.get("nerp_error");
@@ -122,6 +127,14 @@ export function NerpIntegrationHub() {
       },
     );
   };
+
+  if (!isLoadingPermissions && !canViewCatalog) {
+    return (
+      <p className="mx-auto max-w-5xl text-sm text-muted-foreground">
+        Seu papel não tem acesso ao Catálogo online (NERP). O Master libera em Configurações → Permissões.
+      </p>
+    );
+  }
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
@@ -171,10 +184,12 @@ export function NerpIntegrationHub() {
             </p>
           )}
           <div className="flex flex-wrap gap-2">
-            <Button asChild>
-              <a href={CONNECT_URL}>{isConnected ? "Reconectar" : "Conectar"}</a>
-            </Button>
-            {isConnected && (
+            {canConfigureCatalog && (
+              <Button asChild>
+                <a href={CONNECT_URL}>{isConnected ? "Reconectar" : "Conectar"}</a>
+              </Button>
+            )}
+            {isConnected && canDisconnect && (
               <Button variant="outline" onClick={handleDisconnect} disabled={disconnect.isPending}>
                 {disconnect.isPending ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -240,6 +255,7 @@ export function NerpIntegrationHub() {
               trackings={data.trackings}
               settings={data.settings}
               webhookUrl={data.webhookUrl}
+              canEdit={canConfigureCatalog}
             />
           )}
           <p className="text-xs text-muted-foreground">

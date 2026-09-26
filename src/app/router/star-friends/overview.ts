@@ -1,9 +1,9 @@
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { isStarFriendsInstalled } from "@/features/star-friends/lib/program";
-import { starFriendsProcedure } from "./_base";
+import { starFriendsWith } from "./_base";
 
-export const getStarFriendsOverview = starFriendsProcedure
+export const getStarFriendsOverview = starFriendsWith("canView")
   .input(z.object({}).optional())
   .handler(async ({ context }) => {
     const organizationId = context.org.id;

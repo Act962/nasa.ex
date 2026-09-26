@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requireAppPermission } from "@/app/middlewares/app-permission";
 import { base } from "@/app/middlewares/base";
 import { catalogOrderItemSchema } from "@/features/nerp-catalog/schemas/order-payload";
 import type {
@@ -55,6 +56,7 @@ function toForgeProposalTotal(proposal: ForgeProposalTotalInput): number {
 export const listLeadProducts = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requireAppPermission("lead-produtos", "canView"))
   .route({
     method: "GET",
     path: "/leads/:leadId/products",

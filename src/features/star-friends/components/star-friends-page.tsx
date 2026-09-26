@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type StarFriendsHistoryFilters, useStarFriendsOverview } from "../hooks/use-star-friends";
 import { InstallStarFriends } from "./install-star-friends";
+import { useStarFriendsPermissions } from "../hooks/use-star-friends-permissions";
 import { ProgramSettingsForm } from "./program-settings-form";
 import { RewardsManager } from "./rewards-manager";
 import { MembersList } from "./members-list";
@@ -17,9 +18,17 @@ export function StarFriendsPage() {
   const overview = useStarFriendsOverview();
   const [activeTab, setActiveTab] = useState("overview");
   const [historyFilters, setHistoryFilters] = useState<StarFriendsHistoryFilters>({});
+  const permissions = useStarFriendsPermissions();
 
-  if (overview.isLoading) return <Skeleton className="h-96 w-full" />;
-  if (!overview.data?.isInstalled) return <InstallStarFriends />;
+  if (overview.isLoading || permissions.isLoading) return <Skeleton className="h-96 w-full" />;
+  if (!permissions.canView) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Seu papel não tem acesso ao STAR FRIENDS. O Master libera em Configurações → Permissões.
+      </p>
+    );
+  }
+  if (!overview.data?.isInstalled) return <InstallStarFriends canInstall={permissions.canConfigure} />;
 
   const { stats, program } = overview.data;
   const statCards = [
@@ -48,7 +57,7 @@ export function StarFriendsPage() {
           <TabsTrigger value="rewards">Lista de troca</TabsTrigger>
           <TabsTrigger value="members">Participantes</TabsTrigger>
           <TabsTrigger value="history">Histórico</TabsTrigger>
-          <TabsTrigger value="settings">Configurações</TabsTrigger>
+          {permissions.canConfigure && <TabsTrigger value="settings">Configurações</TabsTrigger>}
         </TabsList>
         <TabsContent value="overview" className="flex flex-col gap-4 pt-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -80,7 +89,7 @@ export function StarFriendsPage() {
           <RedemptionsQueue />
         </TabsContent>
         <TabsContent value="rewards" className="pt-4">
-          <RewardsManager />
+          <RewardsManager canEdit={permissions.canConfigure} />
         </TabsContent>
         <TabsContent value="members" className="pt-4">
           <MembersList

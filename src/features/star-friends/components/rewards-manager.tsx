@@ -53,7 +53,7 @@ const EMPTY_DRAFT: RewardDraft = {
 
 const toNullableNumber = (value: string) => (value.trim() === "" ? null : Number(value));
 
-export function RewardsManager() {
+export function RewardsManager({ canEdit }: { canEdit: boolean }) {
   const rewards = useStarFriendsRewards();
   const upsert = useUpsertStarFriendsReward();
   const [draft, setDraft] = useState<RewardDraft | null>(null);
@@ -89,9 +89,11 @@ export function RewardsManager() {
         <p className="text-sm text-muted-foreground">
           O que o cliente pode ganhar trocando stars. Estoque em branco = ilimitado.
         </p>
-        <Button onClick={() => setDraft(EMPTY_DRAFT)}>
-          <Plus className="size-4" /> Novo prêmio
-        </Button>
+        {canEdit && (
+          <Button onClick={() => setDraft(EMPTY_DRAFT)}>
+            <Plus className="size-4" /> Novo prêmio
+          </Button>
+        )}
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {rewards.data?.rewards.map((reward) => (
@@ -108,6 +110,7 @@ export function RewardsManager() {
               <span className="font-bold text-amber-500">{reward.costStars} stars</span>
               {reward.stock !== null && <span className="text-muted-foreground"> · {reward.stock} em estoque</span>}
             </p>
+            {canEdit && (
             <Button
               size="sm"
               variant="outline"
@@ -128,6 +131,7 @@ export function RewardsManager() {
             >
               <Pencil className="size-3.5" /> Editar
             </Button>
+            )}
           </div>
         ))}
         {rewards.data?.rewards.length === 0 && (

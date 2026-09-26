@@ -4,9 +4,9 @@ import { installApp } from "@/features/stars/lib/star-service";
 import { STAR_FRIENDS_APP_SLUG } from "@/features/star-friends/lib/constants";
 import { auditLoyaltyAction } from "@/features/star-friends/lib/audit";
 import { userActor } from "@/features/star-friends/lib/actor";
-import { starFriendsProcedure } from "./_base";
+import { starFriendsWith } from "./_base";
 
-export const installStarFriends = starFriendsProcedure
+export const installStarFriends = starFriendsWith("canEdit")
   .input(z.object({}).optional())
   .handler(async ({ context, errors }) => {
     const organizationId = context.org.id;

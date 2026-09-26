@@ -1,11 +1,11 @@
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getBalancesForMembers } from "@/features/star-friends/lib/members";
-import { starFriendsProcedure } from "./_base";
+import { starFriendsWith } from "./_base";
 
 const MEMBERS_PAGE_SIZE = 30;
 
-export const listStarFriendsMembers = starFriendsProcedure
+export const listStarFriendsMembers = starFriendsWith("canView")
   .input(z.object({ search: z.string().optional(), cursor: z.string().optional() }))
   .handler(async ({ input, context }) => {
     const search = input.search?.trim();

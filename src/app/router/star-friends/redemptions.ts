@@ -8,7 +8,9 @@ import {
   requestRedemption,
 } from "@/features/star-friends/lib/redemptions";
 import { userActor } from "@/features/star-friends/lib/actor";
-import { starFriendsProcedure, toRuleMessage } from "./_base";
+import { starFriendsProcedure, starFriendsWith, toRuleMessage } from "./_base";
+import { hasAppPermission } from "@/features/permissions/server/app-permission";
+import { STAR_FRIENDS_APP_SLUG } from "@/features/star-friends/lib/constants";
 
 const redemptionSelect = {
   id: true,
@@ -29,7 +31,7 @@ const redemptionSelect = {
   member: { select: { id: true, name: true, phone: true } },
 } as const;
 
-export const listStarFriendsRedemptions = starFriendsProcedure
+export const listStarFriendsRedemptions = starFriendsWith("canView")
   .input(
     z.object({
       status: z.enum(["PENDING", "APPROVED", "DELIVERED", "REJECTED", "CANCELED"]).optional(),
@@ -55,7 +57,7 @@ async function runRule<T>(action: () => Promise<T>, onRuleError: (message: strin
   }
 }
 
-export const requestStarFriendsRedemption = starFriendsProcedure
+export const requestStarFriendsRedemption = starFriendsWith("canCreate")
   .input(
     z.object({
       leadId: z.string(),
@@ -90,6 +92,12 @@ export const decideStarFriendsRedemption = starFriendsProcedure
       async () => {
         const actor = userActor(context.user);
         const organizationId = context.org.id;
+        // Cancelar estorna stars (Excluir); as demais decisões são "Aprovar".
+        const requiredAction = input.decision === "CANCEL" ? "canDelete" : "canApprove";
+        const isAllowed = await hasAppPermission(organizationId, context.user.id, STAR_FRIENDS_APP_SLUG, requiredAction);
+        if (!isAllowed) {
+          throw errors.FORBIDDEN({ message: "Seu papel não pode decidir resgates do STAR FRIENDS. Fale com o Master (Configurações → Permissões)." });
+        }
         const reason = input.reason ?? "";
         if ((input.decision === "REJECT" || input.decision === "CANCEL") && reason.length < 3) {
           throw errors.BAD_REQUEST({ message: "Informe o motivo." });

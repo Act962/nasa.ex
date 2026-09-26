@@ -4,9 +4,11 @@ import { findMemberForLead, getMemberBalance } from "@/features/star-friends/lib
 import { getActiveProgram } from "@/features/star-friends/lib/program";
 import { adjustStars } from "@/features/star-friends/lib/adjust";
 import { userActor } from "@/features/star-friends/lib/actor";
-import { starFriendsProcedure, toRuleMessage } from "./_base";
+import { starFriendsWith, toRuleMessage } from "./_base";
+import { hasAppPermission } from "@/features/permissions/server/app-permission";
+import { STAR_FRIENDS_APP_SLUG } from "@/features/star-friends/lib/constants";
 
-export const getStarFriendsByLead = starFriendsProcedure
+export const getStarFriendsByLead = starFriendsWith("canView")
   .input(z.object({ leadId: z.string() }))
   .handler(async ({ input, context, errors }) => {
     const organizationId = context.org.id;
@@ -82,9 +84,15 @@ export const getStarFriendsByLead = starFriendsProcedure
     };
   });
 
-export const adjustStarFriendsStars = starFriendsProcedure
+export const adjustStarFriendsStars = starFriendsWith("canView")
   .input(z.object({ leadId: z.string(), stars: z.number().int(), reason: z.string().trim().min(5).max(500) }))
   .handler(async ({ input, context, errors }) => {
+    // Lançar stars = Criar; retirar stars = Excluir.
+    const requiredAction = input.stars > 0 ? "canCreate" : "canDelete";
+    const isAllowed = await hasAppPermission(context.org.id, context.user.id, STAR_FRIENDS_APP_SLUG, requiredAction);
+    if (!isAllowed) {
+      throw errors.FORBIDDEN({ message: "Seu papel não pode ajustar stars do STAR FRIENDS." });
+    }
     try {
       const entry = await adjustStars({
         organizationId: context.org.id,

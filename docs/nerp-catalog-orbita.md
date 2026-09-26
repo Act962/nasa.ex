@@ -97,3 +97,18 @@ Na volta (Órbita → NERP), a chamada é `catalogOrder.updateStatus` pelo `call
 - O frete não é calculado no servidor do NERP (`shipping = 0`).
 - O chat do portal usa polling de 4s em vez de Pusher.
 - O envio de mensagens pelo portal não tem limite de taxa.
+
+## Permissões
+Na matriz de Configurações → Permissões há duas linhas para este módulo:
+
+**🛒 Catálogo online (NERP)**
+| Ação | Libera |
+| --- | --- |
+| Ver | Hub `/integrations/nerp` e pedidos do catálogo |
+| Editar | Conectar o NERP e configurar trackings, WhatsApp e Asaas |
+| Excluir | Desconectar a integração |
+
+**🛍️ Lead · Produtos/Serviços**
+| Ação | Libera |
+| --- | --- |
+| Ver | Aba Produtos/Serviços nos Detalhes do lead |

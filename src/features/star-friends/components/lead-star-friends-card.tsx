@@ -22,6 +22,7 @@ import {
   useRequestStarFriendsRedemption,
   useStarFriendsByLead,
 } from "../hooks/use-star-friends";
+import { useStarFriendsPermissions } from "../hooks/use-star-friends-permissions";
 import {
   ACTOR_TYPE_LABELS,
   LEDGER_TYPE_LABELS,
@@ -47,6 +48,7 @@ export function LeadStarFriendsCard({
   const starFriends = useStarFriendsByLead(leadId);
   const requestRedemption = useRequestStarFriendsRedemption();
   const [adjustDirection, setAdjustDirection] = useState<"credit" | "debit" | null>(null);
+  const permissions = useStarFriendsPermissions();
 
   const data = starFriends.data;
   if (starFriends.isLoading) {
@@ -58,7 +60,7 @@ export function LeadStarFriendsCard({
       </Card>
     );
   }
-  if (!data?.isActive) return null;
+  if (!data?.isActive || !permissions.canView) return null;
 
   const handleRedeem = (reward: { id: string; name: string; costStars: number }) => {
     requestRedemption.mutate(
@@ -117,7 +119,9 @@ export function LeadStarFriendsCard({
                 <Button
                   size="sm"
                   variant={isAffordable ? "default" : "outline"}
-                  disabled={!isAffordable || requestRedemption.isPending || !data.hasPhone}
+                  disabled={
+                    !isAffordable || requestRedemption.isPending || !data.hasPhone || !permissions.canRedeemAndCredit
+                  }
                   onClick={() => handleRedeem(reward)}
                 >
                   Resgatar
@@ -128,10 +132,20 @@ export function LeadStarFriendsCard({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" disabled={!data.hasPhone} onClick={() => setAdjustDirection("credit")}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!data.hasPhone || !permissions.canRedeemAndCredit}
+            onClick={() => setAdjustDirection("credit")}
+          >
             <PlusCircle className="size-4" /> Lançar stars
           </Button>
-          <Button size="sm" variant="outline" disabled={!data.hasPhone} onClick={() => setAdjustDirection("debit")}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!data.hasPhone || !permissions.canDebitAndCancel}
+            onClick={() => setAdjustDirection("debit")}
+          >
             <MinusCircle className="size-4" /> Retirar stars
           </Button>
         </div>

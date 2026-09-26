@@ -41,3 +41,16 @@ Toda ação também vai para o `SystemActivityLog` (`appSlug star-friends`) e pa
 
 ## Modelos
 `LoyaltyProgram`, `LoyaltyReward`, `LoyaltyMember`, `LoyaltyLedgerEntry` e `LoyaltyRedemption`, criados na migration `20260926150000_star_friends_loyalty`. O prefixo `Loyalty*` evita colisão com a moeda da plataforma ("Stars": `StarTransaction`, `starsBalance`…).
+
+## Permissões (Configurações → Permissões)
+O app aparece na matriz como **🌟 STAR FRIENDS**. A regra vale no servidor (`requireAppPermission` / `hasAppPermission` em `src/features/permissions/`), e a tela só esconde os botões.
+
+| Ação | Libera |
+| --- | --- |
+| Ver | Página, saldos, participantes, histórico e o card no lead |
+| Criar | Resgatar pelo consultor ou pelo chat e lançar stars |
+| Editar | Instalar, configurar regras e editar a lista de troca |
+| Excluir | Retirar stars e cancelar resgates aprovados (estorno) |
+| Aprovar (ação especial) | Aprovar, recusar e marcar como entregues os resgates pendentes |
+
+O Master sempre tem tudo. Os padrões dos outros papéis estão em `DEFAULT_PERMISSIONS`, no arquivo `features/permissions/lib/app-permission-catalog.ts`.

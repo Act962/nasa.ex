@@ -1,6 +1,6 @@
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { starFriendsProcedure } from "./_base";
+import { starFriendsWith } from "./_base";
 
 const HISTORY_PAGE_SIZE = 50;
 const HISTORY_EXPORT_LIMIT = 5000;
@@ -51,7 +51,7 @@ const entrySelect = {
 
 // Auditoria: cada linha diz quem (usuário, sistema, Astro ou cliente), quando,
 // quanto e o que foi comprado/trocado.
-export const listStarFriendsHistory = starFriendsProcedure
+export const listStarFriendsHistory = starFriendsWith("canView")
   .input(historyFilters.extend({ cursor: z.string().optional(), exportAll: z.boolean().optional() }))
   .handler(async ({ input, context }) => {
     const pageSize = input.exportAll ? HISTORY_EXPORT_LIMIT : HISTORY_PAGE_SIZE;

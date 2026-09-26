@@ -64,6 +64,7 @@ interface CatalogOnlineSettingsFormProps {
   trackings: TrackingOption[];
   settings: SavedSettings | null;
   webhookUrl: string;
+  canEdit: boolean;
 }
 
 function toFormValues(settings: SavedSettings | null): SettingsValues {
@@ -143,6 +144,7 @@ export function CatalogOnlineSettingsForm({
   trackings,
   settings,
   webhookUrl,
+  canEdit,
 }: CatalogOnlineSettingsFormProps) {
   const upsert = useUpsertNerpCatalogIntegration();
   const form = useForm<SettingsValues>({
@@ -314,7 +316,12 @@ export function CatalogOnlineSettingsForm({
       </FieldGroup>
 
       <div className="flex justify-end">
-        <Button type="submit" disabled={upsert.isPending}>
+        {!canEdit && (
+          <p className="mr-auto self-center text-xs text-muted-foreground">
+            Somente leitura: seu papel não pode editar o Catálogo online.
+          </p>
+        )}
+        <Button type="submit" disabled={upsert.isPending || !canEdit}>
           {upsert.isPending && <Loader2 className="size-4 animate-spin" />}
           Salvar configuração
         </Button>

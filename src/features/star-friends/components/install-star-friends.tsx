@@ -15,7 +15,7 @@ const HOW_IT_WORKS = [
   "Tudo fica registrado: quem lançou ou liberou stars, quando e quais itens.",
 ];
 
-export function InstallStarFriends() {
+export function InstallStarFriends({ canInstall }: { canInstall: boolean }) {
   const install = useInstallStarFriends();
   return (
     <Card className="mx-auto max-w-2xl">
@@ -35,9 +35,14 @@ export function InstallStarFriends() {
           ))}
         </ol>
         <StarCostBadge appSlug={STAR_FRIENDS_APP_SLUG} showSetup />
+        {!canInstall && (
+          <p className="text-sm text-muted-foreground">
+            Só quem tem permissão de &quot;Editar&quot; no STAR FRIENDS pode instalar. Fale com o Master.
+          </p>
+        )}
         <Button
           className="w-fit"
-          disabled={install.isPending}
+          disabled={install.isPending || !canInstall}
           onClick={() =>
             install.mutate(
               {},

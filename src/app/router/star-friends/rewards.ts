@@ -2,7 +2,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { auditLoyaltyAction } from "@/features/star-friends/lib/audit";
 import { userActor } from "@/features/star-friends/lib/actor";
-import { starFriendsProcedure } from "./_base";
+import { starFriendsWith } from "./_base";
 
 function serializeReward(reward: {
   id: string;
@@ -30,7 +30,7 @@ function serializeReward(reward: {
   };
 }
 
-export const listStarFriendsRewards = starFriendsProcedure
+export const listStarFriendsRewards = starFriendsWith("canView")
   .input(z.object({ onlyActive: z.boolean().optional() }).optional())
   .handler(async ({ input, context }) => {
     const rewards = await prisma.loyaltyReward.findMany({
@@ -40,7 +40,7 @@ export const listStarFriendsRewards = starFriendsProcedure
     return { rewards: rewards.map(serializeReward) };
   });
 
-export const upsertStarFriendsReward = starFriendsProcedure
+export const upsertStarFriendsReward = starFriendsWith("canEdit")
   .input(
     z.object({
       id: z.string().optional(),

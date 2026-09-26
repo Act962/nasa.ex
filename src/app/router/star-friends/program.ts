@@ -2,9 +2,9 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { auditLoyaltyAction } from "@/features/star-friends/lib/audit";
 import { userActor } from "@/features/star-friends/lib/actor";
-import { starFriendsProcedure } from "./_base";
+import { starFriendsWith } from "./_base";
 
-export const upsertStarFriendsProgram = starFriendsProcedure
+export const upsertStarFriendsProgram = starFriendsWith("canEdit")
   .input(
     z.object({
       isActive: z.boolean(),

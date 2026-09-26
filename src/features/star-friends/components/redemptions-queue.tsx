@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDecideStarFriendsRedemption, useStarFriendsRedemptions } from "../hooks/use-star-friends";
+import { useStarFriendsPermissions } from "../hooks/use-star-friends-permissions";
 import { REDEMPTION_CHANNEL_LABELS, REDEMPTION_STATUS_LABELS, describeSnapshot } from "../utils/labels";
 
 type RedemptionStatus = "PENDING" | "APPROVED" | "DELIVERED" | "REJECTED" | "CANCELED";
@@ -18,6 +19,7 @@ export function RedemptionsQueue() {
   const redemptions = useStarFriendsRedemptions(status);
   const decide = useDecideStarFriendsRedemption();
   const [reasonById, setReasonById] = useState<Record<string, string>>({});
+  const permissions = useStarFriendsPermissions();
 
   const handleDecision = (redemptionId: string, decision: Decision) => {
     decide.mutate(
@@ -48,7 +50,10 @@ export function RedemptionsQueue() {
         <p className="text-sm text-muted-foreground">Nada por aqui.</p>
       )}
       {redemptions.data?.redemptions.map((redemption) => {
-        const needsReason = redemption.status === "PENDING" || redemption.status === "APPROVED";
+        const canActOnPending = redemption.status === "PENDING" && permissions.canApproveRedemptions;
+        const canActOnApproved =
+          redemption.status === "APPROVED" && (permissions.canApproveRedemptions || permissions.canDebitAndCancel);
+        const needsReason = canActOnPending || canActOnApproved;
         return (
           <div key={redemption.id} className="flex flex-col gap-3 rounded-xl border p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -76,7 +81,7 @@ export function RedemptionsQueue() {
                   value={reasonById[redemption.id] ?? ""}
                   onChange={(event) => setReasonById({ ...reasonById, [redemption.id]: event.target.value })}
                 />
-                {redemption.status === "PENDING" && (
+                {canActOnPending && (
                   <>
                     <Button size="sm" disabled={decide.isPending} onClick={() => handleDecision(redemption.id, "APPROVE")}>
                       Aprovar
@@ -86,15 +91,15 @@ export function RedemptionsQueue() {
                     </Button>
                   </>
                 )}
-                {redemption.status === "APPROVED" && (
-                  <>
-                    <Button size="sm" disabled={decide.isPending} onClick={() => handleDecision(redemption.id, "DELIVER")}>
-                      Marcar como entregue
-                    </Button>
-                    <Button size="sm" variant="outline" disabled={decide.isPending} onClick={() => handleDecision(redemption.id, "CANCEL")}>
-                      Cancelar e estornar
-                    </Button>
-                  </>
+                {redemption.status === "APPROVED" && permissions.canApproveRedemptions && (
+                  <Button size="sm" disabled={decide.isPending} onClick={() => handleDecision(redemption.id, "DELIVER")}>
+                    Marcar como entregue
+                  </Button>
+                )}
+                {redemption.status === "APPROVED" && permissions.canDebitAndCancel && (
+                  <Button size="sm" variant="outline" disabled={decide.isPending} onClick={() => handleDecision(redemption.id, "CANCEL")}>
+                    Cancelar e estornar
+                  </Button>
                 )}
               </div>
             )}

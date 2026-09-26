@@ -3,6 +3,7 @@ import { z } from "zod";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requireAppPermission } from "@/app/middlewares/app-permission";
 import prisma from "@/lib/prisma";
 import { decryptSecret, encryptSecret, last4 } from "@/lib/crypto";
 import { getAccountInfo, upsertPaymentWebhook } from "@/lib/asaas";
@@ -42,6 +43,7 @@ async function assertStatusInTracking(
 export const upsertNerpCatalogIntegration = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requireAppPermission("catalogo-online", "canEdit"))
   .input(upsertInput)
   .handler(async ({ input, context, errors }) => {
     const organizationId = context.org.id;
