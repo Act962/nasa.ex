@@ -6,6 +6,7 @@ import { makeFinishConversationTool } from "./finish-conversation";
 import { makeTransferToHumanTool } from "./transfer-to-human";
 import { makeAddTagsToLeadTool } from "./add-tags-to-lead";
 import { makeSendButtonsTool } from "./send-buttons";
+import { makeCatalogOrderTools } from "@/features/nerp-catalog/server/tools/catalog-order-tools";
 
 export function buildAgentTools(ctx: AgentContext): ToolSet {
   const tools: ToolSet = {
@@ -25,6 +26,19 @@ export function buildAgentTools(ctx: AgentContext): ToolSet {
   // ativo. Sem catálogo a IA não tem como inventar presetId válido.
   if (ctx.availableButtonPresets.length > 0) {
     tools.send_buttons = makeSendButtonsTool(ctx);
+  }
+
+  // Pedido do Catálogo online NERP em aberto: libera o fechamento (PIX/link
+  // Asaas). Sem pedido, o modelo não enxerga essas ferramentas.
+  if (ctx.catalogOrder) {
+    Object.assign(
+      tools,
+      makeCatalogOrderTools({
+        order: ctx.catalogOrder,
+        conversationId: ctx.conversation.id,
+        assistantName: ctx.settings?.assistantName ?? "Astro",
+      }),
+    );
   }
 
   return tools;

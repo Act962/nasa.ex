@@ -11,6 +11,8 @@ export const NERP_DEFAULT_SCOPES = [
   "sales:rw",
   "checkout:rw",
   "dashboard:r",
+  // Catálogo online → Órbita: o NERP empurra pedidos e o Órbita confirma a venda.
+  "catalog-orders:push",
 ] as const;
 
 export type NerpExchangeResponse = {

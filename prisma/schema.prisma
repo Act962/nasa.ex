@@ -275,6 +275,8 @@ model Organization {
   agendas                Agenda[]
   widgets                Widget[]
   platformIntegrations   PlatformIntegration[]
+  nerpCatalogIntegration NerpCatalogIntegration?
+  catalogOrders          CatalogOrder[]
   forgeProducts          ForgeProduct[]
   forgeProposals         ForgeProposal[]
   forgeContracts         ForgeContract[]
@@ -894,6 +896,8 @@ enum LeadSource {
   // — phone novo digitado na tela de identify. Pipeline cria com source
   // IN_CHAT e dispara todas as automações (workflows NEW_LEAD, IA, etc).
   IN_CHAT
+  // Pedido vindo do Catálogo online do NERP (integração NERP → Órbita).
+  NERP_CATALOG
   OTHER
 }
 
@@ -999,6 +1003,7 @@ model Lead {
   // NASA Auto Agent — sessões abertas pra este lead
   agentSessions             LeadAgentSession[]
   dailyTriggerClaims        LeadDailyTriggerClaim[]
+  catalogOrders             CatalogOrder[]
 
   @@unique([phone, trackingId])
   @@index([trackingId])
@@ -2609,6 +2614,87 @@ model PlatformIntegration {
   @@unique([organizationId, platform])
   @@index([organizationId])
   @@map("platform_integrations")
+}
+
+// ─────────────────────────────────────────────
+// CATÁLOGO ONLINE NERP → ÓRBITA
+// Pedido fechado no catálogo do NERP chega como lead + CatalogOrder; o Astro
+// negocia, cobra via Asaas da própria loja e, pago, move pra logística.
+// Doc: docs/nerp-catalog-orbita.md
+// ─────────────────────────────────────────────
+
+enum CatalogOrderStatus {
+  RECEIVED
+  NEGOTIATING
+  AWAITING_PAYMENT
+  PAID
+  IN_LOGISTICS
+  DELIVERED
+  CANCELED
+}
+
+enum CatalogOrderPaymentMethod {
+  PIX
+  ASAAS_LINK
+}
+
+model NerpCatalogIntegration {
+  id                  String   @id @default(cuid())
+  organizationId      String   @unique @map("organization_id")
+  isActive            Boolean  @default(true) @map("is_active")
+  ordersTrackingId    String   @map("orders_tracking_id")
+  ordersStatusId      String?  @map("orders_status_id")
+  logisticsTrackingId String   @map("logistics_tracking_id")
+  logisticsStatusId   String?  @map("logistics_status_id")
+  whatsappNumber      String?  @map("whatsapp_number")
+  // API key do Asaas da loja, cifrada (src/lib/crypto.ts).
+  asaasApiKey         String?  @map("asaas_api_key")
+  asaasApiKeyLast4    String?  @map("asaas_api_key_last4")
+  asaasEnv            String   @default("production") @map("asaas_env")
+  asaasWebhookId      String?  @map("asaas_webhook_id")
+  asaasWebhookToken   String?  @map("asaas_webhook_token")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("nerp_catalog_integrations")
+}
+
+model CatalogOrder {
+  id             String                     @id @default(cuid())
+  organizationId String                     @map("organization_id")
+  leadId         String                     @map("lead_id")
+  trackingId     String                     @map("tracking_id")
+  nerpSaleId     String                     @unique @map("nerp_sale_id")
+  nerpSaleNumber Int                        @map("nerp_sale_number")
+  publicToken    String                     @unique @map("public_token")
+  status         CatalogOrderStatus         @default(RECEIVED)
+  items          Json
+  customer       Json
+  delivery       Json
+  subtotal       Decimal                    @db.Decimal(12, 2)
+  shipping       Decimal                    @default(0) @db.Decimal(12, 2)
+  discount       Decimal                    @default(0) @db.Decimal(12, 2)
+  total          Decimal                    @db.Decimal(12, 2)
+  catalogUrl     String?                    @map("catalog_url")
+  paymentMethod  CatalogOrderPaymentMethod? @map("payment_method")
+  asaasPaymentId String?                    @unique @map("asaas_payment_id")
+  pixPayload     String?                    @map("pix_payload")
+  pixQrImage     String?                    @map("pix_qr_image")
+  pixExpiresAt   DateTime?                  @map("pix_expires_at")
+  invoiceUrl     String?                    @map("invoice_url")
+  paidAt         DateTime?                  @map("paid_at")
+  nerpSyncedAt   DateTime?                  @map("nerp_synced_at")
+  createdAt      DateTime                   @default(now()) @map("created_at")
+  updatedAt      DateTime                   @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([leadId])
+  @@map("catalog_orders")
 }
 
 // ─────────────────────────────────────────────

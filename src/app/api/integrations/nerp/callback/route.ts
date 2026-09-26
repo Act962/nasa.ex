@@ -7,6 +7,7 @@ import {
   NERP_DEFAULT_SCOPES,
 } from "@/features/nerp/lib/oauth";
 import { consumeState } from "@/features/integrations/lib/oauth/state-store";
+import { sealNerpSecret } from "@/features/nerp/lib/credentials";
 
 function errorRedirect(origin: string, returnUrl: string, code: string) {
   const url = new URL(returnUrl, origin);
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
         isActive: true,
         config: {
           apiKey: creds.apiKey,
-          secret: creds.secret,
+          ...sealNerpSecret(creds.secret),
           nerpOrgId: creds.nerpOrgId,
           scopes: creds.scopes ?? [...NERP_DEFAULT_SCOPES],
           connectedAt: new Date().toISOString(),
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
         isActive: true,
         config: {
           apiKey: creds.apiKey,
-          secret: creds.secret,
+          ...sealNerpSecret(creds.secret),
           nerpOrgId: creds.nerpOrgId,
           scopes: creds.scopes ?? [...NERP_DEFAULT_SCOPES],
           connectedAt: new Date().toISOString(),

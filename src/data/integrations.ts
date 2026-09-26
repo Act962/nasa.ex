@@ -508,6 +508,18 @@ export const integrations: Integration[] = [
 
   // ── ECOMMERCE ────────────────────────────────────────────────────────────────
   {
+    id: "nerp",
+    slug: "nerp",
+    name: "NERP · ERP e Catálogo online",
+    description:
+      "Pedidos do catálogo online viram leads; o Astro negocia, cobra via PIX no Asaas e envia para a logística.",
+    category: "ecommerce",
+    status: "installed",
+    icon: "🛒",
+    tags: ["Nativo", "Novo"],
+    hubPageEnabled: true,
+  },
+  {
     id: "shopify",
     slug: "shopify",
     name: "Shopify",
