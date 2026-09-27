@@ -198,6 +198,7 @@ export function LeadBox({
                   (não em `lead.profile`). */}
               <HeatRing size={52} variant="color" heat={heat}>
                 <AvatarLead
+                  className="size-full md:size-full"
                   Lead={{
                     ...item.lead,
                     profile:

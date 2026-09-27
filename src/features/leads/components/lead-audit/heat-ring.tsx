@@ -17,15 +17,20 @@ interface HeatRingProps {
 
 export function HeatRing({ heat, children, size = DEFAULT_SIZE, variant = "gauge" }: HeatRingProps) {
   // Sem métricas, sem anel — mas no mesmo espaço, para a lista ficar alinhada.
+  const strokeWidth = variant === "color" ? 2.5 : 5;
+  // Folga igual em volta: o avatar preenche o círculo interno do anel.
+  const avatarInset = strokeWidth + 1.5;
+
   if (!heat && variant === "color") {
     return (
-      <div className="relative flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
-        {children}
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
+        <div className="absolute flex items-center justify-center" style={{ inset: avatarInset }}>
+          {children}
+        </div>
       </div>
     );
   }
 
-  const strokeWidth = variant === "color" ? 2.5 : 5;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const color = heat ? HEAT_LEVELS[heat.level].color : undefined;
@@ -50,7 +55,7 @@ export function HeatRing({ heat, children, size = DEFAULT_SIZE, variant = "gauge
           />
         )}
       </svg>
-      <div className="absolute flex items-center justify-center" style={{ inset: strokeWidth + 1.5 }}>
+      <div className="absolute flex items-center justify-center" style={{ inset: avatarInset }}>
         {children}
       </div>
       {heat && variant === "gauge" && (
