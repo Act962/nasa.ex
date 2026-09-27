@@ -120,6 +120,16 @@ const SOURCE_MAP: Record<
       </svg>
     ),
   },
+  ASTRO_CHAT: {
+    label: "ASTRO CHAT",
+    color: "text-violet-600",
+    bg: "bg-violet-600/15",
+    icon: ({ className }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>
+      </svg>
+    ),
+  },
   OTHER: {
     label: "Outro",
     color: "text-muted-foreground",

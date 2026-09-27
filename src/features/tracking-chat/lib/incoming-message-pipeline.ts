@@ -32,6 +32,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { LeadSource } from "@/generated/prisma/enums";
 import type { WorkflowLeadMessage } from "@/features/tracking-executions/lib/lead-message";
+import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
 
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -59,7 +60,7 @@ export interface FirePostInboundParams {
   /** Se a mensagem é do atendente (fromMe=true) ou do lead (fromMe=false). */
   fromMe: boolean;
   /** Canal de origem — pro logging/IA decidir nome do event. */
-  channel: "WHATSAPP" | "IN_CHAT" | "INSTAGRAM" | "FACEBOOK";
+  channel: "WHATSAPP" | "IN_CHAT" | "ASTRO_CHAT" | "INSTAGRAM" | "FACEBOOK";
   /**
    * Mensagem do lead que originou este inbound, no shape que os gatilhos de
    * workflow consomem (spec 0008). Só usada quando `fromMe=false`. Ausente em
@@ -168,6 +169,29 @@ export async function firePostInboundAutomations(
     } catch (err) {
       console.error("[pipeline] alert_publish_failed", err);
     }
+
+    // "Lead chamando" do ASTRO (spec 0029, RF-3). Evento separado do de cima
+    // para não mudar o dedupe das regras que as orgs já configuraram.
+    try {
+      const leadInfo = await prisma.lead.findUnique({
+        where: { id: params.lead.id },
+        select: { name: true, responsibleId: true },
+      });
+      const messageText = params.leadMessage?.text?.trim() ?? "";
+      await eventBus.publish("chat.lead_calling", {
+        conversationId: params.lead.conversation.id,
+        leadId: params.lead.id,
+        leadName: leadInfo?.name ?? undefined,
+        responsibleId: leadInfo?.responsibleId ?? null,
+        // "Lead está fazendo uma pergunta" no balão do ASTRO (spec 0029).
+        isQuestion: messageText.includes("?"),
+        messagePreview: messageText ? messageText.slice(0, 120) : undefined,
+        actionUrl: `/tracking-chat/${params.lead.conversation.id}`,
+        orgId: params.organizationId,
+      });
+    } catch (err) {
+      console.error("[pipeline] lead_calling_publish_failed", err);
+    }
   }
 
   // ── 4. Inngest IA (só inbound + IA ativa + lead ativo) ───────────────
@@ -196,6 +220,9 @@ export async function firePostInboundAutomations(
       console.error("[pipeline] inngest_send_failed", err);
     }
   }
+
+  // ── 4b. Métricas do lead (spec 0035) — entrada e saída ──────────────
+  await requestLeadMetricsRecompute(params.lead.id);
 
   // ── 5. Idle automation (só inbound) ──────────────────────────────────
   if (!params.fromMe) {

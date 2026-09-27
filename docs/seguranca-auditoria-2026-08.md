@@ -383,6 +383,7 @@ implementação correspondente.
 | M2 | Webhook Uazapi autentica por `json.token` do body contra `WhatsAppInstance.apiKey` — sem HMAC, sem comparação em tempo constante. 762 linhas, 51 commits em 6 meses | `api/chat/webhook/route.ts:443,463,476` | ⬜ Migrar para HMAC ou, no mínimo, `timingSafeEqual` |
 | M3 | `CRON_SECRET` comparado com `!==` (não timing-safe) e ausente do `.env` | `api/cron/delete-archived-trackings/route.ts:9` | ⬜ `timingSafeEqual` + adicionar ao `.env.example` |
 | M4 | Rotas admin com `catch` genérico devolvendo `401` para qualquer erro — mascara 500 reais | `api/admin/popup-templates/route.ts:17` e irmãs | ⬜ Diferenciar erro de auth de erro interno |
+| M6 | ASTRO: consultas em código do Financeiro (resumo, pago no mês, contas, vencimentos) e o ciclo guiado de lançamento checavam só a matriz de permissões, não o acesso próprio do Financeiro (`PaymentAccess`). Um membro sem acesso à tela recebia os totais pelo chat. Achado pela bateria do ASTRO (F2-12/F7-01), fora da auditoria original | `features/astro/queries/registry.ts`, `features/astro/actions/permission-gate.ts` | ✅ Corrigido na branch `feature/W-astro-commander-20260925` (PR pendente): mesma checagem da tela, antes de qualquer consulta ou pergunta |
 | M5 | Estado WebAuthn em `Map` de módulo — com >1 instância, registro e finalização caem em processos diferentes | `router/payment/access.ts:52-55` | ⬜ Mover para Redis/tabela ⚠️ severidade depende da topologia |
 
 ---
@@ -414,3 +415,4 @@ Registrados para não serem re-auditados sem motivo:
 | Data | O quê |
 | --- | --- |
 | 2026-08-18 | Registro inicial. 8 críticos, 6 altos, 5 médios, a partir da auditoria de `f67796d2`. Todos os itens 🔴 confirmados por leitura direta do código. Nenhuma correção aplicada. |
+| 2026-09-26 | M6 adicionado e corrigido (vazamento do Financeiro pelo ASTRO para membro sem acesso), achado pela bateria de testes do ASTRO. |

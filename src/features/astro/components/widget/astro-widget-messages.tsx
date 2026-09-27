@@ -14,8 +14,10 @@ export function AstroWidgetMessages({
   error,
   onRespond,
   emptyState,
+  sessionId,
 }: {
   messages: UIMessage[];
+  sessionId?: string;
   loading: boolean;
   error?: Error;
   /** Responde a um cartão de confirmação ("confirmar <id>"). */
@@ -34,8 +36,15 @@ export function AstroWidgetMessages({
         emptyState
       ) : (
         <div className="py-2">
-          {messages.map((message) => (
-            <AstroMessage key={message.id} message={message} onRespond={onRespond} busy={loading} />
+          {messages.map((message, index) => (
+            <AstroMessage
+              key={message.id}
+              message={message}
+              onRespond={onRespond}
+              busy={loading}
+              sessionId={sessionId}
+              isLatest={index === messages.length - 1}
+            />
           ))}
         </div>
       )}

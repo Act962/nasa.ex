@@ -19,7 +19,7 @@ import {
   formatDuration,
 } from "@/features/astro-commander/lib/labels";
 
-/** Execuções do comando (spec 0023, RF-24). */
+/** Execuções do comando (spec 0028, RF-24). */
 export function CommandRunsSection({ commandId }: { commandId: string }) {
   const { runs, isLoading } = useAstroRuns({ commandId, limit: 50 });
 

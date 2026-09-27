@@ -2,17 +2,24 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { openCreateCommand } from "@/features/astro-commander/lib/open-create-command";
+import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
 import { AstroBotSettings } from "@/features/astro-bot/components/astro-bot-settings";
+import { WhatsAppNotificationPreferences } from "@/features/astro-commander/components/whatsapp-notification-preferences";
 import { CommandsTab } from "@/features/astro-commander/components/tabs/commands-tab";
 import { OverviewTab } from "@/features/astro-commander/components/tabs/overview-tab";
 import { ApprovalsTab } from "@/features/astro-commander/components/tabs/approvals-tab";
+import { AutomationsTab } from "@/features/alerts/components/automations-tab";
 import { AutoIntelligenceTab } from "@/features/astro-commander/components/tabs/auto-intelligence-tab";
 import { SessionsTab } from "@/features/astro-commander/components/tabs/sessions-tab";
 import { PermissionsTab } from "@/features/astro-commander/components/tabs/permissions-tab";
 
 /**
- * App ASTRO (spec 0023, RF-9 / RF-10). O ASTRO é o único assistente; o que se
+ * App ASTRO (spec 0028, RF-9 / RF-10). O ASTRO é o único assistente; o que se
  * cria e configura aqui são COMANDOS.
  *
  * A aba ativa vive na URL (`?aba=`) para que o link possa ser compartilhado e
@@ -22,6 +29,7 @@ import { PermissionsTab } from "@/features/astro-commander/components/tabs/permi
 const TABS = [
   { value: "comandos", label: "Comandos" },
   { value: "visao-geral", label: "Visão geral" },
+  { value: "alertas", label: "Alertas" },
   { value: "aprovacoes", label: "Aprovações" },
   { value: "auto-inteligencia", label: "Auto Inteligência" },
   { value: "sessoes", label: "Sessões" },
@@ -49,42 +57,73 @@ export function AstroAppShell() {
   );
 
   return (
-    <div className="flex flex-col gap-6 px-4 pb-10 pt-4 md:px-6">
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-6">
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-2xl bg-muted/60 p-1.5 md:w-fit">
+    <div className="flex h-full min-h-0 w-full flex-col">
+      {/* Mesmo cabeçalho de /contatos: identificação à esquerda, ação à direita.
+          Antes a página abria direto nas abas, com a busca e os botões soltos
+          no meio do conteúdo. */}
+      <header className="flex items-center justify-between gap-2 border-b px-4 py-2">
+        <div className="flex items-center gap-2">
+          <SidebarTrigger className="-ml-1" />
+          <h1 className="text-sm font-medium">ASTRO</h1>
+        </div>
+        <Button
+          size="sm"
+          onClick={() =>
+            openCreateCommand({ examples: [...ASTRO_COMMAND_EXAMPLES.astro] })
+          }
+        >
+          <Plus className="size-4" />
+          Criar comando
+        </Button>
+      </header>
+
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="flex min-h-0 flex-1 flex-col gap-0"
+      >
+        <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-transparent px-4 py-0">
           {TABS.map((tab) => (
             <TabsTrigger
               key={tab.value}
               value={tab.value}
-              className="rounded-xl px-4 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              className="flex-none rounded-none border-b-2 border-transparent px-3 py-2.5 text-sm text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
             >
               {tab.label}
             </TabsTrigger>
           ))}
         </TabsList>
 
-        <TabsContent value="comandos">
+        <TabsContent value="comandos" className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
           <CommandsTab />
         </TabsContent>
-        <TabsContent value="visao-geral">
+        <TabsContent value="visao-geral" className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
           <OverviewTab />
         </TabsContent>
-        <TabsContent value="aprovacoes">
-          <ApprovalsTab />
-        </TabsContent>
-        <TabsContent value="auto-inteligencia">
-          <AutoIntelligenceTab />
-        </TabsContent>
-        <TabsContent value="sessoes">
-          <SessionsTab />
-        </TabsContent>
-        <TabsContent value="whatsapp">
-          {/* Mesma seção que vivia em /settings/astro-bot, sem perda de função. */}
-          <div className="max-w-3xl">
-            <AstroBotSettings />
+        <TabsContent value="alertas" className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+          {/* O que o ASTRO vigia e avisa. Vinha de /settings/notifications, onde
+              ninguém ligava a regra ao aviso que aparece no widget. */}
+          <div className="max-w-4xl">
+            <AutomationsTab />
           </div>
         </TabsContent>
-        <TabsContent value="permissoes">
+        <TabsContent value="aprovacoes" className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+          <ApprovalsTab />
+        </TabsContent>
+        <TabsContent value="auto-inteligencia" className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+          <AutoIntelligenceTab />
+        </TabsContent>
+        <TabsContent value="sessoes" className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+          <SessionsTab />
+        </TabsContent>
+        <TabsContent value="whatsapp" className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+          {/* Mesma seção que vivia em /settings/astro-bot, sem perda de função. */}
+          <div className="max-w-3xl space-y-8">
+            <AstroBotSettings />
+            <WhatsAppNotificationPreferences />
+          </div>
+        </TabsContent>
+        <TabsContent value="permissoes" className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
           <PermissionsTab />
         </TabsContent>
       </Tabs>

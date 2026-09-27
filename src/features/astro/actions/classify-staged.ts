@@ -4,7 +4,7 @@ import { z } from "zod";
 import { resolvePrimaryModel } from "@/features/ia/lib/router";
 import { ASTRO_APPS, type AstroAppId } from "./apps";
 import { ASTRO_ACTIONS } from "./registry";
-import type { AstroAction } from "./types";
+import { classifierFieldNames, type AstroAction } from "./types";
 
 // Triagem em duas etapas (spec 0025).
 //
@@ -36,7 +36,7 @@ const verbSchema = z.object({
     .describe("Até 3 ações possíveis, da mais provável para a menos."),
 });
 
-export type StagedLayer = "stage1" | "stage2" | "dropdown" | "smart" | "orchestrator";
+export type StagedLayer = "pattern" | "stage1" | "stage2" | "dropdown" | "smart" | "orchestrator";
 
 export interface StagedCandidate {
   action: string;
@@ -67,11 +67,29 @@ function shortDescription(description: string): string {
   return first.endsWith(".") ? first : `${first}.`;
 }
 
-function withTimeout<T>(promise: Promise<T>): Promise<T | null> {
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
   return Promise.race([
     promise,
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), STAGE_TIMEOUT_MS)),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
   ]);
+}
+
+const STAGE_RETRY_TIMEOUT_MS = 8000;
+
+/**
+ * Uma etapa com uma segunda chance. Desistir no primeiro atraso da OpenAI
+ * mandava o pedido ao orquestrador — ~23 mil tokens por mensagem — mesmo
+ * quando o classificador acertaria com 0,95 um segundo depois.
+ */
+async function runStage<T>(stageName: string, startStage: () => Promise<T>): Promise<T | null> {
+  const firstAttempt = await withTimeout(startStage(), STAGE_TIMEOUT_MS);
+  if (firstAttempt) return firstAttempt;
+  console.warn(`[astro/staged] ${stageName} passou de ${STAGE_TIMEOUT_MS}ms — tentando de novo`);
+  const secondAttempt = await withTimeout(startStage(), STAGE_RETRY_TIMEOUT_MS);
+  if (!secondAttempt) {
+    console.warn(`[astro/staged] ${stageName} esgotou de novo — seguindo para o orquestrador`);
+  }
+  return secondAttempt;
 }
 
 const STAGE1_PROMPT = `Você recebe um pedido de usuário de um sistema de gestão
@@ -138,7 +156,7 @@ export async function classifyStaged(params: {
 
     // ── Etapa 1 — de qual app é ─────────────────────────────────────────
     const catalog = apps.map((app) => `- ${app}: ${ASTRO_APPS[app]}`).join("\n");
-    const stage1 = await withTimeout(
+    const stage1 = await runStage("etapa 1", () =>
       generateObject({
         model: fast.model,
         schema: appSchema,
@@ -173,6 +191,7 @@ export async function classifyStaged(params: {
           system: `${STAGE1_PROMPT}\n\nApps:\n${catalog}`,
           prompt: params.text + buildHistoryBlock(params.history),
         }),
+        STAGE_TIMEOUT_MS,
       );
       if (retry) {
         tokensUsed += retry.usage?.totalTokens ?? 0;
@@ -191,12 +210,11 @@ export async function classifyStaged(params: {
     const verbs = verbsOf(chosenApp);
     const verbCatalog = verbs
       .map((action) => {
-        const shape = action.input instanceof z.ZodObject ? action.input.shape : {};
-        return `- ${action.key}: ${shortDescription(action.description)} [${Object.keys(shape).join(", ")}]`;
+        return `- ${action.key}: ${shortDescription(action.description)} [${classifierFieldNames(action).join(", ")}]`;
       })
       .join("\n");
 
-    const stage2 = await withTimeout(
+    const stage2 = await runStage("etapa 2", () =>
       generateObject({
         model: fast.model,
         schema: verbSchema,

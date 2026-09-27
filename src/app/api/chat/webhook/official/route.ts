@@ -352,7 +352,8 @@ export async function POST(request: NextRequest) {
     normalized.messages.length === 1 ? normalized.messages[0] : undefined;
   const singleBotMedia =
     singleMessage?.type === "media" &&
-    (singleMessage.kind === "document" || singleMessage.kind === "image")
+    // Áudio de membro vinculado: o bot transcreve (spec 0036).
+    (singleMessage.kind === "document" || singleMessage.kind === "image" || singleMessage.kind === "audio")
       ? singleMessage
       : undefined;
   const bodyForBot =
@@ -369,7 +370,9 @@ export async function POST(request: NextRequest) {
         messageText: bodyForBot,
         media:
           singleBotMedia &&
-          (singleBotMedia.kind === "document" || singleBotMedia.kind === "image")
+          (singleBotMedia.kind === "document" ||
+            singleBotMedia.kind === "image" ||
+            singleBotMedia.kind === "audio")
             ? {
                 externalMessageId: singleBotMedia.externalMessageId,
                 mediaId: singleBotMedia.mediaId,

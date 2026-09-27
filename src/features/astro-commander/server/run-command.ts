@@ -8,7 +8,16 @@ import type {
 import type { AstroCommandRunTrigger } from "@/generated/prisma/enums";
 import { buildAstroAgent } from "@/features/astro/server/orchestrator";
 import { meter } from "@/features/stars/lib/metering";
+import {
+  NOTIF_TYPES,
+  createNotification,
+} from "@/features/admin/lib/notification-service";
 import { checkGuardrails } from "@/features/astro-commander/lib/guardrails";
+import { pusherServer } from "@/lib/pusher";
+import {
+  ASTRO_ACTIVITY_PUSHER_EVENT,
+  type AstroActivityDetail,
+} from "@/features/astro/lib/astro-alert-event";
 import {
   buildCommandContext,
   buildCommandSystemBlock,
@@ -22,7 +31,7 @@ import {
 import "./approval-executor";
 
 /**
- * Execução headless de um comando do ASTRO (spec 0023, RF-3 / RF-5).
+ * Execução headless de um comando do ASTRO (spec 0028, RF-3 / RF-5).
  *
  * Roda sem ninguém conectado: monta o mesmo agente do chat, trava as
  * ferramentas pela política do comando, grava os passos e cobra o consumo.
@@ -92,6 +101,14 @@ export async function runCommand(
   const startedAt = Date.now();
   const guardState = createToolGuardState();
   const steps: RunStep[] = [];
+  const watcherUserId = params.actorUserId ?? command.createdById;
+
+  await publishActivity(watcherUserId, {
+    id: run.id,
+    state: "running",
+    headline: "Executando comando",
+    detail: command.title,
+  });
 
   try {
     const ctx = buildCommandContext(command, params.actorUserId ?? command.createdById);
@@ -100,6 +117,7 @@ export async function runCommand(
       lastUserText: command.instruction,
       extraSystem: await buildCommandSystemBlock(command),
       allowedTools: resolveAllowedTools(command),
+      inlineSubAgentTools: true,
     });
 
     const messages: ModelMessage[] = [
@@ -180,6 +198,22 @@ export async function runCommand(
       data: { lastRunAt: new Date() },
     });
 
+    await notifyRunFinished({
+      command,
+      runId: finished.id,
+      status,
+      pendingCount: guardState.pendingActionIds.length,
+    });
+    await publishActivity(watcherUserId, {
+      id: run.id,
+      state: status === "WAITING_APPROVAL" ? "waiting" : "done",
+      headline:
+        status === "WAITING_APPROVAL"
+          ? "Comando aguardando aprovação"
+          : "Comando concluído",
+      detail: command.title,
+    });
+
     return { runId: finished.id, status, summary: result.text.slice(0, 4000) };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -194,13 +228,85 @@ export async function runCommand(
         finishedAt: new Date(),
       },
     });
+    await notifyRunFinished({
+      command,
+      runId: run.id,
+      status: "FAILED",
+      pendingCount: guardState.pendingActionIds.length,
+      error: message,
+    });
+    await publishActivity(watcherUserId, {
+      id: run.id,
+      state: "failed",
+      headline: "Comando falhou",
+      detail: command.title,
+    });
     return { runId: run.id, status: "FAILED", summary: message };
   }
 }
 
 /**
+ * Mostra no balão do orb o que o ASTRO está fazendo (spec 0029, RF-10).
+ * Best-effort: o balão é vitrine, a execução não depende dele.
+ */
+async function publishActivity(
+  userId: string,
+  activity: AstroActivityDetail,
+): Promise<void> {
+  try {
+    await pusherServer.trigger(`private-user-${userId}`, ASTRO_ACTIVITY_PUSHER_EVENT, activity);
+  } catch (error) {
+    console.warn("[astro-commander/run] atividade não publicada", error);
+  }
+}
+
+/**
+ * Avisa quem criou o comando (spec 0028, RF-8). Best-effort e sempre depois do
+ * commit: notificação que falha não pode apagar a execução que já aconteceu.
+ */
+async function notifyRunFinished(params: {
+  command: AstroCommand;
+  runId: string;
+  status: AstroCommandRun["status"];
+  pendingCount: number;
+  error?: string;
+}): Promise<void> {
+  const { command, status, pendingCount } = params;
+  if (status !== "FAILED" && pendingCount === 0) return;
+
+  const isFailure = status === "FAILED";
+  try {
+    await createNotification({
+      userId: command.createdById,
+      organizationId: command.organizationId,
+      type: isFailure ? NOTIF_TYPES.ASTRO_COMMAND_FAILED : NOTIF_TYPES.ASTRO_APPROVAL_PENDING,
+      title: isFailure
+        ? `Comando falhou: ${command.title}`
+        : `${command.title} precisa da sua aprovação`,
+      body: isFailure
+        ? (params.error ?? "A execução terminou com erro.").slice(0, 300)
+        : pendingCount === 1
+          ? "O ASTRO preparou 1 ação e está esperando você aprovar."
+          : `O ASTRO preparou ${pendingCount} ações e está esperando você aprovar.`,
+      appKey: "astro",
+      actionUrl: isFailure
+        ? `/astro/comandos/${command.id}`
+        : "/astro?aba=aprovacoes",
+      metadata: {
+        commandId: command.id,
+        runId: params.runId,
+        pendingCount,
+      },
+      severity: isFailure ? "warning" : "info",
+    });
+  } catch (error) {
+    console.warn("[astro-commander/run] notificação falhou", error);
+  }
+}
+
+/**
  * O disparo vira a mensagem do usuário. O payload do evento entra delimitado:
- * é dado de origem externa, não instrução (spec 0023, RNF-5).
+ * é dado de origem externa, não instrução (spec 0028, RNF-5).
  */
 function buildUserMessage(command: AstroCommand, params: RunCommandParams): string {
   const lines = [command.instruction];

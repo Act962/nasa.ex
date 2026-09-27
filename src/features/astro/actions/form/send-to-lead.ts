@@ -2,7 +2,23 @@ import "server-only";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
+import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
 import { resolveSingleLead } from "../leads/resolve-lead";
+import { LEAD_FIELD_STEP, extractNameAfter } from "../leads/lead-steps";
+
+const FORM_PICKER: AstroPicker = { kind: "entity", entity: "form", placeholder: "Buscar formulário" };
+
+/** "manda o formulário Contato do site pro lead de QA" → formulário e lead, sem modelo. */
+function inferSendFormFields(text: string): Record<string, unknown> {
+  const inferred: Record<string, unknown> = {};
+  const formName = text.match(
+    /\b(?:formul[aá]rio|briefing|ficha)\s+(?:de\s+)?(.+?)\s+(?:pro|pra|para|ao|à)\s/iu,
+  )?.[1];
+  if (formName) inferred.formName = formName.trim();
+  const leadName = extractNameAfter(text, ["pro", "pra", "para", "ao"]);
+  if (leadName) inferred.leadName = leadName;
+  return inferred;
+}
 
 // Mandar formulário ao lead (spec 0024, onda 2 — o verbo mais valioso do
 // catálogo). Cruza dois apps numa frase que hoje custa quatro telas: achar o
@@ -44,12 +60,21 @@ export const sendFormToLeadAction: AstroAction<typeof inputSchema> = {
     "A mensagem vai direto para o WhatsApp do cliente e não pode ser desfeita.",
   ],
   input: inputSchema,
+  inferFields: inferSendFormFields,
+  intentPatterns: [/\b(manda|mandar|mande|envia|enviar|envie|dispara|disparar)\b.{0,30}\b(formulario|briefing|ficha)\b/],
+  fieldSteps: {
+    formName: { title: "Qual formulário?", question: "Busque o formulário.", picker: FORM_PICKER },
+    leadName: { ...LEAD_FIELD_STEP, title: "Para qual lead?" },
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
+    const pickedForm = parsePickedAnswer(input.formName);
     const forms = await prisma.form.findMany({
       where: {
         organizationId: ctx.organizationId,
-        name: { contains: input.formName, mode: "insensitive" },
+        ...(pickedForm.id
+          ? { id: pickedForm.id }
+          : { name: { contains: pickedForm.label, mode: "insensitive" } }),
       },
       select: { id: true, name: true, published: true, shareUrl: true },
       take: MAX_CANDIDATES,
@@ -59,9 +84,10 @@ export const sendFormToLeadAction: AstroAction<typeof inputSchema> = {
       return {
         status: "needs_input",
         title: "Formulário não encontrado",
-        description: `Não achei formulário com "${input.formName}".`,
+        description: `Não achei formulário com "${pickedForm.label}". Busque abaixo.`,
         missingFields: [{ key: "formName", label: "nome do formulário" }],
         appName: "Formulários",
+        picker: FORM_PICKER,
       };
     }
 
@@ -73,6 +99,7 @@ export const sendFormToLeadAction: AstroAction<typeof inputSchema> = {
         field: "formName",
         options: forms.map((form) => ({ id: form.id, label: form.name })),
         appName: "Formulários",
+        picker: FORM_PICKER,
       };
     }
 
@@ -126,6 +153,20 @@ export const sendFormToLeadAction: AstroAction<typeof inputSchema> = {
       };
     }
 
+    // Antes do cartão: confirmar e só depois descobrir que não há WhatsApp
+    // conectado faz o usuário decidir em vão.
+    const instance = details.tracking?.whatsappInstance;
+    if (!instance || instance.status !== "CONNECTED") {
+      return {
+        status: "error",
+        title: "WhatsApp não conectado",
+        description:
+          "O funil desse lead não tem WhatsApp conectado — nada foi enviado. " +
+          "Conecte em /integrations e tente de novo.",
+        appName: "Formulários",
+      };
+    }
+
     const url = buildFormUrl(form.shareUrl, lead.id);
     const text = input.message
       ? `${input.message}\n\n${url}`
@@ -137,18 +178,6 @@ export const sendFormToLeadAction: AstroAction<typeof inputSchema> = {
         title: "Enviar formulário",
         description: `"${form.name}" será enviado para ${lead.name}.`,
         publicUrl: url,
-        appName: "Formulários",
-      };
-    }
-
-    const instance = details.tracking?.whatsappInstance;
-    if (!instance || instance.status !== "CONNECTED") {
-      return {
-        status: "error",
-        title: "WhatsApp não conectado",
-        description:
-          "O tracking desse lead não tem instância conectada. " +
-          "Conecte em /integrations e tente de novo.",
         appName: "Formulários",
       };
     }

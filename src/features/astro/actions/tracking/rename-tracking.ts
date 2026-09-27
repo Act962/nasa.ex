@@ -3,6 +3,8 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleTracking } from "./resolve-tracking";
+import { TRACKING_FIELD_STEP } from "../leads/lead-steps";
+import { NEW_NAME_STEP, extractNamedThing, extractNewName } from "./tracking-steps";
 
 // Renomear o funil inteiro. `tracking.rename_status` renomeia COLUNA; o
 // quadro em si não tinha verbo.
@@ -23,6 +25,13 @@ export const renameTrackingAction: AstroAction<typeof inputSchema> = {
   requiresConfirmation: false,
   newNameFields: ["newName"],
   input: inputSchema,
+  inferFields: (text) => {
+    const trackingName = extractNamedThing(text, "funil|tracking");
+    const newName = extractNewName(text);
+    return { ...(trackingName ? { trackingName } : {}), ...(newName ? { newName } : {}) };
+  },
+  intentPatterns: [/\b(renomeia|renomear|renomeie|muda o nome|mudar o nome|troca o nome|trocar o nome)\b.{0,20}\b(funil|tracking)\b/],
+  fieldSteps: { trackingName: TRACKING_FIELD_STEP, newName: NEW_NAME_STEP },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const resolved = await resolveSingleTracking({

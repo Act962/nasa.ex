@@ -4,6 +4,8 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useState } from "react";
 import { WorkspaceSettingsModal } from "./modals/workspace-settings-modal";
 import { Button } from "@/components/ui/button";
+import { AstroCommandButton } from "@/features/astro-commander/components/astro-command-button";
+import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
 import { ArrowLeftIcon, PlusIcon, SettingsIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceMembers } from "../hooks/use-workspace";
@@ -38,6 +40,15 @@ export function NavWorkspace({ workspaceId, title }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
+          <AstroCommandButton
+            examples={ASTRO_COMMAND_EXAMPLES.workspace}
+            className="hidden md:inline-flex"
+          />
+          <AstroCommandButton
+            examples={ASTRO_COMMAND_EXAMPLES.workspace}
+            compact
+            className="size-7 md:hidden"
+          />
           {!isLoading && members && members.length > 0 && (
             <div className="flex items-center gap-0.5">
               <div className="*:data-[slot=avatar]:ring-background flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:grayscale">

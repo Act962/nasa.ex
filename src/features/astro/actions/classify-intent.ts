@@ -3,6 +3,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { resolvePrimaryModel } from "@/features/ia/lib/router";
 import { ASTRO_ACTIONS } from "./registry";
+import { classifierFieldNames } from "./types";
 
 // Classificador de intenção (spec 0023, RF-3). Roda ANTES do orquestrador e
 // existe por um motivo medido: o orquestrador manda 91 definições de
@@ -81,8 +82,7 @@ function shortDescription(description: string): string {
 
 function buildCatalog(): string {
   return ASTRO_ACTIONS.map((action) => {
-    const shape = action.input instanceof z.ZodObject ? action.input.shape : {};
-    const fields = Object.keys(shape).join(", ") || "—";
+    const fields = classifierFieldNames(action).join(", ") || "—";
     return `- ${action.key}: ${shortDescription(action.description)} [${fields}]`;
   }).join("\n");
 }

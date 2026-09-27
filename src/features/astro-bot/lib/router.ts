@@ -24,6 +24,7 @@ import {
 import { assessBotInboundMedia, storeBotInboundDocument } from "./inbound-media";
 import { chargeBotPromptStake, debitBotTokenUsage } from "./stars-billing";
 import { tryCheapLayers } from "./cheap-layers";
+import { transcribeBotAudio, type AudioDownloader } from "./audio-transcription";
 import type { BotCommandResult, BotInboundMedia, WhatsappBotChannel } from "./types";
 
 interface RouteContext {
@@ -35,6 +36,8 @@ interface RouteContext {
   /** uazapi instance deviceId (pra detectar SIM swap). */
   deviceId?: string;
   media?: BotInboundMedia;
+  /** Troca o download do áudio (bateria de QA); padrão: provider do funil. */
+  downloadAudio?: AudioDownloader;
 }
 
 const INSIGHTS_FALLBACK_REPLY =
@@ -80,8 +83,12 @@ export async function handleBotCommand(
   ctx: RouteContext,
   messageText: string,
 ): Promise<BotCommandResult> {
-  const { binding, botConfig, media } = ctx;
-  const loggedText = buildLoggedMessageText(messageText, media);
+  const { binding, botConfig } = ctx;
+  // Áudio vira texto depois do stake (spec 0036); daqui em diante, "mídia" é
+  // só documento ou imagem.
+  const audio = ctx.media?.kind === "audio" ? ctx.media : undefined;
+  const media = audio ? undefined : ctx.media;
+  let loggedText = audio ? "[áudio]" : buildLoggedMessageText(messageText, media);
 
   if (!binding.isActive) {
     return logAndReturn(binding, loggedText, {
@@ -124,6 +131,26 @@ export async function handleBotCommand(
       reply: STARS_INSUFFICIENT_REPLY,
       starsCharged: 0,
     });
+  }
+
+  if (audio) {
+    const transcription = await transcribeBotAudio({
+      binding,
+      trackingId: ctx.trackingId,
+      media: audio,
+      isBillingExempt: stake.isExempt,
+      downloadAudio: ctx.downloadAudio,
+    });
+    if (!transcription.isTranscribed) {
+      return logAndReturn(binding, loggedText, {
+        status: "media_failed",
+        reply: transcription.reply,
+        starsCharged: stake.starsCharged,
+      });
+    }
+    messageText = transcription.text;
+    loggedText = `[áudio] ${transcription.text}`;
+    stake.starsCharged += transcription.starsCharged;
   }
 
   let attachments: AstroAttachmentRef[] | undefined;

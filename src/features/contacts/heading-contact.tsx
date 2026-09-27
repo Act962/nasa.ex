@@ -18,6 +18,9 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useSearchModal } from "@/hooks/modal/use-search-modal";
 import { useOrgRole } from "@/hooks/use-org-role";
+import { AstroCommandButton } from "@/features/astro-commander/components/astro-command-button";
+import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
+import { openCreateCommand } from "@/features/astro-commander/lib/open-create-command";
 import { useCheckPermission } from "@/hooks/use-check-permission";
 import {
   DownloadCloud,
@@ -25,6 +28,7 @@ import {
   MoreHorizontalIcon,
   Plus,
   Search,
+  Wand2,
 } from "lucide-react";
 import { LeadImportDialog } from "./lead-import-dialog";
 import { LeadExportDialog } from "./lead-export-dialog";
@@ -84,6 +88,7 @@ export default function HeadingContacts() {
               Exportar
             </Button>
           )}
+          <AstroCommandButton examples={ASTRO_COMMAND_EXAMPLES.contacts} />
           <Button>Adicionar novo lead</Button>
         </div>
 
@@ -116,6 +121,14 @@ export default function HeadingContacts() {
               <DropdownMenuItem>
                 <Plus className="size-4" />
                 Novo lead
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  openCreateCommand({ examples: [...ASTRO_COMMAND_EXAMPLES.contacts] })
+                }
+              >
+                <Wand2 className="size-4" />
+                Criar comando
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>

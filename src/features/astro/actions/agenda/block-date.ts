@@ -2,7 +2,11 @@ import "server-only";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
+import { parseCalendarDate } from "../parse-when";
 import { inferPolarity } from "../infer-polarity";
+import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
+
+const AGENDA_PICKER: AstroPicker = { kind: "entity", entity: "agenda", placeholder: "Buscar agenda" };
 
 // Bloquear ou liberar um dia na agenda (spec 0024, onda 1). Bloquear não
 // cancela o que já está marcado — só impede agendamento novo naquele dia.
@@ -18,8 +22,12 @@ function normalizeDate(raw: string, today = new Date()): string | null {
   const trimmed = raw.trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
 
-  const dayOnly = trimmed.match(/^(\d{1,2})$/);
-  if (!dayOnly) return null;
+  const dayOnly = trimmed.match(/^(?:dia\s+)?(\d{1,2})$/i);
+  if (!dayOnly) {
+    // "30/09", "30/09/2026" (seletor de data), "amanhã": vira o dia em Brasília.
+    const parsed = parseCalendarDate(trimmed, today);
+    return parsed ? new Date(parsed).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }) : null;
+  }
 
   const day = Number(dayOnly[1]);
   if (day < 1 || day > 31) return null;
@@ -62,8 +70,30 @@ export const blockAgendaDateAction: AstroAction<typeof inputSchema> = {
   permission: { appKey: "spacetime", action: "edit" },
   requiresConfirmation: false,
   input: inputSchema,
-  inferFields: (text) =>
-    inferPolarity(text, "blocked", /\blibera|\bdesbloque/i, /\bbloque|\bfech/i),
+  inferFields: (text) => {
+    const date = text.match(/\b(?:dia\s+(\d{1,2})\b|(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?))/i);
+    const agendaName = text.match(/\bna\s+([Aa]genda\s+[^\s,]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ]+)*)/u)?.[1];
+    return {
+      ...inferPolarity(text, "blocked", /\blibera|\bdesbloque/i, /\bbloque|\bfech/i),
+      ...(date ? { date: date[1] ?? date[2] } : {}),
+      ...(agendaName ? { agendaName } : {}),
+    };
+  },
+  intentPatterns: [/\b(bloqueia|bloquear|bloqueie|desbloqueia|desbloquear|libera|liberar|libere|fecha|fechar|feche)\b.{0,20}\b(o\s+)?(dia|data)\b/],
+  fieldSteps: {
+    date: { title: "Qual dia?", question: "Escolha o dia.", picker: { kind: "datetime", mode: "date" } },
+    blocked: {
+      title: "Bloquear ou liberar?",
+      question: "O que fazer com o dia?",
+      picker: {
+        kind: "select",
+        options: [
+          { label: "Bloquear", answer: "sim" },
+          { label: "Liberar", answer: "nao" },
+        ],
+      },
+    },
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const date = normalizeDate(input.date);
@@ -71,18 +101,22 @@ export const blockAgendaDateAction: AstroAction<typeof inputSchema> = {
       return {
         status: "needs_input",
         title: "Dia não entendido",
-        description: `Não consegui ler "${input.date}" como um dia.`,
+        description: `Não consegui ler "${input.date}" como um dia. Escolha no calendário.`,
         missingFields: [{ key: "date", label: "o dia" }],
         appName: "Agendas",
+        picker: { kind: "datetime", mode: "date" },
       };
     }
 
+    const pickedAgenda = input.agendaName ? parsePickedAnswer(input.agendaName) : null;
     const candidates = await prisma.agenda.findMany({
       where: {
         organizationId: ctx.organizationId,
-        ...(input.agendaName
-          ? { name: { contains: input.agendaName, mode: "insensitive" } }
-          : {}),
+        ...(pickedAgenda?.id
+          ? { id: pickedAgenda.id }
+          : pickedAgenda
+            ? { name: { contains: pickedAgenda.label, mode: "insensitive" } }
+            : {}),
       },
       select: { id: true, name: true },
       take: MAX_CANDIDATES,
@@ -93,10 +127,11 @@ export const blockAgendaDateAction: AstroAction<typeof inputSchema> = {
         status: "needs_input",
         title: "Agenda não encontrada",
         description: input.agendaName
-          ? `Não achei agenda com "${input.agendaName}".`
+          ? `Não achei agenda com "${pickedAgenda?.label ?? input.agendaName}".`
           : "Você ainda não tem agenda nenhuma.",
         missingFields: [{ key: "agendaName", label: "nome da agenda" }],
         appName: "Agendas",
+        picker: AGENDA_PICKER,
       };
     }
 
@@ -108,6 +143,7 @@ export const blockAgendaDateAction: AstroAction<typeof inputSchema> = {
         field: "agendaName",
         options: candidates.map((a) => ({ id: a.id, label: a.name })),
         appName: "Agendas",
+        picker: AGENDA_PICKER,
       };
     }
 

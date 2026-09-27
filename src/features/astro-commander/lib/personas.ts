@@ -1,7 +1,7 @@
 import type { AstroCommandPersona } from "@/generated/prisma/enums";
 
 /**
- * Personas do ASTRO COMMANDER (spec 0023). A persona é um atributo do comando,
+ * Personas do ASTRO COMMANDER (spec 0028). A persona é um atributo do comando,
  * não um assistente separado: define prompt, ferramentas sugeridas e limites
  * iniciais quando o comando nasce.
  */

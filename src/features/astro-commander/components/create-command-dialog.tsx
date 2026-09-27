@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Wand2 } from "lucide-react";
@@ -34,7 +34,7 @@ import {
 } from "@/features/astro-commander/lib/labels";
 
 /**
- * Criar comando em duas etapas (spec 0023, RF-1): o usuário descreve, o ASTRO
+ * Criar comando em duas etapas (spec 0028, RF-1): o usuário descreve, o ASTRO
  * devolve um rascunho estruturado e só então o comando é salvo. Nada é criado
  * a partir do que o modelo entendeu sem alguém confirmar.
  */
@@ -53,7 +53,7 @@ type Draft = {
   timezone: string;
 };
 
-const EXAMPLES = [
+const DEFAULT_EXAMPLES = [
   "todo dia às 8h conciliar extrato",
   "responder leads novos, ler todo o histórico de mensagens e enviar proposta caso precise",
   "toda segunda às 9h me mandar o resumo das conversas sem resposta",
@@ -62,12 +62,23 @@ const EXAMPLES = [
 export function CreateCommandDialog({
   open,
   onOpenChange,
+  examples,
+  initialInstruction,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Exemplos da área de onde o dialog foi aberto (spec 0029, RF-12). */
+  examples?: string[];
+  initialInstruction?: string;
 }) {
   const router = useRouter();
-  const [instruction, setInstruction] = useState("");
+  const [instruction, setInstruction] = useState(initialInstruction ?? "");
+  const suggestions = examples && examples.length > 0 ? examples : DEFAULT_EXAMPLES;
+
+  // Cada abertura pode vir de uma área diferente, com texto inicial próprio.
+  useEffect(() => {
+    if (open) setInstruction(initialInstruction ?? "");
+  }, [open, initialInstruction]);
   const [draft, setDraft] = useState<Draft | null>(null);
   const draftCommand = useDraftAstroCommand();
   const createCommand = useCreateAstroCommand();
@@ -140,7 +151,7 @@ export function CreateCommandDialog({
               rows={4}
             />
             <div className="flex flex-wrap gap-2">
-              {EXAMPLES.map((example) => (
+              {suggestions.map((example) => (
                 <button
                   key={example}
                   type="button"

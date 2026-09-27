@@ -18,7 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAstroUsage } from "@/features/astro-commander/hooks/use-astro-runs";
 
-/** Dashboard do comando (spec 0023, RF-19). */
+/** Dashboard do comando (spec 0028, RF-19). */
 
 const CHART_CONFIG = {
   runs: { label: "Execuções", color: "var(--primary)" },

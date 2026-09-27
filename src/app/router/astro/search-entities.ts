@@ -33,6 +33,8 @@ export const searchEntities = base
         "workspace",
         "appointment",
         "proposal",
+        "product",
+        "payment_entry",
         "form",
         "workflow_folder",
       ]),
@@ -77,10 +79,13 @@ type EntityType =
   | "workspace"
   | "appointment"
   | "proposal"
+  | "product"
+  | "payment_entry"
   | "form"
   | "workflow_folder";
 
-async function runSearch(
+/** A busca do seletor do cartão, exportada para a bateria de testes buscar como o usuário. */
+export async function runSearch(
   entityType: EntityType,
   query: string,
   organizationId: string,
@@ -234,6 +239,9 @@ async function runSearch(
       const rows = await prisma.appointment.findMany({
         where: {
           agenda: { organizationId },
+          // Remarcar e cancelar só fazem sentido no que ainda vai acontecer.
+          status: { not: "CANCELLED" },
+          startsAt: { gte: new Date(Date.now() - 12 * 60 * 60_000) },
           ...(isEmpty
             ? {}
             : {
@@ -249,13 +257,20 @@ async function runSearch(
           startsAt: true,
           lead: { select: { name: true } },
         },
-        orderBy: { startsAt: "desc" },
+        orderBy: { startsAt: "asc" },
         take: limit,
       });
       return rows.map((r) => ({
         id: r.id,
         label: r.title ?? r.lead?.name ?? "Agendamento",
-        hint: r.startsAt.toLocaleString("pt-BR"),
+        hint: r.startsAt.toLocaleString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+          weekday: "short",
+          day: "2-digit",
+          month: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       }));
     }
     case "proposal": {
@@ -264,7 +279,13 @@ async function runSearch(
           organizationId,
           ...(isEmpty
             ? {}
-            : { title: { contains: query, mode: "insensitive" } }),
+            : {
+                OR: [
+                  { title: { contains: query, mode: "insensitive" } },
+                  { client: { name: { contains: query, mode: "insensitive" } } },
+                  ...(/^#?\d+$/.test(query) ? [{ number: Number(query.replace("#", "")) }] : []),
+                ],
+              }),
         },
         select: { id: true, title: true, number: true, status: true },
         orderBy: { updatedAt: "desc" },
@@ -272,8 +293,42 @@ async function runSearch(
       });
       return rows.map((r) => ({
         id: r.id,
-        label: r.title,
-        hint: `#${r.number} · ${r.status}`,
+        label: `#${r.number} ${r.title}`,
+        hint: r.status,
+      }));
+    }
+    case "payment_entry": {
+      // Só lançamentos em aberto: é o que se dá baixa.
+      const rows = await prisma.paymentEntry.findMany({
+        where: {
+          organizationId,
+          status: { in: ["PENDING", "PARTIAL", "OVERDUE"] },
+          ...(isEmpty ? {} : { description: { contains: query, mode: "insensitive" } }),
+        },
+        select: { id: true, description: true, amount: true, dueDate: true, type: true },
+        orderBy: { dueDate: "asc" },
+        take: limit,
+      });
+      return rows.map((row) => ({
+        id: row.id,
+        label: row.description,
+        hint: `${row.type === "PAYABLE" ? "−" : "+"}${(row.amount / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} · vence ${row.dueDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
+      }));
+    }
+    case "product": {
+      const rows = await prisma.forgeProduct.findMany({
+        where: {
+          organizationId,
+          ...(isEmpty ? {} : { name: { contains: query, mode: "insensitive" } }),
+        },
+        select: { id: true, name: true, value: true },
+        orderBy: { name: "asc" },
+        take: limit,
+      });
+      return rows.map((row) => ({
+        id: row.id,
+        label: row.name,
+        hint: Number(row.value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
       }));
     }
     case "form": {

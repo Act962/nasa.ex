@@ -17,7 +17,8 @@ import { FieldPhone } from "./fields/field-phone";
 import { FieldEmail } from "./fields/field-email";
 import { FieldResponsible } from "./fields/field-responsible";
 import { FieldTags } from "./fields/field-tags";
-import { FieldText } from "./fields/field-text";
+import { LeadAddressFields } from "./lead-address-fields";
+import { LeadAuditSection } from "../lead-audit/lead-audit-section";
 import { InfoItem } from "./Info-item";
 import { ListHistoric } from "../list-historic";
 import { WhatsappIcon } from "@/components/whatsapp";
@@ -253,6 +254,10 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
             </div>
           </div>
 
+          <div className="px-4 pb-4">
+            <LeadAuditSection leadId={lead.id} metrics={lead.metrics} />
+          </div>
+
           {/* Details Tabs - Scrollable content inside */}
           <Tabs defaultValue="info" className="flex-1 flex flex-col min-h-0">
             <div className="px-4 shrink-0">
@@ -326,31 +331,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
 
             <TabsContent value="address" className="flex-1 min-h-0 ">
               <div className="flex-1 overflow-y-auto px-4 py-2 space-y-4 pb-10">
-                <FieldText
-                  label="Logradouro"
-                  value=""
-                  fieldKey="street"
-                  trackingId={lead.trackingId}
-                />
-                <FieldText
-                  label="Cidade"
-                  value=""
-                  fieldKey="city"
-                  trackingId={lead.trackingId}
-                />
-                <FieldText
-                  label="Estado"
-                  value=""
-                  fieldKey="state"
-                  trackingId={lead.trackingId}
-                />
-                <FieldText
-                  label="País"
-                  value=""
-                  fieldKey="country"
-                  placeholder="Brasil"
-                  trackingId={lead.trackingId}
-                />
+                <LeadAddressFields address={lead} trackingId={lead.trackingId} />
               </div>
             </TabsContent>
           </Tabs>

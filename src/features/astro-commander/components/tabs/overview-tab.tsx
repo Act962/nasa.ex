@@ -31,7 +31,7 @@ import {
   formatDuration,
 } from "@/features/astro-commander/lib/labels";
 
-/** Painel e custos da organização (spec 0023, RF-12). */
+/** Painel e custos da organização (spec 0028, RF-12). */
 
 const PERIODS = [
   { value: "1", label: "Hoje" },

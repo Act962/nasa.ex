@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Plus, X } from "lucide-react";
+import Link from "next/link";
+import { MoreHorizontal, Plus, Settings, X } from "lucide-react";
 import { AstroMark } from "@/features/astro/components/astro-mark";
 import { AstroVoiceMenuItems } from "@/features/astro/voice/astro-voice-menu";
 
@@ -49,6 +50,17 @@ export function AstroWidgetHeader({
         </button>
       )}
 
+      {/* O App ASTRO saiu do menu lateral: o caminho até ele é esta
+          engrenagem, que acompanha o widget em todas as telas. */}
+      <Link
+        href="/astro"
+        onClick={onClose}
+        aria-label="Abrir o App ASTRO"
+        title="Configurações do ASTRO"
+        className="grid size-8 shrink-0 place-items-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white"
+      >
+        <Settings className="size-4" />
+      </Link>
       <button
         type="button"
         onClick={() => setVoiceMenuOpen((isMenuOpen) => !isMenuOpen)}

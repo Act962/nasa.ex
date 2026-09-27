@@ -8,11 +8,14 @@ interface ObservationLeadProps {
   leadId: string;
   trackingId: string;
   description: string | null;
+  /** Só a caixa de texto, sem título nem rolagem (lateral do chat). */
+  compact?: boolean;
 }
 export function ObservationLead({
   leadId,
   trackingId,
   description,
+  compact = false,
 }: ObservationLeadProps) {
   const [editor, setEditor] = useState(description || "");
   const debouncedEditor = useDebouncedValue(editor, 600);
@@ -45,6 +48,17 @@ export function ObservationLead({
       },
     );
   }, [debouncedEditor, leadId]);
+
+  if (compact) {
+    return (
+      <Textarea
+        placeholder="Esse espaço é destinado para observações"
+        className="h-32 min-h-32 w-full resize-none rounded-xl border-0 bg-muted/40 text-sm focus-visible:ring-1"
+        value={editor}
+        onChange={(event) => setEditor(event.target.value)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col w-full h-full min-h-0 space-y-4">

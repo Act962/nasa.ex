@@ -7,7 +7,7 @@ import { COMMAND_TOOL_ACTION_TYPE } from "./tool-guard";
 import { buildCommandContext, resolveAllowedTools } from "./command-agent";
 
 /**
- * Executor das propostas criadas por ferramenta de comando (spec 0023, RF-4).
+ * Executor das propostas criadas por ferramenta de comando (spec 0028, RF-4).
  *
  * Quando alguém aprova na fila, a ferramenta original roda agora — sem o
  * porteiro do `tool-guard`, que é exatamente o que a aprovação dispensa.
@@ -48,6 +48,7 @@ registerProposalExecutor<CommandToolPayload>(
       ctx: buildCommandContext(command, ctx.userId),
       lastUserText: command.instruction,
       allowedTools: resolveAllowedTools(command),
+      inlineSubAgentTools: true,
     });
 
     const definition = agent.tools[payload.toolName] as Tool | undefined;

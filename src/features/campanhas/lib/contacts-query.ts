@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import type { ContactFiltersInput } from "../schema/broadcast-schemas";
+import { buildLeadMetricsWhere } from "./metrics-where";
 
 /**
  * Constrói o `where` do Prisma da base unificada de contatos a partir da org +
@@ -21,6 +22,8 @@ export function buildContactsWhere(
   if (filters.temperatureFilter?.length) {
     where.temperature = { in: filters.temperatureFilter };
   }
+  const metricsWhere = buildLeadMetricsWhere(filters.metricsFilter);
+  if (metricsWhere) Object.assign(where, metricsWhere);
   if (filters.tagsFilter?.length) {
     where.leadTags = { some: { tag: { slug: { in: filters.tagsFilter } } } };
   }

@@ -41,7 +41,7 @@ import { StatusPill } from "@/features/astro-commander/components/status-pill";
 import { CreateCommandDialog } from "@/features/astro-commander/components/create-command-dialog";
 
 /**
- * Tela inicial do App ASTRO: a lista de comandos (spec 0023, RF-9).
+ * Tela inicial do App ASTRO: a lista de comandos (spec 0028, RF-9).
  * "Criar comando", não "criar assistente" — o assistente é sempre o ASTRO.
  */
 
@@ -73,21 +73,24 @@ export function CommandsTab() {
   const runNow = useRunAstroCommandNow();
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className="space-y-4">
+      {/* Busca e filtro à esquerda; "Criar comando" vive no cabeçalho da
+          página, como em /contatos — antes ficavam os três na mesma linha,
+          empurrados para a direita. */}
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-full max-w-sm sm:w-72">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar"
-            className="h-11 rounded-xl pl-9"
+            placeholder="Buscar comando"
+            className="pl-9"
           />
         </div>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="size-11 rounded-xl">
+            <Button variant="outline" size="icon" aria-label="Filtrar por status">
               <SlidersHorizontal className="size-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -105,25 +108,21 @@ export function CommandsTab() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button
-          onClick={() => setCreateOpen(true)}
-          className="h-11 rounded-xl bg-primary px-5"
-        >
-          <Plus className="size-4" />
-          Criar comando
-        </Button>
+        <span className="ml-auto text-sm text-muted-foreground">
+          {commands.length} {commands.length === 1 ? "comando" : "comandos"}
+        </span>
       </div>
 
       {isLoading ? (
-        <div className="space-y-2 rounded-2xl border p-4">
+        <div className="space-y-2 rounded-xl border p-4">
           {[0, 1, 2, 3].map((row) => (
-            <Skeleton key={row} className="h-16 w-full rounded-xl" />
+            <Skeleton key={row} className="h-14 w-full rounded-lg" />
           ))}
         </div>
       ) : commands.length === 0 ? (
         <EmptyState onCreate={() => setCreateOpen(true)} />
       ) : (
-        <div className="overflow-hidden rounded-2xl border bg-card">
+        <div className="overflow-hidden rounded-xl border bg-card">
           <div className="hidden grid-cols-[minmax(0,2.2fr)_1fr_1fr_1.2fr_1fr_auto_40px] items-center gap-4 border-b bg-muted/40 px-6 py-4 text-sm font-medium text-muted-foreground lg:grid">
             {COLUMNS.map((column) => (
               <span key={column}>{column}</span>
@@ -283,7 +282,7 @@ function CommandMenu({
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed py-20 text-center">
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center">
       <Sparkles className="size-8 text-muted-foreground" />
       <div>
         <p className="font-medium">Nenhum comando ainda</p>
@@ -292,7 +291,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
           conciliar extrato&quot;, e ele passa a executar sozinho.
         </p>
       </div>
-      <Button onClick={onCreate} className="rounded-xl">
+      <Button onClick={onCreate}>
         <Plus className="size-4" />
         Criar comando
       </Button>

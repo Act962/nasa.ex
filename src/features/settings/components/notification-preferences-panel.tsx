@@ -21,7 +21,19 @@ const GROUPS = ["CRM & Chat", "Tarefas", "Agenda", "Insights", "Integrações", 
 
 interface Pref { notifType: string; inApp: boolean; whatsApp: boolean }
 
-export function NotificationPreferencesPanel({ organizationId }: { organizationId: string }) {
+/**
+ * A mesma lista atende às duas telas: em Configurações, o canal da plataforma;
+ * na aba WhatsApp do App ASTRO, o canal do WhatsApp (spec 0029).
+ */
+export type NotificationChannel = "inApp" | "whatsApp";
+
+export function NotificationPreferencesPanel({
+  organizationId,
+  channels = ["inApp", "whatsApp"],
+}: {
+  organizationId: string;
+  channels?: NotificationChannel[];
+}) {
   const qc = useQueryClient();
   const [saving, setSaving] = useState<string | null>(null);
 
@@ -57,15 +69,16 @@ export function NotificationPreferencesPanel({ organizationId }: { organizationI
 
   return (
     <div className="space-y-6">
-      {/* Legend */}
-      <div className="flex items-center gap-6 text-xs text-muted-foreground pb-1 border-b">
-        <div className="flex items-center gap-1.5">
-          <Monitor className="w-3.5 h-3.5" /> Na plataforma
+      {channels.length > 1 && (
+        <div className="flex items-center gap-6 border-b pb-1 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <Monitor className="w-3.5 h-3.5" /> Na plataforma
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Smartphone className="w-3.5 h-3.5" /> WhatsApp
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Smartphone className="w-3.5 h-3.5" /> WhatsApp
-        </div>
-      </div>
+      )}
 
       {GROUPS.map((group) => {
         const groupTypes = Object.entries(NOTIF_META).filter(([, m]) => m.group === group);
@@ -92,7 +105,7 @@ export function NotificationPreferencesPanel({ organizationId }: { organizationI
                     <div className="flex items-center gap-4 shrink-0 ml-4">
                       {isSavingThis && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
 
-                      {/* In-app toggle */}
+                      {channels.includes("inApp") && (
                       <div className="flex flex-col items-center gap-1">
                         <Monitor className="w-3 h-3 text-muted-foreground" />
                         <button
@@ -107,8 +120,9 @@ export function NotificationPreferencesPanel({ organizationId }: { organizationI
                           }`} />
                         </button>
                       </div>
+                      )}
 
-                      {/* WhatsApp toggle */}
+                      {channels.includes("whatsApp") && (
                       <div className="flex flex-col items-center gap-1">
                         <Smartphone className="w-3 h-3 text-muted-foreground" />
                         <button
@@ -124,6 +138,7 @@ export function NotificationPreferencesPanel({ organizationId }: { organizationI
                           }`} />
                         </button>
                       </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -133,9 +148,12 @@ export function NotificationPreferencesPanel({ organizationId }: { organizationI
         );
       })}
 
-      <p className="text-xs text-muted-foreground">
-        * O envio via WhatsApp requer que sua empresa tenha uma instância conectada e que seu número esteja vinculado à plataforma.
-      </p>
+      {channels.includes("whatsApp") && (
+        <p className="text-xs text-muted-foreground">
+          * O envio via WhatsApp requer uma instância conectada na empresa e o seu número
+          vinculado à plataforma.
+        </p>
+      )}
     </div>
   );
 }

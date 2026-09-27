@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import type { AstroAction } from "./types";
+import { parseCalendarDate } from "./parse-when";
 
 // O classificador devolve todo campo como string — é o que o structured
 // output permite sem `propertyNames`. Mas os schemas das ações têm boolean e
@@ -131,6 +132,11 @@ function coerceValue(schema: z.ZodTypeAny, raw: string): unknown {
     return Number.isFinite(parsed) && normalized !== "" ? parsed : raw;
   }
 
+  // `datetime()` só aceita ISO; o classificador devolve "02/10/2026" ou "7 dias".
+  if (target instanceof z.ZodString && target.format === "datetime") {
+    return parseCalendarDate(raw) ?? raw;
+  }
+
   return raw;
 }
 
@@ -197,8 +203,29 @@ export function coerceFields(
     if (isInvented(key, value, context)) continue;
     const fieldSchema = shape[key];
     coerced[key] = fieldSchema ? coerceValue(fieldSchema, value) : value;
+    if (fieldSchema && isDatetimeField(fieldSchema)) {
+      coerced[key] = preferDateFromText(coerced[key], context?.userText);
+    }
   }
   return coerced;
+}
+
+function isDatetimeField(schema: z.ZodTypeAny): boolean {
+  const target = unwrap(schema);
+  return target instanceof z.ZodString && target.format === "datetime";
+}
+
+/**
+ * O classificador não sabe que dia é hoje: "validade de 7 dias" já voltou
+ * como 2023-10-06. Data do modelo no passado perde para o prazo escrito na
+ * frase, que o código calcula a partir de hoje.
+ */
+function preferDateFromText(value: unknown, userText: string | undefined): unknown {
+  if (typeof value !== "string" || !userText) return value;
+  const modelDate = new Date(value);
+  const isPast = Number.isNaN(modelDate.getTime()) || modelDate.getTime() < Date.now() - 24 * 60 * 60_000;
+  if (!isPast) return value;
+  return parseCalendarDate(userText) ?? value;
 }
 
 /**

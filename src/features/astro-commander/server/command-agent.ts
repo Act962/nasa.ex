@@ -1,4 +1,8 @@
 import "server-only";
+import {
+  buildKnowledgeBlock,
+  loadKnowledgeDocuments,
+} from "@/features/astro/server/knowledge/load-knowledge";
 import prisma from "@/lib/prisma";
 import type { AstroCommand } from "@/generated/prisma/client";
 import type { AgentContext } from "@/features/astro/server/agents/types";
@@ -6,7 +10,7 @@ import { getPersona } from "@/features/astro-commander/lib/personas";
 
 /**
  * Tradução entre o comando salvo e o que o orquestrador do ASTRO espera
- * (spec 0023, D-2). Fica separado de `run-command` porque o executor de
+ * (spec 0028, D-2). Fica separado de `run-command` porque o executor de
  * aprovação também precisa remontar exatamente o mesmo agente.
  */
 
@@ -51,12 +55,16 @@ export async function buildCommandSystemBlock(
     `\n\n[EXECUÇÃO AUTÔNOMA — ASTRO COMMANDER]
 Você está executando um comando salvo, sem ninguém acompanhando em tempo real.
 - Não faça perguntas: decida com o que tem ou registre o que faltou no resumo final.
+- Toda ferramenta que pede um id (conversationId, leadId, trackingId) exige o id EXATO que você já obteve numa listagem anterior. NUNCA passe o nome da pessoa no lugar do id, e NUNCA invente um id: liste primeiro, guarde o id da linha e use aquele.
 - Ação que exige aprovação volta como "aguardando_aprovacao". Isso é esperado — siga em frente e NÃO tente confirmar.
 - Termine com um resumo curto do que fez, do que ficou pendente e do que não deu para fazer.`,
     persona.systemPrompt,
     `\n\n[COMANDO]\nTítulo: ${command.title}\nInstrução do usuário: ${command.instruction}`,
     command.systemPrompt ? `\n\n[INSTRUÇÕES ADICIONAIS]\n${command.systemPrompt}` : "",
     memories,
+    buildKnowledgeBlock(
+      await loadKnowledgeDocuments({ organizationId: command.organizationId }),
+    ),
     buildVocabularyBlock(command),
   ];
 
@@ -78,7 +86,7 @@ function buildVocabularyBlock(command: AstroCommand): string {
 }
 
 /**
- * Memórias ATIVAS da organização (spec 0023, RF-14). Sugestão não entra: ela
+ * Memórias ATIVAS da organização (spec 0028, RF-14). Sugestão não entra: ela
  * espera um admin aprovar.
  */
 async function loadActiveMemories(command: AstroCommand): Promise<string> {

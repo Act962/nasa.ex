@@ -27,6 +27,7 @@ import { DreTab } from "./reports/dre-tab";
 import { DroTab } from "./reports/dro-tab";
 import { PaymentSettings } from "./settings/payment-settings";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
+import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
 import { ApprovalsTab } from "./approvals/approvals-tab";
 import { GovernanceSettingsTab } from "./governance/governance-settings-tab";
 import { DunningRulesTab } from "./dunning/dunning-rules-tab";
@@ -222,7 +223,10 @@ export function PaymentPage() {
   return (
     <div className="h-full w-full flex flex-col">
       {/* Header */}
-      <HeaderTracking title="Payment" />
+      <HeaderTracking
+        title="Payment"
+        astroCommand={{ examples: ASTRO_COMMAND_EXAMPLES.payment }}
+      />
       {/* No mobile o título do módulo é redundante com o header do app — no
           lugar dele fica a aba atual e o menu sanduíche. */}
       <div className="flex items-center justify-between px-4 sm:px-6 pt-2 sm:pt-6 pb-2 sm:pb-4 border-b shrink-0">

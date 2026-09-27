@@ -11,8 +11,9 @@ import {
 import { getRun, getUsage, listApprovals, listRuns } from "./runs";
 import { approveAction, rejectAction } from "./approvals";
 import { listCommandTools } from "./tools";
+import { astroIntelligenceRouter } from "./intelligence";
 
-/** ASTRO COMMANDER (spec 0023). */
+/** ASTRO COMMANDER (spec 0028). */
 export const astroCommanderRouter = {
   commands: {
     list: listCommands,
@@ -32,6 +33,7 @@ export const astroCommanderRouter = {
   tools: {
     list: listCommandTools,
   },
+  intelligence: astroIntelligenceRouter,
   approvals: {
     list: listApprovals,
     approve: approveAction,

@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
 
 export const finishLead = base
   .use(requiredAuthMiddleware)
@@ -36,6 +37,9 @@ export const finishLead = base
           },
         },
       });
+      // Encerrar muda a taxa de resolução do lead (spec 0035).
+      await requestLeadMetricsRecompute(input.leadId);
+
       // 1. Pega o lead mais antigo na lista de espera (WAITING)
       const leadInQueue = await prisma.lead.findFirst({
         where: {

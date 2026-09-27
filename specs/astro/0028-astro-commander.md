@@ -75,7 +75,7 @@ O usuário cria, em linguagem natural, comandos que o ASTRO executa sozinho (uma
 | RF-10 | A tela inicial tem um seletor de abas no topo, com a aba na URL (`?aba=`): **Comandos** (padrão), **Visão geral** (painel e custos da org inteira), **Aprovações**, **Auto Inteligência**, **Sessões**, **WhatsApp** e **Permissões**. A aba **Permissões** também traz `AgentsSection` de `/settings/astro` (ligar sub-agentes e modos). A aba **WhatsApp** traz a seção inteira de `/settings/astro-bot` (`AstroBotSettings`, sem perda de função). `/settings/astro-bot` redireciona para `/astro?aba=whatsapp`, e `/settings/astro` para `/astro?aba=comandos`. |
 | RF-11 | A aba **Aprovações** é a fila de `AstroPendingAction` pendentes da org inteira, com aprovar e rejeitar. Cada item mostra o comando de origem. |
 | RF-12 | A aba **Visão geral** mostra KPIs, execuções e custos (Stars e tokens) por comando, persona, membro e dia, comparados à cota do plano. |
-| RF-13 | **Auto Inteligência — conhecimento:** upload de PDF/DOCX/XLSX/CSV/TXT com ingest real (extração, chunks, embeddings) e status visível. O ASTRO consulta via `search_knowledge`. |
+| RF-13 | **Auto Inteligência — conhecimento:** documentos em Markdown/texto (escritos na tela ou importados de `.md`/`.txt`) que entram inteiros no prompt do ASTRO — chat, comandos e ASTRO CHAT. Limite de 20 mil caracteres por documento e 60 mil no total; acima disso, os mais antigos saem do prompt. |
 | RF-14 | **Auto Inteligência — memórias:** fatos, regras e preferências da org (`AstroMemory`), manuais ou sugeridas. As memórias **ativas** entram no prompt do chat e dos comandos. |
 | RF-15 | **Auto Inteligência — feedback:** 👍/👎 com correção opcional nas respostas do widget e do Explorer (`AstroFeedback`). |
 | RF-16 | **Auto Inteligência — aprender com execuções:** um job diário lê feedbacks e aprovações/rejeições do dia e cria memórias `SUGGESTED`. Só um admin as ativa. |
@@ -268,3 +268,4 @@ Não há runner de teste instalado (CLAUDE.md, item 20). Até existir, os CA sã
 | 2026-09-25 | Weydson | Criada |
 | 2026-09-25 | Weydson | Entrada do App ASTRO no menu lateral e no card de `/apps` (RF-27, CA-22). |
 | 2026-09-25 | Weydson | UI refeita a partir das referências: a tela inicial é a lista de comandos com "+ Criar comando", cada comando ganha uma página com menu lateral (RF-9, RF-10, RF-18 a RF-26, CA-16 a CA-21, D-9). |
+| 2026-09-25 | Weydson | RF-13 revisado: conhecimento em Markdown injetado inteiro no prompt, no lugar de upload com embeddings (pgvector não está instalado no banco). Memórias ativas também entram no prompt; feedback 👍/👎 no widget alimenta o resumo diário que sugere regras. |

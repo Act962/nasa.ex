@@ -1,5 +1,5 @@
 /**
- * `astro/command.run` — executa um comando do ASTRO (spec 0023).
+ * `astro/command.run` — executa um comando do ASTRO (spec 0028).
  *
  * Concorrência limitada por organização (RNF-2): um comando por evento numa
  * importação de 500 leads não pode virar 500 chamadas de LLM ao mesmo tempo.

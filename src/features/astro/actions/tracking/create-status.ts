@@ -4,6 +4,8 @@ import { Decimal } from "@prisma/client/runtime/client";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleTracking } from "./resolve-tracking";
+import { TRACKING_FIELD_STEP, extractTrackingName } from "../leads/lead-steps";
+import { extractNamedThing } from "./tracking-steps";
 
 // Criar coluna no tracking (spec 0024, onda 1). Entra no fim do funil, que é
 // onde uma etapa nova quase sempre vai — quem quiser no meio arrasta depois.
@@ -36,6 +38,20 @@ export const createStatusAction: AstroAction<typeof inputSchema> = {
   requiresConfirmation: false,
   newNameFields: ["statusName"],
   input: inputSchema,
+  inferFields: (text) => {
+    const statusName = extractNamedThing(text, "coluna|etapa");
+    const trackingName = extractTrackingName(text);
+    return { ...(statusName ? { statusName } : {}), ...(trackingName ? { trackingName } : {}) };
+  },
+  intentPatterns: [/\b(cria|criar|crie|nova|novo|adiciona|adicionar|adicione)\s+(uma\s+|um\s+|a\s+)?(nova\s+)?(coluna|etapa)\b/],
+  fieldSteps: {
+    statusName: {
+      title: "Nome da coluna",
+      question: "Qual o nome da coluna nova?",
+      picker: { kind: "text", placeholder: "Ex.: Negociação", maxLength: 60 },
+    },
+    trackingName: TRACKING_FIELD_STEP,
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const resolved = await resolveSingleTracking({

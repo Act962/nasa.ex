@@ -23,7 +23,7 @@ import { describeCron, isValidCron } from "@/features/astro-commander/lib/cron";
 import { SettingRow } from "@/features/astro-commander/components/setting-row";
 import type { CommandDetailData } from "@/features/astro-commander/components/types";
 
-/** Configuração do comando (spec 0023, RF-20). */
+/** Configuração do comando (spec 0028, RF-20). */
 
 const EVENTS = [
   { value: "lead.created", label: "Quando entrar um lead novo" },

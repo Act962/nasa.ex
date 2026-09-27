@@ -31,6 +31,8 @@ import {
 import { PageHeader } from "./page-header";
 import { AttachToCampaignDialog } from "./attach-to-campaign-dialog";
 import { ImportContactsDialog } from "./import-contacts-dialog";
+import { LeadMetricsFilterFields } from "./audience-builder/lead-metrics-filter";
+import type { LeadMetricsFilter } from "../schema/broadcast-schemas";
 
 type Temperature = "COLD" | "WARM" | "HOT" | "VERY_HOT";
 
@@ -115,6 +117,7 @@ export function ContactsView() {
   const search = useDebounced(searchInput);
   const [action, setAction] = useState<"ACTIVE" | "WON" | "LOST">("ACTIVE");
   const [temperatures, setTemperatures] = useState<Temperature[]>([]);
+  const [metricsFilter, setMetricsFilter] = useState<LeadMetricsFilter>({});
   const [statusId, setStatusId] = useState<string>();
   const [participant, setParticipant] = useState<string>();
   const [tagSlugs, setTagSlugs] = useState<string[]>([]);
@@ -146,8 +149,10 @@ export function ContactsView() {
       tagsFilter: tagSlugs.length ? tagSlugs : undefined,
       dateInit: dateInit && dateEnd ? dateInit : undefined,
       dateEnd: dateInit && dateEnd ? dateEnd : undefined,
+      metricsFilter,
     }),
     [
+      metricsFilter,
       trackingId,
       action,
       search,
@@ -331,6 +336,8 @@ export function ContactsView() {
                 </Chip>
               ))}
             </FilterGroup>
+
+            <LeadMetricsFilterFields value={metricsFilter} onChange={setMetricsFilter} />
 
             {trackingId && options && options.columns.length > 0 && (
               <FilterGroup label="Coluna do tracking">

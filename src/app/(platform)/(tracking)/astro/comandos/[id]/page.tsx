@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { CommandDetail } from "@/features/astro-commander/components/command-detail";
 
-/** Página de um comando do ASTRO (spec 0023, RF-18). */
+/** Página de um comando do ASTRO (spec 0028, RF-18). */
 export default async function AstroCommandPage({
   params,
 }: {

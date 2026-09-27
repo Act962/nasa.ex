@@ -6,12 +6,17 @@ import { format, isToday, isYesterday } from "date-fns";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { MouseEvent, useCallback, useState } from "react";
 import { AvatarLead } from "./avatar-lead";
-import { colorsByTemperature, LeadSourceColors } from "../utils/card-lead";
+import { ConversationChannelBadge } from "./conversation-channel-badge";
+import { LeadSourceColors } from "../utils/card-lead";
+import { HeatRing } from "@/features/leads/components/lead-audit/heat-ring";
+import { computeLeadHeat } from "@/features/leads/components/lead-audit/lead-heat";
+import type { LeadMetricsView } from "@/features/leads/components/lead-audit/metric-format";
 import {
   ArrowUpRightIcon,
   CalendarIcon,
   ClipboardListIcon,
   GlobeIcon,
+  SparklesIcon,
   UserIcon,
   Sparkles,
   MessageCircle,
@@ -53,6 +58,7 @@ import { Instance } from "../types";
 
 interface LeadBoxConversation extends Conversation {
   lead: Lead & {
+    metrics?: LeadMetricsView | null;
     leadTags?: {
       tag: {
         id: string;
@@ -90,6 +96,13 @@ export function LeadBox({
   }>();
   const searchParams = useSearchParams();
   const markRead = useMutationMarkReadMessage();
+  const heat = item.lead.metrics
+    ? computeLeadHeat({
+        metrics: item.lead.metrics,
+        createdAt: item.lead.createdAt,
+        lastInboundAt: item.lead.lastInboundAt,
+      })
+    : null;
   // Popover de mover fluxo/tracking + status (alinhado ao "Detalhes do Lead").
   // O `useMutationLeadUpdate` já invalida `conversations.list[trackingId]`,
   // então o card some/aparece da lista automaticamente quando o fluxo muda.
@@ -178,41 +191,23 @@ export function LeadBox({
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 overflow-hidden">
-            {/* Avatar com bolinha de temperatura sobreposta — mesmo
-                pattern visual do card do kanban em /tracking. A
-                bolinha fica no canto superior-esquerdo do avatar
-                (z-10 pra ficar acima da foto + ring branco discreto
-                pra contrastar com fotos escuras). Tooltip preserva
-                acessibilidade. */}
+            {/* Avatar com o anel da temperatura calculada (spec 0035,
+                RF-10) e o selo do canal no canto. */}
             <div className="relative shrink-0">
               {/* Pra grupos, a foto está em `conversation.profilePicUrl`
-                  (não em `lead.profile`). Pra contatos individuais,
-                  geralmente ambos estão preenchidos. Faz fallback aqui
-                  pra garantir que grupos mostrem a foto. */}
-              <AvatarLead
-                Lead={{
-                  ...item.lead,
-                  profile:
-                    item.lead.profile ??
-                    (item.profilePicUrl as string | null | undefined) ??
-                    null,
-                }}
-              />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span
-                    aria-label={`Temperatura: ${colorsByTemperature[item.lead.temperature].label}`}
-                    className="pointer-events-none absolute top-0.5 left-0.5 z-10 size-2 rounded-full ring-1 ring-background"
-                    style={{
-                      backgroundColor:
-                        colorsByTemperature[item.lead.temperature].color,
-                    }}
-                  />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{colorsByTemperature[item.lead.temperature].label}</p>
-                </TooltipContent>
-              </Tooltip>
+                  (não em `lead.profile`). */}
+              <HeatRing size={52} variant="color" heat={heat}>
+                <AvatarLead
+                  Lead={{
+                    ...item.lead,
+                    profile:
+                      item.lead.profile ??
+                      (item.profilePicUrl as string | null | undefined) ??
+                      null,
+                  }}
+                />
+              </HeatRing>
+              <ConversationChannelBadge channel={item.channel} leadSource={item.lead.source} />
             </div>
             <div className="focus:outline-none">
               <div className="flex flex-col mb-1 max-w-full truncate">
@@ -497,6 +492,11 @@ export function LeadSourceIcon({
       return <UserIcon className={`${className} text-gray-400`} />;
     case LeadSource.OTHER:
       return <GlobeIcon className={`${className} text-purple-500`} />;
+    case LeadSource.IN_CHAT:
+      // Mesmo globo violeta do canal "Chat do site" no filtro.
+      return <GlobeIcon className={`${className} text-violet-500`} />;
+    case LeadSource.ASTRO_CHAT:
+      return <SparklesIcon className={`${className} text-violet-600`} />;
     default:
       return <UserIcon className={`${className} text-gray-400`} />;
   }

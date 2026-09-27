@@ -3,6 +3,17 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleLead } from "../leads/resolve-lead";
+import { LEAD_FIELD_STEP, extractNameAfter } from "../leads/lead-steps";
+
+/** "encaminha a última mensagem do Kauê pra Maria Clara" → origem e destino, sem modelo. */
+function inferForwardFields(text: string): Record<string, unknown> {
+  const inferred: Record<string, unknown> = {};
+  const fromLeadName = extractNameAfter(text, ["do", "da"]);
+  if (fromLeadName) inferred.fromLeadName = fromLeadName;
+  const toLeadName = extractNameAfter(text, ["pro", "pra", "para", "ao"]);
+  if (toLeadName) inferred.toLeadName = toLeadName;
+  return inferred;
+}
 
 // Encaminhar mensagem (spec 0024, onda 1).
 //
@@ -37,6 +48,12 @@ export const forwardMessageAction: AstroAction<typeof inputSchema> = {
     "A mensagem vai direto para o WhatsApp do destinatário e não pode ser desfeita.",
   ],
   input: inputSchema,
+  inferFields: inferForwardFields,
+  intentPatterns: [/\b(encaminha|encaminhar|encaminhe|repassa|repassar|repasse)\b/],
+  fieldSteps: {
+    fromLeadName: { ...LEAD_FIELD_STEP, title: "De qual conversa?", question: "Busque o lead de onde sai a última mensagem." },
+    toLeadName: { ...LEAD_FIELD_STEP, title: "Para quem?", question: "Busque o lead que vai receber." },
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const origin = await resolveSingleLead({
@@ -81,18 +98,7 @@ export const forwardMessageAction: AstroAction<typeof inputSchema> = {
       };
     }
 
-    const preview = (lastMessage.body ?? "").slice(0, 120);
-
-    if (dryRun) {
-      return {
-        status: "done",
-        title: "Encaminhar mensagem",
-        description:
-          `De ${origin.lead.name} para ${target.lead.name}: "${preview}"`,
-        appName: "Chat",
-      };
-    }
-
+    // Antes do cartão: sem WhatsApp conectado, confirmar seria decidir em vão.
     const details = await prisma.lead.findUnique({
       where: { id: target.lead.id },
       select: {
@@ -116,8 +122,20 @@ export const forwardMessageAction: AstroAction<typeof inputSchema> = {
         status: "error",
         title: "WhatsApp não conectado",
         description:
-          "O tracking do destinatário não tem instância conectada. " +
+          "O funil do destinatário não tem WhatsApp conectado — nada foi enviado. " +
           "Conecte em /integrations e tente de novo.",
+        appName: "Chat",
+      };
+    }
+
+    const preview = (lastMessage.body ?? "").slice(0, 120);
+
+    if (dryRun) {
+      return {
+        status: "done",
+        title: "Encaminhar mensagem",
+        description:
+          `De ${origin.lead.name} para ${target.lead.name}: "${preview}"`,
         appName: "Chat",
       };
     }

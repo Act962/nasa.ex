@@ -30,6 +30,11 @@ interface AstroWidgetComposerProps {
   isUploading: boolean;
   onAddFiles: (files: File[]) => void;
   onRemoveAttachment: (localId: string) => void;
+  /**
+   * O ASTRO espera uma escolha no seletor do cartão: sem texto livre, que
+   * obrigaria a adivinhar nome e data (spec 0033, RF-1/RF-3).
+   */
+  isLockedByPicker?: boolean;
 }
 
 export function AstroWidgetComposer({
@@ -42,6 +47,7 @@ export function AstroWidgetComposer({
   isUploading,
   onAddFiles,
   onRemoveAttachment,
+  isLockedByPicker = false,
 }: AstroWidgetComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,7 +61,8 @@ export function AstroWidgetComposer({
     typeof window !== "undefined" &&
     Boolean(window.SpeechRecognition ?? window.webkitSpeechRecognition);
   const hasReadyAttachment = attachments.some((attachment) => Boolean(attachment.attachmentId));
-  const canSend = !loading && !isUploading && (draft.trim().length > 0 || hasReadyAttachment);
+  const canSend =
+    !loading && !isUploading && !isLockedByPicker && (draft.trim().length > 0 || hasReadyAttachment);
 
   // Abriu o painel: o campo já recebe o foco.
   useEffect(() => {
@@ -123,7 +130,7 @@ export function AstroWidgetComposer({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={loading}
+            disabled={loading || isLockedByPicker}
             aria-label="Anexar boleto, nota fiscal ou comprovante"
             title="Anexar boleto, nota fiscal ou comprovante"
             className="grid size-9 shrink-0 place-items-center rounded-full text-white/50 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-40"
@@ -139,12 +146,19 @@ export function AstroWidgetComposer({
             onPaste={handlePaste}
             rows={1}
             maxLength={MAX_DRAFT_LENGTH}
-            placeholder={isListening ? "Te ouvindo…" : "Pergunte ao Astro…"}
+            disabled={isLockedByPicker}
+            placeholder={
+              isLockedByPicker
+                ? "Responda no cartão acima"
+                : isListening
+                  ? "Te ouvindo…"
+                  : "Pergunte ao Astro…"
+            }
             aria-label="Mensagem para o Astro"
-            className="min-h-9 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-white outline-none placeholder:text-white/30"
+            className="min-h-9 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-white outline-none placeholder:text-white/30 disabled:cursor-not-allowed"
           />
 
-          {isVoiceSupported && !loading && (
+          {isVoiceSupported && !loading && !isLockedByPicker && (
             <button
               type="button"
               onClick={() => {

@@ -2,12 +2,20 @@ import "server-only";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { getAstroAction } from "./registry";
 import { classifyStaged } from "./classify-staged";
-import { WRITE_VERB, normalizeQuestion } from "@/features/astro/queries/types";
+import { matchIntentPattern } from "./match-intent-pattern";
 import {
   resolveActionWithFields,
   resolveClassifiedAction,
   type ResolvedClassification,
 } from "./resolve-action";
+import { parsePickedAnswer } from "@/features/astro/lib/astro-picker";
+import {
+  answerToValue,
+  isAbandonPhrase,
+  looksLikeNewRequest,
+  toStringFields,
+} from "./guided-answers";
+import { clearPlanSlot, continuePlan, readPlanSlot, startPlan } from "./plan/plan-flow";
 
 /**
  * Memória do ciclo guiado.
@@ -30,6 +38,8 @@ interface GuidedSlot {
   fields: Record<string, string>;
   awaitingField?: string;
   options?: { id: string; label: string }[];
+  /** A pergunta tinha seletor — a resposta veio do cartão, não de texto livre. */
+  hadPicker?: boolean;
   expiresAt: number;
 }
 
@@ -58,34 +68,24 @@ function readSlot(sessionId: string): GuidedSlot | null {
  */
 /** Há pergunta do ciclo guiado esperando resposta? */
 export function isAwaitingAnswer(sessionId: string): boolean {
-  return readSlot(sessionId) !== null;
+  return readSlot(sessionId) !== null || readPlanSlot(sessionId) !== null;
 }
 
 export function shouldSkipReading(sessionId: string, text: string): boolean {
-  const slot = readSlot(sessionId);
+  const slot = readSlot(sessionId) ?? readPlanSlot(sessionId);
   if (!slot) return false;
+  // Escolha feita no seletor (com id) é resposta, nunca pedido novo:
+  // "Reunião QA de hoje", escolhida para cancelar, virava "o que tenho hoje".
+  // Texto livre segue a regra de sempre — no WhatsApp e na voz o campo não
+  // trava, e "quantos leads eu tenho?" no meio de uma proposta é assunto novo.
+  if (parsePickedAnswer(text).id) return true;
   return !looksLikeNewRequest(text, slot.options);
 }
 
 export function clearGuidedSlot(sessionId: string): void {
   slots.delete(sessionId);
+  clearPlanSlot(sessionId);
 }
-
-/**
- * Desistência é a MENSAGEM INTEIRA, nunca um começo de frase.
- *
- * A lista antiga casava por prefixo e incluía "para" e "deixa" — que em
- * português são preposição e verbo comuns. "Para o Banco Teste" e "deixa no
- * Nubank" são respostas legítimas à pergunta da conta, e viravam
- * cancelamento do lançamento inteiro.
- */
-const ABANDON_PHRASES = new Set([
-  "cancela", "cancelar", "cancele", "cancela tudo", "cancelar tudo",
-  "esquece", "esqueca", "esquece isso", "deixa pra la", "deixa pra depois",
-  "para", "parar", "pare", "zerar", "zera", "zerar interacao",
-  "limpa", "limpar", "recomecar", "recomeca", "sair", "nao quero",
-  "nao quero mais", "desisto", "chega",
-]);
 
 /**
  * A resposta fez o ciclo andar?
@@ -103,111 +103,12 @@ function madeProgress(
   const { output } = resolved;
   if ("kind" in output) return true;
   if (output.status === "done" || output.status === "error") return true;
+  // Pergunta com seletor: a resposta veio do cartão e é resposta de verdade.
+  // Repetir o campo aí é o ASTRO pedindo correção ("telefone inválido"),
+  // não o usuário mudando de assunto.
+  if (before.hadPicker) return true;
   // Mesma pergunta de novo: a resposta não serviu.
   return resolved.awaitingField !== before.awaitingField;
-}
-
-/**
- * Isto é resposta à pergunta, ou assunto novo?
- *
- * "Me envie a lista das contas", respondendo a "em qual conta?", virava o
- * NOME de uma conta inexistente — e o Astro respondia "não achei conta com
- * me envie a lista das contas". Resposta é curta, ou casa com uma das opções
- * oferecidas. Pedido novo tem verbo e tamanho.
- */
-/**
- * Pergunta de verdade, não qualquer frase com "que" dentro.
- *
- * `ASKS` serve à camada de leitura, onde falso positivo custa uma consulta a
- * mais. Aqui custa o lançamento inteiro do usuário, então a régua é outra: a
- * frase precisa COMEÇAR como pergunta, ou trazer verbo de escrita com corpo.
- */
-const NEW_QUESTION =
-  /^(quantos|quantas|quais|qual|quem|onde|quando|como|me mostra|me manda|me envia|me envie|mostra|liste|lista as|lista os|lista de)\b/;
-
-function looksLikeNewRequest(text: string, options?: { label: string }[]): boolean {
-  const normalized = normalizeQuestion(text);
-  // Casou com uma opção oferecida: é resposta, ponto final.
-  if (
-    options?.some(
-      (option) =>
-        normalizeQuestion(option.label) === normalized ||
-        normalizeQuestion(option.label).includes(normalized),
-    )
-  ) {
-    return false;
-  }
-  if (NEW_QUESTION.test(normalized)) return true;
-  const words = normalized.split(/\s+/).filter(Boolean);
-  return words.length > 3 && WRITE_VERB.test(normalized);
-}
-
-const ORDINALS: Record<string, number> = {
-  primeira: 1, primeiro: 1, segunda: 2, segundo: 2, terceira: 3, terceiro: 3,
-  quarta: 4, quarto: 4, quinta: 5, quinto: 5, ultima: -1, ultimo: -1,
-};
-
-/**
- * Traduz a resposta para uma das opções oferecidas.
- *
- * Gente não responde "Banco Teste" — responde "para o Banco Teste", "no
- * Nubank mesmo", "a primeira". Passar o texto cru adiante fazia a busca
- * procurar uma conta chamada "para o Banco Teste" e não achar nada, e o
- * ciclo morria com a resposta certa na mão.
- */
-function answerToValue(
-  text: string,
-  options?: { id: string; label: string }[],
-): string {
-  const trimmed = text.trim();
-  if (!options || options.length === 0) return trimmed;
-  const normalized = normalizeQuestion(trimmed);
-
-  const index = Number(normalized);
-  if (Number.isInteger(index) && index >= 1 && index <= options.length) {
-    return options[index - 1].label;
-  }
-
-  const ordinalWord = Object.keys(ORDINALS).find((word) =>
-    new RegExp(`\\b${word}\\b`).test(normalized),
-  );
-  if (ordinalWord) {
-    const position = ORDINALS[ordinalWord];
-    const chosen = position === -1 ? options[options.length - 1] : options[position - 1];
-    if (chosen) return chosen.label;
-  }
-
-  // Rótulo citado dentro da frase, ou a frase dentro do rótulo.
-  const matched = options.find((option) => {
-    const label = normalizeQuestion(option.label);
-    return label === normalized || normalized.includes(label) || label.includes(normalized);
-  });
-  if (matched) return matched.label;
-
-  // Sem correspondência exata, vale a opção com mais palavras em comum.
-  // A comparação ignora espaço e pontuação: "Nubank" precisa achar
-  // "Nu bank - 526337699-7", e ninguém digita o traço.
-  const squash = (value: string) => value.replace(/[^a-z0-9]/g, "");
-  const words = normalized.split(/[^a-z0-9]+/).filter((word) => word.length >= 3);
-  let best: { label: string; score: number } | null = null;
-  for (const option of options) {
-    const label = squash(normalizeQuestion(option.label));
-    const score = words.filter((word) => label.includes(squash(word))).length;
-    if (score > 0 && (!best || score > best.score)) {
-      best = { label: option.label, score };
-    }
-  }
-  return best ? best.label : trimmed;
-}
-
-/** Só strings entram no slot; o resto se reconstrói no `buildActionInput`. */
-function toStringFields(fields: Record<string, unknown>): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(fields)) {
-    if (value === undefined || value === null || value === "") continue;
-    out[key] = typeof value === "string" ? value : String(value);
-  }
-  return out;
 }
 
 function remember(
@@ -232,6 +133,7 @@ function remember(
     fields: toStringFields(resolved.pendingFields ?? {}),
     awaitingField: resolved.awaitingField,
     options: resolved.awaitingOptions,
+    hadPicker: Boolean((output as { picker?: unknown }).picker),
     expiresAt: Date.now() + SLOT_TTL_MS,
   });
 }
@@ -246,16 +148,26 @@ export async function resolveGuided(params: {
   history?: string[];
   sessionId: string;
 }): Promise<ResolvedClassification | null> {
+  // Plano em andamento (spec 0033, RF-6): a resposta é de uma das partes.
+  const planStep = await continuePlan(params);
+  if (planStep === "abandoned") {
+    return {
+      kind: "result",
+      action: getAstroAction("lead.create")!,
+      output: {
+        status: "error",
+        title: "Cancelado",
+        description: "Ok, cancelei o plano. Nada foi gravado. O que você quer fazer?",
+        appName: "Órbita",
+      },
+    };
+  }
+  if (planStep) return planStep;
+
   const pending = readSlot(params.sessionId);
 
   if (pending) {
-    const normalized = params.text
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-
-    if (ABANDON_PHRASES.has(normalized.replace(/[.!?]+$/, ""))) {
+    if (isAbandonPhrase(params.text)) {
       slots.delete(params.sessionId);
       return {
         kind: "result",
@@ -298,11 +210,20 @@ export async function resolveGuided(params: {
     slots.delete(params.sessionId);
   }
 
-  const classification = await classifyStaged({
-    organizationId: params.ctx.organizationId,
-    text: params.text,
-    history: params.history,
-  });
+  // Pedido composto vira plano antes de escolher um verbo só.
+  const plan = await startPlan(params);
+  if (plan) {
+    slots.delete(params.sessionId);
+    return plan;
+  }
+
+  const classification =
+    matchIntentPattern(params.text) ??
+    (await classifyStaged({
+      organizationId: params.ctx.organizationId,
+      text: params.text,
+      history: params.history,
+    }));
   if (!classification) return null;
 
   const resolved = await resolveClassifiedAction({

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import type { AstroCommandPersona } from "@/generated/prisma/enums";
 
 /**
- * Marca visual do comando na lista e no cabeçalho (spec 0023). Cada papel tem
+ * Marca visual do comando na lista e no cabeçalho (spec 0028). Cada papel tem
  * seu gradiente, então dá para reconhecer o comando antes de ler o nome.
  */
 const PERSONA_GRADIENTS: Record<AstroCommandPersona, string> = {

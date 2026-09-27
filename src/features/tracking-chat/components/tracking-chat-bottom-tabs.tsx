@@ -13,7 +13,7 @@
  *    onde o lead da conversa aberta aparece em sua coluna de status.
  *    Sempre habilitado quando há um tracking selecionado na sidebar.
  * 4. **Canal** — cicla pelo filtro de canal (`ALL` → `WHATSAPP` →
- *    `INSTAGRAM` → `FACEBOOK` → ALL). Ícone reflete o canal atual; rótulo
+ *    `INSTAGRAM` → `IN_CHAT` → `EMAIL` → ALL). Ícone reflete o canal atual; rótulo
  *    mostra o nome.
  * 5. **Filtros** — abre o painel de filtros avançados (responsável,
  *    temperatura, status e ordenação), o mesmo do desktop.
@@ -42,6 +42,9 @@ import {
   TagIcon,
   EllipsisIcon,
   ListFilterIcon,
+  MailIcon,
+  GlobeIcon,
+  SparklesIcon,
 } from "lucide-react";
 import { WhatsappIcon } from "@/components/whatsapp";
 import { toast } from "sonner";
@@ -49,7 +52,15 @@ import { ConversationFiltersPanel } from "./conversation-filters-panel";
 import { useConversationFilters } from "../hooks/use-conversation-filters";
 import type { ReactNode } from "react";
 
-type ChannelFilter = "ALL" | "WHATSAPP" | "INSTAGRAM" | "TIKTOK" | "FACEBOOK";
+type ChannelFilter =
+  | "ALL"
+  | "WHATSAPP"
+  | "INSTAGRAM"
+  | "TIKTOK"
+  | "FACEBOOK"
+  | "EMAIL"
+  | "IN_CHAT"
+  | "ASTRO_CHAT";
 
 interface BottomTabsProps {
   trackingId: string | null;
@@ -60,12 +71,8 @@ interface BottomTabsProps {
   settingsHref: string;
 }
 
-const CHANNEL_CYCLE: ChannelFilter[] = [
-  "ALL",
-  "WHATSAPP",
-  "INSTAGRAM",
-  "FACEBOOK",
-];
+// Messenger fica de fora até ser completado (tracking fixo, sem mídia).
+const CHANNEL_CYCLE: ChannelFilter[] = ["ALL", "WHATSAPP", "INSTAGRAM", "ASTRO_CHAT", "EMAIL"];
 
 const CHANNEL_LABEL: Record<ChannelFilter, string> = {
   ALL: "Todos canais",
@@ -73,6 +80,9 @@ const CHANNEL_LABEL: Record<ChannelFilter, string> = {
   INSTAGRAM: "Instagram",
   TIKTOK: "TikTok",
   FACEBOOK: "Facebook",
+  EMAIL: "E-mail",
+  IN_CHAT: "Chat do site",
+  ASTRO_CHAT: "ASTRO CHAT",
 };
 
 export function TrackingChatBottomTabs({
@@ -311,6 +321,15 @@ function ChannelIcon({ channel }: { channel: ChannelFilter }) {
   }
   if (channel === "FACEBOOK") {
     return <span className="size-4 rounded-full bg-[#0082FB]" />;
+  }
+  if (channel === "EMAIL") {
+    return <MailIcon className="size-4 text-primary" />;
+  }
+  if (channel === "IN_CHAT") {
+    return <GlobeIcon className="size-4 text-violet-500" />;
+  }
+  if (channel === "ASTRO_CHAT") {
+    return <SparklesIcon className="size-4 text-violet-600" />;
   }
   // ALL ou TIKTOK
   return <EllipsisIcon className="size-4" />;

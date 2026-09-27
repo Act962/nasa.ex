@@ -1,3 +1,4 @@
+import { ORPCError } from "@orpc/server";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -9,7 +10,7 @@ import { describeTrigger, parseCommandInstruction } from "@/features/astro-comma
 import { runCommand } from "@/features/astro-commander/server/run-command";
 
 /**
- * Comandos do ASTRO COMMANDER (spec 0023). A lista, o card do comando e o
+ * Comandos do ASTRO COMMANDER (spec 0028). A lista, o card do comando e o
  * card de revisão do widget consomem estas procedures.
  */
 
@@ -114,7 +115,7 @@ export const getCommand = base
     const command = await prisma.astroCommand.findFirst({
       where: { id: input.id, organizationId: context.org.id },
     });
-    if (!command) throw new Error("Comando não encontrado");
+    if (!command) throw new ORPCError("BAD_REQUEST", { message: "Comando não encontrado" });
 
     const [runsToday, pendingApprovals] = await Promise.all([
       prisma.astroCommandRun.count({
@@ -192,13 +193,13 @@ export const createCommand = base
   )
   .handler(async ({ context, input }) => {
     if (input.triggerType === "SCHEDULE" && (!input.cron || !isValidCron(input.cron))) {
-      throw new Error("Agendamento inválido: informe um cron de 5 campos.");
+      throw new ORPCError("BAD_REQUEST", { message: "Agendamento inválido: informe um cron de 5 campos." });
     }
     if (input.triggerType === "EVENT" && !input.eventKey) {
-      throw new Error("Gatilho por evento exige um evento.");
+      throw new ORPCError("BAD_REQUEST", { message: "Gatilho por evento exige um evento." });
     }
     if (input.triggerType === "ONCE" && input.runAt && input.runAt.getTime() < Date.now()) {
-      throw new Error("A data escolhida já passou. Use \"rodar agora\" ou escolha outra.");
+      throw new ORPCError("BAD_REQUEST", { message: "A data escolhida já passou. Use \"rodar agora\" ou escolha outra." });
     }
 
     const command = await prisma.astroCommand.create({
@@ -269,7 +270,7 @@ export const updateCommand = base
     const current = await prisma.astroCommand.findFirst({
       where: { id: input.id, organizationId: context.org.id },
     });
-    if (!current) throw new Error("Comando não encontrado");
+    if (!current) throw new ORPCError("BAD_REQUEST", { message: "Comando não encontrado" });
 
     const triggerType = input.triggerType ?? current.triggerType;
     const cron = input.cron !== undefined ? input.cron : current.cron;
@@ -278,10 +279,10 @@ export const updateCommand = base
     const runAt = input.runAt !== undefined ? input.runAt : current.runAt;
 
     if (triggerType === "SCHEDULE" && (!cron || !isValidCron(cron))) {
-      throw new Error("Agendamento inválido: informe um cron de 5 campos.");
+      throw new ORPCError("BAD_REQUEST", { message: "Agendamento inválido: informe um cron de 5 campos." });
     }
     if (triggerType === "EVENT" && !eventKey) {
-      throw new Error("Gatilho por evento exige um evento.");
+      throw new ORPCError("BAD_REQUEST", { message: "Gatilho por evento exige um evento." });
     }
 
     const { id, ...fields } = input;
@@ -320,7 +321,7 @@ export const setCommandStatus = base
     const current = await prisma.astroCommand.findFirst({
       where: { id: input.id, organizationId: context.org.id },
     });
-    if (!current) throw new Error("Comando não encontrado");
+    if (!current) throw new ORPCError("BAD_REQUEST", { message: "Comando não encontrado" });
 
     const command = await prisma.astroCommand.update({
       where: { id: input.id },
@@ -351,7 +352,7 @@ export const runCommandNow = base
       where: { id: input.id, organizationId: context.org.id },
       select: { id: true },
     });
-    if (!command) throw new Error("Comando não encontrado");
+    if (!command) throw new ORPCError("BAD_REQUEST", { message: "Comando não encontrado" });
 
     // Teste responde na hora (o usuário está olhando o painel); "rodar agora"
     // vai para a fila, que é onde mora o limite de concorrência por org.

@@ -134,17 +134,31 @@ const unassignedLeads: AstroQuery = {
   appKey: "tracking",
   matches: (text) => LEAD.test(text) && /\bsem responsavel|sem dono|nao atribuidos?|sem atendente\b/.test(text),
   run: async ({ ctx }) => {
-    const count = await prisma.lead.count({
-      where: {
-        responsibleId: null,
-        tracking: { organizationId: ctx.organizationId },
-      },
-    });
+    const where = { responsibleId: null, tracking: { organizationId: ctx.organizationId } };
+    // "Quais leads" pede os nomes, não só o número.
+    const [count, leads] = await Promise.all([
+      prisma.lead.count({ where }),
+      prisma.lead.findMany({
+        where,
+        select: { id: true, name: true, tracking: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+      }),
+    ]);
+    if (count === 0) return { text: "Todos os leads têm responsável." };
     return {
-      text:
-        count === 0
-          ? "Todos os leads têm responsável."
-          : `${count} ${plural(count, "lead está", "leads estão")} sem responsável.`,
+      text: `${count} ${plural(count, "lead está", "leads estão")} sem responsável:`,
+      table: {
+        kind: "astro_table",
+        entityType: "lead",
+        title: "Leads sem responsável",
+        columns: [
+          { key: "name", label: "Lead" },
+          { key: "tracking", label: "Funil" },
+        ],
+        rows: leads.map((lead) => ({ id: lead.id, name: lead.name, tracking: lead.tracking.name })),
+        totalCount: count,
+      },
     };
   },
 };

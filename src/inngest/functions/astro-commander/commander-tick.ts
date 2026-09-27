@@ -1,5 +1,5 @@
 /**
- * Cron: astro-commander-tick (spec 0023, RF-2 / RNF-1)
+ * Cron: astro-commander-tick (spec 0028, RF-2 / RNF-1)
  *
  * Roda a cada minuto, pega os comandos cujo disparo venceu e emite um evento
  * de execução por comando. O tick não executa nada: quem executa é

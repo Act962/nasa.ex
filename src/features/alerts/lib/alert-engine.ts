@@ -15,6 +15,7 @@
  * Pré-requisito: migração MANUAL_alerts_foundation.sql aplicada + db:generate.
  */
 
+import { buildAstroVoice } from "@/features/astro/lib/astro-voice-catalog";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { getAlertEvent, type Audience } from "./alert-catalog";
@@ -116,7 +117,7 @@ export async function dispatchAlert<P extends Record<string, unknown>>(
     }
 
     // Casa condições paramétricas (ex: statusId da regra === toStatusId do payload)
-    if (!matchesParametricConditions(rule.params, payload)) {
+    if (!matchesParametricConditions(rule.params, payload, def.detectorOnlyParams)) {
       console.log(
         `[alert-engine] regra ${rule.id} (${eventType}) não casou params:`,
         { ruleParams: rule.params, payload },
@@ -201,6 +202,8 @@ export async function dispatchAlert<P extends Record<string, unknown>>(
       eventType,
       eventPayload: payload,
       createdBy: rule.createdBy ?? "SYSTEM",
+      // Eventos do ASTRO já sabem para onde levar o usuário (spec 0029).
+      actionUrl: readPayloadActionUrl(payload),
     });
     dispatchedCount += count;
   }
@@ -344,6 +347,16 @@ async function deliverToUsers(args: DeliverArgs): Promise<number> {
       body,
       actionUrl: actionUrl ?? null,
       eventType,
+      organizationId: orgId,
+      // Fala do ASTRO pronta para o orb (spec 0029, RF-2).
+      astro: buildAstroVoice({
+        kind: eventType,
+        title,
+        body,
+        actionUrl,
+        severity,
+        payload: eventPayload,
+      }),
     };
     if (useOrgChannel && orgId) {
       await pusherServer.trigger(`private-org-${orgId}`, event, data);
@@ -389,10 +402,12 @@ function parseAudience(raw: unknown): Audience | null {
 function matchesParametricConditions(
   ruleParams: unknown,
   payload: Record<string, unknown>,
+  detectorOnlyParams: readonly string[] = [],
 ): boolean {
   if (!ruleParams || typeof ruleParams !== "object") return true;
   for (const [key, value] of Object.entries(ruleParams)) {
     if (value === undefined || value === null) continue;
+    if (detectorOnlyParams.includes(key)) continue;
 
     // Convenção min{Field}: payload.field >= value
     if (key.length > 3 && key.startsWith("min") && /[A-Z]/.test(key[3]!)) {
@@ -429,6 +444,12 @@ function matchesParametricConditions(
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function readPayloadActionUrl(payload: unknown): string | null {
+  const actionUrl = (payload as { actionUrl?: unknown } | null)?.actionUrl;
+  // Só caminho interno: um link externo vindo do payload não vira botão.
+  return typeof actionUrl === "string" && actionUrl.startsWith("/") ? actionUrl : null;
 }
 
 function deriveAppKey(eventType: string): string {

@@ -38,7 +38,7 @@ export function buildScopeWhere(filters?: SegmentFilters) {
   return {
     ...(filters?.trackingId ? { trackingId: filters.trackingId } : {}),
     ...(filters?.tagIds && filters.tagIds.length > 0
-      ? { tags: { some: { tagId: { in: filters.tagIds } } } }
+      ? { leadTags: { some: { tagId: { in: filters.tagIds } } } }
       : {}),
     ...(from || to
       ? {

@@ -3,7 +3,21 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import type { AstroAction, AstroActionResult } from "../types";
-import { parseWhen } from "../parse-when";
+import { formatAgendaDateTime, resolveWhenOrAsk } from "./schedule-steps";
+import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
+import { extractNameAfter } from "../leads/lead-steps";
+
+const APPOINTMENT_PICKER: AstroPicker = {
+  kind: "entity",
+  entity: "appointment",
+  placeholder: "Buscar compromisso por título ou lead",
+};
+
+/** "a reunião da Maria Clara", "o compromisso com o Kauê" → de quem é. */
+function inferAppointmentOwner(text: string): string | undefined {
+  return extractNameAfter(text, ["da", "do", "com", "de"]);
+}
+
 
 // Remarcar agendamento (spec 0024, onda 1). É o pedido mais frequente da
 // agenda e hoje custa navegação: abrir, achar o card, arrastar.
@@ -23,8 +37,10 @@ const inputSchema = z.object({
   startsAt: z
     .string()
     .trim()
-    .min(2)
+    .optional()
     .describe("Quando, com as palavras do usuário: 'sexta às 15h', 'amanhã 9h'."),
+  spokenWhen: z.string().optional().describe("Frase original do usuário."),
+  answeredWhen: z.string().optional().describe("Resposta do usuário à pergunta de data/hora."),
   durationMinutes: z
     .number()
     .int()
@@ -34,14 +50,6 @@ const inputSchema = z.object({
     .describe("Duração. Sem isso, mantém a duração atual do agendamento."),
 });
 
-function formatDateTime(value: Date): string {
-  return value.toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
   key: "agenda.reschedule_appointment",
@@ -54,16 +62,33 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
   permission: { appKey: "spacetime", action: "edit" },
   requiresConfirmation: true,
   input: inputSchema,
+  inferFields: (text) => {
+    const personName = inferAppointmentOwner(text);
+    return { spokenWhen: text, ...(personName ? { personName } : {}) };
+  },
+  codeOnlyFields: ["spokenWhen", "answeredWhen"],
+  intentPatterns: [
+    /\b(remarca|remarcar|remarque|adia|adiar|adie)\b/,
+    /\b(muda|mudar|troca|trocar)\s+o\s+horario\b/,
+  ],
+  fieldSteps: {
+    personName: { title: "Qual compromisso?", question: "Busque o compromisso.", picker: APPOINTMENT_PICKER },
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
+    const pickedAppointment = parsePickedAnswer(input.personName);
     const candidates = await prisma.appointment.findMany({
       where: {
         agenda: { organizationId: ctx.organizationId },
         status: { notIn: ["CANCELLED"] },
-        OR: [
-          { title: { contains: input.personName, mode: "insensitive" } },
-          { lead: { name: { contains: input.personName, mode: "insensitive" } } },
-        ],
+        ...(pickedAppointment.id
+          ? { id: pickedAppointment.id }
+          : {
+              OR: [
+                { title: { contains: pickedAppointment.label, mode: "insensitive" } },
+                { lead: { name: { contains: pickedAppointment.label, mode: "insensitive" } } },
+              ],
+            }),
       },
       select: {
         id: true,
@@ -81,9 +106,10 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
       return {
         status: "needs_input",
         title: "Agendamento não encontrado",
-        description: `Não achei agendamento ativo de "${input.personName}". Confere o nome?`,
-        missingFields: [{ key: "personName", label: "de quem é o agendamento" }],
+        description: `Não achei compromisso de "${pickedAppointment.label}". Busque abaixo.`,
+        missingFields: [{ key: "personName", label: "o compromisso" }],
         appName: "Agendas",
+        picker: APPOINTMENT_PICKER,
       };
     }
 
@@ -93,29 +119,27 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
       return {
         status: "ambiguous",
         title: "Mais de um agendamento",
-        description: `${input.personName} tem ${candidates.length} agendamentos ativos. Qual deles?`,
+        description: `${pickedAppointment.label} tem ${candidates.length} compromissos. Qual deles?`,
         field: "personName",
         options: candidates.map((appointment) => ({
           id: appointment.id,
-          label: `${appointment.title} — ${formatDateTime(appointment.startsAt)}`,
+          label: `${appointment.title} — ${formatAgendaDateTime(appointment.startsAt)}`,
         })),
         appName: "Agendas",
+        picker: APPOINTMENT_PICKER,
       };
     }
 
     const appointment = candidates[0];
 
-    const resolvedStart = parseWhen(input.startsAt);
-    if (!resolvedStart) {
-      return {
-        status: "needs_input",
-        title: "Quando?",
-        description: `Não consegui ler "${input.startsAt}" como data e hora.`,
-        missingFields: [{ key: "startsAt", label: "o novo horário" }],
-        appName: "Agendas",
-      };
-    }
-    const newStart = new Date(resolvedStart);
+    const resolvedWhen = resolveWhenOrAsk({
+      answeredWhen: input.answeredWhen,
+      spokenWhen: input.spokenWhen,
+      startsAt: input.startsAt,
+      verb: "remarco",
+    });
+    if ("ask" in resolvedWhen) return resolvedWhen.ask;
+    const newStart = new Date(resolvedWhen.iso);
     const durationMs = input.durationMinutes
       ? input.durationMinutes * 60_000
       : appointment.endsAt.getTime() - appointment.startsAt.getTime() ||
@@ -135,12 +159,14 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
 
     if (conflict) {
       return {
-        status: "error",
+        status: "needs_input",
         title: "Horário ocupado",
         description:
-          `Já existe "${conflict.title}" em ${formatDateTime(conflict.startsAt)}. ` +
+          `Horário ocupado: já existe "${conflict.title}" em ${formatAgendaDateTime(conflict.startsAt)}. ` +
           "Escolha outro horário.",
+        missingFields: [{ key: "answeredWhen", label: "outro horário" }],
         appName: "Agendas",
+        picker: { kind: "datetime", mode: "datetime" },
       };
     }
 
@@ -149,8 +175,8 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
         status: "done",
         title: "Remarcar agendamento",
         description:
-          `"${appointment.title}" sai de ${formatDateTime(appointment.startsAt)} ` +
-          `para ${formatDateTime(newStart)}.`,
+          `"${appointment.title}" sai de ${formatAgendaDateTime(appointment.startsAt)} ` +
+          `para ${formatAgendaDateTime(newStart)}.`,
         appName: "Agendas",
       };
     }
@@ -175,7 +201,7 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
       userImage: actor?.image,
       appSlug: "spacetime",
       action: "appointment.rescheduled",
-      actionLabel: `Reagendou via Astro para ${formatDateTime(newStart)}`,
+      actionLabel: `Reagendou via Astro para ${formatAgendaDateTime(newStart)}`,
       resourceId: appointment.id,
       metadata: {
         oldStart: appointment.startsAt,
@@ -189,8 +215,8 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
       status: "done",
       title: "Agendamento remarcado",
       description:
-        `"${appointment.title}" saiu de ${formatDateTime(appointment.startsAt)} ` +
-        `para ${formatDateTime(newStart)}.`,
+        `"${appointment.title}" saiu de ${formatAgendaDateTime(appointment.startsAt)} ` +
+        `para ${formatAgendaDateTime(newStart)}.`,
       internalUrl: `/agendas?appointment=${appointment.id}`,
       appName: "Agendas",
     };

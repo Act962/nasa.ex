@@ -6,7 +6,7 @@ import { isValidCron, describeCron, computeNextRun } from "@/features/astro-comm
 import { PERSONA_LIST } from "@/features/astro-commander/lib/personas";
 
 /**
- * Frase do usuário → rascunho de comando (spec 0023, RF-1).
+ * Frase do usuário → rascunho de comando (spec 0028, RF-1).
  *
  * O rascunho não é salvo: ele volta como card de revisão. Salvar o que o
  * modelo entendeu sem alguém olhar seria criar automação que ninguém aprovou.

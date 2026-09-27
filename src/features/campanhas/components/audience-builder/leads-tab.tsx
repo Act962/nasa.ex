@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/select";
 import { useAddRecipientsFromLeads } from "../../hooks/use-broadcast-audience";
 import type { AudienceFilter } from "../../schema/broadcast-schemas";
+import { LeadMetricsFilterFields } from "./lead-metrics-filter";
+import type { LeadMetricsFilter } from "../../schema/broadcast-schemas";
 
 const TEMPERATURES: Array<{ value: "COLD" | "WARM" | "HOT" | "VERY_HOT"; label: string }> = [
   { value: "COLD", label: "Frio" },
@@ -37,6 +39,7 @@ export function LeadsAudienceTab({ broadcastId }: { broadcastId: string }) {
     [],
   );
   const [action, setAction] = useState<"ACTIVE" | "WON" | "LOST">("ACTIVE");
+  const [metricsFilter, setMetricsFilter] = useState<LeadMetricsFilter>({});
 
   const addRecipients = useAddRecipientsFromLeads(broadcastId);
 
@@ -58,6 +61,7 @@ export function LeadsAudienceTab({ broadcastId }: { broadcastId: string }) {
           ...(temperatures && temperatures.length > 0
             ? { temperatureFilter: temperatures }
             : {}),
+          metricsFilter,
         },
       },
       {
@@ -108,6 +112,8 @@ export function LeadsAudienceTab({ broadcastId }: { broadcastId: string }) {
           ))}
         </div>
       </div>
+
+      <LeadMetricsFilterFields value={metricsFilter} onChange={setMetricsFilter} />
 
       <div>
         <Button onClick={handleAdd} disabled={addRecipients.isPending}>

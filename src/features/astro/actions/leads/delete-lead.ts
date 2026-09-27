@@ -4,6 +4,19 @@ import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleLead } from "./resolve-lead";
+import { LEAD_FIELD_STEP, normalizeIntent } from "./lead-steps";
+
+const MASS_TARGET = /^(todos|todas|tudo|os leads|todos os leads|todos os contatos)\b/;
+
+/** "exclui o lead João Pedro" → nome, sem modelo. "apaga todos os leads" também vira campo — e recusa. */
+function inferDeleteFields(text: string): Record<string, unknown> {
+  const normalized = normalizeIntent(text);
+  if (/\b(todos|todas|tudo)\b.{0,20}\b(leads?|contatos?|clientes?)\b/.test(normalized)) {
+    return { leadName: "todos os leads" };
+  }
+  const leadName = text.match(/\b(?:lead|contato|cliente)\s+(?:o\s+|a\s+)?(.+?)[.!?]*$/iu)?.[1]?.trim();
+  return leadName && leadName.length >= 2 ? { leadName } : {};
+}
 
 // Excluir lead (spec 0024, onda 1 — primeiro verbo destrutivo).
 //
@@ -38,8 +51,28 @@ export const deleteLeadAction: AstroAction<typeof inputSchema> = {
     "A exclusão é permanente: histórico, mensagens e anexos do lead vão junto.",
   ],
   input: inputSchema,
+  inferFields: inferDeleteFields,
+  intentPatterns: [
+    /^(?!.*\b(tag|etiqueta|nota|anotacao|participante|responsavel)\b).*\b(exclui|excluir|exclua|apaga|apagar|apague|deleta|deletar|delete|remove|remover|remova)\b.{0,20}\b(lead|leads|contato|contatos)\b/,
+  ],
+  fieldSteps: { leadName: LEAD_FIELD_STEP },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
+    // Exclusão em massa nunca sai do chat, nem com confirmação (F6-06).
+    if (MASS_TARGET.test(normalizeIntent(input.leadName))) {
+      const total = await prisma.lead.count({ where: { tracking: { organizationId: ctx.organizationId } } });
+      return {
+        status: "error",
+        title: "Exclusão em massa não é feita pelo ASTRO",
+        description:
+          `Isso apagaria os ${total} leads da empresa — e não excluo em massa pelo chat. ` +
+          "Para excluir vários, selecione os leads no Tracking e use a ação em lote. Nada foi excluído.",
+        internalUrl: "/tracking",
+        openLabel: "Abrir o Tracking",
+        appName: "Tracking",
+      };
+    }
+
     const resolved = await resolveSingleLead({
       ctx,
       name: input.leadName,

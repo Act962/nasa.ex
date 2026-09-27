@@ -1,7 +1,7 @@
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-/** Execuções e fila de aprovação do ASTRO COMMANDER (spec 0023). */
+/** Execuções e fila de aprovação do ASTRO COMMANDER (spec 0028). */
 
 export function useAstroRuns(params: { commandId?: string; limit?: number } = {}) {
   const query = useQuery(

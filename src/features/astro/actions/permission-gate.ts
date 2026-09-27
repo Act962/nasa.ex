@@ -1,4 +1,5 @@
 import "server-only";
+import { assertPaymentToolAccess } from "@/features/astro/server/tools/finance/access";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import {
   isOrgActionAllowed,
@@ -70,6 +71,11 @@ export async function checkAstroPermission(params: {
   }
 
   if (isOrgActionAllowed(resolved, params.appKey, params.action)) {
+    // O Financeiro tem acesso próprio além da matriz: sem ele, recusa antes
+    // de perguntar qualquer dado do lançamento (F7-01).
+    if (params.appKey === "financeiro") {
+      return assertPaymentToolAccess(params.ctx, "entries", params.action);
+    }
     return { ok: true };
   }
 

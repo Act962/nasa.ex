@@ -12,8 +12,9 @@ import { authClient } from "@/lib/auth-client";
  *  - "moderador" → Moderador (manages users)
  */
 export function useOrgRole() {
-  const { data: session } = authClient.useSession();
-  const { data: activeOrg } = authClient.useActiveOrganization();
+  const { data: session, isPending: isSessionPending } = authClient.useSession();
+  const { data: activeOrg, isPending: isOrgPending } =
+    authClient.useActiveOrganization();
 
   const role: string | null =
     (activeOrg?.members as any[])?.find(
@@ -26,5 +27,18 @@ export function useOrgRole() {
   const isModerador = role === "moderador";
   const canManage   = isMaster || isModerador;
 
-  return { role, isSingle, isMaster, isAdmin, isModerador, canManage };
+  // No servidor não há sessão, então o papel só é confiável depois que as duas
+  // consultas respondem. Quem decide tela por papel deve esperar por isto, ou
+  // o servidor renderiza "sem permissão" e o cliente troca depois (hidratação).
+  const isRoleLoading = isSessionPending || isOrgPending;
+
+  return {
+    role,
+    isSingle,
+    isMaster,
+    isAdmin,
+    isModerador,
+    canManage,
+    isRoleLoading,
+  };
 }

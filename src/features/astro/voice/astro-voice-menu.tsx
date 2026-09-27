@@ -1,6 +1,15 @@
 "use client";
 
-import { EyeOff, HeadphoneOff, Headphones, Mic, Pause, Play, TriangleAlert } from "lucide-react";
+import {
+  CornerRightDown,
+  EyeOff,
+  HeadphoneOff,
+  Headphones,
+  Mic,
+  Pause,
+  Play,
+  TriangleAlert,
+} from "lucide-react";
 import { useAstroOrbStore } from "./use-astro-orb-store";
 import { useAstroWidgetStore } from "./use-astro-widget-store";
 import { useAstroVoiceActions } from "./use-astro-voice-actions";
@@ -22,6 +31,8 @@ import { useVoiceModeStore } from "./use-voice-mode-store";
 export function AstroVoiceMenuItems({ onAction }: { onAction?: () => void }) {
   const wakeWordEnabled = useAstroOrbStore((state) => state.wakeWordEnabled);
   const setVisible = useAstroOrbStore((state) => state.setVisible);
+  const hasCustomPosition = useAstroOrbStore((state) => state.anchor !== null);
+  const setAnchor = useAstroOrbStore((state) => state.setAnchor);
   const closeWidget = useAstroWidgetStore((state) => state.close);
   const { captureUtterance, toggleWakeWord } = useAstroVoiceActions();
   const isSpeaking = useVoiceModeStore((state) => state.isSpeaking);
@@ -103,6 +114,21 @@ export function AstroVoiceMenuItems({ onAction }: { onAction?: () => void }) {
           </>
         )}
       </button>
+      {hasCustomPosition && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            // O orb foi arrastado: volta para o canto inferior direito.
+            setAnchor(null);
+            onAction?.();
+          }}
+          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-zinc-100 hover:bg-zinc-800/80 transition-colors border-t border-zinc-800"
+        >
+          <CornerRightDown className="size-3.5" />
+          Voltar o Astro para o canto
+        </button>
+      )}
       <button
         type="button"
         role="menuitem"

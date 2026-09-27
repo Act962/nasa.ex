@@ -1,5 +1,6 @@
 import "server-only";
 import { generateText } from "ai";
+import { reportAiQuotaExhausted } from "@/features/alerts/lib/ai-token-alerts";
 import type { GetStepTools } from "inngest";
 import { sendText } from "@/http/uazapi/send-text";
 import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
@@ -127,6 +128,14 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
       tools: buildAgentTools(ctx),
       messages: ctx.history,
       stopWhen: ({ steps }) => steps.length >= 6,
+    }).catch(async (error: unknown) => {
+      await reportAiQuotaExhausted({
+        organizationId: ctx.organizationId,
+        usingCustomKey: resolved.usingCustom,
+        source: "tracking-chat-ai",
+        error,
+      });
+      throw error;
     });
     // `result.usage` agrega tokens de todos os steps internos quando há tool
     // calls. Alguns providers omitem campos — coalesce pra 0.

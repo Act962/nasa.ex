@@ -9,7 +9,7 @@ import {
 import { isMutatingTool } from "@/features/astro-commander/server/tool-guard";
 
 /**
- * Catálogo de ferramentas para a aba Ações (spec 0023, RF-22). As opções vêm
+ * Catálogo de ferramentas para a aba Ações (spec 0028, RF-22). As opções vêm
  * do próprio registry do ASTRO: ferramenta que sai do código some da tela
  * sozinha, em vez de virar um toggle que não faz nada.
  */

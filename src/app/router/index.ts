@@ -69,6 +69,8 @@ import { inChatRouter } from "./in-chat";
 import { workflowClipboardRouter } from "./workflow-clipboard";
 import { astroBotRouter } from "./astro-bot";
 import { astroCommanderRouter } from "./astro-commander";
+import { astroChatRouter } from "./astro-chat";
+import { trackingChatEmailRouter } from "./tracking-chat-email";
 import { whatsappAnalyticsRouter } from "./whatsapp-analytics";
 import { campanhasRouter } from "./campanhas";
 import { trafegoRouter } from "./trafego";
@@ -86,6 +88,8 @@ export const router = {
   /** Astro Bot via WhatsApp — config + binding por user. */
   astroBot: astroBotRouter,
   astroCommander: astroCommanderRouter,
+  astroChat: astroChatRouter,
+  trackingChatEmail: trackingChatEmailRouter,
   reasons: reasonsRouter,
   orgs: orgRoutes,
   workflow: workflowRoutes,

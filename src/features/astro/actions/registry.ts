@@ -1,6 +1,10 @@
 import "server-only";
 import type { AstroAction } from "./types";
 import { createProposalAction } from "./forge/create-proposal";
+import { updateProposalAction } from "./forge/update-proposal";
+import { cancelProposalAction } from "./forge/cancel-proposal";
+import { deleteProposalAction } from "./forge/delete-proposal";
+import { deleteEmptyDraftProposalsAction } from "./forge/delete-empty-drafts";
 import { rescheduleAppointmentAction } from "./agenda/reschedule-appointment";
 import { deleteLeadAction } from "./leads/delete-lead";
 import { addLeadNoteAction } from "./leads/add-lead-note";
@@ -31,6 +35,8 @@ import { createReminderAction } from "./agenda/create-reminder";
 import { addTrackingParticipantAction } from "./tracking/add-participant";
 import { sendFormToLeadAction } from "./form/send-to-lead";
 import { toggleFormPublishAction } from "./form/toggle-publish";
+import { sendMessageAction } from "./chat/send-message";
+import { addLeadTagAction } from "./leads/add-lead-tag";
 
 // Fonte única das ações do Astro (spec 0023, RF-1/RF-2). Entrar aqui basta:
 // o orquestrador ganha a ferramenta, o classificador ganha o alvo e o executor
@@ -38,6 +44,10 @@ import { toggleFormPublishAction } from "./form/toggle-publish";
 
 export const ASTRO_ACTIONS: AstroAction[] = [
   createProposalAction,
+  updateProposalAction,
+  cancelProposalAction,
+  deleteProposalAction,
+  deleteEmptyDraftProposalsAction,
   rescheduleAppointmentAction,
   deleteLeadAction,
   addLeadNoteAction,
@@ -68,6 +78,8 @@ export const ASTRO_ACTIONS: AstroAction[] = [
   addTrackingParticipantAction,
   sendFormToLeadAction,
   toggleFormPublishAction,
+  sendMessageAction,
+  addLeadTagAction,
 ];
 
 const actionsByKey = new Map(ASTRO_ACTIONS.map((action) => [action.key, action]));

@@ -13,7 +13,7 @@ import { useUpdateAstroCommand } from "@/features/astro-commander/hooks/use-astr
 import type { CommandDetailData } from "@/features/astro-commander/components/types";
 
 /**
- * Ações do comando (spec 0023, RF-22): quais ferramentas ele pode usar e quais
+ * Ações do comando (spec 0028, RF-22): quais ferramentas ele pode usar e quais
  * exigem aprovação. Sem nenhuma marcada, vale o conjunto padrão do papel.
  */
 export function CommandActionsSection({ command }: { command: CommandDetailData }) {

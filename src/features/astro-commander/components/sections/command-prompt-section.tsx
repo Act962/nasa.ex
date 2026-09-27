@@ -17,7 +17,7 @@ import {
 import { useUpdateAstroCommand } from "@/features/astro-commander/hooks/use-astro-commands";
 import type { CommandDetailData } from "@/features/astro-commander/components/types";
 
-/** Prompt do comando (spec 0023, RF-21). */
+/** Prompt do comando (spec 0028, RF-21). */
 
 const TEMPLATES: Array<{ label: string; body: string }> = [
   {

@@ -2,7 +2,7 @@ import { orpc } from "@/lib/orpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 /**
- * Hooks oRPC do ASTRO COMMANDER (spec 0023). Mutations já invalidam o cache do
+ * Hooks oRPC do ASTRO COMMANDER (spec 0028). Mutations já invalidam o cache do
  * domínio; toast e redirect ficam no componente.
  */
 

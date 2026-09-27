@@ -1,5 +1,5 @@
 /**
- * Cron mínimo do ASTRO COMMANDER (spec 0023).
+ * Cron mínimo do ASTRO COMMANDER (spec 0028).
  *
  * Cinco campos padrão: minuto, hora, dia do mês, mês, dia da semana. Aceita
  * `*`, número, lista (`1,15`), intervalo (`1-5`) e passo (`*​/15`). Não há

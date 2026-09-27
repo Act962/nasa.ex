@@ -10,6 +10,8 @@ export interface CriticalAlertPayload {
   title: string;
   body: string;
   actionUrl?: string | null;
+  /** Org dona do alerta, no cabeçalho — o usuário pode estar em várias. */
+  organizationName?: string | null;
   /** Quando true, bloqueia ESC + backdrop click; só fecha pelo botão. */
   requiresAck: boolean;
 }
@@ -143,6 +145,9 @@ export function AlertCriticalPopup({ payload, onAcknowledge }: Props) {
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-red-200/80">
                 Alerta crítico
+                {payload.organizationName && (
+                  <span className="text-white"> · {payload.organizationName}</span>
+                )}
               </p>
               <h2
                 id="alert-popup-title"

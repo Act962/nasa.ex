@@ -3,7 +3,7 @@
 import { AgentsSection } from "@/features/astro/components/settings/agents-section";
 
 /**
- * Agentes e permissões do ASTRO (spec 0023, RF-10). Traz a seção que vivia em
+ * Agentes e permissões do ASTRO (spec 0028, RF-10). Traz a seção que vivia em
  * /settings/astro; as chaves `astro.*` entram na fase seguinte do roadmap.
  */
 export function PermissionsTab() {

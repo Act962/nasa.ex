@@ -8,6 +8,7 @@ import { inngest } from "@/inngest/client";
 import { awardPoints } from "../space-point/utils";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { eventBus } from "@/features/alerts/lib/event-bus";
+import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
 
 const proposalProductShape = z.object({
   id: z.string(),
@@ -452,6 +453,9 @@ export const updateForgeProposal = base
                 orgProjectId: updated.orgProjectId,
               },
             });
+
+            // Compra nova muda o potencial e as compras do lead (spec 0035).
+            if (updated.clientId) await requestLeadMetricsRecompute(updated.clientId);
 
             // Recompensar o responsável pela proposta com pontos (Space Points)
             await awardPoints(

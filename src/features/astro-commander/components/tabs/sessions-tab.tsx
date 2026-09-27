@@ -1,37 +1,21 @@
 "use client";
 
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MessagesSquare, Trash2 } from "lucide-react";
-import { orpc } from "@/lib/orpc";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime } from "@/features/astro-commander/lib/labels";
+import { useAstroSessions, useDeleteAstroSession } from "@/features/astro-commander/hooks/use-astro-sessions";
 
 /**
- * Conversas com o ASTRO (spec 0023, RF-10). Consome as procedures de sessão
+ * Conversas com o ASTRO (spec 0028, RF-10). Consome as procedures de sessão
  * que já existem — aqui elas só ganham uma tela própria.
  */
 export function SessionsTab() {
-  const queryClient = useQueryClient();
-  const query = useQuery(
-    orpc.astro.sessions.list.queryOptions({ input: { take: 50 } }),
-  );
-  const deleteSession = useMutation(
-    orpc.astro.sessions.delete.mutationOptions({
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: orpc.astro.sessions.list.queryKey(),
-        });
-        toast.success("Conversa excluída");
-      },
-      onError: (error) => toast.error(error.message),
-    }),
-  );
+  const { sessions, isLoading } = useAstroSessions();
+  const deleteSession = useDeleteAstroSession();
 
-  const sessions = query.data?.sessions ?? [];
-
-  if (query.isLoading) {
+  if (isLoading) {
     return (
       <div className="space-y-2">
         {[0, 1, 2].map((row) => (
@@ -71,7 +55,15 @@ export function SessionsTab() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => deleteSession.mutate({ sessionId: session.id })}
+            onClick={() =>
+              deleteSession.mutate(
+                { id: session.id },
+                {
+                  onSuccess: () => toast.success("Conversa excluída"),
+                  onError: (error) => toast.error(error.message),
+                },
+              )
+            }
             disabled={deleteSession.isPending}
           >
             <Trash2 className="size-4" />

@@ -247,7 +247,7 @@ model Organization {
   // acesso a todas as procedures que cobram via `requireStarsMiddleware`.
   starsGraceStartedAt    DateTime? @map("stars_grace_started_at")
   starsSuspendedAt       DateTime? @map("stars_suspended_at")
-  /// Botão "pausar tudo" do ASTRO COMMANDER (spec 0023, RF-7). Setado, nenhum
+  /// Botão "pausar tudo" do ASTRO COMMANDER (spec 0028, RF-7). Setado, nenhum
   /// comando da org executa — nem por agenda, nem por evento.
   astroCommanderPausedAt DateTime? @map("astro_commander_paused_at")
   // Anti-spam de notificações pós-débito (1 dispatch/dia/severidade).
@@ -470,6 +470,7 @@ model Organization {
   astroCommands       AstroCommand[]
   astroCommandRuns    AstroCommandRun[]
   astroMemories       AstroMemory[]
+  astroChatSites      AstroChatSite[]
   astroFeedbacks      AstroFeedback[]
 
   // ── Tracking Chat — figurinhas personalizadas do composer ──
@@ -634,6 +635,7 @@ model Tracking {
 
   // Astro Bot (Insights pelo WhatsApp) — trackings habilitadas pra responder o Astro
   astroBotEnabledOn AstroBotTracking[]
+  astroChatSites    AstroChatSite[]
 
   @@map("tracking")
 }
@@ -956,6 +958,8 @@ enum LeadSource {
   // — phone novo digitado na tela de identify. Pipeline cria com source
   // IN_CHAT e dispara todas as automações (workflows NEW_LEAD, IA, etc).
   IN_CHAT
+  // Visitante do widget ASTRO CHAT instalado no site do cliente (spec 0031).
+  ASTRO_CHAT
   OTHER
 }
 
@@ -964,6 +968,48 @@ enum Temperature {
   WARM
   HOT
   VERY_HOT
+}
+
+enum LeadInterestLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum LeadMetricsSource {
+  COMPUTED
+  AI
+}
+
+/// Métricas do lead (spec 0035, "Auditar Lead"). Calculadas em código a partir
+/// de mensagens, propostas e histórico; a IA só entra quando os sinais não
+/// bastam, e aí substitui apenas potencial e interesse.
+model LeadMetrics {
+  id                   String            @id @default(cuid())
+  leadId               String            @unique @map("lead_id")
+  purchasePotential    Int               @default(0) @map("purchase_potential")
+  interestLevel        LeadInterestLevel @default(LOW) @map("interest_level")
+  purchasesCount       Int               @default(0) @map("purchases_count")
+  interactionsPerMonth Int               @default(0) @map("interactions_per_month")
+  avgAttendanceSeconds Int?              @map("avg_attendance_seconds")
+  interactionLossRate  Int               @default(0) @map("interaction_loss_rate")
+  avgResponseSeconds   Int?              @map("avg_response_seconds")
+  qualityScore         Int?              @map("quality_score")
+  resolutionRate       Int?              @map("resolution_rate")
+  source               LeadMetricsSource @default(COMPUTED)
+  confidence           Int               @default(0)
+  aiRationale          String?           @map("ai_rationale")
+  computedAt           DateTime          @default(now()) @map("computed_at")
+  aiAuditedAt          DateTime?         @map("ai_audited_at")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([purchasePotential])
+  @@index([interestLevel])
+  @@index([interactionLossRate])
+  @@map("lead_metrics")
 }
 
 enum StatusFlow {
@@ -1005,6 +1051,16 @@ model Lead {
   isArchived Boolean   @default(false) @map("is_archived")
   archivedAt DateTime? @map("archived_at")
 
+  // ─── Endereço (spec 0034) — aba "Endereço" dos detalhes do lead ───
+  addressZipCode      String? @map("address_zip_code")
+  addressStreet       String? @map("address_street")
+  addressNumber       String? @map("address_number")
+  addressComplement   String? @map("address_complement")
+  addressNeighborhood String? @map("address_neighborhood")
+  addressCity         String? @map("address_city")
+  addressState        String? @map("address_state")
+  addressCountry      String? @map("address_country")
+
   // ─── Origem / Tracking de campanha (UTM + CTWA + Meta Ads) ───
   utmSource      String? @map("utm_source")
   utmMedium      String? @map("utm_medium")
@@ -1045,6 +1101,8 @@ model Lead {
   orgProject  OrgProject? @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
 
   conversation Conversation?
+  /// Métricas de comportamento e atendimento (spec 0035, "Auditar Lead").
+  metrics      LeadMetrics?
   reminders    Reminder[]
 
   leadTags                  LeadTag[]
@@ -1064,6 +1122,7 @@ model Lead {
   broadcastRecipients       BroadcastRecipient[]
   trafegoOrders             TrafegoOrder[]
   trafegoPendingPurchases   TrafegoPendingPurchase[]
+  astroChatVisitors         AstroChatVisitor[]
   seiProcessLinks           SeiProcessLink[]
 
   @@unique([phone, trackingId])
@@ -3437,7 +3496,7 @@ model Plan {
   billingType                String   @default("monthly") @map("billing_type") // monthly | annual | weekly
   maxUsers                   Int      @default(3) @map("max_users")
   rolloverPct                Int      @default(30) @map("rollover_pct")
-  /// ASTRO COMMANDER (spec 0023): execuções de comando incluídas por mês.
+  /// ASTRO COMMANDER (spec 0028): execuções de comando incluídas por mês.
   /// Acima disso, o excedente é cobrado em Stars pelo catálogo.
   commanderRunsIncluded      Int      @default(0) @map("commander_runs_included")
   /// Teto de comandos ativos simultâneos. 0 = Commander indisponível no plano.
@@ -8025,7 +8084,7 @@ model AstroPendingAction {
 }
 
 // ─────────────────────────────────────────────────────────────
-// ASTRO COMMANDER (spec 0023) — comandos persistentes que o ASTRO
+// ASTRO COMMANDER (spec 0028) — comandos persistentes que o ASTRO
 // executa sozinho: uma vez, por agenda ou por evento. O ASTRO segue
 // sendo o único assistente; o que se cria e configura é o COMANDO.
 // ─────────────────────────────────────────────────────────────
@@ -8277,12 +8336,88 @@ model AstroFeedback {
   @@map("astro_feedbacks")
 }
 
+/// ASTRO CHAT (spec 0031): site do cliente com o widget do ASTRO instalado.
+model AstroChatSite {
+  id                String    @id @default(cuid())
+  organizationId    String    @map("organization_id")
+  trackingId        String?   @map("tracking_id")
+  statusId          String?   @map("status_id")
+  name              String
+  /// Identifica o site no snippet. Não é segredo (TR-2).
+  publicKey         String    @unique @map("public_key")
+  /// Origens aceitas, normalizadas ("https://exemplo.com.br").
+  allowedOrigins    String[]  @default([]) @map("allowed_origins")
+  isEnabled         Boolean   @default(true) @map("is_enabled")
+  /// "no_stars" | "tracking_missing" — pausa automática; nulo = ativo.
+  pausedReason      String?   @map("paused_reason")
+  aiEnabled         Boolean   @default(true) @map("ai_enabled")
+  assistantName     String    @default("Astro") @map("assistant_name")
+  greeting          String    @default("Oi! Eu sou o Astro. Posso te ajudar?")
+  instructions      String?   @db.Text
+  knowledgeIds      String[]  @default([]) @map("knowledge_ids")
+  accentColor       String    @default("#7C3AED") @map("accent_color")
+  /// Ícone próprio do widget; sem isso, o rosto do ASTRO.
+  avatarUrl         String?   @map("avatar_url")
+  /// "dark" | "light" — cor do painel no site do cliente.
+  widgetTheme       String    @default("light") @map("widget_theme")
+  /// Assuntos que o visitante NÃO pode pedir (spec 0031, RF-14 e D-14).
+  /// Vazio = nada bloqueado, que é como os sites existentes já funcionavam.
+  blockedTopicIds   String[]  @default([]) @map("blocked_topic_ids")
+  /// Restrições escritas pela org ("nunca fale de concorrente").
+  restrictionNotes  String?   @map("restriction_notes")
+  /// "right" | "left"
+  position          String    @default("right")
+  privacyUrl        String?   @map("privacy_url")
+  dailyAiReplyLimit Int       @default(300) @map("daily_ai_reply_limit")
+  aiRepliesDay      DateTime? @map("ai_replies_day") @db.Date
+  aiRepliesCount    Int       @default(0) @map("ai_replies_count")
+  nextBillingAt     DateTime? @map("next_billing_at")
+  lastBilledAt      DateTime? @map("last_billed_at")
+  createdById       String?   @map("created_by_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tracking     Tracking?          @relation(fields: [trackingId], references: [id], onDelete: SetNull)
+  visitors     AstroChatVisitor[]
+
+  @@index([organizationId])
+  @@index([nextBillingAt])
+  @@map("astro_chat_sites")
+}
+
+/// Visitante anônimo do widget. O token fica no navegador; aqui só o hash (TR-3).
+model AstroChatVisitor {
+  id             String    @id @default(cuid())
+  siteId         String    @map("site_id")
+  tokenHash      String    @unique @map("token_hash")
+  ipHash         String?   @map("ip_hash")
+  origin         String?
+  pageUrl        String?   @map("page_url")
+  leadId         String?   @map("lead_id")
+  /// Portão atômico do intervalo mínimo entre mensagens (TR-4).
+  lastMessageAt  DateTime? @map("last_message_at")
+  lastSeenAt     DateTime  @default(now()) @map("last_seen_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  site AstroChatSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  lead Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([siteId, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([leadId])
+  @@map("astro_chat_visitors")
+}
+
 model AiKnowledge {
   id             String            @id @default(cuid())
   organizationId String            @map("organization_id")
   name           String
-  type           String // "pdf" | "xlsx" | "docx" | "txt" | "csv"
+  type           String // "md" | "pdf" | "xlsx" | "docx" | "txt" | "csv"
   fileUrl        String?           @map("file_url") // R2/S3
+  /// Texto do documento (spec 0028, RF-13). Markdown escrito ou enviado pela
+  /// org entra inteiro no prompt — sem chunk, sem embedding, legível na tela.
+  content        String?           @db.Text
   status         AiKnowledgeStatus @default(PENDING)
   chunksCount    Int               @default(0) @map("chunks_count")
   errorMessage   String?           @map("error_message")

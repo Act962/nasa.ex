@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
+
 import { AlertTriangleIcon, CheckIcon, ExternalLinkIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { notifyAstroApprovalsChanged } from "@/features/astro-commander/hooks/use-astro-pending-approvals";
 import {
   buildCancelMessage,
   buildConfirmMessage,
@@ -93,6 +96,12 @@ export function AstroConfirmationResultCard({
 }: {
   payload: AstroConfirmationResultPayload;
 }) {
+  // O cartão saiu da fila: a faixa "ação esperando aprovação" precisa saber
+  // agora, senão fica no ar até o próximo ciclo de 60 s (spec 0032, RF-12).
+  useEffect(() => {
+    notifyAstroApprovalsChanged();
+  }, [payload.proposalId]);
+
   return (
     <div
       className={cn(

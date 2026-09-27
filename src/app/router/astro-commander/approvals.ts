@@ -1,3 +1,4 @@
+import { ORPCError } from "@orpc/server";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -7,7 +8,7 @@ import { getProposalExecutor } from "@/features/astro/server/tools/_shared/propo
 import "@/features/astro-commander/server/approval-executor";
 
 /**
- * Aprovar ou rejeitar uma proposta pela tela (spec 0023, RF-11).
+ * Aprovar ou rejeitar uma proposta pela tela (spec 0028, RF-11).
  *
  * O caminho do chat aprova por tool; aqui é por botão, e o executor é o mesmo
  * registrado por `actionType` — a decisão de como executar nunca se divide.
@@ -21,20 +22,20 @@ export const approveAction = base
     const pending = await prisma.astroPendingAction.findFirst({
       where: { id: input.id, organizationId: context.org.id },
     });
-    if (!pending) throw new Error("Proposta não encontrada");
+    if (!pending) throw new ORPCError("BAD_REQUEST", { message: "Proposta não encontrada" });
     if (pending.status !== "PENDING") {
-      throw new Error(`Esta proposta está ${pending.status.toLowerCase()}.`);
+      throw new ORPCError("BAD_REQUEST", { message: `Esta proposta está ${pending.status.toLowerCase()}.` });
     }
     if (pending.expiresAt.getTime() < Date.now()) {
       await prisma.astroPendingAction.update({
         where: { id: pending.id },
         data: { status: "EXPIRED" },
       });
-      throw new Error("Esta proposta expirou.");
+      throw new ORPCError("BAD_REQUEST", { message: "Esta proposta expirou." });
     }
 
     const executor = getProposalExecutor(pending.actionType);
-    if (!executor) throw new Error(`Não sei executar "${pending.actionType}".`);
+    if (!executor) throw new ORPCError("BAD_REQUEST", { message: `Não sei executar "${pending.actionType}".` });
 
     try {
       const result = await executor({
@@ -66,7 +67,7 @@ export const approveAction = base
         where: { id: pending.id },
         data: { status: "FAILED", confirmedAt: new Date(), errorMessage: message },
       });
-      throw new Error(`Falhou ao executar: ${message}`);
+      throw new ORPCError("BAD_REQUEST", { message: `Falhou ao executar: ${message}` });
     }
   });
 
@@ -79,7 +80,7 @@ export const rejectAction = base
       where: { id: input.id, organizationId: context.org.id },
       select: { id: true, status: true },
     });
-    if (!pending) throw new Error("Proposta não encontrada");
+    if (!pending) throw new ORPCError("BAD_REQUEST", { message: "Proposta não encontrada" });
     if (pending.status !== "PENDING") {
       return { ok: true, summary: `Proposta já estava ${pending.status.toLowerCase()}.` };
     }

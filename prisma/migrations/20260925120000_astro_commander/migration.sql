@@ -1,4 +1,4 @@
--- Spec: specs/astro/0023-astro-commander.md
+-- Spec: specs/astro/0028-astro-commander.md
 --
 -- ASTRO COMMANDER: comandos persistentes que o ASTRO executa sozinho (uma vez,
 -- por agenda ou por evento), com trilha de execução, memórias da organização e

@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import z from "zod";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import {
   buildCursorWhere,
   buildNextCursorValue,
@@ -86,7 +87,7 @@ export const listConversation = base
       const conversations = await prisma.conversation.findMany({
         where: {
           trackingId: input.trackingId,
-          ...(input.channel && { channel: input.channel as any }),
+          ...buildChannelWhere(input.channel),
           ...buildCursorWhere(
             input.sortBy,
             input.sortDirection,
@@ -170,6 +171,8 @@ export const listConversation = base
                   tag: true,
                 },
               },
+              // Anel de temperatura no avatar da lista (spec 0035, RF-10).
+              metrics: true,
             },
           },
         },
@@ -208,3 +211,25 @@ export const listConversation = base
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
+
+/**
+ * Filtro de canal da lista. O "Chat do site" (In-Chat) é gravado como
+ * WhatsApp; o que o identifica é o lead ter nascido no site
+ * (`Lead.source = IN_CHAT`). Por isso WhatsApp exclui esses leads e In-Chat
+ * filtra por eles. Canal desconhecido é ignorado em vez de quebrar a
+ * consulta no enum (antes ia direto como `any`).
+ */
+function buildChannelWhere(channel: string | null | undefined): Prisma.ConversationWhereInput {
+  if (!channel) return {};
+  if (channel === "IN_CHAT") return { AND: [{ lead: { source: "IN_CHAT" } }] };
+  // Widget do ASTRO no site do cliente (spec 0031): mesmo padrão do In-Chat.
+  if (channel === "ASTRO_CHAT") return { AND: [{ lead: { source: "ASTRO_CHAT" } }] };
+  if (channel === "WHATSAPP") {
+    return {
+      channel: "WHATSAPP",
+      AND: [{ lead: { source: { notIn: ["IN_CHAT", "ASTRO_CHAT"] } } }],
+    };
+  }
+  if (channel === "INSTAGRAM" || channel === "FACEBOOK") return { channel };
+  return {};
+}

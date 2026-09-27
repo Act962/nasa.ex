@@ -7,13 +7,16 @@ import { InfoItem } from "../Info-item";
 import { InputEditField } from "../input-edit-field";
 
 interface FieldEmailProps {
+  /** Fora da página do contato (ex.: lateral do chat) o id vem por prop. */
+  leadId?: string;
   label: string;
   value: string;
   trackingId: string;
 }
 
-export function FieldEmail({ label, value, trackingId }: FieldEmailProps) {
-  const { leadId } = useParams<{ leadId: string }>();
+export function FieldEmail({ label, value, trackingId, leadId: leadIdProp }: FieldEmailProps) {
+  const params = useParams<{ leadId: string }>();
+  const leadId = leadIdProp ?? params.leadId;
   const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState(value);
 

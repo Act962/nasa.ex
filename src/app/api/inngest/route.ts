@@ -40,7 +40,14 @@ import { syncPostMetricsCron } from "@/inngest/functions/nasa-planner/sync-post-
 import { syncPriceSuggestionsCron } from "@/inngest/functions/forge/sync-price-suggestions-cron";
 import { syncMetaAdsKpis } from "@/inngest/functions/crons/sync-meta-ads-kpis";
 import { astroCommanderTick } from "@/inngest/functions/astro-commander/commander-tick";
+import { astroLearnFromFeedback } from "@/inngest/functions/astro/learn-from-feedback";
+import { astroChatPublicAgent } from "@/inngest/functions/astro-chat/public-agent";
+import { astroChatMonthlyBilling } from "@/inngest/functions/astro-chat/monthly-billing";
 import { astroCommandRun } from "@/inngest/functions/astro-commander/run-command";
+import { detectLeadWaiting } from "@/inngest/functions/crons/detect-lead-waiting";
+import { detectAiTokenUsage } from "@/inngest/functions/crons/detect-ai-token-usage";
+import { detectExpensesDueToday } from "@/inngest/functions/crons/detect-expenses-due-today";
+import { detectContractsExpiring } from "@/inngest/functions/crons/detect-contracts-expiring";
 import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-structure";
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
 import { nasaRouteVideoUploadsCleanup } from "@/inngest/functions/crons/nasa-route-video-uploads-cleanup";
@@ -98,10 +105,16 @@ import { dispatchDueBroadcasts } from "@/inngest/functions/campanhas/dispatch-du
 import { watchScheduledBroadcast } from "@/inngest/functions/campanhas/watch-scheduled-broadcast";
 import { syncSeiProcess } from "@/inngest/functions/sei/sync-process";
 import { testSeiConnection } from "@/inngest/functions/sei/test-connection";
+import {
+  recomputeActiveLeadMetricsNightly,
+  recomputeLeadMetrics,
+} from "@/inngest/functions/leads/recompute-lead-metrics";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
+    recomputeLeadMetrics,
+    recomputeActiveLeadMetricsNightly,
     executeWorkflow,
     executeWorkspaceWorkflow,
     processReminder,
@@ -132,9 +145,17 @@ export const { GET, POST, PUT } = serve({
     trafegoAsaasPaymentEvent,
     // ── trafeGO: acompanha cada cobrança PIX até resolver (spec 0022) ──
     trafegoAsaasChargeWatch,
-    // ── ASTRO COMMANDER (spec 0023): agenda a cada minuto + execução ──
+    // ── ASTRO COMMANDER (spec 0028): agenda a cada minuto + execução ──
     astroCommanderTick,
+    astroLearnFromFeedback,
+    astroChatPublicAgent,
+    astroChatMonthlyBilling,
     astroCommandRun,
+    // ── ASTRO: alertas proativos (spec 0029) ──
+    detectLeadWaiting,
+    detectAiTokenUsage,
+    detectExpensesDueToday,
+    detectContractsExpiring,
     // ── NASA Planner ──
     publishPostHandler,
     publishScheduledPosts,

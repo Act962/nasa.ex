@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import type { AstroCommand } from "@/generated/prisma/client";
 
 /**
- * Guardrails do ASTRO COMMANDER (spec 0023, RF-6 / CA-7 / CA-9). Tudo aqui
+ * Guardrails do ASTRO COMMANDER (spec 0028, RF-6 / CA-7 / CA-9). Tudo aqui
  * roda ANTES de chamar o LLM: barrar depois já custou tokens.
  */
 
@@ -117,7 +117,7 @@ export async function checkGuardrails(params: {
 
 /**
  * Tools que mexem em dinheiro. Exigem aprovação em qualquer modo de autonomia
- * (spec 0023, RF-4 / CA-4) — o modo `AUTO` não vale para elas.
+ * (spec 0028, RF-4 / CA-4) — o modo `AUTO` não vale para elas.
  */
 const FINANCIAL_TOOL_PATTERN =
   /(payment|finance|financeir|boleto|pix|invoice|charge|cobran|pagar|pagamento|lancamento|lançamento|reconcil|concilia|transfer)/i;

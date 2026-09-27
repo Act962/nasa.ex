@@ -13,7 +13,7 @@ import {
 import { formatDateTime } from "@/features/astro-commander/lib/labels";
 
 /**
- * Fila de aprovação da organização (spec 0023, RF-11). Até aqui, o que o
+ * Fila de aprovação da organização (spec 0028, RF-11). Até aqui, o que o
  * comando preparou não saiu do lugar.
  */
 export function ApprovalsTab() {

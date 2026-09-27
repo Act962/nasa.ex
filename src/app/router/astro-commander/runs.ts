@@ -1,3 +1,4 @@
+import { ORPCError } from "@orpc/server";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -5,7 +6,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 
 /**
- * Execuções e fila de aprovação (spec 0023, RF-5 / RF-11). Alimenta a aba
+ * Execuções e fila de aprovação (spec 0028, RF-5 / RF-11). Alimenta a aba
  * Execuções do comando e a aba Aprovações da organização.
  */
 
@@ -77,7 +78,7 @@ export const getRun = base
       where: { id: input.id, organizationId: context.org.id },
       include: { command: { select: { title: true, persona: true } } },
     });
-    if (!run) throw new Error("Execução não encontrada");
+    if (!run) throw new ORPCError("BAD_REQUEST", { message: "Execução não encontrada" });
 
     const pendingActions = run.pendingActionIds.length
       ? await prisma.astroPendingAction.findMany({

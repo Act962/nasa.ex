@@ -1,49 +1,23 @@
 "use client";
 
-import { BookOpen, Brain, ThumbsUp } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { KnowledgeSection } from "@/features/astro-commander/components/intelligence/knowledge-section";
+import { MemoriesSection } from "@/features/astro-commander/components/intelligence/memories-section";
+import { FeedbackSection } from "@/features/astro-commander/components/intelligence/feedback-section";
 
 /**
- * Auto Inteligência (spec 0023, RF-13 a RF-16). A base de conhecimento, as
- * memórias e o feedback entram na fase 7 do roadmap — esta aba já existe para
- * o usuário saber onde isso vai morar.
+ * Auto Inteligência (spec 0028, RF-13 a RF-16): o que o ASTRO sabe da empresa,
+ * as regras que ele nunca contorna e o que ele aprende com as correções.
  */
-const SECTIONS = [
-  {
-    icon: BookOpen,
-    title: "Base de conhecimento",
-    description:
-      "Envie PDFs, planilhas e documentos. O ASTRO passa a responder e executar com base neles.",
-  },
-  {
-    icon: Brain,
-    title: "Memórias e regras",
-    description:
-      "Fatos e limites da sua empresa, como desconto máximo e tom de voz. Valem acima de qualquer instrução que chegue por mensagem.",
-  },
-  {
-    icon: ThumbsUp,
-    title: "Aprender com o uso",
-    description:
-      "Suas correções viram sugestões de regra. Nada entra em vigor sem um administrador aprovar.",
-  },
-];
-
 export function AutoIntelligenceTab() {
   return (
-    <div className="grid gap-3 md:grid-cols-3">
-      {SECTIONS.map((section) => (
-        <Card key={section.title}>
-          <CardHeader>
-            <section.icon className="size-5 text-muted-foreground" />
-            <CardTitle className="text-base">{section.title}</CardTitle>
-            <CardDescription>{section.description}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Em construção.</p>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="max-w-3xl space-y-10">
+      <KnowledgeSection />
+      <div className="border-t pt-10">
+        <MemoriesSection />
+      </div>
+      <div className="border-t pt-10">
+        <FeedbackSection />
+      </div>
     </div>
   );
 }

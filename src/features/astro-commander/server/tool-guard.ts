@@ -6,7 +6,7 @@ import { createPendingAction } from "@/features/astro/server/tools/_shared/propo
 import { requiresApproval } from "@/features/astro-commander/lib/guardrails";
 
 /**
- * Porteiro das ferramentas numa execução headless (spec 0023, RF-4).
+ * Porteiro das ferramentas numa execução headless (spec 0028, RF-4).
  *
  * O chat tem um humano olhando; o comando não. Então aqui toda ferramenta que
  * escreve passa por uma decisão explícita: executa agora ou vira proposta

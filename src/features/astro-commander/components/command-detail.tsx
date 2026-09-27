@@ -30,7 +30,7 @@ import { CommandActionsSection } from "@/features/astro-commander/components/sec
 import { CommandRunsSection } from "@/features/astro-commander/components/sections/command-runs-section";
 
 /**
- * Página de um comando (spec 0023, RF-18). Coluna lateral com o card do
+ * Página de um comando (spec 0028, RF-18). Coluna lateral com o card do
  * comando e o menu de seções; o conteúdo troca à direita.
  */
 

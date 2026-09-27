@@ -12,14 +12,25 @@ import {
 import type { AstroAttachmentRef } from "@/features/astro/server/agents/types";
 import type { AgentKey } from "@/features/astro/schemas/agent-config";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
-import { meter } from "@/features/stars/lib/metering";
+import { meter, recordUsageEvent } from "@/features/stars/lib/metering";
+import { reportAiQuotaExhausted } from "@/features/alerts/lib/ai-token-alerts";
 import { generateAutoTitle } from "@/features/astro/lib/auto-title";
-import { classifyStaged } from "@/features/astro/actions/classify-staged";
 import {
   runAstroQuery,
   type AstroQueryResult,
 } from "@/features/astro/queries/registry";
-import { runClassifiedAction } from "@/features/astro/actions/run-classified-action";
+import { runGuidedAction } from "@/features/astro/actions/run-classified-action";
+import { clearGuidedSlot, isAwaitingAnswer, shouldSkipReading } from "@/features/astro/actions/guided-slots";
+import {
+  extractConversationHistory,
+  extractLastUserText,
+  lastAssistantAsked,
+} from "@/features/astro/lib/chat-turns";
+import {
+  cancelPendingAction,
+  confirmPendingAction,
+  decideLatestCardByText,
+} from "@/features/astro/server/tools/_shared/proposals/confirm-direct";
 
 /**
  * Ratio de cobrança em Stars por tokens consumidos pelo Astro.
@@ -83,57 +94,6 @@ function describeStreamError(streamError: unknown): string {
  */
 const ASTRO_INTENT_ROUTING = process.env.ASTRO_INTENT_ROUTING !== "false";
 
-/** Falas anteriores, para o classificador resolver "ele", "a última", etc. */
-function extractConversationHistory(messages: UIMessage[]): string[] {
-  return messages
-    .slice(0, -1)
-    .filter((message) => message.role === "user" || message.role === "assistant")
-    .map((message) => {
-      if (!Array.isArray(message.parts)) return "";
-      const text = message.parts
-        .filter((part): part is { type: "text"; text: string } => part.type === "text")
-        .map((part) => part.text)
-        .join(" ")
-        .trim();
-      return text ? `${message.role === "user" ? "Usuário" : "Astro"}: ${text}` : "";
-    })
-    .filter(Boolean);
-}
-
-/**
- * O turno anterior do Astro deixou uma pergunta no ar?
- *
- * "Financeiro", respondendo a "qual tracking?", casou com a consulta do
- * financeiro e devolveu contas a pagar. Resposta curta a uma pergunta
- * pendente não é pedido novo — e enquanto houver pergunta no ar, a camada
- * de consulta fica de fora.
- */
-const PENDING_QUESTION =
-  /me diga:|para eu continuar|qual deles\?|escolha |ou workspace\?|me diga o |qual o nome|em qual /i;
-
-function lastAssistantAsked(messages: UIMessage[]): boolean {
-  const lastAssistant = [...messages]
-    .slice(0, -1)
-    .reverse()
-    .find((message) => message.role === "assistant");
-  if (!lastAssistant || !Array.isArray(lastAssistant.parts)) return false;
-  const text = lastAssistant.parts
-    .filter((part): part is { type: "text"; text: string } => part.type === "text")
-    .map((part) => part.text)
-    .join(" ");
-  return PENDING_QUESTION.test(text);
-}
-
-function extractLastUserText(messages: UIMessage[]): string {
-  const lastUser = [...messages].reverse().find((message) => message.role === "user");
-  if (!lastUser || !Array.isArray(lastUser.parts)) return "";
-  return lastUser.parts
-    .filter((part): part is { type: "text"; text: string } => part.type === "text")
-    .map((part) => part.text)
-    .join(" ")
-    .trim();
-}
-
 /**
  * Resposta de consulta em código, no mesmo formato de stream que o cliente já
  * renderiza — tabela vira cartão, texto vira mensagem.
@@ -158,6 +118,33 @@ function buildQueryResponse(result: AstroQueryResult): Response {
       const textId = `${toolCallId}-text`;
       writer.write({ type: "text-start", id: textId });
       writer.write({ type: "text-delta", id: textId, delta: result.text });
+      writer.write({ type: "text-end", id: textId });
+    },
+  });
+  return createUIMessageStreamResponse({ stream });
+}
+
+/** Resposta do clique no cartão: mesma forma de stream das tools (spec 0032, RF-10). */
+function buildCardResponse(
+  toolName: string,
+  output: unknown,
+  text: string,
+  followUp?: unknown,
+): Response {
+  const toolCallId = `astro-card-${Date.now()}`;
+  const stream = createUIMessageStream({
+    execute: async ({ writer }) => {
+      writer.write({ type: "tool-input-available", toolCallId, toolName, input: {} });
+      writer.write({ type: "tool-output-available", toolCallId, output });
+      // Plano com parte destrutiva: o cartão dela vem logo abaixo do relatório.
+      if (followUp) {
+        const followUpId = `${toolCallId}-next`;
+        writer.write({ type: "tool-input-available", toolCallId: followUpId, toolName, input: {} });
+        writer.write({ type: "tool-output-available", toolCallId: followUpId, output: followUp });
+      }
+      const textId = `${toolCallId}-text`;
+      writer.write({ type: "text-start", id: textId });
+      writer.write({ type: "text-delta", id: textId, delta: text });
       writer.write({ type: "text-end", id: textId });
     },
   });
@@ -230,7 +217,7 @@ export async function POST(req: Request) {
   // dele, que só enxerga as tools do próprio pedido.
   const organization = await prisma.organization.findUnique({
     where: { id: organizationId },
-    select: { appScope: true, starsSuspendedAt: true },
+    select: { appScope: true, starsSuspendedAt: true, starsBalance: true, starsBonusBalance: true },
   });
   const isTrafegoScope = organization?.appScope === "trafego";
 
@@ -252,6 +239,70 @@ export async function POST(req: Request) {
   // Custo fixo de "stake" por prompt — garante que o user tem saldo antes
   // de gerar resposta. Cobrança proporcional aos tokens reais é feita no
   // onFinish abaixo (silenciosa, sem expor valor pro user).
+  // ── Clique no cartão de confirmação (spec 0032, RF-10) ─────────────────
+  // Vem antes da cobrança e do roteamento: o clique é a decisão do usuário,
+  // já classificada no turno anterior. Passar isto por modelo custava ~45 mil
+  // tokens (~46 Stars) por clique e às vezes voltava a perguntar o cliente.
+  const cardReplyText = extractLastUserText(uiMessages).trim();
+  if (/^(confirmar|cancelar)\s+[a-z0-9]{10,}$/i.test(cardReplyText)) {
+    const [decision, pendingId] = cardReplyText.split(/\s+/);
+    const cardCtx = {
+      userId,
+      organizationId,
+      route: parsed.context ?? {},
+      sessionId,
+      channel: "CHAT" as const,
+    } as never;
+
+    if (/^cancelar$/i.test(decision)) {
+      const outcome = await cancelPendingAction({ ctx: cardCtx, proposalId: pendingId });
+      const text = "error" in outcome ? outcome.error : outcome.summary;
+      console.log("[ASTRO/chat] cartão cancelado em código");
+      return buildCardResponse("cancel_action", { summary: text }, text);
+    }
+
+    const outcome = await confirmPendingAction({ ctx: cardCtx, proposalId: pendingId });
+    console.log(`[ASTRO/chat] cartão confirmado em código (ok=${outcome.ok})`);
+    return outcome.ok
+      ? buildCardResponse("confirm_action", outcome.payload, outcome.payload.summary, outcome.payload.followUp)
+      : buildCardResponse("confirm_action", { error: outcome.error }, outcome.error);
+  }
+
+  // "cancelar" / "sim" digitados com um cartão aberto (e sem pergunta do
+  // roteiro no ar): decide o último cartão desta conversa, em código (F6-02).
+  if (!isAwaitingAnswer(sessionId)) {
+    const typedCtx = {
+      userId,
+      organizationId,
+      route: parsed.context ?? {},
+      sessionId,
+      channel: "CHAT" as const,
+    } as never;
+    const typed = await decideLatestCardByText({ ctx: typedCtx, text: cardReplyText });
+    if (typed && "cancelledSummary" in typed) {
+      return buildCardResponse("cancel_action", { summary: typed.cancelledSummary }, typed.cancelledSummary);
+    }
+    if (typed) {
+      return typed.ok
+        ? buildCardResponse("confirm_action", typed.payload, typed.payload.summary, typed.payload.followUp)
+        : buildCardResponse("confirm_action", { error: typed.error }, typed.error);
+    }
+  }
+
+  // Sem Stars, nada de pedido novo — mesmo sem stake cadastrado, senão os
+  // tokens rodam de graça e o débito deles falha em silêncio (F10-03).
+  const hasNoStars =
+    (organization?.starsBalance ?? 0) + (organization?.starsBonusBalance ?? 0) <= 0;
+  if (!isTrafegoScope && hasNoStars) {
+    return NextResponse.json(
+      {
+        error: "Seus Stars acabaram. Recarregue pra continuar usando o Astro.",
+        code: "STARS_EMPTY",
+      },
+      { status: 402 },
+    );
+  }
+
   // Custo zero ou regra ausente = não cobra fixo. Saldo insuficiente = 402.
   try {
     const charge = isTrafegoScope
@@ -285,7 +336,8 @@ export async function POST(req: Request) {
       // Consulta simples responde em código, antes de qualquer modelo:
       // "quantos leads temos" é um count(), e ia custar 43 mil tokens para
       // voltar "não tenho acesso aos dados".
-      const answeringAQuestion = lastAssistantAsked(uiMessages);
+      const answeringAQuestion =
+        lastAssistantAsked(uiMessages) || (sessionId ? shouldSkipReading(sessionId, lastUserText) : false);
       const queried = answeringAQuestion
         ? null
         : await runAstroQuery({
@@ -295,36 +347,49 @@ export async function POST(req: Request) {
           });
       if (queried) {
         console.log(`[ASTRO/chat] consulta em código resolveu: ${queried.key}`);
+        // Pergunta nova no meio de um roteiro encerra o roteiro: sem isto, a
+        // próxima frase ("Maria Clara") virava resposta à proposta abandonada.
+        if (sessionId) clearGuidedSlot(sessionId);
+        // RNF-4: consulta em código custa zero, mas entra no relatório — é a
+        // economia que o relatório precisa mostrar (F10-01).
+        void recordUsageEvent({
+          organizationId,
+          userId,
+          kind: "OTHER",
+          action: "astro_query",
+          appSlug: "astro",
+          feature: "astro.query",
+          tokens: { totalTokens: 0 },
+          starsCharged: 0,
+          sessionId,
+          latencyMs: Date.now() - routingStartedAt,
+          metadata: { query: queried.key },
+        });
         return buildQueryResponse(queried.result);
       }
 
       const conversationHistory = extractConversationHistory(uiMessages);
-      const classification = await classifyStaged({
-        organizationId,
+      // O ciclo guiado responde pelas duas pontas: classifica o pedido novo e
+      // continua de onde parou quando a mensagem é resposta a uma pergunta.
+      const classified = await runGuidedAction({
+        ctx: {
+          userId,
+          organizationId,
+          route: parsed.context ?? {},
+          sessionId,
+          channel: "CHAT",
+        } as never,
         text: lastUserText,
         history: conversationHistory,
+        sessionId,
       });
-      if (classification) {
-        const classified = await runClassifiedAction({
-          ctx: {
-            userId,
-            organizationId,
-            route: parsed.context ?? {},
-            sessionId,
-            channel: "CHAT",
-          } as never,
-          classification,
-          userText: lastUserText,
-          history: conversationHistory,
-        });
-        if (classified) {
-          console.log(
-            `[ASTRO/chat] camada ${classified.route} resolveu: ${classified.actionKey} ` +
-              `(app ${classification.app})`,
-          );
-          // RNF-4: o caminho barato também entra no registro de custo, senão
-          // a economia fica invisível no relatório — some da conta em vez de
-          // aparecer como zero.
+      if (classified) {
+        console.log(
+          `[ASTRO/chat] camada ${classified.route} resolveu: ${classified.actionKey}`,
+        );
+        // RNF-4: o caminho barato também entra no registro de custo, senão a
+        // economia fica invisível no relatório.
+        if (classified.tokensUsed > 0) {
           void meter({
             organizationId,
             action: "astro_tokens",
@@ -345,8 +410,8 @@ export async function POST(req: Request) {
           }).catch((error) => {
             console.warn("[ASTRO/chat] métrica do classificador falhou:", error);
           });
-          return classified.response;
         }
+        return classified.response;
       }
     }
   }
@@ -356,7 +421,7 @@ export async function POST(req: Request) {
   // organização antes de deixar o modelo enxergar o id.
   const attachments = await resolveMessageAttachments(uiMessages, organizationId);
 
-  let resolvedModel: { provider: string; modelId: string } | null = null;
+  let resolvedModel: { provider: string; modelId: string; usingCustomKey: boolean } | null = null;
   let result;
   const startedAt = Date.now();
   try {
@@ -392,6 +457,12 @@ export async function POST(req: Request) {
   return result.toUIMessageStreamResponse({
     onError: (streamError) => {
       console.error("[ASTRO/chat] stream error", streamError);
+      void reportAiQuotaExhausted({
+        organizationId,
+        usingCustomKey: (resolvedModel as { usingCustomKey: boolean } | null)?.usingCustomKey ?? false,
+        source: "astro.chat",
+        error: streamError,
+      });
       return describeStreamError(streamError);
     },
     // Anexa { tokens } na última mensagem do stream (event "finish" do AI SDK).

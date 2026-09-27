@@ -1,5 +1,13 @@
 import "server-only";
 import {
+  buildKnowledgeBlock,
+  loadKnowledgeDocuments,
+} from "@/features/astro/server/knowledge/load-knowledge";
+import {
+  buildMemoriesBlock,
+  loadActiveMemories,
+} from "@/features/astro/server/knowledge/load-memories";
+import {
   generateText,
   streamText,
   tool,
@@ -237,7 +245,7 @@ async function runSubAgent(opts: {
 
 /**
  * Agente montado: modelo, system prompt e tools prontos para `streamText`
- * (chat) ou `generateText` (ASTRO COMMANDER, spec 0023 D-2).
+ * (chat) ou `generateText` (ASTRO COMMANDER, spec 0028 D-2).
  */
 export interface BuiltAstroAgent {
   model: ResolvedModel["model"];
@@ -253,7 +261,7 @@ export interface BuiltAstroAgent {
 /**
  * Monta o agente do ASTRO sem executá-lo. O chat embrulha em `streamText`; o
  * Commander roda headless em `generateText`. Um único lugar decide modelo,
- * escopo de tools e system prompt — sem isso os dois divergiriam (spec 0023, D-2).
+ * escopo de tools e system prompt — sem isso os dois divergiriam (spec 0028, D-2).
  */
 export async function buildAstroAgent(opts: {
   ctx: AgentContext;
@@ -266,10 +274,25 @@ export async function buildAstroAgent(opts: {
   extraSystem?: string;
   /** Restringe as tools às chaves listadas (aba Ações do comando). */
   allowedTools?: string[];
+  /**
+   * Em vez de expor `route_to_*`, junta as tools dos sub-agentes ao conjunto
+   * principal. Usado pela execução headless: delegar por texto perde os IDs
+   * que o próprio agente acabou de obter (spec 0028).
+   */
+  inlineSubAgentTools?: boolean;
 }): Promise<BuiltAstroAgent> {
   const { ctx, lastUserText } = opts;
   const toolScope = opts.toolScope ?? "full";
   const enabled = await loadAgentEnabledMap(ctx.organizationId);
+
+  // Auto Inteligência (spec 0028, RF-13/RF-14): o que a empresa escreveu vale
+  // nos dois caminhos abaixo — o sub-agente fixado e o orquestrador.
+  const [knowledgeDocuments, memories] = await Promise.all([
+    loadKnowledgeDocuments({ organizationId: ctx.organizationId }),
+    loadActiveMemories({ organizationId: ctx.organizationId }),
+  ]);
+  const intelligenceBlock =
+    buildMemoriesBlock(memories) + buildKnowledgeBlock(knowledgeDocuments);
 
   const subAgentModel = await resolvePrimaryModel({
     organizationId: ctx.organizationId,
@@ -285,7 +308,8 @@ export async function buildAstroAgent(opts: {
         model: subAgentModel.model,
         provider: subAgentModel.provider,
         modelId: subAgentModel.modelId,
-        system: `${pinned.systemPrompt}${buildRouteContextBlock(ctx.route)}${buildTemporalBlock()}${opts.extraSystem ?? ""}`,
+        usingCustomKey: subAgentModel.keySource === "organization",
+        system: `${pinned.systemPrompt}${buildRouteContextBlock(ctx.route)}${buildTemporalBlock()}${intelligenceBlock}${opts.extraSystem ?? ""}`,
         tools: filterTools(pinned.buildTools(ctx), opts.allowedTools),
         maxSteps: 8,
         telemetryFunctionId: `astro-pinned-${ctx.pinnedAgentKey}`,
@@ -303,8 +327,14 @@ export async function buildAstroAgent(opts: {
   // viram prosa reescrita e o erro real de uma escrita some. Sub-agents
   // seguem disponíveis por `route_to_*` para os fluxos com persona.
   const scope = resolveToolSetForScope(toolScope, ctx);
-  const routingTools = scope.allowsRouting
-    ? buildRoutingTools({ ctx, enabled, subAgentModel })
+  const routingTools =
+    scope.allowsRouting && !opts.inlineSubAgentTools
+      ? buildRoutingTools({ ctx, enabled, subAgentModel })
+      : {};
+  // Sem o salto do `route_to_*`, as tools do sub-agente ficam ao alcance direto
+  // e o agente reaproveita os IDs que já tem em mãos.
+  const inlinedTools = opts.inlineSubAgentTools
+    ? buildInlineSubAgentTools({ ctx, enabled })
     : {};
   const systemSuffix =
     toolScope === "trafego"
@@ -346,13 +376,34 @@ export async function buildAstroAgent(opts: {
     model: orchestratorModel.model,
     provider: orchestratorModel.provider,
     modelId: orchestratorModel.modelId,
-    system: `${ASTRO_ORCHESTRATOR_PROMPT}\n\n${systemSuffix}${buildRouteContextBlock(ctx.route)}${buildAttachmentsBlock(ctx.attachments)}${buildTemporalBlock()}${styleBlock}${opts.extraSystem ?? ""}`,
-    tools: filterTools({ ...scope.tools, ...routingTools }, opts.allowedTools),
+    usingCustomKey: orchestratorModel.keySource === "organization",
+    system: `${ASTRO_ORCHESTRATOR_PROMPT}\n\n${systemSuffix}${buildRouteContextBlock(ctx.route)}${buildAttachmentsBlock(ctx.attachments)}${buildTemporalBlock()}${styleBlock}${intelligenceBlock}${opts.extraSystem ?? ""}`,
+    tools: filterTools(
+      { ...scope.tools, ...inlinedTools, ...routingTools },
+      opts.allowedTools,
+    ),
     // Mais steps: orchestrator pode chamar várias tools de leitura
     // antes de responder (ex: get_tracking_overview + list_leads).
     maxSteps: 10,
     telemetryFunctionId: "astro-orchestrator",
   };
+}
+
+/**
+ * Junta as tools de todos os sub-agentes habilitados num conjunto só. O nome
+ * colide raramente; quando colide, a primeira definição vence — as duas leem a
+ * mesma coisa.
+ */
+function buildInlineSubAgentTools(params: {
+  ctx: AgentContext;
+  enabled: Record<AgentKey, boolean>;
+}): ToolSet {
+  let tools: ToolSet = {};
+  for (const agent of AGENTS) {
+    if (!params.enabled[agent.key]) continue;
+    tools = { ...agent.buildTools(params.ctx), ...tools };
+  }
+  return tools;
 }
 
 /**
@@ -445,7 +496,7 @@ export async function streamAstro(opts: {
    * registro de custo saber o que gravar sem duplicar a heurística de escolha
    * (spec 0021).
    */
-  onModelResolved?: (info: { provider: string; modelId: string }) => void;
+  onModelResolved?: (info: { provider: string; modelId: string; usingCustomKey: boolean }) => void;
 }) {
   const agent = await buildAstroAgent({
     ctx: opts.ctx,
@@ -454,7 +505,7 @@ export async function streamAstro(opts: {
     forceComplexModel: opts.forceComplexModel,
     outputStyle: opts.outputStyle,
   });
-  opts.onModelResolved?.({ provider: agent.provider, modelId: agent.modelId });
+  opts.onModelResolved?.({ provider: agent.provider, modelId: agent.modelId, usingCustomKey: agent.usingCustomKey });
 
   return streamText({
     model: agent.model,

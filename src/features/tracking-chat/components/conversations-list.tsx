@@ -36,6 +36,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { LeadEmailPanel } from "@/features/tracking-chat/components/email/lead-email-panel";
+import { InChatLinkBar } from "@/features/tracking-chat/components/in-chat-link-bar";
+import { AstroCommandButton } from "@/features/astro-commander/components/astro-command-button";
+import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
 import { useInfinityConversation } from "../hooks/use-conversation";
 import { useTrackingChatRealtimeSync } from "../hooks/use-tracking-chat-realtime-sync";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -86,8 +90,10 @@ export function ConversationsList() {
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<
-    "ALL" | "WHATSAPP" | "INSTAGRAM" | "TIKTOK" | "FACEBOOK"
+    "ALL" | "WHATSAPP" | "INSTAGRAM" | "TIKTOK" | "FACEBOOK" | "EMAIL" | "IN_CHAT" | "ASTRO_CHAT"
   >("ALL");
+  // O canal E-mail não é uma conversa do chat: mostra o painel do Gmail (spec 0030).
+  const isEmailChannel = selectedChannel === "EMAIL";
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [archivedOnly, setArchivedOnly] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -158,7 +164,7 @@ export function ConversationsList() {
       cursorValue: pageParam?.cursorValue,
       limit: 15,
       statusFlows,
-      channel: selectedChannel === "ALL" ? null : selectedChannel,
+      channel: selectedChannel === "ALL" || isEmailChannel ? null : selectedChannel,
       tagIds: selectedTagIds,
       favoritesOnly: favoritesOnly || undefined,
       archivedOnly: archivedOnly || undefined,
@@ -183,7 +189,7 @@ export function ConversationsList() {
       ...infinitiOptions,
       staleTime: 30_000,
       refetchOnWindowFocus: false,
-      enabled: !!selectedTracking,
+      enabled: !!selectedTracking && !isEmailChannel,
     });
 
   const items = useMemo(() => {
@@ -300,9 +306,10 @@ export function ConversationsList() {
         <div className="hidden lg:flex justify-between mb-4 pt-4 shrink-0">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="size-4" />
-            <div className="text-lg font-medium">Tracking Chat</div>
+            <div className="text-lg font-medium">Chat</div>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center gap-1">
+            <AstroCommandButton examples={ASTRO_COMMAND_EXAMPLES.chat} />
             {!noInstance && !instanceDisconnected && !isLoadingTrackings && (
               <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
                 <UserRoundPlusIcon className="size-4" />
@@ -368,6 +375,11 @@ export function ConversationsList() {
             </DropdownMenu>
           </div>
           <div className="flex items-center gap-1">
+            <AstroCommandButton
+              examples={ASTRO_COMMAND_EXAMPLES.chat}
+              compact
+              className="size-8 rounded-full"
+            />
             <Button
               variant="ghost"
               size="icon-sm"
@@ -445,7 +457,12 @@ export function ConversationsList() {
             />
           </div>
 
-          {isLoading || isLoadingTrackings ? (
+          {selectedChannel === "IN_CHAT" && (
+            <InChatLinkBar trackingId={selectedTracking || null} />
+          )}
+          {isEmailChannel ? (
+            <LeadEmailPanel trackingId={selectedTracking || null} />
+          ) : isLoading || isLoadingTrackings ? (
             <div className="flex-1 flex flex-col gap-2 overflow-y-auto mt-2 min-h-0">
               {Array.from({ length: 10 }).map((_, index) => (
                 <Skeleton key={index} className="h-16 mt-1" />
