@@ -38,8 +38,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LeadEmailPanel } from "@/features/tracking-chat/components/email/lead-email-panel";
 import { InChatLinkBar } from "@/features/tracking-chat/components/in-chat-link-bar";
-import { AstroCommandButton } from "@/features/astro-commander/components/astro-command-button";
-import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
+import { LeadTriggersHeaderButton } from "@/features/workflows/components/quick-builder/lead-triggers-header-button";
 import { useInfinityConversation } from "../hooks/use-conversation";
 import { useTrackingChatRealtimeSync } from "../hooks/use-tracking-chat-realtime-sync";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -74,6 +73,24 @@ import {
 } from "@/components/ui/select";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+
+const LAST_TRACKING_STORAGE_KEY = "tracking-chat:last-tracking-id";
+
+function readLastTrackingId(): string | null {
+  try {
+    return window.localStorage.getItem(LAST_TRACKING_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveLastTrackingId(trackingId: string): void {
+  try {
+    window.localStorage.setItem(LAST_TRACKING_STORAGE_KEY, trackingId);
+  } catch {
+    // Navegador sem armazenamento (aba anônima): só não lembra.
+  }
+}
 
 export function ConversationsList() {
   const { conversationId, trackingId } = useParams<{
@@ -196,6 +213,9 @@ export function ConversationsList() {
     return data?.pages.flatMap((p) => p.items) ?? [];
   }, [data]);
 
+  // Lead da conversa aberta: "Gatilhos do lead" do topo já vem com ele.
+  const openLead = items.find((item) => item.id === conversationId)?.lead;
+
   // Pin-to-top da conversa aberta — OPT-IN via `?pin=1` na URL. Antes era
   // automático (toda conversa selecionada subia), mas isso bagunçava o
   // contexto do operador quando ele clicava em conversas DENTRO de
@@ -236,7 +256,11 @@ export function ConversationsList() {
     if (isLoadingTrackings || trackings.length === 0 || selectedTracking) return;
     const fromQuery =
       trackingIdFromQuery && trackings.find((t) => t.id === trackingIdFromQuery);
-    const id = fromQuery ? fromQuery.id : trackings[0].id;
+    // Sem tracking no endereço (menu "Chat"), volta ao último usado — se ainda
+    // estiver na lista da org atual.
+    const lastUsedId = readLastTrackingId();
+    const lastUsed = lastUsedId ? trackings.find((t) => t.id === lastUsedId) : undefined;
+    const id = fromQuery ? fromQuery.id : (lastUsed?.id ?? trackings[0].id);
     setSelectedTracking(id);
     if (!trackingIdFromQuery) {
       const params = new URLSearchParams(searchParams.toString());
@@ -251,6 +275,10 @@ export function ConversationsList() {
     searchParams,
     router,
   ]);
+
+  useEffect(() => {
+    if (selectedTracking) saveLastTrackingId(selectedTracking);
+  }, [selectedTracking]);
 
   useEffect(() => {
     if (!selectedTracking) return;
@@ -309,7 +337,7 @@ export function ConversationsList() {
             <div className="text-lg font-medium">Chat</div>
           </div>
           <div className="flex items-center gap-1">
-            <AstroCommandButton examples={ASTRO_COMMAND_EXAMPLES.chat} />
+            <LeadTriggersHeaderButton trackingId={selectedTracking} leadId={openLead?.id} leadName={openLead?.name} />
             {!noInstance && !instanceDisconnected && !isLoadingTrackings && (
               <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
                 <UserRoundPlusIcon className="size-4" />
@@ -375,11 +403,7 @@ export function ConversationsList() {
             </DropdownMenu>
           </div>
           <div className="flex items-center gap-1">
-            <AstroCommandButton
-              examples={ASTRO_COMMAND_EXAMPLES.chat}
-              compact
-              className="size-8 rounded-full"
-            />
+            <LeadTriggersHeaderButton trackingId={selectedTracking} leadId={openLead?.id} leadName={openLead?.name} compact />
             <Button
               variant="ghost"
               size="icon-sm"
@@ -540,6 +564,7 @@ export function ConversationsList() {
                       createdAt: item.lastMessage?.createdAt,
                       mimetype: (item.lastMessage as any)?.mimetype,
                       fileName: (item.lastMessage as any)?.fileName,
+                      fromMe: item.lastMessage?.fromMe,
                     }}
                   />
                 ))}

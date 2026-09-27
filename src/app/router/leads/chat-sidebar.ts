@@ -31,7 +31,7 @@ export const getChatSidebarSummary = base
     const organizationId = context.org.id;
     if (!(await assertLeadInOrg(input.leadId, organizationId))) throw errors.NOT_FOUND;
     const { leadId } = input;
-    const [journeyEvents, history, files, forms, contracts, documents, appointments, campaigns, commands] =
+    const [journeyEvents, history, files, forms, contracts, documents, appointments, campaigns, activeTriggers] =
       await Promise.all([
         prisma.leadJourneyEvent.count({ where: { leadId } }),
         prisma.leadHistory.count({ where: { leadId } }),
@@ -41,7 +41,7 @@ export const getChatSidebarSummary = base
         prisma.forgeProposal.count({ where: { organizationId, clientId: leadId } }),
         prisma.appointment.count({ where: { leadId, agenda: { organizationId } } }),
         prisma.broadcastRecipient.count({ where: { leadId, broadcast: { organizationId } } }),
-        prisma.astroCommandRun.count({ where: { organizationId, triggerKey: commandTriggerKey(leadId) } }),
+        prisma.leadTrigger.count({ where: { leadId, isActive: true } }),
       ]);
     return {
       counts: {
@@ -52,7 +52,7 @@ export const getChatSidebarSummary = base
         documents,
         agenda: appointments,
         campaigns,
-        commands,
+        leadTriggers: activeTriggers,
       },
     };
   });
@@ -104,7 +104,20 @@ export const listLeadCampaigns = base
       orderBy: { createdAt: "desc" },
       take: LIST_LIMIT,
     });
-    return { recipients };
+    // Disparo em massa só sai por número da API Oficial (Meta Cloud) com WABA.
+    const lead = await prisma.lead.findUniqueOrThrow({
+      where: { id: input.leadId },
+      select: { trackingId: true, tracking: { select: { whatsappInstance: { select: { provider: true, metaBusinessAccountId: true } } } } },
+    });
+    const instance = lead.tracking.whatsappInstance;
+    return {
+      recipients,
+      massSend: {
+        trackingId: lead.trackingId,
+        hasOfficialNumber: instance?.provider === "META_CLOUD" && Boolean(instance.metaBusinessAccountId),
+        hasAnyInstance: Boolean(instance),
+      },
+    };
   });
 
 export const listLeadCommandRuns = base

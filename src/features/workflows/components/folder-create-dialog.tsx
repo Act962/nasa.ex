@@ -44,7 +44,7 @@ export function FolderCreateDialog({ open, onOpenChange, trackingId }: Props) {
         <DialogHeader>
           <DialogTitle>Nova pasta</DialogTitle>
           <DialogDescription>
-            Pastas ajudam a organizar suas automações.
+            Pastas ajudam a organizar seus gatilhos automáticos.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">

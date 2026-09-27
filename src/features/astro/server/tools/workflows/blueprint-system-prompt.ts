@@ -63,6 +63,7 @@ export const BLUEPRINT_GENERATION_PROMPT = `Você é o ASTRO — gerador de work
 - **LAST_INBOUND_TIMEOUT** — lead silencioso há X tempo. \`data: { minutes: 60 }\`
 - **AI_FINISHED** — IA do chat encerrou conversa. \`data: { conditions: [] }\`
 - **FIRST_CHAT_INTERACTION** — primeira mensagem humana. \`data: {}\`
+- **SCHEDULE_TRIGGER** — horário marcado (São Paulo). \`data: { schedule: { frequency: "DAILY"|"WEEKDAYS"|"ONCE", time: "HH:mm", weekdays?: [0-6] (0=domingo, só WEEKDAYS), date?: "YYYY-MM-DD" (só ONCE) } }\`. Use para "todo dia às 9h", "toda segunda às 10h", "dia 15 às 14h".
 
 ### LÓGICA:
 - **WAIT** — pausa fixa. \`data: { action: { type: "days"|"hours"|"minutes", days/hours/minutes: N } }\`
@@ -91,6 +92,9 @@ export const BLUEPRINT_GENERATION_PROMPT = `Você é o ASTRO — gerador de work
 - **WIN_LOSS** — \`data: { action: { winLossType: "WIN"|"LOSS", reason: "...", observation: "..." } }\`
 - **FILTER_LEAD** — \`data: { action: { logic: "and"|"or", conditions: [...] } }\`
 - **SEND_MESSAGE** — \`data: { action: { payload: { type: "TEXT", message: "Olá {{lead.name}}!" } } }\` ou \`{ type: "BUTTONS", mode: "inline", bodyText: "...", buttons: [{ id: "a", text: "Opção A" }] }\`. Interpolação: {{lead.name}}, {{lead.email}}, {{vars.X}}.
+
+### EQUIPE:
+- **NOTIFY_TEAM** — lembra a EQUIPE (não o lead): notificação no sino. \`data: { target: "RESPONSIBLE"|"USER", message: "Retornar para {{lead.name}}" }\`. Use para "me lembra de…", "avisa o responsável…". "Me lembra" = target "USER".
 
 ### APPS / FORGE / FORGE / ÓRBITA ROUTE:
 - **SEND_PROPOSAL** — \`data: { action: { productIds: ["needsReview"], responsibleId: "needsReview", validityDays: 7, messageTemplate: "..." } }\` → needsReview: true (user escolhe produtos).

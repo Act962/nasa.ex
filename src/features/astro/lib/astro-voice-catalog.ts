@@ -208,6 +208,17 @@ const BUILDERS: Record<string, VoiceBuilder> = {
     actions: [{ kind: "link", label: "Recarregar", href: "/settings/billing" }],
   }),
 
+  // Spec 0039: ação "Lembrar a equipe" de um Gatilho Automático.
+  "workflow.reminder": (input, data) => {
+    const message = readString(data, "message") ?? input.body;
+    return {
+      headline: input.title,
+      speech: `Lembrete: ${message}`,
+      priority: "important",
+      actions: openLink(input, "Abrir lead"),
+    };
+  },
+
   // Spec 0037: crédito do provedor acabou / consumo alto no dia.
   "ai.quota_exhausted": () => ({
     headline: "Crédito da IA acabou",

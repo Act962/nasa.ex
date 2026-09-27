@@ -251,6 +251,8 @@ export interface BuiltAstroAgent {
   model: ResolvedModel["model"];
   provider: string;
   modelId: string;
+  /** Chave de IA da própria org (e não a da plataforma) — decide quem é avisado se o crédito acabar (spec 0037). */
+  usingCustomKey: boolean;
   system: string;
   tools: ToolSet;
   /** Teto de rodadas de tool-call. */

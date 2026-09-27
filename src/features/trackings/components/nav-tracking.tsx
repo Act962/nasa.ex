@@ -67,7 +67,7 @@ export function NavTracking() {
       icon: <CalendarDaysIcon />,
     },
     {
-      label: "Automações",
+      label: "Gatilhos Automáticos",
       href: `/tracking/${params.trackingId}/workflows`,
       icon: <ZapIcon />,
     },

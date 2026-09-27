@@ -9,7 +9,7 @@ const globalForPrisma = global as unknown as {
 // Schema version hash — bump this string whenever `prisma generate` runs to
 // force a new client instance and avoid stale model issues in hot-reload.
 // We derive it from a known model that may or may not exist in the old client.
-const SCHEMA_VERSION = "v92-lead-metrics";
+const SCHEMA_VERSION = "v95-workflow-quick-builder";
 
 // Em dev uma página dispara ~20 RPCs em paralelo contra o Neon remoto; com 5
 // conexões elas enfileiravam e passavam de 10 s. Produção mantém 5, salvo

@@ -7,11 +7,14 @@ import {
   MegaphoneIcon,
   RouteIcon,
   StarIcon,
-  TerminalSquareIcon,
-  type LucideIcon,
 } from "lucide-react";
+import type { ComponentType } from "react";
+import { TriggerIcon } from "@/features/leads/components/lead-triggers/trigger-icon";
 
 // Itens da lateral "Detalhes do Lead" do chat, na ordem da tela.
+
+/** `?leadScreen=<item>` abre a tela do item — usado pelo ícone de gatilho da lista. */
+export const LEAD_SCREEN_PARAM = "leadScreen";
 
 export type LeadSidebarItemId =
   | "journey"
@@ -22,12 +25,12 @@ export type LeadSidebarItemId =
   | "starFriend"
   | "agenda"
   | "campaigns"
-  | "commands";
+  | "leadTriggers";
 
 export interface LeadSidebarItem {
   id: LeadSidebarItemId;
   label: string;
-  icon: LucideIcon;
+  icon: ComponentType<{ className?: string }>;
 }
 
 export const LEAD_SIDEBAR_ITEMS: LeadSidebarItem[] = [
@@ -38,6 +41,6 @@ export const LEAD_SIDEBAR_ITEMS: LeadSidebarItem[] = [
   { id: "documents", label: "Documentos", icon: FilesIcon },
   { id: "starFriend", label: "Star Friend", icon: StarIcon },
   { id: "agenda", label: "Agenda", icon: CalendarDaysIcon },
-  { id: "campaigns", label: "Campanhas", icon: MegaphoneIcon },
-  { id: "commands", label: "Comandos", icon: TerminalSquareIcon },
+  { id: "campaigns", label: "Disparo em Massa", icon: MegaphoneIcon },
+  { id: "leadTriggers", label: "Gatilho do lead", icon: TriggerIcon },
 ];

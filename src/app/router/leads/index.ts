@@ -46,6 +46,7 @@ import {
   listLeadCommandRuns,
 } from "./chat-sidebar";
 import { auditLead, getLeadMetrics } from "./metrics";
+import { listLeadTriggers, saveLeadTrigger } from "./triggers";
 import { listAttachmentsByToken } from "./list-attachments-by-token";
 import { detectMergeConflicts } from "./detect-merge-conflicts";
 import { mergeLeads } from "./merge-leads";
@@ -98,6 +99,8 @@ export const leadRoutes = {
   listLeadCommandRuns,
   getMetrics: getLeadMetrics,
   auditLead,
+  listTriggers: listLeadTriggers,
+  saveTrigger: saveLeadTrigger,
   listAttachmentsByToken,
   detectMergeConflicts,
   mergeLeads,

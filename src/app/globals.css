@@ -575,3 +575,47 @@ body.is-grab-scrolling * {
     font-size: 16px !important;
   }
 }
+
+/* Lead esperando retorno da equipe no chat: tom âmbar pulsando de leve. */
+@keyframes awaiting-reply {
+  0%,
+  100% {
+    background-color: rgb(245 158 11 / 0.04);
+    box-shadow: inset 3px 0 0 0 rgb(245 158 11 / 0.35);
+  }
+  50% {
+    background-color: rgb(245 158 11 / 0.13);
+    box-shadow: inset 3px 0 0 0 rgb(245 158 11 / 0.9);
+  }
+}
+
+.animate-awaiting-reply {
+  animation: awaiting-reply 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-awaiting-reply {
+    animation: none;
+    background-color: rgb(245 158 11 / 0.08);
+  }
+}
+
+/* Jornada do lead: a linha do tempo cresce da entrada até hoje. */
+@keyframes journey-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-journey-grow {
+  animation: journey-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-journey-grow {
+    animation: none;
+  }
+}

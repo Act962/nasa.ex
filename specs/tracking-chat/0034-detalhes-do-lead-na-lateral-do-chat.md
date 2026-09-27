@@ -61,3 +61,5 @@ A migração é aditiva (colunas nulas); rollback do código não exige desfazê
 |---|---|---|
 | 2026-09-26 | Weydson | Criada. Endereço entrou no escopo (RF-7) por decisão do dono do produto: migração `20260926180000_lead_address` aplicada no Neon via `db execute` + `migrate resolve`. |
 | 2026-09-26 | Weydson | Aprovada. Confirmado: "Documentos" são as propostas e orçamentos do Forge do lead. |
+| 2026-09-27 | Weydson | Item "Comandos" virou "Gatilho do lead" (spec 0038): cards-modelo de mensagem agendada, botões "Criar comando" e "Gatilhos Automáticos", execuções do ASTRO abaixo. A contagem passa a ser de gatilhos ligados. |
+| 2026-09-27 | Weydson | "Campanhas" vira "Disparo em Massa". Sem número da API Oficial (Meta Cloud com WABA) no tracking, a tela explica como ativar e leva à aba Integrações; com número, oferece "Novo disparo em massa". Lista do chat: conversa cuja última mensagem é do lead vem primeiro (duas faixas no keyset, cursor `awaiting|`/`rest|`), com destaque âmbar pulsando. |

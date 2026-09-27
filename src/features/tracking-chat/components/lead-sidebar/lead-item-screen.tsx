@@ -8,7 +8,7 @@ import { LeadContracts } from "@/features/leads/components/lead-contracts";
 import { LEAD_SIDEBAR_ITEMS, type LeadSidebarItemId } from "./sidebar-items";
 import { AgendaScreen } from "./screens/agenda-screen";
 import { CampaignsScreen } from "./screens/campaigns-screen";
-import { CommandsScreen } from "./screens/commands-screen";
+import { LeadTriggersScreen } from "./screens/lead-triggers-screen";
 import { DocumentsScreen } from "./screens/documents-screen";
 import { StarFriendScreen } from "./screens/star-friend-screen";
 
@@ -24,14 +24,16 @@ function ScreenBody({
   itemId,
   lead,
   conversationId,
+  onNavigate,
 }: {
   itemId: LeadSidebarItemId;
   lead: LeadScreenLead;
   conversationId: string;
+  onNavigate?: (itemId: LeadSidebarItemId) => void;
 }) {
   switch (itemId) {
     case "journey":
-      return <JourneyTimeline leadId={lead.id} />;
+      return <JourneyTimeline leadId={lead.id} trackingId={lead.trackingId} onOpenScreen={onNavigate} />;
     case "files":
       return <LeadAttachmentsByFolder leadId={lead.id} />;
     case "forms":
@@ -51,8 +53,8 @@ function ScreenBody({
       return <AgendaScreen leadId={lead.id} leadName={lead.name} leadPhone={lead.phone} leadEmail={lead.email} />;
     case "campaigns":
       return <CampaignsScreen leadId={lead.id} />;
-    case "commands":
-      return <CommandsScreen leadId={lead.id} leadName={lead.name} />;
+    case "leadTriggers":
+      return <LeadTriggersScreen leadId={lead.id} leadName={lead.name} trackingId={lead.trackingId} />;
   }
 }
 
@@ -61,9 +63,11 @@ interface LeadItemScreenProps {
   lead: LeadScreenLead;
   conversationId: string;
   onClose: () => void;
+  /** Troca de tela sem fechar o popup (ex.: da Jornada para o Gatilho do lead). */
+  onNavigate?: (itemId: LeadSidebarItemId) => void;
 }
 
-export function LeadItemScreen({ itemId, lead, conversationId, onClose }: LeadItemScreenProps) {
+export function LeadItemScreen({ itemId, lead, conversationId, onClose, onNavigate }: LeadItemScreenProps) {
   const item = LEAD_SIDEBAR_ITEMS.find((candidate) => candidate.id === itemId);
   return (
     <Dialog open={Boolean(item)} onOpenChange={(open) => !open && onClose()}>
@@ -77,7 +81,7 @@ export function LeadItemScreen({ itemId, lead, conversationId, onClose }: LeadIt
               </DialogTitle>
             </DialogHeader>
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <ScreenBody itemId={item.id} lead={lead} conversationId={conversationId} />
+              <ScreenBody itemId={item.id} lead={lead} conversationId={conversationId} onNavigate={onNavigate} />
             </div>
           </>
         )}

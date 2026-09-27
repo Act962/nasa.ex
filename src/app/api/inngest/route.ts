@@ -46,6 +46,8 @@ import { astroChatMonthlyBilling } from "@/inngest/functions/astro-chat/monthly-
 import { astroCommandRun } from "@/inngest/functions/astro-commander/run-command";
 import { detectLeadWaiting } from "@/inngest/functions/crons/detect-lead-waiting";
 import { detectAiTokenUsage } from "@/inngest/functions/crons/detect-ai-token-usage";
+import { fireLeadTriggers } from "@/inngest/functions/leads/fire-lead-triggers";
+import { runScheduledWorkflowsCron } from "@/inngest/functions/crons/run-scheduled-workflows";
 import { detectExpensesDueToday } from "@/inngest/functions/crons/detect-expenses-due-today";
 import { detectContractsExpiring } from "@/inngest/functions/crons/detect-contracts-expiring";
 import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-structure";
@@ -154,6 +156,8 @@ export const { GET, POST, PUT } = serve({
     // ── ASTRO: alertas proativos (spec 0029) ──
     detectLeadWaiting,
     detectAiTokenUsage,
+    fireLeadTriggers,
+    runScheduledWorkflowsCron,
     detectExpensesDueToday,
     detectContractsExpiring,
     // ── NASA Planner ──

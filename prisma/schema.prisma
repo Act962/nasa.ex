@@ -984,6 +984,56 @@ enum LeadMetricsSource {
 /// Métricas do lead (spec 0035, "Auditar Lead"). Calculadas em código a partir
 /// de mensagens, propostas e histórico; a IA só entra quando os sinais não
 /// bastam, e aí substitui apenas potencial e interesse.
+/// Gatilho do lead (spec 0038): mensagem agendada para um lead, com janela de ativação.
+enum LeadTriggerTemplate {
+  FOLLOW_UP
+  SCHEDULED_RETURN
+  PAYMENT_REMINDER
+  POST_SALE
+}
+
+model LeadTrigger {
+  id                String              @id @default(cuid())
+  organizationId    String              @map("organization_id")
+  leadId            String              @map("lead_id")
+  createdById       String              @map("created_by_id")
+  template          LeadTriggerTemplate
+  title             String
+  /// Precisa conter `{nome}`, trocado pelo primeiro nome do lead no envio.
+  message           String
+  isActive          Boolean             @default(false) @map("is_active")
+  scheduledAt       DateTime?           @map("scheduled_at")
+  /// Próxima tentativa: `scheduledAt`, ou a próxima abertura da janela.
+  nextRunAt         DateTime?           @map("next_run_at")
+  /// "HH:mm" em São Paulo.
+  windowStart       String              @default("08:00") @map("window_start")
+  windowEnd         String              @default("18:00") @map("window_end")
+  /// 0 = domingo … 6 = sábado.
+  weekdays          Int[]               @default([1, 2, 3, 4, 5])
+  skipWhenInService Boolean             @default(true) @map("skip_when_in_service")
+  /// "A cada X dias" entre repetições. Nulo = sem repetição.
+  repeatEveryDays   Int?                @map("repeat_every_days")
+  /// Quantas vezes dispara por ciclo (1x, 2x, 3x…).
+  maxRepetitions    Int                 @default(1) @map("max_repetitions")
+  /// Disparos do ciclo atual; zera quando o gatilho é ligado de novo.
+  cycleFireCount    Int                 @default(0) @map("cycle_fire_count")
+  /// "Apenas com as tags": vazio = qualquer lead.
+  tagIds            String[]            @default([]) @map("tag_ids")
+  activationCount   Int                 @default(0) @map("activation_count")
+  lastFiredAt       DateTime?           @map("last_fired_at")
+  lastError         String?             @map("last_error")
+  failureCount      Int                 @default(0) @map("failure_count")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, template])
+  @@index([isActive, nextRunAt])
+  @@index([organizationId])
+  @@map("lead_triggers")
+}
+
 model LeadMetrics {
   id                   String            @id @default(cuid())
   leadId               String            @unique @map("lead_id")
@@ -1103,6 +1153,8 @@ model Lead {
   conversation Conversation?
   /// Métricas de comportamento e atendimento (spec 0035, "Auditar Lead").
   metrics      LeadMetrics?
+  triggers     LeadTrigger[]
+  scopedWorkflows Workflow[] @relation("WorkflowLeadScope")
   reminders    Reminder[]
 
   leadTags                  LeadTag[]
@@ -1785,6 +1837,8 @@ model Workflow {
   description    String?
   userId         String?  @map("user_id")
   trackingId     String?  @map("tracking_id")
+  /// Escopo por lead (spec 0039): só dispara para este lead. Nulo = tracking inteiro.
+  leadId         String?  @map("lead_id")
   workspaceId    String?  @map("workspace_id")
   folderId       String?  @map("folder_id")
   isActive       Boolean  @default(true) @map("is_active")
@@ -1807,6 +1861,7 @@ model Workflow {
 
   user      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   tracking  Tracking?       @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  scopedLead Lead?          @relation("WorkflowLeadScope", fields: [leadId], references: [id], onDelete: SetNull)
   workspace Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folder    WorkflowFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   agent     Agent?          @relation("AgentWorkflow", fields: [agentId], references: [id], onDelete: SetNull)
@@ -1815,8 +1870,10 @@ model Workflow {
   connections        Connection[]
   runs               WorkflowRun[]
   dailyTriggerClaims LeadDailyTriggerClaim[]
+  scheduleClaims     WorkflowScheduleClaim[]
 
   @@index([trackingId])
+  @@index([leadId])
   @@index([workspaceId])
   @@index([folderId])
   @@index([agentId])
@@ -2011,6 +2068,9 @@ enum NodeType {
   WS_WAIT
   WS_HTTP_REQUEST
   WS_FILTER
+  // Construtor rápido (spec 0039)
+  SCHEDULE_TRIGGER
+  NOTIFY_TEAM
 }
 
 model Node {
@@ -2042,6 +2102,20 @@ model Node {
 /// sob mensagens concorrentes do mesmo lead, o fluxo dispare no máximo 1x por dia.
 /// Uma linha por (lead, workflow) — `dayKey` é sobrescrito a cada novo dia, então
 /// o crescimento é limitado a (#leads × #workflows com o gatilho).
+/// Um disparo por horário agendado (spec 0039, RNF-1).
+model WorkflowScheduleClaim {
+  id         String   @id @default(cuid())
+  workflowId String   @map("workflow_id")
+  /// "YYYY-MM-DD HH:mm" em São Paulo.
+  slotKey    String   @map("slot_key")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, slotKey])
+  @@map("workflow_schedule_claims")
+}
+
 model LeadDailyTriggerClaim {
   id         String   @id @default(cuid())
   leadId     String   @map("lead_id")

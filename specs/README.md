@@ -195,6 +195,8 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0035](leads/0035-auditar-lead-metricas.md) | leads | Auditar Lead — métricas de comportamento e atendimento por lead | aprovada |
 | [0036](astro-bot/0036-bot-transcreve-audio.md) | astro-bot | ASTRO no WhatsApp entende áudio (transcrição) | aprovada |
 | [0037](notifications/0037-alerta-tokens-ia.md) | notifications | Alertar crédito de IA esgotado e consumo alto de tokens | implementada |
+| [0038](tracking-chat/0038-gatilho-do-lead.md) | tracking-chat | Gatilho do lead — mensagem agendada com período de ativação | implementada |
+| [0039](workflows/0039-construtor-rapido-de-gatilhos.md) | workflows | Construtor rápido de Gatilhos Automáticos (passo a passo, por frase e por lead) | implementada |
 
 ---
 

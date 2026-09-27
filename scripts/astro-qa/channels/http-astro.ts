@@ -94,6 +94,18 @@ export class HttpAstroSession {
     return { status: response.status, text: replyText, toolOutputs, pendingActionId: readPendingActionId(toolOutputs) };
   }
 
+  /** Chama uma procedure oRPC autenticado como o Vendedor QA (ex.: "workflow/quick/draft"). */
+  async callRpc<T>(procedurePath: string, input: unknown): Promise<{ status: number; body: T | null; error?: string }> {
+    const response = await fetch(`${APP_URL}/api/rpc/${procedurePath}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: this.cookie, origin: APP_URL },
+      body: JSON.stringify({ json: input }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as { json?: T & { message?: string } };
+    if (!response.ok) return { status: response.status, body: null, error: payload.json?.message ?? `HTTP ${response.status}` };
+    return { status: response.status, body: payload.json ?? null };
+  }
+
   async close(): Promise<void> {
     await prisma.session.deleteMany({ where: { id: this.authSessionId } });
     await prisma.aiSession.deleteMany({ where: { id: this.aiSessionId } });

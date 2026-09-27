@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -11,14 +12,17 @@ import { useQueryLead } from "@/features/leads/hooks/use-lead";
 import { useLeadSidebarSummary } from "@/features/leads/hooks/use-lead-chat-sidebar";
 import { LeadSidebarProfile } from "./lead-sidebar-profile";
 import { LeadItemScreen } from "./lead-item-screen";
-import { LEAD_SIDEBAR_ITEMS, type LeadSidebarItem, type LeadSidebarItemId } from "./sidebar-items";
+import { LEAD_SCREEN_PARAM, LEAD_SIDEBAR_ITEMS, type LeadSidebarItem, type LeadSidebarItemId } from "./sidebar-items";
 import { LeadAuditButton } from "@/features/leads/components/lead-audit/lead-audit-button";
 import { LeadAuditDetails } from "@/features/leads/components/lead-audit/lead-audit-details";
+import { LightRunBorder } from "@/features/leads/components/lead-triggers/light-run-border";
+import { TriggerIcon } from "@/features/leads/components/lead-triggers/trigger-icon";
 
 // Lateral "Detalhes do Lead" da conversa: aberta mostra o perfil e a grade de
 // itens; recolhida vira um trilho de ícones. A escolha fica no navegador.
 
 const COLLAPSED_STORAGE_KEY = "tracking-chat:lead-sidebar-collapsed";
+
 
 function readCollapsed(): boolean {
   try {
@@ -45,7 +49,32 @@ function CountBadge({ count }: { count?: number }) {
   );
 }
 
+/** "Gatilho do lead" no verde do popup (spec 0038); luz na borda quando há gatilho ligado. */
+function TriggerTile({ activeCount, onOpen, isRail }: { activeCount: number; onOpen: () => void; isRail?: boolean }) {
+  const isActive = activeCount > 0;
+  return (
+    <LightRunBorder
+      tone={isActive ? "active" : "idle"}
+      className={cn("rounded-xl", isRail ? "w-full" : "aspect-square")}
+      innerClassName="rounded-[calc(0.75rem-1.5px)] bg-gradient-to-br from-emerald-700 to-emerald-900"
+    >
+      <button
+        type="button"
+        onClick={onOpen}
+        className={cn(
+          "relative flex h-full w-full flex-col items-center justify-center text-white transition-opacity hover:opacity-90",
+          isRail ? "gap-1 py-3" : "gap-2",
+        )}
+      >
+        <TriggerIcon className={cn(isRail ? "size-5" : "size-6", isActive && "text-lime-300")} isSpinning={isActive} />
+        <span className={isRail ? "text-[9px]" : "text-[11px]"}>Gatilho do lead</span>
+      </button>
+    </LightRunBorder>
+  );
+}
+
 function ItemTile({ item, count, onOpen }: { item: LeadSidebarItem; count?: number; onOpen: () => void }) {
+  if (item.id === "leadTriggers") return <TriggerTile activeCount={count ?? 0} onOpen={onOpen} />;
   return (
     <button
       type="button"
@@ -60,6 +89,7 @@ function ItemTile({ item, count, onOpen }: { item: LeadSidebarItem; count?: numb
 }
 
 function RailButton({ item, count, onOpen }: { item: LeadSidebarItem; count?: number; onOpen: () => void }) {
+  if (item.id === "leadTriggers") return <TriggerTile activeCount={count ?? 0} onOpen={onOpen} isRail />;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -81,6 +111,24 @@ function RailButton({ item, count, onOpen }: { item: LeadSidebarItem; count?: nu
 export function LeadSidebar({ leadId, conversationId }: { leadId: string; conversationId: string }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [openItem, setOpenItem] = useState<LeadSidebarItemId | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const requestedScreen = searchParams.get(LEAD_SCREEN_PARAM);
+
+  useEffect(() => {
+    const requestedItem = LEAD_SIDEBAR_ITEMS.find((item) => item.id === requestedScreen);
+    if (requestedItem) setOpenItem(requestedItem.id);
+  }, [requestedScreen]);
+
+  const closeItem = () => {
+    setOpenItem(null);
+    if (!requestedScreen) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete(LEAD_SCREEN_PARAM);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
   const { data, isLoading } = useQueryLead(leadId);
   const { data: summary } = useLeadSidebarSummary(leadId);
   const lead = data?.lead;
@@ -158,7 +206,8 @@ export function LeadSidebar({ leadId, conversationId }: { leadId: string; conver
           itemId={openItem}
           lead={{ id: lead.id, name: lead.name, phone: lead.phone, email: lead.email, trackingId: lead.trackingId }}
           conversationId={conversationId}
-          onClose={() => setOpenItem(null)}
+          onClose={closeItem}
+          onNavigate={setOpenItem}
         />
       )}
     </aside>

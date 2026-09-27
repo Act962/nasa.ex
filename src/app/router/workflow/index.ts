@@ -12,6 +12,7 @@ import { dryRunWorkflow } from "./dry-run";
 import { listWorkflowRuns, getWorkflowRunDetail } from "./list-runs";
 import { validateWorkflowProc } from "./validate";
 import { stepNodeProc } from "./step-node";
+import { quickCheckDuplicates, quickCreateWorkflow, quickDraftWorkflow } from "./quick-builder";
 
 export const workflowRoutes = {
   create: createWorkflow,
@@ -36,4 +37,10 @@ export const workflowRoutes = {
   stepNode: stepNodeProc,
   listRuns: listWorkflowRuns,
   getRun: getWorkflowRunDetail,
+  // Construtor rápido (spec 0039)
+  quick: {
+    draft: quickDraftWorkflow,
+    checkDuplicates: quickCheckDuplicates,
+    create: quickCreateWorkflow,
+  },
 };

@@ -78,6 +78,8 @@ export const nodeComponents = {
   [NodeType.PAYMENT_RECEIVED]: AgentNode,
   [NodeType.MESSAGE_INCOMING]: AgentNode,
   [NodeType.WEBHOOK_EXTERNAL]: AgentNode,
+  [NodeType.SCHEDULE_TRIGGER]: AgentNode,
+  [NodeType.NOTIFY_TEAM]: AgentNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;

@@ -1,23 +1,18 @@
 "use client";
 
 import type { Conversation, Lead } from "@/generated/prisma/client";
-import { LeadSource } from "@/generated/prisma/enums";
 import { format, isToday, isYesterday } from "date-fns";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { MouseEvent, useCallback, useState } from "react";
 import { AvatarLead } from "./avatar-lead";
 import { ConversationChannelBadge } from "./conversation-channel-badge";
-import { LeadSourceColors } from "../utils/card-lead";
 import { HeatRing } from "@/features/leads/components/lead-audit/heat-ring";
+import { TriggerIcon } from "@/features/leads/components/lead-triggers/trigger-icon";
+import { LEAD_SCREEN_PARAM } from "./lead-sidebar/sidebar-items";
 import { computeLeadHeat } from "@/features/leads/components/lead-audit/lead-heat";
 import type { LeadMetricsView } from "@/features/leads/components/lead-audit/metric-format";
 import {
   ArrowUpRightIcon,
-  CalendarIcon,
-  ClipboardListIcon,
-  GlobeIcon,
-  SparklesIcon,
-  UserIcon,
   Sparkles,
   MessageCircle,
   Clock,
@@ -40,7 +35,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { WhatsappIcon } from "@/components/whatsapp";
 import type { LucideIcon } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -59,6 +53,7 @@ import { Instance } from "../types";
 interface LeadBoxConversation extends Conversation {
   lead: Lead & {
     metrics?: LeadMetricsView | null;
+    triggers?: { isActive: boolean }[];
     leadTags?: {
       tag: {
         id: string;
@@ -78,6 +73,8 @@ interface UserBloxProps {
     createdAt: Date | undefined;
     mimetype?: string | null;
     fileName?: string | null;
+    /** Quem mandou a última mensagem: false = o lead. */
+    fromMe?: boolean;
   } | null;
   instance?: Instance | null;
   unreadCount?: number;
@@ -103,6 +100,19 @@ export function LeadBox({
         lastInboundAt: item.lead.lastInboundAt,
       })
     : null;
+  // Última mensagem da conversa é do lead: ninguém respondeu ainda. Olhar a
+  // mensagem em si — os carimbos do lead não mudam em todo envio.
+  const isAwaitingReply = lastMessage?.fromMe === false;
+  const leadTriggers = item.lead.triggers ?? [];
+  // Ícone de gatilho: abre a conversa já com o popup "Gatilho do lead" (spec 0038).
+  const openLeadTriggers = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("pin");
+    params.set(LEAD_SCREEN_PARAM, "leadTriggers");
+    const basePath = trackingId ? item.id : `/tracking-chat/${item.id}`;
+    router.push(`${basePath}?${params.toString()}`);
+  };
+  const hasActiveTrigger = leadTriggers.some((trigger) => trigger.isActive);
   // Popover de mover fluxo/tracking + status (alinhado ao "Detalhes do Lead").
   // O `useMutationLeadUpdate` já invalida `conversations.list[trackingId]`,
   // então o card some/aparece da lista automaticamente quando o fluxo muda.
@@ -187,6 +197,8 @@ export function LeadBox({
           selected
             ? "bg-accent-foreground/10 shadow-sm"
             : "bg-accent-foreground/2 hover:bg-accent-foreground/5",
+          // Abrir a conversa não é responder: o destaque só sai com mensagem enviada.
+          isAwaitingReply && "animate-awaiting-reply",
         )}
       >
         <div className="min-w-0 flex-1">
@@ -358,19 +370,27 @@ export function LeadBox({
                   </Tooltip>
                 );
               })()}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div>
-                  <LeadSourceIcon
-                    source={item.lead.source}
-                    className="size-3 mr-1"
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{LeadSourceColors[item.lead.source].label}</p>
-              </TooltipContent>
-            </Tooltip>
+            {leadTriggers.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Abrir gatilho do lead"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openLeadTriggers();
+                    }}
+                    className={hasActiveTrigger ? "text-emerald-500" : "text-muted-foreground hover:text-foreground"}
+                  >
+                    <TriggerIcon className="size-3.5" isSpinning={hasActiveTrigger} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{hasActiveTrigger ? "Gatilho do lead ligado" : "Gatilho do lead desligado"}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
             {/* Trocar fluxo/tracking — abre o mesmo popover usado em
                 "Detalhes do Lead". stopPropagation evita que o clique no
                 ícone também acione o `handleClick` do card (que navega
@@ -471,34 +491,4 @@ function FavoriteStar({
       />
     </button>
   );
-}
-
-interface LeadSourceIconProps {
-  source: LeadSource;
-  className?: string;
-}
-
-export function LeadSourceIcon({
-  source,
-  className = "size-3",
-}: LeadSourceIconProps) {
-  switch (source) {
-    case LeadSource.WHATSAPP:
-      return <WhatsappIcon className={`${className} text-green-500`} />;
-    case LeadSource.FORM:
-      return <ClipboardListIcon className={`${className} text-blue-500`} />;
-    case LeadSource.AGENDA:
-      return <CalendarIcon className={`${className} text-orange-500`} />;
-    case LeadSource.DEFAULT:
-      return <UserIcon className={`${className} text-gray-400`} />;
-    case LeadSource.OTHER:
-      return <GlobeIcon className={`${className} text-purple-500`} />;
-    case LeadSource.IN_CHAT:
-      // Mesmo globo violeta do canal "Chat do site" no filtro.
-      return <GlobeIcon className={`${className} text-violet-500`} />;
-    case LeadSource.ASTRO_CHAT:
-      return <SparklesIcon className={`${className} text-violet-600`} />;
-    default:
-      return <UserIcon className={`${className} text-gray-400`} />;
-  }
 }

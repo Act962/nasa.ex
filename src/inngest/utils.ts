@@ -72,7 +72,8 @@ export type WorkflowTriggerType =
   | "LAST_INBOUND_TIMEOUT"
   | "PAYMENT_RECEIVED"
   | "MESSAGE_INCOMING"
-  | "WEBHOOK_EXTERNAL";
+  | "WEBHOOK_EXTERNAL"
+  | "SCHEDULE_TRIGGER";
 
 /**
  * Shape mínimo do lead que a engine precisa pra popular `context.lead` e
