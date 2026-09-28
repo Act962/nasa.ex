@@ -185,6 +185,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0023](astro/0023-astro-roteamento-por-intencao-e-proposta-com-link.md) | astro | Roteamento do Astro por intenção, com a proposta comercial como piloto | aprovada |
 | [0024](astro/0024-catalogo-de-verbos-do-astro.md) | astro | Catálogo de verbos do Astro — recorte por onda | aprovada |
 | [0025](astro/0025-astro-roteamento-em-camadas.md) | astro | Roteamento em camadas — todos os apps sem perder precisão | aprovada |
+| [0040](accounting/0040-aba-contabil-fundacao.md) | accounting | Aba Contábil no financeiro — fundação contábil, guias, créditos, precificação e regularidade | em-revisao |
 
 ---
 
