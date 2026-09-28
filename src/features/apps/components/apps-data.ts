@@ -392,6 +392,7 @@ export const APPS: AppDef[] = [
     byline: "by ÓRBITA®",
     status: "available",
     icon: StarFriendsIcon,
+    lineIcon: Sparkles,
     shortDesc: "Programa de fidelidade: cada compra vira star",
     fullDesc:
       "Cada compra paga no Catálogo online ou no Forge vira star para o cliente. Ele acumula e troca por produtos, descontos ou prêmios da sua lista — com histórico completo de quem lançou, quando e o quê.",
