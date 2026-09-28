@@ -13,6 +13,8 @@ export function usePermissionsMutations() {
       canCreate: boolean;
       canEdit: boolean;
       canDelete: boolean;
+      canApprove?: boolean;
+      canPay?: boolean;
     }) => orpc.permissions.updatePermission.call(v),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["permissions"] });

@@ -11,11 +11,16 @@ import {
   type ConversationBand,
 } from "@/features/tracking-chat/lib/conversation-awaiting-band";
 import {
+  CONVERSATION_CHANNEL_FILTERS,
+  type ConversationChannelFilter,
+} from "@/features/tracking-chat/utils/channel-filter";
+import {
   buildCursorWhere,
   buildNextCursorValue,
   buildOrderBy,
   CONVERSATION_SORT_BY,
 } from "@/features/tracking-chat/lib/conversation-list-order";
+
 
 const sortOptions = z.enum(CONVERSATION_SORT_BY);
 const sortDirections = z.enum(["asc", "desc"]);
@@ -60,7 +65,7 @@ export const listConversation = base
       statusFlow: statusFlowValues.nullable().optional(),
       /** Filtro "Status" (spec 0011, RF-3). Vazio = esconde FINISHED (RF-5). */
       statusFlows: z.array(statusFlowValues).optional(),
-      channel: z.string().nullable().optional(),
+      channel: z.enum(CONVERSATION_CHANNEL_FILTERS).nullable().optional(),
       tagIds: z.array(z.string()).optional(),
       favoritesOnly: z.boolean().optional(),
       /**
@@ -254,11 +259,16 @@ export const listConversation = base
  * filtra por eles. Canal desconhecido é ignorado em vez de quebrar a
  * consulta no enum (antes ia direto como `any`).
  */
-function buildChannelWhere(channel: string | null | undefined): Prisma.ConversationWhereInput {
+function buildChannelWhere(
+  channel: ConversationChannelFilter | null | undefined,
+): Prisma.ConversationWhereInput {
   if (!channel) return {};
   if (channel === "IN_CHAT") return { AND: [{ lead: { source: "IN_CHAT" } }] };
   // Widget do ASTRO no site do cliente (spec 0031): mesmo padrão do In-Chat.
   if (channel === "ASTRO_CHAT") return { AND: [{ lead: { source: "ASTRO_CHAT" } }] };
+  // Pedidos do Catálogo online do NERP chegam como lead.source NERP_CATALOG.
+  if (channel === "CATALOG") return { AND: [{ lead: { source: "NERP_CATALOG" } }] };
+  if (channel === "TIKTOK") return { AND: [{ lead: { source: "TIKTOK" } }] };
   if (channel === "WHATSAPP") {
     return {
       channel: "WHATSAPP",

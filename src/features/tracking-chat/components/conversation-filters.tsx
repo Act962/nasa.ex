@@ -24,6 +24,7 @@ import {
   ChevronDownIcon,
   EllipsisIcon,
   ListFilterIcon,
+  ShoppingBasket,
 } from "lucide-react";
 import { useUnansweredCounts } from "../hooks/use-unanswered-counts";
 import {
@@ -39,19 +40,10 @@ import { useCommentsChannel } from "@/features/comments/hooks/use-comments-chann
 import { integrations } from "@/data/integrations";
 import { useMarketplace } from "@/features/integrations/context/marketplace-context";
 import { AstroMark } from "@/features/astro/components/astro-mark";
-
-type ChannelFilter =
-  | "ALL"
-  | "WHATSAPP"
-  | "INSTAGRAM"
-  | "TIKTOK"
-  | "FACEBOOK"
-  // E-mails dos leads pelo Gmail da empresa (spec 0030).
-  | "EMAIL"
-  // Chat do site (In-Chat): leads que chegaram pelo link público.
-  | "IN_CHAT"
-  // Widget do ASTRO no site do cliente (spec 0031).
-  | "ASTRO_CHAT";
+import {
+  CATALOG_CHANNEL_LABEL,
+  type ChannelFilter,
+} from "../utils/channel-filter";
 
 interface ConversationFiltersProps {
   trackingId: string | null;
@@ -251,6 +243,25 @@ export function ConversationFilters({
           actionLabel="Ir para o COMMENTS"
           actionHref="/comments?tab=integracoes"
         />
+
+        <span className="relative">
+          <button
+            type="button"
+            title={CATALOG_CHANNEL_LABEL}
+            aria-label={CATALOG_CHANNEL_LABEL}
+            onClick={() =>
+              onChannelChange(selectedChannel === "CATALOG" ? "ALL" : "CATALOG")
+            }
+            className={cn(
+              "flex size-11 items-center justify-center rounded-full border transition-colors bg-background",
+              selectedChannel === "CATALOG"
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border/70 text-muted-foreground hover:bg-accent",
+            )}
+          >
+            <ShoppingBasket className="size-5 text-emerald-500" />
+          </button>
+        </span>
 
         <Link href="/integrations?category=mensageiros">
           <button

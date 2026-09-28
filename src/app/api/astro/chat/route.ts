@@ -4,6 +4,7 @@ import type { UIMessage } from "ai";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { hasAppPermission } from "@/features/permissions/server/app-permission";
 import { streamAstro } from "@/features/astro/server/orchestrator";
 import {
   astroChatRequestSchema,
@@ -160,6 +161,13 @@ export async function POST(req: Request) {
   }
   const userId = sessionData.user.id;
   const organizationId = sessionData.session.activeOrganizationId;
+  const canUseAstro = await hasAppPermission(organizationId, sessionData.user.id, "astro", "canView");
+  if (!canUseAstro) {
+    return NextResponse.json(
+      { error: "Seu papel não tem acesso ao Astro. Fale com o Master (Configurações → Permissões)." },
+      { status: 403 },
+    );
+  }
 
   const rawBody = await req.json().catch((e) => {
     console.error("[ASTRO/chat] req.json failed", e);

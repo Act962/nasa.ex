@@ -63,6 +63,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SearchConversations } from "./search-conversaitons";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { Instance } from "../types";
+import type { ChannelFilter } from "../utils/channel-filter";
 import {
   Select,
   SelectContent,
@@ -106,9 +107,7 @@ export function ConversationsList() {
   );
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
-  const [selectedChannel, setSelectedChannel] = useState<
-    "ALL" | "WHATSAPP" | "INSTAGRAM" | "TIKTOK" | "FACEBOOK" | "EMAIL" | "IN_CHAT" | "ASTRO_CHAT"
-  >("ALL");
+  const [selectedChannel, setSelectedChannel] = useState<ChannelFilter>("ALL");
   // O canal E-mail não é uma conversa do chat: mostra o painel do Gmail (spec 0030).
   const isEmailChannel = selectedChannel === "EMAIL";
   const [favoritesOnly, setFavoritesOnly] = useState(false);

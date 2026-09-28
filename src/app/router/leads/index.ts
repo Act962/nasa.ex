@@ -48,6 +48,7 @@ import {
 import { auditLead, getLeadMetrics } from "./metrics";
 import { listLeadTriggers, saveLeadTrigger } from "./triggers";
 import { listAttachmentsByToken } from "./list-attachments-by-token";
+import { listLeadProducts } from "./list-products";
 import { detectMergeConflicts } from "./detect-merge-conflicts";
 import { mergeLeads } from "./merge-leads";
 
@@ -77,6 +78,7 @@ export const leadRoutes = {
   listLeadsByStatus,
   updateManyStatus: updateManyStatusLead,
   listFiles: listLeadFiles,
+  listProducts: listLeadProducts,
   createFile: createLeadFile,
   deleteFile: deleteLeadFile,
   updateWhatsappTags: updateWhatsappTagsLead,

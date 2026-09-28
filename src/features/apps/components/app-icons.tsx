@@ -10,6 +10,7 @@ export {
   LinnkerIcon,
   BoostIcon,
   StarsIcon,
+  StarFriendsIcon,
 } from "./app-icons-a";
 
 export {

@@ -37,6 +37,7 @@ import {
   NasaPlannerIcon,
   NasaRouteIcon,
   SpaceStationIcon,
+  StarFriendsIcon,
   BoostIcon,
 } from "./app-icons";
 
@@ -384,6 +385,23 @@ export const APPS: AppDef[] = [
     activeUsers: null,
     theme: "purple",
     sidebarKey: "space-station",
+  },
+  {
+    id: "star-friends",
+    name: "STAR FRIENDS",
+    byline: "by ÓRBITA®",
+    status: "available",
+    icon: StarFriendsIcon,
+    shortDesc: "Programa de fidelidade: cada compra vira star",
+    fullDesc:
+      "Cada compra paga no Catálogo online ou no Forge vira star para o cliente. Ele acumula e troca por produtos, descontos ou prêmios da sua lista — com histórico completo de quem lançou, quando e o quê.",
+    category: "Vendas",
+    integration: "Fidelidade",
+    action: "internal",
+    href: "/star-friends",
+    activeUsers: null,
+    theme: "purple",
+    sidebarKey: "star-friends",
   },
   {
     id: "tracking",

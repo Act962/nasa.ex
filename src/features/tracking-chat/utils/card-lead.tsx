@@ -25,4 +25,5 @@ export const LeadSourceColors: Record<
   [LeadSource.GOOGLE_MAPS]: { color: "#4285F4", label: "Google Maps" },
   [LeadSource.IN_CHAT]:     { color: "#8b5cf6", label: "In-Chat" },
   [LeadSource.ASTRO_CHAT]:  { color: "#7c3aed", label: "ASTRO CHAT" },
+  [LeadSource.NERP_CATALOG]: { color: "#10b981", label: "Catálogo NERP" },
 };

@@ -76,6 +76,9 @@ import { worldEventOccupancyTick } from "@/inngest/functions/crons/world-event-o
 import { detectActionsDueSoon } from "@/inngest/functions/crons/detect-actions-due-soon";
 import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
 import { chatAiWhatsappAgent } from "@/inngest/functions/chat-ai/whatsapp-agent";
+import { syncCatalogOrderToNerp } from "@/inngest/functions/nerp-catalog/sync-order-to-nerp";
+import { watchCatalogOrderPayment } from "@/inngest/functions/nerp-catalog/watch-order-payment";
+import { starFriendsExpireStars } from "@/inngest/functions/star-friends/expire-stars";
 import {
   scheduleIdleChecks,
   checkNoFirstResponse,
@@ -185,6 +188,11 @@ export const { GET, POST, PUT } = serve({
     chatSyncMessages,
     // ── Chat AI (WhatsApp agent interno) ──
     chatAiWhatsappAgent,
+    // ── Catálogo online NERP → Órbita: pagamento e confirmação da venda ──
+    watchCatalogOrderPayment,
+    syncCatalogOrderToNerp,
+    // ── STAR FRIENDS: validade das stars ──
+    starFriendsExpireStars,
     // ── In-Chat (fallback anti-ban): confirma queda → ativa; recuperação preguiçosa ──
     confirmDisconnectAndActivate,
     checkInChatRecovery,

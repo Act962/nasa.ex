@@ -16,6 +16,7 @@ import {
   GraduationCap,
   LayoutTemplate,
   Rocket,
+  Sparkles,
   TrendingUp,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -117,6 +118,14 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     defaultVisible: false,
   },
   {
+    key: "star-friends",
+    title: "STAR FRIENDS",
+    url: "/star-friends",
+    icon: Sparkles,
+    alwaysVisible: false,
+    defaultVisible: false,
+  },
+  {
     key: "payment",
     title: "Financeiro",
     url: "/payment",
@@ -203,6 +212,7 @@ export const APP_TO_SIDEBAR_KEY: Record<string, string> = {
   nbox: "nbox",
   "nasa-planner": "nasa-planner",
   forge: "forge",
+  "star-friends": "star-friends",
   payment: "payment",
   linnker: "linnker",
   "nasa-route": "nasa-route",

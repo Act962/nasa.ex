@@ -17,6 +17,7 @@ import {
   SendIcon,
   StickerIcon,
   UserPlusIcon,
+  SparklesIcon,
 } from "lucide-react";
 import { EmojiStickerPicker } from "./emoji-sticker-picker";
 import { ComposerActionButton } from "./composer-action-button";
@@ -81,6 +82,9 @@ import { useWhatsAppProviderSettings } from "@/features/tracking-settings/hooks/
 import { useCustomerWindow } from "../hooks/use-customer-window";
 import { TemplatePicker } from "./template-picker";
 import { FileBadgeIcon } from "lucide-react";
+
+import { StarFriendsRedeemDialog } from "@/features/star-friends/components/star-friends-redeem-dialog";
+import { useStarFriendsPermissions } from "@/features/star-friends/hooks/use-star-friends-permissions";
 
 interface FooterProps {
   conversationId: string;
@@ -147,6 +151,8 @@ export function Footer({
   const [showButtons, setShowButtons] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
   const [showContact, setShowContact] = useState(false);
+  const [showStarFriends, setShowStarFriends] = useState(false);
+  const starFriendsPermissions = useStarFriendsPermissions();
   const [showBudget, setShowBudget] = useState(false);
   // Dados de pré-preenchimento do BudgetPanel quando vem de um upload
   // regular que a IA detectou como proposta/OS (Phase 3 do fluxo). Reseta
@@ -718,6 +724,18 @@ export function Footer({
                           <UserPlusIcon className="size-4" />
                           <p className="text-sm">Contato</p>
                         </div>
+                        {starFriendsPermissions.canRedeemAndCredit && (
+                          <div
+                            className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
+                            onClick={() => {
+                              setShowStarFriends(true);
+                              setOpen(false);
+                            }}
+                          >
+                            <SparklesIcon className="size-4 text-amber-500" />
+                            <p className="text-sm">STAR FRIENDS</p>
+                          </div>
+                        )}
                         {isMeta && (
                           <div
                             className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
@@ -929,6 +947,12 @@ export function Footer({
           }}
         />
       )}
+      <StarFriendsRedeemDialog
+        leadId={lead.id}
+        open={showStarFriends}
+        onOpenChange={setShowStarFriends}
+        onInsertMessage={(text) => setMessage((previous) => (previous ? `${previous}\n${text}` : text))}
+      />
       <TemplatePicker
         open={showTemplatePicker}
         onOpenChange={setShowTemplatePicker}

@@ -302,6 +302,10 @@ export interface CreateInChatLeadParams {
   name: string;
   /** appOrigin pro workflow NEW_LEAD montar URL absoluta. */
   appOrigin?: string;
+  /** Origem do lead — default IN_CHAT. Pedido do Catálogo NERP usa NERP_CATALOG. */
+  source?: LeadSource;
+  /** Rótulo da origem no activity log — default "In-Chat". */
+  sourceLabel?: string;
 }
 
 export interface CreateInChatLeadResult {
@@ -385,7 +389,7 @@ export async function createInChatLead(
       statusId: status.id,
       phone: params.phone,
       trackingId: params.trackingId,
-      source: LeadSource.IN_CHAT,
+      source: params.source ?? LeadSource.IN_CHAT,
       order: firstLead ? Number(firstLead.order) - 1 : 0,
       statusFlow: "WAITING",
       lastInboundAt: new Date(),
@@ -421,13 +425,13 @@ export async function createInChatLead(
       userEmail: "sistema@nasa",
       appSlug: "tracking",
       action: "lead.arrived",
-      actionLabel: `Um lead chegou no tracking "${tracking.name}" via In-Chat (${createdLead.name ?? params.phone})`,
+      actionLabel: `Um lead chegou no tracking "${tracking.name}" via ${params.sourceLabel ?? "In-Chat"} (${createdLead.name ?? params.phone})`,
       resource: createdLead.name ?? params.phone,
       resourceId: createdLead.id,
       metadata: {
         phone: params.phone,
         trackingName: tracking.name,
-        source: "IN_CHAT",
+        source: params.source ?? "IN_CHAT",
       },
     });
   } catch (err) {
