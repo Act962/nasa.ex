@@ -70,6 +70,7 @@ export { getWaba } from "./get-waba";
 // Analytics (Fase 10) — mensagens, conversas e custo.
 export { getMessageAnalytics } from "./get-message-analytics";
 export { getConversationAnalytics } from "./get-conversation-analytics";
+export { getPricingAnalytics } from "./get-pricing-analytics";
 
 export type {
   MetaApiError,

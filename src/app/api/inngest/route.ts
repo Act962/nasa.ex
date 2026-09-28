@@ -43,6 +43,7 @@ import { astroCommanderTick } from "@/inngest/functions/astro-commander/commande
 import { astroLearnFromFeedback } from "@/inngest/functions/astro/learn-from-feedback";
 import { astroChatPublicAgent } from "@/inngest/functions/astro-chat/public-agent";
 import { astroChatMonthlyBilling } from "@/inngest/functions/astro-chat/monthly-billing";
+import { salvyNumberMonthlyBilling } from "@/inngest/functions/campanhas/salvy-monthly-billing";
 import { astroCommandRun } from "@/inngest/functions/astro-commander/run-command";
 import { detectLeadWaiting } from "@/inngest/functions/crons/detect-lead-waiting";
 import { detectAiTokenUsage } from "@/inngest/functions/crons/detect-ai-token-usage";
@@ -152,6 +153,7 @@ export const { GET, POST, PUT } = serve({
     astroLearnFromFeedback,
     astroChatPublicAgent,
     astroChatMonthlyBilling,
+    salvyNumberMonthlyBilling,
     astroCommandRun,
     // ── ASTRO: alertas proativos (spec 0029) ──
     detectLeadWaiting,

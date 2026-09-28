@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Lock, ShieldCheck, ExternalLink, BarChart3Icon } from "lucide-react";
+import { Loader2, Lock, ShieldCheck, ExternalLink, BarChart3Icon, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -257,6 +258,13 @@ export function WhatsAppProviderSettings({
              */}
             <WhatsAppEmbeddedSignupButton trackingId={trackingId} />
 
+            <Collapsible defaultOpen={!hasEmbeddedSignupConfigured}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-muted-foreground">
+                  <ChevronDown className="size-4" /> Configuração avançada (suporte)
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 pt-2">
             {/* Divisor visual quando os dois caminhos coexistem. */}
             {hasEmbeddedSignupConfigured && (
               <div className="relative py-1">
@@ -399,6 +407,8 @@ export function WhatsAppProviderSettings({
               </Alert>
             )}
             </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         )}
 

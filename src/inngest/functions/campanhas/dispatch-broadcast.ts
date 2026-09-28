@@ -7,6 +7,7 @@ import {
 } from "@/features/campanhas/server/lib/broadcast-sender";
 import { recomputeBroadcastCounters } from "@/features/campanhas/server/lib/broadcast-counters";
 import { broadcastTemplateMappingSchema } from "@/features/campanhas/schema/broadcast-schemas";
+import { nextQuotaReleaseAt, remainingDailyContacts, resolveNumberMessagingLimit } from "@/features/campanhas/server/lib/daily-quota";
 
 /**
  * Handler de disparo em massa (Fase 3). Consome `campanhas/broadcast.send`,
@@ -109,11 +110,29 @@ export const dispatchBroadcast = inngest.createFunction(
       organizationId,
     );
 
+    // Limite diário da Meta (contatos únicos/24h): número novo começa em 250 e
+    // sobe aos poucos. Campanha maior que o saldo do dia espera e continua
+    // nas próximas horas, em vez de ser recusada pela Meta (spec 0040, RF-7).
+    const limitLevel = await step.run("resolve-messaging-limit", () => resolveNumberMessagingLimit(credentials));
+
     for (let batchIndex = 0; batchIndex < MAX_BATCHES; batchIndex++) {
+      const quota = await step.run(`daily-quota-${batchIndex}`, () => remainingDailyContacts(setup.trackingId, limitLevel));
+      if (quota !== null && quota <= 0) {
+        // Continua numa execução nova quando o limite liberar: esperar aqui
+        // estouraria o teto de passos do Inngest em campanhas de vários dias.
+        const resumeAt = await step.run("next-quota-release", () => nextQuotaReleaseAt(setup.trackingId));
+        await step.sendEvent("continue-when-quota-frees", {
+          name: "campanhas/broadcast.send",
+          data: { broadcastId, organizationId },
+          ts: new Date(resumeAt).getTime(),
+        });
+        return { paused: true, resumeAt };
+      }
+      const batchSize = quota === null ? BATCH_SIZE : Math.min(BATCH_SIZE, quota);
       const processed = await step.run(`send-batch-${batchIndex}`, async () => {
         const recipients = await prisma.broadcastRecipient.findMany({
           where: { broadcastId, status: "PENDING" },
-          take: BATCH_SIZE,
+          take: batchSize,
           orderBy: { createdAt: "asc" },
           select: { id: true, name: true, phone: true, variables: true },
         });

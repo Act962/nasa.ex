@@ -7,6 +7,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { scheduleBroadcastSchema } from "@/features/campanhas/schema/broadcast-schemas";
 import { loadBroadcastForOrg } from "@/features/campanhas/server/lib/broadcast-access";
 import { assertBroadcastSendable } from "@/features/campanhas/server/lib/assert-broadcast-sendable";
+import { assertBroadcastFeePaid } from "@/features/campanhas/server/lib/broadcast-fee-service";
 
 /**
  * Agenda (ou reagenda) o disparo da campanha (Fase 4). Valida os mesmos
@@ -25,7 +26,8 @@ export const schedule = base
     const { org, user } = context;
     const broadcast = await loadBroadcastForOrg(input.broadcastId, org.id);
 
-    await assertBroadcastSendable(broadcast, org.id);
+    const pendingCount = await assertBroadcastSendable(broadcast, org.id);
+    await assertBroadcastFeePaid(broadcast.id, pendingCount);
 
     const scheduledAt = new Date(input.scheduledAt);
     if (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now()) {

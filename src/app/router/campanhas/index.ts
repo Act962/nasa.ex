@@ -20,6 +20,8 @@ import { listContacts } from "./list-contacts";
 import { contactFilterOptions } from "./contact-filter-options";
 import { addRecipientsFromContacts } from "./add-recipients-from-contacts";
 import { analytics } from "./analytics";
+import { quoteFee, checkoutFee, confirmFee, getFeeSettings, updateFeeSettings } from "./self-service/fee";
+import { numberOffer, listNumbers, buyNumber, latestNumberCode, cancelNumber, numberPanel } from "./self-service/numbers";
 
 /**
  * App "Campanhas" (disparos WhatsApp API Oficial).
@@ -51,4 +53,15 @@ export const campanhasRouter = {
   contactFilterOptions,
   addRecipientsFromContacts,
   analytics,
+  quoteFee,
+  checkoutFee,
+  confirmFee,
+  getFeeSettings,
+  updateFeeSettings,
+  numberOffer,
+  listNumbers,
+  buyNumber,
+  latestNumberCode,
+  cancelNumber,
+  numberPanel,
 };

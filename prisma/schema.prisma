@@ -2514,6 +2514,8 @@ model WhatsAppInstance {
   metaAppSecret         String? @map("meta_app_secret")
   metaVerifyToken       String? @map("meta_verify_token")
   metaBusinessAccountId String? @map("meta_business_account_id")
+  /// Portfólio (Business Manager) da Meta — links de cartão e fatura (spec 0040).
+  metaBusinessId        String? @map("meta_business_id")
 
   // ── In-Chat Fallback (anti-ban) ──────────────────────────────────────
   // `inChatModeActive` = true quando o cron `detect-whatsapp-ban` detecta
@@ -2624,6 +2626,7 @@ model Broadcast {
   tracking     Tracking             @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   createdBy    User                 @relation(fields: [createdById], references: [id])
   recipients   BroadcastRecipient[]
+  feePayments  BroadcastFeePayment[]
 
   trafegoOrder TrafegoOrder?
 
@@ -2631,6 +2634,71 @@ model Broadcast {
   @@index([trackingId])
   @@index([status])
   @@map("broadcasts")
+}
+
+/// Taxa de serviço ÓRBITA de uma campanha (spec 0040): paga antes de disparar.
+model BroadcastFeePayment {
+  id                String    @id @default(cuid())
+  broadcastId       String    @map("broadcast_id")
+  organizationId    String    @map("organization_id")
+  createdById       String    @map("created_by_id")
+  recipients        Int
+  templateCategory  String    @map("template_category")
+  metaCostBrlCents  Int       @map("meta_cost_brl_cents")
+  feePercent        Int       @map("fee_percent")
+  serviceFeeBrlCents Int      @map("service_fee_brl_cents")
+  /// "STRIPE" (cartão) | "ASAAS" (PIX/boleto/cartão na página do Asaas).
+  provider          String
+  externalId        String?   @map("external_id")
+  checkoutUrl       String?   @map("checkout_url")
+  /// PENDING | PAID | CANCELED
+  status            String    @default("PENDING")
+  /// NOW (dispara ao pagar) | SCHEDULE (agenda ao pagar)
+  dispatchMode      String    @default("NOW") @map("dispatch_mode")
+  scheduledAt       DateTime? @map("scheduled_at")
+  paidAt            DateTime? @map("paid_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+
+  @@index([broadcastId, status])
+  @@index([organizationId])
+  @@map("broadcast_fee_payments")
+}
+
+/// Faixas da taxa ÓRBITA de campanha, editáveis pelo admin (spec 0040). Linha única "default".
+model BroadcastFeeSettings {
+  id             String   @id @default("default")
+  /// Liga a cobrança. Desligada, campanhas disparam sem taxa (compat com quem já usa).
+  enabled        Boolean  @default(false)
+  /// [{ minMetaCostBrlCents, feePercent }]
+  tiers          Json
+  minFeeBrlCents Int      @default(1990) @map("min_fee_brl_cents")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("broadcast_fee_settings")
+}
+
+/// Número virtual comprado na Salvy pela conta ÓRBITA para um cliente (spec 0040).
+model SalvyVirtualNumber {
+  id             String    @id @default(cuid())
+  organizationId String    @map("organization_id")
+  trackingId     String?   @map("tracking_id")
+  createdById    String    @map("created_by_id")
+  salvyId        String    @unique @map("salvy_id")
+  phoneNumber    String    @map("phone_number")
+  areaCode       Int       @map("area_code")
+  /// pending | active | blocked | canceled (espelho da Salvy) | past_due (sem Stars, 3 dias de carência)
+  status         String    @default("active")
+  nextChargeAt   DateTime? @map("next_charge_at")
+  canceledAt     DateTime? @map("canceled_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@index([status, nextChargeAt])
+  @@map("salvy_virtual_numbers")
 }
 
 model BroadcastRecipient {

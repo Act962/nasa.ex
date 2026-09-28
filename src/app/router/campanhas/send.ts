@@ -5,6 +5,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { sendBroadcastSchema } from "@/features/campanhas/schema/broadcast-schemas";
 import { loadBroadcastForOrg } from "@/features/campanhas/server/lib/broadcast-access";
 import { assertBroadcastSendable } from "@/features/campanhas/server/lib/assert-broadcast-sendable";
+import { assertBroadcastFeePaid } from "@/features/campanhas/server/lib/broadcast-fee-service";
 import { beginBroadcastDispatch } from "@/features/campanhas/server/lib/begin-broadcast-dispatch";
 
 /**
@@ -23,6 +24,7 @@ export const send = base
     const broadcast = await loadBroadcastForOrg(input.broadcastId, org.id);
 
     const pendingCount = await assertBroadcastSendable(broadcast, org.id);
+    await assertBroadcastFeePaid(broadcast.id, pendingCount);
 
     const claimed = await beginBroadcastDispatch({
       broadcastId: broadcast.id,

@@ -4,20 +4,20 @@ import { CampanhasShell, CampanhasContent } from "@/features/campanhas/component
 import { NewTemplateView } from "@/features/campanhas/components/templates/new-template-view";
 
 type NewTemplatePageProps = {
-  searchParams: Promise<{ trackingId?: string }>;
+  searchParams: Promise<{ trackingId?: string; preset?: string }>;
 };
 
 export default async function NewCampanhaTemplatePage({
   searchParams,
 }: NewTemplatePageProps) {
-  const { trackingId } = await searchParams;
+  const { trackingId, preset } = await searchParams;
 
   return (
     <SidebarInset className="min-h-full">
       <HeaderTracking title="Campanhas" />
       <CampanhasShell>
         <CampanhasContent>
-          <NewTemplateView trackingId={trackingId} />
+          <NewTemplateView trackingId={trackingId} presetId={preset} />
         </CampanhasContent>
       </CampanhasShell>
     </SidebarInset>
