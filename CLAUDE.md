@@ -82,10 +82,17 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 - `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` — Stripe (cliente + webhook compartilhado de cursos/planos/better-auth)
 - `STRIPE_COURSE_WEBHOOK_SECRET` — secret do endpoint dedicado de cursos (`/api/stripe/webhook`)
 - `STRIPE_STARS_WEBHOOK_SECRET` — secret do endpoint dedicado de recarga de Stars (`/api/stars/webhook`). O fluxo de Stars usa o Stripe do sistema (`STRIPE_SECRET_KEY`), não o `PaymentGatewayConfig`.
+- `ASAAS_API_KEY` — chave da API do Asaas, usada no PIX do trafeGO (spec 0022). Ausente = o PIX volta ao fluxo manual (chave estática + comprovante). **⚠️ A chave do Asaas começa com `$`** (ex.: `$aact_hmlg_...`). Em arquivo `.env`, o `dotenv-expand` lê isso como nome de variável, não acha nada e entrega **string vazia** — a integração fica silenciosamente desligada, sem erro nenhum. Escape a cifra: `ASAAS_API_KEY=\$aact_...`. Aspas simples **não** resolvem. Em variável de ambiente de verdade (painel do Coolify) não há expansão e o problema não existe.
+- `ASAAS_ENV` — `sandbox` (padrão) ou `production`. O padrão é sandbox de propósito: errar para esse lado não move dinheiro.
+- `ASAAS_WEBHOOK_TOKEN` — valor do header `asaas-access-token`, conferido pelo webhook `/api/trafego/asaas/webhook`. Aleatório, 32+ caracteres, **nunca** a chave de API. Ausente = o webhook recusa todos os eventos (fail-closed, porque credita dinheiro).
 - `AI_SECRETS_KEY` — chave (≥16 chars) usada para criptografar API keys customizadas de IA em `AiSettings.aiApiKey` (AES-256-GCM via `src/lib/crypto.ts`). Obrigatória se algum tracking configurar provider customizado (BYO).
 - `SYNC_SHARED_SECRET` — chave master HMAC do sync bidirecional de auth NASA ↔ NERP (`feature/sync`). **Mesmo valor** nos dois apps (`openssl rand -hex 32`). Assina/verifica `User/Account/Organization/Member` replicados via `src/features/sync/lib/system-cred.ts`.
 - `SYNC_API_KEY` — identifica o caller app↔app no sync (mesmo valor nos dois).
 - `NERP_BASE_URL` — base do NERP (mesma usada pela integração por-org e pelo sync). O sync (`src/http/sync-nerp/client.ts`) entrega em `NERP_BASE_URL + /api/sync/nasa`; `NERP_SYNC_BASE_URL` é override opcional caso o sync precise de um host diferente.
+- `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — par de chaves do Web Push (spec 0022). Gerar com `npx web-push generate-vapid-keys`. **A privada nunca pode ganhar prefixo `NEXT_PUBLIC_`** — iria para o bundle do browser.
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY` — mesma chave pública acima, exposta ao client para `pushManager.subscribe`. Pública por definição do protocolo. Trocar o par invalida todas as inscrições existentes (elas passam a devolver 403 e ficam no banco de propósito — ver spec 0022, D-4).
+- `VAPID_SUBJECT` — contato exigido pelo protocolo (`mailto:...` ou URL). Padrão: `mailto:suporte@nasaex.com`. Ausente não quebra.
+- Sem `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`, o canal Web Push se declara indisponível e o envio vira no-op — o resto das notificações (bell, popup, Pusher) segue funcionando.
 
 ## Estrutura do Projeto
 
@@ -193,6 +200,39 @@ src/features/<dominio>/
 14. **Documentação do WhatsApp Oficial (Meta Cloud API)** — sempre que criar ou atualizar qualquer coisa dentro de `src/http/whats-oficial/`, `src/features/tracking-chat/lib/providers/`, o webhook oficial (`src/app/api/chat/webhook/official/`), ou modelos Prisma relacionados ao provider de WhatsApp (ex.: `WhatsAppInstance.provider`, credenciais `meta*` cifradas, novos enums `WhatsAppProvider`), **atualize também [`docs/whatsapp-oficial-overview.md`](docs/whatsapp-oficial-overview.md)** na mesma sessão. Aplica-se a: novos clients HTTP, mudanças na PORT/adapters, novo handler de webhook, mudanças no pipeline canônico de inbound, schema/migrations, env vars, decisões de roadmap, novas fases concluídas. Mantenha tabelas de arquivos, roadmap/status (✅/🚧/⬜), contrato Meta API e changelog sincronizados com o código — o documento é a fonte de verdade do domínio e o canal de acompanhamento entre sessões. Espelha a mesma regra do item 10 (NASA Route).
 
 15. **WhatsApp Oficial — fluxo normal via `main` (fases já integradas)** — as fases do roadmap (ver `docs/whatsapp-oficial-overview.md`) **já estão na `main`**. A branch de integração `feature/whatsapp-oficial-integration` foi aposentada; **não é mais usada**. Novas fases e ajustes do WhatsApp Oficial seguem o fluxo padrão do projeto (item Git Workflow): branch de fase nasce a partir da **`main`** atualizada (`/start`) e o PR da fase tem base **`main`** (`--base main`). Não retargete PRs para a branch de integração nem crie branches a partir dela.
+
+16. **Visibilidade de campos no Kanban (OBRIGATÓRIO)** — todo **novo campo** exibido no card do lead (`src/features/trackings/components/lead-item.tsx`) ou na coluna (`src/features/trackings/components/status-header.tsx`) **deve** entrar no sistema de visibilidade personalizável, salvo se for realmente obrigatório (ex.: nome do lead — sempre visível). Ao adicionar um campo:
+
+    a. **Registrar em `CARD_FIELDS`** (`src/features/trackings/lib/card-visibility.ts`) — adicionar `{ id, label, group: "card" | "column" }`. Isso automaticamente cria o toggle no Sheet "Personalizar board" (`components/modal/board-customize-sheet.tsx`), que itera sobre `CARD_FIELDS` — **não** é preciso editar o Sheet manualmente.
+
+    b. **Envolver o render** do campo com `isFieldVisible(visibility, "<id>")` no componente correspondente (`lead-item.tsx` ou `status-header.tsx`), usando a mesma `visibility` já computada (`visibilityPreview` do tracking OU `cardConfig.cardVisibility`). Default ausente = visível (compat com trackings sem config).
+
+    c. **Campos obrigatórios** (não-ocultáveis) ficam **fora** de `CARD_FIELDS` — não recebem toggle e renderizam sempre.
+
+    Objetivo: nenhum campo novo pode voltar a poluir o board sem o usuário poder desligá-lo. Ver [`src/features/trackings/README.md`](src/features/trackings/README.md) para o fluxo completo.
+
+17. **Spec Driven Development (OBRIGATÓRIO para mudanças relevantes)** — antes de implementar feature nova, mudança de schema ou bug que introduza caminho condicional sobre dados de produção, escreva a spec em `specs/<dominio>/` a partir de [`specs/TEMPLATE.md`](specs/TEMPLATE.md) e tenha-a revisada **antes** do código. Ver [`specs/README.md`](specs/README.md) para o fluxo, os dois pesos de spec (leve/completa) e a lista do que NÃO exige spec (typo, refactor sem mudança de comportamento, bump de dependência).
+
+    **Teste decisivo**: a mudança cria um novo "depende de" sobre dados que já existem em produção? Se sim, escreva a spec — é exatamente esse tipo de mudança que gerou o 500 do submit de formulário (ver [`specs/form/0001-form-submit-lead-placement.md`](specs/form/0001-form-submit-lead-placement.md)).
+
+    Regras de manutenção: cada critério de aceite (`CA-n`) vira ao menos um teste que cita o id no nome; divergiu da spec durante a implementação, **atualize a spec no mesmo PR** e registre no changelog dela. Spec desatualizada é pior que spec nenhuma — mente com autoridade.
+
+18. **Transações Prisma contêm apenas escritas de banco (OBRIGATÓRIO)** — dentro de `prisma.$transaction(async (tx) => ...)` é proibido:
+
+    - Chamar helper que usa o **cliente Prisma global** em vez do `tx` (ex.: `trackLeadEvent`, `recordLeadEvent`, `logActivity`). Rodando em outra conexão, uma query que toque linha travada pela própria transação espera por ela — que por sua vez espera a query. Espera circular resolvida só pelo timeout de 5s, virando **500**.
+    - Fazer I/O de rede: `fetch`, Pusher, Inngest, envio de e-mail.
+
+    **Padrão correto**: colete os efeitos numa lista dentro da tx (`pendingLeadEvents`, `pendingJourneyEvents`) e execute **após o commit**, best-effort — falha em efeito colateral não pode invalidar a submissão já persistida. Ver `src/app/router/form/public/submut-response.ts` como referência.
+
+    Esse bug já custou dois PRs de correção que miravam a causa errada. Ao mexer em qualquer procedure com `$transaction`, confira essa regra antes de commitar.
+
+19. **Documentação da evolução arquitetural** — sempre que criar ou alterar qualquer coisa em `src/modules/`, nas regras de fronteira (`.dependency-cruiser.js`), no CI (`.github/workflows/`), na configuração de testes (`vitest.config.*`, `playwright.config.*`, `docker-compose.test.yml`), ou ao concluir/reordenar uma fase do roadmap, **atualize também [`docs/arquitetura-evolucao-overview.md`](docs/arquitetura-evolucao-overview.md)** na mesma sessão — tabela de status, roadmap, decisões e changelog sincronizados com o código. Espelha as regras 10 (NASA Route) e 14 (WhatsApp Oficial).
+
+    Documentos satélite, com a mesma obrigação: [`docs/seguranca-auditoria-2026-08.md`](docs/seguranca-auditoria-2026-08.md) (ao corrigir um item da auditoria, marque o status e registre o PR — **não apague o item**) e [`docs/testes-estrategia.md`](docs/testes-estrategia.md) (ao mudar runner, pipeline ou quality gate).
+
+    **Antes de propor arquitetura, teste ou CI neste projeto, leia o overview.** Ele registra decisões já travadas — arquitetura alvo (Hexagonal seletivo, não Clean Architecture ampla), escopo (piloto `form`, não migração ampla) e o que foi deliberadamente descartado, com o porquê. Repropor algo já descartado sem novo argumento custa tempo do time.
+
+20. **Deriva conhecida entre este arquivo e o código** — auditoria de 2026-08-18 encontrou divergências ainda não corrigidas. Enquanto não forem, **confie no código, não neste documento**, nestes pontos: procedures oRPC estão em `src/app/router/` (não em `src/server/`, que não existe); a Regra 9 tem 518 violações; a Regra 5 convive com Jotai além de Zustand; a Regra 17 é **inexequível** (não há runner de teste instalado); `.claude/settings.json` não existe (o hook `PreToolUse` descrito no Git Workflow não está ativo); `.env.example` e `prisma/migrations/MANUAL_*.sql` referenciados em `docs/DEPLOYMENT.md` não existem — `scripts/apply-prod-migrations.sh` quebra por causa disso. Lista completa em [`docs/arquitetura-evolucao-overview.md`](docs/arquitetura-evolucao-overview.md) §3.5. Corrigir a deriva é item da Fase 0.
 
 ## Obsidian
 

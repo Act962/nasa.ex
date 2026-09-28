@@ -2,7 +2,10 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { resolveWorkspaceTrackingId } from "@/features/actions/lib/workspace-tracking";
+import { findActionInOrg } from "@/features/actions/server/lib/action-access";
 import { logOrgActivity } from "@/features/admin/lib/org-activity-log";
+import { findColumnInOrg } from "../lib/workspace-access";
 import {
   hasMovedColumnWorkflow,
   sendWorkspaceWorkflowEvent,
@@ -19,17 +22,27 @@ export const moveAction = base
       workspaceId: z.string(),
     }),
   )
-  .handler(async ({ input, context }) => {
-    const existing = await prisma.action.findUnique({
-      where: { id: input.actionId },
-      select: { columnId: true, workspaceId: true },
-    });
+  .handler(async ({ input, context, errors }) => {
+    const existing = await findActionInOrg(input.actionId, context.org.id);
+    if (!existing) throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+
+    // Destino também escopado: sem isso a ação é arrastada pra workspace/coluna
+    // de outra org só passando o id.
+    const targetColumn = await findColumnInOrg(input.columnId, context.org.id);
+    if (!targetColumn || targetColumn.workspaceId !== input.workspaceId) {
+      throw errors.NOT_FOUND({ message: "Coluna não encontrada" });
+    }
+
+    // Mudar de workspace pode mudar o tracking: re-resolve em vez de deixar
+    // o valor antigo (que apontaria pro tracking do workspace de origem).
+    const trackingId = await resolveWorkspaceTrackingId(input.workspaceId);
 
     const action = await prisma.action.update({
       where: { id: input.actionId },
       data: {
         columnId: input.columnId,
         workspaceId: input.workspaceId,
+        trackingId,
       },
     });
 

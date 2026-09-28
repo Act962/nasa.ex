@@ -114,6 +114,11 @@ export function useBoardRealtimeSync({ trackingId }: { trackingId: string }) {
         pendingLeadDetailRef.current.add(data.leadId);
         scheduleFlush();
       },
+      "lead-deleted": (raw: unknown) => {
+        const data = raw as BoardLeadsEvents["lead-deleted"];
+        pendingStatusRef.current.add(data.statusId);
+        scheduleFlush();
+      },
     }),
     [scheduleFlush],
   );

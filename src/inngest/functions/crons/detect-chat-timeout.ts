@@ -1,7 +1,20 @@
 /**
  * Cron: detect-chat-timeouts
- * Roda a cada 5 minutos — varre conversas ativas sem resposta
- * > 10 min e > 30 min, emite penalidades.
+ *
+ * Varre conversas ativas sem resposta há mais de 10 min e mais de 30 min, e
+ * emite penalidade de gamificação.
+ *
+ * ⚠️ A penalidade é emitida A CADA EXECUÇÃO enquanto a conversa seguir parada —
+ * não há marca de "já penalizado". Na prática isso faz a punição depender da
+ * cadência do cron, não do comportamento do atendente: a 5 minutos, uma
+ * conversa parada por uma hora gerava 12 penalidades.
+ *
+ * A cadência caiu para 15 minutos, o que reduz o efeito em 3x mas não corrige a
+ * causa. O conserto de verdade é marcar a conversa já penalizada — e isso muda
+ * a régua de pontuação, então é decisão de produto, não de custo.
+ *
+ * Os limites de 10 e 30 min continuam sendo detectados: a cada passagem toda
+ * conversa que cruzou qualquer um dos dois aparece na consulta.
  */
 
 import { inngest } from "@/inngest/client";
@@ -10,7 +23,7 @@ import { emitTrackingBatch, type TrackingEvent } from "@/features/space-point/li
 
 export const detectChatTimeout = inngest.createFunction(
   { id: "detect-chat-timeouts", retries: 1 },
-  { cron: "*/5 * * * *" }, // 5 em 5 min
+  { cron: "*/15 * * * *" }, // ver aviso no topo: penalidade ainda acumula
   async () => {
     const now = new Date();
     const tenMinAgo = new Date(now.getTime() - 10 * 60 * 1000);

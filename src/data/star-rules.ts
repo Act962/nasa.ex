@@ -191,6 +191,34 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
     category: "ai",
   },
   {
+    action: "astro_finance_document",
+    label: "Astro Financeiro — leitura de boleto/NF (Claude Vision)",
+    stars: 5,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "astro_finance_statement_pdf",
+    label: "Astro Financeiro — importação de extrato em PDF",
+    stars: 10,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "astro_finance_reminder_send",
+    label: "Astro Financeiro — envio de lembrete com boleto (por canal/destinatário)",
+    stars: 1,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "astro_gmail_sync",
+    label: "Astro Financeiro — sincronização da caixa Gmail",
+    stars: 0,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
     action: "transcribe_video",
     label: "Transcrição de vídeo (Whisper, por minuto)",
     stars: 1,
@@ -213,7 +241,7 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
   },
   {
     action: "nasa_command_intent",
-    label: "NASA Command — parser de intent (IA)",
+    label: "ÓRBITA Command — parser de intent (IA)",
     stars: 1,
     cooldownHours: null,
     category: "ai",
@@ -379,9 +407,9 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
 
 export const STAR_RULE_CATEGORY_LABEL: Record<string, string> = {
   leads: "CRM / Leads",
-  ai: "IA & NASA Command",
+  ai: "IA & ÓRBITA Command",
   forge: "Forge",
-  planner: "NASA Planner",
+  planner: "ÓRBITA Planner",
   automation: "Workflows & Automações",
   agenda: "Agenda",
   chat: "Chat & Mensagens",

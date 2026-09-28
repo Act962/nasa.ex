@@ -40,6 +40,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
 import { useMutationUpdateLeads, useDeleteLead } from "../hooks/use-leads";
+import { useDetectMergeConflicts } from "../hooks/use-lead-merge";
+import {
+  MergeLeadsDialog,
+  type MergeConflict,
+} from "./modal/merge-leads-dialog";
 
 export function NavOptionsTracking() {
   const { trackingId } = useParams<{ trackingId: string }>();
@@ -61,9 +66,16 @@ export function NavOptionsTracking() {
   });
   const mutationUpdate = useMutationUpdateLeads(selectedTrackingId);
   const mutationDelete = useDeleteLead();
+  const detectConflicts = useDetectMergeConflicts();
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [confirmDeleteText, setConfirmDeleteText] = useState("");
+  const [mergeState, setMergeState] = useState<{
+    conflicts: MergeConflict[];
+    cleanLeadIds: string[];
+    targetTrackingId: string;
+    targetStatusId: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!isDeleteDialogOpen) {
@@ -85,9 +97,30 @@ export function NavOptionsTracking() {
 
   if (selectedLeads.length === 0) return null;
 
-  const handleMoveToStatus = (statusId: string) => {
+  const handleMoveToStatus = async (statusId: string) => {
     if (selectedLeads.every((lead) => lead.statusId === statusId)) return;
     const leadsIds = selectedLeads.map((lead) => lead.id);
+
+    // Antes de mover, detecta duplicatas (mesmo telefone) no tracking destino —
+    // se houver, abre a mesclagem em vez de estourar o unique.
+    try {
+      const { conflicts, cleanLeadIds } = await detectConflicts.mutateAsync({
+        leadIds: leadsIds,
+        targetTrackingId: selectedTrackingId,
+      });
+      if (conflicts.length > 0) {
+        setMergeState({
+          conflicts,
+          cleanLeadIds,
+          targetTrackingId: selectedTrackingId,
+          targetStatusId: statusId,
+        });
+        return;
+      }
+    } catch {
+      // Falha na detecção → segue no move normal (comportamento anterior).
+    }
+
     mutationUpdate.mutate(
       {
         leadsIds,
@@ -225,7 +258,7 @@ export function NavOptionsTracking() {
                     <button
                       className="flex w-full items-center gap-x-2 cursor-pointer hover:bg-secondary rounded-md px-2 py-1 text-sm transition-colors disabled:opacity-50 disabled:cursor-default"
                       key={status.id}
-                      disabled={mutationUpdate.isPending}
+                      disabled={mutationUpdate.isPending || detectConflicts.isPending}
                       onClick={() => handleMoveToStatus(status.id)}
                     >
                       {statusSelected ? (
@@ -242,6 +275,23 @@ export function NavOptionsTracking() {
           </PopoverContent>
         </Popover>
       </div>
+
+      {mergeState && (
+        <MergeLeadsDialog
+          open={!!mergeState}
+          onOpenChange={(open) => {
+            if (!open) setMergeState(null);
+          }}
+          conflicts={mergeState.conflicts}
+          cleanLeadIds={mergeState.cleanLeadIds}
+          targetTrackingId={mergeState.targetTrackingId}
+          targetStatusId={mergeState.targetStatusId}
+          onDone={() => {
+            setMergeState(null);
+            clearSelection();
+          }}
+        />
+      )}
     </nav>
   );
 }

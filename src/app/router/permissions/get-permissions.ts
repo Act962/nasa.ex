@@ -3,6 +3,11 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 
+// A matriz mora em src/features/permissions/lib/app-permission-catalog.ts —
+// a tela, o gate das procedures e o gate das ações do Astro leem a mesma.
+// Importado uma vez e reexportado a partir das ligações locais: `export ...
+// from` junto de um `import ... from` do mesmo módulo deixava as constantes
+// indefinidas em runtime, e a tela de permissões respondia 500.
 import {
   ALL_APPS,
   APPS_WITH_EXTENDED_ACTIONS,
@@ -13,17 +18,18 @@ import {
   ROLE_COLORS,
   ROLE_LABELS,
   type AppPermissions,
+  type NasaRole,
 } from "@/features/permissions/lib/app-permission-catalog";
 
 export {
   ALL_APPS,
-  APPS_WITH_EXTENDED_ACTIONS,
-  DEFAULT_PERMISSIONS,
   NASA_ROLES,
-  ROLE_COLORS,
   ROLE_LABELS,
-  type AppPermissions,
+  ROLE_COLORS,
+  DEFAULT_PERMISSIONS,
+  APPS_WITH_EXTENDED_ACTIONS,
 };
+export type { NasaRole, AppPermissions };
 
 export const getPermissions = base
   .use(requiredAuthMiddleware)

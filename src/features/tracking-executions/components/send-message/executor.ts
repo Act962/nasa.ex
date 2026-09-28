@@ -74,6 +74,18 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
         return `${baseUrl}/public/lead/${token}`;
       })(),
+      "{{sei_protocolo}}": String(
+        (context.sei as Record<string, unknown> | undefined)?.protocolo ?? "",
+      ),
+      "{{sei_andamento}}": String(
+        (context.sei as Record<string, unknown> | undefined)?.ultimoAndamento ?? "",
+      ),
+      "{{sei_especificacao}}": String(
+        (context.sei as Record<string, unknown> | undefined)?.especificacao ?? "",
+      ),
+      "{{sei_link}}": String(
+        (context.sei as Record<string, unknown> | undefined)?.linkAcesso ?? "",
+      ),
     };
 
     try {

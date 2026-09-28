@@ -13,11 +13,11 @@ interface FooterLink {
 
 export function SectionFooter({ element, tokens }: SectionRendererProps) {
   const logoSrc = (element.logoSrc as string) ?? "";
-  const logoText = (element.logoText as string) ?? "N.A.S.A";
+  const logoText = (element.logoText as string) ?? "ÓRBITA";
   const tagline =
     (element.tagline as string) ?? "Powered pelo Método N.A.S.A.®";
   const copyright =
-    (element.copyright as string) ?? "© 2026 N.A.S.A";
+    (element.copyright as string) ?? "© 2026 ÓRBITA";
   const links =
     (element.links as FooterLink[] | undefined) ?? [
       { id: "1", label: "Políticas de Privacidade", href: "#" },

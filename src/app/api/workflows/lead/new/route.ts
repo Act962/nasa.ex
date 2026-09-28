@@ -2,6 +2,25 @@ import { inngest } from "@/inngest/client";
 import { dispatchNewLead } from "@/inngest/utils";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { truncateLeadMessageText } from "@/features/tracking-executions/lib/lead-message";
+
+/**
+ * Mensagem que criou o lead, quando o caller tem uma (webhook de WhatsApp).
+ * Opcional — lead de formulário e In-Chat identify nascem sem mensagem.
+ */
+const bodySchema = z.object({
+  leadMessage: z
+    .object({
+      text: z.string(),
+      messageId: z.string().optional(),
+      mediaType: z
+        .enum(["image", "video", "audio", "document", "sticker"])
+        .optional(),
+      sentAt: z.string().optional(),
+    })
+    .optional(),
+});
 
 export async function POST(req: Request) {
   try {
@@ -24,6 +43,11 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
+
+    // Body inválido não pode impedir o gatilho — o lead já foi criado. Sem
+    // mensagem, o workflow roda igual e o FILTER_LEAD trata a ausência.
+    const parsedBody = bodySchema.safeParse(await req.json().catch(() => ({})));
+    const leadMessage = parsedBody.success ? parsedBody.data.leadMessage : undefined;
 
     const lead = await prisma.lead.findUnique({
       where: {
@@ -66,7 +90,17 @@ export async function POST(req: Request) {
 
     await Promise.all(
       workflows.map((workflow) =>
-        dispatchNewLead({ workflowId: workflow.id, lead }),
+        dispatchNewLead({
+          workflowId: workflow.id,
+          lead,
+          leadMessage: leadMessage
+            ? {
+                ...leadMessage,
+                text: truncateLeadMessageText(leadMessage.text),
+                source: "TRIGGER_EVENT",
+              }
+            : null,
+        }),
       ),
     );
 

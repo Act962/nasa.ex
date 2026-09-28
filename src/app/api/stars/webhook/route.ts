@@ -17,7 +17,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { constructWebhookEvent } from "@/lib/stripe";
+import { claimStripeEvent, constructWebhookEvent } from "@/lib/stripe";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import {
@@ -28,25 +28,17 @@ import { processPaymentPartnerEffects } from "@/features/partner/lib/partner-ser
 import { inngest } from "@/inngest/client";
 import { getPostHogClient } from "@/lib/posthog-server";
 
-/** P2002 = unique constraint → evento já processado (duplicata). */
+/**
+ * P2002 vindo de DENTRO da transação: `finalizeStarsTopUpInTx` registra o
+ * evento com o próprio `tx`, de propósito — assim um rollback desfaz o registro
+ * e o Stripe reentrega. Aqui só traduzimos esse erro em no-op.
+ */
 function isDuplicateEvent(err: unknown): boolean {
   return (
     err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002"
   );
 }
 
-/** Registra o event.id pra dedupe; retorna false se já existia. */
-async function recordEventOnce(eventId: string, type: string): Promise<boolean> {
-  try {
-    await prisma.processedStripeEvent.create({
-      data: { id: eventId, type, source: "stars" },
-    });
-    return true;
-  } catch (err) {
-    if (isDuplicateEvent(err)) return false;
-    throw err;
-  }
-}
 
 async function emitPurchaseAnalytics(
   organizationId: string,
@@ -223,7 +215,7 @@ export async function POST(req: NextRequest) {
       case "checkout.session.expired": {
         const session = event.data.object;
         if (session.metadata?.kind !== "stars_topup") break;
-        if (!(await recordEventOnce(event.id, event.type))) break;
+        if (!(await claimStripeEvent(event.id, event.type, "stars"))) break;
         const result = await prisma.starsPayment.updateMany({
           where: { externalId: session.id, status: "pending" },
           data: { status: "expired" },
@@ -282,7 +274,7 @@ export async function POST(req: NextRequest) {
       // Não reverte: o merchant pode contestar. Só notifica pra ação manual.
       case "charge.dispute.created": {
         const dispute = event.data.object;
-        if (!(await recordEventOnce(event.id, event.type))) break;
+        if (!(await claimStripeEvent(event.id, event.type, "stars"))) break;
         console.warn(
           `[stars/webhook] ⚠️ charge.dispute.created dispute=${dispute.id} reason=${dispute.reason} amount=${dispute.amount}`,
         );

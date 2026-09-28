@@ -4,13 +4,13 @@ import { AppCostManager } from "@/features/admin/components/app-cost-manager";
 
 const ALL_APPS = [
   { slug: "tracking",        label: "Tracking (CRM)" },
-  { slug: "chat",            label: "NASA Chat" },
+  { slug: "chat",            label: "ÓRBITA Chat" },
   { slug: "forge",           label: "Forge" },
   { slug: "spacetime",       label: "SpaceTime" },
-  { slug: "nasa-planner",    label: "NASA Planner" },
+  { slug: "nasa-planner",    label: "ÓRBITA Planner" },
   { slug: "insights",        label: "Insights" },
   { slug: "integrations",    label: "Integrações" },
-  { slug: "explorer",        label: "NASA Explorer" },
+  { slug: "explorer",        label: "ÓRBITA Explorer" },
   { slug: "nbox",            label: "N-Box" },
   { slug: "forge-contracts", label: "Forge Contracts" },
 ];

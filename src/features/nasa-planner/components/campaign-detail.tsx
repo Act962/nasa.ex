@@ -337,7 +337,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                     <CardHeader className="pb-2 pt-3 px-4">
                       <div className="flex items-start justify-between">
                         <CardTitle className="text-sm">{ASSET_TYPE_OPTS.find((t) => t.value === asset.assetType)?.label ?? asset.assetType}</CardTitle>
-                        <Button variant="ghost" size="icon" className="size-6 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive" onClick={() => deleteAsset.mutateAsync({ campaignId, assetId: asset.id })}>
+                        <Button type="button" variant="ghost" size="icon" className="size-6 hover-reveal text-destructive hover:text-destructive" onClick={() => deleteAsset.mutateAsync({ campaignId, assetId: asset.id })}>
                           <Trash2Icon className="size-3" />
                         </Button>
                       </div>

@@ -20,6 +20,7 @@ import {
   GlobeIcon,
   ImageIcon,
   Link2Icon,
+  LandmarkIcon,
   MailIcon,
   MessageSquareIcon,
   MicIcon,
@@ -427,6 +428,14 @@ export const executionNodes: NodeTypeOption[] = [
     description: "Filtra leads com base em critérios",
     icon: FunnelIcon,
   },
+  {
+    type: NodeType.SEI_ACTION,
+    category: "execution",
+    label: "Consultar processo SEI",
+    description:
+      "Sincroniza o processo vinculado e disponibiliza protocolo, andamento e link para os próximos nós",
+    icon: LandmarkIcon,
+  },
 
   // ─── Adicionar Lead no App ─────────────────────────────────────────────
   // 7 actions agrupadas no NodeSelector como sub-categoria. Cada uma cria
@@ -493,7 +502,7 @@ export const executionNodes: NodeTypeOption[] = [
     type: NodeType.SEND_NASA_ROUTE,
     category: "execution",
     group: "send-to-app",
-    label: "Enviar Curso NASA Route",
+    label: "Enviar Curso ÓRBITA Route",
     description: "Envia link do curso (matrícula direta se free, checkout se pago)",
     icon: GraduationCapIcon,
   },

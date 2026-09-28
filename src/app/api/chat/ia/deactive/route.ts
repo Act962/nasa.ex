@@ -1,4 +1,5 @@
 import { dispatchAiFinished, broadcastAgentWorkflowEvent } from "@/inngest/utils";
+import { getLastLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -56,11 +57,15 @@ export async function POST(request: Request) {
     },
   });
 
+  const leadMessage =
+    workflow.length > 0 ? await getLastLeadMessage(lead.id) : null;
+
   await Promise.all(
     workflow.map((workflow) =>
       dispatchAiFinished({
         workflowId: workflow.id,
         lead,
+        leadMessage,
       }),
     ),
   );

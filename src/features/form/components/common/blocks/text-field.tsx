@@ -26,7 +26,10 @@ import { Switch } from "@/components/ui/switch";
 import { FormSettings } from "@/generated/prisma/client";
 import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
-import { usePrefillValue } from "@/features/form/context/form-prefill-context";
+import {
+  useResolvedInitialValue,
+  type LeadPrefillSource,
+} from "@/features/form/context/form-prefill-context";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "TextField";
@@ -36,6 +39,8 @@ type attributesType = {
   helperText: string;
   required: boolean;
   placeHolder: string;
+  /** Vínculo com o step de identificação (spec 0006). */
+  prefillFromLead?: LeadPrefillSource | null;
 };
 
 type propertiesValidateSchemaType = z.input<typeof propertiesValidateSchema>;
@@ -138,11 +143,18 @@ function TextFieldFormComponent({
     ? getContrastColor(settings.backgroundColor)
     : undefined;
 
-  // Pré-preenche com a resposta salva no fluxo de edição
-  // (`/formulario/[slug]/[responseId]`). No fluxo público fica undefined.
-  const prefill = usePrefillValue(block.id);
+  // Ordem de resolução (spec 0006, D-3): resposta salva → identificação →
+  // vazio. A salva vem primeiro porque é resposta real já dada; sobrescrevê-la
+  // apagaria trabalho do usuário em silêncio.
+  const { initialValue: prefill, identityValue } = useResolvedInitialValue(
+    block.id,
+    block.attributes.prefillFromLead ?? null,
+  );
   const [value, setValue] = useState(prefill ?? "");
   const [isError, setIsError] = useState(false);
+  // Enquanto o usuário não editar, o campo acompanha a identificação; depois
+  // congela (D-4). Esvaziar o campo conta como edição (CB-7).
+  const touchedRef = useRef(false);
 
   // Sincroniza valor pré-preenchido com o ref de respostas no mount,
   // pra que mesmo sem interação o blur já tenha registrado a resposta.
@@ -152,6 +164,16 @@ function TextFieldFormComponent({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Corrigir um typo no passo de identificação deve refletir aqui — desde que
+  // o campo ainda não tenha sido editado à mão.
+  useEffect(() => {
+    if (touchedRef.current) return;
+    if (identityValue === undefined) return;
+    setValue(identityValue);
+    handleBlur?.(block.id, { value: identityValue });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identityValue]);
 
   const validateField = (val: string) => {
     if (required) {
@@ -171,7 +193,10 @@ function TextFieldFormComponent({
       )}
       <AutoGrowTextarea
         value={value}
-        onChange={(v) => setValue(v)}
+        onChange={(v) => {
+          touchedRef.current = true;
+          setValue(v);
+        }}
         onBlur={(v) => {
           const isValid = validateField(v);
           setIsError(!isValid);

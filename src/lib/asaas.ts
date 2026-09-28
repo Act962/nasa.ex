@@ -12,7 +12,9 @@
 
 export const ASAAS_BASE = {
   production: "https://api.asaas.com/v3",
-  sandbox:    "https://sandbox.asaas.com/api/v3",
+  // `sandbox.asaas.com/api/v3` é o host legado: ainda responde, mas só este
+  // aparece na documentação atual.
+  sandbox:    "https://api-sandbox.asaas.com/v3",
 } as const;
 
 export type AsaasEnv = "production" | "sandbox";
@@ -48,29 +50,64 @@ async function asaasFetch<T>(
 // ─── Customer ─────────────────────────────────────────────────────────────────
 
 export interface AsaasCustomer {
-  id:    string;
-  name:  string;
-  email: string;
+  id:       string;
+  name:     string;
+  email:    string;
+  cpfCnpj?: string;
 }
 
+export interface FindOrCreateCustomerInput {
+  email: string;
+  name:  string;
+  /**
+   * CPF ou CNPJ, só dígitos. A API do Asaas o exige para CRIAR pagador — sem
+   * ele, só é possível reaproveitar alguém já cadastrado.
+   */
+  cpfCnpj:            string | null;
+  phone?:             string | null;
+  externalReference?: string | null;
+}
+
+/**
+ * Busca primeiro pelo documento, que é a identidade real do pagador no Asaas;
+ * o e-mail muda, o CPF não. Cai para o e-mail quando não há documento.
+ */
 export async function findOrCreateCustomer(
   apiKey: string,
   env: AsaasEnv,
-  email: string,
-  name: string,
+  input: FindOrCreateCustomerInput,
 ): Promise<AsaasCustomer> {
-  // Try to find existing
-  const list = await asaasFetch<{ data: AsaasCustomer[] }>(
+  const documentDigits = input.cpfCnpj?.replace(/\D/g, "") ?? null;
+
+  const query = documentDigits
+    ? `cpfCnpj=${documentDigits}`
+    : `email=${encodeURIComponent(input.email)}`;
+
+  const existing = await asaasFetch<{ data: AsaasCustomer[] }>(
     apiKey, env,
-    `/customers?email=${encodeURIComponent(email)}&limit=1`,
+    `/customers?${query}&limit=1`,
   );
+  if (existing.data.length > 0) return existing.data[0];
 
-  if (list.data.length > 0) return list.data[0];
+  if (!documentDigits) {
+    // Falha explícita em vez de um 400 cru vindo do Asaas: sem documento o
+    // cadastro é impossível, e a mensagem precisa dizer isso a quem lê o log.
+    throw new Error(
+      "Asaas exige CPF ou CNPJ para cadastrar um novo pagador.",
+    );
+  }
 
-  // Create new
   return asaasFetch<AsaasCustomer>(apiKey, env, "/customers", {
-    method:  "POST",
-    body:    JSON.stringify({ name, email }),
+    method: "POST",
+    body:   JSON.stringify({
+      name:     input.name,
+      email:    input.email,
+      cpfCnpj:  documentDigits,
+      ...(input.phone ? { mobilePhone: input.phone.replace(/\D/g, "") } : {}),
+      ...(input.externalReference
+        ? { externalReference: input.externalReference }
+        : {}),
+    }),
   });
 }
 
@@ -113,6 +150,75 @@ export async function createCharge(
       ...(input.callbackSuccessUrl ? { callback: { successUrl: input.callbackSuccessUrl } } : {}),
     }),
   });
+}
+
+/**
+ * Situação da cobrança. `CONFIRMED` é dinheiro pago mas ainda não liberado na
+ * conta; `RECEIVED` é saldo disponível. PIX pula o `CONFIRMED` e vai direto
+ * para `RECEIVED`.
+ */
+export type AsaasPaymentStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "RECEIVED"
+  | "RECEIVED_IN_CASH"
+  | "OVERDUE"
+  | "REFUNDED"
+  | "REFUND_REQUESTED"
+  | "CHARGEBACK_REQUESTED"
+  | "CHARGEBACK_DISPUTE"
+  | "AWAITING_CHARGEBACK_REVERSAL"
+  | "DELETED";
+
+export interface AsaasPayment {
+  id:                string;
+  status:            AsaasPaymentStatus;
+  billingType:       string;
+  /** Valor da cobrança em BRL (ex.: 1850.00). */
+  value:             number;
+  /** Líquido após a taxa do Asaas — informativo, não é o que o cliente pagou. */
+  netValue:          number | null;
+  externalReference: string | null;
+  customer:          string | null;
+  dueDate:           string | null;
+  paymentDate:       string | null;
+  invoiceUrl:        string | null;
+  /** Cobrança removida no painel do Asaas. */
+  deleted:           boolean;
+}
+
+/**
+ * Relê a cobrança na API. É a fonte de verdade do valor: o corpo do webhook
+ * pode vir enxuto (só o id) e, mesmo completo, é entrada não confiável.
+ */
+export async function getPayment(
+  apiKey: string,
+  env: AsaasEnv,
+  paymentId: string,
+): Promise<AsaasPayment> {
+  return asaasFetch<AsaasPayment>(apiKey, env, `/payments/${paymentId}`);
+}
+
+export interface AsaasPaymentList {
+  data:       AsaasPayment[];
+  hasMore:    boolean;
+  totalCount: number;
+}
+
+/**
+ * Busca cobranças pelo identificador do NOSSO lado. Serve para reencontrar uma
+ * cobrança cujo vínculo não chegou a ser gravado — o POST foi aceito, o update
+ * seguinte falhou, e o id ficou só no Asaas.
+ */
+export async function findPaymentsByExternalReference(
+  apiKey: string,
+  env: AsaasEnv,
+  externalReference: string,
+): Promise<AsaasPaymentList> {
+  return asaasFetch<AsaasPaymentList>(
+    apiKey, env,
+    `/payments?externalReference=${encodeURIComponent(externalReference)}&limit=10`,
+  );
 }
 
 // ─── PIX QR Code ─────────────────────────────────────────────────────────────

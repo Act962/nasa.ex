@@ -234,6 +234,112 @@ export interface SendTemplateInput {
   replyToWamid?: Wamid;
 }
 
+// ─── Marketing Messages API (Campanhas — disparo em massa) ───────────────
+
+/**
+ * Política de fallback do `/marketing_messages`.
+ *  - `CLOUD_API_FALLBACK` (default): cai pra Cloud API se o onboarding MM
+ *    não estiver completo.
+ *  - `STRICT`: sem fallback (erro se MM não disponível).
+ */
+export type MarketingMessageProductPolicy =
+  | "CLOUD_API_FALLBACK"
+  | "STRICT";
+
+/**
+ * Input canônico de envio via **Marketing Messages API**
+ * (`POST /{phone_number_id}/marketing_messages`). Só aceita templates de
+ * **marketing aprovados** — mesma forma de variáveis do `SendTemplateInput`.
+ *
+ * Usado pelo app de Campanhas (disparo em massa). Nesta fase é apenas
+ * contrato — o wiring real acontece na Fase 3.
+ */
+export interface SendMarketingMessageInput {
+  to: E164DigitsOnly;
+  templateName: string;
+  /** Código do idioma exato do template de marketing aprovado (ex.: `pt_BR`). */
+  languageCode: string;
+  /** Valores das variáveis do corpo (`{{1}}…{{n}}`), na ordem. */
+  bodyParameters?: string[];
+  /** Valores das variáveis do header de texto, na ordem. */
+  headerParameters?: string[];
+  /** Default `CLOUD_API_FALLBACK` quando omitido. */
+  productPolicy?: MarketingMessageProductPolicy;
+  /**
+   * Compartilha atividade da mensagem (ex.: read) pra otimização de entrega.
+   * Quando omitido, usa a config default da WABA.
+   */
+  messageActivitySharing?: boolean;
+}
+
+// ─── Criação de templates (Campanhas — Fase 2) ───────────────────────────
+
+/** Formato do header no momento da CRIAÇÃO do template. */
+export type TemplateHeaderFormat =
+  | "TEXT"
+  | "IMAGE"
+  | "VIDEO"
+  | "DOCUMENT"
+  | "LOCATION";
+
+/**
+ * Um componente do template no payload de **criação**
+ * (`POST /{waba_id}/message_templates`). Difere de `TemplateComponent`
+ * (leitura) porque os `example` seguem o shape exato exigido pela Meta:
+ *  - HEADER texto → `example.header_text: string[]`
+ *  - HEADER mídia → `example.header_handle: string[]` (handle do resumable upload)
+ *  - BODY → `example.body_text: string[][]` (uma linha de exemplos por conjunto)
+ *  - Botão URL dinâmico → `example: string[]`; COPY_CODE → `example: string`
+ */
+export interface CreateTemplateButton {
+  type: "QUICK_REPLY" | "URL" | "PHONE_NUMBER" | "COPY_CODE";
+  text?: string;
+  url?: string;
+  phone_number?: string;
+  example?: string[] | string;
+}
+
+export interface CreateTemplateComponent {
+  type: "HEADER" | "BODY" | "FOOTER" | "BUTTONS";
+  format?: TemplateHeaderFormat;
+  text?: string;
+  buttons?: CreateTemplateButton[];
+  example?: {
+    header_text?: string[];
+    header_handle?: string[];
+    body_text?: string[][];
+  };
+}
+
+/** Payload canônico de criação de um message template. */
+export interface CreateMessageTemplateRequest {
+  name: string;
+  /** Código do idioma (ex.: `pt_BR`, `en_US`). */
+  language: string;
+  category: MessageTemplateCategory;
+  components: CreateTemplateComponent[];
+}
+
+/** Resposta de `POST /{waba_id}/message_templates`. */
+export interface CreateMessageTemplateResponse {
+  id: string;
+  status: MessageTemplateStatus;
+  category: MessageTemplateCategory;
+}
+
+/**
+ * Resposta do 1º passo do Resumable Upload (`POST /{app_id}/uploads`).
+ * O `id` é a sessão de upload (`upload:...`) usada no 2º passo.
+ */
+export interface ResumableUploadSessionResponse {
+  id: string;
+}
+
+/** Resposta do 2º passo do Resumable Upload — `h` é o header handle. */
+export interface ResumableUploadFileResponse {
+  h: string;
+}
+
 // ─── Analytics (Fase 10) ─────────────────────────────────────────────────
 
 /** Granularidade aceita por `GET /{waba_id}?fields=analytics...`. */

@@ -78,7 +78,7 @@ export function NasaRouteHome() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-600 px-3 py-2 text-white shadow-md">
             <GraduationCap className="size-5" />
-            <span className="text-sm font-semibold">NASA Route</span>
+            <span className="text-sm font-semibold">ÓRBITA Route</span>
           </div>
           <div className="relative max-w-md flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -174,7 +174,7 @@ export function NasaRouteHome() {
           )}
 
           <CourseRow
-            title={isSearching ? "Resultados" : "Em alta no NASA Route"}
+            title={isSearching ? "Resultados" : "Em alta no ÓRBITA Route"}
             subtitle={
               isSearching
                 ? `${courses.length} ${courses.length === 1 ? "resultado" : "resultados"}`

@@ -39,7 +39,7 @@ export function useAppTemplate() {
 
       toast.success(
         marked
-          ? `${appTypeLabel} marcado como padrão NASA`
+          ? `${appTypeLabel} marcado como padrão ÓRBITA`
           : `${appTypeLabel} removido dos padrões`
       );
 

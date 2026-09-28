@@ -50,7 +50,7 @@ export const AstroBotOtpEmail = ({
               WhatsApp.
             </Text>
             <Text className="text-[#525252] text-[14px] leading-[22px] m-0 mb-6">
-              Use este código no NASA pra confirmar:
+              Use este código no ÓRBITA pra confirmar:
             </Text>
 
             <Section className="bg-[#f5f3ff] border border-solid border-[#ddd6fe] rounded-xl p-5 text-center my-4">
@@ -68,7 +68,7 @@ export const AstroBotOtpEmail = ({
             </Text>
 
             <Text className="text-[#a3a3a3] text-[11px] leading-5 text-center mt-8">
-              © N.A.S.A.
+              © ÓRBITA
             </Text>
           </Container>
         </Body>

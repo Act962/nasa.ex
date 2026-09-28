@@ -11,8 +11,11 @@ export const toggleFavoriteGlobal = base
   .use(requireOrgMiddleware)
   .input(z.object({ actionId: z.string() }))
   .handler(async ({ input, context, errors }) => {
-    const action = await prisma.action.findUnique({
-      where: { id: input.actionId },
+    const action = await prisma.action.findFirst({
+      where: {
+        id: input.actionId,
+        workspace: { organizationId: context.org.id },
+      },
       select: { id: true, workspaceId: true, columnId: true, isFavorited: true },
     });
     if (!action) throw errors.NOT_FOUND({ message: "Ação não encontrada" });

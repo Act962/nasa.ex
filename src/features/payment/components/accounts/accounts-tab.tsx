@@ -24,14 +24,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Landmark, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { Landmark, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { describePaymentError } from "../../lib/describe-error";
 import {
   usePaymentAccounts,
   useCreatePaymentAccount,
   useDeletePaymentAccount,
 } from "../../hooks/use-payment";
 import { ACCOUNT_TYPE_LABELS, formatCurrency } from "../../lib/format";
+import { BankPicker } from "./bank-picker";
+import { AccountBalanceDialog, type AdjustableAccount } from "./account-balance-dialog";
 
 type AccountType = "CHECKING" | "SAVINGS" | "CASH" | "DIGITAL";
 
@@ -39,18 +42,23 @@ export function AccountsTab() {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [bankName, setBankName] = useState("");
+  const [bankCode, setBankCode] = useState("");
   const [type, setType] = useState<AccountType>("CHECKING");
   const [balance, setBalance] = useState("");
+  const [accountToAdjust, setAccountToAdjust] = useState<AdjustableAccount | null>(null);
 
   const { data } = usePaymentAccounts();
   const createAccount = useCreatePaymentAccount();
   const removeAccount = useDeletePaymentAccount();
 
   const accounts = data?.accounts ?? [];
-  const totalBalance = accounts.reduce(
-    (sum, account) => sum + account.balance,
+  // `balance` é o saldo inicial digitado; `computedBalance` já soma as baixas
+  // registradas. Mostrar os dois é o que explica a diferença para o extrato.
+  const totalComputed = accounts.reduce(
+    (sum, account) => sum + account.computedBalance,
     0,
   );
+  const totalOpening = accounts.reduce((sum, account) => sum + account.balance, 0);
 
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
@@ -61,16 +69,18 @@ export function AccountsTab() {
       await createAccount.mutateAsync({
         name,
         bankName: bankName || undefined,
+        bankCode: bankCode || undefined,
         type,
         balance: balanceCents,
       });
       setShowForm(false);
       setName("");
       setBankName("");
+      setBankCode("");
       setBalance("");
       toast.success("Conta criada!");
-    } catch {
-      toast.error("Erro ao criar conta");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível criar a conta"));
     }
   }
 
@@ -78,15 +88,18 @@ export function AccountsTab() {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">Saldo total</p>
+          <p className="text-xs text-muted-foreground">Saldo calculado</p>
           <p
             className={`text-2xl font-black tabular-nums ${
-              totalBalance >= 0
+              totalComputed >= 0
                 ? "text-emerald-600 dark:text-emerald-400"
                 : "text-red-600 dark:text-red-400"
             }`}
           >
-            {formatCurrency(totalBalance)}
+            {formatCurrency(totalComputed)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Saldo inicial {formatCurrency(totalOpening)} + baixas registradas
           </p>
         </div>
         <Button
@@ -113,7 +126,9 @@ export function AccountsTab() {
                 <p className="truncate text-sm font-medium">{account.name}</p>
                 <p className="truncate text-xs text-muted-foreground">
                   {ACCOUNT_TYPE_LABELS[account.type]}
-                  {account.bankName ? ` • ${account.bankName}` : ""}
+                  {account.bankName
+                    ? ` • ${account.bankCode ? `${account.bankCode} ` : ""}${account.bankName}`
+                    : ""}
                 </p>
               </div>
             </div>
@@ -121,12 +136,12 @@ export function AccountsTab() {
               <div className="text-right">
                 <span
                   className={`text-sm font-semibold tabular-nums ${
-                    account.balance >= 0
+                    account.computedBalance >= 0
                       ? "text-emerald-600 dark:text-emerald-400"
                       : "text-red-600 dark:text-red-400"
                   }`}
                 >
-                  {formatCurrency(account.balance)}
+                  {formatCurrency(account.computedBalance)}
                 </span>
                 {account.isDefault && (
                   <Badge
@@ -136,6 +151,11 @@ export function AccountsTab() {
                     Padrão
                   </Badge>
                 )}
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  inicial {formatCurrency(account.balance)} · entrou{" "}
+                  {formatCurrency(account.settledIn)} · saiu{" "}
+                  {formatCurrency(account.settledOut)}
+                </p>
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -149,6 +169,12 @@ export function AccountsTab() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => setAccountToAdjust(account)}
+                    className="gap-2"
+                  >
+                    <Pencil className="size-3.5" /> Ajustar saldo
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => removeAccount.mutate({ id: account.id })}
                     className="gap-2 text-red-500"
@@ -172,6 +198,11 @@ export function AccountsTab() {
           </div>
         )}
       </div>
+
+      <AccountBalanceDialog
+        account={accountToAdjust}
+        onClose={() => setAccountToAdjust(null)}
+      />
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-sm">
@@ -208,10 +239,13 @@ export function AccountsTab() {
               </div>
               <div className="space-y-1.5">
                 <Label>Banco</Label>
-                <Input
-                  placeholder="Ex: Itaú"
-                  value={bankName}
-                  onChange={(event) => setBankName(event.target.value)}
+                <BankPicker
+                  bankName={bankName}
+                  bankCode={bankCode}
+                  onChange={(value) => {
+                    setBankName(value.bankName);
+                    setBankCode(value.bankCode);
+                  }}
                 />
               </div>
             </div>

@@ -11,6 +11,10 @@ import {
   type MetaCredentialsInput,
 } from "@/features/tracking-chat/lib/providers/meta-credentials";
 import { invalidateOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
+import {
+  ensureMetaWebhookSubscription,
+  type MetaWebhookSubscriptionResult,
+} from "@/features/tracking-chat/lib/providers/ensure-meta-webhook-subscription";
 import { invalidateTrackingContext } from "@/features/tracking-chat/lib/get-cached-tracking-context";
 import { createInstance } from "@/http/uazapi/admin/create-instance";
 import { configureWebhook } from "@/http/uazapi/configure-webhook";
@@ -357,6 +361,23 @@ export const setProviderSettings = base
     if (touchedAnyCredential) {
       invalidateOutboundProvider(input.trackingId);
     }
+
+    // Best-effort pós-commit: credencial já está salva; falha na Meta vira
+    // aviso na UI em vez de desfazer o save.
+    let webhookSubscription: MetaWebhookSubscriptionResult | null = null;
+    if (
+      touchedAnyCredential &&
+      updated.provider === WhatsAppProvider.META_CLOUD
+    ) {
+      webhookSubscription = await ensureMetaWebhookSubscription(updated);
+      if (webhookSubscription.status === "failed") {
+        console.warn("[provider-settings] meta_subscribe_app_failed", {
+          trackingId: input.trackingId,
+          instanceId: instance.id,
+          detail: webhookSubscription.detail,
+        });
+      }
+    }
     // Propaga a troca de provider pro gate do webhook Uazapi (#9) — sem
     // isso, o cache de tracking-context entregaria o provider antigo por
     // até 30s e o gate não bloquearia inbound duplicado imediatamente.
@@ -381,12 +402,14 @@ export const setProviderSettings = base
         provider: updated.provider,
         phoneNumber: instance.phoneNumber,
         changedFields: changedKeys,
+        webhookSubscription: webhookSubscription?.status ?? null,
       },
     }).catch(() => {});
 
     return {
       changed: true,
       provider: updated.provider,
+      webhookSubscription,
       meta: maskMetaCredentials({
         metaAccessToken: updated.metaAccessToken,
         metaPhoneNumberId: updated.metaPhoneNumberId,

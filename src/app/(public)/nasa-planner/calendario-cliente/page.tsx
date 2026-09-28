@@ -152,7 +152,7 @@ export default function PublicCalendarClientPage() {
         {/* Code input */}
         <div className="flex gap-2 mb-8">
           <Input
-            placeholder="Ex: NASA-ABCD12"
+            placeholder="Ex: ÓRBITA-ABCD12"
             value={inputCode}
             onChange={(e) => setInputCode(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}

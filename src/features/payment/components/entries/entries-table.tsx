@@ -21,8 +21,28 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Pencil, Search, Plus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  CheckCircle2,
+  Pencil,
+  Search,
+  Plus,
+  CalendarOff,
+  X,
+  Eye,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
+} from "lucide-react";
+import { useDebouncedValue } from "@/hooks/use-debounced";
+import {
+  PaymentPagination,
+  PaymentPaginationNav,
+  PAYMENT_PAGE_SIZE,
+  PAYMENT_SEARCH_DEBOUNCE_MS,
+} from "../shared/payment-pagination";
 import { EntryActionsMenu } from "./entry-actions-menu";
+import { EntryDetailsDialog } from "./entry-details-dialog";
 import { DunningAssignDialog } from "../dunning/dunning-assign-dialog";
 import { DunningHistoryDrawer } from "../dunning/dunning-history-drawer";
 import {
@@ -42,15 +62,40 @@ import {
 } from "../../lib/format";
 import { EntryForm } from "./entry-form";
 import { toast } from "sonner";
+import { describePaymentError } from "../../lib/describe-error";
 import { usePaymentAccounts } from "../../hooks/use-payment";
 import {
-  PaymentPeriodPicker,
-  currentMonthRange,
-} from "../shared/payment-period-picker";
+  usePaymentPeriodIso,
+  usePaymentCategoryFilter,
+} from "../../store/use-payment-filters-store";
 
 interface EntriesTableProps {
   type: "RECEIVABLE" | "PAYABLE";
 }
+
+const PENDING_STATUS_FILTERS = new Set(["PENDING", "PARTIAL", "OVERDUE"]);
+
+// Colunas ordenáveis: o id casa com o `orderBy` do procedure (`<campo>_asc|desc`).
+type SortField =
+  | "description"
+  | "contact"
+  | "amount"
+  | "dueDate"
+  | "status"
+  | "category";
+type SortDirection = "asc" | "desc";
+type EntriesOrderBy = `${SortField}_${SortDirection}`;
+
+const SORT_OPTIONS: Array<{ value: EntriesOrderBy; label: string }> = [
+  { value: "dueDate_asc", label: "Vencimento ↑" },
+  { value: "dueDate_desc", label: "Vencimento ↓" },
+  { value: "amount_desc", label: "Maior valor" },
+  { value: "amount_asc", label: "Menor valor" },
+  { value: "status_asc", label: "Status A–Z" },
+  { value: "description_asc", label: "Descrição A–Z" },
+  { value: "contact_asc", label: "Contato A–Z" },
+  { value: "category_asc", label: "Categoria A–Z" },
+];
 
 type PaymentEntryRow = NonNullable<
   ReturnType<typeof usePaymentEntries>["data"]
@@ -59,14 +104,21 @@ type PaymentEntryRow = NonNullable<
 export function EntriesTable({ type }: EntriesTableProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
-  const [period, setPeriod] = useState<{ from?: Date; to?: Date }>(
-    currentMonthRange(),
-  );
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<EntriesOrderBy>("dueDate_asc");
+  // Seleção múltipla pra somar valores no rodapé. Escopo = página atual: a lista
+  // é paginada no servidor, então ids de outras páginas não estão carregados.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Busca fora do período: o filtro de data do módulo começa no mês corrente,
+  // então procurar por um lançamento antigo não devolvia nada. Com o termo
+  // digitado, o usuário pode estender a busca para todo o histórico.
+  const [searchAllPeriods, setSearchAllPeriods] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [payDialog, setPayDialog] = useState<{ id: string; amount: number } | null>(null);
   const [payAmount, setPayAmount] = useState("");
   // Edição de valores + confirmação de cancelar (soft) / excluir (hard).
   const [editEntry, setEditEntry] = useState<PaymentEntryRow | null>(null);
+  const [detailsEntry, setDetailsEntry] = useState<PaymentEntryRow | null>(null);
   const [confirm, setConfirm] = useState<
     { kind: "cancel" | "delete"; id: string; name: string } | null
   >(null);
@@ -74,12 +126,56 @@ export function EntriesTable({ type }: EntriesTableProps) {
   const [assignDunning, setAssignDunning] = useState<{ id: string; ruleId: string | null; name: string } | null>(null);
   const [historyDunning, setHistoryDunning] = useState<{ id: string; name: string } | null>(null);
 
+  // Período em ISO (e não como `Date`): o seletor de `Date` devolve objetos
+  // novos a cada render, e o reset de página abaixo compara por valor.
+  const { dateFrom, dateTo } = usePaymentPeriodIso();
+  const categoryIds = usePaymentCategoryFilter();
+  const categoryKey = categoryIds?.join(",") ?? "";
+
+  // A query só dispara com o termo estabilizado — digitar "aluguel" fazia
+  // sete requisições ao banco, uma por tecla.
+  const debouncedSearch = useDebouncedValue(search.trim(), PAYMENT_SEARCH_DEBOUNCE_MS);
+  const isSearching = debouncedSearch.length > 0;
+  const ignorePeriod = isSearching && searchAllPeriods;
+
+  // Qualquer mudança de filtro volta pra primeira página: continuar na página
+  // 4 de um resultado que agora tem 1 página mostra a lista vazia. O ajuste é
+  // em render (e não num efeito) pra não gerar um render extra com a página
+  // antiga — é o padrão recomendado pra derivar estado de outro estado.
+  const filterKey = [
+    debouncedSearch,
+    statusFilter,
+    categoryKey,
+    dateFrom,
+    dateTo,
+    ignorePeriod,
+    sort,
+  ].join("|");
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (filterKey !== lastFilterKey) {
+    setLastFilterKey(filterKey);
+    setPage(1);
+  }
+
+  // A seleção vale só pra "página × filtro" visível; ao trocar de página ou
+  // filtro, limpamos pra não somar linhas que o usuário nem vê mais.
+  const selectionScopeKey = `${filterKey}|${page}`;
+  const [lastSelectionScope, setLastSelectionScope] = useState(selectionScopeKey);
+  if (selectionScopeKey !== lastSelectionScope) {
+    setLastSelectionScope(selectionScopeKey);
+    if (selectedIds.size > 0) setSelectedIds(new Set());
+  }
+
   const { data, isLoading } = usePaymentEntries({
     type,
-    search: search || undefined,
+    categoryIds,
+    search: debouncedSearch || undefined,
     status: (statusFilter as "PENDING_APPROVAL" | "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED") || undefined,
-    dateFrom: period.from?.toISOString(),
-    dateTo: period.to?.toISOString(),
+    dateFrom: ignorePeriod ? undefined : dateFrom,
+    dateTo: ignorePeriod ? undefined : dateTo,
+    orderBy: sort,
+    page,
+    perPage: PAYMENT_PAGE_SIZE,
   });
 
   const { data: accountsData } = usePaymentAccounts();
@@ -93,8 +189,8 @@ export function EntriesTable({ type }: EntriesTableProps) {
       await createEntry.mutateAsync(formData);
       setShowForm(false);
       toast.success(type === "RECEIVABLE" ? "Receita criada!" : "Despesa criada!");
-    } catch {
-      toast.error("Erro ao criar lançamento");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível criar o lançamento"));
     }
   }
 
@@ -107,8 +203,8 @@ export function EntriesTable({ type }: EntriesTableProps) {
       setPayDialog(null);
       setPayAmount("");
       toast.success("Pagamento registrado!");
-    } catch {
-      toast.error("Erro ao registrar pagamento");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível registrar o pagamento"));
     }
   }
 
@@ -116,8 +212,8 @@ export function EntriesTable({ type }: EntriesTableProps) {
     try {
       await deleteEntry.mutateAsync({ id });
       toast.success("Lançamento cancelado");
-    } catch {
-      toast.error("Erro ao cancelar");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível cancelar o lançamento"));
     }
   }
 
@@ -125,8 +221,8 @@ export function EntriesTable({ type }: EntriesTableProps) {
     try {
       await removeEntry.mutateAsync({ id });
       toast.success("Lançamento excluído");
-    } catch {
-      toast.error("Erro ao excluir");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível excluir o lançamento"));
     }
   }
 
@@ -151,20 +247,85 @@ export function EntriesTable({ type }: EntriesTableProps) {
   }
 
   const entries = data?.entries ?? [];
+  const totalEntries = data?.total ?? 0;
   const typeLabel = type === "RECEIVABLE" ? "Receita" : "Despesa";
   const color = type === "RECEIVABLE" ? "text-green-400" : "text-red-400";
 
-  const totalPending = entries
-    .filter((e) => ["PENDING", "PARTIAL", "OVERDUE"].includes(e.status))
-    .reduce((s, e) => s + e.amount, 0);
+  // ── Ordenação ──────────────────────────────────────────────────────────────
+  const [sortField, sortDirection] = sort.split("_") as [SortField, SortDirection];
+  function toggleSort(field: SortField) {
+    setSort((current) => {
+      const [currentField, currentDirection] = current.split("_") as [SortField, SortDirection];
+      if (currentField !== field) return `${field}_asc`;
+      return `${field}_${currentDirection === "asc" ? "desc" : "asc"}`;
+    });
+  }
+
+  // ── Seleção múltipla + soma ──────────────────────────────────────────────────
+  const selectedTotal = entries.reduce(
+    (sum, entry) => (selectedIds.has(entry.id) ? sum + entry.amount : sum),
+    0,
+  );
+  const selectedCount = entries.reduce(
+    (count, entry) => (selectedIds.has(entry.id) ? count + 1 : count),
+    0,
+  );
+  const allOnPageSelected = entries.length > 0 && entries.every((entry) => selectedIds.has(entry.id));
+  function toggleRowSelection(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function toggleSelectAll() {
+    setSelectedIds((current) => {
+      if (entries.every((entry) => current.has(entry.id))) return new Set();
+      return new Set(entries.map((entry) => entry.id));
+    });
+  }
+
+  // Vem agregado do servidor: somar só a página mostraria um "Total pendente"
+  // diferente a cada troca de página.
+  const totalPending = data?.totals.pendingAmount ?? 0;
+  const totalAmount = data?.totals.amount ?? 0;
+  const totalSettled = data?.totals.paidAmount ?? 0;
+
+  // O cabeçalho segue o filtro de status. Antes mostrava "Total pendente"
+  // fixo: com o filtro "Pago" a interseção entre PAID e os status pendentes é
+  // vazia, e a tela exibia R$ 0,00 como se nada tivesse sido recebido.
+  const settledLabel = type === "RECEIVABLE" ? "Total recebido" : "Total pago";
+  const summaryTotals =
+    statusFilter === ""
+      ? [
+          { label: "Total pendente", value: totalPending },
+          { label: settledLabel, value: totalSettled },
+        ]
+      : statusFilter === "PAID"
+        ? [{ label: settledLabel, value: totalSettled }]
+        : PENDING_STATUS_FILTERS.has(statusFilter)
+          ? [{ label: "Total pendente", value: totalPending }]
+          : [{ label: "Total do filtro", value: totalAmount }];
+
+  // Sem resultado durante uma busca restrita ao período, o motivo mais provável
+  // é o próprio período — o vazio precisa dizer isso, não só "não encontrado".
+  const emptyMessage =
+    isSearching && !searchAllPeriods
+      ? "Nada encontrado no período selecionado — use \"Buscar em todo o histórico\"."
+      : "Nenhum lançamento encontrado";
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">Total pendente</p>
-          <p className={`text-2xl font-black ${color}`}>{formatCurrency(totalPending)}</p>
+        <div className="flex min-w-0 flex-wrap gap-x-6 gap-y-2">
+          {summaryTotals.map((resumo) => (
+            <div key={resumo.label} className="min-w-0">
+              <p className="text-xs text-muted-foreground">{resumo.label}</p>
+              <p className={`text-2xl font-black ${color}`}>{formatCurrency(resumo.value)}</p>
+            </div>
+          ))}
         </div>
         <Button
           onClick={() => setShowForm(true)}
@@ -180,11 +341,21 @@ export function EntriesTable({ type }: EntriesTableProps) {
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            className="h-9 pl-9 text-sm"
-            placeholder="Buscar..."
+            className="h-9 pl-9 pr-8 text-sm"
+            placeholder="Buscar descrição, contato, documento..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              aria-label="Limpar busca"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
@@ -197,13 +368,46 @@ export function EntriesTable({ type }: EntriesTableProps) {
               <option key={k} value={k}>{v}</option>
             ))}
           </select>
-          <PaymentPeriodPicker
-            from={period.from}
-            to={period.to}
-            onChange={setPeriod}
-            triggerClassName="h-9 flex-1 justify-center sm:flex-none sm:justify-start"
-          />
+
+          <select
+            className="h-9 flex-1 min-w-36 rounded-lg border border-border bg-muted px-2.5 text-xs focus:outline-none sm:flex-none"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as EntriesOrderBy)}
+            aria-label="Ordenar"
+            title="Ordenar lançamentos"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                Ordenar: {option.label}
+              </option>
+            ))}
+          </select>
+
+          {isSearching && (
+            <Button
+              type="button"
+              variant={searchAllPeriods ? "secondary" : "outline"}
+              size="sm"
+              className="h-9 gap-1.5 text-xs"
+              onClick={() => setSearchAllPeriods((current) => !current)}
+              title="Procura também fora do período selecionado na barra de filtros"
+            >
+              <CalendarOff className="size-3.5" />
+              {searchAllPeriods ? "Todo o histórico" : "Buscar em todo o histórico"}
+            </Button>
+          )}
         </div>
+
+        {/* Mesma navegação do rodapé, pra não precisar rolar a lista inteira
+            só pra virar de página. */}
+        <PaymentPaginationNav
+          page={page}
+          total={totalEntries}
+          perPage={PAYMENT_PAGE_SIZE}
+          onPageChange={setPage}
+          isLoading={isLoading}
+          className="sm:ml-auto"
+        />
       </div>
 
       {/* Lista em cards — mobile. A tabela larga vira scroll horizontal e
@@ -215,15 +419,32 @@ export function EntriesTable({ type }: EntriesTableProps) {
           </p>
         ) : entries.length === 0 ? (
           <p className="py-12 text-center text-sm text-muted-foreground">
-            Nenhum lançamento encontrado
+            {emptyMessage}
           </p>
         ) : (
           entries.map((entry) => (
             <div
               key={entry.id}
-              className="rounded-xl border border-border/50 bg-card p-3"
+              role="button"
+              tabIndex={0}
+              onClick={() => setDetailsEntry(entry)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setDetailsEntry(entry);
+                }
+              }}
+              data-selected={selectedIds.has(entry.id) ? "true" : undefined}
+              className="cursor-pointer rounded-xl border border-border/50 bg-card p-3 transition-colors hover:bg-muted/20 data-[selected=true]:border-primary/40 data-[selected=true]:bg-primary/5"
             >
               <div className="flex items-start gap-2">
+                <div onClick={(event) => event.stopPropagation()} className="pt-0.5">
+                  <Checkbox
+                    checked={selectedIds.has(entry.id)}
+                    onCheckedChange={() => toggleRowSelection(entry.id)}
+                    aria-label={`Selecionar ${entry.description}`}
+                  />
+                </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium leading-tight">
                     {entry.description}
@@ -236,6 +457,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
                       : ""}
                   </p>
                 </div>
+                <div onClick={(event) => event.stopPropagation()}>
                 <EntryActionsMenu
                   entry={entry}
                   onPay={() => openPayDialog(entry)}
@@ -252,6 +474,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
                   }
                   className="-mr-1 shrink-0"
                 />
+                </div>
               </div>
 
               <div className="mt-2.5 flex items-end justify-between gap-2 border-t pt-2.5">
@@ -311,28 +534,47 @@ export function EntriesTable({ type }: EntriesTableProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border/50 bg-muted/30">
-                <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Descrição</th>
-                <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Contato</th>
-                <th className="text-right px-4 py-3 text-xs text-muted-foreground font-medium">Valor</th>
-                <th className="text-center px-4 py-3 text-xs text-muted-foreground font-medium">Vencimento</th>
-                <th className="text-center px-4 py-3 text-xs text-muted-foreground font-medium">Status</th>
-                <th className="text-center px-4 py-3 text-xs text-muted-foreground font-medium">Categoria</th>
+                <th className="w-10 px-4 py-3">
+                  <Checkbox
+                    checked={allOnPageSelected}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Selecionar todos os lançamentos da página"
+                  />
+                </th>
+                <SortHeader field="description" label="Descrição" align="left" activeField={sortField} direction={sortDirection} onToggle={toggleSort} />
+                <SortHeader field="contact" label="Contato" align="left" activeField={sortField} direction={sortDirection} onToggle={toggleSort} />
+                <SortHeader field="amount" label="Valor" align="right" activeField={sortField} direction={sortDirection} onToggle={toggleSort} />
+                <SortHeader field="dueDate" label="Vencimento" align="center" activeField={sortField} direction={sortDirection} onToggle={toggleSort} />
+                <SortHeader field="status" label="Status" align="center" activeField={sortField} direction={sortDirection} onToggle={toggleSort} />
+                <SortHeader field="category" label="Categoria" align="center" activeField={sortField} direction={sortDirection} onToggle={toggleSort} />
                 <th className="w-10" />
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-muted-foreground text-sm">Carregando...</td>
+                  <td colSpan={8} className="py-12 text-center text-muted-foreground text-sm">Carregando...</td>
                 </tr>
               ) : entries.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-muted-foreground text-sm">
-                    Nenhum lançamento encontrado
+                  <td colSpan={8} className="py-12 text-center text-muted-foreground text-sm">
+                    {emptyMessage}
                   </td>
                 </tr>
               ) : entries.map((entry) => (
-                <tr key={entry.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                <tr
+                  key={entry.id}
+                  onClick={() => setDetailsEntry(entry)}
+                  data-selected={selectedIds.has(entry.id) ? "true" : undefined}
+                  className="cursor-pointer border-b border-border/30 hover:bg-muted/20 transition-colors data-[selected=true]:bg-primary/5"
+                >
+                  <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(entry.id)}
+                      onCheckedChange={() => toggleRowSelection(entry.id)}
+                      aria-label={`Selecionar ${entry.description}`}
+                    />
+                  </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-sm leading-tight">{entry.description}</div>
                     {entry.installmentTotal && (
@@ -366,7 +608,19 @@ export function EntriesTable({ type }: EntriesTableProps) {
                   <td className="px-4 py-3 text-center text-muted-foreground text-xs">
                     {entry.category?.name ?? "—"}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-0.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-muted-foreground hover:text-foreground"
+                      aria-label={`Ver detalhes de ${entry.description}`}
+                      title="Ver detalhes"
+                      onClick={() => setDetailsEntry(entry)}
+                    >
+                      <Eye className="size-4" />
+                    </Button>
                     <EntryActionsMenu
                       entry={entry}
                       onPay={() => openPayDialog(entry)}
@@ -382,6 +636,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
                         setConfirm({ kind: "delete", id: entry.id, name: entry.description })
                       }
                     />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -390,15 +645,47 @@ export function EntriesTable({ type }: EntriesTableProps) {
         </div>
       </div>
 
-      {/* Total */}
-      {entries.length > 0 && (
-        <div className="flex justify-between text-sm px-1">
-          <span className="text-muted-foreground">{data?.total ?? entries.length} lançamentos</span>
+      {/* Barra de seleção — soma dos lançamentos marcados na página */}
+      {selectedCount > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+          <div className="flex items-center gap-3">
+            <span className="font-medium">
+              {selectedCount} selecionado{selectedCount === 1 ? "" : "s"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+            >
+              Limpar
+            </button>
+          </div>
           <span className="font-semibold">
-            Total: <span className={color}>{formatCurrency(entries.reduce((s, e) => s + e.amount, 0))}</span>
+            Total selecionado:{" "}
+            <span className={color}>{formatCurrency(selectedTotal)}</span>
           </span>
         </div>
       )}
+
+      {/* Total do filtro + navegação entre páginas */}
+      <div className="space-y-2">
+        {entries.length > 0 && (
+          <div className="flex justify-end px-1 text-sm">
+            <span className="font-semibold">
+              Total do filtro:{" "}
+              <span className={color}>{formatCurrency(totalAmount)}</span>
+            </span>
+          </div>
+        )}
+        <PaymentPagination
+          page={page}
+          total={totalEntries}
+          perPage={PAYMENT_PAGE_SIZE}
+          onPageChange={setPage}
+          itemLabel="lançamento"
+          isLoading={isLoading}
+        />
+      </div>
 
       {/* Create Entry Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
@@ -480,6 +767,13 @@ export function EntriesTable({ type }: EntriesTableProps) {
       {/* Editar lançamento */}
       <EntryEditDialog entry={editEntry} onClose={() => setEditEntry(null)} />
 
+      <EntryDetailsDialog
+        entry={detailsEntry}
+        onOpenChange={(open) => {
+          if (!open) setDetailsEntry(null);
+        }}
+      />
+
       {/* Confirmação de cancelar (soft) / excluir (hard) */}
       <AlertDialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}>
         <AlertDialogContent>
@@ -520,5 +814,39 @@ export function EntriesTable({ type }: EntriesTableProps) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function SortHeader({
+  field,
+  label,
+  align,
+  activeField,
+  direction,
+  onToggle,
+}: {
+  field: SortField;
+  label: string;
+  align: "left" | "right" | "center";
+  activeField: SortField;
+  direction: SortDirection;
+  onToggle: (field: SortField) => void;
+}) {
+  const isActive = activeField === field;
+  const alignClass =
+    align === "right" ? "justify-end text-right" : align === "center" ? "justify-center text-center" : "justify-start text-left";
+  const Icon = !isActive ? ChevronsUpDown : direction === "asc" ? ChevronUp : ChevronDown;
+  return (
+    <th className={`px-4 py-3 text-xs font-medium text-muted-foreground ${align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"}`}>
+      <button
+        type="button"
+        onClick={() => onToggle(field)}
+        className={`inline-flex w-full items-center gap-1 hover:text-foreground ${alignClass} ${isActive ? "text-foreground" : ""}`}
+        title={`Ordenar por ${label}`}
+      >
+        <span>{label}</span>
+        <Icon className={`size-3.5 shrink-0 ${isActive ? "opacity-100" : "opacity-40"}`} />
+      </button>
+    </th>
   );
 }

@@ -199,7 +199,7 @@ export const redeemCoursePurchase = base
               type: StarTransactionType.WELCOME_BONUS,
               amount: WELCOME_BONUS,
               balanceAfter: orgRow.starsBalance,
-              description: "🎉 Bônus de boas-vindas ao NASA",
+              description: "🎉 Bônus de boas-vindas ao ÓRBITA",
             },
           });
         }

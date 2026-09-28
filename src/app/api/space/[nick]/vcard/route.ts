@@ -68,8 +68,8 @@ export async function GET(
   }
   if (logo) lines.push(`PHOTO;VALUE=URI:${esc(logo)}`);
 
-  lines.push(`CATEGORIES:NASA,Spacehome`);
-  lines.push(`X-NASA-NICK:${esc(nick)}`);
+  lines.push(`CATEGORIES:ÓRBITA,Spacehome`);
+  lines.push(`X-ÓRBITA-NICK:${esc(nick)}`);
   lines.push("END:VCARD");
 
   const vcard = lines.join("\r\n") + "\r\n";

@@ -16,6 +16,7 @@ import {
   Check,
   Eye,
   Link2,
+  Lock,
   Pencil,
   PlusCircle,
   X,
@@ -206,6 +207,10 @@ type ResponseRow = {
   label: string | null;
   labelManuallyEdited: boolean;
   state: FormResponseState;
+  /** Spec 0005 — resolvido no servidor; a UI não re-deriva a regra. */
+  canEdit: boolean;
+  editBlockedReason: string | null;
+  createdBy: { id: string; name: string; image: string | null } | null;
 };
 
 function ResponseCard({
@@ -285,17 +290,29 @@ function ResponseCard({
                   · sem título
                 </span>
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  setDraft(response.label ?? "");
-                  setEditing(true);
-                }}
-                className="text-muted-foreground hover:text-foreground"
-                title="Editar título"
-              >
-                <Pencil className="size-3.5" />
-              </button>
+              {response.canEdit ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft(response.label ?? "");
+                    setEditing(true);
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
+                  title="Editar título"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+              ) : (
+                <span
+                  className="text-muted-foreground/70"
+                  title={
+                    response.editBlockedReason ??
+                    "Você não pode editar esta resposta"
+                  }
+                >
+                  <Lock className="size-3.5" />
+                </span>
+              )}
             </>
           ) : (
             <span className="inline-flex items-center gap-1">

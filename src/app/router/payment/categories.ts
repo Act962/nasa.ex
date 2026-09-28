@@ -36,7 +36,8 @@ export const listPaymentCategories = base
         orderBy: [{ type: "asc" }, { name: "asc" }],
       });
       return { categories };
-    } catch {
+    } catch (err) {
+      console.error("[payment/categories/listPaymentCategories]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -60,7 +61,8 @@ export const createPaymentCategory = base
         data: { ...input, organizationId: context.org.id },
       });
       return { category };
-    } catch {
+    } catch (err) {
+      console.error("[payment/categories/createPaymentCategory]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -79,14 +81,18 @@ export const updatePaymentCategory = base
   }))
   .output(z.object({ category: categoryShape }))
   .handler(async ({ input, context, errors }) => {
+    const exists = await prisma.paymentCategory.findFirst({
+      where: { id: input.id, organizationId: context.org.id },
+      select: { id: true },
+    });
+    if (!exists) throw errors.NOT_FOUND({ message: "Categoria não encontrada" });
+
     try {
       const { id, ...data } = input;
-      const category = await prisma.paymentCategory.update({
-        where: { id, organizationId: context.org.id },
-        data,
-      });
+      const category = await prisma.paymentCategory.update({ where: { id }, data });
       return { category };
-    } catch {
+    } catch (err) {
+      console.error("[payment/categories/update]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -99,13 +105,20 @@ export const deletePaymentCategory = base
   .input(z.object({ id: z.string() }))
   .output(z.object({ ok: z.boolean() }))
   .handler(async ({ input, context, errors }) => {
+    const exists = await prisma.paymentCategory.findFirst({
+      where: { id: input.id, organizationId: context.org.id },
+      select: { id: true },
+    });
+    if (!exists) throw errors.NOT_FOUND({ message: "Categoria não encontrada" });
+
     try {
       await prisma.paymentCategory.update({
-        where: { id: input.id, organizationId: context.org.id },
+        where: { id: input.id },
         data: { isActive: false },
       });
       return { ok: true };
-    } catch {
+    } catch (err) {
+      console.error("[payment/categories/delete]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });

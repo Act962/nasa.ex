@@ -3,6 +3,12 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { deriveResponseState } from "@/features/form/lib/form-response-state";
+import {
+  resolveResponseEditContext,
+  canEditFormResponse,
+  resolveEditPolicy,
+  EDIT_BLOCKED_MESSAGE,
+} from "@/features/form/lib/can-edit-response";
 
 /**
  * Lista todas as respostas de um lead pra UM formulário específico.
@@ -40,6 +46,7 @@ export const listResponsesOfForm = base
             name: true,
             organizationId: true,
             jsonBlock: true,
+            settings: { select: { responseEditPolicy: true } },
           },
         }),
         prisma.lead.findUnique({
@@ -47,6 +54,7 @@ export const listResponsesOfForm = base
           select: {
             id: true,
             name: true,
+            trackingId: true,
             tracking: { select: { organizationId: true } },
           },
         }),
@@ -79,20 +87,48 @@ export const listResponsesOfForm = base
           jsonResponse: true,
           label: true,
           labelManuallyEdited: true,
+          authorKind: true,
+          createdById: true,
+          createdBy: { select: { id: true, name: true, image: true } },
         },
       });
 
-      const enriched = responses.map((r) => ({
-        id: r.id,
-        createdAt: r.createdAt,
-        label: r.label,
-        labelManuallyEdited: r.labelManuallyEdited,
-        state: deriveResponseState({
-          jsonResponse: r.jsonResponse,
-          jsonBlock: form.jsonBlock,
-          createdAt: r.createdAt,
-        }),
-      }));
+      // Contexto resolvido UMA vez para a lista inteira; o predicado por linha
+      // é puro (spec 0005, D-8/RNF-4). Resolver o guard por resposta aqui seria
+      // N+1 — é exatamente o caso que motivou a separação.
+      const editContext = await resolveResponseEditContext(
+        userId,
+        form.organizationId,
+      );
+      const editPolicy = resolveEditPolicy(form.settings);
+
+      const enriched = responses.map((response) => {
+        const verdict = canEditFormResponse(
+          {
+            authorKind: response.authorKind,
+            createdById: response.createdById,
+            leadTrackingId: lead.trackingId,
+          },
+          editPolicy,
+          editContext,
+        );
+        return {
+          id: response.id,
+          createdAt: response.createdAt,
+          label: response.label,
+          labelManuallyEdited: response.labelManuallyEdited,
+          canEdit: verdict.canEdit,
+          editBlockedReason: verdict.reason
+            ? EDIT_BLOCKED_MESSAGE[verdict.reason]
+            : null,
+          createdBy: response.createdBy,
+          state: deriveResponseState({
+            jsonResponse: response.jsonResponse,
+            jsonBlock: form.jsonBlock,
+            createdAt: response.createdAt,
+          }),
+        };
+      });
 
       return {
         form: { id: form.id, name: form.name, jsonBlock: form.jsonBlock },

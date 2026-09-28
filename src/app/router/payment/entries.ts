@@ -5,13 +5,32 @@ import { requirePaymentAccess } from "@/app/middlewares/payment-access";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { randomUUID } from "crypto";
+import { isValidDateValue } from "@/features/payment/lib/dates";
+import { queryPaymentEntries } from "@/features/payment/server/entries/query-entries";
+import { createPaymentEntryRecord } from "@/features/payment/server/entries/create-entry";
+import { updatePaymentEntryRecord } from "@/features/payment/server/entries/update-entry";
+import { payPaymentEntryRecord } from "@/features/payment/server/entries/pay-entry";
+import { generateEntryInstallments } from "@/features/payment/server/entries/generate-installments";
+import { MAX_INSTALLMENTS } from "@/features/payment/schemas/entry-form-schema";
+import { formatCents } from "@/features/payment/server/entries/entry-include";
+
+// As procedures validam contrato e traduzem resultado em erro HTTP; a lógica
+// mora em `features/payment/server/entries/*`, compartilhada com o Astro.
+
+const entryStatusSchema = z.enum([
+  "PENDING_APPROVAL",
+  "PENDING",
+  "PARTIAL",
+  "PAID",
+  "OVERDUE",
+  "CANCELLED",
+]);
 
 const entryShape = z.object({
   id: z.string(),
   organizationId: z.string(),
   type: z.enum(["RECEIVABLE", "PAYABLE"]),
-  status: z.enum(["PENDING_APPROVAL", "PENDING", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"]),
+  status: entryStatusSchema,
   description: z.string(),
   amount: z.number(),
   paidAmount: z.number(),
@@ -54,21 +73,6 @@ const entryShape = z.object({
     .nullable(),
 });
 
-const entryInclude = {
-  category: { select: { id: true, name: true, type: true, color: true } },
-  contact: { select: { id: true, name: true, contactType: true } },
-  account: { select: { id: true, name: true, type: true } },
-  approvalRequest: {
-    select: {
-      id: true,
-      status: true,
-      requestedById: true,
-      requestedAt: true,
-      decidedAt: true,
-    },
-  },
-};
-
 export const listPaymentEntries = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
@@ -76,12 +80,15 @@ export const listPaymentEntries = base
   .route({ method: "GET", summary: "List payment entries", tags: ["Payment"] })
   .input(z.object({
     type: z.enum(["RECEIVABLE", "PAYABLE"]).optional(),
-    status: z.enum(["PENDING_APPROVAL", "PENDING", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"]).optional(),
+    status: entryStatusSchema.optional(),
     // Filtro por múltiplos statuses — usado pelo drill-down do dashboard
     // (ex.: "A Receber" = PENDING + PARTIAL + OVERDUE)
-    statuses: z.array(z.enum(["PENDING_APPROVAL", "PENDING", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"])).optional(),
+    statuses: z.array(entryStatusSchema).optional(),
     contactId: z.string().optional(),
     categoryId: z.string().optional(),
+    // Multi-seleção do filtro compartilhado do módulo. Convive com o
+    // `categoryId` singular, que outros callers (drill-down) ainda usam.
+    categoryIds: z.array(z.string()).optional(),
     accountId: z.string().optional(),
     // Filtros novos pra histórico de orçamentos do lead no chat.
     leadId: z.string().optional(),
@@ -92,57 +99,38 @@ export const listPaymentEntries = base
     paidFrom: z.string().optional(),
     paidTo: z.string().optional(),
     search: z.string().optional(),
+    orderBy: z
+      .enum([
+        "dueDate_asc", "dueDate_desc",
+        "amount_asc", "amount_desc",
+        "status_asc", "status_desc",
+        "paidAt_asc", "paidAt_desc",
+        "description_asc", "description_desc",
+        "createdAt_asc", "createdAt_desc",
+        "contact_asc", "contact_desc",
+        "category_asc", "category_desc",
+      ])
+      .optional(),
     page: z.number().default(1),
     perPage: z.number().default(50),
   }))
   .output(z.object({
     entries: z.array(entryShape),
     total: z.number(),
+    // Somatórios do filtro inteiro, não só da página devolvida — a tela mostra
+    // "Total pendente" no cabeçalho e somar apenas a página daria um número
+    // que muda ao virar de página.
+    totals: z.object({
+      amount: z.number(),
+      paidAmount: z.number(),
+      pendingAmount: z.number(),
+    }),
   }))
   .handler(async ({ input, context, errors }) => {
     try {
-      const where = {
-        organizationId: context.org.id,
-        ...(input.type ? { type: input.type } : {}),
-        ...(input.status ? { status: input.status } : {}),
-        ...(input.statuses && input.statuses.length > 0
-          ? { status: { in: input.statuses } }
-          : {}),
-        ...(input.contactId ? { contactId: input.contactId } : {}),
-        ...(input.categoryId ? { categoryId: input.categoryId } : {}),
-        ...(input.accountId ? { accountId: input.accountId } : {}),
-        ...(input.leadId ? { leadId: input.leadId } : {}),
-        ...(input.trackingId ? { trackingId: input.trackingId } : {}),
-        ...(input.search ? { description: { contains: input.search, mode: "insensitive" as const } } : {}),
-        ...(input.dateFrom || input.dateTo
-          ? {
-              dueDate: {
-                ...(input.dateFrom ? { gte: new Date(input.dateFrom) } : {}),
-                ...(input.dateTo ? { lte: new Date(input.dateTo) } : {}),
-              },
-            }
-          : {}),
-        ...(input.paidFrom || input.paidTo
-          ? {
-              paidAt: {
-                ...(input.paidFrom ? { gte: new Date(input.paidFrom) } : {}),
-                ...(input.paidTo ? { lte: new Date(input.paidTo) } : {}),
-              },
-            }
-          : {}),
-      };
-      const [entries, total] = await Promise.all([
-        prisma.paymentEntry.findMany({
-          where,
-          include: entryInclude,
-          orderBy: { dueDate: "asc" },
-          skip: (input.page - 1) * input.perPage,
-          take: input.perPage,
-        }),
-        prisma.paymentEntry.count({ where }),
-      ]);
-      return { entries, total };
-    } catch {
+      return await queryPaymentEntries({ organizationId: context.org.id, ...input });
+    } catch (err) {
+      console.error("[payment/entries list]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -183,7 +171,8 @@ export const listRecentEntryDescriptions = base
       }
 
       return { descriptions };
-    } catch {
+    } catch (err) {
+      console.error("[payment/entries recentDescriptions]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -195,9 +184,11 @@ export const createPaymentEntry = base
   .route({ method: "POST", summary: "Create payment entry", tags: ["Payment"] })
   .input(z.object({
     type: z.enum(["RECEIVABLE", "PAYABLE"]),
-    description: z.string(),
-    amount: z.number(),
-    dueDate: z.string(),
+    // Validado aqui além do formulário: a procedure também é chamada pelo
+    // painel de orçamento do chat, e um 500 genérico escondia a causa.
+    description: z.string().trim().min(1, "Informe uma descrição"),
+    amount: z.number().int().positive("O valor precisa ser maior que zero"),
+    dueDate: z.string().refine(isValidDateValue, "Data de vencimento inválida"),
     categoryId: z.string().optional(),
     costCenterId: z.string().optional(),
     contactId: z.string().optional(),
@@ -208,167 +199,30 @@ export const createPaymentEntry = base
     leadId: z.string().optional(),
     notes: z.string().optional(),
     documentNumber: z.string().optional(),
-    competenceDate: z.string().optional(),
-    installments: z.number().default(1),
+    competenceDate: z.string().refine(isValidDateValue, "Data de competência inválida").optional(),
+    installments: z.number().int().min(1).max(12).default(1),
     isRecurring: z.boolean().default(false),
     recurrenceType: z.string().optional(),
     // Chave S3/R2 do anexo original (PDF/imagem do orçamento) — preenchido
     // quando o usuário sobe um arquivo via "Adicione o Orçamento aqui" no
     // BudgetPanel. Permite ver/baixar o arquivo no histórico.
     attachmentUrl: z.string().optional(),
-    // ── Governança Fase 2 ──────────────────────────────────────────────────
-    // Toggle "Exigir aprovação" no form. Quando true (ou trigger automático
-    // do PaymentGovernanceConfig), a entry nasce em PENDING_APPROVAL e cria
-    // um PaymentApprovalRequest. Quando todas triggers falham, fluxo legado
-    // segue intacto (status PENDING como antes).
+    // Toggle "Exigir aprovação" no form (Governança Fase 2).
     requiresApproval: z.boolean().default(false),
     // Régua de cobrança (Fase 2) — só faz sentido em RECEIVABLE.
     dunningRuleId: z.string().optional(),
+    // Anexos já enviados pelo form (spec 0008). Vinculados depois do commit,
+    // a TODAS as parcelas criadas — ver `linkAttachmentsToEntries`.
+    attachmentIds: z.array(z.string()).optional(),
   }))
   .output(z.object({ entries: z.array(entryShape) }))
   .handler(async ({ input, context, errors }) => {
     try {
-      const { installments, dueDate, competenceDate, requiresApproval, dunningRuleId, ...rest } = input;
-      const groupId = installments > 1 ? randomUUID() : undefined;
-      const baseDate = new Date(dueDate);
-
-      // ── Decide se cada parcela nasce em PENDING_APPROVAL ────────────────
-      // O trigger considera a config global (PaymentGovernanceConfig) +
-      // flag manual + valor da PARCELA (não o total). Snapshot do threshold
-      // é gravado em `approvalThresholdAmountCents` pra preservar histórico.
-      const { shouldTriggerApproval } = await import(
-        "@/features/payment/server/approvals/should-trigger-approval"
-      );
-
-      const triggers = await Promise.all(
-        Array.from({ length: installments }).map(() =>
-          shouldTriggerApproval({
-            organizationId: context.org.id,
-            amountCents: input.amount,
-            type: input.type,
-            requiresApprovalManual: requiresApproval,
-          }),
-        ),
-      );
-
-      const data = Array.from({ length: installments }, (_, i) => {
-        const due = new Date(baseDate);
-        due.setMonth(due.getMonth() + i);
-        const trigger = triggers[i];
-        return {
-          ...rest,
-          organizationId: context.org.id,
-          createdById: context.user.id,
-          dueDate: due,
-          competenceDate: competenceDate ? new Date(competenceDate) : null,
-          installmentTotal: installments > 1 ? installments : null,
-          installmentCurrent: installments > 1 ? i + 1 : null,
-          installmentGroupId: groupId ?? null,
-          // Status ramificado: triggered → PENDING_APPROVAL; senão default PENDING.
-          status: trigger.triggered ? ("PENDING_APPROVAL" as const) : ("PENDING" as const),
-          requiresApproval: trigger.triggered,
-          approvalThresholdAmountCents: trigger.thresholdSnapshotCents,
-          // Régua de cobrança só pra RECEIVABLE; ignorada silenciosamente em PAYABLE.
-          dunningRuleId: input.type === "RECEIVABLE" ? (dunningRuleId ?? null) : null,
-        };
-      });
-
-      const entries = await prisma.$transaction(
-        data.map((d) => prisma.paymentEntry.create({ data: d, include: entryInclude }))
-      );
-
-      // ── Cria PaymentApprovalRequest pra cada parcela triggered ──────────
-      // Notifica aprovadores AGORA + agenda reminder event-driven (sem cron).
-      // try/catch isolado: se falhar, a entry continua existindo — o status
-      // PENDING_APPROVAL preserva o histórico pra retry manual.
-      const triggeredEntries = entries.filter(
-        (e) => e.status === "PENDING_APPROVAL",
-      );
-      if (triggeredEntries.length > 0) {
-        const [{ notifyApproversOfRequest }, { scheduleApprovalReminder }] = await Promise.all([
-          import("@/features/payment/server/approvals/notify-approvers"),
-          import("@/features/payment/server/dunning/schedule"),
-        ]);
-        // Lê config 1x (não dentro do loop) pra evitar N queries iguais.
-        const governance = await prisma.paymentGovernanceConfig.findUnique({
-          where:  { organizationId: context.org.id },
-          select: { notifyApproversAfterHours: true },
-        });
-        const reminderHours = governance?.notifyApproversAfterHours ?? 24;
-
-        await Promise.all(
-          triggeredEntries.map(async (entry) => {
-            try {
-              const request = await prisma.paymentApprovalRequest.create({
-                data: {
-                  organizationId: entry.organizationId,
-                  entryId: entry.id,
-                  requestedById: context.user.id,
-                },
-              });
-              await notifyApproversOfRequest({
-                organizationId: entry.organizationId,
-                requestId: request.id,
-                entryId: entry.id,
-                requestedById: context.user.id,
-                amount: entry.amount,
-                description: entry.description,
-                type: entry.type,
-              });
-              // Agenda reminder (Inngest dorme até a hora). Self-reschedule
-              // se ainda PENDING após disparo (até MAX_RETRIES no handler).
-              await scheduleApprovalReminder({
-                requestId:     request.id,
-                organizationId: entry.organizationId,
-                delayHours:    reminderHours,
-                retryCount:    0,
-              });
-            } catch (err) {
-              console.error(
-                "[payment/entries create] approval request side-effect failed:",
-                err,
-              );
-            }
-          }),
-        );
-      }
-
-      // ── Agenda eventos de dunning pra parcelas RECEIVABLE com régua ─────
-      // 1 evento Inngest por step (com `ts: dueDate + daysOffset`). Inngest
-      // dorme até o ts. Idempotência via dedup key + DB constraint no handler.
-      const receivablesWithRule = entries.filter(
-        (e) => e.type === "RECEIVABLE" && e.dunningRuleId,
-      );
-      if (receivablesWithRule.length > 0) {
-        const { scheduleDunningForEntry } = await import(
-          "@/features/payment/server/dunning/schedule"
-        );
-        await Promise.all(
-          receivablesWithRule.map((entry) =>
-            scheduleDunningForEntry(entry.id).catch((err) => {
-              console.error("[payment/entries create] dunning schedule failed:", err);
-            }),
-          ),
-        );
-      }
-
-      const totalAmount = entries.reduce((s, e) => s + e.amount, 0);
-      await logActivity({
+      const entries = await createPaymentEntryRecord({
         organizationId: context.org.id,
-        userId: context.user.id,
-        userName: context.user.name,
-        userEmail: context.user.email,
-        userImage: (context.user as any).image,
-        appSlug: "payment",
-        subAppSlug: "payment-entries",
-        featureKey: input.type === "RECEIVABLE" ? "payment.receivable.created" : "payment.payable.created",
-        action: input.type === "RECEIVABLE" ? "payment.receivable.created" : "payment.payable.created",
-        actionLabel: `${input.type === "RECEIVABLE" ? "Lançou recebimento" : "Lançou pagamento"} "${input.description}" (R$ ${totalAmount.toFixed(2)})`,
-        resource: input.description,
-        resourceId: entries[0]?.id,
-        metadata: { amount: totalAmount, installments, type: input.type },
+        actor: context.user,
+        input,
       });
-
       return { entries };
     } catch (err) {
       console.error("[payment/entries create]", err);
@@ -383,10 +237,10 @@ export const updatePaymentEntry = base
   .route({ method: "PATCH", summary: "Update payment entry", tags: ["Payment"] })
   .input(z.object({
     id: z.string(),
-    description: z.string().optional(),
-    amount: z.number().optional(),
-    dueDate: z.string().optional(),
-    status: z.enum(["PENDING_APPROVAL", "PENDING", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"]).optional(),
+    description: z.string().trim().min(1, "Informe uma descrição").optional(),
+    amount: z.number().int().positive("O valor precisa ser maior que zero").optional(),
+    dueDate: z.string().refine(isValidDateValue, "Data de vencimento inválida").optional(),
+    status: entryStatusSchema.optional(),
     paidAmount: z.number().optional(),
     paidAt: z.string().nullable().optional(),
     categoryId: z.string().nullable().optional(),
@@ -395,24 +249,62 @@ export const updatePaymentEntry = base
     accountId: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
     documentNumber: z.string().nullable().optional(),
+    installmentTotal: z.number().int().positive().nullable().optional(),
+    installmentCurrent: z.number().int().positive().nullable().optional(),
   }))
   .output(z.object({ entry: entryShape }))
   .handler(async ({ input, context, errors }) => {
+    const { id, ...patch } = input;
+    let result;
     try {
-      const { id, dueDate, paidAt, ...data } = input;
-      const entry = await prisma.paymentEntry.update({
-        where: { id, organizationId: context.org.id },
-        data: {
-          ...data,
-          ...(dueDate ? { dueDate: new Date(dueDate) } : {}),
-          ...(paidAt !== undefined ? { paidAt: paidAt ? new Date(paidAt) : null } : {}),
-        },
-        include: entryInclude,
+      result = await updatePaymentEntryRecord({
+        organizationId: context.org.id,
+        entryId: id,
+        patch,
       });
-      return { entry };
-    } catch {
+    } catch (err) {
+      console.error("[payment/entries update]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
+    // Sem isso, uma entry de outra organização (ou já excluída) caía no catch
+    // e virava "Something went wrong".
+    if (!result.ok) {
+      if (result.reason === "over_amount") {
+        throw errors.BAD_REQUEST({ message: result.message });
+      }
+      throw errors.NOT_FOUND({ message: result.message });
+    }
+    return { entry: result.entry };
+  });
+
+export const generatePaymentEntryInstallments = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("entries", "create"))
+  .route({ method: "POST", summary: "Generate the remaining installments", tags: ["Payment"] })
+  .input(z.object({
+    id: z.string(),
+    installmentTotal: z.number().int().min(2).max(MAX_INSTALLMENTS),
+  }))
+  .output(z.object({ createdCount: z.number(), installmentTotal: z.number() }))
+  .handler(async ({ input, context, errors }) => {
+    let result;
+    try {
+      result = await generateEntryInstallments({
+        organizationId: context.org.id,
+        actor: context.user,
+        entryId: input.id,
+        installmentTotal: input.installmentTotal,
+      });
+    } catch (err) {
+      console.error("[payment/entries generateInstallments]", err);
+      throw errors.INTERNAL_SERVER_ERROR;
+    }
+    if (!result.ok) {
+      if (result.reason === "not_found") throw errors.NOT_FOUND({ message: result.message });
+      throw errors.BAD_REQUEST({ message: result.message });
+    }
+    return { createdCount: result.createdCount, installmentTotal: result.installmentTotal };
   });
 
 export const payPaymentEntry = base
@@ -422,54 +314,33 @@ export const payPaymentEntry = base
   .route({ method: "POST", summary: "Pay payment entry", tags: ["Payment"] })
   .input(z.object({
     id: z.string(),
-    paidAmount: z.number(),
+    paidAmount: z.number().int().positive("O valor pago precisa ser maior que zero"),
     paidAt: z.string().optional(),
     accountId: z.string().optional(),
   }))
   .output(z.object({ entry: entryShape }))
   .handler(async ({ input, context, errors }) => {
+    let result;
     try {
-      const existing = await prisma.paymentEntry.findFirst({
-        where: { id: input.id, organizationId: context.org.id },
-      });
-      if (!existing) throw errors.NOT_FOUND;
-
-      const newPaid = existing.paidAmount + input.paidAmount;
-      const status = newPaid >= existing.amount ? "PAID" : "PARTIAL";
-
-      const entry = await prisma.paymentEntry.update({
-        where: { id: input.id },
-        data: {
-          paidAmount: newPaid,
-          status,
-          paidAt: input.paidAt ? new Date(input.paidAt) : new Date(),
-          ...(input.accountId ? { accountId: input.accountId } : {}),
-        },
-        include: entryInclude,
-      });
-
-      await logActivity({
+      result = await payPaymentEntryRecord({
         organizationId: context.org.id,
-        userId: context.user.id,
-        userName: context.user.name,
-        userEmail: context.user.email,
-        userImage: (context.user as any).image,
-        appSlug: "payment",
-        subAppSlug: "payment-entries",
-        featureKey: status === "PAID" ? "payment.entry.paid" : "payment.entry.partial",
-        action: status === "PAID" ? "payment.entry.paid" : "payment.entry.partial",
-        actionLabel: status === "PAID"
-          ? `Quitou "${entry.description}" (R$ ${input.paidAmount.toFixed(2)})`
-          : `Recebeu parcial em "${entry.description}" (R$ ${input.paidAmount.toFixed(2)})`,
-        resource: entry.description,
-        resourceId: entry.id,
-        metadata: { paidAmount: input.paidAmount, totalPaid: newPaid, totalAmount: existing.amount, type: existing.type },
+        actor: context.user,
+        entryId: input.id,
+        paidAmountCents: input.paidAmount,
+        paidAt: input.paidAt,
+        accountId: input.accountId,
       });
-
-      return { entry };
-    } catch {
+    } catch (err) {
+      console.error("[payment/entries pay]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
+    if (!result.ok) {
+      // Fora do try de propósito: o catch converteria em INTERNAL_SERVER_ERROR
+      // e o usuário veria "erro ao registrar" no lugar da causa real.
+      if (result.reason === "not_found") throw errors.NOT_FOUND({ message: result.message });
+      throw errors.BAD_REQUEST({ message: result.message });
+    }
+    return { entry: result.entry };
   });
 
 export const deletePaymentEntry = base
@@ -480,13 +351,25 @@ export const deletePaymentEntry = base
   .input(z.object({ id: z.string() }))
   .output(z.object({ ok: z.boolean() }))
   .handler(async ({ input, context, errors }) => {
+    const existing = await prisma.paymentEntry.findFirst({
+      where: { id: input.id, organizationId: context.org.id },
+      select: { id: true, status: true },
+    });
+    if (!existing) {
+      throw errors.NOT_FOUND({ message: "Lançamento não encontrado" });
+    }
+    if (existing.status === "CANCELLED") {
+      throw errors.BAD_REQUEST({ message: "Lançamento já está cancelado" });
+    }
+
     try {
       await prisma.paymentEntry.update({
-        where: { id: input.id, organizationId: context.org.id },
+        where: { id: input.id },
         data: { status: "CANCELLED" },
       });
       return { ok: true };
-    } catch {
+    } catch (err) {
+      console.error("[payment/entries cancel]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -506,7 +389,9 @@ export const removePaymentEntry = base
     const existing = await prisma.paymentEntry.findFirst({
       where: { id: input.id, organizationId: context.org.id },
     });
-    if (!existing) throw errors.NOT_FOUND;
+    if (!existing) {
+      throw errors.NOT_FOUND({ message: "Lançamento não encontrado" });
+    }
 
     try {
       await prisma.paymentEntry.delete({
@@ -518,19 +403,20 @@ export const removePaymentEntry = base
         userId: context.user.id,
         userName: context.user.name,
         userEmail: context.user.email,
-        userImage: (context.user as any).image,
+        userImage: (context.user as { image?: string | null }).image,
         appSlug: "payment",
         subAppSlug: "payment-entries",
         featureKey: "payment.entry.deleted",
         action: "payment.entry.deleted",
-        actionLabel: `Excluiu "${existing.description}" (R$ ${(existing.amount / 100).toFixed(2)})`,
+        actionLabel: `Excluiu "${existing.description}" (${formatCents(existing.amount)})`,
         resource: existing.description,
         resourceId: existing.id,
         metadata: { amount: existing.amount, type: existing.type },
       });
 
       return { ok: true };
-    } catch {
+    } catch (err) {
+      console.error("[payment/entries remove]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });

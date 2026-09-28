@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useMutation } from "@tanstack/react-query";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,11 +40,34 @@ const FormPrintButton = dynamic(
  *    (`/formulario/<slug>/<novoResponseId>`) pra que o consultor consiga
  *    voltar e continuar editando.
  */
+// `useSearchParams` exige um limite de Suspense acima na árvore (Next 16),
+// senão o build falha com `missing-suspense-with-csr-bailout`.
 export default function Page() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-screen">
+          <Spinner />
+        </div>
+      }
+    >
+      <NovaRespostaContent />
+    </Suspense>
+  );
+}
+
+function NovaRespostaContent() {
   const params = useParams<{ formId: string; leadId: string }>();
   const formId = params.formId;
   const leadId = params.leadId;
   const router = useRouter();
+  // Contexto da tarefa (O.S.) de onde o preenchimento foi aberto. Ausente =
+  // resposta avulsa do lead. Ver spec 0002, decisão D-4.
+  //
+  // O nome NÃO pode ser `actionId`: o modal-provider do layout da plataforma
+  // lê `?actionId=` via useQueryState e abriria o ViewActionModal por cima
+  // deste formulário.
+  const actionId = useSearchParams().get("fromAction") ?? undefined;
 
   const { form, isLoading: formLoading } = useQueryFormById({ formId });
   const { data: leadData, isLoading: leadLoading } = useQueryLead(leadId);
@@ -277,6 +300,7 @@ export default function Page() {
                   formId,
                   leadId,
                   response: responseJson,
+                  actionId,
                 });
                 const newId = (
                   res as { response?: { id?: string } } | null | undefined
@@ -317,6 +341,7 @@ export default function Page() {
                   leadId,
                   response: responseJson,
                   isFinal: true,
+                  actionId,
                 });
                 toast.success("Resposta enviada");
                 const newResponseId = (

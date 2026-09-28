@@ -1,3 +1,4 @@
+import { resolveWorkspaceTrackingId } from "@/features/actions/lib/workspace-tracking";
 import prisma from "@/lib/prisma";
 import { tool } from "ai";
 import { revalidatePath } from "next/cache";
@@ -16,6 +17,8 @@ export const createActionTool = (userId: string, orgId: string) =>
     execute: async ({ title, content, workspaceId, columnId }) => {
       console.log("CREATE CREATE ACTION TOOL CALL");
       try {
+        const trackingId = await resolveWorkspaceTrackingId(workspaceId);
+
         const action = await prisma.action.create({
           data: {
             user: {
@@ -23,6 +26,9 @@ export const createActionTool = (userId: string, orgId: string) =>
                 id: userId,
               },
             },
+            ...(trackingId
+              ? { tracking: { connect: { id: trackingId } } }
+              : {}),
             // organizationId é OBRIGATÓRIO pra ação aparecer no calendário —
             // `getWorkspaceCalendar` filtra por org.
             organization: {

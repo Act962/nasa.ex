@@ -7,17 +7,27 @@ import { toast } from "sonner";
 
 const LOCAL_DRAFT_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
+type SessionContact = {
+  name?: string;
+  phone?: string;
+  ddi?: string;
+  email?: string;
+};
+
 type PendingLocalDraft = {
   fv: Record<string, FieldValue>;
-  contact?: { phone?: string; ddi?: string; email?: string };
+  contact?: SessionContact;
+  responseId?: string | null;
 };
 
 type UseFormDraftParams = {
   formId: string;
   initialResponseValues?: Record<string, FieldValue>;
   showLeadFields: boolean;
+  /** Toggle `resumeSession` do form. Off = nunca persiste nem restaura sessão. */
+  resumeEnabled: boolean;
   formValsRef: React.RefObject<Record<string, FieldValue>>;
-  leadInfo: { phone: string; email: string };
+  leadInfo: { name: string; phone: string; email: string };
   selectedCountryDdi: string;
   showPhone: boolean;
   showEmail: boolean;
@@ -27,6 +37,7 @@ export function useFormDraft({
   formId,
   initialResponseValues,
   showLeadFields,
+  resumeEnabled,
   formValsRef,
   leadInfo,
   selectedCountryDdi,
@@ -35,6 +46,11 @@ export function useFormDraft({
 }: UseFormDraftParams) {
   const responseIdStorageKey = `nasa.form.draft.${formId}`;
   const localStorageDraftKey = `nasa.form.ls.${formId}`;
+
+  // Sem lead fields não há identidade pra validar no restore; com a retomada
+  // desligada o form nunca guarda sessão. Ambos os casos: não persiste, não
+  // restaura, e limpa qualquer rascunho legado na montagem.
+  const persistDrafts = showLeadFields && resumeEnabled;
 
   const responseIdRef = useRef<string | null>(
     typeof window !== "undefined" && !initialResponseValues
@@ -47,8 +63,7 @@ export function useFormDraft({
   const saveDraftToLocalStorage = () => {
     if (typeof window === "undefined") return;
     if (initialResponseValues) return;
-    // Sem etapa de lead não há telefone/e-mail pra validar identidade no restore — nunca persiste.
-    if (!showLeadFields) return;
+    if (!persistDrafts) return;
     try {
       localStorage.setItem(
         localStorageDraftKey,
@@ -56,10 +71,15 @@ export function useFormDraft({
           fv: formValsRef.current,
           savedAt: Date.now(),
           contact: {
+            name: leadInfo.name,
             phone: leadInfo.phone,
             ddi: selectedCountryDdi,
             email: leadInfo.email,
           },
+          // Persistido no localStorage (não só sessionStorage) para sobreviver
+          // ao descarte da aba no mobile ao abrir a câmera — assim retomamos o
+          // MESMO rascunho no servidor em vez de criar um novo.
+          responseId: responseIdRef.current,
         }),
       );
     } catch {
@@ -97,8 +117,8 @@ export function useFormDraft({
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (initialResponseValues) return;
-    if (!showLeadFields) {
-      // Sem telefone/e-mail pra validar identidade: nunca restaura — e descarta
+    if (!persistDrafts) {
+      // Retomada desligada (ou sem lead fields): nunca restaura — e descarta
       // qualquer rascunho legado salvo antes dessa trava existir.
       try {
         localStorage.removeItem(localStorageDraftKey);
@@ -114,7 +134,8 @@ export function useFormDraft({
         fv?: Record<string, FieldValue>;
         savedAt?: number;
         submitted?: boolean;
-        contact?: { phone?: string; ddi?: string; email?: string };
+        contact?: SessionContact;
+        responseId?: string | null;
       };
       if (!localDraft.savedAt) return;
       // Formulário já finalizado: tombstone gravado pelo markDraftAsSubmitted.
@@ -123,14 +144,17 @@ export function useFormDraft({
         localStorage.removeItem(localStorageDraftKey);
         return;
       }
-      if (!localDraft.fv) return;
       if (Date.now() - localDraft.savedAt > LOCAL_DRAFT_EXPIRY_MS) {
         localStorage.removeItem(localStorageDraftKey);
         return;
       }
+      // Sem contato não há como retomar o step 1 — ignora. `fv` pode estar
+      // vazio (passou o step 1 e saiu antes de preencher qualquer campo).
+      if (!localDraft.contact) return;
       pendingLocalDraftRef.current = {
-        fv: localDraft.fv,
+        fv: localDraft.fv ?? {},
         contact: localDraft.contact,
+        responseId: localDraft.responseId ?? null,
       };
     } catch {
       /* JSON inválido ou localStorage indisponível — ignorar */
@@ -230,6 +254,9 @@ export function useFormDraft({
     } catch {
       /* private mode / quota — ignore */
     }
+    // Persiste o responseId também na sessão do localStorage (sobrevive ao
+    // descarte da aba no mobile), pra retomar o mesmo rascunho no servidor.
+    saveDraftToLocalStorage();
   };
 
   const clearResponseId = () => {
@@ -238,6 +265,18 @@ export function useFormDraft({
       sessionStorage.removeItem(responseIdStorageKey);
     } catch {
       /* ignore */
+    }
+  };
+
+  // Restaura o responseId no resume SEM re-salvar a sessão (diferente de
+  // `persistResponseId`): no resume o `leadInfo` ainda não foi hidratado, então
+  // um save aqui gravaria contato vazio por cima da sessão boa.
+  const hydrateResponseId = (responseId: string) => {
+    responseIdRef.current = responseId;
+    try {
+      sessionStorage.setItem(responseIdStorageKey, responseId);
+    } catch {
+      /* private mode / quota — ignore */
     }
   };
 
@@ -250,6 +289,7 @@ export function useFormDraft({
     applyPendingLocalDraft,
     clearSessionDraft,
     persistResponseId,
+    hydrateResponseId,
     clearResponseId,
   };
 }

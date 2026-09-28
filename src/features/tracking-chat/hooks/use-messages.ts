@@ -411,6 +411,80 @@ export function useMutationFileMessage({
   );
 }
 
+/**
+ * Envio de vídeo (spec 0004). Só é acionado por um Script com vídeo
+ * anexado — o composer não tem upload de vídeo avulso.
+ */
+export function useMutationVideoMessage({
+  conversationId,
+  lead,
+}: {
+  conversationId: string;
+  lead: { id: string; name: string; phone: string | null };
+}) {
+  const queryClient = useQueryClient();
+  const { data: session } = authClient.useSession();
+
+  return useMutation(
+    orpc.message.createWithVideo.mutationOptions({
+      onMutate: async (data) => {
+        await queryClient.cancelQueries({
+          queryKey: ["message.list", conversationId],
+        });
+        const previousData = queryClient.getQueryData<InfiniteMessages>([
+          "message.list",
+          conversationId,
+        ]);
+
+        const tempId = `optimistic-${crypto.randomUUID()}`;
+
+        const optimisticMessage: Message = {
+          id: tempId,
+          messageId: tempId,
+          body: data.body ?? null,
+          createdAt: new Date(),
+          fromMe: true,
+          mediaUrl: data.mediaUrl,
+          mediaType: "video",
+          mimetype: data.mimetype,
+          fileName: data.fileName,
+          status: MessageStatus.PENDING,
+          senderName: session?.user.name,
+          conversation: { lead: { id: lead.id, name: lead.name } },
+          quotedMessage: null,
+        };
+
+        queryClient.setQueryData(["message.list", conversationId], (old: any) =>
+          updateCacheWithOptimisticMessage(old, optimisticMessage),
+        );
+
+        return { previousData, tempId };
+      },
+      onSuccess: (data, _variables, context) => {
+        queryClient.setQueryData<InfiniteMessages>(
+          ["message.list", conversationId],
+          (old) =>
+            updateCacheMessageStatus(
+              old,
+              context?.tempId,
+              data.message as Message,
+            ),
+        );
+        markConversationLeadActive(queryClient, lead.id);
+      },
+      onError(err, _variables, context) {
+        if (context?.previousData) {
+          queryClient.setQueryData(
+            ["message.list", conversationId],
+            context.previousData,
+          );
+        }
+        showSendMessageError(err);
+      },
+    }),
+  );
+}
+
 export function useMutationAudioMessage({
   conversationId,
   lead,

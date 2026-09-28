@@ -62,7 +62,7 @@ export function CertificateDetailPage({
       if (navigator.share) {
         await navigator.share({
           title: `Certificado · ${cert.courseTitle}`,
-          text: `Conclui o curso "${cert.courseTitle}" no NASA Route!`,
+          text: `Conclui o curso "${cert.courseTitle}" no ÓRBITA Route!`,
           url: shareUrl,
         });
       } else {

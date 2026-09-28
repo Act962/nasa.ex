@@ -95,6 +95,9 @@ export const openFormExecutor: NodeExecutor<OpenFormData> = async ({
             leadId: lead.id,
             jsonResponse: "{}",
             labelManuallyEdited: false,
+            // Criada em branco pela automação — ninguém preencheu ainda, então
+            // não há autoria a proteger (spec 0005, CB-18).
+            authorKind: "SYSTEM",
           },
         });
       }

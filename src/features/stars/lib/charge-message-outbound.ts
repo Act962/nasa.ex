@@ -1,4 +1,3 @@
-import { chargeStarsByAction } from "./charge-by-action";
 
 /**
  * Cobrança centralizada de envio de mensagem outbound (WhatsApp via
@@ -26,6 +25,8 @@ import { chargeStarsByAction } from "./charge-by-action";
  */
 import { ORPCError } from "@orpc/server";
 
+import { meter } from "./metering";
+
 export async function chargeMessageOutbound(opts: {
   organizationId: string;
   userId?: string;
@@ -34,21 +35,31 @@ export async function chargeMessageOutbound(opts: {
   /** Tipo de mídia — só pra description. */
   mediaType?: "text" | "image" | "audio" | "file" | "location" | "contact" | "buttons";
 }): Promise<void> {
-  const charge = await chargeStarsByAction(opts.organizationId, "message_send", {
+  const charge = await meter({
+    organizationId: opts.organizationId,
+    action: "message_send",
     userId: opts.userId,
     appSlug: "message_send", // unifica todos os canais no breakdown
     description: `Mensagem outbound — ${opts.channel}${opts.mediaType ? ` (${opts.mediaType})` : ""}`,
+    feature: `message.${opts.channel}`,
+    // Um arquivo cobre WhatsApp, Instagram e Facebook: é o ponto de melhor
+    // cobertura por edição para medir o custo de mensageria.
+    cost: {
+      kind: "MESSAGE",
+      provider: opts.channel === "whatsapp" ? "uazapi" : "meta",
+    },
+    quantity: { unit: "message", amount: 1 },
+    metadata: { mediaType: opts.mediaType ?? "text" },
   });
 
   if (!charge.success) {
-    const balance =
-      "newBalance" in charge ? charge.newBalance : 0;
+    const balance = charge.charged ? charge.newBalance : 0;
     throw new ORPCError("BAD_REQUEST", {
       message: "Saldo de STARs insuficiente pra enviar mensagem.",
       data: {
         code: "INSUFFICIENT_STARS",
         balance,
-        needed: "cost" in charge ? charge.cost : 1,
+        needed: charge.cost,
       },
     });
   }

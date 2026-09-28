@@ -3,6 +3,7 @@ import { NodeType } from "@/generated/prisma/enums";
 import toposort from "toposort";
 import { inngest } from "./client";
 import prisma from "@/lib/prisma";
+import type { WorkflowLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 
 export const topologicalSort = (
   nodes: Node[],
@@ -103,16 +104,31 @@ export const sendWorkflowExecution = async (data: {
   });
 };
 
+/**
+ * Mensagem do lead que acompanha o gatilho. Opcional em todos os dispatches:
+ * há gatilhos que nascem sem mensagem (lead de formulário, In-Chat identify) e
+ * a coleta é best-effort — ver spec 0008, RNF-1.
+ *
+ * Vai pro `initialData` como `leadMessage`, e é lida pelo FILTER_LEAD via
+ * `context.leadMessage` (engine clássico) ou `trigger.leadMessage` (Modo
+ * Agente IA, onde `initialData` vira `context.trigger`).
+ */
+export type WorkflowDispatchLeadMessage = WorkflowLeadMessage;
+
 /** Trigger NEW_LEAD — disparado quando lead acaba de ser criado no tracking. */
 export const dispatchNewLead = async (args: {
   workflowId: string;
   lead: WorkflowDispatchLead;
+  leadMessage?: WorkflowDispatchLeadMessage | null;
 }) =>
   sendWorkflowExecution({
     workflowId: args.workflowId,
     triggerType: "NEW_LEAD",
     leadId: args.lead.id,
-    initialData: { lead: args.lead },
+    initialData: {
+      lead: args.lead,
+      ...(args.leadMessage ? { leadMessage: args.leadMessage } : {}),
+    },
   });
 
 /**
@@ -125,12 +141,17 @@ export const dispatchLeadTagged = async (args: {
   workflowId: string;
   lead: WorkflowDispatchLead;
   tagIds: string[];
+  leadMessage?: WorkflowDispatchLeadMessage | null;
 }) =>
   sendWorkflowExecution({
     workflowId: args.workflowId,
     triggerType: "LEAD_TAGGED",
     leadId: args.lead.id,
-    initialData: { lead: args.lead, tagIds: args.tagIds },
+    initialData: {
+      lead: args.lead,
+      tagIds: args.tagIds,
+      ...(args.leadMessage ? { leadMessage: args.leadMessage } : {}),
+    },
   });
 
 /** Trigger MOVE_LEAD_STATUS — disparado quando lead muda de status no pipeline. */
@@ -149,16 +170,26 @@ export const dispatchMoveLeadStatus = async (args: {
     },
   });
 
-/** Trigger FIRST_CHAT_INTERACTION — primeira mensagem do atendente humano. */
+/**
+ * Trigger FIRST_CHAT_INTERACTION — primeira mensagem do atendente humano.
+ *
+ * `leadMessage` aqui é a ÚLTIMA mensagem do lead na conversa, não a que o
+ * atendente acabou de mandar: o campo significa sempre "o que o lead escreveu"
+ * (D-1 da spec 0008).
+ */
 export const dispatchFirstChatInteraction = async (args: {
   workflowId: string;
   lead: WorkflowDispatchLead;
+  leadMessage?: WorkflowDispatchLeadMessage | null;
 }) =>
   sendWorkflowExecution({
     workflowId: args.workflowId,
     triggerType: "FIRST_CHAT_INTERACTION",
     leadId: args.lead.id,
-    initialData: { lead: args.lead },
+    initialData: {
+      lead: args.lead,
+      ...(args.leadMessage ? { leadMessage: args.leadMessage } : {}),
+    },
   });
 
 /**
@@ -168,24 +199,32 @@ export const dispatchFirstChatInteraction = async (args: {
 export const dispatchFirstInteractionOfDay = async (args: {
   workflowId: string;
   lead: WorkflowDispatchLead;
+  leadMessage?: WorkflowDispatchLeadMessage | null;
 }) =>
   sendWorkflowExecution({
     workflowId: args.workflowId,
     triggerType: "FIRST_INTERACTION_OF_DAY",
     leadId: args.lead.id,
-    initialData: { lead: args.lead },
+    initialData: {
+      lead: args.lead,
+      ...(args.leadMessage ? { leadMessage: args.leadMessage } : {}),
+    },
   });
 
 /** Trigger AI_FINISHED — IA do tracking encerrou atendimento (transfer/finish). */
 export const dispatchAiFinished = async (args: {
   workflowId: string;
   lead: WorkflowDispatchLead;
+  leadMessage?: WorkflowDispatchLeadMessage | null;
 }) =>
   sendWorkflowExecution({
     workflowId: args.workflowId,
     triggerType: "AI_FINISHED",
     leadId: args.lead.id,
-    initialData: { lead: args.lead },
+    initialData: {
+      lead: args.lead,
+      ...(args.leadMessage ? { leadMessage: args.leadMessage } : {}),
+    },
   });
 
 /**

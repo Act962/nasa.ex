@@ -39,7 +39,7 @@ export async function setMetaConversionTagId(
   });
   if (!integ) throw new Error("Integração Meta não configurada");
 
-  const config = ((integ.config ?? {}) as Record<string, unknown>) ?? {};
+  const config = (integ.config ?? {}) as Record<string, unknown>;
   if (tagId === null) {
     delete config.conversionTagId;
   } else {

@@ -96,7 +96,7 @@ export default function SignupPage() {
             >
               <Image
                 src="/icon-astro.svg"
-                alt="NASA"
+                alt="ÓRBITA"
                 width={20}
                 height={20}
                 unoptimized
@@ -110,7 +110,7 @@ export default function SignupPage() {
                 letterSpacing: "-0.4px",
               }}
             >
-              NASA<span style={{ color: "#a78bfa" }}>.ex</span>
+              ÓRBITA<span style={{ color: "#a78bfa" }}>.ex</span>
             </span>
           </a>
         </div>
@@ -338,14 +338,14 @@ export default function SignupPage() {
           >
             <Image
               src="/icon-astro.svg"
-              alt="NASA"
+              alt="ÓRBITA"
               width={18}
               height={18}
               unoptimized
             />
           </div>
           <span style={{ fontSize: 17, fontWeight: 800, color: "white" }}>
-            NASA<span style={{ color: "#a78bfa" }}>.ex</span>
+            ÓRBITA<span style={{ color: "#a78bfa" }}>.ex</span>
           </span>
         </a>
 

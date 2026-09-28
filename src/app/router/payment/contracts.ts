@@ -50,6 +50,9 @@ export const listActiveContracts = base
         }),
       ),
       total: z.number(),
+      // Soma de todo o filtro, não só da página — o cabeçalho da aba mostra o
+      // valor total dos contratos e ele não pode mudar ao virar de página.
+      totalValue: z.string(),
     }),
   )
   .handler(async ({ input, context, errors }) => {
@@ -77,7 +80,7 @@ export const listActiveContracts = base
           : {}),
       };
 
-      const [rows, total] = await Promise.all([
+      const [rows, total, valueAggregate] = await Promise.all([
         prisma.forgeContract.findMany({
           where,
           include: {
@@ -97,6 +100,7 @@ export const listActiveContracts = base
           take: input.perPage,
         }),
         prisma.forgeContract.count({ where }),
+        prisma.forgeContract.aggregate({ where, _sum: { value: true } }),
       ]);
 
       return {
@@ -115,6 +119,7 @@ export const listActiveContracts = base
           createdAt: row.createdAt,
         })),
         total,
+        totalValue: (valueAggregate._sum.value ?? 0).toString(),
       };
     } catch (err) {
       console.error("[payment/contracts/listActive]", err);

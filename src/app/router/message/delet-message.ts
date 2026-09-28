@@ -8,7 +8,7 @@ import { MessageStatus } from "@/generated/prisma/enums";
 import { pusherServer } from "@/lib/pusher";
 import {
   MetaFeatureUnsupportedError,
-  resolveOutboundProvider,
+  resolveOutboundProviderOrBadRequest,
 } from "@/features/tracking-chat/lib/providers";
 
 export const deleteMessageHandler = base
@@ -23,7 +23,7 @@ export const deleteMessageHandler = base
       id: z.string(),
       /**
        * @deprecated Ignorado pelo servidor — o token Uazapi é resolvido
-       * via `resolveOutboundProvider(trackingId)`. Mantido por backward
+       * via `resolveOutboundProviderOrBadRequest(trackingId)`. Mantido por backward
        * compat com clients antigos.
        */
       token: z.string().nullish(),
@@ -59,7 +59,7 @@ export const deleteMessageHandler = base
 
       // Resolve credenciais server-side (source of truth é o banco) — o
       // client não trafega mais o token Uazapi. `input.token` é ignorado.
-      const resolved = await resolveOutboundProvider(trackingId);
+      const resolved = await resolveOutboundProviderOrBadRequest(trackingId);
 
       // ── Gate Meta unsupported (Fase 6) ─────────────────────────────────
       // Meta Cloud API não tem endpoint pra apagar mensagem outbound (só

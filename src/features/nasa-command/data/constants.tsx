@@ -100,7 +100,7 @@ export const exampleCategories: ExampleCategory[] = [
   // ── NASA Route (cursos) ───────────────────────────────────────────────────
   {
     emoji: "🎓",
-    label: "NASA Route — Cursos",
+    label: "ÓRBITA Route — Cursos",
     examples: [
       "Quantos cursos publicados eu tenho?",
       "Quantos alunos no total e quantos concluíram?",

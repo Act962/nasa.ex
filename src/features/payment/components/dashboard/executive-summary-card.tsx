@@ -204,16 +204,26 @@ export function ExecutiveSummaryCard({
   goalAchieved: number;
   goalTarget: number;
 }) {
+  // Sem meta cadastrada não há medidor: a régua antiga comparava a previsão
+  // do mês contra ela mesma e marcava progresso sem significado.
+  const showGauge = goalTarget > 0;
+
   return (
     <Card className="gap-0 py-0">
       <CardContent className="p-4 sm:p-5">
-        <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center lg:gap-8">
+        <div
+          className={
+            showGauge
+              ? "grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center lg:gap-8"
+              : "grid gap-6"
+          }
+        >
           <div className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 xl:grid-cols-4">
             {metrics.map((metric) => (
               <MetricItem key={metric.label} metric={metric} />
             ))}
           </div>
-          <GoalGauge achieved={goalAchieved} target={goalTarget} />
+          {showGauge && <GoalGauge achieved={goalAchieved} target={goalTarget} />}
         </div>
       </CardContent>
     </Card>

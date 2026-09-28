@@ -70,6 +70,7 @@ const sectionLabels: Record<
   byChannel: "Por Canal",
   byAttendant: "Por Atendente",
   topTags: "Top Tags",
+  statusConversion: "Conversão por Status",
 };
 
 const chartTypeLabels: Record<ChartType, string> = {

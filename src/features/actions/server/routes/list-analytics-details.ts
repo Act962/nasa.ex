@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { subDays } from "date-fns";
@@ -10,6 +11,7 @@ import { subDays } from "date-fns";
  */
 export const listAnalyticsDetails = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .input(
     z.object({
       bucket: z.enum(["total", "delayed", "completed"]),
@@ -20,13 +22,20 @@ export const listAnalyticsDetails = base
     const now = new Date();
     const sevenDaysAgo = subDays(now, 7);
 
+    // Mesmo recorte por org do `getAnalytics` — a lista tem que bater com o
+    // número do card que abriu o modal.
+    const scope = {
+      createdBy: userId,
+      workspace: { organizationId: context.org.id },
+    };
+
     const where =
       input.bucket === "total"
-        ? { createdBy: userId, isDone: false }
+        ? { ...scope, isDone: false }
         : input.bucket === "delayed"
-          ? { createdBy: userId, isDone: false, dueDate: { lt: now } }
+          ? { ...scope, isDone: false, dueDate: { lt: now } }
           : {
-              createdBy: userId,
+              ...scope,
               isDone: true,
               closedAt: { gte: sevenDaysAgo },
             };

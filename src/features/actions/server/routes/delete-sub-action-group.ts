@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { findSubActionGroupInOrg } from "../lib/action-access";
 
 export const deleteSubActionGroup = base
   .use(requiredAuthMiddleware)
@@ -13,7 +14,13 @@ export const deleteSubActionGroup = base
       deleteSubActions: z.boolean().optional().default(false),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
+    const existing = await findSubActionGroupInOrg(
+      input.groupId,
+      context.org.id,
+    );
+    if (!existing) throw errors.NOT_FOUND({ message: "Grupo não encontrado" });
+
     if (input.deleteSubActions) {
       await prisma.subActions.deleteMany({
         where: { groupId: input.groupId },

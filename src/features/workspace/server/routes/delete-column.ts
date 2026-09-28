@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { findColumnInOrg } from "../lib/workspace-access";
 
 export const deleteColumn = base
   .use(requiredAuthMiddleware)
@@ -14,6 +15,11 @@ export const deleteColumn = base
     }),
   )
   .handler(async ({ input, errors, context }) => {
+    const existing = await findColumnInOrg(input.columnId, context.org.id);
+    if (!existing) {
+      throw errors.NOT_FOUND({ message: "Coluna não encontrada" });
+    }
+
     // Check for actions
     const hasActions = await prisma.action.findFirst({
       where: { columnId: input.columnId },

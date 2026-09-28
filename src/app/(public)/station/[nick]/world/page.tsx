@@ -13,7 +13,7 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { nick } = await params;
   return {
-    title: `@${nick} · Mundo Virtual | NASA Agents`,
+    title: `@${nick} · Mundo Virtual | ÓRBITA Agents`,
     description: `Entre no mundo virtual de @${nick}`,
   };
 }

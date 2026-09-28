@@ -6,7 +6,31 @@ import {
 } from "@/features/tracking-chat/lib/forward-strategies";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 import { MessageChannel } from "@/generated/prisma/enums";
-import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  resolveOutboundProvider,
+  toOutboundErrorPayload,
+} from "@/features/tracking-chat/lib/providers";
+
+/**
+ * Serializa a falha de UM destino preservando o `code` do domínio
+ * outbound (spec 0010, RF-6/CB-8).
+ *
+ * O forward não aborta a requisição inteira quando um destino falha —
+ * cada item carrega o próprio resultado. Por isso aqui NÃO usamos
+ * `mapOutboundError` (que produz `ORPCError` pra derrubar o handler):
+ * extraímos o payload e o embutimos na resposta. Antes era
+ * `String(reason)`, que achatava "credencial Meta incompleta" e "timeout
+ * de rede" na mesma string opaca.
+ */
+function toForwardFailure(conversationId: string, reason: unknown) {
+  const payload = toOutboundErrorPayload(reason);
+  return {
+    conversationId,
+    success: false,
+    error: payload?.message ?? String(reason),
+    code: payload?.data.code,
+  };
+}
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -113,11 +137,10 @@ export const forwardMessageHandler = base
       results: results.map((result, i) =>
         result.status === "fulfilled"
           ? result.value
-          : {
-              conversationId: input.conversationIds[i],
-              success: false,
-              error: String((result as PromiseRejectedResult).reason),
-            },
+          : toForwardFailure(
+              input.conversationIds[i],
+              (result as PromiseRejectedResult).reason,
+            ),
       ),
     };
   });

@@ -1,10 +1,45 @@
-# 🚨🚨🚨 MIGRATION PENDENTE — APLICAR ANTES DE TESTAR 🚨🚨🚨
+# Migrations pendentes — RESOLVIDO em 2026-09-18
 
-> **DEV: ler isso antes de rodar a feature de "multi-conta Meta + permissões granulares".**
-> O `schema.prisma` já tem o model novo, mas o banco **não** foi alterado.
-> Sem aplicar essa migration, qualquer query nas novas procedures vai quebrar em runtime.
+> **Status: ✅ RESOLVIDO. Não há migration pendente.**
+> Este arquivo virou registro histórico. **Não siga as instruções abaixo** — elas
+> descrevem um estado que não existe mais desde 2026-09-18.
+
+## Verificação feita em 2026-09-18
+
+| Item que o documento alegava faltar | Estado real |
+| --- | --- |
+| `prisma migrate status` acusando drift | ✅ `Database schema is up to date!` — 204 migrations, nenhuma pendente |
+| Tabela `member_meta_account_access` | ✅ Existe |
+| Enum `MetaAccountKind` | ✅ Existe |
+| Colunas de publicação em `nasa_planner_posts` | ✅ As três existem |
+| Migration `20260507192355_astro_pgvector` | ⚠️ **Nunca foi commitada** — não está no disco. A extensão `vector` e a coluna `embedding` também não existem no banco |
+| Cliente Prisma com o model novo | ⚠️ Estava desatualizado. Corrigido com `pnpm db:generate` |
+
+### Sobre o pgvector
+
+A migration citada não existe no repositório, e a coluna `embedding` **não está
+no `schema.prisma`** — só como comentário em `AiKnowledgeChunk`. Portanto o
+Prisma não a conhece e ela não gera drift.
+
+Isso não quebra nada hoje porque o RAG do ASTRO está desativado:
+`src/features/astro/server/rag/embeddings.ts` é um stub cujas funções lançam
+erro. Quando o RAG for reativado, a extensão e a coluna precisarão ser criadas —
+e aí sim nasce uma migration nova, versionada.
+
+### Por que este arquivo ficou aqui
+
+Ele passou mais de quatro meses afirmando com autoridade que havia um bloqueio
+que já não existia, e isso custou tempo de investigação numa auditoria. Fica
+como registro — e como lembrete de que documento desatualizado é pior que
+documento nenhum, porque mente com autoridade. Ver a seção 8 de
+[`../docs/BILLING_ARCHITECTURE.md`](../docs/BILLING_ARCHITECTURE.md).
 
 ---
+
+# Registro histórico (2026-05-03) — não seguir
+
+<details>
+<summary>Conteúdo original, preservado para histórico</summary>
 
 ## O que falta aplicar
 
@@ -194,3 +229,6 @@ psql postgresql://docker:docker@localhost/nasa_db -c "\d ai_knowledge_chunk"
 # `embedding` deve aparecer como `vector(1536)` e existir
 # `ai_knowledge_chunk_embedding_idx` (ivfflat).
 ```
+
+
+</details>

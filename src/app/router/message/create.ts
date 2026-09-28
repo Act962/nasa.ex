@@ -23,7 +23,10 @@ import {
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
-import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  mapOutboundError,
+  resolveOutboundProviderOrBadRequest,
+} from "@/features/tracking-chat/lib/providers";
 
 export const createTextMessage = base
   .use(requiredAuthMiddleware)
@@ -39,7 +42,7 @@ export const createTextMessage = base
       leadPhone: z.string(),
       /**
        * @deprecated Ignorado pelo servidor desde Fase 6 — provider
-       * resolvido server-side via `resolveOutboundProvider(trackingId)`.
+       * resolvido server-side via `resolveOutboundProviderOrBadRequest(trackingId)`.
        * Mantido opcional pra clients antigos.
        */
       token: z.string().nullish(),
@@ -75,20 +78,20 @@ export const createTextMessage = base
         (await shouldSkipUazapiForConversation(input.conversationId));
 
       // ── Provider resolve ANTES do charge (Fix #2) ────────────────────
-      // resolveOutboundProvider pode lançar (instância deletada,
+      // resolveOutboundProviderOrBadRequest pode lançar (instância deletada,
       // credenciais Meta incompletas, AES-GCM corrompido). Se chamarmos
       // chargeMessageOutbound antes, o cliente paga ★ e a mensagem nunca
       // sai — sem refund. Resolvendo primeiro, falha do resolver vira
       // erro pro caller sem custo. Para canais não-WhatsApp e In-Chat,
       // não passamos pelo resolver — charge mantém o lugar.
-      let resolvedWhatsapp: Awaited<ReturnType<typeof resolveOutboundProvider>> | null = null;
+      let resolvedWhatsapp: Awaited<ReturnType<typeof resolveOutboundProviderOrBadRequest>> | null = null;
       if (channel === MessageChannel.WHATSAPP && !inChatMode) {
         if (!trackingId) {
           throw new Error(
             "Conversation sem trackingId — não é possível resolver provider.",
           );
         }
-        resolvedWhatsapp = await resolveOutboundProvider(trackingId);
+        resolvedWhatsapp = await resolveOutboundProviderOrBadRequest(trackingId);
       }
 
       // Cobra 1★ depois do resolve (pra WhatsApp não-InChat) ou direto
@@ -196,7 +199,7 @@ export const createTextMessage = base
               });
             }
           }
-          throw err;
+          throw mapOutboundError(err);
         }
       }
 

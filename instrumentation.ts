@@ -26,6 +26,12 @@ export async function register() {
     );
     registerAlertSubscribers();
 
+    // trafeGO: card movido no tracking de operação → status do pedido.
+    const { registerTrafegoSubscribers } = await import(
+      "@/features/trafego/server/lib/kanban-subscriber"
+    );
+    registerTrafegoSubscribers();
+
     process.on("unhandledRejection", (reason) => {
       console.error("[unhandledRejection]", reason);
     });

@@ -4,6 +4,7 @@ import { createTemplateMessage } from "./create-template";
 import { createMessageWithImage } from "./create-with-image";
 import { createMessageWithSticker } from "./create-with-sticker";
 import { createMessageWithFile } from "./create-with-file";
+import { createVideoMessage } from "./create-with-video";
 import { createMessageWithAudio } from "./create-audio";
 import { createButtonsMessage } from "./create-with-buttons";
 import { createLocationMessage } from "./create-with-location";
@@ -22,6 +23,7 @@ export const messageRouter = {
   createWithImage: createMessageWithImage,
   createWithSticker: createMessageWithSticker,
   createWithFile: createMessageWithFile,
+  createWithVideo: createVideoMessage,
   createAudio: createMessageWithAudio,
   createWithButtons: createButtonsMessage,
   createLocation: createLocationMessage,

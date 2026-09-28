@@ -16,21 +16,25 @@ export const GOOGLE_SCOPES = [
 export type GoogleScope = (typeof GOOGLE_SCOPES)[number];
 
 function clientId(): string {
-  const v = process.env.GOOGLE_INTEGRATIONS_CLIENT_ID;
-  if (!v) throw new Error("GOOGLE_INTEGRATIONS_CLIENT_ID ausente");
-  return v;
+  const value = process.env.GOOGLE_INTEGRATIONS_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID;
+  if (!value) throw new Error("Google client id ausente (defina GOOGLE_CLIENT_ID ou GOOGLE_INTEGRATIONS_CLIENT_ID)");
+  return value;
 }
 
 function clientSecret(): string {
-  const v = process.env.GOOGLE_INTEGRATIONS_CLIENT_SECRET;
-  if (!v) throw new Error("GOOGLE_INTEGRATIONS_CLIENT_SECRET ausente");
-  return v;
+  const value = process.env.GOOGLE_INTEGRATIONS_CLIENT_SECRET ?? process.env.GOOGLE_CLIENT_SECRET;
+  if (!value) throw new Error("Google client secret ausente (defina GOOGLE_CLIENT_SECRET ou GOOGLE_INTEGRATIONS_CLIENT_SECRET)");
+  return value;
 }
 
 export function googleRedirectUri(): string {
-  const v = process.env.GOOGLE_INTEGRATIONS_REDIRECT_URI;
-  if (!v) throw new Error("GOOGLE_INTEGRATIONS_REDIRECT_URI ausente");
-  return v;
+  const explicitRedirectUri = process.env.GOOGLE_INTEGRATIONS_REDIRECT_URI;
+  if (explicitRedirectUri) return explicitRedirectUri;
+  const baseUrl = process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL;
+  if (!baseUrl) {
+    throw new Error("Base URL ausente para redirect do Google (defina BETTER_AUTH_URL ou GOOGLE_INTEGRATIONS_REDIRECT_URI)");
+  }
+  return `${baseUrl.replace(/\/+$/, "")}/api/oauth/google/callback`;
 }
 
 export function googlePublicOrigin(): string {

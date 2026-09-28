@@ -455,7 +455,7 @@ function AttachmentTile({
           alt={item.name}
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-black/40 md:bg-black/60 md:opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+        <div className="absolute inset-0 bg-black/40 md:bg-black/60 hover-reveal flex flex-col justify-between p-2">
           <div className="flex flex-col">
             <span className="text-white text-xs truncate drop-shadow-md font-medium">
               {item.name}
@@ -464,7 +464,7 @@ function AttachmentTile({
               {ts}
             </span>
           </div>
-          <div className="flex items-center gap-1 mt-auto opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1 mt-auto">
             <Button
               size="icon"
               variant="secondary"
@@ -512,7 +512,7 @@ function AttachmentTile({
         </span>
         <span className="text-[10px] text-muted-foreground">{ts}</span>
       </div>
-      <div className="flex items-center gap-1 absolute bottom-1.5 left-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-1 mt-auto w-full hover-reveal">
         <Button
           size="icon-sm"
           variant="outline"

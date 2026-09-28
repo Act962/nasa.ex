@@ -25,25 +25,39 @@ export const reorderAction = base
     const { id, columnId, beforeId, afterId } = input;
 
     const result = await prisma.$transaction(async (tx) => {
-      const currentAction = await tx.action.findUnique({
-        where: { id },
+      const currentAction = await tx.action.findFirst({
+        where: { id, workspace: { organizationId: context.org.id } },
       });
 
-      if (!currentAction) throw errors.NOT_FOUND;
+      if (!currentAction) {
+        throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+      }
       const previousColumnId = currentAction.columnId;
+
+      // Coluna destino tem que ser do mesmo workspace: sem isso, o id de uma
+      // coluna alheia arrasta o card pra fora da org.
+      const targetColumn = await tx.workspaceColumn.findFirst({
+        where: { id: columnId, workspaceId: currentAction.workspaceId },
+        select: { id: true },
+      });
+      if (!targetColumn) {
+        throw errors.NOT_FOUND({ message: "Coluna não encontrada" });
+      }
 
       let newOrder: Prisma.Decimal;
 
+      // Vizinhos só contam se forem do mesmo workspace — id de fora não pode
+      // servir de âncora nem devolver a ordem de um card alheio.
       const [before, after] = await Promise.all([
         beforeId
-          ? tx.action.findUnique({
-              where: { id: beforeId },
+          ? tx.action.findFirst({
+              where: { id: beforeId, workspaceId: currentAction.workspaceId },
               select: { order: true },
             })
           : null,
         afterId
-          ? tx.action.findUnique({
-              where: { id: afterId },
+          ? tx.action.findFirst({
+              where: { id: afterId, workspaceId: currentAction.workspaceId },
               select: { order: true },
             })
           : null,

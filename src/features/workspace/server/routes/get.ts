@@ -14,6 +14,14 @@ export const getWorkspace = base
         id: input.workspaceId,
         organizationId: context.org.id,
       },
+      include: {
+        tracking: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
 
     if (!workspace) {

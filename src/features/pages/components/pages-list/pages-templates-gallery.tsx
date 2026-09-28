@@ -116,7 +116,7 @@ export function PageTemplatesGallery() {
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             <Sparkles className="size-6 text-indigo-500" />
-            Templates NASA Pages
+            Templates ÓRBITA Pages
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Comece com um site pronto e personalize como quiser.
@@ -189,7 +189,7 @@ export function PageTemplatesGallery() {
             Templates da comunidade
           </h2>
           <span className="text-xs text-muted-foreground">
-            Páginas marcadas como template pela equipe NASA
+            Páginas marcadas como template pela equipe ÓRBITA
           </span>
         </div>
       {isLoading ? (
@@ -200,7 +200,7 @@ export function PageTemplatesGallery() {
             <Sparkles className="size-8 text-muted-foreground" />
             <p className="font-medium">Nenhum template disponível ainda</p>
             <p className="text-sm text-muted-foreground max-w-md">
-              Templates são criados pela equipe NASA e aparecem aqui quando aprovados.
+              Templates são criados pela equipe ÓRBITA e aparecem aqui quando aprovados.
             </p>
           </CardContent>
         </Card>
@@ -351,7 +351,7 @@ function CloneFromUrlSection() {
         <h2 className="text-base font-bold">Criar página semelhante</h2>
       </div>
       <p className="text-xs text-muted-foreground mb-4">
-        Cole a URL de um site público que você gostou. A NASA vai tentar
+        Cole a URL de um site público que você gostou. A ÓRBITA vai tentar
         replicar a estrutura visual (títulos, blocos, cores). Você edita o
         resultado no builder.
       </p>

@@ -6,12 +6,18 @@
  */
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Search, FileSignature, Loader2, ExternalLink } from "lucide-react";
+import { useDebouncedValue } from "@/hooks/use-debounced";
+import { usePaymentContracts } from "../../hooks/use-payment-contracts";
+import {
+  PaymentPagination,
+  PaymentPaginationNav,
+  PAYMENT_PAGE_SIZE,
+  PAYMENT_SEARCH_DEBOUNCE_MS,
+} from "../shared/payment-pagination";
 
 type ContractRow = {
   id: string;
@@ -52,27 +58,34 @@ const STATUS_STYLE: Record<
 
 export function ContractsTab() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useQuery(
-    orpc.payment.contracts.listActive.queryOptions({
-      input: { search: search || undefined },
-    }),
-  );
+  const debouncedSearch = useDebouncedValue(search.trim(), PAYMENT_SEARCH_DEBOUNCE_MS);
+
+  // Novo termo de busca reinicia a paginação (ajuste em render, não em efeito).
+  const [lastSearch, setLastSearch] = useState(debouncedSearch);
+  if (debouncedSearch !== lastSearch) {
+    setLastSearch(debouncedSearch);
+    setPage(1);
+  }
+
+  const { data, isLoading } = usePaymentContracts({
+    search: debouncedSearch || undefined,
+    page,
+    perPage: PAYMENT_PAGE_SIZE,
+  });
 
   const contracts = (data?.contracts ?? []) as ContractRow[];
-
-  const totalValue = contracts.reduce(
-    (acc, contract) => acc + Number.parseFloat(contract.value || "0"),
-    0,
-  );
+  const total = data?.total ?? 0;
+  // Agregado no servidor: a soma da página mudaria a cada navegação.
+  const totalValue = Number.parseFloat(data?.totalValue ?? "0");
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs text-muted-foreground">
-            {contracts.length}{" "}
-            {contracts.length === 1 ? "contrato ativo" : "contratos ativos"}
+            {total} {total === 1 ? "contrato ativo" : "contratos ativos"}
           </p>
           <p className="text-2xl font-black text-emerald-500">
             R$ {totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
@@ -90,6 +103,15 @@ export function ContractsTab() {
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
+
+        <PaymentPaginationNav
+          page={page}
+          total={total}
+          perPage={PAYMENT_PAGE_SIZE}
+          onPageChange={setPage}
+          isLoading={isLoading}
+          className="ml-auto"
+        />
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border/50">
@@ -180,6 +202,15 @@ export function ContractsTab() {
         </table>
         </div>
       </div>
+
+      <PaymentPagination
+        page={page}
+        total={total}
+        perPage={PAYMENT_PAGE_SIZE}
+        onPageChange={setPage}
+        itemLabel="contrato"
+        isLoading={isLoading}
+      />
 
       <Card className="p-3 text-xs text-muted-foreground">
         Contratos vindos do Forge. Um lead conta como &quot;com contrato ativo&quot;

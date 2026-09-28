@@ -62,7 +62,7 @@ export function CertificateView({ certificate, validateUrl }: Props) {
                 <GraduationCap className="size-5" />
               </div>
               <div className="text-xs font-bold uppercase tracking-[0.18em]">
-                NASA Route
+                ÓRBITA Route
               </div>
             </div>
             {orgLogo ? (

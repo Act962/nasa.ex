@@ -17,7 +17,10 @@ type CopyTarget = {
  * Não copia (intencional): responsibles/participants extras (usuários da
  * org de origem não existem na destino), tags (`WorkspaceTag` é escopada
  * por workspace), `formId` (referência a Form da org de origem), `history`,
- * `publicSlug`/`publishedAt`/`isFavorited`/`isArchived`.
+ * `publicSlug`/`publishedAt`/`isFavorited`/`isArchived`, e — desde a spec
+ * 0002 — a pauta de formulários (`ActionForm`) e as respostas vinculadas
+ * (`FormResponses.actionId`): formulários são escopados por org, copiá-los
+ * vazaria dado entre tenants.
  */
 export async function copyActionToOrg(
   sourceActionId: string,

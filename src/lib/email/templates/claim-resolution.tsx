@@ -103,7 +103,7 @@ export const ClaimResolutionEmail = ({
 
             <Text className="text-[#666666] text-[11px] leading-[18px]">
               Você está recebendo este email porque submeteu uma
-              reivindicação no Calendário Público NASA.
+              reivindicação no Calendário Público ÓRBITA.
             </Text>
           </Container>
         </Body>

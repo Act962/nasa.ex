@@ -3,6 +3,7 @@ import { pusherServer } from "@/lib/pusher";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { NodeType } from "@/generated/prisma/enums";
 import { dispatchFirstChatInteraction } from "@/inngest/utils";
+import { getLastLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 
 /**
  * Atualiza `Conversation.lastMessage` + `lastMessageAt` pra refletir a
@@ -186,11 +187,17 @@ export async function triggerFirstChatInteractionIfFirst(params: {
 
   if (workflows.length === 0) return;
 
+  // Só busca a mensagem depois de saber que há workflow escutando (RF-9 da
+  // spec 0008). Este gatilho nasce da mensagem do ATENDENTE, então a mensagem
+  // do lead vem do histórico — ver D-1.
+  const leadMessage = await getLastLeadMessage(lead.id);
+
   await Promise.all(
     workflows.map((workflow) =>
       dispatchFirstChatInteraction({
         workflowId: workflow.id,
         lead,
+        leadMessage,
       }),
     ),
   );

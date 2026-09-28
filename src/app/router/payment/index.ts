@@ -1,11 +1,12 @@
+// verifyPaymentPin, verifyPaymentOtp, requestPaymentOtp e
+// setupOwnerPaymentAccess foram DESREGISTRADAS pela spec 0007 — o acesso ao
+// módulo passou a ser determinado só pela whitelist. Os handlers continuam em
+// `./access` de propósito; religar exige spec nova.
 import {
-  verifyPaymentPin,
-  verifyPaymentOtp,
-  requestPaymentOtp,
   getMyPaymentAccess,
+  claimOwnerPaymentAccess,
   listPaymentAccess,
   grantPaymentAccess,
-  setupOwnerPaymentAccess,
   revokePaymentAccess,
   updatePaymentRole,
   updatePaymentPermissions,
@@ -37,11 +38,52 @@ import {
   listRecentEntryDescriptions,
   createPaymentEntry,
   updatePaymentEntry,
+  generatePaymentEntryInstallments,
   payPaymentEntry,
   deletePaymentEntry,
   removePaymentEntry,
 } from "./entries";
-import { getPaymentDashboard, getCashflow } from "./dashboard";
+import {
+  listPaymentAttachments,
+  updatePaymentAttachment,
+  deletePaymentAttachment,
+  linkPaymentAttachments,
+} from "./attachments";
+import {
+  getPaymentDashboard,
+  getCashflow,
+  getCashflowDayEntries,
+} from "./dashboard";
+import {
+  getPaymentGoalStatus,
+  updatePaymentGoalConfig,
+  upsertPaymentGoalMonth,
+} from "./goals";
+import {
+  importPaymentStatement,
+  inspectPaymentStatement,
+  listStatementTransactions,
+  reconcileStatementTransaction,
+  unmatchStatementTransaction,
+  createEntryFromTransaction,
+  ignoreStatementTransaction,
+  markStatementTransactionReviewed,
+  reviewStatementTransactionWithAstro,
+  listStatementImports,
+} from "./statements";
+import {
+  getPaymentInboxConfig,
+  updatePaymentInboxConfig,
+  listPaymentInboxItems,
+  ignorePaymentInboxItem,
+  syncPaymentInboxNow,
+} from "./inbox";
+import {
+  listPaymentRemindersProcedure,
+  createPaymentReminderProcedure,
+  cancelPaymentReminderProcedure,
+} from "./reminders";
+import { getPaymentProjection } from "./projection";
 import { getIncomeStatement, getOperationalResult } from "./reports";
 import { listExternalContacts } from "./external-contacts";
 import { listActiveContracts } from "./contracts";
@@ -70,13 +112,10 @@ import {
 
 export const paymentRouter = {
   access: {
-    verify:             verifyPaymentPin,
-    verifyOtp:          verifyPaymentOtp,
-    requestOtp:         requestPaymentOtp,
     getMy:              getMyPaymentAccess,
+    claimOwner:         claimOwnerPaymentAccess,
     list:               listPaymentAccess,
     grant:              grantPaymentAccess,
-    setupOwner:         setupOwnerPaymentAccess,
     revoke:             revokePaymentAccess,
     updateRole:         updatePaymentRole,
     updatePermissions:  updatePaymentPermissions,
@@ -108,13 +147,55 @@ export const paymentRouter = {
     recentDescriptions: listRecentEntryDescriptions,
     create: createPaymentEntry,
     update: updatePaymentEntry,
+    generateInstallments: generatePaymentEntryInstallments,
     pay: payPaymentEntry,
     delete: deletePaymentEntry,
     remove: removePaymentEntry,
   },
+  attachments: {
+    list:   listPaymentAttachments,
+    update: updatePaymentAttachment,
+    delete: deletePaymentAttachment,
+    link:   linkPaymentAttachments,
+  },
+  reminders: {
+    list:   listPaymentRemindersProcedure,
+    create: createPaymentReminderProcedure,
+    cancel: cancelPaymentReminderProcedure,
+  },
+  inbox: {
+    getConfig:    getPaymentInboxConfig,
+    updateConfig: updatePaymentInboxConfig,
+    listItems:    listPaymentInboxItems,
+    ignoreItem:   ignorePaymentInboxItem,
+    syncNow:      syncPaymentInboxNow,
+  },
   dashboard: {
     get: getPaymentDashboard,
     cashflow: getCashflow,
+    cashflowDay: getCashflowDayEntries,
+  },
+  statements: {
+    import:       importPaymentStatement,
+    inspect:      inspectPaymentStatement,
+    listImports:  listStatementImports,
+    transactions: {
+      list:        listStatementTransactions,
+      reconcile:   reconcileStatementTransaction,
+      unmatch:     unmatchStatementTransaction,
+      createEntry: createEntryFromTransaction,
+      ignore:      ignoreStatementTransaction,
+      markReviewed: markStatementTransactionReviewed,
+      reviewWithAstro: reviewStatementTransactionWithAstro,
+    },
+  },
+  goals: {
+    status:      getPaymentGoalStatus,
+    updateConfig: updatePaymentGoalConfig,
+    upsertMonth: upsertPaymentGoalMonth,
+  },
+  projection: {
+    get: getPaymentProjection,
   },
   reports: {
     incomeStatement: getIncomeStatement,

@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { filterActionIdsInOrg } from "../../lib/action-access";
 
 export const unreadCountsActionChat = base
   .use(requiredAuthMiddleware)
@@ -14,7 +15,13 @@ export const unreadCountsActionChat = base
   })
   .input(z.object({ actionIds: z.array(z.string()).max(100) }))
   .handler(async ({ input, context }) => {
-    const { actionIds } = input;
+    // Ids vêm em lote direto do client; contar mensagem de ação fora da org
+    // entrega volume de conversa alheia. Os intrusos são ignorados em
+    // silêncio — a tela só quer o badge das ações que ela já lista.
+    const actionIds = await filterActionIdsInOrg(
+      input.actionIds,
+      context.org.id,
+    );
     if (actionIds.length === 0) return { counts: {} as Record<string, number> };
 
     const reads = await prisma.actionChatRead.findMany({

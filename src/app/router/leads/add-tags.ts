@@ -13,6 +13,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { eventBus } from "@/features/alerts/lib/event-bus";
 import { findLeadTaggedMatchingWorkflows } from "@/features/triggers/components/lead-tagged/find-matching-workflows";
 import { publishLeadChanged } from "@/features/leads/realtime/publish";
+import { getLastLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 
 export const addTagsToLead = base
   .use(requiredAuthMiddleware)
@@ -129,12 +130,14 @@ export const addTagsToLead = base
     }
 
     if (result.workflows.length > 0) {
+      const leadMessage = await getLastLeadMessage(lead.id);
       await Promise.all(
         result.workflows.map((workflow) =>
           dispatchLeadTagged({
             workflowId: workflow.id,
             lead,
             tagIds: input.tagIds,
+            leadMessage,
           }),
         ),
       );

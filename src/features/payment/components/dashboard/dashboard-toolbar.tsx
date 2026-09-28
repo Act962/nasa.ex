@@ -2,20 +2,12 @@
 
 import { Button } from "@/components/ui/button";
 import { Download, Loader2, Plus } from "lucide-react";
-import {
-  PaymentPeriodPicker,
-  type PeriodRange,
-} from "../shared/payment-period-picker";
 
 export function DashboardToolbar({
-  period,
-  onPeriodChange,
   onExport,
   isExporting,
   onNewTransaction,
 }: {
-  period: PeriodRange;
-  onPeriodChange: (range: PeriodRange) => void;
   onExport: () => void;
   isExporting: boolean;
   onNewTransaction: () => void;
@@ -32,13 +24,6 @@ export function DashboardToolbar({
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <PaymentPeriodPicker
-          from={period.from}
-          to={period.to}
-          onChange={onPeriodChange}
-          hideTime
-          triggerClassName="h-9 w-full justify-center sm:w-auto sm:justify-start"
-        />
         <div className="flex gap-2">
           {/* No mobile "Exportar" fica no menu sanduíche do header. */}
           <Button

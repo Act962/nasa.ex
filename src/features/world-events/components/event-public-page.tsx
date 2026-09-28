@@ -102,7 +102,7 @@ export function EventPublicPage({ event }: { event: EventData }) {
         <div className="absolute bottom-6 left-6 right-6 max-w-3xl">
           <div className="flex items-center gap-2 text-xs text-violet-300 mb-2">
             <Sparkles className="w-3.5 h-3.5" />
-            NASA World · Evento {event.isFree ? "Gratuito" : ""}
+            ÓRBITA World · Evento {event.isFree ? "Gratuito" : ""}
           </div>
           <h1 className="text-3xl sm:text-5xl font-bold tracking-tight">
             {event.title}
@@ -255,7 +255,7 @@ export function EventPublicPage({ event }: { event: EventData }) {
         {/* Footer info */}
         <div className="pt-6 border-t border-zinc-800 text-xs text-zinc-500 space-y-1">
           <p>
-            Ao entrar no evento, você concorda com os termos do NASA World.
+            Ao entrar no evento, você concorda com os termos do ÓRBITA World.
           </p>
           {event.stationNick && (
             <p>

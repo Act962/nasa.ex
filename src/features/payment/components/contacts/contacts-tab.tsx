@@ -55,43 +55,18 @@ import {
 } from "../../hooks/use-payment";
 import { CONTACT_TYPE_LABELS } from "../../lib/format";
 import { toast } from "sonner";
+import { describePaymentError } from "../../lib/describe-error";
 import { cn } from "@/lib/utils";
+import { validateCNPJ, validateCPF } from "@/utils/validate-data";
+import { useDebouncedValue } from "@/hooks/use-debounced";
+import {
+  PaymentPagination,
+  PaymentPaginationNav,
+  PAYMENT_PAGE_SIZE,
+  PAYMENT_SEARCH_DEBOUNCE_MS,
+} from "../shared/payment-pagination";
 
 // ── CPF/CNPJ validation ───────────────────────────────────────────────────────
-
-function validateCPF(cpf: string): boolean {
-  const digits = cpf.replace(/\D/g, "");
-  if (digits.length !== 11) return false;
-  if (/^(\d)\1{10}$/.test(digits)) return false;
-  let sum = 0;
-  for (let i = 0; i < 9; i++) sum += parseInt(digits[i]) * (10 - i);
-  let rest = (sum * 10) % 11;
-  if (rest === 10 || rest === 11) rest = 0;
-  if (rest !== parseInt(digits[9])) return false;
-  sum = 0;
-  for (let i = 0; i < 10; i++) sum += parseInt(digits[i]) * (11 - i);
-  rest = (sum * 10) % 11;
-  if (rest === 10 || rest === 11) rest = 0;
-  return rest === parseInt(digits[10]);
-}
-
-function validateCNPJ(cnpj: string): boolean {
-  const digits = cnpj.replace(/\D/g, "");
-  if (digits.length !== 14) return false;
-  if (/^(\d)\1{13}$/.test(digits)) return false;
-  const calc = (d: string, weights: number[]) => {
-    let sum = 0;
-    for (let i = 0; i < weights.length; i++) sum += parseInt(d[i]) * weights[i];
-    const rest = sum % 11;
-    return rest < 2 ? 0 : 11 - rest;
-  };
-  const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-  const w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-  return (
-    calc(digits, w1) === parseInt(digits[12]) &&
-    calc(digits, w2) === parseInt(digits[13])
-  );
-}
 
 type DocType = "CPF" | "CNPJ";
 
@@ -138,17 +113,6 @@ function maskPhone(value: string): string {
 
 type DocStatus = "idle" | "valid" | "invalid" | "loading";
 
-// ── Debounce hook (inline) ────────────────────────────────────────────────────
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState<T>(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
-}
-
 // ── External contact type ─────────────────────────────────────────────────────
 
 interface ExternalContact {
@@ -170,12 +134,10 @@ function ImportCombobox({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const debouncedQuery = useDebounce(query, 300);
+  const debouncedQuery = useDebouncedValue(query, 300);
   const ref = useRef<HTMLDivElement>(null);
 
-  const { data, isFetching } = useExternalContacts(
-    debouncedQuery || undefined
-  );
+  const { data, isFetching } = useExternalContacts(debouncedQuery || undefined);
   const contacts = data?.contacts ?? [];
 
   useEffect(() => {
@@ -231,7 +193,7 @@ function ImportCombobox({
                         "mt-0.5 size-5 rounded flex items-center justify-center shrink-0 text-[10px] font-bold",
                         c.source === "forge"
                           ? "bg-purple-500/20 text-purple-400"
-                          : "bg-blue-500/20 text-blue-400"
+                          : "bg-blue-500/20 text-blue-400",
                       )}
                     >
                       {c.source === "forge" ? "F" : "T"}
@@ -272,38 +234,53 @@ function DocumentInput({
 }) {
   const [status, setStatus] = useState<DocStatus>("idle");
   const digits = value.replace(/\D/g, "");
-  const debouncedDigits = useDebounce(digits, 600);
+  const debouncedDigits = useDebouncedValue(digits, 600);
 
-  const validate = useCallback(async (d: string) => {
-    if (d.length === 0) { setStatus("idle"); return; }
-    if (docType === "CPF") {
-      if (d.length < 11) { setStatus("idle"); return; }
-      setStatus(validateCPF(d) ? "valid" : "invalid");
-      return;
-    }
-    if (d.length < 14) { setStatus("idle"); return; }
-    if (!validateCNPJ(d)) { setStatus("invalid"); return; }
-    setStatus("loading");
-    try {
-      const res = await fetch(`https://receitaws.com.br/v1/cnpj/${d}`, {
-        headers: { Accept: "application/json" },
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.status === "ERROR") {
-          setStatus("invalid");
-        } else {
-          setStatus("valid");
-          if (json.nome && onNameFromCNPJ) onNameFromCNPJ(json.nome);
+  const validate = useCallback(
+    async (d: string) => {
+      if (d.length === 0) {
+        setStatus("idle");
+        return;
+      }
+      if (docType === "CPF") {
+        if (d.length < 11) {
+          setStatus("idle");
+          return;
         }
-      } else {
-        // API indisponível — aceita se estrutura válida
+        setStatus(validateCPF(d) ? "valid" : "invalid");
+        return;
+      }
+      if (d.length < 14) {
+        setStatus("idle");
+        return;
+      }
+      if (!validateCNPJ(d)) {
+        setStatus("invalid");
+        return;
+      }
+      setStatus("loading");
+      try {
+        const res = await fetch(`https://receitaws.com.br/v1/cnpj/${d}`, {
+          headers: { Accept: "application/json" },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.status === "ERROR") {
+            setStatus("invalid");
+          } else {
+            setStatus("valid");
+            if (json.nome && onNameFromCNPJ) onNameFromCNPJ(json.nome);
+          }
+        } else {
+          // API indisponível — aceita se estrutura válida
+          setStatus("valid");
+        }
+      } catch {
         setStatus("valid");
       }
-    } catch {
-      setStatus("valid");
-    }
-  }, [onNameFromCNPJ, docType]);
+    },
+    [onNameFromCNPJ, docType],
+  );
 
   useEffect(() => {
     validate(debouncedDigits);
@@ -312,14 +289,18 @@ function DocumentInput({
   return (
     <div className="relative">
       <Input
-        placeholder={docType === "CPF" ? "000.000.000-00" : "00.000.000/0001-00"}
+        placeholder={
+          docType === "CPF" ? "000.000.000-00" : "00.000.000/0001-00"
+        }
         inputMode="numeric"
         value={value}
         onChange={(e) => onChange(maskDocument(e.target.value, docType))}
         className={cn(
           "pr-8",
-          status === "valid" && "border-green-500 focus-visible:ring-green-500/30",
-          status === "invalid" && "border-red-500 focus-visible:ring-red-500/30"
+          status === "valid" &&
+            "border-green-500 focus-visible:ring-green-500/30",
+          status === "invalid" &&
+            "border-red-500 focus-visible:ring-red-500/30",
         )}
       />
       <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
@@ -329,9 +310,7 @@ function DocumentInput({
         {status === "valid" && (
           <CheckCircle2 className="size-4 text-green-500" />
         )}
-        {status === "invalid" && (
-          <XCircle className="size-4 text-red-500" />
-        )}
+        {status === "invalid" && <XCircle className="size-4 text-red-500" />}
       </div>
     </div>
   );
@@ -351,9 +330,13 @@ type ContactRow = {
 
 export function ContactsTab() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [name, setName] = useState("");
   const [document, setDocument] = useState("");
   const [docType, setDocType] = useState<DocType>("CPF");
@@ -362,7 +345,20 @@ export function ContactsTab() {
   const [contactType, setContactType] = useState("BOTH");
   const [notes, setNotes] = useState("");
 
-  const { data, isLoading } = usePaymentContacts(search || undefined);
+  const debouncedSearch = useDebouncedValue(search.trim(), PAYMENT_SEARCH_DEBOUNCE_MS);
+
+  // Novo termo de busca reinicia a paginação (ajuste em render, não em efeito).
+  const [lastSearch, setLastSearch] = useState(debouncedSearch);
+  if (debouncedSearch !== lastSearch) {
+    setLastSearch(debouncedSearch);
+    setPage(1);
+  }
+
+  const { data, isLoading } = usePaymentContacts(
+    debouncedSearch || undefined,
+    undefined,
+    { page, perPage: PAYMENT_PAGE_SIZE },
+  );
   const createContact = useCreatePaymentContact();
   const updateContact = useUpdatePaymentContact();
   const deleteContact = useDeletePaymentContact();
@@ -457,8 +453,15 @@ export function ContactsTab() {
       }
       setShowForm(false);
       resetForm();
-    } catch {
-      toast.error(isEditing ? "Erro ao atualizar contato" : "Erro ao criar contato");
+    } catch (error) {
+      toast.error(
+        describePaymentError(
+          error,
+          isEditing
+            ? "Não foi possível atualizar o contato"
+            : "Não foi possível criar o contato",
+        ),
+      );
     }
   }
 
@@ -468,12 +471,13 @@ export function ContactsTab() {
       await deleteContact.mutateAsync({ id: deleteTarget.id });
       toast.success("Contato removido");
       setDeleteTarget(null);
-    } catch {
-      toast.error("Erro ao remover");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível remover o contato"));
     }
   }
 
   const contacts = data?.contacts ?? [];
+  const totalContacts = data?.total ?? 0;
 
   return (
     <div className="space-y-4">
@@ -488,16 +492,25 @@ export function ContactsTab() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button
-          size="sm"
-          onClick={() => {
-            resetForm();
-            setShowForm(true);
-          }}
-          className="h-9 w-full gap-1.5 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90 sm:w-auto"
-        >
-          <Plus className="size-4" /> Novo Contato
-        </Button>
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <PaymentPaginationNav
+            page={page}
+            total={totalContacts}
+            perPage={PAYMENT_PAGE_SIZE}
+            onPageChange={setPage}
+            isLoading={isLoading}
+          />
+          <Button
+            size="sm"
+            onClick={() => {
+              resetForm();
+              setShowForm(true);
+            }}
+            className="h-9 w-full gap-1.5 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90 sm:w-auto"
+          >
+            <Plus className="size-4" /> Novo Contato
+          </Button>
+        </div>
       </div>
 
       {/* Importar de Leads/Forge */}
@@ -518,24 +531,40 @@ export function ContactsTab() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border/50 bg-muted/30">
-              <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Nome</th>
-              <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">Tipo</th>
-              <th className="hidden lg:table-cell text-left px-4 py-3 text-xs text-muted-foreground font-medium">Documento</th>
-              <th className="hidden lg:table-cell text-left px-4 py-3 text-xs text-muted-foreground font-medium">E-mail</th>
-              <th className="hidden lg:table-cell text-left px-4 py-3 text-xs text-muted-foreground font-medium">Telefone</th>
+              <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">
+                Nome
+              </th>
+              <th className="text-left px-4 py-3 text-xs text-muted-foreground font-medium">
+                Tipo
+              </th>
+              <th className="hidden lg:table-cell text-left px-4 py-3 text-xs text-muted-foreground font-medium">
+                Documento
+              </th>
+              <th className="hidden lg:table-cell text-left px-4 py-3 text-xs text-muted-foreground font-medium">
+                E-mail
+              </th>
+              <th className="hidden lg:table-cell text-left px-4 py-3 text-xs text-muted-foreground font-medium">
+                Telefone
+              </th>
               <th className="w-10" />
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={6} className="py-12 text-center text-muted-foreground text-sm">
+                <td
+                  colSpan={6}
+                  className="py-12 text-center text-muted-foreground text-sm"
+                >
                   Carregando...
                 </td>
               </tr>
             ) : contacts.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-12 text-center text-muted-foreground text-sm">
+                <td
+                  colSpan={6}
+                  className="py-12 text-center text-muted-foreground text-sm"
+                >
                   <Users className="size-8 mx-auto mb-2 opacity-30" />
                   Nenhum contato cadastrado
                 </td>
@@ -552,9 +581,15 @@ export function ContactsTab() {
                       {CONTACT_TYPE_LABELS[c.contactType] ?? c.contactType}
                     </Badge>
                   </td>
-                  <td className="hidden lg:table-cell px-4 py-3 text-muted-foreground">{c.document ?? "—"}</td>
-                  <td className="hidden lg:table-cell px-4 py-3 text-muted-foreground">{c.email ?? "—"}</td>
-                  <td className="hidden lg:table-cell px-4 py-3 text-muted-foreground">{c.phone ?? "—"}</td>
+                  <td className="hidden lg:table-cell px-4 py-3 text-muted-foreground">
+                    {c.document ?? "—"}
+                  </td>
+                  <td className="hidden lg:table-cell px-4 py-3 text-muted-foreground">
+                    {c.email ?? "—"}
+                  </td>
+                  <td className="hidden lg:table-cell px-4 py-3 text-muted-foreground">
+                    {c.phone ?? "—"}
+                  </td>
                   <td className="px-4 py-3">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -570,7 +605,9 @@ export function ContactsTab() {
                           <Pencil className="size-4" /> Editar
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => setDeleteTarget({ id: c.id, name: c.name })}
+                          onClick={() =>
+                            setDeleteTarget({ id: c.id, name: c.name })
+                          }
                           className="gap-2 text-red-400"
                         >
                           <Trash2 className="size-4" /> Remover
@@ -586,6 +623,15 @@ export function ContactsTab() {
         </div>
       </div>
 
+      <PaymentPagination
+        page={page}
+        total={totalContacts}
+        perPage={PAYMENT_PAGE_SIZE}
+        onPageChange={setPage}
+        itemLabel="contato"
+        isLoading={isLoading}
+      />
+
       {/* Dialog de criação */}
       <Dialog
         open={showForm}
@@ -596,7 +642,9 @@ export function ContactsTab() {
       >
         <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto scroll-cols-tracking">
           <DialogHeader>
-            <DialogTitle>{isEditing ? "Editar Contato" : "Novo Contato"}</DialogTitle>
+            <DialogTitle>
+              {isEditing ? "Editar Contato" : "Novo Contato"}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -635,7 +683,7 @@ export function ContactsTab() {
                           "px-2 py-0.5 rounded-[5px] transition-colors",
                           docType === type
                             ? "bg-[#1E90FF] text-white"
-                            : "text-muted-foreground hover:text-foreground"
+                            : "text-muted-foreground hover:text-foreground",
                         )}
                       >
                         {type}
@@ -721,8 +769,8 @@ export function ContactsTab() {
             <AlertDialogTitle>Remover contato</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja remover
-              {deleteTarget ? ` "${deleteTarget.name}"` : ""}? Essa ação pode ser
-              desfeita reativando o contato.
+              {deleteTarget ? ` "${deleteTarget.name}"` : ""}? Essa ação pode
+              ser desfeita reativando o contato.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

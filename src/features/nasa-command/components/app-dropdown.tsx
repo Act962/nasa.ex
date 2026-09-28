@@ -61,11 +61,11 @@ export function AppDropdown({ search, onSelect }: AppDropdownProps) {
         className="w-64 bg-zinc-900 border-zinc-700/60 p-0 shadow-2xl max-h-72 overflow-y-auto"
       >
         <DropdownMenuLabel className="px-3 py-2 border-b border-zinc-800 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-          #Apps NASA &amp; Integrações
+          #Apps ÓRBITA &amp; Integrações
         </DropdownMenuLabel>
 
         <div className="py-1">
-          {renderGroup(filteredNasa, "🚀 NASA Apps")}
+          {renderGroup(filteredNasa, "🚀 ÓRBITA Apps")}
           {filteredNasa.length > 0 && filteredIntegration.length > 0 && (
             <DropdownMenuSeparator className="bg-zinc-800 my-1" />
           )}

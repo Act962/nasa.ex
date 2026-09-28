@@ -523,7 +523,7 @@ export function SpaceGame({
           : "Configure um curso pra este auditório.",
         "nasa-route": props?.courseId
           ? "Curso disponível — compre o acesso pra entrar. (Checkout em breve)"
-          : "Configure um curso pra esta área NASA Route.",
+          : "Configure um curso pra esta área ÓRBITA Route.",
         formulario: props?.formId
           ? "Preencha o formulário. (Modal em breve)"
           : "Configure um formulário pra esta área.",
@@ -1143,7 +1143,7 @@ export function SpaceGame({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Globe className="h-4 w-4 text-indigo-400" />
-              <h2 className="text-white font-semibold">Galáxia NASA</h2>
+              <h2 className="text-white font-semibold">Galáxia ÓRBITA</h2>
             </div>
             <Button
               size="icon"

@@ -165,8 +165,8 @@ export const createGatewayCheckout = base
               product_data: {
                 name:        `${pkg.stars} Stars — ${pkg.label}`,
                 description: partnerDiscountSnapshot
-                  ? `NASA.ex Platform Credits — Desconto Parceiro ${partnerDiscountSnapshot.ratePercent}%`
-                  : "NASA.ex Platform Credits",
+                  ? `ÓRBITA.ex Platform Credits — Desconto Parceiro ${partnerDiscountSnapshot.ratePercent}%`
+                  : "ÓRBITA.ex Platform Credits",
               },
             },
             quantity: 1,
@@ -209,11 +209,16 @@ export const createGatewayCheckout = base
       const billingType = ASAAS_BILLING[input.paymentMethod] ?? "UNDEFINED";
 
       // 1. Find or create Asaas customer
-      const customer = await findOrCreateCustomer(
-        gw.secretKey, env,
-        user.email,
-        user.name ?? user.email,
-      );
+      //
+      // A recarga de Stars não coleta CPF/CNPJ em lugar nenhum. Pagador já
+      // cadastrado no Asaas é reaproveitado pelo e-mail; pagador inédito falha
+      // aqui, porque a API exige documento para criar. Resolver isso é coletar
+      // o documento no fluxo de Stars — fora do escopo da spec 0020.
+      const customer = await findOrCreateCustomer(gw.secretKey, env, {
+        email:   user.email,
+        name:    user.name ?? user.email,
+        cpfCnpj: null,
+      });
 
       // 2. Create charge with the requested billing type
       const charge = await createCharge(gw.secretKey, env, {
@@ -222,8 +227,8 @@ export const createGatewayCheckout = base
         value:              paidBrl,
         dueDate:            dueDatePlus(3),
         description:        partnerDiscountSnapshot
-          ? `${pkg.stars} Stars — ${pkg.label} — NASA.ex (Parceiro ${partnerDiscountSnapshot.ratePercent}% off)`
-          : `${pkg.stars} Stars — ${pkg.label} — NASA.ex`,
+          ? `${pkg.stars} Stars — ${pkg.label} — ÓRBITA.ex (Parceiro ${partnerDiscountSnapshot.ratePercent}% off)`
+          : `${pkg.stars} Stars — ${pkg.label} — ÓRBITA.ex`,
         externalReference:  payment.id,
         callbackSuccessUrl: successUrl,
       });

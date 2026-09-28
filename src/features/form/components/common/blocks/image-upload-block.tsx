@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, EyeIcon, ImagePlus, Trash } from "lucide-react";
+import { ChevronDown, ImagePlus, Trash } from "lucide-react";
 import { ImagePreviewDialog } from "@/features/actions/components/view-modal/image-preview-dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,6 +23,16 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { Uploader } from "@/components/file-uploader/uploader";
 import { useConstructUrl } from "@/hooks/use-construct-url";
@@ -351,53 +361,76 @@ function ImagePreview({
   onRemove: () => void;
 }) {
   const url = useConstructUrl(image.url);
-  const [open, setOpen] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
+  const isCompact = Math.min(width, height) < 96;
+
   return (
     <>
       <div
-        className="relative border rounded-md overflow-hidden group"
+        className="relative border rounded-md overflow-hidden"
         style={{ width: `${width}px`, height: `${height}px`, maxWidth: "100%" }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={url} alt={image.name} className="w-full h-full object-cover" />
+        {/* A imagem inteira abre o lightbox — é o gesto que o usuário já tenta.
+            A remoção fica num alvo próprio no canto, nunca sob o clique de ver. */}
+        <button
+          type="button"
+          onClick={() => setIsLightboxOpen(true)}
+          className="block w-full h-full cursor-zoom-in"
+          title="Visualizar"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt={image.name}
+            className="w-full h-full object-cover"
+          />
+        </button>
 
-        {/* Overlay com ações no hover */}
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            className="size-8 shadow-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setOpen(true);
-            }}
-            title="Visualizar"
-          >
-            <EyeIcon className="w-4 h-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            size="icon"
-            className="size-8 shadow-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            title="Remover"
-          >
-            <Trash className="w-4 h-4" />
-          </Button>
-        </div>
+        {/* O schema do bloco permite width/height a partir de 40px — num alvo
+            de 36px o botão cobriria a imagem inteira e engoliria o clique de
+            visualizar, que é a única forma de abrir o lightbox. */}
+        <Button
+          type="button"
+          variant="destructive"
+          size="icon"
+          className={
+            isCompact
+              ? "absolute top-0.5 right-0.5 size-6 rounded-full shadow-md"
+              : "absolute top-1.5 right-1.5 size-9 rounded-full shadow-md"
+          }
+          onClick={() => setIsRemoveConfirmOpen(true)}
+          title="Remover"
+          aria-label="Remover imagem"
+        >
+          <Trash className={isCompact ? "w-3 h-3" : "w-4 h-4"} />
+        </Button>
       </div>
 
       <ImagePreviewDialog
-        open={open}
+        open={isLightboxOpen}
         src={url}
         fileName={image.name}
-        onClose={() => setOpen(false)}
+        onClose={() => setIsLightboxOpen(false)}
       />
+
+      <AlertDialog
+        open={isRemoveConfirmOpen}
+        onOpenChange={setIsRemoveConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover esta imagem?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A imagem sai do formulário e você precisará enviá-la novamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={onRemove}>Remover</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

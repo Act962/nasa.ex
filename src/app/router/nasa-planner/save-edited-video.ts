@@ -1,7 +1,7 @@
+import { meterOrThrow } from "@/features/stars/lib/metering";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { StarTransactionType } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import { ORPCError } from "@orpc/server";
@@ -25,13 +25,14 @@ export const saveEditedVideo = base
     });
     if (!post) throw new ORPCError("NOT_FOUND", { message: "Post não encontrado" });
 
-    const { newBalance: balanceAfter } = await debitStars(
-      context.org.id,
-      STARS_MERGE_FFMPEG,
-      StarTransactionType.APP_CHARGE,
-      "Vídeo editado com FFmpeg",
-      "nasa-planner",
-    );
+    const { stars: starsCharged, balanceAfter } = await meterOrThrow({
+      organizationId: context.org.id,
+      action: "planner_video_merge",
+      userId: context.user.id,
+      appSlug: "nasa-planner",
+      description: "Vídeo editado com FFmpeg",
+      feature: "planner.video.merge",
+    });
 
     const updated = await prisma.nasaPlannerPost.update({
       where: { id: input.postId },
@@ -43,5 +44,5 @@ export const saveEditedVideo = base
       },
     });
 
-    return { post: updated, starsSpent: STARS_MERGE_FFMPEG, balanceAfter };
+    return { post: updated, starsSpent: starsCharged, balanceAfter };
   });

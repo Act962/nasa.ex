@@ -1,13 +1,16 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { TypeAction } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
+import { resolveActionAccess } from "@/features/actions/server/lib/can-edit-action";
 
 export const updateActionByLead = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "POST",
     summary: "Update a action by lead",
@@ -25,56 +28,123 @@ export const updateActionByLead = base
       score: z.number().default(0).optional(),
       isDone: z.boolean().default(false).optional(),
       type: z.enum(TypeAction).default(TypeAction.TASK).optional(),
-      trackingId: z.string().optional(),
       startDate: z.date().optional(),
       endDate: z.date().optional(),
       responsibles: z.array(z.string()).default([]),
     }),
   )
   .handler(async ({ input, errors, context }) => {
-    try {
-      const result = await prisma.$transaction(async (tx) => {
-        const action = await tx.action.update({
-          where: {
-            id: input.actionId,
-          },
-          data: {
-            title: input.title,
-            leadId: input.leadId,
-            description: input.description,
-            score: input.score,
-            isDone: input.isDone,
-            type: input.type,
-            trackingId: input.trackingId,
-            organizationId: context.session.activeOrganizationId,
-            createdBy: context.user.id,
-            startDate: input.startDate,
-            endDate: input.endDate,
-            responsibles: {
-              deleteMany: {},
-              create: input.responsibles.map((id) => ({
-                userId: id,
-              })),
-            },
-          },
-        });
+    const existingAction = await prisma.action.findFirst({
+      where: {
+        id: input.actionId,
+        workspace: { organizationId: context.org.id },
+      },
+      select: { id: true, leadId: true, trackingId: true },
+    });
 
-        if (action.leadId) {
-          await recordLeadHistory({
-            leadId: action.leadId,
-            userId: context.user.id,
-            action: LeadAction.ACTIVE,
-            notes: `Ação atualizada: ${action.title}`,
-            tx,
-          });
-        }
+    if (!existingAction) {
+      throw errors.NOT_FOUND({
+        message: "Ação não encontrada ou sem acesso",
+      });
+    }
 
-        return { action };
+    const access = await resolveActionAccess(input.actionId, {
+      userId: context.user.id,
+      org: context.org,
+    });
+    if (!access?.canEdit) {
+      throw errors.FORBIDDEN({
+        message: "Você não tem permissão para editar esta ação",
+      });
+    }
+
+    const isRepointingLead =
+      !!input.leadId && input.leadId !== existingAction.leadId;
+
+    // Repontar pra outro lead só é permitido dentro do mesmo tracking da
+    // action — caso contrário o vínculo lead↔tracking ficaria incoerente.
+    if (isRepointingLead) {
+      const lead = await prisma.lead.findFirst({
+        where: {
+          id: input.leadId,
+          trackingId: existingAction.trackingId ?? undefined,
+          tracking: {
+            organizationId: context.org.id,
+            participants: { some: { userId: context.user.id } },
+          },
+        },
+        select: { id: true },
       });
 
-      return result;
-    } catch (error) {
-      console.error(error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      if (!lead) {
+        throw errors.FORBIDDEN({
+          message: "Lead não encontrado, sem acesso ou de outro tracking",
+        });
+      }
     }
+
+    const previousLeadId = existingAction.leadId;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // A tarefa muda de dono, as respostas não vão junto: quem preencheu o
+      // checklist foi o cliente anterior. Elas voltam a ser avulsas no lead
+      // dele (spec 0002, CB-5). A pauta (ActionForm) permanece — o novo lead
+      // continua precisando dos mesmos formulários.
+      const detachedResponses = isRepointingLead
+        ? (
+            await tx.formResponses.updateMany({
+              where: { actionId: input.actionId },
+              data: { actionId: null },
+            })
+          ).count
+        : 0;
+
+      const action = await tx.action.update({
+        where: { id: input.actionId },
+        data: {
+          title: input.title,
+          leadId: input.leadId,
+          description: input.description,
+          score: input.score,
+          isDone: input.isDone,
+          type: input.type,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          responsibles: {
+            deleteMany: {},
+            create: input.responsibles.map((userId) => ({ userId })),
+          },
+        },
+      });
+
+      if (action.leadId) {
+        await recordLeadHistory({
+          leadId: action.leadId,
+          userId: context.user.id,
+          action: LeadAction.ACTIVE,
+          notes: `Ação atualizada: ${action.title}`,
+          tx,
+        });
+      }
+
+      // Trilha de auditoria no lead ANTIGO: sem isso, respostas somem da
+      // tarefa sem deixar rastro de para onde foram.
+      if (detachedResponses > 0 && previousLeadId) {
+        const noun =
+          detachedResponses === 1
+            ? "1 resposta de formulário"
+            : `${detachedResponses} respostas de formulário`;
+        await recordLeadHistory({
+          leadId: previousLeadId,
+          userId: context.user.id,
+          action: LeadAction.ACTIVE,
+          notes: `${noun} desvinculada(s): a tarefa "${action.title}" foi movida para outro lead`,
+          tx,
+        });
+      }
+
+      return { action, detachedResponses };
+    });
+
+    return result;
   });

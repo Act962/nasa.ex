@@ -22,6 +22,8 @@ export const listOrganizationsForSelection = base
         z.object({
           id: z.string(),
           name: z.string(),
+          /** A imagem em si vem por `/api/admin/orgs/[id]/logo`. */
+          hasLogo: z.boolean(),
         }),
       ),
     }),
@@ -43,10 +45,30 @@ export const listOrganizationsForSelection = base
       },
     });
 
+    // Só os ids: `logo` guarda data URI base64 (há logos de 3,5 MB no banco),
+    // e selecioná-la aqui colocaria megabytes na resposta de uma lista.
+    const organizationIds = organizations.map((organization) => organization.id);
+    const withLogo = organizationIds.length
+      ? await prisma.organization.findMany({
+          // Casa o que a rota consegue servir: parte das orgs tem `logo` como
+          // string vazia, e marcá-las geraria uma requisição que dá 404.
+          where: {
+            id: { in: organizationIds },
+            OR: [
+              { logo: { startsWith: "data:image/" } },
+              { logo: { startsWith: "http" } },
+            ],
+          },
+          select: { id: true },
+        })
+      : [];
+    const idsWithLogo = new Set(withLogo.map((organization) => organization.id));
+
     return {
-      organizations: organizations.map((o) => ({
-        id: o.id,
-        name: o.name,
+      organizations: organizations.map((organization) => ({
+        id: organization.id,
+        name: organization.name,
+        hasLogo: idsWithLogo.has(organization.id),
       })),
     };
   });

@@ -84,7 +84,7 @@ export function buildWorkflowTools(
     // ── 1. Lista presets disponíveis ────────────────────────────────
     list_workflow_presets: tool({
       description:
-        "Retorna o catálogo de presets de workflow prontos. Use ANTES de `apply_workflow_preset` pra escolher o slug certo. Use quando o user pede algo que claramente casa com um preset (ex: 'crie boas-vindas pra alunos NASA Route').",
+        "Retorna o catálogo de presets de workflow prontos. Use ANTES de `apply_workflow_preset` pra escolher o slug certo. Use quando o user pede algo que claramente casa com um preset (ex: 'crie boas-vindas pra alunos ÓRBITA Route').",
       inputSchema: z.object({}),
       execute: async () => {
         return {

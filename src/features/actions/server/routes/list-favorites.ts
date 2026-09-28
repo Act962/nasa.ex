@@ -67,6 +67,7 @@ export const listFavorites = base
 
     const baseWhere: Prisma.ActionWhereInput = {
       workspaceId: input.workspaceId,
+      workspace: { organizationId: context.org.id },
       isArchived: false,
       ...visibilityFilter,
     };

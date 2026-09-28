@@ -173,7 +173,7 @@ export const APPS_BY_VERB: Record<VerbId, ReadonlyArray<{ id: string; label: str
     { id: "app.SEND_CONTRACT", label: "App: Enviar Contrato", icon: "FileText", group: "send-to-app" },
     { id: "app.SEND_LINNKER", label: "App: Enviar Linnker", icon: "Link2", group: "send-to-app" },
     { id: "app.SEND_NBOX", label: "App: Enviar Arquivo N-Box", icon: "FolderOpen", group: "send-to-app" },
-    { id: "app.SEND_NASA_ROUTE", label: "App: Enviar Curso NASA Route", icon: "GraduationCap", group: "send-to-app" },
+    { id: "app.SEND_NASA_ROUTE", label: "App: Enviar Curso ÓRBITA Route", icon: "GraduationCap", group: "send-to-app" },
     // ── Modo Agente IA — Gatilhos (event-driven) ───────────────
     // Esses triggers exigem `agentMode: true` no workflow — o cmdk-palette
     // cria já com a flag setada via `directIntent.payload.agentMode`.
@@ -205,7 +205,7 @@ export const APPS_BY_VERB: Record<VerbId, ReadonlyArray<{ id: string; label: str
     // Esses criam workflows inteiros baseados em blueprints existentes
     // (não 1 nó só). directIntent type "apply_preset" no payload.
     { id: "preset.PROPOSTA_CONTRATO", label: "Preset: Proposta + Contrato (cadência longa)", icon: "FileSignature", group: "agent-preset" },
-    { id: "preset.BOAS_VINDAS_NASA_ROUTE", label: "Preset: Boas-vindas NASA Route", icon: "GraduationCap", group: "agent-preset" },
+    { id: "preset.BOAS_VINDAS_NASA_ROUTE", label: "Preset: Boas-vindas ÓRBITA Route", icon: "GraduationCap", group: "agent-preset" },
     { id: "preset.AGENDAMENTO", label: "Preset: Agente de Agendamento", icon: "Calendar", group: "agent-preset" },
     { id: "preset.CLOSER_FOLLOWUP", label: "Preset: Closer Comercial + Follow-up", icon: "Phone", group: "agent-preset" },
     { id: "preset.COMPROVANTE_PAGAMENTO", label: "Preset: Comprovante de Pagamento (IA lê arquivo)", icon: "Receipt", group: "agent-preset" },
@@ -788,7 +788,7 @@ const AUTOMATIZAR_SPECS: AutomatizarSpec[] = [
   { appId: "app.SEND_CONTRACT", nodeType: "SEND_CONTRACT", title: "Automação: Enviar Contrato", icon: "FileText" },
   { appId: "app.SEND_LINNKER", nodeType: "SEND_LINNKER", title: "Automação: Enviar Linnker", icon: "Link2" },
   { appId: "app.SEND_NBOX", nodeType: "SEND_NBOX", title: "Automação: Enviar Arquivo N-Box", icon: "FolderOpen" },
-  { appId: "app.SEND_NASA_ROUTE", nodeType: "SEND_NASA_ROUTE", title: "Automação: Enviar Curso NASA Route", icon: "GraduationCap" },
+  { appId: "app.SEND_NASA_ROUTE", nodeType: "SEND_NASA_ROUTE", title: "Automação: Enviar Curso ÓRBITA Route", icon: "GraduationCap" },
   // ── Modo Agente IA — todos os nodes que exigem `agentMode: true` ──
   // Setamos `agentMode: "true"` no payload pra o cmdk-palette criar
   // o workflow já habilitado. Sem essa flag, esses nodes não rodam.
@@ -905,7 +905,7 @@ const PRESET_SPECS: PresetSpec[] = [
   {
     appId: "preset.BOAS_VINDAS_NASA_ROUTE",
     presetSlug: "boas-vindas-nasa-route",
-    title: "Preset: Boas-vindas NASA Route",
+    title: "Preset: Boas-vindas ÓRBITA Route",
     icon: "GraduationCap",
     description: "Dispara em PAYMENT_RECEIVED · tag Aluno + email caprichado + WhatsApp + check-in 3d",
   },

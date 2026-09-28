@@ -29,11 +29,24 @@ import { EmojiData } from "emoji-picker-react/dist/types/exposedTypes";
 import { SmileIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useQueryTrackings } from "@/features/trackings/hooks/use-trackings";
+
+// O Select do shadcn não aceita item com value vazio, então "sem vínculo"
+// vira um sentinel traduzido pra `undefined` no submit.
+const NO_TRACKING = "none";
 
 const formSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
   description: z.string().optional(),
   icon: z.string().optional(),
+  trackingId: z.string().optional(),
 });
 
 type DataForm = z.infer<typeof formSchema>;
@@ -47,6 +60,7 @@ export function CreateWorkspaceModal({
 }) {
   const [openEmoji, setOpenEmoji] = useState(false);
   const createWorkspace = useCreateWorkspace();
+  const { trackings, isLoading: isLoadingTrackings } = useQueryTrackings();
 
   const form = useForm<DataForm>({
     resolver: zodResolver(formSchema),
@@ -54,16 +68,24 @@ export function CreateWorkspaceModal({
       name: "",
       description: "",
       icon: "🏢",
+      trackingId: NO_TRACKING,
     },
   });
 
   const onSubmit = (data: DataForm) => {
-    createWorkspace.mutate(data, {
-      onSuccess: () => {
-        onOpenChange(false);
-        form.reset();
+    createWorkspace.mutate(
+      {
+        ...data,
+        trackingId:
+          data.trackingId === NO_TRACKING ? undefined : data.trackingId,
       },
-    });
+      {
+        onSuccess: () => {
+          onOpenChange(false);
+          form.reset();
+        },
+      },
+    );
   };
 
   const isPending = createWorkspace.isPending;
@@ -133,6 +155,36 @@ export function CreateWorkspaceModal({
               />
               <FieldError errors={[form.formState.errors.description]} />
             </Field>
+
+            <Controller
+              control={form.control}
+              name="trackingId"
+              render={({ field }) => (
+                <Field className="">
+                  <FieldLabel>Tracking vinculado (opcional)</FieldLabel>
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={isPending || isLoadingTrackings}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Nenhum tracking" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_TRACKING}>
+                        Nenhum tracking
+                      </SelectItem>
+                      {trackings.map((tracking) => (
+                        <SelectItem key={tracking.id} value={tracking.id}>
+                          {tracking.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError errors={[form.formState.errors.trackingId]} />
+                </Field>
+              )}
+            />
           </FieldGroup>
 
           <DialogFooter className="mt-8">

@@ -53,11 +53,19 @@ export const listActionsByLead = base
       ),
     }),
   )
-  .handler(async ({ errors, input }) => {
+  .handler(async ({ errors, input, context }) => {
     try {
       const actions = await prisma.action.findMany({
         where: {
           leadId: input.leadId,
+          // Escopo de org via o tracking do lead: sem isso, qualquer id de
+          // lead conhecido exporia as ações de outra organização.
+          lead: {
+            tracking: {
+              organizationId: context.org.id,
+              participants: { some: { userId: context.user.id } },
+            },
+          },
         },
         include: {
           responsibles: {

@@ -5,7 +5,7 @@ import {
   exchangeCommentsCode,
   commentsPublicOrigin,
   COMMENTS_DEFAULT_SCOPES,
-} from "@/features/comments/lib/oauth";
+} from "@/features/comments-remote/lib/oauth";
 import { consumeState } from "@/features/integrations/lib/oauth/state-store";
 
 function errorRedirect(origin: string, returnUrl: string, code: string) {

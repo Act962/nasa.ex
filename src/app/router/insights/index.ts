@@ -38,6 +38,7 @@ import { listLeadsByAppMetric } from "./leads-by-metric/list";
 import { getFunnel } from "./funnel/get";
 import { getLeadOrigin } from "./lead-origin/get";
 import { getTrackingPerformance } from "./tracking-performance/get";
+import { getStatusConversion } from "./status-conversion/get";
 
 export const insightsRouter = {
   getAppsInsights,
@@ -80,4 +81,5 @@ export const insightsRouter = {
   getFunnel,
   getLeadOrigin,
   getTrackingPerformance,
+  getStatusConversion,
 };

@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { findSubActionInOrg, isOrgMember } from "../lib/action-access";
 
 export const addSubActionResponsible = base
   .use(requiredAuthMiddleware)
@@ -13,7 +14,21 @@ export const addSubActionResponsible = base
       userId: z.string(),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
+    const subAction = await findSubActionInOrg(
+      input.subActionId,
+      context.org.id,
+    );
+    if (!subAction) {
+      throw errors.NOT_FOUND({ message: "Sub-ação não encontrada" });
+    }
+
+    if (!(await isOrgMember(input.userId, context.org.id))) {
+      throw errors.FORBIDDEN({
+        message: "Usuário não pertence a esta organização",
+      });
+    }
+
     const responsible = await prisma.subActionUserResponsible.upsert({
       where: {
         userId_subActionId: {

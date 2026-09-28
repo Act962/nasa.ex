@@ -52,7 +52,7 @@ export async function generateMetadata({
 
   const description = event.description
     ? event.description.slice(0, 160)
-    : "Evento público da comunidade NASA.";
+    : "Evento público da comunidade ÓRBITA.";
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const ogImage = event.coverImage
@@ -62,7 +62,7 @@ export async function generateMetadata({
     : `${appUrl}/calendario/evento/${slug}/opengraph-image`;
 
   return {
-    title: `${event.title} · NASA`,
+    title: `${event.title} · ÓRBITA`,
     description,
     openGraph: {
       title: event.title,

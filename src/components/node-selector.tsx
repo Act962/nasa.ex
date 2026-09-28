@@ -310,7 +310,7 @@ export function NodeSelector({
                 </div>
 
                 {/* Sub-grupo "Adicionar Lead no App" — Form, Agenda, Forge,
-                    Linnker, N-Box, NASA Route. */}
+                    Linnker, N-Box, ÓRBITA Route. */}
                 {executionNodes.some((n) => n.group === "send-to-app") && (
                   <Accordion
                     type="single"
@@ -390,7 +390,7 @@ export function NodeSelector({
 
                 <AccordionItem value="agent-apps">
                   <AccordionTrigger className="px-4 pt-5 hover:no-underline">
-                    Apps NASA & Comunicação
+                    Apps ÓRBITA & Comunicação
                     <Badge variant="outline" className="ml-2 text-[10px] uppercase">
                       Agente IA
                     </Badge>

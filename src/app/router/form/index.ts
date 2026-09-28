@@ -8,6 +8,7 @@ import { submitResponse } from "./public/submut-response";
 import { savePartialResponse } from "./public/save-partial-response";
 import { findDraftByPhone } from "./public/find-draft";
 import { validateLeadPhone } from "./public/validate-lead-phone";
+import { validateCep } from "./public/validate-cep";
 import { PublishForm } from "./publish";
 import { insightForm } from "./status";
 import { deleteForm } from "./delete";
@@ -21,6 +22,7 @@ import { getResponseByToken } from "./get-response-by-token";
 import { updateClientSignatures } from "./update-client-signatures";
 import { recordFormOpening } from "./record-form-opening";
 import { listRecentResponses } from "./list-recent-responses";
+import { checkExistingLead } from "./check-existing-lead";
 
 export const formRouter = {
   get: fetchFormById,
@@ -43,6 +45,8 @@ export const formRouter = {
   savePartialResponse,
   findDraftByPhone,
   validateLeadPhone,
+  validateCep,
+  checkExistingLead,
   PublishForm,
   togglePublicOnSpace,
   insightForm,

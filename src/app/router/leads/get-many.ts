@@ -177,12 +177,14 @@ export const listLeadsByStatus = base
         phone: true,
         order: true,
         statusId: true,
+        trackingId: true,
         createdAt: true,
         updatedAt: true,
         description: true,
         temperature: true,
         statusFlow: true,
         profile: true,
+        amount: true,
         // Campos novos: existem no client após `prisma generate` rodar pós-migration
         ...({ slaDeadline: true, statusEnteredAt: true } as any),
         responsible: {
@@ -247,6 +249,13 @@ export const listLeadsByStatus = base
             meetingType: true,
             agenda: { select: { id: true, name: true } },
           },
+        },
+        // Atividades (actions) vinculadas ao lead — só o `isDone` das
+        // não-arquivadas, o suficiente pra derivar {total, pending, done} do
+        // badge no card. Lista completa é buscada lazy quando abre o popover.
+        actions: {
+          where: { isArchived: false },
+          select: { isDone: true },
         },
       },
 
@@ -398,6 +407,7 @@ export const listLeadsByStatus = base
         const {
           formResponses: _strip,
           appointments: leadAppointments,
+          actions: leadActions,
           ...rest
         } = lead as unknown as {
           formResponses?: unknown;
@@ -409,7 +419,18 @@ export const listLeadsByStatus = base
             meetingType: "ONLINE" | "IN_PERSON";
             agenda: { id: string; name: string };
           }>;
+          actions?: Array<{ isDone: boolean }>;
         } & typeof lead;
+
+        const actionsList = leadActions ?? [];
+        const actionsDone = actionsList.filter(
+          (action) => action.isDone,
+        ).length;
+        const actionsSummary = {
+          total: actionsList.length,
+          done: actionsDone,
+          pending: actionsList.length - actionsDone,
+        };
         const next = leadAppointments?.[0] ?? null;
         const nextAppointment = next
           ? {
@@ -424,9 +445,11 @@ export const listLeadsByStatus = base
         return {
           ...rest,
           order: lead.order.toString(),
+          amount: lead.amount.toString(),
           forms: responses,
           deadlineHint,
           nextAppointment,
+          actionsSummary,
         };
       }),
       nextCursorId,

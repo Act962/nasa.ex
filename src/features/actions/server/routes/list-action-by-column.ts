@@ -75,6 +75,7 @@ export const listActionByColumn = base
     const action = await prisma.action.findMany({
       where: {
         columnId: input.columnId,
+        workspace: { organizationId: context.org.id },
         isArchived: input.isArchived,
         ...visibilityFilter,
         ...filterWhere,
@@ -125,6 +126,22 @@ export const listActionByColumn = base
             isDone: true,
           },
         },
+        lead: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        formResponseId: true,
+        formResponse: {
+          select: {
+            id: true,
+            form: { select: { id: true, name: true } },
+          },
+        },
+        // Habilita o ícone de formulários no card mesmo quando a tarefa não
+        // foi gerada por form, mas teve pauta anexada à mão (spec 0002).
+        _count: { select: { forms: true } },
         tags: {
           select: {
             tag: {

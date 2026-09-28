@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useCashflow } from "../../hooks/use-payment";
-import { formatCurrency } from "../../lib/format";
+import { CashflowDayDialog } from "./cashflow-day-dialog";
+import { formatCurrency, formatDate } from "../../lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AreaChart,
@@ -14,20 +15,17 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { TrendingUp, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { TrendingUp, ArrowDownCircle, ArrowUpCircle, Eye } from "lucide-react";
 import {
-  PaymentPeriodPicker,
-  currentMonthRange,
-} from "../shared/payment-period-picker";
+  usePaymentPeriodIso,
+  usePaymentCategoryFilter,
+} from "../../store/use-payment-filters-store";
 
 export function CashflowTab() {
-  const [period, setPeriod] = useState<{ from?: Date; to?: Date }>(
-    currentMonthRange(),
-  );
-  const { data, isLoading } = useCashflow({
-    dateFrom: period.from?.toISOString(),
-    dateTo: period.to?.toISOString(),
-  });
+  const { dateFrom, dateTo } = usePaymentPeriodIso();
+  const categoryIds = usePaymentCategoryFilter();
+  const { data, isLoading } = useCashflow({ dateFrom, dateTo, categoryIds });
+  const [openDay, setOpenDay] = useState<string | null>(null);
 
   const rows = data?.rows ?? [];
 
@@ -44,14 +42,6 @@ export function CashflowTab() {
 
   return (
     <div className="space-y-6">
-      {/* Period selector */}
-      <div className="flex items-center gap-3">
-        <PaymentPeriodPicker
-          from={period.from}
-          to={period.to}
-          onChange={setPeriod}
-        />
-      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -146,13 +136,18 @@ export function CashflowTab() {
                 <th className="text-right px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium text-green-400">Entradas</th>
                 <th className="text-right px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium text-red-400">Saídas</th>
                 <th className="text-right px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium text-blue-400">Saldo</th>
+                <th className="w-10" />
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.date} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                <tr
+                  key={r.date}
+                  onClick={() => setOpenDay(r.date)}
+                  className="cursor-pointer border-b border-border/30 hover:bg-muted/20 transition-colors"
+                >
                   <td className="px-3 sm:px-4 py-2.5 font-medium">
-                    {new Date(r.date).toLocaleDateString("pt-BR")}
+                    {formatDate(r.date)}
                   </td>
                   <td className="px-3 sm:px-4 py-2.5 text-right text-green-400">
                     {r.receivable > 0 ? formatCurrency(r.receivable) : "—"}
@@ -163,6 +158,12 @@ export function CashflowTab() {
                   <td className={`px-3 sm:px-4 py-2.5 text-right font-semibold ${r.balance >= 0 ? "text-green-400" : "text-red-400"}`}>
                     {formatCurrency(r.balance)}
                   </td>
+                  <td className="px-2 py-2.5 text-right">
+                    <Eye
+                      className="inline size-4 text-muted-foreground"
+                      aria-label={`Ver lançamentos de ${formatDate(r.date)}`}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -170,6 +171,12 @@ export function CashflowTab() {
           </div>
         </div>
       )}
+
+      <CashflowDayDialog
+        date={openDay}
+        categoryIds={categoryIds}
+        onClose={() => setOpenDay(null)}
+      />
     </div>
   );
 }

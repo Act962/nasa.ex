@@ -91,10 +91,10 @@ export default function ResetPasswordPage() {
                 boxShadow: "0 0 16px rgba(124,58,237,0.45)",
               }}
             >
-              <Image src="/icon-astro.svg" alt="NASA" width={20} height={20} unoptimized />
+              <Image src="/icon-astro.svg" alt="ÓRBITA" width={20} height={20} unoptimized />
             </div>
             <span style={{ fontSize: 18, fontWeight: 800, color: "white", letterSpacing: "-0.4px" }}>
-              NASA<span style={{ color: "#a78bfa" }}>.ex</span>
+              ÓRBITA<span style={{ color: "#a78bfa" }}>.ex</span>
             </span>
           </Link>
         </div>
@@ -278,10 +278,10 @@ export default function ResetPasswordPage() {
               justifyContent: "center",
             }}
           >
-            <Image src="/icon-astro.svg" alt="NASA" width={18} height={18} unoptimized />
+            <Image src="/icon-astro.svg" alt="ÓRBITA" width={18} height={18} unoptimized />
           </div>
           <span style={{ fontSize: 17, fontWeight: 800, color: "white" }}>
-            NASA<span style={{ color: "#a78bfa" }}>.ex</span>
+            ÓRBITA<span style={{ color: "#a78bfa" }}>.ex</span>
           </span>
         </Link>
 

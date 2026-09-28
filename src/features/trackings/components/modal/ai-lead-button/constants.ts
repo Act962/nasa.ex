@@ -25,8 +25,8 @@ export const SUGGESTED_PROMPTS = [
   },
   {
     icon: GraduationCap,
-    label: "Preset Boas-vindas NASA Route",
-    text: "Quero o preset de boas-vindas pós-pagamento NASA Route — email + WhatsApp com info do curso + check-in em 3 dias.",
+    label: "Preset Boas-vindas ÓRBITA Route",
+    text: "Quero o preset de boas-vindas pós-pagamento ÓRBITA Route — email + WhatsApp com info do curso + check-in em 3 dias.",
     color: "text-pink-500",
   },
   {

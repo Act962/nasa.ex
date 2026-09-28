@@ -71,6 +71,46 @@ tool do Astro** — página e bot nunca divergem. As tools ficam em
 multi-org. `get_funnel` pede o tracking quando a empresa tem mais de um. Próximos blocos
 candidatos: leads por atendente, performance por tracking, tráfego Meta, resgate de leads.
 
+## ⭐ Astro Financeiro pelo WhatsApp — 2026-09-15 (spec 0019)
+
+Fase 6 do Astro agente financeiro ([spec 0019](../specs/astro-bot/0019-whatsapp-escopo-financeiro-e-stars.md)).
+Vale por cima do rework acima:
+
+1. **Flag por org.** `OrganizationBotConfig.financeEnabled` (default `false`), ligada
+   pelo admin no toggle "Astro Financeiro pelo WhatsApp (cobra Stars)"
+   ([`bot-config-section.tsx`](../src/features/astro-bot/components/bot-config-section.tsx),
+   `astroBot.config.upsert` com `financeEnabled?` — ausente preserva o valor salvo).
+   Desligada = `toolScope: "insights"` (inalterado). Ligada = `toolScope: "assistant"`:
+   leitura da plataforma + pack `payment` (read + `propose_*`) + `confirm_action`/`cancel_action`,
+   sem routing pra sub-agents. As tools financeiras respeitam a whitelist `PaymentAccess`
+   do usuário do binding.
+
+2. **Stars nos dois escopos.** [`stars-billing.ts`](../src/features/astro-bot/lib/stars-billing.ts)
+   espelha `/api/astro/chat`: `chargeStarsByAction(orgId, "astro_prompt")` antes do
+   orquestrador (saldo insuficiente → reply de saldo, `status: "stars_insufficient"`, nada
+   executa) e `debitStars` por tokens depois (1★/1k, mínimo 1). Org `appScope = "trafego"`
+   é isenta. `WhatsappBotCommand.starsCharged` passa a gravar stake + tokens debitados.
+
+3. **Mídia inbound.** Os webhooks passam `DocumentMessage`/`ImageMessage` (Uazapi) e
+   `document`/`image` (Meta, POST com 1 mensagem) para `maybeHandleBotMessage`. O handler
+   só intercepta se o gate aceitar **e** `financeEnabled = true`; senão `handled: false` e a
+   mídia segue o atendimento. [`inbound-media.ts`](../src/features/astro-bot/lib/inbound-media.ts):
+   `assessBotInboundMedia` (PDF/PNG/JPEG/WEBP/HEIC + `entries.create`) roda **antes** do
+   stake; `storeBotInboundDocument` baixa pelo provider da tracking (`downloadFile` Uazapi /
+   `downloadInboundMedia` Meta), grava em `payment/attachments/<orgId>/<uuid>.<ext>` e cria
+   `PaymentAttachment` sem `entryId` (`sourceChannel: "whatsapp"`). O anexo vai em
+   `ctx.attachments`; sem legenda o prompt vira "Leia o documento que acabei de enviar…".
+   Status novos: `media_unsupported`, `media_forbidden`, `media_failed`.
+
+4. **Confirmação por texto.** `output-formatter.ts` resume `astro_confirmation` em título +
+   linhas + avisos + "Responda *SIM* pra confirmar ou *NÃO* pra cancelar (vale até HH:mm)"
+   e `astro_confirmation_result` em ✅/❌. Botões interativos ficaram de fora: a PORT canônica
+   não envia `interactive` e o clique chegaria como `interactive_reply`, fora do gate.
+   Propostas usam `ctx.channel = "WHATSAPP"` (TTL 2 h) e `ctx.sessionId = "whatsapp:<bindingId>"`.
+
+5. **Rollback sem deploy:** desligar `financeEnabled` volta o bot a insights e a mídia ao
+   atendimento (a cobrança de Stars continua — zerar a regra `astro_prompt` remove só o stake).
+
 O restante deste documento é o design original (2026-05-30), mantido por histórico.
 
 ---

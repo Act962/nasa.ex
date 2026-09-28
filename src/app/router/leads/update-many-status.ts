@@ -171,6 +171,7 @@ export const updateManyStatusLead = base
               toStatusId: input.statusId!,
               orgId: trackingOrgMap.get(lead.trackingId) ?? null,
               responsibleId: responsibleMap.get(lead.id) ?? null,
+              actorUserId: context.user.id,
             }),
           ),
         );

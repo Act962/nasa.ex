@@ -5,6 +5,7 @@ import timezone from "dayjs/plugin/timezone";
 import prisma from "@/lib/prisma";
 import { NodeType } from "@/generated/prisma/enums";
 import { dispatchFirstInteractionOfDay } from "@/inngest/utils";
+import type { WorkflowLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -183,6 +184,8 @@ export async function dispatchFirstInteractionOfDayIfReturning(params: {
   trackingId: string;
   previousLastInboundAt: Date | null;
   interactionAt: Date;
+  /** Mensagem que satisfez o gate — vai pro payload do gatilho (spec 0008). */
+  leadMessage?: WorkflowLeadMessage;
 }): Promise<void> {
   if (!params.previousLastInboundAt) return;
 
@@ -246,6 +249,7 @@ export async function dispatchFirstInteractionOfDayIfReturning(params: {
         await dispatchFirstInteractionOfDay({
           workflowId: workflow.workflowId,
           lead: dispatchLead,
+          leadMessage: params.leadMessage,
         });
       }
     }),

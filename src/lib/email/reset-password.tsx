@@ -22,7 +22,7 @@ interface ResetPasswordEmailProps {
 export const ResetPasswordEmail = ({
   username,
   resetLink,
-  appName = "NASA.ex",
+  appName = "ÓRBITA.ex",
   expirationMinutes = "60",
 }: ResetPasswordEmailProps) => {
   const previewText = `Recupere o acesso à sua conta no ${appName}`;

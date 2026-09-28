@@ -10,7 +10,10 @@ import {
 } from "lucide-react";
 import { usePaymentDashboard, useCashflow } from "../../hooks/use-payment";
 import { formatCurrency, formatPercent } from "../../lib/format";
-import { type PeriodRange } from "../shared/payment-period-picker";
+import {
+  usePaymentPeriodIso,
+  usePaymentCategoryFilter,
+} from "../../store/use-payment-filters-store";
 import { DashboardToolbar } from "./dashboard-toolbar";
 import { NewTransactionDialog } from "./new-transaction-dialog";
 import { SummaryCard } from "./summary-card";
@@ -22,6 +25,10 @@ import {
   ExecutiveSummaryCard,
   type ExecutiveMetric,
 } from "./executive-summary-card";
+import { GoalsCard } from "./goals-card";
+import { CashBalanceCard } from "./cash-balance-card";
+import { usePaymentGoalStatus } from "../../hooks/use-payment-goals";
+import { monthFromPeriod } from "../../lib/period-month";
 
 const OPEN_STATUSES = ["PENDING", "PARTIAL", "OVERDUE"] as const;
 const MONTH_LABELS = [
@@ -63,27 +70,34 @@ function DashboardSkeleton() {
 }
 
 export function PaymentDashboard({
-  period,
-  onPeriodChange,
   onExport,
   isExporting,
   onNavigateTab,
+  onOpenSettings,
 }: {
-  period: PeriodRange;
-  onPeriodChange: (range: PeriodRange) => void;
   onExport: () => void;
   isExporting: boolean;
   /** Leva o usuário pra aba correspondente ao clicar em "Ver todas". */
   onNavigateTab?: (tab: string) => void;
+  /** Abre as configurações do módulo — usado pelo convite de cadastrar meta. */
+  onOpenSettings?: () => void;
 }) {
   const [granularity, setGranularity] = useState<"monthly" | "daily">("monthly");
   const [newTransactionOpen, setNewTransactionOpen] = useState(false);
 
-  const dateFrom = period.from?.toISOString();
-  const dateTo = period.to?.toISOString();
+  const { dateFrom, dateTo } = usePaymentPeriodIso();
+  const categoryIds = usePaymentCategoryFilter();
 
-  const { data, isLoading } = usePaymentDashboard({ dateFrom, dateTo });
-  const { data: cashflowData } = useCashflow({ dateFrom, dateTo });
+  const { data, isLoading } = usePaymentDashboard({ dateFrom, dateTo, categoryIds });
+  const { data: cashflowData } = useCashflow({ dateFrom, dateTo, categoryIds });
+
+  // Meta é mensal: fora de um mês fechado o bloco não tem contra o que medir.
+  const selectedMonth = monthFromPeriod(dateFrom, dateTo);
+  const { data: goalData } = usePaymentGoalStatus({
+    year: selectedMonth?.year ?? 0,
+    month: selectedMonth?.month ?? 1,
+    enabled: selectedMonth !== null,
+  });
 
   const chartPoints = useMemo<CashflowPoint[]>(() => {
     if (granularity === "daily") {
@@ -127,14 +141,14 @@ export function PaymentDashboard({
 
   const executiveMetrics: ExecutiveMetric[] = [
     {
-      label: "Receita",
+      label: "A receber",
       value: formatCurrency(data.totalReceivable),
       hint: "Em aberto no período",
       tone: "emerald",
       onSelect: () => onNavigateTab?.("receivables"),
     },
     {
-      label: "Despesa",
+      label: "A pagar",
       value: formatCurrency(data.totalPayable),
       hint: "Em aberto no período",
       tone: "red",
@@ -187,8 +201,6 @@ export function PaymentDashboard({
     // pb extra no mobile: o dock flutuante de IA cobre o rodapé do último card.
     <div className="space-y-5 pb-16 lg:pb-0">
       <DashboardToolbar
-        period={period}
-        onPeriodChange={onPeriodChange}
         onExport={onExport}
         isExporting={isExporting}
         onNewTransaction={() => setNewTransactionOpen(true)}
@@ -196,13 +208,21 @@ export function PaymentDashboard({
 
       <ExecutiveSummaryCard
         metrics={executiveMetrics}
-        goalAchieved={data.executive.goalAchieved}
-        goalTarget={data.executive.goalTarget}
+        goalAchieved={goalData?.status.salesRevenue ?? 0}
+        goalTarget={goalData?.status.revenueTargetCents ?? 0}
       />
+
+      {goalData && (
+        <GoalsCard
+          data={goalData.status}
+          hasCategoryFilter={Boolean(categoryIds && categoryIds.length > 0)}
+          onConfigure={onOpenSettings}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
-          label="Receita"
+          label="A receber"
           value={formatCurrency(data.totalReceivable)}
           icon={Wallet}
           tone="emerald"
@@ -216,7 +236,7 @@ export function PaymentDashboard({
           }}
         />
         <SummaryCard
-          label="Despesa"
+          label="A pagar"
           value={formatCurrency(data.totalPayable)}
           icon={Landmark}
           tone="red"
@@ -255,6 +275,8 @@ export function PaymentDashboard({
           previous={data.previousPeriod.netResult}
         />
       </div>
+
+      <CashBalanceCard />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <CashflowChartCard

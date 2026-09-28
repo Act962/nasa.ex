@@ -30,7 +30,10 @@ export { sendOfficialLocation } from "./send-location";
 export { sendOfficialContact } from "./send-contact";
 
 export { sendOfficialTemplate } from "./send-template";
+export { sendMarketingMessage } from "./send-marketing-message";
 export { getMessageTemplates } from "./get-message-templates";
+export { createMessageTemplate } from "./create-message-template";
+export { uploadResumableMedia } from "./upload-resumable-media";
 
 export { uploadOfficialMedia } from "./upload-media";
 export {
@@ -82,6 +85,8 @@ export type {
   SendLocationInput,
   SendContactInput,
   SendTemplateInput,
+  SendMarketingMessageInput,
+  MarketingMessageProductPolicy,
   UploadMediaInput,
   // Templates HSM (Fase 9)
   MessageTemplate,
@@ -89,6 +94,14 @@ export type {
   MessageTemplateCategory,
   TemplateComponent,
   MessageTemplatesResponse,
+  // Criação de templates (Campanhas — Fase 2)
+  TemplateHeaderFormat,
+  CreateTemplateButton,
+  CreateTemplateComponent,
+  CreateMessageTemplateRequest,
+  CreateMessageTemplateResponse,
+  ResumableUploadSessionResponse,
+  ResumableUploadFileResponse,
   // Embedded Signup (Fase 7)
   OAuthExchangeResponse,
   SubscribeAppResponse,

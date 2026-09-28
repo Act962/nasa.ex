@@ -29,7 +29,7 @@ export function WelcomeStep() {
           Conectar com {providerLabel}
         </h2>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Você vai ser redirecionado para o {providerLabel} autorizar o NASA. Em seguida, escolhe quais contas quer conectar.
+          Você vai ser redirecionado para o {providerLabel} autorizar o ÓRBITA. Em seguida, escolhe quais contas quer conectar.
         </p>
       </div>
 

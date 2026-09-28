@@ -40,6 +40,7 @@ import {
   Globe,
   Info,
   Key,
+  Landmark,
   Link2Off,
   Loader2,
   Lock,
@@ -255,7 +256,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   {
     platform: IntegrationPlatform.INSTAGRAM,
     label: "Instagram DM",
-    description: "Centralize mensagens diretas do Instagram no chat do NASA. Identifique leads por origem automaticamente.",
+    description: "Centralize mensagens diretas do Instagram no chat do ÓRBITA. Identifique leads por origem automaticamente.",
     color: "text-[#E1306C]", bgColor: "bg-gradient-to-br from-[#833AB4]/10 via-[#FD1D1D]/10 to-[#F77737]/10", borderColor: "border-[#E1306C]/30",
     icon: InstagramIcon,
     docsUrl: "https://developers.facebook.com/docs/instagram-api/getting-started", docsLabel: "Meta for Developers",
@@ -342,7 +343,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   {
     platform: IntegrationPlatform.GMAIL,
     label: "Gmail",
-    description: "Centralize e-mails de clientes no NASA. Histórico completo de comunicação por lead.",
+    description: "Centralize e-mails de clientes no ÓRBITA. Histórico completo de comunicação por lead.",
     color: "text-[#EA4335]", bgColor: "bg-[#EA4335]/10", borderColor: "border-[#EA4335]/30",
     icon: GmailIcon,
     docsUrl: "https://console.cloud.google.com/", docsLabel: "Google Cloud Console",
@@ -371,7 +372,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
     steps: [
       "Ative 'Maps JavaScript API' e 'Places API' no Google Cloud Console",
       "Crie uma Chave de API em 'Credenciais'",
-      "Restrinja a chave ao domínio do NASA",
+      "Restrinja a chave ao domínio do ÓRBITA",
     ],
     fields: [
       { key: "apiKey", label: "Chave de API do Google", placeholder: "AIzaSy...", type: "password" },
@@ -404,7 +405,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   {
     platform: IntegrationPlatform.OPENAI,
     label: "OpenAI",
-    description: "Use modelos GPT-4o no NASA para resumos de conversas, sugestões de resposta e automações inteligentes.",
+    description: "Use modelos GPT no ÓRBITA para resumos de conversas, sugestões de resposta e leitura de boletos e notas fiscais no financeiro. É a opção mais barata para leitura de documentos.",
     color: "text-foreground", bgColor: "bg-muted", borderColor: "border-border",
     icon: OpenAIIcon,
     docsUrl: "https://platform.openai.com/api-keys", docsLabel: "OpenAI Platform",
@@ -413,6 +414,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
       "Acesse platform.openai.com e faça login",
       "Vá em API Keys > Create new secret key",
       "Copie a chave (só aparece uma vez)",
+      "O financeiro usa esta chave para ler boletos e notas fiscais anexados ao Astro",
     ],
     fields: [
       { key: "apiKey", label: "API Key", placeholder: "sk-proj-...", type: "password", hint: "platform.openai.com/api-keys" },
@@ -422,7 +424,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   {
     platform: IntegrationPlatform.ANTHROPIC,
     label: "Anthropic (Claude)",
-    description: "Integre Claude ao NASA para análise de leads, automações e respostas mais precisas em português.",
+    description: "Integre Claude ao ÓRBITA para análise de leads, automações e leitura de documentos financeiros. Mais caro por leitura que OpenAI e Gemini.", 
     color: "text-[#D97757]", bgColor: "bg-[#D97757]/10", borderColor: "border-[#D97757]/30",
     icon: AnthropicIcon,
     docsUrl: "https://console.anthropic.com/settings/keys", docsLabel: "Anthropic Console",
@@ -431,6 +433,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
       "Acesse console.anthropic.com e faça login",
       "Vá em Settings > API Keys > Create Key",
       "Copie a chave e cole abaixo",
+      "Serve de reserva quando OpenAI ou Gemini falharem na leitura de documentos",
     ],
     fields: [
       { key: "apiKey", label: "API Key", placeholder: "sk-ant-api03-...", type: "password", hint: "console.anthropic.com/settings/keys" },
@@ -439,7 +442,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   {
     platform: IntegrationPlatform.GEMINI,
     label: "Gemini (Google AI)",
-    description: "Use Gemini 2.5 Flash para análise de dados, geração de relatórios e automações baseadas em IA.",
+    description: "Use Gemini para análise de dados, relatórios e leitura de boletos e notas fiscais. Custo por leitura próximo ao da OpenAI.",
     color: "text-[#4285F4]", bgColor: "bg-gradient-to-br from-[#4285F4]/10 to-[#EA4335]/10", borderColor: "border-[#4285F4]/30",
     icon: GeminiIcon,
     docsUrl: "https://aistudio.google.com/app/apikey", docsLabel: "Google AI Studio",
@@ -448,6 +451,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
       "Acesse aistudio.google.com e faça login com sua conta Google",
       "Clique em 'Get API Key' > 'Create API Key'",
       "Copie a chave e cole abaixo",
+      "O financeiro usa esta chave para ler boletos e notas fiscais anexados ao Astro",
     ],
     fields: [
       { key: "apiKey", label: "API Key", placeholder: "AIzaSy...", type: "password", hint: "aistudio.google.com/app/apikey" },
@@ -456,7 +460,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   {
     platform: IntegrationPlatform.HUGGING_FACE,
     label: "Hugging Face",
-    description: "Gere imagens gratuitamente com modelos open-source como FLUX.1-schnell. Use sua chave gratuita do Hugging Face para geração de imagens no NASA Planner.",
+    description: "Gere imagens gratuitamente com modelos open-source como FLUX.1-schnell. Use sua chave gratuita do Hugging Face para geração de imagens no ÓRBITA Planner.",
     color: "text-[#FF9A00]", bgColor: "bg-[#FF9A00]/10", borderColor: "border-[#FF9A00]/30",
     icon: HuggingFaceIcon,
     docsUrl: "https://huggingface.co/settings/tokens", docsLabel: "Hugging Face Tokens",
@@ -465,7 +469,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
       "Acesse huggingface.co e crie uma conta gratuita",
       "Vá em Settings > Access Tokens > New token",
       "Crie um token com permissão 'read' (gratuito)",
-      "Cole a chave abaixo — será usada para geração de imagens no NASA Planner",
+      "Cole a chave abaixo — será usada para geração de imagens no ÓRBITA Planner",
     ],
     fields: [
       { key: "apiKey", label: "Access Token", placeholder: "hf_xxxxxxxxxx", type: "password", hint: "huggingface.co/settings/tokens — plano gratuito disponível" },
@@ -474,7 +478,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   {
     platform: IntegrationPlatform.POLLINATIONS,
     label: "Pollinations.ai",
-    description: "Geração de imagens 100% gratuita e sem necessidade de chave de API. Usa modelos como FLUX para criar imagens para posts no NASA Planner automaticamente.",
+    description: "Geração de imagens 100% gratuita e sem necessidade de chave de API. Usa modelos como FLUX para criar imagens para posts no ÓRBITA Planner automaticamente.",
     color: "text-[#22c55e]", bgColor: "bg-[#22c55e]/10", borderColor: "border-[#22c55e]/30",
     icon: PollinationsIcon,
     docsUrl: "https://pollinations.ai", docsLabel: "Pollinations.ai",
@@ -491,7 +495,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   {
     platform: IntegrationPlatform.KOMMO,
     label: "Kommo (amoCRM)",
-    description: "Sincronize leads, negócios e contatos do Kommo com o NASA. Fluxo bidirecional de dados de vendas.",
+    description: "Sincronize leads, negócios e contatos do Kommo com o ÓRBITA. Fluxo bidirecional de dados de vendas.",
     color: "text-[#339DFF]", bgColor: "bg-[#339DFF]/10", borderColor: "border-[#339DFF]/30",
     icon: KommoIcon,
     docsUrl: "https://www.kommo.com/developers/", docsLabel: "Kommo Developers",
@@ -512,7 +516,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   {
     platform: IntegrationPlatform.RD_STATION,
     label: "RD Station",
-    description: "Sincronize leads e oportunidades do RD Station Marketing e CRM automaticamente no NASA.",
+    description: "Sincronize leads e oportunidades do RD Station Marketing e CRM automaticamente no ÓRBITA.",
     color: "text-[#00C4A0]", bgColor: "bg-[#00C4A0]/10", borderColor: "border-[#00C4A0]/30",
     icon: RDStationIcon,
     docsUrl: "https://developers.rdstation.com/", docsLabel: "RD Station Developers",
@@ -533,7 +537,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   {
     platform: IntegrationPlatform.PIPEDRIVE,
     label: "Pipedrive",
-    description: "Importe negócios, pessoas e atividades do Pipedrive para o NASA. Unifique seu pipeline de vendas.",
+    description: "Importe negócios, pessoas e atividades do Pipedrive para o ÓRBITA. Unifique seu pipeline de vendas.",
     color: "text-[#172B4D]", bgColor: "bg-[#172B4D]/10 dark:bg-white/5", borderColor: "border-[#172B4D]/20 dark:border-white/10",
     icon: PipedriveIcon,
     docsUrl: "https://developers.pipedrive.com/", docsLabel: "Pipedrive Developers",
@@ -546,6 +550,53 @@ export const PLATFORM_DEFS: PlatformDef[] = [
     fields: [
       { key: "apiToken", label: "API Token", placeholder: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", type: "password", hint: "Pipedrive > Configurações > Ferramentas pessoais > API" },
       { key: "domain", label: "Subdomínio da conta", placeholder: "suaempresa", hint: "Ex: 'suaempresa' de suaempresa.pipedrive.com" },
+    ],
+  },
+  {
+    platform: IntegrationPlatform.SEI,
+    label: "SEI",
+    description:
+      "Vincule processos administrativos aos leads, consulte andamentos e use os dados do SEI nas mensagens e automações do ÓRBITA.",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
+    borderColor: "border-primary/30",
+    icon: Landmark,
+    docsUrl:
+      "https://www.gov.br/gestao/pt-br/assuntos/gestaoeinovacao/informacoes-sistemas-e-servicos-de-gestao/processo-eletronico-nacional/servicos/documentacao",
+    docsLabel: "Manual de WebServices do SEI",
+    category: "crm",
+    steps: [
+      "Peça à TI do órgão o endpoint do WebService de homologação",
+      "Cadastre o ÓRBITA em Administração > Sistemas no SEI",
+      "Libere somente as operações consultarProcedimento e listarUnidades",
+      "Autorize o IP de saída do ÓRBITA ou forneça a chave de acesso do serviço",
+    ],
+    fields: [
+      {
+        key: "endpoint",
+        label: "Endpoint do WebService",
+        placeholder: "https://sei.orgao.gov.br/sei/controlador_ws.php?servico=sei",
+        hint: "Use o endpoint do ambiente de homologação antes de produção.",
+      },
+      {
+        key: "siglaSistema",
+        label: "Sigla do sistema",
+        placeholder: "ÓRBITA",
+        hint: "A mesma sigla cadastrada em Administração > Sistemas.",
+      },
+      {
+        key: "identificacaoServico",
+        label: "Chave de acesso do serviço",
+        placeholder: "Informe a IdentificacaoServico",
+        type: "password",
+        hint: "O ÓRBITA cifra esta chave antes de armazená-la.",
+      },
+      {
+        key: "idUnidade",
+        label: "ID da unidade padrão",
+        placeholder: "110000001",
+        hint: "Unidade usada nas consultas e ações das automações.",
+      },
     ],
   },
 ];
@@ -792,7 +843,7 @@ export function ConfigDialog({
             )}
             <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border text-xs text-muted-foreground">
               <ShieldCheck className="size-4 shrink-0 text-green-500 mt-0.5" />
-              <span>Credenciais armazenadas com segurança. O NASA nunca compartilha seus tokens com terceiros.</span>
+              <span>Credenciais armazenadas com segurança. O ÓRBITA nunca compartilha seus tokens com terceiros.</span>
             </div>
             <Button variant="outline" onClick={onClose} className="w-full" disabled={isSaving}>
               Cancelar
@@ -822,7 +873,7 @@ export function ConfigDialog({
 
             <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border text-xs text-muted-foreground">
               <ShieldCheck className="size-4 shrink-0 text-green-500 mt-0.5" />
-              <span>Credenciais armazenadas com segurança. O NASA nunca compartilha seus tokens com terceiros.</span>
+              <span>Credenciais armazenadas com segurança. O ÓRBITA nunca compartilha seus tokens com terceiros.</span>
             </div>
 
             <div className="flex gap-2 pt-1">
@@ -881,7 +932,7 @@ export function IntegrationsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Integrações</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Conecte suas ferramentas ao NASA para centralizar dados, mensagens e leads em um único lugar.
+          Conecte suas ferramentas ao ÓRBITA para centralizar dados, mensagens e leads em um único lugar.
         </p>
       </div>
 
@@ -929,7 +980,7 @@ export function IntegrationsPage() {
       <div className="rounded-2xl border bg-card p-5">
         <h2 className="font-semibold text-sm mb-1">🎯 Rastreamento automático de origem de leads</h2>
         <p className="text-xs text-muted-foreground mb-4">
-          Com as integrações ativas, o NASA identifica automaticamente de qual plataforma cada lead veio.
+          Com as integrações ativas, o ÓRBITA identifica automaticamente de qual plataforma cada lead veio.
           O ícone da fonte aparece no card do lead, no chat e nos Insights.
         </p>
         <div className="flex flex-wrap gap-2">

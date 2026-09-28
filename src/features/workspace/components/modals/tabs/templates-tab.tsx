@@ -12,9 +12,9 @@ export function TemplatesTab({ workspace, workspaceId }: TemplatesTabProps) {
   return (
     <div className="w-full space-y-6">
       <div>
-        <h3 className="text-lg font-medium">Padrões NASA</h3>
+        <h3 className="text-lg font-medium">Padrões ÓRBITA</h3>
         <p className="text-sm text-muted-foreground mb-6">
-          Marque este workspace como um padrão NASA para que ele possa ser duplicado em outras empresas com dados fictícios.
+          Marque este workspace como um padrão ÓRBITA para que ele possa ser duplicado em outras empresas com dados fictícios.
         </p>
       </div>
 

@@ -1,5 +1,6 @@
 import { base } from "@/app/middlewares/base";
 import { requireAdminMiddleware } from "@/app/middlewares/admin";
+import { invalidateCatalog } from "@/features/stars/lib/metering";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -29,6 +30,14 @@ const ruleOutput = z.object({
   popupTemplateId: z.string().nullable(),
   popupTemplateName: z.string().nullable(),
   category: z.string(),
+  // Cobrança por quantidade (spec 0020). `monthlyCost` é 0 nessas ações — o
+  // preço mora em `unitCost`, e ler só o campo fixo fazia o painel exibi-las
+  // como desligadas e gratuitas enquanto cobravam normalmente.
+  unit: z.string().nullable(),
+  unitCost: z.number().nullable(),
+  unitDivisor: z.number(),
+  minCharge: z.number(),
+  maxCharge: z.number().nullable(),
 });
 
 /**
@@ -76,17 +85,26 @@ export const adminGetStarRules = base
     const semanticCategory = Object.fromEntries(
       DEFAULT_STAR_RULES.map((r) => [r.action, r.category]),
     );
-    return rows.map((r) => ({
-      id: r.id,
-      action: r.appSlug,
-      label: r.displayName ?? r.appSlug,
-      stars: r.monthlyCost,
-      cooldownHours: null,
-      isActive: r.monthlyCost > 0,
-      popupTemplateId: null,
-      popupTemplateName: null,
-      category: semanticCategory[r.appSlug] ?? "custom",
-    }));
+    return rows.map((rule) => {
+      const unitCost = rule.unitCost === null ? null : Number(rule.unitCost);
+      const hasPrice = rule.monthlyCost > 0 || (unitCost ?? 0) > 0;
+      return {
+        id: rule.id,
+        action: rule.appSlug,
+        label: rule.displayName ?? rule.appSlug,
+        stars: rule.monthlyCost,
+        cooldownHours: null,
+        isActive: rule.isEnabled && hasPrice,
+        popupTemplateId: null,
+        popupTemplateName: null,
+        category: semanticCategory[rule.appSlug] ?? "custom",
+        unit: rule.unit,
+        unitCost,
+        unitDivisor: rule.unitDivisor,
+        minCharge: rule.minCharge,
+        maxCharge: rule.maxCharge,
+      };
+    });
   });
 
 export const adminCreateStarRule = base
@@ -123,6 +141,7 @@ export const adminCreateStarRule = base
         isPublic: true,
       },
     });
+    invalidateCatalog();
     return { success: true, id: created.id };
   });
 
@@ -152,6 +171,7 @@ export const adminUpdateStarRule = base
       where: { id: input.id },
       data,
     });
+    invalidateCatalog();
     return { success: true };
   });
 
@@ -162,5 +182,6 @@ export const adminDeleteStarRule = base
   .output(z.object({ success: z.boolean() }))
   .handler(async ({ input }) => {
     await prisma.appStarCost.delete({ where: { id: input.id } });
+    invalidateCatalog();
     return { success: true };
   });

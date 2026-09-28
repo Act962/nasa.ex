@@ -34,11 +34,13 @@ model User {
   actions                            Action[]
   responsibleOnSubActions            SubActionUserResponsible[]
   responsibleOnLeads                 Lead[]                       @relation("LeadResponsible")
+  broadcasts                         Broadcast[]
   worflows                           Workflow[]
   workflowFolders                    WorkflowFolder[]
   archivedTags                       Tag[]                        @relation("TagArchiver")
   chatPreferences                    UserChatPreferences?
   forms                              Form[]
+  actionFormsAttached                ActionForm[]                 @relation("ActionFormAttachedBy")
   leadFiles                          LeadFile[]
   insightShares                      InsightShares[]
   savedInsightReports                SavedInsightReport[]
@@ -60,10 +62,12 @@ model User {
   workspacesMembers                  WorkspaceMember[]
   userNotifications                  UserNotification[]
   notificationPrefs                  UserNotificationPreference[]
+  pushSubscriptions                  PushSubscription[]
   sidebarPrefs                       UserSidebarPreference[]
   spacePoints                        UserSpacePoint[]
   memberStarBudgets                  MemberStarBudget[]
   paymentEntriesCreated              PaymentEntry[]               @relation("PaymentEntryCreatedBy")
+  paymentAttachmentsUploaded         PaymentAttachment[]          @relation("PaymentAttachmentUploadedBy")
   paymentAccess                      PaymentAccess[]              @relation("PaymentAccessUser")
   paymentAccessGranted               PaymentAccess[]              @relation("PaymentAccessAuthorizer")
   paymentApprovalsRequested          PaymentApprovalRequest[]     @relation("PaymentApprovalRequester")
@@ -127,10 +131,13 @@ model User {
 
   // Insights — jornada do lead
   leadJourneyEventsActed LeadJourneyEvent[] @relation("LeadJourneyEventActor")
+  formResponsesAuthored  FormResponses[]    @relation("FormResponseAuthor")
 
   // ── ASTRO (Agentes IA) ──
-  aiSessions      AiSession[]
-  aiKnowledgeMade AiKnowledge[] @relation("AiKnowledgeCreatedBy")
+  aiSessions              AiSession[]
+  astroPendingActions     AstroPendingAction[]
+  paymentRemindersCreated PaymentReminder[]    @relation("PaymentReminderCreatedBy")
+  aiKnowledgeMade         AiKnowledge[]        @relation("AiKnowledgeCreatedBy")
 
   // ── Tracking Chat — figurinhas personalizadas do composer ──
   userStickers UserSticker[]
@@ -143,6 +150,19 @@ model User {
 
   // ── Astro Bot via WhatsApp ──
   whatsappBindings UserWhatsappBinding[]
+
+  // ── trafeGO ──
+  trafegoPurchases           TrafegoPendingPurchase[] @relation("TrafegoPurchaseUser")
+  trafegoPurchasesRedeemed   TrafegoPendingPurchase[] @relation("TrafegoPurchaseRedeemer")
+  trafegoPixConfirmed        TrafegoPendingPurchase[] @relation("TrafegoPixConfirmer")
+  trafegoComplianceOverrides TrafegoPendingPurchase[] @relation("TrafegoComplianceOverride")
+  trafegoOrdersOwned         TrafegoOrder[]           @relation("TrafegoOrderOwner")
+  trafegoOrdersAssigned      TrafegoOrder[]           @relation("TrafegoOrderAssignee")
+  trafegoOrderEvents         TrafegoOrderEvent[]      @relation("TrafegoEventActor")
+  trafegoCreatives           TrafegoCreative[]        @relation("TrafegoCreativeUploader")
+  trafegoSupportMessages     TrafegoSupportMessage[]  @relation("TrafegoSupportAuthor")
+  trafegoInfoTipsSeen        TrafegoInfoTipSeen[]
+  trafegoCreativeTopUps      TrafegoCreativeTopUp[]   @relation("TrafegoCreativeTopUpBuyer")
 
   @@unique([email])
   @@map("user")
@@ -263,13 +283,22 @@ model Organization {
   // só é persistida e exibida em Settings; nenhum sync acontece ainda.
   nerpFinancialEnabled Boolean @default(false) @map("nerp_financial_enabled")
 
+  // ── Escopo de produto ─────────────────────────────────────
+  // null = plataforma completa. "trafego" = org nascida do self-service do
+  // trafeGO: sidebar e tela inicial restritas a esse app. O admin zera o campo
+  // quando o cliente vira conta completa. É restrição de NAVEGAÇÃO, não de
+  // autorização — ver specs/trafego/0008 §CB-9.
+  appScope String? @map("app_scope")
+
   members                Member[]
+  seiProcessLinks        SeiProcessLink[]
   invitations            Invitation[]
   inviteLinks            OrganizationInviteLink[]
   trackings              Tracking[]
   tags                   Tag[]
   tagGroups              TagGroup[]
   whatsappInstances      WhatsAppInstance[]
+  broadcasts             Broadcast[]
   actions                Action[]
   insightShares          InsightShares[]
   agendas                Agenda[]
@@ -285,12 +314,17 @@ model Organization {
   forgeContracts         ForgeContract[]
   forgeTemplates         ForgeContractTemplate[]
   forgeSettings          ForgeSettings?
+  forgePriceItems        ForgePriceItem[]
+  forgePriceSuggestions  ForgePriceSuggestion[]
+  forgeSimulations       ForgeSimulation[]
   plan                   Plan?                      @relation(fields: [planId], references: [id], onDelete: SetNull)
   starTransactions       StarTransaction[]
+  usageEvents            UsageEvent[]
   workspaceIntegrations  WorkspaceIntegration[]
   memberStarBudgets      MemberStarBudget[]
   nboxFolders            NBoxFolder[]
   nboxItems              NBoxItem[]
+  trafegoOrders          TrafegoOrder[]
   nasaPlanners           NasaPlanner[]
   orgPermissions         OrgPermission[]
   activityLogs           OrgActivityLog[]
@@ -312,15 +346,23 @@ model Organization {
   spacePointPrizes       SpacePointRankingPrize[]
 
   // NASA Payment
-  paymentBankAccounts      PaymentBankAccount[]
-  paymentCategories        PaymentCategory[]
-  paymentCostCenters       PaymentCostCenter[]
-  paymentContacts          PaymentContact[]
-  paymentEntries           PaymentEntry[]
-  paymentAccess            PaymentAccess[]
-  paymentApprovalRequests  PaymentApprovalRequest[]
-  paymentGovernanceConfig  PaymentGovernanceConfig?
-  paymentDunningRules      PaymentDunningRule[]
+  paymentBankAccounts     PaymentBankAccount[]
+  paymentCategories       PaymentCategory[]
+  paymentCostCenters      PaymentCostCenter[]
+  paymentContacts         PaymentContact[]
+  paymentEntries          PaymentEntry[]
+  paymentAttachments      PaymentAttachment[]
+  paymentReminders        PaymentReminder[]
+  paymentInboxConfig      PaymentInboxConfig?
+  paymentInboxItems       PaymentInboxItem[]
+  paymentAccess           PaymentAccess[]
+  paymentApprovalRequests PaymentApprovalRequest[]
+  paymentGovernanceConfig PaymentGovernanceConfig?
+  paymentDunningRules     PaymentDunningRule[]
+  paymentGoalConfig       PaymentGoalConfig?
+  paymentGoalMonths       PaymentGoalMonth[]
+  paymentStatementImports PaymentStatementImport[]
+  paymentBankTransactions PaymentBankTransaction[]
 
   // NASA Campaign Planner
   nasaCampaignPlanners NasaCampaignPlanner[]
@@ -419,9 +461,10 @@ model Organization {
   metaAdsPendingActions MetaAdsPendingAction[]
 
   // ── ASTRO (Agentes IA) ──
-  aiAgentConfigs AiAgentConfig[]
-  aiSessions     AiSession[]
-  aiKnowledge    AiKnowledge[]
+  aiAgentConfigs      AiAgentConfig[]
+  aiSessions          AiSession[]
+  astroPendingActions AstroPendingAction[]
+  aiKnowledge         AiKnowledge[]
 
   // ── Tracking Chat — figurinhas personalizadas do composer ──
   userStickers UserSticker[]
@@ -440,6 +483,9 @@ model Organization {
   // ── Ranking de Vendas com Metas (import Winthor/Totvs) ──────
   salesGoalPeriods         SalesGoalPeriod[]
   salesGoalRankingSettings SalesGoalRankingSettings?
+
+  // ── Automações de redes sociais (app COMMENTS — spec 0024) ──
+  socialChannels SocialChannel[]
 
   @@unique([slug])
   @@map("organization")
@@ -559,6 +605,7 @@ model Tracking {
   workflowFolders     WorkflowFolder[]
   forms               FormSettings[]
   whatsappInstance    WhatsAppInstance?
+  broadcasts          Broadcast[]
   conversations       Conversation[]
   agendas             Agenda[]
   appointments        Appointment[]
@@ -623,10 +670,14 @@ model TrackingIdleAutomation {
 }
 
 model TrackingCardConfig {
-  id           String   @id @default(cuid())
-  trackingId   String   @unique @map("tracking_id")
-  fields       Json     @default("[]")
-  showSlaTimer Boolean  @default(true) @map("show_sla_timer")
+  id             String  @id @default(cuid())
+  trackingId     String  @unique @map("tracking_id")
+  fields         Json    @default("[]")
+  // Visibilidade dos campos do card/coluna no Kanban. Mapa `fieldId → boolean`
+  // (ex.: { "phone": false, "leadCount": false }). Ausência de chave = visível
+  // (default true), então `{}` mantém tudo visível — compatível com o legado.
+  cardVisibility Json    @default("{}") @map("card_visibility")
+  showSlaTimer   Boolean @default(true) @map("show_sla_timer")
 
   // Cesta de compra do lead — ícone colorido no card indicando quando foi a
   // última compra (Payment RECEIVABLE pago OU ForgeContract ativo).
@@ -635,13 +686,13 @@ model TrackingCardConfig {
   //   basketLongDays    → laranja (entre medium e long)
   //   > long           → vermelho (compra antiga)
   //   sem compra       → cinza
-  showPurchaseBasket  Boolean @default(true) @map("show_purchase_basket")
-  basketRecentDays    Int     @default(30) @map("basket_recent_days")
-  basketMediumDays    Int     @default(60) @map("basket_medium_days")
-  basketLongDays      Int     @default(90) @map("basket_long_days")
+  showPurchaseBasket Boolean @default(true) @map("show_purchase_basket")
+  basketRecentDays   Int     @default(30) @map("basket_recent_days")
+  basketMediumDays   Int     @default(60) @map("basket_medium_days")
+  basketLongDays     Int     @default(90) @map("basket_long_days")
 
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
 
@@ -708,20 +759,20 @@ model AiChatRun {
 }
 
 model AiButtonPreset {
-  id          String   @id @default(cuid())
-  trackingId  String   @map("tracking_id")
+  id          String     @id @default(cuid())
+  trackingId  String     @map("tracking_id")
   name        String
   description String
-  bodyText    String   @map("body_text")
-  footerText  String?  @map("footer_text")
+  bodyText    String     @map("body_text")
+  footerText  String?    @map("footer_text")
   buttons     Json
   // Formato de envio do preset. LIST reusa `buttons` como linhas da lista.
   menuFormat  MenuFormat @default(BUTTON) @map("menu_format")
   // Rótulo do botão que abre a lista (só usado quando menuFormat = LIST).
   listButton  String?    @map("list_button")
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
 
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
 
@@ -1007,6 +1058,10 @@ model Lead {
   agentSessions             LeadAgentSession[]
   dailyTriggerClaims        LeadDailyTriggerClaim[]
   catalogOrders             CatalogOrder[]
+  broadcastRecipients       BroadcastRecipient[]
+  trafegoOrders             TrafegoOrder[]
+  trafegoPendingPurchases   TrafegoPendingPurchase[]
+  seiProcessLinks           SeiProcessLink[]
 
   @@unique([phone, trackingId])
   @@index([trackingId])
@@ -1288,6 +1343,7 @@ model Action {
   createdBy      String  @map("created_by")
   leadId         String? @map("lead_id")
   orgProjectId   String? @map("org_project_id")
+  formResponseId String? @map("form_response_id")
 
   closedAt  DateTime? @map("closed_at")
   createdAt DateTime  @default(now()) @map("created_at")
@@ -1299,6 +1355,14 @@ model Action {
   orgProject   OrgProject?      @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
   workspace    Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   column       WorkspaceColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
+  /// Resposta que GEROU esta tarefa (proveniência). Ver spec 0002, D-1.
+  formResponse FormResponses?   @relation("FormResponseActions", fields: [formResponseId], references: [id], onDelete: SetNull)
+
+  /// Respostas que PERTENCEM a esta tarefa (checklists preenchidos da O.S.).
+  filledResponses FormResponses[] @relation("ActionFilledResponses")
+  /// Pauta: formulários que devem ser preenchidos nesta tarefa, tenham
+  /// sido preenchidos ou não.
+  forms           ActionForm[]
 
   participants    ActionsUserParticipant[]
   responsibles    ActionsUserResponsible[]
@@ -1369,6 +1433,7 @@ model Action {
   @@index([workspaceId])
   @@index([columnId])
   @@index([leadId])
+  @@index([formResponseId])
   @@index([createdBy])
   @@index([isDone])
   @@index([priority])
@@ -1684,9 +1749,9 @@ model Workflow {
   folder    WorkflowFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   agent     Agent?          @relation("AgentWorkflow", fields: [agentId], references: [id], onDelete: SetNull)
 
-  nodes             Node[]
-  connections       Connection[]
-  runs              WorkflowRun[]
+  nodes              Node[]
+  connections        Connection[]
+  runs               WorkflowRun[]
   dailyTriggerClaims LeadDailyTriggerClaim[]
 
   @@index([trackingId])
@@ -1828,11 +1893,11 @@ enum NodeType {
   CALL_WORKFLOW // sub-workflow
 
   // Apps NASA / Pagamento / Mídia
-  CHECK_PAYMENT     // consulta StripePurchase/AsaasCharge
-  SEND_VOICE        // TTS Astro → áudio WhatsApp
-  SEND_MEDIA        // imagem/vídeo/áudio/documento WhatsApp
-  SEND_EMAIL        // email transacional via Resend + React Email
-  WEB_SEARCH        // busca web via Gemini Grounding / OpenAI Search
+  CHECK_PAYMENT // consulta StripePurchase/AsaasCharge
+  SEND_VOICE // TTS Astro → áudio WhatsApp
+  SEND_MEDIA // imagem/vídeo/áudio/documento WhatsApp
+  SEND_EMAIL // email transacional via Resend + React Email
+  WEB_SEARCH // busca web via Gemini Grounding / OpenAI Search
 
   // Triggers novos (multi-trigger num só workflow)
   PAYMENT_RECEIVED
@@ -1850,6 +1915,10 @@ enum NodeType {
   SEND_LINNKER
   SEND_NBOX
   SEND_NASA_ROUTE
+  // Consulta ou atualiza o processo SEI vinculado ao lead. O resultado fica
+  // disponível no contexto como `sei`, permitindo que o próximo SEND_MESSAGE
+  // comunique ao lead protocolo, situação e último andamento.
+  SEI_ACTION
   // OPEN_FORM — cria FormResponses vazia vinculada ao lead, SEM enviar
   // link via WhatsApp. O ícone do formulário no card do lead fica
   // pendente; quando o operador clica, abre /formulario/novo/.
@@ -1977,42 +2046,95 @@ model Form {
   onboardingBrandForms      ClientOnboardingProcess[] @relation("OnboardingBrandForm")
   onboardingOnboardingForms ClientOnboardingProcess[] @relation("OnboardingOnboardingForm")
 
+  actionForms ActionForm[]
+
   isPublicOnSpace Boolean @default(false) @map("is_public_on_space")
 
   @@map("forms")
 }
 
+/// Pauta de formulários de uma tarefa. Uma O.S. de oficina tem N checklists;
+/// esta tabela guarda quais são, independente de já terem sido preenchidos.
+/// Ver spec 0002 (`specs/form/0002-formularios-com-escopo-de-action.md`).
+model ActionForm {
+  id String @id @default(cuid())
+
+  actionId String @map("action_id")
+  formId   String @map("form_id")
+  /// Posição na pauta. 0 = formulário que gerou a tarefa.
+  order    Int    @default(0)
+
+  attachedBy String?  @map("attached_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  action         Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  form           Form   @relation(fields: [formId], references: [id], onDelete: Cascade)
+  attachedByUser User?  @relation("ActionFormAttachedBy", fields: [attachedBy], references: [id], onDelete: SetNull)
+
+  @@unique([actionId, formId])
+  @@index([formId])
+  @@map("action_forms")
+}
+
 model FormSettings {
-  id              String   @id @default(cuid())
-  primaryColor    String
-  backgroundColor String
-  backgroundImage String?  @map("background_image")
-  createdAt       DateTime @default(now())
-  updateAt        DateTime @default(now()) @updatedAt
-  trackingId      String?  @map("tracking_id")
-  statusId        String?  @map("status_id")
-  formId          String   @unique
-  redirectUrl     String?  @map("redirect_url")
-  idPixel         String?  @map("id_pixel")
-  idTagManager    String?  @map("id_tag_manager")
-  needLogin       Boolean  @default(true) @map("need_login")
-  showName        Boolean  @default(true) @map("show_name")
-  showEmail       Boolean  @default(true) @map("show_email")
-  showPhone       Boolean  @default(true) @map("show_phone")
-  finishMessage   String   @default("Obrigado por seu cadastro!") @map("finish_message")
-  stepMode        String   @default("off") @map("step_mode")
-  nextButtonLabel String   @default("Próximo") @map("next_button_label")
-  progressMascots Json     @default("[]") @map("progress_mascots")
-  nextButtonAction Json    @default("{\"type\":\"next_block\"}") @map("next_button_action")
-  whatsappChats    Json    @default("[]") @map("whatsapp_chats")
-  whatsappMessage  String? @map("whatsapp_message")
-  validateWhatsapp Boolean @default(false) @map("validate_whatsapp")
+  id                    String   @id @default(cuid())
+  primaryColor          String
+  backgroundColor       String
+  backgroundImage       String?  @map("background_image")
+  createdAt             DateTime @default(now())
+  updateAt              DateTime @default(now()) @updatedAt
+  trackingId            String?  @map("tracking_id")
+  statusId              String?  @map("status_id")
+  formId                String   @unique
+  redirectUrl           String?  @map("redirect_url")
+  idPixel               String?  @map("id_pixel")
+  idTagManager          String?  @map("id_tag_manager")
+  needLogin             Boolean  @default(true) @map("need_login")
+  showName              Boolean  @default(true) @map("show_name")
+  showEmail             Boolean  @default(true) @map("show_email")
+  showPhone             Boolean  @default(true) @map("show_phone")
+  finishMessage         String   @default("Obrigado por seu cadastro!") @map("finish_message")
+  stepMode              String   @default("off") @map("step_mode")
+  nextButtonLabel       String   @default("Próximo") @map("next_button_label")
+  progressMascots       Json     @default("[]") @map("progress_mascots")
+  nextButtonAction      Json     @default("{\"type\":\"next_block\"}") @map("next_button_action")
+  whatsappChats         Json     @default("[]") @map("whatsapp_chats")
+  whatsappMessage       String?  @map("whatsapp_message")
+  validateWhatsapp      Boolean  @default(false) @map("validate_whatsapp")
+  generateActionsConfig Json?    @map("generate_actions_config")
+  // Retomada de sessão: persiste nome/telefone/respostas (localStorage 24h +
+  // rascunho por telefone no servidor) pra o visitante voltar sem refazer o
+  // step 1. Opt-in (default off) — sem isso o form nunca retoma sessão.
+  resumeSession         Boolean  @default(false) @map("resume_session")
+
+  /// Quem pode EDITAR as respostas deste formulário (spec 0005, seção 6.1).
+  /// Default = comportamento histórico: qualquer participante do tracking do
+  /// lead. Nenhum nível concede acesso além do que já é permitido hoje — a
+  /// política só restringe (invariante de monotonicidade, D-15).
+  responseEditPolicy FormResponseEditPolicy @default(TRACKING_PARTICIPANTS) @map("response_edit_policy")
 
   tracking Tracking? @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   status   Status?   @relation(fields: [statusId], references: [id], onDelete: SetNull)
   form     Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
 
   @@map("form_settings")
+}
+
+/// Quem pode editar as respostas de um formulário. Ordenado do mais aberto ao
+/// mais restrito; todo nível é subconjunto do padrão (spec 0005, D-15).
+enum FormResponseEditPolicy {
+  TRACKING_PARTICIPANTS // participantes do tracking atual do lead (padrão = hoje)
+  AUTHOR_ONLY // apenas quem preencheu (gestores sempre passam)
+}
+
+/// Origem de uma resposta. Discrimina os dois motivos distintos de
+/// `createdById` ser NULL — sem isto, resposta pública e legado ficam
+/// indistinguíveis (spec 0005, D-2).
+enum FormResponseAuthorKind {
+  USER // preenchida por usuário logado da org — `createdById` preenchido
+  LEAD // preenchida pelo próprio lead via link público — sem autor-usuário
+  SYSTEM // criada em branco por automação — ninguém preencheu ainda
+  UNKNOWN // legado anterior à instrumentação — conjunto congelado
 }
 
 model FormResponses {
@@ -2036,9 +2158,30 @@ model FormResponses {
   label               String? @map("label")
   labelManuallyEdited Boolean @default(false) @map("label_manually_edited")
 
-  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+  /// Tarefa (ex: uma O.S. de oficina) à qual esta resposta pertence.
+  /// NULL = resposta avulsa — preenchida pelo lead via link público ou
+  /// criada antes desta feature. Excluir a tarefa devolve a resposta ao
+  /// lead como avulsa em vez de apagá-la (spec 0002, CB-1).
+  actionId String? @map("action_id")
+  action   Action? @relation("ActionFilledResponses", fields: [actionId], references: [id], onDelete: SetNull)
+
+  /// Autoria (spec 0005). `createdById` só é preenchido quando `authorKind`
+  /// é USER. Imutáveis após a criação: editar NÃO reivindica autoria (D-3),
+  /// senão o primeiro a abrir uma resposta pública viraria dono dela.
+  createdById String?                @map("created_by_id")
+  createdBy   User?                  @relation("FormResponseAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  authorKind  FormResponseAuthorKind @default(UNKNOWN) @map("author_kind")
+
+  form    Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  /// Tarefas GERADAS por esta resposta — proveniência, não posse.
+  /// Não confundir com `action` acima. Ver spec 0002, decisão D-1.
+  actions Action[] @relation("FormResponseActions")
 
   @@index([completedAt])
+  @@index([actionId])
+  @@index([formId])
+  @@index([leadId])
+  @@index([createdById])
   @@map("form_responses")
 }
 
@@ -2189,8 +2332,8 @@ enum WhatsAppProvider {
 }
 
 model WhatsAppInstance {
-  id           String @id @default(cuid())
-  instanceName String @map("instance_name")
+  id             String                 @id @default(cuid())
+  instanceName   String                 @map("instance_name")
   // ── Credenciais Uazapi (legado) ──────────────────────────────────────
   // NULLABLE desde que o provider passou a ser escolhido na criação: uma
   // instância `META_CLOUD` nasce sem essas 3 colunas (não há instância
@@ -2198,10 +2341,10 @@ model WhatsAppInstance {
   // preenchidas. Code-paths Uazapi devem narrowar via
   // `requireUazapiCredentials(instance)` antes de usá-las. `@unique`
   // segue válido: Postgres permite múltiplos NULL na mesma coluna unique.
-  instanceId String?          @unique @map("instance_id")
-  apiKey     String?          @unique @map("api_key") // Token
-  baseUrl    String?          @map("base_url") // URL
-  provider   WhatsAppProvider @default(UAZAPI)
+  instanceId     String?                @unique @map("instance_id")
+  apiKey         String?                @unique @map("api_key") // Token
+  baseUrl        String?                @map("base_url") // URL
+  provider       WhatsAppProvider       @default(UAZAPI)
   status         WhatsAppInstanceStatus @default(DISCONNECTED)
   qrCode         String?                @map("qr_code") // Base64 do QR Code
   phoneNumber    String?                @map("phone_number") // Número conectado
@@ -2276,6 +2419,109 @@ model WhatsAppInstance {
   @@index([inChatModeManual])
   @@index([provider])
   @@map("whatsapp_instances")
+}
+
+// ─────────────────────────────────────────────
+// CAMPANHAS (Disparos WhatsApp API Oficial — MM API)
+// Ver docs/campanhas-overview.md. Fase 1: fundação + audiência.
+// ─────────────────────────────────────────────
+
+enum BroadcastStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  PAUSED
+  FAILED
+  CANCELLED
+}
+
+enum BroadcastRecipientStatus {
+  PENDING
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  SKIPPED
+}
+
+// Categoria do template Meta usado num broadcast. Espelha as categorias da
+// Cloud API; AUTHENTICATION ainda não tem builder próprio, mas fica reservada.
+enum WhatsAppTemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
+model Broadcast {
+  id             String          @id @default(cuid())
+  name           String
+  organizationId String          @map("organization_id")
+  trackingId     String          @map("tracking_id") // número/instância META_CLOUD de origem
+  createdById    String          @map("created_by_id")
+  status         BroadcastStatus @default(DRAFT)
+
+  // Template (preenchido na Fase 2/3 — nullable na Fase 1)
+  templateName      String?                   @map("template_name")
+  templateLanguage  String?                   @map("template_language")
+  templateCategory  WhatsAppTemplateCategory? @map("template_category") // define o endpoint de envio (marketing vs messages)
+  templateVariables Json?                     @map("template_variables") // config de mapeamento var→campo
+
+  // Agendamento (Fase 4 — colunas já existem, inertes na Fase 1)
+  scheduledAt DateTime? @map("scheduled_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  // Contadores denormalizados p/ UI (sem COUNT scans; alimentados pelo
+  // webhook de status na Fase 3).
+  totalRecipients Int @default(0) @map("total_recipients")
+  sentCount       Int @default(0) @map("sent_count")
+  deliveredCount  Int @default(0) @map("delivered_count")
+  readCount       Int @default(0) @map("read_count")
+  failedCount     Int @default(0) @map("failed_count")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tracking     Tracking             @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  createdBy    User                 @relation(fields: [createdById], references: [id])
+  recipients   BroadcastRecipient[]
+
+  trafegoOrder TrafegoOrder?
+
+  @@index([organizationId])
+  @@index([trackingId])
+  @@index([status])
+  @@map("broadcasts")
+}
+
+model BroadcastRecipient {
+  id                String                   @id @default(cuid())
+  broadcastId       String                   @map("broadcast_id")
+  leadId            String?                  @map("lead_id") // null quando origem é CSV cru
+  name              String?
+  phone             String // E.164 só-dígitos (normalizePhone)
+  variables         Json? // valores das variáveis do template p/ este destinatário
+  status            BroadcastRecipientStatus @default(PENDING)
+  externalMessageId String?                  @map("external_message_id") // wamid
+  errorCode         String?                  @map("error_code")
+  errorMessage      String?                  @map("error_message")
+  sentAt            DateTime?                @map("sent_at")
+  deliveredAt       DateTime?                @map("delivered_at")
+  readAt            DateTime?                @map("read_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  lead      Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@unique([broadcastId, phone]) // dedupe dentro da campanha
+  @@index([broadcastId, status])
+  @@index([externalMessageId])
+  @@map("broadcast_recipients")
 }
 
 // ─────────────────────────────────────────────
@@ -2594,6 +2840,7 @@ enum IntegrationPlatform {
   POLLINATIONS
   NERP
   COMMENTS_APP
+  SEI
 }
 
 // Armazena credenciais de integração por plataforma/organização.
@@ -2617,6 +2864,34 @@ model PlatformIntegration {
   @@unique([organizationId, platform])
   @@index([organizationId])
   @@map("platform_integrations")
+}
+
+// Vínculo entre o CRM e processos conhecidos pelo NASA. O WebService nativo
+// do SEI não oferece descoberta completa em todas as versões; por isso a
+// sincronização parte de protocolos explicitamente vinculados a um lead.
+model SeiProcessLink {
+  id                    String    @id @default(cuid())
+  organizationId        String    @map("organization_id")
+  leadId                String    @map("lead_id")
+  protocoloProcedimento String    @map("protocolo_procedimento")
+  idProcedimento        String?   @map("id_procedimento")
+  especificacao         String?
+  tipoProcedimento      String?   @map("tipo_procedimento")
+  nivelAcesso           String?   @map("nivel_acesso")
+  ultimoAndamento       String?   @map("ultimo_andamento")
+  linkAcesso            String?   @map("link_acesso")
+  snapshot              Json      @default("{}")
+  lastSyncedAt          DateTime? @map("last_synced_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, protocoloProcedimento])
+  @@index([organizationId, protocoloProcedimento])
+  @@index([leadId, updatedAt(sort: Desc)])
+  @@map("sei_process_links")
 }
 
 // ─────────────────────────────────────────────
@@ -2965,8 +3240,8 @@ model SalesGoalEntry {
   goalName       String             @map("goal_name")
   sellerName     String             @map("seller_name")
   entryKind      SalesGoalEntryKind @default(SELLER) @map("entry_kind")
-  goalAmount     Decimal            @db.Decimal(15, 2) @map("goal_amount")
-  achievedAmount Decimal?           @db.Decimal(15, 2) @map("achieved_amount")
+  goalAmount     Decimal            @map("goal_amount") @db.Decimal(15, 2)
+  achievedAmount Decimal?           @map("achieved_amount") @db.Decimal(15, 2)
   memberId       String?            @map("member_id")
   createdAt      DateTime           @default(now()) @map("created_at")
   updatedAt      DateTime           @updatedAt @map("updated_at")
@@ -3101,6 +3376,7 @@ model ForgeProposal {
   campaignPlanners        NasaCampaignPlanner[]
   orgProject              OrgProject?              @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
   clientOnboardingProcess ClientOnboardingProcess?
+  simulation              ForgeSimulation?
 
   @@unique([organizationId, number])
   @@index([organizationId])
@@ -3200,6 +3476,197 @@ model ForgeSettings {
 }
 
 // ─────────────────────────────────────────────
+// FORGE — Simulador de Custos & Proposta
+// ─────────────────────────────────────────────
+
+enum ForgePriceCategory {
+  AI_MODEL
+  WHATSAPP_CONVERSATION
+  INFRA_SERVER
+  HOSTING
+  STORAGE
+  DATABASE
+  LABOR
+  OTHER
+}
+
+enum ForgePriceUnit {
+  PER_1K_TOKENS
+  PER_CONVERSATION
+  PER_MONTH
+  PER_HOUR
+  PER_GB_MONTH
+  PER_COMPUTE_HOUR
+  FLAT
+}
+
+enum ForgePriceCurrency {
+  BRL
+  USD
+}
+
+enum ForgePriceSuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ForgeSimulationMode {
+  COMERCIAL
+  LICITACAO
+}
+
+enum ForgeExequibilidadeFlag {
+  OK
+  EXCESSIVO
+  INEXEQUIVEL
+}
+
+model ForgePriceItem {
+  id               String             @id @default(cuid())
+  organizationId   String             @map("organization_id")
+  category         ForgePriceCategory
+  name             String
+  code             String?
+  description      String?
+  provider         String?
+  currency         ForgePriceCurrency @default(BRL)
+  unit             ForgePriceUnit
+  unitPrice        Decimal?           @map("unit_price") @db.Decimal(18, 8)
+  inputPer1k       Decimal?           @map("input_per_1k") @db.Decimal(18, 8)
+  outputPer1k      Decimal?           @map("output_per_1k") @db.Decimal(18, 8)
+  cachedInputPer1k Decimal?           @map("cached_input_per_1k") @db.Decimal(18, 8)
+  metadata         Json               @default("{}")
+  isActive         Boolean            @default(true) @map("is_active")
+  isSeeded         Boolean            @default(false) @map("is_seeded")
+  source           String?
+  sortOrder        Int                @default(0) @map("sort_order")
+  createdById      String?            @map("created_by")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  suggestions  ForgePriceSuggestion[]
+  simLines     ForgeSimulationLineItem[]
+  bidItems     ForgeBidItem[]
+
+  @@unique([organizationId, category, code])
+  @@index([organizationId, category])
+  @@index([organizationId, isActive])
+  @@map("forge_price_items")
+}
+
+model ForgePriceSuggestion {
+  id             String                     @id @default(cuid())
+  organizationId String                     @map("organization_id")
+  priceItemId    String?                    @map("price_item_id")
+  category       ForgePriceCategory
+  code           String?
+  name           String
+  currency       ForgePriceCurrency         @default(BRL)
+  currentValue   Json?                      @map("current_value")
+  suggestedValue Json                       @map("suggested_value")
+  sourceUrl      String?                    @map("source_url")
+  sourceLabel    String?                    @map("source_label")
+  fetchedAt      DateTime                   @default(now()) @map("fetched_at")
+  status         ForgePriceSuggestionStatus @default(PENDING)
+  reviewedById   String?                    @map("reviewed_by")
+  reviewedAt     DateTime?                  @map("reviewed_at")
+  createdAt      DateTime                   @default(now()) @map("created_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  priceItem    ForgePriceItem? @relation(fields: [priceItemId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@map("forge_price_suggestions")
+}
+
+model ForgeSimulation {
+  id                  String              @id @default(cuid())
+  organizationId      String              @map("organization_id")
+  name                String
+  mode                ForgeSimulationMode @default(COMERCIAL)
+  markupPercentage    Decimal             @default(0) @map("markup_percentage") @db.Decimal(6, 2)
+  usdToBrlRate        Decimal             @map("usd_to_brl_rate") @db.Decimal(10, 4)
+  internalCostTotal   Decimal             @default(0) @map("internal_cost_total") @db.Decimal(15, 2)
+  clientPriceTotal    Decimal             @default(0) @map("client_price_total") @db.Decimal(15, 2)
+  computedAt          DateTime?           @map("computed_at")
+  proposalId          String?             @unique @map("proposal_id")
+  // Modo Comercial
+  userCount           Int                 @default(1) @map("user_count")
+  aiPriceItemId       String?             @map("ai_price_item_id")
+  aiModelCode         String?             @map("ai_model_code")
+  inputTokensPerUser  Int                 @default(0) @map("input_tokens_per_user")
+  outputTokensPerUser Int                 @default(0) @map("output_tokens_per_user")
+  cachedTokensPerUser Int                 @default(0) @map("cached_tokens_per_user")
+  whatsappEnabled     Boolean             @default(false) @map("whatsapp_enabled")
+  whatsappMix         Json                @default("[]") @map("whatsapp_mix")
+  // Modo Licitação
+  bidOrg              String?             @map("bid_org")
+  bidNumber           String?             @map("bid_number")
+  contractMonths      Int                 @default(12) @map("contract_months")
+  ceilingTotalBrl     Decimal?            @map("ceiling_total_brl") @db.Decimal(15, 2)
+  createdById         String              @map("created_by")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  proposal     ForgeProposal?            @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  lineItems    ForgeSimulationLineItem[]
+  bidItems     ForgeBidItem[]
+
+  @@index([organizationId])
+  @@map("forge_simulations")
+}
+
+model ForgeSimulationLineItem {
+  id           String             @id @default(cuid())
+  simulationId String             @map("simulation_id")
+  priceItemId  String?            @map("price_item_id")
+  category     ForgePriceCategory
+  label        String
+  quantity     Decimal            @db.Decimal(18, 4)
+  unit         ForgePriceUnit
+  unitCostBrl  Decimal            @map("unit_cost_brl") @db.Decimal(18, 8)
+  internalCost Decimal            @map("internal_cost") @db.Decimal(15, 2)
+  meta         Json               @default("{}")
+  order        Int                @default(0)
+
+  simulation ForgeSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  priceItem  ForgePriceItem? @relation(fields: [priceItemId], references: [id], onDelete: SetNull)
+
+  @@index([simulationId])
+  @@map("forge_simulation_line_items")
+}
+
+model ForgeBidItem {
+  id                  String                  @id @default(cuid())
+  simulationId        String                  @map("simulation_id")
+  parentId            String?                 @map("parent_id")
+  priceItemId         String?                 @map("price_item_id")
+  code                String
+  description         String
+  unit                String                  @default("SV")
+  quantity            Decimal                 @db.Decimal(15, 4)
+  internalUnitCostBrl Decimal                 @map("internal_unit_cost_brl") @db.Decimal(18, 8)
+  markupPercentage    Decimal                 @default(0) @map("markup_percentage") @db.Decimal(6, 2)
+  bidUnitBrl          Decimal                 @map("bid_unit_brl") @db.Decimal(15, 2)
+  bidMonthlyBrl       Decimal                 @map("bid_monthly_brl") @db.Decimal(15, 2)
+  bidTotalBrl         Decimal                 @map("bid_total_brl") @db.Decimal(15, 2)
+  ceilingUnitBrl      Decimal?                @map("ceiling_unit_brl") @db.Decimal(15, 2)
+  exequibilidade      ForgeExequibilidadeFlag @default(OK)
+  order               Int                     @default(0)
+
+  simulation ForgeSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  parent     ForgeBidItem?   @relation("ForgeBidItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children   ForgeBidItem[]  @relation("ForgeBidItemChildren")
+  priceItem  ForgePriceItem? @relation(fields: [priceItemId], references: [id], onDelete: SetNull)
+
+  @@index([simulationId])
+  @@map("forge_bid_items")
+}
+
+// ─────────────────────────────────────────────
 // STARS — sistema de moeda interna
 // ─────────────────────────────────────────────
 
@@ -3277,8 +3744,34 @@ model AppStarCost {
   category    String?
   iconEmoji   String?  @map("icon_emoji")
   isPublic    Boolean  @default(true) @map("is_public")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  /// Cobranca por quantidade (spec 0020). `null` ou "call" = custo fixo em `monthlyCost`.
+  /// Unidades: "token" | "mb" | "second" | "minute" | "image" | "message".
+  unit        String?
+  /// Custo em estrelas por unidade. Fracionario de proposito: 1 estrela por 1k tokens
+  /// e `unitCost = 1` com `unitDivisor = 1000`.
+  unitCost    Decimal? @map("unit_cost") @db.Decimal(12, 6)
+  unitDivisor Int      @default(1) @map("unit_divisor")
+  minCharge   Int      @default(0) @map("min_charge")
+  /// Teto por evento. Obrigatorio em acao por quantidade (D-5 da spec 0020): a quantidade
+  /// vem de fornecedor externo, e um bug de contagem viraria cobranca desproporcional.
+  maxCharge   Int?     @map("max_charge")
+
+  /// Preco por variante (modelo ou provider). Ex.: { "gpt-4o": 2, "gpt-4o-mini": 1 }.
+  variantCosts Json?   @map("variant_costs")
+  /// "absolute" (default) = o valor da variante substitui o preco-base.
+  /// "multiplier" = o valor da variante multiplica o preco-base.
+  variantMode  String? @map("variant_mode")
+
+  /// `false` proibe usar `starsBonusBalance` nesta acao (ex.: compra de curso).
+  allowBonus      Boolean  @default(true) @map("allow_bonus")
+  /// `false` desliga a cobranca sem apagar a linha nem perder o historico de preco.
+  isEnabled       Boolean  @default(true) @map("is_enabled")
+  /// Custo esperado em dolar por unidade. Alimenta a comparacao preco cobrado x custo real.
+  expectedCostUsd Decimal? @map("expected_cost_usd") @db.Decimal(14, 8)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("app_star_costs")
 }
@@ -3307,6 +3800,11 @@ model StarTransaction {
   description    String
   appSlug        String?             @map("app_slug")
   packageId      String?             @map("package_id") // ref a StarPackage
+  /// Quem gastou. Antes da spec 0021 nao existia: a atribuicao por pessoa
+  /// dependia de um contador acumulado que nunca era zerado.
+  userId         String?             @map("user_id")
+  /// Chave da acao no catalogo de preco. Liga a transacao ao UsageEvent.
+  action         String?
   createdAt      DateTime            @default(now()) @map("created_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -3314,6 +3812,89 @@ model StarTransaction {
   @@index([organizationId, createdAt])
   @@index([type])
   @@map("star_transactions")
+}
+
+/// Natureza do custo externo de um evento (spec 0021).
+enum UsageEventKind {
+  LLM
+  EMBEDDING
+  IMAGE
+  VIDEO
+  TRANSCRIPTION
+  MESSAGE
+  STORAGE
+  EMAIL
+  REALTIME
+  OTHER
+}
+
+/// Registro de custo por evento — responde "quanto custa atender esta organizacao".
+///
+/// Escrito SEMPRE apos o commit do debito, best-effort, nunca dentro da transacao
+/// (Regra 18 do CLAUDE.md). Registra tambem o evento que saiu gratuito e o que
+/// falhou por saldo: ambos custaram dinheiro no fornecedor, e ignora-los
+/// subestimaria o custo proprio.
+model UsageEvent {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  userId         String? @map("user_id")
+
+  kind    UsageEventKind
+  /// Mesma chave usada no catalogo de preco.
+  action  String
+  appSlug String?        @map("app_slug")
+  /// Recorte mais fino que o app, ex.: "astro.orchestrator", "astro.subagent.closer".
+  feature String?
+
+  provider       String?
+  modelId        String? @map("model_id")
+  /// Chave do proprio cliente: o custo para nos e zero. Sem esta marca,
+  /// superestimariamos o custo e cobrariamos mais do que o necessario.
+  usingCustomKey Boolean @default(false) @map("using_custom_key")
+
+  inputTokens  Int?     @map("input_tokens")
+  outputTokens Int?     @map("output_tokens")
+  cachedTokens Int?     @map("cached_tokens")
+  totalTokens  Int?     @map("total_tokens")
+  quantity     Decimal? @db.Decimal(16, 4)
+  quantityUnit String?  @map("quantity_unit")
+
+  providerCostUsd Decimal? @map("provider_cost_usd") @db.Decimal(14, 8)
+  infraCostUsd    Decimal? @map("infra_cost_usd") @db.Decimal(14, 8)
+  costBrl         Decimal? @map("cost_brl") @db.Decimal(14, 6)
+  /// Cambio aplicado neste evento. O passado nunca e reescrito quando o cambio muda.
+  usdToBrlRate    Decimal? @map("usd_to_brl_rate") @db.Decimal(10, 4)
+  /// "table" | "catalog" | "estimate" | "unknown". Modelo sem preco vira
+  /// "unknown", nunca custo zero silencioso.
+  priceSource     String?  @map("price_source")
+
+  starsCharged      Int      @default(0) @map("stars_charged")
+  starPriceBrl      Decimal? @map("star_price_brl") @db.Decimal(10, 4)
+  revenueBrl        Decimal? @map("revenue_brl") @db.Decimal(14, 6)
+  /// Ligacao solta com StarTransaction, SEM foreign key de proposito: precisamos
+  /// registrar tambem o evento gratuito e o que falhou por saldo, casos em que
+  /// nao existe transacao nenhuma.
+  starTransactionId String?  @map("star_transaction_id")
+
+  sessionId  String? @map("session_id")
+  trackingId String? @map("tracking_id")
+  leadId     String? @map("lead_id")
+  requestId  String? @map("request_id")
+  /// ok | provider_error | insufficient_stars | catalog_miss
+  status     String  @default("ok")
+  latencyMs  Int?    @map("latency_ms")
+  metadata   Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, action, createdAt])
+  @@index([provider, modelId, createdAt])
+  @@index([kind, createdAt])
+  @@index([starTransactionId])
+  @@map("usage_event")
 }
 
 model WorkspaceIntegration {
@@ -4109,6 +4690,34 @@ model UserChatPreferences {
   @@map("user_chat_preferences")
 }
 
+/// Inscrição de Web Push de um browser (spec 0022).
+///
+/// Um usuário tem N inscrições — uma por browser/dispositivo. Quem identifica
+/// é o `endpoint`, único globalmente: o mesmo browser depois de trocar de conta
+/// reaproveita a linha, só mudando o `userId`.
+model PushSubscription {
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id")
+  /// URL do push service (FCM, Mozilla, WNS…). Identidade da inscrição.
+  endpoint     String    @unique
+  /// Chave pública do cliente para criptografar o payload (ECDH P-256).
+  p256dh       String
+  /// Segredo de autenticação do cliente.
+  auth         String
+  userAgent    String?   @map("user_agent")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  /// Último envio aceito pelo push service — base para limpeza futura.
+  lastUsedAt   DateTime? @map("last_used_at")
+  /// Falhas consecutivas que NÃO são 404/410 (403 de VAPID trocado, 429…).
+  /// Serve para diagnóstico: 404/410 apagam a linha na hora (spec 0022, D-4).
+  failureCount Int       @default(0) @map("failure_count")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscription")
+}
+
 // ─── Admin Notifications ──────────────────────────────────────────────────────
 
 model AdminNotification {
@@ -4237,6 +4846,10 @@ model StarRule {
   cooldownHours   Int?     @map("cooldown_hours")
   isActive        Boolean  @default(true) @map("is_active")
   popupTemplateId String?  @map("popup_template_id")
+  /// `true` promove esta linha a sobrescrita de preco por organizacao (spec 0020, D-4).
+  /// Default `false`: as 3.241 linhas ja existentes continuam sem efeito sobre o preco,
+  /// para nao alterar cobranca em silencio.
+  isOverride      Boolean  @default(false) @map("is_override")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
@@ -4444,23 +5057,34 @@ enum FinancialCategoryType {
 }
 
 model PaymentBankAccount {
-  id             String             @id @default(cuid())
-  organizationId String             @map("organization_id")
-  name           String
-  bankName       String?            @map("bank_name")
-  bankCode       String?            @map("bank_code")
-  agency         String?
-  account        String?
-  type           PaymentAccountType @default(CHECKING)
-  balance        Int                @default(0) // em centavos
-  isActive       Boolean            @default(true) @map("is_active")
-  isDefault      Boolean            @default(false) @map("is_default")
-  color          String?            @default("#1E90FF")
-  createdAt      DateTime           @default(now()) @map("created_at")
-  updatedAt      DateTime           @updatedAt @map("updated_at")
+  id                    String             @id @default(cuid())
+  organizationId        String             @map("organization_id")
+  name                  String
+  bankName              String?            @map("bank_name")
+  bankCode              String?            @map("bank_code")
+  agency                String?
+  account               String?
+  type                  PaymentAccountType @default(CHECKING)
+  balance               Int                @default(0) // em centavos
+  // Identificação da conta no extrato OFX: casa o arquivo importado com esta
+  // conta e impede que o extrato de uma conta caia na fila de outra.
+  ofxBankId             String?            @map("ofx_bank_id")
+  ofxAccountId          String?            @map("ofx_account_id")
+  // Saldo lido do <LEDGERBAL> do último extrato. Separado de `balance` de
+  // propósito: `balance` é digitado pelo usuário e alimenta o saldo inicial da
+  // projeção — sobrescrevê-lo sozinho mudaria a projeção sem ele saber.
+  statementBalanceCents Int?               @map("statement_balance_cents")
+  statementBalanceAt    DateTime?          @map("statement_balance_at")
+  isActive              Boolean            @default(true) @map("is_active")
+  isDefault             Boolean            @default(false) @map("is_default")
+  color                 String?            @default("#1E90FF")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
 
-  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  entries      PaymentEntry[]
+  organization     Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entries          PaymentEntry[]
+  statementImports PaymentStatementImport[]
+  bankTransactions PaymentBankTransaction[]
 
   @@index([organizationId])
   @@map("payment_bank_accounts")
@@ -4525,33 +5149,35 @@ model PaymentContact {
 }
 
 model PaymentAccess {
-  id             String      @id @default(cuid())
-  userId         String      @map("user_id")
-  organizationId String      @map("organization_id")
-  passwordHash   String      @map("password_hash")
-  isAuthorized   Boolean     @default(false) @map("is_authorized")
-  phone          String? // para envio de PIN/OTP via WhatsApp (fallback do User.phone)
-  authorizedById String?     @map("authorized_by_id")
+  id                  String      @id @default(cuid())
+  userId              String      @map("user_id")
+  organizationId      String      @map("organization_id")
+  // Legado do PIN próprio do módulo, desativado pela spec 0007. Mantido
+  // opcional para rollback; nenhum caminho de acesso lê este campo.
+  passwordHash        String?     @map("password_hash")
+  isAuthorized        Boolean     @default(false) @map("is_authorized")
+  phone               String? // para envio de PIN/OTP via WhatsApp (fallback do User.phone)
+  authorizedById      String?     @map("authorized_by_id")
   // Role base. `permissions` (JSON) sobrescreve por recurso quando preenchido.
-  role           PaymentRole @default(VIEWER)
+  role                PaymentRole @default(VIEWER)
   // Override granular por recurso. Estrutura:
   //   { entries:{view,create,edit,delete}, accounts:{...}, categories:{...},
   //     contacts:{...}, dashboard:{...}, settings:{...} }
   // null/ausente = usa default da role.
-  permissions    Json?
+  permissions         Json?
   // Contador de sessões abertas. Incrementa a cada login bem-sucedido. Quando
   // sessionCount % governance.otpEveryNSessions === 0, exige OTP WhatsApp.
-  sessionCount   Int         @default(0) @map("session_count")
-  lastOtpAt      DateTime?   @map("last_otp_at")
+  sessionCount        Int         @default(0) @map("session_count")
+  lastOtpAt           DateTime?   @map("last_otp_at")
   // OTP corrente (6 dígitos, hash bcrypt). Setado no requestPaymentOtp e
   // limpo no verifyPaymentOtp bem-sucedido.
-  pendingOtpHash      String?   @map("pending_otp_hash")
-  pendingOtpExpiresAt DateTime? @map("pending_otp_expires_at")
+  pendingOtpHash      String?     @map("pending_otp_hash")
+  pendingOtpExpiresAt DateTime?   @map("pending_otp_expires_at")
   // Credenciais WebAuthn (Face ID, Touch ID, Windows Hello, passkeys). Array:
   //   [{ credentialId, publicKey, counter, transports[], createdAt, label }]
-  webauthnCredentials Json?    @map("webauthn_credentials")
-  createdAt      DateTime    @default(now()) @map("created_at")
-  updatedAt      DateTime    @updatedAt @map("updated_at")
+  webauthnCredentials Json?       @map("webauthn_credentials")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
 
   user         User         @relation("PaymentAccessUser", fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -4615,17 +5241,23 @@ model PaymentEntry {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  organization      Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  category          PaymentCategory?           @relation(fields: [categoryId], references: [id])
-  costCenter        PaymentCostCenter?         @relation(fields: [costCenterId], references: [id])
-  contact           PaymentContact?            @relation(fields: [contactId], references: [id])
-  account           PaymentBankAccount?        @relation(fields: [accountId], references: [id])
-  tracking          Tracking?                  @relation(fields: [trackingId], references: [id], onDelete: SetNull)
-  lead              Lead?                      @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  createdBy         User?                      @relation("PaymentEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  organization      Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category          PaymentCategory?          @relation(fields: [categoryId], references: [id])
+  costCenter        PaymentCostCenter?        @relation(fields: [costCenterId], references: [id])
+  contact           PaymentContact?           @relation(fields: [contactId], references: [id])
+  account           PaymentBankAccount?       @relation(fields: [accountId], references: [id])
+  tracking          Tracking?                 @relation(fields: [trackingId], references: [id], onDelete: SetNull)
+  lead              Lead?                     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  createdBy         User?                     @relation("PaymentEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   approvalRequest   PaymentApprovalRequest?
-  dunningRule       PaymentDunningRule?        @relation(fields: [dunningRuleId], references: [id], onDelete: SetNull)
+  dunningRule       PaymentDunningRule?       @relation(fields: [dunningRuleId], references: [id], onDelete: SetNull)
   dunningExecutions PaymentDunningExecution[]
+  // 1:N e não 1:1 — um recebimento quebrado em dois Pix casa com o mesmo
+  // lançamento, que fica PARTIAL até somar o total.
+  bankTransactions  PaymentBankTransaction[]
+  attachments       PaymentAttachment[]
+  reminders         PaymentReminder[]
+  inboxItems        PaymentInboxItem[]
 
   @@index([organizationId])
   @@index([type])
@@ -4638,6 +5270,72 @@ model PaymentEntry {
   @@index([leadId])
   @@index([dunningRuleId])
   @@map("payment_entries")
+}
+
+// ─────────────────────────────────────────────
+// NASA PAYMENT — ANEXOS (spec 0008)
+// ─────────────────────────────────────────────
+
+enum PaymentAttachmentKind {
+  NOTA_FISCAL
+  BOLETO
+  RECIBO
+  COMPROVANTE
+  CONTRATO
+  EXTRATO
+  OUTRO
+}
+
+// Documento anexado a um lançamento financeiro. Substitui, na prática, o
+// `PaymentEntry.attachmentUrl` (único e sem metadados), que permanece por
+// retrocompat alimentado pelo BudgetPanel do chat — ver spec 0008, D-1.
+//
+// `fileKey` é a CHAVE no bucket, nunca uma URL pública: nota fiscal e
+// comprovante bancário são servidos só pela rota autenticada
+// `/api/payment/attachments/[id]` (D-3).
+//
+// `entryId` é opcional de propósito: anexo cujo lançamento foi excluído
+// sobrevive com vínculo nulo (documento fiscal não evapora junto com o
+// registro contábil), e arquivo subido antes de salvar o form fica
+// recuperável na aba Documentos em vez de virar lixo invisível (CB-3/CB-4).
+model PaymentAttachment {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  entryId        String? @map("entry_id")
+
+  fileKey   String                @map("file_key")
+  fileName  String                @map("file_name")
+  mimeType  String                @map("mime_type")
+  sizeBytes Int                   @map("size_bytes")
+  kind      PaymentAttachmentKind @default(OUTRO)
+
+  description String?
+
+  // Leitura do documento pelo Astro (spec 0014): guarda a extração para não
+  // cobrar Stars duas vezes pelo mesmo arquivo. `sourceChannel` diz por onde o
+  // arquivo entrou (upload | chat | widget | whatsapp | gmail) e
+  // `originalFileName` preserva o nome antes da renomeação padrão.
+  extraction       Json?     @map("extraction")
+  extractedAt      DateTime? @map("extracted_at")
+  sourceChannel    String?   @map("source_channel")
+  originalFileName String?   @map("original_file_name")
+
+  uploadedById String?  @map("uploaded_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  organization     Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entry            PaymentEntry?            @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  statementImports PaymentStatementImport[]
+  reminders        PaymentReminder[]
+  inboxItems       PaymentInboxItem[]
+  uploadedBy       User?                    @relation("PaymentAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([entryId])
+  @@index([kind])
+  @@index([fileKey])
+  @@map("payment_attachments")
 }
 
 // ─────────────────────────────────────────────
@@ -4669,20 +5367,20 @@ enum PaymentRole {
 // Config global por org pra aprovação de pagamento. Tabela dedicada (não inflando
 // Organization) — segue padrão de PaymentAccess. 1:1 com Organization via @unique.
 model PaymentGovernanceConfig {
-  id                          String   @id @default(cuid())
-  organizationId              String   @unique @map("organization_id")
+  id                         String   @id @default(cuid())
+  organizationId             String   @unique @map("organization_id")
   // Threshold em centavos: PAYABLE >= esse valor exige aprovação. null = sem threshold.
-  autoApprovalThresholdCents  Int?     @map("auto_approval_threshold_cents")
+  autoApprovalThresholdCents Int?     @map("auto_approval_threshold_cents")
   // Se true, TODO PAYABLE exige aprovação (independente do valor).
-  payableRequiresApproval     Boolean  @default(false) @map("payable_requires_approval")
+  payableRequiresApproval    Boolean  @default(false) @map("payable_requires_approval")
   // Após X horas sem decisão, cron `payment-approval-reminder` re-notifica aprovadores.
-  notifyApproversAfterHours   Int      @default(24) @map("notify_approvers_after_hours")
+  notifyApproversAfterHours  Int      @default(24) @map("notify_approvers_after_hours")
   // Tempo (em minutos) de inatividade no PaymentGate antes de auto-lock.
-  sessionTimeoutMinutes       Int      @default(30) @map("session_timeout_minutes")
+  sessionTimeoutMinutes      Int      @default(30) @map("session_timeout_minutes")
   // A cada N sessões abertas, exige OTP novo via WhatsApp (em vez de só senha).
-  otpEveryNSessions           Int      @default(10) @map("otp_every_n_sessions")
-  createdAt                   DateTime @default(now()) @map("created_at")
-  updatedAt                   DateTime @updatedAt @map("updated_at")
+  otpEveryNSessions          Int      @default(10) @map("otp_every_n_sessions")
+  createdAt                  DateTime @default(now()) @map("created_at")
+  updatedAt                  DateTime @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -4694,23 +5392,23 @@ model PaymentGovernanceConfig {
 // que mudou o status (último APPROVE/REJECT); `lastNotifiedAt` é gerenciado pelo
 // cron de reminder pra evitar spam de notificações.
 model PaymentApprovalRequest {
-  id              String                @id @default(cuid())
-  organizationId  String                @map("organization_id")
-  entryId         String                @unique @map("entry_id")
-  requestedById   String                @map("requested_by_id")
-  requestedAt     DateTime              @default(now()) @map("requested_at")
-  status          PaymentApprovalStatus @default(PENDING)
+  id             String                @id @default(cuid())
+  organizationId String                @map("organization_id")
+  entryId        String                @unique @map("entry_id")
+  requestedById  String                @map("requested_by_id")
+  requestedAt    DateTime              @default(now()) @map("requested_at")
+  status         PaymentApprovalStatus @default(PENDING)
   // Quórum mínimo de aprovações pra status virar APPROVED. MVP sempre 1;
   // estrutura já preparada pra Fase 2.5 com quórum >1 sem migration nova.
-  minApprovers    Int                   @default(1) @map("min_approvers")
-  decidedAt       DateTime?             @map("decided_at")
-  lastNotifiedAt  DateTime?             @map("last_notified_at")
-  createdAt       DateTime              @default(now()) @map("created_at")
-  updatedAt       DateTime              @updatedAt @map("updated_at")
+  minApprovers   Int                   @default(1) @map("min_approvers")
+  decidedAt      DateTime?             @map("decided_at")
+  lastNotifiedAt DateTime?             @map("last_notified_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
 
-  organization Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  entry        PaymentEntry                @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  requestedBy  User                        @relation("PaymentApprovalRequester", fields: [requestedById], references: [id])
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entry        PaymentEntry              @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  requestedBy  User                      @relation("PaymentApprovalRequester", fields: [requestedById], references: [id])
   decisions    PaymentApprovalDecision[]
 
   @@index([organizationId, status])
@@ -4722,12 +5420,12 @@ model PaymentApprovalRequest {
 // quórum N>1 no futuro sem migration: a request vira APPROVED quando o número
 // de APPROVE únicos atinge `minApprovers`, e REJECTED no primeiro REJECT.
 model PaymentApprovalDecision {
-  id          String                       @id @default(cuid())
-  requestId   String                       @map("request_id")
-  userId      String                       @map("user_id")
-  decision    PaymentApprovalDecisionKind
-  reason      String?
-  decidedAt   DateTime                     @default(now()) @map("decided_at")
+  id        String                      @id @default(cuid())
+  requestId String                      @map("request_id")
+  userId    String                      @map("user_id")
+  decision  PaymentApprovalDecisionKind
+  reason    String?
+  decidedAt DateTime                    @default(now()) @map("decided_at")
 
   request PaymentApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
   user    User                   @relation("PaymentApprovalDecider", fields: [userId], references: [id])
@@ -4798,17 +5496,17 @@ model PaymentDunningStep {
 // Execução de 1 step pra 1 entry. Constraint `@@unique([entryId, stepId])`
 // garante idempotência — cron pode rodar várias vezes/dia sem duplicar envio.
 model PaymentDunningExecution {
-  id            String                        @id @default(cuid())
-  entryId       String                        @map("entry_id")
-  stepId        String                        @map("step_id")
-  scheduledFor  DateTime                      @map("scheduled_for")
-  executedAt    DateTime?                     @map("executed_at")
-  status        PaymentDunningExecutionStatus @default(PENDING)
-  channel       PaymentDunningChannel
-  errorMessage  String?                       @map("error_message")
-  messageId     String?                       @map("message_id") // id retornado pelo provider (email message-id, WA msg id)
-  createdAt     DateTime                      @default(now()) @map("created_at")
-  updatedAt     DateTime                      @updatedAt @map("updated_at")
+  id           String                        @id @default(cuid())
+  entryId      String                        @map("entry_id")
+  stepId       String                        @map("step_id")
+  scheduledFor DateTime                      @map("scheduled_for")
+  executedAt   DateTime?                     @map("executed_at")
+  status       PaymentDunningExecutionStatus @default(PENDING)
+  channel      PaymentDunningChannel
+  errorMessage String?                       @map("error_message")
+  messageId    String?                       @map("message_id") // id retornado pelo provider (email message-id, WA msg id)
+  createdAt    DateTime                      @default(now()) @map("created_at")
+  updatedAt    DateTime                      @updatedAt @map("updated_at")
 
   entry PaymentEntry       @relation(fields: [entryId], references: [id], onDelete: Cascade)
   step  PaymentDunningStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
@@ -4816,6 +5514,282 @@ model PaymentDunningExecution {
   @@unique([entryId, stepId])
   @@index([status, scheduledFor])
   @@map("payment_dunning_executions")
+}
+
+enum PaymentBankTxSource {
+  OFX_UPLOAD
+  EMAIL_INBOX
+  AGGREGATOR
+  // Extrato em PDF lido por IA (spec 0016). O `externalId` é sintético.
+  PDF_UPLOAD
+}
+
+// ─────────────────────────────────────────────
+// NASA PAYMENT — LEMBRETES COM ENVIO DO BOLETO (spec 0017)
+// ─────────────────────────────────────────────
+
+enum PaymentReminderChannel {
+  WHATSAPP
+  EMAIL
+}
+
+enum PaymentReminderStatus {
+  SCHEDULED
+  SENT
+  PARTIAL
+  FAILED
+  SKIPPED
+  CANCELLED
+}
+
+// Lembrete agendado que envia o documento (boleto/NF) a contatos por WhatsApp
+// e/ou e-mail. Disparado por Inngest (`payment/reminder.created`).
+// `recipients` é snapshot de `{ contactId?, name, phone?, email? }` no momento
+// da criação; `deliveryLog` guarda o resultado por destinatário e canal.
+model PaymentReminder {
+  id             String                   @id @default(cuid())
+  organizationId String                   @map("organization_id")
+  entryId        String?                  @map("entry_id")
+  attachmentId   String?                  @map("attachment_id")
+  remindAt       DateTime                 @map("remind_at")
+  channels       PaymentReminderChannel[]
+  recipients     Json
+  message        String
+  notifyCreator  Boolean                  @default(true) @map("notify_creator")
+  status         PaymentReminderStatus    @default(SCHEDULED)
+  sentAt         DateTime?                @map("sent_at")
+  deliveryLog    Json?                    @map("delivery_log")
+  createdById    String                   @map("created_by_id")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entry        PaymentEntry?      @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  attachment   PaymentAttachment? @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  createdBy    User               @relation("PaymentReminderCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, remindAt, status])
+  @@index([entryId])
+  @@map("payment_reminders")
+}
+
+// ─────────────────────────────────────────────
+// NASA PAYMENT — CAIXA DE ENTRADA GMAIL (spec 0018)
+// ─────────────────────────────────────────────
+
+enum PaymentInboxItemStatus {
+  NEW
+  PROPOSED
+  ACCEPTED
+  IGNORED
+  FAILED
+}
+
+model PaymentInboxConfig {
+  id             String    @id @default(cuid())
+  organizationId String    @unique @map("organization_id")
+  isEnabled      Boolean   @default(false) @map("is_enabled")
+  gmailQuery     String    @default("has:attachment filename:pdf newer_than:7d") @map("gmail_query")
+  notifyWhatsapp Boolean   @default(false) @map("notify_whatsapp")
+  lastSyncAt     DateTime? @map("last_sync_at")
+  lastError      String?   @map("last_error")
+  lastHistoryId  String?   @map("last_history_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("payment_inbox_configs")
+}
+
+// Anexo de e-mail encontrado na caixa Gmail da org. A chave única impede que
+// o mesmo anexo vire dois itens entre sincronizações.
+model PaymentInboxItem {
+  id                String                 @id @default(cuid())
+  organizationId    String                 @map("organization_id")
+  gmailMessageId    String                 @map("gmail_message_id")
+  gmailAttachmentId String                 @map("gmail_attachment_id")
+  threadId          String?                @map("thread_id")
+  subject           String
+  fromEmail         String                 @map("from_email")
+  fromName          String?                @map("from_name")
+  receivedAt        DateTime               @map("received_at")
+  attachmentId      String?                @map("attachment_id")
+  status            PaymentInboxItemStatus @default(NEW)
+  extraction        Json?
+  entryId           String?                @map("entry_id")
+  errorMessage      String?                @map("error_message")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  attachment   PaymentAttachment? @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  entry        PaymentEntry?      @relation(fields: [entryId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, gmailMessageId, gmailAttachmentId], map: "payment_inbox_items_org_message_attachment_key")
+  @@index([organizationId, status, receivedAt])
+  @@map("payment_inbox_items")
+}
+
+enum PaymentBankTxDirection {
+  CREDIT
+  DEBIT
+}
+
+enum PaymentBankTxStatus {
+  PENDING
+  MATCHED
+  IGNORED
+}
+
+enum PaymentStatementImportStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+/// Lote de importação de extrato. Guarda o resumo do que entrou e o arquivo
+/// original (via `attachmentId`), para auditoria de onde cada transação veio.
+model PaymentStatementImport {
+  id                 String                       @id @default(cuid())
+  organizationId     String                       @map("organization_id")
+  accountId          String                       @map("account_id")
+  attachmentId       String?                      @map("attachment_id")
+  source             PaymentBankTxSource          @default(OFX_UPLOAD)
+  fileName           String                       @map("file_name")
+  // sha256 do arquivo. Alimenta o aviso "este extrato já foi importado em X" —
+  // reimportar é legítimo, a idempotência de verdade é o `externalId`.
+  fileHash           String                       @map("file_hash")
+  ofxBankId          String?                      @map("ofx_bank_id")
+  ofxAccountId       String?                      @map("ofx_account_id")
+  currency           String?
+  periodStart        DateTime?                    @map("period_start")
+  periodEnd          DateTime?                    @map("period_end")
+  ledgerBalanceCents Int?                         @map("ledger_balance_cents")
+  ledgerBalanceAt    DateTime?                    @map("ledger_balance_at")
+  totalCount         Int                          @default(0) @map("total_count")
+  importedCount      Int                          @default(0) @map("imported_count")
+  duplicateCount     Int                          @default(0) @map("duplicate_count")
+  invalidCount       Int                          @default(0) @map("invalid_count")
+  status             PaymentStatementImportStatus @default(PROCESSING)
+  errorMessage       String?                      @map("error_message")
+  warnings           Json?
+  createdById        String?                      @map("created_by_id")
+  createdAt          DateTime                     @default(now()) @map("created_at")
+  updatedAt          DateTime                     @updatedAt @map("updated_at")
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      PaymentBankAccount       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  attachment   PaymentAttachment?       @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  transactions PaymentBankTransaction[]
+
+  @@index([organizationId, accountId, fileHash])
+  @@index([organizationId, createdAt])
+  @@map("payment_statement_imports")
+}
+
+/// Transação lida do extrato, aguardando conciliação. É a fila que o usuário
+/// resolve: casar com um lançamento existente, virar lançamento novo, ou ser
+/// ignorada.
+model PaymentBankTransaction {
+  id                         String                 @id @default(cuid())
+  organizationId             String                 @map("organization_id")
+  accountId                  String                 @map("account_id")
+  // SetNull de propósito: apagar um lote nunca pode destruir a chave de
+  // idempotência, senão a transação voltaria numa reimportação.
+  importId                   String?                @map("import_id")
+  source                     PaymentBankTxSource    @default(OFX_UPLOAD)
+  // FITID do OFX hoje; id do agregador quando houver. Nome neutro porque a
+  // fonte pode mudar sem que a semântica mude.
+  externalId                 String                 @map("external_id")
+  direction                  PaymentBankTxDirection
+  // Sempre positivo — o sinal vive em `direction`, para não haver duas formas
+  // de representar uma saída.
+  amountCents                Int                    @map("amount_cents")
+  // Instante real do lançamento e o dia de calendário a meio-dia UTC. O dia
+  // separado é o que permite comparar com `PaymentEntry.dueDate` sem que o
+  // fuso desloque a janela do match em um dia.
+  postedAt                   DateTime               @map("posted_at")
+  postedDate                 DateTime               @map("posted_date")
+  memo                       String
+  memoKind                   String?                @map("memo_kind")
+  counterpartyName           String?                @map("counterparty_name")
+  counterpartyDocument       String?                @map("counterparty_document")
+  // O extrato às vezes entrega o CPF mascarado. Guardamos como veio e nunca
+  // tentamos desmascarar — é dado de terceiro.
+  counterpartyDocumentMasked Boolean                @default(false) @map("counterparty_document_masked")
+  rawPayload                 Json?                  @map("raw_payload")
+  status                     PaymentBankTxStatus    @default(PENDING)
+  matchedEntryId             String?                @map("matched_entry_id")
+  matchedAt                  DateTime?              @map("matched_at")
+  matchedById                String?                @map("matched_by_id")
+  matchMethod                String?                @map("match_method")
+  ignoredReason              String?                @map("ignored_reason")
+  // Conferência da conciliação: marca manual "Conferido" e o resultado da
+  // leitura do comprovante pela IA (Astro) — pagador × valor × data.
+  reviewedAt                 DateTime?              @map("reviewed_at")
+  reviewedById               String?                @map("reviewed_by_id")
+  reviewResult               Json?                  @map("review_result")
+  createdAt                  DateTime               @default(now()) @map("created_at")
+  updatedAt                  DateTime               @updatedAt @map("updated_at")
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      PaymentBankAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  import       PaymentStatementImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
+  matchedEntry PaymentEntry?           @relation(fields: [matchedEntryId], references: [id], onDelete: SetNull)
+
+  // A chave de idempotência. `accountId` entra porque o FITID só é único
+  // dentro de uma instituição+conta; `organizationId` isola tenants.
+  @@unique([organizationId, accountId, externalId])
+  @@index([organizationId, status])
+  @@index([organizationId, accountId, postedDate])
+  @@index([matchedEntryId])
+  @@index([importId])
+  @@map("payment_bank_transactions")
+}
+
+/// Meta de vendas e reserva de caixa padrão da organização, mais as flags de
+/// alerta. Um registro por org; os valores por mês ficam em `PaymentGoalMonth`.
+model PaymentGoalConfig {
+  id                        String   @id @default(cuid())
+  organizationId            String   @unique @map("organization_id")
+  // Meta de receita RECEBIDA no mês, em centavos. 0 = sem meta definida.
+  defaultRevenueTargetCents Int      @default(0) @map("default_revenue_target_cents")
+  // Percentual (0-100) da receita do mês que deve sobrar em caixa.
+  defaultCashReservePercent Int      @default(0) @map("default_cash_reserve_percent")
+  alertReserveAtRisk        Boolean  @default(true) @map("alert_reserve_at_risk")
+  alertWeeklySummary        Boolean  @default(true) @map("alert_weekly_summary")
+  alertGoalReached          Boolean  @default(true) @map("alert_goal_reached")
+  alertExpenseBreaksReserve Boolean  @default(true) @map("alert_expense_breaks_reserve")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("payment_goal_config")
+}
+
+/// Override de um mês específico. Valor nulo herda o padrão de
+/// `PaymentGoalConfig` — por isso os campos de valor são opcionais: a linha
+/// também é criada pelos crons só para carimbar o que já foi notificado.
+model PaymentGoalMonth {
+  id                    String    @id @default(cuid())
+  organizationId        String    @map("organization_id")
+  year                  Int
+  month                 Int
+  revenueTargetCents    Int?      @map("revenue_target_cents")
+  cashReservePercent    Int?      @map("cash_reserve_percent")
+  // Idempotência dos alertas: um disparo por mês, por organização.
+  reserveRiskNotifiedAt DateTime? @map("reserve_risk_notified_at")
+  goalReachedNotifiedAt DateTime? @map("goal_reached_notified_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, year, month])
+  @@index([organizationId])
+  @@map("payment_goal_month")
 }
 
 // ─── ORG PROJECTS / CLIENTES ────────────────────────────────────────────────
@@ -5160,6 +6134,17 @@ model Script {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
+  // ── Vídeo anexado (spec 0004) ────────────────────────────────────────
+  // Relação 1:1 opcional — o vídeo sobe uma vez e é reenviado por URL a
+  // cada uso, mantendo o storage em O(scripts com vídeo) em vez de
+  // O(envios). Todas nullable: script sem vídeo é o caso da maioria.
+  // `videoKey` é a key no R2 sob `videos/scripts/`; excluir ou trocar o
+  // vídeo apaga o objeto anterior.
+  videoKey       String? @map("video_key")
+  videoMimetype  String? @map("video_mimetype")
+  videoFileName  String? @map("video_file_name")
+  videoSizeBytes Int?    @map("video_size_bytes")
+
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
 
   @@index([trackingId])
@@ -5246,26 +6231,26 @@ model LinnkerLink {
 }
 
 model LinnkerScan {
-  id        String   @id @default(cuid())
-  pageId    String   @map("page_id")
-  leadId    String?  @map("lead_id")
-  name      String?
-  email     String?
-  phone     String?
-  ipAddress String?  @map("ip_address")
-  userAgent String?  @map("user_agent")
-  latitude  Float?
-  longitude Float?
+  id          String   @id @default(cuid())
+  pageId      String   @map("page_id")
+  leadId      String?  @map("lead_id")
+  name        String?
+  email       String?
+  phone       String?
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  latitude    Float?
+  longitude   Float?
   // UTM tracking — alimentados pelo redirect /l/<slug>/wa quando
   // o QR é escaneado. Permite correlacionar scan ao inbound do
   // tracking via match por phone OU User-Agent + janela de tempo.
-  utmSource   String? @map("utm_source")
-  utmMedium   String? @map("utm_medium")
-  utmCampaign String? @map("utm_campaign")
+  utmSource   String?  @map("utm_source")
+  utmMedium   String?  @map("utm_medium")
+  utmCampaign String?  @map("utm_campaign")
   // "Fonte" classificada — "qr_button" pra scan via QR popup,
   // "link" pra click em LinnkerLink. Distingue origem do scan.
-  scanKind  String?  @map("scan_kind")
-  createdAt DateTime @default(now()) @map("created_at")
+  scanKind    String?  @map("scan_kind")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   page LinnkerPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
   lead Lead?       @relation(fields: [leadId], references: [id], onDelete: SetNull)
@@ -6657,6 +7642,9 @@ model PendingCoursePurchase {
 model RouterPaymentSettings {
   id           String   @id
   starPriceBrl Decimal  @default(0.15) @map("star_price_brl") @db.Decimal(10, 4)
+  /// Cambio USD->BRL. Sai do codigo porque e o numero que de fato varia e o
+  /// financeiro precisa ajustar sem deploy (D-5 da spec 0021).
+  usdToBrlRate Decimal  @default(5.5) @map("usd_to_brl_rate") @db.Decimal(10, 4)
   updatedAt    DateTime @updatedAt @map("updated_at")
   updatedById  String?  @map("updated_by_id")
 
@@ -7059,6 +8047,8 @@ model MetaAdCampaign {
   adsets       MetaAdSet[]
   ads          MetaAd[]
 
+  trafegoOrders TrafegoOrder[]
+
   @@index([organizationId])
   @@index([adAccountId])
   @@map("meta_ad_campaigns")
@@ -7232,6 +8222,46 @@ model AiSession {
 
   @@index([organizationId, userId, updatedAt(sort: Desc)])
   @@map("ai_session")
+}
+
+// Proposta de escrita do Astro aguardando "sim" do usuário (spec 0014, D-2).
+// `propose_*` grava aqui; `confirm_action` executa e marca o resultado. Vale
+// para chat, widget e WhatsApp — o "sim" pode chegar em outra request.
+enum AstroActionChannel {
+  CHAT
+  WHATSAPP
+}
+
+enum AstroPendingActionStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+  FAILED
+}
+
+model AstroPendingAction {
+  id             String                   @id @default(cuid())
+  organizationId String                   @map("organization_id")
+  userId         String                   @map("user_id")
+  channel        AstroActionChannel       @default(CHAT)
+  sessionId      String?                  @map("session_id")
+  actionType     String                   @map("action_type")
+  payload        Json
+  summary        String
+  status         AstroPendingActionStatus @default(PENDING)
+  expiresAt      DateTime                 @map("expires_at")
+  confirmedAt    DateTime?                @map("confirmed_at")
+  result         Json?
+  errorMessage   String?                  @map("error_message")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId, status, createdAt(sort: Desc)], map: "astro_pending_actions_org_user_status_created_idx")
+  @@map("astro_pending_actions")
 }
 
 model AiKnowledge {
@@ -7502,6 +8532,10 @@ model OrganizationBotConfig {
   quietHoursStart Int? @map("quiet_hours_start")
   quietHoursEnd   Int? @map("quiet_hours_end")
 
+  /// Astro financeiro pelo WhatsApp (spec 0019): escopo "assistant", com
+  /// escrita confirmada, leitura de documentos e cobrança de Stars.
+  financeEnabled Boolean @default(false) @map("finance_enabled")
+
   isActive  Boolean  @default(false) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -7616,4 +8650,987 @@ model WhatsappBotCommand {
   @@index([organizationId, receivedAt])
   @@index([status])
   @@map("whatsapp_bot_command")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// trafeGO — self-service de tráfego pago e campanhas
+// Spec: specs/trafego/0008-trafego-self-service.md
+//
+// Nomenclatura: o pedido do cliente chama-se `TrafegoOrder`, nunca "campanha" —
+// "campanha" já nomeia `Broadcast` (disparo), `MetaAdCampaign` (anúncio Meta) e
+// `NasaCampaignPlanner` (planejamento) neste schema.
+// ═════════════════════════════════════════════════════════════════════════════
+
+enum TrafegoPlatform {
+  META_ADS
+  GOOGLE_ADS
+  WHATSAPP_OFICIAL
+}
+
+enum TrafegoCampaignType {
+  PROSPECCAO
+  REMARKETING
+  VENDA_DIRETA
+  RECONHECIMENTO
+  RELACIONAMENTO
+}
+
+/// Mapeiam 1:1 pros OUTCOME_* do Meta em src/features/trafego/lib/objective-labels.ts
+enum TrafegoObjective {
+  LEADS
+  TRAFFIC
+  SALES
+  AWARENESS
+  ENGAGEMENT
+  MESSAGES
+  BROADCAST
+  /// Exclusivo do Google: aparecer para quem já está procurando o serviço.
+  SEARCH
+}
+
+enum TrafegoOrderStatus {
+  PAID // pagamento confirmado, conta ainda não criada
+  ACCOUNT_REVIEW // equipe verifica acesso e saúde da conta de anúncios; cliente já pode subir materiais
+  ONBOARDING // cliente criou a conta, falta enviar materiais
+  MATERIALS_SUBMITTED // criativos + copy enviados, ainda não ativou
+  REQUESTED // cliente ativou; entrou na fila da equipe
+  IN_REVIEW // equipe analisando
+  CHANGES_REQUESTED // equipe devolveu pedindo correção
+  SCHEDULED // aprovado, aguardando data de início
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum TrafegoPendingPurchaseStatus {
+  PENDING
+  PAID
+  REDEEMED
+  EXPIRED
+  REFUNDED
+  CANCELLED
+  // Cron de recuperação desistiu após 30+ dias sem pagamento.
+  ABANDONED
+}
+
+enum TrafegoCreativeKind {
+  IMAGE
+  VIDEO
+}
+
+enum TrafegoCreativeStatus {
+  UPLOADED
+  SELECTED
+  REJECTED
+}
+
+enum TrafegoCopySource {
+  CLIENT
+  SUGGESTED_BY_NASA
+  AI
+}
+
+/// `NASA` é o time da plataforma. O nome ficou do batismo anterior: a marca
+/// virou ÓRBITA na interface, mas o valor gravado no banco não muda sem
+/// migração. Renomear só o literal no código já quebrou o build uma vez.
+enum TrafegoSupportAuthorRole {
+  CLIENT
+  NASA
+}
+
+/// Quem provocou a transição de status: card arrastado no tracking, admin,
+/// cliente (Ativar / materiais) ou sistema (webhook, cron).
+enum TrafegoTransitionSource {
+  KANBAN
+  ADMIN
+  CLIENT
+  SYSTEM
+}
+
+/// Cartão fecha sozinho pelo Stripe; PIX é manual — a equipe confere o
+/// comprovante e confirma. Não usamos gateway de PIX (spec 0009 §2).
+enum TrafegoPaymentMethod {
+  CARD
+  PIX
+}
+
+/// Resultado da checagem contra as políticas de Meta/Google/WhatsApp.
+/// WARNING paga depois de reconhecer; BLOCKED não passa pelo checkout
+/// automático — precisa de um gestor liberar.
+enum TrafegoComplianceLevel {
+  OK
+  WARNING
+  BLOCKED
+}
+
+enum TrafegoTopUpStatus {
+  PENDING
+  PAID
+  EXPIRED
+  CANCELLED
+  REFUNDED
+}
+
+/// Catálogo público de planos. O preço é COMPOSTO: `adBudgetBrlCents` é a verba
+/// que vai pro anúncio e a taxa de serviço é derivada de `serviceFeePercent`
+/// (ou fixada por `serviceFeeBrlCents`). O total nunca é armazenado aqui — é
+/// calculado por `computeTrafegoPrice()` para que mudar o percentual não exija
+/// backfill. O pedido guarda o snapshot dos três valores.
+model TrafegoPlan {
+  id            String                @id @default(cuid())
+  slug          String                @unique
+  name          String
+  headline      String?
+  description   String?               @db.Text
+  platform      TrafegoPlatform
+  campaignTypes TrafegoCampaignType[] @map("campaign_types")
+  objectives    TrafegoObjective[]
+
+  adBudgetBrlCents   Int     @map("ad_budget_brl_cents")
+  serviceFeePercent  Decimal @default(50) @map("service_fee_percent") @db.Decimal(5, 2)
+  /// Override de taxa fixa. Quando preenchido, ignora `serviceFeePercent`.
+  serviceFeeBrlCents Int?    @map("service_fee_brl_cents")
+
+  durationDays Int      @default(30) @map("duration_days")
+  maxCreatives Int      @default(3) @map("max_creatives")
+  maxCopies    Int      @default(3) @map("max_copies")
+  highlights   String[] @default([])
+  isActive     Boolean  @default(true) @map("is_active")
+  isDefault    Boolean  @default(false) @map("is_default")
+  position     Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  orders           TrafegoOrder[]
+  pendingPurchases TrafegoPendingPurchase[]
+
+  @@index([isActive, platform, position])
+  @@map("trafego_plan")
+}
+
+/// Compra iniciada por quem ainda não tem conta. Espelha `PendingCoursePurchase`:
+/// após o webhook confirmar, gera `signupToken`; o resgate cria Organization +
+/// Member + TrafegoOrder.
+model TrafegoPendingPurchase {
+  id           String              @id @default(cuid())
+  email        String
+  phone        String?
+  companyName  String?             @map("company_name")
+  /// Preenchido quando o checkout partiu de usuário já logado.
+  userId       String?             @map("user_id")
+  /// "public" (anônimo, gera signupToken) | "authenticated" (webhook finaliza direto)
+  flow         String              @default("public")
+  /// Opcional desde o simulador por faixa: a compra deixou de depender de um
+  /// plano fixo do catálogo. Mantido para compras antigas e ofertas pontuais.
+  planId       String?             @map("plan_id")
+  campaignType TrafegoCampaignType @map("campaign_type")
+  platform     TrafegoPlatform
+  objective    TrafegoObjective
+  /// Respostas do briefing coletadas no wizard, antes de existir pedido.
+  briefing     Json                @default("{}")
+
+  /// null = cliente não soube responder; tratamos como "precisa de setup".
+  hasBusinessManager Boolean? @map("has_business_manager")
+
+  /// Quando o cliente aceitou os termos no checkout, e qual versão estava no ar.
+  /// É a prova de que ele leu a cláusula sobre responsabilidade pelo criativo.
+  acceptedTermsAt      DateTime? @map("accepted_terms_at")
+  acceptedTermsVersion String?   @map("accepted_terms_version")
+
+  adBudgetBrlCents   Int @map("ad_budget_brl_cents")
+  /// Percentual da faixa no momento da compra — a tabela pode mudar depois.
+  serviceFeePercent  Int @default(50) @map("service_fee_percent")
+  serviceFeeBrlCents Int @map("service_fee_brl_cents")
+  /// Setup da BM, cobrado uma única vez de quem não tem conta de anúncios.
+  setupFeeBrlCents   Int @default(0) @map("setup_fee_brl_cents")
+  amountBrlCents     Int @map("amount_brl_cents")
+
+  stripeSessionId       String?                      @map("stripe_session_id")
+  stripePaymentIntentId String?                      @map("stripe_payment_intent_id")
+  signupToken           String?                      @unique @map("signup_token")
+  tokenExpiresAt        DateTime?                    @map("token_expires_at")
+  status                TrafegoPendingPurchaseStatus @default(PENDING)
+
+  /// Stripe cobrou valor diferente do esperado (cupom, ajuste manual). Não
+  /// reescalamos a verba em silêncio — sinalizamos para conferência humana.
+  amountMismatch Boolean @default(false) @map("amount_mismatch")
+
+  createdAt        DateTime  @default(now()) @map("created_at")
+  paidAt           DateTime? @map("paid_at")
+  redeemedAt       DateTime? @map("redeemed_at")
+  redeemedByUserId String?   @map("redeemed_by_user_id")
+
+  // ── Recuperação de carrinho ──
+  lastReminderSentAt DateTime? @map("last_reminder_sent_at")
+  /// "d1" | "d3" | "d7" | null
+  lastReminderStage  String?   @map("last_reminder_stage")
+
+  /// Card no tracking de operação — nasce no "Continuar" do wizard, antes do pagamento.
+  leadId             String? @map("lead_id")
+  /// Resposta "Briefing TrafeGO" criada no card do lead a partir do wizard.
+  briefingResponseId String? @map("briefing_response_id")
+
+  // ── Verificações do wizard (spec 0009, Fase B) ──
+  /// Código por WhatsApp confirmado antes do pagamento.
+  phoneVerifiedAt     DateTime? @map("phone_verified_at")
+  /// @instagram ou página do Facebook informados no wizard.
+  socialHandle        String?   @map("social_handle")
+  /// Perfil encontrado na Graph API (nome, foto, seguidores…) — snapshot da hora.
+  socialProfile       Json?     @map("social_profile")
+  /// WhatsApp Oficial: já tem número na API? null = não soube dizer (= setup).
+  hasOfficialNumber   Boolean?  @map("has_official_number")
+  officialNumber      String?   @map("official_number")
+  /// Resultado da checagem do número (existe, nome verificado) — snapshot.
+  officialNumberCheck Json?     @map("official_number_check")
+
+  // ── Pagamento (spec 0009, Fase B) ──
+  paymentMethod        TrafegoPaymentMethod @default(CARD) @map("payment_method")
+  /// Código curto que o cliente manda junto do comprovante ("TGP-4K2M").
+  /// Não usamos o `id` da pendência: quem o tem consegue ler o signupToken.
+  pixReference         String?              @unique @map("pix_reference")
+  pixExpiresAt         DateTime?            @map("pix_expires_at")
+  pixConfirmedAt       DateTime?            @map("pix_confirmed_at")
+  pixConfirmedByUserId String?              @map("pix_confirmed_by_user_id")
+  pixReceivedBrlCents  Int?                 @map("pix_received_brl_cents")
+  pixConfirmationNote  String?              @map("pix_confirmation_note") @db.Text
+
+  // ── PIX pelo Asaas (spec 0022) ──
+  /// Cobrança no Asaas ("pay_..."). Conciliação e idempotência do webhook:
+  /// é por ele que um evento vira ESTA pendência, e não outra.
+  asaasPaymentId   String? @unique @map("asaas_payment_id")
+  /// Pagador no Asaas, para não recadastrar a cada compra.
+  asaasCustomerId  String? @map("asaas_customer_id")
+  /// CPF/CNPJ do pagador, só dígitos. Exigido pela API para emitir cobrança
+  /// nominal. Não é copiado para o pedido — ver spec 0022 D-6.
+  payerDocument    String? @map("payer_document")
+  /// Copia-e-cola do QR, para reexibir a tela sem nova chamada ao Asaas.
+  pixQrCodePayload String? @map("pix_qr_code_payload") @db.Text
+
+  // ── Políticas de publicidade ──
+  complianceLevel            TrafegoComplianceLevel? @map("compliance_level")
+  /// `PolicyHit[]` — o que foi encontrado, com trecho, motivo e correção.
+  complianceIssues           Json?                   @map("compliance_issues")
+  /// Cliente leu o aviso e escolheu seguir (obrigatório quando WARNING).
+  complianceAcknowledgedAt   DateTime?               @map("compliance_acknowledged_at")
+  /// Admin liberou um caso BLOCKED manualmente — falso positivo do prescreen.
+  complianceOverrideByUserId String?                 @map("compliance_override_by_user_id")
+
+  // ── Prazo (spec 0009, Fase B) ──
+  /// Quando o cliente gostaria de começar.
+  desiredStartAt       DateTime? @map("desired_start_at")
+  /// Data mais cedo possível, calculada em dias úteis no wizard.
+  earliestStartAt      DateTime? @map("earliest_start_at")
+  /// Cliente reconheceu a data realista — vale como prova, é cláusula dos termos.
+  startAcknowledgedAt  DateTime? @map("start_acknowledged_at")
+  hasSocialLinked      Boolean?  @map("has_social_linked")
+  materialsReady       Boolean?  @map("materials_ready")
+  desiredCreativeCount Int?      @map("desired_creative_count")
+
+  plan                 TrafegoPlan?  @relation(fields: [planId], references: [id], onDelete: SetNull)
+  lead                 Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  user                 User?         @relation("TrafegoPurchaseUser", fields: [userId], references: [id], onDelete: SetNull)
+  redeemedByUser       User?         @relation("TrafegoPurchaseRedeemer", fields: [redeemedByUserId], references: [id], onDelete: SetNull)
+  pixConfirmedBy       User?         @relation("TrafegoPixConfirmer", fields: [pixConfirmedByUserId], references: [id], onDelete: SetNull)
+  complianceOverrideBy User?         @relation("TrafegoComplianceOverride", fields: [complianceOverrideByUserId], references: [id], onDelete: SetNull)
+  order                TrafegoOrder?
+
+  @@index([email])
+  @@index([status])
+  @@index([stripeSessionId])
+  @@index([userId])
+  @@index([leadId])
+  @@index([status, paymentMethod])
+  @@map("trafego_pending_purchase")
+}
+
+/// O pedido do cliente — uma campanha contratada. Carrega snapshot do catálogo
+/// e do preço: mudar o plano depois não reescreve o que foi vendido.
+model TrafegoOrder {
+  id                String  @id @default(cuid())
+  /// Legível pro suporte: "TG-0001".
+  code              String  @unique
+  organizationId    String  @map("organization_id")
+  ownerUserId       String  @map("owner_user_id")
+  planId            String? @map("plan_id")
+  /// Guard de idempotência: uma compra gera no máximo um pedido.
+  pendingPurchaseId String? @unique @map("pending_purchase_id")
+
+  // ── Snapshot do catálogo ──
+  planNameSnapshot String              @map("plan_name_snapshot")
+  campaignType     TrafegoCampaignType @map("campaign_type")
+  platform         TrafegoPlatform
+  objective        TrafegoObjective
+  durationDays     Int                 @map("duration_days")
+  maxCreatives     Int                 @map("max_creatives")
+  maxCopies        Int                 @map("max_copies")
+
+  // ── Snapshot financeiro (bate com o que o Stripe cobrou) ──
+  adBudgetBrlCents      Int       @map("ad_budget_brl_cents")
+  serviceFeePercent     Int       @default(50) @map("service_fee_percent")
+  serviceFeeBrlCents    Int       @map("service_fee_brl_cents")
+  setupFeeBrlCents      Int       @default(0) @map("setup_fee_brl_cents")
+  totalBrlCents         Int       @map("total_brl_cents")
+  /// null = cliente não soube responder no wizard.
+  hasBusinessManager    Boolean?  @map("has_business_manager")
+  acceptedTermsAt       DateTime? @map("accepted_terms_at")
+  acceptedTermsVersion  String?   @map("accepted_terms_version")
+  stripeSessionId       String?   @map("stripe_session_id")
+  stripePaymentIntentId String?   @map("stripe_payment_intent_id")
+
+  // ── Briefing do cliente ──
+  businessName   String? @map("business_name")
+  businessNiche  String? @map("business_niche")
+  targetAudience String? @map("target_audience") @db.Text
+  destinationUrl String? @map("destination_url")
+  whatsappNumber String? @map("whatsapp_number")
+  notes          String? @db.Text
+
+  status      TrafegoOrderStatus @default(PAID)
+  requestedAt DateTime?          @map("requested_at")
+  approvedAt  DateTime?          @map("approved_at")
+  startedAt   DateTime?          @map("started_at")
+  endsAt      DateTime?          @map("ends_at")
+  completedAt DateTime?          @map("completed_at")
+
+  // ── Vínculo com a execução real (preenchido pela equipe) ──
+  metaAdCampaignId       String? @map("meta_ad_campaign_id")
+  /// ID Meta da campanha = MetaAdsKpiSnapshot.entityId com level=CAMPAIGN.
+  metaCampaignExternalId String? @map("meta_campaign_external_id")
+  /// Org dona dos snapshots — a da AGÊNCIA, que detém a PlatformIntegration(META).
+  /// Sem isto o dashboard do cliente volta vazio: os KPIs não nascem na org dele.
+  metricsOrganizationId  String? @map("metrics_organization_id")
+  broadcastId            String? @unique @map("broadcast_id")
+
+  /// Card no tracking de operação (TrafegoSettings.operationsTrackingId).
+  /// NÃO é único: cliente recorrente tem N pedidos no mesmo lead — o card
+  /// espelha o pedido mais recente que ainda não terminou.
+  leadId               String?   @map("lead_id")
+  /// Quando os materiais ficaram completos (≥1 criativo + ≥1 copy selecionada).
+  materialsSubmittedAt DateTime? @map("materials_submitted_at")
+  /// Perfil já pronto do cliente, alternativa aos arquivos enviados.
+  materialsProfileLink String?   @map("materials_profile_link")
+
+  // ── Verificações herdadas do wizard (snapshot) ──
+  phoneVerifiedAt     DateTime?               @map("phone_verified_at")
+  socialHandle        String?                 @map("social_handle")
+  socialProfile       Json?                   @map("social_profile")
+  hasOfficialNumber   Boolean?                @map("has_official_number")
+  officialNumber      String?                 @map("official_number")
+  officialNumberCheck Json?                   @map("official_number_check")
+  paymentMethod       TrafegoPaymentMethod    @default(CARD) @map("payment_method")
+  complianceLevel     TrafegoComplianceLevel? @map("compliance_level")
+  complianceIssues    Json?                   @map("compliance_issues")
+  desiredStartAt      DateTime?               @map("desired_start_at")
+  earliestStartAt     DateTime?               @map("earliest_start_at")
+  startAcknowledgedAt DateTime?               @map("start_acknowledged_at")
+  hasSocialLinked     Boolean?                @map("has_social_linked")
+  materialsReady      Boolean?                @map("materials_ready")
+
+  /// Vínculo feito pelo cron a partir do código no nome da campanha, em vez
+  /// de alguém colar o ID à mão (spec 0009 RF-13).
+  metaAutoLinkedAt DateTime? @map("meta_auto_linked_at")
+
+  // ── Inteligência do painel (spec 0009, Fase D) ──
+  /// Release da empresa redigido pelo Astro e revisado pelo cliente:
+  /// `{ about, products[], differentials[], audience, tone, offers[], doNotSay[] }`.
+  release            Json?     @map("release")
+  /// De onde o Release saiu: `[{ kind, value, fileKey?, extractedAt?, chars? }]`.
+  /// Instagram/Facebook entram como referência — não são raspáveis.
+  releaseSources     Json?     @map("release_sources")
+  releaseGeneratedAt DateTime? @map("release_generated_at")
+  /// Só depois que o cliente revisa e salva é que o Release alimenta copies
+  /// e recomendações — texto gerado sem conferência não vira anúncio.
+  releaseSavedAt     DateTime? @map("release_saved_at")
+
+  /// Orientação para o cliente: formato de criativo, adequação da verba,
+  /// destino e ângulo de copy. Regras duras em código, texto pelo modelo.
+  recommendations            Json?     @map("recommendations")
+  recommendationsGeneratedAt DateTime? @map("recommendations_generated_at")
+
+  /// Checklist de acessos (página, Instagram, BM, parceria concedida).
+  accessChecklist Json? @map("access_checklist")
+
+  assignedToUserId String? @map("assigned_to_user_id")
+  internalNotes    String? @map("internal_notes") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization    Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner           User                    @relation("TrafegoOrderOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  assignedTo      User?                   @relation("TrafegoOrderAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  plan            TrafegoPlan?            @relation(fields: [planId], references: [id], onDelete: SetNull)
+  pendingPurchase TrafegoPendingPurchase? @relation(fields: [pendingPurchaseId], references: [id], onDelete: SetNull)
+  metaAdCampaign  MetaAdCampaign?         @relation(fields: [metaAdCampaignId], references: [id], onDelete: SetNull)
+  broadcast       Broadcast?              @relation(fields: [broadcastId], references: [id], onDelete: SetNull)
+  lead            Lead?                   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  creatives TrafegoCreative[]
+  copies    TrafegoCopy[]
+  events    TrafegoOrderEvent[]
+  messages  TrafegoSupportMessage[]
+  topUps    TrafegoCreativeTopUp[]
+
+  @@index([organizationId, status])
+  @@index([status, requestedAt])
+  @@index([metaCampaignExternalId])
+  @@index([leadId])
+  @@map("trafego_order")
+}
+
+/// Timeline append-only. Não usamos coluna `*At` por estágio (como
+/// `ClientOnboardingProcess`) porque o fluxo tem voltas — CHANGES_REQUESTED →
+/// MATERIALS_SUBMITTED → REQUESTED — e colunas perderiam a segunda passagem.
+model TrafegoOrderEvent {
+  id               String                   @id @default(cuid())
+  orderId          String                   @map("order_id")
+  fromStatus       TrafegoOrderStatus?      @map("from_status")
+  toStatus         TrafegoOrderStatus       @map("to_status")
+  title            String
+  detail           String?                  @db.Text
+  /// false = nota interna da equipe, invisível pro cliente.
+  isClientVisible  Boolean                  @default(true) @map("is_client_visible")
+  /// null = evento do sistema (webhook, cron).
+  actorUserId      String?                  @map("actor_user_id")
+  /// Origem da transição. null = evento anterior a esta coluna.
+  source           TrafegoTransitionSource?
+  /// Quando o cliente foi avisado (WhatsApp/e-mail) desta mudança.
+  clientNotifiedAt DateTime?                @map("client_notified_at")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+
+  order TrafegoOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor User?        @relation("TrafegoEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@map("trafego_order_event")
+}
+
+model TrafegoCreative {
+  id               String                @id @default(cuid())
+  orderId          String                @map("order_id")
+  kind             TrafegoCreativeKind
+  /// Key do R2 — nunca URL. `getPublicMediaUrl()` resolve na hora de usar.
+  fileKey          String                @map("file_key")
+  fileName         String?               @map("file_name")
+  fileSize         Int?                  @map("file_size")
+  mimeType         String?               @map("mime_type")
+  width            Int?
+  height           Int?
+  durationSeconds  Int?                  @map("duration_seconds")
+  /// `position` e não `order` — `order` colidiria com a relação de mesmo nome.
+  position         Int                   @default(0)
+  status           TrafegoCreativeStatus @default(UPLOADED)
+  /// Preenchidos quando a equipe sobe o arquivo pro Meta.
+  metaImageHash    String?               @map("meta_image_hash")
+  metaVideoId      String?               @map("meta_video_id")
+  reviewNote       String?               @map("review_note")
+  uploadedByUserId String                @map("uploaded_by_user_id")
+  createdAt        DateTime              @default(now()) @map("created_at")
+
+  order      TrafegoOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  uploadedBy User         @relation("TrafegoCreativeUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, position])
+  @@map("trafego_creative")
+}
+
+model TrafegoCopy {
+  id                  String                  @id @default(cuid())
+  orderId             String                  @map("order_id")
+  headline            String?
+  primaryText         String                  @map("primary_text") @db.Text
+  description         String?
+  callToAction        String?                 @map("call_to_action")
+  source              TrafegoCopySource       @default(CLIENT)
+  /// Checagem de políticas do texto — a equipe vê o alerta antes de publicar.
+  complianceLevel     TrafegoComplianceLevel? @map("compliance_level")
+  complianceIssues    Json?                   @map("compliance_issues")
+  complianceCheckedAt DateTime?               @map("compliance_checked_at")
+  isSelected          Boolean                 @default(false) @map("is_selected")
+  position            Int                     @default(0)
+  createdAt           DateTime                @default(now()) @map("created_at")
+  updatedAt           DateTime                @updatedAt @map("updated_at")
+
+  order TrafegoOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, position])
+  @@map("trafego_copy")
+}
+
+model TrafegoSupportMessage {
+  id             String                   @id @default(cuid())
+  orderId        String                   @map("order_id")
+  authorUserId   String                   @map("author_user_id")
+  authorRole     TrafegoSupportAuthorRole @map("author_role")
+  body           String                   @db.Text
+  attachmentKey  String?                  @map("attachment_key")
+  readByClientAt DateTime?                @map("read_by_client_at")
+  readByNasaAt   DateTime?                @map("read_by_nasa_at")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+
+  order  TrafegoOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  author User         @relation("TrafegoSupportAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("trafego_support_message")
+}
+
+model TrafegoCreativeTopUp {
+  id                    String             @id @default(cuid())
+  orderId               String             @map("order_id")
+  quantity              Int
+  amountBrlCents        Int                @map("amount_brl_cents")
+  status                TrafegoTopUpStatus @default(PENDING)
+  stripeSessionId       String?            @map("stripe_session_id")
+  stripePaymentIntentId String?            @map("stripe_payment_intent_id")
+  purchasedByUserId     String             @map("purchased_by_user_id")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  paidAt                DateTime?          @map("paid_at")
+
+  order           TrafegoOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  purchasedByUser User         @relation("TrafegoCreativeTopUpBuyer", fields: [purchasedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([stripeSessionId])
+  @@map("trafego_creative_topup")
+}
+
+model TrafegoInfoTipSeen {
+  id     String   @id @default(cuid())
+  userId String   @map("user_id")
+  tipKey String   @map("tip_key")
+  seenAt DateTime @default(now()) @map("seen_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tipKey])
+  @@map("trafego_info_tip_seen")
+}
+
+/// Configuração global do produto. Singleton (id="singleton").
+model TrafegoSettings {
+  id                         String  @id @default("singleton")
+  /// Org da AGÊNCIA — detém a PlatformIntegration(META) e é onde nascem os
+  /// MetaAdsKpiSnapshot. Vira o `metricsOrganizationId` default dos pedidos.
+  agencyOrganizationId       String? @map("agency_organization_id")
+  /// Tracking META_CLOUD usado como origem dos disparos WhatsApp.
+  defaultBroadcastTrackingId String? @map("default_broadcast_tracking_id")
+  /// Destino do lead da venda no CRM (espelha NasaRouteCourse.purchaseTrackingId).
+  salesTrackingId            String? @map("sales_tracking_id")
+  salesStatusId              String? @map("sales_status_id")
+  defaultServiceFeePercent   Decimal @default(50) @map("default_service_fee_percent") @db.Decimal(5, 2)
+  supportWhatsapp            String? @map("support_whatsapp")
+  includedCreatives          Int     @default(3) @map("included_creatives")
+  extraCreativeBrlCents      Int     @default(4000) @map("extra_creative_brl_cents")
+
+  // ── Operação pelo tracking (spec 0009) ──
+  /// Tracking onde o gestor opera: um card por cliente, uma coluna por status.
+  operationsTrackingId String? @map("operations_tracking_id")
+  /// `{ [TrafegoColumnKey]: Status.id }` — preenchido ao provisionar o tracking.
+  statusColumnMap      Json    @default("{}") @map("status_column_map")
+  /// Formulário "Briefing TrafeGO" (org da agência) que recebe as respostas do wizard.
+  briefingFormId       String? @map("briefing_form_id")
+
+  // ── Captura de lead no wizard (spec 0021) ──
+  /// Destino do lead captado no passo Contato, ANTES do pagamento. Separado de
+  /// `operationsTrackingId` de propósito: aquele board é a mesa do gestor (um
+  /// card por pedido pago); este é o funil comercial, e pode ser de outra org.
+  /// Nulo em qualquer um dos três = captura desligada, o wizard segue igual.
+  captureOrganizationId String? @map("capture_organization_id")
+  captureTrackingId     String? @map("capture_tracking_id")
+  captureStatusId       String? @map("capture_status_id")
+  /// Business ID da Órbita — vai no pedido de acesso de parceiro à BM do cliente.
+  partnerBusinessId     String? @map("partner_business_id")
+
+  // ── Avisos ao cliente ──
+  whatsappActivationTemplate String? @map("whatsapp_activation_template")
+  whatsappStatusTemplate     String? @map("whatsapp_status_template")
+  /// Template do código de verificação do wizard ({{1}} = código).
+  whatsappOtpTemplate        String? @map("whatsapp_otp_template")
+
+  // ── PIX manual ──
+  pixKey                     String? @map("pix_key")
+  pixHolderName              String? @map("pix_holder_name")
+  pixBankName                String? @map("pix_bank_name")
+  /// Validade da cobrança PIX. Vencida vira EXPIRED, mas ainda é confirmável.
+  /// Validade da cobrança PIX, em MINUTOS. Vencida vira EXPIRED, mas segue
+  /// confirmável: quem paga atrasado tem o dinheiro na nossa conta do mesmo
+  /// jeito. Atenção — isto é o NOSSO relógio: a cobrança no Asaas continua
+  /// pagável, porque o `dueDate` de lá é data, sem hora (spec 0022 CB-28).
+  pixExpiryMinutes           Int     @default(10) @map("pix_expiry_minutes")
+  whatsappTemplateLanguage   String  @default("pt_BR") @map("whatsapp_template_language")
+  clientNotificationsEnabled Boolean @default(true) @map("client_notifications_enabled")
+
+  // ── Financeiro (org da agência) ──
+  financeAccountId             String? @map("finance_account_id")
+  financeRevenueCategoryId     String? @map("finance_revenue_category_id")
+  financePassthroughCategoryId String? @map("finance_passthrough_category_id")
+
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedById String?  @map("updated_by_id")
+
+  @@map("trafego_settings")
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  AUTOMAÇÕES DE REDES SOCIAIS — app COMMENTS (spec 0024)                  ║
+// ║                                                                          ║
+// ║  A rede social é um VALOR (`SocialProvider`), não uma estrutura: nenhum  ║
+// ║  nome de tabela ou coluna cita Instagram. Acrescentar Facebook, WhatsApp ║
+// ║  ou Telegram é um valor no enum + um adapter em `src/modules/social/`,   ║
+// ║  sem migration e sem tocar em `domain/` nem `application/`.              ║
+// ║                                                                          ║
+// ║  O que é específico de cada rede vive em `Json` validado por Zod         ║
+// ║  (`SocialChannel.credentials`, `SocialTrigger.config`,                   ║
+// ║  `SocialFlowStep.config`) — mesmo padrão de `Node.data` no editor de     ║
+// ║  workflows.                                                              ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+
+enum SocialProvider {
+  INSTAGRAM
+  // FACEBOOK, WHATSAPP, TELEGRAM, TIKTOK entram aqui — ver spec 0024 §11 Fase 3.5
+}
+
+enum SocialChannelStatus {
+  ACTIVE
+  /// Credencial recusada pelo provider (401/403). O webhook segue registrando
+  /// evento, mas nada é enviado até reconectar (spec 0024 CB-10).
+  NEEDS_RECONNECT
+  DISABLED
+}
+
+enum SocialContentType {
+  IMAGE
+  VIDEO
+  CAROUSEL
+  REEL
+  STORY
+  OTHER
+}
+
+enum SocialEventType {
+  COMMENT_CREATED
+  DIRECT_MESSAGE_RECEIVED
+  // MENTION_CREATED, STORY_REPLY_RECEIVED, POSTBACK_CLICKED… nas fases seguintes
+}
+
+enum SocialTargetScope {
+  ALL_CONTENT
+  SPECIFIC_CONTENT
+  /// Reservado (ManyChat "próxima publicação"): vincula ao próximo conteúdo
+  /// publicado. Sem implementação no PR 1.
+  NEXT_CONTENT
+}
+
+enum SocialMatchKind {
+  INCLUDE
+  EXCLUDE
+}
+
+enum SocialMatchOperator {
+  /// Casa qualquer texto, inclusive vazio — é o "qualquer comentário".
+  ANY_TEXT
+  CONTAINS
+  EXACT
+  STARTS_WITH
+  // REGEX reservado: exige limite de passos e timeout antes de liberar.
+}
+
+enum SocialMatchLogic {
+  ANY_RULE
+  ALL_RULES
+}
+
+enum SocialStepKind {
+  SEND_DIRECT_MESSAGE
+  REPLY_TO_COMMENT
+  // WAIT, CONDITION, ADD_TAG, CREATE_LEAD, HANDOFF_HUMAN… nas fases seguintes
+}
+
+enum SocialInboundStatus {
+  RECEIVED
+  MATCHED
+  SKIPPED
+  FAILED
+}
+
+enum SocialRunStatus {
+  PENDING
+  SENT
+  SKIPPED
+  FAILED
+}
+
+/// Conexão de uma conta de rede social com uma organização.
+///
+/// `credentials` é um blob **cifrado** (AES-256-GCM via `@/lib/crypto`) cujo
+/// shape depende do provider — no Instagram: `{ accessToken, appSecret,
+/// verifyToken }`. Campo cifrado não é consultável, por isso o roteamento do
+/// webhook usa `webhookPathToken` na URL em vez de procurar pelo verify token
+/// (spec 0024 D-11).
+model SocialChannel {
+  id             String         @id @default(cuid())
+  organizationId String         @map("organization_id")
+  provider       SocialProvider
+
+  /// Identificador da conta no provider (IG Account ID). Texto puro: serve de
+  /// conferência do payload — se não bate com o `entry.id`, o evento é descartado.
+  externalAccountId String @map("external_account_id")
+
+  /// 32 hex aleatórios que compõem a URL do webhook desta conexão:
+  /// `/api/social/webhook/<provider>/<webhookPathToken>`.
+  webhookPathToken String @unique @map("webhook_path_token")
+
+  handle      String?
+  displayName String? @map("display_name")
+  avatarUrl   String? @map("avatar_url")
+
+  credentials String
+
+  status           SocialChannelStatus @default(ACTIVE)
+  lastErrorMessage String?             @map("last_error_message")
+  lastErrorAt      DateTime?           @map("last_error_at")
+
+  /// Ponteiro solto para `User.id` — sem relation de propósito, para não somar
+  /// mais uma aresta ao god-model `User` (73 relations hoje).
+  connectedById String?  @map("connected_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  organization  Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  automations   SocialAutomation[]
+  contacts      SocialContact[]
+  inboundEvents SocialInboundEvent[]
+  runs          SocialAutomationRun[]
+
+  /// Impede que duas organizações conectem a mesma conta (spec 0024 CB-12).
+  @@unique([provider, externalAccountId])
+  @@index([organizationId, provider])
+  @@map("social_channels")
+}
+
+/// Quem interage com o canal. Base do atendimento completo das fases futuras:
+/// `lastInboundAt` é o relógio da janela de 24h da Meta e `leadId` é a ponte
+/// com o Tracking, que só passa a ser escrita na Fase 4.
+model SocialContact {
+  id             String  @id @default(cuid())
+  channelId      String  @map("channel_id")
+  externalUserId String  @map("external_user_id")
+  username       String?
+  name           String?
+  avatarUrl      String? @map("avatar_url")
+
+  firstSeenAt    DateTime  @default(now()) @map("first_seen_at")
+  lastInboundAt  DateTime? @map("last_inbound_at")
+  lastOutboundAt DateTime? @map("last_outbound_at")
+
+  /// Ponteiro solto para `Lead.id` — sem FK enquanto a ponte com o Tracking
+  /// não existir; a semântica é definida na Fase 4 (spec 0024 §11).
+  leadId String? @map("lead_id")
+
+  channel SocialChannel         @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  runs    SocialAutomationRun[]
+
+  @@unique([channelId, externalUserId])
+  @@index([channelId, lastInboundAt])
+  @@index([leadId])
+  @@map("social_contacts")
+}
+
+model SocialAutomation {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  channelId      String  @map("channel_id")
+  name           String  @default("Sem título")
+  isActive       Boolean @default(false) @map("is_active")
+
+  /// Ponteiro solto para `User.id` — ver nota em `SocialChannel.connectedById`.
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  channel  SocialChannel         @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  triggers SocialTrigger[]
+  runs     SocialAutomationRun[]
+
+  /// Caminho quente: o webhook busca automações ativas de um canal.
+  @@index([channelId, isActive])
+  @@index([organizationId])
+  @@map("social_automations")
+}
+
+/// "Quando" da automação. Um gatilho escuta um tipo de evento, opcionalmente
+/// restrito a conteúdos específicos, e decide por `SocialMatchRule`.
+model SocialTrigger {
+  id           String            @id @default(cuid())
+  automationId String            @map("automation_id")
+  eventType    SocialEventType   @map("event_type")
+  targetScope  SocialTargetScope @default(ALL_CONTENT) @map("target_scope")
+  matchLogic   SocialMatchLogic  @default(ANY_RULE) @map("match_logic")
+  isEnabled    Boolean           @default(true) @map("is_enabled")
+
+  /// Nuances específicas do provider que não merecem coluna própria.
+  config Json @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  automation SocialAutomation      @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  targets    SocialTriggerTarget[]
+  rules      SocialMatchRule[]
+  steps      SocialFlowStep[]
+  runs       SocialAutomationRun[]
+
+  @@index([automationId, eventType])
+  @@map("social_triggers")
+}
+
+/// Conteúdo que o gatilho observa — "post", "reel" e "vídeo" generalizados.
+/// Só é consultado quando `targetScope = SPECIFIC_CONTENT`.
+model SocialTriggerTarget {
+  id                String            @id @default(cuid())
+  triggerId         String            @map("trigger_id")
+  externalContentId String            @map("external_content_id")
+  contentType       SocialContentType @default(OTHER) @map("content_type")
+  permalink         String?
+  caption           String?
+  mediaUrl          String?           @map("media_url")
+  /// Última vez que mídia e legenda foram recarregadas do provider — a URL de
+  /// mídia da Meta expira.
+  syncedAt          DateTime?         @map("synced_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+
+  trigger SocialTrigger @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+
+  @@unique([triggerId, externalContentId])
+  @@index([externalContentId])
+  @@map("social_trigger_targets")
+}
+
+/// Regra de correspondência do texto recebido.
+///
+/// `kind` + `operator` + `terms` cobrem os três modos do ManyChat: incluir
+/// ("contém"), excluir ("não contém") e `ANY_TEXT` ("qualquer comentário").
+/// Ausência de regra `INCLUDE` é lida como `ANY_TEXT` (spec 0024 RF-10).
+model SocialMatchRule {
+  id        String              @id @default(cuid())
+  triggerId String              @map("trigger_id")
+  kind      SocialMatchKind     @default(INCLUDE)
+  operator  SocialMatchOperator @default(CONTAINS)
+  terms     String[]
+  order     Int                 @default(0)
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  trigger SocialTrigger @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+
+  @@index([triggerId])
+  @@map("social_match_rules")
+}
+
+/// "Então" da automação. O PR 1 cria no máximo dois passos raiz por gatilho
+/// (DM + resposta pública); `parentStepId`/`branchKey` existem para o fluxo
+/// encadeado da Fase 2 sem exigir migration nova.
+///
+/// `config` é validado por Zod discriminado por `kind`:
+///   SEND_DIRECT_MESSAGE → { source: "STATIC" | "AI", text?, aiPrompt?, buttons[] }
+///   REPLY_TO_COMMENT    → { variants: string[], strategy: "RANDOM" | "SEQUENTIAL" }
+model SocialFlowStep {
+  id           String         @id @default(cuid())
+  triggerId    String         @map("trigger_id")
+  order        Int            @default(0)
+  kind         SocialStepKind
+  config       Json           @default("{}")
+  parentStepId String?        @map("parent_step_id")
+  /// Saída do passo anterior que leva a este. "main" enquanto não há condição.
+  branchKey    String?        @default("main") @map("branch_key")
+  isEnabled    Boolean        @default(true) @map("is_enabled")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  trigger  SocialTrigger    @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+  parent   SocialFlowStep?  @relation("SocialFlowStepTree", fields: [parentStepId], references: [id], onDelete: Cascade)
+  children SocialFlowStep[] @relation("SocialFlowStepTree")
+  stepRuns SocialStepRun[]
+
+  @@index([triggerId, order])
+  @@index([parentStepId])
+  @@map("social_flow_steps")
+}
+
+/// Idempotência do webhook: a Meta reentrega o mesmo evento. O registro é
+/// gravado ANTES de qualquer envio; colisão de `[provider, externalEventId]`
+/// significa reentrega e o evento é descartado (spec 0024 CA-4).
+///
+/// Cresce para sempre — job de limpeza com janela de 30 dias acompanha.
+model SocialInboundEvent {
+  id                String              @id @default(cuid())
+  channelId         String              @map("channel_id")
+  provider          SocialProvider
+  externalEventId   String              @map("external_event_id")
+  eventType         SocialEventType     @map("event_type")
+  externalUserId    String?             @map("external_user_id")
+  externalContentId String?             @map("external_content_id")
+  status            SocialInboundStatus @default(RECEIVED)
+  /// Por que não gerou envio — "sem gatilho", "canal desconectado", "autor é o dono".
+  skipReason        String?             @map("skip_reason")
+  receivedAt        DateTime            @default(now()) @map("received_at")
+
+  channel SocialChannel         @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  runs    SocialAutomationRun[]
+
+  @@unique([provider, externalEventId])
+  @@index([channelId, receivedAt])
+  @@map("social_inbound_events")
+}
+
+/// Execução de uma automação. Espelha `WorkflowRun` — os contadores que o
+/// comments-app mantinha denormalizados (`dmCount`, `commentCount`) são
+/// derivados daqui.
+model SocialAutomationRun {
+  id             String          @id @default(cuid())
+  automationId   String          @map("automation_id")
+  triggerId      String          @map("trigger_id")
+  channelId      String          @map("channel_id")
+  inboundEventId String?         @map("inbound_event_id")
+  contactId      String?         @map("contact_id")
+  status         SocialRunStatus @default(PENDING)
+  error          String?
+  startedAt      DateTime        @default(now()) @map("started_at")
+  finishedAt     DateTime?       @map("finished_at")
+
+  automation   SocialAutomation    @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  trigger      SocialTrigger       @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+  channel      SocialChannel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  inboundEvent SocialInboundEvent? @relation(fields: [inboundEventId], references: [id], onDelete: SetNull)
+  contact      SocialContact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  stepRuns     SocialStepRun[]
+
+  @@index([automationId, startedAt])
+  @@index([channelId, startedAt])
+  @@index([contactId])
+  @@index([inboundEventId])
+  @@map("social_automation_runs")
+}
+
+/// Passo executado dentro de um run. Espelha `WorkflowNodeRun`.
+model SocialStepRun {
+  id                String          @id @default(cuid())
+  runId             String          @map("run_id")
+  stepId            String?         @map("step_id")
+  kind              SocialStepKind
+  status            SocialRunStatus @default(PENDING)
+  error             String?
+  /// Id da mensagem/resposta no provider — rastreia o envio de ponta a ponta.
+  externalMessageId String?         @map("external_message_id")
+  durationMs        Int?            @map("duration_ms")
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  run  SocialAutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  step SocialFlowStep?     @relation(fields: [stepId], references: [id], onDelete: SetNull)
+
+  @@index([runId])
+  @@index([stepId])
+  @@map("social_step_runs")
 }

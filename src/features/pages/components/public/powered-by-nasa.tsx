@@ -37,12 +37,12 @@ export function PoweredByNasa() {
           gap: 6,
           textDecoration: "none",
         }}
-        aria-label="N.A.S.A — Powered by NASA"
+        aria-label="ÓRBITA — Powered by ÓRBITA"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/logo-dark.png"
-          alt="N.A.S.A"
+          src="/orbita-logo-dark.svg"
+          alt="ÓRBITA"
           style={{ height: 22, width: "auto", display: "block" }}
         />
       </a>

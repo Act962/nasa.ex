@@ -315,7 +315,7 @@ export const getLeadJourney = base
     // eventType explícito ou actions terminais (WON/LOST/DELETED).
     const fromHistory: TimelineEntry[] = typedHistory
       .map((h): TimelineEntry | null => {
-        const meta = ((h.metadata ?? {}) as Record<string, unknown>) ?? {};
+        const meta = (h.metadata ?? {}) as Record<string, unknown>;
         const actor = h.user
           ? { id: h.user.id, name: h.user.name, image: h.user.image }
           : null;

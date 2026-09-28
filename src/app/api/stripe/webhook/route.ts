@@ -18,7 +18,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
-import { constructWebhookEvent } from "@/lib/stripe";
+import {
+  claimStripeEvent,
+  constructWebhookEvent,
+  releaseStripeEvent,
+} from "@/lib/stripe";
 import prisma from "@/lib/prisma";
 import { purchaseTopUp } from "@/features/stars/lib/star-service";
 import { inngest } from "@/inngest/client";
@@ -49,6 +53,15 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : "Webhook error";
     console.error("[stripe/webhook] signature error:", msg);
     return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  // ── Dedupe por event.id ────────────────────────────────────────────────────
+  // O Stripe reentrega o mesmo evento em caso de timeout, e `checkout.session
+  // .completed` + `payment_intent.succeeded` chegam os dois para a mesma compra.
+  // Os handlers já têm claim atômica por status, mas o dedupe evita o trabalho
+  // repetido — e é solto abaixo se o processamento falhar, para não mascarar erro.
+  if (!(await claimStripeEvent(event.id, event.type, "course"))) {
+    return NextResponse.json({ received: true, deduped: true });
   }
 
   // ── Handle events ──────────────────────────────────────────────────────────
@@ -344,6 +357,9 @@ export async function POST(req: NextRequest) {
       }
     }
   } catch (err) {
+    // Solta o dedupe: sem isto a falha ficaria mascarada e o Stripe não
+    // reentregaria o evento.
+    await releaseStripeEvent(event.id);
     console.error("[stripe/webhook] handler error:", err);
     return NextResponse.json({ error: "Erro interno." }, { status: 500 });
   }

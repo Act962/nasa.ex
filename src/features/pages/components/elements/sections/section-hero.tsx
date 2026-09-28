@@ -27,7 +27,7 @@ import {
 } from "./types";
 
 export function SectionHero({ element, tokens }: SectionRendererProps) {
-  const badge = (element.badge as string) ?? "★ Novo na NASA";
+  const badge = (element.badge as string) ?? "★ Novo na ÓRBITA";
   const titleLine1 = (element.titleLine1 as string) ?? "Headline poderosa";
   const titleLine2 =
     (element.titleLine2 as string) ?? "que para a rolagem.";

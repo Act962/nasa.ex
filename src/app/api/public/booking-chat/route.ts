@@ -1,3 +1,4 @@
+import { meter } from "@/features/stars/lib/metering";
 import { google } from "@ai-sdk/google";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { headers } from "next/headers";
@@ -12,7 +13,6 @@ import {
   makeGetAvailableSlotsTool,
   makeListMyAppointmentsTool,
 } from "@/features/public-booking-chat/lib/booking-agent";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { StarTransactionType } from "@/generated/prisma/client";
 import dayjs from "dayjs";
 
@@ -26,7 +26,7 @@ const STARS_PER_BOOKING_MESSAGE = 1; // 1 ★ por interação com a IA
 // Suficiente para bloquear abusos básicos em instâncias únicas.
 // Para produção em multi-instância, usar Redis ou KV store.
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __nasaBookingRateLimit:
     | Map<string, { count: number; resetAt: number }>
     | undefined;
@@ -127,13 +127,14 @@ export async function POST(request: NextRequest) {
 
   // ── Debitar 1 ★ por mensagem processada pela IA ──────────────────────────
   // Não-crítico: falha silenciosa para não bloquear o chat do cliente final
-  debitStars(
-    agenda.organization.id,
-    STARS_PER_BOOKING_MESSAGE,
-    StarTransactionType.APP_CHARGE,
-    `Chat de agendamento — ${agenda.name} (${orgSlug}/${agendaSlug})`,
-    "booking-chat",
-  ).catch(() => {
+  meter({
+    organizationId: agenda.organization.id,
+    action: "booking_chat_message",
+    appSlug: "booking-chat",
+    description: `Chat de agendamento — ${agenda.name} (${orgSlug}/${agendaSlug})`,
+    feature: "booking-chat.message",
+    cost: { kind: "LLM", provider: "google", modelId: "gemini-2.5-flash" },
+  }).catch(() => {
     // Ignora erro de saldo insuficiente ou falha de DB
   });
 

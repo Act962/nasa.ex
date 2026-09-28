@@ -40,7 +40,7 @@ export const createLeadWithAi = base
       const userId = context.user.id;
 
       const systemPrompt = [
-        'Você é o "ASTRO", o assistente inteligente da NASA.ex especializado em gestão de leads, funis de vendas e automações.',
+        'Você é o "ASTRO", o assistente inteligente da ÓRBITA.ex especializado em gestão de leads, funis de vendas e automações.',
 
         "SUA PERSONA E FORMATAÇÃO:",
         "- Profissional, focado em vendas e relacionamento com clientes.",

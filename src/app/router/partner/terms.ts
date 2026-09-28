@@ -91,7 +91,7 @@ export const acceptTerms = base
     });
     if (!partner) {
       throw errors.FORBIDDEN({
-        message: "Você ainda não é um parceiro NASA",
+        message: "Você ainda não é um parceiro ÓRBITA",
       });
     }
 
@@ -151,7 +151,7 @@ export const acceptTerms = base
         subAppSlug: "partner-terms",
         featureKey: "partner.terms.accepted",
         action: "partner.terms.accepted",
-        actionLabel: `Aceitou os Termos do programa NASA Parceiros (v${version.version})`,
+        actionLabel: `Aceitou os Termos do programa ÓRBITA Parceiros (v${version.version})`,
         resource: version.title,
         resourceId: version.id,
         metadata: { version: version.version, contentHash: version.contentHash },

@@ -178,7 +178,7 @@ export function CopyLinkWithUtm({
         <DialogHeader>
           <DialogTitle>Copiar link com UTM</DialogTitle>
           <DialogDescription>
-            Etiquete a origem do link antes de compartilhar — assim o NASA vai
+            Etiquete a origem do link antes de compartilhar — assim o ÓRBITA vai
             saber de qual canal veio cada lead.
           </DialogDescription>
         </DialogHeader>

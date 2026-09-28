@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -15,11 +14,12 @@ import {
   Timer,
 } from "lucide-react";
 import { toast } from "sonner";
-import { orpc } from "@/lib/orpc";
 import { useOrgRole } from "@/hooks/use-org-role";
 import { authClient } from "@/lib/auth-client";
 import { useQueryParticipants } from "@/features/trackings/hooks/use-trackings";
 import { useMutationCancelFormResponse } from "@/features/form/hooks/use-cancel-response";
+import { useLeadFormResponses } from "@/features/leads/hooks/use-lead-form-responses";
+import { useQueryListForms } from "@/features/form/hooks/use-form";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -176,13 +176,10 @@ export function LeadFormResponses({
     participants.find((p: any) => p.userId === session?.user?.id)?.role ===
     "OWNER";
   const canCancel = isMaster || isTrackingOwner;
-  const { data: respData, isLoading: respLoading } = useQuery(
-    orpc.leads.listFormResponses.queryOptions({ input: { leadId } }),
-  );
-
-  const { data: formsData, isLoading: formsLoading } = useQuery(
-    orpc.form.list.queryOptions({ input: {} }),
-  );
+  const { responses: leadResponses, isLoading: respLoading } =
+    useLeadFormResponses(leadId);
+  const { forms: organizationForms, isLoading: formsLoading } =
+    useQueryListForms();
 
   const isLoading = respLoading || formsLoading;
 
@@ -191,13 +188,13 @@ export function LeadFormResponses({
   // página dedicada `/contatos/<leadId>/formularios/<formId>`.
 
   const responses = useMemo(
-    () => (respData?.responses as ResponseEntry[]) ?? [],
-    [respData?.responses],
+    () => leadResponses as unknown as ResponseEntry[],
+    [leadResponses],
   );
 
   const orgForms = useMemo(
-    () => (formsData?.forms as OrgForm[]) ?? [],
-    [formsData?.forms],
+    () => organizationForms as unknown as OrgForm[],
+    [organizationForms],
   );
 
   const responsesByForm = useMemo(

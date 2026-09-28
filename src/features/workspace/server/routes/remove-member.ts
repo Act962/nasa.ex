@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { findWorkspaceInOrg } from "../lib/workspace-access";
 
 export const removeWorkspaceMember = base
   .use(requiredAuthMiddleware)
@@ -14,8 +15,16 @@ export const removeWorkspaceMember = base
       userId: z.string(),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
     const { user, org } = context;
+
+    // O papel privilegiado abaixo é lido da org ATIVA do chamador. Sem
+    // ancorar o workspace nessa mesma org, um admin removeria membros de
+    // workspace de qualquer tenant (mesma classe do bug do get.ts, Fase 5).
+    const workspaceInOrg = await findWorkspaceInOrg(input.workspaceId, org.id);
+    if (!workspaceInOrg) {
+      throw errors.NOT_FOUND({ message: "Workspace não encontrado" });
+    }
 
     // Buscar informações do membro a ser removido e do solicitante para validação de permissões
     const [memberToBeRemoved, callerWorkspaceMember, callerOrgMember] =

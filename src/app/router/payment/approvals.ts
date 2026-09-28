@@ -176,6 +176,22 @@ export const approvePaymentRequest = base
         reason:           input.reason ?? null,
         entryDescription: request.entry.description,
       });
+
+      // Só agora a despesa entra no "em aberto" do mês — é aqui que ela pode
+      // derrubar a reserva, não no momento em que foi solicitada.
+      const approvedEntry = await prisma.paymentEntry.findUnique({
+        where: { id: request.entryId },
+        select: { amount: true, dueDate: true, type: true, status: true },
+      });
+      if (approvedEntry) {
+        const { checkExpenseBreaksReserve } = await import(
+          "@/features/payment/server/goals/check-expense-impact"
+        );
+        await checkExpenseBreaksReserve({
+          organizationId: context.org.id,
+          entries: [approvedEntry],
+        });
+      }
     }
 
     await logActivity({

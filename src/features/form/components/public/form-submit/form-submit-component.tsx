@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FieldValue,
   FormBlockInstance,
@@ -8,6 +8,7 @@ import {
 import {
   FormPrefillProvider,
   type PrefillFieldMap,
+  type LeadIdentityValues,
 } from "@/features/form/context/form-prefill-context";
 import { toast } from "sonner";
 import {
@@ -15,7 +16,9 @@ import {
   useMutationSavePartialResponse,
   useMutationValidateLeadPhone,
   useMutationFindDraftByPhone,
+  useMutationCheckExistingLead,
 } from "../../../hooks/use-form";
+import { authClient } from "@/lib/auth-client";
 import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormSettings } from "@/generated/prisma/client";
@@ -23,12 +26,20 @@ import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { cn } from "@/lib/utils";
 import { normalizePhone } from "@/utils/format-phone";
+import { countries } from "@/types/some";
 import { normalizeRedirectUrl } from "@/features/form/lib/normalize-redirect-url";
 import { resolveNextButtonAction } from "@/features/form/lib/next-button-action";
 import { useLeadInfo } from "./use-lead-info";
 import { useFormDraft } from "./use-form-draft";
 import { LeadStep } from "./lead-step";
 import { StepBlocks } from "./step-blocks";
+
+export type ExistingLeadHint = {
+  exists: boolean;
+  currentTrackingName?: string | null;
+  currentStatusName?: string | null;
+  isInFormTracking?: boolean;
+};
 
 type FormSubmitProps = {
   id: string;
@@ -60,6 +71,14 @@ export function FormSubmitComponent({
   const savePartialResponse = useMutationSavePartialResponse();
   const findDraft = useMutationFindDraftByPhone();
   const validateLeadPhone = useMutationValidateLeadPhone();
+  const checkExistingLead = useMutationCheckExistingLead();
+
+  // Mod 1: sinaliza (só pra consultor autenticado) que o telefone já é um lead
+  // da org. Visitante anônimo não tem sessão → nunca consulta nem vê o selo.
+  const { data: sessionData } = authClient.useSession();
+  const viewerIsAuthenticated = !!sessionData?.user;
+  const [existingLeadHint, setExistingLeadHint] =
+    useState<ExistingLeadHint | null>(null);
 
   const [resumeLoading, setResumeLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -82,6 +101,10 @@ export function FormSubmitComponent({
   );
   const savingPartialRef = useRef(false);
   const dbSaveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Após o submit, nenhum autosave atrasado pode regravar o rascunho por cima
+  // do tombstone "já enviado" — senão o resume ressuscita uma resposta já
+  // finalizada e o próximo submit manda um responseId obsoleto.
+  const submittedRef = useRef(false);
   const sessionKeyRef = useRef<string>(`form-${id}-${Date.now()}`);
 
   const showName = settings?.showName ?? true;
@@ -93,6 +116,10 @@ export function FormSubmitComponent({
   const backgroundColor = settings?.backgroundColor ?? undefined;
   const backgroundImage = settings?.backgroundImage ?? undefined;
   const redirectUrl = settings?.redirectUrl ?? undefined;
+  // Opt-in (default off): sem isso o form nunca guarda nem retoma sessão.
+  const resumeSession =
+    (settings as { resumeSession?: boolean } | null | undefined)
+      ?.resumeSession ?? false;
 
   const isEditMode = !!onSubmitOverride;
   const showLeadFields =
@@ -101,13 +128,21 @@ export function FormSubmitComponent({
   const [step, setStep] = useState(showLeadFields ? 1 : 2);
   const textColor = backgroundColor ? getContrastColor(backgroundColor) : undefined;
 
-  const { leadInfo, setName, setEmail, setPhone, selectedCountry, setSelectedCountry } =
-    useLeadInfo({ initialLead });
+  const {
+    leadInfo,
+    setLeadInfo,
+    setName,
+    setEmail,
+    setPhone,
+    selectedCountry,
+    setSelectedCountry,
+  } = useLeadInfo({ initialLead });
 
   const draft = useFormDraft({
     formId: id,
     initialResponseValues,
     showLeadFields,
+    resumeEnabled: resumeSession,
     formValsRef: formVals,
     leadInfo,
     selectedCountryDdi: selectedCountry.ddi,
@@ -120,6 +155,88 @@ export function FormSubmitComponent({
       if (dbSaveDebounceRef.current) clearTimeout(dbSaveDebounceRef.current);
     };
   }, []);
+
+  // Retoma a sessão salva (nome/telefone/respostas) sem refazer o step 1 — cobre
+  // o tablet que descarta a aba ao abrir a câmera. TTL de 24h e limpeza no submit
+  // vivem no useFormDraft; aqui só reidratamos e pulamos pro corpo do form.
+  const autoResumedRef = useRef(false);
+  useEffect(() => {
+    if (autoResumedRef.current) return;
+    if (initialResponseValues || !showLeadFields || !resumeSession) return;
+    const session = draft.pendingLocalDraftRef.current;
+    if (!session?.contact) return;
+    autoResumedRef.current = true;
+    draft.pendingLocalDraftRef.current = null;
+
+    const contact = session.contact;
+    setLeadInfo({
+      name: contact.name ?? "",
+      phone: contact.phone ?? "",
+      email: contact.email ?? "",
+    });
+    if (contact.ddi) {
+      const country = countries.find((item) => item.ddi === contact.ddi);
+      if (country) setSelectedCountry(country);
+    }
+
+    const hydrated: PrefillFieldMap = {};
+    for (const [key, value] of Object.entries(session.fv ?? {})) {
+      if (value && typeof value === "object" && typeof value.value === "string") {
+        formVals.current[key] = value;
+        hydrated[key] = value;
+      }
+    }
+    if (Object.keys(hydrated).length > 0) setPrefillMap(hydrated);
+
+    if (session.responseId) draft.hydrateResponseId(session.responseId);
+
+    setStep(2);
+    toast.success("Retomando de onde você parou", {
+      description: "Seus dados e respostas foram restaurados.",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Mod 1: ao digitar o telefone (consultor autenticado), checa de forma
+  // discreta se já existe lead na base. Debounced; ignora resultados obsoletos.
+  useEffect(() => {
+    if (!viewerIsAuthenticated || !showPhone || isEditMode) {
+      setExistingLeadHint(null);
+      return;
+    }
+    const digits = leadInfo.phone.replace(/\D/g, "");
+    if (digits.length < 8) {
+      setExistingLeadHint(null);
+      return;
+    }
+    let cancelled = false;
+    const phoneNormalized = normalizePhone(
+      `${selectedCountry.ddi} ${leadInfo.phone}`,
+    );
+    const timer = setTimeout(async () => {
+      try {
+        const result = await checkExistingLead.mutateAsync({
+          formId: id,
+          phone: phoneNormalized,
+        });
+        if (!cancelled) setExistingLeadHint(result);
+      } catch {
+        if (!cancelled) setExistingLeadHint(null);
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    leadInfo.phone,
+    selectedCountry.ddi,
+    viewerIsAuthenticated,
+    showPhone,
+    isEditMode,
+    id,
+  ]);
 
   const isFieldFilled = (fieldValue: FieldValue | undefined): boolean => {
     if (!fieldValue) return false;
@@ -153,6 +270,30 @@ export function FormSubmitComponent({
           errors[block.id] = "Este campo é obrigatório";
         }
       }
+      // CEP com validação de existência ligada: só passa se o ViaCEP confirmou
+      // (meta.cepExists === true). Barra CEP inexistente ou ainda não verificado.
+      if (
+        block.blockType === "MaskedField" &&
+        block.attributes?.format === "cep" &&
+        block.attributes?.validateCep
+      ) {
+        const fieldValue = formVals.current?.[block.id];
+        if (isFieldFilled(fieldValue) && fieldValue?.meta?.cepExists !== true) {
+          errors[block.id] = "CEP não encontrado ou não validado";
+        }
+      }
+      // CPF com validação ligada: só passa se o dígito verificador bate
+      // (meta.cpfExists === true). Barra CPF inválido, independente de `required`.
+      if (
+        block.blockType === "MaskedField" &&
+        block.attributes?.format === "cpf" &&
+        block.attributes?.validateCpf
+      ) {
+        const fieldValue = formVals.current?.[block.id];
+        if (isFieldFilled(fieldValue) && fieldValue?.meta?.cpfExists !== true) {
+          errors[block.id] = "CPF inválido";
+        }
+      }
       block.childblocks?.forEach(walkBlock);
     };
     blocks.forEach(walkBlock);
@@ -161,6 +302,10 @@ export function FormSubmitComponent({
   };
 
   const persistPartial = async () => {
+    if (submittedRef.current) return;
+    // Sem permissão de edição, navegar entre etapas não pode gerar requisição
+    // nenhuma — o servidor devolveria 403 a cada "Próximo" (spec 0005, RF-11).
+    if (readOnly) return;
     if (onSubmitOverride && !onPartialSave) return;
     if (dbSaveDebounceRef.current) {
       clearTimeout(dbSaveDebounceRef.current);
@@ -221,6 +366,7 @@ export function FormSubmitComponent({
         return updated;
       });
     }
+    if (submittedRef.current) return;
     draft.saveDraftToLocalStorage();
     if (dbSaveDebounceRef.current) clearTimeout(dbSaveDebounceRef.current);
     dbSaveDebounceRef.current = setTimeout(() => {
@@ -273,6 +419,11 @@ export function FormSubmitComponent({
       },
       {
         onSuccess: () => {
+          submittedRef.current = true;
+          if (dbSaveDebounceRef.current) {
+            clearTimeout(dbSaveDebounceRef.current);
+            dbSaveDebounceRef.current = null;
+          }
           setSubmitted(true);
           draft.markDraftAsSubmitted();
           draft.clearSessionDraft();
@@ -319,7 +470,7 @@ export function FormSubmitComponent({
       }
     }
 
-    if (showPhone && leadInfo.phone.trim() && !onSubmitOverride) {
+    if (resumeSession && showPhone && leadInfo.phone.trim() && !onSubmitOverride) {
       setResumeLoading(true);
       try {
         const phoneNormalized = normalizePhone(`${selectedCountry.ddi} ${leadInfo.phone}`);
@@ -374,8 +525,36 @@ export function FormSubmitComponent({
     }
 
     draft.applyPendingLocalDraft(setPrefillMap);
+    // Persiste a sessão (nome/telefone) já ao entrar no corpo do form, antes de
+    // qualquer blur — cobre o caso de tocar a foto logo após o step 1.
+    draft.saveDraftToLocalStorage();
     setStep(2);
   };
+
+  // Fontes disponíveis para blocos com `prefillFromLead` (spec 0006). Só entra
+  // o que está sendo realmente coletado — vínculo para fonte desligada resolve
+  // como ausente e o campo nasce vazio (CB-1/CB-2). O telefone vai no formato
+  // exibido, com DDI, e não no normalizado do banco (RF-8).
+  const leadIdentityValues = useMemo<LeadIdentityValues>(() => {
+    if (!needLogin) return {};
+    return {
+      ...(showName && { name: leadInfo.name }),
+      ...(showEmail && { email: leadInfo.email }),
+      ...(showPhone &&
+        leadInfo.phone.trim().length > 0 && {
+          phone: `${selectedCountry.ddi} ${leadInfo.phone}`,
+        }),
+    };
+  }, [
+    needLogin,
+    showName,
+    showEmail,
+    showPhone,
+    leadInfo.name,
+    leadInfo.email,
+    leadInfo.phone,
+    selectedCountry.ddi,
+  ]);
 
   const primaryBtnStyle: React.CSSProperties = {
     backgroundColor: primaryColor || undefined,
@@ -384,7 +563,11 @@ export function FormSubmitComponent({
   };
 
   return (
-    <FormPrefillProvider values={prefillMap} sessionKey={sessionKeyRef.current}>
+    <FormPrefillProvider
+      values={prefillMap}
+      identity={leadIdentityValues}
+      sessionKey={sessionKeyRef.current}
+    >
       <style>{`
         #lead_name::placeholder  { color: ${textColor}; }
         #lead_email::placeholder { color: ${textColor}; }
@@ -478,6 +661,7 @@ export function FormSubmitComponent({
                         onPhoneChange={setPhone}
                         onCountryChange={setSelectedCountry}
                         onContinue={handleContinue}
+                        existingLeadHint={existingLeadHint}
                       />
                     )}
 
@@ -497,6 +681,7 @@ export function FormSubmitComponent({
                         onSubmit={handleSubmit}
                         submitLabel={submitLabel}
                         onStepAdvance={persistPartial}
+                        readOnly={readOnly}
                       />
                     )}
                   </div>

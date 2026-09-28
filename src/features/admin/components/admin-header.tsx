@@ -3,6 +3,7 @@
 import { ShieldCheck, LogOut } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import { PushToggle } from "@/features/notifications/components/push-toggle";
 
 interface Props {
   adminUser: { name: string; email: string; image: string | null };
@@ -26,6 +27,8 @@ export function AdminHeader({ adminUser }: Props) {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Opt-in de push deste dispositivo. Some sozinho onde não há suporte. */}
+        <PushToggle />
         <div className="text-right">
           <p className="text-xs font-medium text-white leading-none">{adminUser.name}</p>
           <p className="text-[10px] text-zinc-500 mt-0.5">{adminUser.email}</p>

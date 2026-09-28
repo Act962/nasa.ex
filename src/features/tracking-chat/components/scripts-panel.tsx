@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { PencilIcon, PlusIcon, TrashIcon } from "lucide-react";
+import { PencilIcon, PlusIcon, TrashIcon, VideoIcon, XIcon } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -32,6 +33,17 @@ import {
   useScripts,
   useUpdateScript,
 } from "../hooks/use-scripts";
+import {
+  useScriptVideoUpload,
+  validateScriptVideo,
+  type UploadedScriptVideo,
+} from "../hooks/use-script-video-upload";
+
+function formatFileSize(bytes: number): string {
+  if (!bytes) return "";
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 const VARIABLES = [
   { label: "Nome do cliente", value: "{{nome_cliente}}" },
@@ -40,13 +52,35 @@ const VARIABLES = [
   { label: "Nome do responsável", value: "{{responsavel}}" },
 ];
 
-type Script = { id: string; name: string; content: string };
+type Script = {
+  id: string;
+  name: string;
+  content: string;
+  videoKey?: string | null;
+  videoMimetype?: string | null;
+  videoFileName?: string | null;
+  videoSizeBytes?: number | null;
+};
+
+/** Vídeo do script + legenda já com as variáveis resolvidas (spec 0004). */
+export interface ScriptVideoSend {
+  mediaUrl: string;
+  mimetype: string;
+  fileName: string;
+  caption: string;
+}
 
 interface ScriptsPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   trackingId: string;
   onSelectScript: (content: string) => void;
+  /**
+   * Chamado no lugar de `onSelectScript` quando o script tem vídeo: aí o
+   * envio é imediato (vídeo + legenda numa mensagem só), não uma inserção
+   * no composer.
+   */
+  onSendVideoScript?: (payload: ScriptVideoSend) => void;
   leadName?: string;
   leadPhone?: string;
   responsibleName?: string;
@@ -59,6 +93,7 @@ export function ScriptsPanel({
   onOpenChange,
   trackingId,
   onSelectScript,
+  onSendVideoScript,
   leadName,
   leadPhone,
   responsibleName,
@@ -94,7 +129,22 @@ export function ScriptsPanel({
   const selectedScript = scripts.find((s) => s.id === selectedId) ?? null;
 
   function handleUse(script: Script) {
-    onSelectScript(resolveVariables(script.content));
+    const content = resolveVariables(script.content);
+
+    // Script com vídeo envia direto (vídeo + legenda numa mensagem só);
+    // sem vídeo mantém o comportamento antigo de preencher o composer.
+    if (script.videoKey && onSendVideoScript) {
+      onSendVideoScript({
+        mediaUrl: script.videoKey,
+        mimetype: script.videoMimetype ?? "video/mp4",
+        fileName: script.videoFileName ?? "video.mp4",
+        caption: content,
+      });
+      onOpenChange(false);
+      return;
+    }
+
+    onSelectScript(content);
     onOpenChange(false);
   }
 
@@ -205,6 +255,19 @@ export function ScriptsPanel({
                   </div>
 
                   <ScrollArea className="flex-1 px-4 py-3 overflow-y-auto scroll-cols-tracking">
+                    {selectedScript.videoKey && (
+                      <div className="mb-3 flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-2">
+                        <VideoIcon className="size-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate text-xs">
+                          {selectedScript.videoFileName ?? "Vídeo anexado"}
+                        </span>
+                        {selectedScript.videoSizeBytes ? (
+                          <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
+                            {formatFileSize(selectedScript.videoSizeBytes)}
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
                     <p className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed pr-2">
                       {resolveVariables(selectedScript.content)}
                     </p>
@@ -216,7 +279,9 @@ export function ScriptsPanel({
                       className="w-full"
                       onClick={() => handleUse(selectedScript)}
                     >
-                      Usar script
+                      {selectedScript.videoKey
+                        ? "Enviar vídeo com o texto"
+                        : "Usar script"}
                     </Button>
                   </div>
                 </>
@@ -262,34 +327,80 @@ function ScriptFormDialog({
 }: ScriptFormDialogProps) {
   const [name, setName] = useState("");
   const [content, setContent] = useState("");
+  // Arquivo escolhido nesta edição. O upload só acontece no submit — assim
+  // fechar o dialog não deixa objeto órfão no bucket (spec 0004, CB-9).
+  const [pickedVideo, setPickedVideo] = useState<File | null>(null);
+  // Vídeo que já estava salvo; `null` significa "remover ao salvar".
+  const [existingVideo, setExistingVideo] = useState<{
+    fileName: string;
+    sizeBytes: number | null;
+  } | null>(null);
 
   const createScript = useCreateScript(trackingId);
   const updateScript = useUpdateScript(trackingId);
+  const { upload, progress, isUploading } = useScriptVideoUpload();
 
   useEffect(() => {
     if (!mode) return;
+    setPickedVideo(null);
     if (mode.type === "edit") {
       setName(mode.script.name);
       setContent(mode.script.content);
+      setExistingVideo(
+        mode.script.videoKey
+          ? {
+              fileName: mode.script.videoFileName ?? "Vídeo anexado",
+              sizeBytes: mode.script.videoSizeBytes ?? null,
+            }
+          : null,
+      );
     } else {
       setName("");
       setContent("");
+      setExistingVideo(null);
     }
   }, [mode]);
 
-  const isPending = createScript.isPending || updateScript.isPending;
+  const isPending =
+    createScript.isPending || updateScript.isPending || isUploading;
   const canSave = name.trim().length > 0 && content.trim().length > 0;
 
-  function handleSave() {
+  function handlePickVideo(file: File | undefined) {
+    if (!file) return;
+    const rejection = validateScriptVideo(file);
+    if (rejection) {
+      toast.error(rejection);
+      return;
+    }
+    setPickedVideo(file);
+  }
+
+  async function handleSave() {
     if (!mode || !canSave) return;
+
+    let video: UploadedScriptVideo | null | undefined;
+    if (pickedVideo) {
+      try {
+        video = await upload(pickedVideo);
+      } catch (error) {
+        toast.error(
+          (error as { message?: string })?.message ?? "Falha ao enviar o vídeo",
+        );
+        return;
+      }
+    } else if (mode.type === "edit" && mode.script.videoKey && !existingVideo) {
+      // Tinha vídeo e o usuário removeu.
+      video = null;
+    }
+
     if (mode.type === "create") {
       createScript.mutate(
-        { name, content, trackingId },
+        { name, content, trackingId, video },
         { onSuccess: (created) => onSaved(created.id) },
       );
     } else {
       updateScript.mutate(
-        { id: mode.script.id, name, content },
+        { id: mode.script.id, name, content, video },
         { onSuccess: () => onSaved(mode.script.id) },
       );
     }
@@ -347,6 +458,62 @@ function ScriptFormDialog({
               placeholder="Digite o conteúdo do script..."
               className="min-h-55 max-h-80 text-sm w-full break-words [overflow-wrap:anywhere]"
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">
+              Vídeo (opcional)
+            </span>
+            {pickedVideo || existingVideo ? (
+              <div className="flex items-center gap-2 rounded-md border px-2.5 py-2">
+                <VideoIcon className="size-4 shrink-0 text-muted-foreground" />
+                <span className="truncate text-xs">
+                  {pickedVideo?.name ?? existingVideo?.fileName}
+                </span>
+                <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
+                  {formatFileSize(
+                    pickedVideo?.size ?? existingVideo?.sizeBytes ?? 0,
+                  )}
+                </span>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-6 shrink-0"
+                  aria-label="Remover vídeo"
+                  disabled={isPending}
+                  onClick={() => {
+                    setPickedVideo(null);
+                    setExistingVideo(null);
+                  }}
+                >
+                  <XIcon className="size-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed px-3 py-3 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
+                <VideoIcon className="size-4" />
+                Anexar vídeo MP4 (até 16MB)
+                <input
+                  type="file"
+                  accept="video/mp4"
+                  className="hidden"
+                  disabled={isPending}
+                  onChange={(event) => {
+                    handlePickVideo(event.target.files?.[0]);
+                    // Permite re-selecionar o mesmo arquivo após remover.
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            )}
+            {isUploading && (
+              <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full bg-primary transition-[width] duration-200"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">

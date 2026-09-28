@@ -49,6 +49,7 @@ import {
   resolveReferralForOrg,
 } from "@/lib/lead-journey/ctwa";
 import prisma from "@/lib/prisma";
+import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
 import { pusherServer } from "@/lib/pusher";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { logActivity } from "@/features/admin/lib/activity-logger";
@@ -56,6 +57,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { MessageStatus } from "../../types";
 import { getCachedTrackingContext } from "../get-cached-tracking-context";
 import { firePostInboundAutomations } from "../incoming-message-pipeline";
+import { canonicalToLeadMessage } from "./to-lead-message";
 import type {
   CanonicalInboundContact,
   CanonicalInboundInteractiveReply,
@@ -180,6 +182,29 @@ export async function persistCanonicalInbound(
     },
   });
 
+  /*
+    Segunda tentativa antes de criar: o mesmo número pode estar gravado na
+    outra grafia. O `wa_id` de conta mobile antiga vem com 12 dígitos, sem o
+    9º; quem cadastrou pelo formulário ou pelo wizard do trafeGO passou por
+    `normalizePhoneToMetaE164`, que insere o 9. Sem esta busca, o cliente que
+    manda o comprovante abre um card novo em vez de cair no dele.
+
+    O lead continua sendo gravado com o `wa_id` cru quando é criado aqui —
+    `Lead.phone` é fonte de verdade do wa_id, e isso não muda.
+  */
+  if (!lead) {
+    const outrasGrafias = waIdLookupVariants(phone).filter((variant) => variant !== phone);
+    if (outrasGrafias.length > 0) {
+      lead = await prisma.lead.findFirst({
+        where: { trackingId: ctx.trackingId, phone: { in: outrasGrafias } },
+        include: {
+          conversation: true,
+          leadTags: { include: { tag: true } },
+        },
+      });
+    }
+  }
+
   const remoteJid = phone.includes("@") ? phone : `${phone}@s.whatsapp.net`;
   const channel = ctx.channel ?? "WHATSAPP";
 
@@ -205,7 +230,7 @@ export async function persistCanonicalInbound(
       // Reload pra ter conversation no `lead.conversation` daqui pra
       // frente — firePostInboundAutomations precisa do id.
       lead = await prisma.lead.findUnique({
-        where: { phone_trackingId: { phone, trackingId: ctx.trackingId } },
+        where: { id: lead.id },
         include: {
           conversation: true,
           leadTags: { include: { tag: true } },
@@ -310,6 +335,10 @@ export async function persistCanonicalInbound(
     externalMessageId: canonical.externalMessageId,
     fromMe: canonical.sender.fromMe,
     channel,
+    // Só inbound: `leadMessage` é, por contrato, texto escrito pelo lead.
+    ...(canonical.sender.fromMe
+      ? {}
+      : { leadMessage: canonicalToLeadMessage(canonical) }),
     messagePayload: messageData,
     conversationPayload: { ...lead.conversation, lead },
   });
@@ -475,13 +504,23 @@ async function createLeadFromInbound(
   }
 
   // ── Workflow NEW_LEAD (best-effort, timeout) ────────────────────────────
+  // `leadMessage` leva a mensagem que criou o lead pro FILTER_LEAD conseguir
+  // comparar texto sem IA (spec 0008, RF-3). Só quando a mensagem é do lead:
+  // a Uazapi entrega `fromMe=true` quando o atendente inicia a conversa pelo
+  // celular com um número desconhecido, e esse caminho também cria o lead —
+  // sem o gate, o pitch do atendente entraria como se fosse texto do lead.
   try {
     await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${ctx.trackingId}&leadId=${createdLead.id}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackingId: ctx.trackingId }),
+        body: JSON.stringify({
+          trackingId: ctx.trackingId,
+          ...(canonical.sender.fromMe
+            ? {}
+            : { leadMessage: canonicalToLeadMessage(canonical) }),
+        }),
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       },
     );

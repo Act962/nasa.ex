@@ -80,7 +80,7 @@ export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
             (1) 4 cards numerados do CAOS ATUAL, cada um com badge
                 circular 1/2/3/4 e ícone X vermelho no canto sinalizando
                 "isso está errado"
-            (2) Bloco NASA abaixo, fundo violeta, explicando "como
+            (2) Bloco ÓRBITA abaixo, fundo violeta, explicando "como
                 funciona" o jeito certo
             Conectores entre os 4 cards: setas chevron pra reforçar
             sequência. */}
@@ -139,14 +139,14 @@ export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
             ))}
           </div>
 
-          {/* Bloco NASA abaixo, fundo violeta, glow, alinhado central.
+          {/* Bloco ÓRBITA abaixo, fundo violeta, glow, alinhado central.
               É a virada explicando "como FUNCIONA" no jeito certo. */}
           <div className="relative rounded-2xl border border-violet-500/40 bg-gradient-to-br from-violet-500/15 via-violet-500/10 to-fuchsia-500/10 backdrop-blur-sm p-5 md:p-6 shadow-[0_0_60px_rgba(124,58,237,0.35)] overflow-hidden">
             {/* Linha violeta no topo */}
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/60 to-transparent" />
 
             <div className="flex items-start gap-4">
-              {/* Selo NASA */}
+              {/* Selo ÓRBITA */}
               <div className="shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-violet-500/25 border border-violet-400/50 flex items-center justify-center">
                 <Sparkles
                   className="size-6 md:size-7 text-violet-200"
@@ -157,7 +157,7 @@ export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
               <div className="flex-1 text-left">
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="text-[10px] uppercase tracking-[0.25em] text-violet-300/80 font-bold">
-                    Com NASA
+                    Com ÓRBITA
                   </span>
                   <span className="text-white/20">·</span>
                   <span className="text-[10px] uppercase tracking-[0.25em] text-violet-300/80 font-bold">
@@ -251,7 +251,7 @@ export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
             />
             <Image
               src="/hero/tracking-hero.png"
-              alt="Tracking N.A.S.A, quadro Kanban com leads organizados por etapa do processo"
+              alt="Tracking ÓRBITA, quadro Kanban com leads organizados por etapa do processo"
               width={1996}
               height={1080}
               priority

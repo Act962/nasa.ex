@@ -23,7 +23,10 @@ import {
   shouldSkipUazapiForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
-import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  mapOutboundError,
+  resolveOutboundProviderOrBadRequest,
+} from "@/features/tracking-chat/lib/providers";
 import { v4 as uuidv4 } from "uuid";
 
 export const createMessageWithAudio = base
@@ -39,7 +42,7 @@ export const createMessageWithAudio = base
       leadPhone: z.string(),
       /**
        * @deprecated Ignorado pelo servidor desde Fase 6 — provider
-       * resolvido server-side via `resolveOutboundProvider(trackingId)`.
+       * resolvido server-side via `resolveOutboundProviderOrBadRequest(trackingId)`.
        */
       token: z.string().nullish(),
       blob: z.instanceof(Blob),
@@ -72,14 +75,14 @@ export const createMessageWithAudio = base
       // Resolve provider ANTES de cobrar ★ e ANTES do upload S3 (Fix #2).
       // Se o resolver falhar (instância deletada, credenciais Meta
       // incompletas), nem cobramos ★ nem fazemos upload pra nada.
-      let resolvedWhatsapp: Awaited<ReturnType<typeof resolveOutboundProvider>> | null = null;
+      let resolvedWhatsapp: Awaited<ReturnType<typeof resolveOutboundProviderOrBadRequest>> | null = null;
       if (!inChatMode && (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP) {
         if (!conv?.trackingId) {
           throw new Error(
             "Conversation sem trackingId — não é possível resolver provider.",
           );
         }
-        resolvedWhatsapp = await resolveOutboundProvider(conv.trackingId);
+        resolvedWhatsapp = await resolveOutboundProviderOrBadRequest(conv.trackingId);
       }
 
       if (conv?.tracking?.organizationId) {
@@ -143,7 +146,7 @@ export const createMessageWithAudio = base
               }).catch(() => {});
             }
           }
-          throw err;
+          throw mapOutboundError(err);
         }
       }
 

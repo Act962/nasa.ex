@@ -20,7 +20,14 @@ export async function getPresignedReadUrl(key: string, expiresInSeconds = 3600):
  * otherwise falls back to a presigned URL.
  */
 export async function getPublicMediaUrl(key: string): Promise<string> {
+  if (key.startsWith("http://") || key.startsWith("https://")) return key;
+
   const publicBase = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL;
-  if (publicBase) return `https://${publicBase}/${key}`;
+  if (publicBase && publicBase !== "undefined") {
+    // A env pode vir com ou sem protocolo e com barra final. Sem normalizar,
+    // um valor `https://cdn.exemplo.com` virava `https://https://cdn...`.
+    const host = publicBase.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    return `https://${host}/${key.replace(/^\/+/, "")}`;
+  }
   return getPresignedReadUrl(key);
 }

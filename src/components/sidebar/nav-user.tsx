@@ -39,6 +39,7 @@ import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/lib/orpc";
+import { AccountMenuItems } from "./account-menu-items";
 import { ShortcutsDialog } from "@/components/shortcuts-dialog";
 import { useTheme } from "next-themes";
 
@@ -152,7 +153,7 @@ export function NavUser() {
                       </AvatarFallback>
                     )}
                   </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
+                  <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                     {session?.user.name && (
                       <div className="flex items-baseline gap-1">
                         <span className="truncate font-medium">
@@ -173,7 +174,7 @@ export function NavUser() {
                   </div>
                 </>
               )}
-              <ChevronsUpDown className="ml-auto size-4" />
+              <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -282,6 +283,8 @@ export function NavUser() {
                 <Keyboard />
                 Atalhos
               </DropdownMenuItem>
+
+              <AccountMenuItems />
             </DropdownMenuGroup>
 
             <DropdownMenuSeparator />

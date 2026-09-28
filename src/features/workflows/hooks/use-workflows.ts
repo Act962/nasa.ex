@@ -207,6 +207,37 @@ export const useUpdateWorkflowAgentMode = (workflowId: string) => {
   );
 };
 
+export const useDuplicateWorkflow = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.workflow.duplicate.mutationOptions({
+      onSuccess: (data) => {
+        // Invalida a lista do tracking de destino (onde a cópia aparece)
+        // e, se for cross-tracking, também a do origem (pra manter contadores
+        // como "N automações" coerentes se o UI mostrar).
+        if (data.trackingId) {
+          queryClient.invalidateQueries({
+            queryKey: orpc.workflow.list.queryKey({
+              input: { trackingId: data.trackingId },
+            }),
+          });
+        }
+        if (data.sourceTrackingId && data.sourceTrackingId !== data.trackingId) {
+          queryClient.invalidateQueries({
+            queryKey: orpc.workflow.list.queryKey({
+              input: { trackingId: data.sourceTrackingId },
+            }),
+          });
+        }
+      },
+      onError: (error) => {
+        toast.error(`Falha ao duplicar automação: ${error.message}`);
+      },
+    }),
+  );
+};
+
 export const useDeleteWorkflow = () => {
   const queryClient = useQueryClient();
 

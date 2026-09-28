@@ -9,9 +9,9 @@ import {
 } from "../../hooks/use-payment-reports";
 import { formatCurrency, formatPercent } from "../../lib/format";
 import {
-  currentMonthRange,
-  type PeriodRange,
-} from "../shared/payment-period-picker";
+  usePaymentPeriodIso,
+  usePaymentCategoryFilter,
+} from "../../store/use-payment-filters-store";
 import { ReportToolbar } from "./report-toolbar";
 
 type GroupLine = { name: string; amount: number };
@@ -120,22 +120,18 @@ function ResultRow({
 }
 
 export function DreTab() {
-  const [period, setPeriod] = useState<PeriodRange>(currentMonthRange());
   const [regime, setRegime] = useState<ReportRegime>("cash");
 
-  const { data, isLoading } = useIncomeStatement({
-    dateFrom: period.from?.toISOString(),
-    dateTo: period.to?.toISOString(),
-    regime,
-  });
+  const { dateFrom, dateTo } = usePaymentPeriodIso();
+  const categoryIds = usePaymentCategoryFilter();
+
+  const { data, isLoading } = useIncomeStatement({ dateFrom, dateTo, regime, categoryIds });
 
   return (
     <div className="space-y-4 pb-16 lg:pb-0">
       <ReportToolbar
         title="DRE"
         subtitle="Demonstração do Resultado do Exercício"
-        period={period}
-        onPeriodChange={setPeriod}
         regime={regime}
         onRegimeChange={setRegime}
       />

@@ -1,19 +1,18 @@
-import prisma from "@/lib/prisma";
-import { debitStars } from "./star-service";
+import { meter } from "./metering/meter";
 
 /**
- * Cobra Stars por uma ação cujo custo está catalogado em `AppStarCost`
- * (regras globais editáveis pelo system admin em `/admin/stars > Regras`).
+ * Cobra Stars por uma ação catalogada.
  *
- * Convenção: cada AÇÃO vira uma linha em `AppStarCost` onde:
- *  - `appSlug` = chave da ação (ex: "astro_prompt")
- *  - `monthlyCost` = custo em ★
- *  - `category` = "action" (distingue de linhas legado com `category="app"`
- *    que representam o custo mensal/setup do plano por app)
+ * Desde a spec 0020 esta função é uma fachada sobre `meter()`, o ponto único de
+ * cobrança. A assinatura e o formato de retorno foram preservados de propósito:
+ * os ~62 pontos que já a chamam não precisaram mudar nenhuma linha.
  *
- * Quando a regra não existe ou tem custo 0, a operação **não é cobrada**
- * (retorna `{ skipped: true }`) — permite que o admin "desligue" uma
- * cobrança sem precisar mexer no código que a dispara.
+ * Para cobrança por quantidade (tokens, MB, segundos) ou por variante de modelo,
+ * chame `meter()` diretamente — esta fachada só cobre custo fixo por evento.
+ *
+ * Diferença de comportamento em relação ao que existia antes: ação sem preço em
+ * nenhuma camada deixou de ser silenciosamente gratuita. Continua sem cobrar,
+ * mas agora avisa no log e entra no relatório de ações sem preço.
  */
 export async function chargeStarsByAction(
   organizationId: string,
@@ -35,32 +34,23 @@ export async function chargeStarsByAction(
   | { success: false; skipped?: false; cost: number; newBalance: number; newBonusBalance: number }
   | { success: true; skipped: true; cost: 0 }
 > {
-  const rule = await prisma.appStarCost.findUnique({
-    where: { appSlug: action },
-    select: { monthlyCost: true, displayName: true, category: true },
+  const result = await meter({
+    organizationId,
+    action,
+    userId: ctx.userId,
+    description: ctx.description,
+    appSlug: ctx.appSlug,
+    disallowBonus: ctx.disallowBonus,
   });
 
-  if (!rule || rule.monthlyCost <= 0) {
+  if (!result.charged) {
     return { success: true, skipped: true, cost: 0 };
   }
-
-  const appSlug = ctx.appSlug ?? action.split("_")[0] ?? action;
-  const description = ctx.description ?? rule.displayName ?? action;
-
-  const result = await debitStars(
-    organizationId,
-    rule.monthlyCost,
-    "APP_CHARGE",
-    description,
-    appSlug,
-    ctx.userId,
-    ctx.disallowBonus ? { allowBonus: false } : undefined,
-  );
 
   return {
     success: result.success,
     skipped: false,
-    cost: rule.monthlyCost,
+    cost: result.cost,
     newBalance: result.newBalance,
     newBonusBalance: result.newBonusBalance,
   };

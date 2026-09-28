@@ -30,7 +30,7 @@ export function PartnerSidebar() {
       <div className="px-5 py-5 border-b border-zinc-800 flex items-center gap-2">
         <Handshake className="w-5 h-5 text-amber-400" />
         <span className="text-sm font-bold text-white tracking-wide">
-          NASA Partner
+          ÓRBITA Partner
         </span>
       </div>
 

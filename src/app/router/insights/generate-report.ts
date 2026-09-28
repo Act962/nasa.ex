@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requireStarsMiddleware } from "@/app/middlewares/require-stars";
 import { z } from "zod";
 import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
@@ -10,6 +11,7 @@ import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 export const generateReport = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requireStarsMiddleware)
   .input(
     z.object({
       period: z.object({
@@ -167,7 +169,7 @@ export const generateReport = base
       const networks = Object.entries(n.byNetwork)
         .map(([net, count]) => `${net}: ${count}`)
         .join(", ");
-      sections.push(`**NASA PLANNER (Conteúdo)**
+      sections.push(`**ÓRBITA PLANNER (Conteúdo)**
 - Posts criados: ${fmtN(n.total)}
 - Publicados: ${fmtN(n.published)} | Agendados: ${fmtN(n.scheduled)} | Rascunhos: ${fmtN(n.draft)}
 - Stars consumidas (IA): ${fmtN(n.starsSpent)}

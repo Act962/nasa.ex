@@ -28,6 +28,22 @@ import {
 import { getForgeSettings, updateForgeSettings } from "./settings";
 import { getForgeDashboard } from "./dashboard";
 import { acceptProposalAsContract } from "./accept-proposal";
+import {
+  listForgePriceItems,
+  createForgePriceItem,
+  updateForgePriceItem,
+  deleteForgePriceItem,
+  listForgePriceSuggestions,
+  reviewForgePriceSuggestion,
+} from "./price-catalog";
+import {
+  listForgeSimulations,
+  getForgeSimulation,
+  createForgeSimulation,
+  updateForgeSimulation,
+  deleteForgeSimulation,
+  convertSimulationToProposal,
+} from "./simulations";
 
 export const forgeRouter = {
   products: {
@@ -64,5 +80,21 @@ export const forgeRouter = {
   },
   dashboard: {
     get: getForgeDashboard,
+  },
+  priceCatalog: {
+    listItems: listForgePriceItems,
+    createItem: createForgePriceItem,
+    updateItem: updateForgePriceItem,
+    deleteItem: deleteForgePriceItem,
+    listSuggestions: listForgePriceSuggestions,
+    reviewSuggestion: reviewForgePriceSuggestion,
+  },
+  simulations: {
+    list: listForgeSimulations,
+    get: getForgeSimulation,
+    create: createForgeSimulation,
+    update: updateForgeSimulation,
+    delete: deleteForgeSimulation,
+    convertToProposal: convertSimulationToProposal,
   },
 };

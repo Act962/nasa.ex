@@ -11,10 +11,6 @@ export function usePaymentAccessList() {
   );
 }
 
-export function useVerifyPaymentPin() {
-  return useMutation(orpc.payment.access.verify.mutationOptions());
-}
-
 export function useGrantPaymentAccess() {
   const qc = useQueryClient();
   return useMutation({
@@ -31,22 +27,14 @@ export function useRevokePaymentAccess() {
   });
 }
 
-export function useVerifyPaymentOtp() {
-  return useMutation(orpc.payment.access.verifyOtp.mutationOptions());
-}
-
-export function useRequestPaymentOtp() {
-  return useMutation(orpc.payment.access.requestOtp.mutationOptions());
-}
-
 export function useMyPaymentAccess() {
   return useQuery(orpc.payment.access.getMy.queryOptions({ input: {} }));
 }
 
-export function useSetupOwnerPaymentAccess() {
+export function useClaimOwnerPaymentAccess() {
   const qc = useQueryClient();
   return useMutation({
-    ...orpc.payment.access.setupOwner.mutationOptions(),
+    ...orpc.payment.access.claimOwner.mutationOptions(),
     onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
@@ -94,6 +82,7 @@ export function usePaymentDashboard(params: {
   year?: number;
   dateFrom?: string;
   dateTo?: string;
+  categoryIds?: string[];
 }) {
   return useQuery(orpc.payment.dashboard.get.queryOptions({ input: params }));
 }
@@ -103,10 +92,24 @@ export function useCashflow(params: {
   year?: number;
   dateFrom?: string;
   dateTo?: string;
+  categoryIds?: string[];
 }) {
   return useQuery(
     orpc.payment.dashboard.cashflow.queryOptions({ input: params }),
   );
+}
+
+/** Lançamentos por trás de um dia do fluxo de caixa. Só busca quando abre. */
+export function useCashflowDay(params: {
+  date: string | null;
+  categoryIds?: string[];
+}) {
+  return useQuery({
+    ...orpc.payment.dashboard.cashflowDay.queryOptions({
+      input: { date: params.date ?? "2000-01-01", categoryIds: params.categoryIds },
+    }),
+    enabled: Boolean(params.date),
+  });
 }
 
 // ── Entries ───────────────────────────────────────────────────────────────────
@@ -118,12 +121,22 @@ export function usePaymentEntries(params: {
     "PENDING_APPROVAL" | "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED"
   >;
   search?: string;
+  orderBy?:
+    | "dueDate_asc" | "dueDate_desc"
+    | "amount_asc" | "amount_desc"
+    | "status_asc" | "status_desc"
+    | "paidAt_asc" | "paidAt_desc"
+    | "description_asc" | "description_desc"
+    | "createdAt_asc" | "createdAt_desc"
+    | "contact_asc" | "contact_desc"
+    | "category_asc" | "category_desc";
   page?: number;
   perPage?: number;
   dateFrom?: string;
   dateTo?: string;
   paidFrom?: string;
   paidTo?: string;
+  categoryIds?: string[];
   enabled?: boolean;
 }) {
   const { enabled = true, ...rest } = params;
@@ -148,16 +161,44 @@ export function useRecentEntryDescriptions(
 /**
  * Busca sob demanda (não em render) os lançamentos de um período — usado pelo
  * botão "Exportar" do painel, que só precisa dos dados no clique.
+ *
+ * Percorre todas as páginas: antes parava na primeira (500 registros) e o CSV
+ * saía truncado sem avisar quem exportou.
  */
+const EXPORT_PAGE_SIZE = 500;
+const EXPORT_MAX_PAGES = 40;
+
 export function useExportPaymentEntries() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { dateFrom?: string; dateTo?: string }) =>
-      qc.fetchQuery(
+    mutationFn: async (input: {
+      dateFrom?: string;
+      dateTo?: string;
+      categoryIds?: string[];
+    }) => {
+      const firstPage = await qc.fetchQuery(
         orpc.payment.entries.list.queryOptions({
-          input: { ...input, page: 1, perPage: 500 },
+          input: { ...input, page: 1, perPage: EXPORT_PAGE_SIZE },
         }),
-      ),
+      );
+
+      const entries = [...firstPage.entries];
+      for (
+        let page = 2;
+        entries.length < firstPage.total && page <= EXPORT_MAX_PAGES;
+        page++
+      ) {
+        const nextPage = await qc.fetchQuery(
+          orpc.payment.entries.list.queryOptions({
+            input: { ...input, page, perPage: EXPORT_PAGE_SIZE },
+          }),
+        );
+        if (nextPage.entries.length === 0) break;
+        entries.push(...nextPage.entries);
+      }
+
+      return { entries, total: firstPage.total };
+    },
   });
 }
 
@@ -177,6 +218,14 @@ export function useUpdatePaymentEntry() {
     ...orpc.payment.entries.update.mutationOptions(),
     // Retorna a promise pra que `mutateAsync`/`isPending` só resolvam depois
     // que a lista recarregar — o dialog de edição fecha com dados já atualizados.
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.payment.key() }),
+  });
+}
+
+export function useGenerateEntryInstallments() {
+  const qc = useQueryClient();
+  return useMutation({
+    ...orpc.payment.entries.generateInstallments.mutationOptions(),
     onSuccess: () => qc.invalidateQueries({ queryKey: orpc.payment.key() }),
   });
 }
@@ -285,9 +334,20 @@ export function useExternalContacts(search?: string) {
 
 // ── Contacts ─────────────────────────────────────────────────────────────────
 
-export function usePaymentContacts(search?: string, contactType?: string) {
+export function usePaymentContacts(
+  search?: string,
+  contactType?: string,
+  pagination?: { page?: number; perPage?: number },
+) {
   return useQuery(
-    orpc.payment.contacts.list.queryOptions({ input: { search, contactType } })
+    orpc.payment.contacts.list.queryOptions({
+      input: {
+        search,
+        contactType,
+        ...(pagination?.page ? { page: pagination.page } : {}),
+        ...(pagination?.perPage ? { perPage: pagination.perPage } : {}),
+      },
+    }),
   );
 }
 

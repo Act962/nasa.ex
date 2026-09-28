@@ -16,8 +16,11 @@ export async function assertActionAccess(
   userId: string,
   org: { id: string; members: any },
 ): Promise<ActionAccessResult> {
-  const action = await prisma.action.findUnique({
-    where: { id: actionId },
+  // Escopo de org primeiro: `canSeeByOrg` abaixo avalia o papel do chamador
+  // na org ATIVA dele, então sem esse filtro um admin liberava o chat de
+  // ações de qualquer tenant.
+  const action = await prisma.action.findFirst({
+    where: { id: actionId, workspace: { organizationId: org.id } },
     select: {
       id: true,
       title: true,

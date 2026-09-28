@@ -3,6 +3,7 @@
 import { usePathname, useParams } from "next/navigation";
 import { useMemo } from "react";
 import type { AstroRouteContext } from "@/features/astro/schemas/chat-message";
+import { usePaymentTabStore } from "@/features/payment/store/use-payment-tab-store";
 
 /**
  * Lê a rota atual e devolve o snapshot que vai como `context` no body do
@@ -20,6 +21,13 @@ import type { AstroRouteContext } from "@/features/astro/schemas/chat-message";
 export function useAstroContext(): AstroRouteContext {
   const pathname = usePathname();
   const params = useParams();
+  // A aba do financeiro vem do store da própria página: ler `useSearchParams`
+  // aqui obrigaria um Suspense em toda rota da plataforma (este hook roda no
+  // provider global do Astro).
+  const paymentTabFromStore = usePaymentTabStore((state) => state.activeTab);
+  const paymentTab = pathname?.startsWith("/payment")
+    ? paymentTabFromStore ?? "dashboard"
+    : undefined;
 
   return useMemo<AstroRouteContext>(() => {
     const ctx: AstroRouteContext = { pathname };
@@ -40,7 +48,8 @@ export function useAstroContext(): AstroRouteContext {
     if (tracking) ctx.trackingId = tracking;
     if (workspace) ctx.workspaceId = workspace;
     if (action) ctx.actionId = action;
+    if (paymentTab) ctx.paymentTab = paymentTab;
 
     return ctx;
-  }, [pathname, params]);
+  }, [pathname, params, paymentTab]);
 }

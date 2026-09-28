@@ -174,7 +174,7 @@ export function ShortcutsClient() {
         <div>
           <h1 className="text-xl font-bold text-white">Atalhos de Teclado</h1>
           <p className="text-sm text-zinc-400">
-            Navegue pela plataforma NASA com velocidade
+            Navegue pela plataforma ÓRBITA com velocidade
           </p>
         </div>
       </div>

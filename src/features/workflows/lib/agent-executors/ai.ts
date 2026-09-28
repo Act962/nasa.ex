@@ -96,7 +96,7 @@ export const aiDecisionExecutor: NodeExecutor = async ({
     .join("\n");
 
   const systemPrompt = [
-    "Você é o Astro, o agente decisor do NASA Auto Agent.",
+    "Você é o Astro, o agente decisor do ÓRBITA Auto Agent.",
     "Sua tarefa é escolher exatamente UM ramo do fluxo para continuar, baseado no contexto.",
     "",
     "RAMOS DISPONÍVEIS:",
@@ -336,7 +336,7 @@ export const aiGenerateTextExecutor: NodeExecutor = async ({
   }
 
   const systemPrompt = [
-    "Você é o NASA Auto Agent gerando uma mensagem WhatsApp pra um lead.",
+    "Você é o ÓRBITA Auto Agent gerando uma mensagem WhatsApp pra um lead.",
     `Tom: ${tone}.`,
     "Use o nome do lead se disponível.",
     "Mantenha o texto curto (1-3 parágrafos), em português brasileiro, e termine com 1 pergunta ou call-to-action.",

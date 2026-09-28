@@ -6,6 +6,10 @@ import { useCallback, useId, useMemo, useRef } from "react";
 import { client } from "@/lib/orpc";
 import { useAstro } from "@/features/astro/components/astro-provider";
 import type { AgentKey } from "@/features/astro/schemas/agent-config";
+import {
+  ASTRO_ATTACHMENT_PART_TYPE,
+  type AstroAttachmentData,
+} from "@/features/astro/schemas/chat-message";
 
 interface UseAstroChatOpts {
   /** Em embeds, força um sub-agente (ex: "closer"). */
@@ -99,10 +103,33 @@ export function useAstroChat(opts: UseAstroChatOpts = {}) {
     [chat, ensureSession],
   );
 
+  /**
+   * Envia texto + referências de arquivos já enviados ao storage. Os anexos
+   * viajam como data parts (spec 0014, D-3) — o upload em si acontece antes,
+   * em `usePaymentAttachmentUpload`.
+   */
+  const sendMessageWithAttachments = useCallback(
+    async (input: { text: string; attachments?: AstroAttachmentData[] }) => {
+      await ensureSession();
+      const attachmentParts = (input.attachments ?? []).map((attachment) => ({
+        type: ASTRO_ATTACHMENT_PART_TYPE,
+        data: attachment,
+      }));
+      if (attachmentParts.length === 0) {
+        return chat.sendMessage({ text: input.text });
+      }
+      return chat.sendMessage({
+        parts: [{ type: "text", text: input.text }, ...attachmentParts],
+      } as Parameters<typeof chat.sendMessage>[0]);
+    },
+    [chat, ensureSession],
+  );
+
   return {
     ...chat,
     /** Sobrescreve o sendMessage para criar sessão lazy. */
     sendMessage,
+    sendMessageWithAttachments,
     sessionId,
   };
 }

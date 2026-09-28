@@ -8,7 +8,12 @@ import {
   type ToolSet,
   type UIMessage,
 } from "ai";
-import { openai } from "@ai-sdk/openai";
+import {
+  resolveModels,
+  resolvePrimaryModel,
+  type AstroTier,
+  type ResolvedModel,
+} from "@/features/ia/lib/router";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { ASTRO_ORCHESTRATOR_PROMPT } from "@/features/astro/lib/prompts";
@@ -19,14 +24,12 @@ import {
 import type { AgentDefinition } from "@/features/astro/server/agents/types";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import type { AgentKey } from "@/features/astro/schemas/agent-config";
-import { buildAnalyticsTools } from "@/features/astro/server/tools/analytics";
-import { buildListTools } from "@/features/astro/server/tools/lists";
-import { buildActionTools } from "@/features/astro/server/tools/actions";
-import { buildMutationTools } from "@/features/astro/server/tools/mutations";
-import { buildSearchTools } from "@/features/astro/server/tools/search";
-import { buildChartTools } from "@/features/astro/server/tools/charts";
-import { buildInsightsReportTools } from "@/features/astro/server/tools/insights-reports";
-import { buildWorkflowTools } from "@/features/astro/server/tools/workflows";
+import { TRAFEGO_SCOPE_PROMPT } from "@/features/trafego/server/lib/astro-tools";
+import {
+  resolveToolSetForScope,
+  type AstroToolScope,
+} from "@/features/astro/server/tool-scope";
+
 
 /**
  * Modelo OpenAI — reaproveita a `OPENAI_API_KEY` que já é usada pelos
@@ -68,26 +71,24 @@ Você está respondendo pelo número de WhatsApp de UMA empresa. Você só enxer
 - Se a pergunta for sobre "quais empresas você vê", trocar de empresa, ou algo fora da leitura desta empresa: explique em uma frase que você responde só sobre os dados desta empresa, e ofereça o que CONSEGUE (ex.: contagem de leads, conversões, agenda).
 - Se não houver dado pra responder, diga isso claramente — não invente nem responda vazio.`;
 
-function modelFor(complexity: "simple" | "complex") {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error(
-      "OPENAI_API_KEY ausente — necessária para o ASTRO. " +
-        "Adicione em .env.local e reinicie o `pnpm dev`.",
-    );
-  }
-  const override = process.env.ASTRO_DEFAULT_MODEL;
-  const id = override
-    ? override
-    : complexity === "complex"
-      ? "gpt-4o"
-      : "gpt-4o-mini";
-  return openai(id);
+/**
+ * A heurística de complexidade continua mandando; o que muda é que ela escolhe
+ * um NÍVEL, não um modelo da OpenAI.
+ *
+ * Antes, o ASTRO era OpenAI-only e lançava se `OPENAI_API_KEY` faltasse —
+ * derrubava o copiloto inteiro mesmo quando a organização tinha chave de outro
+ * provedor cadastrada em /integrações.
+ */
+function tierFor(complexity: "simple" | "complex"): AstroTier {
+  return complexity === "complex" ? "DEEP" : "SMART";
 }
 
-/** Pra sub-agents (closer, task-agent, automation, etc) — mini é suficiente. */
-function defaultModel() {
-  return modelFor("simple");
-}
+/**
+ * Sub-agentes e agentes fixados sempre usaram o modelo do nível simples.
+ * Preservado: `SMART` resolve para o mesmo modelo de antes quando há chave da
+ * OpenAI, e só cai para outro provedor quando não há.
+ */
+const SUB_AGENT_TIER: AstroTier = "SMART";
 
 /**
  * Heurística simples (zero LLM) pra classificar a pergunta. Conta sinais:
@@ -106,6 +107,7 @@ function classifyComplexity(text: string): "simple" | "complex" {
     /\b(a[çc][ãa]o|tarefa|evento|workspace)/,
     /\b(conversa|chat|mensagem|whatsapp)/,
     /\b(financeiro|receita|despesa|saldo|inadimpl)/,
+    /\b(boleto|nota\s*fiscal|\bnf\b|nfe|nfs-?e|extrato|concilia|\bdre\b|\bdro\b|fluxo\s*de\s*caixa|vencid|fornecedor|lan[çc]amento)/,
     /\b(integra[çc][ãa]o|meta\s*ads)/,
     /\b(nbox|storage|arquivo)/,
     /\b(linnker|bio\s*link)/,
@@ -160,6 +162,8 @@ async function loadAgentEnabledMap(
 function buildRoutingTools(opts: {
   ctx: AgentContext;
   enabled: Record<AgentKey, boolean>;
+  /** Resolvido uma vez por requisição, não por sub-agente. */
+  subAgentModel: ResolvedModel;
 }) {
   const tools: ToolSet = {};
   for (const agent of AGENTS) {
@@ -179,6 +183,7 @@ function buildRoutingTools(opts: {
           agent,
           ctx: opts.ctx,
           instruction,
+          resolved: opts.subAgentModel,
         });
         return { result };
       },
@@ -197,6 +202,7 @@ async function runSubAgent(opts: {
   agent: AgentDefinition;
   ctx: AgentContext;
   instruction: string;
+  resolved: ResolvedModel;
 }): Promise<string> {
   const { agent, ctx, instruction } = opts;
   const messages: ModelMessage[] = [
@@ -215,7 +221,7 @@ async function runSubAgent(opts: {
   });
   const dateContext = `\n\n[CONTEXTO TEMPORAL]\nHoje é ${nowSP} (fuso SP, offset -03:00). ISO: ${todayIso}. Use SEMPRE o ano corrente (${todayIso.slice(0, 4)}) pra qualquer data.`;
   const { text } = await generateText({
-    model: defaultModel(),
+    model: opts.resolved.model,
     system: `${agent.systemPrompt}${dateContext}`,
     tools: agent.buildTools(ctx),
     messages,
@@ -243,8 +249,14 @@ export function streamAstro(opts: {
    *   - "insights": somente leitura (analytics/list/search/chart). Sem mutations,
    *     actions, workflows ou routing pra sub-agents (que escrevem). Usado pelo
    *     Astro via WhatsApp (Insights pelo WhatsApp), garantindo read-only de fato.
+   *   - "assistant": WhatsApp com o financeiro habilitado — leitura da
+   *     plataforma + packs de app (leitura e escrita) com confirmação
+   *     obrigatória. Sem routing pra sub-agents.
+   *   - "trafego": painel do cliente trafeGO. NENHUMA tool da plataforma —
+   *     só o módulo `trafego/server/lib/astro-tools`. O cliente aqui não é
+   *     membro da plataforma: ele não pode ver leads, orgs nem automações.
    */
-  toolScope?: "full" | "insights";
+  toolScope?: AstroToolScope;
   /**
    * Força o modelo "complex" (gpt-4o) ignorando a heurística de complexidade.
    * Usado pelo Astro via WhatsApp: o gpt-4o-mini hesita/alucina em tool-calls
@@ -257,12 +269,28 @@ export function streamAstro(opts: {
    * formatação WhatsApp, sem repetir listas que já vão anexadas).
    */
   outputStyle?: "default" | "whatsapp";
+  /**
+   * Informa qual modelo foi resolvido para esta requisição. Existe para o
+   * registro de custo saber o que gravar sem duplicar a heurística de escolha
+   * (spec 0021).
+   */
+  onModelResolved?: (info: { provider: string; modelId: string }) => void;
 }) {
   const { ctx, uiMessages } = opts;
   const toolScope = opts.toolScope ?? "full";
 
   return (async () => {
     const enabled = await loadAgentEnabledMap(ctx.organizationId);
+
+    // Uma resolução por requisição, não uma por sub-agente. Sub-agentes e
+    // agentes fixados exigem tool-calling: modelo que não chama ferramenta não
+    // serve, por mais barato que seja.
+    const subAgentModel = await resolvePrimaryModel({
+      organizationId: ctx.organizationId,
+      tier: SUB_AGENT_TIER,
+      requires: { tools: true },
+      forceModelId: process.env.ASTRO_DEFAULT_MODEL,
+    });
 
     // Pinned agent (embeds): pula o orquestrador, vai direto para o sub-agente.
     const modelMessages = await convertToModelMessages(uiMessages);
@@ -284,7 +312,7 @@ export function streamAstro(opts: {
           .slice(0, 10);
         const dateContextPin = `\n\n[CONTEXTO TEMPORAL]\nHoje é ${nowSPpin} (fuso América/São Paulo, offset -03:00). Data ISO: ${todayIsoPin}. Use SEMPRE o ano corrente (${todayIsoPin.slice(0, 4)}).`;
         return streamText({
-          model: defaultModel(),
+          model: subAgentModel.model,
           system: `${pinned.systemPrompt}${buildRouteContextBlock(ctx.route)}${dateContextPin}`,
           tools: pinned.buildTools(ctx),
           messages: modelMessages,
@@ -298,63 +326,26 @@ export function streamAstro(opts: {
       }
     }
 
-    // Modo insights (WhatsApp): só leitura — sem routing pra sub-agents
-    // (closer/task/automation escrevem). Modo full: routing normal.
-    const routingTools =
-      toolScope === "insights" ? {} : buildRoutingTools({ ctx, enabled });
-    // Tools expostas direto no orchestrator (não passam por sub-agent).
-    // Motivos:
-    //   1. Sub-agent (generateText interno) consome outputs e devolve
-    //      só texto — payloads `kind:"astro_table"` (list_*) e erros
-    //      reais (create_*) viram prosa reescrita. Aqui os outputs
-    //      viram tool-parts no stream, com semântica preservada.
-    //   2. GPT-4o-mini tava hesitando em delegar/chamar e inventando
-    //      "não consigo acessar" ou "tendo dificuldades". Com tools
-    //      diretas, ele executa.
+    // Quem monta o conjunto de tools de cada escopo é `tool-scope.ts` — lá
+    // moram os packs por app (financeiro hoje, outras ferramentas do Órbita
+    // depois) e a regra de qual escopo enxerga escrita.
     //
-    // INCLUI:
-    //   - Leitura: analytics (get_*) + list_*
-    //   - Mutação simples: create_action, create_appointment, create_lead,
-    //     update_lead, etc — campos têm DEFAULTS server-side e o
-    //     orchestrator basta passar os essenciais.
-    //
-    // FICA via route_to_*:
-    //   - closer (sugestão de resposta com persona)
-    //   - automation-agent (regra de alerta com cascata de slots)
-    //   - search_entities encadeado complexo (task-agent ainda útil
-    //     pra criar lead onde precisa procurar tracking, etc).
-    // Modo insights: apenas tools de LEITURA (analytics + list + search +
-    // chart). Mutations/actions/workflows ficam de fora — é o enforcement
-    // real do read-only do Astro via WhatsApp (não um gate pós-execução).
-    const readOnlyTools: ToolSet = {
-      ...buildAnalyticsTools(ctx),
-      ...buildListTools(ctx),
-      // search_entities resolve nomes naturais ("Hulk", "agenda do Wey")
-      // em IDs — também útil em leitura pra escopar listas/analytics.
-      ...buildSearchTools(ctx),
-      // chart_* — gráficos recharts (bar/line/pie) renderizados no client.
-      ...buildChartTools(ctx),
-      // Relatórios de /insights (funil, ganhos/perdas, vendidos, canais, tags)
-      // — single-org, mesmo cálculo da página via insights/lib/metrics.
-      ...buildInsightsReportTools(ctx),
-    };
-    const directTools: ToolSet =
-      toolScope === "insights"
-        ? readOnlyTools
-        : {
-            ...readOnlyTools,
-            ...buildActionTools(ctx),
-            ...buildMutationTools(ctx),
-            // workflow_* — IA generativa de workflows agent-mode + apply preset
-            // por slug. Use quando o user pede "cria uma automação que ..." ou
-            // "aplica o preset de boas-vindas". Workflow nasce INATIVO no
-            // canvas — Astro retorna link `editorUrl` pra user abrir e revisar.
-            ...buildWorkflowTools(ctx),
-          };
+    // As tools ficam expostas DIRETO no orquestrador (não via sub-agent)
+    // porque o sub-agent (generateText interno) consome os outputs e devolve
+    // só texto: payloads `astro_table`/`astro_chart`/`astro_confirmation`
+    // viram prosa reescrita e o erro real de uma escrita some. Sub-agents
+    // seguem disponíveis por `route_to_*` para os fluxos com persona.
+    const scope = resolveToolSetForScope(toolScope, ctx);
+    const routingTools = scope.allowsRouting
+      ? buildRoutingTools({ ctx, enabled, subAgentModel })
+      : {};
+    const directTools: ToolSet = scope.tools;
     const systemSuffix =
-      toolScope === "insights"
+      toolScope === "trafego"
+        ? TRAFEGO_SCOPE_PROMPT
+        : toolScope === "insights"
         ? INSIGHTS_SCOPE_PROMPT
-        : buildAgentsBriefing(enabled);
+        : `${buildAgentsBriefing(enabled)}${scope.packPrompts}`;
     // Injeta a data/hora atual no system prompt pra o LLM resolver datas
     // relativas ("amanhã", "sexta") corretamente. GPT-4o-mini tem
     // knowledge cutoff antigo (2023) e tava inventando ano errado.
@@ -394,16 +385,36 @@ export function streamAstro(opts: {
     const complexity = opts.forceComplexModel
       ? "complex"
       : classifyComplexity(lastUserText);
+
+    // `forceComplexModel` mantém nome e semântica externa. Internamente vira
+    // nível DEEP mais exigência de tool-calling, que é a razão real de existir:
+    // o modelo do nível de baixo hesita em tool-call no caminho do WhatsApp.
+    const orchestratorCandidates = await resolveModels({
+      organizationId: ctx.organizationId,
+      tier: tierFor(complexity),
+      requires: { tools: true },
+      forceModelId: process.env.ASTRO_DEFAULT_MODEL,
+    });
+    // Sem candidato no nível pedido, cai para o modelo dos sub-agentes em vez
+    // de derrubar a conversa.
+    const orchestratorModel = orchestratorCandidates[0] ?? subAgentModel;
+
     console.log(
-      `[ASTRO/orchestrator] model=${complexity === "complex" ? "gpt-4o" : "gpt-4o-mini"} (heur="${complexity}", forced=${opts.forceComplexModel ?? false}, text="${lastUserText.slice(0, 80)}")`,
+      `[ASTRO/orchestrator] model=${orchestratorModel.provider}/${orchestratorModel.modelId} ` +
+        `(tier="${orchestratorModel.tier}", heur="${complexity}", forced=${opts.forceComplexModel ?? false}, ` +
+        `chave="${orchestratorModel.keySource}", text="${lastUserText.slice(0, 80)}")`,
     );
+    opts.onModelResolved?.({
+      provider: orchestratorModel.provider,
+      modelId: orchestratorModel.modelId,
+    });
 
     const styleBlock =
       opts.outputStyle === "whatsapp" ? WHATSAPP_STYLE_PROMPT : "";
 
     return streamText({
-      model: modelFor(complexity),
-      system: `${ASTRO_ORCHESTRATOR_PROMPT}\n\n${systemSuffix}${buildRouteContextBlock(ctx.route)}${dateContext}${styleBlock}`,
+      model: orchestratorModel.model,
+      system: `${ASTRO_ORCHESTRATOR_PROMPT}\n\n${systemSuffix}${buildRouteContextBlock(ctx.route)}${buildAttachmentsBlock(ctx.attachments)}${dateContext}${styleBlock}`,
       tools: { ...directTools, ...routingTools },
       messages: modelMessages,
       // Mais steps: orchestrator pode chamar várias tools de leitura
@@ -430,6 +441,7 @@ function buildRouteContextBlock(
   if (!route) return "";
   const fields: Array<[string, string | undefined]> = [
     ["trackingId", route.trackingId],
+    ["paymentTab", route.paymentTab],
     ["leadId", route.leadId],
     ["conversationId", route.conversationId],
     ["workspaceId", route.workspaceId],
@@ -441,6 +453,22 @@ function buildRouteContextBlock(
     .map(([k, v]) => `- ${k}: ${v}`);
   if (lines.length === 0) return "";
   return `\n\n[CONTEXTO DA ROTA]\nO usuário está vendo esta tela agora. Use estes IDs DIRETAMENTE como input das tools — NÃO pergunte ao usuário e NÃO invente outros:\n${lines.join("\n")}`;
+}
+
+/**
+ * Lista os arquivos anexados nesta mensagem. Sem isto o modelo não enxerga o
+ * anexo: `convertToModelMessages` ignora data parts, então o `attachmentId`
+ * precisa chegar pelo system prompt (spec 0014, D-3).
+ */
+function buildAttachmentsBlock(
+  attachments: AgentContext["attachments"],
+): string {
+  if (!attachments || attachments.length === 0) return "";
+  const lines = attachments.map(
+    (attachment) =>
+      `- attachmentId: ${attachment.attachmentId} · arquivo: "${attachment.fileName}" (${attachment.mimeType})`,
+  );
+  return `\n\n[ARQUIVOS ANEXADOS NESTA MENSAGEM]\nO usuário acabou de anexar ${attachments.length} arquivo(s). Se ele pediu pra ler/lançar/"dar entrada", chame \`read_financial_document\` com o attachmentId ANTES de qualquer outra tool. NUNCA invente um attachmentId.\n${lines.join("\n")}`;
 }
 
 function buildAgentsBriefing(enabled: Record<AgentKey, boolean>) {

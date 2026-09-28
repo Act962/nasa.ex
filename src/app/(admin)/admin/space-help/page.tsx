@@ -100,7 +100,7 @@ export default async function AdminSpaceHelpDashboardPage() {
             <GraduationCap className="w-5 h-5 text-violet-400" /> Space Help
           </h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Hub educacional NASA — gerencie tópicos, funcionalidades, trilhas e
+            Hub educacional ÓRBITA — gerencie tópicos, funcionalidades, trilhas e
             selos exibidos para todas as empresas.
           </p>
         </div>

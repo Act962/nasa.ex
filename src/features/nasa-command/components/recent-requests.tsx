@@ -69,8 +69,9 @@ export function RecentRequests({
             </button>
             {onDelete && (
               <button
+                type="button"
                 onClick={() => onDelete(s.id)}
-                className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-600 hover:text-rose-400 p-1"
+                className="hover-reveal text-zinc-600 hover:text-rose-400 p-1"
                 aria-label="Apagar conversa"
               >
                 <Trash2 className="w-3 h-3" />

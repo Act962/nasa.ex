@@ -234,6 +234,11 @@ export function validateNode(
       if (!hasNonEmptyString(d.method)) errs.push("Escolha o método HTTP");
       break;
 
+    case "SEI_ACTION":
+      // O protocolo é opcional: vazio significa usar o vínculo SEI mais
+      // recente do lead. A existência do vínculo é validada em runtime.
+      return { valid: true, errors: [], skip: true };
+
     // ── Send to App — cada app tem ID próprio ──────────────────────────
     case "SEND_FORM":
     case "OPEN_FORM":
@@ -276,7 +281,7 @@ export function validateNode(
 
     case "SEND_NASA_ROUTE":
       if (!hasNonEmptyString(d.courseId))
-        errs.push("Selecione o curso NASA Route");
+        errs.push("Selecione o curso ÓRBITA Route");
       break;
 
     // ─── Modo Agente IA (N8n-style) ─────────────────────────────────────
@@ -404,7 +409,8 @@ export function validateNode(
       return { valid: true, errors: [], skip: true };
 
     case "MESSAGE_INCOMING":
-      // data: { containsAny?: string[], regex? }
+      // Sem config — dispara em toda mensagem do lead. Filtro por texto é
+      // feito num IF_CONDITION sobre `trigger.messageText`.
       return { valid: true, errors: [], skip: true };
 
     case "WEBHOOK_EXTERNAL":

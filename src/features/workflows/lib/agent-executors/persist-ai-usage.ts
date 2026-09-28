@@ -13,6 +13,7 @@
  * tracking é observabilidade, não fluxo crítico.
  */
 import "server-only";
+import { recordUsageEvent } from "@/features/stars/lib/metering";
 import prisma from "@/lib/prisma";
 
 export interface PersistAiUsageArgs {
@@ -45,16 +46,35 @@ export interface PersistAiUsageArgs {
 export async function persistAiChatRunFromUsage(
   args: PersistAiUsageArgs,
 ): Promise<void> {
+  const inputTokens = args.usage?.inputTokens ?? 0;
+  const outputTokens = args.usage?.outputTokens ?? 0;
+  const totalTokens = args.usage?.totalTokens ?? inputTokens + outputTokens;
+
+  // Custo é registrado SEMPRE. Antes, workflow de organização (sem tracking)
+  // saía antes daqui e ficava invisível — justamente o gasto que não
+  // conseguíamos ver.
+  if (args.organizationId) {
+    await recordUsageEvent({
+      organizationId: args.organizationId,
+      kind: "LLM",
+      action: "workflow_ai_node",
+      appSlug: "workflow",
+      feature: "workflow.agent",
+      provider: args.provider?.toLowerCase(),
+      modelId: args.modelId,
+      usingCustomKey: args.usingCustom ?? false,
+      tokens: { inputTokens, outputTokens, totalTokens },
+      trackingId: args.trackingId || undefined,
+      leadId: args.leadId ?? undefined,
+    });
+  }
+
   if (!args.trackingId) {
-    // Sem trackingId não dá pra escrever (FK). Workflows org-wide sem lead
-    // não geram telemetria — aceitável por enquanto.
+    // `AiChatRun` exige tracking por foreign key. A telemetria de custo acima
+    // já cobriu o caso; esta tabela alimenta apenas a tela por tracking.
     return;
   }
   try {
-    const inputTokens = args.usage?.inputTokens ?? 0;
-    const outputTokens = args.usage?.outputTokens ?? 0;
-    const totalTokens =
-      args.usage?.totalTokens ?? inputTokens + outputTokens;
     await prisma.aiChatRun.create({
       data: {
         trackingId: args.trackingId,

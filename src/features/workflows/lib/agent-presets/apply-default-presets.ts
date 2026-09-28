@@ -84,7 +84,7 @@ const DEFAULT_PRESETS: PresetSpec[] = [
   {
     slug: "boas-vindas-nasa-route",
     builder: buildBoasVindasNasaRouteBlueprint as unknown as BlueprintBuilder,
-    logName: "Boas-vindas NASA Route — Pós-pagamento",
+    logName: "Boas-vindas ÓRBITA Route — Pós-pagamento",
   },
   {
     slug: "comprovante-pagamento",
@@ -182,9 +182,9 @@ export const PRESET_CATALOG: Array<{
   },
   {
     slug: "boas-vindas-nasa-route",
-    name: "Boas-vindas NASA Route — Pós-pagamento",
+    name: "Boas-vindas ÓRBITA Route — Pós-pagamento",
     description:
-      "PAYMENT_RECEIVED (enriquecido com courseTitle/playerUrl) → tag 'Aluno NASA Route' → SEND_EMAIL boas-vindas (template caprichado React Email) → WAIT 1min → SEND_MESSAGE WhatsApp + link → WAIT 3d → SEND_MESSAGE check-in. 7 nós.",
+      "PAYMENT_RECEIVED (enriquecido com courseTitle/playerUrl) → tag 'Aluno ÓRBITA Route' → SEND_EMAIL boas-vindas (template caprichado React Email) → WAIT 1min → SEND_MESSAGE WhatsApp + link → WAIT 3d → SEND_MESSAGE check-in. 7 nós.",
   },
   {
     slug: "comprovante-pagamento",

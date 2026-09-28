@@ -44,7 +44,7 @@ export function NerpConnectCard() {
             </CardTitle>
             <CardDescription>
               Conecte sua organização nerp para criar vendas, gerenciar produtos
-              e consultar dashboards direto do NASA.
+              e consultar dashboards direto do ÓRBITA.
             </CardDescription>
           </div>
           {conn.connected ? (

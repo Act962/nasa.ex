@@ -108,14 +108,9 @@ export default async function Page({
       ),
     },
     {
-      name: "Padrões NASA",
+      name: "Padrões ÓRBITA",
       value: "templates",
       content: <TemplateSettings trackingId={trackingId} />,
-    },
-    {
-      name: "Zona de Perigo",
-      value: "danger-zone",
-      content: <TrackingDangerZone trackingId={trackingId} />,
     },
     {
       name: "Personalização",
@@ -126,6 +121,11 @@ export default async function Page({
       name: "Leads",
       value: "leads",
       content: <LeadsSettings trackingId={trackingId} />,
+    },
+    {
+      name: "Zona de Perigo",
+      value: "danger-zone",
+      content: <TrackingDangerZone trackingId={trackingId} />,
     },
   ];
 

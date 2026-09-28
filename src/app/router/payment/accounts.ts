@@ -3,6 +3,10 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { requirePaymentAccess } from "@/app/middlewares/payment-access";
 import prisma from "@/lib/prisma";
+import {
+  loadSettledMovementsByAccount,
+  withComputedBalance,
+} from "@/features/payment/server/accounts/settled-movements";
 import { z } from "zod";
 
 const accountShape = z.object({
@@ -20,6 +24,11 @@ const accountShape = z.object({
   color: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
+  // Derivados dos lançamentos liquidados (spec 0023). `balance` continua sendo o
+  // saldo inicial digitado, que alimenta a abertura da projeção.
+  settledIn: z.number(),
+  settledOut: z.number(),
+  computedBalance: z.number(),
 });
 
 export const listPaymentAccounts = base
@@ -31,12 +40,16 @@ export const listPaymentAccounts = base
   .output(z.object({ accounts: z.array(accountShape) }))
   .handler(async ({ context, errors }) => {
     try {
-      const accounts = await prisma.paymentBankAccount.findMany({
-        where: { organizationId: context.org.id, isActive: true },
-        orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-      });
-      return { accounts };
-    } catch {
+      const [accounts, movements] = await Promise.all([
+        prisma.paymentBankAccount.findMany({
+          where: { organizationId: context.org.id, isActive: true },
+          orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+        }),
+        loadSettledMovementsByAccount(context.org.id),
+      ]);
+      return { accounts: accounts.map((account) => withComputedBalance(account, movements)) };
+    } catch (err) {
+      console.error("[payment/accounts/listPaymentAccounts]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -69,8 +82,9 @@ export const createPaymentAccount = base
       const account = await prisma.paymentBankAccount.create({
         data: { ...input, organizationId: context.org.id },
       });
-      return { account };
-    } catch {
+      return { account: withComputedBalance(account, {}) };
+    } catch (err) {
+      console.error("[payment/accounts/createPaymentAccount]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -95,6 +109,12 @@ export const updatePaymentAccount = base
   }))
   .output(z.object({ account: accountShape }))
   .handler(async ({ input, context, errors }) => {
+    const exists = await prisma.paymentBankAccount.findFirst({
+      where: { id: input.id, organizationId: context.org.id },
+      select: { id: true },
+    });
+    if (!exists) throw errors.NOT_FOUND({ message: "Conta bancária não encontrada" });
+
     try {
       const { id, ...data } = input;
       if (data.isDefault) {
@@ -104,11 +124,13 @@ export const updatePaymentAccount = base
         });
       }
       const account = await prisma.paymentBankAccount.update({
-        where: { id, organizationId: context.org.id },
+        where: { id },
         data,
       });
-      return { account };
-    } catch {
+      const movements = await loadSettledMovementsByAccount(context.org.id);
+      return { account: withComputedBalance(account, movements) };
+    } catch (err) {
+      console.error("[payment/accounts/update]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -121,13 +143,20 @@ export const deletePaymentAccount = base
   .input(z.object({ id: z.string() }))
   .output(z.object({ ok: z.boolean() }))
   .handler(async ({ input, context, errors }) => {
+    const exists = await prisma.paymentBankAccount.findFirst({
+      where: { id: input.id, organizationId: context.org.id },
+      select: { id: true },
+    });
+    if (!exists) throw errors.NOT_FOUND({ message: "Conta bancária não encontrada" });
+
     try {
       await prisma.paymentBankAccount.update({
-        where: { id: input.id, organizationId: context.org.id },
+        where: { id: input.id },
         data: { isActive: false },
       });
       return { ok: true };
-    } catch {
+    } catch (err) {
+      console.error("[payment/accounts/delete]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });

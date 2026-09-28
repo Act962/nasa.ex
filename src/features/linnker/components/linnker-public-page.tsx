@@ -326,7 +326,7 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null }: P
           <span className="font-semibold" style={{ color: page.coverColor }}>
             Linnker
           </span>{" "}
-          · NASA
+          · ÓRBITA
         </p>
       </div>
     </div>

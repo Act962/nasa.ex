@@ -1,3 +1,4 @@
+import { meter } from "@/features/stars/lib/metering";
 import {
   checkMcpAuthorization,
   unauthorizedMessage,
@@ -5,7 +6,6 @@ import {
 import { getMetaAuth } from "@/app/router/meta-ads/_helpers";
 import { createMetaMcpClient, type MetaMcpClient } from "@/lib/meta-mcp/client";
 import { StarTransactionType } from "@/generated/prisma/enums";
-import { debitStars } from "@/features/stars/lib/star-service";
 
 /**
  * Resultado padrão pra tools Meta MCP que falham por auth/config.
@@ -66,16 +66,18 @@ export async function debitMetaToolStars(
 ): Promise<void> {
   if (amount <= 0) return;
   try {
-    await debitStars(
-      orgId,
-      amount,
-      StarTransactionType.APP_CHARGE,
-      `Astro Meta Ads — ${toolName}`,
-      "meta-ads-mcp",
+    await meter({
+      organizationId: orgId,
+      action: "meta_ads_action",
+      variant: toolName,
       userId,
-    );
+      appSlug: "meta-ads-mcp",
+      description: `Astro Meta Ads — ${toolName}`,
+      feature: "meta-ads.mcp",
+      cost: { kind: "OTHER", provider: "meta" },
+    });
   } catch (e) {
-    // eslint-disable-next-line no-console
+     
     console.warn("[meta-mcp:stars] failed to debit", toolName, e);
   }
 }

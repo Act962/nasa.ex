@@ -17,7 +17,7 @@ export function StationExplorer() {
       <div className="flex items-center gap-2 mb-4">
         <Rocket className="h-5 w-5 text-indigo-400" />
         <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
-          Explorar a Galáxia NASA
+          Explorar a Galáxia ÓRBITA
         </h2>
       </div>
 

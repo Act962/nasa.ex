@@ -446,7 +446,7 @@ export function LpcAvatarEditor({ avatarConfig, onChange, stationId, previewOnly
       />
 
       <p className="text-[10px] text-slate-700 text-center">
-        Astronautas pré-prontos gerados com assets originais NASA Agents · livre para uso interno
+        Astronautas pré-prontos gerados com assets originais ÓRBITA Agents · livre para uso interno
       </p>
     </div>
   );

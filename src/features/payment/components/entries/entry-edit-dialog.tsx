@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,10 +21,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useUpdatePaymentEntry,
+  useGenerateEntryInstallments,
   usePaymentCategories,
   usePaymentContacts,
+  usePaymentAccounts,
 } from "../../hooks/use-payment";
+import { Checkbox } from "@/components/ui/checkbox";
+import { MAX_INSTALLMENTS } from "../../schemas/entry-form-schema";
 import { formatCurrency, parseCurrencyToCents } from "../../lib/format";
+import { toDateInputValue } from "../../lib/dates";
+import { describePaymentError } from "../../lib/describe-error";
+import {
+  entryEditSchema,
+  toFieldErrors,
+  type EntryFieldErrors,
+} from "../../schemas/entry-form-schema";
+import { EntryAttachmentsSection } from "../attachments/entry-attachments-section";
+import { FieldError, fieldErrorClass } from "../shared/field-error";
 import { toast } from "sonner";
 
 interface EditableEntry {
@@ -34,7 +48,11 @@ interface EditableEntry {
   dueDate: string | Date;
   categoryId: string | null;
   contactId: string | null;
+  accountId: string | null;
+  documentNumber: string | null;
   notes: string | null;
+  installmentTotal: number | null;
+  installmentCurrent: number | null;
 }
 
 interface EntryEditDialogProps {
@@ -44,23 +62,34 @@ interface EntryEditDialogProps {
 
 const NONE = "__none__";
 
-function toDateInputValue(date: string | Date): string {
-  return new Date(date).toISOString().slice(0, 10);
-}
-
 export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
   const [description, setDescription] = useState("");
   const [amountStr, setAmountStr] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [categoryId, setCategoryId] = useState<string>(NONE);
   const [contactId, setContactId] = useState<string>(NONE);
+  const [accountId, setAccountId] = useState<string>(NONE);
+  const [documentNumber, setDocumentNumber] = useState("");
   const [notes, setNotes] = useState("");
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [isInstallment, setIsInstallment] = useState(false);
+  const [installmentCurrentStr, setInstallmentCurrentStr] = useState("");
+  const [installmentTotalStr, setInstallmentTotalStr] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<EntryFieldErrors>({});
   const updateEntry = useUpdatePaymentEntry();
+  const generateInstallments = useGenerateEntryInstallments();
+
+  function clearFieldError(field: keyof EntryFieldErrors) {
+    setFieldErrors((current) =>
+      current[field] ? { ...current, [field]: undefined } : current,
+    );
+  }
 
   const { data: categoriesData } = usePaymentCategories(
     entry?.type === "PAYABLE" ? "EXPENSE" : "REVENUE",
   );
   const { data: contactsData } = usePaymentContacts();
+  const { data: accountsData } = usePaymentAccounts();
 
   // Sincroniza os campos sempre que abre com uma entry diferente.
   useEffect(() => {
@@ -70,29 +99,81 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
     setDueDate(toDateInputValue(entry.dueDate));
     setCategoryId(entry.categoryId ?? NONE);
     setContactId(entry.contactId ?? NONE);
+    setAccountId(entry.accountId ?? NONE);
+    setDocumentNumber(entry.documentNumber ?? "");
     setNotes(entry.notes ?? "");
+    setIsInstallment(Boolean(entry.installmentTotal));
+    setInstallmentCurrentStr(String(entry.installmentCurrent ?? 1));
+    setInstallmentTotalStr(String(entry.installmentTotal ?? 2));
+    // Abre já expandido quando há algo preenchido lá dentro, senão o campo
+    // some da vista de quem veio justamente conferi-lo.
+    setShowMoreOptions(
+      Boolean(entry.contactId || entry.documentNumber || entry.installmentTotal),
+    );
+    setFieldErrors({});
   }, [entry]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!entry) return;
-    if (!description.trim()) return toast.error("Descrição obrigatória");
-    const amount = parseCurrencyToCents(amountStr);
-    if (!amount) return toast.error("Valor inválido");
+
+    const parsed = entryEditSchema.safeParse({
+      description,
+      amount: parseCurrencyToCents(amountStr),
+      dueDate,
+    });
+
+    if (!parsed.success) {
+      setFieldErrors(toFieldErrors(parsed.error));
+      return;
+    }
+
+    if (isInstallment && installmentCurrent > installmentTotal) {
+      toast.error("A parcela não pode ser maior que o total de parcelas");
+      return;
+    }
+
+    setFieldErrors({});
     try {
       await updateEntry.mutateAsync({
         id: entry.id,
-        description,
-        amount,
-        dueDate,
+        description: parsed.data.description,
+        amount: parsed.data.amount,
+        dueDate: parsed.data.dueDate,
         categoryId: categoryId === NONE ? null : categoryId,
         contactId: contactId === NONE ? null : contactId,
+        accountId: accountId === NONE ? null : accountId,
+        documentNumber: documentNumber.trim() ? documentNumber.trim() : null,
         notes: notes.trim() ? notes : null,
+        installmentTotal: isInstallment ? installmentTotal : null,
+        installmentCurrent: isInstallment ? installmentCurrent : null,
       });
       toast.success("Lançamento atualizado");
       onClose();
-    } catch {
-      toast.error("Erro ao atualizar lançamento");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível atualizar o lançamento"));
+    }
+  }
+
+  const installmentCurrent = Number(installmentCurrentStr) || 1;
+  const installmentTotal = Number(installmentTotalStr) || 1;
+  const missingInstallments = Math.max(0, installmentTotal - installmentCurrent);
+
+  async function handleGenerateInstallments() {
+    if (!entry) return;
+    try {
+      const result = await generateInstallments.mutateAsync({
+        id: entry.id,
+        installmentTotal,
+      });
+      toast.success(
+        result.createdCount === 1
+          ? "1 parcela criada"
+          : `${result.createdCount} parcelas criadas`,
+      );
+      onClose();
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível gerar as parcelas"));
     }
   }
 
@@ -100,7 +181,7 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
 
   return (
     <Dialog open={!!entry} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[88vh] max-w-lg overflow-y-auto scroll-cols-tracking">
         <DialogHeader>
           <DialogTitle>Editar Lançamento</DialogTitle>
         </DialogHeader>
@@ -109,9 +190,15 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
             <Label>Descrição *</Label>
             <Input
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              aria-invalid={!!fieldErrors.description}
+              className={fieldErrors.description ? fieldErrorClass : undefined}
+              onChange={(event) => {
+                setDescription(event.target.value);
+                clearFieldError("description");
+              }}
               autoFocus
             />
+            <FieldError message={fieldErrors.description} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -120,16 +207,28 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
               <Input
                 placeholder="R$ 0,00"
                 value={amountStr}
-                onChange={(event) => setAmountStr(event.target.value)}
+                aria-invalid={!!fieldErrors.amount}
+                className={fieldErrors.amount ? fieldErrorClass : undefined}
+                onChange={(event) => {
+                  setAmountStr(event.target.value);
+                  clearFieldError("amount");
+                }}
               />
+              <FieldError message={fieldErrors.amount} />
             </div>
             <div className="space-y-2">
               <Label>Vencimento *</Label>
               <Input
                 type="date"
                 value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
+                aria-invalid={!!fieldErrors.dueDate}
+                className={fieldErrors.dueDate ? fieldErrorClass : undefined}
+                onChange={(event) => {
+                  setDueDate(event.target.value);
+                  clearFieldError("dueDate");
+                }}
               />
+              <FieldError message={fieldErrors.dueDate} />
             </div>
           </div>
 
@@ -147,17 +246,118 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>{contactLabel}</Label>
-              <Select value={contactId} onValueChange={setContactId}>
+              <Label>Conta bancária</Label>
+              <Select value={accountId} onValueChange={setAccountId}>
                 <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>Sem contato</SelectItem>
-                  {contactsData?.contacts.map((contact) => (
-                    <SelectItem key={contact.id} value={contact.id}>{contact.name}</SelectItem>
+                  <SelectItem value={NONE}>Sem conta</SelectItem>
+                  {accountsData?.accounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="rounded-lg border border-border/60">
+            <button
+              type="button"
+              onClick={() => setShowMoreOptions((open) => !open)}
+              className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60"
+              aria-expanded={showMoreOptions}
+            >
+              Mais opções
+              <ChevronDown
+                className={`size-4 shrink-0 text-muted-foreground transition-transform ${
+                  showMoreOptions ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {showMoreOptions && (
+              <div className="space-y-3 border-t p-3">
+                <div className="space-y-2">
+                  <Label>{contactLabel}</Label>
+                  <Select value={contactId} onValueChange={setContactId}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Sem contato</SelectItem>
+                      {contactsData?.contacts.map((contact) => (
+                        <SelectItem key={contact.id} value={contact.id}>{contact.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Nº do documento</Label>
+                  <Input
+                    placeholder="Ex: NF-0001"
+                    value={documentNumber}
+                    onChange={(event) => setDocumentNumber(event.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2 border-t border-border/60 pt-3">
+                  <Label>Parcelas</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Parcela</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={MAX_INSTALLMENTS}
+                      className="w-16"
+                      value={installmentCurrentStr}
+                      disabled={!isInstallment}
+                      onChange={(event) => setInstallmentCurrentStr(event.target.value)}
+                    />
+                    <span className="text-sm text-muted-foreground">de</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={MAX_INSTALLMENTS}
+                      className="w-16"
+                      value={installmentTotalStr}
+                      disabled={!isInstallment}
+                      onChange={(event) => setInstallmentTotalStr(event.target.value)}
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Checkbox
+                      checked={!isInstallment}
+                      onCheckedChange={(checked) => setIsInstallment(!checked)}
+                    />
+                    Lançamento avulso (sem parcela)
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Corrige só o rótulo deste lançamento. Não cria nem apaga nada.
+                  </p>
+
+                  {isInstallment && (
+                    <div className="space-y-1.5 rounded-lg border border-border/60 p-2.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        disabled={missingInstallments === 0 || generateInstallments.isPending}
+                        onClick={handleGenerateInstallments}
+                      >
+                        {generateInstallments.isPending
+                          ? "Gerando..."
+                          : "Gerar parcelas seguintes"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        {missingInstallments === 0
+                          ? "Esta já é a última parcela da série."
+                          : `Cria as parcelas ${installmentCurrent + 1} a ${installmentTotal}, ` +
+                            `mês a mês a partir deste vencimento, no mesmo valor. ` +
+                            `As que já existirem são preservadas.`}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -168,6 +368,8 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
               onChange={(event) => setNotes(event.target.value)}
             />
           </div>
+
+          {entry && <EntryAttachmentsSection entryId={entry.id} />}
 
           <div className="flex gap-2 pt-2">
             <Button

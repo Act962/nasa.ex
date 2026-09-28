@@ -332,7 +332,7 @@ export function CustomizableChart({
       ]});
     }
     if (selectedModules.includes("nasa-planner") && nasaPlanner) {
-      result.push({ id: "nasapost-status", label: "NASA Post — Conteúdo", shortLabel: "Posts", data: [
+      result.push({ id: "nasapost-status", label: "ÓRBITA Post — Conteúdo", shortLabel: "Posts", data: [
         { name: "Total",      value: nasaPlanner.total,     color: "#ec4899" },
         { name: "Publicados", value: nasaPlanner.published, color: "#10b981" },
         { name: "Agendados",  value: nasaPlanner.scheduled, color: "#3b82f6" },

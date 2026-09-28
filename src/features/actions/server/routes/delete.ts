@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { resolveActionAccess } from "../lib/can-edit-action";
 
 export const deleteAction = base
   .use(requiredAuthMiddleware)
@@ -14,20 +15,40 @@ export const deleteAction = base
     }),
   )
   .handler(async ({ input, context, errors }) => {
-    try {
-      const existing = await prisma.action.findUnique({
-        where: { id: input.actionId },
-        select: { isArchived: true, createdBy: true, title: true },
+    // Guards ficam fora do try: dentro dele o catch convertia NOT_FOUND e
+    // FORBIDDEN em 500, escondendo a razão real da recusa.
+    const existing = await prisma.action.findFirst({
+      where: {
+        id: input.actionId,
+        workspace: { organizationId: context.org.id },
+      },
+      select: { isArchived: true, title: true },
+    });
+
+    if (!existing) {
+      throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+    }
+
+    const access = await resolveActionAccess(input.actionId, {
+      userId: context.user.id,
+      org: context.org,
+    });
+    if (!access?.canDelete) {
+      throw errors.FORBIDDEN({
+        message:
+          "Você não tem permissão para excluir esta ação (participantes não podem excluir)",
       });
+    }
 
-      if (!existing) {
-        throw errors.NOT_FOUND;
-      }
+    // Trava mantida: excluir é ação em 2 passos (arquivar → excluir), mesmo
+    // para papéis privilegiados — rede contra exclusão acidental.
+    if (!existing.isArchived) {
+      throw errors.FORBIDDEN({
+        message: "Arquive a ação antes de excluí-la",
+      });
+    }
 
-      if (!existing.isArchived || existing.createdBy !== context.user.id) {
-        throw errors.FORBIDDEN;
-      }
-
+    try {
       const action = await prisma.action.delete({
         where: { id: input.actionId },
       });

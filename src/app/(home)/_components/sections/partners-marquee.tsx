@@ -18,14 +18,14 @@ import Image from "next/image";
  */
 
 const PARTNERS = [
-  { src: "/partners/partner-1.png", alt: "Parceiro NASA 1" },
-  { src: "/partners/partner-2.png", alt: "Parceiro NASA 2" },
-  { src: "/partners/partner-3.png", alt: "Parceiro NASA 3" },
-  { src: "/partners/partner-4.png", alt: "Parceiro NASA 4" },
-  { src: "/partners/partner-5.png", alt: "Parceiro NASA 5" },
-  { src: "/partners/partner-6.png", alt: "Parceiro NASA 6" },
-  { src: "/partners/partner-7.png", alt: "Parceiro NASA 7" },
-  { src: "/partners/partner-8.png", alt: "Parceiro NASA 8" },
+  { src: "/partners/partner-1.png", alt: "Parceiro ÓRBITA 1" },
+  { src: "/partners/partner-2.png", alt: "Parceiro ÓRBITA 2" },
+  { src: "/partners/partner-3.png", alt: "Parceiro ÓRBITA 3" },
+  { src: "/partners/partner-4.png", alt: "Parceiro ÓRBITA 4" },
+  { src: "/partners/partner-5.png", alt: "Parceiro ÓRBITA 5" },
+  { src: "/partners/partner-6.png", alt: "Parceiro ÓRBITA 6" },
+  { src: "/partners/partner-7.png", alt: "Parceiro ÓRBITA 7" },
+  { src: "/partners/partner-8.png", alt: "Parceiro ÓRBITA 8" },
 ];
 
 export function PartnersMarquee() {
@@ -36,7 +36,7 @@ export function PartnersMarquee() {
   return (
     <section className="py-24 sm:py-28 px-4 border-y border-white/5 overflow-hidden">
       <p className="text-center text-white/25 text-xs font-medium uppercase tracking-widest mb-12">
-        Empresas que confiam no N.A.S.A
+        Empresas que confiam no ÓRBITA
       </p>
 
       <div className="relative">

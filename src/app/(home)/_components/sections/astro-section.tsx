@@ -14,14 +14,14 @@ export function AstroSection() {
           <div className="inline-flex items-center gap-2 bg-[#7C3AED]/12 border border-[#7C3AED]/30 rounded-full px-5 py-2 mb-6">
             <Bot className="size-3.5 text-[#a78bfa]" />
             <span className="text-[#c4b5fd] text-sm font-medium">
-              IA nativa no NASA
+              IA nativa no ÓRBITA
             </span>
           </div>
           <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white mb-5">
             Conheça o <span className="text-nasa">Astro</span>.
           </h2>
           <p className="text-white/55 text-lg sm:text-xl max-w-3xl mx-auto leading-relaxed">
-            A inteligência artificial do NASA, treinada pra informar, preparar o
+            A inteligência artificial do ÓRBITA, treinada pra informar, preparar o
             atendimento e quebrar objeções. Ela conhece o histórico de cada
             cliente em qualquer etapa, e responde pelo seu time mesmo quando
             você está dormindo.

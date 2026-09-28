@@ -52,7 +52,7 @@ export function LinksSection({ links = [], onUpdate, disabled }: Props) {
             <div key={i} className="flex items-center gap-2 p-2 rounded-md border bg-background text-sm group">
               <Link2Icon className="size-3.5 text-muted-foreground shrink-0" />
               <span className="flex-1 truncate text-xs">{link.title}</span>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1 hover-reveal">
                 <a href={link.url} target="_blank" rel="noopener noreferrer">
                   <Button size="icon" variant="ghost" className="size-5">
                     <ExternalLinkIcon className="size-3" />

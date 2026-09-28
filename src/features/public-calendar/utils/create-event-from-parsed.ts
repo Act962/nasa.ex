@@ -1,6 +1,7 @@
 import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
+import { resolveWorkspaceTrackingId } from "@/features/actions/lib/workspace-tracking";
 import prisma from "@/lib/prisma";
 import { generatePublicSlug } from "@/features/public-calendar/utils/slug";
 import type { ParsedEvent } from "./parse-event-html";
@@ -190,6 +191,7 @@ export async function createEventFromParsed(
       dueDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined,
       workspaceId: workspace.id,
       organizationId,
+      trackingId: await resolveWorkspaceTrackingId(workspace.id),
       order: newOrder,
       columnId: firstColumn.id,
       createdBy: userId,

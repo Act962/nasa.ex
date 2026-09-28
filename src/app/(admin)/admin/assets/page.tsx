@@ -6,13 +6,13 @@ import { integrations } from "@/data/integrations";
 
 const ALL_APPS = [
   { slug: "tracking",        label: "Tracking (CRM)",   emoji: "📊" },
-  { slug: "chat",            label: "NASA Chat",         emoji: "💬" },
+  { slug: "chat",            label: "ÓRBITA Chat",         emoji: "💬" },
   { slug: "forge",           label: "Forge",             emoji: "🔨" },
   { slug: "spacetime",       label: "SpaceTime",         emoji: "🗓️" },
-  { slug: "nasa-planner",    label: "NASA Planner",      emoji: "📸" },
+  { slug: "nasa-planner",    label: "ÓRBITA Planner",      emoji: "📸" },
   { slug: "insights",        label: "Insights",          emoji: "📊" },
   { slug: "integrations",    label: "Integrações",       emoji: "🔗" },
-  { slug: "explorer",        label: "NASA Explorer",     emoji: "🚀" },
+  { slug: "explorer",        label: "ÓRBITA Explorer",     emoji: "🚀" },
   { slug: "nbox",            label: "N-Box",             emoji: "📦" },
   { slug: "forge-contracts", label: "Forge Contracts",   emoji: "📝" },
 ];

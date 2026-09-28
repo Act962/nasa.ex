@@ -6,6 +6,7 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   SortingState,
+  RowSelectionState,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -18,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -45,13 +46,20 @@ import {
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  /** Ids das linhas marcadas — quem chama decide o que fazer com elas. */
+  onSelectionChange?: (rows: TData[]) => void;
+  /** Muda quando quem chama quer limpar a seleção de fora. */
+  clearSelectionToken?: number;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  onSelectionChange,
+  clearSelectionToken,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 20,
@@ -63,13 +71,35 @@ export function DataTable<TData, TValue>({
     state: {
       sorting,
       pagination,
+      rowSelection,
     },
+    onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
   });
+
+  // Seleção some quando os dados mudam (outro filtro, outro recorte): manter
+  // marcado o que saiu da lista mandaria mensagem para quem não está ali.
+  useEffect(() => {
+    setRowSelection({});
+  }, [data]);
+
+  useEffect(() => {
+    if (clearSelectionToken !== undefined) setRowSelection({});
+  }, [clearSelectionToken]);
+
+  // Avisa só quando a seleção muda de verdade. Notificar a cada render
+  // devolvia um array novo para quem chama, que guardava em estado e
+  // renderizava de novo — sem fim.
+  useEffect(() => {
+    onSelectionChange?.(
+      table.getSelectedRowModel().rows.map((row) => row.original),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Object.keys(rowSelection).join(",")]);
 
   return (
     <>

@@ -16,8 +16,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon, UserRoundCheckIcon } from "lucide-react";
 import { countries } from "@/types/some";
+
+type ExistingLeadHint = {
+  exists: boolean;
+  currentTrackingName?: string | null;
+  currentStatusName?: string | null;
+  isInFormTracking?: boolean;
+};
 
 type LeadStepProps = {
   showName: boolean;
@@ -34,6 +41,7 @@ type LeadStepProps = {
   onPhoneChange: (rawValue: string) => void;
   onCountryChange: (country: (typeof countries)[number]) => void;
   onContinue: () => void;
+  existingLeadHint?: ExistingLeadHint | null;
 };
 
 export function LeadStep({
@@ -51,6 +59,7 @@ export function LeadStep({
   onPhoneChange,
   onCountryChange,
   onContinue,
+  existingLeadHint,
 }: LeadStepProps) {
   return (
     <>
@@ -154,6 +163,24 @@ export function LeadStep({
               </InputGroup>
               {formErrors["lead_phone"] && (
                 <FieldError>{formErrors["lead_phone"]}</FieldError>
+              )}
+              {existingLeadHint?.exists && (
+                <div
+                  className="mt-1 flex items-center gap-1.5 text-xs"
+                  style={{ color: textColor || undefined, opacity: 0.75 }}
+                >
+                  <UserRoundCheckIcon className="size-3.5 shrink-0" />
+                  <span>
+                    Este contato já está na sua base
+                    {existingLeadHint.currentTrackingName
+                      ? ` · ${existingLeadHint.currentTrackingName}${
+                          existingLeadHint.currentStatusName
+                            ? ` / ${existingLeadHint.currentStatusName}`
+                            : ""
+                        }`
+                      : ""}
+                  </span>
+                </div>
               )}
             </Field>
           )}

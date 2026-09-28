@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -11,15 +11,17 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { ArrowLeft, Settings, Landmark } from "lucide-react";
 import { toast } from "sonner";
 import { StarsWidget } from "@/features/stars";
 import { SpacePointWidget } from "@/features/space-point";
 import { PaymentDashboard } from "./dashboard/payment-dashboard";
 import { EntriesTable } from "./entries/entries-table";
 import { CashflowTab } from "./cashflow/cashflow-tab";
+import { ReconciliationTab } from "./reconciliation/reconciliation-tab";
 import { ContactsTab } from "./contacts/contacts-tab";
 import { ContractsTab } from "./contracts/contracts-tab";
+import { DocumentsTab } from "./attachments/documents-tab";
+import { ProjectionTab } from "./projection/projection-tab";
 import { AccountsTab } from "./accounts/accounts-tab";
 import { DreTab } from "./reports/dre-tab";
 import { DroTab } from "./reports/dro-tab";
@@ -35,35 +37,129 @@ import {
 } from "../hooks/use-payment-approvals";
 import { useExportPaymentEntries } from "../hooks/use-payment";
 import { buildEntriesCsv, downloadCsv } from "../lib/export-entries";
-import {
-  currentMonthRange,
-  type PeriodRange,
-} from "./shared/payment-period-picker";
+import { PaymentFilterBar } from "./shared/payment-filter-bar";
+import { usePaymentTabStore } from "@/features/payment/store/use-payment-tab-store";
+import { usePaymentFiltersStore } from "../store/use-payment-filters-store";
 import {
   PaymentMobileMenu,
   type PaymentTabItem,
 } from "./payment-mobile-menu";
+import {
+  PaymentTabsBar,
+  PaymentSubTabs,
+  type PaymentTab,
+} from "./payment-tabs-bar";
+import {
+  ArrowLeft,
+  Settings,
+  LayoutDashboard,
+  ArrowUpFromLine,
+  ArrowDownToLine,
+  TrendingUp,
+  ArrowLeftRight,
+  Landmark,
+  Users,
+  Paperclip,
+  CalendarDays,
+  FileText,
+  Factory,
+} from "lucide-react";
 
-const BASE_TABS: PaymentTabItem[] = [
+/**
+ * Projeção, DRE e DRO moram dentro do Fluxo de Caixa: os quatro respondem à
+ * mesma pergunta — como o dinheiro se comporta ao longo do tempo. Contratos e
+ * Aprovações saíram para as Configurações, que é onde mora o que se ajusta de
+ * vez em quando.
+ */
+const MAIN_TABS: PaymentTab[] = [
+  { value: "dashboard", label: "Painel", icon: LayoutDashboard },
+  { value: "receivables", label: "Receita", icon: ArrowUpFromLine },
+  { value: "payables", label: "Despesa", icon: ArrowDownToLine },
+  { value: "cashflow", label: "Fluxo de Caixa", icon: TrendingUp, hasChildren: true },
+  { value: "reconciliation", label: "Conciliação", icon: ArrowLeftRight },
+  { value: "accounts", label: "Contas", icon: Landmark },
+  { value: "contacts", label: "Contatos", icon: Users },
+  { value: "documents", label: "Documentos", icon: Paperclip },
+];
+
+const CASHFLOW_VIEWS = [
+  { value: "cashflow", label: "Diário", icon: CalendarDays },
+  { value: "projection", label: "Projeção", icon: TrendingUp },
+  { value: "dre", label: "DRE", icon: FileText },
+  { value: "dro", label: "DRO", icon: Factory },
+] as const;
+
+const CASHFLOW_VIEW_VALUES = new Set<string>(CASHFLOW_VIEWS.map((view) => view.value));
+
+/** O menu do mobile continua plano: submenu em tela pequena esconde demais. */
+const MOBILE_TABS: PaymentTabItem[] = [
   { value: "dashboard", label: "Painel", emoji: "📊" },
   { value: "receivables", label: "Receita", emoji: "💚" },
   { value: "payables", label: "Despesa", emoji: "🔴" },
   { value: "cashflow", label: "Fluxo de Caixa", emoji: "📈" },
+  { value: "projection", label: "Projeção", emoji: "🔭" },
   { value: "dre", label: "DRE", emoji: "📄" },
   { value: "dro", label: "DRO", emoji: "🏭" },
+  { value: "reconciliation", label: "Conciliação", emoji: "🔁" },
   { value: "accounts", label: "Contas", emoji: "🏦" },
   { value: "contacts", label: "Contatos", emoji: "👥" },
   { value: "contracts", label: "Contratos Ativos", emoji: "📝" },
+  { value: "documents", label: "Documentos", emoji: "📎" },
 ];
+
+// Abas cujo conteúdo responde ao período e/ou às categorias. A Projeção entra
+// só pela categoria: ela tem horizonte próprio (3/6/12 meses).
+const FILTERED_TABS = new Set([
+  "dashboard",
+  "receivables",
+  "payables",
+  "cashflow",
+  "projection",
+  "dre",
+  "dro",
+]);
 
 export function PaymentPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Controlada pra que "Ver todas" no painel possa saltar direto pra aba certa.
-  const [activeTab, setActiveTab] = useState("dashboard");
-  // Período do painel mora aqui porque o "Exportar" existe em dois lugares:
-  // na toolbar do painel (desktop) e no menu sanduíche (mobile).
-  const [period, setPeriod] = useState<PeriodRange>(currentMonthRange());
+  const [activeTab, setActiveTabState] = useState(
+    () => searchParams.get("tab") ?? "dashboard",
+  );
+
+  // A aba vai pra URL (`?tab=`) e pro store: o Astro lê o contexto da rota, e
+  // sabendo que o usuário está em Documentos ou em Conciliação responde sobre
+  // o que está na tela em vez de perguntar (spec 0014).
+  const publishTab = usePaymentTabStore((state) => state.setActiveTab);
+
+  const setActiveTab = useCallback(
+    (tab: string) => {
+      setActiveTabState(tab);
+      const params = new URLSearchParams(searchParams.toString());
+      if (tab === "dashboard") params.delete("tab");
+      else params.set("tab", tab);
+      const query = params.toString();
+      router.replace(query ? `/payment?${query}` : "/payment", { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  // Alguém abriu /payment?tab=documentos numa nova navegação (link do Astro).
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab") ?? "dashboard";
+    setActiveTabState((current) => (current === tabFromUrl ? current : tabFromUrl));
+  }, [searchParams]);
+
+  useEffect(() => {
+    publishTab(activeTab);
+    return () => publishTab(null);
+  }, [activeTab, publishTab]);
+  // O período agora mora no store compartilhado (uma barra para todas as
+  // abas); aqui só é lido para o "Exportar", que existe na toolbar do painel
+  // e no menu sanduíche do mobile.
+  const period = usePaymentFiltersStore((state) => state.period);
+  const categoryIds = usePaymentFiltersStore((state) => state.categoryIds);
   // Badge de pendências da aba Aprovações — só pra users com canApprove.
   const canApproveQuery = useCanApprovePayments();
   const pendingApprovals = usePendingApprovals();
@@ -74,7 +170,7 @@ export function PaymentPage() {
 
   const tabs: PaymentTabItem[] = showApprovalsTab
     ? [
-        ...BASE_TABS,
+        ...MOBILE_TABS,
         {
           value: "approvals",
           label: "Aprovações",
@@ -82,7 +178,10 @@ export function PaymentPage() {
           badgeCount: pendingCount,
         },
       ]
-    : BASE_TABS;
+    : MOBILE_TABS;
+
+  // Quando a aba ativa é uma sub-visão, a barra principal destaca o pai.
+  const activeMainTab = CASHFLOW_VIEW_VALUES.has(activeTab) ? "cashflow" : activeTab;
 
   const activeTabLabel =
     tabs.find((tab) => tab.value === activeTab)?.label ?? "Painel";
@@ -101,8 +200,9 @@ export function PaymentPage() {
   async function handleExport() {
     try {
       const result = await exportEntries.mutateAsync({
-        dateFrom: period.from?.toISOString(),
-        dateTo: period.to?.toISOString(),
+        dateFrom: period.from,
+        dateTo: period.to,
+        ...(categoryIds.length > 0 ? { categoryIds } : {}),
       });
       if (result.entries.length === 0) {
         toast.info("Nenhum lançamento no período selecionado.");
@@ -168,7 +268,15 @@ export function PaymentPage() {
             className="sm:hidden"
             tabs={tabs}
             activeTab={activeTab}
-            onSelectTab={setActiveTab}
+            onSelectTab={(value) => {
+              // No mobile as duas continuam listadas, mas abrem o painel de
+              // configurações, que é onde passaram a morar.
+              if (value === "contracts" || value === "approvals") {
+                setSettingsOpen(true);
+                return;
+              }
+              setActiveTab(value);
+            }}
             onOpenSettings={() => setSettingsOpen(true)}
             onExport={handleExport}
             isExporting={exportEntries.isPending}
@@ -184,55 +292,40 @@ export function PaymentPage() {
       >
         {/* No mobile a navegação vive no menu sanduíche do header. */}
         <div className="hidden sm:block px-4 sm:px-6 pt-4 shrink-0 w-full">
-          <TabsList className="h-auto w-full flex-wrap justify-start gap-1 p-1 [&>*]:flex-none">
-            <TabsTrigger value="dashboard" className="text-xs gap-1.5">
-              📊 Painel
-            </TabsTrigger>
-            <TabsTrigger value="receivables" className="text-xs gap-1.5">
-              💚 Receita
-            </TabsTrigger>
-            <TabsTrigger value="payables" className="text-xs gap-1.5">
-              🔴 Despesa
-            </TabsTrigger>
-            <TabsTrigger value="cashflow" className="text-xs gap-1.5">
-              📈 Fluxo de Caixa
-            </TabsTrigger>
-            <TabsTrigger value="dre" className="text-xs gap-1.5">
-              📄 DRE
-            </TabsTrigger>
-            <TabsTrigger value="dro" className="text-xs gap-1.5">
-              🏭 DRO
-            </TabsTrigger>
-            <TabsTrigger value="accounts" className="text-xs gap-1.5">
-              🏦 Contas
-            </TabsTrigger>
-            <TabsTrigger value="contacts" className="text-xs gap-1.5">
-              👥 Contatos
-            </TabsTrigger>
-            <TabsTrigger value="contracts" className="text-xs gap-1.5">
-              📝 Contratos Ativos
-            </TabsTrigger>
-            {showApprovalsTab && (
-              <TabsTrigger value="approvals" className="text-xs gap-1.5">
-                🛡️ Aprovações
-                {pendingCount > 0 && (
-                  <span className="ml-1 rounded-full bg-amber-500 text-white text-[10px] px-1.5 leading-4 font-semibold">
-                    {pendingCount > 99 ? "99+" : pendingCount}
-                  </span>
-                )}
-              </TabsTrigger>
-            )}
-          </TabsList>
+          <PaymentTabsBar
+            tabs={MAIN_TABS}
+            activeTab={activeMainTab}
+            onSelect={setActiveTab}
+            onOpenSettings={() => setSettingsOpen(true)}
+            settingsBadge={showApprovalsTab ? pendingCount : 0}
+          />
+
+          {CASHFLOW_VIEW_VALUES.has(activeTab) && (
+            <div className="mt-3">
+              <PaymentSubTabs
+                views={[...CASHFLOW_VIEWS]}
+                activeView={activeTab}
+                onSelect={setActiveTab}
+              />
+            </div>
+          )}
         </div>
+
+        {/* Barra única de filtros: mesma posição em toda aba que filtra por
+            período/categoria. Abas que não filtram (Contas, Contatos,
+            Contratos, Documentos, Aprovações) ficam de fora — controle inerte
+            confunde mais do que ajuda. */}
+        {FILTERED_TABS.has(activeTab) && (
+          <PaymentFilterBar showPeriod={activeTab !== "projection"} />
+        )}
 
         <div className="flex-1 overflow-y-auto">
           <TabsContent value="dashboard" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <PaymentDashboard
-              period={period}
-              onPeriodChange={setPeriod}
               onExport={handleExport}
               isExporting={exportEntries.isPending}
               onNavigateTab={setActiveTab}
+              onOpenSettings={() => setSettingsOpen(true)}
             />
           </TabsContent>
           <TabsContent value="receivables" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
@@ -243,6 +336,12 @@ export function PaymentPage() {
           </TabsContent>
           <TabsContent value="cashflow" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <CashflowTab />
+          </TabsContent>
+          <TabsContent value="reconciliation" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
+            <ReconciliationTab />
+          </TabsContent>
+          <TabsContent value="projection" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
+            <ProjectionTab />
           </TabsContent>
           <TabsContent value="dre" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <DreTab />
@@ -256,14 +355,9 @@ export function PaymentPage() {
           <TabsContent value="contacts" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <ContactsTab />
           </TabsContent>
-          <TabsContent value="contracts" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
-            <ContractsTab />
+          <TabsContent value="documents" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
+            <DocumentsTab />
           </TabsContent>
-          {showApprovalsTab && (
-            <TabsContent value="approvals" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
-              <ApprovalsTab />
-            </TabsContent>
-          )}
         </div>
       </Tabs>
 
@@ -293,6 +387,28 @@ export function PaymentPage() {
             </div>
           </SheetHeader>
           <div className="px-4 sm:px-6 py-6 space-y-10">
+            {/* Pendências primeiro: é a única seção aqui que representa
+                trabalho parado esperando alguém, e é o que o selo no botão de
+                Configurações está anunciando. */}
+            {showApprovalsTab && (
+              <section className="space-y-4">
+                <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">
+                  Aprovações pendentes
+                  {pendingCount > 0 && (
+                    <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-bold leading-4 text-amber-950">
+                      {pendingCount > 99 ? "99+" : pendingCount}
+                    </span>
+                  )}
+                </h3>
+                <ApprovalsTab />
+              </section>
+            )}
+            <section className="space-y-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">
+                Contratos ativos
+              </h3>
+              <ContractsTab />
+            </section>
             <section className="space-y-4">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">
                 Governança e Aprovações

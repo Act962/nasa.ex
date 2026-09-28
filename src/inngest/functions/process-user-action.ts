@@ -8,10 +8,10 @@
  * 4. Envia resultado via Pusher ao usuario
  */
 
+import { meter } from "@/features/stars/lib/metering";
 import { inngest } from "@/inngest/client";
 import { getOrgRules } from "@/features/stars/lib/rules-cache";
 import { awardPoints } from "@/app/router/space-point/utils";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { pusherServer } from "@/lib/pusher";
 import { StarTransactionType } from "@/generated/prisma/client";
 
@@ -56,16 +56,17 @@ export const processUserAction = inngest.createFunction(
     // ── 2. Stars Debit ───────────────────────────────────────────────────────
     const starRule = starRules.find((r) => r.action === action);
     if (starRule && starRule.stars > 0) {
-      const result = await debitStars(
-        orgId,
-        starRule.stars,
-        StarTransactionType.APP_CHARGE,
-        `${starRule.stars}★ — ${action}`,
-        undefined,
+      // Preço vem do catálogo, com sobrescrita por organização quando marcada.
+      // Verificado em 2026-09-18: as 3.241 regras por organização batiam
+      // exatamente com o catálogo global, então a troca não muda valor nenhum.
+      const result = await meter({
+        organizationId: orgId,
+        action,
         userId,
-      );
-      if (result.success) {
-        starsDebited = starRule.stars;
+        description: `${starRule.stars}★ — ${action}`,
+      });
+      if (result.charged && result.success) {
+        starsDebited = result.cost;
       }
     }
 

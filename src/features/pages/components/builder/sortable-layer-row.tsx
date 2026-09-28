@@ -153,7 +153,9 @@ export function SortableLayerRow(props: Props) {
         <div
           className={cn(
             "flex items-center gap-0.5 shrink-0 transition-opacity",
-            isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            isSelected
+              ? "opacity-100"
+              : "hover-reveal",
           )}
         >
           <button

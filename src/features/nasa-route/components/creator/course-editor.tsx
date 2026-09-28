@@ -175,7 +175,7 @@ export function CourseEditor({ courseId }: Props) {
               </Button>
               <CourseShareMenu
                 url={`/c/${course.creatorOrg.slug}/${course.slug}`}
-                text={`${course.title} — confira na NASA Route`}
+                text={`${course.title} — confira na ÓRBITA Route`}
                 variant="button"
                 label="Compartilhar"
               />

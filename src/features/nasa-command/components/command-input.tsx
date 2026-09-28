@@ -15,6 +15,9 @@ import { AppDropdown } from "./app-dropdown";
 import { PlusMenu } from "./plus-menu";
 import { DropdownType, ModelType } from "../types";
 import { buildHighlightedHTML } from "../utils";
+import type { PendingAstroAttachment } from "@/features/astro/hooks/use-astro-attachments";
+import { CommandAttachButton, CommandAttachmentList } from "./command-attachments";
+import { useFileDrop } from "../hooks/use-file-drop";
 
 export interface CommandInputProps {
   command: string;
@@ -28,6 +31,11 @@ export interface CommandInputProps {
   setDropdown: (v: DropdownType | ((prev: DropdownType) => DropdownType)) => void;
   dropdownSearch: string;
   setDropdownSearch: (v: string) => void;
+  /** Arquivos que vão junto da próxima mensagem (boleto, nota fiscal...). */
+  attachments?: PendingAstroAttachment[];
+  onAddFiles?: (files: File[]) => void;
+  onRemoveAttachment?: (localId: string) => void;
+  isUploadingAttachment?: boolean;
 }
 
 /**
@@ -57,8 +65,13 @@ export const CommandInput = forwardRef<
     setDropdown,
     dropdownSearch,
     setDropdownSearch,
+    attachments = [],
+    onAddFiles,
+    onRemoveAttachment,
+    isUploadingAttachment,
   } = props;
   const { voiceState, startListening } = useVoiceInput(onVoiceTranscript);
+  const { handlePaste, handleDrop, handleDragOver } = useFileDrop(onAddFiles);
 
   useImperativeHandle(
     handleRef,
@@ -201,7 +214,15 @@ export const CommandInput = forwardRef<
         className="relative rounded-2xl explorer-border"
         style={{ padding: 1 }}
       >
-        <div className="relative bg-zinc-900 rounded-[calc(1rem-1px)] overflow-visible transition-all">
+        <div
+          className="relative bg-zinc-900 rounded-[calc(1rem-1px)] overflow-visible transition-all"
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+        >
+          <CommandAttachmentList
+            attachments={attachments}
+            onRemoveAttachment={onRemoveAttachment}
+          />
           {/* Text area with highlight */}
           <div className="relative w-full">
             <div
@@ -221,6 +242,7 @@ export const CommandInput = forwardRef<
               value={command}
               onChange={handleTextChange}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               onScroll={syncScroll}
               disabled={loading}
               rows={1}
@@ -251,6 +273,11 @@ export const CommandInput = forwardRef<
                   <PlusMenu onClose={() => setDropdown(null)} />
                 )}
               </div>
+
+              {/* ── Anexo (boleto, nota fiscal, comprovante) ── */}
+              {onAddFiles && (
+                <CommandAttachButton onAddFiles={onAddFiles} disabled={loading} />
+              )}
 
               {/* ── Mic button ── */}
               <button
@@ -300,10 +327,16 @@ export const CommandInput = forwardRef<
                   unlockAudio();
                   onSubmit();
                 }}
-                disabled={!command.trim() || loading}
+                disabled={
+                  (!command.trim() && attachments.length === 0) ||
+                  loading ||
+                  isUploadingAttachment
+                }
                 className={cn(
                   "w-8 h-8 flex items-center justify-center rounded-lg transition-all",
-                  command.trim() && !loading
+                  (command.trim() || attachments.length > 0) &&
+                    !loading &&
+                    !isUploadingAttachment
                     ? "bg-white text-black hover:bg-zinc-100"
                     : "bg-zinc-800 text-zinc-600 cursor-not-allowed",
                 )}

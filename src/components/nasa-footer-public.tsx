@@ -31,7 +31,7 @@ const NASA_APPS: NasaAppLink[] = [
   { label: "Linnker",        path: "/linnker",       emoji: "🔗" },
   { label: "Forge",          path: "/forge",         emoji: "⚒️" },
   { label: "Payment",        path: "/payment",       emoji: "💳" },
-  { label: "NASA Route",     path: "/nasa-route",    emoji: "🗺️" },
+  { label: "ÓRBITA Route",     path: "/nasa-route",    emoji: "🗺️" },
 ];
 
 export function NasaFooterPublic() {
@@ -55,14 +55,14 @@ export function NasaFooterPublic() {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Image
-              src="/logo-dark.png"
-              alt="N.A.S.A"
+              src="/orbita-logo-dark.svg"
+              alt="ÓRBITA"
               width={36}
               height={36}
               className="rounded"
               priority
             />
-            <span className="font-bold tracking-tight">N.A.S.A</span>
+            <span className="font-bold tracking-tight">ÓRBITA</span>
           </div>
           <p className="text-xs text-white/60">
             © {year} NASAEX Inc. Todos os direitos reservados.

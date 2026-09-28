@@ -7,6 +7,7 @@ interface DashboardState {
   trackingId?: string;
   organizationIds: string[];
   tagIds: string[];
+  statusIds: string[];
   memberIds: string[];
   workspaceIds: string[];
   dateRange: DateRange;
@@ -22,11 +23,13 @@ interface DashboardActions {
   setTrackingId: (trackingId: string) => void;
   setDateRange: (dateRange: DateRange) => void;
   setTagIds: (tagIds: string[]) => void;
+  setStatusIds: (statusIds: string[]) => void;
   setOrganizationIds: (organizationIds: string[]) => void;
   setMemberIds: (memberIds: string[]) => void;
   setWorkspaceIds: (workspaceIds: string[]) => void;
   toggleOrganizationId: (organizationId: string) => void;
   toggleTagId: (tagId: string) => void;
+  toggleStatusId: (statusId: string) => void;
   toggleMemberId: (memberId: string) => void;
   toggleWorkspaceId: (workspaceId: string) => void;
   toggleSection: (section: keyof DashboardSettings["visibleSections"]) => void;
@@ -48,6 +51,7 @@ const defaultSettings: DashboardSettings = {
     byChannel: true,
     byAttendant: true,
     topTags: true,
+    statusConversion: true,
   },
   chartTypes: {
     byStatus: "bar",
@@ -63,6 +67,7 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
       trackingId: undefined,
       organizationIds: [],
       tagIds: [],
+      statusIds: [],
       memberIds: [],
       workspaceIds: [],
       dateRange: { from: undefined, to: undefined },
@@ -72,13 +77,17 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
       rescueSlaHours: 24,
       rescueStuckDays: 7,
 
-      setTrackingId: (trackingId) => set({ trackingId }),
+      // Status é escopado por tracking — trocar de funil (ou de org, que
+      // zera o tracking) precisa limpar `statusIds`, senão o painel filtra
+      // por IDs de outro tracking e mostra 0 em tudo.
+      setTrackingId: (trackingId) => set({ trackingId, statusIds: [] }),
       setDateRange: (dateRange) => set({ dateRange }),
       setTagIds: (tagIds) => set({ tagIds }),
+      setStatusIds: (statusIds) => set({ statusIds }),
       setMemberIds: (memberIds) => set({ memberIds }),
       setWorkspaceIds: (workspaceIds) => set({ workspaceIds }),
       setOrganizationIds: (organizationIds) =>
-        set({ organizationIds, trackingId: undefined }),
+        set({ organizationIds, trackingId: undefined, statusIds: [] }),
 
       toggleMemberId: (memberId) =>
         set((state) => ({
@@ -103,7 +112,7 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
 
       toggleOrganizationId: (organizationId) => {
         if (organizationId === "ALL") {
-          set({ organizationIds: [], trackingId: undefined });
+          set({ organizationIds: [], trackingId: undefined, statusIds: [] });
           return;
         }
 
@@ -116,6 +125,7 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
           return {
             organizationIds: newOrganizationIds,
             trackingId: undefined,
+            statusIds: [],
           };
         });
       },
@@ -125,6 +135,13 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
           tagIds: state.tagIds.includes(tagId)
             ? state.tagIds.filter((id) => id !== tagId)
             : [...state.tagIds, tagId],
+        })),
+
+      toggleStatusId: (statusId) =>
+        set((state) => ({
+          statusIds: state.statusIds.includes(statusId)
+            ? state.statusIds.filter((id) => id !== statusId)
+            : [...state.statusIds, statusId],
         })),
 
       toggleSection: (section) =>
@@ -182,6 +199,7 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
         trackingId: state.trackingId,
         organizationIds: state.organizationIds,
         tagIds: state.tagIds,
+        statusIds: state.statusIds,
         memberIds: state.memberIds,
         workspaceIds: state.workspaceIds,
         selectedModules: state.selectedModules,
@@ -194,6 +212,24 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
         // strings antigas de data armazenadas; ignoramos.
         if (state) {
           state.dateRange = { from: undefined, to: undefined };
+        }
+        // O persist faz merge RASO no topo: o `settings` de um usuário antigo
+        // substitui `defaultSettings` inteiro, então chaves novas de seção
+        // (statusConversion) ficariam `undefined` e o painel sumiria pra
+        // sempre. Reintroduz os defaults por baixo do que foi persistido.
+        if (state) {
+          state.settings = {
+            ...defaultSettings,
+            ...state.settings,
+            visibleSections: {
+              ...defaultSettings.visibleSections,
+              ...state.settings?.visibleSections,
+            },
+            chartTypes: {
+              ...defaultSettings.chartTypes,
+              ...state.settings?.chartTypes,
+            },
+          };
         }
         // Mescla módulos novos que ainda não estão na ordem persistida
         if (state) {

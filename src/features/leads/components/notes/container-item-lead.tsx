@@ -20,10 +20,28 @@ import { TypeAction } from "@/generated/prisma/enums";
 import { ICONS } from "./types";
 import { format } from "date-fns";
 import { SafeContent } from "@/components/rich-text-editor/safe-content";
+import { type JSONContent } from "@tiptap/react";
 import { useListTrackingParticipants } from "@/features/users/use-list-tracking-participants";
 import { useMutationUpdateLeadAction } from "@/features/leads/hooks/use-lead-action";
 import { Input } from "@/components/ui/input";
 import { RichtTextEditor } from "@/components/rich-text-editor/editor";
+
+// Descrição pode vir nula, vazia ou como texto puro (ações criadas fora do
+// editor rico). `JSON.parse("")` lança, então o fallback é um doc vazio.
+function parseDescription(description: string | null): JSONContent {
+  if (!description) return { type: "doc", content: [] };
+
+  try {
+    return JSON.parse(description) as JSONContent;
+  } catch {
+    return {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: description }] },
+      ],
+    };
+  }
+}
 
 export interface User {
   id: string;
@@ -167,7 +185,7 @@ function CardDetails({
               onClick={() => setIsEditDescription(true)}
             >
               <SafeContent
-                content={JSON.parse(description || "")}
+                content={parseDescription(description)}
                 className="block text-sm max-w-none min-h-[125px] focus:outline-none p-4 prose dark:prose-invert marker:text-gray-500 prose-p:my-0 prose-hr:border-gray-400/20"
               />
             </span>

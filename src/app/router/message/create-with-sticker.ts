@@ -20,7 +20,10 @@ import {
   shouldSkipUazapiForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
-import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  mapOutboundError,
+  resolveOutboundProviderOrBadRequest,
+} from "@/features/tracking-chat/lib/providers";
 import { v4 as uuidv4 } from "uuid";
 
 /**
@@ -46,7 +49,7 @@ export const createMessageWithSticker = base
       leadPhone: z.string(),
       /**
        * @deprecated Ignorado pelo servidor desde Fase 6 — provider
-       * resolvido server-side via `resolveOutboundProvider(trackingId)`.
+       * resolvido server-side via `resolveOutboundProviderOrBadRequest(trackingId)`.
        */
       token: z.string().nullish(),
       /** URL do R2 onde a figurinha está salva (key ou URL completa). */
@@ -78,7 +81,7 @@ export const createMessageWithSticker = base
           "Conversation sem trackingId — não é possível resolver provider.",
         );
       }
-      const resolved = await resolveOutboundProvider(conv.trackingId);
+      const resolved = await resolveOutboundProviderOrBadRequest(conv.trackingId);
       try {
         const response = await resolved.provider.sendMedia({
           kind: "media",
@@ -105,7 +108,7 @@ export const createMessageWithSticker = base
             }).catch(() => {});
           }
         }
-        throw err;
+        throw mapOutboundError(err);
       }
     }
 

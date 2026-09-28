@@ -75,7 +75,7 @@ export const MODULE_DEFS: ModuleDef[] = [
   },
   {
     id: "nasa-planner",
-    label: "NASA Planner",
+    label: "ÓRBITA Planner",
     icon: Sparkles,
     color: "text-pink-600",
     bg: "bg-pink-50 dark:bg-pink-950/40",
@@ -165,7 +165,7 @@ export const MODULE_DEFS: ModuleDef[] = [
   },
   {
     id: "nasa-route",
-    label: "NASA Route",
+    label: "ÓRBITA Route",
     icon: MapIcon,
     color: "text-sky-600",
     bg: "bg-sky-50 dark:bg-sky-950/40",

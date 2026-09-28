@@ -81,6 +81,20 @@ export async function publishLeadChanged(payload: {
   });
 }
 
+export async function publishLeadDeleted(payload: {
+  leadId: string;
+  trackingId: string;
+  statusId: string;
+}) {
+  if (!payload.trackingId || !payload.statusId) return;
+
+  await publishBoardEvent(payload.trackingId, "lead-deleted", {
+    ...payload,
+    at: new Date().toISOString(),
+    source: "workflow",
+  });
+}
+
 export async function publishLeadClosed(payload: {
   leadId: string;
   trackingId: string;

@@ -74,13 +74,13 @@ interface PopupTemplateModalProps {
 }
 
 const DEFAULT_SVG_PATTERNS = [
-  { id: "padrao", label: "Padrão NASA", url: "/popup-patterns/padrao.svg" },
+  { id: "padrao", label: "Padrão ÓRBITA", url: "/popup-patterns/padrao.svg" },
 ];
 
 const COLOR_PRESETS = [
   // NASA / Space
   {
-    label: "NASA Purple",
+    label: "ÓRBITA Purple",
     primary: "#7a1fe7",
     accent: "#a855f7",
     bg: "#1a0a3d",

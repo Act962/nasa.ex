@@ -13,7 +13,7 @@ import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbo
 import { MessageChannel, WhatsAppProvider } from "@/generated/prisma/enums";
 import {
   MetaFeatureUnsupportedError,
-  resolveOutboundProvider,
+  resolveOutboundProviderOrBadRequest,
 } from "@/features/tracking-chat/lib/providers";
 
 const buttonSchema = z.object({
@@ -48,7 +48,7 @@ export const createButtonsMessage = base
         leadPhone: z.string(),
         /**
          * @deprecated Ignorado pelo servidor — credenciais Uazapi são
-         * resolvidas via `resolveOutboundProvider(trackingId)`.
+         * resolvidas via `resolveOutboundProviderOrBadRequest(trackingId)`.
          */
         token: z.string().nullish(),
         /** @deprecated Idem. */
@@ -105,7 +105,7 @@ export const createButtonsMessage = base
     // deletada, credenciais inválidas), então cobrar depois evita custo
     // sem envio. `input.token`/`input.baseUrl` mantidos por backward
     // compat mas ignorados — source of truth é o banco.
-    const resolved = await resolveOutboundProvider(conv.trackingId);
+    const resolved = await resolveOutboundProviderOrBadRequest(conv.trackingId);
     if (resolved.providerId !== "uazapi" || !resolved.uazapiToken) {
       // Defesa: o gate META_CLOUD acima já garantiu Uazapi, mas se um
       // provider futuro chegar aqui sem suportar buttons, recusamos.

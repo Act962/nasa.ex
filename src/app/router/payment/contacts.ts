@@ -28,27 +28,41 @@ export const listPaymentContacts = base
   .input(z.object({
     search: z.string().optional(),
     contactType: z.string().optional(),
+    page: z.number().default(1),
+    // Default alto de propósito: os seletores de contato do formulário de
+    // lançamento consomem esta mesma procedure e esperam a lista inteira.
+    // A aba Contatos passa `perPage` explícito e pagina.
+    perPage: z.number().default(500),
   }))
-  .output(z.object({ contacts: z.array(contactShape) }))
+  .output(z.object({ contacts: z.array(contactShape), total: z.number() }))
   .handler(async ({ input, context, errors }) => {
     try {
-      const contacts = await prisma.paymentContact.findMany({
-        where: {
-          organizationId: context.org.id,
-          isActive: true,
-          ...(input.contactType ? { contactType: input.contactType } : {}),
-          ...(input.search
-            ? { OR: [
-                { name: { contains: input.search, mode: "insensitive" } },
-                { document: { contains: input.search, mode: "insensitive" } },
-                { email: { contains: input.search, mode: "insensitive" } },
-              ]}
-            : {}),
-        },
-        orderBy: { name: "asc" },
-      });
-      return { contacts };
-    } catch {
+      const where = {
+        organizationId: context.org.id,
+        isActive: true,
+        ...(input.contactType ? { contactType: input.contactType } : {}),
+        ...(input.search
+          ? { OR: [
+              { name: { contains: input.search, mode: "insensitive" as const } },
+              { document: { contains: input.search, mode: "insensitive" as const } },
+              { email: { contains: input.search, mode: "insensitive" as const } },
+              { phone: { contains: input.search, mode: "insensitive" as const } },
+            ]}
+          : {}),
+      };
+
+      const [contacts, total] = await Promise.all([
+        prisma.paymentContact.findMany({
+          where,
+          orderBy: { name: "asc" },
+          skip: (input.page - 1) * input.perPage,
+          take: input.perPage,
+        }),
+        prisma.paymentContact.count({ where }),
+      ]);
+      return { contacts, total };
+    } catch (err) {
+      console.error("[payment/contacts/listPaymentContacts]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -97,14 +111,18 @@ export const updatePaymentContact = base
   }))
   .output(z.object({ contact: contactShape }))
   .handler(async ({ input, context, errors }) => {
+    const exists = await prisma.paymentContact.findFirst({
+      where: { id: input.id, organizationId: context.org.id },
+      select: { id: true },
+    });
+    if (!exists) throw errors.NOT_FOUND({ message: "Contato não encontrado" });
+
     try {
       const { id, ...data } = input;
-      const contact = await prisma.paymentContact.update({
-        where: { id, organizationId: context.org.id },
-        data,
-      });
+      const contact = await prisma.paymentContact.update({ where: { id }, data });
       return { contact };
-    } catch {
+    } catch (err) {
+      console.error("[payment/contacts/update]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
@@ -117,13 +135,20 @@ export const deletePaymentContact = base
   .input(z.object({ id: z.string() }))
   .output(z.object({ ok: z.boolean() }))
   .handler(async ({ input, context, errors }) => {
+    const exists = await prisma.paymentContact.findFirst({
+      where: { id: input.id, organizationId: context.org.id },
+      select: { id: true },
+    });
+    if (!exists) throw errors.NOT_FOUND({ message: "Contato não encontrado" });
+
     try {
       await prisma.paymentContact.update({
-        where: { id: input.id, organizationId: context.org.id },
+        where: { id: input.id },
         data: { isActive: false },
       });
       return { ok: true };
-    } catch {
+    } catch (err) {
+      console.error("[payment/contacts/delete]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });

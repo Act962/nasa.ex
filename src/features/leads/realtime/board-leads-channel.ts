@@ -61,6 +61,15 @@ export type BoardLeadsEvents = {
     at: string;
     source: "workflow";
   };
+  // Lead removido do board (ex.: consumido numa mesclagem) — a coluna de
+  // origem refetcha e o card some.
+  "lead-deleted": {
+    leadId: string;
+    trackingId: string;
+    statusId: string;
+    at: string;
+    source: "workflow";
+  };
 };
 
 export type BoardLeadsEventName = keyof BoardLeadsEvents;

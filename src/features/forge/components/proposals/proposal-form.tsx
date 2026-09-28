@@ -40,12 +40,7 @@ import {
   parseNumericString,
   formatNumericForInput,
 } from "@/utils/mask-number";
-import {
-  maskMoney,
-  formatDecimalToMoney,
-} from "@/utils/mask-money";
-import { TemplatePicker } from "./template-picker";
-import { type TemplateId } from "../public/proposal-templates";
+import { maskMoney, formatDecimalToMoney } from "@/utils/mask-money";
 
 const GATEWAYS = [
   { value: "STRIPE", label: "Stripe" },
@@ -68,15 +63,18 @@ const schema = z.object({
   discountType: z.enum(["PERCENTUAL", "FIXO"]).optional(),
   paymentLink: z.string().optional(),
   paymentGateway: z.string().optional(),
-  template: z.enum(["modern", "clean", "corporate", "bold", "premium"]).default("modern"),
-  products: z.array(z.object({
-    productId: z.string().min(1, "Selecione um produto"),
-    quantity: z.string().default("1"),
-    unitValue: z.string().default("0"),
-    discount: z.string().optional(),
-    description: z.string().optional(),
-    order: z.number().default(0),
-  })).default([]),
+  products: z
+    .array(
+      z.object({
+        productId: z.string().min(1, "Selecione um produto"),
+        quantity: z.string().default("1"),
+        unitValue: z.string().default("0"),
+        discount: z.string().optional(),
+        description: z.string().optional(),
+        order: z.number().default(0),
+      }),
+    )
+    .default([]),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -94,7 +92,9 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
   const { data: productsData } = useForgeProducts();
   // Load existing proposal if editing
   const { data: existingData } = useQuery({
-    ...orpc.forge.proposals.get.queryOptions({ input: { id: proposalId ?? "" } }),
+    ...orpc.forge.proposals.get.queryOptions({
+      input: { id: proposalId ?? "" },
+    }),
     enabled: !!proposalId,
   });
 
@@ -113,11 +113,15 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
       responsibleId: currentUserId,
       products: [],
       discountType: "PERCENTUAL",
-      template: "modern",
     },
   });
 
-  const { fields, append, remove, update: updateField } = useFieldArray({
+  const {
+    fields,
+    append,
+    remove,
+    update: updateField,
+  } = useFieldArray({
     control: form.control,
     name: "products",
   });
@@ -132,19 +136,16 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
   useEffect(() => {
     if (existingData?.proposal) {
       const p = existingData.proposal;
-      const VALID_TEMPLATES = ["modern", "clean", "corporate", "bold", "premium"] as const;
-      const savedTemplate = (p.headerConfig as { template?: string } | null)?.template;
-      const template = VALID_TEMPLATES.includes(savedTemplate as typeof VALID_TEMPLATES[number])
-        ? (savedTemplate as typeof VALID_TEMPLATES[number])
-        : "modern";
-
-      const discountType = (p.discountType as "PERCENTUAL" | "FIXO") ?? "PERCENTUAL";
+      const discountType =
+        (p.discountType as "PERCENTUAL" | "FIXO") ?? "PERCENTUAL";
 
       form.reset({
         title: p.title,
         clientId: p.clientId ?? undefined,
         responsibleId: p.responsibleId,
-        validUntil: p.validUntil ? new Date(p.validUntil).toISOString().split("T")[0] : undefined,
+        validUntil: p.validUntil
+          ? new Date(p.validUntil).toISOString().split("T")[0]
+          : undefined,
         description: p.description ?? undefined,
         discount: p.discount
           ? discountType === "FIXO"
@@ -154,15 +155,25 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
         discountType,
         paymentLink: p.paymentLink ?? undefined,
         paymentGateway: p.paymentGateway ?? undefined,
-        template,
-        products: p.products.map((pp: { productId: string; quantity: string; unitValue: string; discount: string | null; description: string | null; order: number }) => ({
-          productId: pp.productId,
-          quantity: formatNumericForInput(pp.quantity),
-          unitValue: formatDecimalToMoney(pp.unitValue),
-          discount: pp.discount ? formatDecimalToMoney(pp.discount) : undefined,
-          description: pp.description ?? undefined,
-          order: pp.order,
-        })),
+        products: p.products.map(
+          (pp: {
+            productId: string;
+            quantity: string;
+            unitValue: string;
+            discount: string | null;
+            description: string | null;
+            order: number;
+          }) => ({
+            productId: pp.productId,
+            quantity: formatNumericForInput(pp.quantity),
+            unitValue: formatDecimalToMoney(pp.unitValue),
+            discount: pp.discount
+              ? formatDecimalToMoney(pp.discount)
+              : undefined,
+            description: pp.description ?? undefined,
+            order: pp.order,
+          }),
+        ),
       });
     }
   }, [existingData]);
@@ -188,32 +199,36 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
 
   const total = subtotal - discountAmount;
 
-  const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fmt = (n: number) =>
+    n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const onSubmit = async (data: FormData) => {
     try {
-      // Persist template inside headerConfig JSON field (no schema migration needed)
-      const headerConfig = { template: data.template ?? "modern" };
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { template: _tpl, ...rest } = data;
+      const rest = data;
       // Garante que valores numéricos (quantidade, valor unit., descontos)
       // cheguem ao backend sem caracteres especiais — os campos Decimal do
       // Prisma quebram em runtime se receberem algo além de dígitos/ponto.
       const sanitized = {
         ...rest,
-        discount: rest.discount ? sanitizeNumericString(rest.discount) : rest.discount,
+        discount: rest.discount
+          ? sanitizeNumericString(rest.discount)
+          : rest.discount,
         products: rest.products.map((product) => ({
           ...product,
           quantity: sanitizeNumericString(product.quantity),
           unitValue: sanitizeNumericString(product.unitValue),
-          discount: product.discount ? sanitizeNumericString(product.discount) : product.discount,
+          discount: product.discount
+            ? sanitizeNumericString(product.discount)
+            : product.discount,
         })),
       };
       if (proposalId) {
-        await update.mutateAsync({ id: proposalId, ...sanitized, headerConfig });
+        await update.mutateAsync({ id: proposalId, ...sanitized });
         toast.success("Proposta atualizada");
       } else {
-        await create.mutateAsync({ ...sanitized, headerConfig } as Parameters<typeof create.mutateAsync>[0]);
+        await create.mutateAsync(
+          sanitized as Parameters<typeof create.mutateAsync>[0],
+        );
         toast.success("Proposta criada");
       }
       onClose();
@@ -261,7 +276,12 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
   };
 
   const handleAddProduct = () => {
-    append({ productId: "", quantity: "1", unitValue: "", order: fields.length });
+    append({
+      productId: "",
+      quantity: "1",
+      unitValue: "",
+      order: fields.length,
+    });
   };
 
   const handleSelectProduct = (index: number, productId: string) => {
@@ -295,17 +315,31 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{proposalId ? "Editar Proposta" : "Nova Proposta"}</DialogTitle>
+          <DialogTitle>
+            {proposalId ? "Editar Proposta" : "Nova Proposta"}
+          </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 min-w-0">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-6 min-w-0"
+        >
           {/* Identificação */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Identificação</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Identificação
+            </h3>
             <div className="space-y-1.5">
               <Label>Título *</Label>
-              <Input {...form.register("title")} placeholder="Ex: Proposta de Social Media — Janeiro 2026" />
-              {form.formState.errors.title && <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>}
+              <Input
+                {...form.register("title")}
+                placeholder="Ex: Proposta de Social Media — Janeiro 2026"
+              />
+              {form.formState.errors.title && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.title.message}
+                </p>
+              )}
             </div>
           </div>
 
@@ -313,7 +347,9 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
 
           {/* Responsável + Validade */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Responsável e Validade</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Responsável e Validade
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Responsável *</Label>
@@ -325,9 +361,13 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {(orgMembers?.members ?? []).map((m: { id: string; name: string }) => (
-                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                    ))}
+                    {(orgMembers?.members ?? []).map(
+                      (m: { id: string; name: string }) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name}
+                        </SelectItem>
+                      ),
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -342,7 +382,9 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
 
           {/* Descrição */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Descrição</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Descrição
+            </h3>
             <Textarea
               {...form.register("description")}
               placeholder="Descreva os detalhes da proposta..."
@@ -353,19 +395,19 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
 
           <Separator />
 
-          {/* Template da proposta */}
-          <TemplatePicker
-            value={(form.watch("template") as TemplateId) ?? "modern"}
-            onChange={(id) => form.setValue("template", id)}
-          />
-
-          <Separator />
-
           {/* Produtos */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Produtos / Serviços</h3>
-              <Button type="button" variant="outline" size="sm" onClick={handleAddProduct} className="gap-1.5">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Produtos / Serviços
+              </h3>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddProduct}
+                className="gap-1.5"
+              >
                 <Plus className="size-3.5" /> Adicionar
               </Button>
             </div>
@@ -378,7 +420,10 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
             ) : (
               <div className="space-y-2">
                 {fields.map((field, index) => (
-                  <div key={field.id} className="grid grid-cols-[1fr_80px_100px_80px_32px] gap-2 items-start">
+                  <div
+                    key={field.id}
+                    className="grid grid-cols-[1fr_80px_100px_80px_32px] gap-2 items-start"
+                  >
                     <div className="min-w-0">
                       <Select
                         value={form.watch(`products.${index}.productId`)}
@@ -411,9 +456,13 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
                       {...form.register(`products.${index}.quantity`)}
                       value={form.watch(`products.${index}.quantity`) ?? ""}
                       onChange={(e) =>
-                        form.setValue(`products.${index}.quantity`, maskNumber(e.target.value), {
-                          shouldDirty: true,
-                        })
+                        form.setValue(
+                          `products.${index}.quantity`,
+                          maskNumber(e.target.value),
+                          {
+                            shouldDirty: true,
+                          },
+                        )
                       }
                       placeholder="Qtd"
                       type="text"
@@ -424,9 +473,13 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
                       {...form.register(`products.${index}.unitValue`)}
                       value={form.watch(`products.${index}.unitValue`) ?? ""}
                       onChange={(e) =>
-                        form.setValue(`products.${index}.unitValue`, maskMoney(e.target.value), {
-                          shouldDirty: true,
-                        })
+                        form.setValue(
+                          `products.${index}.unitValue`,
+                          maskMoney(e.target.value),
+                          {
+                            shouldDirty: true,
+                          },
+                        )
                       }
                       placeholder="R$ 0,00"
                       type="text"
@@ -437,16 +490,26 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
                       {...form.register(`products.${index}.discount`)}
                       value={form.watch(`products.${index}.discount`) ?? ""}
                       onChange={(e) =>
-                        form.setValue(`products.${index}.discount`, maskMoney(e.target.value), {
-                          shouldDirty: true,
-                        })
+                        form.setValue(
+                          `products.${index}.discount`,
+                          maskMoney(e.target.value),
+                          {
+                            shouldDirty: true,
+                          },
+                        )
                       }
                       placeholder="R$ 0,00"
                       type="text"
                       inputMode="numeric"
                       className="text-xs h-8"
                     />
-                    <Button type="button" size="icon" variant="ghost" className="size-8 text-destructive" onClick={() => remove(index)}>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 text-destructive"
+                      onClick={() => remove(index)}
+                    >
                       <Trash2 className="size-3.5" />
                     </Button>
                   </div>
@@ -454,28 +517,50 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
 
                 {/* Column labels */}
                 <div className="grid grid-cols-[1fr_80px_100px_80px_32px] gap-2 text-[10px] text-muted-foreground px-0.5">
-                  <span>Produto</span><span>Qtd</span><span>Valor unit.</span><span>Desc. item</span><span />
+                  <span>Produto</span>
+                  <span>Qtd</span>
+                  <span>Valor unit.</span>
+                  <span>Desc. item</span>
+                  <span />
                 </div>
 
                 {/* Totals */}
                 <div className="border-t pt-3 space-y-1 text-sm">
                   <div className="flex justify-between gap-2 text-muted-foreground">
                     <span className="shrink-0">Subtotal</span>
-                    <span className="min-w-0 truncate text-right">{fmt(subtotal)}</span>
+                    <span className="min-w-0 truncate text-right">
+                      {fmt(subtotal)}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground flex-1">Desconto geral</span>
+                    <span className="text-muted-foreground flex-1">
+                      Desconto geral
+                    </span>
                     <div className="flex gap-1 items-center">
                       <button
                         type="button"
                         onClick={() => handleDiscountTypeChange("PERCENTUAL")}
-                        className={cn("px-2 py-0.5 rounded text-[11px] border", form.watch("discountType") === "PERCENTUAL" ? "bg-[#7C3AED] text-white border-[#7C3AED]" : "border-border")}
-                      >%</button>
+                        className={cn(
+                          "px-2 py-0.5 rounded text-[11px] border",
+                          form.watch("discountType") === "PERCENTUAL"
+                            ? "bg-[#7C3AED] text-white border-[#7C3AED]"
+                            : "border-border",
+                        )}
+                      >
+                        %
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleDiscountTypeChange("FIXO")}
-                        className={cn("px-2 py-0.5 rounded text-[11px] border", form.watch("discountType") === "FIXO" ? "bg-[#7C3AED] text-white border-[#7C3AED]" : "border-border")}
-                      >R$</button>
+                        className={cn(
+                          "px-2 py-0.5 rounded text-[11px] border",
+                          form.watch("discountType") === "FIXO"
+                            ? "bg-[#7C3AED] text-white border-[#7C3AED]"
+                            : "border-border",
+                        )}
+                      >
+                        R$
+                      </button>
                       <Input
                         {...form.register("discount")}
                         value={form.watch("discount") ?? ""}
@@ -491,14 +576,22 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
                         type="text"
                         inputMode="numeric"
                         className="w-24 h-7 text-xs"
-                        placeholder={form.watch("discountType") === "FIXO" ? "R$ 0,00" : "0%"}
+                        placeholder={
+                          form.watch("discountType") === "FIXO"
+                            ? "R$ 0,00"
+                            : "0%"
+                        }
                       />
                     </div>
-                    <span className="max-w-[7rem] shrink-0 truncate text-right">{fmt(discountAmount)}</span>
+                    <span className="max-w-[7rem] shrink-0 truncate text-right">
+                      {fmt(discountAmount)}
+                    </span>
                   </div>
                   <div className="flex justify-between gap-2 font-bold text-[#7C3AED] text-base border-t pt-1">
                     <span className="shrink-0">Total</span>
-                    <span className="min-w-0 truncate text-right">{fmt(total)}</span>
+                    <span className="min-w-0 truncate text-right">
+                      {fmt(total)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -509,7 +602,9 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
 
           {/* Pagamento */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Pagamento</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Pagamento
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Gateway de Pagamento</Label>
@@ -522,7 +617,9 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
                   </SelectTrigger>
                   <SelectContent>
                     {GATEWAYS.map((g) => (
-                      <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                      <SelectItem key={g.value} value={g.value}>
+                        {g.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -530,7 +627,11 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
               <div className="space-y-1.5">
                 <Label>Link de Pagamento</Label>
                 <div className="flex gap-2">
-                  <Input {...form.register("paymentLink")} placeholder="https://pay.stripe.com/..." className="flex-1" />
+                  <Input
+                    {...form.register("paymentLink")}
+                    placeholder="https://pay.stripe.com/..."
+                    className="flex-1"
+                  />
                   {proposalId && (
                     <Button
                       type="button"
@@ -541,15 +642,18 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
                       onClick={handleGenerateLink}
                       disabled={generatingLink || !form.watch("paymentGateway")}
                     >
-                      {generatingLink
-                        ? <Loader2 className="size-4 animate-spin" />
-                        : <Link2 className="size-4" />}
+                      {generatingLink ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Link2 className="size-4" />
+                      )}
                     </Button>
                   )}
                 </div>
                 {proposalId && (
                   <p className="text-[11px] text-muted-foreground">
-                    Clique em <Link2 className="inline size-3" /> para gerar automaticamente via gateway configurado.
+                    Clique em <Link2 className="inline size-3" /> para gerar
+                    automaticamente via gateway configurado.
                   </p>
                 )}
               </div>
@@ -557,7 +661,9 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
             <Button
               type="submit"
               disabled={isPending}

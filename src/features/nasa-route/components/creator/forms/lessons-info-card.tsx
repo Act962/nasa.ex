@@ -20,7 +20,7 @@ export function LessonsInfoCard({ isEdit }: { isEdit: boolean }) {
           </p>
           <p className="text-xs text-blue-800/80 dark:text-blue-300/80">
             Vídeos podem vir de YouTube ou Vimeo (cole o link da aula). O aluno
-            assiste no player do NASA Route com tracking de progresso.
+            assiste no player do ÓRBITA Route com tracking de progresso.
           </p>
         </div>
       </div>

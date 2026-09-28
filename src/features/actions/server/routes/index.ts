@@ -1,5 +1,8 @@
 import { createAction } from "./create";
 import { getAction } from "./get";
+import { listActionForms } from "./forms/list-forms";
+import { attachFormToAction } from "./forms/attach-form";
+import { detachFormFromAction } from "./forms/detach-form";
 import { listActionByColumn } from "./list-action-by-column";
 import { listActionByWorkspace } from "./list-action-by-workspace";
 import { searchActions } from "./search-actions";
@@ -45,6 +48,11 @@ export const actionRoutes = {
   searchActions,
   reorder: reorderAction,
   get: getAction,
+  forms: {
+    list: listActionForms,
+    attach: attachFormToAction,
+    detach: detachFormFromAction,
+  },
   update: updateAction,
   toggleDone,
   delete: deleteAction,

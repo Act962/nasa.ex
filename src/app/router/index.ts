@@ -33,6 +33,7 @@ import { adminRouter } from "./admin";
 import { userNotificationsRouter } from "./user-notifications";
 import { userChatPreferencesRoutes } from "./user-chat-preferences";
 import { alertsRouter } from "./alerts";
+import { pushRouter } from "./push";
 import { sidebarPrefsRouter } from "./sidebar-prefs";
 import { spacePointRouter } from "./space-point";
 import { userRouter } from "./user";
@@ -71,6 +72,9 @@ import { inChatRouter } from "./in-chat";
 import { workflowClipboardRouter } from "./workflow-clipboard";
 import { astroBotRouter } from "./astro-bot";
 import { whatsappAnalyticsRouter } from "./whatsapp-analytics";
+import { campanhasRouter } from "./campanhas";
+import { trafegoRouter } from "./trafego";
+import { seiRouter } from "./sei";
 
 export const router = {
   tracking: trackingRoutes,
@@ -111,6 +115,7 @@ export const router = {
   userNotifications: userNotificationsRouter,
   userChatPreferences: userChatPreferencesRoutes,
   alerts: alertsRouter,
+  push: pushRouter,
   sidebarPrefs: sidebarPrefsRouter,
   spacePoint: spacePointRouter,
   user: userRouter,
@@ -140,7 +145,8 @@ export const router = {
     .use(appRouterPermission("nerp", { skipPathSegments: ["catalogIntegration", "disconnect", "getConnectionStatus"] }))
     .router(nerpRouter),
   starFriends: starFriendsRouter,
-  commentsApp: base.use(appRouterPermission("comments")).router(commentsRouter),
+  /** App COMMENTS — automações de Instagram nativas (spec 0024). */
+  comments: base.use(appRouterPermission("comments")).router(commentsRouter),
   livekit: livekitRouter,
   stickers: stickersRouter,
   brand: brandRouter,
@@ -149,4 +155,9 @@ export const router = {
   workflowClipboard: workflowClipboardRouter,
   /** Analytics do WhatsApp Oficial (Meta Cloud) — mensagens/conversas/custo. */
   whatsappAnalytics: whatsappAnalyticsRouter,
+  /** Campanhas — disparos WhatsApp API Oficial (MM API). Ver docs/campanhas-overview.md. */
+  campanhas: campanhasRouter,
+  trafego: trafegoRouter,
+  /** Integração com processos administrativos do SEI por lead. */
+  sei: seiRouter,
 };

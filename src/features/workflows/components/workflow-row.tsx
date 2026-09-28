@@ -20,14 +20,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   AlertTriangleIcon,
+  CopyIcon,
   FolderInputIcon,
   MoreVerticalIcon,
   WorkflowIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { DuplicateWorkflowDialog } from "./duplicate-workflow-dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -54,6 +56,7 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
   const { data: foldersData } = useWorkflowFolders(trackingId);
   const moveToFolder = useMoveWorkflowToFolder(trackingId);
   const updateIsActive = useUpdateWorkflowIsActive(trackingId);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
 
   const { labels, total } = getWorkflowStepsPreview(
     workflow.nodes,
@@ -224,6 +227,11 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onSelect={() => setDuplicateOpen(true)}>
+              <CopyIcon className="size-3.5" />
+              Duplicar automação
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs flex items-center gap-1.5">
               <FolderInputIcon className="size-3.5" />
               Mover para
@@ -270,6 +278,14 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
           </Link>
         </Button>
       </ItemActions>
+
+      <DuplicateWorkflowDialog
+        open={duplicateOpen}
+        onOpenChange={setDuplicateOpen}
+        workflowId={workflow.id}
+        workflowName={workflow.name}
+        currentTrackingId={trackingId}
+      />
     </Item>
   );
 }

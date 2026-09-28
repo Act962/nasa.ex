@@ -21,6 +21,23 @@ export interface AgentContext {
    * membro. Ver `resolveTargetOrgs`. Ausente no Cmd+K in-app (multi-org).
    */
   restrictToOrgId?: string;
+  /**
+   * Arquivos que o usuário anexou NESTA mensagem (spec 0014, D-3). Já são
+   * `PaymentAttachment` da org — a rota valida a posse antes de montar o ctx.
+   */
+  attachments?: AstroAttachmentRef[];
+  /** Sessão do chat, guardada nas propostas pendentes para auditoria. */
+  sessionId?: string;
+  /** Por onde a conversa chegou — define o TTL da proposta e o formato da confirmação. */
+  channel?: "CHAT" | "WHATSAPP";
+}
+
+/** Referência a um anexo financeiro já enviado ao storage. */
+export interface AstroAttachmentRef {
+  attachmentId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes?: number;
 }
 
 /**

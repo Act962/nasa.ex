@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { ClaimResponseClient } from "./client";
 
 export const metadata: Metadata = {
-  title: "Responder reivindicação · NASA",
+  title: "Responder reivindicação · ÓRBITA",
   robots: { index: false, follow: false },
 };
 

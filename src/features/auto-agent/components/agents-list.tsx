@@ -23,7 +23,7 @@ export function AgentsList({ trackingId }: { trackingId?: string }) {
         <div>
           <div className="flex items-center gap-2 text-emerald-600 text-xs font-semibold uppercase tracking-wide">
             <SparklesIcon className="size-3.5" />
-            NASA Auto Agent
+            ÓRBITA Auto Agent
           </div>
           <h1 className="text-2xl font-bold mt-1">Agentes IA</h1>
           <p className="text-sm text-muted-foreground max-w-2xl mt-0.5">

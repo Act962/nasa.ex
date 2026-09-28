@@ -60,20 +60,24 @@ export function CoverImageField({ coverImage, onUpdate, disabled }: Props) {
             className="w-full h-20 object-cover rounded-md"
           />
           {!disabled && (
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+            <div className="absolute top-1 right-1 flex items-center gap-1">
               <Button
+                type="button"
                 size="sm"
                 variant="secondary"
-                className="h-6 text-xs px-2"
+                className="h-6 text-xs px-2 shadow-md"
                 onClick={() => setEditing(true)}
               >
                 Alterar
               </Button>
               <Button
+                type="button"
                 size="icon"
                 variant="destructive"
-                className="size-6"
+                className="size-6 shadow-md"
                 onClick={() => handleUpdate(null)}
+                aria-label="Remover capa"
+                title="Remover capa"
               >
                 <XIcon className="size-3" />
               </Button>

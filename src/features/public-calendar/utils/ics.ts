@@ -40,7 +40,7 @@ export function buildIcs(event: IcsEvent): string {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//NASA.ex//Calendario Publico//PT-BR",
+    "PRODID:-//ÓRBITA.ex//Calendario Publico//PT-BR",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",

@@ -1,6 +1,6 @@
+import { meter } from "@/features/stars/lib/metering";
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { debitStars } from "@/features/stars/lib/star-service";
 import { StarTransactionType } from "@/generated/prisma/enums";
 
 function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
@@ -45,7 +45,7 @@ async function callPollinationsJSON<T>(prompt: string, fallback: T): Promise<T> 
 
 function generateCompanyCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "NASA-";
+  let code = "ÓRBITA-";
   for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
   return code;
 }
@@ -163,7 +163,13 @@ Responda APENAS com este JSON:
     // 6. Criar campanha no banco
     const { campaignId, companyCode } = await step.run("create-campaign", async () => {
       // Debit stars (best-effort)
-      await debitStars(process.organizationId, 1, StarTransactionType.APP_CHARGE, "Campanha automática de onboarding", "nasa-planner", "system").catch(() => {});
+      await meter({
+        organizationId: process.organizationId,
+        action: "planner_campaign_create",
+        appSlug: "nasa-planner",
+        description: "Campanha automática de onboarding",
+        feature: "onboarding.campanha",
+      }).catch(() => {});
 
       // Gerar company code único
       let code = generateCompanyCode();

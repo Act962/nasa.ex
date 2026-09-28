@@ -2,6 +2,7 @@
 
 import {
   CalendarIcon,
+  ListChecksIcon,
   PlusIcon,
   SettingsIcon,
   TagIcon,
@@ -27,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { DateRange } from "@/features/insights/types";
 import { useTags } from "@/features/tags/hooks/use-tags";
+import { useStatus } from "@/features/status/hooks/use-status";
 import {
   Tooltip,
   TooltipContent,
@@ -56,6 +58,12 @@ interface DashboardFiltersProps {
   onOrganizationToggle: (id: string) => void;
   showTrackingFilter?: boolean;
   showTagsFilter?: boolean;
+
+  // Filtro por status do funil — mesma condição de exibição do filtro de
+  // tags (só faz sentido com um tracking específico selecionado).
+  statusIds?: string[];
+  onStatusToggle?: (statusId: string) => void;
+  showStatusFilter?: boolean;
 
   organizationOptions: { id: string; name: string }[];
   onTagToggle: (tagId: string) => void;
@@ -90,12 +98,21 @@ export function DashboardFilters({
   onWorkspaceToggle,
   showTrackingFilter = true,
   showTagsFilter = true,
+  statusIds = [],
+  onStatusToggle,
+  showStatusFilter = false,
   memberIds = [],
   memberOptions = [],
   onMemberToggle,
   showMembersFilter = false,
 }: DashboardFiltersProps) {
   const { tags: allTags } = useTags({ trackingId });
+  // Status é escopado por tracking — `status.listSimple` exige trackingId.
+  // Com "Todos os Trackings" não há lista; o botão renderiza desabilitado.
+  const isSpecificTracking = Boolean(trackingId) && trackingId !== "ALL";
+  const { status: trackingStatuses } = useStatus(
+    isSpecificTracking ? trackingId! : "",
+  );
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -230,6 +247,15 @@ export function DashboardFilters({
           </div>
         )}
 
+        {showStatusFilter && onStatusToggle && (
+          <AddStatusFilterButton
+            statuses={trackingStatuses}
+            selectedStatusIds={statusIds}
+            onStatusToggle={onStatusToggle}
+            disabled={!isSpecificTracking}
+          />
+        )}
+
         {showMembersFilter && onMemberToggle && (
           <MembersFilterButton
             options={memberOptions}
@@ -323,6 +349,108 @@ function AddTagFilterButton({
         onOpenChange={setOpenTagModal}
       />
     </>
+  );
+}
+
+interface StatusFilterOption {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
+function AddStatusFilterButton({
+  statuses,
+  selectedStatusIds,
+  onStatusToggle,
+  disabled,
+}: {
+  statuses: StatusFilterOption[];
+  selectedStatusIds: string[];
+  onStatusToggle: (id: string) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (disabled) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span tabIndex={0}>
+            <Button variant="outline" disabled>
+              <ListChecksIcon className="size-4" /> Status
+              <PlusIcon className="h-3 w-3" />
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Selecione um tracking para filtrar por status</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button variant="outline">
+              {selectedStatusIds.length > 0 ? (
+                <>
+                  <ListChecksIcon className="size-4" />{" "}
+                  {selectedStatusIds.length} Selecionados
+                </>
+              ) : (
+                <>
+                  <ListChecksIcon className="size-4" /> Status
+                  <PlusIcon className="h-3 w-3" />
+                </>
+              )}
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Filtrar por status do funil</p>
+        </TooltipContent>
+      </Tooltip>
+      <PopoverContent align="start" className="w-64 p-0">
+        <Command>
+          <CommandInput placeholder="Filtrar status..." />
+          <CommandList>
+            <CommandEmpty>Nenhum status encontrado.</CommandEmpty>
+            <CommandGroup className="max-h-64 overflow-auto">
+              {statuses.map((status) => (
+                <CommandItem
+                  key={status.id}
+                  onSelect={() => onStatusToggle(status.id)}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <Checkbox checked={selectedStatusIds.includes(status.id)} />
+                  <div
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: status.color ?? "#94a3b8" }}
+                  />
+                  <span className="truncate">{status.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+          {selectedStatusIds.length > 0 && (
+            <div className="border-t p-2 flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  selectedStatusIds.forEach((id) => onStatusToggle(id))
+                }
+              >
+                Limpar
+              </Button>
+            </div>
+          )}
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 

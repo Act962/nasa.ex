@@ -14,7 +14,7 @@ export function NasaRouteTab() {
             <p className="text-xs font-medium uppercase tracking-wider text-violet-700 dark:text-violet-300">
               App de membros
             </p>
-            <h2 className="mt-1 text-2xl font-bold tracking-tight">NASA Route</h2>
+            <h2 className="mt-1 text-2xl font-bold tracking-tight">ÓRBITA Route</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Gerencie cursos, acesso livre e vendas dos seus cursos.
             </p>

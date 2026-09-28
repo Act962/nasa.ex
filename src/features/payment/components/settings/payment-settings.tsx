@@ -31,6 +31,9 @@ import {
 } from "../../hooks/use-payment";
 import { CATEGORY_TYPE_LABELS } from "../../lib/format";
 import { toast } from "sonner";
+import { describePaymentError } from "../../lib/describe-error";
+import { Separator } from "@/components/ui/separator";
+import { GoalsSettingsSection } from "./goals-settings-section";
 
 function CategoriesSection() {
   const [showForm, setShowForm] = useState(false);
@@ -49,8 +52,8 @@ function CategoriesSection() {
       await create.mutateAsync({ name, type: catType, color });
       setShowForm(false); setName(""); setColor("#1E90FF");
       toast.success("Categoria criada!");
-    } catch {
-      toast.error("Erro ao criar categoria");
+    } catch (error) {
+      toast.error(describePaymentError(error, "Não foi possível criar a categoria"));
     }
   }
 
@@ -121,6 +124,10 @@ function CategoriesSection() {
 
 export function PaymentSettings() {
   return (
-    <CategoriesSection />
+    <div className="space-y-5">
+      <GoalsSettingsSection />
+      <Separator />
+      <CategoriesSection />
+    </div>
   );
 }

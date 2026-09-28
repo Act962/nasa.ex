@@ -23,6 +23,8 @@ export const upsertBotConfig = base
       quietHoursStart: z.number().int().min(0).max(23).nullable().optional(),
       quietHoursEnd: z.number().int().min(0).max(23).nullable().optional(),
       isActive: z.boolean().default(false),
+      /** Ausente = mantém o valor salvo (clientes antigos não desligam sem querer). */
+      financeEnabled: z.boolean().optional(),
     }),
   )
   .handler(async ({ input, context, errors }) => {
@@ -49,9 +51,12 @@ export const upsertBotConfig = base
 
     const existing = await prisma.organizationBotConfig.findUnique({
       where: { organizationId: context.org.id },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, financeEnabled: true },
     });
     const wasActive = existing?.isActive ?? false;
+    const wasFinanceEnabled = existing?.financeEnabled ?? false;
+    const financeUpdate =
+      input.financeEnabled !== undefined ? { financeEnabled: input.financeEnabled } : {};
 
     const config = await prisma.$transaction(async (tx) => {
       const saved = await tx.organizationBotConfig.upsert({
@@ -62,12 +67,14 @@ export const upsertBotConfig = base
           quietHoursStart: input.quietHoursStart ?? null,
           quietHoursEnd: input.quietHoursEnd ?? null,
           isActive: input.isActive,
+          ...financeUpdate,
         },
         update: {
           maxCmdsPerHour: input.maxCmdsPerHour,
           quietHoursStart: input.quietHoursStart ?? null,
           quietHoursEnd: input.quietHoursEnd ?? null,
           isActive: input.isActive,
+          ...financeUpdate,
         },
       });
 
@@ -108,6 +115,25 @@ export const upsertBotConfig = base
           enabledTrackings: input.enabledTrackingIds.length,
           maxCmdsPerHour: input.maxCmdsPerHour,
         },
+      });
+    }
+
+    if (input.financeEnabled !== undefined && input.financeEnabled !== wasFinanceEnabled) {
+      await logActivity({
+        organizationId: context.org.id,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as { image?: string }).image,
+        appSlug: "tracking",
+        action: input.financeEnabled
+          ? "astro_bot.finance_enabled"
+          : "astro_bot.finance_disabled",
+        actionLabel: input.financeEnabled
+          ? "Ligou o Astro Financeiro pelo WhatsApp"
+          : "Desligou o Astro Financeiro pelo WhatsApp",
+        resource: "Astro pelo WhatsApp",
+        resourceId: config.id,
       });
     }
 

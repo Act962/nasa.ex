@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { sendWorkspaceWorkflowEvent } from "@/inngest/utils";
 import { z } from "zod";
+import { findActionInOrg, isOrgMember } from "../lib/action-access";
 
 export const addParticipant = base
   .use(requiredAuthMiddleware)
@@ -14,7 +15,16 @@ export const addParticipant = base
       userId: z.string(),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
+    const action = await findActionInOrg(input.actionId, context.org.id);
+    if (!action) throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+
+    if (!(await isOrgMember(input.userId, context.org.id))) {
+      throw errors.FORBIDDEN({
+        message: "Usuário não pertence a esta organização",
+      });
+    }
+
     const participant = await prisma.actionsUserParticipant.upsert({
       where: {
         actionId_userId: {

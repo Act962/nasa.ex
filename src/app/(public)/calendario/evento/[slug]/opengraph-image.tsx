@@ -6,7 +6,7 @@ import "dayjs/locale/pt-br";
 dayjs.locale("pt-br");
 
 export const runtime = "nodejs";
-export const alt = "Evento NASA";
+export const alt = "Evento ÓRBITA";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -39,7 +39,7 @@ export default async function OgImage({ params }: { params: { slug: string } }) 
             fontWeight: 700,
           }}
         >
-          Evento NASA 🚀
+          Evento ÓRBITA 🚀
         </div>
       ),
       { ...size },
@@ -118,7 +118,7 @@ export default async function OgImage({ params }: { params: { slug: string } }) 
               opacity: 0.9,
             }}
           >
-            🚀 NASA · Calendário Público
+            🚀 ÓRBITA · Calendário Público
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

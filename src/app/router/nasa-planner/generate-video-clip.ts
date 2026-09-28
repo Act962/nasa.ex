@@ -1,7 +1,8 @@
+import { meterOrThrow } from "@/features/stars/lib/metering";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import { debitStars } from "@/features/stars/lib/star-service";
+import { requireStarsMiddleware } from "@/app/middlewares/require-stars";
 import prisma from "@/lib/prisma";
 import { ORPCError } from "@orpc/server";
 import { IntegrationPlatform, StarTransactionType } from "@/generated/prisma/enums";
@@ -16,6 +17,7 @@ const STARS_VIDEO_RUNWAY = 15; // RunwayML 5s ~$0.25 = R$1.43 × 1.5 ÷ 0.15
 export const generateVideoClip = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
+  .use(requireStarsMiddleware)
   .input(
     z.object({
       postId: z.string(),
@@ -112,13 +114,16 @@ export const generateVideoClip = base
       }),
     );
 
-    const { newBalance: balanceAfter } = await debitStars(
-      context.org.id,
-      starsNeeded,
-      StarTransactionType.APP_CHARGE,
-      `Vídeo IA gerado via ${input.provider} (${input.duration}s)`,
-      "nasa-planner",
-    );
+    const { stars: starsCharged, balanceAfter } = await meterOrThrow({
+      organizationId: context.org.id,
+      action: "planner_video_generate",
+      variant: input.provider,
+      appSlug: "nasa-planner",
+      description: `Vídeo IA gerado via ${input.provider} (${input.duration}s)`,
+      feature: "planner.video.generate",
+      quantity: { unit: "second", amount: input.duration },
+      cost: { kind: "VIDEO", provider: input.provider },
+    });
 
     // Add as slide
     const slideCount = await prisma.nasaPlannerPostSlide.count({ where: { postId: input.postId } });
@@ -126,5 +131,5 @@ export const generateVideoClip = base
       data: { postId: input.postId, videoKey: key, order: slideCount + 1 },
     });
 
-    return { slide, videoKey: key, starsSpent: starsNeeded, balanceAfter };
+    return { slide, videoKey: key, starsSpent: starsCharged, balanceAfter };
   });

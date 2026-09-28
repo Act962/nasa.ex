@@ -12,6 +12,13 @@ import { ChildPropertiesComponentWrapper } from "@/features/form/components/comm
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { allBlockLayouts } from "@/features/form/constants";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
@@ -668,17 +675,25 @@ function RowLayoutPropertiesComponent({
       <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         Alinhamento dos campos
       </div>
-      <select
-        className="w-full border rounded-md h-7 px-2 text-xs bg-transparent"
+      <Select
         value={currentAlign}
-        onChange={(e) => commitRowAlign(e.target.value as RowAlign)}
+        onValueChange={(value) => commitRowAlign(value as RowAlign)}
       >
-        {ROW_ALIGN_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger
+          size="sm"
+          className="w-full"
+          aria-label="Alinhamento dos campos"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {ROW_ALIGN_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <p className="text-[11px] text-muted-foreground leading-tight">
         {ROW_ALIGN_OPTIONS.find((o) => o.value === currentAlign)?.hint}
       </p>

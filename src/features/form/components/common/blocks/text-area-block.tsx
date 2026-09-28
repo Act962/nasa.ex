@@ -21,10 +21,13 @@ import { ChevronDown, LetterTextIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { useForm } from "react-hook-form";
-import { usePrefillValue } from "@/features/form/context/form-prefill-context";
+import {
+  useResolvedInitialValue,
+  type LeadPrefillSource,
+} from "@/features/form/context/form-prefill-context";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "TextArea";
@@ -35,6 +38,8 @@ type attributesType = {
   required: boolean;
   placeHolder: string;
   rows: number;
+  /** Vínculo com o step de identificação (spec 0006). */
+  prefillFromLead?: LeadPrefillSource | null;
 };
 
 type PropertiesValidateSchemaType = z.input<typeof propertiesValidateSchema>;
@@ -132,10 +137,14 @@ function TextAreaFormComponent({
   const block = blockInstance as NewInstance;
   const { label, placeHolder, required, helperText, rows } = block.attributes; // Destructure attributes
 
-  // Pré-preenche com a resposta salva (fluxo edit em /formulario/...).
-  const prefill = usePrefillValue(block.id);
+  // Ordem: resposta salva → identificação → vazio (spec 0006, D-3).
+  const { initialValue: prefill, identityValue } = useResolvedInitialValue(
+    block.id,
+    block.attributes.prefillFromLead ?? null,
+  );
   const [value, setValue] = useState(prefill ?? "");
   const [isError, setIsError] = useState(false);
+  const touchedRef = useRef(false);
 
   // Sincroniza com formVals no mount pra que valores pré-preenchidos
   // façam parte do payload mesmo sem interação do usuário.
@@ -145,6 +154,15 @@ function TextAreaFormComponent({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Acompanha a identificação enquanto o campo não foi editado (D-4).
+  useEffect(() => {
+    if (touchedRef.current) return;
+    if (identityValue === undefined) return;
+    setValue(identityValue);
+    handleBlur?.(block.id, { value: identityValue });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identityValue]);
 
   const validateField = (val: string) => {
     if (required) {
@@ -171,7 +189,10 @@ function TextAreaFormComponent({
         }`}
         style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        onChange={(event) => {
+          touchedRef.current = true;
+          setValue(event.target.value);
+        }}
         onBlur={(event) => {
           const inputValue = event.target.value;
           const isValid = validateField(inputValue);

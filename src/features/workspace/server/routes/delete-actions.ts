@@ -10,12 +10,21 @@ export const deleteActions = base
   .input(z.object({ actionIds: z.array(z.string()) }))
   .handler(async ({ input, context, errors }) => {
     const actions = await prisma.action.findMany({
-      where: { id: { in: input.actionIds } },
+      where: {
+        id: { in: input.actionIds },
+        workspace: { organizationId: context.org.id },
+      },
       select: { id: true, isArchived: true, createdBy: true },
     });
 
+    // Algum id não pertence à org (sumiu do resultado) ou viola a regra de
+    // dono/arquivada → recusa o lote inteiro.
+    if (actions.length !== input.actionIds.length) {
+      throw errors.NOT_FOUND({ message: "Ação não encontrada" });
+    }
+
     const forbidden = actions.find(
-      (a) => !a.isArchived || a.createdBy !== context.user.id,
+      (action) => !action.isArchived || action.createdBy !== context.user.id,
     );
 
     if (forbidden) {
@@ -25,7 +34,10 @@ export const deleteActions = base
     }
 
     await prisma.action.deleteMany({
-      where: { id: { in: input.actionIds } },
+      where: {
+        id: { in: input.actionIds },
+        workspace: { organizationId: context.org.id },
+      },
     });
 
     return { success: true };

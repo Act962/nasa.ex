@@ -40,3 +40,20 @@ export const moneyToDecimalString = (masked: string): string => {
   const cents = unmaskMoney(masked);
   return (cents / 100).toFixed(2);
 };
+
+// Formata um valor em CENTAVOS (ex.: 10000 → "R$ 100,00") como BRL. Diferente
+// de `maskMoney`, divide por 100 SEM remover não-dígitos — então não corrompe
+// valores com casa decimal (ex.: soma `Decimal` que serializa como "1500.5").
+export const formatCentsToMoney = (
+  cents: string | number | null | undefined,
+): string => {
+  const amount = Number(cents) / 100;
+  if (!Number.isFinite(amount)) return "R$ 0,00";
+
+  return amount.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};

@@ -20,7 +20,7 @@ import { Menu, Sparkles } from "lucide-react";
 
 const NAV_LINKS = [
   { href: "/#planos", label: "Planos" },
-  { href: "/#o-que-e-nasa", label: "O que é NASA?" },
+  { href: "/#o-que-e-nasa", label: "O que é ÓRBITA?" },
   { href: "/#como-funciona", label: "Como funciona" },
 ];
 
@@ -96,7 +96,7 @@ export function Navbar() {
               asChild
               className="cursor-pointer bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-xl whitespace-nowrap"
             >
-              <Link href="/home">Entrar no NASA</Link>
+              <Link href="/home">Entrar no ÓRBITA</Link>
             </Button>
           </>
         )}

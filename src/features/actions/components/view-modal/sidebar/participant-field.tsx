@@ -92,9 +92,10 @@ export function ParticipantsField({
             </Avatar>
             <span className="text-xs flex-1 truncate">{r.user.name}</span>
             <Button
+              type="button"
               variant="ghost"
               size="icon"
-              className="size-5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              className="size-5 hover-reveal shrink-0"
               onClick={() => onToggle(r.user.id)}
               disabled={isRemoving}
             >

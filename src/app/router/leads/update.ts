@@ -13,6 +13,7 @@ import {
   type RecordLeadEventInput,
 } from "@/features/leads/lib/history";
 import { computeSlaDeadline } from "@/features/leads/lib/sla";
+import { eventBus } from "@/features/alerts/lib/event-bus";
 
 // 🟦 UPDATE
 export const updateLead = base
@@ -264,6 +265,23 @@ export const updateLead = base
       // o update do lead já commitado.
       if (pendingLeadEvents.length > 0) {
         await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
+      }
+
+      // Alert engine + trafeGO (kanban → pedido). O drag do board e a seleção
+      // em massa já publicam; o select de status do detalhe do lead não publicava.
+      if (isStatusChange) {
+        const trackingOfLead = await prisma.tracking.findUnique({
+          where: { id: result.lead.trackingId },
+          select: { organizationId: true },
+        });
+        await eventBus.publish("lead.status_changed", {
+          leadId: result.lead.id,
+          fromStatusId: leadExists.statusId,
+          toStatusId: result.lead.statusId,
+          orgId: trackingOfLead?.organizationId ?? null,
+          responsibleId: result.lead.responsibleId,
+          actorUserId: context.user.id,
+        });
       }
 
       if (result.workflows && result.workflows.length > 0) {
