@@ -183,6 +183,7 @@ export interface AsaasPayment {
   dueDate:           string | null;
   paymentDate:       string | null;
   invoiceUrl:        string | null;
+  confirmedDate?:    string | null;
   /** Cobrança removida no painel do Asaas. */
   deleted:           boolean;
 }
@@ -245,34 +246,12 @@ export function dueDatePlus(days: number): string {
   return d.toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
-// ─── Payment lookup ───────────────────────────────────────────────────────────
-
-export interface AsaasPayment {
-  id:                string;
-  status:            string;
-  value:             number;
-  netValue?:         number;
-  billingType:       string;
-  invoiceUrl:        string;
-  externalReference: string | null;
-  paymentDate?:      string | null;
-  confirmedDate?:    string | null;
-}
-
 // Status em que o dinheiro já está garantido pra loja.
 export const ASAAS_PAID_STATUSES = new Set([
   "RECEIVED",
   "CONFIRMED",
   "RECEIVED_IN_CASH",
 ]);
-
-export async function getPayment(
-  apiKey: string,
-  env: AsaasEnv,
-  paymentId: string,
-): Promise<AsaasPayment> {
-  return asaasFetch<AsaasPayment>(apiKey, env, `/payments/${paymentId}`);
-}
 
 // ─── Customer by document ─────────────────────────────────────────────────────
 
