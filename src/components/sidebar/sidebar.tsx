@@ -55,7 +55,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       {/* O shadcn tira o scroll no modo recolhido (`overflow-hidden`); com o nome
           embaixo de cada ícone, muitos apps passavam da tela e sumiam. */}
-      <SidebarContent className="group-data-[collapsible=icon]:overflow-auto group-data-[collapsible=icon]:overflow-x-hidden [scrollbar-width:thin]">
+      <SidebarContent className="group-data-[collapsible=icon]:overflow-auto group-data-[collapsible=icon]:overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <NavMenu />
         <SidebarSeparator className="mx-0" />
         {currentOrganization && <WorkspacesItems />}

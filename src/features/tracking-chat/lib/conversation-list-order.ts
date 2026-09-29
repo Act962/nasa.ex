@@ -17,6 +17,8 @@ export const CONVERSATION_SORT_BY = [
   "statusEnteredAt",
   /** `Lead.createdAt` — "Data de chegada". */
   "leadCreatedAt",
+  /** Faixa "sem resposta" primeiro, cada faixa por `lastMessageAt`. */
+  "awaitingReply",
 ] as const;
 
 export type ConversationSortBy = (typeof CONVERSATION_SORT_BY)[number];

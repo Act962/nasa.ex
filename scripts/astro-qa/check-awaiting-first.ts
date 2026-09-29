@@ -3,7 +3,7 @@ import prisma from "../../src/lib/prisma";
 import { loadQaOrg } from "./qa-org";
 import { HttpAstroSession } from "./channels/http-astro";
 
-// Confere "sem resposta primeiro" na lista do chat, com página de 1 item: a
+// Confere a ordenação "Sem resposta primeiro" (opt-in) na lista do chat, com página de 1 item: a
 // conversa que espera resposta vem antes e nenhuma repete ou some entre páginas.
 
 interface ListPage { items: { id: string; lead: { name: string } }[]; nextCursorId?: string; nextCursorValue?: string }
@@ -25,7 +25,7 @@ async function main() {
     let cursor: { cursorId?: string; cursorValue?: string } = {};
     for (let page = 0; page < 20; page++) {
       const response = await session.callRpc<ListPage>("conversation/list", {
-        trackingId: tracking.id, statusId: null, search: null, limit: 1, statusFlows: ["NEW", "ACTIVE", "WAITING", "FINISHED"], ...cursor,
+        trackingId: tracking.id, statusId: null, search: null, limit: 1, statusFlows: ["NEW", "ACTIVE", "WAITING", "FINISHED"], sortBy: "awaitingReply", ...cursor,
       });
       if (!response.body) throw new Error(response.error);
       seen.push(...response.body.items.map((item) => item.id));

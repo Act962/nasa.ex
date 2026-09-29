@@ -39,6 +39,7 @@ export const CONVERSATION_SORT_OPTIONS = [
   { value: "lastMessageAt", label: "Data de interação" },
   { value: "statusEnteredAt", label: "Data de entrada na etapa" },
   { value: "leadCreatedAt", label: "Data de chegada" },
+  { value: "awaitingReply", label: "Sem resposta primeiro" },
 ] as const;
 
 export type ConversationSortBy =
@@ -115,12 +116,13 @@ export function listHasNarrowingFilters(
 /**
  * Indica se uma mensagem nova altera a própria chave de ordenação.
  *
- * Só acontece em `lastMessageAt`. Em `statusEnteredAt` e `leadCreatedAt` a
- * mensagem não muda o campo ordenado, então manter a conversa no lugar é o
+ * Só acontece em `lastMessageAt` e `awaitingReply` (a mensagem também troca
+ * a conversa de faixa). Em `statusEnteredAt` e `leadCreatedAt` a mensagem
+ * não muda o campo ordenado, então manter a conversa no lugar é o
  * comportamento certo e não precisa de refetch.
  */
 export function newMessageChangesSortKey(sortBy: ConversationSortBy): boolean {
-  return sortBy === "lastMessageAt";
+  return sortBy === "lastMessageAt" || sortBy === "awaitingReply";
 }
 
 /**

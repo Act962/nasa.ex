@@ -8,6 +8,7 @@ import { ConversationFilters } from "./conversation-filters";
 import { useConversationFilters } from "../hooks/use-conversation-filters";
 import {
   buildConversationsListQueryKey,
+  DEFAULT_CONVERSATION_SORT_BY,
   listHasNarrowingFilters,
   type ConversationListFilters,
 } from "../lib/conversation-filters-state";
@@ -26,6 +27,7 @@ import {
   MoreHorizontalIcon,
   CheckCircle2Icon,
   CircleDashedIcon,
+  ClockIcon,
   ListFilterIcon,
 } from "lucide-react";
 import {
@@ -113,7 +115,6 @@ export function ConversationsList() {
   const [selectedChannel, setSelectedChannel] = useState<ChannelFilter>("ALL");
   // O canal E-mail não é uma conversa do chat: mostra o painel do Gmail (spec 0030).
   const isEmailChannel = selectedChannel === "EMAIL";
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [archivedOnly, setArchivedOnly] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const debouncedSearch = useDebouncedValue(search, 500);
@@ -125,6 +126,8 @@ export function ConversationsList() {
     statusFlows,
     sortBy,
     sortDirection,
+    setSortBy,
+    favoritesOnly,
     toggleStatusFlow,
     activeCount: filtersActiveCount,
     clearAll: clearAdvancedFilters,
@@ -159,7 +162,6 @@ export function ConversationsList() {
   const clearAllListFilters = () => {
     clearAdvancedFilters();
     setSelectedChannel("ALL");
-    setFavoritesOnly(false);
     setArchivedOnly(false);
     setSelectedTagIds([]);
     setSelectedStatus(null);
@@ -426,13 +428,15 @@ export function ConversationsList() {
                 >
                   <CheckCircle2Icon className="size-3.5" /> Finalizados
                 </DropdownMenuCheckboxItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem
-                  checked={favoritesOnly}
-                  onCheckedChange={(checked) => setFavoritesOnly(!!checked)}
+                  checked={sortBy === "awaitingReply"}
+                  onCheckedChange={(checked) =>
+                    setSortBy(checked ? "awaitingReply" : DEFAULT_CONVERSATION_SORT_BY)
+                  }
                 >
-                  Só favoritas
+                  <ClockIcon className="size-3.5" /> Sem resposta
                 </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem
                   checked={archivedOnly}
                   onCheckedChange={(checked) => setArchivedOnly(!!checked)}
@@ -512,8 +516,6 @@ export function ConversationsList() {
               trackingId={selectedTracking || null}
               selectedChannel={selectedChannel}
               onChannelChange={setSelectedChannel}
-              favoritesOnly={favoritesOnly}
-              onFavoritesOnlyChange={setFavoritesOnly}
               archivedOnly={archivedOnly}
               onArchivedOnlyChange={setArchivedOnly}
               selectedTagIds={selectedTagIds}
@@ -599,6 +601,7 @@ export function ConversationsList() {
                     key={item.id}
                     item={item}
                     unreadCount={(item as any).unreadCount}
+                    highlightAwaitingReply={sortBy === "awaitingReply"}
                     lastMessage={{
                       body: item.lastMessage?.body || null,
                       createdAt: item.lastMessage?.createdAt,

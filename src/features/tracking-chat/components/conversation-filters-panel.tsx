@@ -7,7 +7,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { XIcon } from "lucide-react";
+import { StarIcon, XIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ParticipantsSwitcher } from "@/features/trackings/components/filters/participant-switcher";
 import { StatusFlowFilter } from "@/features/trackings/components/filters/status-flow-filter";
 import { TemperatureFilter } from "@/features/trackings/components/filters/temperature-filter";
@@ -43,6 +44,8 @@ export function ConversationFiltersPanel({
     sortDirection,
     setSortBy,
     setSortDirection,
+    favoritesOnly,
+    setFavoritesOnly,
     activeCount,
     clearAll,
   } = useConversationFilters();
@@ -78,6 +81,19 @@ export function ConversationFiltersPanel({
           <ParticipantsSwitcher trackingId={trackingId} />
           <TemperatureFilter />
           <StatusFlowFilter />
+          <Button
+            variant="outline"
+            size="sm"
+            aria-pressed={favoritesOnly}
+            onClick={() => setFavoritesOnly(!favoritesOnly)}
+            className={cn(
+              "w-full justify-start",
+              favoritesOnly && "border-primary bg-primary/10 text-primary",
+            )}
+          >
+            <StarIcon className={cn("size-4", favoritesOnly && "fill-current")} />
+            Favoritas
+          </Button>
           <ConversationSorter
             sortBy={sortBy}
             sortDirection={sortDirection}

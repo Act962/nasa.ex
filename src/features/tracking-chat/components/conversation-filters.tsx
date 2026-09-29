@@ -33,6 +33,7 @@ import {
 } from "../hooks/use-tracking-chat-email";
 import { ConversationFiltersPanel } from "./conversation-filters-panel";
 import { useConversationFilters } from "../hooks/use-conversation-filters";
+import { DEFAULT_CONVERSATION_SORT_BY } from "../lib/conversation-filters-state";
 import Link from "next/link";
 import { useState, type SVGProps } from "react";
 import { AppNotConnectedDialog } from "@/components/app-not-connected-dialog";
@@ -49,8 +50,6 @@ interface ConversationFiltersProps {
   trackingId: string | null;
   selectedChannel: ChannelFilter;
   onChannelChange: (channel: ChannelFilter) => void;
-  favoritesOnly: boolean;
-  onFavoritesOnlyChange: (value: boolean) => void;
   archivedOnly: boolean;
   onArchivedOnlyChange: (value: boolean) => void;
   selectedTagIds: string[];
@@ -64,16 +63,15 @@ export function ConversationFilters({
   trackingId,
   selectedChannel,
   onChannelChange,
-  favoritesOnly,
-  onFavoritesOnlyChange,
   archivedOnly,
   onArchivedOnlyChange,
   selectedTagIds,
   onSelectedTagIdsChange,
 }: ConversationFiltersProps) {
   const { installedSlugs } = useMarketplace();
-  const { statusFlows, toggleStatusFlow, activeCount } =
+  const { statusFlows, toggleStatusFlow, activeCount, sortBy, setSortBy } =
     useConversationFilters();
+  const isAwaitingReplyFirst = sortBy === "awaitingReply";
 
   // Só canais que o Tracking Chat recebe de verdade. O catálogo tem Telegram,
   // LinkedIn, Slack etc. marcados só no navegador, sem integração por trás, e
@@ -297,10 +295,17 @@ export function ConversationFilters({
           active={statusFlows.includes("ACTIVE")}
           onClick={() => toggleStatusFlow("ACTIVE")}
         />
+        {/* Atalho da ordenação "Sem resposta primeiro" do painel Ordenar. */}
         <QuickFilterButton
-          label="Favoritas"
-          active={favoritesOnly}
-          onClick={() => onFavoritesOnlyChange(!favoritesOnly)}
+          label="Sem resposta"
+          active={isAwaitingReplyFirst}
+          onClick={() =>
+            setSortBy(
+              isAwaitingReplyFirst
+                ? DEFAULT_CONVERSATION_SORT_BY
+                : "awaitingReply",
+            )
+          }
         />
         {/* "Arquivados" é exclusivo — quando ativo, mostra SÓ leads
             arquivados (sai do tracking padrão). UI fica amarela pra

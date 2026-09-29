@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   Building,
   Check,
   ChevronsUpDown,
   GalleryVerticalEnd,
-  Loader2,
   Plus,
 } from "lucide-react";
 
@@ -98,18 +99,16 @@ export function TeamSwitcher() {
 
   return (
     <>
-    {switchingToName && (
+    {/* Portal no body: dentro da sidebar o z-index fica preso ao stacking context dela e headers da página vazam por cima do desfoque. */}
+    {switchingToName && createPortal(
       <div
         role="status"
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md animate-in fade-in-0"
+        className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/40 backdrop-blur-md animate-in fade-in-0"
       >
-        <div className="flex items-center gap-3 rounded-xl border bg-background px-5 py-4 shadow-lg">
-          <Loader2 className="size-5 animate-spin text-primary" />
-          <span className="text-sm">
-            Entrando em <span className="font-semibold">{switchingToName}</span>…
-          </span>
-        </div>
-      </div>
+        <OrbitaSpinner className="size-20 drop-shadow-lg" />
+        <span className="sr-only">Entrando em {switchingToName}…</span>
+      </div>,
+      document.body,
     )}
     <SidebarMenu>
       <SidebarMenuItem>
