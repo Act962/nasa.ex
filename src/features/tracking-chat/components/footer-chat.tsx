@@ -17,6 +17,7 @@ import {
   SendIcon,
   StickerIcon,
   UserPlusIcon,
+  SparklesIcon,
 } from "lucide-react";
 import { EmojiStickerPicker } from "./emoji-sticker-picker";
 import { ComposerActionButton } from "./composer-action-button";
@@ -82,12 +83,16 @@ import { useCustomerWindow } from "../hooks/use-customer-window";
 import { TemplatePicker } from "./template-picker";
 import { FileBadgeIcon } from "lucide-react";
 
+import { StarFriendsRedeemDialog } from "@/features/star-friends/components/star-friends-redeem-dialog";
+import { useStarFriendsPermissions } from "@/features/star-friends/hooks/use-star-friends-permissions";
+
 interface FooterProps {
   conversationId: string;
   lead: {
     id: string;
     name: string;
     phone: string | null;
+    source?: string | null;
   };
   trackingId: string;
 }
@@ -147,6 +152,8 @@ export function Footer({
   const [showButtons, setShowButtons] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
   const [showContact, setShowContact] = useState(false);
+  const [showStarFriends, setShowStarFriends] = useState(false);
+  const starFriendsPermissions = useStarFriendsPermissions();
   const [showBudget, setShowBudget] = useState(false);
   // Dados de pré-preenchimento do BudgetPanel quando vem de um upload
   // regular que a IA detectou como proposta/OS (Phase 3 do fluxo). Reseta
@@ -215,6 +222,9 @@ export function Footer({
   );
 
   const isDisabled = !instance.instance;
+  // Pedido do catálogo NERP: sem WhatsApp, o texto vai pela página do pedido (o servidor decide o canal).
+  const canReplyInPortal = lead.source === "NERP_CATALOG";
+  const isTextDisabled = isDisabled && !canReplyInPortal;
 
   const handleSubmitAudio = async (blob: Blob) => {
     if (!instance.instance) return toast.error("Instância não encontrada");
@@ -263,7 +273,7 @@ export function Footer({
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!instance.instance) return toast.error("Instância não encontrada");
+    if (isTextDisabled) return toast.error("Instância não encontrada");
 
     const messageBody = `*${session?.user.name}*\n${message}`;
 
@@ -718,6 +728,18 @@ export function Footer({
                           <UserPlusIcon className="size-4" />
                           <p className="text-sm">Contato</p>
                         </div>
+                        {starFriendsPermissions.canRedeemAndCredit && (
+                          <div
+                            className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
+                            onClick={() => {
+                              setShowStarFriends(true);
+                              setOpen(false);
+                            }}
+                          >
+                            <SparklesIcon className="size-4 text-amber-500" />
+                            <p className="text-sm">STAR FRIENDS</p>
+                          </div>
+                        )}
                         {isMeta && (
                           <div
                             className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
@@ -829,11 +851,13 @@ export function Footer({
                 placeholder={
                   outsideWindow
                     ? "Fora da janela de 24h — envie um template"
-                    : isDisabled
+                    : isTextDisabled
                       ? ""
-                      : "Digite sua mensagem"
+                      : isDisabled
+                        ? "Responder pela página do pedido"
+                        : "Digite sua mensagem"
                 }
-                disabled={isDisabled || outsideWindow}
+                disabled={isTextDisabled || outsideWindow}
                 className="resize-none min-h-0 py-2.5 text-sm max-h-50"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -871,7 +895,7 @@ export function Footer({
                         size="icon"
                         aria-label="Enviar mensagem"
                         className="rounded-full transition-transform duration-150 hover:scale-105 active:scale-95"
-                        disabled={isDisabled || outsideWindow}
+                        disabled={isTextDisabled || outsideWindow}
                       >
                         <SendIcon className="size-4" />
                       </Button>
@@ -929,6 +953,12 @@ export function Footer({
           }}
         />
       )}
+      <StarFriendsRedeemDialog
+        leadId={lead.id}
+        open={showStarFriends}
+        onOpenChange={setShowStarFriends}
+        onInsertMessage={(text) => setMessage((previous) => (previous ? `${previous}\n${text}` : text))}
+      />
       <TemplatePicker
         open={showTemplatePicker}
         onOpenChange={setShowTemplatePicker}

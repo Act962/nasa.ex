@@ -12,6 +12,7 @@ import {
   userBelongsToOrg,
   userCanAccessLead,
 } from "@/features/astro/server/tools/_shared/permissions";
+import { publishLeadStatusChanged } from "@/features/leads/lib/status-changed-event";
 
 /**
  * Tools de mutação de baixo nível — usadas pelos sub-agentes pra criar
@@ -187,7 +188,7 @@ export function buildMutationTools(ctx: AgentContext) {
         }
         const slug = name
           .normalize("NFD")
-          .replace(/[̀-ͯ]/g, "")
+          .replace(/[\u0300-\u036f]/g, "")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/^-+|-+$/g, "");
@@ -357,7 +358,7 @@ export function buildMutationTools(ctx: AgentContext) {
         // Slug único por org — fallback timestamp
         const baseSlug = name
           .normalize("NFD")
-          .replace(/[̀-ͯ]/g, "")
+          .replace(/[\u0300-\u036f]/g, "")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/^-+|-+$/g, "");
@@ -465,6 +466,7 @@ export function buildMutationTools(ctx: AgentContext) {
           where: { id: leadId },
           data: { statusId: toStatusId },
         });
+        await publishLeadStatusChanged({ leadId, fromStatusId: lead.statusId, toStatusId });
         return {
           success: true,
           summary: `"${lead.name}" movido pra "${status.name}".`,

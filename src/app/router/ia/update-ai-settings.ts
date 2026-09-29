@@ -54,14 +54,15 @@ export const updateAiSettings = base
     if (aiProvider !== undefined) aiSettingsUpdate.aiProvider = aiProvider;
     if (aiModelId !== undefined) aiSettingsUpdate.aiModelId = aiModelId;
 
+    let encryptedApiKey: { aiApiKey: string; aiApiKeyLast4: string } | null = null;
     if (aiApiKey !== undefined) {
       if (aiApiKey === "") {
         aiSettingsUpdate.aiApiKey = null;
         aiSettingsUpdate.aiApiKeyLast4 = null;
       } else {
         try {
-          aiSettingsUpdate.aiApiKey = encryptSecret(aiApiKey);
-          aiSettingsUpdate.aiApiKeyLast4 = last4(aiApiKey);
+          encryptedApiKey = { aiApiKey: encryptSecret(aiApiKey), aiApiKeyLast4: last4(aiApiKey) };
+          Object.assign(aiSettingsUpdate, encryptedApiKey);
         } catch (err) {
           // Em geral cai aqui se AI_SECRETS_KEY não estiver setada no .env.
           console.error("[update-ai-settings] crypto error", err);
@@ -92,9 +93,19 @@ export const updateAiSettings = base
       },
       data: {
         globalAiActive: aiEnabled,
-        aiSettings: {
-          update: aiSettingsUpdate,
-        },
+        // Tracking antigo pode não ter AiSettings ainda: cria na primeira gravação.
+        aiSettings: current
+          ? { update: aiSettingsUpdate }
+          : {
+              create: {
+                prompt,
+                assistantName,
+                finishSentence: finishMessage,
+                aiProvider: aiProvider ?? null,
+                aiModelId: aiModelId ?? null,
+                ...encryptedApiKey,
+              },
+            },
       },
       select: {
         id: true,

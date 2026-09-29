@@ -28,6 +28,8 @@ export const pendingCriticals = base
           body: z.string(),
           actionUrl: z.string().nullable(),
           requiresAck: z.boolean(),
+          /** Org dona do alerta — quem está em várias precisa saber de qual é. */
+          organizationName: z.string().nullable(),
           createdAt: z.string(),
         }),
       ),
@@ -64,9 +66,16 @@ export const pendingCriticals = base
         body: true,
         actionUrl: true,
         requiresAck: true,
+        organizationId: true,
         createdAt: true,
       },
     });
+
+    const organizationIds = [...new Set(items.flatMap((item) => (item.organizationId ? [item.organizationId] : [])))];
+    const organizations = organizationIds.length
+      ? await prisma.organization.findMany({ where: { id: { in: organizationIds } }, select: { id: true, name: true } })
+      : [];
+    const organizationNameById = new Map(organizations.map((organization) => [organization.id, organization.name]));
 
     return {
       items: items.map((i) => ({
@@ -75,6 +84,7 @@ export const pendingCriticals = base
         body: i.body,
         actionUrl: i.actionUrl ?? null,
         requiresAck: i.requiresAck,
+        organizationName: i.organizationId ? organizationNameById.get(i.organizationId) ?? null : null,
         createdAt: i.createdAt.toISOString(),
       })),
     };

@@ -3,21 +3,23 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 
-// O catálogo mora em src/features/permissions/lib/catalog.ts — a tela e o
-// gate das ações do Astro leem a mesma matriz. Importado uma vez e
-// reexportado a partir das ligações locais: `export ... from` junto de um
-// `import ... from` do mesmo módulo deixava as constantes indefinidas em
-// runtime, e a tela de permissões respondia 500.
+// A matriz mora em src/features/permissions/lib/app-permission-catalog.ts —
+// a tela, o gate das procedures e o gate das ações do Astro leem a mesma.
+// Importado uma vez e reexportado a partir das ligações locais: `export ...
+// from` junto de um `import ... from` do mesmo módulo deixava as constantes
+// indefinidas em runtime, e a tela de permissões respondia 500.
 import {
   ALL_APPS,
   APPS_WITH_EXTENDED_ACTIONS,
   DEFAULT_PERMISSIONS,
+  EXTENDED_ACTIONS_BY_APP,
+  getDefaultAppPermissions,
   NASA_ROLES,
   ROLE_COLORS,
   ROLE_LABELS,
   type AppPermissions,
   type NasaRole,
-} from "@/features/permissions/lib/catalog";
+} from "@/features/permissions/lib/app-permission-catalog";
 
 export {
   ALL_APPS,
@@ -69,7 +71,7 @@ export const getPermissions = base
               canApprove: override.canApprove,
               canPay:     override.canPay,
             }
-          : { ...DEFAULT_PERMISSIONS[role] };
+          : getDefaultAppPermissions(role, app.key);
       }
     }
 
@@ -97,6 +99,7 @@ export const getPermissions = base
       // Sinaliza pra UI quais appKeys mostram as colunas extra (Aprovar/Pagar).
       // Hoje só "financeiro"; UI usa pra renderizar 6 colunas (vs 4 default).
       extendedActionApps: Array.from(APPS_WITH_EXTENDED_ACTIONS),
+      extendedActionsByApp: EXTENDED_ACTIONS_BY_APP,
       starsBalance: (context.org as any).starsBalance ?? 0,
       logs: logs.map((l) => ({
         id: l.id,

@@ -1,6 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useOrgRole } from "@/hooks/use-org-role";
 import { BindWhatsappDialog } from "./bind-whatsapp-dialog";
 import { BindingsList } from "./bindings-list";
@@ -12,7 +13,7 @@ import { AlertTriangle, Bot } from "lucide-react";
  * Gestão (config + allow-list de números) é restrita a owner/admin.
  */
 export function AstroBotSettings() {
-  const { isMaster, isAdmin } = useOrgRole();
+  const { isMaster, isAdmin, isRoleLoading } = useOrgRole();
   const canConfigure = isMaster || isAdmin;
 
   return (
@@ -31,7 +32,15 @@ export function AstroBotSettings() {
         </div>
       </Card>
 
-      {!canConfigure ? (
+      {isRoleLoading ? (
+        // Enquanto o papel não é conhecido, servidor e cliente desenham a mesma
+        // coisa. Decidir antes faria o servidor mostrar "sem permissão" e o
+        // cliente trocar depois — o aviso de hidratação que aparecia aqui.
+        <div className="space-y-4">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-28 w-full" />
+        </div>
+      ) : !canConfigure ? (
         <div className="flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm">
           <AlertTriangle className="size-4 text-yellow-600 shrink-0 mt-0.5" />
           <p>

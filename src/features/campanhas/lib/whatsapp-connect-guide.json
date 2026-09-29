@@ -1,0 +1,1761 @@
+{
+  "sourceNote": "Cada passo com print aponta o arquivo original em `source` (nomes enviados pela equipe: 1.jpeg … 38.jpeg, 32.1.jpeg). target/redact em pixels da imagem original.",
+  "phases": [
+    {
+      "id": "app",
+      "title": "Criar seu app na Meta",
+      "cheer": "Primeiro app criado! A parte mais chata já foi 🚀"
+    },
+    {
+      "id": "whatsapp",
+      "title": "Ligar o WhatsApp no app",
+      "cheer": "WhatsApp ligado no seu app. Seguimos juntos!"
+    },
+    {
+      "id": "number",
+      "title": "Seu número (a ÓRBITA faz)",
+      "cheer": "Número pronto para receber o código."
+    },
+    {
+      "id": "payment",
+      "title": "Cartão na Meta",
+      "cheer": "Cartão cadastrado — a Meta já pode liberar seus disparos."
+    },
+    {
+      "id": "token",
+      "title": "Chave de acesso permanente",
+      "cheer": "Parabéns! Você está chegando perto de ter seu número oficial WhatsApp, falta pouco."
+    },
+    {
+      "id": "keys",
+      "title": "Suas chaves do app",
+      "cheer": "Chaves copiadas. Agora é só colar na ÓRBITA!"
+    },
+    {
+      "id": "webhook",
+      "title": "Receber mensagens no chat",
+      "cheer": "Respostas dos clientes vão chegar direto no seu chat."
+    },
+    {
+      "id": "publish",
+      "title": "Publicar e conferir",
+      "cheer": "Tudo pronto! Seu WhatsApp oficial está no ar 🎉"
+    }
+  ],
+  "steps": [
+    {
+      "n": 1,
+      "phase": "app",
+      "slug": "tem-app",
+      "title": "Você já tem um app na Meta?",
+      "instruction": "Abra developers.facebook.com → Meus apps. Se já existe um app da sua empresa com o WhatsApp, use esse app. Se a lista estiver vazia, crie um novo.",
+      "link": "https://developers.facebook.com/apps/",
+      "tip": "O app já é usado por outro sistema (outro CRM ou chatbot)? Crie um app novo só para a ÓRBITA: trocar o webhook de um app em uso desliga o outro sistema.",
+      "choice": {
+        "yesLabel": "Já tenho",
+        "noLabel": "Não, vou criar",
+        "skipToSlug": "painel"
+      }
+    },
+    {
+      "n": 2,
+      "phase": "app",
+      "slug": "criar-app",
+      "title": "Dê um nome ao seu app",
+      "instruction": "Em developers.facebook.com, clique em Criar aplicativo. Escreva um nome (ex.: WhatsApp da sua loja), confira o e-mail e clique em Avançar.",
+      "link": "https://developers.facebook.com/apps/creation/",
+      "shot": {
+        "w": 1600,
+        "h": 871,
+        "target": [
+          1222,
+          408,
+          1304,
+          442
+        ],
+        "arrow": "left",
+        "crop": [
+          330,
+          55,
+          1330,
+          470
+        ]
+      },
+      "redact": [
+        [
+          362,
+          358,
+          1300,
+          392
+        ]
+      ],
+      "source": "1.jpeg"
+    },
+    {
+      "n": 3,
+      "phase": "app",
+      "slug": "caso-de-uso",
+      "title": "Escolha o WhatsApp",
+      "instruction": "Marque Conectar-se com clientes pelo WhatsApp e clique em Avançar.",
+      "shot": {
+        "w": 1600,
+        "h": 860,
+        "target": [
+          667,
+          580,
+          1203,
+          653
+        ],
+        "arrow": "left",
+        "crop": [
+          425,
+          50,
+          1220,
+          775
+        ]
+      },
+      "redact": [],
+      "source": "2.jpeg"
+    },
+    {
+      "n": 4,
+      "phase": "app",
+      "slug": "portfolio",
+      "title": "Escolha a sua empresa",
+      "instruction": "Marque o portfólio da sua empresa (é o cadastro dela na Meta) e clique em Avançar.",
+      "shot": {
+        "w": 1600,
+        "h": 860,
+        "target": [
+          443,
+          205,
+          700,
+          233
+        ],
+        "arrow": "right",
+        "crop": [
+          425,
+          45,
+          1220,
+          655
+        ]
+      },
+      "redact": [
+        [
+          466,
+          204,
+          720,
+          568
+        ]
+      ],
+      "labels": [
+        {
+          "text": "Sua Empresa",
+          "x": 500,
+          "y": 211
+        }
+      ],
+      "source": "3.jpeg",
+      "tip": "Não tem portfólio? Clique em \"Crie um portfólio empresarial\" e use o nome da sua empresa."
+    },
+    {
+      "n": 5,
+      "phase": "app",
+      "slug": "requisitos",
+      "title": "Requisitos",
+      "instruction": "Nesta tela não há nada para fazer. Clique em Avançar.",
+      "shot": {
+        "w": 1600,
+        "h": 857,
+        "target": [
+          1135,
+          255,
+          1201,
+          283
+        ],
+        "arrow": "left",
+        "crop": [
+          425,
+          45,
+          1220,
+          300
+        ]
+      },
+      "redact": [],
+      "source": "4.jpeg"
+    },
+    {
+      "n": 6,
+      "phase": "app",
+      "slug": "criar-aplicativo",
+      "title": "Confira e crie",
+      "instruction": "Confira o resumo e clique em Criar aplicativo.",
+      "shot": {
+        "w": 1600,
+        "h": 857,
+        "target": [
+          1102,
+          613,
+          1203,
+          640
+        ],
+        "arrow": "left",
+        "crop": [
+          425,
+          45,
+          1220,
+          660
+        ]
+      },
+      "redact": [
+        [
+          456,
+          276,
+          700,
+          292
+        ],
+        [
+          486,
+          455,
+          700,
+          484
+        ]
+      ],
+      "source": "5.jpeg"
+    },
+    {
+      "n": 7,
+      "phase": "app",
+      "slug": "senha",
+      "title": "Confirme sua senha",
+      "instruction": "A Meta pede sua senha do Facebook por segurança. Digite a senha e clique em Enviar.",
+      "shot": {
+        "w": 1600,
+        "h": 843,
+        "target": [
+          949,
+          368,
+          996,
+          390
+        ],
+        "arrow": "left",
+        "crop": [
+          440,
+          120,
+          1215,
+          660
+        ]
+      },
+      "redact": [
+        [
+          660,
+          244,
+          702,
+          292,
+          "avatar"
+        ],
+        [
+          708,
+          258,
+          800,
+          280
+        ],
+        [
+          1440,
+          6,
+          1565,
+          36
+        ],
+        [
+          456,
+          278,
+          640,
+          292
+        ]
+      ],
+      "source": "6.jpeg"
+    },
+    {
+      "n": 8,
+      "phase": "whatsapp",
+      "slug": "painel",
+      "title": "Abra o WhatsApp do app",
+      "instruction": "No painel do app, clique em Personalizar o caso de uso \"Conectar-se com os clientes pelo WhatsApp\". Antes, copie o endereço desta página (barra do navegador) e cole abaixo: assim cada botão daqui pra frente abre direto no seu app.",
+      "shot": {
+        "w": 1600,
+        "h": 863,
+        "target": [
+          455,
+          155,
+          1430,
+          185
+        ],
+        "arrow": "top",
+        "crop": [
+          430,
+          55,
+          1450,
+          420
+        ]
+      },
+      "redact": [],
+      "source": "7.jpeg",
+      "linkKey": "appDashboard"
+    },
+    {
+      "n": 9,
+      "phase": "whatsapp",
+      "slug": "personalizar",
+      "title": "Personalizar",
+      "instruction": "Se abrir a lista de casos de uso, clique em Personalizar.",
+      "shot": {
+        "w": 1600,
+        "h": 850,
+        "target": [
+          1322,
+          142,
+          1424,
+          171
+        ],
+        "arrow": "left",
+        "crop": [
+          230,
+          55,
+          1445,
+          200
+        ]
+      },
+      "redact": [],
+      "source": "8.jpeg",
+      "linkKey": "appUseCases"
+    },
+    {
+      "n": 10,
+      "phase": "whatsapp",
+      "slug": "comecar-api",
+      "title": "Comece a usar a API",
+      "instruction": "Clique em Começar a usar a API.",
+      "shot": {
+        "w": 1600,
+        "h": 859,
+        "target": [
+          1412,
+          491,
+          1543,
+          520
+        ],
+        "arrow": "left",
+        "crop": [
+          350,
+          150,
+          1585,
+          560
+        ]
+      },
+      "redact": [],
+      "source": "9.jpeg",
+      "linkKey": "waQuickstart"
+    },
+    {
+      "n": 11,
+      "phase": "whatsapp",
+      "slug": "tem-conta-whatsapp",
+      "title": "Sua conta do WhatsApp",
+      "instruction": "Você já tem uma conta do WhatsApp Business da API com o número que vai usar para disparar? Não contam: a \"Test WhatsApp Business Account\" (a Meta cria sozinha, é só de teste) e contas marcadas como \"Aplicativo WhatsApp Business\" (é o WhatsApp do celular).",
+      "choice": {
+        "yesLabel": "Já tenho",
+        "noLabel": "Ainda não, vou criar",
+        "skipToSlug": "tem-usuario-sistema"
+      },
+      "tip": "Só quer testar antes de ter o número da empresa? No app, em Configuração da API, abra a lista \"De\" e clique em \"Obter novo número de teste\": a Meta cria uma conta de teste grátis (envia só para até 5 números cadastrados)."
+    },
+    {
+      "n": 12,
+      "phase": "whatsapp",
+      "slug": "nova-conta-adicionar",
+      "title": "Crie a conta da sua empresa",
+      "instruction": "Em Contas do WhatsApp, clique em + Adicionar → Crie uma nova conta do WhatsApp Business.",
+      "shot": {
+        "w": 1568,
+        "h": 737,
+        "target": [
+          1238,
+          124,
+          1556,
+          172
+        ],
+        "arrow": "left",
+        "crop": [
+          700,
+          60,
+          1568,
+          330
+        ]
+      },
+      "redact": [
+        [
+          1516,
+          14,
+          1552,
+          50,
+          "avatar"
+        ],
+        [
+          240,
+          16,
+          390,
+          48
+        ],
+        [
+          828,
+          156,
+          930,
+          171
+        ],
+        [
+          838,
+          171,
+          955,
+          185
+        ]
+      ],
+      "source": "wa-nova-conta-menu.png",
+      "linkKey": "bizWhatsappAccounts"
+    },
+    {
+      "n": 13,
+      "phase": "whatsapp",
+      "slug": "nova-conta-detalhes",
+      "title": "Nome e categoria",
+      "instruction": "Confira o nome de exibição (igual ao nome da empresa), escolha a Categoria, marque Não sou um robô e clique em Continuar.",
+      "shot": {
+        "w": 1568,
+        "h": 737,
+        "target": [
+          633,
+          322,
+          1098,
+          353
+        ],
+        "arrow": "left",
+        "crop": [
+          457,
+          88,
+          1111,
+          575
+        ]
+      },
+      "redact": [
+        [
+          640,
+          262,
+          900,
+          280
+        ]
+      ],
+      "source": "wa-nova-conta-detalhes.png",
+      "linkKey": "bizWhatsappAccounts"
+    },
+    {
+      "n": 14,
+      "phase": "whatsapp",
+      "slug": "nova-conta-telefone",
+      "title": "Número e código",
+      "instruction": "Digite o número novo com DDD, escolha SMS, clique em Avançar e digite o código que chegar. Pronto: a conta aparece em Contas do WhatsApp, já com o seu número.",
+      "shot": {
+        "w": 1600,
+        "h": 857,
+        "target": [
+          1064,
+          427,
+          1130,
+          455
+        ],
+        "arrow": "left",
+        "crop": [
+          515,
+          200,
+          1145,
+          470
+        ]
+      },
+      "redact": [
+        [
+          858,
+          300,
+          1100,
+          326
+        ]
+      ],
+      "source": "13.jpeg",
+      "linkKey": "bizWhatsappAccounts",
+      "tip": "A Meta diz que o número já está em uso? Ele ainda está no aplicativo do WhatsApp ou em outro provedor. No celular, apague a conta do WhatsApp desse número (Configurações → Conta → Apagar conta) ou peça ao provedor antigo para liberar, e tente de novo."
+    },
+    {
+      "n": 15,
+      "phase": "number",
+      "slug": "configuracao-api",
+      "isAutomated": true,
+      "title": "Tela da API",
+      "instruction": "Aqui a Meta mostra o número de teste. A ÓRBITA cadastra o seu número de verdade por você — só faça pela Meta se a equipe pedir.",
+      "shot": {
+        "w": 1600,
+        "h": 857,
+        "target": [
+          361,
+          618,
+          640,
+          646
+        ],
+        "arrow": "right",
+        "crop": [
+          340,
+          380,
+          1585,
+          770
+        ]
+      },
+      "redact": [
+        [
+          361,
+          618,
+          640,
+          646
+        ]
+      ],
+      "source": "10.jpeg",
+      "linkKey": "waApiSetup"
+    },
+    {
+      "n": 16,
+      "phase": "number",
+      "slug": "adicionar-telefone",
+      "isAutomated": true,
+      "title": "Adicionar telefone",
+      "instruction": "Pela Meta: abra a lista De e clique em + Adicionar telefone.",
+      "shot": {
+        "w": 1600,
+        "h": 958,
+        "target": [
+          416,
+          447,
+          700,
+          479
+        ],
+        "arrow": "right",
+        "crop": [
+          390,
+          290,
+          1000,
+          500
+        ]
+      },
+      "redact": [
+        [
+          403,
+          310,
+          715,
+          336
+        ],
+        [
+          474,
+          368,
+          620,
+          386
+        ]
+      ],
+      "source": "11.jpeg",
+      "linkKey": "waApiSetup"
+    },
+    {
+      "n": 17,
+      "phase": "number",
+      "slug": "perfil",
+      "isAutomated": true,
+      "title": "Perfil do WhatsApp Business",
+      "instruction": "Pela Meta: escreva o nome que os clientes vão ver (igual ao nome da empresa), fuso horário e categoria. Avançar.",
+      "shot": {
+        "w": 1600,
+        "h": 852,
+        "target": [
+          1064,
+          520,
+          1130,
+          548
+        ],
+        "arrow": "left",
+        "crop": [
+          515,
+          150,
+          1145,
+          565
+        ]
+      },
+      "redact": [],
+      "source": "12.jpeg",
+      "linkKey": "waApiSetup"
+    },
+    {
+      "n": 18,
+      "phase": "number",
+      "slug": "numero-sms",
+      "isAutomated": true,
+      "title": "Número e código",
+      "instruction": "Pela Meta: digite o número com DDD, escolha SMS e clique em Avançar. Depois digite o código que chegar.",
+      "shot": {
+        "w": 1600,
+        "h": 857,
+        "target": [
+          1064,
+          427,
+          1130,
+          455
+        ],
+        "arrow": "left",
+        "crop": [
+          515,
+          200,
+          1145,
+          470
+        ]
+      },
+      "redact": [
+        [
+          858,
+          300,
+          1100,
+          326
+        ]
+      ],
+      "source": "13.jpeg",
+      "linkKey": "waApiSetup"
+    },
+    {
+      "n": 19,
+      "phase": "number",
+      "slug": "ids",
+      "isAutomated": true,
+      "title": "IDs do número",
+      "instruction": "Pela Meta: estes são os IDs do número e da conta. A ÓRBITA descobre os dois sozinha pela sua chave.",
+      "shot": {
+        "w": 1600,
+        "h": 859,
+        "target": [
+          356,
+          580,
+          1040,
+          598
+        ],
+        "arrow": "top",
+        "crop": [
+          340,
+          420,
+          1585,
+          760
+        ]
+      },
+      "redact": [
+        [
+          356,
+          548,
+          636,
+          574
+        ]
+      ],
+      "source": "14.jpeg",
+      "linkKey": "waApiSetup"
+    },
+    {
+      "n": 20,
+      "phase": "payment",
+      "slug": "aviso-pagamento",
+      "title": "Falta o cartão",
+      "instruction": "A Meta avisa que falta uma forma de pagamento. Clique em Adicionar forma de pagamento.",
+      "shot": {
+        "w": 1077,
+        "h": 327,
+        "target": [
+          366,
+          247,
+          568,
+          281
+        ],
+        "arrow": "right"
+      },
+      "redact": [],
+      "source": "15.jpeg",
+      "linkKey": "waApiSetup"
+    },
+    {
+      "n": 21,
+      "phase": "payment",
+      "slug": "contas-whatsapp",
+      "title": "Cadastre o cartão da empresa",
+      "instruction": "Abra Contas do WhatsApp, escolha a sua conta e clique em Configurações de pagamento (no fim da página).",
+      "link": "https://business.facebook.com/latest/settings/whatsapp_account",
+      "shot": {
+        "w": 1600,
+        "h": 867,
+        "target": [
+          875,
+          599,
+          1025,
+          626
+        ],
+        "arrow": "top",
+        "crop": [
+          660,
+          130,
+          1570,
+          640
+        ]
+      },
+      "redact": [
+        [
+          1530,
+          44,
+          1590,
+          88,
+          "avatar"
+        ],
+        [
+          1535,
+          6,
+          1570,
+          34,
+          "avatar"
+        ],
+        [
+          100,
+          8,
+          1100,
+          32
+        ]
+      ],
+      "source": "16.jpeg",
+      "linkKey": "bizWhatsappAccounts",
+      "tip": "Já aparece uma forma de pagamento na conta? Não precisa cadastrar de novo: só clique em \"Cartão cadastrado\" aqui na ÓRBITA."
+    },
+    {
+      "n": 22,
+      "phase": "payment",
+      "slug": "pagamento-adicionar",
+      "title": "Adicionar forma de pagamento",
+      "instruction": "Na página de cobrança da sua conta do WhatsApp, clique em Adicionar forma de pagamento.",
+      "shot": {
+        "w": 1568,
+        "h": 737,
+        "target": [
+          1040,
+          223,
+          1228,
+          251
+        ],
+        "arrow": "left",
+        "crop": [
+          320,
+          50,
+          1560,
+          290
+        ]
+      },
+      "redact": [
+        [
+          1516,
+          12,
+          1552,
+          48,
+          "avatar"
+        ]
+      ],
+      "source": "wa-pagamento-adicionar.png",
+      "linkKey": "bizWhatsappAccounts"
+    },
+    {
+      "n": 23,
+      "phase": "payment",
+      "slug": "pagamento-fuso",
+      "title": "País, moeda e fuso",
+      "instruction": "Confira Brasil e Real brasileiro e troque o fuso para São Paulo (GMT-03:00) — a Meta sugere Los Angeles. Isso não pode ser mudado depois. Clique em Avançar e preencha os dados do cartão da empresa (a ÓRBITA não vê nem guarda esses dados).",
+      "tip": "Atenção: país, moeda e fuso ficam fixos para sempre nesta conta. Se errar, só criando outra conta do WhatsApp.",
+      "shot": {
+        "w": 1568,
+        "h": 737,
+        "target": [
+          552,
+          340,
+          1016,
+          388
+        ],
+        "arrow": "left",
+        "crop": [
+          530,
+          180,
+          1040,
+          560
+        ]
+      },
+      "redact": [],
+      "source": "wa-pagamento-fuso.png",
+      "linkKey": "bizWhatsappAccounts"
+    },
+    {
+      "n": 24,
+      "phase": "token",
+      "slug": "tem-usuario-sistema",
+      "title": "Você já tem um usuário do sistema?",
+      "instruction": "Abra Usuários → Usuários do sistema. Se já aparece alguém na lista (ex.: ORBITA), use esse — enquanto a empresa não for verificada, a Meta só deixa ter 1.",
+      "link": "https://business.facebook.com/latest/settings/",
+      "linkKey": "bizSystemUsers",
+      "shot": {
+        "w": 1600,
+        "h": 834,
+        "target": [
+          278,
+          124,
+          668,
+          168
+        ],
+        "arrow": "right",
+        "crop": [
+          270,
+          40,
+          1600,
+          300
+        ]
+      },
+      "redact": [
+        [
+          1550,
+          8,
+          1595,
+          42,
+          "avatar"
+        ],
+        [
+          380,
+          144,
+          442,
+          160
+        ],
+        [
+          784,
+          128,
+          872,
+          144
+        ]
+      ],
+      "source": "17.jpeg",
+      "choice": {
+        "yesLabel": "Já tenho",
+        "noLabel": "Não, vou criar",
+        "skipToSlug": "atribuir-ativos"
+      },
+      "tip": "Não aparece \"Usuários do sistema\" no menu? Você precisa ser administrador do portfólio. Peça para quem administra liberar o seu acesso (Pessoas → Acesso total)."
+    },
+    {
+      "n": 25,
+      "phase": "token",
+      "slug": "usuarios-sistema",
+      "title": "Crie um usuário do sistema",
+      "instruction": "No menu da esquerda, abra Usuários → Usuários do sistema e clique em + Adicionar. É um \"robô\" da sua empresa que mantém a conexão ativa sem depender do seu login.",
+      "link": "https://business.facebook.com/latest/settings/",
+      "shot": {
+        "w": 1600,
+        "h": 834,
+        "target": [
+          1498,
+          63,
+          1576,
+          89
+        ],
+        "arrow": "left",
+        "crop": [
+          270,
+          40,
+          1600,
+          300
+        ]
+      },
+      "redact": [
+        [
+          1550,
+          8,
+          1595,
+          42,
+          "avatar"
+        ]
+      ],
+      "source": "17.jpeg",
+      "linkKey": "bizSystemUsers",
+      "tip": "Apareceu \"atingiu o número máximo de usuários administradores\"? Você já tem um usuário do sistema — não precisa criar outro. Clique em Cancelar, escolha o usuário que já está na lista e vá para \"Dê acesso ao app e ao WhatsApp\"."
+    },
+    {
+      "n": 26,
+      "phase": "token",
+      "slug": "nome-usuario-sistema",
+      "title": "Nome do usuário do sistema",
+      "instruction": "Escreva um nome (ex.: orbita).",
+      "shot": {
+        "w": 1600,
+        "h": 836,
+        "target": [
+          665,
+          259,
+          940,
+          285
+        ],
+        "arrow": "left",
+        "crop": [
+          640,
+          170,
+          960,
+          400
+        ]
+      },
+      "redact": [
+        [
+          1555,
+          8,
+          1595,
+          42,
+          "avatar"
+        ]
+      ],
+      "source": "18.jpeg",
+      "linkKey": "bizSystemUsers"
+    },
+    {
+      "n": 27,
+      "phase": "token",
+      "slug": "funcao-admin",
+      "title": "Função Admin",
+      "instruction": "Em função escolha Admin e clique em Create system user.",
+      "shot": {
+        "w": 1600,
+        "h": 831,
+        "target": [
+          831,
+          356,
+          936,
+          382
+        ],
+        "arrow": "left",
+        "crop": [
+          640,
+          170,
+          960,
+          400
+        ]
+      },
+      "redact": [
+        [
+          1550,
+          6,
+          1595,
+          40,
+          "avatar"
+        ]
+      ],
+      "source": "19.jpeg",
+      "linkKey": "bizSystemUsers",
+      "tip": "Apareceu \"atingiu o número máximo de usuários administradores\"? Você já tem um usuário do sistema — não precisa criar outro. Clique em Cancelar, escolha o usuário que já está na lista e vá para \"Dê acesso ao app e ao WhatsApp\"."
+    },
+    {
+      "n": 28,
+      "phase": "token",
+      "slug": "atribuir-ativos",
+      "title": "Dê acesso ao app e ao WhatsApp",
+      "instruction": "Na lista de Usuários do sistema, clique no seu usuário (ex.: ORBITA). No lado direito, clique em ⋯ (ao lado de Anular tokens) → Atribuir ativos.",
+      "shot": {
+        "w": 1568,
+        "h": 737,
+        "target": [
+          1444,
+          226,
+          1560,
+          249
+        ],
+        "arrow": "left",
+        "crop": [
+          340,
+          60,
+          1568,
+          420
+        ]
+      },
+      "redact": [
+        [
+          1516,
+          14,
+          1552,
+          50,
+          "avatar"
+        ],
+        [
+          240,
+          16,
+          390,
+          48
+        ],
+        [
+          840,
+          157,
+          945,
+          173
+        ],
+        [
+          720,
+          378,
+          905,
+          500
+        ],
+        [
+          384,
+          179,
+          540,
+          194
+        ]
+      ],
+      "source": "wa-atribuir-ativos-menu.png",
+      "linkKey": "bizSystemUsers",
+      "tip": "Se o usuário ainda não tem nenhum ativo, o botão Atribuir ativos aparece também no meio da tela — pode usar qualquer um dos dois."
+    },
+    {
+      "n": 29,
+      "phase": "token",
+      "slug": "atribuir-whatsapp",
+      "title": "Acesso à conta do WhatsApp",
+      "instruction": "Na coluna da esquerda, clique em Contas do WhatsApp (não mexa nas outras abas). Marque a conta com o nome da sua empresa (não a \"Test WhatsApp Business Account\"), ligue Acesso total → Tudo e clique em Atribuir ativos → Concluir.",
+      "shot": {
+        "w": 1341,
+        "h": 819,
+        "target": [
+          913,
+          578,
+          1011,
+          606
+        ],
+        "arrow": "left",
+        "crop": [
+          300,
+          165,
+          1030,
+          625
+        ]
+      },
+      "redact": [
+        [
+          0,
+          0,
+          140,
+          34
+        ]
+      ],
+      "source": "21.jpeg",
+      "linkKey": "bizSystemUsers",
+      "tip": "Apareceu \"Tem certeza? Algumas das permissões serão removidas\"? Clique em Não, voltar: você mexeu sem querer em outro ativo (ex.: sua Página do Facebook). Feche a janela no X, abra de novo em ⋯ → Atribuir ativos e mexa só em Contas do WhatsApp."
+    },
+    {
+      "n": 30,
+      "phase": "token",
+      "slug": "atribuir-app",
+      "title": "Dê acesso ao app",
+      "instruction": "Abra de novo ⋯ → Atribuir ativos. Na coluna da esquerda, clique em Apps.",
+      "shot": {
+        "w": 1489,
+        "h": 933,
+        "target": [
+          266,
+          280,
+          418,
+          302
+        ],
+        "arrow": "right",
+        "crop": [
+          258,
+          120,
+          985,
+          580
+        ]
+      },
+      "redact": [
+        [
+          982,
+          300,
+          1160,
+          720
+        ],
+        [
+          486,
+          575,
+          1160,
+          720
+        ],
+        [
+          455,
+          330,
+          640,
+          392
+        ]
+      ],
+      "source": "25.jpeg",
+      "linkKey": "bizSystemUsers"
+    },
+    {
+      "n": 31,
+      "phase": "token",
+      "slug": "app-gerenciar",
+      "title": "App com acesso total",
+      "instruction": "Marque o app que você criou no passo 1, ligue Gerenciar app e clique em Atribuir ativos → Concluir.",
+      "shot": {
+        "w": 1572,
+        "h": 932,
+        "target": [
+          872,
+          532,
+          970,
+          562
+        ],
+        "arrow": "left",
+        "crop": [
+          260,
+          120,
+          985,
+          580
+        ]
+      },
+      "redact": [
+        [
+          983,
+          300,
+          1160,
+          720
+        ],
+        [
+          486,
+          574,
+          1160,
+          720
+        ],
+        [
+          455,
+          330,
+          640,
+          392
+        ]
+      ],
+      "source": "26.jpeg",
+      "linkKey": "bizSystemUsers"
+    },
+    {
+      "n": 32,
+      "phase": "token",
+      "slug": "whatsapp-atribuido",
+      "title": "Conta liberada: gere a chave",
+      "instruction": "Pronto: o usuário agora aparece com o app e a conta do WhatsApp com Acesso total. Espere uns segundos e clique em Gerar token (no alto, ao lado de Anular tokens).",
+      "shot": {
+        "w": 1568,
+        "h": 737,
+        "target": [
+          1256,
+          150,
+          1345,
+          180
+        ],
+        "arrow": "left",
+        "crop": [
+          700,
+          125,
+          1568,
+          665
+        ]
+      },
+      "redact": [
+        [
+          840,
+          157,
+          945,
+          173
+        ],
+        [
+          720,
+          380,
+          905,
+          420
+        ],
+        [
+          720,
+          535,
+          905,
+          575
+        ],
+        [
+          760,
+          617,
+          905,
+          634
+        ]
+      ],
+      "source": "wa-app-e-whatsapp-liberados.png",
+      "linkKey": "bizSystemUsers",
+      "tip": "Nunca clique em \"Anular tokens\": isso desliga todas as chaves desse usuário, inclusive as de outros sistemas."
+    },
+    {
+      "n": 33,
+      "phase": "token",
+      "slug": "gerar-token-app",
+      "title": "Gerar a chave: escolha o app",
+      "instruction": "Na janela que abriu, escolha o app que você criou no passo 1 e clique em Avançar.",
+      "shot": {
+        "w": 1349,
+        "h": 882,
+        "target": [
+          475,
+          172,
+          929,
+          202
+        ],
+        "arrow": "top",
+        "crop": [
+          300,
+          105,
+          945,
+          595
+        ]
+      },
+      "redact": [],
+      "source": "23.jpeg",
+      "linkKey": "bizSystemUsers"
+    },
+    {
+      "n": 34,
+      "phase": "token",
+      "slug": "token-nunca",
+      "title": "Validade: Nunca",
+      "instruction": "Marque Nunca (assim a conexão não cai) e clique em Avançar.",
+      "shot": {
+        "w": 1558,
+        "h": 929,
+        "target": [
+          476,
+          211,
+          541,
+          233
+        ],
+        "arrow": "left",
+        "crop": [
+          300,
+          100,
+          948,
+          590
+        ]
+      },
+      "redact": [],
+      "source": "24.jpeg",
+      "linkKey": "bizSystemUsers"
+    },
+    {
+      "n": 35,
+      "phase": "token",
+      "slug": "token-permissoes",
+      "title": "Permissões",
+      "instruction": "Abra a lista Selecionar permissões e marque whatsapp_business_management e whatsapp_business_messaging. Clique em Gerar token.",
+      "shot": {
+        "w": 1568,
+        "h": 737,
+        "target": [
+          636,
+          370,
+          1096,
+          425
+        ],
+        "arrow": "left",
+        "crop": [
+          457,
+          87,
+          1111,
+          578
+        ]
+      },
+      "redact": [],
+      "source": "wa-token-permissoes.png",
+      "linkKey": "bizSystemUsers",
+      "tip": "Apareceu \"Nenhuma permissão disponível\"? O app ainda não foi liberado para o usuário do sistema (passo \"Dê acesso ao app\") ou a Meta ainda está processando: feche no X, espere 1 minuto e gere o token de novo."
+    },
+    {
+      "n": 36,
+      "phase": "token",
+      "slug": "token-copiar",
+      "title": "Copie a chave",
+      "instruction": "A Meta mostra a chave uma única vez. Clique em Copiar e cole no campo abaixo — a ÓRBITA guarda na hora, você não precisa voltar aqui.",
+      "shot": {
+        "w": 1568,
+        "h": 933,
+        "target": [
+          869,
+          195,
+          928,
+          223
+        ],
+        "arrow": "left",
+        "crop": [
+          298,
+          105,
+          944,
+          595
+        ]
+      },
+      "redact": [
+        [
+          475,
+          195,
+          867,
+          223
+        ]
+      ],
+      "source": "29.jpeg",
+      "linkKey": "bizSystemUsers"
+    },
+    {
+      "phase": "keys",
+      "slug": "funil-integracoes",
+      "isAutomated": true,
+      "title": "Onde as chaves ficam no funil",
+      "instruction": "As chaves ficam em Configurações do funil → Integrações. Você não precisa preencher aqui: a ÓRBITA preenche sozinha quando você cola no passo seguinte.",
+      "source": "30 - Tracking > configurações > integrações.jpeg",
+      "shot": {
+        "w": 1600,
+        "h": 833,
+        "target": [
+          437,
+          245,
+          1547,
+          279
+        ],
+        "arrow": "top",
+        "crop": [
+          400,
+          60,
+          1570,
+          720
+        ]
+      },
+      "redact": [
+        [
+          148,
+          14,
+          332,
+          42
+        ],
+        [
+          1028,
+          12,
+          1112,
+          44
+        ]
+      ],
+      "n": 37
+    },
+    {
+      "phase": "keys",
+      "slug": "menu-basico",
+      "title": "Abra as configurações do app",
+      "instruction": "No painel do app na Meta, abra Configurações do app → Básico.",
+      "link": "https://developers.facebook.com/apps/",
+      "source": "31.jpeg",
+      "shot": {
+        "w": 378,
+        "h": 988,
+        "target": [
+          6,
+          768,
+          262,
+          800
+        ],
+        "arrow": "right",
+        "crop": [
+          0,
+          560,
+          378,
+          988
+        ]
+      },
+      "redact": [],
+      "n": 38,
+      "linkKey": "appSettingsBasic"
+    },
+    {
+      "phase": "keys",
+      "slug": "id-e-chave-secreta",
+      "title": "Copie o ID e a chave secreta",
+      "instruction": "Copie o ID do Aplicativo e cole abaixo. Em Chave Secreta do Aplicativo clique em Mostrar, confirme a senha, copie e cole abaixo.",
+      "source": "32.jpeg",
+      "shot": {
+        "w": 1600,
+        "h": 835,
+        "target": [
+          912,
+          102,
+          1304,
+          131
+        ],
+        "arrow": "bottom",
+        "crop": [
+          420,
+          60,
+          1400,
+          500
+        ]
+      },
+      "redact": [
+        [
+          913,
+          103,
+          1303,
+          130
+        ],
+        [
+          912,
+          242,
+          1378,
+          266
+        ],
+        [
+          1545,
+          6,
+          1598,
+          40,
+          "avatar"
+        ],
+        [
+          1388,
+          8,
+          1510,
+          34
+        ],
+        [
+          433,
+          100,
+          900,
+          127
+        ]
+      ],
+      "n": 39,
+      "linkKey": "appSettingsBasic"
+    },
+    {
+      "phase": "keys",
+      "slug": "colar-orbita",
+      "title": "Confira suas 3 chaves",
+      "instruction": "As chaves que você colou nos passos anteriores já estão aqui. Clique em Conferir e salvar: a ÓRBITA confere tudo na Meta e preenche as configurações do seu funil sozinha.",
+      "n": 40,
+      "tip": "Liberou uma conta do WhatsApp depois de gerar a chave? Gere a chave de novo e troque aqui: a Meta só inclui na chave as contas liberadas até aquele momento."
+    },
+    {
+      "phase": "keys",
+      "slug": "funil-preenchido",
+      "isAutomated": true,
+      "title": "Funil preenchido",
+      "instruction": "Pronto: é assim que as chaves aparecem no funil depois que a ÓRBITA preenche. Nada a fazer aqui.",
+      "source": "32.1.jpeg",
+      "shot": {
+        "w": 1600,
+        "h": 825,
+        "target": [
+          1509,
+          665,
+          1567,
+          695
+        ],
+        "arrow": "left",
+        "crop": [
+          400,
+          50,
+          1575,
+          705
+        ]
+      },
+      "redact": [
+        [
+          148,
+          10,
+          338,
+          40
+        ],
+        [
+          1030,
+          8,
+          1112,
+          38
+        ],
+        [
+          439,
+          305,
+          1551,
+          340
+        ],
+        [
+          439,
+          510,
+          1551,
+          545
+        ],
+        [
+          439,
+          440,
+          1551,
+          476
+        ]
+      ],
+      "n": 41
+    },
+    {
+      "phase": "number",
+      "slug": "nome-em-analise",
+      "title": "Nome em análise",
+      "instruction": "No Gerenciador do WhatsApp o nome de exibição aparece Em análise. A Meta aprova em até 2 dias — você já pode testar enquanto isso.",
+      "link": "https://business.facebook.com/latest/whatsapp_manager/phone_numbers",
+      "source": "33.jpeg",
+      "shot": {
+        "w": 1600,
+        "h": 872,
+        "target": [
+          444,
+          337,
+          548,
+          355
+        ],
+        "arrow": "right",
+        "crop": [
+          260,
+          120,
+          1320,
+          460
+        ]
+      },
+      "redact": [
+        [
+          120,
+          8,
+          1100,
+          32
+        ],
+        [
+          1535,
+          8,
+          1572,
+          32,
+          "avatar"
+        ]
+      ],
+      "n": 42,
+      "linkKey": "waManagerPhones"
+    },
+    {
+      "phase": "number",
+      "slug": "ids-numero",
+      "isAutomated": true,
+      "title": "IDs do número",
+      "instruction": "Pela Meta: aqui ficam o ID do número e da conta. A ÓRBITA descobre os dois sozinha pela sua chave.",
+      "source": "34.jpeg",
+      "shot": {
+        "w": 853,
+        "h": 994,
+        "target": [
+          417,
+          668,
+          853,
+          692
+        ],
+        "arrow": "top",
+        "crop": [
+          400,
+          470,
+          853,
+          760
+        ]
+      },
+      "redact": [
+        [
+          418,
+          416,
+          853,
+          452
+        ],
+        [
+          418,
+          915,
+          853,
+          994
+        ],
+        [
+          418,
+          636,
+          740,
+          666
+        ]
+      ],
+      "n": 43,
+      "linkKey": "waApiSetup"
+    },
+    {
+      "phase": "webhook",
+      "slug": "webhook-vazio",
+      "title": "Abra a tela do Webhook",
+      "instruction": "No seu app, abra Casos de uso → Personalizar → Configuração. É lá que a Meta pergunta para onde mandar as mensagens dos seus clientes.",
+      "source": "35.jpeg",
+      "shot": {
+        "w": 1600,
+        "h": 829,
+        "target": [
+          351,
+          271,
+          1532,
+          300
+        ],
+        "arrow": "top",
+        "crop": [
+          335,
+          100,
+          1560,
+          440
+        ]
+      },
+      "redact": [
+        [
+          1555,
+          8,
+          1598,
+          40,
+          "avatar"
+        ]
+      ],
+      "n": 44,
+      "linkKey": "waWebhook",
+      "tip": "O campo URL de callback já está preenchido com outro endereço? Ele é de outro sistema. Não troque: fale com a equipe da ÓRBITA pelo botão \"Pedir ajuda\"."
+    },
+    {
+      "phase": "webhook",
+      "slug": "webhook-callback",
+      "title": "Cole a URL e o token",
+      "instruction": "Copie os dois campos abaixo e cole na Meta nos campos de mesmo nome: URL de callback e Verificar token. Depois clique em Verificar e salvar.",
+      "copy": [
+        "callbackUrl",
+        "verifyToken"
+      ],
+      "source": "36.jpeg",
+      "shot": {
+        "w": 1600,
+        "h": 788,
+        "target": [
+          1434,
+          337,
+          1541,
+          367
+        ],
+        "arrow": "left",
+        "crop": [
+          335,
+          95,
+          1560,
+          395
+        ]
+      },
+      "redact": [
+        [
+          352,
+          232,
+          1000,
+          256
+        ],
+        [
+          352,
+          284,
+          1000,
+          308
+        ]
+      ],
+      "n": 45,
+      "linkKey": "waWebhook",
+      "tip": "Use exatamente o token mostrado aqui: ele é só deste funil. A URL precisa começar com https:// — com http:// a Meta recusa."
+    },
+    {
+      "phase": "webhook",
+      "slug": "webhook-campos",
+      "title": "Campos do webhook",
+      "instruction": "Depois de salvar, aparece a lista Campos do webhook. Role a página até a linha messages.",
+      "source": "37.jpeg",
+      "shot": {
+        "w": 1600,
+        "h": 841,
+        "target": [
+          353,
+          325,
+          1535,
+          345
+        ],
+        "arrow": "top",
+        "crop": [
+          340,
+          60,
+          1560,
+          600
+        ]
+      },
+      "redact": [
+        [
+          1560,
+          8,
+          1598,
+          40,
+          "avatar"
+        ]
+      ],
+      "n": 46,
+      "linkKey": "waWebhook"
+    },
+    {
+      "phase": "webhook",
+      "slug": "webhook-messages",
+      "title": "Assine \"messages\"",
+      "instruction": "Na linha messages, ligue a chave Assinar (fica azul, escrito Assinado). Pronto: as mensagens dos clientes passam a chegar no chat deste funil.",
+      "source": "38.jpeg",
+      "shot": {
+        "w": 1600,
+        "h": 639,
+        "target": [
+          1255,
+          334,
+          1360,
+          362
+        ],
+        "arrow": "left",
+        "crop": [
+          340,
+          250,
+          1560,
+          450
+        ]
+      },
+      "redact": [],
+      "n": 47,
+      "linkKey": "waWebhook"
+    },
+    {
+      "n": 48,
+      "phase": "publish",
+      "slug": "publicar",
+      "title": "Publique o app",
+      "instruction": "Em Configurações do app → Básico, preencha a URL da política de privacidade do seu site e a categoria. Depois clique em Publicar no menu. Sem publicar, a Meta não entrega as respostas dos clientes.",
+      "linkKey": "appSettingsBasic"
+    },
+    {
+      "n": 49,
+      "phase": "publish",
+      "slug": "conferir",
+      "title": "Confira na ÓRBITA",
+      "instruction": "Volte aqui e clique em Conferir conexão. Tudo verde? Seu WhatsApp oficial está pronto para disparar."
+    }
+  ]
+}

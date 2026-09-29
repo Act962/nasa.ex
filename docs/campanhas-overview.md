@@ -414,3 +414,50 @@ Rascunho (DRAFT) + template + destinatários (Fases 1–3)
 - **Validação no agendar (fail fast).** `schedule` roda a mesma checagem de aprovação Meta do `send`, evitando agendar um disparo que nasceria quebrado. O `dispatchBroadcast` (Fase 3) ainda revalida `status===SENDING` + campos do template.
 - **Cron de minuto.** Precisão de ~1 min (query leve, index em `status`). O evento só é consumido com o Inngest rodando (`pnpm inngest:dev`) — igual ao disparo imediato.
 - **Fuso local.** O `datetime-local` é interpretado no fuso do operador e convertido pra ISO (UTC) no client antes de enviar; o server valida "futuro" contra o próprio relógio.
+
+
+---
+
+## 15. Disparo em Massa self-service (spec 0040, 2026-09-27)
+
+[Spec 0040](../specs/campanhas/0040-disparo-em-massa-self-service.md). O dono da org conecta o número oficial, cadastra o cartão na Meta, entende custo e limite, paga a taxa ÓRBITA e dispara.
+
+### 15.1 Fluxo
+
+1. **Antes de começar** (`self-service/before-you-start.tsx`): regras da Meta, simulador (`broadcast-cost-simulator.tsx`) e modelo de Utilidade STARS FRIENDS com botão para o In-Chat (`/campanhas/templates/new?trackingId=…&preset=stars-friends`, reaproveita o `TemplateBuilder`).
+2. **Conectar número** (`self-service/connect-number-wizard.tsx`): número próprio (checklist) ou comprado na Salvy (Stars/mês, código SMS ao vivo) → Meta → cartão → painel. As etapas Meta e Cartão são sanfonas guiadas (`guided-checklist.tsx`, textos em `connect-steps-content.tsx`): entrar no Facebook, cadastrar a empresa ("portfólio" explicado), conferir administrador (mensagem pronta para pedir acesso), conectar o WhatsApp; cada passo com links diretos, "Não sei como fazer", verde ao concluir e percentual geral + da etapa, salvo em `localStorage` por tracking. Imagens-guia em `public/guides/whatsapp-oficial/` (capturas fornecidas pela equipe; marcações em `guide-steps.ts`).
+3. **Custo da campanha** (`self-service/broadcast-cost-summary.tsx`, no detalhe): custo Meta estimado, taxa ÓRBITA por faixa, plano de lotes diários e checkout (cartão Stripe ou PIX/boleto Asaas).
+4. **Subida de volume**: `dispatch-broadcast` consulta o limite do número (`resolve-messaging-limit`) e o saldo de contatos únicos das últimas 24h (`daily-quota.ts`); sem saldo, pausa e se reenvia com `ts` para quando a janela libera.
+5. **Painel "Número e gastos"** (`self-service/meta-number-panel.tsx`): qualidade, limite, restante do dia, gasto do mês por categoria, atalhos para cartão/fatura.
+
+### 15.2 Procedures (`src/app/router/campanhas/self-service/`)
+
+| Procedure | O que faz |
+| --- | --- |
+| `quoteFee` | Cotação da campanha (recalculada no servidor) + pagamentos recentes. |
+| `checkoutFee` | Cria `BroadcastFeePayment` e a sessão Stripe / cobrança Asaas (`UNDEFINED`). |
+| `confirmFee` | Relê o pagamento na API do provedor; pago → dispara (`beginBroadcastDispatch`) ou agenda. |
+| `getFeeSettings` / `updateFeeSettings` | Admin de sistema: liga a cobrança, faixas e mínimo. |
+| `numberOffer`, `listNumbers`, `buyNumber`, `latestNumberCode`, `cancelNumber` | Números Salvy. |
+| `numberPanel` | Dados do painel "Número e gastos". |
+
+`send` e `schedule` chamam `assertBroadcastFeePaid` — só bloqueia com `BroadcastFeeSettings.enabled = true`.
+
+### 15.3 Modelos
+
+`BroadcastFeePayment`, `BroadcastFeeSettings` (linha `default`), `SalvyVirtualNumber`, `WhatsAppInstance.metaBusinessId`. Migration `20260927200000_mass_send_self_service`.
+
+### 15.4 Cron
+
+`salvy-number-monthly-billing` (diário 06:30): cobra a mensalidade em Stars; sem saldo, `past_due` e cancelamento na Salvy após 3 dias.
+
+### 15.5 Env
+
+`SALVY_API_KEY`, `SALVY_API_BASE_URL` (opcional), `META_USD_BRL_RATE`, `META_PRICE_MARKETING_USD`, `META_PRICE_UTILITY_USD`, `META_PRICE_AUTHENTICATION_USD`, `NEXT_PUBLIC_SUPPORT_WHATSAPP`, além das do Embedded Signup (`NEXT_PUBLIC_META_APP_ID`, `NEXT_PUBLIC_META_LOGIN_CONFIG_ID`, `META_VERIFY_TOKEN_GLOBAL`). Preço do número Salvy: `AppStarCost` com `appSlug = "salvy-number"`.
+
+### 15.6 Pendente
+
+- Alerta de queda de qualidade / limite atingido (RF-10).
+- Trocar o custo do dashboard da Fase 10 para `pricing_analytics`.
+- Capturas reais da Meta para o assistente.
+- Tela de admin para as faixas (a procedure já existe).

@@ -9,6 +9,7 @@ import { nerpCustomerRouter } from "./customer";
 import { nerpSalesRouter } from "./sales";
 import { nerpDashboardRouter } from "./dashboard";
 import { nerpRankingRouter } from "./ranking";
+import { nerpCatalogIntegrationRouter } from "./catalog-integration";
 
 // Módulo `checkout` removido: nerp não expõe CRUD de checkout (apenas
 // `checkout.purchase` / `purchase-assas`, que têm semântica de "fechar pedido").
@@ -25,4 +26,5 @@ export const nerpRouter = {
   sales: nerpSalesRouter,
   dashboard: nerpDashboardRouter,
   ranking: nerpRankingRouter,
+  catalogIntegration: nerpCatalogIntegrationRouter,
 };

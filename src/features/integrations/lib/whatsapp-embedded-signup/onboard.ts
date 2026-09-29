@@ -67,6 +67,24 @@ export class EmbeddedSignupConfigError extends Error {
   }
 }
 
+/** Instância do WhatsApp Oficial para um tracking da org; null se o tracking não é da org. */
+export async function createOfficialInstance(trackingId: string, organizationId: string) {
+  const tracking = await prisma.tracking.findFirst({
+    where: { id: trackingId, organizationId },
+    select: { name: true },
+  });
+  if (!tracking) return null;
+  return prisma.whatsAppInstance.create({
+    data: {
+      trackingId,
+      instanceName: `${tracking.name} · Oficial`,
+      provider: WhatsAppProvider.META_CLOUD,
+      organizationId,
+    },
+    select: { id: true, organizationId: true },
+  });
+}
+
 export class EmbeddedSignupInstanceMissingError extends Error {
   constructor(trackingId: string) {
     super(
@@ -113,10 +131,13 @@ export async function onboardWhatsAppEmbeddedSignup(
     );
   }
 
-  const instance = await prisma.whatsAppInstance.findUnique({
-    where: { trackingId: input.trackingId },
-    select: { id: true, organizationId: true },
-  });
+  // Sem instância, cria a do WhatsApp Oficial aqui (spec 0040, RF-4): o
+  // cliente não precisa passar por "Nova instância" antes de conectar.
+  const instance =
+    (await prisma.whatsAppInstance.findUnique({
+      where: { trackingId: input.trackingId },
+      select: { id: true, organizationId: true },
+    })) ?? (await createOfficialInstance(input.trackingId, input.organizationId));
 
   if (!instance) {
     throw new EmbeddedSignupInstanceMissingError(input.trackingId);
@@ -265,6 +286,8 @@ export async function onboardWhatsAppEmbeddedSignup(
     data: {
       provider: WhatsAppProvider.META_CLOUD,
       ...credentials,
+      // Portfólio da Meta: monta os links de cartão e fatura (spec 0040).
+      ...(input.businessId ? { metaBusinessId: input.businessId } : {}),
     },
     select: { id: true, provider: true },
   });

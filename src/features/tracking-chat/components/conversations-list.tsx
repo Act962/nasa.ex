@@ -1,6 +1,8 @@
 "use client";
 
+import { authClient } from "@/lib/auth-client";
 import { LeadBox } from "./lead-box";
+import { WhatsAppChannelChooser } from "./whatsapp-channel-chooser";
 import { TrackingChatBottomTabs } from "./tracking-chat-bottom-tabs";
 import { ConversationFilters } from "./conversation-filters";
 import { useConversationFilters } from "../hooks/use-conversation-filters";
@@ -36,6 +38,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { LeadEmailPanel } from "@/features/tracking-chat/components/email/lead-email-panel";
+import { InChatLinkBar } from "@/features/tracking-chat/components/in-chat-link-bar";
+import { LeadTriggersHeaderButton } from "@/features/workflows/components/quick-builder/lead-triggers-header-button";
 import { useInfinityConversation } from "../hooks/use-conversation";
 import { useTrackingChatRealtimeSync } from "../hooks/use-tracking-chat-realtime-sync";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,6 +65,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SearchConversations } from "./search-conversaitons";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { Instance } from "../types";
+import type { ChannelFilter } from "../utils/channel-filter";
 import {
   Select,
   SelectContent,
@@ -71,6 +77,24 @@ import {
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
+const LAST_TRACKING_STORAGE_KEY = "tracking-chat:last-tracking-id";
+
+function readLastTrackingId(): string | null {
+  try {
+    return window.localStorage.getItem(LAST_TRACKING_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveLastTrackingId(trackingId: string): void {
+  try {
+    window.localStorage.setItem(LAST_TRACKING_STORAGE_KEY, trackingId);
+  } catch {
+    // Navegador sem armazenamento (aba anônima): só não lembra.
+  }
+}
+
 export function ConversationsList() {
   const { conversationId, trackingId } = useParams<{
     conversationId: string;
@@ -80,14 +104,15 @@ export function ConversationsList() {
   const trackingIdFromQuery = searchParams.get("trackingId");
   const [open, setOpen] = useState(false);
   const { trackings, isLoadingTrackings } = useQueryTracking();
+  const { data: activeOrganization } = authClient.useActiveOrganization();
   const [selectedTracking, setSelectedTracking] = useState<string>(
     trackingId ?? trackingIdFromQuery ?? "",
   );
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
-  const [selectedChannel, setSelectedChannel] = useState<
-    "ALL" | "WHATSAPP" | "INSTAGRAM" | "TIKTOK" | "FACEBOOK"
-  >("ALL");
+  const [selectedChannel, setSelectedChannel] = useState<ChannelFilter>("ALL");
+  // O canal E-mail não é uma conversa do chat: mostra o painel do Gmail (spec 0030).
+  const isEmailChannel = selectedChannel === "EMAIL";
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [archivedOnly, setArchivedOnly] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -158,7 +183,7 @@ export function ConversationsList() {
       cursorValue: pageParam?.cursorValue,
       limit: 15,
       statusFlows,
-      channel: selectedChannel === "ALL" ? null : selectedChannel,
+      channel: selectedChannel === "ALL" || isEmailChannel ? null : selectedChannel,
       tagIds: selectedTagIds,
       favoritesOnly: favoritesOnly || undefined,
       archivedOnly: archivedOnly || undefined,
@@ -183,12 +208,15 @@ export function ConversationsList() {
       ...infinitiOptions,
       staleTime: 30_000,
       refetchOnWindowFocus: false,
-      enabled: !!selectedTracking,
+      enabled: !!selectedTracking && !isEmailChannel,
     });
 
   const items = useMemo(() => {
     return data?.pages.flatMap((p) => p.items) ?? [];
   }, [data]);
+
+  // Lead da conversa aberta: "Gatilhos do lead" do topo já vem com ele.
+  const openLead = items.find((item) => item.id === conversationId)?.lead;
 
   // Pin-to-top da conversa aberta — OPT-IN via `?pin=1` na URL. Antes era
   // automático (toda conversa selecionada subia), mas isso bagunçava o
@@ -230,7 +258,11 @@ export function ConversationsList() {
     if (isLoadingTrackings || trackings.length === 0 || selectedTracking) return;
     const fromQuery =
       trackingIdFromQuery && trackings.find((t) => t.id === trackingIdFromQuery);
-    const id = fromQuery ? fromQuery.id : trackings[0].id;
+    // Sem tracking no endereço (menu "Chat"), volta ao último usado — se ainda
+    // estiver na lista da org atual.
+    const lastUsedId = readLastTrackingId();
+    const lastUsed = lastUsedId ? trackings.find((t) => t.id === lastUsedId) : undefined;
+    const id = fromQuery ? fromQuery.id : (lastUsed?.id ?? trackings[0].id);
     setSelectedTracking(id);
     if (!trackingIdFromQuery) {
       const params = new URLSearchParams(searchParams.toString());
@@ -245,6 +277,37 @@ export function ConversationsList() {
     searchParams,
     router,
   ]);
+
+  // Troca de empresa: funil e filtros da empresa anterior não valem mais (só reage à troca, não à 1ª carga).
+  const previousOrganizationId = useRef(activeOrganization?.id);
+  useEffect(() => {
+    const organizationId = activeOrganization?.id;
+    if (!organizationId) return;
+    const previousId = previousOrganizationId.current;
+    previousOrganizationId.current = organizationId;
+    if (!previousId || previousId === organizationId) return;
+    setSelectedTracking("");
+    setSelectedStatus(null);
+    setSelectedTagIds([]);
+    setSearch("");
+  }, [activeOrganization?.id]);
+
+  // Funil do endereço/último usado pode ser de outra empresa (troca de empresa):
+  // só vale se estiver na lista da empresa ativa.
+  const isSelectedTrackingInOrg = trackings.some((tracking) => tracking.id === selectedTracking);
+  useEffect(() => {
+    if (isLoadingTrackings || !selectedTracking || isSelectedTrackingInOrg) return;
+    const fallbackId = trackings[0]?.id ?? "";
+    setSelectedTracking(fallbackId);
+    const params = new URLSearchParams(searchParams.toString());
+    if (fallbackId) params.set("trackingId", fallbackId);
+    else params.delete("trackingId");
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [isLoadingTrackings, selectedTracking, isSelectedTrackingInOrg, trackings, searchParams, router]);
+
+  useEffect(() => {
+    if (selectedTracking && isSelectedTrackingInOrg) saveLastTrackingId(selectedTracking);
+  }, [selectedTracking, isSelectedTrackingInOrg]);
 
   useEffect(() => {
     if (!selectedTracking) return;
@@ -295,14 +358,26 @@ export function ConversationsList() {
 
   return (
     <>
+      {/* Funil que já tem conversas (ex.: pedidos do catálogo) não está na "primeira entrada"; lista vazia por filtro também não. */}
+      {!isLoadingTrackings && !isLoading && items.length === 0 && !hasAnyFilterActive && (isSelectedTrackingInOrg || trackings.length === 0) && (
+        <WhatsAppChannelChooser trackingId={isSelectedTrackingInOrg ? selectedTracking : null} />
+      )}
       <aside className="pb-20 lg:pb-0 lg:flex w-full px-5 flex flex-col h-full overflow-hidden">
         {/* ── Header DESKTOP (lg+): mantém UX original "Tracking Chat" ── */}
         <div className="hidden lg:flex justify-between mb-4 pt-4 shrink-0">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="size-4" />
-            <div className="text-lg font-medium">Tracking Chat</div>
+            <div className="min-w-0">
+              <div className="text-lg leading-tight font-medium">Chat</div>
+              {activeOrganization?.name && (
+                <div key={activeOrganization.id} className="truncate text-xs text-muted-foreground animate-in fade-in-0 slide-in-from-left-1">
+                  {activeOrganization.name}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center gap-1">
+            <LeadTriggersHeaderButton trackingId={selectedTracking} leadId={openLead?.id} leadName={openLead?.name} />
             {!noInstance && !instanceDisconnected && !isLoadingTrackings && (
               <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
                 <UserRoundPlusIcon className="size-4" />
@@ -368,6 +443,7 @@ export function ConversationsList() {
             </DropdownMenu>
           </div>
           <div className="flex items-center gap-1">
+            <LeadTriggersHeaderButton trackingId={selectedTracking} leadId={openLead?.id} leadName={openLead?.name} compact />
             <Button
               variant="ghost"
               size="icon-sm"
@@ -445,7 +521,12 @@ export function ConversationsList() {
             />
           </div>
 
-          {isLoading || isLoadingTrackings ? (
+          {selectedChannel === "IN_CHAT" && (
+            <InChatLinkBar trackingId={selectedTracking || null} />
+          )}
+          {isEmailChannel ? (
+            <LeadEmailPanel trackingId={selectedTracking || null} />
+          ) : isLoading || isLoadingTrackings ? (
             <div className="flex-1 flex flex-col gap-2 overflow-y-auto mt-2 min-h-0">
               {Array.from({ length: 10 }).map((_, index) => (
                 <Skeleton key={index} className="h-16 mt-1" />
@@ -523,6 +604,7 @@ export function ConversationsList() {
                       createdAt: item.lastMessage?.createdAt,
                       mimetype: (item.lastMessage as any)?.mimetype,
                       fileName: (item.lastMessage as any)?.fileName,
+                      fromMe: item.lastMessage?.fromMe,
                     }}
                   />
                 ))}

@@ -4,7 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "dev:warm": "node scripts/dev/warm-routes.mjs",
+    "test:local:build": "SKIP_TYPECHECK=1 NODE_OPTIONS=--max-old-space-size=4096 next build",
+    "test:local:start": "next start --port 3000",
+    "build": "tsx scripts/legal/sync-orbita-legal.ts; prisma generate && prisma migrate deploy && next build",
+    "legal:sync": "tsx scripts/legal/sync-orbita-legal.ts",
     "start": "next start",
     "migrate": "prisma migrate deploy",
     "dev:setup": "prisma migrate dev && prisma generate && pnpm install",

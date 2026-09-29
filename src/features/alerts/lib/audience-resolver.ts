@@ -33,6 +33,13 @@ export async function resolveAudience(
     case "lead_responsible":
       return resolveLeadResponsible(ctx);
 
+    case "lead_responsible_or_admins": {
+      // Lead sem dono não pode ficar sem ninguém avisado.
+      const responsible = await resolveLeadResponsible(ctx);
+      if (responsible.length > 0) return responsible;
+      return ctx.orgId ? resolveOrgAdmins(ctx.orgId) : [];
+    }
+
     case "action_participants":
       return ctx.participantUserIds ?? [];
 
@@ -116,6 +123,7 @@ function dedupe(arr: string[]): string[] {
 /** Helper exposto pra UI: lista o que cada kind significa em linguagem natural. */
 export const AUDIENCE_LABELS: Record<AudienceKind, string> = {
   lead_responsible: "Responsável pelo lead",
+  lead_responsible_or_admins: "Responsável pelo lead (ou admins, se não houver)",
   action_participants: "Participantes da ação",
   org_supervisors: "Supervisores da empresa",
   org_admins: "Admins da empresa",

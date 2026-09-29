@@ -16,6 +16,9 @@ import {
 } from "@/features/astro/lib/open-astro-widget";
 import { useAstroWidgetStore } from "@/features/astro/voice/use-astro-widget-store";
 import { AstroWidgetConversation } from "./astro-widget-conversation";
+import { cn } from "@/lib/utils";
+import { useOrbCenter } from "@/features/astro/hooks/use-orb-position";
+import { computePanelRect } from "@/features/astro/lib/orb-layout";
 
 /**
  * Painel de chat do Astro aberto pelo orb (spec 0015).
@@ -33,6 +36,7 @@ export function AstroWidgetPanel() {
   const hasOpened = useAstroWidgetStore((state) => state.hasOpened);
   const open = useAstroWidgetStore((state) => state.open);
   const close = useAstroWidgetStore((state) => state.close);
+  const { center: orbCenter, viewport, isMeasured } = useOrbCenter();
 
   useEffect(() => {
     const handleOpenRequest = (event: Event) => {
@@ -54,12 +58,31 @@ export function AstroWidgetPanel() {
 
   if (!hasOpened || PATHS_WITH_FULL_CHAT.includes(pathname)) return null;
 
+  // O painel abre a partir de onde o usuário deixou o orb, sempre dentro da
+  // tela. No celular (`null`) continua sendo a folha de baixo (spec 0029).
+  const panelRect = isMeasured ? computePanelRect(orbCenter, viewport) : null;
+
   return (
     <section
       role="dialog"
       aria-label="Chat com o Astro"
       hidden={!isOpen}
-      className="fixed inset-x-0 bottom-0 z-[9050] flex h-[85dvh] flex-col overflow-hidden rounded-t-[22px] border border-white/10 bg-[#0d0d12] text-white shadow-[0_30px_70px_-20px_rgba(0,0,0,0.6)] sm:inset-x-auto sm:bottom-20 sm:right-5 sm:h-[min(620px,calc(100dvh-7rem))] sm:w-[400px] sm:rounded-[22px]"
+      className={cn(
+        "fixed z-[9050] flex flex-col overflow-hidden border border-white/10 bg-[#0d0d12] text-white shadow-[0_30px_70px_-20px_rgba(0,0,0,0.6)]",
+        panelRect
+          ? "rounded-[22px]"
+          : "inset-x-0 bottom-0 h-[85dvh] rounded-t-[22px] sm:inset-x-auto sm:bottom-20 sm:right-5 sm:h-[min(620px,calc(100dvh-7rem))] sm:w-[400px] sm:rounded-[22px]",
+      )}
+      style={
+        panelRect
+          ? {
+              left: panelRect.left,
+              top: panelRect.top,
+              width: panelRect.width,
+              height: panelRect.height,
+            }
+          : undefined
+      }
     >
       <AstroWidgetSession />
     </section>

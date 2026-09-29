@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   ExternalLink,
+  Link as LinkIcon,
   Package,
   Clock,
   Rocket,
@@ -21,6 +22,8 @@ import {
 import { useSidebarPrefs, useSetSidebarPref, isItemVisible } from "@/hooks/use-sidebar-prefs";
 import { SIDEBAR_NAV_ITEMS } from "@/features/apps/lib/sidebar-items";
 import type { AppDef, AppStatus } from "./apps-data";
+import { toast } from "sonner";
+import { APP_LINK_PATH, appLinkKeyOf, resolveAppLink } from "@/features/apps/lib/app-signup-link";
 
 export type { AppDef, AppStatus };
 
@@ -118,6 +121,7 @@ export function AppCard({
     ? SIDEBAR_NAV_ITEMS.find((i) => i.key === app.sidebarKey)
     : null;
   const SidebarIcon = sidebarItem?.icon as React.ElementType | undefined;
+  const appLink = resolveAppLink(appLinkKeyOf(app));
 
   const isInstalled = app.status === "installed";
 
@@ -193,6 +197,7 @@ export function AppCard({
       {/* Action Button — compacto, gradient discreto, h-7 */}
       <div className="px-3 pb-3">
         {isInstalled ? (
+          <div className="flex gap-1.5">
           <button
             type="button"
             onClick={(e) => {
@@ -200,7 +205,7 @@ export function AppCard({
               onAction(app);
             }}
             className={cn(
-              "w-full h-7 rounded-md text-[11px] font-medium",
+              "flex-1 h-7 rounded-md text-[11px] font-medium",
               "bg-linear-to-r from-[#7C3AED] to-[#8B5CF6] text-white",
               "hover:from-[#6D28D9] hover:to-[#7C3AED] transition-all",
               "shadow-sm hover:shadow-md hover:shadow-[#7C3AED]/25",
@@ -210,6 +215,25 @@ export function AppCard({
             {app.action === "external" && <ExternalLink className="size-3" />}
             Abrir App
           </button>
+          {appLink && (
+            <button
+              type="button"
+              title="Copiar link do app: quem se cadastrar por ele já cai neste app"
+              aria-label={`Copiar link do ${app.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const url = `${window.location.origin}${APP_LINK_PATH}/${appLinkKeyOf(app)}`;
+                navigator.clipboard
+                  .writeText(url)
+                  .then(() => toast.success("Link do app copiado", { description: url }))
+                  .catch(() => toast.error("Não foi possível copiar o link"));
+              }}
+              className="flex h-7 items-center gap-1 rounded-md border border-border/60 px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+            >
+              <LinkIcon className="size-3" /> Link
+            </button>
+          )}
+          </div>
         ) : (
           <button
             type="button"

@@ -4,6 +4,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Body } from "@/features/tracking-chat/components/body";
 import { Footer } from "@/features/tracking-chat/components/footer-chat";
 import { Header } from "@/features/tracking-chat/components/header-tracking-chat";
+import { LeadSidebar } from "@/features/tracking-chat/components/lead-sidebar/lead-sidebar";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -71,108 +72,111 @@ export default function Page() {
   }
 
   return (
-    <div
-      className={cn(
-        "h-full relative",
-        // Defaults theme-aware (WhatsApp). Renderizam como var() fallback
-        // em `message-box.tsx`, garantindo que quando o user NÃO customizou,
-        // light/dark mode trocam as cores corretas automaticamente.
-        "[--chat-own-bg-default:#d9fdd3] dark:[--chat-own-bg-default:#005c4b]",
-        "[--chat-their-bg-default:#ffffff] dark:[--chat-their-bg-default:#202c33]",
-        "[--chat-own-text-default:#18181b] dark:[--chat-own-text-default:#fafafa]",
-        "[--chat-their-text-default:#18181b] dark:[--chat-their-text-default:#fafafa]",
-        "[--chat-own-muted-default:rgba(63,63,70,0.7)] dark:[--chat-own-muted-default:rgba(228,228,231,0.7)]",
-        "[--chat-their-muted-default:rgba(63,63,70,0.7)] dark:[--chat-their-muted-default:rgba(228,228,231,0.7)]",
-      )}
-      style={
-        // Quando o user customiza, sobrepomos os defaults. O auto-contraste
-        // (getContrastingTextColor) garante legibilidade independente de
-        // qual cor escolheu e em qual tema o app está.
-        {
-          ...(ownColor && { ["--chat-own-bg" as any]: ownColor }),
-          ...(theirColor && { ["--chat-their-bg" as any]: theirColor }),
-          ...(ownText && { ["--chat-own-text" as any]: ownText }),
-          ...(ownMutedText && { ["--chat-own-muted" as any]: ownMutedText }),
-          ...(theirText && { ["--chat-their-text" as any]: theirText }),
-          ...(theirMutedText && {
-            ["--chat-their-muted" as any]: theirMutedText,
-          }),
-        } as React.CSSProperties
-      }
-    >
-      {/* Layer 1: pattern WhatsApp Web (JPG q=70, ~178KB).
-          bg-fixed mantém parado durante scroll.
-          User pode override via Personalização → Aparência do Chat. */}
+    <div className="flex h-full min-w-0 lg:gap-3">
       <div
-        aria-hidden
         className={cn(
-          "absolute inset-0 pointer-events-none",
-          // Default WhatsApp pattern só renderiza se user não customizou
-          !customBgImageKey &&
-            !customBgColor &&
-            "bg-[url('/chat-bg/mobile.jpg')] md:bg-[url('/chat-bg/desktop.jpg')] bg-cover bg-center bg-fixed bg-[#dbe9f7] dark:bg-zinc-900",
+          "h-full relative flex-1 min-w-0 lg:overflow-hidden lg:rounded-2xl lg:border",
+          // Defaults theme-aware (WhatsApp). Renderizam como var() fallback
+          // em `message-box.tsx`, garantindo que quando o user NÃO customizou,
+          // light/dark mode trocam as cores corretas automaticamente.
+          "[--chat-own-bg-default:#d9fdd3] dark:[--chat-own-bg-default:#005c4b]",
+          "[--chat-their-bg-default:#ffffff] dark:[--chat-their-bg-default:#202c33]",
+          "[--chat-own-text-default:#18181b] dark:[--chat-own-text-default:#fafafa]",
+          "[--chat-their-text-default:#18181b] dark:[--chat-their-text-default:#fafafa]",
+          "[--chat-own-muted-default:rgba(63,63,70,0.7)] dark:[--chat-own-muted-default:rgba(228,228,231,0.7)]",
+          "[--chat-their-muted-default:rgba(63,63,70,0.7)] dark:[--chat-their-muted-default:rgba(228,228,231,0.7)]",
         )}
         style={
-          customBgImageKey
-            ? {
-                backgroundImage: `url(${customBgImage})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundAttachment: "fixed",
-                // Opacidade 0-1. Em 0 imagem some completamente; em 1
-                // imagem opaca. Aplicado SOMENTE quando user customizou —
-                // não interfere com o pattern default.
-                opacity: customBgOpacity / 100,
-              }
-            : customBgColor
-              ? { backgroundColor: customBgColor }
-              : undefined
+          // Quando o user customiza, sobrepomos os defaults. O auto-contraste
+          // (getContrastingTextColor) garante legibilidade independente de
+          // qual cor escolheu e em qual tema o app está.
+          {
+            ...(ownColor && { ["--chat-own-bg" as any]: ownColor }),
+            ...(theirColor && { ["--chat-their-bg" as any]: theirColor }),
+            ...(ownText && { ["--chat-own-text" as any]: ownText }),
+            ...(ownMutedText && { ["--chat-own-muted" as any]: ownMutedText }),
+            ...(theirText && { ["--chat-their-text" as any]: theirText }),
+            ...(theirMutedText && {
+              ["--chat-their-muted" as any]: theirMutedText,
+            }),
+          } as React.CSSProperties
         }
-      />
-      {/* Layer 2: overlay translúcida que dilui o pattern.
+      >
+        {/* Layer 1: pattern WhatsApp Web (JPG q=70, ~178KB).
+          bg-fixed mantém parado durante scroll.
+          User pode override via Personalização → Aparência do Chat. */}
+        <div
+          aria-hidden
+          className={cn(
+            "absolute inset-0 pointer-events-none",
+            // Default WhatsApp pattern só renderiza se user não customizou
+            !customBgImageKey &&
+              !customBgColor &&
+              "bg-[url('/chat-bg/mobile.jpg')] md:bg-[url('/chat-bg/desktop.jpg')] bg-cover bg-center bg-fixed bg-[#dbe9f7] dark:bg-zinc-900",
+          )}
+          style={
+            customBgImageKey
+              ? {
+                  backgroundImage: `url(${customBgImage})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  backgroundAttachment: "fixed",
+                  // Opacidade 0-1. Em 0 imagem some completamente; em 1
+                  // imagem opaca. Aplicado SOMENTE quando user customizou —
+                  // não interfere com o pattern default.
+                  opacity: customBgOpacity / 100,
+                }
+              : customBgColor
+                ? { backgroundColor: customBgColor }
+                : undefined
+          }
+        />
+        {/* Layer 2: overlay translúcida que dilui o pattern.
           - Cor sólida custom → sem overlay (cor fica nítida)
           - Imagem custom → SEM overlay também (a opacidade da imagem já
             controla a mescla — overlay extra seria redundante e bagunçaria
             a visualização da transparência configurada pelo user)
           - Default → overlay padrão pra dar contraste com bolhas */}
-      <div
-        aria-hidden
-        className={cn(
-          "absolute inset-0 pointer-events-none",
-          customBgColor || customBgImageKey
-            ? "bg-transparent"
-            : "bg-background/60 dark:bg-background/40",
-        )}
-      />
-      {/* Layer 3: conteúdo. */}
-      <div className="relative h-full flex flex-col">
-        <Header
-          name={data.conversation.lead?.name || ""}
-          profile={data.conversation.lead?.profile ?? undefined}
-          phone={data.conversation.lead?.phone ?? undefined}
-          leadId={data.conversation.lead.id}
-          conversationId={conversationId}
-          active={data.conversation.lead.isActive}
-          trackingId={data.conversation.trackingId}
-          statusFlow={data.conversation.lead.statusFlow}
-          channel={data.conversation.channel}
-          trackingName={(data.conversation as any).tracking?.name ?? null}
-          statusName={(data.conversation.lead as any).status?.name ?? null}
+        <div
+          aria-hidden
+          className={cn(
+            "absolute inset-0 pointer-events-none",
+            customBgColor || customBgImageKey
+              ? "bg-transparent"
+              : "bg-background/60 dark:bg-background/40",
+          )}
         />
-        <Body
-          messageSelected={messageSelected}
-          onSelectMessage={setMessageSelected}
-          trackingId={data.conversation.trackingId}
-          isGroup={data.conversation.isGroup}
-        />
-        <Footer
-          messageSelected={messageSelected}
-          closeMessageSelected={() => setMessageSelected(undefined)}
-          trackingId={data.conversation.tracking.id}
-          conversationId={conversationId}
-          lead={data?.conversation.lead}
-        />
+        {/* Layer 3: conteúdo. */}
+        <div className="relative h-full flex flex-col">
+          <Header
+            name={data.conversation.lead?.name || ""}
+            profile={data.conversation.lead?.profile ?? undefined}
+            phone={data.conversation.lead?.phone ?? undefined}
+            leadId={data.conversation.lead.id}
+            conversationId={conversationId}
+            active={data.conversation.lead.isActive}
+            trackingId={data.conversation.trackingId}
+            statusFlow={data.conversation.lead.statusFlow}
+            channel={data.conversation.channel}
+            trackingName={(data.conversation as any).tracking?.name ?? null}
+            statusName={(data.conversation.lead as any).status?.name ?? null}
+          />
+          <Body
+            messageSelected={messageSelected}
+            onSelectMessage={setMessageSelected}
+            trackingId={data.conversation.trackingId}
+            isGroup={data.conversation.isGroup}
+          />
+          <Footer
+            messageSelected={messageSelected}
+            closeMessageSelected={() => setMessageSelected(undefined)}
+            trackingId={data.conversation.tracking.id}
+            conversationId={conversationId}
+            lead={data?.conversation.lead}
+          />
+        </div>
       </div>
+      <LeadSidebar leadId={data.conversation.lead.id} conversationId={conversationId} />
     </div>
   );
 }

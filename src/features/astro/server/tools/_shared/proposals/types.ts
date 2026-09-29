@@ -2,6 +2,7 @@ import "server-only";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import type {
   AstroConfirmationLine,
+  AstroConfirmationPayload,
   AstroConfirmationResultPayload,
 } from "@/features/astro/lib/astro-confirmation";
 
@@ -19,6 +20,8 @@ export interface ProposalExecutionResult {
   links?: AstroConfirmationResultPayload["links"];
   /** Dados extras guardados em `AstroPendingAction.result` (ids criados, etc). */
   data?: Record<string, unknown>;
+  /** Cartão seguinte a confirmar (parte destrutiva de um plano, spec 0033). */
+  followUp?: AstroConfirmationPayload;
 }
 
 export type ProposalExecutor<Payload = Record<string, unknown>> = (params: {

@@ -3,6 +3,19 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleTracking } from "../tracking/resolve-tracking";
+import { extractNameAfter, extractPhone, extractTrackingName } from "../leads/lead-steps";
+
+/** "abre conversa com o 86 99999-9999 da Maria no funil Vendas" → campos, sem modelo. */
+function inferConversationFields(text: string): Record<string, unknown> {
+  const inferred: Record<string, unknown> = {};
+  const phone = extractPhone(text);
+  if (phone) inferred.phone = phone;
+  const name = extractNameAfter(text, ["da", "do", "com"]);
+  if (name) inferred.name = name;
+  const trackingName = extractTrackingName(text);
+  if (trackingName) inferred.trackingName = trackingName;
+  return inferred;
+}
 
 // Abrir conversa a partir de um número (spec 0024, onda 1).
 //
@@ -44,16 +57,28 @@ export const startConversationAction: AstroAction<typeof inputSchema> = {
   requiresConfirmation: true,
   confirmTitle: "Abrir conversa",
   input: inputSchema,
+  inferFields: inferConversationFields,
+  intentPatterns: [/\b(abre|abrir|abra|inicia|iniciar|inicie|comeca|comecar|comece)\s+(uma\s+)?(nova\s+)?(conversa|chat)\b/],
+  fieldSteps: {
+    phone: {
+      title: "Qual telefone?",
+      question: "Com qual número eu abro a conversa?",
+      picker: { kind: "text", placeholder: "(86) 99999-0000", maxLength: 40 },
+    },
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
-    const phone = input.phone.replace(/\D/g, "");
-    if (phone.length < PHONE_MIN_DIGITS) {
+    // Número sem o 55 não é entregue pelo WhatsApp; os leads da base já têm.
+    const digits = input.phone.replace(/\D/g, "");
+    const phone = digits.length <= 11 ? `55${digits}` : digits;
+    if (digits.length < PHONE_MIN_DIGITS) {
       return {
         status: "needs_input",
         title: "Telefone incompleto",
         description: `"${input.phone}" não parece um telefone com DDD.`,
         missingFields: [{ key: "phone", label: "telefone com DDD" }],
         appName: "Chat",
+        picker: { kind: "text", placeholder: "(86) 99999-0000", maxLength: 40 },
       };
     }
 

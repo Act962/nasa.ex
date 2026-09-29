@@ -507,6 +507,7 @@ async function executeNode(params: {
     node.type === "PAYMENT_RECEIVED" ||
     node.type === "MESSAGE_INCOMING" ||
     node.type === "WEBHOOK_EXTERNAL" ||
+    node.type === "SCHEDULE_TRIGGER" ||
     node.type === "WS_INITIAL" ||
     node.type === "WS_MANUAL_TRIGGER" ||
     node.type === "WS_ACTION_CREATED" ||

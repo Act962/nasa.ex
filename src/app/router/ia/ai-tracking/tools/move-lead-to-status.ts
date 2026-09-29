@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { tool } from "ai";
 import { z } from "zod";
+import { publishLeadStatusChanged } from "@/features/leads/lib/status-changed-event";
 
 export const moveLeadToStatusTool = (userId: string) =>
   tool({
@@ -12,6 +13,7 @@ export const moveLeadToStatusTool = (userId: string) =>
     }),
     execute: async ({ leadId, statusId }) => {
       try {
+        let previousStatusId: string | null = null;
         const result = await prisma.$transaction(async (tx) => {
           const lead = await tx.lead.findUnique({
             where: { id: leadId },
@@ -28,6 +30,7 @@ export const moveLeadToStatusTool = (userId: string) =>
             throw new Error("Lead não encontrado");
           }
 
+          previousStatusId = lead.statusId;
           const isChangingColumn = lead.statusId !== statusId;
 
           if (isChangingColumn) {
@@ -60,6 +63,7 @@ export const moveLeadToStatusTool = (userId: string) =>
           return updated;
         });
 
+        await publishLeadStatusChanged({ leadId: result.id, fromStatusId: previousStatusId, toStatusId: result.statusId });
         return {
           success: true,
           message: `Lead "${result.name}" movido para a coluna "${result.status?.name}".`,

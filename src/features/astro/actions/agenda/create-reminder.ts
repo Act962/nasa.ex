@@ -7,6 +7,7 @@ import { inngest } from "@/inngest/client";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleLead } from "../leads/resolve-lead";
 import { parseWhen } from "../parse-when";
+import type { AstroPicker } from "@/features/astro/lib/astro-picker";
 
 // Lembrete recorrente (spec 0024, onda 1). É o verbo que mais se diz falando:
 // "me lembra de ligar pro Kauê toda segunda".
@@ -41,6 +42,16 @@ function normalizeTime(raw: string): string {
   const paddedMinute = (minute ?? "").padEnd(2, "0").slice(0, 2) || "00";
   return `${paddedHour}:${paddedMinute}`;
 }
+
+const RECURRENCE_PICKER: AstroPicker = {
+  kind: "select",
+  options: [
+    { label: "Uma vez", answer: "uma vez" },
+    { label: "Toda semana", answer: "semanal" },
+    { label: "A cada 15 dias", answer: "quinzenal" },
+    { label: "Todo mês", answer: "mensal" },
+  ],
+};
 
 const inputSchema = z.object({
   message: z.string().trim().min(2).max(500).describe("O que lembrar."),
@@ -80,6 +91,43 @@ const inputSchema = z.object({
     .describe("Lead a que o lembrete se refere, quando houver."),
 });
 
+/** Fronteira de palavra que entende acento — `\b` do JS termina em "amanh|ã". */
+const WORD_START = "(?<![\\p{L}\\d])";
+const WORD_END = "(?![\\p{L}\\d])";
+
+/** Data, hora e recorrência não fazem parte do que lembrar. */
+const WHEN_EXPRESSIONS = [
+  "(?:todo|todos\\s+os)\\s+dias?(?:\\s+\\d{1,2})?",
+  "(?:no\\s+)?dia\\s+\\d{1,2}",
+  "(?:toda|todo|todas|todos)(?:\\s+(?:as|os))?\\s+[\\p{L}-]+",
+  "(?:a\\s+)?cada\\s+duas\\s+semanas",
+  "depois\\s+de\\s+amanh[ãa]",
+  "amanh[ãa]",
+  "hoje",
+  "(?:na\\s+|no\\s+)?(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:-feira)?",
+  "(?:[àa]s\\s+)?\\d{1,2}\\s*(?::|h)\\s*(?:\\d{2})?(?:\\s*h(?:oras)?)?",
+  "semanal(?:mente)?|quinzenal(?:mente)?|mensal(?:mente)?",
+].map((expression) => new RegExp(`${WORD_START}(?:${expression})${WORD_END}`, "giu"));
+
+/**
+ * "Me lembra amanhã às 9h de ligar para a Maria Clara" → "ligar para a Maria
+ * Clara". A data pode vir antes ou depois do que lembrar, então tira as
+ * expressões de tempo do resto da frase em vez de cortar no primeiro "amanhã".
+ */
+function extractReminderMessage(text: string): string | undefined {
+  const afterVerb = text.match(
+    /(?<![\p{L}])(?:me\s+lembr[ae](?:r)?|lembr[ae]-me|lembrete\s+(?:de|para|pra))\s+(.+)$/iu,
+  )?.[1];
+  if (!afterVerb) return undefined;
+  let message = afterVerb.split(/[,.!?]/)[0];
+  for (const expression of WHEN_EXPRESSIONS) message = message.replace(expression, " ");
+  return message
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^(?:de|que|para|pra)\s+/iu, "")
+    .trim();
+}
+
 /**
  * Frequência e hora estão na própria frase e seguem regra fixa — quando o
  * modelo omite um deles, o verbo inteiro morre depois de já ter acertado a
@@ -92,7 +140,11 @@ function inferReminderFields(text: string): Record<string, unknown> {
     .replace(/[\u0300-\u036f]/g, "");
   const inferred: Record<string, unknown> = {};
 
-  if (/\b(toda|todo|todas|todos|semanal)\b/.test(normalized)) {
+  if (/\btodo (?:santo )?dia \d{1,2}\b/.test(normalized)) {
+    inferred.recurrence = "mensal";
+  } else if (/\b(?:todos os dias|todo dia|diariamente)\b/.test(normalized)) {
+    // Não existe lembrete diário: o roteiro pergunta em vez de chutar semanal.
+  } else if (/\b(toda|todo|todas|todos|semanal)\b/.test(normalized)) {
     inferred.recurrence = /\bmes\b|\bmensal\b/.test(normalized) ? "mensal" : "semanal";
   } else if (/\bquinzenal\b|\bcada duas semanas\b/.test(normalized)) {
     inferred.recurrence = "quinzenal";
@@ -104,6 +156,12 @@ function inferReminderFields(text: string): Record<string, unknown> {
   if (time) {
     inferred.remindTime = `${time[1].padStart(2, "0")}:${time[2] ?? "00"}`;
   }
+
+  // O que lembrar e a partir de quando também estão na frase (spec 0033, RF-9).
+  const message = extractReminderMessage(text);
+  if (message && message.length >= 2) inferred.message = message;
+  const start = normalized.match(/\b(amanha|hoje|segunda|terca|quarta|quinta|sexta|sabado|domingo|dia \d{1,2})\b/)?.[1];
+  if (start) inferred.firstRemindAt = start;
 
   return inferred;
 }
@@ -122,6 +180,23 @@ export const createReminderAction: AstroAction<typeof inputSchema> = {
   requiresConfirmation: false,
   input: inputSchema,
   inferFields: inferReminderFields,
+  intentPatterns: [
+    /\b(me lembra|me lembre|me lembrar|lembra-me|lembre-me)\b/,
+    /\b(cria|criar|crie|novo|quero criar)\s+(um\s+)?(novo\s+)?lembrete\b/,
+  ],
+  fieldSteps: {
+    message: {
+      title: "Lembrar de quê?",
+      question: "O que eu devo lembrar?",
+      picker: { kind: "text", placeholder: "Ex.: ligar para a Maria Clara", maxLength: 500 },
+    },
+    recurrence: { title: "Com que frequência?", question: "Quando o lembrete se repete?", picker: RECURRENCE_PICKER },
+    remindTime: {
+      title: "Que horas?",
+      question: "Em que horário eu lembro?",
+      picker: { kind: "text", placeholder: "Ex.: 09:00", maxLength: 5 },
+    },
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     // MONTHLY com dia fixo dispensa data inicial; o resto exige.
@@ -133,6 +208,7 @@ export const createReminderAction: AstroAction<typeof inputSchema> = {
         description: `Não sei o que é "${input.recurrence}". Uma vez, semanal, quinzenal ou mensal?`,
         missingFields: [{ key: "recurrence", label: "a frequência" }],
         appName: "Agendas",
+        picker: RECURRENCE_PICKER,
       };
     }
 
@@ -152,6 +228,7 @@ export const createReminderAction: AstroAction<typeof inputSchema> = {
         description: "Me diga a partir de quando esse lembrete vale.",
         missingFields: [{ key: "firstRemindAt", label: "data do primeiro lembrete" }],
         appName: "Agendas",
+        picker: { kind: "datetime", mode: "date" },
       };
     }
 

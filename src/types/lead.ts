@@ -1,8 +1,19 @@
+import type { LeadMetricsView } from "@/features/leads/components/lead-audit/metric-format";
+
 export interface LeadFull {
   lead: {
     id: string;
     name: string;
     nickname: string | null;
+    metrics?: LeadMetricsView | null;
+    addressZipCode?: string | null;
+    addressStreet?: string | null;
+    addressNumber?: string | null;
+    addressComplement?: string | null;
+    addressNeighborhood?: string | null;
+    addressCity?: string | null;
+    addressState?: string | null;
+    addressCountry?: string | null;
     email: string | null;
     phone: string | null;
     description: string | null;

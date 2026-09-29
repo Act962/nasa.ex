@@ -34,6 +34,8 @@ export interface AstroConfirmationResultPayload {
   summary: string;
   lines?: AstroConfirmationLine[];
   links?: Array<{ label: string; href: string }>;
+  /** Cartão seguinte a confirmar (parte destrutiva de um plano, spec 0033). */
+  followUp?: AstroConfirmationPayload;
 }
 
 export function isAstroConfirmationPayload(value: unknown): value is AstroConfirmationPayload {

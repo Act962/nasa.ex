@@ -10,6 +10,7 @@ import {
   RenderUploadingState,
 } from "./render-state";
 import { toast } from "sonner";
+import { uploadFileToStorage } from "@/lib/upload-to-storage";
 import { v4 as uuidv4 } from "uuid";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
@@ -65,142 +66,20 @@ export function Uploader({
       onUploadStart?.();
 
       try {
-        // 1. Get presigned URL
-        const presignedResponse = await fetch("/api/s3/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            filename: file.name,
-            contentType: file.type,
-            size: file.size,
-            isImage: fileTypeAccepted === "image" ? true : false,
-          }),
+        const uploadedKey = await uploadFileToStorage(file, {
+          isImage: fileTypeAccepted === "image",
+          onProgress: (progress) => setFileState((prev) => ({ ...prev, progress })),
         });
-
-        if (!presignedResponse.ok) {
-          const errData = await presignedResponse.json().catch(() => ({}));
-          const errMsg =
-            presignedResponse.status === 503
-              ? "Armazenamento S3 não configurado. Preencha as variáveis de ambiente no servidor."
-              : (errData?.error ?? "Falha ao gerar URL presignada");
-          toast.error(errMsg);
-          setFileState((prev) => ({
-            ...prev,
-            uploading: false,
-            progress: 0,
-            error: true,
-          }));
-
-          return;
-        }
-
-        const { presignedUrl, key } = await presignedResponse.json();
-
-        // ── Tentativa 1: PUT direto pro bucket via presigned URL.
-        // Rápido (não passa pelo nosso server) MAS requer CORS configurado
-        // no bucket R2. Se falhar (CORS, rede, timeout), cai pro fallback
-        // server-side abaixo — silencioso pro user (mesmo `key`).
-        let uploadedKey: string | null = null;
-        let presignedOk = false;
-        try {
-          await new Promise<void>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-
-            xhr.upload.onprogress = (event) => {
-              if (event.lengthComputable) {
-                const precentageCompleted =
-                  (event.loaded / event.total) * 100;
-                setFileState((prev) => ({
-                  ...prev,
-                  progress: Math.round(precentageCompleted),
-                }));
-              }
-            };
-
-            xhr.onload = () => {
-              if (xhr.status === 200 || xhr.status === 204) {
-                resolve();
-              } else {
-                reject(new Error(`Upload failed: HTTP ${xhr.status}`));
-              }
-            };
-
-            xhr.onerror = () => {
-              // Browser não consegue distinguir falha de CORS de outras;
-              // ambas viram um onerror genérico. Logamos pra debug.
-              // eslint-disable-next-line no-console
-              console.warn(
-                "[uploader] PUT presigned falhou (provável CORS) — tentando fallback server-side",
-              );
-              reject(new Error("Upload failed (likely CORS)"));
-            };
-
-            xhr.open("PUT", presignedUrl);
-            xhr.setRequestHeader("Content-Type", file.type);
-            xhr.send(file);
-          });
-          uploadedKey = key;
-          presignedOk = true;
-        } catch {
-          // Cai no fallback abaixo — silencioso.
-          presignedOk = false;
-        }
-
-        // ── Tentativa 2: fallback server-side.
-        // Browser → nosso /api/s3/upload-direct (same-origin, sem CORS)
-        // → server faz PUT no bucket via SDK (server-to-server, sem CORS).
-        // Devolve `key` no mesmo formato.
-        if (!presignedOk) {
-          try {
-            // Reset progress — vai contar de novo no upload-direct
-            // (server-side ainda não emite progress, mas isso evita o
-            // user achar que travou).
-            setFileState((prev) => ({ ...prev, progress: 0 }));
-
-            const formData = new FormData();
-            formData.append("file", file);
-
-            const directRes = await fetch("/api/s3/upload-direct", {
-              method: "POST",
-              body: formData,
-            });
-
-            if (!directRes.ok) {
-              const errData = await directRes.json().catch(() => ({}));
-              throw new Error(errData?.error ?? "Falha no upload server-side");
-            }
-
-            const direct = (await directRes.json()) as { key: string };
-            uploadedKey = direct.key;
-          } catch (err) {
-            const msg =
-              (err as { message?: string })?.message ??
-              "Falha ao enviar arquivo";
-            toast.error(msg);
-            setFileState((prev) => ({
-              ...prev,
-              progress: 0,
-              error: true,
-              uploading: false,
-            }));
-            return;
-          }
-        }
-
-        // Sucesso (via presigned OU fallback) — propaga a key.
-        if (uploadedKey) {
-          setFileState((prev) => ({
-            ...prev,
-            progress: 100,
-            uploading: false,
-            key: uploadedKey!,
-          }));
-          onConfirm?.(uploadedKey, file.name);
-          onUpload?.(uploadedKey, file.name);
-        }
-      } catch {
-        toast.error("Falha ao enviar arquivo");
-
+        setFileState((prev) => ({
+          ...prev,
+          progress: 100,
+          uploading: false,
+          key: uploadedKey,
+        }));
+        onConfirm?.(uploadedKey, file.name);
+        onUpload?.(uploadedKey, file.name);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Falha ao enviar arquivo");
         setFileState((prev) => ({
           ...prev,
           progress: 0,

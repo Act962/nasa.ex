@@ -1,8 +1,8 @@
 import { ReactNode } from "react";
 import { Message } from "../types";
+import { renderWhatsappMarks } from "../utils/whatsapp-marks";
 
 const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
-
 function renderWithLinks(text: string): ReactNode {
   if (!text) return text;
   const parts = text.split(URL_REGEX);
@@ -22,7 +22,7 @@ function renderWithLinks(text: string): ReactNode {
         </a>
       );
     }
-    return part;
+    return renderWhatsappMarks(part, String(i));
   });
 }
 

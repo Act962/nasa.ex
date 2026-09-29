@@ -16,9 +16,9 @@ import {
   GraduationCap,
   LayoutTemplate,
   Rocket,
-  Send,
+  Sparkles,
   TrendingUp,
-  AtSign,
+  Send,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type React from "react";
@@ -69,6 +69,14 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     defaultVisible: true,
   },
   {
+    key: "campanhas",
+    title: "Campanhas",
+    url: "/campanhas",
+    icon: Send,
+    alwaysVisible: false,
+    defaultVisible: true,
+  },
+  {
     key: "spacetime",
     title: "Agenda",
     url: "/agendas",
@@ -95,14 +103,6 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   },
   // ── Ocultos por padrão (opt-in via /apps "+") ───────────────────────────
   {
-    key: "integrations",
-    title: "Integrações",
-    url: "/integrations",
-    icon: Plug2,
-    alwaysVisible: false,
-    defaultVisible: false,
-  },
-  {
     key: "nbox",
     title: "N-Box",
     url: "/nbox",
@@ -127,8 +127,16 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     defaultVisible: false,
   },
   {
+    key: "star-friends",
+    title: "STAR FRIENDS",
+    url: "/star-friends",
+    icon: Sparkles,
+    alwaysVisible: false,
+    defaultVisible: false,
+  },
+  {
     key: "payment",
-    title: "Payment",
+    title: "Financeiro",
     url: "/payment",
     icon: Landmark,
     alwaysVisible: false,
@@ -144,7 +152,7 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   },
   {
     key: "nasa-route",
-    title: "ÓRBITA Route",
+    title: "Route",
     url: "/nasa-route",
     icon: GraduationCap,
     alwaysVisible: false,
@@ -152,7 +160,7 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   },
   {
     key: "nasa-pages",
-    title: "ÓRBITA Pages",
+    title: "Pages",
     url: "/pages",
     icon: LayoutTemplate,
     alwaysVisible: false,
@@ -166,22 +174,6 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     alwaysVisible: false,
     defaultVisible: false,
   },
-  {
-    key: "comments",
-    title: "COMMENTS",
-    url: "/comments",
-    icon: AtSign,
-    alwaysVisible: false,
-    defaultVisible: true,
-  },
-  {
-    key: "campanhas",
-    title: "Campanhas",
-    url: "/campanhas",
-    icon: Send,
-    alwaysVisible: false,
-    defaultVisible: false,
-  },
   // ── Sempre visível ──────────────────────────────────────────────────────
   {
     key: "trafego",
@@ -190,6 +182,16 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     icon: TrendingUp,
     alwaysVisible: false,
     defaultVisible: false,
+  },
+  // Integrações fica fixa junto de Apps: é por ela que Gmail, WhatsApp e
+  // Instagram entram, e os apps apontam para cá quando falta conexão.
+  {
+    key: "integrations",
+    title: "Integrações",
+    url: "/integrations",
+    icon: Plug2,
+    alwaysVisible: true,
+    defaultVisible: true,
   },
   {
     key: "apps",
@@ -219,6 +221,7 @@ export const APP_TO_SIDEBAR_KEY: Record<string, string> = {
   nbox: "nbox",
   "nasa-planner": "nasa-planner",
   forge: "forge",
+  "star-friends": "star-friends",
   payment: "payment",
   linnker: "linnker",
   "nasa-route": "nasa-route",

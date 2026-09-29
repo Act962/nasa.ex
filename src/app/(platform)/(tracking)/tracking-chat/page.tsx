@@ -3,7 +3,7 @@ import { AppPinnedInsightsStrip } from "@/components/app-pinned-insights-strip";
 
 export default async function Page() {
   return (
-    <div className="h-full flex-1 flex flex-col">
+    <div className="h-full flex-1 flex flex-col lg:overflow-hidden lg:rounded-2xl lg:border bg-background">
       <AppPinnedInsightsStrip appModule="chat" />
       <div className="h-full items-center flex justify-center flex-1">
         <EmptyChat

@@ -1,30 +1,58 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Spinner } from "@/components/ui/spinner";
-import { Card, CardContent } from "@/components/ui/card";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { JourneyEventIcon, kindLabel } from "./event-icon";
-import { Megaphone, ExternalLink } from "lucide-react";
+import { FlagIcon, Megaphone, TimerIcon, ZapIcon } from "lucide-react";
+import { orpc } from "@/lib/orpc";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
+import { TriggerIcon } from "@/features/leads/components/lead-triggers/trigger-icon";
+import { QuickWorkflowDialog } from "@/features/workflows/components/quick-builder/quick-workflow-dialog";
+import {
+  IDLE_ALERT_DAYS,
+  formatGap,
+  gapSeverity,
+  idleSinceLastTeamTouch,
+  isTeamTouch,
+  positionOnSpan,
+  type GapSeverity,
+} from "@/features/leads/lib/journey/journey-gaps";
+import { JourneyEventIcon } from "./event-icon";
+import { EventMetadataPreview, deriveKindLabel } from "./event-details";
+
+// Jornada do lead como linha do tempo: de onde veio até hoje, com o tempo
+// parado entre cada passo — vermelho quando a equipe ficou 15+ dias sem agir —
+// e atalhos para acionar o lead ali mesmo.
 
 dayjs.extend(relativeTime);
 dayjs.locale("pt-br");
 
+export type JourneyActionScreen = "leadTriggers" | "campaigns";
+
 interface JourneyTimelineProps {
   leadId: string;
+  /** Com tracking, a linha oferece "Criar gatilho". */
+  trackingId?: string;
+  /** Com callback, a linha oferece abrir Gatilho do lead e Campanhas. */
+  onOpenScreen?: (screen: JourneyActionScreen) => void;
 }
 
-export function JourneyTimeline({ leadId }: JourneyTimelineProps) {
-  const { data, isLoading } = useQuery(
-    orpc.leads.getJourney.queryOptions({
-      input: { leadId, limit: 200 },
-    }),
-  );
+const SEVERITY_STYLES: Record<GapSeverity, { line: string; chip: string }> = {
+  ok: { line: "bg-emerald-500/40", chip: "bg-emerald-500/10 text-emerald-500" },
+  warn: { line: "bg-amber-500/60", chip: "bg-amber-500/10 text-amber-500" },
+  idle: { line: "bg-red-500", chip: "bg-red-500/15 text-red-400" },
+};
+
+const STAGGER_MS = 60;
+
+export function JourneyTimeline({ leadId, trackingId, onOpenScreen }: JourneyTimelineProps) {
+  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+  const { data, isLoading } = useQuery(orpc.leads.getJourney.queryOptions({ input: { leadId, limit: 200 } }));
 
   if (isLoading) {
     return (
@@ -33,333 +61,289 @@ export function JourneyTimeline({ leadId }: JourneyTimelineProps) {
       </div>
     );
   }
-
-  if (!data || data.events.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center text-sm text-muted-foreground">
-          Sem eventos registrados na jornada deste lead ainda.
-        </CardContent>
-      </Card>
-    );
-  }
+  if (!data) return null;
 
   const lead = data.lead;
-  const hasOriginInfo = !!(
-    lead.metaCampaignId ||
-    lead.metaAdId ||
-    lead.utmCampaign ||
-    lead.utmSource
-  );
+  const now = new Date();
+  const leadCreatedAt = new Date(lead.createdAt);
+  const events = [...data.events]
+    .map((event) => ({ ...event, occurredAt: new Date(event.occurredAt) }))
+    .sort((first, second) => first.occurredAt.getTime() - second.occurredAt.getTime());
+  const idleMs = idleSinceLastTeamTouch(events, leadCreatedAt, now);
+  const idleNow = gapSeverity(idleMs);
+  const hasActions = Boolean(onOpenScreen || trackingId);
+
+  const actions = hasActions ? (
+    <JourneyActions
+      onOpenScreen={onOpenScreen}
+      onCreateTrigger={trackingId ? () => setIsBuilderOpen(true) : undefined}
+    />
+  ) : null;
 
   return (
-    <div className="overflow-y-auto h-full pr-2">
-      {hasOriginInfo && (
-        <Card className="mb-4 border-emerald-200 bg-emerald-50/50">
-          <CardContent className="py-3 px-4 flex items-start gap-3">
-            <div className="size-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-              <Megaphone className="size-4 text-emerald-700" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold">Origem do lead</div>
-              <div className="text-xs text-muted-foreground space-y-0.5 mt-1">
-                {lead.metaCampaignId && (
-                  <div>
-                    <span className="font-medium">Campanha Meta: </span>
-                    {lead.metaCampaignId}
-                  </div>
-                )}
-                {lead.metaAdId && (
-                  <div>
-                    <span className="font-medium">Anúncio: </span>
-                    {lead.metaAdId}
-                  </div>
-                )}
-                {lead.metaHeadline && (
-                  <div className="italic">"{lead.metaHeadline}"</div>
-                )}
-                {lead.utmSource && (
-                  <div>
-                    <span className="font-medium">UTM source: </span>
-                    {lead.utmSource}
-                  </div>
-                )}
-                {lead.utmCampaign && (
-                  <div>
-                    <span className="font-medium">UTM campaign: </span>
-                    {lead.utmCampaign}
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="flex h-full flex-col gap-4 overflow-y-auto pr-2">
+      {trackingId && (
+        <QuickWorkflowDialog
+          isOpen={isBuilderOpen}
+          onOpenChange={setIsBuilderOpen}
+          trackingId={trackingId}
+          leadId={leadId}
+          leadName={lead.name}
+        />
       )}
 
-      <div className="relative pl-8">
-        {/* Linha vertical */}
-        <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-border" />
+      <OriginCard lead={lead} />
 
-        {data.events.map((evt, idx) => (
-          <div key={evt.id} className="relative pb-5 last:pb-0">
-            {/* Bolinha do ícone (sobrepõe a linha) */}
-            <div className="absolute -left-8 top-0">
-              <JourneyEventIcon kind={evt.kind} />
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium">
-                    {deriveKindLabel(evt.kind, evt.metadata)}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {dayjs(evt.occurredAt).format("DD/MM/YYYY HH:mm")} (
-                    {dayjs(evt.occurredAt).fromNow()})
-                  </span>
-                </div>
-                {evt.actor && (
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <Avatar className="size-5">
-                      {evt.actor.image ? (
-                        <AvatarImage src={evt.actor.image} alt={evt.actor.name} />
-                      ) : null}
-                      <AvatarFallback className="text-[10px]">
-                        {evt.actor.name?.[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs text-muted-foreground">
-                      {evt.actor.name}
+      <TimelapseRuler events={events} start={leadCreatedAt} now={now} idleSeverity={idleNow} />
+
+      <ol className="relative flex flex-col">
+        {events.map((event, index) => {
+          const previousAt = index === 0 ? leadCreatedAt : events[index - 1].occurredAt;
+          const gapMs = event.occurredAt.getTime() - previousAt.getTime();
+          return (
+            <li key={event.id} className="flex flex-col">
+              <GapConnector gapMs={gapMs} delayMs={index * STAGGER_MS} actions={actions} />
+              <div
+                className="flex items-start gap-3 fill-mode-both animate-in fade-in slide-in-from-left-2 duration-500"
+                style={{ animationDelay: `${index * STAGGER_MS}ms` }}
+              >
+                <JourneyEventIcon kind={event.kind} />
+                <div className="min-w-0 flex-1 rounded-xl border bg-muted/20 px-3 py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{deriveKindLabel(event.kind, event.metadata)}</span>
+                    <span className="text-[11px] text-muted-foreground" title={dayjs(event.occurredAt).format("DD/MM/YYYY HH:mm")}>
+                      {dayjs(event.occurredAt).format("DD/MM HH:mm")} · {dayjs(event.occurredAt).fromNow()}
                     </span>
                   </div>
-                )}
-                {/* Metadata renderizada por kind */}
-                <EventMetadataPreview kind={evt.kind} metadata={evt.metadata} />
+                  {event.actor && (
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <Avatar className="size-4">
+                        {event.actor.image ? <AvatarImage src={event.actor.image} alt={event.actor.name} /> : null}
+                        <AvatarFallback className="text-[9px]">{event.actor.name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <span className="text-[11px] text-muted-foreground">{event.actor.name}</span>
+                    </div>
+                  )}
+                  <EventMetadataPreview kind={event.kind} metadata={event.metadata} />
+                </div>
               </div>
+            </li>
+          );
+        })}
+
+        <li className="flex flex-col">
+          <GapConnector gapMs={idleMs} delayMs={events.length * STAGGER_MS} label="sem ação da equipe" actions={actions} />
+          <div
+            className="flex items-center gap-3 fill-mode-both animate-in fade-in duration-500"
+            style={{ animationDelay: `${events.length * STAGGER_MS}ms` }}
+          >
+            <span
+              className={cn(
+                "flex size-8 shrink-0 items-center justify-center rounded-full",
+                idleNow === "idle" ? "animate-pulse bg-red-500 text-white" : "bg-foreground text-background",
+              )}
+            >
+              <FlagIcon className="size-4" />
+            </span>
+            <div className="flex flex-1 flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold">Hoje</p>
+                <p className={cn("text-xs", idleNow === "idle" ? "text-red-400" : "text-muted-foreground")}>
+                  {idleNow === "idle"
+                    ? `Parado há ${formatGap(idleMs)} — mais de ${IDLE_ALERT_DAYS} dias sem ninguém acionar.`
+                    : `Última ação da equipe há ${formatGap(idleMs)}.`}
+                </p>
+              </div>
+              {idleNow !== "idle" && actions}
             </div>
           </div>
-        ))}
+        </li>
+      </ol>
+    </div>
+  );
+}
+
+type JourneyLead = {
+  name: string;
+  createdAt: Date | string;
+  source: string;
+  utmSource: string | null;
+  utmCampaign: string | null;
+  metaCampaignId: string | null;
+  metaAdId: string | null;
+  metaHeadline: string | null;
+};
+
+function OriginCard({ lead }: { lead: JourneyLead }) {
+  const details = [
+    lead.metaCampaignId && `Campanha Meta ${lead.metaCampaignId}`,
+    lead.metaAdId && `Anúncio ${lead.metaAdId}`,
+    lead.utmSource && `utm_source ${lead.utmSource}`,
+    lead.utmCampaign && `utm_campaign ${lead.utmCampaign}`,
+  ].filter(Boolean);
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border bg-gradient-to-br from-emerald-500/10 to-transparent p-3 animate-in fade-in duration-500">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
+        <Megaphone className="size-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">
+          Entrou em {dayjs(lead.createdAt).format("DD/MM/YYYY")} · origem {lead.source.toLowerCase().replaceAll("_", " ")}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Há {dayjs(lead.createdAt).fromNow(true)} na jornada{details.length ? ` · ${details.join(" · ")}` : ""}
+        </p>
+        {lead.metaHeadline && <p className="mt-0.5 text-xs italic text-muted-foreground">&quot;{lead.metaHeadline}&quot;</p>}
       </div>
     </div>
   );
 }
 
-function EventMetadataPreview({
-  kind,
-  metadata,
-}: {
+interface RulerEvent {
+  id: string;
   kind: string;
-  metadata: Record<string, unknown>;
-}) {
-  if (!metadata || Object.keys(metadata).length === 0) return null;
-
-  if (kind === "message_in" || kind === "message_out") {
-    const body = metadata.body as string | undefined;
-    if (!body) return null;
-    return (
-      <div className="text-sm bg-muted/50 rounded-md px-3 py-1.5 mt-1.5 max-w-xl line-clamp-2">
-        {body}
-      </div>
-    );
-  }
-
-  if (kind === "ctwa_referral") {
-    return (
-      <div className="text-xs mt-1 space-y-0.5">
-        {Boolean(metadata.headline) && (
-          <div className="italic">"{String(metadata.headline)}"</div>
-        )}
-        {Boolean(metadata.metaCampaignId) && (
-          <div className="text-muted-foreground">
-            Campanha: {String(metadata.metaCampaignId)}
-          </div>
-        )}
-        {Boolean(metadata.sourceUrl) && (
-          <a
-            href={String(metadata.sourceUrl)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-emerald-700 hover:underline"
-          >
-            Ver criativo <ExternalLink className="size-3" />
-          </a>
-        )}
-      </div>
-    );
-  }
-
-  if (kind === "status_changed") {
-    const fromName = String(metadata.from ?? "—");
-    const toName = String(metadata.to ?? "—");
-    const fromColor =
-      typeof metadata.fromColor === "string" ? metadata.fromColor : null;
-    const toColor =
-      typeof metadata.toColor === "string" ? metadata.toColor : null;
-    return (
-      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
-        de{" "}
-        <Badge
-          variant="outline"
-          className="text-[10px] gap-1"
-          style={
-            fromColor
-              ? {
-                  borderColor: fromColor,
-                  color: fromColor,
-                  background: `${fromColor}15`,
-                }
-              : undefined
-          }
-        >
-          {fromColor && (
-            <span
-              className="size-1.5 rounded-full"
-              style={{ background: fromColor }}
-            />
-          )}
-          {fromName}
-        </Badge>{" "}
-        para{" "}
-        <Badge
-          variant="outline"
-          className="text-[10px] gap-1"
-          style={
-            toColor
-              ? {
-                  borderColor: toColor,
-                  color: toColor,
-                  background: `${toColor}15`,
-                }
-              : undefined
-          }
-        >
-          {toColor && (
-            <span
-              className="size-1.5 rounded-full"
-              style={{ background: toColor }}
-            />
-          )}
-          {toName}
-        </Badge>
-      </div>
-    );
-  }
-
-  if (kind === "tracking_changed") {
-    return (
-      <div className="text-xs text-muted-foreground mt-1">
-        de <Badge variant="outline" className="text-[10px]">{String(metadata.from ?? "—")}</Badge>{" "}
-        para <Badge variant="outline" className="text-[10px]">{String(metadata.to ?? "—")}</Badge>
-      </div>
-    );
-  }
-
-  if (kind === "lead_assigned") {
-    if (!metadata.responsibleName) return null;
-    return (
-      <div className="text-xs text-muted-foreground mt-1">
-        Responsável: <strong>{String(metadata.responsibleName)}</strong>
-      </div>
-    );
-  }
-
-  if (kind === "tag_added" || kind === "tag_removed") {
-    if (!metadata.tagName) return null;
-    const color =
-      typeof metadata.tagColor === "string" ? metadata.tagColor : "#888";
-    return (
-      <div className="mt-1">
-        <Badge
-          variant="outline"
-          className="text-[10px] gap-1"
-          style={{
-            borderColor: color,
-            color: color,
-            background: `${color}15`,
-          }}
-        >
-          <span className="size-1.5 rounded-full" style={{ background: color }} />
-          {String(metadata.tagName)}
-        </Badge>
-      </div>
-    );
-  }
-
-  if (kind === "form_submit") {
-    if (!metadata.formName) return null;
-    const edited = metadata.edited === true;
-    const returning = metadata.returning === true;
-    const started = metadata.started === true;
-    const clientSigned = metadata.clientSigned === true;
-    const label =
-      typeof metadata.label === "string" && metadata.label.trim().length > 0
-        ? metadata.label.trim()
-        : null;
-    return (
-      <div className="text-xs text-muted-foreground mt-1">
-        {started
-          ? "Iniciou o preenchimento de: "
-          : clientSigned
-            ? "Cliente assinou: "
-            : edited
-              ? "Atualizou: "
-              : returning
-                ? "Reenviou: "
-                : "Preencheu: "}
-        <strong>{String(metadata.formName)}</strong>
-        {label && (
-          <span className="text-muted-foreground/80"> · {label}</span>
-        )}
-      </div>
-    );
-  }
-
-  if (kind === "file_uploaded") {
-    const fileName =
-      typeof metadata.fileName === "string" ? metadata.fileName : null;
-    if (!fileName) return null;
-    return (
-      <div className="text-xs text-muted-foreground mt-1 truncate">
-        Arquivo: <strong>{fileName}</strong>
-      </div>
-    );
-  }
-
-  if (kind === "note") {
-    const text = typeof metadata.notes === "string" ? metadata.notes : null;
-    if (!text) return null;
-    return (
-      <div className="text-sm bg-muted/50 rounded-md px-3 py-1.5 mt-1.5 max-w-xl line-clamp-3">
-        {text}
-      </div>
-    );
-  }
-
-  if (kind === "utm_landing") {
-    const parts: string[] = [];
-    if (metadata.utmSource) parts.push(`source: ${metadata.utmSource}`);
-    if (metadata.utmCampaign) parts.push(`campaign: ${metadata.utmCampaign}`);
-    if (metadata.utmMedium) parts.push(`medium: ${metadata.utmMedium}`);
-    if (parts.length === 0) return null;
-    return (
-      <div className="text-xs text-muted-foreground mt-1">
-        {parts.join(" · ")}
-      </div>
-    );
-  }
-
-  return null;
+  occurredAt: Date;
 }
 
-// FORM_STARTED compartilha kind="form_submit" com FORM_SUBMITTED, mas é
-// diferenciado por metadata.started — sobrescreve o título da timeline.
-function deriveKindLabel(
-  kind: string,
-  metadata: Record<string, unknown> | null | undefined,
-): string {
-  if (kind === "form_submit") {
-    if (metadata?.started === true) return "Formulário iniciado";
-    if (metadata?.clientSigned === true) return "Cliente assinou o formulário";
-    if (metadata?.edited === true) return "Formulário atualizado";
-  }
-  return kindLabel(kind);
+/** Linha do tempo em miniatura: da entrada até hoje, com os trechos parados pintados. */
+function TimelapseRuler({ events, start, now, idleSeverity }: { events: RulerEvent[]; start: Date; now: Date; idleSeverity: GapSeverity }) {
+  const teamTouches = events.filter((event) => isTeamTouch(event.kind));
+  const checkpoints = [start, ...teamTouches.map((event) => event.occurredAt), now];
+  const idleSpans = checkpoints.slice(1).flatMap((end, index) => {
+    const spanStart = checkpoints[index];
+    const severity = gapSeverity(end.getTime() - spanStart.getTime());
+    if (severity === "ok") return [];
+    return [
+      {
+        key: `${spanStart.getTime()}-${end.getTime()}`,
+        left: positionOnSpan(spanStart, start, now),
+        width: positionOnSpan(end, start, now) - positionOnSpan(spanStart, start, now),
+        severity,
+      },
+    ];
+  });
+
+  return (
+    <div className="rounded-2xl border bg-muted/20 p-3">
+      <div className="mb-3 flex items-center justify-between text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <TimerIcon className="size-3.5" />
+          {events.length} passo{events.length === 1 ? "" : "s"} em {formatGap(now.getTime() - start.getTime())}
+        </span>
+        <span className="flex items-center gap-3">
+          <Legend className="bg-amber-500/70" label={`+3 dias`} />
+          <Legend className="bg-red-500" label={`+${IDLE_ALERT_DAYS} dias parado`} />
+        </span>
+      </div>
+      <div className="relative h-2 rounded-full bg-muted">
+        <div className="animate-journey-grow absolute inset-y-0 left-0 w-full origin-left rounded-full bg-emerald-500/30" />
+        {idleSpans.map((span) => (
+          <div
+            key={span.key}
+            className={cn(
+              "absolute inset-y-0 rounded-full animate-in fade-in duration-700",
+              span.severity === "idle" ? "bg-red-500 animate-pulse" : "bg-amber-500/70",
+            )}
+            style={{ left: `${span.left}%`, width: `${Math.max(span.width, 1)}%` }}
+          />
+        ))}
+        {events.map((event, index) => (
+          <span
+            key={event.id}
+            title={dayjs(event.occurredAt).format("DD/MM/YYYY HH:mm")}
+            className={cn(
+              "absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background fill-mode-both animate-in zoom-in duration-300",
+              isTeamTouch(event.kind) ? "bg-emerald-400" : "bg-sky-400",
+            )}
+            style={{ left: `${positionOnSpan(event.occurredAt, start, now)}%`, animationDelay: `${300 + index * 40}ms` }}
+          />
+        ))}
+        <span
+          className={cn(
+            "absolute right-0 top-1/2 size-3 -translate-y-1/2 translate-x-1/2 rounded-full border-2 border-background",
+            idleSeverity === "idle" ? "animate-ping bg-red-500" : "bg-foreground",
+          )}
+        />
+      </div>
+      <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
+        <span>{dayjs(start).format("DD/MM/YY")}</span>
+        <span className="flex items-center gap-2">
+          <Legend className="bg-emerald-400" label="equipe" />
+          <Legend className="bg-sky-400" label="lead" />
+        </span>
+        <span>hoje</span>
+      </div>
+    </div>
+  );
+}
+
+function Legend({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1">
+      <span className={cn("size-2 rounded-full", className)} />
+      {label}
+    </span>
+  );
+}
+
+/** Trecho entre dois passos: a cor diz quanto tempo passou; vermelho oferece ação. */
+function GapConnector({
+  gapMs,
+  delayMs,
+  label,
+  actions,
+}: {
+  gapMs: number;
+  delayMs: number;
+  label?: string;
+  actions: React.ReactNode;
+}) {
+  const severity = gapSeverity(gapMs);
+  const styles = SEVERITY_STYLES[severity];
+  return (
+    <div className="flex min-h-7 gap-3 fill-mode-both animate-in fade-in duration-500" style={{ animationDelay: `${delayMs}ms` }}>
+      <div className="flex w-8 shrink-0 justify-center">
+        <div className={cn("w-0.5 rounded-full", styles.line, severity === "idle" && "w-1 animate-pulse")} />
+      </div>
+      <div className="flex flex-1 flex-wrap items-center gap-2 py-1.5">
+        {severity !== "ok" && (
+          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", styles.chip)}>
+            {formatGap(gapMs)} {label ?? (severity === "idle" ? "sem acionamento" : "depois")}
+          </span>
+        )}
+        {severity === "idle" && actions}
+      </div>
+    </div>
+  );
+}
+
+function JourneyActions({
+  onOpenScreen,
+  onCreateTrigger,
+}: {
+  onOpenScreen?: (screen: JourneyActionScreen) => void;
+  onCreateTrigger?: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {onOpenScreen && (
+        <Button size="sm" variant="outline" className="h-7 gap-1.5 text-[11px]" onClick={() => onOpenScreen("leadTriggers")}>
+          <TriggerIcon className="size-3.5" />
+          Gatilho do lead
+        </Button>
+      )}
+      {onCreateTrigger && (
+        <Button size="sm" variant="outline" className="h-7 gap-1.5 text-[11px]" onClick={onCreateTrigger}>
+          <ZapIcon className="size-3.5" />
+          Criar gatilho
+        </Button>
+      )}
+      {onOpenScreen && (
+        <Button size="sm" variant="outline" className="h-7 gap-1.5 text-[11px]" onClick={() => onOpenScreen("campaigns")}>
+          <Megaphone className="size-3.5" />
+          Disparo em Massa
+        </Button>
+      )}
+    </div>
+  );
 }

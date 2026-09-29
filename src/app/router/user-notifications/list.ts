@@ -2,6 +2,19 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { buildAstroVoice } from "@/features/astro/lib/astro-voice-catalog";
+
+const astroVoiceSchema = z.object({
+  headline: z.string(),
+  speech: z.string(),
+  priority: z.enum(["urgent", "important", "info"]),
+  actions: z.array(
+    z.union([
+      z.object({ kind: z.literal("prompt"), label: z.string(), prompt: z.string() }),
+      z.object({ kind: z.literal("link"), label: z.string(), href: z.string() }),
+    ]),
+  ),
+});
 
 export const listNotifications = base
   .use(requiredAuthMiddleware)
@@ -28,6 +41,8 @@ export const listNotifications = base
           severity: z.string(),
           displaySurface: z.string(),
           requiresAck: z.boolean(),
+          // Fala do ASTRO para o widget e o orb (spec 0029, RF-2).
+          astro: astroVoiceSchema,
         }),
       ),
       unreadCount: z.number(),
@@ -89,6 +104,15 @@ export const listNotifications = base
         severity: n.severity,
         displaySurface: n.displaySurface,
         requiresAck: n.requiresAck,
+        astro: buildAstroVoice({
+          // Alerta do motor guarda a chave em `eventType`; notificação direta, em `type`.
+          kind: n.eventType ?? n.type,
+          title: n.title,
+          body: n.body,
+          actionUrl: n.actionUrl,
+          severity: n.severity,
+          payload: n.eventPayload ?? n.metadata,
+        }),
       })),
       unreadCount,
     };

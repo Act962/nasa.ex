@@ -575,3 +575,225 @@ body.is-grab-scrolling * {
     font-size: 16px !important;
   }
 }
+
+/* Lead esperando retorno da equipe no chat: uma faixa de luz inclinada atravessa o card devagar.
+ * Feita no próprio fundo (sem pseudo-elemento nem overflow): cortar o card esmaga a linha na lista virtual. */
+@keyframes awaiting-light-run {
+  0% {
+    background-position: 100% 0;
+  }
+  70%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+.animate-awaiting-reply {
+  background-image: linear-gradient(
+    105deg,
+    transparent 40%,
+    color-mix(in srgb, var(--foreground) 9%, transparent) 50%,
+    transparent 60%
+  );
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  animation: awaiting-light-run 4.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-awaiting-reply {
+    animation: none;
+    background-image: none;
+  }
+}
+
+/* Jornada do lead: a linha do tempo cresce da entrada até hoje. */
+@keyframes journey-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-journey-grow {
+  animation: journey-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-journey-grow {
+    animation: none;
+  }
+}
+
+/* Guia do WhatsApp Oficial: a seta vermelha "cutuca" o botão onde clicar. */
+@keyframes guide-nudge-x {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-6px);
+  }
+}
+
+@keyframes guide-nudge-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* Jornada espacial (src/features/space-journey): foguete, estrelas e "+N STARs". */
+@keyframes rocket-flame {
+  0%,
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleY(0.75);
+    opacity: 0.8;
+  }
+}
+
+@keyframes rocket-hover {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -4px;
+  }
+}
+
+@keyframes space-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes star-gain {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-22px);
+    opacity: 0;
+  }
+}
+
+.animate-rocket-flame {
+  animation: rocket-flame 0.18s ease-in-out infinite;
+}
+
+.animate-rocket-hover {
+  animation: rocket-hover 2.4s ease-in-out infinite;
+}
+
+.animate-space-twinkle {
+  animation: space-twinkle 3s ease-in-out infinite;
+}
+
+.animate-star-gain {
+  animation: star-gain 1.4s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rocket-flame,
+  .animate-rocket-hover,
+  .animate-space-twinkle {
+    animation: none;
+  }
+}
+
+/* Guia do WhatsApp Oficial: luz que desce pelos itens do checklist (atraso por item). */
+@keyframes guide-shine {
+  0% {
+    background-position: 170% 0;
+  }
+  30%,
+  100% {
+    background-position: -70% 0;
+  }
+}
+
+@keyframes guide-shine-icon {
+  0%,
+  30%,
+  100% {
+    transform: scale(1);
+    filter: none;
+  }
+  12% {
+    transform: scale(1.25);
+    filter: drop-shadow(0 0 6px #34d399);
+  }
+}
+
+.guide-shine-text {
+  background-image: linear-gradient(
+    100deg,
+    var(--muted-foreground) 32%,
+    #10b981 42%,
+    #6ee7b7 50%,
+    #10b981 58%,
+    var(--muted-foreground) 68%
+  );
+  background-size: 280% 100%;
+  background-position: -70% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation-name: guide-shine;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+}
+
+.guide-shine-icon {
+  animation-name: guide-shine-icon;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-shine-text,
+  .guide-shine-icon {
+    animation: none;
+  }
+}
+
+/* Print do guia: ao passar o mouse, contorno azul pulsando (clique amplia). */
+@keyframes guide-shot-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgb(14 165 233 / 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgb(14 165 233 / 0.2);
+  }
+}
+
+.guide-shot-frame:hover,
+.guide-shot-frame:focus-visible {
+  animation: guide-shot-ring 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-shot-frame:hover,
+  .guide-shot-frame:focus-visible {
+    animation: none;
+    box-shadow: 0 0 0 2px rgb(14 165 233 / 0.55);
+  }
+}

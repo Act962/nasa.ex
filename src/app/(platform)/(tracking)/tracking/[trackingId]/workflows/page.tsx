@@ -3,6 +3,7 @@ import { CreateWorkflowButton } from "./create-workflow";
 import { WorkflowContainer } from "./workflow-container";
 import { Suspense } from "react";
 import { prefetchWorkflows } from "@/features/workflows/server/prefetch";
+import { QuickWorkflowButton } from "@/features/workflows/components/quick-builder/quick-workflow-button";
 import { AiLeadButton } from "@/features/trackings/components/modal/ai-lead-button";
 import { Button } from "@/components/ui/button";
 import { SparklesIcon } from "lucide-react";
@@ -25,10 +26,10 @@ export default async function WorkflowsPage({ params }: WorkflowPageProps) {
     <div className="container mx-auto space-y-8 px-4">
       <div className="flex items-center justify-between">
         <div className="max-w-xl">
-          <h1 className="text-lg md:text-xl font-semibold">Automações</h1>
+          <h1 className="text-lg md:text-xl font-semibold">Gatilhos Automáticos</h1>
           <p className="text-xs md:text-sm text-muted-foreground">
-            A automação é um processo que automatiza tarefas repetitivas,
-            permitindo que você se concentre em tarefas mais importantes.
+            Gatilhos automáticos executam tarefas repetitivas sozinhos,
+            para você se concentrar no que é mais importante.
           </p>
         </div>
 
@@ -37,10 +38,11 @@ export default async function WorkflowsPage({ params }: WorkflowPageProps) {
             <Button variant="outline" size="sm">
               <SparklesIcon className="size-4 text-purple-500" />
               <span className="hidden sm:inline bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-semibold">
-                Agente de Automações
+                Agente de Gatilhos Automáticos
               </span>
             </Button>
           </AiLeadButton>
+          <QuickWorkflowButton trackingId={trackingId} />
           <CreateWorkflowButton />
         </div>
       </div>

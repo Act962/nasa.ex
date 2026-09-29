@@ -8,6 +8,7 @@ import {
   type ClassifiedOutput,
 } from "./resolve-action";
 import type { StagedClassification } from "./classify-staged";
+import { resolveGuided, takeLastTokensUsed } from "./guided-slots";
 
 // Caminho curto do roteamento (spec 0023, RF-4): a ação escolhida pelo
 // classificador executa em código, e a resposta volta no mesmo formato de
@@ -116,6 +117,54 @@ export async function runClassifiedAction(params: {
       text: textFor(resolved.output),
     }),
     route: resolved.denied ? "denied" : params.classification.layer,
+    actionKey: resolved.action.key,
+    ...common,
+  };
+}
+
+/**
+ * Mesmo caminho curto, com memória do que já foi perguntado (spec 0032, RF-1).
+ *
+ * Sem isto, cada resposta era reclassificada do zero: escolher "Setup (Única)"
+ * na lista de produtos voltava a mesma pergunta, porque a frase solta não
+ * dizia o cliente nem o resto. O ciclo já existia — só atendia ao WhatsApp.
+ */
+export async function runGuidedAction(params: {
+  ctx: AgentContext;
+  text: string;
+  history?: string[];
+  sessionId: string;
+}): Promise<ClassifiedRun | null> {
+  const resolved = await resolveGuided(params);
+  if (!resolved) return null;
+
+  const tokensUsed = takeLastTokensUsed(params.sessionId);
+  const common = { tokensUsed, provider: "openai", modelId: "classificador" };
+
+  if (resolved.kind === "choice") {
+    return {
+      response: streamed({
+        toolCallId: `astro-choice-${Date.now()}`,
+        toolName: "choose_action",
+        input: { text: params.text },
+        output: resolved.payload,
+        text: resolved.payload.description,
+      }),
+      route: "dropdown",
+      actionKey: resolved.actionKey,
+      ...common,
+    };
+  }
+
+  return {
+    response: streamed({
+      toolCallId: `astro-action-${Date.now()}`,
+      toolName: resolved.action.toolName,
+      input: {},
+      output: resolved.output,
+      text: textFor(resolved.output),
+    }),
+    route: resolved.denied ? "denied" : "guiado",
     actionKey: resolved.action.key,
     ...common,
   };

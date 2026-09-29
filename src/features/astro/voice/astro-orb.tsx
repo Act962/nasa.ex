@@ -7,6 +7,13 @@ import { cn } from "@/lib/utils";
 import { AstroMark } from "@/features/astro/components/astro-mark";
 import { useAstroOrbStore } from "./use-astro-orb-store";
 import { useAstroWidgetStore } from "./use-astro-widget-store";
+import { useAstroPendingApprovals } from "@/features/astro-commander/hooks/use-astro-pending-approvals";
+import { useAstroPulse } from "@/features/astro/hooks/use-astro-pulse";
+import { useAstroBalloonTour } from "@/features/astro/hooks/use-astro-balloon-tour";
+import { useNotifications } from "@/components/sidebar/hooks/use-notifications";
+import { AstroSpeechFeed } from "./astro-speech-feed";
+import { useOrbCenter, useOrbDrag } from "@/features/astro/hooks/use-orb-position";
+import { ORB_SIZE_PX, orbSides } from "@/features/astro/lib/orb-layout";
 import { useVoiceModeStore } from "./use-voice-mode-store";
 import { useWakeWord } from "./use-wake-word";
 import { unlockAudio } from "./tts";
@@ -27,6 +34,7 @@ import { ORB_KEYFRAMES, ORB_PHASES } from "./orb-visuals";
  * A escuta pausa enquanto o TTS fala, pra não pegar a própria voz do Astro.
  */
 export function AstroOrb() {
+  useAstroPulse();
   const visible = useAstroOrbStore((state) => state.visible);
   const phase = useAstroOrbStore((state) => state.phase);
   const wakeWordEnabled = useAstroOrbStore((state) => state.wakeWordEnabled);
@@ -40,6 +48,16 @@ export function AstroOrb() {
 
   const isWidgetOpen = useAstroWidgetStore((state) => state.isOpen);
   const unreadCount = useAstroWidgetStore((state) => state.unreadCount);
+  // Aprovação parada é execução automática parada: entra no mesmo contador das
+  // respostas novas, para o usuário saber sem precisar abrir o app.
+  const { pendingCount: pendingApprovals, isLoading: isLoadingApprovals } =
+    useAstroPendingApprovals();
+  const {
+    unread: unreadAlerts,
+    notifications,
+    isLoading: isLoadingAlerts,
+  } = useNotifications();
+  const hasUnreadAlerts = unreadAlerts > 0;
   const toggleWidget = useAstroWidgetStore((state) => state.toggle);
   const closeWidget = useAstroWidgetStore((state) => state.close);
 
@@ -49,6 +67,19 @@ export function AstroOrb() {
   const isSpeaking = useVoiceModeStore((state) => state.isSpeaking);
   const pathname = usePathname();
   const isOnHome = pathname === "/home";
+
+  // Orb arrastável: posição salva por usuário, balão e menu abrem para dentro da tela.
+  const { center, viewport, isMeasured } = useOrbCenter();
+  const { opensUpward, alignsRight } = orbSides(center, viewport);
+  const orbDrag = useOrbDrag(center, viewport);
+
+  // Ao chegar na página, o ASTRO fala o que está pendente, como no site.
+  useAstroBalloonTour({
+    pathname,
+    isReady: !isOnHome && !isLoadingApprovals && !isLoadingAlerts,
+    alerts: notifications,
+    pendingApprovals,
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const { captureUtterance } = useAstroVoiceActions();
 
@@ -112,13 +143,17 @@ export function AstroOrb() {
       setMenuOpen((isMenuOpen) => !isMenuOpen);
       return;
     }
+    // Abrindo com algo esperando o usuário: começa em Início (spec 0029, CA-6).
+    if (!isWidgetOpen && (pendingApprovals > 0 || hasUnreadAlerts)) {
+      useAstroWidgetStore.getState().setView("home");
+    }
     toggleWidget();
   };
 
   const phaseStyle = ORB_PHASES[phase];
   // Com o painel aberto, o estado da voz aparece no próprio campo de mensagem.
-  const shouldShowHint = Boolean(hint) && !isWidgetOpen;
-  const hasUnread = unreadCount > 0 && !isWidgetOpen;
+  const badgeCount = unreadCount + pendingApprovals;
+  const hasUnread = badgeCount > 0 && !isWidgetOpen;
 
   const orbTitle =
     phase === "listening"
@@ -136,44 +171,45 @@ export function AstroOrb() {
               : "Conversar com o Astro";
 
   return (
-    <div className="fixed bottom-5 right-5 z-[9000] flex flex-col items-end gap-2 pointer-events-none">
-      {/* Hint flutuante — pequeno balão acima do orb */}
-      {shouldShowHint && (
-        <div
-          className="pointer-events-auto relative rounded-2xl px-3 py-1.5 text-xs text-zinc-100 shadow-xl max-w-xs animate-in fade-in slide-in-from-bottom-1 duration-200"
-          style={{
-            background:
-              "linear-gradient(135deg, rgba(24,24,27,0.96) 0%, rgba(39,39,42,0.96) 100%)",
-            backdropFilter: "blur(8px)",
-            border: "1px solid rgba(124,58,237,0.25)",
-            boxShadow:
-              "0 8px 24px -8px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
-          }}
-          aria-live="polite"
-        >
-          {hint}
-          {/* Tail apontando pro orb */}
-          <span
-            className="absolute -bottom-1 right-6 size-2 rotate-45"
-            style={{
-              background: "rgba(39,39,42,0.96)",
-              borderRight: "1px solid rgba(124,58,237,0.25)",
-              borderBottom: "1px solid rgba(124,58,237,0.25)",
-            }}
-            aria-hidden
+    <div
+      className={cn(
+        "fixed z-[9000] size-12 pointer-events-none",
+        // Antes de medir a tela, o canto de sempre: servidor e cliente desenham igual.
+        !isMeasured && "bottom-5 right-5",
+      )}
+      style={
+        isMeasured
+          ? { left: center.x - ORB_SIZE_PX / 2, top: center.y - ORB_SIZE_PX / 2 }
+          : undefined
+      }
+    >
+      {/* Balão e menu abrem para dentro da tela, a partir de onde o orb está. */}
+      <div
+        className={cn(
+          // Largura explícita: preso a um orb de 48px, o balão encolheria até ele.
+          "absolute flex w-[min(280px,calc(100vw-2.5rem))] gap-2",
+          opensUpward ? "bottom-full mb-2 flex-col" : "top-full mt-2 flex-col-reverse",
+          alignsRight ? "right-0 items-end" : "left-0 items-start",
+        )}
+      >
+        {/* Balão de fala: atividades e alertas do ASTRO (spec 0029, RF-10). */}
+        {!isWidgetOpen && !orbDrag.isDragging && (
+          <AstroSpeechFeed
+            voiceHint={hint}
+            pointsTo={`${opensUpward ? "bottom" : "top"}-${alignsRight ? "right" : "left"}`}
           />
-        </div>
-      )}
+        )}
 
-      {/* Menu de voz (só no /home) */}
-      {menuOpen && (
-        <div
-          className="pointer-events-auto rounded-xl bg-zinc-900/95 backdrop-blur border border-zinc-700/60 shadow-xl overflow-hidden"
-          role="menu"
-        >
-          <AstroVoiceMenuItems onAction={() => setMenuOpen(false)} />
-        </div>
-      )}
+        {/* Menu de voz (só no /home) */}
+        {menuOpen && (
+          <div
+            className="pointer-events-auto rounded-xl bg-zinc-900/95 backdrop-blur border border-zinc-700/60 shadow-xl overflow-hidden"
+            role="menu"
+          >
+            <AstroVoiceMenuItems onAction={() => setMenuOpen(false)} />
+          </div>
+        )}
+      </div>
 
       {/* Keyframes locais — evita plugin do Tailwind */}
       <style>{ORB_KEYFRAMES}</style>
@@ -198,17 +234,25 @@ export function AstroOrb() {
         <button
           ref={discoRef}
           type="button"
-          onClick={handleOrbClick}
+          {...orbDrag.handlers}
+          onClick={() => {
+            // Soltar um arraste dispara `click`: não pode abrir o painel.
+            if (orbDrag.shouldIgnoreClick()) return;
+            handleOrbClick();
+          }}
           title={orbTitle}
           aria-label={orbTitle}
           aria-expanded={isOnHome ? menuOpen : isWidgetOpen}
           className={cn(
-            "pointer-events-auto relative size-12 rounded-full flex items-center justify-center shadow-xl transition-all duration-500 hover:scale-105 active:scale-95",
+            "pointer-events-auto relative size-12 rounded-full flex items-center justify-center shadow-xl transition-all duration-500 hover:scale-105 active:scale-95 cursor-grab select-none",
+            orbDrag.isDragging && "cursor-grabbing scale-110",
             phaseStyle.bg,
             phaseStyle.ring,
           )}
           style={{
             boxShadow: phaseStyle.glow,
+            // Sem isso, arrastar com o dedo rola a página em vez de mover o orb.
+            touchAction: "none",
           }}
         >
           {/* ── LISTENING: 3 ondas concêntricas em delay ──────────────── */}
@@ -331,9 +375,13 @@ export function AstroOrb() {
           {hasUnread ? (
             <span
               className="absolute -top-1 -right-1 z-20 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white ring-2 ring-zinc-950 pointer-events-none"
-              aria-label={`${unreadCount} resposta(s) nova(s) do Astro`}
+              aria-label={
+                pendingApprovals > 0
+                  ? `${pendingApprovals} ação(ões) do Astro esperando aprovação`
+                  : `${unreadCount} resposta(s) nova(s) do Astro`
+              }
             >
-              {unreadCount > 9 ? "9+" : unreadCount}
+              {badgeCount > 9 ? "9+" : badgeCount}
             </span>
           ) : (
             wakeWordEnabled &&

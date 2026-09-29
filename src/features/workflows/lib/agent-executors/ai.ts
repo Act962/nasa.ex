@@ -27,6 +27,7 @@ import {
   persistAiChatRunFromUsage,
 } from "./persist-ai-usage";
 import { parseAiError } from "./parse-ai-error";
+import { reportAiQuotaExhausted } from "@/features/alerts/lib/ai-token-alerts";
 import {
   fallbackAiDecision,
   fallbackAiText,
@@ -151,6 +152,9 @@ export const aiDecisionExecutor: NodeExecutor = async ({
     });
   } catch (err) {
     const parsed = parseAiError(err);
+    if (parsed.code === "QUOTA_EXCEEDED" && orgId) {
+      void reportAiQuotaExhausted({ organizationId: orgId, usingCustomKey: false, source: "workflows.ai" });
+    }
 
     // ── Fallback heurístico quando LLM caiu por motivo não-recuperável ──
     // Em vez de derrubar o workflow, tenta decidir baseado em substring
@@ -382,6 +386,9 @@ export const aiGenerateTextExecutor: NodeExecutor = async ({
       });
     } catch (err) {
       const parsed = parseAiError(err);
+      if (parsed.code === "QUOTA_EXCEEDED" && orgId) {
+        void reportAiQuotaExhausted({ organizationId: orgId, usingCustomKey: false, source: "workflows.ai" });
+      }
       // Fallback: template fixo "humano vai te chamar"
       if (shouldUseFallback(parsed.code)) {
         const leadName = String(
@@ -505,6 +512,9 @@ export const aiVisionExecutor: NodeExecutor = async ({
     });
   } catch (err) {
     const parsed = parseAiError(err);
+    if (parsed.code === "QUOTA_EXCEEDED" && orgId) {
+      void reportAiQuotaExhausted({ organizationId: orgId, usingCustomKey: false, source: "workflows.ai" });
+    }
     if (shouldUseFallback(parsed.code)) {
       // Tier 1: tenta Gemini Vision (free tier robusto). Só cai pro
       // template "(LLM offline)" se Gemini também falhar — útil quando
@@ -699,6 +709,9 @@ export const readPdfExecutor: NodeExecutor = async ({
     });
   } catch (err) {
     const parsed = parseAiError(err);
+    if (parsed.code === "QUOTA_EXCEEDED" && orgId) {
+      void reportAiQuotaExhausted({ organizationId: orgId, usingCustomKey: false, source: "workflows.ai" });
+    }
     if (shouldUseFallback(parsed.code)) {
       const fb = fallbackReadPdf(extractedText);
       return {

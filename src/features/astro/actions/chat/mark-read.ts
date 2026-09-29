@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { MessageStatus } from "@/generated/prisma/enums";
 import type { AstroAction, AstroActionResult } from "../types";
+import { extractNameAfter } from "../leads/lead-steps";
 
 // Marcar conversas como lidas (spec 0024, onda 1). Update local, sem rede:
 // o `mark-read.ts` original também não chama o provider.
@@ -27,6 +28,14 @@ export const markChatReadAction: AstroAction<typeof inputSchema> = {
   permission: { appKey: "chat", action: "edit" },
   requiresConfirmation: false,
   input: inputSchema,
+  inferFields: (text) => {
+    const leadName = extractNameAfter(text, ["do", "da", "de"]);
+    return leadName ? { leadName } : {};
+  },
+  intentPatterns: [
+    /\b(marca|marcar|marque)\b.{0,50}\bcomo\s+lid[ao]s?\b/,
+    /\b(zera|zerar|zere)\b.{0,20}\bnao lid/,
+  ],
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const where = {

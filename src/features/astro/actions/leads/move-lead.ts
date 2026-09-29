@@ -3,6 +3,28 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleLead } from "./resolve-lead";
+import { LEAD_FIELD_STEP } from "./lead-steps";
+import { buildPickedAnswer, parsePickedAnswer } from "@/features/astro/lib/astro-picker";
+import { publishLeadStatusChanged } from "@/features/leads/lib/status-changed-event";
+
+/** "move a Maria Clara para Ganho" → lead e coluna, sem modelo. */
+function inferMoveFields(text: string): Record<string, unknown> {
+  const match = text.match(
+    /\b(?:move|mover|mova|passa|passar|joga|jogar)\s+(?:o\s+|a\s+)?(?:lead\s+)?(.+?)\s+(?:para|pra|pro)\s+(?:a\s+|o\s+)?(?:coluna\s+|etapa\s+)?(.+?)[.!?]*$/iu,
+  );
+  if (!match) {
+    // "move para Qualificado", "move ele pra Ganho": só o destino na frase.
+    const statusOnly = text.match(
+      /\b(?:move|mover|mova|passa|passar|joga|jogar)\s+(?:ele\s+|ela\s+)?(?:para|pra|pro)\s+(?:a\s+|o\s+)?(?:coluna\s+|etapa\s+)?(.+?)[.!?]*$/iu,
+    )?.[1];
+    return statusOnly && statusOnly.trim().length >= 2 ? { statusName: statusOnly.trim() } : {};
+  }
+  const inferred: Record<string, unknown> = {};
+  const leadName = match[1].trim();
+  if (leadName.length >= 2 && !/^(um|uma|o|a)?\s*lead$/i.test(leadName)) inferred.leadName = leadName;
+  if (match[2].trim().length >= 2) inferred.statusName = match[2].trim();
+  return inferred;
+}
 
 // Mover lead de coluna — o gesto mais repetido do board, e o verbo que
 // faltava: "mover para a coluna Em andamento" caía em `tracking.create_status`
@@ -14,6 +36,7 @@ const inputSchema = z.object({
     .string()
     .trim()
     .min(2)
+    .optional()
     .describe("Coluna de destino, ex: 'Em andamento'."),
 });
 
@@ -27,6 +50,12 @@ export const moveLeadAction: AstroAction<typeof inputSchema> = {
   permission: { appKey: "tracking", action: "edit" },
   requiresConfirmation: false,
   input: inputSchema,
+  inferFields: inferMoveFields,
+  intentPatterns: [
+    /\b(move|mover|mova)\b/,
+    /\b(passa|passar|joga|jogar)\b.{0,40}\b(para|pra)\s+(a\s+|o\s+)?(coluna|etapa)\b/,
+  ],
+  fieldSteps: { leadName: LEAD_FIELD_STEP },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const resolved = await resolveSingleLead({
@@ -38,42 +67,48 @@ export const moveLeadAction: AstroAction<typeof inputSchema> = {
     if ("failure" in resolved) return resolved.failure;
     const lead = resolved.lead;
 
-    const statuses = await prisma.status.findMany({
-      where: {
-        trackingId: lead.trackingId,
-        name: { contains: input.statusName, mode: "insensitive" },
-      },
+    // As colunas do funil do lead viram opções fixas: o usuário escolhe, não digita.
+    const columns = await prisma.status.findMany({
+      where: { trackingId: lead.trackingId },
       select: { id: true, name: true },
-      take: 5,
+      orderBy: { order: "asc" },
+      take: 20,
+    });
+    const askColumn = (title: string, description: string): AstroActionResult => ({
+      status: "ambiguous",
+      title,
+      description,
+      field: "statusName",
+      options: columns.map((column) => ({ id: column.id, label: column.name })),
+      appName: "Tracking",
+      picker: {
+        kind: "select",
+        options: columns.map((column) => ({
+          label: column.name,
+          answer: buildPickedAnswer(column.name, column.id),
+        })),
+      },
     });
 
-    if (statuses.length === 0) {
-      const available = await prisma.status.findMany({
-        where: { trackingId: lead.trackingId },
-        select: { id: true, name: true },
-        orderBy: { order: "asc" },
-        take: 8,
-      });
-      return {
-        status: "ambiguous",
-        title: "Coluna não encontrada",
-        description:
-          `${lead.tracking.name} não tem coluna com "${input.statusName}". Para qual delas?`,
-        field: "statusName",
-        options: available.map((item) => ({ id: item.id, label: item.name })),
-        appName: "Tracking",
-      };
+    if (!input.statusName) {
+      return askColumn("Para qual coluna?", `Para qual coluna eu movo ${lead.name}?`);
     }
 
+    const pickedColumn = parsePickedAnswer(input.statusName);
+    const statuses = pickedColumn.id
+      ? columns.filter((column) => column.id === pickedColumn.id)
+      : columns.filter((column) =>
+          column.name.toLowerCase().includes(pickedColumn.label.toLowerCase()),
+        );
+
+    if (statuses.length === 0) {
+      return askColumn(
+        "Coluna não encontrada",
+        `${lead.tracking.name} não tem coluna com "${pickedColumn.label}". Para qual delas?`,
+      );
+    }
     if (statuses.length > 1) {
-      return {
-        status: "ambiguous",
-        title: "Qual coluna?",
-        description: `Achei ${statuses.length} colunas parecidas com "${input.statusName}".`,
-        field: "statusName",
-        options: statuses.map((item) => ({ id: item.id, label: item.name })),
-        appName: "Tracking",
-      };
+      return askColumn("Qual coluna?", `Achei ${statuses.length} colunas parecidas com "${pickedColumn.label}".`);
     }
 
     const target = statuses[0];
@@ -106,6 +141,7 @@ export const moveLeadAction: AstroAction<typeof inputSchema> = {
       where: { id: lead.id },
       data: { statusId: target.id, statusEnteredAt: new Date() },
     });
+    await publishLeadStatusChanged({ leadId: lead.id, fromStatusId: current?.statusId ?? null, toStatusId: target.id });
 
     return {
       status: "done",

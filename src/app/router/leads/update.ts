@@ -15,6 +15,32 @@ import {
 import { computeSlaDeadline } from "@/features/leads/lib/sla";
 import { eventBus } from "@/features/alerts/lib/event-bus";
 
+const LEAD_ADDRESS_FIELDS = [
+  "addressZipCode",
+  "addressStreet",
+  "addressNumber",
+  "addressComplement",
+  "addressNeighborhood",
+  "addressCity",
+  "addressState",
+  "addressCountry",
+] as const;
+
+type LeadAddressField = (typeof LEAD_ADDRESS_FIELDS)[number];
+
+const LEAD_ADDRESS_INPUT = Object.fromEntries(
+  LEAD_ADDRESS_FIELDS.map((field) => [field, z.string().max(200).nullable().optional()]),
+) as Record<LeadAddressField, z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+
+/** Só os campos de endereço que vieram; vazio vira null (limpa). */
+function toAddressPatch(input: Partial<Record<LeadAddressField, string | null>>) {
+  const patch: Partial<Record<LeadAddressField, string | null>> = {};
+  for (const field of LEAD_ADDRESS_FIELDS) {
+    if (input[field] !== undefined) patch[field] = input[field]?.trim() || null;
+  }
+  return patch;
+}
+
 // 🟦 UPDATE
 export const updateLead = base
   .use(requiredAuthMiddleware)
@@ -43,6 +69,8 @@ export const updateLead = base
         trackingId: z.string().optional(),
         orgProjectId: z.string().nullable().optional(),
         temperature: z.enum(["COLD", "WARM", "HOT", "VERY_HOT"]).optional(),
+        // Endereço (spec 0034): string vazia ou null limpa o campo.
+        ...LEAD_ADDRESS_INPUT,
       })
       .refine(
         (v) =>
@@ -59,7 +87,8 @@ export const updateLead = base
           v.statusFlow !== undefined ||
           v.amount !== undefined ||
           v.orgProjectId !== undefined ||
-          v.temperature !== undefined,
+          v.temperature !== undefined ||
+          LEAD_ADDRESS_FIELDS.some((field) => v[field] !== undefined),
         {
           message: "No fields to update",
           path: ["id"],
@@ -123,6 +152,7 @@ export const updateLead = base
             ...(input.nickname !== undefined
               ? { nickname: input.nickname?.trim() || null }
               : {}),
+            ...toAddressPatch(input),
             phone: input.phone,
             email: input.email,
             description: input.description,

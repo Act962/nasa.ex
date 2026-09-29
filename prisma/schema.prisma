@@ -136,6 +136,10 @@ model User {
   // ── ASTRO (Agentes IA) ──
   aiSessions              AiSession[]
   astroPendingActions     AstroPendingAction[]
+  astroCommandsCreated    AstroCommand[]       @relation("AstroCommandCreatedBy")
+  astroMemoriesCreated    AstroMemory[]        @relation("AstroMemoryCreatedBy")
+  astroMemoriesApproved   AstroMemory[]        @relation("AstroMemoryApprovedBy")
+  astroFeedbacks          AstroFeedback[]
   paymentRemindersCreated PaymentReminder[]    @relation("PaymentReminderCreatedBy")
   aiKnowledgeMade         AiKnowledge[]        @relation("AiKnowledgeCreatedBy")
 
@@ -230,23 +234,26 @@ model Organization {
   companyCep   String?  @map("company_cep")
 
   // ── STARS ──────────────────────────────────
-  planId               String?   @map("plan_id")
-  starsBalance         Int       @default(0) @map("stars_balance")
-  starsBonusBalance    Int       @default(0) @map("stars_bonus_balance")
+  planId                 String?   @map("plan_id")
+  starsBalance           Int       @default(0) @map("stars_balance")
+  starsBonusBalance      Int       @default(0) @map("stars_bonus_balance")
   // Saldo de bônus (welcome, promoções) — não pode pagar curso no NASA Router,
   // mas pode ser consumido por integrações (Planner IA, Command IA, APP_CHARGE/SETUP).
-  starsCycleStart      DateTime? @map("stars_cycle_start")
+  starsCycleStart        DateTime? @map("stars_cycle_start")
   // ── Grace period / suspensão (pay-per-use) ────────────────
   // Quando saldo zera, `starsGraceStartedAt` é setado. Org tem 15 dias
   // pra recarregar. Cron `stars-grace-period-monitor` notifica em dias
   // 1/3/7/12/14 e seta `starsSuspendedAt` em dia 15+. Suspensão zera o
   // acesso a todas as procedures que cobram via `requireStarsMiddleware`.
-  starsGraceStartedAt  DateTime? @map("stars_grace_started_at")
-  starsSuspendedAt     DateTime? @map("stars_suspended_at")
+  starsGraceStartedAt    DateTime? @map("stars_grace_started_at")
+  starsSuspendedAt       DateTime? @map("stars_suspended_at")
+  /// Botão "pausar tudo" do ASTRO COMMANDER (spec 0028, RF-7). Setado, nenhum
+  /// comando da org executa — nem por agenda, nem por evento.
+  astroCommanderPausedAt DateTime? @map("astro_commander_paused_at")
   // Anti-spam de notificações pós-débito (1 dispatch/dia/severidade).
-  starsLastAlertAt     DateTime? @map("stars_last_alert_at")
-  starsAlertConfig     Json      @default("{}") @map("stars_alert_config")
-  starDistributionMode String    @default("org") @map("star_distribution_mode")
+  starsLastAlertAt       DateTime? @map("stars_last_alert_at")
+  starsAlertConfig       Json      @default("{}") @map("stars_alert_config")
+  starDistributionMode   String    @default("org") @map("star_distribution_mode")
   // "org"    = pool compartilhado (padrão)
   // "equal"  = dividido igualmente entre usuários ativos
   // "custom" = orçamento personalizado por usuário
@@ -304,6 +311,11 @@ model Organization {
   agendas                Agenda[]
   widgets                Widget[]
   platformIntegrations   PlatformIntegration[]
+  nerpCatalogIntegration NerpCatalogIntegration?
+  catalogOrders          CatalogOrder[]
+  loyaltyProgram         LoyaltyProgram?
+  loyaltyRewards         LoyaltyReward[]
+  loyaltyMembers         LoyaltyMember[]
   forgeProducts          ForgeProduct[]
   forgeProposals         ForgeProposal[]
   forgeContracts         ForgeContract[]
@@ -460,6 +472,11 @@ model Organization {
   aiSessions          AiSession[]
   astroPendingActions AstroPendingAction[]
   aiKnowledge         AiKnowledge[]
+  astroCommands       AstroCommand[]
+  astroCommandRuns    AstroCommandRun[]
+  astroMemories       AstroMemory[]
+  astroChatSites      AstroChatSite[]
+  astroFeedbacks      AstroFeedback[]
 
   // ── Tracking Chat — figurinhas personalizadas do composer ──
   userStickers UserSticker[]
@@ -600,6 +617,7 @@ model Tracking {
   workflowFolders     WorkflowFolder[]
   forms               FormSettings[]
   whatsappInstance    WhatsAppInstance?
+  whatsAppConnectProgress WhatsAppConnectProgress?
   broadcasts          Broadcast[]
   conversations       Conversation[]
   agendas             Agenda[]
@@ -623,6 +641,7 @@ model Tracking {
 
   // Astro Bot (Insights pelo WhatsApp) — trackings habilitadas pra responder o Astro
   astroBotEnabledOn AstroBotTracking[]
+  astroChatSites    AstroChatSite[]
 
   @@map("tracking")
 }
@@ -844,6 +863,8 @@ model Status {
   slaHours             Int?     @map("sla_hours")
   notifyClientOnEnter  Boolean  @default(false) @map("notify_client_on_enter")
   clientNotifyTemplate String?  @map("client_notify_template") @db.Text
+  // Chave de sistema da coluna (ex.: "catalog.paid"): o fluxo acha a etapa mesmo se a loja renomear a coluna (spec 0044).
+  systemKey            String?  @map("system_key")
   trackingId           String   @map("tracking_id")
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
@@ -854,6 +875,7 @@ model Status {
   FormSettings FormSettings[]
   agendas      Agenda[]
 
+  @@unique([trackingId, systemKey])
   @@index([trackingId, order])
   @@map("status")
 }
@@ -945,6 +967,10 @@ enum LeadSource {
   // — phone novo digitado na tela de identify. Pipeline cria com source
   // IN_CHAT e dispara todas as automações (workflows NEW_LEAD, IA, etc).
   IN_CHAT
+  // Visitante do widget ASTRO CHAT instalado no site do cliente (spec 0031).
+  ASTRO_CHAT
+  // Pedido vindo do Catálogo online do NERP (integração NERP → Órbita).
+  NERP_CATALOG
   OTHER
 }
 
@@ -953,6 +979,98 @@ enum Temperature {
   WARM
   HOT
   VERY_HOT
+}
+
+enum LeadInterestLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum LeadMetricsSource {
+  COMPUTED
+  AI
+}
+
+/// Métricas do lead (spec 0035, "Auditar Lead"). Calculadas em código a partir
+/// de mensagens, propostas e histórico; a IA só entra quando os sinais não
+/// bastam, e aí substitui apenas potencial e interesse.
+/// Gatilho do lead (spec 0038): mensagem agendada para um lead, com janela de ativação.
+enum LeadTriggerTemplate {
+  FOLLOW_UP
+  SCHEDULED_RETURN
+  PAYMENT_REMINDER
+  POST_SALE
+}
+
+model LeadTrigger {
+  id                String              @id @default(cuid())
+  organizationId    String              @map("organization_id")
+  leadId            String              @map("lead_id")
+  createdById       String              @map("created_by_id")
+  template          LeadTriggerTemplate
+  title             String
+  /// Precisa conter `{nome}`, trocado pelo primeiro nome do lead no envio.
+  message           String
+  isActive          Boolean             @default(false) @map("is_active")
+  scheduledAt       DateTime?           @map("scheduled_at")
+  /// Próxima tentativa: `scheduledAt`, ou a próxima abertura da janela.
+  nextRunAt         DateTime?           @map("next_run_at")
+  /// "HH:mm" em São Paulo.
+  windowStart       String              @default("08:00") @map("window_start")
+  windowEnd         String              @default("18:00") @map("window_end")
+  /// 0 = domingo … 6 = sábado.
+  weekdays          Int[]               @default([1, 2, 3, 4, 5])
+  skipWhenInService Boolean             @default(true) @map("skip_when_in_service")
+  /// "A cada X dias" entre repetições. Nulo = sem repetição.
+  repeatEveryDays   Int?                @map("repeat_every_days")
+  /// Quantas vezes dispara por ciclo (1x, 2x, 3x…).
+  maxRepetitions    Int                 @default(1) @map("max_repetitions")
+  /// Disparos do ciclo atual; zera quando o gatilho é ligado de novo.
+  cycleFireCount    Int                 @default(0) @map("cycle_fire_count")
+  /// "Apenas com as tags": vazio = qualquer lead.
+  tagIds            String[]            @default([]) @map("tag_ids")
+  activationCount   Int                 @default(0) @map("activation_count")
+  lastFiredAt       DateTime?           @map("last_fired_at")
+  lastError         String?             @map("last_error")
+  failureCount      Int                 @default(0) @map("failure_count")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, template])
+  @@index([isActive, nextRunAt])
+  @@index([organizationId])
+  @@map("lead_triggers")
+}
+
+model LeadMetrics {
+  id                   String            @id @default(cuid())
+  leadId               String            @unique @map("lead_id")
+  purchasePotential    Int               @default(0) @map("purchase_potential")
+  interestLevel        LeadInterestLevel @default(LOW) @map("interest_level")
+  purchasesCount       Int               @default(0) @map("purchases_count")
+  interactionsPerMonth Int               @default(0) @map("interactions_per_month")
+  avgAttendanceSeconds Int?              @map("avg_attendance_seconds")
+  interactionLossRate  Int               @default(0) @map("interaction_loss_rate")
+  avgResponseSeconds   Int?              @map("avg_response_seconds")
+  qualityScore         Int?              @map("quality_score")
+  resolutionRate       Int?              @map("resolution_rate")
+  source               LeadMetricsSource @default(COMPUTED)
+  confidence           Int               @default(0)
+  aiRationale          String?           @map("ai_rationale")
+  computedAt           DateTime          @default(now()) @map("computed_at")
+  aiAuditedAt          DateTime?         @map("ai_audited_at")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([purchasePotential])
+  @@index([interestLevel])
+  @@index([interactionLossRate])
+  @@map("lead_metrics")
 }
 
 enum StatusFlow {
@@ -994,6 +1112,16 @@ model Lead {
   isArchived Boolean   @default(false) @map("is_archived")
   archivedAt DateTime? @map("archived_at")
 
+  // ─── Endereço (spec 0034) — aba "Endereço" dos detalhes do lead ───
+  addressZipCode      String? @map("address_zip_code")
+  addressStreet       String? @map("address_street")
+  addressNumber       String? @map("address_number")
+  addressComplement   String? @map("address_complement")
+  addressNeighborhood String? @map("address_neighborhood")
+  addressCity         String? @map("address_city")
+  addressState        String? @map("address_state")
+  addressCountry      String? @map("address_country")
+
   // ─── Origem / Tracking de campanha (UTM + CTWA + Meta Ads) ───
   utmSource      String? @map("utm_source")
   utmMedium      String? @map("utm_medium")
@@ -1034,6 +1162,10 @@ model Lead {
   orgProject  OrgProject? @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
 
   conversation Conversation?
+  /// Métricas de comportamento e atendimento (spec 0035, "Auditar Lead").
+  metrics      LeadMetrics?
+  triggers     LeadTrigger[]
+  scopedWorkflows Workflow[] @relation("WorkflowLeadScope")
   reminders    Reminder[]
 
   leadTags                  LeadTag[]
@@ -1050,9 +1182,11 @@ model Lead {
   // NASA Auto Agent — sessões abertas pra este lead
   agentSessions             LeadAgentSession[]
   dailyTriggerClaims        LeadDailyTriggerClaim[]
+  catalogOrders             CatalogOrder[]
   broadcastRecipients       BroadcastRecipient[]
   trafegoOrders             TrafegoOrder[]
   trafegoPendingPurchases   TrafegoPendingPurchase[]
+  astroChatVisitors         AstroChatVisitor[]
   seiProcessLinks           SeiProcessLink[]
 
   @@unique([phone, trackingId])
@@ -1715,6 +1849,8 @@ model Workflow {
   description    String?
   userId         String?  @map("user_id")
   trackingId     String?  @map("tracking_id")
+  /// Escopo por lead (spec 0039): só dispara para este lead. Nulo = tracking inteiro.
+  leadId         String?  @map("lead_id")
   workspaceId    String?  @map("workspace_id")
   folderId       String?  @map("folder_id")
   isActive       Boolean  @default(true) @map("is_active")
@@ -1737,6 +1873,7 @@ model Workflow {
 
   user      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   tracking  Tracking?       @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  scopedLead Lead?          @relation("WorkflowLeadScope", fields: [leadId], references: [id], onDelete: SetNull)
   workspace Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folder    WorkflowFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   agent     Agent?          @relation("AgentWorkflow", fields: [agentId], references: [id], onDelete: SetNull)
@@ -1745,8 +1882,10 @@ model Workflow {
   connections        Connection[]
   runs               WorkflowRun[]
   dailyTriggerClaims LeadDailyTriggerClaim[]
+  scheduleClaims     WorkflowScheduleClaim[]
 
   @@index([trackingId])
+  @@index([leadId])
   @@index([workspaceId])
   @@index([folderId])
   @@index([agentId])
@@ -1941,6 +2080,9 @@ enum NodeType {
   WS_WAIT
   WS_HTTP_REQUEST
   WS_FILTER
+  // Construtor rápido (spec 0039)
+  SCHEDULE_TRIGGER
+  NOTIFY_TEAM
 }
 
 model Node {
@@ -1972,6 +2114,20 @@ model Node {
 /// sob mensagens concorrentes do mesmo lead, o fluxo dispare no máximo 1x por dia.
 /// Uma linha por (lead, workflow) — `dayKey` é sobrescrito a cada novo dia, então
 /// o crescimento é limitado a (#leads × #workflows com o gatilho).
+/// Um disparo por horário agendado (spec 0039, RNF-1).
+model WorkflowScheduleClaim {
+  id         String   @id @default(cuid())
+  workflowId String   @map("workflow_id")
+  /// "YYYY-MM-DD HH:mm" em São Paulo.
+  slotKey    String   @map("slot_key")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, slotKey])
+  @@map("workflow_schedule_claims")
+}
+
 model LeadDailyTriggerClaim {
   id         String   @id @default(cuid())
   leadId     String   @map("lead_id")
@@ -2370,6 +2526,12 @@ model WhatsAppInstance {
   metaAppSecret         String? @map("meta_app_secret")
   metaVerifyToken       String? @map("meta_verify_token")
   metaBusinessAccountId String? @map("meta_business_account_id")
+  /// Portfólio (Business Manager) da Meta — links de cartão e fatura (spec 0040).
+  metaBusinessId        String? @map("meta_business_id")
+  /// ID do app Meta do próprio cliente (fluxo "cole suas chaves", spec 0040) — assina o webhook do app.
+  metaAppId             String? @map("meta_app_id")
+  /// PIN de verificação em duas etapas do número, cifrado (AES-256-GCM). Sem ele não dá pra re-registrar.
+  metaTwoStepPin        String? @map("meta_two_step_pin")
 
   // ── In-Chat Fallback (anti-ban) ──────────────────────────────────────
   // `inChatModeActive` = true quando o cron `detect-whatsapp-ban` detecta
@@ -2480,6 +2642,7 @@ model Broadcast {
   tracking     Tracking             @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   createdBy    User                 @relation(fields: [createdById], references: [id])
   recipients   BroadcastRecipient[]
+  feePayments  BroadcastFeePayment[]
 
   trafegoOrder TrafegoOrder?
 
@@ -2487,6 +2650,100 @@ model Broadcast {
   @@index([trackingId])
   @@index([status])
   @@map("broadcasts")
+}
+
+/// Taxa de serviço ÓRBITA de uma campanha (spec 0040): paga antes de disparar.
+model BroadcastFeePayment {
+  id                String    @id @default(cuid())
+  broadcastId       String    @map("broadcast_id")
+  organizationId    String    @map("organization_id")
+  createdById       String    @map("created_by_id")
+  recipients        Int
+  templateCategory  String    @map("template_category")
+  metaCostBrlCents  Int       @map("meta_cost_brl_cents")
+  feePercent        Int       @map("fee_percent")
+  serviceFeeBrlCents Int      @map("service_fee_brl_cents")
+  /// "STRIPE" (cartão) | "ASAAS" (PIX/boleto/cartão na página do Asaas).
+  provider          String
+  externalId        String?   @map("external_id")
+  checkoutUrl       String?   @map("checkout_url")
+  /// PENDING | PAID | CANCELED
+  status            String    @default("PENDING")
+  /// NOW (dispara ao pagar) | SCHEDULE (agenda ao pagar)
+  dispatchMode      String    @default("NOW") @map("dispatch_mode")
+  scheduledAt       DateTime? @map("scheduled_at")
+  paidAt            DateTime? @map("paid_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+
+  @@index([broadcastId, status])
+  @@index([organizationId])
+  @@map("broadcast_fee_payments")
+}
+
+/// Progresso do assistente "Conectar número oficial" por funil (spec 0040, RF-14):
+/// o cliente continua de onde parou em qualquer aparelho. Rascunhos das chaves
+/// ficam cifrados (AES-256-GCM) até serem conferidos e gravados na instância.
+model WhatsAppConnectProgress {
+  id               String   @id @default(cuid())
+  trackingId       String   @unique @map("tracking_id")
+  organizationId   String   @map("organization_id")
+  /// Slug do passo atual do guia (whatsapp-connect-guide.json).
+  guideSlug        String?  @map("guide_slug")
+  /// Etapas concluídas + marcos de balão do Astro já exibidos ("cheer:*").
+  doneIds          String[] @default([]) @map("done_ids")
+  /// "own" | "salvy"
+  numberSource     String?  @map("number_source")
+  salvyNumberId    String?  @map("salvy_number_id")
+  draftAccessToken String?  @map("draft_access_token")
+  draftAppId       String?  @map("draft_app_id")
+  draftAppSecret   String?  @map("draft_app_secret")
+  /// Portfólio (business_id) tirado do link da página do app — deixa os links do guia diretos.
+  draftBusinessId  String?  @map("draft_business_id")
+  updatedById      String?  @map("updated_by_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("whatsapp_connect_progress")
+}
+
+/// Faixas da taxa ÓRBITA de campanha, editáveis pelo admin (spec 0040). Linha única "default".
+model BroadcastFeeSettings {
+  id             String   @id @default("default")
+  /// Liga a cobrança. Desligada, campanhas disparam sem taxa (compat com quem já usa).
+  enabled        Boolean  @default(false)
+  /// [{ minMetaCostBrlCents, feePercent }]
+  tiers          Json
+  minFeeBrlCents Int      @default(1990) @map("min_fee_brl_cents")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("broadcast_fee_settings")
+}
+
+/// Número virtual comprado na Salvy pela conta ÓRBITA para um cliente (spec 0040).
+model SalvyVirtualNumber {
+  id             String    @id @default(cuid())
+  organizationId String    @map("organization_id")
+  trackingId     String?   @map("tracking_id")
+  createdById    String    @map("created_by_id")
+  salvyId        String    @unique @map("salvy_id")
+  phoneNumber    String    @map("phone_number")
+  areaCode       Int       @map("area_code")
+  /// pending | active | blocked | canceled (espelho da Salvy) | past_due (sem Stars, 3 dias de carência)
+  status         String    @default("active")
+  nextChargeAt   DateTime? @map("next_charge_at")
+  canceledAt     DateTime? @map("canceled_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@index([status, nextChargeAt])
+  @@map("salvy_virtual_numbers")
 }
 
 model BroadcastRecipient {
@@ -2884,6 +3141,267 @@ model SeiProcessLink {
   @@index([organizationId, protocoloProcedimento])
   @@index([leadId, updatedAt(sort: Desc)])
   @@map("sei_process_links")
+}
+
+// ─────────────────────────────────────────────
+// CATÁLOGO ONLINE NERP → ÓRBITA
+// Pedido fechado no catálogo do NERP chega como lead + CatalogOrder; o Astro
+// negocia, cobra via Asaas da própria loja e, pago, move pra logística.
+// Doc: docs/nerp-catalog-orbita.md
+// ─────────────────────────────────────────────
+
+enum CatalogOrderStatus {
+  RECEIVED
+  NEGOTIATING
+  AWAITING_PAYMENT
+  PAID
+  IN_LOGISTICS
+  DELIVERED
+  CANCELED
+}
+
+enum CatalogOrderPaymentMethod {
+  PIX
+  ASAAS_LINK
+}
+
+model NerpCatalogIntegration {
+  id                  String   @id @default(cuid())
+  organizationId      String   @unique @map("organization_id")
+  isActive            Boolean  @default(true) @map("is_active")
+  ordersTrackingId    String   @map("orders_tracking_id")
+  ordersStatusId      String?  @map("orders_status_id")
+  logisticsTrackingId String   @map("logistics_tracking_id")
+  logisticsStatusId   String?  @map("logistics_status_id")
+  whatsappNumber      String?  @map("whatsapp_number")
+  // API key do Asaas da loja, cifrada (src/lib/crypto.ts).
+  asaasApiKey         String?  @map("asaas_api_key")
+  asaasApiKeyLast4    String?  @map("asaas_api_key_last4")
+  asaasEnv            String   @default("production") @map("asaas_env")
+  asaasWebhookId      String?  @map("asaas_webhook_id")
+  asaasWebhookToken   String?  @map("asaas_webhook_token")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("nerp_catalog_integrations")
+}
+
+model CatalogOrder {
+  id             String                     @id @default(cuid())
+  organizationId String                     @map("organization_id")
+  leadId         String                     @map("lead_id")
+  trackingId     String                     @map("tracking_id")
+  nerpSaleId     String                     @unique @map("nerp_sale_id")
+  nerpSaleNumber Int                        @map("nerp_sale_number")
+  publicToken    String                     @unique @map("public_token")
+  status         CatalogOrderStatus         @default(RECEIVED)
+  items          Json
+  customer       Json
+  delivery       Json
+  subtotal       Decimal                    @db.Decimal(12, 2)
+  shipping       Decimal                    @default(0) @db.Decimal(12, 2)
+  discount       Decimal                    @default(0) @db.Decimal(12, 2)
+  total          Decimal                    @db.Decimal(12, 2)
+  catalogUrl     String?                    @map("catalog_url")
+  paymentMethod  CatalogOrderPaymentMethod? @map("payment_method")
+  asaasPaymentId String?                    @unique @map("asaas_payment_id")
+  pixPayload     String?                    @map("pix_payload")
+  pixQrImage     String?                    @map("pix_qr_image")
+  pixExpiresAt   DateTime?                  @map("pix_expires_at")
+  invoiceUrl     String?                    @map("invoice_url")
+  paidAt         DateTime?                  @map("paid_at")
+  nerpSyncedAt   DateTime?                  @map("nerp_synced_at")
+  createdAt      DateTime                   @default(now()) @map("created_at")
+  updatedAt      DateTime                   @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([leadId])
+  @@map("catalog_orders")
+}
+
+// ─────────────────────────────────────────────
+// STAR FRIENDS — programa de fidelidade do cliente final.
+// Prefixo Loyalty* porque "Stars" já é a moeda da plataforma (StarTransaction…).
+// O extrato (LoyaltyLedgerEntry) é só-inclusão: saldo = soma das entradas.
+// Doc: docs/star-friends.md
+// ─────────────────────────────────────────────
+
+// Níveis do STAR FRIENDS (spec 0041): Terra (fase 1), Lua (fase 2), Galaxy (premium).
+enum LoyaltyTier {
+  EARTH
+  MOON
+  GALAXY
+}
+
+enum LoyaltyRewardType {
+  PRODUCT
+  DISCOUNT
+  PRIZE
+}
+
+enum LoyaltyLedgerType {
+  EARN
+  REDEEM
+  ADJUST_CREDIT
+  ADJUST_DEBIT
+  EXPIRE
+  REVERSAL
+}
+
+enum LoyaltyLedgerSource {
+  CATALOG_ORDER
+  FORGE_PROPOSAL
+  MANUAL
+  REDEMPTION
+}
+
+enum LoyaltyActorType {
+  USER
+  SYSTEM
+  ASTRO
+  CUSTOMER
+}
+
+enum LoyaltyRedemptionStatus {
+  PENDING
+  APPROVED
+  DELIVERED
+  REJECTED
+  CANCELED
+}
+
+enum LoyaltyRedemptionChannel {
+  CONSULTANT
+  CHAT
+  ASTRO
+  PORTAL
+}
+
+model LoyaltyProgram {
+  id                  String    @id @default(cuid())
+  organizationId      String    @unique @map("organization_id")
+  isActive            Boolean   @default(true) @map("is_active")
+  name                String    @default("STAR FRIENDS")
+  starsPerPurchase    Int       @default(1) @map("stars_per_purchase")
+  minPurchaseAmount   Decimal   @default(0) @map("min_purchase_amount") @db.Decimal(12, 2)
+  starsExpireDays     Int?      @map("stars_expire_days")
+  countCatalogOrders  Boolean   @default(true) @map("count_catalog_orders")
+  countForgeProposals Boolean   @default(true) @map("count_forge_proposals")
+  rules               String?
+  moonMinStars        Int       @default(10) @map("moon_min_stars")
+  galaxyMinStars      Int       @default(30) @map("galaxy_min_stars")
+  earthPerks          String?   @map("earth_perks")
+  moonPerks           String?   @map("moon_perks")
+  galaxyPerks         String?   @map("galaxy_perks")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("loyalty_programs")
+}
+
+model LoyaltyReward {
+  id              String            @id @default(cuid())
+  organizationId  String            @map("organization_id")
+  type            LoyaltyRewardType
+  name            String
+  description     String?
+  imageUrl        String?           @map("image_url")
+  costStars       Int               @map("cost_stars")
+  discountValue   Decimal?          @map("discount_value") @db.Decimal(12, 2)
+  discountPercent Int?              @map("discount_percent")
+  stock           Int?
+  minTier         LoyaltyTier       @default(EARTH) @map("min_tier")
+  isActive        Boolean           @default(true) @map("is_active")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  redemptions  LoyaltyRedemption[]
+
+  @@index([organizationId, isActive])
+  @@map("loyalty_rewards")
+}
+
+model LoyaltyMember {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  phone          String
+  name           String
+  lastLeadId     String?  @map("last_lead_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entries      LoyaltyLedgerEntry[]
+  redemptions  LoyaltyRedemption[]
+
+  @@unique([organizationId, phone])
+  @@map("loyalty_members")
+}
+
+model LoyaltyLedgerEntry {
+  id             String              @id @default(cuid())
+  organizationId String              @map("organization_id")
+  memberId       String              @map("member_id")
+  leadId         String?             @map("lead_id")
+  type           LoyaltyLedgerType
+  stars          Int
+  source         LoyaltyLedgerSource
+  sourceId       String              @map("source_id")
+  itemsSnapshot  Json?               @map("items_snapshot")
+  reason         String?
+  actorType      LoyaltyActorType    @map("actor_type")
+  actorUserId    String?             @map("actor_user_id")
+  actorName      String              @map("actor_name")
+  expiresAt      DateTime?           @map("expires_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  member LoyaltyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([source, sourceId, type])
+  @@index([organizationId, createdAt])
+  @@index([memberId, createdAt])
+  @@index([actorUserId])
+  @@map("loyalty_ledger_entries")
+}
+
+model LoyaltyRedemption {
+  id                String                   @id @default(cuid())
+  organizationId    String                   @map("organization_id")
+  memberId          String                   @map("member_id")
+  rewardId          String                   @map("reward_id")
+  leadId            String?                  @map("lead_id")
+  status            LoyaltyRedemptionStatus  @default(PENDING)
+  costStars         Int                      @map("cost_stars")
+  rewardSnapshot    Json                     @map("reward_snapshot")
+  requestedVia      LoyaltyRedemptionChannel @map("requested_via")
+  requestedByType   LoyaltyActorType         @map("requested_by_type")
+  requestedByUserId String?                  @map("requested_by_user_id")
+  requestedByName   String                   @map("requested_by_name")
+  note              String?
+  decidedByUserId   String?                  @map("decided_by_user_id")
+  decidedByName     String?                  @map("decided_by_name")
+  decidedAt         DateTime?                @map("decided_at")
+  decisionReason    String?                  @map("decision_reason")
+  deliveredByUserId String?                  @map("delivered_by_user_id")
+  deliveredByName   String?                  @map("delivered_by_name")
+  deliveredAt       DateTime?                @map("delivered_at")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+
+  member LoyaltyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  reward LoyaltyReward @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@index([memberId])
+  @@map("loyalty_redemptions")
 }
 
 // ─────────────────────────────────────────────
@@ -3415,27 +3933,32 @@ model ForgeBidItem {
 // ─────────────────────────────────────────────
 
 model Plan {
-  id              String   @id @default(cuid())
-  slug            String   @unique
-  name            String
-  slogan          String?
-  sortOrder       Int      @default(0) @map("sort_order")
-  monthlyStars    Int      @map("monthly_stars")
-  priceMonthly    Decimal  @map("price_monthly") @db.Decimal(10, 2)
-  priceLabel      String?  @map("price_label") // override do texto no canto direito do card (ex: "Gratuito", "Sob consulta"). Quando nulo cai no default ("R$ X" ou "Consultar" se price=0).
-  billingType     String   @default("monthly") @map("billing_type") // monthly | annual | weekly
-  maxUsers        Int      @default(3) @map("max_users")
-  rolloverPct     Int      @default(30) @map("rollover_pct")
-  benefits        Json     @default("[]") // string[]
-  ctaLabel        String   @default("Assinar agora") @map("cta_label")
-  ctaLink         String?  @map("cta_link") // external URL (optional, overrides gateway)
-  ctaGatewayId    String?  @map("cta_gateway_id") // PaymentGatewayConfig.id
-  highlighted     Boolean  @default(false) // destaque "Mais popular"
-  isActive        Boolean  @default(true) @map("is_active")
-  stripeProductId String?  @map("stripe_product_id")
-  stripePriceId   String?  @map("stripe_price_id")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+  id                         String   @id @default(cuid())
+  slug                       String   @unique
+  name                       String
+  slogan                     String?
+  sortOrder                  Int      @default(0) @map("sort_order")
+  monthlyStars               Int      @map("monthly_stars")
+  priceMonthly               Decimal  @map("price_monthly") @db.Decimal(10, 2)
+  priceLabel                 String?  @map("price_label") // override do texto no canto direito do card (ex: "Gratuito", "Sob consulta"). Quando nulo cai no default ("R$ X" ou "Consultar" se price=0).
+  billingType                String   @default("monthly") @map("billing_type") // monthly | annual | weekly
+  maxUsers                   Int      @default(3) @map("max_users")
+  rolloverPct                Int      @default(30) @map("rollover_pct")
+  /// ASTRO COMMANDER (spec 0028): execuções de comando incluídas por mês.
+  /// Acima disso, o excedente é cobrado em Stars pelo catálogo.
+  commanderRunsIncluded      Int      @default(0) @map("commander_runs_included")
+  /// Teto de comandos ativos simultâneos. 0 = Commander indisponível no plano.
+  commanderMaxActiveCommands Int      @default(0) @map("commander_max_active_commands")
+  benefits                   Json     @default("[]") // string[]
+  ctaLabel                   String   @default("Assinar agora") @map("cta_label")
+  ctaLink                    String?  @map("cta_link") // external URL (optional, overrides gateway)
+  ctaGatewayId               String?  @map("cta_gateway_id") // PaymentGatewayConfig.id
+  highlighted                Boolean  @default(false) // destaque "Mais popular"
+  isActive                   Boolean  @default(true) @map("is_active")
+  stripeProductId            String?  @map("stripe_product_id")
+  stripePriceId              String?  @map("stripe_price_id")
+  createdAt                  DateTime @default(now()) @map("created_at")
+  updatedAt                  DateTime @default(now()) @updatedAt @map("updated_at")
 
   organizations Organization[]
 
@@ -8008,12 +8531,341 @@ model AstroPendingAction {
   @@map("astro_pending_actions")
 }
 
+// ─────────────────────────────────────────────────────────────
+// ASTRO COMMANDER (spec 0028) — comandos persistentes que o ASTRO
+// executa sozinho: uma vez, por agenda ou por evento. O ASTRO segue
+// sendo o único assistente; o que se cria e configura é o COMANDO.
+// ─────────────────────────────────────────────────────────────
+
+enum AstroCommandPersona {
+  SALES
+  FINANCE
+  ADMIN
+  ACCOUNTING
+  CUSTOM
+}
+
+enum AstroCommandTrigger {
+  /// Roda uma vez (agora ou em `runAt`).
+  ONCE
+  /// Cron + fuso da organização.
+  SCHEDULE
+  /// Reage a um evento da plataforma (`eventKey`).
+  EVENT
+}
+
+enum AstroCommandAutonomy {
+  /// Padrão: toda escrita vira AstroPendingAction.
+  DRAFT
+  /// Executa sozinho abaixo de `approvalThreshold`; acima, pede aprovação.
+  APPROVE_ABOVE
+  /// Executa sozinho. Tools financeiras continuam exigindo aprovação (RF-4).
+  AUTO
+}
+
+enum AstroCommandStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum AstroCommandRunTrigger {
+  SCHEDULE
+  EVENT
+  MANUAL
+  /// "Testar comando": força DRAFT e não envia nada pra fora (RF-26).
+  TEST
+}
+
+enum AstroCommandRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  WAITING_APPROVAL
+  /// Barrado por guardrail ou saldo — não chamou o LLM, não cobrou (CA-7).
+  SKIPPED_LIMIT
+  /// Nada a fazer (entidade sumiu, comando pausado, evento próprio).
+  SKIPPED
+}
+
+/// Um comando do ASTRO. Concentra a configuração que a página
+/// `/astro/comandos/[id]` edita: modelo, prompt, voz, ferramentas,
+/// apps conectados e limites.
+model AstroCommand {
+  id             String              @id @default(cuid())
+  organizationId String              @map("organization_id")
+  createdById    String              @map("created_by_id")
+  title          String
+  /// Frase original do usuário ("todo dia às 8h conciliar extrato").
+  instruction    String
+  persona        AstroCommandPersona @default(CUSTOM)
+  iconUrl        String?             @map("icon_url")
+
+  // ── Gatilho ──────────────────────────────────────────────
+  triggerType AstroCommandTrigger @default(ONCE) @map("trigger_type")
+  /// Expressão cron quando `triggerType = SCHEDULE`.
+  cron        String?
+  timezone    String              @default("America/Sao_Paulo")
+  /// Momento único quando `triggerType = ONCE`.
+  runAt       DateTime?           @map("run_at")
+  /// `lead.created`, `chat.message.received`, `bank.statement.imported`.
+  eventKey    String?             @map("event_key")
+
+  // ── Configuração do agente ───────────────────────────────
+  /// Modelo escolhido na aba Configurar › Geral. Vazio = roteamento padrão.
+  modelId         String?  @map("model_id")
+  systemPrompt    String?  @map("system_prompt")
+  /// Mensagem de abertura quando o comando fala com um lead.
+  greetingMessage String?  @map("greeting_message")
+  vocabulary      String[] @default([])
+  blockedWords    String[] @default([]) @map("blocked_words")
+  knowledgeIds    String[] @default([]) @map("knowledge_ids")
+  /// Tools liberadas (aba Ações). Vazio = pack padrão da persona.
+  toolScope       String[] @default([]) @map("tool_scope")
+  /// { "<tool>": true } — tools que exigem aprovação mesmo em AUTO.
+  toolApprovals   Json     @default("{}") @map("tool_approvals")
+  /// Instância de WhatsApp, trackings, agenda, conta financeira, caixa Gmail.
+  connectedApps   Json     @default("{}") @map("connected_apps")
+  /// Idioma, voz e resposta em áudio (aba Configurar › Voz).
+  voiceConfig     Json     @default("{}") @map("voice_config")
+  /// Timeout, janela de horário permitida e toggles (Configurar › Execução).
+  executionConfig Json     @default("{}") @map("execution_config")
+
+  // ── Autonomia e guardrails ───────────────────────────────
+  autonomy          AstroCommandAutonomy @default(DRAFT)
+  /// Valor em reais acima do qual APPROVE_ABOVE exige aprovação.
+  approvalThreshold Decimal?             @map("approval_threshold") @db.Decimal(12, 2)
+  maxRunsPerDay     Int                  @default(24) @map("max_runs_per_day")
+  maxStarsPerRun    Int                  @default(200) @map("max_stars_per_run")
+
+  // ── Estado ───────────────────────────────────────────────
+  status       AstroCommandStatus @default(DRAFT)
+  lastRunAt    DateTime?          @map("last_run_at")
+  /// Próximo disparo agendado. O tick do Inngest varre por este campo.
+  nextRunAt    DateTime?          @map("next_run_at")
+  /// Motivo da pausa automática (ex.: criador perdeu permissão — CB-1).
+  pausedReason String?            @map("paused_reason")
+
+  // ── Templates ────────────────────────────────────────────
+  isTemplate       Boolean @default(false) @map("is_template")
+  templateSourceId String? @map("template_source_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User              @relation("AstroCommandCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  runs         AstroCommandRun[]
+
+  @@index([organizationId, status, updatedAt(sort: Desc)], map: "astro_commands_org_status_updated_idx")
+  /// Varredura do tick: comandos ativos com disparo vencido.
+  @@index([status, nextRunAt], map: "astro_commands_status_next_run_idx")
+  /// Listeners de evento: quem reage a `lead.created` nesta org.
+  @@index([organizationId, eventKey, status], map: "astro_commands_org_event_status_idx")
+  @@map("astro_commands")
+}
+
+/// Uma execução de comando. É a unidade cobrada no plano e a trilha de
+/// auditoria que a aba Execuções mostra.
+model AstroCommandRun {
+  id               String                 @id @default(cuid())
+  commandId        String                 @map("command_id")
+  organizationId   String                 @map("organization_id")
+  trigger          AstroCommandRunTrigger
+  status           AstroCommandRunStatus  @default(RUNNING)
+  /// Horário para o qual este run foi agendado. Com `commandId`, dá a chave
+  /// de idempotência que impede tick duplicado de rodar duas vezes (CB-3).
+  scheduledFor     DateTime?              @map("scheduled_for")
+  /// Entidade que disparou o evento (`lead:<id>`) — idempotência do EVENT (CA-5).
+  triggerKey       String?                @map("trigger_key")
+  /// Passos: [{ tool, input, output, startedAt, ms }].
+  steps            Json                   @default("[]")
+  summary          String?
+  tokensIn         Int                    @default(0) @map("tokens_in")
+  tokensOut        Int                    @default(0) @map("tokens_out")
+  starsCharged     Int                    @default(0) @map("stars_charged")
+  /// Propostas criadas por este run (aparecem na fila de aprovação).
+  pendingActionIds String[]               @default([]) @map("pending_action_ids")
+  error            String?
+  startedAt        DateTime               @default(now()) @map("started_at")
+  finishedAt       DateTime?              @map("finished_at")
+
+  command      AstroCommand @relation(fields: [commandId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([commandId, scheduledFor], map: "astro_command_runs_command_scheduled_key")
+  @@unique([commandId, triggerKey], map: "astro_command_runs_command_trigger_key")
+  @@index([organizationId, startedAt(sort: Desc)], map: "astro_command_runs_org_started_idx")
+  @@index([commandId, startedAt(sort: Desc)], map: "astro_command_runs_command_started_idx")
+  @@map("astro_command_runs")
+}
+
+enum AstroMemoryKind {
+  FACT
+  RULE
+  PREFERENCE
+}
+
+enum AstroMemorySource {
+  MANUAL
+  FEEDBACK
+  EXECUTION
+}
+
+enum AstroMemoryStatus {
+  /// Sugerida pelo digest diário. Só entra no prompt depois de ativada.
+  SUGGESTED
+  ACTIVE
+  ARCHIVED
+}
+
+/// Fatos, regras e preferências da organização (aba Auto Inteligência).
+/// Memória ACTIVE entra no prompt do chat e dos comandos; regra com valor
+/// numérico também vira limite no código (RNF-5).
+model AstroMemory {
+  id             String            @id @default(cuid())
+  organizationId String            @map("organization_id")
+  kind           AstroMemoryKind   @default(FACT)
+  content        String
+  /// Chave estável da regra ("desconto_maximo") — ativar uma arquiva a
+  /// anterior com a mesma chave (CB-13).
+  ruleKey        String?           @map("rule_key")
+  /// Limite numérico que o código aplica, quando a regra tiver um.
+  numericValue   Decimal?          @map("numeric_value") @db.Decimal(12, 2)
+  /// "org" | "persona:<persona>" | "command:<id>".
+  scope          String            @default("org")
+  source         AstroMemorySource @default(MANUAL)
+  status         AstroMemoryStatus @default(SUGGESTED)
+  /// De onde a sugestão nasceu (feedbackId, runId).
+  sourceRef      String?           @map("source_ref")
+  createdById    String?           @map("created_by_id")
+  approvedById   String?           @map("approved_by_id")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("AstroMemoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy   User?        @relation("AstroMemoryApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status, updatedAt(sort: Desc)], map: "astro_memories_org_status_updated_idx")
+  @@index([organizationId, ruleKey, status], map: "astro_memories_org_rule_status_idx")
+  @@map("astro_memories")
+}
+
+enum AstroFeedbackRating {
+  POSITIVE
+  NEGATIVE
+}
+
+/// 👍/👎 com correção opcional nas respostas do ASTRO. Alimenta o digest
+/// diário que sugere memórias.
+model AstroFeedback {
+  id             String              @id @default(cuid())
+  organizationId String              @map("organization_id")
+  userId         String              @map("user_id")
+  sessionId      String?             @map("session_id")
+  runId          String?             @map("run_id")
+  /// id da UIMessage avaliada dentro da sessão.
+  messageId      String?             @map("message_id")
+  rating         AstroFeedbackRating
+  correction     String?
+  /// Trecho da resposta avaliada, pra sugestão ter contexto sem reabrir a sessão.
+  answerExcerpt  String?             @map("answer_excerpt")
+  /// Já virou memória sugerida no digest.
+  processedAt    DateTime?           @map("processed_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt(sort: Desc)], map: "astro_feedbacks_org_created_idx")
+  @@index([organizationId, processedAt], map: "astro_feedbacks_org_processed_idx")
+  @@map("astro_feedbacks")
+}
+
+/// ASTRO CHAT (spec 0031): site do cliente com o widget do ASTRO instalado.
+model AstroChatSite {
+  id                String    @id @default(cuid())
+  organizationId    String    @map("organization_id")
+  trackingId        String?   @map("tracking_id")
+  statusId          String?   @map("status_id")
+  name              String
+  /// Identifica o site no snippet. Não é segredo (TR-2).
+  publicKey         String    @unique @map("public_key")
+  /// Origens aceitas, normalizadas ("https://exemplo.com.br").
+  allowedOrigins    String[]  @default([]) @map("allowed_origins")
+  isEnabled         Boolean   @default(true) @map("is_enabled")
+  /// "no_stars" | "tracking_missing" — pausa automática; nulo = ativo.
+  pausedReason      String?   @map("paused_reason")
+  aiEnabled         Boolean   @default(true) @map("ai_enabled")
+  assistantName     String    @default("Astro") @map("assistant_name")
+  greeting          String    @default("Oi! Eu sou o Astro. Posso te ajudar?")
+  instructions      String?   @db.Text
+  knowledgeIds      String[]  @default([]) @map("knowledge_ids")
+  accentColor       String    @default("#7C3AED") @map("accent_color")
+  /// Ícone próprio do widget; sem isso, o rosto do ASTRO.
+  avatarUrl         String?   @map("avatar_url")
+  /// "dark" | "light" — cor do painel no site do cliente.
+  widgetTheme       String    @default("light") @map("widget_theme")
+  /// Assuntos que o visitante NÃO pode pedir (spec 0031, RF-14 e D-14).
+  /// Vazio = nada bloqueado, que é como os sites existentes já funcionavam.
+  blockedTopicIds   String[]  @default([]) @map("blocked_topic_ids")
+  /// Restrições escritas pela org ("nunca fale de concorrente").
+  restrictionNotes  String?   @map("restriction_notes")
+  /// "right" | "left"
+  position          String    @default("right")
+  privacyUrl        String?   @map("privacy_url")
+  dailyAiReplyLimit Int       @default(300) @map("daily_ai_reply_limit")
+  aiRepliesDay      DateTime? @map("ai_replies_day") @db.Date
+  aiRepliesCount    Int       @default(0) @map("ai_replies_count")
+  nextBillingAt     DateTime? @map("next_billing_at")
+  lastBilledAt      DateTime? @map("last_billed_at")
+  createdById       String?   @map("created_by_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tracking     Tracking?          @relation(fields: [trackingId], references: [id], onDelete: SetNull)
+  visitors     AstroChatVisitor[]
+
+  @@index([organizationId])
+  @@index([nextBillingAt])
+  @@map("astro_chat_sites")
+}
+
+/// Visitante anônimo do widget. O token fica no navegador; aqui só o hash (TR-3).
+model AstroChatVisitor {
+  id             String    @id @default(cuid())
+  siteId         String    @map("site_id")
+  tokenHash      String    @unique @map("token_hash")
+  ipHash         String?   @map("ip_hash")
+  origin         String?
+  pageUrl        String?   @map("page_url")
+  leadId         String?   @map("lead_id")
+  /// Portão atômico do intervalo mínimo entre mensagens (TR-4).
+  lastMessageAt  DateTime? @map("last_message_at")
+  lastSeenAt     DateTime  @default(now()) @map("last_seen_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  site AstroChatSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  lead Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([siteId, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([leadId])
+  @@map("astro_chat_visitors")
+}
+
 model AiKnowledge {
   id             String            @id @default(cuid())
   organizationId String            @map("organization_id")
   name           String
-  type           String // "pdf" | "xlsx" | "docx" | "txt" | "csv"
+  type           String // "md" | "pdf" | "xlsx" | "docx" | "txt" | "csv"
   fileUrl        String?           @map("file_url") // R2/S3
+  /// Texto do documento (spec 0028, RF-13). Markdown escrito ou enviado pela
+  /// org entra inteiro no prompt — sem chunk, sem embedding, legível na tela.
+  content        String?           @db.Text
   status         AiKnowledgeStatus @default(PENDING)
   chunksCount    Int               @default(0) @map("chunks_count")
   errorMessage   String?           @map("error_message")

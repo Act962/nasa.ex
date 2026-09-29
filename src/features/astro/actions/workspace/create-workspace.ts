@@ -28,6 +28,18 @@ export const createWorkspaceAction: AstroAction<typeof inputSchema> = {
   requiresConfirmation: false,
   newNameFields: ["workspaceName"],
   input: inputSchema,
+  inferFields: (text) => {
+    const workspaceName = text.match(/\b(?:workspace|quadro)\s+(?:chamado\s+|de\s+)?(.+?)[.!?]*$/iu)?.[1]?.trim();
+    return workspaceName && workspaceName.length >= 2 ? { workspaceName } : {};
+  },
+  intentPatterns: [/\b(cria|criar|crie|novo|nova|quero criar)\s+(um\s+|uma\s+)?(novo\s+)?(workspace|quadro)\b/],
+  fieldSteps: {
+    workspaceName: {
+      title: "Nome do workspace",
+      question: "Qual o nome do workspace?",
+      picker: { kind: "text", placeholder: "Ex.: Operação", maxLength: 80 },
+    },
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const duplicate = await prisma.workspace.findFirst({

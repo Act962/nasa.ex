@@ -39,6 +39,18 @@ import { refreshMetaTokens } from "@/inngest/functions/nasa-planner/refresh-meta
 import { syncPostMetricsCron } from "@/inngest/functions/nasa-planner/sync-post-metrics-cron";
 import { syncPriceSuggestionsCron } from "@/inngest/functions/forge/sync-price-suggestions-cron";
 import { syncMetaAdsKpis } from "@/inngest/functions/crons/sync-meta-ads-kpis";
+import { astroCommanderTick } from "@/inngest/functions/astro-commander/commander-tick";
+import { astroLearnFromFeedback } from "@/inngest/functions/astro/learn-from-feedback";
+import { astroChatPublicAgent } from "@/inngest/functions/astro-chat/public-agent";
+import { astroChatMonthlyBilling } from "@/inngest/functions/astro-chat/monthly-billing";
+import { salvyNumberMonthlyBilling } from "@/inngest/functions/campanhas/salvy-monthly-billing";
+import { astroCommandRun } from "@/inngest/functions/astro-commander/run-command";
+import { detectLeadWaiting } from "@/inngest/functions/crons/detect-lead-waiting";
+import { detectAiTokenUsage } from "@/inngest/functions/crons/detect-ai-token-usage";
+import { fireLeadTriggers } from "@/inngest/functions/leads/fire-lead-triggers";
+import { runScheduledWorkflowsCron } from "@/inngest/functions/crons/run-scheduled-workflows";
+import { detectExpensesDueToday } from "@/inngest/functions/crons/detect-expenses-due-today";
+import { detectContractsExpiring } from "@/inngest/functions/crons/detect-contracts-expiring";
 import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-structure";
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
 import { nasaRouteVideoUploadsCleanup } from "@/inngest/functions/crons/nasa-route-video-uploads-cleanup";
@@ -64,6 +76,12 @@ import { worldEventOccupancyTick } from "@/inngest/functions/crons/world-event-o
 import { detectActionsDueSoon } from "@/inngest/functions/crons/detect-actions-due-soon";
 import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
 import { chatAiWhatsappAgent } from "@/inngest/functions/chat-ai/whatsapp-agent";
+import { syncCatalogOrderToNerp } from "@/inngest/functions/nerp-catalog/sync-order-to-nerp";
+import { awaitReplyTagCheck } from "@/inngest/functions/org-defaults/await-reply-tag";
+import { seedSampleContent } from "@/inngest/functions/org-defaults/seed-sample-content";
+import { emailLeadCaptureCron } from "@/inngest/functions/crons/email-lead-capture";
+import { watchCatalogOrderPayment } from "@/inngest/functions/nerp-catalog/watch-order-payment";
+import { starFriendsExpireStars } from "@/inngest/functions/star-friends/expire-stars";
 import {
   scheduleIdleChecks,
   checkNoFirstResponse,
@@ -96,10 +114,16 @@ import { dispatchDueBroadcasts } from "@/inngest/functions/campanhas/dispatch-du
 import { watchScheduledBroadcast } from "@/inngest/functions/campanhas/watch-scheduled-broadcast";
 import { syncSeiProcess } from "@/inngest/functions/sei/sync-process";
 import { testSeiConnection } from "@/inngest/functions/sei/test-connection";
+import {
+  recomputeActiveLeadMetricsNightly,
+  recomputeLeadMetrics,
+} from "@/inngest/functions/leads/recompute-lead-metrics";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
+    recomputeLeadMetrics,
+    recomputeActiveLeadMetricsNightly,
     executeWorkflow,
     executeWorkspaceWorkflow,
     processReminder,
@@ -130,6 +154,20 @@ export const { GET, POST, PUT } = serve({
     trafegoAsaasPaymentEvent,
     // ── trafeGO: acompanha cada cobrança PIX até resolver (spec 0022) ──
     trafegoAsaasChargeWatch,
+    // ── ASTRO COMMANDER (spec 0028): agenda a cada minuto + execução ──
+    astroCommanderTick,
+    astroLearnFromFeedback,
+    astroChatPublicAgent,
+    astroChatMonthlyBilling,
+    salvyNumberMonthlyBilling,
+    astroCommandRun,
+    // ── ASTRO: alertas proativos (spec 0029) ──
+    detectLeadWaiting,
+    detectAiTokenUsage,
+    fireLeadTriggers,
+    runScheduledWorkflowsCron,
+    detectExpensesDueToday,
+    detectContractsExpiring,
     // ── NASA Planner ──
     publishPostHandler,
     publishScheduledPosts,
@@ -153,6 +191,14 @@ export const { GET, POST, PUT } = serve({
     chatSyncMessages,
     // ── Chat AI (WhatsApp agent interno) ──
     chatAiWhatsappAgent,
+    // ── Catálogo online NERP → Órbita: pagamento e confirmação da venda ──
+    watchCatalogOrderPayment,
+    syncCatalogOrderToNerp,
+    awaitReplyTagCheck,
+    seedSampleContent,
+    emailLeadCaptureCron,
+    // ── STAR FRIENDS: validade das stars ──
+    starFriendsExpireStars,
     // ── In-Chat (fallback anti-ban): confirma queda → ativa; recuperação preguiçosa ──
     confirmDisconnectAndActivate,
     checkInChatRecovery,

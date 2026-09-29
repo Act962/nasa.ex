@@ -10,6 +10,12 @@ import { AlertTriangle, Info, AlertCircle } from "lucide-react";
 import { AlertCriticalPopup } from "./alert-critical-popup";
 import { useAlertStore } from "../store/use-alert-store";
 import {
+  ASTRO_ACTIVITY_EVENT,
+  ASTRO_ACTIVITY_PUSHER_EVENT,
+  ASTRO_ALERT_EVENT,
+  type AstroActivityDetail,
+} from "@/features/astro/lib/astro-alert-event";
+import {
   isSeverity,
   isDisplaySurface,
   type DisplaySurface,
@@ -34,6 +40,9 @@ import {
 export function AlertProvider({ children }: { children?: React.ReactNode }) {
   const { data: session } = authClient.useSession();
   const { data: orgs } = authClient.useListOrganizations();
+  // Os handlers do Pusher são registrados uma vez; o ref entrega a lista atual.
+  const orgsRef = useRef(orgs);
+  orgsRef.current = orgs;
   const { data: activeOrg } = authClient.useActiveOrganization();
   const queryClient = useQueryClient();
   const store = useAlertStore();
@@ -58,6 +67,7 @@ export function AlertProvider({ children }: { children?: React.ReactNode }) {
             title: item.title,
             body: item.body,
             actionUrl: item.actionUrl,
+            organizationName: item.organizationName,
             requiresAck: item.requiresAck,
           });
         }
@@ -74,6 +84,10 @@ export function AlertProvider({ children }: { children?: React.ReactNode }) {
     const ch = pusherClient.subscribe(`private-user-${userId}`);
 
     ch.bind("alert:new", (data: AlertNewPayload) => handleIncoming(data));
+    // O que o ASTRO está fazendo (comando executando) vai direto para o balão.
+    ch.bind(ASTRO_ACTIVITY_PUSHER_EVENT, (data: AstroActivityDetail) => {
+      window.dispatchEvent(new CustomEvent(ASTRO_ACTIVITY_EVENT, { detail: data }));
+    });
     ch.bind("alert:acked", (data: { notificationId: string }) => {
       // Fecha popup local se for o mesmo
       const active = useAlertStore.getState().activeCritical;
@@ -107,10 +121,16 @@ export function AlertProvider({ children }: { children?: React.ReactNode }) {
       ? data.displaySurface
       : "bell";
 
-    // Sempre invalida o bell (badge atualiza em qualquer caso)
+    // Sempre invalida o bell (badge atualiza em qualquer caso). O hook do sino
+    // usa a chave legada `["user-notifications"]`: sem invalidar as duas, o
+    // badge só mudava no polling de 30s (spec 0029, RNF-4).
     queryClient.invalidateQueries(
       orpc.userNotifications.list.queryOptions({ input: {} }),
     );
+    queryClient.invalidateQueries({ queryKey: ["user-notifications"] });
+
+    // Repassa ao ASTRO (orb e widget) sem abrir uma segunda assinatura Pusher.
+    window.dispatchEvent(new CustomEvent(ASTRO_ALERT_EVENT, { detail: data }));
 
     if (displaySurface === "popup") {
       // Para popups, precisamos do ID — Pusher payload tem `notificationId`
@@ -123,6 +143,7 @@ export function AlertProvider({ children }: { children?: React.ReactNode }) {
         title: data.title,
         body: data.body,
         actionUrl: data.actionUrl ?? null,
+        organizationName: (orgsRef.current ?? []).find((organization) => organization.id === data.organizationId)?.name ?? null,
         requiresAck: data.requiresAck ?? severity === "critical",
       });
       return;
@@ -198,4 +219,5 @@ interface AlertNewPayload {
   actionUrl?: string | null;
   eventType?: string;
   notificationId?: string;
+  organizationId?: string | null;
 }

@@ -2,6 +2,8 @@ import prisma from "@/lib/prisma";
 import { decryptSecret } from "@/lib/crypto";
 import type { ModelMessage } from "ai";
 import type { AiModelConfig } from "./model";
+import { loadActiveCatalogOrder } from "@/features/nerp-catalog/lib/order-context";
+import { getActiveProgram } from "@/features/star-friends/lib/program";
 
 const HISTORY_LIMIT = 20;
 
@@ -32,6 +34,8 @@ export async function loadAgentContext(data: AgentEventData) {
     messages,
     availableTags,
     availableButtonPresets,
+    catalogOrder,
+    starFriendsProgram,
   ] = await Promise.all([
     prisma.lead.findUniqueOrThrow({
       where: { id: data.leadId },
@@ -108,6 +112,8 @@ export async function loadAgentContext(data: AgentEventData) {
       },
       orderBy: { createdAt: "asc" },
     }),
+    loadActiveCatalogOrder(data.leadId),
+    getActiveProgram(data.organizationId),
   ]);
 
   // Mudança no prompt zera o histórico visível pra IA. Sem isso, o modelo
@@ -164,6 +170,8 @@ export async function loadAgentContext(data: AgentEventData) {
     trigger,
     idleMinutes: data.idleMinutes,
     modelConfig,
+    catalogOrder,
+    starFriendsProgramName: starFriendsProgram?.name ?? null,
   };
 }
 

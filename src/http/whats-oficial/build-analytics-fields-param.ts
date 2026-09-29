@@ -5,7 +5,7 @@
  * dentro do próprio valor de `fields`, não query params separados.
  */
 export function buildAnalyticsFieldsParam(
-  metric: "analytics" | "conversation_analytics",
+  metric: "analytics" | "conversation_analytics" | "pricing_analytics",
   params: {
     startUnix: number;
     endUnix: number;

@@ -109,7 +109,7 @@ export async function shouldSkipUazapiForConversation(
   });
   if (!conv) return false;
   if (conv.tracking?.whatsappInstance?.inChatModeActive) return true;
-  if (conv.lead?.source === "IN_CHAT") return true;
+  if (conv.lead?.source === "IN_CHAT" || conv.lead?.source === "ASTRO_CHAT") return true;
   if ((conv._count?.messages ?? 0) > 0) return true;
   return false;
 }

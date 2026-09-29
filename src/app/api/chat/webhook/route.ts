@@ -147,7 +147,10 @@ export async function POST(request: NextRequest) {
           ? "document"
           : botMessageType === "ImageMessage"
             ? "image"
-            : null;
+            : // Áudio de membro vinculado: o bot transcreve (spec 0036).
+              botMessageType === "AudioMessage"
+              ? "audio"
+              : null;
       const botMediaContent =
         json.message.content && typeof json.message.content === "object"
           ? (json.message.content as Record<string, unknown>)

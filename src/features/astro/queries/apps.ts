@@ -12,6 +12,19 @@ import {
   type AstroQuery,
 } from "./types";
 
+/** "Quais…", "liste…", "me mostra…": a pessoa quer os itens, não o número. */
+const LISTS = /\b(quais|liste|lista|listar|mostra|mostre|me mostra|me manda|minhas|meus)\b/;
+const MAX_LIST_ROWS = 30;
+
+const PROPOSAL_STATUS_LABELS: Record<string, string> = {
+  RASCUNHO: "Rascunho",
+  ENVIADA: "Enviada",
+  VISUALIZADA: "Visualizada",
+  PAGA: "Paga",
+  EXPIRADA: "Expirada",
+  CANCELADA: "Cancelada",
+};
+
 // Consultas dos demais apps — chat, forge, formulários, workspaces,
 // financeiro e páginas. Um arquivo só porque cada app tem poucas perguntas
 // de rotina; quando um crescer, ele ganha o seu.
@@ -72,9 +85,48 @@ const proposals: AstroQuery = {
   key: "forge.proposals",
   app: "forge",
   appKey: "forge",
-  matches: (text) => ASKS.test(text) && /\bpropostas?|orcamentos?\b/.test(text),
+  // "quais produtos entram na proposta" pergunta de produto, não de proposta.
+  matches: (text) =>
+    ASKS.test(text) && /\bpropostas?|orcamentos?\b/.test(text) && !/\bprodutos?\b/.test(text),
   run: async ({ ctx, text }) => {
     const period = periodFrom(text);
+    // "Quais propostas" pede as propostas; "quantas", a contagem por situação.
+    if (LISTS.test(text)) {
+      const onlyOpen = /\babertas?|em aberto|pendentes?\b/.test(text);
+      const rows = await prisma.forgeProposal.findMany({
+        where: {
+          organizationId: ctx.organizationId,
+          ...createdWithin(period),
+          ...(onlyOpen ? { status: { in: ["RASCUNHO", "ENVIADA", "VISUALIZADA"] } } : {}),
+        },
+        select: { id: true, number: true, title: true, status: true, client: { select: { name: true } } },
+        orderBy: { number: "desc" },
+        take: MAX_LIST_ROWS,
+      });
+      if (rows.length === 0) return { text: onlyOpen ? "Nenhuma proposta em aberto." : "Nenhuma proposta ainda." };
+      return {
+        text: `${rows.length} ${plural(rows.length, "proposta", "propostas")}${onlyOpen ? " em aberto" : ""}:`,
+        table: {
+          kind: "astro_table",
+          entityType: "proposal",
+          title: "Propostas",
+          columns: [
+            { key: "numero", label: "Nº" },
+            { key: "titulo", label: "Título" },
+            { key: "cliente", label: "Cliente" },
+            { key: "situacao", label: "Situação", type: "badge" },
+          ],
+          rows: rows.map((row) => ({
+            id: row.id,
+            numero: `#${row.number}`,
+            titulo: row.title,
+            cliente: row.client?.name ?? "—",
+            situacao: PROPOSAL_STATUS_LABELS[row.status] ?? row.status,
+          })),
+          totalCount: rows.length,
+        },
+      };
+    }
     const grouped = await prisma.forgeProposal.groupBy({
       by: ["status"],
       where: { organizationId: ctx.organizationId, ...createdWithin(period) },
@@ -84,14 +136,6 @@ const proposals: AstroQuery = {
       return { text: period ? `Nenhuma proposta criada ${period.label}.` : "Nenhuma proposta criada ainda." };
     }
     const total = grouped.reduce((sum, row) => sum + row._count._all, 0);
-    const LABEL: Record<string, string> = {
-      RASCUNHO: "Rascunho",
-      ENVIADA: "Enviada",
-      VISUALIZADA: "Visualizada",
-      PAGA: "Paga",
-      EXPIRADA: "Expirada",
-      CANCELADA: "Cancelada",
-    };
     return {
       text: `${total} ${plural(total, "proposta", "propostas")}${period ? ` ${period.label}` : ""}, por situação:`,
       table: {
@@ -104,7 +148,7 @@ const proposals: AstroQuery = {
         ],
         rows: grouped.map((row) => ({
           id: row.status,
-          situacao: LABEL[row.status] ?? row.status,
+          situacao: PROPOSAL_STATUS_LABELS[row.status] ?? row.status,
           quantas: row._count._all,
         })),
         totalCount: grouped.length,
@@ -214,6 +258,49 @@ const pendingActions: AstroQuery = {
     ]);
     if (pending === 0) {
       return { text: period ? `Nenhuma tarefa em aberto criada ${period.label}.` : "Nenhuma tarefa em aberto." };
+    }
+    const summary =
+      `${pending} ${plural(pending, "tarefa em aberto", "tarefas em aberto")}` +
+      (period ? ` criada${plural(pending, "", "s")} ${period.label}` : "") +
+      (overdue > 0 ? `, sendo ${overdue} ${plural(overdue, "atrasada", "atrasadas")}` : "");
+    // "Quais tarefas" pede as tarefas; "quantas", só o número.
+    if (LISTS.test(text)) {
+      const onlyOverdue = /\batrasadas?|vencidas?\b/.test(text);
+      // "Minhas tarefas": só as que a pessoa é responsável.
+      const onlyMine = /\b(minhas|meus)\b/.test(text);
+      const tasks = await prisma.action.findMany({
+        where: {
+          ...base,
+          ...(onlyOverdue ? { dueDate: { lt: new Date() } } : {}),
+          ...(onlyMine ? { responsibles: { some: { userId: ctx.userId } } } : {}),
+        },
+        select: { id: true, title: true, dueDate: true, workspaceId: true, workspace: { select: { name: true } } },
+        orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }],
+        take: MAX_LIST_ROWS,
+      });
+      return {
+        text: `${summary}:`,
+        table: {
+          kind: "astro_table",
+          entityType: "action",
+          title: onlyOverdue ? "Tarefas atrasadas" : "Tarefas em aberto",
+          columns: [
+            { key: "tarefa", label: "Tarefa" },
+            { key: "workspace", label: "Workspace" },
+            { key: "prazo", label: "Prazo" },
+          ],
+          rows: tasks.map((task) => ({
+            id: task.id,
+            workspaceId: task.workspaceId,
+            tarefa: task.title,
+            workspace: task.workspace.name,
+            prazo: task.dueDate
+              ? task.dueDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+              : "—",
+          })),
+          totalCount: tasks.length,
+        },
+      };
     }
     return {
       text:

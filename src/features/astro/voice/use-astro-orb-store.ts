@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { OrbAnchor, Point } from "@/features/astro/lib/orb-layout";
 
 /**
  * Estado global do AstroOrb — o "pet" flutuante do Astro.
@@ -38,7 +39,20 @@ interface AstroOrbStore {
    * renderizado uma vez só, pelo orb.
    */
   micGuideOpen: boolean;
+  /**
+   * Onde o usuário deixou o orb, como fração da tela (sobrevive a resize).
+   * `null` = canto inferior direito, o lugar de sempre. Persistido.
+   */
+  anchor: OrbAnchor | null;
+  /**
+   * Centro do orb enquanto está sendo arrastado, em pixels. Separado de
+   * `anchor` para o painel acompanhar o arraste sem gravar no localStorage a
+   * cada movimento do ponteiro.
+   */
+  dragCenter: Point | null;
 
+  setAnchor: (anchor: OrbAnchor | null) => void;
+  setDragCenter: (center: Point | null) => void;
   setPhase: (phase: OrbPhase) => void;
   setMicGuideOpen: (open: boolean) => void;
   setWakeWordEnabled: (v: boolean) => void;
@@ -58,7 +72,11 @@ export const useAstroOrbStore = create<AstroOrbStore>()(
       hint: null,
       pendingUtterance: null,
       micGuideOpen: false,
+      anchor: null,
+      dragCenter: null,
 
+      setAnchor: (anchor) => set({ anchor }),
+      setDragCenter: (dragCenter) => set({ dragCenter }),
       setPhase: (phase) => set({ phase }),
       setMicGuideOpen: (micGuideOpen) => set({ micGuideOpen }),
       setWakeWordEnabled: (wakeWordEnabled) => set({ wakeWordEnabled }),
@@ -76,6 +94,7 @@ export const useAstroOrbStore = create<AstroOrbStore>()(
       partialize: (state) => ({
         wakeWordEnabled: state.wakeWordEnabled,
         visible: state.visible,
+        anchor: state.anchor,
       }),
     },
   ),

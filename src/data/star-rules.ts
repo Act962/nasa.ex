@@ -177,6 +177,13 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
     category: "chat",
   },
   {
+    action: "astro_chat_ai_message",
+    label: "ASTRO CHAT — resposta IA no site do cliente",
+    stars: 2,
+    cooldownHours: null,
+    category: "chat",
+  },
+  {
     action: "message_send",
     label: "Mensagem outbound (WhatsApp/IG/FB)",
     stars: 1,
@@ -235,6 +242,13 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
   {
     action: "generate_summary",
     label: "Resumo de conversa por IA",
+    stars: 2,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "lead_audit_ai",
+    label: "Auditoria de lead por IA (spec 0035)",
     stars: 2,
     cooldownHours: null,
     category: "ai",

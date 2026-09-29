@@ -50,3 +50,5 @@ next-env.d.ts
 .env.local
 
 certificates
+# Relatórios da bateria do ASTRO (scripts/astro-qa)
+.astro-qa-reports/

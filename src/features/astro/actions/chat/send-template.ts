@@ -4,6 +4,17 @@ import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveOutboundProviderOrBadRequest } from "@/features/tracking-chat/lib/providers";
 import { resolveSingleLead } from "../leads/resolve-lead";
+import { LEAD_FIELD_STEP, extractNameAfter } from "../leads/lead-steps";
+
+/** "manda o template boas_vindas pro Kauê" → template e lead, sem modelo. */
+function inferTemplateFields(text: string): Record<string, unknown> {
+  const inferred: Record<string, unknown> = {};
+  const templateName = text.match(/\b(?:template|modelo)\s+(?:de\s+)?(.+?)\s+(?:pro|pra|para|ao)\s/iu)?.[1];
+  if (templateName) inferred.templateName = templateName.trim();
+  const leadName = extractNameAfter(text, ["pro", "pra", "para", "ao"]);
+  if (leadName) inferred.leadName = leadName;
+  return inferred;
+}
 
 /** Templates do projeto são pt_BR; idioma por frase seria campo a mais sem ganho. */
 const DEFAULT_LANGUAGE_CODE = "pt_BR";
@@ -45,6 +56,16 @@ export const sendTemplateAction: AstroAction<typeof inputSchema> = {
     "A mensagem vai direto para o WhatsApp do cliente e não pode ser desfeita.",
   ],
   input: inputSchema,
+  inferFields: inferTemplateFields,
+  intentPatterns: [/\b(manda|mandar|mande|envia|enviar|envie|dispara|disparar)\b.{0,20}\b(template|modelo)\b/],
+  fieldSteps: {
+    leadName: { ...LEAD_FIELD_STEP, title: "Para qual lead?" },
+    templateName: {
+      title: "Qual template?",
+      question: "Nome do template aprovado na Meta.",
+      picker: { kind: "text", placeholder: "Ex.: boas_vindas", maxLength: 120 },
+    },
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const resolved = await resolveSingleLead({
@@ -84,7 +105,7 @@ export const sendTemplateAction: AstroAction<typeof inputSchema> = {
         status: "error",
         title: "WhatsApp não conectado",
         description:
-          "O tracking desse lead não tem instância de WhatsApp conectada. " +
+          "O funil desse lead não tem WhatsApp conectado — nada foi enviado. " +
           "Conecte em /integrations e tente de novo.",
         appName: "Chat",
       };

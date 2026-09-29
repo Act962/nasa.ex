@@ -82,7 +82,7 @@ export async function assessBotInboundMedia(
   return { isEligible: true, mimeType };
 }
 
-async function downloadFromTrackingProvider(
+export async function downloadFromTrackingProvider(
   trackingId: string,
   media: BotInboundMedia,
 ): Promise<Buffer | null> {

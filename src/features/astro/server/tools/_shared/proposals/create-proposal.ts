@@ -14,6 +14,26 @@ import { buildConfirmMessage } from "@/features/astro/lib/astro-confirmation";
 const CHAT_TTL_MINUTES = 30;
 const WHATSAPP_TTL_MINUTES = 120;
 
+/**
+ * O Postgres recusa JSON com "\u0000" ou com metade de um emoji — e o
+ * `slice(0, 500)` do resumo corta emoji ao meio. Chegava como 500
+ * "unsupported Unicode escape sequence" no meio de um agendamento.
+ */
+function toStorableText(value: string): string {
+  return value.replace(/\u0000/g, "").toWellFormed();
+}
+
+function toStorableJson(value: unknown): unknown {
+  if (typeof value === "string") return toStorableText(value);
+  if (Array.isArray(value)) return value.map(toStorableJson);
+  if (value && typeof value === "object" && !(value instanceof Date)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, toStorableJson(entry)]),
+    );
+  }
+  return value;
+}
+
 export async function createPendingAction(params: {
   ctx: AgentContext;
   actionType: string;
@@ -21,13 +41,23 @@ export async function createPendingAction(params: {
   title: string;
   lines: AstroConfirmationLine[];
   warnings?: string[];
+  /**
+   * Sobrescreve o TTL. Proposta criada por comando do ASTRO COMMANDER espera a
+   * fila de aprovação, não alguém olhando a tela — 30 minutos venceriam antes
+   * de qualquer um abrir o app (spec 0028).
+   */
+  ttlMinutes?: number;
 }): Promise<AstroConfirmationPayload> {
   const channel = params.ctx.channel ?? "CHAT";
-  const ttlMinutes = channel === "WHATSAPP" ? WHATSAPP_TTL_MINUTES : CHAT_TTL_MINUTES;
+  const ttlMinutes =
+    params.ttlMinutes ??
+    (channel === "WHATSAPP" ? WHATSAPP_TTL_MINUTES : CHAT_TTL_MINUTES);
   const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
-  const summary = [params.title, ...params.lines.map((line) => `${line.label}: ${line.value}`)]
-    .join(" · ")
-    .slice(0, 500);
+  const summary = toStorableText(
+    [params.title, ...params.lines.map((line) => `${line.label}: ${line.value}`)]
+      .join(" · ")
+      .slice(0, 500),
+  );
 
   const pending = await prisma.astroPendingAction.create({
     data: {
@@ -36,7 +66,7 @@ export async function createPendingAction(params: {
       channel,
       sessionId: params.ctx.sessionId ?? null,
       actionType: params.actionType,
-      payload: params.payload as object,
+      payload: toStorableJson(params.payload) as object,
       summary,
       expiresAt,
     },

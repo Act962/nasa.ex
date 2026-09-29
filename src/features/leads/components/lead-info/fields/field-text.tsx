@@ -12,6 +12,8 @@ interface FieldTextProps {
   fieldKey: string;
   placeholder?: string;
   trackingId: string;
+  /** Fora da página do contato (ex.: lateral do chat) o id vem por prop. */
+  leadId?: string;
 }
 
 export function FieldText({
@@ -20,8 +22,10 @@ export function FieldText({
   fieldKey,
   placeholder = "Não informado",
   trackingId,
+  leadId: leadIdProp,
 }: FieldTextProps) {
-  const { leadId } = useParams<{ leadId: string }>();
+  const params = useParams<{ leadId: string }>();
+  const leadId = leadIdProp ?? params.leadId;
   const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState(value);
 
@@ -36,8 +40,7 @@ export function FieldText({
     const previousValue = localValue;
     setLocalValue(newValue);
 
-    const payload: any = { id: leadId };
-    payload[fieldKey] = newValue;
+    const payload = { id: leadId, [fieldKey]: newValue } as Parameters<typeof mutation.mutate>[0];
 
     mutation.mutate(payload, {
       onError: () => {

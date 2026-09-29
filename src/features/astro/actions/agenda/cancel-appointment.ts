@@ -3,6 +3,15 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import type { AstroAction, AstroActionResult } from "../types";
+import { formatAgendaDateTime } from "./schedule-steps";
+import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
+import { extractNameAfter } from "../leads/lead-steps";
+
+const APPOINTMENT_PICKER: AstroPicker = {
+  kind: "entity",
+  entity: "appointment",
+  placeholder: "Buscar compromisso por título ou lead",
+};
 
 // Cancelar agendamento (spec 0024, onda 1 — segundo destrutivo).
 //
@@ -20,14 +29,6 @@ const inputSchema = z.object({
     .describe("Nome de quem tem o agendamento. Pode ser parcial."),
 });
 
-function formatDateTime(value: Date): string {
-  return value.toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export const cancelAppointmentAction: AstroAction<typeof inputSchema> = {
   key: "agenda.cancel_appointment",
@@ -44,16 +45,31 @@ export const cancelAppointmentAction: AstroAction<typeof inputSchema> = {
     "O horário é liberado na agenda e o cliente pode ser avisado do cancelamento.",
   ],
   input: inputSchema,
+  inferFields: (text) => {
+    const personName = extractNameAfter(text, ["da", "do", "com", "de"]);
+    return personName ? { personName } : {};
+  },
+  intentPatterns: [
+    /\b(cancela|cancelar|cancele|desmarca|desmarcar|desmarque)\b.{0,30}\b(reuniao|compromisso|consulta|agendamento|horario|visita|call|encontro)\b/,
+  ],
+  fieldSteps: {
+    personName: { title: "Qual compromisso?", question: "Busque o compromisso.", picker: APPOINTMENT_PICKER },
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
+    const pickedAppointment = parsePickedAnswer(input.personName);
     const candidates = await prisma.appointment.findMany({
       where: {
         agenda: { organizationId: ctx.organizationId },
         status: { notIn: ["CANCELLED"] },
-        OR: [
-          { title: { contains: input.personName, mode: "insensitive" } },
-          { lead: { name: { contains: input.personName, mode: "insensitive" } } },
-        ],
+        ...(pickedAppointment.id
+          ? { id: pickedAppointment.id }
+          : {
+              OR: [
+                { title: { contains: pickedAppointment.label, mode: "insensitive" } },
+                { lead: { name: { contains: pickedAppointment.label, mode: "insensitive" } } },
+              ],
+            }),
       },
       select: { id: true, title: true, startsAt: true, status: true },
       orderBy: { startsAt: "asc" },
@@ -64,9 +80,10 @@ export const cancelAppointmentAction: AstroAction<typeof inputSchema> = {
       return {
         status: "needs_input",
         title: "Agendamento não encontrado",
-        description: `Não achei agendamento ativo de "${input.personName}".`,
-        missingFields: [{ key: "personName", label: "de quem é o agendamento" }],
+        description: `Não achei compromisso de "${pickedAppointment.label}". Busque abaixo.`,
+        missingFields: [{ key: "personName", label: "o compromisso" }],
         appName: "Agendas",
+        picker: APPOINTMENT_PICKER,
       };
     }
 
@@ -74,13 +91,14 @@ export const cancelAppointmentAction: AstroAction<typeof inputSchema> = {
       return {
         status: "ambiguous",
         title: "Mais de um agendamento",
-        description: `${input.personName} tem ${candidates.length} agendamentos ativos. Qual cancelar?`,
+        description: `${pickedAppointment.label} tem ${candidates.length} compromissos. Qual cancelar?`,
         field: "personName",
         options: candidates.map((appointment) => ({
           id: appointment.id,
-          label: `${appointment.title} — ${formatDateTime(appointment.startsAt)}`,
+          label: `${appointment.title} — ${formatAgendaDateTime(appointment.startsAt)}`,
         })),
         appName: "Agendas",
+        picker: APPOINTMENT_PICKER,
       };
     }
 
@@ -91,7 +109,7 @@ export const cancelAppointmentAction: AstroAction<typeof inputSchema> = {
         status: "done",
         title: "Cancelar agendamento",
         description:
-          `"${appointment.title}" de ${formatDateTime(appointment.startsAt)} será cancelado.`,
+          `"${appointment.title}" de ${formatAgendaDateTime(appointment.startsAt)} será cancelado.`,
         appName: "Agendas",
       };
     }
@@ -127,7 +145,7 @@ export const cancelAppointmentAction: AstroAction<typeof inputSchema> = {
       status: "done",
       title: "Agendamento cancelado",
       description:
-        `"${appointment.title}" de ${formatDateTime(appointment.startsAt)} foi cancelado.`,
+        `"${appointment.title}" de ${formatAgendaDateTime(appointment.startsAt)} foi cancelado.`,
       internalUrl: `/agendas?appointment=${appointment.id}`,
       appName: "Agendas",
     };

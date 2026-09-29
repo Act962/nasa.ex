@@ -8,12 +8,18 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { StarsWidget } from "@/features/stars";
 import { SpacePointWidget } from "@/features/space-point";
+import { AstroCommandButton } from "@/features/astro-commander/components/astro-command-button";
 
 interface HeaderTrackingProps {
   title?: string;
+  /**
+   * Liga o "Criar comando" do ASTRO com exemplos da área (spec 0029, RF-12).
+   * Ausente = sem botão, para não mudar as telas que não pediram.
+   */
+  astroCommand?: { examples: readonly string[] };
 }
 
-export function HeaderTracking({ title }: HeaderTrackingProps) {
+export function HeaderTracking({ title, astroCommand }: HeaderTrackingProps) {
   return (
     <header
       className={[
@@ -54,6 +60,19 @@ export function HeaderTracking({ title }: HeaderTrackingProps) {
 
       {/* ── Right: space point + stars widget ── */}
       <div className="flex items-center gap-2 px-4 shrink-0">
+        {astroCommand && (
+          <>
+            <AstroCommandButton
+              examples={astroCommand.examples}
+              className="hidden sm:inline-flex"
+            />
+            <AstroCommandButton
+              examples={astroCommand.examples}
+              compact
+              className="sm:hidden"
+            />
+          </>
+        )}
         <div data-tour="space-points">
           <SpacePointWidget />
         </div>

@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { seedNewOrganization } from "@/features/org-defaults/lib/seed-new-organization";
 import { organization } from "better-auth/plugins";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { stripe } from "@better-auth/stripe";
@@ -215,6 +216,13 @@ export const auth = betterAuth({
             }
           } catch (e) {
             console.error("[sync emit] org.create enqueue failed:", e);
+          }
+
+          // ── Empresa nova nasce com funis e tags de exemplo (spec 0042) ──
+          try {
+            await seedNewOrganization({ organizationId: organization.id, ownerUserId: member?.userId ?? null });
+          } catch (e) {
+            console.error("[org-defaults] seed failed:", e);
           }
 
           // ── Billing: auto-herança do plano (Frente C) ──────────────

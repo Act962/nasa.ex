@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleTracking } from "./resolve-tracking";
+import { TRACKING_FIELD_STEP } from "../leads/lead-steps";
+import { extractNamedThing } from "./tracking-steps";
 
 // Arquivar tracking (spec 0024, onda 1 — terceiro destrutivo).
 //
@@ -29,6 +31,12 @@ export const archiveTrackingAction: AstroAction<typeof inputSchema> = {
     "O board sai da lista com todos os seus leads. A exclusão definitiva ocorre em 30 dias.",
   ],
   input: inputSchema,
+  inferFields: (text) => {
+    const trackingName = extractNamedThing(text, "funil|tracking");
+    return trackingName ? { trackingName } : {};
+  },
+  intentPatterns: [/\b(arquiva|arquivar|arquive)\b.{0,20}\b(funil|tracking)\b/],
+  fieldSteps: { trackingName: TRACKING_FIELD_STEP },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const resolved = await resolveSingleTracking({

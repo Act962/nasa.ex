@@ -112,6 +112,7 @@ relatórios salvos. Seguem com o orquestrador.
 
 | Data | Autor | Mudança |
 | --- | --- | --- |
+| 2026-09-25 | Weydson | **Pedido de montar caía em consulta.** "Monte uma proposta… validade de 7 dias" virou `tracking.leads_created` (o "7 dias" foi lido como recorte), e "o que está Em andamento… crie a proposta" virou `forge.proposals` (o "que" contou como pergunta). `WRITE_VERB` só olhava o começo da frase; `COMPOSE_VERB_ANYWHERE` pula a camada quando há verbo de montar/alterar em qualquer ponto. `forge.proposals` não responde mais pergunta sobre produtos |
 | 2026-09-24 | Weydson | **Recorte de tempo era só do tracking**: "quantas propostas hoje", "quanto recebi hoje" e "compromissos hoje" ignoravam o "hoje" — o de compromissos devolvia a semana inteira. `periodFrom` passou a servir os 9 apps, e a resposta agora declara o recorte aplicado |
 | 2026-09-24 | Weydson | Lista de leads e recorte por período acrescentados: "quantos leads criados hoje" era respondido pelo orquestrador com o total, e "me manda a lista deles" voltava "não tenho acesso" |
 | 2026-09-24 | Weydson | Criada e implementada a partir do custo medido: 43.141 tokens para não responder "quantos leads temos" |

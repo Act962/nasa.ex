@@ -23,6 +23,7 @@
  *    identify quando phone novo.
  */
 
+import { applyInboundAutoTags, loadAwaitingState, removeAwaitingTagOnReply } from "@/features/org-defaults/lib/auto-tags";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { inngest } from "@/inngest/client";
@@ -32,6 +33,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { LeadSource } from "@/generated/prisma/enums";
 import type { WorkflowLeadMessage } from "@/features/tracking-executions/lib/lead-message";
+import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
 
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -59,7 +61,7 @@ export interface FirePostInboundParams {
   /** Se a mensagem é do atendente (fromMe=true) ou do lead (fromMe=false). */
   fromMe: boolean;
   /** Canal de origem — pro logging/IA decidir nome do event. */
-  channel: "WHATSAPP" | "IN_CHAT" | "INSTAGRAM" | "FACEBOOK";
+  channel: "WHATSAPP" | "IN_CHAT" | "ASTRO_CHAT" | "INSTAGRAM" | "FACEBOOK";
   /**
    * Mensagem do lead que originou este inbound, no shape que os gatilhos de
    * workflow consomem (spec 0008). Só usada quando `fromMe=false`. Ausente em
@@ -98,6 +100,11 @@ export async function firePostInboundAutomations(
     !params.lead.firstResponseAt &&
     params.lead.lastInboundAt !== null;
 
+  // Lido antes de atualizar os horários: diz se o cliente já esperava resposta (spec 0042).
+  const awaitingState = params.fromMe
+    ? null
+    : await loadAwaitingState(params.lead.id).catch(() => null);
+
   // ── 1. Update timestamps ─────────────────────────────────────────────
   try {
     await prisma.conversation.update({
@@ -122,6 +129,22 @@ export async function firePostInboundAutomations(
     });
   } catch (err) {
     console.error("[pipeline] update_timestamps_failed", err);
+  }
+
+  // ── 1b. Tags automáticas da empresa (spec 0042) ─────────────────────
+  try {
+    if (params.fromMe) {
+      await removeAwaitingTagOnReply({ organizationId: params.organizationId, leadId: params.lead.id });
+    } else {
+      await applyInboundAutoTags({
+        organizationId: params.organizationId,
+        leadId: params.lead.id,
+        channel: params.channel,
+        wasAwaitingReply: awaitingState?.isAwaitingReply ?? false,
+      });
+    }
+  } catch (err) {
+    console.error("[pipeline] auto_tags_failed", err);
   }
 
   // ── 2. trackLeadEvent (timeline) ─────────────────────────────────────
@@ -168,6 +191,29 @@ export async function firePostInboundAutomations(
     } catch (err) {
       console.error("[pipeline] alert_publish_failed", err);
     }
+
+    // "Lead chamando" do ASTRO (spec 0029, RF-3). Evento separado do de cima
+    // para não mudar o dedupe das regras que as orgs já configuraram.
+    try {
+      const leadInfo = await prisma.lead.findUnique({
+        where: { id: params.lead.id },
+        select: { name: true, responsibleId: true },
+      });
+      const messageText = params.leadMessage?.text?.trim() ?? "";
+      await eventBus.publish("chat.lead_calling", {
+        conversationId: params.lead.conversation.id,
+        leadId: params.lead.id,
+        leadName: leadInfo?.name ?? undefined,
+        responsibleId: leadInfo?.responsibleId ?? null,
+        // "Lead está fazendo uma pergunta" no balão do ASTRO (spec 0029).
+        isQuestion: messageText.includes("?"),
+        messagePreview: messageText ? messageText.slice(0, 120) : undefined,
+        actionUrl: `/tracking-chat/${params.lead.conversation.id}`,
+        orgId: params.organizationId,
+      });
+    } catch (err) {
+      console.error("[pipeline] lead_calling_publish_failed", err);
+    }
   }
 
   // ── 4. Inngest IA (só inbound + IA ativa + lead ativo) ───────────────
@@ -196,6 +242,9 @@ export async function firePostInboundAutomations(
       console.error("[pipeline] inngest_send_failed", err);
     }
   }
+
+  // ── 4b. Métricas do lead (spec 0035) — entrada e saída ──────────────
+  await requestLeadMetricsRecompute(params.lead.id);
 
   // ── 5. Idle automation (só inbound) ──────────────────────────────────
   if (!params.fromMe) {
@@ -275,6 +324,10 @@ export interface CreateInChatLeadParams {
   name: string;
   /** appOrigin pro workflow NEW_LEAD montar URL absoluta. */
   appOrigin?: string;
+  /** Origem do lead — default IN_CHAT. Pedido do Catálogo NERP usa NERP_CATALOG. */
+  source?: LeadSource;
+  /** Rótulo da origem no activity log — default "In-Chat". */
+  sourceLabel?: string;
 }
 
 export interface CreateInChatLeadResult {
@@ -358,7 +411,7 @@ export async function createInChatLead(
       statusId: status.id,
       phone: params.phone,
       trackingId: params.trackingId,
-      source: LeadSource.IN_CHAT,
+      source: params.source ?? LeadSource.IN_CHAT,
       order: firstLead ? Number(firstLead.order) - 1 : 0,
       statusFlow: "WAITING",
       lastInboundAt: new Date(),
@@ -394,13 +447,13 @@ export async function createInChatLead(
       userEmail: "sistema@nasa",
       appSlug: "tracking",
       action: "lead.arrived",
-      actionLabel: `Um lead chegou no tracking "${tracking.name}" via In-Chat (${createdLead.name ?? params.phone})`,
+      actionLabel: `Um lead chegou no tracking "${tracking.name}" via ${params.sourceLabel ?? "In-Chat"} (${createdLead.name ?? params.phone})`,
       resource: createdLead.name ?? params.phone,
       resourceId: createdLead.id,
       metadata: {
         phone: params.phone,
         trackingName: tracking.name,
-        source: "IN_CHAT",
+        source: params.source ?? "IN_CHAT",
       },
     });
   } catch (err) {

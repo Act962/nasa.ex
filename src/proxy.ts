@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  LEAD_TRACKING_COOKIE as TRACKING_COOKIE,
+  PARTNER_REFERRAL_COOKIE as REF_COOKIE,
+} from "@/features/legal/lib/orbita-cookies";
 
-const REF_COOKIE = "nasa_ref";
-const TRACKING_COOKIE = "nasa_tracking";
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 dias
 
 const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"] as const;

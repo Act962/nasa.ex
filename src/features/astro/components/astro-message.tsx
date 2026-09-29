@@ -19,8 +19,11 @@ import { AstroActionResultCard } from "./astro-action-result-card";
 import {
   isAstroActionChoicePayload,
   isAstroActionDonePayload,
+  isAstroActionPickerPayload,
 } from "@/features/astro/lib/astro-action-result";
 import { AstroChoiceCard } from "./astro-choice-card";
+import { AstroPickerCard } from "./pickers/astro-picker-card";
+import { parsePickedAnswer } from "@/features/astro/lib/astro-picker";
 import {
   isAstroConfirmationPayload,
   isAstroConfirmationResultPayload,
@@ -31,6 +34,7 @@ import {
 } from "@/features/astro/components/astro-confirmation-card";
 import { AstroAttachmentChip } from "@/features/astro/components/astro-attachment-chip";
 import { astroAttachmentPartSchema } from "@/features/astro/schemas/chat-message";
+import { AstroMessageFeedback } from "@/features/astro/components/widget/astro-message-feedback";
 
 /**
  * Render de uma `UIMessage` do AI SDK.
@@ -47,8 +51,14 @@ export function AstroMessage({
   cumulativeTokens,
   onRespond,
   busy,
+  sessionId,
+  isLatest = true,
 }: {
   message: UIMessage;
+  /** Só o seletor da última mensagem responde; os antigos ficam de leitura. */
+  isLatest?: boolean;
+  /** Sessão do chat — vai junto do joinha, para achar a conversa depois. */
+  sessionId?: string;
   /**
    * Envia texto como nova mensagem do usuário — é assim que o card de
    * confirmação responde "confirmar <id>" (spec 0014, D-2). Sem isso, o card
@@ -81,14 +91,22 @@ export function AstroMessage({
         isAstroTablePayload(out) ||
         isAstroVideosPayload(out) ||
         isAstroChartPayload(out) ||
-        isAstroTagSuggestionsPayload(out)
+        isAstroTagSuggestionsPayload(out) ||
+        isAstroActionPickerPayload(out)
       );
     });
+
+  // Texto que o ASTRO respondeu, para o joinha guardar o trecho avaliado.
+  const answerText = message.parts
+    .filter(isTextUIPart)
+    .map((part) => part.text)
+    .join(" ")
+    .trim();
 
   return (
     <div
       className={cn(
-        "flex w-full flex-col gap-2 px-3 py-2",
+        "group/message flex w-full flex-col gap-2 px-3 py-2",
         isUser ? "items-end" : "items-start",
       )}
     >
@@ -107,7 +125,7 @@ export function AstroMessage({
                   : "bg-blue-500/10 text-blue-300",
               )}
             >
-              {part.text}
+              {isUser ? parsePickedAnswer(part.text).label : part.text}
             </div>
           );
         }
@@ -186,6 +204,20 @@ export function AstroMessage({
               </div>
             );
           }
+          if (isAstroActionPickerPayload(output)) {
+            return (
+              <div
+                key={idx}
+                className="self-stretch w-full max-w-[95%] sm:max-w-[85%]"
+              >
+                <AstroPickerCard
+                  payload={output}
+                  onRespond={onRespond ?? (() => {})}
+                  disabled={busy || !onRespond || !isLatest}
+                />
+              </div>
+            );
+          }
           if (isAstroActionChoicePayload(output)) {
             return (
               <div
@@ -254,6 +286,15 @@ export function AstroMessage({
             {cumulativeTokens.toLocaleString("pt-BR")} tokens
           </span>
         )}
+
+      {/* Joinha da resposta (spec 0028, RF-15): só no que o ASTRO escreveu. */}
+      {!isUser && answerText.length > 0 && (
+        <AstroMessageFeedback
+          sessionId={sessionId}
+          messageId={message.id}
+          answerExcerpt={answerText}
+        />
+      )}
     </div>
   );
 }

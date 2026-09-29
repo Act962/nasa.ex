@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { AstroCommandButton } from "@/features/astro-commander/components/astro-command-button";
+import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
 import {
   ChevronsLeft,
   ChevronsRight,
@@ -62,6 +64,15 @@ export function FiltersTracking() {
             Toggle e Filtros ficam SEMPRE visíveis; IA de Leads esconde
             quando recolhido. */}
         <div className="flex items-center gap-2">
+          <AstroCommandButton
+            examples={ASTRO_COMMAND_EXAMPLES.tracking}
+            className="hidden md:inline-flex"
+          />
+          <AstroCommandButton
+            examples={ASTRO_COMMAND_EXAMPLES.tracking}
+            compact
+            className="size-8 md:hidden"
+          />
           {/* Botão de recolher/expandir */}
           <Tooltip>
             <TooltipTrigger asChild>

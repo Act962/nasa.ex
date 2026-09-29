@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   // (ganho de perf real) e desligamos no dev pra aliviar o `next dev` numa
   // máquina com pouca RAM. Funcionalmente inócuo — o compiler só memoiza.
   reactCompiler: process.env.NODE_ENV === "production",
+  // `pnpm test:local` compila em modo produção só para testar numa máquina de pouca RAM: pula a
+  // checagem de tipos (≈27 min). Deploy e `pnpm build` não definem a variável e continuam checando.
+  typescript: { ignoreBuildErrors: process.env.SKIP_TYPECHECK === "1" },
   // Libs server-only / nativas que NÃO precisam passar pelo bundler do Turbopack.
   // Tira peso enorme do grafo de módulos em dev (são carregadas via require no
   // runtime do server). Inclui SDKs de IA server-side, AWS, parsers e nativos.

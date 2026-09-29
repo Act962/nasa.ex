@@ -8,6 +8,8 @@ import { SelectStatusField } from "../select-status-field";
 import { SelectResponsableField } from "../select-responsable-field";
 
 interface FieldResponsibleProps {
+  /** Fora da página do contato (ex.: lateral do chat) o id vem por prop. */
+  leadId?: string;
   label: string;
   value: string; // user ID
   displayName: string;
@@ -21,8 +23,10 @@ export function FieldResponsible({
   displayName,
   trackingId,
   loading,
+  leadId: leadIdProp,
 }: FieldResponsibleProps) {
-  const { leadId } = useParams<{ leadId: string }>();
+  const params = useParams<{ leadId: string }>();
+  const leadId = leadIdProp ?? params.leadId;
   const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState(value);
   const [localDisplayName, setLocalDisplayName] = useState(displayName);

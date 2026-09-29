@@ -5,6 +5,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import type { AstroAction, AstroActionResult } from "../types";
 import { inferPolarity } from "../infer-polarity";
 import { resolveSingleLead } from "./resolve-lead";
+import { LEAD_FIELD_STEP } from "./lead-steps";
 
 // Favoritar lead (spec 0024, onda 1). Favorito não é campo próprio: é a tag
 // canônica "Favoritas", que é como o filtro `favoritesOnly` do chat já lê.
@@ -37,6 +38,7 @@ export const toggleLeadFavoriteAction: AstroAction<typeof inputSchema> = {
   permission: { appKey: "tracking", action: "edit" },
   requiresConfirmation: false,
   input: inputSchema,
+  fieldSteps: { leadName: LEAD_FIELD_STEP },
   inferFields: (text) =>
     inferPolarity(text, "favorite", /\b(desfavorit|tira\w*\s+d\w*\s+favorit|remove\w*\s+d\w*\s+favorit)/i, /\bfavorit/i),
 

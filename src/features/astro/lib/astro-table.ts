@@ -23,6 +23,7 @@ export type AstroTableEntityType =
   | "tracking"
   | "agenda"
   | "contract"
+  | "payment"
   | "user";
 
 export interface AstroTableColumn {
@@ -89,6 +90,8 @@ export function buildEntityHref(
     case "contract":
       // Sem deep-link interno pra contrato hoje — abre o app forge.
       return `/forge`;
+    case "payment":
+      return `/payment?entry=${row.id}`;
     case "user":
       // "User" como entidade da tabela é informativo (ex: ranking de
       // colaboradores) — não tem rota de detalhe pública.

@@ -160,6 +160,15 @@ export const triggerNodes: NodeTypeOption[] = [
   // ─── Triggers do Modo Agente IA ──────────────────────────────────────
   // Habilitam multi-trigger por workflow. Liberados quando workflow.agentMode = true.
   {
+    type: NodeType.SCHEDULE_TRIGGER,
+    category: "trigger",
+    label: "Agendado",
+    description: "Dispara todo dia, em dias da semana escolhidos ou uma vez, no horário marcado",
+    icon: CalendarIcon,
+    agentModeOnly: true,
+    defaultData: { schedule: { frequency: "DAILY", time: "09:00" } },
+  },
+  {
     type: NodeType.PAYMENT_RECEIVED,
     category: "trigger",
     label: "Pagamento Recebido",
@@ -285,6 +294,16 @@ export const agentModeNodes: NodeTypeOption[] = [
   },
 
   // ▽ Apps NASA — pagamento, mídia e voz
+  {
+    type: NodeType.NOTIFY_TEAM,
+    category: "agent-mode",
+    group: "nasa-apps",
+    label: "Lembrar a Equipe",
+    description: "Notifica o responsável do lead ou quem criou o gatilho (não fala com o lead)",
+    icon: MailIcon,
+    agentModeOnly: true,
+    defaultData: { target: "RESPONSIBLE", message: "Retornar para {{lead.name}}" },
+  },
   {
     type: NodeType.CHECK_PAYMENT,
     category: "agent-mode",

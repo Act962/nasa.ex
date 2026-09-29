@@ -120,6 +120,27 @@ const SOURCE_MAP: Record<
       </svg>
     ),
   },
+  ASTRO_CHAT: {
+    label: "ASTRO CHAT",
+    color: "text-violet-600",
+    bg: "bg-violet-600/15",
+    icon: ({ className }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>
+      </svg>
+    ),
+  },
+  NERP_CATALOG: {
+    label: "Catálogo NERP",
+    color: "text-emerald-500",
+    bg: "bg-emerald-500/15",
+    icon: ({ className }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/>
+      </svg>
+    ),
+  },
   OTHER: {
     label: "Outro",
     color: "text-muted-foreground",
