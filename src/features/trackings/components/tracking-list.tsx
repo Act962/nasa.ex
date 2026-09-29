@@ -11,6 +11,8 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
 import dayjs from "dayjs";
 import Link from "next/link";
+import { StartHereSpot } from "@/features/org-defaults/components/start-here-spot";
+import { isStartHereTracking } from "@/features/org-defaults/lib/sample-lead";
 import { useRouter, useSearchParams } from "next/navigation";
 import "dayjs/locale/pt-br";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -153,6 +155,12 @@ function TrackingCard({ tracking }: { tracking: TrackingDashboardItem }) {
   return (
     <TooltipProvider delayDuration={250}>
       <div className="relative h-full">
+        <StartHereSpot
+          scope="tracking"
+          targetId={tracking.id}
+          isEnabled={isStartHereTracking(tracking)}
+          className="h-full"
+        >
         <Link href={`/tracking/${tracking.id}`} className="block h-full">
           <Card
             className="cursor-pointer h-full transition-colors hover:bg-accent/40 relative overflow-hidden"
@@ -350,6 +358,7 @@ function TrackingCard({ tracking }: { tracking: TrackingDashboardItem }) {
             </div>
           </Card>
         </Link>
+        </StartHereSpot>
 
         {/* Ícone de sincronização (automação cruzada com outros trackings)
             — fica POR CIMA do border do card. Tooltip mostra os trackings

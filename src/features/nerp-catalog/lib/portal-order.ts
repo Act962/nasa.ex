@@ -13,6 +13,7 @@ export async function findOrderByPublicToken(publicToken: string) {
           firstResponseAt: true,
           lastInboundAt: true,
           conversation: { select: { id: true, trackingId: true } },
+          status: { select: { systemKey: true } },
         },
       },
     },

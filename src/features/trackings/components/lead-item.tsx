@@ -1,6 +1,8 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { StartHereSpot } from "@/features/org-defaults/components/start-here-spot";
+import { isSampleLead } from "@/features/org-defaults/lib/sample-lead";
 import { Separator } from "@/components/ui/separator";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -233,6 +235,14 @@ export const LeadItem = memo(
     };
 
     return (
+      <StartHereSpot
+        scope="lead"
+        targetId={data.id}
+        isEnabled={isSampleLead(data)}
+        arrowSide="left"
+        coachPlacement="below"
+        radiusClassName="rounded-md"
+      >
       <div
         ref={setNodeRef}
         data-lead-id={data.id}
@@ -580,6 +590,7 @@ export const LeadItem = memo(
           onOpenChange={setFormsDialogOpen}
         />
       </div>
+      </StartHereSpot>
     );
   },
   (prev, next) => {

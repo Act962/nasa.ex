@@ -13,6 +13,8 @@ import type { CatalogOrderPaymentMethod } from "@/generated/prisma/enums";
 import type { CatalogOrderCustomer } from "../schemas/order-payload";
 import { loadAsaasCredentials } from "./integration-config";
 import { confirmCatalogOrderPayment, resendNerpSyncIfPending } from "./confirm-payment";
+import { CATALOG_STAGE_KEYS } from "./catalog-stages";
+import { advanceCatalogLeadToStage } from "./stage-flow";
 
 export const CATALOG_ORDER_REFERENCE_PREFIX = "catalog-order:";
 export const CATALOG_ORDER_PAYMENT_CREATED_EVENT = "nerp/catalog-order.payment-created";
@@ -85,6 +87,13 @@ async function startPaymentWatch(orderId: string, asaasPaymentId: string) {
     name: CATALOG_ORDER_PAYMENT_CREATED_EVENT,
     data: { orderId, asaasPaymentId },
   });
+  // Cobrança gerada = pedido confirmado (spec 0044, RF-6). Best-effort: o PIX já existe.
+  const order = await prisma.catalogOrder.findUnique({ where: { id: orderId }, select: { leadId: true } });
+  if (order?.leadId) {
+    await advanceCatalogLeadToStage({ leadId: order.leadId, stageKey: CATALOG_STAGE_KEYS.confirmed }).catch((error) =>
+      console.error("[nerp-catalog] advance_to_confirmed_failed", error),
+    );
+  }
 }
 
 export async function createOrderPixCharge(orderId: string, documentOverride?: string | null) {

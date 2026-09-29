@@ -8,6 +8,11 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
+// `Lead.amount` é em centavos (o card usa `formatCentsToMoney`); o NERP manda o total em reais.
+export function toLeadAmountCents(totalInReais: number): number {
+  return Math.round(totalInReais * 100);
+}
+
 export function formatBrl(value: number): string {
   return currencyFormatter.format(value);
 }

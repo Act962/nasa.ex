@@ -617,6 +617,7 @@ model Tracking {
   workflowFolders     WorkflowFolder[]
   forms               FormSettings[]
   whatsappInstance    WhatsAppInstance?
+  whatsAppConnectProgress WhatsAppConnectProgress?
   broadcasts          Broadcast[]
   conversations       Conversation[]
   agendas             Agenda[]
@@ -862,6 +863,8 @@ model Status {
   slaHours             Int?     @map("sla_hours")
   notifyClientOnEnter  Boolean  @default(false) @map("notify_client_on_enter")
   clientNotifyTemplate String?  @map("client_notify_template") @db.Text
+  // Chave de sistema da coluna (ex.: "catalog.paid"): o fluxo acha a etapa mesmo se a loja renomear a coluna (spec 0044).
+  systemKey            String?  @map("system_key")
   trackingId           String   @map("tracking_id")
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
@@ -872,6 +875,7 @@ model Status {
   FormSettings FormSettings[]
   agendas      Agenda[]
 
+  @@unique([trackingId, systemKey])
   @@index([trackingId, order])
   @@map("status")
 }
@@ -2524,6 +2528,10 @@ model WhatsAppInstance {
   metaBusinessAccountId String? @map("meta_business_account_id")
   /// Portfólio (Business Manager) da Meta — links de cartão e fatura (spec 0040).
   metaBusinessId        String? @map("meta_business_id")
+  /// ID do app Meta do próprio cliente (fluxo "cole suas chaves", spec 0040) — assina o webhook do app.
+  metaAppId             String? @map("meta_app_id")
+  /// PIN de verificação em duas etapas do número, cifrado (AES-256-GCM). Sem ele não dá pra re-registrar.
+  metaTwoStepPin        String? @map("meta_two_step_pin")
 
   // ── In-Chat Fallback (anti-ban) ──────────────────────────────────────
   // `inChatModeActive` = true quando o cron `detect-whatsapp-ban` detecta
@@ -2673,6 +2681,35 @@ model BroadcastFeePayment {
   @@index([broadcastId, status])
   @@index([organizationId])
   @@map("broadcast_fee_payments")
+}
+
+/// Progresso do assistente "Conectar número oficial" por funil (spec 0040, RF-14):
+/// o cliente continua de onde parou em qualquer aparelho. Rascunhos das chaves
+/// ficam cifrados (AES-256-GCM) até serem conferidos e gravados na instância.
+model WhatsAppConnectProgress {
+  id               String   @id @default(cuid())
+  trackingId       String   @unique @map("tracking_id")
+  organizationId   String   @map("organization_id")
+  /// Slug do passo atual do guia (whatsapp-connect-guide.json).
+  guideSlug        String?  @map("guide_slug")
+  /// Etapas concluídas + marcos de balão do Astro já exibidos ("cheer:*").
+  doneIds          String[] @default([]) @map("done_ids")
+  /// "own" | "salvy"
+  numberSource     String?  @map("number_source")
+  salvyNumberId    String?  @map("salvy_number_id")
+  draftAccessToken String?  @map("draft_access_token")
+  draftAppId       String?  @map("draft_app_id")
+  draftAppSecret   String?  @map("draft_app_secret")
+  /// Portfólio (business_id) tirado do link da página do app — deixa os links do guia diretos.
+  draftBusinessId  String?  @map("draft_business_id")
+  updatedById      String?  @map("updated_by_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("whatsapp_connect_progress")
 }
 
 /// Faixas da taxa ÓRBITA de campanha, editáveis pelo admin (spec 0040). Linha única "default".
@@ -3194,6 +3231,13 @@ model CatalogOrder {
 // Doc: docs/star-friends.md
 // ─────────────────────────────────────────────
 
+// Níveis do STAR FRIENDS (spec 0041): Terra (fase 1), Lua (fase 2), Galaxy (premium).
+enum LoyaltyTier {
+  EARTH
+  MOON
+  GALAXY
+}
+
 enum LoyaltyRewardType {
   PRODUCT
   DISCOUNT
@@ -3249,6 +3293,11 @@ model LoyaltyProgram {
   countCatalogOrders  Boolean   @default(true) @map("count_catalog_orders")
   countForgeProposals Boolean   @default(true) @map("count_forge_proposals")
   rules               String?
+  moonMinStars        Int       @default(10) @map("moon_min_stars")
+  galaxyMinStars      Int       @default(30) @map("galaxy_min_stars")
+  earthPerks          String?   @map("earth_perks")
+  moonPerks           String?   @map("moon_perks")
+  galaxyPerks         String?   @map("galaxy_perks")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
@@ -3268,6 +3317,7 @@ model LoyaltyReward {
   discountValue   Decimal?          @map("discount_value") @db.Decimal(12, 2)
   discountPercent Int?              @map("discount_percent")
   stock           Int?
+  minTier         LoyaltyTier       @default(EARTH) @map("min_tier")
   isActive        Boolean           @default(true) @map("is_active")
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")

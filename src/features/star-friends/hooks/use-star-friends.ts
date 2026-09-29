@@ -20,6 +20,11 @@ export function useUpsertStarFriendsProgram() {
   return useMutation(orpc.starFriends.upsertProgram.mutationOptions({ onSuccess: invalidate }));
 }
 
+export function useUpsertStarFriendsTiers() {
+  const invalidate = useInvalidateStarFriends();
+  return useMutation(orpc.starFriends.upsertTiers.mutationOptions({ onSuccess: invalidate }));
+}
+
 export function useStarFriendsRewards() {
   return useQuery(orpc.starFriends.rewards.list.queryOptions({ input: {} }));
 }
@@ -27,6 +32,11 @@ export function useStarFriendsRewards() {
 export function useUpsertStarFriendsReward() {
   const invalidate = useInvalidateStarFriends();
   return useMutation(orpc.starFriends.rewards.upsert.mutationOptions({ onSuccess: invalidate }));
+}
+
+export function useDeleteStarFriendsReward() {
+  const invalidate = useInvalidateStarFriends();
+  return useMutation(orpc.starFriends.rewards.delete.mutationOptions({ onSuccess: invalidate }));
 }
 
 export function useStarFriendsMembers(search: string) {

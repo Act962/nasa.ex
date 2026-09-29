@@ -5,6 +5,7 @@ import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleLead } from "./resolve-lead";
 import { LEAD_FIELD_STEP } from "./lead-steps";
 import { buildPickedAnswer, parsePickedAnswer } from "@/features/astro/lib/astro-picker";
+import { publishLeadStatusChanged } from "@/features/leads/lib/status-changed-event";
 
 /** "move a Maria Clara para Ganho" → lead e coluna, sem modelo. */
 function inferMoveFields(text: string): Record<string, unknown> {
@@ -140,6 +141,7 @@ export const moveLeadAction: AstroAction<typeof inputSchema> = {
       where: { id: lead.id },
       data: { statusId: target.id, statusEnteredAt: new Date() },
     });
+    await publishLeadStatusChanged({ leadId: lead.id, fromStatusId: current?.statusId ?? null, toStatusId: target.id });
 
     return {
       status: "done",

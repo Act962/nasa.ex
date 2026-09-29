@@ -26,11 +26,33 @@ function formatMoney(value: number, currency: string | null): string {
 }
 
 /** Painel "Número e gastos" (spec 0040, RF-8). */
-export function MetaNumberPanel({ trackingId, className }: { trackingId: string; className?: string }) {
+export function MetaNumberPanel({
+  trackingId,
+  className,
+  onContinueSetup,
+}: {
+  trackingId: string;
+  className?: string;
+  /** Número ainda sem chaves/credenciais: oferece terminar a conexão em vez de sumir. */
+  onContinueSetup?: () => void;
+}) {
   const { data, isLoading, error } = useMetaNumberPanel(trackingId);
 
   if (isLoading) return <Skeleton className={cn("h-36 w-full rounded-xl", className)} />;
-  if (error || !data) return null;
+  if (error || !data || !data.phone) {
+    if (!onContinueSetup) return null;
+    return (
+      <div className={cn("flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4", className)}>
+        <div>
+          <p className="font-semibold">Seu WhatsApp oficial ainda não terminou de conectar</p>
+          <p className="text-sm text-muted-foreground">Falta colar as chaves da Meta ou confirmar o número. A gente guia o resto.</p>
+        </div>
+        <Button size="sm" onClick={onContinueSetup}>
+          Terminar conexão
+        </Button>
+      </div>
+    );
+  }
 
   const quality = QUALITY_STYLES[data.phone?.quality ?? "UNKNOWN"] ?? QUALITY_STYLES.UNKNOWN;
   const dailyLimit = data.limit.dailyUniqueContacts;

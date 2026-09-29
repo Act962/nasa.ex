@@ -92,6 +92,7 @@ interface FooterProps {
     id: string;
     name: string;
     phone: string | null;
+    source?: string | null;
   };
   trackingId: string;
 }
@@ -221,6 +222,9 @@ export function Footer({
   );
 
   const isDisabled = !instance.instance;
+  // Pedido do catálogo NERP: sem WhatsApp, o texto vai pela página do pedido (o servidor decide o canal).
+  const canReplyInPortal = lead.source === "NERP_CATALOG";
+  const isTextDisabled = isDisabled && !canReplyInPortal;
 
   const handleSubmitAudio = async (blob: Blob) => {
     if (!instance.instance) return toast.error("Instância não encontrada");
@@ -269,7 +273,7 @@ export function Footer({
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!instance.instance) return toast.error("Instância não encontrada");
+    if (isTextDisabled) return toast.error("Instância não encontrada");
 
     const messageBody = `*${session?.user.name}*\n${message}`;
 
@@ -847,11 +851,13 @@ export function Footer({
                 placeholder={
                   outsideWindow
                     ? "Fora da janela de 24h — envie um template"
-                    : isDisabled
+                    : isTextDisabled
                       ? ""
-                      : "Digite sua mensagem"
+                      : isDisabled
+                        ? "Responder pela página do pedido"
+                        : "Digite sua mensagem"
                 }
-                disabled={isDisabled || outsideWindow}
+                disabled={isTextDisabled || outsideWindow}
                 className="resize-none min-h-0 py-2.5 text-sm max-h-50"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -889,7 +895,7 @@ export function Footer({
                         size="icon"
                         aria-label="Enviar mensagem"
                         className="rounded-full transition-transform duration-150 hover:scale-105 active:scale-95"
-                        disabled={isDisabled || outsideWindow}
+                        disabled={isTextDisabled || outsideWindow}
                       >
                         <SendIcon className="size-4" />
                       </Button>

@@ -25,16 +25,28 @@ export interface ChecklistItem {
   isAutoDone?: boolean;
   /** Esconde "Já fiz" quando só o sistema pode concluir. */
   isManualDoneHidden?: boolean;
+  /** Passo a passo já aberto (com prints), sem o "Não sei como fazer". */
+  isHowToOpen?: boolean;
   doneLabel?: string;
 }
 
-export function ChecklistProgress({ doneCount, total, label }: { doneCount: number; total: number; label: string }) {
+export function ChecklistProgress({
+  doneCount,
+  total,
+  label,
+  isCountHidden = false,
+}: {
+  doneCount: number;
+  total: number;
+  label: string;
+  isCountHidden?: boolean;
+}) {
   const percent = total ? Math.round((doneCount / total) * 100) : 0;
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
         <span className="text-muted-foreground">
-          {label} · {doneCount} de {total}
+          {isCountHidden ? label : `${label} · ${doneCount} de ${total}`}
         </span>
         <span className={cn("font-semibold", percent === 100 ? "text-emerald-600" : "text-foreground")}>{percent}%</span>
       </div>
@@ -51,11 +63,14 @@ export function GuidedChecklist({
   doneIds,
   onMarkDone,
   onUndo,
+  isProgressHidden = false,
 }: {
   items: ChecklistItem[];
   doneIds: ReadonlySet<string>;
   onMarkDone: (id: string) => void;
   onUndo: (id: string) => void;
+  /** Esconde a barra "Nesta etapa" quando a tela já tem a barra geral (um percentual só). */
+  isProgressHidden?: boolean;
 }) {
   const isItemDone = (item: ChecklistItem) => doneIds.has(item.id) || Boolean(item.isAutoDone);
   const currentId = items.find((item) => !isItemDone(item))?.id ?? null;
@@ -66,7 +81,7 @@ export function GuidedChecklist({
 
   return (
     <div className="space-y-3">
-      <ChecklistProgress doneCount={doneCount} total={items.length} label="Nesta etapa" />
+      {!isProgressHidden && <ChecklistProgress doneCount={doneCount} total={items.length} label="Nesta etapa" />}
       <ol className="space-y-2">
         {items.map((item, index) => {
           const isDone = isItemDone(item);
@@ -126,7 +141,9 @@ export function GuidedChecklist({
 
                   {item.action}
 
-                  {item.howTo && (
+                  {item.howTo && item.isHowToOpen && <div className="text-sm">{item.howTo}</div>}
+
+                  {item.howTo && !item.isHowToOpen && (
                     <div>
                       <button
                         type="button"

@@ -2,34 +2,17 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDecideStarFriendsRedemption, useStarFriendsRedemptions } from "../hooks/use-star-friends";
-import { useStarFriendsPermissions } from "../hooks/use-star-friends-permissions";
+import { useStarFriendsRedemptions } from "../hooks/use-star-friends";
+import { RedemptionActions } from "./redemption-actions";
 import { REDEMPTION_CHANNEL_LABELS, REDEMPTION_STATUS_LABELS, describeSnapshot } from "../utils/labels";
 
 type RedemptionStatus = "PENDING" | "APPROVED" | "DELIVERED" | "REJECTED" | "CANCELED";
-type Decision = "APPROVE" | "REJECT" | "DELIVER" | "CANCEL";
 
 export function RedemptionsQueue() {
   const [status, setStatus] = useState<RedemptionStatus>("PENDING");
   const redemptions = useStarFriendsRedemptions(status);
-  const decide = useDecideStarFriendsRedemption();
-  const [reasonById, setReasonById] = useState<Record<string, string>>({});
-  const permissions = useStarFriendsPermissions();
-
-  const handleDecision = (redemptionId: string, decision: Decision) => {
-    decide.mutate(
-      { redemptionId, decision, reason: reasonById[redemptionId] || undefined },
-      {
-        onSuccess: () => toast.success("Resgate atualizado"),
-        onError: (error) => toast.error(error.message),
-      },
-    );
-  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -50,10 +33,6 @@ export function RedemptionsQueue() {
         <p className="text-sm text-muted-foreground">Nada por aqui.</p>
       )}
       {redemptions.data?.redemptions.map((redemption) => {
-        const canActOnPending = redemption.status === "PENDING" && permissions.canApproveRedemptions;
-        const canActOnApproved =
-          redemption.status === "APPROVED" && (permissions.canApproveRedemptions || permissions.canDebitAndCancel);
-        const needsReason = canActOnPending || canActOnApproved;
         return (
           <div key={redemption.id} className="flex flex-col gap-3 rounded-xl border p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -73,36 +52,7 @@ export function RedemptionsQueue() {
                 ` · entregue por ${redemption.deliveredByName}${redemption.deliveredAt ? ` em ${format(new Date(redemption.deliveredAt), "dd/MM/yyyy HH:mm")}` : ""}`}
               {redemption.decisionReason && ` · motivo: ${redemption.decisionReason}`}
             </p>
-            {needsReason && (
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  className="max-w-sm"
-                  placeholder="Motivo (obrigatório para recusar/cancelar)"
-                  value={reasonById[redemption.id] ?? ""}
-                  onChange={(event) => setReasonById({ ...reasonById, [redemption.id]: event.target.value })}
-                />
-                {canActOnPending && (
-                  <>
-                    <Button size="sm" disabled={decide.isPending} onClick={() => handleDecision(redemption.id, "APPROVE")}>
-                      Aprovar
-                    </Button>
-                    <Button size="sm" variant="outline" disabled={decide.isPending} onClick={() => handleDecision(redemption.id, "REJECT")}>
-                      Recusar
-                    </Button>
-                  </>
-                )}
-                {redemption.status === "APPROVED" && permissions.canApproveRedemptions && (
-                  <Button size="sm" disabled={decide.isPending} onClick={() => handleDecision(redemption.id, "DELIVER")}>
-                    Marcar como entregue
-                  </Button>
-                )}
-                {redemption.status === "APPROVED" && permissions.canDebitAndCancel && (
-                  <Button size="sm" variant="outline" disabled={decide.isPending} onClick={() => handleDecision(redemption.id, "CANCEL")}>
-                    Cancelar e estornar
-                  </Button>
-                )}
-              </div>
-            )}
+            <RedemptionActions redemption={redemption} />
           </div>
         );
       })}

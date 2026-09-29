@@ -39,30 +39,35 @@ export const getUnansweredCounts = base
     if (!tracking) return { byChannel: {} as Record<string, number>, total: 0 };
 
 
-    // Chat do site e ASTRO CHAT são gravados como WhatsApp: separa pela origem
-    // do lead, igual ao filtro da lista.
+    // Chat do site, ASTRO CHAT e pedidos do Catálogo online são gravados como WhatsApp:
+    // separa pela origem do lead, igual ao filtro da lista.
     const awaitingReply = awaitingReplyFilter();
 
-    const countBySource = (source: "IN_CHAT" | "ASTRO_CHAT") =>
+    const countBySource = (source: "IN_CHAT" | "ASTRO_CHAT" | "NERP_CATALOG") =>
       prisma.conversation.count({
         where: { trackingId: tracking.id, isActive: true, lead: { ...awaitingReply, source } },
       });
-    const [groups, inChatCount, astroChatCount] = await Promise.all([
+    const [groups, inChatCount, astroChatCount, catalogCount] = await Promise.all([
       prisma.conversation.groupBy({
         by: ["channel"],
         where: {
           trackingId: tracking.id,
           isActive: true,
-          lead: { ...awaitingReply, source: { notIn: ["IN_CHAT", "ASTRO_CHAT"] } },
+          lead: { ...awaitingReply, source: { notIn: ["IN_CHAT", "ASTRO_CHAT", "NERP_CATALOG"] } },
         },
         _count: { _all: true },
       }),
       countBySource("IN_CHAT"),
       countBySource("ASTRO_CHAT"),
+      countBySource("NERP_CATALOG"),
     ]);
 
-    const byChannel: Record<string, number> = { IN_CHAT: inChatCount, ASTRO_CHAT: astroChatCount };
-    let total = inChatCount + astroChatCount;
+    const byChannel: Record<string, number> = {
+      IN_CHAT: inChatCount,
+      ASTRO_CHAT: astroChatCount,
+      CATALOG: catalogCount,
+    };
+    let total = inChatCount + astroChatCount + catalogCount;
     for (const group of groups) {
       byChannel[group.channel] = group._count._all;
       total += group._count._all;

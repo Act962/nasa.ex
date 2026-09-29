@@ -17,15 +17,30 @@ export async function beginBroadcastDispatch(params: {
 }): Promise<boolean> {
   const { broadcastId, organizationId, fromStatuses } = params;
 
-  const claimed = await prisma.broadcast.updateMany({
+  const current = await prisma.broadcast.findFirst({
     where: { id: broadcastId, organizationId, status: { in: fromStatuses } },
+    select: { status: true, startedAt: true },
+  });
+  if (!current) return false;
+
+  const claimed = await prisma.broadcast.updateMany({
+    where: { id: broadcastId, organizationId, status: current.status },
     data: { status: "SENDING", startedAt: new Date() },
   });
   if (claimed.count === 0) return false;
 
-  await inngest.send({
-    name: "campanhas/broadcast.send",
-    data: { broadcastId, organizationId },
-  });
+  try {
+    await inngest.send({
+      name: "campanhas/broadcast.send",
+      data: { broadcastId, organizationId },
+    });
+  } catch (error) {
+    // Sem o evento na fila ninguém envia: devolve a campanha ao status anterior para o cliente tentar de novo.
+    await prisma.broadcast.updateMany({
+      where: { id: broadcastId, organizationId, status: "SENDING" },
+      data: { status: current.status, startedAt: current.startedAt },
+    });
+    throw error;
+  }
   return true;
 }

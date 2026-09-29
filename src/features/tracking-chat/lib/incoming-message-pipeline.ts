@@ -23,6 +23,7 @@
  *    identify quando phone novo.
  */
 
+import { applyInboundAutoTags, loadAwaitingState, removeAwaitingTagOnReply } from "@/features/org-defaults/lib/auto-tags";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { inngest } from "@/inngest/client";
@@ -99,6 +100,11 @@ export async function firePostInboundAutomations(
     !params.lead.firstResponseAt &&
     params.lead.lastInboundAt !== null;
 
+  // Lido antes de atualizar os horários: diz se o cliente já esperava resposta (spec 0042).
+  const awaitingState = params.fromMe
+    ? null
+    : await loadAwaitingState(params.lead.id).catch(() => null);
+
   // ── 1. Update timestamps ─────────────────────────────────────────────
   try {
     await prisma.conversation.update({
@@ -123,6 +129,22 @@ export async function firePostInboundAutomations(
     });
   } catch (err) {
     console.error("[pipeline] update_timestamps_failed", err);
+  }
+
+  // ── 1b. Tags automáticas da empresa (spec 0042) ─────────────────────
+  try {
+    if (params.fromMe) {
+      await removeAwaitingTagOnReply({ organizationId: params.organizationId, leadId: params.lead.id });
+    } else {
+      await applyInboundAutoTags({
+        organizationId: params.organizationId,
+        leadId: params.lead.id,
+        channel: params.channel,
+        wasAwaitingReply: awaitingState?.isAwaitingReply ?? false,
+      });
+    }
+  } catch (err) {
+    console.error("[pipeline] auto_tags_failed", err);
   }
 
   // ── 2. trackLeadEvent (timeline) ─────────────────────────────────────

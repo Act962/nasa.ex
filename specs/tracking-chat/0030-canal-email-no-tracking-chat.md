@@ -130,4 +130,5 @@ Sem runner de teste (CLAUDE.md, item 20). Manual, com uma conta Gmail de teste c
 | --- | --- | --- |
 | 2026-09-25 | Weydson | Criada |
 | 2026-09-25 | Weydson | RF-10: bolinha no ícone Chat do menu lateral, com a somatória da organização (`conversation.unansweredTotal`). O ícone do Chat do site saiu do filtro de canais a pedido do usuário; o canal In-Chat continua atendido pela página pública. |
+| 2026-09-29 | Weydson | CA-4 continua valendo para a leitura, mas a [0045](0045-email-de-remetente-novo-vira-lead.md) passa a transformar remetente novo em lead do funil escolhido — aí a conversa dele aparece aqui. |
 | 2026-09-25 | Weydson | RF-7 a RF-9: contadores de sem resposta por canal, ícone do Gmail pelo status da conexão e canal Chat do site. In-Chat é identificado pela origem do lead, sem migration (a conversa segue gravada como WHATSAPP). |

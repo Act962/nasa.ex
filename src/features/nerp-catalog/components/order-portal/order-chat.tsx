@@ -1,5 +1,6 @@
 "use client";
 
+import { renderWhatsappMarks } from "@/features/tracking-chat/utils/whatsapp-marks";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { format } from "date-fns";
 import { Loader2, Send } from "lucide-react";
@@ -12,7 +13,15 @@ import {
   useSendCatalogOrderMessage,
 } from "../../hooks/use-catalog-order-portal";
 
-export function OrderChat({ token, storeName }: { token: string; storeName: string }) {
+export function OrderChat({
+  token,
+  storeName,
+  className,
+}: {
+  token: string;
+  storeName: string;
+  className?: string;
+}) {
   const messagesQuery = useCatalogOrderMessages(token);
   const sendMessage = useSendCatalogOrderMessage(token);
   const [draft, setDraft] = useState("");
@@ -37,7 +46,7 @@ export function OrderChat({ token, storeName }: { token: string; storeName: stri
   };
 
   return (
-    <div className="flex h-[520px] flex-col">
+    <div className={cn("flex h-[520px] flex-col", className)}>
       <div className="flex-1 space-y-2 overflow-y-auto p-4">
         {messagesQuery.isLoading && (
           <div className="flex justify-center py-8">
@@ -47,7 +56,10 @@ export function OrderChat({ token, storeName }: { token: string; storeName: stri
         {messages.map((message) => {
           // No portal a perspectiva é do cliente: fromMe=true é a loja falando.
           const isFromStore = message.fromMe;
-          const text = message.body ?? message.mediaCaption ?? (message.mediaType ? `[${message.mediaType}]` : "");
+          const rawText = message.body ?? message.mediaCaption ?? (message.mediaType ? `[${message.mediaType}]` : "");
+          // O atendente assina com "*Nome*" na 1ª linha; aqui o nome já aparece no cabeçalho do balão.
+          const signature = message.senderName ? `*${message.senderName}*\n` : null;
+          const text = isFromStore && signature && rawText.startsWith(signature) ? rawText.slice(signature.length) : rawText;
           return (
             <div key={message.id} className={cn("flex", isFromStore ? "justify-start" : "justify-end")}>
               <div
@@ -59,7 +71,7 @@ export function OrderChat({ token, storeName }: { token: string; storeName: stri
                 {isFromStore && (
                   <p className="mb-0.5 text-xs font-semibold opacity-70">{message.senderName ?? storeName}</p>
                 )}
-                {text}
+                {renderWhatsappMarks(text, message.id)}
                 <p className="mt-1 text-right text-[10px] opacity-60">
                   {format(new Date(message.createdAt), "HH:mm")}
                 </p>

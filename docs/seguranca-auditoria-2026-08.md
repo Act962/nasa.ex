@@ -15,7 +15,7 @@
 
 | Severidade | Itens | Status |
 | --- | ---: | --- |
-| 🔴 Crítico — explorável anonimamente | 8 | ⬜ 8 |
+| 🔴 Crítico — explorável anonimamente | 8 | ⬜ 7 · ✅ 1 |
 | 🟠 Alto | 6 | ⬜ 6 |
 | 🟡 Médio | 5 | ⬜ 5 |
 
@@ -239,16 +239,18 @@ nome, telefone e e-mail em stdout.
 
 | | |
 | --- | --- |
-| **Status** | ⬜ |
+| **Status** | ✅ Corrigido em 2026-09-29 (branch `feature/W-campanhas-disparo-self-service-20260927`, PR a abrir) |
 | **Arquivo** | `src/app/api/rpc/[[...rest]]/route.ts:43-66` |
-| **Impacto** | Dados de cliente em log; violação de privacidade |
+| **Impacto** | Dados de cliente **e segredos** em log; violação de privacidade |
 
 Bloco comentado como `// TEMP debug: log raw body for /api/rpc/nerp/* mutations. Remove after fix.` —
 **ativo**. Materializa o body inteiro de toda mutation `/api/rpc/nerp/*` e loga 500 chars sem redação.
 
+**Confirmado em 2026-09-29:** ao salvar a integração do Catálogo online, o log gravou em texto puro a API key de produção do Asaas da loja, o token do webhook e uma senha preenchida pelo autofill do navegador. Qualquer ambiente com esse bloco ativo (inclusive produção) pode ter chaves de lojas no log — trate como vazamento: rotacionar as chaves Asaas salvas por lojas enquanto o bloco esteve ativo e expurgar os logs.
+
 **Correção:**
 
-- [ ] Remover o bloco inteiro
+- [x] Remover o bloco inteiro
 - [ ] Trocar por logging estruturado com redação por allowlist quando houver `pino` (Fase 1)
 
 ---
@@ -415,4 +417,5 @@ Registrados para não serem re-auditados sem motivo:
 | Data | O quê |
 | --- | --- |
 | 2026-08-18 | Registro inicial. 8 críticos, 6 altos, 5 médios, a partir da auditoria de `f67796d2`. Todos os itens 🔴 confirmados por leitura direta do código. Nenhuma correção aplicada. |
+| 2026-09-29 | S8 corrigido: bloco de debug removido depois de gravar em log a API key do Asaas de uma loja durante teste de PIX real. Pendentes: logging com redação e rotação das chaves expostas. |
 | 2026-09-26 | M6 adicionado e corrigido (vazamento do Financeiro pelo ASTRO para membro sem acesso), achado pela bateria de testes do ASTRO. |

@@ -17,3 +17,15 @@ export function useUpsertNerpCatalogIntegration() {
     }),
   );
 }
+
+// Cria colunas no tracking: invalida tudo para o board e os seletores de etapa refletirem.
+export function useApplyDefaultCatalogStages() {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.nerp.catalogIntegration.applyDefaultStages.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries();
+      },
+    }),
+  );
+}

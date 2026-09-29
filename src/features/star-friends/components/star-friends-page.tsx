@@ -1,8 +1,11 @@
 "use client";
 
+import { TiersAndRules } from "./tiers-and-rules";
+import { StarFriendsOverview } from "./star-friends-overview";
 import { useState } from "react";
-import { Gift, Hourglass, Sparkles, Users } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, Settings, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type StarFriendsHistoryFilters, useStarFriendsOverview } from "../hooks/use-star-friends";
@@ -31,59 +34,54 @@ export function StarFriendsPage() {
   if (!overview.data?.isInstalled) return <InstallStarFriends canInstall={permissions.canConfigure} />;
 
   const { stats, program } = overview.data;
-  const statCards = [
-    { label: "Participantes", value: stats.membersCount, icon: Users },
-    { label: "Stars em circulação", value: stats.starsInCirculation, icon: Sparkles },
-    { label: "Resgates aguardando", value: stats.pendingRedemptions, icon: Hourglass },
-    { label: "Prêmios entregues", value: stats.deliveredRedemptions, icon: Gift },
-  ];
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold">
-          <Sparkles className="size-6 text-amber-500" /> {program?.name ?? "STAR FRIENDS"}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {program?.isActive
-            ? `Ativo · ${program.starsPerPurchase} star por compra paga${program.minPurchaseAmount > 0 ? ` acima de R$ ${program.minPurchaseAmount}` : ""}`
-            : "Programa pausado — nenhuma star nova é gerada, os saldos continuam valendo."}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold">
+            <Sparkles className="size-6 text-amber-500" /> {program?.name ?? "STAR FRIENDS"}
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                program?.isActive ? "bg-emerald-500/15 text-emerald-500" : "bg-muted text-muted-foreground",
+              )}
+            >
+              ● {program?.isActive ? "Ativo" : "Pausado"}
+            </span>
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {program?.isActive
+              ? `${program.starsPerPurchase} ⭐ por compra paga${program.minPurchaseAmount > 0 ? ` acima de R$ ${program.minPurchaseAmount}` : ""}${program.starsExpireDays ? ` · ⭐ valem ${program.starsExpireDays} dias` : ""}`
+              : "Programa pausado — nenhuma star nova é gerada, os saldos continuam valendo."}
+          </p>
+        </div>
+        {permissions.canConfigure && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setActiveTab("settings")}>
+              <Settings className="size-4" /> Configurações
+            </Button>
+            <Button onClick={() => setActiveTab("rewards")}>
+              <Plus className="size-4" /> Novo prêmio
+            </Button>
+          </div>
+        )}
       </div>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex-wrap">
+        <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="redemptions">Resgates{stats.pendingRedemptions > 0 ? ` (${stats.pendingRedemptions})` : ""}</TabsTrigger>
-          <TabsTrigger value="rewards">Lista de troca</TabsTrigger>
+          <TabsTrigger value="rewards">Cartões e prêmios</TabsTrigger>
           <TabsTrigger value="members">Participantes</TabsTrigger>
           <TabsTrigger value="history">Histórico</TabsTrigger>
+          <TabsTrigger value="tiers">Níveis e regras</TabsTrigger>
           {permissions.canConfigure && <TabsTrigger value="settings">Configurações</TabsTrigger>}
         </TabsList>
-        <TabsContent value="overview" className="flex flex-col gap-4 pt-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {statCards.map((stat) => (
-              <Card key={stat.label}>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">{stat.label}</CardTitle>
-                  <stat.icon className="size-4 text-amber-500" />
-                </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-bold">{stat.value}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Como funciona</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2 text-sm text-muted-foreground">
-              <p>1. Pedido pago no Catálogo online ou proposta do Forge marcada como paga gera star automaticamente.</p>
-              <p>2. O consultor pode lançar ou retirar stars nos Detalhes do lead (aba Produtos/Serviços), sempre com motivo.</p>
-              <p>3. O cliente troca pelo consultor, pelo botão &quot;+&quot; do chat, pelo Astro ou pela página do pedido.</p>
-              <p>4. Pedidos do Astro e do portal esperam aprovação em &quot;Resgates&quot;. Tudo aparece no &quot;Histórico&quot;.</p>
-            </CardContent>
-          </Card>
+        <TabsContent value="overview" className="pt-4">
+          <StarFriendsOverview onNavigate={setActiveTab} />
+        </TabsContent>
+        <TabsContent value="tiers" className="pt-4">
+          <TiersAndRules canEdit={permissions.canConfigure} />
         </TabsContent>
         <TabsContent value="redemptions" className="pt-4">
           <RedemptionsQueue />

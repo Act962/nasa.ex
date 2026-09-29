@@ -50,3 +50,15 @@ export const useMetaNumberPanel = (trackingId: string | null, options?: { enable
     retry: false,
   });
 };
+
+/** Cria o funil (tracking) onde chegam as respostas do número oficial — cliente novo ainda não tem nenhum. */
+export const useCreateOfficialTracking = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.tracking.create.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: orpc.tracking.list.key() });
+      },
+    }),
+  );
+};

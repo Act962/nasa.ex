@@ -54,7 +54,7 @@ import {
 import { parseWhatsAppOfficialWebhook } from "@/http/whats-oficial/webhook-schema";
 import prisma from "@/lib/prisma";
 import { WhatsAppProvider } from "@/generated/prisma/enums";
-import { decryptStoredMetaCredentialsPartial } from "@/features/tracking-chat/lib/providers/meta-credentials";
+import { decryptSecret } from "@/lib/crypto";
 import { getTrackingByMetaPhoneNumberId } from "@/features/tracking-chat/lib/get-tracking-by-meta-phone-number-id";
 import { getCachedTrackingContext } from "@/features/tracking-chat/lib/get-cached-tracking-context";
 import { createProvider } from "@/features/tracking-chat/lib/providers";
@@ -114,27 +114,13 @@ export async function GET(request: NextRequest) {
   // divergente). Custo: scan completo do subset META_CLOUD, mas o GET é
   // chamado uma vez por configuração (não é hot path).
   for (const candidate of candidates) {
-    if (!candidate.metaAccessToken || !candidate.metaPhoneNumberId) {
-      continue;
-    }
-    // Instâncias sem verify token próprio (Embedded Signup, Fase 7) já
-    // foram cobertas pelo `META_VERIFY_TOKEN_GLOBAL` acima. Aqui só
-    // testamos as que têm token específico (Fase 4 backward compat).
+    // Só o verify token importa no handshake: o funil pode ainda não ter escolhido
+    // o número (spec 0040 — o cliente configura o webhook antes disso).
     if (!candidate.metaVerifyToken) continue;
     try {
-      const plain = decryptStoredMetaCredentialsPartial({
-        metaAccessToken: candidate.metaAccessToken,
-        metaPhoneNumberId: candidate.metaPhoneNumberId,
-        metaAppSecret: candidate.metaAppSecret,
-        metaVerifyToken: candidate.metaVerifyToken,
-        metaBusinessAccountId: candidate.metaBusinessAccountId,
-      });
-      if (
-        matchedVerifyToken === null &&
-        plain.verifyToken !== null &&
-        constantTimeEquals(plain.verifyToken, verifyToken)
-      ) {
-        matchedVerifyToken = plain.verifyToken;
+      const plainVerifyToken = decryptSecret(candidate.metaVerifyToken);
+      if (matchedVerifyToken === null && constantTimeEquals(plainVerifyToken, verifyToken)) {
+        matchedVerifyToken = plainVerifyToken;
         // sem break: continua iterando pra constant-work
       }
     } catch (error) {

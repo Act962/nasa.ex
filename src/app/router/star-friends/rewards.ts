@@ -14,6 +14,7 @@ function serializeReward(reward: {
   discountValue: { toString(): string } | null;
   discountPercent: number | null;
   stock: number | null;
+  minTier: "EARTH" | "MOON" | "GALAXY";
   isActive: boolean;
 }) {
   return {
@@ -26,6 +27,7 @@ function serializeReward(reward: {
     discountValue: reward.discountValue ? Number(reward.discountValue) : null,
     discountPercent: reward.discountPercent,
     stock: reward.stock,
+    minTier: reward.minTier,
     isActive: reward.isActive,
   };
 }
@@ -52,6 +54,8 @@ export const upsertStarFriendsReward = starFriendsWith("canEdit")
       discountValue: z.number().min(0).nullable(),
       discountPercent: z.number().int().min(1).max(100).nullable(),
       stock: z.number().int().min(0).nullable(),
+      // Opcional: o formulário antigo não manda e o prêmio segue para todos (Terra).
+      minTier: z.enum(["EARTH", "MOON", "GALAXY"]).optional(),
       isActive: z.boolean(),
     }),
   )
@@ -76,4 +80,32 @@ export const upsertStarFriendsReward = starFriendsWith("canEdit")
       resourceId: reward.id,
     });
     return serializeReward(reward);
+  });
+
+// Prêmio com resgate no histórico não some: vira inativo, para o extrato e os resgates seguirem legíveis.
+export const deleteStarFriendsReward = starFriendsWith("canDelete")
+  .input(z.object({ id: z.string() }))
+  .handler(async ({ input, context, errors }) => {
+    const organizationId = context.org.id;
+    const reward = await prisma.loyaltyReward.findFirst({
+      where: { id: input.id, organizationId },
+      select: { id: true, name: true, _count: { select: { redemptions: true } } },
+    });
+    if (!reward) throw errors.NOT_FOUND({ message: "Prêmio não encontrado" });
+    const hasHistory = reward._count.redemptions > 0;
+    if (hasHistory) {
+      await prisma.loyaltyReward.update({ where: { id: reward.id }, data: { isActive: false } });
+    } else {
+      await prisma.loyaltyReward.delete({ where: { id: reward.id } });
+    }
+    await auditLoyaltyAction({
+      organizationId,
+      actor: userActor(context.user),
+      action: hasHistory ? "reward.deactivated" : "reward.deleted",
+      actionLabel: hasHistory
+        ? `Desativou o prêmio "${reward.name}" (tem resgates no histórico)`
+        : `Excluiu o prêmio "${reward.name}"`,
+      resourceId: reward.id,
+    });
+    return { isDeleted: !hasHistory, isDeactivated: hasHistory };
   });

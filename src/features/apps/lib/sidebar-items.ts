@@ -18,6 +18,7 @@ import {
   Rocket,
   Sparkles,
   TrendingUp,
+  Send,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type React from "react";
@@ -64,6 +65,14 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     title: "Chats",
     url: "/tracking-chat",
     icon: MessageSquareTextIcon,
+    alwaysVisible: false,
+    defaultVisible: true,
+  },
+  {
+    key: "campanhas",
+    title: "Campanhas",
+    url: "/campanhas",
+    icon: Send,
     alwaysVisible: false,
     defaultVisible: true,
   },

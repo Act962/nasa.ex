@@ -77,6 +77,9 @@ import { detectActionsDueSoon } from "@/inngest/functions/crons/detect-actions-d
 import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
 import { chatAiWhatsappAgent } from "@/inngest/functions/chat-ai/whatsapp-agent";
 import { syncCatalogOrderToNerp } from "@/inngest/functions/nerp-catalog/sync-order-to-nerp";
+import { awaitReplyTagCheck } from "@/inngest/functions/org-defaults/await-reply-tag";
+import { seedSampleContent } from "@/inngest/functions/org-defaults/seed-sample-content";
+import { emailLeadCaptureCron } from "@/inngest/functions/crons/email-lead-capture";
 import { watchCatalogOrderPayment } from "@/inngest/functions/nerp-catalog/watch-order-payment";
 import { starFriendsExpireStars } from "@/inngest/functions/star-friends/expire-stars";
 import {
@@ -191,6 +194,9 @@ export const { GET, POST, PUT } = serve({
     // ── Catálogo online NERP → Órbita: pagamento e confirmação da venda ──
     watchCatalogOrderPayment,
     syncCatalogOrderToNerp,
+    awaitReplyTagCheck,
+    seedSampleContent,
+    emailLeadCaptureCron,
     // ── STAR FRIENDS: validade das stars ──
     starFriendsExpireStars,
     // ── In-Chat (fallback anti-ban): confirma queda → ativa; recuperação preguiçosa ──

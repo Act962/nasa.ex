@@ -123,3 +123,9 @@ export type {
   ConversationAnalyticsDataPoint,
   ConversationAnalyticsResponse,
 } from "./types";
+export { debugToken } from "./debug-token";
+export type { DebugTokenData, DebugTokenGranularScope } from "./debug-token";
+export { addPhoneNumber } from "./add-phone-number";
+export { requestVerificationCode } from "./request-verification-code";
+export { verifyCode } from "./verify-code";
+export { subscribeAppWebhook } from "./subscribe-app-webhook";

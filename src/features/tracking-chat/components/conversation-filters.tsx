@@ -261,6 +261,10 @@ export function ConversationFilters({
           >
             <ShoppingBasket className="size-5 text-emerald-500" />
           </button>
+          <UnansweredBadge
+            count={unanswered.byChannel.CATALOG ?? 0}
+            label={`${unanswered.byChannel.CATALOG ?? 0} pedido(s) do Catálogo online sem resposta`}
+          />
         </span>
 
         <Link href="/integrations?category=mensageiros">

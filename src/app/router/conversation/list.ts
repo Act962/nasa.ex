@@ -272,7 +272,7 @@ function buildChannelWhere(
   if (channel === "WHATSAPP") {
     return {
       channel: "WHATSAPP",
-      AND: [{ lead: { source: { notIn: ["IN_CHAT", "ASTRO_CHAT"] } } }],
+      AND: [{ lead: { source: { notIn: ["IN_CHAT", "ASTRO_CHAT", "NERP_CATALOG"] } } }],
     };
   }
   if (channel === "INSTAGRAM" || channel === "FACEBOOK") return { channel };

@@ -26,14 +26,14 @@ export function LeadTriggersHeaderButton({ trackingId, leadId, leadName, compact
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          title="Gatilhos do lead"
+          title="Gatilhos"
           className={cn(
             "flex items-center gap-1.5 rounded-full text-sm font-medium transition-colors hover:bg-muted",
             compact ? "size-8 justify-center" : "h-8 px-3",
           )}
         >
           <TriggerIcon className="size-4" isSpinning />
-          {!compact && "Gatilhos do lead"}
+          {!compact && "Gatilhos"}
         </button>
       </LightRunBorder>
       <QuickWorkflowDialog isOpen={isOpen} onOpenChange={setIsOpen} trackingId={trackingId} leadId={leadId} leadName={leadName} />

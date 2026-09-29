@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLeadEmailThreads } from "@/features/tracking-chat/hooks/use-tracking-chat-email";
 import { LeadEmailThreadSheet } from "./lead-email-thread-sheet";
+import { EmailLeadCaptureToggle } from "./email-lead-capture-toggle";
 
 /**
  * Canal E-mail do Tracking Chat (spec 0030): conversas de e-mail entre a caixa
@@ -75,6 +76,8 @@ export function LeadEmailPanel({ trackingId }: { trackingId: string | null }) {
         </div>
       </div>
 
+      <EmailLeadCaptureToggle trackingId={trackingId} />
+
       {isPartial && (
         <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
           Este tracking tem muitos leads com e-mail; mostrando os 50 mais recentes.
@@ -95,7 +98,7 @@ export function LeadEmailPanel({ trackingId }: { trackingId: string | null }) {
       ) : !hasLeadEmails ? (
         <PanelMessage
           title="Nenhum lead deste tracking tem e-mail"
-          description="Cadastre o e-mail no lead para as conversas aparecerem aqui."
+          description="Cadastre o e-mail no lead, ou ligue acima para quem escrever virar lead aqui."
         />
       ) : threads.length === 0 ? (
         <PanelMessage

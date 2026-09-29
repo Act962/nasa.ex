@@ -1,6 +1,7 @@
 import "server-only";
 import prisma from "@/lib/prisma";
 import { sumBalance, toMemberPhone } from "../utils/balance";
+import { lifetimeStarsFrom } from "../utils/tiers";
 
 // Membro = cliente por telefone na org: o mesmo cliente pode ser lead em
 // vários trackings, e as stars dele não podem se dividir entre eles.
@@ -48,3 +49,12 @@ export async function getBalancesForMembers(memberIds: string[]): Promise<Map<st
 }
 
 export { sumBalance };
+
+export async function getMemberLifetimeStars(memberId: string): Promise<number> {
+  const grouped = await prisma.loyaltyLedgerEntry.groupBy({
+    by: ["type"],
+    where: { memberId },
+    _sum: { stars: true },
+  });
+  return lifetimeStarsFrom(grouped.map((row) => ({ type: row.type, stars: row._sum.stars ?? 0 })));
+}

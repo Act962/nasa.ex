@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import type { UIMessage } from "ai";
 import { AstroMessage } from "@/features/astro/components/astro-message";
+import { AstroPrivacyConsentCard } from "./astro-privacy-consent-card";
 
 /** Lista de mensagens do painel, com indicador de digitação e erro legível. */
 
@@ -32,6 +33,7 @@ export function AstroWidgetMessages({
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <AstroPrivacyConsentCard />
       {messages.length === 0 ? (
         emptyState
       ) : (

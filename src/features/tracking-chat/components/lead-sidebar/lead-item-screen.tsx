@@ -48,7 +48,7 @@ function ScreenBody({
         />
       );
     case "starFriend":
-      return <StarFriendScreen />;
+      return <StarFriendScreen leadId={lead.id} />;
     case "agenda":
       return <AgendaScreen leadId={lead.id} leadName={lead.name} leadPhone={lead.phone} leadEmail={lead.email} />;
     case "campaigns":

@@ -69,3 +69,20 @@ export function useSendLeadEmail() {
     }),
   );
 }
+
+/** Spec 0045: funil que recebe os remetentes novos da caixa (null = desligado). */
+export function useEmailLeadCapture(enabled = true) {
+  return useQuery({ ...orpc.trackingChatEmail.leadCapture.queryOptions({ input: {} }), enabled });
+}
+
+export function useSetEmailLeadCapture() {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.trackingChatEmail.setLeadCapture.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: orpc.trackingChatEmail.key() });
+        queryClient.invalidateQueries({ queryKey: orpc.conversation.key() });
+      },
+    }),
+  );
+}

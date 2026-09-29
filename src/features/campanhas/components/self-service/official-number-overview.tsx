@@ -1,14 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { BookOpen, ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { BookOpen, Loader2, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useQueryTrackings } from "@/features/trackings/hooks/use-trackings";
 import { useSendingNumbers } from "../../hooks/use-sending-numbers";
+import { useCreateOfficialTracking } from "../../hooks/use-official-number";
 import { BeforeYouStart } from "./before-you-start";
 import { ConnectNumberWizard } from "./connect-number-wizard";
 import { MetaNumberPanel } from "./meta-number-panel";
+
+const OFFICIAL_TRACKING_NAME = "WhatsApp Oficial";
+
+/** Disparado por outras telas (ex.: "Nova campanha" sem número) para abrir a conexão. */
+export const CONNECT_NUMBER_EVENT = "campanhas:connect-number";
 
 /** Topo do app Campanhas (spec 0040): painel do número ou convite para conectar. */
 export function OfficialNumberOverview() {
@@ -18,6 +26,36 @@ export function OfficialNumberOverview() {
   const [wizardTrackingId, setWizardTrackingId] = useState<string | null>(null);
   const [selectedTrackingId, setSelectedTrackingId] = useState("");
   const [panelTrackingId, setPanelTrackingId] = useState<string | null>(null);
+  const createTracking = useCreateOfficialTracking();
+  const [isHighlighted, setIsHighlighted] = useState(false);
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const startConnectionRef = useRef<() => void>(() => {});
+
+  function startWithNewTracking() {
+    createTracking.mutate(
+      { name: OFFICIAL_TRACKING_NAME, description: "Respostas do WhatsApp oficial e dos disparos em massa" },
+      {
+        onSuccess: (created) => setWizardTrackingId(created.trackingId),
+        onError: (error) => toast.error(error.message || "Não foi possível criar o funil."),
+      },
+    );
+  }
+
+  startConnectionRef.current = () => {
+    if (trackings.length === 0) return startWithNewTracking();
+    if (trackings.length === 1) return setWizardTrackingId(trackings[0].id);
+    bannerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setIsHighlighted(true);
+    setTimeout(() => setIsHighlighted(false), 2_400);
+  };
+
+  useEffect(() => {
+    const handleConnectRequest = () => startConnectionRef.current();
+    window.addEventListener(CONNECT_NUMBER_EVENT, handleConnectRequest);
+    return () => window.removeEventListener(CONNECT_NUMBER_EVENT, handleConnectRequest);
+  }, []);
+
+  const effectiveTrackingId = selectedTrackingId || (trackings.length === 1 ? trackings[0].id : "");
 
   if (isLoading) return null;
   const hasNumbers = Boolean(numbers?.length);
@@ -41,36 +79,69 @@ export function OfficialNumberOverview() {
               ))}
             </div>
           )}
-          {activePanelTrackingId && <MetaNumberPanel trackingId={activePanelTrackingId} />}
+          {activePanelTrackingId && (
+            <MetaNumberPanel trackingId={activePanelTrackingId} onContinueSetup={() => setWizardTrackingId(activePanelTrackingId)} />
+          )}
         </>
       ) : (
-        <div className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-          <p className="flex items-center gap-2 font-semibold">
-            <ShieldCheck className="size-5 text-amber-500" /> Conecte um número oficial para disparar
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Escolha o tracking que vai disparar. Você traz seu número ou compra um aqui, conecta à Meta e cadastra o cartão.
-          </p>
-          {trackings.length === 0 && (
-            <p className="text-xs text-muted-foreground">Você não participa de nenhum tracking. Peça ao dono da empresa para te incluir.</p>
+        <div
+          ref={bannerRef}
+          className={cn(
+            "flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 transition-shadow duration-500",
+            isHighlighted && "shadow-[0_0_0_4px] shadow-amber-500/40",
           )}
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={selectedTrackingId}
-              onChange={(event) => setSelectedTrackingId(event.target.value)}
-              className="h-9 rounded-md border bg-background px-2 text-sm"
-            >
-              <option value="">Escolha o tracking</option>
-              {trackings.map((tracking) => (
-                <option key={tracking.id} value={tracking.id}>
-                  {tracking.name}
-                </option>
-              ))}
-            </select>
-            <Button size="sm" disabled={!selectedTrackingId} onClick={() => setWizardTrackingId(selectedTrackingId)}>
-              Conectar número oficial
-            </Button>
-          </div>
+        >
+          <p className="flex items-center gap-2 font-semibold">
+            <ShieldCheck className="size-5 text-amber-500" /> Conecte seu WhatsApp oficial para disparar
+          </p>
+          {trackings.length === 0 ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                A gente cria o funil onde as respostas dos clientes vão chegar e te guia para conectar o número. Leva uns 10
+                minutos.
+              </p>
+              <Button size="sm" className="w-fit" onClick={startWithNewTracking} disabled={createTracking.isPending}>
+                {createTracking.isPending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> Preparando seu funil…
+                  </>
+                ) : (
+                  "Começar"
+                )}
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Escolha o funil (tracking) onde as respostas dos clientes vão chegar. Você traz seu número ou compra um aqui,
+                conecta à Meta e cadastra o cartão.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={effectiveTrackingId}
+                  onChange={(event) => setSelectedTrackingId(event.target.value)}
+                  className="h-9 rounded-md border bg-background px-2 text-sm"
+                >
+                  <option value="">Escolha o funil</option>
+                  {trackings.map((tracking) => (
+                    <option key={tracking.id} value={tracking.id}>
+                      {tracking.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  size="sm"
+                  disabled={!effectiveTrackingId}
+                  onClick={() => setWizardTrackingId(effectiveTrackingId)}
+                >
+                  Conectar número oficial
+                </Button>
+                <Button size="sm" variant="ghost" onClick={startWithNewTracking} disabled={createTracking.isPending}>
+                  ou criar um funil só para o WhatsApp
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       )}
 

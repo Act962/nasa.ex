@@ -1,5 +1,8 @@
 "use client";
 
+import { TierPlanet } from "./tier-planet";
+import { isTierReached, TIER_LABELS } from "../utils/tiers";
+import { RedemptionActions } from "./redemption-actions";
 import { useState } from "react";
 import { format } from "date-fns";
 import { Gift, Loader2, MinusCircle, PlusCircle, Sparkles } from "lucide-react";
@@ -26,6 +29,7 @@ import { useStarFriendsPermissions } from "../hooks/use-star-friends-permissions
 import {
   ACTOR_TYPE_LABELS,
   LEDGER_TYPE_LABELS,
+  REDEMPTION_CHANNEL_LABELS,
   REDEMPTION_STATUS_LABELS,
   REWARD_TYPE_LABELS,
   describeSnapshot,
@@ -97,6 +101,14 @@ export function LeadStarFriendsCard({
             <p className="text-xs text-muted-foreground">stars disponíveis</p>
           </div>
         </div>
+        <div className="mt-2 flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5 text-xs">
+          <TierPlanet tier={data.tier} size={22} />
+          <span className="font-semibold">Cliente {TIER_LABELS[data.tier]}</span>
+          <span className="text-muted-foreground">
+            · {data.lifetimeStars} ⭐ na vida
+            {data.nextTier ? ` · faltam ${data.starsToNextTier} para ${TIER_LABELS[data.nextTier]}` : " · nível máximo"}
+          </span>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
@@ -105,7 +117,9 @@ export function LeadStarFriendsCard({
             <p className="text-sm text-muted-foreground">Nenhum prêmio cadastrado em STAR FRIENDS → Lista de troca.</p>
           )}
           {data.rewards.map((reward) => {
-            const isAffordable = data.balance >= reward.costStars && (reward.stock === null || reward.stock > 0);
+            const isTierLocked = !isTierReached(data.tier, reward.minTier);
+            const isAffordable =
+              !isTierLocked && data.balance >= reward.costStars && (reward.stock === null || reward.stock > 0);
             return (
               <div key={reward.id} className="flex items-center gap-3 rounded-lg border p-2">
                 <Gift className="size-4 shrink-0 text-primary" />
@@ -114,6 +128,7 @@ export function LeadStarFriendsCard({
                   <p className="text-xs text-muted-foreground">
                     {REWARD_TYPE_LABELS[reward.type]} · {reward.costStars} stars
                     {reward.stock !== null ? ` · ${reward.stock} em estoque` : ""}
+                    {isTierLocked ? ` · só ${TIER_LABELS[reward.minTier]} ou acima` : ""}
                   </p>
                 </div>
                 <Button
@@ -174,9 +189,17 @@ export function LeadStarFriendsCard({
             ))}
             {data.redemptions.length > 0 && <p className="pt-2 text-sm font-medium">Resgates</p>}
             {data.redemptions.map((redemption) => (
-              <div key={redemption.id} className="flex items-center justify-between gap-2 text-sm">
-                <span className="truncate">{describeSnapshot(redemption.rewardSnapshot)}</span>
-                <Badge variant="outline">{REDEMPTION_STATUS_LABELS[redemption.status]}</Badge>
+              <div key={redemption.id} className="flex flex-col gap-2 rounded-lg border p-2 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{describeSnapshot(redemption.rewardSnapshot)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {redemption.costStars} stars · {REDEMPTION_CHANNEL_LABELS[redemption.requestedVia]}
+                    </p>
+                  </div>
+                  <Badge variant="outline">{REDEMPTION_STATUS_LABELS[redemption.status]}</Badge>
+                </div>
+                <RedemptionActions redemption={redemption} />
               </div>
             ))}
           </div>

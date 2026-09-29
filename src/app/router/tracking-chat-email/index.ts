@@ -11,6 +11,12 @@ import {
   listTrackingLeadsWithEmail,
   sendLeadEmail,
 } from "@/features/tracking-chat/server/email/lead-email-service";
+import {
+  captureNewEmailSenders,
+  getEmailLeadCapture,
+  setEmailLeadCapture,
+} from "@/features/tracking-chat/server/email/email-lead-capture";
+import prisma from "@/lib/prisma";
 
 /**
  * Canal E-mail do Tracking Chat (spec 0030). Erros do domínio (Gmail não
@@ -88,10 +94,38 @@ const getStatus = emailProcedure
   .input(z.object({}).optional())
   .handler(({ context }) => getOrgGmailStatus(context.org.id));
 
+const getLeadCapture = emailProcedure
+  .input(z.object({}).optional())
+  .handler(({ context }) => getEmailLeadCapture(context.org.id));
+
+// Spec 0045: liga/desliga "novos remetentes viram lead" neste funil. Ao ligar, já varre a caixa uma vez.
+const setLeadCapture = emailProcedure
+  .input(z.object({ trackingId: z.string(), isEnabled: z.boolean() }))
+  .handler(async ({ context, input }) => {
+    const tracking = await prisma.tracking.findFirst({
+      where: { id: input.trackingId, organizationId: context.org.id },
+      select: { id: true },
+    });
+    if (!tracking) throw new ORPCError("BAD_REQUEST", { message: "Funil inválido para esta empresa." });
+    const current = await getEmailLeadCapture(context.org.id);
+    const nextTrackingId = input.isEnabled ? tracking.id : current.trackingId === tracking.id ? null : current.trackingId;
+    try {
+      await setEmailLeadCapture(context.org.id, nextTrackingId);
+    } catch {
+      throw new ORPCError("PRECONDITION_FAILED", { message: "Conecte o Gmail da empresa em Integrações primeiro." });
+    }
+    const capture = input.isEnabled
+      ? await captureNewEmailSenders(context.org.id).catch(() => ({ created: 0 }))
+      : { created: 0 };
+    return { trackingId: nextTrackingId, createdLeads: capture.created };
+  });
+
 export const trackingChatEmailRouter = {
   status: getStatus,
   threads: listThreads,
   thread: getThread,
   leads: listLeads,
   send,
+  leadCapture: getLeadCapture,
+  setLeadCapture,
 };

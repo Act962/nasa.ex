@@ -24,6 +24,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { useUpsertNerpCatalogIntegration } from "../../hooks/use-nerp-catalog-integration";
+import { ApplyDefaultStagesCard } from "./apply-default-stages-card";
 
 const FIRST_STATUS_VALUE = "__first__";
 
@@ -239,6 +240,18 @@ export function CatalogOnlineSettingsForm({
           }}
           onStatusChange={(statusId) => form.setValue("logisticsStatusId", statusId)}
           error={form.formState.errors.logisticsTrackingId?.message}
+        />
+
+        <ApplyDefaultStagesCard
+          trackingId={logisticsTrackingId}
+          trackingName={trackings.find((tracking) => tracking.id === logisticsTrackingId)?.name ?? null}
+          isEnabled={canEdit && Boolean(settings)}
+          onApplied={(applied) => {
+            form.setValue("ordersTrackingId", applied.trackingId, { shouldValidate: true });
+            form.setValue("ordersStatusId", applied.ordersStatusId);
+            form.setValue("logisticsTrackingId", applied.trackingId, { shouldValidate: true });
+            form.setValue("logisticsStatusId", applied.logisticsStatusId);
+          }}
         />
 
         <Controller

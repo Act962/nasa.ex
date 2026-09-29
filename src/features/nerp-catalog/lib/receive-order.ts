@@ -18,7 +18,9 @@ import {
   buildOrderWhatsappUrl,
   toWhatsappPhone,
 } from "../utils/format-order";
-import { CATALOG_ORDER_MESSAGE_PREFIX } from "./order-channel";
+import { CATALOG_ORDER_MESSAGE_PREFIX, sendOrderLinkByWhatsapp } from "./order-channel";
+import { toLeadAmountCents } from "../utils/format-order";
+import { handleCatalogStageEntry } from "./stage-flow";
 
 export class CatalogIntegrationInactiveError extends Error {
   constructor() {
@@ -52,6 +54,7 @@ function buildResponse(input: {
     }),
   };
 }
+
 
 async function resolveEntryStatusId(trackingId: string, statusId: string | null) {
   const status = statusId
@@ -94,7 +97,7 @@ async function findOrCreateOrderLead(input: {
     await prisma.lead.update({
       where: { id: created.lead.id },
       data: {
-        amount: payload.total,
+        amount: toLeadAmountCents(payload.total),
         ...(payload.customer.email ? { email: payload.customer.email } : {}),
         ...(payload.customer.document ? { document: payload.customer.document } : {}),
       },
@@ -117,7 +120,10 @@ async function findOrCreateOrderLead(input: {
       lastStatusChangeAt: now,
       statusFlow: "WAITING",
       isActive: true,
-      amount: payload.total,
+      // Pedido anterior pode ter fechado o lead como ganho: o pedido novo o reabre no funil.
+      currentAction: "ACTIVE",
+      closedAt: null,
+      amount: toLeadAmountCents(payload.total),
       ...(payload.customer.email ? { email: payload.customer.email } : {}),
       ...(payload.customer.document ? { document: payload.customer.document } : {}),
       ...(existingLead.conversation
@@ -237,6 +243,19 @@ export async function receiveCatalogOrder(
     channel: "IN_CHAT",
     messagePayload: orderMessage,
   });
+
+  // Link de acompanhamento pelo WhatsApp do tracking; best-effort, o pedido já está gravado.
+  const firstName = payload.customer.name.trim().split(/\s+/)[0];
+  await sendOrderLinkByWhatsapp({
+    conversationId: lead.conversation.id,
+    catalogOrderId: order.id,
+    text: `Olá, ${firstName}! Recebemos seu pedido #${payload.saleNumber} 🛒\nAcompanhe, fale com a loja e faça o pagamento por aqui: ${buildOrderPortalUrl(nerpPublicOrigin(), publicToken)}`,
+  }).catch((error) => console.error("[nerp-catalog] order_link_whatsapp_failed", error));
+
+  // Etapas padrão (spec 0044): tag "Novo Pedido" — lead novo e reaberto não passam pelo evento de mudança de coluna.
+  await handleCatalogStageEntry({ leadId: lead.id, statusId }).catch((error) =>
+    console.error("[nerp-catalog] stage_entry_failed", error),
+  );
 
   if (lead.isNew) {
     await publishLeadCreated({

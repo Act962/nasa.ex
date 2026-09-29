@@ -22,6 +22,17 @@ import { addRecipientsFromContacts } from "./add-recipients-from-contacts";
 import { analytics } from "./analytics";
 import { quoteFee, checkoutFee, confirmFee, getFeeSettings, updateFeeSettings } from "./self-service/fee";
 import { numberOffer, listNumbers, buyNumber, latestNumberCode, cancelNumber, numberPanel } from "./self-service/numbers";
+import {
+  metaSetupStatus,
+  saveMetaKeysProcedure,
+  selectMetaPhone,
+  addMetaNumber,
+  requestMetaCode,
+  verifyMetaCode,
+  connectProgress,
+  saveConnectProgressProcedure,
+  saveKeyDraftProcedure,
+} from "./self-service/meta-setup";
 
 /**
  * App "Campanhas" (disparos WhatsApp API Oficial).
@@ -64,4 +75,13 @@ export const campanhasRouter = {
   latestNumberCode,
   cancelNumber,
   numberPanel,
+  metaSetupStatus,
+  saveMetaKeys: saveMetaKeysProcedure,
+  selectMetaPhone,
+  addMetaNumber,
+  requestMetaCode,
+  verifyMetaCode,
+  connectProgress,
+  saveConnectProgress: saveConnectProgressProcedure,
+  saveKeyDraft: saveKeyDraftProcedure,
 };

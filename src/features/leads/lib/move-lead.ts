@@ -7,6 +7,7 @@ import {
   broadcastAgentWorkflowEvent,
   dispatchMoveLeadStatus,
 } from "@/inngest/utils";
+import { eventBus } from "@/features/alerts/lib/event-bus";
 
 export type MoveLeadToStageInput = {
   leadId: string;
@@ -21,6 +22,8 @@ export type MoveLeadToStageResult = {
   trackingId: string;
   statusId: string;
   mergedIntoExistingLead: boolean;
+  /** false quando o lead já estava nessa coluna (nenhum evento de mudança é publicado). */
+  hasStatusChanged: boolean;
 };
 
 async function resolveTargetStatusId(trackingId: string, statusId?: string | null) {
@@ -152,10 +155,25 @@ export async function moveLeadToStage(
     console.error("[move-lead] workflow_dispatch_failed", error);
   }
 
+  const hasStatusChanged = movingLead.statusId !== targetStatus.id;
+  if (hasStatusChanged) {
+    // Mesmo evento do arrastar no board: alertas e etapas do pedido do catálogo (spec 0044) reagem igual.
+    const tracking = await prisma.tracking.findUnique({ where: { id: input.toTrackingId }, select: { organizationId: true } });
+    await eventBus.publish("lead.status_changed", {
+      leadId: movingLead.id,
+      fromStatusId: movingLead.statusId,
+      toStatusId: targetStatus.id,
+      orgId: tracking?.organizationId ?? null,
+      responsibleId: updatedLead.responsibleId,
+      actorUserId: null,
+    });
+  }
+
   return {
     leadId: movingLead.id,
     trackingId: input.toTrackingId,
     statusId: targetStatus.id,
     mergedIntoExistingLead: !!leadAlreadyInTarget,
+    hasStatusChanged,
   };
 }

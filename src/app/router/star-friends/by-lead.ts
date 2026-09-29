@@ -1,6 +1,7 @@
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { findMemberForLead, getMemberBalance } from "@/features/star-friends/lib/members";
+import { findMemberForLead, getMemberBalance, getMemberLifetimeStars } from "@/features/star-friends/lib/members";
+import { tierProgress } from "@/features/star-friends/utils/tiers";
 import { getActiveProgram } from "@/features/star-friends/lib/program";
 import { adjustStars } from "@/features/star-friends/lib/adjust";
 import { userActor } from "@/features/star-friends/lib/actor";
@@ -28,9 +29,10 @@ export const getStarFriendsByLead = starFriendsWith("canView")
         orderBy: { costStars: "asc" },
       }),
     ]);
-    const [balance, entries, redemptions] = member
+    const [balance, lifetimeStars, entries, redemptions] = member
       ? await Promise.all([
           getMemberBalance(member.id),
+          getMemberLifetimeStars(member.id),
           prisma.loyaltyLedgerEntry.findMany({
             where: { memberId: member.id },
             orderBy: { createdAt: "desc" },
@@ -42,7 +44,8 @@ export const getStarFriendsByLead = starFriendsWith("canView")
             take: 20,
           }),
         ])
-      : [0, [], []];
+      : [0, 0, [], []];
+    const progress = tierProgress(lifetimeStars, program);
 
     return {
       isActive: true as const,
@@ -50,6 +53,10 @@ export const getStarFriendsByLead = starFriendsWith("canView")
       programName: program.name,
       member: member ? { id: member.id, name: member.name, phone: member.phone } : null,
       balance,
+      lifetimeStars,
+      tier: progress.tier,
+      nextTier: progress.nextTier,
+      starsToNextTier: progress.starsToNext,
       entries: entries.map((entry) => ({
         id: entry.id,
         type: entry.type,
@@ -80,6 +87,7 @@ export const getStarFriendsByLead = starFriendsWith("canView")
         imageUrl: reward.imageUrl,
         costStars: reward.costStars,
         stock: reward.stock,
+        minTier: reward.minTier,
       })),
     };
   });

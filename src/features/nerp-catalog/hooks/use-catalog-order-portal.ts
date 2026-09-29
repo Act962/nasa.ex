@@ -51,3 +51,20 @@ export function useRequestCatalogOrderRedemption(token: string) {
     }),
   );
 }
+
+export function useCatalogOrderCustomerOrders(token: string, enabled = true) {
+  return useQuery(orpc.public.catalogOrder.customerOrders.queryOptions({ input: { token }, enabled }));
+}
+
+export function usePayCatalogOrderWithPix(token: string) {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.public.catalogOrder.payWithPix.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.public.catalogOrder.get.queryKey({ input: { token } }),
+        });
+      },
+    }),
+  );
+}

@@ -67,7 +67,7 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="h-screen flex flex-col w-full overflow-hidden">
       {banner}
-      <div className="flex-1 min-h-0 flex lg:bg-zinc-300 lg:p-3">
+      <div className="flex-1 min-h-0 flex lg:bg-[#161617] lg:p-3">
         <ResizablePanelGroup>
           {!isMobile && (
             <>

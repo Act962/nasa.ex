@@ -1,11 +1,14 @@
 import "server-only";
+import { trackLeadEvent } from "@/lib/lead-journey/track";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
 import { moveLeadToStage } from "@/features/leads/lib/move-lead";
 import { nerpPublicOrigin } from "@/features/nerp/lib/oauth";
-import { buildOrderPortalUrl, formatBrl } from "../utils/format-order";
+import { buildOrderPortalUrl, formatBrl, toLeadAmountCents } from "../utils/format-order";
 import { deliverTextToLead } from "./order-channel";
 import { awardPurchaseStars } from "@/features/star-friends/lib/earn";
+import { isCatalogStageKey } from "./catalog-stages";
+import { handleCatalogStageEntry } from "./stage-flow";
 import type { CatalogOrderItem } from "../schemas/order-payload";
 
 export const CATALOG_ORDER_PAID_EVENT = "nerp/catalog-order.paid";
@@ -30,10 +33,22 @@ export async function resendNerpSyncIfPending(orderId: string) {
   });
 }
 
+async function closeOrderLeadAsWon(leadId: string, saleNumber: number) {
+  const notes = `Pedido #${saleNumber} pago; o atendimento seguiu no lead do cliente na logística.`;
+  await prisma.leadHistory.create({ data: { leadId, action: "WON", notes } });
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: { currentAction: "WON", closedAt: new Date(), statusFlow: "FINISHED" },
+  });
+  await trackLeadEvent({ leadId, kind: "won", metadata: { source: "catalog_order_paid", notes } });
+}
+
 // Idempotente: webhook do Asaas, polling do Inngest e a tool do Astro podem
 // chegar juntos — só quem vence o updateMany segue com os efeitos.
 export async function confirmCatalogOrderPayment(orderId: string, payment: ConfirmedPayment) {
-  const paidAt = payment.paidAt ? new Date(payment.paidAt) : new Date();
+  // Asaas manda só a data ("2026-09-29"): virar meia-noite UTC mostra 21h do dia anterior no Brasil.
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(payment.paidAt ?? "");
+  const paidAt = payment.paidAt && !isDateOnly ? new Date(payment.paidAt) : new Date();
   const claim = await prisma.catalogOrder.updateMany({
     where: { id: orderId, status: { in: ["RECEIVED", "NEGOTIATING", "AWAITING_PAYMENT"] } },
     data: { status: "PAID", paidAt, asaasPaymentId: payment.asaasPaymentId },
@@ -95,23 +110,43 @@ export async function confirmCatalogOrderPayment(orderId: string, payment: Confi
     console.error("[nerp-catalog] star_friends_award_failed", error);
   }
 
+  let isStageFlowActive = false;
   if (integration) {
     try {
-      await moveLeadToStage({
+      const moved = await moveLeadToStage({
         leadId: order.lead.id,
         toTrackingId: integration.logisticsTrackingId,
         toStatusId: integration.logisticsStatusId,
       });
-      await prisma.catalogOrder.update({
-        where: { id: order.id },
-        data: { status: "IN_LOGISTICS" },
-      });
+      // Cliente recorrente: o lead que já estava na logística é que avança. O do pedido
+      // sai de "Novos pedidos" como ganho, em vez de ficar parado no funil de vendas.
+      if (moved.mergedIntoExistingLead) {
+        // O lead reaproveitado guarda o valor do pedido anterior; o card da logística mostra o pedido atual.
+        await prisma.lead
+          .update({ where: { id: moved.leadId }, data: { amount: toLeadAmountCents(Number(order.total)) } })
+          .catch((error) => console.error("[nerp-catalog] update_logistics_amount_failed", error));
+        await closeOrderLeadAsWon(order.lead.id, order.nerpSaleNumber).catch((error) =>
+          console.error("[nerp-catalog] close_order_lead_failed", error),
+        );
+      }
+      const targetStatus = await prisma.status.findUnique({ where: { id: moved.statusId }, select: { systemKey: true } });
+      isStageFlowActive = isCatalogStageKey(targetStatus?.systemKey);
+      if (!isStageFlowActive) {
+        await prisma.catalogOrder.update({
+          where: { id: order.id },
+          data: { status: "IN_LOGISTICS" },
+        });
+      } else if (!moved.hasStatusChanged) {
+        // Já estava em "Pagamento confirmado": nenhum evento de mudança sai, então os avisos partem daqui.
+        await handleCatalogStageEntry({ leadId: moved.leadId, statusId: moved.statusId });
+      }
     } catch (error) {
       console.error("[nerp-catalog] move_to_logistics_failed", error);
     }
   }
 
-  if (order.lead.conversation) {
+  // Com as etapas padrão (spec 0044) os avisos saem pelo stage-flow; esta mensagem é do fluxo antigo.
+  if (order.lead.conversation && !isStageFlowActive) {
     const portalUrl = buildOrderPortalUrl(nerpPublicOrigin(), order.publicToken);
     await deliverTextToLead({
       conversationId: order.lead.conversation.id,

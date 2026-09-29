@@ -163,7 +163,7 @@ export const APPS: AppDef[] = [
     href: "/campanhas",
     activeUsers: null,
     theme: "purple",
-    // Sem `sidebarKey`: Campanhas vive no painel de Apps, não no menu lateral.
+    sidebarKey: "campanhas",
   },
   {
     id: "comments",

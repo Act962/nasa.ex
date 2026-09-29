@@ -11,6 +11,45 @@
       "autoPort": true
     },
     {
+      "name": "Órbita produção local",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "test:local:start"
+      ],
+      "port": 3000,
+      "autoPort": false
+    },
+    {
+      "name": "NERP teste Órbita :3001",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "/Users/weydsonlima/nerp-2-orbita-test/apps/web",
+        "exec",
+        "next",
+        "dev",
+        "--turbopack",
+        "--port",
+        "3001"
+      ],
+      "port": 3001,
+      "autoPort": false
+    },
+    {
+      "name": "Inngest NERP :8299",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "inngest-cli",
+        "dev",
+        "-p",
+        "8299",
+        "-u",
+        "http://localhost:3001/api/inngest"
+      ],
+      "port": 8299,
+      "autoPort": false
+    },
+    {
       "name": "Next.js Dev Server (HTTPS)",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [
@@ -56,7 +95,7 @@
       "autoPort": false
     },
     {
-      "name": "Site \u00d3RBITA (nerp-2)",
+      "name": "Site ÓRBITA (nerp-2)",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [
         "--dir",
@@ -67,7 +106,7 @@
       "autoPort": false
     },
     {
-      "name": "Site \u00d3RBITA :3002",
+      "name": "Site ÓRBITA :3002",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [
         "--dir",

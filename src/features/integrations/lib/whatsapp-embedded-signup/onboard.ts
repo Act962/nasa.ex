@@ -68,7 +68,7 @@ export class EmbeddedSignupConfigError extends Error {
 }
 
 /** Instância do WhatsApp Oficial para um tracking da org; null se o tracking não é da org. */
-async function createOfficialInstance(trackingId: string, organizationId: string) {
+export async function createOfficialInstance(trackingId: string, organizationId: string) {
   const tracking = await prisma.tracking.findFirst({
     where: { id: trackingId, organizationId },
     select: { name: true },

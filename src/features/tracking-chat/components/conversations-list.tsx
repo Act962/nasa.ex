@@ -1,6 +1,8 @@
 "use client";
 
+import { authClient } from "@/lib/auth-client";
 import { LeadBox } from "./lead-box";
+import { WhatsAppChannelChooser } from "./whatsapp-channel-chooser";
 import { TrackingChatBottomTabs } from "./tracking-chat-bottom-tabs";
 import { ConversationFilters } from "./conversation-filters";
 import { useConversationFilters } from "../hooks/use-conversation-filters";
@@ -102,6 +104,7 @@ export function ConversationsList() {
   const trackingIdFromQuery = searchParams.get("trackingId");
   const [open, setOpen] = useState(false);
   const { trackings, isLoadingTrackings } = useQueryTracking();
+  const { data: activeOrganization } = authClient.useActiveOrganization();
   const [selectedTracking, setSelectedTracking] = useState<string>(
     trackingId ?? trackingIdFromQuery ?? "",
   );
@@ -275,9 +278,36 @@ export function ConversationsList() {
     router,
   ]);
 
+  // Troca de empresa: funil e filtros da empresa anterior não valem mais (só reage à troca, não à 1ª carga).
+  const previousOrganizationId = useRef(activeOrganization?.id);
   useEffect(() => {
-    if (selectedTracking) saveLastTrackingId(selectedTracking);
-  }, [selectedTracking]);
+    const organizationId = activeOrganization?.id;
+    if (!organizationId) return;
+    const previousId = previousOrganizationId.current;
+    previousOrganizationId.current = organizationId;
+    if (!previousId || previousId === organizationId) return;
+    setSelectedTracking("");
+    setSelectedStatus(null);
+    setSelectedTagIds([]);
+    setSearch("");
+  }, [activeOrganization?.id]);
+
+  // Funil do endereço/último usado pode ser de outra empresa (troca de empresa):
+  // só vale se estiver na lista da empresa ativa.
+  const isSelectedTrackingInOrg = trackings.some((tracking) => tracking.id === selectedTracking);
+  useEffect(() => {
+    if (isLoadingTrackings || !selectedTracking || isSelectedTrackingInOrg) return;
+    const fallbackId = trackings[0]?.id ?? "";
+    setSelectedTracking(fallbackId);
+    const params = new URLSearchParams(searchParams.toString());
+    if (fallbackId) params.set("trackingId", fallbackId);
+    else params.delete("trackingId");
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [isLoadingTrackings, selectedTracking, isSelectedTrackingInOrg, trackings, searchParams, router]);
+
+  useEffect(() => {
+    if (selectedTracking && isSelectedTrackingInOrg) saveLastTrackingId(selectedTracking);
+  }, [selectedTracking, isSelectedTrackingInOrg]);
 
   useEffect(() => {
     if (!selectedTracking) return;
@@ -328,12 +358,23 @@ export function ConversationsList() {
 
   return (
     <>
+      {/* Funil que já tem conversas (ex.: pedidos do catálogo) não está na "primeira entrada"; lista vazia por filtro também não. */}
+      {!isLoadingTrackings && !isLoading && items.length === 0 && !hasAnyFilterActive && (isSelectedTrackingInOrg || trackings.length === 0) && (
+        <WhatsAppChannelChooser trackingId={isSelectedTrackingInOrg ? selectedTracking : null} />
+      )}
       <aside className="pb-20 lg:pb-0 lg:flex w-full px-5 flex flex-col h-full overflow-hidden">
         {/* ── Header DESKTOP (lg+): mantém UX original "Tracking Chat" ── */}
         <div className="hidden lg:flex justify-between mb-4 pt-4 shrink-0">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="size-4" />
-            <div className="text-lg font-medium">Chat</div>
+            <div className="min-w-0">
+              <div className="text-lg leading-tight font-medium">Chat</div>
+              {activeOrganization?.name && (
+                <div key={activeOrganization.id} className="truncate text-xs text-muted-foreground animate-in fade-in-0 slide-in-from-left-1">
+                  {activeOrganization.name}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-1">
             <LeadTriggersHeaderButton trackingId={selectedTracking} leadId={openLead?.id} leadName={openLead?.name} />

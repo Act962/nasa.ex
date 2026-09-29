@@ -1,10 +1,12 @@
 import "server-only";
+import { isTierReached, resolveTier, TIER_LABELS } from "../utils/tiers";
+import { notifyRedemptionCustomer } from "./notify-redemption";
 import prisma from "@/lib/prisma";
 import type { LoyaltyRedemptionChannel } from "@/generated/prisma/enums";
 import { canAfford } from "../utils/balance";
 import type { LoyaltyActor } from "./actor";
 import { auditLoyaltyAction } from "./audit";
-import { findOrCreateMemberForLead } from "./members";
+import { findOrCreateMemberForLead, getMemberLifetimeStars } from "./members";
 import { getActiveProgram } from "./program";
 
 export class LoyaltyRuleError extends Error {
@@ -36,6 +38,13 @@ export async function requestRedemption(input: {
 
   const member = await findOrCreateMemberForLead(input.organizationId, input.leadId);
   if (!member) throw new LoyaltyRuleError("O cliente precisa de telefone para participar do programa.");
+
+  if (reward.minTier !== "EARTH") {
+    const tier = resolveTier(await getMemberLifetimeStars(member.id), program);
+    if (!isTierReached(tier, reward.minTier)) {
+      throw new LoyaltyRuleError(`Este prêmio é para clientes ${TIER_LABELS[reward.minTier]} ou acima.`);
+    }
+  }
 
   const redemption = await prisma.loyaltyRedemption.create({
     data: {
@@ -150,6 +159,14 @@ export async function approveRedemption(input: {
     leadId: approved.leadId,
     resourceId: approved.id,
   });
+  await notifyRedemptionCustomer({
+    leadId: approved.leadId,
+    requestedVia: approved.requestedVia,
+    outcome: "APPROVED",
+    rewardName: approved.reward.name,
+    costStars: approved.costStars,
+    reason: null,
+  });
   return approved;
 }
 
@@ -182,6 +199,14 @@ export async function rejectRedemption(input: {
     leadId: redemption.leadId,
     resourceId: redemption.id,
   });
+  await notifyRedemptionCustomer({
+    leadId: redemption.leadId,
+    requestedVia: redemption.requestedVia,
+    outcome: "REJECTED",
+    rewardName: redemption.reward.name,
+    costStars: redemption.costStars,
+    reason: input.reason,
+  });
   return redemption;
 }
 
@@ -211,6 +236,14 @@ export async function deliverRedemption(input: {
     actionLabel: `Entregou "${redemption.reward.name}" para ${redemption.member.name}`,
     leadId: redemption.leadId,
     resourceId: redemption.id,
+  });
+  await notifyRedemptionCustomer({
+    leadId: redemption.leadId,
+    requestedVia: redemption.requestedVia,
+    outcome: "DELIVERED",
+    rewardName: redemption.reward.name,
+    costStars: redemption.costStars,
+    reason: null,
   });
   return redemption;
 }
@@ -274,6 +307,14 @@ export async function cancelRedemption(input: {
     actionLabel: `Cancelou resgate "${canceled.reward.name}" de ${canceled.member.name}: ${input.reason}`,
     leadId: canceled.leadId,
     resourceId: canceled.id,
+  });
+  await notifyRedemptionCustomer({
+    leadId: canceled.leadId,
+    requestedVia: canceled.requestedVia,
+    outcome: "CANCELED",
+    rewardName: canceled.reward.name,
+    costStars: canceled.costStars,
+    reason: input.reason,
   });
   return canceled;
 }

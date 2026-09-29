@@ -1,4 +1,5 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { isCatalogPortalConversation } from "@/features/nerp-catalog/lib/order-channel";
 import { base } from "@/app/middlewares/base";
 import {
   CreatedMessageProps,
@@ -73,9 +74,11 @@ export const createTextMessage = base
       // disso é salva com `viaInChat: true` e fica visível pro lead via
       // página pública `/whatsapp/[orgSlug]`. Aplica só pra channel
       // WHATSAPP (IG/FB não passam pela uazapi).
+      // Pedido do catálogo NERP também responde pela página do pedido (/pedido/<token>).
       const inChatMode =
         channel === MessageChannel.WHATSAPP &&
-        (await shouldSkipUazapiForConversation(input.conversationId));
+        ((await shouldSkipUazapiForConversation(input.conversationId)) ||
+          (await isCatalogPortalConversation(input.conversationId)));
 
       // ── Provider resolve ANTES do charge (Fix #2) ────────────────────
       // resolveOutboundProviderOrBadRequest pode lançar (instância deletada,

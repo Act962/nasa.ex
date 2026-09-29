@@ -22,22 +22,26 @@ const upsertInput = z.object({
   asaasEnv: z.enum(["production", "sandbox"]),
 });
 
-async function assertStatusInTracking(
+type TrackingCheck = "ok" | "invalid" | "no_status";
+
+// Sem etapa escolhida, o pedido cai na primeira do funil: funil sem etapas recusaria todo pedido.
+async function checkTrackingStatus(
   organizationId: string,
   trackingId: string,
   statusId: string | null,
-) {
+): Promise<TrackingCheck> {
   const tracking = await prisma.tracking.findFirst({
     where: { id: trackingId, organizationId },
-    select: { id: true },
+    select: { id: true, _count: { select: { status: true } } },
   });
-  if (!tracking) return false;
-  if (!statusId) return true;
+  if (!tracking) return "invalid";
+  if (tracking._count.status === 0) return "no_status";
+  if (!statusId) return "ok";
   const status = await prisma.status.findFirst({
     where: { id: statusId, trackingId },
     select: { id: true },
   });
-  return !!status;
+  return status ? "ok" : "invalid";
 }
 
 export const upsertNerpCatalogIntegration = base
@@ -48,12 +52,18 @@ export const upsertNerpCatalogIntegration = base
   .handler(async ({ input, context, errors }) => {
     const organizationId = context.org.id;
 
-    const [isOrdersValid, isLogisticsValid] = await Promise.all([
-      assertStatusInTracking(organizationId, input.ordersTrackingId, input.ordersStatusId),
-      assertStatusInTracking(organizationId, input.logisticsTrackingId, input.logisticsStatusId),
+    const [ordersCheck, logisticsCheck] = await Promise.all([
+      checkTrackingStatus(organizationId, input.ordersTrackingId, input.ordersStatusId),
+      checkTrackingStatus(organizationId, input.logisticsTrackingId, input.logisticsStatusId),
     ]);
-    if (!isOrdersValid || !isLogisticsValid) {
+    if (ordersCheck === "invalid" || logisticsCheck === "invalid") {
       throw errors.BAD_REQUEST({ message: "Tracking ou etapa inválidos para esta organização." });
+    }
+    if (ordersCheck === "no_status" || logisticsCheck === "no_status") {
+      const trackingLabel = ordersCheck === "no_status" ? "que recebe os pedidos" : "de logística";
+      throw errors.BAD_REQUEST({
+        message: `O tracking ${trackingLabel} não tem nenhuma etapa. Crie ao menos uma etapa (coluna) no funil antes de salvar.`,
+      });
     }
 
     const existing = await prisma.nerpCatalogIntegration.findUnique({
