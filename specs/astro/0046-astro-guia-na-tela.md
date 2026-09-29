@@ -2,12 +2,12 @@
 id: 0046
 titulo: Astro Guia — passo a passo na tela real, com seta e balão
 dominio: astro
-status: em-revisao
+status: implementada
 autor: Weydson
 criada: 2026-09-29
 atualizada: 2026-09-29
 branch: feature/W-astro-guia-na-tela-20260929
-pr:
+pr: https://github.com/Act962/nasa.ex/pull/419
 peso: leve
 ---
 
@@ -104,3 +104,4 @@ para não quebrar quem o importa.
 | 2026-09-29 | Weydson | Criada |
 | 2026-09-29 | Weydson | CA-1 a CA-7, CB-1, CB-4, CB-5, CB-6 e CB-7 conferidos no navegador (produção local, org ASTRO QA). Destaque do telefone passou a incluir a chave "Validar número"; mascote removido do balão. |
 | 2026-09-29 | Weydson | RNF-3/CB-10: o teste na org ASTRO QA (0 Stars) mostrou o guia barrado pela cobrança; a checagem passou para antes dela. |
+| 2026-09-29 | Weydson | Implementada; PR [#419](https://github.com/Act962/nasa.ex/pull/419). |
