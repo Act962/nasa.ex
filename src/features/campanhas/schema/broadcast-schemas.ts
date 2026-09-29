@@ -19,6 +19,18 @@ export const updateBroadcastSchema = z.object({
 export type UpdateBroadcastInput = z.infer<typeof updateBroadcastSchema>;
 
 /**
+ * Filtro por comportamento do lead (spec 0035, "Auditar Lead"). Lead sem
+ * métricas calculadas fica fora quando algum destes campos é usado.
+ */
+export const leadMetricsFilterSchema = z.object({
+  interestLevels: z.array(z.enum(["LOW", "MEDIUM", "HIGH"])).optional(),
+  minPurchasePotential: z.number().int().min(0).max(100).optional(),
+  minPurchases: z.number().int().min(0).optional(),
+  maxInteractionLossRate: z.number().int().min(0).max(100).optional(),
+});
+export type LeadMetricsFilter = z.infer<typeof leadMetricsFilterSchema>;
+
+/**
  * Vocabulário de filtros de audiência — espelha `leads.listLeadsByStatus`.
  * Todos opcionais: sem filtro = todos os leads ativos do tracking de origem.
  */
@@ -31,6 +43,7 @@ export const audienceFilterSchema = z.object({
   actionFilter: z.enum(["ACTIVE", "WON", "LOST", "DELETED"]).optional(),
   participantFilter: z.string().optional(),
   projectsFilter: z.array(z.string()).optional(),
+  metricsFilter: leadMetricsFilterSchema.optional(),
 });
 export type AudienceFilter = z.infer<typeof audienceFilterSchema>;
 
@@ -160,6 +173,7 @@ export const contactFiltersSchema = z.object({
   dateInit: z.string().optional(),
   dateEnd: z.string().optional(),
   search: z.string().trim().optional(),
+  metricsFilter: leadMetricsFilterSchema.optional(),
 });
 export type ContactFiltersInput = z.infer<typeof contactFiltersSchema>;
 

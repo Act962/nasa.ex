@@ -48,6 +48,7 @@ import {
 } from "../../lib/build-template-components";
 import type { CreateTemplateInput } from "../../schema/template-schemas";
 import { useCreateTemplate, useUploadTemplateSample } from "../../hooks/use-templates";
+import type { TemplatePreset } from "../../lib/template-presets";
 import {
   WhatsAppPreview,
   type PreviewButton,
@@ -102,21 +103,27 @@ function fileToBase64(file: File): Promise<string> {
 export function TemplateBuilder({
   trackingId,
   trackingName,
+  preset,
 }: {
   trackingId: string;
   trackingName: string;
+  preset?: TemplatePreset | null;
 }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [category, setCategory] = useState<TemplateCategory>("MARKETING");
-  const [name, setName] = useState("");
+  const [category, setCategory] = useState<TemplateCategory>(preset?.category ?? "MARKETING");
+  const [name, setName] = useState(preset?.name ?? "");
   const [language, setLanguage] = useState<string>(DEFAULT_TEMPLATE_LANGUAGE);
   const [header, setHeader] = useState<HeaderState>({ type: "NONE" });
-  const [bodyText, setBodyText] = useState("");
-  const [bodyExamples, setBodyExamples] = useState<string[]>([]);
-  const [footer, setFooter] = useState("");
-  const [buttons, setButtons] = useState<ButtonState[]>([]);
+  const [bodyText, setBodyText] = useState(preset?.bodyText ?? "");
+  const [bodyExamples, setBodyExamples] = useState<string[]>(preset?.bodyExamples ?? []);
+  const [footer, setFooter] = useState(preset?.footer ?? "");
+  const [buttons, setButtons] = useState<ButtonState[]>(
+    preset
+      ? [{ type: "URL", text: preset.button.text, urlType: "STATIC", url: preset.button.url, example: "" }]
+      : [],
+  );
   const [submitted, setSubmitted] = useState(false);
 
   const createTemplate = useCreateTemplate(trackingId);

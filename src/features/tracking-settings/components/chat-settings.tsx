@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Plus,
   Smartphone,
@@ -38,7 +38,7 @@ import {
   useConnectionSecrets,
   useDisconnectIntegrationStatus,
 } from "../hooks/use-integration";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { DeleteInstanceModal } from "./delet-instance-modal";
 import { ConnectModal } from "./conect-instance-modal";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -126,6 +126,12 @@ export function ChatSettings() {
 
   const { instanceLoading, instance: instanceData } =
     useQueryInstances(trackingId);
+
+  // Veio da escolha "Conectar por QR Code" do chat: já abre a criação.
+  const shouldOpenCreate = useSearchParams()?.get("create") === "uazapi";
+  useEffect(() => {
+    if (shouldOpenCreate && !instanceLoading && !instanceData) setIsCreateOpen(true);
+  }, [shouldOpenCreate, instanceLoading, instanceData]);
 
   // Segredos Uazapi (apiKey/baseUrl) NÃO vêm mais no payload geral —
   // buscamos sob demanda via procedure dedicada, só quando existe uma

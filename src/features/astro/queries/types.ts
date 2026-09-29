@@ -61,6 +61,15 @@ export function normalizeQuestion(text: string): string {
 export const WRITE_VERB =
   /^(adicione|adiciona|adicionar|lanca|lancar|lance|registra|registre|registrar|cria|crie|criar|cadastra|cadastre|cadastrar|apaga|apague|apagar|exclui|exclua|excluir|move|mova|mover|manda|mande|mandar|envia|envie|enviar|marca|marque|marcar|remarca|remarque|cancela|cancele|cancelar|renomeia|renomeie|arquiva|arquive|publica|publique|anota|anote|anotar|favorita|favorite|bloqueia|bloqueie|ativa|ative|desativa|desative|poe|poem|bota|da acesso|libera)\b/;
 
+/**
+ * Pedido de montar ou alterar algo em qualquer ponto da frase. "Use o Kauê.
+ * Agora crie a proposta…" e "Monte uma proposta… validade de 7 dias" caíam em
+ * consultas (contagem de propostas, leads dos últimos 7 dias), porque o verbo
+ * não abria a frase ou não estava em `WRITE_VERB`.
+ */
+export const COMPOSE_VERB_ANYWHERE =
+  /\b(escreve|escreva|escrever|redija|redige|redigir|rascunhe|rascunha|crie|cria|criar|monte|monta|montar|faca|faz|fazer|gere|gera|gerar|elabore|elabora|prepare|prepara|preparar|inclua|incluir|adicione|adicionar|altere|alterar|atualize|atualizar|edite|editar|envie|enviar|mande|mandar|lance|lancar|cadastre|cadastrar|exclua|excluir|apague|apagar|cancele|cancelar)\b/;
+
 /** "Quantos", "quais", "liste", "me mostra" — o pedido é de leitura. */
 export const ASKS = /\b(quantos|quantas|quais|que|liste|lista|listar|me mostra|mostra|tem quantos|total de|qual o total|qual a quantidade)\b/;
 
@@ -76,14 +85,30 @@ export function money(cents: number): string {
   });
 }
 
-export function startOfToday(): Date {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+// "Hoje" é o dia de Brasília (fixo em -03:00 desde 2019). Com o relógio do
+// servidor, em produção (UTC) "hoje" começava às 21h do dia anterior.
+const BRAZIL_OFFSET_MS = -3 * 60 * 60_000;
+
+function brazilWallClock(now = new Date()): Date {
+  return new Date(now.getTime() + BRAZIL_OFFSET_MS);
 }
 
-export function startOfMonth(): Date {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1);
+function fromBrazilWallClock(wallClock: Date): Date {
+  return new Date(wallClock.getTime() - BRAZIL_OFFSET_MS);
+}
+
+export function startOfToday(): Date {
+  const wallClock = brazilWallClock();
+  wallClock.setUTCHours(0, 0, 0, 0);
+  return fromBrazilWallClock(wallClock);
+}
+
+/** Primeiro dia do mês em Brasília; `monthOffset` -1 = mês anterior. */
+export function startOfMonth(monthOffset = 0): Date {
+  const wallClock = brazilWallClock();
+  wallClock.setUTCMonth(wallClock.getUTCMonth() + monthOffset, 1);
+  wallClock.setUTCHours(0, 0, 0, 0);
+  return fromBrazilWallClock(wallClock);
 }
 
 /**
@@ -100,6 +125,11 @@ export interface AstroPeriod {
 }
 
 const DAY_MS = 24 * 60 * 60_000;
+const WEEKDAY_NAMES = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
+const MONTH_NAMES = [
+  "janeiro", "fevereiro", "marco", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
 
 export function periodFrom(text: string): AstroPeriod | null {
   const today = startOfToday();
@@ -125,9 +155,8 @@ export function periodFrom(text: string): AstroPeriod | null {
     };
   }
   if (/\b(mes passado|mes anterior|ultimo mes)\b/.test(text)) {
-    const now = new Date();
     return {
-      since: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+      since: startOfMonth(-1),
       until: startOfMonth(),
       futureUntil: startOfMonth(),
       label: "no mês passado",
@@ -141,12 +170,38 @@ export function periodFrom(text: string): AstroPeriod | null {
       label: "na semana passada",
     };
   }
+  // "na quinta", "segunda": o próximo dia com esse nome, o dia inteiro.
+  const weekday = text.match(/\b(domingo|segunda|terca|quarta|quinta|sexta|sabado)\b/);
+  if (weekday) {
+    const weekdayIndex = WEEKDAY_NAMES.indexOf(weekday[1]);
+    const todayIndex = brazilWallClock().getUTCDay();
+    const daysAhead = (weekdayIndex - todayIndex + 7) % 7;
+    const since = new Date(today.getTime() + daysAhead * DAY_MS);
+    const until = new Date(since.getTime() + DAY_MS);
+    const dayLabel = since.toLocaleDateString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      weekday: "long",
+      day: "2-digit",
+      month: "2-digit",
+    });
+    return { since, until, futureUntil: until, label: `em ${dayLabel}` };
+  }
+  // "em setembro": o mês inteiro, deste ano.
+  const monthName = text.match(
+    /\b(janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b/,
+  );
+  if (monthName) {
+    const monthOffset = MONTH_NAMES.indexOf(monthName[1]) - brazilWallClock().getUTCMonth();
+    const since = startOfMonth(monthOffset);
+    const until = startOfMonth(monthOffset + 1);
+    return { since, until, futureUntil: until, label: `em ${monthName[1].replace("marco", "março")}` };
+  }
   if (/\b(esse|este|neste|no|deste) mes\b/.test(text)) {
     const start = startOfMonth();
     return {
       since: start,
       until: tomorrow,
-      futureUntil: new Date(start.getFullYear(), start.getMonth() + 1, 1),
+      futureUntil: startOfMonth(1),
       label: "neste mês",
     };
   }

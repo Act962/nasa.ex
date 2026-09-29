@@ -3,6 +3,9 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { inferPolarity } from "../infer-polarity";
+import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
+
+const AGENDA_PICKER: AstroPicker = { kind: "entity", entity: "agenda", placeholder: "Buscar agenda" };
 
 // Ativar/desativar agenda (spec 0024, onda 1). Agenda desativada para de
 // aceitar agendamento público; os já marcados continuam de pé.
@@ -24,14 +27,37 @@ export const toggleAgendaActiveAction: AstroAction<typeof inputSchema> = {
   permission: { appKey: "spacetime", action: "edit" },
   requiresConfirmation: false,
   input: inputSchema,
-  inferFields: (text) =>
-    inferPolarity(text, "active", /\bdesativ|\bdesabilit|\bpaus/i, /\bativ|\breativ|\bhabilit/i),
+  inferFields: (text) => {
+    const agendaName = text.match(/\b([Aa]genda\s+[^\s,.]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ]+)*)/u)?.[1];
+    return {
+      ...inferPolarity(text, "active", /\bdesativ|\bdesabilit|\bpaus/i, /\bativ|\breativ|\bhabilit/i),
+      ...(agendaName && !/^agenda\s+(de|da|do|para)$/i.test(agendaName) ? { agendaName } : {}),
+    };
+  },
+  intentPatterns: [/\b(ativa|ativar|ative|desativa|desativar|desative|pausa|pausar|pause|reativa|reativar|reative)\b.{0,20}\bagenda\b/],
+  fieldSteps: {
+    agendaName: { title: "Qual agenda?", question: "Busque a agenda.", picker: AGENDA_PICKER },
+    active: {
+      title: "Ativar ou desativar?",
+      question: "O que fazer com a agenda?",
+      picker: {
+        kind: "select",
+        options: [
+          { label: "Ativar", answer: "sim" },
+          { label: "Desativar", answer: "nao" },
+        ],
+      },
+    },
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
+    const pickedAgenda = parsePickedAnswer(input.agendaName);
     const candidates = await prisma.agenda.findMany({
       where: {
         organizationId: ctx.organizationId,
-        name: { contains: input.agendaName, mode: "insensitive" },
+        ...(pickedAgenda.id
+          ? { id: pickedAgenda.id }
+          : { name: { contains: pickedAgenda.label, mode: "insensitive" } }),
       },
       select: { id: true, name: true, isActive: true },
       take: MAX_CANDIDATES,
@@ -41,9 +67,10 @@ export const toggleAgendaActiveAction: AstroAction<typeof inputSchema> = {
       return {
         status: "needs_input",
         title: "Agenda não encontrada",
-        description: `Não achei agenda com "${input.agendaName}".`,
+        description: `Não achei agenda com "${pickedAgenda.label}". Busque abaixo.`,
         missingFields: [{ key: "agendaName", label: "nome da agenda" }],
         appName: "Agendas",
+        picker: AGENDA_PICKER,
       };
     }
 
@@ -51,10 +78,11 @@ export const toggleAgendaActiveAction: AstroAction<typeof inputSchema> = {
       return {
         status: "ambiguous",
         title: "Mais de uma agenda",
-        description: `Achei ${candidates.length} agendas parecidas com "${input.agendaName}". Qual?`,
+        description: `Achei ${candidates.length} agendas parecidas com "${pickedAgenda.label}". Qual?`,
         field: "agendaName",
         options: candidates.map((a) => ({ id: a.id, label: a.name })),
         appName: "Agendas",
+        picker: AGENDA_PICKER,
       };
     }
 

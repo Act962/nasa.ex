@@ -2,6 +2,9 @@ import "server-only";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
+import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
+
+const WORKSPACE_PICKER: AstroPicker = { kind: "entity", entity: "workspace", placeholder: "Buscar workspace" };
 
 // Criar tag. Sem verbo próprio, "crie uma tag com o nome X" caía no
 // orquestrador, que perguntava o escopo e perdia a conversa no turno
@@ -25,10 +28,18 @@ const inputSchema = z.object({
 function toSlug(name: string): string {
   return name
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+/** Nome e escopo estão na frase: "cria a tag Quente para os leads". */
+function inferTagFields(text: string): Record<string, unknown> {
+  const tagName = text.match(
+    /\b(?:tag|etiqueta)\s+(?:chamada\s+|de\s+)?["“]?(.+?)["”]?(?=\s+(?:no|na|nos|nas|para|pro|pra)\s+(?:o\s+|os\s+|a\s+|as\s+)?(?:workspace|tracking|funil|leads?|tarefas?|quadro|clientes?)\b|[,.!?]|$)/iu,
+  )?.[1]?.trim();
+  return { ...inferTagScope(text), ...(tagName && tagName.length >= 2 ? { tagName } : {}) };
 }
 
 /** O escopo está na frase: "para o tracking", "no workspace". */
@@ -52,19 +63,41 @@ export const createTagAction: AstroAction<typeof inputSchema> = {
   permission: { appKey: "tracking", action: "create" },
   requiresConfirmation: false,
   newNameFields: ["tagName"],
-  inferFields: inferTagScope,
+  inferFields: inferTagFields,
+  intentPatterns: [/\b(cria|criar|crie|nova|novo|quero criar)\s+(uma\s+|a\s+)?(nova\s+)?(tag|etiqueta)\b/],
+  fieldSteps: {
+    tagName: {
+      title: "Nome da tag",
+      question: "Qual o nome da tag?",
+      picker: { kind: "text", placeholder: "Ex.: Indicação", maxLength: 40 },
+    },
+    scope: {
+      title: "Para leads ou tarefas?",
+      question: "Onde a tag vai ser usada?",
+      picker: {
+        kind: "select",
+        options: [
+          { label: "Leads (Tracking)", answer: "tracking" },
+          { label: "Tarefas (Workspace)", answer: "workspace" },
+        ],
+      },
+    },
+  },
   input: inputSchema,
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     if (input.scope === "workspace") {
       // Tag de workspace pertence a UM workspace — não à organização.
+      const pickedWorkspace = input.workspaceName ? parsePickedAnswer(input.workspaceName) : null;
       const workspaces = await prisma.workspace.findMany({
         where: {
           organizationId: ctx.organizationId,
           isArchived: false,
-          ...(input.workspaceName
-            ? { name: { contains: input.workspaceName, mode: "insensitive" } }
-            : {}),
+          ...(pickedWorkspace?.id
+            ? { id: pickedWorkspace.id }
+            : pickedWorkspace
+              ? { name: { contains: pickedWorkspace.label, mode: "insensitive" } }
+              : {}),
         },
         select: { id: true, name: true },
         take: 8,
@@ -79,16 +112,18 @@ export const createTagAction: AstroAction<typeof inputSchema> = {
             : "Você ainda não tem workspace nenhum.",
           missingFields: [{ key: "workspaceName", label: "o nome do workspace" }],
           appName: "Workspaces",
+          picker: WORKSPACE_PICKER,
         };
       }
       if (workspaces.length > 1) {
         return {
           status: "ambiguous",
           title: "Em qual workspace?",
-          description: "A tag pertence a um workspace. Em qual delas crio?",
+          description: "A tag pertence a um workspace. Em qual eu crio?",
           field: "workspaceName",
           options: workspaces.map((item) => ({ id: item.id, label: item.name })),
           appName: "Workspaces",
+          picker: WORKSPACE_PICKER,
         };
       }
 

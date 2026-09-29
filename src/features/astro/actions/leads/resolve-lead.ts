@@ -2,6 +2,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import type { AstroActionResult } from "../types";
+import { parsePickedAnswer } from "@/features/astro/lib/astro-picker";
 
 // Resolver lead por nome é o começo de quase todo verbo de tracking, e a
 // regra é sempre a mesma: nada encontrado vira pergunta, homônimo vira
@@ -29,9 +30,13 @@ export async function resolveSingleLead(params: {
   /** Texto extra quando há homônimo — exclusão usa para reforçar o risco. */
   ambiguityHint?: string;
 }): Promise<LeadResolution> {
+  // Escolhido na busca do cartão: vem com o id, e o id decide sozinho.
+  const picked = parsePickedAnswer(params.name);
   const candidates = await prisma.lead.findMany({
     where: {
-      name: { contains: params.name.replace(/_/g, " "), mode: "insensitive" },
+      ...(picked.id
+        ? { id: picked.id }
+        : { name: { contains: picked.label.replace(/_/g, " "), mode: "insensitive" } }),
       tracking: { organizationId: params.ctx.organizationId },
     },
     select: {
@@ -48,9 +53,10 @@ export async function resolveSingleLead(params: {
       failure: {
         status: "needs_input",
         title: "Lead não encontrado",
-        description: `Não achei nenhum lead com "${params.name}".`,
+        description: `Não achei nenhum lead com "${picked.label}". Busque abaixo.`,
         missingFields: [{ key: params.field, label: "nome do lead" }],
         appName: params.appName,
+        picker: { kind: "entity", entity: "lead", placeholder: "Buscar lead por nome ou telefone" },
       },
     };
   }
@@ -61,7 +67,7 @@ export async function resolveSingleLead(params: {
         status: "ambiguous",
         title: "Mais de um lead com esse nome",
         description:
-          `Achei ${candidates.length} leads parecidos com "${params.name}".` +
+          `Achei ${candidates.length} leads parecidos com "${picked.label}".` +
           (params.ambiguityHint ? ` ${params.ambiguityHint}` : " Qual deles?"),
         field: params.field,
         options: candidates.map((lead) => ({
@@ -69,6 +75,7 @@ export async function resolveSingleLead(params: {
           label: `${lead.name} — ${lead.tracking.name}`,
         })),
         appName: params.appName,
+        picker: { kind: "entity", entity: "lead", placeholder: "Buscar lead por nome ou telefone" },
       },
     };
   }

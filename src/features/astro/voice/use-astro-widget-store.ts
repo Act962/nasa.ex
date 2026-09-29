@@ -15,8 +15,12 @@ export interface AstroWidgetPrompt {
   fromVoice: boolean;
 }
 
+/** Abas do painel (spec 0029, RF-9). */
+export type AstroWidgetView = "home" | "chat";
+
 interface AstroWidgetStore {
   isOpen: boolean;
+  view: AstroWidgetView;
   /**
    * Já foi aberto nesta aba. A partir daí o chat fica montado mesmo fechado,
    * para um stream em andamento não morrer quando o usuário fecha o painel.
@@ -28,6 +32,7 @@ interface AstroWidgetStore {
   pendingPrompt: AstroWidgetPrompt | null;
 
   open: (prompt?: AstroWidgetPrompt) => void;
+  setView: (view: AstroWidgetView) => void;
   close: () => void;
   toggle: () => void;
   consumePendingPrompt: () => AstroWidgetPrompt | null;
@@ -36,6 +41,7 @@ interface AstroWidgetStore {
 
 export const useAstroWidgetStore = create<AstroWidgetStore>()((set, get) => ({
   isOpen: false,
+  view: "chat",
   hasOpened: false,
   unreadCount: 0,
   pendingPrompt: null,
@@ -46,7 +52,10 @@ export const useAstroWidgetStore = create<AstroWidgetStore>()((set, get) => ({
       hasOpened: true,
       unreadCount: 0,
       pendingPrompt: prompt ?? state.pendingPrompt,
+      // Pedido a enviar só faz sentido na conversa.
+      view: prompt ? "chat" : state.view,
     })),
+  setView: (view) => set({ view }),
   close: () => set({ isOpen: false }),
   toggle: () => {
     if (get().isOpen) get().close();

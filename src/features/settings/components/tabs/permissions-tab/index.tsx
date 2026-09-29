@@ -91,6 +91,10 @@ export function PermissionsTab() {
       canCreate: field === "canCreate" ? val : cur.canCreate,
       canEdit: field === "canEdit" ? val : cur.canEdit,
       canDelete: field === "canDelete" ? val : cur.canDelete,
+      // Reenvia as ações especiais atuais: sem isso, mexer no CRUD zerava
+      // "aprovar/pagar" (o servidor grava false quando o campo não vem).
+      canApprove: field === "canApprove" ? val : cur.canApprove,
+      canPay: field === "canPay" ? val : cur.canPay,
     });
   };
 
@@ -220,6 +224,7 @@ export function PermissionsTab() {
             <div className="p-2">
               <PermissionMatrix
                 apps={data?.apps ?? []}
+                extendedActionsByApp={data?.extendedActionsByApp ?? {}}
                 matrix={data?.matrix ?? {}}
                 isMaster={isMaster}
                 onUpdate={handlePermUpdate}

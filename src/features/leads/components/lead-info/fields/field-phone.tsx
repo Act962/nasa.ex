@@ -8,13 +8,16 @@ import { InfoItem } from "../Info-item";
 import { InputEditPhone } from "../input-edit-phone";
 
 interface FieldPhoneProps {
+  /** Fora da página do contato (ex.: lateral do chat) o id vem por prop. */
+  leadId?: string;
   label: string;
   value: string;
   trackingId: string;
 }
 
-export function FieldPhone({ label, value, trackingId }: FieldPhoneProps) {
-  const { leadId } = useParams<{ leadId: string }>();
+export function FieldPhone({ label, value, trackingId, leadId: leadIdProp }: FieldPhoneProps) {
+  const params = useParams<{ leadId: string }>();
+  const leadId = leadIdProp ?? params.leadId;
   const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState(value);
 

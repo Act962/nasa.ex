@@ -1,5 +1,7 @@
 "use client";
 
+import { clearAppSignupCookie, readAppSignupCookie, resolveAppLink } from "@/features/apps/lib/app-signup-link";
+import { useSetHomeApp } from "@/hooks/use-sidebar-prefs";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -52,6 +54,7 @@ export function FormCreateOrg() {
   const [step1Data, setStep1Data] = useState<Step1Data | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const setHomeApp = useSetHomeApp();
 
   const form1 = useForm<Step1Data>({ resolver: zodResolver(step1Schema) });
   const form2 = useForm<Step2Data>({ resolver: zodResolver(step2Schema) });
@@ -121,6 +124,18 @@ export function FormCreateOrg() {
     setStep(2);
   };
 
+  // Cadastro vindo do link de um app (/app/<chave>): o app vira principal e abre direto (spec 0042).
+  const consumeAppSignupLink = async (): Promise<string> => {
+    const appKey = readAppSignupCookie();
+    clearAppSignupCookie();
+    const appLink = appKey ? resolveAppLink(appKey) : null;
+    if (!appLink) return "/home";
+    if (appLink.sidebarKey) {
+      await setHomeApp.mutateAsync({ appKey: appLink.sidebarKey }).catch(() => undefined);
+    }
+    return appLink.url;
+  };
+
   const onStep2Submit = async (data: Step2Data) => {
     if (!step1Data) return;
     setIsSubmitting(true);
@@ -149,7 +164,7 @@ export function FormCreateOrg() {
       });
 
       toast.success("Organização criada com sucesso!");
-      router.push("/home");
+      router.push(await consumeAppSignupLink());
     } finally {
       setIsSubmitting(false);
     }

@@ -20,9 +20,13 @@ import {
 import { StarsWidget } from "@/features/stars";
 import { SpacePointWidget } from "@/features/space-point";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
+import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
 import { authClient } from "@/lib/auth-client";
+import { useForgeRealtime } from "../hooks/use-forge-realtime";
 
 export function ForgePage() {
+  // Propostas criadas ou alteradas pelo ASTRO aparecem sem recarregar (spec 0032).
+  useForgeRealtime();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { data: session } = authClient.useSession();
   const isSystemAdmin = Boolean(
@@ -33,7 +37,10 @@ export function ForgePage() {
     <ToastProvider>
       <div className="h-full w-full flex flex-col">
       {/* Top header */}
-      <HeaderTracking title="Forge" />
+      <HeaderTracking
+        title="Forge"
+        astroCommand={{ examples: ASTRO_COMMAND_EXAMPLES.forge }}
+      />
       <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-[#7C3AED] flex items-center justify-center shadow-sm">

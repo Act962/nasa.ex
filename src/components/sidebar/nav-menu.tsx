@@ -17,6 +17,8 @@ import {
   isItemVisible,
 } from "@/hooks/use-sidebar-prefs";
 import { ICON_MODE_BUTTON, ICON_MODE_LABEL } from "./icon-mode";
+import { AppsLauncher } from "./apps-launcher";
+import { useUnansweredTotal } from "@/features/tracking-chat/hooks/use-unanswered-counts";
 
 function AstroNavIcon({ className }: { className?: string }) {
   return (
@@ -35,8 +37,31 @@ function AstroNavIcon({ className }: { className?: string }) {
   );
 }
 
+/** Bolinha de leads esperando resposta, no ícone do app (spec 0030, RF-7). */
+function NavIconWithBadge({
+  icon: Icon,
+  count,
+}: {
+  icon: React.ElementType;
+  count: number;
+}) {
+  // O `size-4` vai no ícone porque a regra do botão (`[&>svg]:size-4`) só
+  // alcança filho direto — embrulhar para a bolinha deixava o ícone maior.
+  return (
+    <span className="relative flex shrink-0 items-center justify-center">
+      <Icon className="size-4 shrink-0" />
+      {count > 0 && (
+        <span className="absolute -top-1 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold leading-none text-white pointer-events-none">
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </span>
+  );
+}
+
 export function NavMenu() {
   const pathname = usePathname();
+  const { total: unansweredLeads } = useUnansweredTotal();
   const { data: prefs } = useSidebarPrefs();
   const { data: scope } = useSidebarScope();
 
@@ -85,6 +110,9 @@ export function NavMenu() {
         </SidebarMenuItem>
 
         {visibleItems.map((item) => {
+          // Apps abre o painel de 2 colunas em vez de navegar direto.
+          if (item.key === "apps") return <AppsLauncher key={item.key} />;
+
           const isActive =
             pathname === item.url ||
             (item.url !== "/home" && pathname.startsWith(item.url + "/"));
@@ -106,7 +134,11 @@ export function NavMenu() {
                 )}
               >
                 <Link href={item.url}>
-                  <Icon />
+                  {item.key === "nasachat" ? (
+                    <NavIconWithBadge icon={Icon} count={unansweredLeads} />
+                  ) : (
+                    <Icon />
+                  )}
                   <span className={ICON_MODE_LABEL}>{item.title}</span>
                 </Link>
               </SidebarMenuButton>

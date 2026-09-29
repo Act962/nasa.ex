@@ -3,6 +3,11 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleTracking } from "./resolve-tracking";
+import { TRACKING_FIELD_STEP, extractNameAfter } from "../leads/lead-steps";
+import { extractNamedThing } from "./tracking-steps";
+import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
+
+const MEMBER_PICKER: AstroPicker = { kind: "entity", entity: "member", placeholder: "Buscar pessoa da equipe" };
 
 // Adicionar participante ao tracking (spec 0024, onda 1).
 // Entra como MEMBER: dar OWNER por frase solta é poder demais sem intenção
@@ -31,6 +36,21 @@ export const addTrackingParticipantAction: AstroAction<typeof inputSchema> = {
   permission: { appKey: "tracking", action: "edit" },
   requiresConfirmation: false,
   input: inputSchema,
+  inferFields: (text) => {
+    const personName = extractNameAfter(text, ["adiciona", "coloca", "poe", "põe", "inclui", "libera"]);
+    const trackingName = extractNamedThing(text, "funil|tracking");
+    return { ...(personName ? { personName } : {}), ...(trackingName ? { trackingName } : {}) };
+  },
+  intentPatterns: [
+    /\b(adiciona|adicionar|adicione|coloca|colocar|coloque|poe|inclui|incluir|libera|liberar|da|dar)\b.{0,40}\b(participante|acesso)\b/,
+    // "adiciona o Vendedor no funil Vendas": pessoa da equipe no funil. Com
+    // "lead" na frase é outro pedido (mover ou criar lead).
+    /^(?!.*\b(lead|leads|contato|cliente)\b).*\b(adiciona|adicionar|adicione|inclui|incluir|inclua)\s+(o|a)?\s*\S+.{0,30}\b(no|na|ao)\s+(funil|tracking)\b/,
+  ],
+  fieldSteps: {
+    personName: { title: "Quem?", question: "Busque a pessoa da equipe.", picker: MEMBER_PICKER },
+    trackingName: TRACKING_FIELD_STEP,
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const resolvedTracking = await resolveSingleTracking({
@@ -41,10 +61,13 @@ export const addTrackingParticipantAction: AstroAction<typeof inputSchema> = {
     if ("failure" in resolvedTracking) return resolvedTracking.failure;
     const tracking = resolvedTracking.tracking;
 
+    const pickedPerson = parsePickedAnswer(input.personName);
     const members = await prisma.member.findMany({
       where: {
         organizationId: ctx.organizationId,
-        user: { name: { contains: input.personName, mode: "insensitive" } },
+        ...(pickedPerson.id
+          ? { userId: pickedPerson.id }
+          : { user: { name: { contains: pickedPerson.label, mode: "insensitive" } } }),
       },
       select: { userId: true, user: { select: { name: true, email: true } } },
       take: MAX_CANDIDATES,
@@ -57,6 +80,7 @@ export const addTrackingParticipantAction: AstroAction<typeof inputSchema> = {
         description: `"${input.personName}" não é membro desta organização.`,
         missingFields: [{ key: "personName", label: "nome do membro" }],
         appName: "Tracking",
+        picker: MEMBER_PICKER,
       };
     }
 
@@ -71,6 +95,7 @@ export const addTrackingParticipantAction: AstroAction<typeof inputSchema> = {
           label: `${m.user.name} — ${m.user.email}`,
         })),
         appName: "Tracking",
+        picker: MEMBER_PICKER,
       };
     }
 

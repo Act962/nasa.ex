@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import type { UIMessage } from "ai";
 import { AstroMessage } from "@/features/astro/components/astro-message";
+import { AstroPrivacyConsentCard } from "./astro-privacy-consent-card";
 
 /** Lista de mensagens do painel, com indicador de digitação e erro legível. */
 
@@ -14,8 +15,10 @@ export function AstroWidgetMessages({
   error,
   onRespond,
   emptyState,
+  sessionId,
 }: {
   messages: UIMessage[];
+  sessionId?: string;
   loading: boolean;
   error?: Error;
   /** Responde a um cartão de confirmação ("confirmar <id>"). */
@@ -30,12 +33,20 @@ export function AstroWidgetMessages({
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <AstroPrivacyConsentCard />
       {messages.length === 0 ? (
         emptyState
       ) : (
         <div className="py-2">
-          {messages.map((message) => (
-            <AstroMessage key={message.id} message={message} onRespond={onRespond} busy={loading} />
+          {messages.map((message, index) => (
+            <AstroMessage
+              key={message.id}
+              message={message}
+              onRespond={onRespond}
+              busy={loading}
+              sessionId={sessionId}
+              isLatest={index === messages.length - 1}
+            />
           ))}
         </div>
       )}

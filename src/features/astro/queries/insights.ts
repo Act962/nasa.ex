@@ -37,7 +37,7 @@ const funnelQuery: AstroQuery = {
   appKey: "insights",
   matches: (text) =>
     /\bfunil|etapas?\b/.test(text) &&
-    /\b(como|analise|analisa|desempenho|conversao|travad|parad|gargalo|tempo)\b/.test(text),
+    /\b(como|analise|analisa|desempenho|conversao|travad|parad|gargalo|tempo|perde|perdem|perda|perdas)\b/.test(text),
   run: async ({ ctx, text }) => {
     const trackings = await pickTracking(ctx.organizationId);
     if (trackings.length === 0) return { text: "Você ainda não tem tracking nenhum." };
@@ -189,9 +189,10 @@ const attendantsQuery: AstroQuery = {
   appKey: "insights",
   matches: (text) =>
     /\b(atendente|atendentes|quem atendeu|por vendedor|equipe|por responsavel)\b/.test(text) ||
-    // "responsável" sozinho é ambíguo: "leads sem responsável" é outra
-    // consulta, e ela vem antes na ordem — aqui só o positivo.
-    /\b(quem|quais)\b.*\bresponsavel\b/.test(text),
+    // "responsável" sozinho é ambíguo: "quais leads estão sem responsável"
+    // é `tracking.leads_unassigned`, que vem depois na ordem — aqui só o positivo.
+    (/\b(quem|quais)\b.*\bresponsavel\b/.test(text) &&
+      !/\bsem (responsavel|dono|atendente)\b/.test(text)),
   run: async ({ ctx, text }) => {
     const period = periodFrom(text);
     const grouped = await prisma.lead.groupBy({

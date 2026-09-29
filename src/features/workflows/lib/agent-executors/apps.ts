@@ -845,8 +845,19 @@ export const moveLeadExecutor: NodeExecutor = async ({ data, context }) => {
       run: async <T>(_n: string, fn: () => Promise<T>) => fn(),
     };
     const noopPublish = async () => {};
+    // O executor antigo lê `trackingId`/`statusId` na raiz; os fluxos gerados
+    // (blueprint, Agente, construtor rápido) gravam em `data.action`. Sem o
+    // tracking, a busca quebrava e o lead nunca era movido.
+    const nodeAction =
+      data.action && typeof data.action === "object" ? (data.action as Record<string, unknown>) : {};
+    const lead = (context.lead ?? {}) as Record<string, unknown>;
+    const legacyData = {
+      ...data,
+      statusId: data.statusId ?? nodeAction.statusId,
+      trackingId: data.trackingId ?? nodeAction.trackingId ?? lead.trackingId,
+    };
     await legacy({
-      data: data as never,
+      data: legacyData as never,
       nodeId: "agent",
       context: context as never,
       step: fakeStep as never,

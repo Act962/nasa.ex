@@ -69,7 +69,7 @@ const SuggestedTagSchema = z.object({
   reason: z.string().optional(),
 });
 
-const GeneratedBlueprintSchema = z.object({
+export const GeneratedBlueprintSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   suggestedTags: z.array(SuggestedTagSchema).default([]),
@@ -180,6 +180,8 @@ export function buildWorkflowTools(
               .filter(Boolean)
               .join("\n"),
             temperature: 0.4,
+            // Campos opcionais e `data` livre por nó: o modo estrito da OpenAI recusa.
+            providerOptions: { openai: { strictJsonSchema: false } },
           });
 
           const blueprint = result.object;

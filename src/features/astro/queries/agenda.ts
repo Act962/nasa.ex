@@ -42,7 +42,9 @@ const appointmentsToday: AstroQuery = {
   app: "agenda",
   appKey: "spacetime",
   matches: (text) =>
-    /\bcompromissos?|reuni(ao|oes)|agendamentos?\b/.test(text) &&
+    // "o que tenho hoje na agenda" não diz "compromisso", e caía no
+    // orquestrador, que respondia não ter acesso à agenda.
+    (/\bcompromissos?|reuni(ao|oes)|agendamentos?\b/.test(text) || /\bagenda\b/.test(text)) &&
     /\bhoje|amanha|semana|essa semana|quais|quantos|tenho\b/.test(text),
   run: async ({ ctx, text }) => {
     // "Hoje" é hoje; sem recorte, a janela útil é a semana que vem.

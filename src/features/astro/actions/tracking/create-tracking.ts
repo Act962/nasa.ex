@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
+import { extractNamedThing } from "./tracking-steps";
 
 // Criar tracking (funil inteiro), não coluna dentro de um. "Crie um novo
 // tracking" caía em `tracking.create_status` e criava a coluna ATENDIMENTO
@@ -30,6 +31,18 @@ export const createTrackingAction: AstroAction<typeof inputSchema> = {
   requiresConfirmation: false,
   newNameFields: ["trackingName"],
   input: inputSchema,
+  inferFields: (text) => {
+    const trackingName = extractNamedThing(text, "funil|tracking");
+    return trackingName ? { trackingName } : {};
+  },
+  intentPatterns: [/\b(cria|criar|crie|novo|nova|quero criar)\s+(um\s+|uma\s+|o\s+|a\s+)?(novo\s+)?(funil|tracking)\b/],
+  fieldSteps: {
+    trackingName: {
+      title: "Nome do funil",
+      question: "Qual o nome do funil?",
+      picker: { kind: "text", placeholder: "Ex.: Pós-venda", maxLength: 80 },
+    },
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const duplicate = await prisma.tracking.findFirst({

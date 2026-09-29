@@ -8,6 +8,7 @@
  *
  * Renderiza só quando `workflow.agentMode = true`.
  */
+import { AstroBadge } from "@/features/astro/components/astro-badge";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -96,7 +97,10 @@ export function AgentDetailButton({ workflowId }: { workflowId: string }) {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Agente IA — Histórico & Métricas</SheetTitle>
+            <SheetTitle className="flex items-center gap-2">
+              ASTRO — Histórico & Métricas
+              <AstroBadge label="Agente" />
+            </SheetTitle>
             <SheetDescription>
               Últimas execuções, decisões IA e taxa de sucesso (30 dias).
             </SheetDescription>

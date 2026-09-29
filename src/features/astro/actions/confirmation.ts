@@ -7,8 +7,9 @@ import {
 } from "@/features/astro/server/tools/_shared/proposals/types";
 import type { AstroConfirmationPayload } from "@/features/astro/lib/astro-confirmation";
 import { ASTRO_ACTIONS, getAstroAction } from "./registry";
-import { labelFor } from "./resolve-action";
+import { labelFor } from "./field-options";
 import type { AstroAction, AstroActionResult } from "./types";
+import { parsePickedAnswer } from "@/features/astro/lib/astro-picker";
 
 /**
  * Ponte entre o registro de ações e a confirmação que já existia (spec 0014).
@@ -29,8 +30,11 @@ function actionTypeFor(action: AstroAction): string {
  * palavra de gente: o cartão mostrava "accountName" e "amount" para quem só
  * queria conferir a conta e o valor.
  */
-function linesFor(input: Record<string, unknown>) {
+function linesFor(input: Record<string, unknown>, hiddenFields: string[] = []) {
+  const hidden = new Set(hiddenFields);
   return Object.entries(input)
+    // Campos internos (frase original, resposta de data) já estão no resumo.
+    .filter(([key]) => !hidden.has(key))
     .filter(([, value]) => value !== undefined && value !== null && value !== "")
     .slice(0, 8)
     .map(([key, value]) => ({
@@ -55,8 +59,18 @@ const VALUE_LABELS: Record<string, string> = {
   workspace: "Workspace (tarefas)",
 };
 
+const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+
 function displayValue(value: unknown): string {
-  const raw = String(value);
+  // Escolha feita no seletor chega com "[ref:id]" — o id não é para o usuário.
+  const raw = parsePickedAnswer(String(value)).label;
+  // "2026-10-03T02:59:00.000Z" no cartão não é data que se confira de olho.
+  if (ISO_DATETIME.test(raw)) {
+    const date = new Date(raw);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    }
+  }
   return VALUE_LABELS[raw] ?? raw;
 }
 
@@ -87,8 +101,13 @@ export async function proposeAction(params: {
     ctx: params.ctx,
     actionType: actionTypeFor(params.action),
     payload: params.input,
-    title: params.action.confirmTitle ?? `Confirmar: ${params.action.toolName}`,
-    lines: linesFor(params.input),
+    // Sem título próprio, vale o do ensaio ("Criar proposta"), não o nome técnico da tool.
+    title: params.action.confirmTitle ?? rehearsal.title ?? `Confirmar: ${params.action.toolName}`,
+    lines: [
+      // O ensaio já resolveu cliente e produtos no banco: é o que vai ser gravado de fato.
+      ...(rehearsal.description ? [{ label: "Resumo", value: rehearsal.description }] : []),
+      ...linesFor(params.input, params.action.codeOnlyFields),
+    ],
     warnings: params.warnings,
   });
 }

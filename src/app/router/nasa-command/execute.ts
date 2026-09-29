@@ -330,7 +330,10 @@ export const execute = base
           input: {
             clientName,
             productName,
-            validUntil: validUntil ? validUntil.toISOString() : undefined,
+            // A ação lê validade como o usuário diria ("30/10/2026"), não ISO.
+            validUntil: validUntil
+              ? validUntil.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+              : "sem validade",
             notes: command,
           },
         });

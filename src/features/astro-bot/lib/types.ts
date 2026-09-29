@@ -45,7 +45,7 @@ export interface BotInboundMedia {
   externalMessageId: string;
   /** `media_id` da Graph API — só Meta. */
   mediaId?: string;
-  kind: "document" | "image";
+  kind: "document" | "image" | "audio";
   mimetype?: string;
   fileName?: string;
   caption?: string;

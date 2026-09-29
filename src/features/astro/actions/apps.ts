@@ -19,7 +19,10 @@ export const ASTRO_APPS = {
   chat:
     "Conversas de WhatsApp: mandar mensagem ou TEMPLATE para alguém, abrir conversa por número, encaminhar, marcar como lida",
   forge:
-    "Propostas comerciais e orçamentos: criar proposta com valor para um cliente",
+    "Propostas comerciais e orçamentos: criar PROPOSTA/orçamento para um cliente, e também alterar " +
+    "(acrescentar ou tirar produto, mudar validade ou título), cancelar, excluir e limpar RASCUNHO de " +
+    "proposta. Use sempre que a frase falar em proposta, orçamento ou rascunho de proposta — mesmo " +
+    "quando citar o cliente, porque quem é apagado é a proposta, não a pessoa",
   form:
     "Formulários, briefings e fichas de cadastro: mandar o FORMULÁRIO ao cliente, publicar, tirar do ar. Só quando a palavra formulário, briefing ou ficha aparecer",
   payment:

@@ -3,8 +3,10 @@
 import * as React from "react";
 import {
   Building,
+  Check,
   ChevronsUpDown,
   GalleryVerticalEnd,
+  Loader2,
   Plus,
 } from "lucide-react";
 
@@ -40,6 +42,7 @@ export function TeamSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
+  const [switchingToName, setSwitchingToName] = React.useState<string | null>(null);
 
   const organizationsSorted = organizations?.sort((a, b) =>
     a.name.localeCompare(b.name),
@@ -48,30 +51,38 @@ export function TeamSwitcher() {
   const selectedOrganization = async (data: {
     orgId: string;
     orgSlug: string;
+    orgName: string;
   }) => {
-    const { data: organization, error } =
-      await authClient.organization.setActive({
-        organizationId: data.orgId,
-        organizationSlug: data.orgSlug,
-      });
+    if (data.orgId === organizationActive?.id || switchingToName) return;
+    setSwitchingToName(data.orgName);
+    try {
+      const { data: organization, error } =
+        await authClient.organization.setActive({
+          organizationId: data.orgId,
+          organizationSlug: data.orgSlug,
+        });
 
-    if (error) {
-      toast.error("Erro ao tentar trocar de empresa!");
-      return;
+      if (error) {
+        toast.error("Erro ao tentar trocar de empresa!");
+        return;
+      }
+
+      setOrganizationActive(organization);
+
+      const redirectTo = resolveOrgSwitchRedirect(pathname);
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else {
+        router.refresh();
+      }
+
+      // Reset (e não invalidate): a tela troca na hora para o carregamento, sem mostrar dados da empresa anterior.
+      await queryClient.resetQueries();
+
+      toast.success(`Agora você está em ${data.orgName}`);
+    } finally {
+      setSwitchingToName(null);
     }
-
-    setOrganizationActive(organization);
-
-    const redirectTo = resolveOrgSwitchRedirect(pathname);
-    if (redirectTo) {
-      router.push(redirectTo);
-    } else {
-      router.refresh();
-    }
-
-    queryClient.invalidateQueries();
-
-    toast.success("Sucesso!");
   };
 
   React.useEffect(() => {
@@ -86,6 +97,20 @@ export function TeamSwitcher() {
   }, []);
 
   return (
+    <>
+    {switchingToName && (
+      <div
+        role="status"
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md animate-in fade-in-0"
+      >
+        <div className="flex items-center gap-3 rounded-xl border bg-background px-5 py-4 shadow-lg">
+          <Loader2 className="size-5 animate-spin text-primary" />
+          <span className="text-sm">
+            Entrando em <span className="font-semibold">{switchingToName}</span>…
+          </span>
+        </div>
+      </div>
+    )}
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
@@ -133,7 +158,7 @@ export function TeamSwitcher() {
                 key={org.name}
                 className="gap-2 p-2 cursor-pointer"
                 onClick={() =>
-                  selectedOrganization({ orgId: org.id, orgSlug: org.slug })
+                  selectedOrganization({ orgId: org.id, orgSlug: org.slug, orgName: org.name })
                 }
               >
                 <div className="flex size-6 items-center justify-center rounded-md border overflow-hidden">
@@ -149,8 +174,8 @@ export function TeamSwitcher() {
                     <Building className="size-4" />
                   )}
                 </div>
-                {org.name}
-                {/* <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut> */}
+                <span className="flex-1 truncate">{org.name}</span>
+                {org.id === organizationActive?.id && <Check className="size-4 text-primary" />}
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
@@ -168,5 +193,6 @@ export function TeamSwitcher() {
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
+    </>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { useSendingNumbers } from "../hooks/use-sending-numbers";
 import { useCreateBroadcast } from "../hooks/use-broadcasts";
+import { CONNECT_NUMBER_EVENT } from "./self-service/official-number-overview";
 
 export function CreateBroadcastDialog() {
   const router = useRouter();
@@ -75,20 +75,20 @@ export function CreateBroadcastDialog() {
         </DialogHeader>
 
         {!loadingNumbers && !hasNumbers ? (
-          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            Nenhum número WhatsApp Oficial (Meta) configurado nesta
-            organização. O número da API Oficial fica dentro de um{" "}
-            <Link
-              href="/tracking"
-              className="font-medium text-foreground underline"
+          <div className="space-y-3 rounded-md border border-dashed p-4 text-sm">
+            <p className="font-medium">Primeiro, conecte seu WhatsApp oficial</p>
+            <p className="text-muted-foreground">
+              A campanha sai por um número oficial da Meta. A gente te guia passo a passo — leva uns 10 minutos.
+            </p>
+            <Button
+              size="sm"
+              onClick={() => {
+                setOpen(false);
+                window.dispatchEvent(new Event(CONNECT_NUMBER_EVENT));
+              }}
             >
-              tracking
-            </Link>
-            : abra as configurações do tracking → aba{" "}
-            <span className="font-medium text-foreground">Integrações</span>,
-            crie uma instância escolhendo <span className="font-medium text-foreground">API Oficial</span>{" "}
-            e conclua com <span className="font-medium text-foreground">Conectar via Meta</span>. Feito
-            isso, o número aparece aqui.
+              Conectar meu WhatsApp
+            </Button>
           </div>
         ) : (
           <div className="flex flex-col gap-4 py-2">
@@ -128,6 +128,7 @@ export function CreateBroadcastDialog() {
           </div>
         )}
 
+        {hasNumbers && (
         <DialogFooter>
           <Button
             onClick={handleCreate}
@@ -141,6 +142,7 @@ export function CreateBroadcastDialog() {
             {createBroadcast.isPending ? "Criando…" : "Criar campanha"}
           </Button>
         </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

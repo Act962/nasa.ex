@@ -5,6 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import type { LeadMetricsFilter } from "../schema/broadcast-schemas";
 
 /**
  * Hooks da base unificada de contatos (Campanhas). `useContacts` pagina por
@@ -14,6 +15,8 @@ import {
 
 export interface ContactFilters {
   trackingId?: string;
+  /** Comportamento do lead (spec 0035). */
+  metricsFilter?: LeadMetricsFilter;
   statusIds?: string[];
   tagsFilter?: string[];
   temperatureFilter?: Array<"COLD" | "WARM" | "HOT" | "VERY_HOT">;

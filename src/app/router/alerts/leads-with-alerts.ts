@@ -213,4 +213,5 @@ const appPrefixMap: Record<AppKey, string> = {
   integracoes: "integration.",
   insights: "metric.",
   admin: "broadcast.",
+  financeiro: "payment.",
 };

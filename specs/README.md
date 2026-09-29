@@ -185,6 +185,19 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0023](astro/0023-astro-roteamento-por-intencao-e-proposta-com-link.md) | astro | Roteamento do Astro por intenção, com a proposta comercial como piloto | aprovada |
 | [0024](astro/0024-catalogo-de-verbos-do-astro.md) | astro | Catálogo de verbos do Astro — recorte por onda | aprovada |
 | [0025](astro/0025-astro-roteamento-em-camadas.md) | astro | Roteamento em camadas — todos os apps sem perder precisão | aprovada |
+| [0028](astro/0028-astro-commander.md) | astro | ASTRO COMMANDER — comandos persistentes, execução headless e App ASTRO | aprovada |
+| [0029](astro/0029-astro-em-toda-a-plataforma.md) | astro | ASTRO em toda a plataforma — alertas proativos, widget central e botões nos apps | aprovada |
+| [0030](tracking-chat/0030-canal-email-no-tracking-chat.md) | tracking-chat | Canal E-mail no Tracking Chat — ler e responder e-mails dos leads pelo Gmail da organização | aprovada |
+| [0031](astro/0031-astro-chat-widget-no-site.md) | astro | ASTRO CHAT — widget do ASTRO no site do cliente, com conversas no Chat | aprovada |
+| [0032](astro/0032-astro-crud-de-propostas-no-forge.md) | astro | ASTRO faz o CRUD de propostas do Forge — criar guiado, listar, editar, cancelar e excluir | aprovada |
+| [0033](astro/0033-astro-busca-data-e-plano-em-pedidos-compostos.md) | astro | ASTRO escolhe por busca, confirma data por extenso e transforma pedido composto em plano | aprovada |
+| [0034](tracking-chat/0034-detalhes-do-lead-na-lateral-do-chat.md) | tracking-chat | Detalhes do lead na lateral do chat e selo do canal no avatar | aprovada |
+| [0035](leads/0035-auditar-lead-metricas.md) | leads | Auditar Lead — métricas de comportamento e atendimento por lead | aprovada |
+| [0036](astro-bot/0036-bot-transcreve-audio.md) | astro-bot | ASTRO no WhatsApp entende áudio (transcrição) | aprovada |
+| [0037](notifications/0037-alerta-tokens-ia.md) | notifications | Alertar crédito de IA esgotado e consumo alto de tokens | implementada |
+| [0038](tracking-chat/0038-gatilho-do-lead.md) | tracking-chat | Gatilho do lead — mensagem agendada com período de ativação | implementada |
+| [0039](workflows/0039-construtor-rapido-de-gatilhos.md) | workflows | Construtor rápido de Gatilhos Automáticos (passo a passo, por frase e por lead) | implementada |
+| [0040](campanhas/0040-disparo-em-massa-self-service.md) | campanhas | Disparo em Massa self-service — número oficial, custos, taxa e subida de volume | em-revisao |
 
 ---
 

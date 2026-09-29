@@ -48,13 +48,19 @@ export const executeWorkflow = inngest.createFunction(
     const meta = await step.run("load-workflow-meta", async () => {
       const wf = await prisma.workflow.findUniqueOrThrow({
         where: { id: workflowId },
-        select: { id: true, agentMode: true, isActive: true },
+        select: { id: true, agentMode: true, isActive: true, leadId: true },
       });
       if (!wf.isActive) {
         throw new NonRetriableError("Workflow is inactive");
       }
       return wf;
     });
+
+    // Escopo por lead (spec 0039, RF-7): gatilho de outro lead é ignorado.
+    const eventLeadId = (event.data as { leadId?: string | null }).leadId ?? null;
+    if (meta.leadId && eventLeadId && meta.leadId !== eventLeadId) {
+      return { skipped: "lead_scope" };
+    }
 
     if (meta.agentMode) {
       // Delega pro engine novo. Quando o engine encontra WAIT_FOR_EVENT,

@@ -103,3 +103,15 @@ export const StarsIcon = () => (
     <circle cx="24" cy="24" r="3" fill="#7C3AED" />
   </svg>
 );
+
+export const StarFriendsIcon = () => (
+  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={S}>
+    <rect width="48" height="48" rx="12" fill="#F59E0B" />
+    <path
+      d="M24 10l4.1 8.6 9.4 1.2-6.9 6.5 1.8 9.3L24 31l-8.4 4.6 1.8-9.3-6.9-6.5 9.4-1.2L24 10z"
+      fill="white"
+    />
+    <circle cx="35" cy="35" r="6" fill="#7C3AED" stroke="white" strokeWidth="1.5" />
+    <path d="M32.5 35h5M35 32.5v5" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);

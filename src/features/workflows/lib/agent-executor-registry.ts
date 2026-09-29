@@ -45,6 +45,7 @@ import {
 import { webSearchExecutor } from "./agent-executors/web-search";
 import { sendEmailExecutor } from "./agent-executors/email";
 import { seiActionAgentExecutor } from "./agent-executors/sei";
+import { notifyTeamExecutor } from "./agent-executors/notify-team";
 
 /**
  * Mapa principal usado pelo `runWorkflow`. Use `getAgentExecutorRegistry()`
@@ -75,5 +76,7 @@ export function getAgentExecutorRegistry(): Map<string, NodeExecutor> {
     // Email transacional (Resend + React Email)
     ["SEND_EMAIL", sendEmailExecutor],
     ["SEI_ACTION", seiActionAgentExecutor],
+    // Construtor rápido (spec 0039)
+    ["NOTIFY_TEAM", notifyTeamExecutor],
   ]);
 }

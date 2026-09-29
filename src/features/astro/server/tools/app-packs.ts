@@ -6,6 +6,11 @@ import {
   buildFinanceWriteTools,
 } from "@/features/astro/server/tools/finance";
 import { FINANCE_SCOPE_PROMPT } from "@/features/astro/lib/prompts/finance";
+import {
+  buildWhatsAppSetupReadTools,
+  buildWhatsAppSetupWriteTools,
+} from "@/features/astro/server/tools/whatsapp-setup";
+import { WHATSAPP_SETUP_SCOPE_PROMPT } from "@/features/astro/lib/prompts/whatsapp-setup";
 
 /**
  * Registro dos "packs" de tools por app (spec 0014, D-1). É o ponto de
@@ -26,6 +31,12 @@ export const APP_TOOL_PACKS: Record<string, AppToolPack> = {
     read: buildFinanceReadTools,
     write: buildFinanceWriteTools,
     systemPrompt: FINANCE_SCOPE_PROMPT,
+  },
+  "whatsapp-setup": {
+    appSlug: "campanhas",
+    read: buildWhatsAppSetupReadTools,
+    write: buildWhatsAppSetupWriteTools,
+    systemPrompt: WHATSAPP_SETUP_SCOPE_PROMPT,
   },
 };
 

@@ -131,6 +131,8 @@ const APP_LABELS: Record<string, string> = {
   pages: "Pages",
   // ── Sprint STARS (cobranças novas) ──
   chat_ai_message: "Chat AI (WhatsApp)",
+  astro_chat_ai_message: "ASTRO CHAT (respostas IA)",
+  "astro-chat": "ASTRO CHAT (mensalidade)",
   extract_budget: "OCR de Orçamento (IA)",
   transcribe_video: "Transcrição de Vídeo (Whisper)",
   generate_compose: "Composição IA",

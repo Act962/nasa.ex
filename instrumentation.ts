@@ -32,6 +32,12 @@ export async function register() {
     );
     registerTrafegoSubscribers();
 
+    // Catálogo: card entrou numa coluna de etapa do pedido → tag, pedido e aviso ao cliente.
+    const { registerCatalogStageSubscriber } = await import(
+      "@/features/nerp-catalog/lib/stage-subscriber"
+    );
+    registerCatalogStageSubscriber();
+
     process.on("unhandledRejection", (reason) => {
       console.error("[unhandledRejection]", reason);
     });

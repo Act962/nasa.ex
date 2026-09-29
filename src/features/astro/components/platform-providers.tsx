@@ -4,6 +4,7 @@ import { type ReactNode } from "react";
 import { MarketplaceProvider } from "@/features/integrations/context/marketplace-context";
 import { AstroProvider } from "./astro-provider";
 import { AstroWidgetPanel } from "./widget/astro-widget-panel";
+import { AstroCreateCommandHost } from "@/features/astro-commander/components/astro-create-command-host";
 import { HeartbeatProvider } from "@/components/heartbeat-provider";
 import { SpacePointProvider } from "@/features/space-point";
 import { AstroOrb } from "@/features/astro/voice/astro-orb";
@@ -34,6 +35,11 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
           <SpacePointProvider>
             <AstroProvider>
               {children}
+              {/* ASTRO em todas as telas (spec 0029). Aqui ele ficava de fora
+                  por cobrir o composer; agora o usuário arrasta para onde quiser. */}
+              <AstroOrb />
+              <AstroWidgetPanel />
+              <AstroCreateCommandHost />
               <TourOverlay />
               <HeartbeatProvider />
             </AstroProvider>
@@ -52,6 +58,7 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
             <GlobalShortcutsRegistrar />
             <AstroOrb />
             <AstroWidgetPanel />
+            <AstroCreateCommandHost />
             <CmdkPalette />
             <ConnectionWizardDialog />
             <TourOverlay />

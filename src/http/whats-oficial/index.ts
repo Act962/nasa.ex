@@ -70,6 +70,7 @@ export { getWaba } from "./get-waba";
 // Analytics (Fase 10) — mensagens, conversas e custo.
 export { getMessageAnalytics } from "./get-message-analytics";
 export { getConversationAnalytics } from "./get-conversation-analytics";
+export { getPricingAnalytics } from "./get-pricing-analytics";
 
 export type {
   MetaApiError,
@@ -122,3 +123,9 @@ export type {
   ConversationAnalyticsDataPoint,
   ConversationAnalyticsResponse,
 } from "./types";
+export { debugToken } from "./debug-token";
+export type { DebugTokenData, DebugTokenGranularScope } from "./debug-token";
+export { addPhoneNumber } from "./add-phone-number";
+export { requestVerificationCode } from "./request-verification-code";
+export { verifyCode } from "./verify-code";
+export { subscribeAppWebhook } from "./subscribe-app-webhook";

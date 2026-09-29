@@ -1,13 +1,21 @@
 import "server-only";
-import type { z } from "zod";
+import { z } from "zod";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import type { AstroAppId } from "./apps";
 import type { AppKey, OrgAction } from "@/features/permissions/lib/catalog";
+import type { AstroPicker } from "@/features/astro/lib/astro-picker";
 
 // Registro único de ações do Astro (spec 0023). Uma ação é declarada aqui e
 // alcança as três superfícies — orquestrador, classificador e executor por
 // regex — sem cópia. Antes desta camada, criar proposta existia só no regex e
 // devolvia link interno; o orquestrador nem tinha a ferramenta.
+
+/** Pergunta de um campo do roteiro, com o seletor que responde a ela. */
+export interface AstroFieldStep {
+  title: string;
+  question: string;
+  picker: AstroPicker;
+}
 
 /** Campo que faltou para a ação rodar. Vira pergunta no chat e no ciclo falado. */
 export interface AstroMissingField {
@@ -40,6 +48,8 @@ export type AstroActionResult =
       description: string;
       missingFields: AstroMissingField[];
       appName: string;
+      /** Busca ou seletor de data no cartão, no lugar de texto livre. */
+      picker?: AstroPicker;
     }
   | {
       status: "ambiguous";
@@ -48,6 +58,8 @@ export type AstroActionResult =
       field: string;
       options: AstroAmbiguousOption[];
       appName: string;
+      /** Busca além das opções listadas (a certa pode não estar entre elas). */
+      picker?: AstroPicker;
     }
   | {
       status: "error";
@@ -107,6 +119,25 @@ export interface AstroAction<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
    */
   newNameFields?: string[];
   /**
+   * Campos que só o código ou a resposta do usuário preenchem — o classificador
+   * não os vê no catálogo. Existe porque o modelo inventa: pediu "amanhã" sem
+   * hora e ele completou com 00:00 (spec 0033, RF-3).
+   */
+  codeOnlyFields?: string[];
+  /**
+   * Frases inequívocas deste verbo, sobre o texto sem acento e em minúsculas.
+   * Casou só este verbo, o roteiro começa sem classificador: "quero agendar"
+   * não precisa de modelo — e cada vez que ele escapava, o orquestrador
+   * gastava ~23 mil tokens para perguntar o mesmo (spec 0033, RF-9).
+   */
+  intentPatterns?: RegExp[];
+  /**
+   * Como perguntar cada campo que faltar: título, pergunta e seletor. Sem
+   * isto, o ciclo guiado perguntava "me diga: leadName" em texto aberto — e
+   * a resposta livre voltava ao classificador (spec 0033, RF-9).
+   */
+  fieldSteps?: Record<string, AstroFieldStep>;
+  /**
    * `dryRun` resolve o alvo, checa permissão e devolve o que ACONTECERIA —
    * sem escrever. É o que impede a confirmação de propor o impossível: sem
    * isso, o cartão perguntava "excluir o lead X?" antes de saber se X existe,
@@ -117,4 +148,11 @@ export interface AstroAction<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
     input: z.infer<TSchema>;
     dryRun?: boolean;
   }) => Promise<AstroActionResult>;
+}
+
+/** Campos que o classificador pode preencher — o catálogo mostra só estes. */
+export function classifierFieldNames(action: AstroAction): string[] {
+  const shape = action.input instanceof z.ZodObject ? action.input.shape : {};
+  const codeOnly = new Set(action.codeOnlyFields ?? []);
+  return Object.keys(shape).filter((field) => !codeOnly.has(field));
 }

@@ -3,6 +3,17 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleLead } from "./resolve-lead";
+import { LEAD_FIELD_STEP, extractNameAfter } from "./lead-steps";
+
+/** "anota na Maria Clara que pediu desconto" → lead e nota, sem modelo. */
+function inferNoteFields(text: string): Record<string, unknown> {
+  const inferred: Record<string, unknown> = {};
+  const leadName = extractNameAfter(text, ["no", "na", "do", "da"]);
+  if (leadName) inferred.leadName = leadName;
+  const note = text.match(/\bque\s+(.{2,})$/iu)?.[1]?.trim();
+  if (note) inferred.note = note;
+  return inferred;
+}
 
 // Anotar no lead (spec 0024, onda 1). Vira uma linha de `LeadHistory`, a
 // mesma que a timeline do lead já lê — não é campo novo nem lugar paralelo.
@@ -31,6 +42,19 @@ export const addLeadNoteAction: AstroAction<typeof inputSchema> = {
   permission: { appKey: "tracking", action: "create" },
   requiresConfirmation: false,
   input: inputSchema,
+  inferFields: inferNoteFields,
+  intentPatterns: [
+    /\b(anota|anotar|anote)\b/,
+    /\b(adiciona|adicionar|adicione|coloca|colocar|coloque|inclui|incluir)\s+(uma\s+)?(nota|observacao|anotacao)\b/,
+  ],
+  fieldSteps: {
+    leadName: LEAD_FIELD_STEP,
+    note: {
+      title: "O que anotar?",
+      question: "Escreva a anotação.",
+      picker: { kind: "text", placeholder: "Ex.: pediu desconto de 5%", maxLength: 2000 },
+    },
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const resolved = await resolveSingleLead({

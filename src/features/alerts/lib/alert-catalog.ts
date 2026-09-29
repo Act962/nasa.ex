@@ -25,6 +25,7 @@ export const ALERT_CATEGORIES = [
   "metric",
   "broadcast",
   "action",
+  "payment",
 ] as const;
 export type AlertCategory = (typeof ALERT_CATEGORIES)[number];
 
@@ -43,6 +44,7 @@ export const APP_KEYS = [
   "integracoes",
   "insights",
   "admin",
+  "financeiro",
 ] as const;
 export type AppKey = (typeof APP_KEYS)[number];
 
@@ -56,6 +58,7 @@ export const APP_LABELS: Record<AppKey, string> = {
   integracoes: "Integrações",
   insights: "Insights",
   admin: "Admin",
+  financeiro: "Financeiro",
 };
 
 // ─── Audience shapes ─────────────────────────────────────────────────────────
@@ -64,6 +67,8 @@ export const APP_LABELS: Record<AppKey, string> = {
 
 export const AUDIENCE_KINDS = [
   "lead_responsible",
+  // Responsável do lead; sem responsável, owner/admin (spec 0029, CB-1).
+  "lead_responsible_or_admins",
   "action_participants",
   "org_supervisors",
   "org_admins",
@@ -103,6 +108,11 @@ export interface AlertEventDefinition<
   entityKey: (payload: z.infer<E>) => string;
   /** Payload mockado pra botão "Testar regra". */
   mockPayload: z.infer<E>;
+  /**
+   * Params que o detector já aplicou como limiar. O motor não os compara com o
+   * payload — senão "5 min" só casaria com uma espera de exatamente 5 min.
+   */
+  detectorOnlyParams?: readonly string[];
 }
 
 // ─── Eventos ─────────────────────────────────────────────────────────────────
@@ -562,6 +572,146 @@ const broadcastManual: AlertEventDefinition = {
 
 // ─── Export ──────────────────────────────────────────────────────────────────
 
+// ─── ASTRO: alertas proativos (spec 0029) ────────────────────────────────────
+
+/** Janela em que novas mensagens da mesma conversa contam como a mesma chamada. */
+const LEAD_CALLING_WINDOW_MS = 30 * 60 * 1000;
+
+const chatLeadCalling: AlertEventDefinition = {
+  key: "chat.lead_calling",
+  label: "Lead chamando",
+  description: "Um lead mandou mensagem e está esperando alguém.",
+  category: "chat",
+  appKey: "chat",
+  paramsSchema: z.object({}),
+  payloadSchema: z.object({
+    conversationId: z.string(),
+    leadId: z.string(),
+    leadName: z.string().optional(),
+    responsibleId: z.string().nullable().optional(),
+    isQuestion: z.boolean().optional(),
+    messagePreview: z.string().optional(),
+    actionUrl: z.string().optional(),
+    orgId: z.string(),
+  }),
+  audienceOptions: ["lead_responsible_or_admins", "lead_responsible", "org_admins", "whole_org"],
+  supportsCooldown: true,
+  // Várias mensagens seguidas são uma chamada só, não uma por mensagem.
+  entityKey: (p) => {
+    const bucket = Math.floor(Date.now() / LEAD_CALLING_WINDOW_MS);
+    return `lead-calling:${(p as { conversationId: string }).conversationId}:${bucket}`;
+  },
+  mockPayload: {
+    conversationId: "mock_conv",
+    leadId: "mock_lead",
+    leadName: "Maria",
+    orgId: "mock_org",
+  },
+};
+
+const chatLeadWaiting: AlertEventDefinition = {
+  key: "chat.lead_waiting",
+  label: "Lead esperando resposta",
+  description: "Um lead está há alguns minutos sem resposta.",
+  category: "chat",
+  appKey: "chat",
+  paramsSchema: z.object({
+    waitingMinutes: z.number().int().min(1).max(240).default(5),
+  }),
+  payloadSchema: z.object({
+    conversationId: z.string(),
+    leadId: z.string(),
+    leadName: z.string().optional(),
+    responsibleId: z.string().nullable().optional(),
+    waitingMinutes: z.number(),
+    /** Início da espera — uma espera nova gera um alerta novo (CA-2). */
+    waitingSince: z.string(),
+    actionUrl: z.string().optional(),
+    orgId: z.string(),
+  }),
+  audienceOptions: ["lead_responsible_or_admins", "lead_responsible", "org_admins", "whole_org"],
+  supportsCooldown: true,
+  entityKey: (p) => {
+    const payload = p as { conversationId: string; waitingSince: string };
+    return `lead-waiting:${payload.conversationId}:${payload.waitingSince}`;
+  },
+  detectorOnlyParams: ["waitingMinutes"],
+  mockPayload: {
+    conversationId: "mock_conv",
+    leadId: "mock_lead",
+    leadName: "Maria",
+    waitingMinutes: 5,
+    waitingSince: "2026-01-01T12:00:00.000Z",
+    orgId: "mock_org",
+  },
+};
+
+const paymentExpenseDueToday: AlertEventDefinition = {
+  key: "payment.expense_due_today",
+  label: "Despesa vence hoje",
+  description: "Uma conta a pagar vence hoje e ainda não foi paga.",
+  category: "payment",
+  appKey: "financeiro",
+  paramsSchema: z.object({}),
+  payloadSchema: z.object({
+    entryId: z.string(),
+    entryTitle: z.string(),
+    amount: z.number().optional(),
+    /** 08:00 ou 15:00 — cada janela alerta uma vez (RF-5). */
+    slot: z.string(),
+    actionUrl: z.string().optional(),
+    orgId: z.string(),
+  }),
+  // Financeiro só para quem enxerga financeiro (RF-8).
+  audienceOptions: ["org_admins"],
+  supportsCooldown: false,
+  entityKey: (p) => {
+    const payload = p as { entryId: string; slot: string };
+    return `expense-due:${payload.entryId}:${payload.slot}`;
+  },
+  mockPayload: {
+    entryId: "mock_entry",
+    entryTitle: "Energia",
+    amount: 480.9,
+    slot: "2026-01-01:08",
+    orgId: "mock_org",
+  },
+};
+
+const forgeContractExpiring: AlertEventDefinition = {
+  key: "forge.contract_expiring",
+  label: "Contrato vencendo",
+  description: "Um contrato ou proposta está perto do vencimento.",
+  category: "forge",
+  appKey: "forge",
+  paramsSchema: z.object({
+    daysBefore: z.number().int().min(0).max(60).default(7),
+  }),
+  payloadSchema: z.object({
+    kind: z.enum(["contract", "proposal"]),
+    entityId: z.string(),
+    contractTitle: z.string(),
+    daysLeft: z.number(),
+    actionUrl: z.string().optional(),
+    orgId: z.string(),
+  }),
+  audienceOptions: ["org_admins"],
+  supportsCooldown: false,
+  // Um alerta por dia por contrato até o vencimento (CA-4).
+  entityKey: (p) => {
+    const payload = p as { kind: string; entityId: string };
+    const today = new Date().toISOString().slice(0, 10);
+    return `contract-expiring:${payload.kind}:${payload.entityId}:${today}`;
+  },
+  mockPayload: {
+    kind: "contract",
+    entityId: "mock_contract",
+    contractTitle: "Contrato de manutenção",
+    daysLeft: 3,
+    orgId: "mock_org",
+  },
+};
+
 export const ALERT_CATALOG = [
   leadStatusChanged,
   leadTagAdded,
@@ -578,6 +728,10 @@ export const ALERT_CATALOG = [
   actionOverdue,
   actionDueSoon,
   broadcastManual,
+  chatLeadCalling,
+  chatLeadWaiting,
+  paymentExpenseDueToday,
+  forgeContractExpiring,
 ] as const satisfies readonly AlertEventDefinition[];
 
 export type AlertEventKey = (typeof ALERT_CATALOG)[number]["key"];

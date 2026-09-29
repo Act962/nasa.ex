@@ -8,6 +8,8 @@ import { inngest } from "@/inngest/client";
 import { awardPoints } from "../space-point/utils";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { eventBus } from "@/features/alerts/lib/event-bus";
+import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
+import { awardStarFriendsForProposal } from "@/features/star-friends/lib/earn-forge";
 
 const proposalProductShape = z.object({
   id: z.string(),
@@ -442,6 +444,11 @@ export const updateForgeProposal = base
               responsibleId: true,
             },
           });
+          if (updated?.clientId) {
+            await awardStarFriendsForProposal(updated.id, updated.organizationId, updated.clientId).catch(
+              (error) => console.error("[forge] star_friends_award_failed", error),
+            );
+          }
           if (updated) {
             await inngest.send({
               name: "onboarding/proposal.paid",
@@ -452,6 +459,9 @@ export const updateForgeProposal = base
                 orgProjectId: updated.orgProjectId,
               },
             });
+
+            // Compra nova muda o potencial e as compras do lead (spec 0035).
+            if (updated.clientId) await requestLeadMetricsRecompute(updated.clientId);
 
             // Recompensar o responsável pela proposta com pontos (Space Points)
             await awardPoints(

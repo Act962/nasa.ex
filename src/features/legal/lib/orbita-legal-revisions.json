@@ -1,0 +1,54 @@
+[
+  {
+    "date": "2026-09-28",
+    "fingerprint": "226e8783567e1e1b",
+    "apps": [
+      "Agenda",
+      "Astro",
+      "Astro Chat",
+      "Campanhas",
+      "Comments",
+      "Financeiro",
+      "Forge",
+      "Formulários",
+      "Linnker",
+      "N-Box",
+      "Nasachat",
+      "Nerp",
+      "Pages",
+      "Planner",
+      "Route",
+      "Space Station",
+      "Tracking",
+      "trafeGO",
+      "Workspace"
+    ],
+    "cookies": [
+      "better-auth.session_token",
+      "nasa_ref",
+      "nasa_tracking",
+      "orbita-privacy-consent",
+      "astro-widget-session",
+      "ph_<chave>_posthog"
+    ],
+    "subprocessors": [
+      "Banco de dados PostgreSQL",
+      "Armazenamento de arquivos (S3/R2)",
+      "Inngest",
+      "LiveKit",
+      "Stripe",
+      "Asaas",
+      "Resend",
+      "Pusher",
+      "Meta (WhatsApp Business e Instagram)",
+      "Uazapi",
+      "Web Push",
+      "OpenAI",
+      "Anthropic",
+      "Google (Gemini)",
+      "Ideogram",
+      "Google (login)",
+      "PostHog"
+    ]
+  }
+]

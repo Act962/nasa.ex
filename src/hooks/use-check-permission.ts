@@ -3,31 +3,12 @@
 import { orpc } from "@/lib/orpc";
 import { useOrgRole } from "./use-org-role";
 import { useQuery } from "@tanstack/react-query";
+import type { PermissionAction } from "@/features/permissions/lib/app-permission-catalog";
 
-type AppKey =
-  | "tracking"
-  | "chat"
-  | "forge"
-  | "spacetime"
-  | "nasa-planner"
-  | "insights"
-  | "insights-layout"
-  | "integrations"
-  | "explorer"
-  | "nbox"
-  | "forge-contracts"
-  | "financeiro";
-
-// Actions estendidas (`canApprove`, `canPay`) só são interpretadas pelo
-// servidor quando appKey ∈ APPS_WITH_EXTENDED_ACTIONS (hoje só "financeiro").
-// Pra outros apps, sempre retornam false.
-type PermissionAction =
-  | "canView"
-  | "canCreate"
-  | "canEdit"
-  | "canDelete"
-  | "canApprove"
-  | "canPay";
+// Chaves do catálogo em features/permissions/lib/app-permission-catalog.ts.
+// Actions estendidas (`canApprove`, `canPay`) só valem para os apps de
+// EXTENDED_ACTIONS_BY_APP (financeiro, star-friends).
+type AppKey = string;
 
 export function useCheckPermission() {
   const { role, isMaster } = useOrgRole();

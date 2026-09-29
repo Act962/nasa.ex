@@ -3,6 +3,21 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleTracking } from "../tracking/resolve-tracking";
+import { TRACKING_FIELD_STEP, extractTrackingName } from "../leads/lead-steps";
+
+const SLOT_OPTIONS = [15, 30, 45, 60].map((minutes) => ({ label: `${minutes} minutos`, answer: String(minutes) }));
+
+/** "cria uma agenda de consultoria no funil Vendas" → nome e funil, sem modelo. */
+function inferAgendaFields(text: string): Record<string, unknown> {
+  const agendaName = text
+    .match(/\bagenda\s+(?:de\s+|para\s+|chamada\s+)?(.+?)(?=\s+(?:no|na)\s+(?:funil|tracking)\b|[,.!?]|$)/iu)?.[1]
+    ?.trim();
+  const trackingName = extractTrackingName(text);
+  return {
+    ...(agendaName && agendaName.length >= 2 ? { agendaName } : {}),
+    ...(trackingName ? { trackingName } : {}),
+  };
+}
 
 // Criar agenda. Mesma lacuna da criação de tracking: sem verbo próprio,
 // "cria uma agenda de consultoria" cairia em `agenda.toggle_active`.
@@ -35,7 +50,7 @@ const inputSchema = z.object({
 function buildSlug(name: string): string {
   const base = name
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
@@ -53,6 +68,19 @@ export const createAgendaAction: AstroAction<typeof inputSchema> = {
   requiresConfirmation: false,
   newNameFields: ["agendaName"],
   input: inputSchema,
+  inferFields: inferAgendaFields,
+  // Com dia ou hora na frase, "criar uma agenda para amanhã" é marcar compromisso.
+  intentPatterns: [
+    /^(?!.*\b(amanha|hoje|segunda|terca|quarta|quinta|sexta|sabado|domingo|\d{1,2}\s*h|\d{1,2}\/\d{1,2}|dia \d)\b).*\b(cria|criar|crie|nova|novo|quero criar)\s+(uma\s+|a\s+)?(nova\s+)?agenda\b/,
+  ],
+  fieldSteps: {
+    agendaName: {
+      title: "Nome da agenda",
+      question: "Qual o nome da agenda?",
+      picker: { kind: "text", placeholder: "Ex.: Consultoria", maxLength: 80 },
+    },
+    trackingName: TRACKING_FIELD_STEP,
+  },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
     const resolved = await resolveSingleTracking({
@@ -63,6 +91,16 @@ export const createAgendaAction: AstroAction<typeof inputSchema> = {
     if ("failure" in resolved) return resolved.failure;
     const tracking = resolved.tracking;
 
+    if (input.slotDuration === undefined) {
+      return {
+        status: "needs_input",
+        title: "Duração dos horários",
+        description: "Quanto dura cada horário da agenda?",
+        missingFields: [{ key: "slotDuration", label: "a duração" }],
+        appName: "Agendas",
+        picker: { kind: "select", options: SLOT_OPTIONS },
+      };
+    }
     const slotDuration = input.slotDuration ?? DEFAULT_SLOT_MINUTES;
 
     const duplicate = await prisma.agenda.findFirst({

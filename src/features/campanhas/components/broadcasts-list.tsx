@@ -11,6 +11,7 @@ import {
 } from "../lib/broadcast-status";
 import { PageHeader } from "./page-header";
 import { CreateBroadcastDialog } from "./create-broadcast-dialog";
+import { OfficialNumberOverview } from "./self-service/official-number-overview";
 
 function StatusPill({ status }: { status: string }) {
   return (
@@ -36,6 +37,8 @@ export function BroadcastsList() {
         description="Disparos em massa via WhatsApp API Oficial."
         action={<CreateBroadcastDialog />}
       />
+
+      <OfficialNumberOverview />
 
       {isLoading ? (
         <div className="flex justify-center py-20">

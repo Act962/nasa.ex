@@ -8,6 +8,7 @@ import { addLeadLast } from "./add-lead-to-last";
 import { getLead } from "./get";
 import { listLead } from "./list";
 import { leadSegments } from "./segments";
+import { leadMetricsSummary } from "./metrics-summary";
 import { createLeadWithTags } from "./create-lead-with-tags";
 import { updateLeadAction } from "./update-action";
 import { archiveLead } from "./archive";
@@ -38,13 +39,23 @@ import { generateLeadPublicLink } from "./generate-public-link";
 import { getLeadByPublicToken } from "./get-by-public-token";
 import { getLeadPrefillByToken } from "./get-prefill-by-token";
 import { listAllAttachments } from "./list-all-attachments";
+import {
+  getChatSidebarSummary,
+  listLeadAppointments,
+  listLeadCampaigns,
+  listLeadCommandRuns,
+} from "./chat-sidebar";
+import { auditLead, getLeadMetrics } from "./metrics";
+import { listLeadTriggers, saveLeadTrigger } from "./triggers";
 import { listAttachmentsByToken } from "./list-attachments-by-token";
+import { listLeadProducts } from "./list-products";
 import { detectMergeConflicts } from "./detect-merge-conflicts";
 import { mergeLeads } from "./merge-leads";
 
 export const leadRoutes = {
   list: listLead,
   segments: leadSegments,
+  metricsSummary: leadMetricsSummary,
   get: getLead,
   search: searchLeads,
   create: createLead,
@@ -67,6 +78,7 @@ export const leadRoutes = {
   listLeadsByStatus,
   updateManyStatus: updateManyStatusLead,
   listFiles: listLeadFiles,
+  listProducts: listLeadProducts,
   createFile: createLeadFile,
   deleteFile: deleteLeadFile,
   updateWhatsappTags: updateWhatsappTagsLead,
@@ -83,6 +95,14 @@ export const leadRoutes = {
   getByPublicToken: getLeadByPublicToken,
   getPrefillByToken: getLeadPrefillByToken,
   listAllAttachments,
+  getChatSidebarSummary,
+  listLeadAppointments,
+  listLeadCampaigns,
+  listLeadCommandRuns,
+  getMetrics: getLeadMetrics,
+  auditLead,
+  listTriggers: listLeadTriggers,
+  saveTrigger: saveLeadTrigger,
   listAttachmentsByToken,
   detectMergeConflicts,
   mergeLeads,

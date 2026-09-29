@@ -2,12 +2,25 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import z from "zod";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
+import {
+  AWAITING_REPLY_WHERE,
+  NOT_AWAITING_REPLY_WHERE,
+  formatBandCursor,
+  parseBandCursor,
+  type ConversationBand,
+} from "@/features/tracking-chat/lib/conversation-awaiting-band";
+import {
+  CONVERSATION_CHANNEL_FILTERS,
+  type ConversationChannelFilter,
+} from "@/features/tracking-chat/utils/channel-filter";
 import {
   buildCursorWhere,
   buildNextCursorValue,
   buildOrderBy,
   CONVERSATION_SORT_BY,
 } from "@/features/tracking-chat/lib/conversation-list-order";
+
 
 const sortOptions = z.enum(CONVERSATION_SORT_BY);
 const sortDirections = z.enum(["asc", "desc"]);
@@ -52,7 +65,7 @@ export const listConversation = base
       statusFlow: statusFlowValues.nullable().optional(),
       /** Filtro "Status" (spec 0011, RF-3). Vazio = esconde FINISHED (RF-5). */
       statusFlows: z.array(statusFlowValues).optional(),
-      channel: z.string().nullable().optional(),
+      channel: z.enum(CONVERSATION_CHANNEL_FILTERS).nullable().optional(),
       tagIds: z.array(z.string()).optional(),
       favoritesOnly: z.boolean().optional(),
       /**
@@ -83,16 +96,9 @@ export const listConversation = base
         ]),
       );
 
-      const conversations = await prisma.conversation.findMany({
-        where: {
+      const filterWhere: Prisma.ConversationWhereInput = {
           trackingId: input.trackingId,
-          ...(input.channel && { channel: input.channel as any }),
-          ...buildCursorWhere(
-            input.sortBy,
-            input.sortDirection,
-            input.cursorId,
-            input.cursorValue,
-          ),
+          ...buildChannelWhere(input.channel),
           lead: {
             // Arquivados: filtro orthogonal aos outros.
             // - `archivedOnly: true` → SOMENTE arquivados (filtro
@@ -150,8 +156,9 @@ export const listConversation = base
               },
             }),
           },
-        },
-        include: {
+        };
+
+      const listInclude = {
           lastMessage: true,
           _count: {
             select: {
@@ -170,13 +177,45 @@ export const listConversation = base
                   tag: true,
                 },
               },
+              // Anel de temperatura no avatar da lista (spec 0035, RF-10).
+              metrics: true,
+              // Ícone de gatilho no card, girando se houver um ligado (spec 0038, RF-7).
+              triggers: { select: { isActive: true } },
             },
           },
-        },
+        } satisfies Prisma.ConversationInclude;
+
+      const findConversations = (where: Prisma.ConversationWhereInput, take: number) =>
+        prisma.conversation.findMany({
+          where,
+          include: listInclude,
+          take,
+          orderBy: buildOrderBy(input.sortBy, input.sortDirection),
+        });
+
+      // Na ordenação padrão, quem mandou mensagem e não teve resposta vem
+      // primeiro: duas faixas, cada uma na ordem de sempre, e o cursor diz em
+      // qual delas a página anterior parou.
+      const isAwaitingFirst = input.sortBy === "lastMessageAt";
+      const band = isAwaitingFirst ? parseBandCursor(input.cursorValue) : null;
+      const cursorValue = band ? band.value : input.cursorValue;
+      const cursorWhere = buildCursorWhere(input.sortBy, input.sortDirection, input.cursorId, cursorValue);
+
+      let conversations: Awaited<ReturnType<typeof findConversations>>;
+      const awaitingIds = new Set<string>();
+      if (!band) {
+        conversations = await findConversations({ AND: [filterWhere, cursorWhere] }, limit + 1);
+      } else if (band.band === "awaiting") {
         // +1 pra saber se existe próxima página sem precisar de count.
-        take: limit + 1,
-        orderBy: buildOrderBy(input.sortBy, input.sortDirection),
-      });
+        const awaiting = await findConversations({ AND: [filterWhere, AWAITING_REPLY_WHERE, cursorWhere] }, limit + 1);
+        awaiting.forEach((conversation) => awaitingIds.add(conversation.id));
+        conversations =
+          awaiting.length > limit
+            ? awaiting
+            : [...awaiting, ...(await findConversations({ AND: [filterWhere, NOT_AWAITING_REPLY_WHERE] }, limit + 1 - awaiting.length))];
+      } else {
+        conversations = await findConversations({ AND: [filterWhere, NOT_AWAITING_REPLY_WHERE, cursorWhere] }, limit + 1);
+      }
 
       const hasMore = conversations.length > limit;
       const pageItems = hasMore ? conversations.slice(0, limit) : conversations;
@@ -190,10 +229,14 @@ export const listConversation = base
       });
 
       const lastItem = pageItems[pageItems.length - 1];
+      // A faixa do cursor é a do último item mostrado, não a da última busca.
+      const lastBand: ConversationBand | null = band && lastItem ? (awaitingIds.has(lastItem.id) ? "awaiting" : "rest") : null;
       const nextCursorId = hasMore && lastItem ? lastItem.id : undefined;
       const nextCursorValue =
         hasMore && lastItem
-          ? buildNextCursorValue(input.sortBy, lastItem)
+          ? lastBand
+            ? formatBandCursor(lastBand, buildNextCursorValue(input.sortBy, lastItem))
+            : buildNextCursorValue(input.sortBy, lastItem)
           : undefined;
 
       return {
@@ -208,3 +251,30 @@ export const listConversation = base
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
+
+/**
+ * Filtro de canal da lista. O "Chat do site" (In-Chat) é gravado como
+ * WhatsApp; o que o identifica é o lead ter nascido no site
+ * (`Lead.source = IN_CHAT`). Por isso WhatsApp exclui esses leads e In-Chat
+ * filtra por eles. Canal desconhecido é ignorado em vez de quebrar a
+ * consulta no enum (antes ia direto como `any`).
+ */
+function buildChannelWhere(
+  channel: ConversationChannelFilter | null | undefined,
+): Prisma.ConversationWhereInput {
+  if (!channel) return {};
+  if (channel === "IN_CHAT") return { AND: [{ lead: { source: "IN_CHAT" } }] };
+  // Widget do ASTRO no site do cliente (spec 0031): mesmo padrão do In-Chat.
+  if (channel === "ASTRO_CHAT") return { AND: [{ lead: { source: "ASTRO_CHAT" } }] };
+  // Pedidos do Catálogo online do NERP chegam como lead.source NERP_CATALOG.
+  if (channel === "CATALOG") return { AND: [{ lead: { source: "NERP_CATALOG" } }] };
+  if (channel === "TIKTOK") return { AND: [{ lead: { source: "TIKTOK" } }] };
+  if (channel === "WHATSAPP") {
+    return {
+      channel: "WHATSAPP",
+      AND: [{ lead: { source: { notIn: ["IN_CHAT", "ASTRO_CHAT", "NERP_CATALOG"] } } }],
+    };
+  }
+  if (channel === "INSTAGRAM" || channel === "FACEBOOK") return { channel };
+  return {};
+}

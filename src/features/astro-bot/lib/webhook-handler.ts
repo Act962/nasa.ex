@@ -143,7 +143,11 @@ export async function maybeHandleBotMessage(
   if (!gate.allowed || !gate.binding) return { handled: false };
   const binding = gate.binding;
 
-  if (input.media && !binding.botConfig.financeEnabled) return { handled: false };
+  // Documento e imagem alimentam o Financeiro; áudio é só outra forma de
+  // pedir (spec 0036) e vale para todo membro vinculado.
+  if (input.media && input.media.kind !== "audio" && !binding.botConfig.financeEnabled) {
+    return { handled: false };
+  }
   if (!input.media && !input.messageText.trim()) return { handled: false };
 
   // Provider de saída precisa estar resolvível ANTES de marcarmos handled:true.

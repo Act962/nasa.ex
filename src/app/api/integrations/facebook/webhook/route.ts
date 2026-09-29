@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { applyInboundAutoTags, loadAwaitingState } from "@/features/org-defaults/lib/auto-tags"
 import { pusherServer } from "@/lib/pusher"
 import prisma from "@/lib/prisma"
 import { LeadSource, IntegrationPlatform } from "@/generated/prisma/enums"
@@ -240,6 +241,9 @@ export async function POST(request: NextRequest) {
           },
         })
 
+        // Antes de marcar o horário: o cliente já esperava resposta? (spec 0042)
+        const awaitingState = await loadAwaitingState(lead!.id).catch(() => null)
+
         await prisma.conversation.update({
           where: { leadId_trackingId: { leadId: lead!.id, trackingId } },
           data: {
@@ -252,6 +256,13 @@ export async function POST(request: NextRequest) {
             },
           },
         })
+
+        await applyInboundAutoTags({
+          organizationId: integration.organizationId,
+          leadId: lead!.id,
+          channel: "FACEBOOK",
+          wasAwaitingReply: awaitingState?.isAwaitingReply ?? false,
+        }).catch((error) => console.error("[facebook-webhook] auto_tags_failed", error))
 
         await trackLeadEvent({
           leadId: lead!.id,

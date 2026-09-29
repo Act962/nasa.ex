@@ -6,6 +6,7 @@ import { moveLeadChannel } from "@/inngest/channels/move-lead";
 import { publishLeadMoved } from "@/features/leads/realtime/publish";
 import { recordLeadEvent } from "@/features/leads/lib/history";
 import { computeSlaDeadline } from "@/features/leads/lib/sla";
+import { publishLeadStatusChanged } from "@/features/leads/lib/status-changed-event";
 
 type MoveLeadNodeData = {
   trackingId?: string;
@@ -121,6 +122,10 @@ export const moveLeadExecutor: NodeExecutor<MoveLeadNodeData> = async ({
         !!data.trackingId && data.trackingId !== previousTrackingId;
       const statusChanged =
         !!data.statusId && data.statusId !== previousStatusId;
+
+      if (statusChanged && data.statusId) {
+        await publishLeadStatusChanged({ leadId: lead.id, fromStatusId: previousStatusId, toStatusId: data.statusId });
+      }
 
       if (trackingChanged || statusChanged) {
         const targetTrackingId = data.trackingId ?? previousTrackingId!;

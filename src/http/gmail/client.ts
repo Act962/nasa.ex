@@ -21,6 +21,9 @@ export async function gmailFetch<ResponseBody>(
   options: {
     accessToken: string;
     searchParams?: Record<string, string | number | undefined>;
+    /** POST com corpo JSON — envio de e-mail do Tracking Chat (spec 0030). */
+    method?: "GET" | "POST";
+    jsonBody?: unknown;
   },
 ): Promise<ResponseBody> {
   const url = new URL(`${GMAIL_API_BASE_URL}${path}`);
@@ -29,10 +32,13 @@ export async function gmailFetch<ResponseBody>(
   }
 
   const response = await fetch(url.toString(), {
+    method: options.method ?? "GET",
     headers: {
       Accept: "application/json",
       Authorization: `Bearer ${options.accessToken}`,
+      ...(options.jsonBody !== undefined ? { "Content-Type": "application/json" } : {}),
     },
+    body: options.jsonBody !== undefined ? JSON.stringify(options.jsonBody) : undefined,
     signal: AbortSignal.timeout(GMAIL_TIMEOUT_MS),
   });
 

@@ -2082,7 +2082,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           .toLowerCase()
           .normalize("NFD")
           // Remove diacríticos: U+0300–U+036F (Combining Diacritical Marks).
-          .replace(/[̀-ͯ]/g, "")
+          .replace(/[\u0300-\u036f]/g, "")
           .split(/\s+/)
           .filter((t) => t.length >= 3);
 

@@ -168,13 +168,13 @@ function matchesKeyword(
 ): boolean {
   const norm = transcript
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
   return keywords.some((kw) => {
     const k = kw
       .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
+      .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim();
     // Match palavra inteira (com word boundary aproximado) — evita match em

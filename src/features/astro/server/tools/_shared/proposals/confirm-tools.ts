@@ -4,7 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import type { AstroConfirmationResultPayload } from "@/features/astro/lib/astro-confirmation";
-import { getProposalExecutor } from "./types";
+import { cancelPendingAction, confirmPendingAction } from "./confirm-direct";
 
 // Tools genéricas de confirmação (spec 0014, D-2). Valem para qualquer
 // domínio que registre executores — não conhecem "financeiro".
@@ -36,76 +36,10 @@ export function buildProposalTools(ctx: AgentContext) {
           .describe("ID da proposta (vem no payload astro_confirmation). Omita pra usar a última pendente."),
       }),
       execute: async ({ proposalId }): Promise<AstroConfirmationResultPayload | { error: string }> => {
-        const pending = proposalId
-          ? await prisma.astroPendingAction.findUnique({ where: { id: proposalId } })
-          : await findLatestPending(ctx);
-
-        if (!pending) {
-          return { error: "Não achei nenhuma proposta pendente pra confirmar. Refaça o pedido." };
-        }
-        if (pending.organizationId !== ctx.organizationId || pending.userId !== ctx.userId) {
-          return { error: "Essa proposta não é sua ou é de outra organização." };
-        }
-        if (pending.status === "CONFIRMED") {
-          return {
-            kind: "astro_confirmation_result",
-            proposalId: pending.id,
-            actionType: pending.actionType,
-            ok: true,
-            title: "Já executada",
-            summary: "Essa proposta já tinha sido confirmada e executada — nada foi duplicado.",
-          };
-        }
-        if (pending.status !== "PENDING") {
-          return { error: `Essa proposta está ${pending.status.toLowerCase()} e não pode ser executada. Refaça o pedido.` };
-        }
-        if (pending.expiresAt.getTime() < Date.now()) {
-          await prisma.astroPendingAction.update({
-            where: { id: pending.id },
-            data: { status: "EXPIRED" },
-          });
-          return { error: "Essa proposta expirou. Quer que eu refaça?" };
-        }
-
-        const executor = getProposalExecutor(pending.actionType);
-        if (!executor) {
-          return { error: `Não sei executar "${pending.actionType}".` };
-        }
-
-        try {
-          const result = await executor({
-            ctx,
-            proposalId: pending.id,
-            payload: pending.payload as Record<string, unknown>,
-          });
-          await prisma.astroPendingAction.update({
-            where: { id: pending.id },
-            data: {
-              status: result.ok ? "CONFIRMED" : "FAILED",
-              confirmedAt: new Date(),
-              result: (result.data ?? { summary: result.summary }) as object,
-              errorMessage: result.ok ? null : result.summary,
-            },
-          });
-          return {
-            kind: "astro_confirmation_result",
-            proposalId: pending.id,
-            actionType: pending.actionType,
-            ok: result.ok,
-            title: result.ok ? "Feito" : "Não deu certo",
-            summary: result.summary,
-            lines: result.lines,
-            links: result.links,
-          };
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Erro ao executar";
-          console.error("[astro/confirm_action] executor failed", error);
-          await prisma.astroPendingAction.update({
-            where: { id: pending.id },
-            data: { status: "FAILED", confirmedAt: new Date(), errorMessage: message },
-          });
-          return { error: `Falhou ao executar: ${message}` };
-        }
+        // A regra mora em `confirm-direct.ts`, compartilhada com o clique no
+        // cartão, que executa sem passar por modelo nenhum (spec 0032, D-4).
+        const outcome = await confirmPendingAction({ ctx, proposalId });
+        return outcome.ok ? outcome.payload : { error: outcome.error };
       },
     }),
 
@@ -114,24 +48,8 @@ export function buildProposalTools(ctx: AgentContext) {
         "Cancela uma proposta pendente quando o usuário disse 'não', 'cancela', 'deixa' ou 'cancelar <id>'. Sem id, cancela a última pendente.",
       inputSchema: z.object({ proposalId: z.string().optional() }),
       execute: async ({ proposalId }) => {
-        const pending = proposalId
-          ? await prisma.astroPendingAction.findUnique({ where: { id: proposalId } })
-          : await findLatestPending(ctx);
-        if (
-          !pending ||
-          pending.organizationId !== ctx.organizationId ||
-          pending.userId !== ctx.userId
-        ) {
-          return { error: "Não achei essa proposta." };
-        }
-        if (pending.status !== "PENDING") {
-          return { success: true, summary: `Proposta já estava ${pending.status.toLowerCase()}.` };
-        }
-        await prisma.astroPendingAction.update({
-          where: { id: pending.id },
-          data: { status: "CANCELLED" },
-        });
-        return { success: true, summary: "Proposta cancelada. Nada foi gravado." };
+        const outcome = await cancelPendingAction({ ctx, proposalId });
+        return "error" in outcome ? outcome : { success: true, summary: outcome.summary };
       },
     }),
 

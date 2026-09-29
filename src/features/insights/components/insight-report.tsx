@@ -1,5 +1,6 @@
 "use client";
 
+import { AstroBadge } from "@/features/astro/components/astro-badge";
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Download, Loader2, FileText, RefreshCw, Save } from "lucide-react";
@@ -294,7 +295,10 @@ export function InsightReport({
             <FileText className="size-4 text-violet-600" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold">Relatório da Análise</h2>
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              Relatório da Análise
+              <AstroBadge />
+            </h2>
             <p className="text-[11px] text-muted-foreground">
               {periodStr} · {orgName}
             </p>

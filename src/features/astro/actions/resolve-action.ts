@@ -5,6 +5,7 @@ import { getAstroAction } from "./registry";
 import { proposeAction } from "./confirmation";
 import { appearsIn, buildActionInput } from "./coerce-fields";
 import { checkAstroPermission } from "./permission-gate";
+import { labelFor, optionsForField } from "./field-options";
 import type { AstroConfirmationPayload } from "@/features/astro/lib/astro-confirmation";
 import type { AstroAction, AstroActionResult, AstroAmbiguousResult } from "./types";
 import {
@@ -38,6 +39,8 @@ export type ResolvedClassification =
       awaitingField?: string;
       /** Opções mostradas, para "2" virar a segunda delas. */
       awaitingOptions?: { id: string; label: string }[];
+      /** Só no modo de plano: entrada completa, pronta para o cartão do plano. */
+      readyInput?: Record<string, unknown>;
     };
 
 export function isConfirmation(
@@ -66,101 +69,10 @@ function missingRequiredFields(
     .filter(Boolean);
 }
 
-/** Rótulo falado do campo. Sem isso o Astro pediria "clientName" em voz alta. */
-const FIELD_LABELS: Record<string, string> = {
-  clientName: "o nome do cliente",
-  productName: "o produto",
-  title: "o título",
-  validUntil: "a validade",
-  leadName: "o nome do lead",
-  personName: "o nome da pessoa",
-  formName: "o nome do formulário",
-  trackingName: "o nome do tracking",
-  workspaceName: "o nome do workspace",
-  tagName: "o nome da tag",
-  scope: "se a tag é para tracking (leads) ou workspace (tarefas)",
-  agendaName: "o nome da agenda",
-  accountName: "o nome da conta",
-  amount: "o valor",
-  description: "a descrição do lançamento",
-  type: "se é despesa ou receita",
-  dueDate: "o vencimento",
-  statusName: "o nome da coluna",
-  currentName: "o nome atual da coluna",
-  newName: "o novo nome",
-  startsAt: "o novo horário",
-  remindTime: "o horário",
-  recurrence: "a frequência",
-  message: "a mensagem",
-  note: "o que anotar",
-  date: "o dia",
-  phone: "o telefone",
-  templateName: "o nome do template",
-  published: "se é para publicar ou tirar do ar",
-  favorite: "se é para favoritar ou desfavoritar",
-  active: "se é para ativar ou desativar",
-  blocked: "se é para bloquear ou liberar",
-};
-
-export function labelFor(field: string): string {
-  return FIELD_LABELS[field] ?? field;
-}
-
 /** Primeira frase da descrição, que é o rótulo humano da ação. */
-function shortLabel(description: string): string {
+export function shortLabel(description: string): string {
   const [first] = description.split(" — ");
   return first.split(". ")[0];
-}
-
-/**
- * Opções para o campo que faltou. Perguntar "me diga: o nome do tracking"
- * obriga o usuário a lembrar e digitar o que o sistema já sabe — quando a
- * lista é curta, a escolha responde em um toque.
- */
-async function optionsForField(
-  ctx: AgentContext,
-  field: string,
-): Promise<{ id: string; label: string }[] | null> {
-  const MAX_OPTIONS = 8;
-  const where = { organizationId: ctx.organizationId };
-
-  if (field === "trackingName") {
-    const rows = await prisma.tracking.findMany({
-      where,
-      select: { id: true, name: true },
-      take: MAX_OPTIONS,
-    });
-    return rows.length > 0 ? rows.map((row) => ({ id: row.id, label: row.name })) : null;
-  }
-
-  if (field === "agendaName") {
-    const rows = await prisma.agenda.findMany({
-      where,
-      select: { id: true, name: true },
-      take: MAX_OPTIONS,
-    });
-    return rows.length > 0 ? rows.map((row) => ({ id: row.id, label: row.name })) : null;
-  }
-
-  if (field === "formName") {
-    const rows = await prisma.form.findMany({
-      where,
-      select: { id: true, name: true },
-      take: MAX_OPTIONS,
-    });
-    return rows.length > 0 ? rows.map((row) => ({ id: row.id, label: row.name })) : null;
-  }
-
-  if (field === "workspaceName") {
-    const rows = await prisma.workspace.findMany({
-      where: { ...where, isArchived: false },
-      select: { id: true, name: true },
-      take: MAX_OPTIONS,
-    });
-    return rows.length > 0 ? rows.map((row) => ({ id: row.id, label: row.name })) : null;
-  }
-
-  return null;
 }
 
 /**
@@ -242,7 +154,14 @@ export async function resolveClassifiedAction(params: {
   // vendas" voltou uma vez só com `tracking.create` a 0,6, e teria criado um
   // funil chamado Vendas. Sem alternativa para oferecer, o orquestrador
   // atende — custa ★, não custa um registro errado no banco.
-  if (best.confidence < HIGH_CONFIDENCE) {
+  const action = getAstroAction(best.action);
+  // Ação com cartão de confirmação não grava nada sem o "sim" do usuário: um
+  // palpite incerto vira pergunta guiada, não registro errado. Sem isto,
+  // "quero marcar compromisso" a 0,7 ia para o orquestrador, que gastava 94
+  // mil tokens e respondia não ter acesso à agenda.
+  const isSafeGuess =
+    rest.length === 0 && best.confidence >= LOW_CONFIDENCE && action?.requiresConfirmation === true;
+  if (best.confidence < HIGH_CONFIDENCE && !isSafeGuess) {
     if (rest.length === 0 || best.confidence < LOW_CONFIDENCE) return null;
     return {
       kind: "choice",
@@ -251,7 +170,6 @@ export async function resolveClassifiedAction(params: {
     };
   }
 
-  const action = getAstroAction(best.action);
   if (!action) return null;
 
   return resolveActionWithFields({
@@ -278,6 +196,13 @@ export async function resolveActionWithFields(params: {
   rawFields: Record<string, string>;
   userText?: string;
   history?: string[];
+  /**
+   * Parte de um plano (spec 0033, RF-6): completa os campos e ensaia, mas não
+   * abre cartão nem grava — quem confirma é o cartão do plano inteiro.
+   */
+  collectOnly?: boolean;
+  /** Alvo ainda não existe (nasce numa parte anterior do plano): sem ensaio. */
+  skipRehearsal?: boolean;
 }): Promise<ResolvedClassification | null> {
   const { action } = params;
   const rawFields = buildActionInput(
@@ -338,9 +263,30 @@ export async function resolveActionWithFields(params: {
       ? await optionsForField(params.ctx, askable)
       : null;
 
+  const askedField = askable ?? missing[0];
+  const fieldStep = askedField ? action.fieldSteps?.[askedField] : undefined;
   const output: ClassifiedOutput =
-    missing.length > 0 || !parsed.success
-      ? choices && missing.length === 1
+    (missing.length > 0 || !parsed.success) && fieldStep
+      ? choices
+        ? {
+            status: "ambiguous",
+            title: fieldStep.title,
+            description: fieldStep.question,
+            field: askedField,
+            options: choices,
+            appName: action.app,
+            picker: fieldStep.picker,
+          }
+        : {
+            status: "needs_input",
+            title: fieldStep.title,
+            description: fieldStep.question,
+            missingFields: [{ key: askedField, label: labelFor(askedField) }],
+            appName: action.app,
+            picker: fieldStep.picker,
+          }
+      : missing.length > 0 || !parsed.success
+      ? choices
         ? {
             status: "ambiguous",
             title: "Qual deles?",
@@ -352,10 +298,24 @@ export async function resolveActionWithFields(params: {
         : {
             status: "needs_input",
             title: "Falta uma informação",
-            description: `Para continuar, me diga: ${missing.map(labelFor).join(", ")}.`,
-            missingFields: missing.map((field) => ({ key: field, label: labelFor(field) })),
+            // Uma pergunta por vez: pedir "o cliente, os produtos, a validade"
+            // de uma vez faz o usuário responder tudo numa frase só, e o ciclo
+            // guiado existe justamente para somar resposta a resposta.
+            description: `Para continuar, me diga: ${labelFor(askable ?? missing[0])}.`,
+            missingFields: [
+              { key: askable ?? missing[0], label: labelFor(askable ?? missing[0]) },
+            ],
             appName: "Órbita",
           }
+      : params.collectOnly
+        ? params.skipRehearsal
+          ? {
+              status: "done",
+              title: action.confirmTitle ?? shortLabel(action.description),
+              description: "",
+              appName: action.app,
+            }
+          : await action.execute({ ctx: params.ctx, input: parsed.data, dryRun: true })
       : action.requiresConfirmation
         ? await proposeAction({
             ctx: params.ctx,
@@ -386,5 +346,9 @@ export async function resolveActionWithFields(params: {
     awaitingField: awaiting ?? askable,
     awaitingOptions:
       !("kind" in output) && output.status === "ambiguous" ? output.options : undefined,
+    readyInput:
+      params.collectOnly && parsed.success && missing.length === 0
+        ? (parsed.data as Record<string, unknown>)
+        : undefined,
   };
 }

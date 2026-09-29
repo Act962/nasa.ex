@@ -74,12 +74,13 @@ export const useDisconnectIntegrationStatus = (trackingId: string) => {
   );
 };
 
-export const useQueryInstances = (trackingId: string) => {
-  const { data, isLoading } = useQuery(
-    orpc.integrations.get.queryOptions({
+export const useQueryInstances = (trackingId: string, options?: { enabled?: boolean }) => {
+  const { data, isLoading } = useQuery({
+    ...orpc.integrations.get.queryOptions({
       input: { trackingId },
     }),
-  );
+    enabled: options?.enabled ?? true,
+  });
 
   return { instance: data ?? null, instanceLoading: isLoading };
 };

@@ -1,5 +1,6 @@
 import "server-only";
 import { generateText } from "ai";
+import { reportAiQuotaExhausted } from "@/features/alerts/lib/ai-token-alerts";
 import type { GetStepTools } from "inngest";
 import { sendText } from "@/http/uazapi/send-text";
 import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
@@ -13,6 +14,8 @@ import { splitForWhatsapp } from "./split-message";
 import { persistOutboundMessage } from "./persist";
 import { buildAgentTools } from "../server/tools";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
+import { buildCatalogOrderPrompt } from "@/features/nerp-catalog/lib/order-context";
+import { deliverTextToLead } from "@/features/nerp-catalog/lib/order-channel";
 
 type Step = GetStepTools<typeof inngest>;
 
@@ -29,7 +32,10 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   // (e o AgentContext que é passado pras tools). Re-executar em retry é barato.
   const ctx = await loadAgentContext(data);
 
-  if (!ctx.instance) return { skipped: true, reason: "no_whatsapp_instance" };
+  // Pedido do catálogo NERP roda também só no portal (/pedido/<token>), sem
+  // instância de WhatsApp no tracking.
+  if (!ctx.instance && !ctx.catalogOrder)
+    return { skipped: true, reason: "no_whatsapp_instance" };
   if (!ctx.settings) return { skipped: true, reason: "no_ai_settings" };
   if (!ctx.lead.isActive) return { skipped: true, reason: "lead_inactive" };
   if (ctx.lead.statusFlow === "FINISHED")
@@ -62,11 +68,21 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     // Conta em grace E sem saldo → não responde IA. Mensagem de fallback
     // pra não deixar o lead "no escuro".
     await step.run("send-grace-fallback", async () => {
+      const fallbackText =
+        "Estamos com você! Em instantes um atendente humano retornará. Obrigado pela paciência.";
+      if (ctx.catalogOrder) {
+        await deliverTextToLead({
+          conversationId: ctx.conversation.id,
+          text: fallbackText,
+          senderName: ctx.settings?.assistantName ?? "IA",
+        });
+        return;
+      }
       await sendText(
         requireUazapiToken(ctx.instance!.apiKey),
         {
           number: ctx.lead.phone!,
-          text: "Estamos com você! Em instantes um atendente humano retornará. Obrigado pela paciência.",
+          text: fallbackText,
           delay: 0,
         },
         ctx.instance!.baseUrl ?? undefined,
@@ -83,11 +99,20 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   });
   if (!charge.success) {
     await step.run("send-no-balance-fallback", async () => {
+      const fallbackText = "Estamos com você! Em instantes um atendente humano retornará.";
+      if (ctx.catalogOrder) {
+        await deliverTextToLead({
+          conversationId: ctx.conversation.id,
+          text: fallbackText,
+          senderName: ctx.settings?.assistantName ?? "IA",
+        });
+        return;
+      }
       await sendText(
         requireUazapiToken(ctx.instance!.apiKey),
         {
           number: ctx.lead.phone!,
-          text: "Estamos com você! Em instantes um atendente humano retornará.",
+          text: fallbackText,
           delay: 0,
         },
         ctx.instance!.baseUrl ?? undefined,
@@ -108,12 +133,15 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   // Apêndice ao system prompt quando o disparo veio da automação de ociosidade
   // com instrução de reabertura: não há nova msg do lead, o agente precisa
   // tomar iniciativa pra reengajar de forma natural.
+  const baseWithOrder = ctx.catalogOrder
+    ? `${baseSystem}\n\n${buildCatalogOrderPrompt(ctx.catalogOrder)}`
+    : baseSystem;
   const systemPrompt =
     ctx.trigger === "idle-reopen-with-instruction"
-      ? `${baseSystem}\n\n# Reabertura automática\n\nO lead está ocioso${
+      ? `${baseWithOrder}\n\n# Reabertura automática\n\nO lead está ocioso${
           ctx.idleMinutes ? ` há cerca de ${ctx.idleMinutes} minutos` : ""
         } desde a última interação. Não chegou nenhuma nova mensagem do lead. Reabra a conversa de forma natural e curta pra reengajar — referência o contexto anterior se fizer sentido. Evite parecer automático.`
-      : baseSystem;
+      : baseWithOrder;
 
   const resolved = resolveModel(ctx.modelConfig);
   console.log(
@@ -127,6 +155,14 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
       tools: buildAgentTools(ctx),
       messages: ctx.history,
       stopWhen: ({ steps }) => steps.length >= 6,
+    }).catch(async (error: unknown) => {
+      await reportAiQuotaExhausted({
+        organizationId: ctx.organizationId,
+        usingCustomKey: resolved.usingCustom,
+        source: "tracking-chat-ai",
+        error,
+      });
+      throw error;
     });
     // `result.usage` agrega tokens de todos os steps internos quando há tool
     // calls. Alguns providers omitem campos — coalesce pra 0.
@@ -195,6 +231,14 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
       const parts = splitForWhatsapp(aiResult.text);
       for (let i = 0; i < parts.length; i++) {
         const chunk = parts[i];
+        if (ctx.catalogOrder) {
+          await deliverTextToLead({
+            conversationId: ctx.conversation.id,
+            text: chunk,
+            senderName: ctx.settings?.assistantName ?? "IA",
+          });
+          continue;
+        }
         const res = await sendText(
           requireUazapiToken(ctx.instance!.apiKey),
           {

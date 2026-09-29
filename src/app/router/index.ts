@@ -59,6 +59,9 @@ import { metaAdsRouter } from "./meta-ads";
 import { metaMcpRouter } from "./meta-mcp";
 import { astroRoutes } from "@/features/astro/server/routes";
 import { nerpRouter } from "./nerp";
+import { starFriendsRouter } from "./star-friends";
+import { base } from "@/app/middlewares/base";
+import { appRouterPermission } from "@/app/middlewares/app-router-permission";
 import { commentsRouter } from "./comments";
 import { livekitRouter } from "./livekit";
 import { stickersRouter } from "./stickers";
@@ -68,6 +71,9 @@ import { agentsRouter } from "./agents";
 import { inChatRouter } from "./in-chat";
 import { workflowClipboardRouter } from "./workflow-clipboard";
 import { astroBotRouter } from "./astro-bot";
+import { astroCommanderRouter } from "./astro-commander";
+import { astroChatRouter } from "./astro-chat";
+import { trackingChatEmailRouter } from "./tracking-chat-email";
 import { whatsappAnalyticsRouter } from "./whatsapp-analytics";
 import { campanhasRouter } from "./campanhas";
 import { trafegoRouter } from "./trafego";
@@ -84,6 +90,9 @@ export const router = {
   agents: agentsRouter,
   /** Astro Bot via WhatsApp — config + binding por user. */
   astroBot: astroBotRouter,
+  astroCommander: astroCommanderRouter,
+  astroChat: astroChatRouter,
+  trackingChatEmail: trackingChatEmailRouter,
   reasons: reasonsRouter,
   orgs: orgRoutes,
   workflow: workflowRoutes,
@@ -123,23 +132,27 @@ export const router = {
   support: supportRouter,
   scripts: scriptsRouter,
   linnker: linnkerRouter,
-  spaceStation: spaceStationRouter,
+  spaceStation: base.use(appRouterPermission("space-station")).router(spaceStationRouter),
   worldEvents: worldEventsRouter,
   companySpace: companySpaceRouter,
   profileCard: profileCardRouter,
   spaceHelp: spaceHelpRouter,
   nasaRoute: nasaRouteRouter,
-  pages: pagesRouter,
+  pages: base.use(appRouterPermission("nasa-pages", { skipPathSegments: ["registerVisit"] })).router(pagesRouter),
   inviteLinks: inviteLinksRouter,
   workspaceWorkflow: workspaceWorkflowRoutes,
   reminder: reminderRouter,
   partner: partnerRouter,
   metaAds: metaAdsRouter,
   metaMcp: metaMcpRouter,
-  astro: astroRoutes,
-  nerp: nerpRouter,
+  astro: base.use(appRouterPermission("astro")).router(astroRoutes),
+  // Integração/conexão do NERP têm chave própria ("catalogo-online").
+  nerp: base
+    .use(appRouterPermission("nerp", { skipPathSegments: ["catalogIntegration", "disconnect", "getConnectionStatus"] }))
+    .router(nerpRouter),
+  starFriends: starFriendsRouter,
   /** App COMMENTS — automações de Instagram nativas (spec 0024). */
-  comments: commentsRouter,
+  comments: base.use(appRouterPermission("comments")).router(commentsRouter),
   livekit: livekitRouter,
   stickers: stickersRouter,
   brand: brandRouter,

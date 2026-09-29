@@ -17,7 +17,7 @@ export function EmptyOrganization() {
         <EmptyMedia variant="icon">
           <Building />
         </EmptyMedia>
-        <EmptyTitle>Nenhuma empresa selecionanda</EmptyTitle>
+        <EmptyTitle>Nenhuma empresa selecionada</EmptyTitle>
         <EmptyDescription>
           Selecione uma empresa ou crie uma nova
         </EmptyDescription>
@@ -25,7 +25,7 @@ export function EmptyOrganization() {
       <EmptyContent>
         <div className="flex gap-2">
           <Button asChild>
-            <Link href="/create-organization">Cria empresa</Link>
+            <Link href="/create-organization">Criar empresa</Link>
           </Button>
         </div>
       </EmptyContent>

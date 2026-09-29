@@ -15,6 +15,7 @@ import {
   FileSignature,
   Megaphone,
   RouteIcon,
+  ShoppingBasket,
   StickyNoteIcon,
 } from "lucide-react";
 import { LeadContracts } from "./lead-contracts";
@@ -28,6 +29,10 @@ import { LeadAttachmentsByFolder } from "./lead-files/lead-attachments-by-folder
 import { ObservationLead } from "./observations";
 import { JourneyTimeline } from "./journey-timeline";
 import { LeadFormResponses } from "./lead-form-responses";
+import { LeadProducts } from "./lead-products";
+import { LeadStarFriendsCard } from "@/features/star-friends/components/lead-star-friends-card";
+import { useCheckPermission } from "@/hooks/use-check-permission";
+import { leadProductsQueryKey } from "../hooks/use-lead-products";
 import { pusherClient } from "@/lib/pusher";
 import { orpc } from "@/lib/orpc";
 
@@ -61,6 +66,9 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       queryClient.invalidateQueries({
         queryKey: orpc.leads.listFormResponses.queryKey({ input: { leadId } }),
       });
+      queryClient.invalidateQueries({
+        queryKey: leadProductsQueryKey(leadId),
+      });
       // tags do lead — view list e dropdown lateral
       queryClient.invalidateQueries({ queryKey: orpc.leads.list.queryKey() });
     };
@@ -70,7 +78,10 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       pusherClient.unsubscribe(`lead-internal-${leadId}`);
     };
   }, [leadId, queryClient]);
-  const tabs = [
+  const { checkPermission } = useCheckPermission();
+  const canViewProducts = checkPermission("lead-produtos", "canView");
+
+  const allTabs = [
     {
       name: "Observações",
       value: "observations",
@@ -113,6 +124,17 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       content: <LeadContracts leadId={initialData.lead.id} />,
     },
     {
+      name: "Produtos/Serviços",
+      value: "products",
+      icon: ShoppingBasket,
+      content: (
+        <LeadProducts
+          leadId={initialData.lead.id}
+          starFriendsSlot={<LeadStarFriendsCard leadId={initialData.lead.id} />}
+        />
+      ),
+    },
+    {
       // Só rende conteúdo quando o lead é do tracking do trafeGO; nos demais a
       // aba mostra uma linha explicando. Manter fixa evita um layout que muda
       // de forma conforme o lead aberto.
@@ -122,6 +144,7 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       content: <LeadTrafegoTab leadId={initialData.lead.id} />,
     },
   ];
+  const tabs = allTabs.filter((tab) => tab.value !== "products" || canViewProducts);
 
   return (
     <div className="flex-1 flex flex-col">

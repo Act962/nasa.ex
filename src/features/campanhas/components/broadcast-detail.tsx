@@ -63,6 +63,8 @@ import {
 import { BROADCAST_STATUS_LABEL } from "../lib/broadcast-status";
 import { RecipientsTable } from "./recipients-table";
 import { TemplateConfigTab } from "./template-config-tab";
+import { useBroadcastFeeQuote } from "../hooks/use-broadcast-fee";
+import { BroadcastCostSummary, isFeeBlocking } from "./self-service/broadcast-cost-summary";
 
 /** Date → valor de `<input type="time">` (HH:mm local). */
 function toTimeValue(date: Date): string {
@@ -114,6 +116,9 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
   const updateBroadcast = useUpdateBroadcast();
   const deleteBroadcast = useDeleteBroadcast();
   const reopenBroadcast = useReopenBroadcast();
+  const isDraftReady =
+    broadcast?.status === "DRAFT" && Boolean(broadcast.templateName) && broadcast.totalRecipients > 0;
+  const { data: feeQuote } = useBroadcastFeeQuote(broadcastId, { enabled: isDraftReady });
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
@@ -148,7 +153,8 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
   const isScheduled = broadcast.status === "SCHEDULED";
   const isReady =
     Boolean(broadcast.templateName) && broadcast.totalRecipients > 0;
-  const canSend = broadcast.status === "DRAFT" && isReady;
+  const isAwaitingFee = isFeeBlocking(feeQuote);
+  const canSend = broadcast.status === "DRAFT" && isReady && !isAwaitingFee;
 
   function handleSend() {
     sendBroadcast.mutate(
@@ -388,12 +394,18 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
         </div>
       </div>
 
-      {broadcast.status === "DRAFT" && !canSend && (
+      {broadcast.status === "DRAFT" && !isReady && (
         <p className="mb-6 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
           Para disparar: escolha um modelo na aba{" "}
           <span className="font-medium text-foreground">Modelo</span> e adicione
           destinatários.
         </p>
+      )}
+
+      {isDraftReady && (
+        <div className="mb-6">
+          <BroadcastCostSummary broadcastId={broadcastId} />
+        </div>
       )}
 
       {isScheduled && broadcast.scheduledAt && (

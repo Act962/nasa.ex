@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plug, Radio, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,8 +10,24 @@ import { ChannelConnectCard } from "@/features/comments/components/channel-conne
 import { RunsPanel } from "@/features/comments/components/runs-panel";
 import { useCommentsChannel } from "@/features/comments/hooks/use-comments-channel";
 
+const COMMENTS_TABS = ["automacoes", "integracoes", "execucoes"] as const;
+
 export default function CommentsPage() {
+  // `useSearchParams` exige Suspense para a página não quebrar no prerender.
+  return (
+    <Suspense>
+      <CommentsPageContent />
+    </Suspense>
+  );
+}
+
+function CommentsPageContent() {
   const { data: channel } = useCommentsChannel();
+  // `?tab=integracoes` vem de outros apps (ex.: o Instagram apagado no chat,
+  // spec 0029 RF-13) e abre direto na aba certa.
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const linkedTab = COMMENTS_TABS.find((tab) => tab === requestedTab) ?? null;
   const isConnected = Boolean(channel?.connected);
   const needsAttention =
     channel?.connected && channel.status === "NEEDS_RECONNECT";
@@ -22,6 +39,7 @@ export default function CommentsPage() {
   const [selectedTab, setSelectedTab] = useState<string | null>(null);
   const activeTab =
     selectedTab ??
+    linkedTab ??
     (channel === undefined ? "automacoes" : isConnected ? "automacoes" : "integracoes");
 
   return (

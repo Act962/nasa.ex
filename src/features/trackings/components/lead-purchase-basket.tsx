@@ -28,7 +28,7 @@ type Thresholds = {
 
 export type PurchaseInfo = {
   lastPurchaseAt: string | null;
-  source: "payment" | "contract" | "both" | null;
+  source: "payment" | "contract" | "catalog" | "both" | null;
 };
 
 interface Props {
@@ -54,7 +54,8 @@ function colorClasses(days: number | null, thresholds: Thresholds) {
 function sourceLabel(source: PurchaseInfo["source"]): string {
   if (source === "payment") return "Payment";
   if (source === "contract") return "Contrato Forge";
-  if (source === "both") return "Payment + Contrato";
+  if (source === "catalog") return "Catálogo online";
+  if (source === "both") return "Várias origens";
   return "";
 }
 

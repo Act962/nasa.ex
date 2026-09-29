@@ -5,6 +5,7 @@ import { sendText } from "@/http/uazapi/send-text";
 import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { pusherServer } from "@/lib/pusher";
 import { notificationService } from "@/lib/notifications";
+import { buildAstroVoice } from "@/features/astro/lib/astro-voice-catalog";
 import {
   isSeverity,
   resolveDisplaySurface,
@@ -37,6 +38,9 @@ export const NOTIF_TYPES = {
   PAYMENT_EXPENSE_CRITICAL:  "PAYMENT_EXPENSE_CRITICAL",
   // ── trafeGO: lead captado no wizard (spec 0021) ───────────────────────
   TRAFEGO_LEAD_CAPTURED:     "TRAFEGO_LEAD_CAPTURED",
+  // ── ASTRO COMMANDER (spec 0028) ───────────────────────────────────────
+  ASTRO_APPROVAL_PENDING:    "ASTRO_APPROVAL_PENDING",
+  ASTRO_COMMAND_FAILED:      "ASTRO_COMMAND_FAILED",
 } as const;
 
 export type NotifType = (typeof NOTIF_TYPES)[keyof typeof NOTIF_TYPES];
@@ -64,6 +68,9 @@ export const NOTIF_META: Record<NotifType, { label: string; appKey: string; desc
   PAYMENT_GOAL_WEEKLY:       { label: "Resumo semanal do financeiro",       appKey: "financeiro", description: "Toda segunda: meta, despesas a pagar e caixa projetado" },
   PAYMENT_EXPENSE_CRITICAL:  { label: "Despesa derruba a reserva",          appKey: "financeiro", description: "Uma despesa lançada joga o caixa projetado abaixo da reserva" },
   TRAFEGO_LEAD_CAPTURED:     { label: "Lead novo do trafeGO",               appKey: "trafego",    description: "Alguém preencheu o contato no wizard do trafeGO, mesmo sem pagar" },
+  // ── ASTRO COMMANDER ─────────────────────────────────────────────────────
+  ASTRO_APPROVAL_PENDING:    { label: "ASTRO aguardando aprovação",        appKey: "astro",      description: "Um comando preparou uma ação e espera alguém aprovar" },
+  ASTRO_COMMAND_FAILED:      { label: "Comando do ASTRO falhou",           appKey: "astro",      description: "Uma execução automática terminou com erro" },
 };
 
 interface CreateNotificationOptions {
@@ -154,6 +161,7 @@ export async function createNotification(opts: CreateNotificationOptions) {
         body,
         actionUrl: actionUrl ?? null,
         eventType: type,
+        astro: buildAstroVoice({ kind: type, title, body, actionUrl, severity, payload: metadata }),
       });
     } catch (err) {
       console.error("[notification-service] pusher trigger falhou:", err);
@@ -170,6 +178,7 @@ export async function createNotification(opts: CreateNotificationOptions) {
         body,
         actionUrl: actionUrl ?? null,
         eventType: type,
+        astro: buildAstroVoice({ kind: type, title, body, actionUrl, severity, payload: metadata }),
       });
     } catch {
       /* silencioso pra info */
@@ -316,6 +325,8 @@ export async function createOrgNotification({
       body,
       actionUrl: actionUrl ?? null,
       eventType: type,
+      organizationId,
+      astro: buildAstroVoice({ kind: type, title, body, actionUrl, severity, payload: metadata }),
     });
   } catch (err) {
     console.error("[notification-service] pusher org trigger falhou:", err);

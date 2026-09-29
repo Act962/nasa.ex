@@ -1,4 +1,5 @@
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
+import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
 
 import { Suspense } from "react";
 import {
@@ -11,7 +12,10 @@ import { AppPinnedInsightsStrip } from "@/components/app-pinned-insights-strip";
 export default function Page() {
   return (
     <div className="h-full w-full">
-      <HeaderTracking title="Agendas" />
+      <HeaderTracking
+        title="Agendas"
+        astroCommand={{ examples: ASTRO_COMMAND_EXAMPLES.agenda }}
+      />
       <AppPinnedInsightsStrip appModule="spacetime" />
       <AgendaContainer>
         <Suspense fallback={<SkeletonAgendaList />}>

@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import type { AudienceFilter } from "../schema/broadcast-schemas";
+import { buildLeadMetricsWhere } from "./metrics-where";
 
 /**
  * Constrói o `where` do Prisma pra resolver a audiência de leads de uma
@@ -34,6 +35,8 @@ export function buildLeadAudienceWhere(
   if (filters.temperatureFilter && filters.temperatureFilter.length > 0) {
     where.temperature = { in: filters.temperatureFilter };
   }
+  const metricsWhere = buildLeadMetricsWhere(filters.metricsFilter);
+  if (metricsWhere) Object.assign(where, metricsWhere);
 
   if (filters.projectsFilter && filters.projectsFilter.length > 0) {
     where.orgProjectId = { in: filters.projectsFilter };

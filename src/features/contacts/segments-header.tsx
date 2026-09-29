@@ -31,6 +31,7 @@ import { Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useLeadSegments } from "./hooks/use-lead-segments";
+import { LeadMetricsDashboard } from "./lead-metrics-dashboard";
 import {
   ChevronDown,
   Sparkles,
@@ -217,6 +218,10 @@ export function SegmentsHeader() {
         })}
 
       </div>
+
+      <LeadMetricsDashboard
+        filters={{ trackingId: filters.trackingId, tagIds, dateField, from: filters.from, to: filters.to }}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         {/* Busca abre a mesma janela do topo, agora onde se procura filtro. */}

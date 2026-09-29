@@ -2,6 +2,10 @@ import { ORPCError } from "@orpc/server";
 import prisma from "@/lib/prisma";
 import { IntegrationPlatform } from "@/generated/prisma/enums";
 import type { NerpOrgConfig } from "@/http/nerp/types";
+import {
+  readNerpSecret,
+  type StoredNerpConfig,
+} from "@/features/nerp/lib/credentials";
 
 export type LoadedNerpIntegration = {
   integrationId: string;
@@ -30,7 +34,8 @@ export async function getNerpConfig(orgId: string): Promise<LoadedNerpIntegratio
   }
 
   const raw = integration.config as Partial<NerpOrgConfig> | null;
-  if (!raw?.apiKey || !raw.secret || !raw.nerpOrgId) {
+  const secret = readNerpSecret(integration.config as StoredNerpConfig | null);
+  if (!raw?.apiKey || !secret || !raw.nerpOrgId) {
     throw new ORPCError("PRECONDITION_FAILED", {
       message: "Credenciais da integração nerp incompletas.",
     });
@@ -40,7 +45,7 @@ export async function getNerpConfig(orgId: string): Promise<LoadedNerpIntegratio
     integrationId: integration.id,
     config: {
       apiKey: raw.apiKey,
-      secret: raw.secret,
+      secret,
       nerpOrgId: raw.nerpOrgId,
       baseUrl: raw.baseUrl,
       scopes: raw.scopes,
