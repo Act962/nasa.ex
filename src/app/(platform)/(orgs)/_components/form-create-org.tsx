@@ -130,9 +130,7 @@ export function FormCreateOrg() {
     clearAppSignupCookie();
     const appLink = appKey ? resolveAppLink(appKey) : null;
     if (!appLink) return "/home";
-    if (appLink.sidebarKey) {
-      await setHomeApp.mutateAsync({ appKey: appLink.sidebarKey }).catch(() => undefined);
-    }
+    await setHomeApp.mutateAsync({ appKey: appLink.homeKey }).catch(() => undefined);
     return appLink.url;
   };
 
