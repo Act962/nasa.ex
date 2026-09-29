@@ -30,6 +30,8 @@ import { Spinner } from "@/components/spinner";
 import { useTracking } from "@/hooks/use-tracking-modal";
 import { useRouter } from "next/navigation";
 import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
 
 const createTrackingSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
@@ -69,8 +71,8 @@ export function ModalCreateTracking() {
 
         reset();
         onClose();
-        console.log("Passou aqui");
         earn("create_pipeline", "Novo tracking criado 📈");
+        emitTourResult({ href: `/tracking/${data.trackingId}` });
         router.push(`/tracking/${data.trackingId}`);
       },
       onError: (error) => {
@@ -106,6 +108,7 @@ export function ModalCreateTracking() {
                 <Input
                   id="name"
                   type="text"
+                  data-guide={GUIDE_ANCHORS.trackingCreateName.id}
                   {...register("name")}
                   placeholder="Ex.: Acompanhamento"
                   autoFocus
@@ -133,7 +136,11 @@ export function ModalCreateTracking() {
                 Cancelar
               </Button>
             </DialogClose>
-            <Button className="sumbmit" disabled={isLoading}>
+            <Button
+              className="sumbmit"
+              disabled={isLoading}
+              data-guide={GUIDE_ANCHORS.trackingCreateSubmit.id}
+            >
               {isLoading && <Spinner />}
               Criar
             </Button>

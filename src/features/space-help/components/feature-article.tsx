@@ -7,6 +7,8 @@ import { youtubeEmbedUrl } from "../lib/youtube";
 import { StepScreenshot } from "./step-screenshot";
 import { ChevronRight, Play } from "lucide-react";
 import type { StepAnnotation } from "../types";
+import { findGuideBySpaceHelp } from "@/features/astro-guides/lib/registry";
+import { ShowMeOnScreenButton } from "@/features/astro-guides/components/show-me-on-screen-button";
 
 interface Props {
   categorySlug: string;
@@ -32,6 +34,7 @@ export function FeatureArticle({ categorySlug, featureSlug }: Props) {
 
   if (!data) return null;
   const { category, feature } = data;
+  const liveGuide = findGuideBySpaceHelp(categorySlug, featureSlug);
   const embed = youtubeEmbedUrl(feature.youtubeUrl);
 
   return (
@@ -49,6 +52,15 @@ export function FeatureArticle({ categorySlug, featureSlug }: Props) {
       </h1>
       {feature.summary && (
         <p className="mt-2 text-muted-foreground">{feature.summary}</p>
+      )}
+
+      {liveGuide && (
+        <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-violet-500/30 bg-violet-500/5 px-4 py-3">
+          <p className="flex-1 text-sm text-muted-foreground">
+            Prefere aprender fazendo? O Astro te guia na sua tela, clique por clique.
+          </p>
+          <ShowMeOnScreenButton guideKey={liveGuide.key} />
+        </div>
       )}
 
       {embed && (

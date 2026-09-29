@@ -25,6 +25,7 @@ import { useCanCustomizeBoard } from "../../hooks/use-can-customize-board";
 import { WorkspacesSwitcher } from "./workspaces-switcher";
 import { useKanbanStore } from "../../lib/kanban-store";
 import { cn } from "@/lib/utils";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import {
   Tooltip,
   TooltipContent,
@@ -108,6 +109,7 @@ export function FiltersTracking() {
                   size="sm"
                   onClick={() => setCustomizeOpen(true)}
                   aria-label="Personalizar board"
+                  data-guide={GUIDE_ANCHORS.boardCustomizeButton.id}
                 >
                   <SlidersHorizontal className="size-4" />
                   <span className="hidden lg:inline">Personalizar</span>
@@ -128,7 +130,11 @@ export function FiltersTracking() {
             </AiLeadButton>
           )}
 
-          <Button size="sm" onClick={() => useLeadSheet.setIsOpen(true)}>
+          <Button
+            size="sm"
+            onClick={() => useLeadSheet.setIsOpen(true)}
+            data-guide={GUIDE_ANCHORS.boardNewLeadButton.id}
+          >
             <PlusIcon className="size-4" />
             Novo Lead
           </Button>

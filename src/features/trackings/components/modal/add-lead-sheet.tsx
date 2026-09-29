@@ -74,6 +74,8 @@ import { countries } from "@/types/some";
 import { normalizePhone, phoneMask } from "@/utils/format-phone";
 import { Switch } from "@/components/ui/switch-variable";
 import { useOrgProjects } from "@/features/org-projects/hooks/use-org-projects";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
 
 const schema = z.object({
   name: z.string().min(2, "Nome obrigatório"),
@@ -149,6 +151,7 @@ export default function AddLeadSheet({
 
         toast.success("Lead criado com sucesso");
         earn("create_lead", "Lead criado 🎯");
+        emitTourResult({ href: `/contatos/${data.lead.id}` });
         reset();
         onOpenChange(false);
       },
@@ -228,7 +231,7 @@ export default function AddLeadSheet({
               Nome <span className="text-red-500">*</span>
             </Label>
 
-            <InputGroup>
+            <InputGroup data-guide={GUIDE_ANCHORS.leadSheetName.id}>
               <InputGroupInput
                 id="name"
                 placeholder="Nome"
@@ -244,7 +247,10 @@ export default function AddLeadSheet({
           </div>
 
           {/* Telefone */}
-          <div className="flex flex-col gap-y-2">
+          <div
+            className="flex flex-col gap-y-2"
+            data-guide={GUIDE_ANCHORS.leadSheetPhone.id}
+          >
             <div className="flex items-center justify-between">
               <Label htmlFor="phone">
                 Telefone <span className="text-red-500">*</span>
@@ -504,7 +510,12 @@ export default function AddLeadSheet({
               </Tags>
             )}
           </div>
-          <Button type="submit" className="w-full" disabled={isCreatingLead}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isCreatingLead}
+            data-guide={GUIDE_ANCHORS.leadSheetSubmit.id}
+          >
             {isCreatingLead ? <Spinner /> : "Criar lead"}
           </Button>
         </form>

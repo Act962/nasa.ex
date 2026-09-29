@@ -1,5 +1,7 @@
 "use client";
 
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+
 /**
  * Sheet "Personalizar board" — liga/desliga campos do card do lead e das
  * colunas por tracking, com preview ao vivo no board (via `visibilityPreview`
@@ -166,7 +168,11 @@ export function BoardCustomizeSheet({ trackingId, open, onOpenChange }: Props) {
   return (
     <>
       <Sheet open={open} onOpenChange={requestOpenChange}>
-        <SheetContent side="right" className="flex flex-col gap-0 p-0">
+        <SheetContent
+          side="right"
+          className="flex flex-col gap-0 p-0"
+          data-guide={GUIDE_ANCHORS.boardCustomizeSheet.id}
+        >
           <SheetHeader className="p-4 border-b">
             <SheetTitle>Personalizar board</SheetTitle>
             <SheetDescription>

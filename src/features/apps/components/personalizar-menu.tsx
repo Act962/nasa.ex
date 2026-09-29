@@ -11,6 +11,7 @@ import {
   isItemVisible,
 } from "@/hooks/use-sidebar-prefs";
 import { SIDEBAR_NAV_ITEMS } from "@/features/apps/lib/sidebar-items";
+import { OFF_MENU_HOME_APPS } from "@/features/apps/lib/app-signup-link";
 import { useSuspenseWokspaces } from "@/features/workspace/hooks/use-workspace";
 import { SidebarToggle } from "./app-card";
 
@@ -115,6 +116,8 @@ export function PersonalizarMenu() {
   const configurableItems = SIDEBAR_NAV_ITEMS.filter(
     (item) => !item.alwaysVisible,
   );
+  // Astro, Astro Chat, Comments, NERP: sem item no menu, mas podem ser o app principal.
+  const offMenuApps = OFF_MENU_HOME_APPS.filter((app) => !app.hidden);
 
   return (
     <div className="space-y-8">
@@ -151,6 +154,31 @@ export function PersonalizarMenu() {
           })}
         </div>
       </div>
+
+      {offMenuApps.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold mb-1 text-foreground">
+            Outros apps
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Não ficam no menu lateral, mas também podem abrir primeiro ao entrar no Órbita.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {offMenuApps.map((app) => {
+              const Icon = app.lineIcon;
+              return (
+                <div key={app.id} className="flex flex-col gap-2 p-3 rounded-xl border bg-card">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon className="size-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm font-medium truncate">{app.name}</span>
+                  </div>
+                  <HomeAppToggle appKey={app.id} appTitle={app.name} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div>
         <h3 className="text-sm font-semibold mb-1 text-foreground">
