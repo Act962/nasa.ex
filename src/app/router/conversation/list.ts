@@ -193,10 +193,11 @@ export const listConversation = base
           orderBy: buildOrderBy(input.sortBy, input.sortDirection),
         });
 
-      // Na ordenação padrão, quem mandou mensagem e não teve resposta vem
-      // primeiro: duas faixas, cada uma na ordem de sempre, e o cursor diz em
-      // qual delas a página anterior parou.
-      const isAwaitingFirst = input.sortBy === "lastMessageAt";
+      // "Sem resposta primeiro" (opt-in no Ordenar): quem mandou mensagem e não
+      // teve resposta vem antes — duas faixas por `lastMessageAt`, e o cursor
+      // diz em qual delas a página anterior parou. A ordenação padrão segue
+      // cronológica pura, como sempre foi.
+      const isAwaitingFirst = input.sortBy === "awaitingReply";
       const band = isAwaitingFirst ? parseBandCursor(input.cursorValue) : null;
       const cursorValue = band ? band.value : input.cursorValue;
       const cursorWhere = buildCursorWhere(input.sortBy, input.sortDirection, input.cursorId, cursorValue);

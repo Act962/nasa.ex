@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Search from "./search";
 import { useTracking } from "@/hooks/use-tracking-modal";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export default function Heading() {
   const { onOpen } = useTracking()
@@ -22,7 +23,7 @@ export default function Heading() {
       <div className="flex items-center justify-between gap-4">
         <Search />
 
-        <Button onClick={onOpen}>
+        <Button onClick={onOpen} data-guide={GUIDE_ANCHORS.trackingNewButton.id}>
           <Plus />
           Novo tracking
         </Button>

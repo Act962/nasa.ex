@@ -21,6 +21,8 @@ import {
   type AstroQueryResult,
 } from "@/features/astro/queries/registry";
 import { runGuidedAction } from "@/features/astro/actions/run-classified-action";
+import { matchGuideRequest } from "@/features/astro-guides/lib/match-guide";
+import { toAstroGuidePayload } from "@/features/astro/lib/astro-guide";
 import { clearGuidedSlot, isAwaitingAnswer, shouldSkipReading } from "@/features/astro/actions/guided-slots";
 import {
   extractConversationHistory,
@@ -294,6 +296,38 @@ export async function POST(req: Request) {
       return typed.ok
         ? buildCardResponse("confirm_action", typed.payload, typed.payload.summary, typed.payload.followUp)
         : buildCardResponse("confirm_action", { error: typed.error }, typed.error);
+    }
+  }
+
+  // ── Guia na tela (spec 0046, RF-5) ─────────────────────────────────────
+  // Antes da cobrança: ensinar a usar a plataforma não usa modelo e não pode
+  // depender de saldo. E antes das ações guiadas, senão "como crio um lead?"
+  // começava a criar o lead.
+  if (!isTrafegoScope) {
+    const guideRequestText = extractLastUserText(uiMessages);
+    const isAnsweringAQuestion =
+      lastAssistantAsked(uiMessages) || shouldSkipReading(sessionId, guideRequestText);
+    const requestedGuide = isAnsweringAQuestion ? null : matchGuideRequest(guideRequestText);
+    if (requestedGuide) {
+      clearGuidedSlot(sessionId);
+      void recordUsageEvent({
+        organizationId,
+        userId,
+        kind: "OTHER",
+        action: "astro_guide",
+        appSlug: "astro",
+        feature: "astro.guide",
+        tokens: { totalTokens: 0 },
+        starsCharged: 0,
+        sessionId,
+        latencyMs: 0,
+        metadata: { guide: requestedGuide.key },
+      });
+      return buildCardResponse(
+        "start_guide",
+        toAstroGuidePayload(requestedGuide),
+        `Te mostro na sua tela, passo a passo. Clique em "Me mostre na tela".`,
+      );
     }
   }
 

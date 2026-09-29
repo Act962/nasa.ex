@@ -78,6 +78,8 @@ interface UserBloxProps {
   } | null;
   instance?: Instance | null;
   unreadCount?: number;
+  /** Destaque animado de "sem resposta" — só com a ordenação "Sem resposta" ativa. */
+  highlightAwaitingReply?: boolean;
 }
 
 export function LeadBox({
@@ -85,6 +87,7 @@ export function LeadBox({
   lastMessage,
   instance,
   unreadCount,
+  highlightAwaitingReply = false,
 }: UserBloxProps) {
   const router = useRouter();
   const { conversationId, trackingId } = useParams<{
@@ -198,7 +201,7 @@ export function LeadBox({
             ? "bg-accent-foreground/10 shadow-sm"
             : "bg-accent-foreground/2 hover:bg-accent-foreground/5",
           // Abrir a conversa não é responder: o destaque só sai com mensagem enviada.
-          isAwaitingReply && "animate-awaiting-reply",
+          highlightAwaitingReply && isAwaitingReply && "animate-awaiting-reply",
         )}
       >
         <div className="min-w-0 flex-1">
