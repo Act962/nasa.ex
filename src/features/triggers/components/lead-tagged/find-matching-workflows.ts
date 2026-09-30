@@ -1,7 +1,7 @@
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import prismaDefault from "@/lib/prisma";
 
-type PrismaLike = PrismaClient | Prisma.TransactionClient;
+type PrismaLike = Prisma.TransactionClient;
 
 interface Args {
   tx?: PrismaLike;

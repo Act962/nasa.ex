@@ -40,6 +40,33 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    // "Cliente global ou transação" tem um tipo só: `Prisma.TransactionClient`.
+    //
+    // União com `PrismaClient` ou `Omit`/`Pick` de `typeof prisma` fazem o
+    // TypeScript comparar os ~300 models estruturalmente a cada chamada — um
+    // único arquivo assim custava 63 s e a checagem inteira passava de 12 GB.
+    // Ver docs/DEPLOYMENT.md §0.1.
+    files: ["src/**/*.ts", "src/**/*.tsx"],
+    ignores: ["src/generated/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "TSUnionType > TSTypeReference[typeName.name='PrismaClient'], TSUnionType > TSTypeQuery[exprName.name='prisma']",
+          message:
+            "Use Prisma.TransactionClient (aceita o cliente global e o tx) — união com o cliente explode a checagem de tipos.",
+        },
+        {
+          selector:
+            "TSTypeReference[typeName.name=/^(Omit|Pick)$/] > TSTypeParameterInstantiation > :matches(TSTypeQuery[exprName.name='prisma'], TSTypeReference[typeName.name='PrismaClient'])",
+          message:
+            "Use Prisma.TransactionClient (ou Pick<Prisma.TransactionClient, ...>) — Omit/Pick do cliente explode a checagem de tipos.",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

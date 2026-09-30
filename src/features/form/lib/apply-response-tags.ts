@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 
 /**
  * Extrai os `tagId`s embutidos numa resposta de form (campo
@@ -23,7 +23,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
  * @returns Quantidade de tags aplicadas (excluindo duplicatas skipadas).
  */
 export async function applyResponseTagsToLead(
-  tx: Pick<PrismaClient, "tag" | "leadTag">,
+  tx: Pick<Prisma.TransactionClient, "tag" | "leadTag">,
   leadId: string,
   responseJson: string,
 ): Promise<number> {

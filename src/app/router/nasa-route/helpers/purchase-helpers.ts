@@ -1,21 +1,9 @@
 import { ORPCError } from "@orpc/server";
 import { StarTransactionType } from "@/generated/prisma/enums";
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { PLATFORM_FEE_PCT } from "../utils";
 
-/**
- * Cliente de transação do Prisma — versão "stripped" do PrismaClient sem os
- * helpers de transação ($connect, $transaction etc).
- */
-type Tx = Omit<
-  PrismaClient,
-  | "$connect"
-  | "$disconnect"
-  | "$on"
-  | "$transaction"
-  | "$use"
-  | "$extends"
->;
+type Tx = Prisma.TransactionClient;
 
 export interface ExecuteCoursePurchaseOpts {
   tx: Tx;

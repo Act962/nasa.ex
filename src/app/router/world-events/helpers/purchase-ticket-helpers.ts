@@ -1,6 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import { StarTransactionType } from "@/generated/prisma/enums";
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { randomBytes } from "node:crypto";
 
 /**
@@ -17,10 +17,7 @@ import { randomBytes } from "node:crypto";
  * `prisma.$transaction(async (tx) => …)`.
  */
 
-type Tx = Omit<
-  PrismaClient,
-  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
->;
+type Tx = Prisma.TransactionClient;
 
 export interface ExecuteTicketPurchaseOpts {
   tx: Tx;

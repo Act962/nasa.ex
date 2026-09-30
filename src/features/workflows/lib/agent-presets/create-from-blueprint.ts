@@ -17,7 +17,7 @@
  */
 import "server-only";
 import { createId } from "@paralleldrive/cuid2";
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { NodeType } from "@/generated/prisma/enums";
 
 export interface BlueprintNode {
@@ -78,7 +78,7 @@ export interface CreateFromBlueprintResult {
  * transação maior (passa `tx`) ou abrir uma própria (passa `prisma`).
  */
 export async function createWorkflowFromBlueprint(
-  client: PrismaClient | Prisma.TransactionClient,
+  client: Prisma.TransactionClient,
   params: CreateFromBlueprintParams,
 ): Promise<CreateFromBlueprintResult> {
   const workflowId = createId();

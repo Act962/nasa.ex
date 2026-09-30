@@ -15,7 +15,7 @@
  */
 import "server-only";
 import { createId } from "@paralleldrive/cuid2";
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { NodeType } from "@/generated/prisma/enums";
 import { findOrCreateTags } from "@/features/workflows/lib/agent-presets/find-or-create-tags";
 import { resolvePlaceholdersV2 } from "./ref-resolver";
@@ -26,7 +26,7 @@ import type {
   RefType,
 } from "./types";
 
-type PrismaLike = PrismaClient | Prisma.TransactionClient;
+type PrismaLike = Prisma.TransactionClient;
 
 export interface ImportFullWorkflowParams {
   organizationId: string;

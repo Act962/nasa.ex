@@ -4,10 +4,10 @@
 // e participantes — e quem NÃO pode excluir (participante, a op perigosa).
 // Ver docs/lead-actions-overview.md.
 
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import prismaDefault from "@/lib/prisma";
 
-type PrismaLike = PrismaClient | Prisma.TransactionClient;
+type PrismaLike = Prisma.TransactionClient;
 
 const PRIVILEGED_ORG_ROLES = ["owner", "admin", "moderador"] as const;
 

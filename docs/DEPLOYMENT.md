@@ -47,6 +47,31 @@ Coolify. Desligue o build por Nixpacks (`.nixpacks.toml` fica só como legado).
 
 ---
 
+### 0.1 Checagem de tipos — custo e como manter baixo
+
+A checagem de tipos é a etapa mais pesada do build. Medida em 2026-09-30 (antes da correção abaixo):
+12,8 GB de memória, 236 s de checagem, 52 milhões de instanciações de tipo — e um único arquivo
+(`create-lead.ts`) respondendo por 63 s.
+
+**Causa:** o cliente Prisma global e o `tx` de `$transaction` tinham tipos diferentes. `new PrismaClient({ log })`
+inferia `PrismaClient<"error", PrismaClientOptions['omit']>`, enquanto o `tx` é `PrismaClient<never, undefined>`.
+Com o parâmetro de `omit` invariante, cada vez que um encontrava o outro (união `PrismaClient | Prisma.TransactionClient`,
+`Omit<typeof prisma, ...>` feito à mão, passar o global onde se espera o `tx`) o TypeScript comparava os ~300 models
+estruturalmente — e ainda mantinha duas famílias de tipos para cada query.
+
+**Regra:**
+- `src/lib/prisma.ts` fixa os genéricos do cliente global (`new PrismaClient<Prisma.PrismaClientOptions, never, undefined>`).
+  Não remova.
+- Parâmetro que aceita "cliente global ou transação" é `Prisma.TransactionClient` (ou `Pick<Prisma.TransactionClient, ...>`).
+  Nunca união com `PrismaClient`, nunca `Omit`/`Pick` de `typeof prisma`/`PrismaClient`. O ESLint (`no-restricted-syntax`)
+  barra os dois padrões.
+
+**Medir:** Actions → *Typecheck diagnostics* → Run workflow. O resumo do run traz memória, tempo, instanciações e os
+arquivos/expressões mais caros (`scripts/ci/typecheck-hotspots.cjs`). O deploy da `main` pula a checagem
+(`SKIP_TYPECHECK=1`) porque o CI do PR já é o portão.
+
+---
+
 ## 1. Variáveis de ambiente
 
 Copie `.env.example` → `.env.local` (dev) ou seta no host de produção

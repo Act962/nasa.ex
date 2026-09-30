@@ -1,0 +1,66 @@
+name: Typecheck diagnostics
+
+# Mede a checagem de tipos (memória, tempo, instanciações) e aponta os arquivos mais caros.
+# Rodar à mão quando o CI ficar lento ou perto do limite de memória. Ver docs/DEPLOYMENT.md §0.1.
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/deploy-build-optimization-ac90aa]
+    paths: [".github/workflows/typecheck-diagnostics.yml", "scripts/ci/typecheck-hotspots.cjs"]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ampliar swap
+        run: |
+          sudo swapoff -a
+          sudo fallocate -l 10G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prisma generate
+        env:
+          DATABASE_URL: postgresql://build:build@localhost:5432/build
+      - run: pnpm exec next typegen
+
+      - name: tsc com trace
+        env:
+          NODE_OPTIONS: --max-old-space-size=14336
+        run: |
+          /usr/bin/time -v pnpm exec tsc --noEmit --incremental false --extendedDiagnostics --generateTrace trace \
+            > diagnostics.txt 2> time.txt || true
+          {
+            echo "## Checagem de tipos"
+            echo '```'
+            grep -E "^(Files|Types|Instantiations|Memory used|Check time|Total time)" diagnostics.txt
+            grep -E "Maximum resident|Elapsed" time.txt
+            grep -cE "error TS" diagnostics.txt | sed 's/^/Erros de tipo: /'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Arquivos mais caros
+        run: node --max-old-space-size=6144 scripts/ci/typecheck-hotspots.cjs trace >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: typecheck-diagnostics
+          path: |
+            diagnostics.txt
+            trace/trace.json
+          retention-days: 7

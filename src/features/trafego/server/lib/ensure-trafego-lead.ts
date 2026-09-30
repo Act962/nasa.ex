@@ -22,7 +22,7 @@ import {
  * enviado pelo WhatsApp criaria um segundo card.
  */
 
-type PrismaLike = Prisma.TransactionClient | typeof prisma;
+type PrismaLike = Prisma.TransactionClient;
 
 // Menor `order` = topo da coluna (board ordena por [statusId, order] asc).
 export async function computeTopOrder(

@@ -235,6 +235,8 @@ src/features/<dominio>/
 
 20. **Deriva conhecida entre este arquivo e o código** — auditoria de 2026-08-18 encontrou divergências ainda não corrigidas. Enquanto não forem, **confie no código, não neste documento**, nestes pontos: procedures oRPC estão em `src/app/router/` (não em `src/server/`, que não existe); a Regra 9 tem 518 violações; a Regra 5 convive com Jotai além de Zustand; a Regra 17 é **inexequível** (não há runner de teste instalado); `.claude/settings.json` não existe (o hook `PreToolUse` descrito no Git Workflow não está ativo); `.env.example` e `prisma/migrations/MANUAL_*.sql` referenciados em `docs/DEPLOYMENT.md` não existem — `scripts/apply-prod-migrations.sh` quebra por causa disso. Lista completa em [`docs/arquitetura-evolucao-overview.md`](docs/arquitetura-evolucao-overview.md) §3.5. Corrigir a deriva é item da Fase 0.
 
+21. **Tipo do cliente Prisma em parâmetros (OBRIGATÓRIO)** — função que aceita "cliente global ou transação" recebe `Prisma.TransactionClient` (ou `Pick<Prisma.TransactionClient, ...>`). **Proibido**: união `PrismaClient | Prisma.TransactionClient`, `Omit<typeof prisma, ...>`, `Pick<PrismaClient, ...>`. Esses padrões fazem o TypeScript comparar os ~300 models estruturalmente — um único arquivo custava 63 s e a checagem de tipos passava de 12 GB, derrubando o build. O ESLint barra; os genéricos fixos em `src/lib/prisma.ts` não podem ser removidos. Ver [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) §0.1.
+
 ## Obsidian
 
 Vault: `NASA Agents` em `/Users/weydsonlima/Documents/NASA Agents/`
