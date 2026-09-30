@@ -99,6 +99,7 @@ import { isValidBrazilianDocument } from "@/features/payment/lib/documents/norma
 import { ComplianceAlert } from "./wizard/compliance-alert";
 import { TrafegoAssistant } from "./assistant/trafego-assistant";
 import { TechnicalTerm } from "../technical-term";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 const STEPS = [
   { key: "channel", label: "Canal" },
@@ -649,7 +650,12 @@ export function TrafegoLanding({
             />
           </div>
         ) : hasStarted ? (
-          <div ref={wizardRef} id="montar" className="scroll-mt-20 pt-8">
+          <div
+            ref={wizardRef}
+            id="montar"
+            className="scroll-mt-20 pt-8"
+            data-guide={GUIDE_ANCHORS.trafegoWizard.id}
+          >
             <WizardStepper steps={STEPS} currentIndex={SCREEN_STEP[screenId]} />
 
             <div className="mt-5">

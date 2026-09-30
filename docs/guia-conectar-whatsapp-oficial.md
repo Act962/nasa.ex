@@ -112,8 +112,8 @@ Para testar o disparo antes de ter um número da empresa. Feito e fotografado em
 ## Prints
 
 - Cada print é **recortado** na área útil (`shot.crop`); a seta é recalculada sobre o recorte.
-- Ficam em `public/guides/whatsapp-oficial/NN-slug.webp`, gerados por `python3 scripts/guides/prepare-whatsapp-guide.py <pasta-dos-prints>`.
-- O script **pixeliza** foto, nome, e-mail, portfólios de outros clientes, chaves e tokens (retângulos `redact` do JSON) e troca fotos por avatar neutro. A seta vermelha **não** é queimada na imagem: é desenhada na tela pelo `target` do JSON (`guide-shot.tsx`), então dá para ajustar sem editar imagem.
+- Ficam em `public/guides/whatsapp-oficial/NN-slug.webp`, gerados por `python3 scripts/guides/prepare-whatsapp-guide.py <pasta-dos-prints>`. O stepper, o print com seta e o checklist moram em `src/features/meta-guide/` desde a spec 0047 e são compartilhados com o guia do Instagram do COMMENTS; o WhatsApp passa a sua definição (`WHATSAPP_GUIDE`).
+- O script **pixeliza** foto, nome, e-mail, portfólios de outros clientes, chaves e tokens (retângulos `redact` do JSON) e troca fotos por avatar neutro. A seta vermelha **não** é queimada na imagem: é desenhada na tela pelo `target` do JSON (`src/features/meta-guide/components/guide-shot.tsx`), então dá para ajustar sem editar imagem.
 - Os originais (`1.jpeg` … `38.jpeg`, `32.1.jpeg`) vêm da equipe; o campo `source` de cada passo aponta o arquivo. Rodar: `python3 scripts/guides/prepare-whatsapp-guide.py ~/Downloads`.
 - **Segurança:** os prints originais mostram token e chave secreta do app de teste — redefina a chave secreta e anule os tokens depois de usar.
 
@@ -143,7 +143,7 @@ O cliente nem sempre começa do zero. Cada estado abaixo tem um caminho no guia 
 
 ### Mantendo o cliente no roteiro
 
-- **Janela lado a lado:** os botões "Abrir na Meta / Abrir no seu app" abrem sempre a mesma janela (`orbita-meta`), à direita da tela, para o passo a passo da ÓRBITA continuar visível (`openMetaSideWindow` em `stay-on-track.tsx`). Se o navegador bloquear, abre em aba normal.
+- **Janela lado a lado:** os botões "Abrir na Meta / Abrir no seu app" abrem sempre a mesma janela (`orbita-meta`), à direita da tela, para o passo a passo da ÓRBITA continuar visível (`openMetaSideWindow` em `src/features/meta-guide/components/stay-on-track.tsx`). Se o navegador bloquear, abre em aba normal.
 - **Aviso fixo:** "Na Meta, faça só o que este passo mostra — outros botões podem desfazer o que já foi feito", com "Minha tela está diferente" (dicas: app/portfólio certo, botões proibidos, usar o Voltar da ÓRBITA, não confirmar avisos fora do print).
 - **Volta para a ÓRBITA:** ao retornar da janela da Meta, o botão "Fiz, próximo" pulsa por 8 s (`useReturnNudge`).
 

@@ -45,6 +45,8 @@ import {
 import { DateRangeTimePicker } from "@/features/insights/components/activities/date-range-time-picker";
 import { Sparkline } from "./sparkline";
 import { TrendingDown, TrendingUp } from "lucide-react";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { SearchLeadModal } from "@/components/modals/search-lead-modal";
 
 type DateField = "createdAt" | "lastInboundAt";
 
@@ -219,6 +221,9 @@ export function SegmentsHeader() {
 
       </div>
 
+      {/* A janela mora junto do campo que a abre: o estado de useSearchModal é local. */}
+      <SearchLeadModal open={searchLead.isOpen} onOpenChange={searchLead.setIsOpen} />
+
       <LeadMetricsDashboard
         filters={{ trackingId: filters.trackingId, tagIds, dateField, from: filters.from, to: filters.to }}
       />
@@ -228,6 +233,7 @@ export function SegmentsHeader() {
         <InputGroup
           className="h-8 w-full sm:w-64"
           onClick={() => searchLead.setIsOpen(true)}
+          data-guide={GUIDE_ANCHORS.contactsSearchField.id}
         >
           <InputGroupInput placeholder="Buscar contato" readOnly />
           <InputGroupAddon>

@@ -11,7 +11,8 @@
  *  - AiForm        → AI_DECISION, AI_GENERATE_TEXT, AI_VISION, READ_PDF
  *  - DataForm      → SET_VARIABLE, CALL_WORKFLOW
  *  - AppForm       → CHECK_PAYMENT, SEND_VOICE, SEND_MEDIA
- *  - TriggerForm   → PAYMENT_RECEIVED, MESSAGE_INCOMING, WEBHOOK_EXTERNAL
+ *  - TriggerForm   → PAYMENT_RECEIVED, MESSAGE_INCOMING, WEBHOOK_EXTERNAL,
+ *                    COMPLIANCE_ITEM_DUE
  *
  * Cada form recebe `data` (atual) + `onChange(nextData)`. O AgentNode
  * gerencia o estado e persiste via setNodes do React Flow.
@@ -28,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
@@ -817,9 +819,119 @@ export function AppForm({ nodeType, data, onChange }: FormProps & { nodeType: st
   );
 }
 
+// ─── COMPLIANCE_ITEM_DUE (aba Contábil, spec 0051) ─
+
+const COMPLIANCE_ITEM_KIND_OPTIONS = [
+  { value: "OBLIGATION", label: "Guias e declarações (DAS, DCTFWeb, DEFIS...)" },
+  { value: "DOCUMENT", label: "Documentos da empresa (certidões, alvarás, certificado)" },
+  { value: "ASSESSMENT", label: "Imposto do mês para conferir" },
+  { value: "INVOICE_MONTH", label: "Despesas pagas sem nota" },
+] as const;
+
+/** -1 = qualquer item já vencido. */
+const COMPLIANCE_DAYS_BEFORE_OPTIONS = [
+  { value: 30, label: "30 dias antes" },
+  { value: 15, label: "15 dias antes" },
+  { value: 5, label: "5 dias antes" },
+  { value: 2, label: "2 dias antes" },
+  { value: 0, label: "No dia" },
+  { value: -1, label: "Já vencido" },
+] as const;
+
+const COMPLIANCE_VARIABLES = [
+  { path: "trigger.compliance.label", description: "o que vence (ex.: DAS de 09/2026)" },
+  { path: "trigger.compliance.dueDate", description: "vencimento (dd/mm/aaaa)" },
+  { path: "trigger.compliance.amount", description: "valor da guia, quando houver (R$)" },
+  { path: "trigger.compliance.daysBefore", description: "dias até vencer (negativo = vencido)" },
+  { path: "trigger.compliance.itemKind", description: "tipo do item" },
+] as const;
+
+function toggleListValue<T>(list: T[], value: T, isChecked: boolean): T[] {
+  const withoutValue = list.filter((item) => item !== value);
+  return isChecked ? [...withoutValue, value] : withoutValue;
+}
+
+function ComplianceItemDueForm({ data, onChange }: FormProps) {
+  const selectedKinds = arr<string>(data.itemKinds);
+  const selectedDays = arr<number>(data.daysBefore);
+
+  return (
+    <div className="space-y-4">
+      <FormHeader hint="Dispara quando a aba Contábil encontra um prazo chegando ou vencido. O aviso roda todo dia às 8h (horário de Brasília)." />
+
+      <div className="space-y-2">
+        <Label>O que avisar</Label>
+        <p className="text-xs text-muted-foreground">Nada marcado = todos os tipos.</p>
+        {COMPLIANCE_ITEM_KIND_OPTIONS.map((option) => {
+          const checkboxId = `compliance-kind-${option.value}`;
+          return (
+            <div key={option.value} className="flex items-start gap-2">
+              <Checkbox
+                id={checkboxId}
+                checked={selectedKinds.includes(option.value)}
+                onCheckedChange={(checked) =>
+                  onChange({
+                    ...data,
+                    itemKinds: toggleListValue(selectedKinds, option.value, checked === true),
+                  })
+                }
+              />
+              <Label htmlFor={checkboxId} className="text-sm font-normal leading-snug">
+                {option.label}
+              </Label>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="space-y-2">
+        <Label>Quando</Label>
+        <p className="text-xs text-muted-foreground">
+          Nada marcado = em todos os avisos. Guias avisam 5 e 2 dias antes e no dia; documentos, 30, 15 e 5 dias antes.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {COMPLIANCE_DAYS_BEFORE_OPTIONS.map((option) => {
+            const checkboxId = `compliance-days-${option.value}`;
+            return (
+              <div key={option.value} className="flex items-center gap-2">
+                <Checkbox
+                  id={checkboxId}
+                  checked={selectedDays.includes(option.value)}
+                  onCheckedChange={(checked) =>
+                    onChange({
+                      ...data,
+                      daysBefore: toggleListValue(selectedDays, option.value, checked === true),
+                    })
+                  }
+                />
+                <Label htmlFor={checkboxId} className="text-sm font-normal">
+                  {option.label}
+                </Label>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-1 rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
+        <p className="font-medium text-foreground">Use nas próximas ações</p>
+        {COMPLIANCE_VARIABLES.map((variable) => (
+          <p key={variable.path}>
+            <code>{`{{${variable.path}}}`}</code> — {variable.description}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── PAYMENT_RECEIVED + MESSAGE_INCOMING + WEBHOOK_EXTERNAL ─
 
 export function TriggerForm({ nodeType, data, onChange }: FormProps & { nodeType: string }) {
+  if (nodeType === "COMPLIANCE_ITEM_DUE") {
+    return <ComplianceItemDueForm data={data} onChange={onChange} />;
+  }
+
   if (nodeType === "PAYMENT_RECEIVED") {
     return (
       <div className="space-y-3">
@@ -902,6 +1014,7 @@ const TRIGGERS = new Set([
   "PAYMENT_RECEIVED",
   "MESSAGE_INCOMING",
   "WEBHOOK_EXTERNAL",
+  "COMPLIANCE_ITEM_DUE",
 ]);
 
 export function AgentNodeForm({

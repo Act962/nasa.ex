@@ -4,12 +4,31 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import {
+  canViewRestrictedNBox,
+  loadFolderRestriction,
+} from "@/features/nbox/server/can-view-restricted-nbox";
 
 export const deleteFolder = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .input(z.object({ folderId: z.string() }))
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
+    const restriction = await loadFolderRestriction(input.folderId, context.org.id);
+    if (restriction?.systemKey) {
+      throw errors.FORBIDDEN({ message: "Pasta do sistema não pode ser excluída." });
+    }
+    if (restriction?.isRestricted) {
+      if (!(await canViewRestrictedNBox(context.user, context.org.id))) {
+        throw errors.FORBIDDEN({ message: "Pasta restrita: só administradores do financeiro." });
+      }
+      // Os itens cairiam na raiz (onDelete: SetNull) e perderiam a restrição.
+      const itemCount = await prisma.nBoxItem.count({ where: { folderId: input.folderId } });
+      if (itemCount > 0) {
+        throw errors.BAD_REQUEST({ message: "Mova ou exclua os arquivos desta pasta restrita antes de apagá-la." });
+      }
+    }
+
     const folder = await prisma.nBoxFolder.findUnique({
       where: { id: input.folderId, organizationId: context.org.id },
       select: { name: true },

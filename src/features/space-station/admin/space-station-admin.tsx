@@ -44,6 +44,9 @@ import {
 import { MyStationsList } from "./my-stations-list";
 import { AMBIENT_THEMES, MODULE_ICONS, MODULE_LABELS } from "../types";
 import type { StationModule, AmbientTheme } from "../types";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 const stationSchema = z.object({
   nick: z
@@ -145,6 +148,7 @@ export function SpaceStationAdmin() {
         });
         toast.success("Perfil atualizado!");
       }
+      emitTourResult({ kind: GUIDE_RESULT_KINDS.stationSaved });
     } catch (err: unknown) {
       toast.error((err as { message?: string })?.message ?? "Erro ao salvar");
     }
@@ -244,6 +248,7 @@ export function SpaceStationAdmin() {
               <span className="text-slate-500 text-sm">@</span>
               <Input
                 {...form.register("nick")}
+                data-guide={GUIDE_ANCHORS.stationNick.id}
                 placeholder="suaempresa"
                 disabled={!!station}
                 className="bg-slate-800 border-white/10 text-white"
@@ -292,6 +297,7 @@ export function SpaceStationAdmin() {
             <Button
               onClick={form.handleSubmit(onSubmitProfile)}
               disabled={createStation.isPending || updateStation.isPending}
+              data-guide={GUIDE_ANCHORS.stationSubmit.id}
               className="bg-indigo-600 hover:bg-indigo-700"
             >
               {station ? "Salvar Perfil" : "Criar Space Station"}

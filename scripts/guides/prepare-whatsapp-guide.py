@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepara os prints do guia "Conectar WhatsApp Oficial" (spec 0040).
+"""Prepara os prints dos guias da Meta (specs 0040 e 0047).
 
 Lê src/features/campanhas/lib/whatsapp-connect-guide.json, pega o print de
 origem de cada passo (campo "source", nome do arquivo enviado pela equipe),
@@ -8,6 +8,7 @@ escreve rótulos neutros e grava em public/guides/whatsapp-oficial/NN-slug.webp.
 
 Uso:
   python3 scripts/guides/prepare-whatsapp-guide.py <pasta-dos-prints> [--preview <pasta>]
+  python3 scripts/guides/prepare-whatsapp-guide.py <pasta> --guide src/features/comments/lib/instagram-connect-guide.json --out public/guides/instagram-comments
 
 --preview grava cópias com o alvo da seta desenhado, só para conferência.
 """
@@ -49,7 +50,7 @@ def load_font(size: int) -> ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
-def prepare_step(step: dict, source_dir: Path, preview_dir: Path | None) -> Path | None:
+def prepare_step(step: dict, source_dir: Path, preview_dir: Path | None, output_dir: Path) -> Path | None:
     shot = step.get("shot")
     if not shot:
         return None
@@ -74,16 +75,19 @@ def prepare_step(step: dict, source_dir: Path, preview_dir: Path | None) -> Path
     crop = shot.get("crop")
     if crop:
         image = image.crop(tuple(crop))
+    scale = 1.0
     if image.width > MAX_WIDTH:
-        image = image.resize((MAX_WIDTH, round(image.height * MAX_WIDTH / image.width)), Image.LANCZOS)
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    output = OUTPUT_DIR / f"{step['n']:02d}-{step['slug']}.webp"
+        scale = MAX_WIDTH / image.width
+        image = image.resize((MAX_WIDTH, round(image.height * scale)), Image.LANCZOS)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output = output_dir / f"{step['n']:02d}-{step['slug']}.webp"
     image.save(output, "WEBP", quality=82)
     if preview_dir:
         preview = image.copy()
         left, top, right, bottom = shot["target"]
         offset_x, offset_y = (crop[0], crop[1]) if crop else (0, 0)
-        ImageDraw.Draw(preview).rectangle((left - offset_x, top - offset_y, right - offset_x, bottom - offset_y), outline="red", width=4)
+        preview_box = [(left - offset_x) * scale, (top - offset_y) * scale, (right - offset_x) * scale, (bottom - offset_y) * scale]
+        ImageDraw.Draw(preview).rectangle(preview_box, outline="red", width=4)
         preview_dir.mkdir(parents=True, exist_ok=True)
         preview.save(preview_dir / f"{step['n']:02d}.png")
     return output
@@ -94,11 +98,13 @@ def main() -> None:
         sys.exit(__doc__)
     source_dir = Path(sys.argv[1])
     preview_dir = Path(sys.argv[sys.argv.index("--preview") + 1]) if "--preview" in sys.argv else None
-    guide = json.loads(GUIDE_PATH.read_text())
-    for stale in OUTPUT_DIR.glob("*.webp"):
+    guide_path = ROOT / sys.argv[sys.argv.index("--guide") + 1] if "--guide" in sys.argv else GUIDE_PATH
+    output_dir = ROOT / sys.argv[sys.argv.index("--out") + 1] if "--out" in sys.argv else OUTPUT_DIR
+    guide = json.loads(guide_path.read_text())
+    for stale in output_dir.glob("*.webp"):
         stale.unlink()
     for step in guide["steps"]:
-        output = prepare_step(step, source_dir, preview_dir)
+        output = prepare_step(step, source_dir, preview_dir, output_dir)
         if output:
             print(f"  ✓ passo {step['n']:2d} → {output.relative_to(ROOT)}")
 

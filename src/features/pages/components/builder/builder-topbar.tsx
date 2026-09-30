@@ -35,6 +35,7 @@ import {
 import { BuilderSidebarPanel } from "./builder-sidebar";
 import { PropertiesPanelContent } from "../properties-panel/properties-panel";
 import type { SaveStatus } from "./builder";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 interface Props {
   page: {
@@ -328,6 +329,7 @@ export function BuilderTopbar({
           className="gap-1 shrink-0"
           onClick={onPublish}
           disabled={publishing}
+          data-guide={GUIDE_ANCHORS.pagesPublishButton.id}
         >
           <Rocket className="size-3.5" />
           {publishing

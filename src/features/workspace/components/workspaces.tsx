@@ -40,6 +40,7 @@ import {
   type AnalyticsBucket,
 } from "./analytics-details-modal";
 import { IncomingSharesPanel } from "./incoming-shares-panel";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export const WorkspaceHeader = () => {
   const [open, setOpen] = useState(false);
@@ -69,6 +70,7 @@ export const WorkspaceHeader = () => {
             size="sm"
             onClick={() => setOpen(true)}
             className="w-full gap-1.5 sm:w-auto"
+            data-guide={GUIDE_ANCHORS.workspaceNewButton.id}
           >
             <PlusIcon className="size-4" />
             <span className="hidden sm:inline">Novo workspace</span>
@@ -182,7 +184,10 @@ export const Workspaces = () => {
 
   return (
     <>
-      <div className="flex flex-col pt-2 gap-2">
+      <div
+        className="flex flex-col pt-2 gap-2"
+        data-guide={workspaces.length > 0 ? GUIDE_ANCHORS.workspaceList.id : undefined}
+      >
         {workspaces.length === 0 && (
           <Empty>
             <EmptyHeader>

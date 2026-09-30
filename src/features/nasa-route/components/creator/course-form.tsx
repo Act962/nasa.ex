@@ -43,6 +43,9 @@ import {
   centsToBrlInput,
   parseBrlInputToCents,
 } from "@/features/nasa-route/lib/price-input";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 interface InitialCourse {
   id: string;
@@ -216,6 +219,10 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
       queryClient.invalidateQueries({
         queryKey: orpc.nasaRoute.creatorListCourses.queryKey(),
       });
+      // Antes de navegar: o editor pode abrir com recarga completa (fallback abaixo).
+      if (!isEdit && newId) {
+        emitTourResult({ kind: GUIDE_RESULT_KINDS.courseCreated });
+      }
       if (onSaved && newId) {
         onSaved(newId);
         return;
@@ -573,7 +580,12 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
         >
           Cancelar
         </Button>
-        <Button type="submit" disabled={upsert.isPending} className="gap-1.5">
+        <Button
+          type="submit"
+          disabled={upsert.isPending}
+          className="gap-1.5"
+          data-guide={GUIDE_ANCHORS.routeCourseSubmit.id}
+        >
           {upsert.isPending ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (

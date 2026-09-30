@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getPresignedReadUrl } from "@/lib/r2-url";
 
 /**
  * Download público de itens N-Box marcados como isPublic=true.
@@ -29,13 +30,14 @@ export async function GET(
       size: true,
       type: true,
       isPublic: true,
+      folder: { select: { isRestricted: true } },
       organization: {
         select: { isSpacehomePublic: true },
       },
     },
   });
 
-  if (!item || !item.isPublic) {
+  if (!item || !item.isPublic || item.folder?.isRestricted) {
     return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
   }
 
@@ -60,7 +62,9 @@ export async function GET(
 
   // FILE/IMAGE/CONTRACT/PROPOSAL: streamar do storage.
   try {
-    const upstream = await fetch(item.url);
+    // Upload do N-Box guarda a chave do bucket, não a URL.
+    const downloadUrl = /^https?:\/\//.test(item.url) ? item.url : await getPresignedReadUrl(item.url, 300);
+    const upstream = await fetch(downloadUrl);
     if (!upstream.ok || !upstream.body) {
       return NextResponse.json(
         { error: "Falha ao buscar arquivo" },

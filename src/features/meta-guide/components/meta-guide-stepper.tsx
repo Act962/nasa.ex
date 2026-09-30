@@ -13,35 +13,26 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useAstroFeedStore } from "@/features/astro/voice/use-astro-feed-store";
 import { cn } from "@/lib/utils";
-import {
-  GUIDE_STEPS,
-  PROGRESS_MILESTONES,
-  guideStepLink,
-  phaseOf,
-  type MetaAccountIds,
-  type GuideCopyKey,
-  type GuideStep,
-} from "../../lib/whatsapp-connect-guide";
+import { findPhase, visibleGuideSteps } from "../lib/guide-helpers";
+import type { MetaAccountIds, MetaGuideDefinition, MetaGuideStep } from "../lib/types";
 import { CopyField } from "./copy-field";
 import { GuideShot } from "./guide-shot";
 import { MetaLogo } from "./meta-logo";
 import { InstructionChecklist } from "./instruction-checklist";
 import { StayOnTrack, openMetaSideWindow, useReturnNudge } from "./stay-on-track";
 
-const COPY_LABELS: Record<GuideCopyKey, string> = {
-  callbackUrl: "URL de callback",
-  verifyToken: "Verificar token",
-};
+const NO_ACCOUNT_IDS: MetaAccountIds = { appId: null, businessId: null };
 
 /**
- * Telas da Meta uma de cada vez (spec 0040, RF-3): print com a seta vermelha,
+ * Telas da Meta uma de cada vez (specs 0040 e 0047): print com a seta vermelha,
  * instrução curta, link, e o Astro comemorando cada fase concluída.
  */
-export function MetaGuideStepper({
+export function MetaGuideStepper<TStep extends MetaGuideStep>({
+  guide,
   initialSlug,
   cheeredIds,
   copyValues,
-  accountIds,
+  accountIds = NO_ACCOUNT_IDS,
   renderStepExtra,
   canAdvance,
   onStepChange,
@@ -49,31 +40,29 @@ export function MetaGuideStepper({
   onFinished,
   isTitleHidden = false,
 }: {
+  guide: MetaGuideDefinition<TStep>;
   /** O título do passo já aparece no topo do popup. */
   isTitleHidden?: boolean;
   /** Passo salvo no banco — o cliente continua de onde parou. */
   initialSlug: string | null;
   /** Balões do Astro já mostrados (salvos no banco, não repetem). */
   cheeredIds: ReadonlySet<string>;
-  copyValues: Partial<Record<GuideCopyKey, string | null>>;
+  copyValues: Partial<Record<string, string | null>>;
   /** App e portfólio do cliente — os links abrem direto neles. */
-  accountIds: MetaAccountIds;
-  renderStepExtra?: (step: GuideStep) => ReactNode;
-  canAdvance?: (step: GuideStep) => boolean;
-  onStepChange: (step: GuideStep, index: number, total: number) => void;
+  accountIds?: MetaAccountIds;
+  renderStepExtra?: (step: TStep) => ReactNode;
+  canAdvance?: (step: TStep) => boolean;
+  onStepChange: (step: TStep, index: number, total: number) => void;
   onCheer: (cheerId: string) => void;
   onFinished: () => void;
 }) {
   const [isManualMode, setIsManualMode] = useState(false);
   const [hasOpenedMeta, setHasOpenedMeta] = useState(false);
   const isNudging = useReturnNudge(hasOpenedMeta);
+  const hasAutomatedSteps = guide.steps.some((step) => step.isAutomated);
   const steps = useMemo(
-    () =>
-      GUIDE_STEPS.filter(
-        (step) =>
-          step.phase !== "payment" && (isManualMode || !step.isAutomated),
-      ),
-    [isManualMode],
+    () => visibleGuideSteps(guide, isManualMode),
+    [guide, isManualMode],
   );
   const [stepIndex, setStepIndex] = useState(() => {
     const savedIndex = steps.findIndex((step) => step.slug === initialSlug);
@@ -81,11 +70,13 @@ export function MetaGuideStepper({
   });
   const safeIndex = Math.min(stepIndex, steps.length - 1);
   const step = steps[safeIndex];
-  const phase = phaseOf(step.phase);
+  const phase = findPhase(guide.phases, step.phase);
   const isLast = safeIndex === steps.length - 1;
   const isBlocked = canAdvance ? !canAdvance(step) : false;
-  const stepLink = guideStepLink(step, accountIds);
-  const isPersonalLink = Boolean(step.linkKey && accountIds.appId);
+  const stepLink = guide.stepLink
+    ? guide.stepLink(step, accountIds)
+    : (step.link ?? null);
+  const isPersonalLink = guide.isPersonalLink?.(step, accountIds) ?? false;
 
   function cheer(cheerId: string, headline: string) {
     if (cheeredIds.has(cheerId)) return;
@@ -94,7 +85,7 @@ export function MetaGuideStepper({
       .getState()
       .push(
         {
-          id: `whatsapp-guide:${cheerId}`,
+          id: `${guide.id}:${cheerId}`,
           kind: "alert",
           headline,
           priority: "info",
@@ -114,7 +105,7 @@ export function MetaGuideStepper({
     if (nextStep && nextStep.phase !== step.phase)
       cheer(`cheer:phase-${step.phase}`, phase.cheer);
     const percent = Math.round(((safeIndex + 1) / steps.length) * 100);
-    const milestone = [...PROGRESS_MILESTONES]
+    const milestone = [...guide.milestones]
       .reverse()
       .find((item) => percent >= item.percent);
     if (milestone)
@@ -131,10 +122,12 @@ export function MetaGuideStepper({
             {phase.title}
           </span>
         </span>
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Switch checked={isManualMode} onCheckedChange={setIsManualMode} />
-          Prefiro fazer tudo na Meta
-        </label>
+        {hasAutomatedSteps && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Switch checked={isManualMode} onCheckedChange={setIsManualMode} />
+            Prefiro fazer tudo na Meta
+          </label>
+        )}
       </div>
 
       <StayOnTrack />
@@ -162,12 +155,20 @@ export function MetaGuideStepper({
         )}
 
         {stepLink && (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div
+            className={cn(
+              "flex shrink-0 flex-wrap items-center gap-2",
+              step.isLinkHighlighted && "flex-1 flex-col justify-center",
+            )}
+          >
             <Button
               asChild
-              size="sm"
+              size={step.isLinkHighlighted ? "lg" : "sm"}
               variant="outline"
-              className="border-[#0866FF]/40 text-[#0866FF] hover:bg-[#0866FF]/10 hover:text-[#0866FF] dark:text-[#4d94ff]"
+              className={cn(
+                "border-[#0866FF]/40 text-[#0866FF] hover:bg-[#0866FF]/10 hover:text-[#0866FF] dark:text-[#4d94ff]",
+                step.isLinkHighlighted && "h-14 px-10 text-lg [&_svg]:size-6",
+              )}
             >
               <a
                 href={stepLink}
@@ -198,14 +199,19 @@ export function MetaGuideStepper({
           copyValues[key] ? (
             <CopyField
               key={key}
-              label={COPY_LABELS[key]}
+              label={guide.copyLabels[key] ?? key}
               value={copyValues[key] ?? ""}
             />
           ) : null,
         )}
 
         {step.shot && (
-          <GuideShot step={step} isFitted className="min-h-[140px] flex-1" />
+          <GuideShot
+            step={step}
+            imageBasePath={guide.imageBasePath}
+            isFitted
+            className="min-h-[140px] flex-1"
+          />
         )}
         {renderStepExtra && (
           <div className="shrink-0">{renderStepExtra(step)}</div>

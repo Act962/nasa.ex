@@ -58,6 +58,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useConnectionWizardStore } from "@/features/integrations/store/connection-wizard-store";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -710,7 +711,10 @@ export function ConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-lg max-h-[90vh] overflow-y-auto"
+        data-guide={GUIDE_ANCHORS.integrationsConfigDialog.id}
+      >
         <DialogHeader>
           <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-2", def.bgColor)}>
             <Icon className={cn("w-5 h-5", def.color)} />

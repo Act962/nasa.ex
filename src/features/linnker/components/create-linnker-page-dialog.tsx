@@ -14,6 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 interface Props {
   open: boolean;
@@ -29,10 +32,11 @@ export function CreateLinnkerPageDialog({ open, onClose, onSuccess }: Props) {
   const { mutate, isPending } = useMutation({
     mutationFn: () =>
       client.linnker.createPage({ title, slug: slug.toLowerCase(), bio }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("Página criada com sucesso!");
       setTitle(""); setSlug(""); setBio("");
       onSuccess();
+      emitTourResult({ kind: GUIDE_RESULT_KINDS.linnkerPageCreated, href: `/linnker/${data.page.id}` });
     },
     onError: (err: any) => {
       toast.error(err?.message ?? "Erro ao criar página");
@@ -58,6 +62,7 @@ export function CreateLinnkerPageDialog({ open, onClose, onSuccess }: Props) {
             <Input
               placeholder="Ex: Meus links"
               value={title}
+              data-guide={GUIDE_ANCHORS.linnkerCreateTitle.id}
               onChange={(e) => handleTitleChange(e.target.value)}
             />
           </div>
@@ -88,6 +93,7 @@ export function CreateLinnkerPageDialog({ open, onClose, onSuccess }: Props) {
             <Button
               onClick={() => mutate()}
               disabled={isPending || !title || !slug}
+              data-guide={GUIDE_ANCHORS.linnkerCreateSubmit.id}
             >
               {isPending ? "Criando..." : "Criar página"}
             </Button>

@@ -14,6 +14,7 @@ import { authClient } from "@/lib/auth-client";
 import { useNotifications } from "@/components/sidebar/hooks/use-notifications";
 import { buildGreeting, extractFirstName } from "@/features/astro/voice/greeting";
 import { useAstroWidgetStore } from "@/features/astro/voice/use-astro-widget-store";
+import { usePaymentTabStore } from "@/features/payment/store/use-payment-tab-store";
 import type {
   AstroVoiceAction,
   AstroVoicePriority,
@@ -40,7 +41,14 @@ const PRIORITY_DOT: Record<AstroVoicePriority, string> = {
 };
 
 /** Atalhos da tela atual — o pedido vai pronto para a Conversa. */
-function quickActionsFor(pathname: string): string[] {
+function quickActionsFor(pathname: string, paymentTab: string | null): string[] {
+  if (pathname.startsWith("/payment") && paymentTab === "accounting") {
+    return [
+      "Como está minha parte fiscal? O que preciso resolver?",
+      "Quanto vou pagar de DAS este mês?",
+      "Quais certidões e documentos estão vencendo?",
+    ];
+  }
   if (pathname.startsWith("/payment")) {
     return [
       "O que vence hoje e ainda não foi pago?",
@@ -109,6 +117,7 @@ export function AstroWidgetHome({ pathname }: { pathname: string }) {
     buildGreeting(extractFirstName(session?.user?.name)),
   );
   const openWidget = useAstroWidgetStore((state) => state.open);
+  const paymentTab = usePaymentTabStore((state) => state.activeTab);
   const closeWidget = useAstroWidgetStore((state) => state.close);
   const { notifications, markRead, markAllRead } = useNotifications();
 
@@ -235,7 +244,7 @@ export function AstroWidgetHome({ pathname }: { pathname: string }) {
           <Sparkles className="size-3.5" />
           Atalhos
         </h3>
-        {quickActionsFor(pathname).map((prompt) => (
+        {quickActionsFor(pathname, paymentTab).map((prompt) => (
           <button
             key={prompt}
             type="button"

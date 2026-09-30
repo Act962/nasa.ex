@@ -33,7 +33,7 @@ function generatePin(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-function getRpIdAndOrigin(): { rpID: string; origin: string } {
+export function getRpIdAndOrigin(): { rpID: string; origin: string } {
   const url =
     process.env.BETTER_AUTH_URL ||
     process.env.NEXT_PUBLIC_URL ||
@@ -66,7 +66,7 @@ function setChallenge(userId: string, orgId: string, challenge: string) {
   });
 }
 
-function popChallenge(userId: string, orgId: string): string | null {
+export function popChallenge(userId: string, orgId: string): string | null {
   const key = challengeKey(userId, orgId);
   const value = webauthnChallenges.get(key);
   webauthnChallenges.delete(key);
@@ -974,7 +974,7 @@ export const updatePaymentPermissions = base
 // WebAuthn (Face ID / Touch ID / passkeys)
 // ─────────────────────────────────────────────────────────────────────────────
 
-type StoredCredential = {
+export type StoredCredential = {
   credentialId: string;
   publicKey: string;
   counter: number;
@@ -983,7 +983,7 @@ type StoredCredential = {
   createdAt: string;
 };
 
-function parseCredentials(value: unknown): StoredCredential[] {
+export function parseCredentials(value: unknown): StoredCredential[] {
   if (!Array.isArray(value)) return [];
   return value as StoredCredential[];
 }

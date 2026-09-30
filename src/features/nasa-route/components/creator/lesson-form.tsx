@@ -37,6 +37,9 @@ import {
   PlusIcon,
   XIcon,
 } from "lucide-react";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 interface LessonAttachment {
   /** Vazio quando o item é novo (ainda não salvo). */
@@ -110,6 +113,7 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
     ...orpc.nasaRoute.creatorUpsertLesson.mutationOptions(),
     onSuccess: () => {
       toast.success(isEdit ? "Aula atualizada!" : "Aula criada!");
+      if (!isEdit) emitTourResult({ kind: GUIDE_RESULT_KINDS.lessonCreated });
       queryClient.invalidateQueries({
         queryKey: orpc.nasaRoute.creatorListCourses.queryKey(),
       });
@@ -160,6 +164,7 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
             <Label htmlFor="lesson-title">Título da aula *</Label>
             <Input
               id="lesson-title"
+              data-guide={GUIDE_ANCHORS.routeLessonTitle.id}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -312,7 +317,12 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={upsert.isPending} className="gap-1.5">
+            <Button
+              type="submit"
+              disabled={upsert.isPending}
+              className="gap-1.5"
+              data-guide={GUIDE_ANCHORS.routeLessonSubmit.id}
+            >
               {upsert.isPending ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (

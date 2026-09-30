@@ -48,6 +48,7 @@ import {
 import { useForgeSettings } from "@/features/forge/hooks/use-forge";
 import { CommercialResultsTable, BidResultsTable } from "./results-table";
 import { PriceItemModal } from "./price-item-modal";
+import { TaxRateField, type TaxRateSource } from "./tax-rate-field";
 
 type Mode = "COMERCIAL" | "LICITACAO";
 
@@ -156,6 +157,8 @@ export function SimulationBuilder({
   const [mode, setMode] = useState<Mode>("COMERCIAL");
   const [markup, setMarkup] = useState("40");
   const [taxRate, setTaxRate] = useState("0");
+  const [taxRateSource, setTaxRateSource] = useState<TaxRateSource>("PROFILE");
+  const [shouldAutoSyncTaxRate, setShouldAutoSyncTaxRate] = useState(!simulationId);
   const [validity, setValidity] = useState<Validity>("ANUAL");
   const [showInternal, setShowInternal] = useState(true);
   const [advanced, setAdvanced] = useState(false);
@@ -239,6 +242,15 @@ export function SimulationBuilder({
     setMode(sim.mode);
     setMarkup(String(sim.markupPercentage ?? "0"));
     setUserCount(sim.userCount ?? 100);
+    // Simulação antiga (sem alíquota salva) passa a acompanhar o perfil fiscal.
+    if (typeof sim.taxRateBps === "number") {
+      setTaxRate(String(sim.taxRateBps / 100));
+      setTaxRateSource(sim.taxRateSource === "PROFILE" ? "PROFILE" : "MANUAL");
+      setShouldAutoSyncTaxRate(false);
+    } else {
+      setTaxRateSource("PROFILE");
+      setShouldAutoSyncTaxRate(true);
+    }
 
     if (sim.mode === "COMERCIAL") {
       setAdvanced(true);
@@ -432,6 +444,8 @@ export function SimulationBuilder({
       name,
       mode,
       markupPercentage: num(markup),
+      taxRateBps: Math.min(10000, Math.max(0, Math.round(taxRateNum * 100))),
+      taxRateSource,
       userCount,
       aiPriceItemId: aiEnabled ? effectiveAiItem?.id ?? null : null,
       inputTokensPerUser: aiEnabled ? effectiveInput : 0,
@@ -618,14 +632,13 @@ export function SimulationBuilder({
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Impostos (%)">
-                  <Input
-                    type="number"
-                    value={taxRate}
-                    onChange={(event) => setTaxRate(event.target.value)}
-                    className="h-9"
-                  />
-                </Field>
+                <TaxRateField
+                  taxRate={taxRate}
+                  onTaxRateChange={setTaxRate}
+                  source={taxRateSource}
+                  onSourceChange={setTaxRateSource}
+                  shouldAutoSync={shouldAutoSyncTaxRate}
+                />
                 <Field label="Vigência da proposta">
                   <Select value={validity} onValueChange={(value) => setValidity(value as Validity)}>
                     <SelectTrigger className="h-9">

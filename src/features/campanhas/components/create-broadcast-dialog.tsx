@@ -26,6 +26,9 @@ import {
 import { useSendingNumbers } from "../hooks/use-sending-numbers";
 import { useCreateBroadcast } from "../hooks/use-broadcasts";
 import { CONNECT_NUMBER_EVENT } from "./self-service/official-number-overview";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 export function CreateBroadcastDialog() {
   const router = useRouter();
@@ -51,6 +54,7 @@ export function CreateBroadcastDialog() {
           setName("");
           setTrackingId("");
           router.push(`/campanhas/${broadcast.id}`);
+          emitTourResult({ kind: GUIDE_RESULT_KINDS.broadcastCreated });
         },
         onError: (error) => {
           toast.error(error.message ?? "Não foi possível criar a campanha");
@@ -62,7 +66,7 @@ export function CreateBroadcastDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button data-guide={GUIDE_ANCHORS.campaignNewButton.id}>
           <Plus className="size-4" /> Nova campanha
         </Button>
       </DialogTrigger>
@@ -100,12 +104,13 @@ export function CreateBroadcastDialog() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Ex: Promoção de Julho"
                 autoFocus
+                data-guide={GUIDE_ANCHORS.campaignName.id}
               />
             </div>
             <div className="flex flex-col gap-2">
               <Label>Número de origem</Label>
               <Select value={trackingId} onValueChange={setTrackingId}>
-                <SelectTrigger>
+                <SelectTrigger data-guide={GUIDE_ANCHORS.campaignSendingNumber.id}>
                   <SelectValue
                     placeholder={
                       loadingNumbers ? "Carregando…" : "Selecione um número"
@@ -132,6 +137,7 @@ export function CreateBroadcastDialog() {
         <DialogFooter>
           <Button
             onClick={handleCreate}
+            data-guide={GUIDE_ANCHORS.campaignCreateSubmit.id}
             disabled={
               !hasNumbers ||
               !name.trim() ||

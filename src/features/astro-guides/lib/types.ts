@@ -1,5 +1,6 @@
 import type { TourAdvanceOn, TourFinish, TourPosition } from "@/features/tour/types";
 import type { GuideAnchorKey } from "./anchors";
+import type { GuideResultKind } from "./result-kinds";
 
 export interface GuideStep {
   anchor: GuideAnchorKey;
@@ -11,12 +12,42 @@ export interface GuideStep {
   route?: string;
   /** Regex da rota atual que torna o passo desnecessário. */
   skipWhenPath?: string;
+  /** Âncora que, já na tela, torna o passo desnecessário. */
+  skipWhenVisible?: GuideAnchorKey;
+  /** Obrigatório em passo `result`: o tipo que a tela emite ao concluir. */
+  resultKind?: GuideResultKind;
+  missingMessage?: string;
   padding?: number;
 }
 
+export type GuideApp =
+  | "tracking"
+  | "chat"
+  | "agenda"
+  | "forge"
+  | "form"
+  | "workspace"
+  | "payment"
+  | "campanhas"
+  | "contacts"
+  | "settings"
+  | "trafego"
+  | "pages"
+  | "linnker"
+  | "nbox"
+  | "planner"
+  | "route"
+  | "space-station"
+  | "star-friends"
+  | "integrations"
+  | "insights"
+  | "comments"
+  | "astro"
+  | "nerp";
+
 export interface GuideDef {
   key: string;
-  app: "tracking";
+  app: GuideApp;
   title: string;
   summary: string;
   /** Assunto do pedido, já sem acento e em minúsculas. */

@@ -353,23 +353,38 @@ model Organization {
   spacePointPrizes       SpacePointRankingPrize[]
 
   // NASA Payment
-  paymentBankAccounts     PaymentBankAccount[]
-  paymentCategories       PaymentCategory[]
-  paymentCostCenters      PaymentCostCenter[]
-  paymentContacts         PaymentContact[]
-  paymentEntries          PaymentEntry[]
-  paymentAttachments      PaymentAttachment[]
-  paymentReminders        PaymentReminder[]
-  paymentInboxConfig      PaymentInboxConfig?
-  paymentInboxItems       PaymentInboxItem[]
-  paymentAccess           PaymentAccess[]
-  paymentApprovalRequests PaymentApprovalRequest[]
-  paymentGovernanceConfig PaymentGovernanceConfig?
-  paymentDunningRules     PaymentDunningRule[]
-  paymentGoalConfig       PaymentGoalConfig?
-  paymentGoalMonths       PaymentGoalMonth[]
-  paymentStatementImports PaymentStatementImport[]
-  paymentBankTransactions PaymentBankTransaction[]
+  paymentBankAccounts         PaymentBankAccount[]
+  paymentCategories           PaymentCategory[]
+  paymentCostCenters          PaymentCostCenter[]
+  paymentContacts             PaymentContact[]
+  paymentEntries              PaymentEntry[]
+  paymentAttachments          PaymentAttachment[]
+  paymentReminders            PaymentReminder[]
+  paymentInboxConfig          PaymentInboxConfig?
+  paymentInboxItems           PaymentInboxItem[]
+  paymentAccess               PaymentAccess[]
+  paymentApprovalRequests     PaymentApprovalRequest[]
+  paymentGovernanceConfig     PaymentGovernanceConfig?
+  paymentDunningRules         PaymentDunningRule[]
+  paymentGoalConfig           PaymentGoalConfig?
+  paymentGoalMonths           PaymentGoalMonth[]
+  paymentStatementImports     PaymentStatementImport[]
+  // ── Aba Contábil (spec 0051) ──
+  taxProfile                  OrganizationTaxProfile?
+  accountingAccounts          AccountingAccount[]
+  accountingMappings          AccountingMapping[]
+  journalEntries              JournalEntry[]
+  taxRates                    TaxRate[]
+  taxAssessments              TaxAssessment[]
+  fiscalObligations           FiscalObligation[]
+  taxCredits                  TaxCredit[]
+  productTaxClassifications   ProductTaxClassification[]
+  companyDocuments            CompanyDocument[]
+  companyDocumentRequirements CompanyDocumentRequirement[]
+  companyCredentials          CompanyCredential[]
+  companyCertificates         CompanyCertificate[]
+  regularitySnapshots         RegularityScoreSnapshot[]
+  paymentBankTransactions     PaymentBankTransaction[]
 
   // NASA Campaign Planner
   nasaCampaignPlanners NasaCampaignPlanner[]
@@ -605,33 +620,33 @@ model Tracking {
   updatedAt                     DateTime  @updatedAt @map("updated_at")
 
   // Relacionamentos
-  organization        Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  orgProject          OrgProject?             @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
-  participants        TrackingParticipant[]
-  status              Status[]
-  leads               Lead[]
-  tags                Tag[]
-  winLossReasons      WinLossReason[]
-  actions             Action[]
-  workflows           Workflow[]
-  workflowFolders     WorkflowFolder[]
-  forms               FormSettings[]
-  whatsappInstance    WhatsAppInstance?
+  organization            Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orgProject              OrgProject?              @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
+  participants            TrackingParticipant[]
+  status                  Status[]
+  leads                   Lead[]
+  tags                    Tag[]
+  winLossReasons          WinLossReason[]
+  actions                 Action[]
+  workflows               Workflow[]
+  workflowFolders         WorkflowFolder[]
+  forms                   FormSettings[]
+  whatsappInstance        WhatsAppInstance?
   whatsAppConnectProgress WhatsAppConnectProgress?
-  broadcasts          Broadcast[]
-  conversations       Conversation[]
-  agendas             Agenda[]
-  appointments        Appointment[]
-  aiSettings          AiSettings?
-  aiButtonPresets     AiButtonPreset[]
-  trackingConsultants TrackingConsultant[]
-  workspaces          Workspace[]
-  scripts             Script[]
-  reminders           Reminder[]
-  paymentEntries      PaymentEntry[]
-  cardConfig          TrackingCardConfig?
-  idleAutomation      TrackingIdleAutomation?
-  aiChatRuns          AiChatRun[]
+  broadcasts              Broadcast[]
+  conversations           Conversation[]
+  agendas                 Agenda[]
+  appointments            Appointment[]
+  aiSettings              AiSettings?
+  aiButtonPresets         AiButtonPreset[]
+  trackingConsultants     TrackingConsultant[]
+  workspaces              Workspace[]
+  scripts                 Script[]
+  reminders               Reminder[]
+  paymentEntries          PaymentEntry[]
+  cardConfig              TrackingCardConfig?
+  idleAutomation          TrackingIdleAutomation?
+  aiChatRuns              AiChatRun[]
 
   // Tracking Presets — quais aplicações deste preset originaram este tracking
   presetApplications TrackingPresetApplication[]
@@ -1161,12 +1176,12 @@ model Lead {
   responsible User?       @relation("LeadResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
   orgProject  OrgProject? @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
 
-  conversation Conversation?
+  conversation    Conversation?
   /// Métricas de comportamento e atendimento (spec 0035, "Auditar Lead").
-  metrics      LeadMetrics?
-  triggers     LeadTrigger[]
-  scopedWorkflows Workflow[] @relation("WorkflowLeadScope")
-  reminders    Reminder[]
+  metrics         LeadMetrics?
+  triggers        LeadTrigger[]
+  scopedWorkflows Workflow[]    @relation("WorkflowLeadScope")
+  reminders       Reminder[]
 
   leadTags                  LeadTag[]
   history                   LeadHistory[]
@@ -1871,12 +1886,12 @@ model Workflow {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  user      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
-  tracking  Tracking?       @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  scopedLead Lead?          @relation("WorkflowLeadScope", fields: [leadId], references: [id], onDelete: SetNull)
-  workspace Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  folder    WorkflowFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  agent     Agent?          @relation("AgentWorkflow", fields: [agentId], references: [id], onDelete: SetNull)
+  user       User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tracking   Tracking?       @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  scopedLead Lead?           @relation("WorkflowLeadScope", fields: [leadId], references: [id], onDelete: SetNull)
+  workspace  Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  folder     WorkflowFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  agent      Agent?          @relation("AgentWorkflow", fields: [agentId], references: [id], onDelete: SetNull)
 
   nodes              Node[]
   connections        Connection[]
@@ -2083,6 +2098,8 @@ enum NodeType {
   // Construtor rápido (spec 0039)
   SCHEDULE_TRIGGER
   NOTIFY_TEAM
+  // Aba Contábil (spec 0051): obrigação, documento, guia ou nota do mês vencendo.
+  COMPLIANCE_ITEM_DUE
 }
 
 model Node {
@@ -2638,9 +2655,9 @@ model Broadcast {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  tracking     Tracking             @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  createdBy    User                 @relation(fields: [createdById], references: [id])
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tracking     Tracking              @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  createdBy    User                  @relation(fields: [createdById], references: [id])
   recipients   BroadcastRecipient[]
   feePayments  BroadcastFeePayment[]
 
@@ -2654,27 +2671,27 @@ model Broadcast {
 
 /// Taxa de serviço ÓRBITA de uma campanha (spec 0040): paga antes de disparar.
 model BroadcastFeePayment {
-  id                String    @id @default(cuid())
-  broadcastId       String    @map("broadcast_id")
-  organizationId    String    @map("organization_id")
-  createdById       String    @map("created_by_id")
-  recipients        Int
-  templateCategory  String    @map("template_category")
-  metaCostBrlCents  Int       @map("meta_cost_brl_cents")
-  feePercent        Int       @map("fee_percent")
-  serviceFeeBrlCents Int      @map("service_fee_brl_cents")
+  id                 String    @id @default(cuid())
+  broadcastId        String    @map("broadcast_id")
+  organizationId     String    @map("organization_id")
+  createdById        String    @map("created_by_id")
+  recipients         Int
+  templateCategory   String    @map("template_category")
+  metaCostBrlCents   Int       @map("meta_cost_brl_cents")
+  feePercent         Int       @map("fee_percent")
+  serviceFeeBrlCents Int       @map("service_fee_brl_cents")
   /// "STRIPE" (cartão) | "ASAAS" (PIX/boleto/cartão na página do Asaas).
-  provider          String
-  externalId        String?   @map("external_id")
-  checkoutUrl       String?   @map("checkout_url")
+  provider           String
+  externalId         String?   @map("external_id")
+  checkoutUrl        String?   @map("checkout_url")
   /// PENDING | PAID | CANCELED
-  status            String    @default("PENDING")
+  status             String    @default("PENDING")
   /// NOW (dispara ao pagar) | SCHEDULE (agenda ao pagar)
-  dispatchMode      String    @default("NOW") @map("dispatch_mode")
-  scheduledAt       DateTime? @map("scheduled_at")
-  paidAt            DateTime? @map("paid_at")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  dispatchMode       String    @default("NOW") @map("dispatch_mode")
+  scheduledAt        DateTime? @map("scheduled_at")
+  paidAt             DateTime? @map("paid_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
   broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
 
@@ -3283,23 +3300,23 @@ enum LoyaltyRedemptionChannel {
 }
 
 model LoyaltyProgram {
-  id                  String    @id @default(cuid())
-  organizationId      String    @unique @map("organization_id")
-  isActive            Boolean   @default(true) @map("is_active")
-  name                String    @default("STAR FRIENDS")
-  starsPerPurchase    Int       @default(1) @map("stars_per_purchase")
-  minPurchaseAmount   Decimal   @default(0) @map("min_purchase_amount") @db.Decimal(12, 2)
-  starsExpireDays     Int?      @map("stars_expire_days")
-  countCatalogOrders  Boolean   @default(true) @map("count_catalog_orders")
-  countForgeProposals Boolean   @default(true) @map("count_forge_proposals")
+  id                  String   @id @default(cuid())
+  organizationId      String   @unique @map("organization_id")
+  isActive            Boolean  @default(true) @map("is_active")
+  name                String   @default("STAR FRIENDS")
+  starsPerPurchase    Int      @default(1) @map("stars_per_purchase")
+  minPurchaseAmount   Decimal  @default(0) @map("min_purchase_amount") @db.Decimal(12, 2)
+  starsExpireDays     Int?     @map("stars_expire_days")
+  countCatalogOrders  Boolean  @default(true) @map("count_catalog_orders")
+  countForgeProposals Boolean  @default(true) @map("count_forge_proposals")
   rules               String?
-  moonMinStars        Int       @default(10) @map("moon_min_stars")
-  galaxyMinStars      Int       @default(30) @map("galaxy_min_stars")
-  earthPerks          String?   @map("earth_perks")
-  moonPerks           String?   @map("moon_perks")
-  galaxyPerks         String?   @map("galaxy_perks")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  moonMinStars        Int      @default(10) @map("moon_min_stars")
+  galaxyMinStars      Int      @default(30) @map("galaxy_min_stars")
+  earthPerks          String?  @map("earth_perks")
+  moonPerks           String?  @map("moon_perks")
+  galaxyPerks         String?  @map("galaxy_perks")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -3583,24 +3600,28 @@ enum ForgeSecurityLevel {
 }
 
 model ForgeProduct {
-  id             String   @id @default(cuid())
-  organizationId String   @map("organization_id")
-  name           String
-  sku            String
-  imageUrl       String?  @map("image_url")
-  unit           String   @default("un")
-  description    String?
-  value          Decimal  @db.Decimal(15, 2)
-  createdById    String   @map("created_by")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id                  String   @id @default(cuid())
+  organizationId      String   @map("organization_id")
+  name                String
+  sku                 String
+  imageUrl            String?  @map("image_url")
+  unit                String   @default("un")
+  description         String?
+  value               Decimal  @db.Decimal(15, 2)
+  createdById         String   @map("created_by")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  /// Classificação tributária (NCM/NBS/cClassTrib) — spec 0051.
+  taxClassificationId String?  @map("tax_classification_id")
 
-  organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy        User                   @relation("ForgeProductCreatedBy", fields: [createdById], references: [id])
-  proposalProducts ForgeProposalProduct[]
+  organization      Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy         User                      @relation("ForgeProductCreatedBy", fields: [createdById], references: [id])
+  proposalProducts  ForgeProposalProduct[]
+  taxClassification ProductTaxClassification? @relation(fields: [taxClassificationId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, sku])
   @@index([organizationId])
+  @@index([taxClassificationId])
   @@map("forge_products")
 }
 
@@ -3621,6 +3642,8 @@ model ForgeProposal {
   paymentGateway            ForgePaymentGateway? @map("payment_gateway")
   publicToken               String               @unique @default(cuid()) @map("public_token")
   headerConfig              Json                 @default("{}") @map("header_config")
+  /// Imposto embutido no preço, estruturado (spec 0051): alíquota, base, fonte.
+  taxBreakdown              Json?                @map("tax_breakdown")
   isTemplate                Boolean              @default(false) @map("is_template")
   templateMarkedByModerator Boolean              @default(false) @map("template_marked_by_moderator")
   createdById               String               @map("created_by")
@@ -3868,6 +3891,10 @@ model ForgeSimulation {
   bidNumber           String?             @map("bid_number")
   contractMonths      Int                 @default(12) @map("contract_months")
   ceilingTotalBrl     Decimal?            @map("ceiling_total_brl") @db.Decimal(15, 2)
+  /// Alíquota de impostos usada no preço, em pontos-base (spec 0051).
+  taxRateBps          Int?                @map("tax_rate_bps")
+  /// MANUAL = digitada; PROFILE = sugerida pelo perfil fiscal da aba Contábil.
+  taxRateSource       String?             @map("tax_rate_source")
   createdById         String              @map("created_by")
   createdAt           DateTime            @default(now()) @map("created_at")
   updatedAt           DateTime            @updatedAt @map("updated_at")
@@ -4219,6 +4246,10 @@ model NBoxFolder {
   createdById    String   @map("created_by_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
+  /// Pasta criada pelo sistema (ex.: "company_documents"). Não pode ser apagada.
+  systemKey      String?  @map("system_key")
+  /// Pasta restrita: só quem é ADMIN/OWNER do financeiro vê (spec 0051).
+  isRestricted   Boolean  @default(false) @map("is_restricted")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   parent       NBoxFolder?  @relation("FolderChildren", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -4226,6 +4257,7 @@ model NBoxFolder {
   createdBy    User         @relation("NBoxFolderCreatedBy", fields: [createdById], references: [id])
   items        NBoxItem[]
 
+  @@unique([organizationId, systemKey])
   @@index([organizationId])
   @@index([parentId])
   @@map("nbox_folders")
@@ -5395,18 +5427,21 @@ model PaymentCostCenter {
 }
 
 model PaymentContact {
-  id             String   @id @default(cuid())
-  organizationId String   @map("organization_id")
-  name           String
-  document       String? // CPF ou CNPJ
-  email          String?
-  phone          String?
-  contactType    String   @default("BOTH") @map("contact_type") // CUSTOMER, SUPPLIER, BOTH
-  notes          String?
-  isActive       Boolean  @default(true) @map("is_active")
-  creditLimit    Int      @default(0) @map("credit_limit") // em centavos
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id                String     @id @default(cuid())
+  organizationId    String     @map("organization_id")
+  name              String
+  document          String? // CPF ou CNPJ
+  email             String?
+  phone             String?
+  contactType       String     @default("BOTH") @map("contact_type") // CUSTOMER, SUPPLIER, BOTH
+  notes             String?
+  isActive          Boolean    @default(true) @map("is_active")
+  creditLimit       Int        @default(0) @map("credit_limit") // em centavos
+  /// Regime do fornecedor: Simples transfere crédito de IBS/CBS diferente (spec 0051).
+  taxRegime         TaxRegime? @map("tax_regime")
+  stateRegistration String?    @map("state_registration")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
 
   organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   entries      PaymentEntry[]
@@ -8836,17 +8871,17 @@ model AstroChatSite {
 
 /// Visitante anônimo do widget. O token fica no navegador; aqui só o hash (TR-3).
 model AstroChatVisitor {
-  id             String    @id @default(cuid())
-  siteId         String    @map("site_id")
-  tokenHash      String    @unique @map("token_hash")
-  ipHash         String?   @map("ip_hash")
-  origin         String?
-  pageUrl        String?   @map("page_url")
-  leadId         String?   @map("lead_id")
+  id            String    @id @default(cuid())
+  siteId        String    @map("site_id")
+  tokenHash     String    @unique @map("token_hash")
+  ipHash        String?   @map("ip_hash")
+  origin        String?
+  pageUrl       String?   @map("page_url")
+  leadId        String?   @map("lead_id")
   /// Portão atômico do intervalo mínimo entre mensagens (TR-4).
-  lastMessageAt  DateTime? @map("last_message_at")
-  lastSeenAt     DateTime  @default(now()) @map("last_seen_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
+  lastMessageAt DateTime? @map("last_message_at")
+  lastSeenAt    DateTime  @default(now()) @map("last_seen_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
 
   site AstroChatSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
   lead Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
@@ -10229,4 +10264,456 @@ model SocialStepRun {
   @@index([runId])
   @@index([stepId])
   @@map("social_step_runs")
+}
+
+// ─────────────────────────────────────────────
+// ABA CONTÁBIL — spec 0051 (docs/contabil-overview.md)
+// A contabilidade é DERIVADA do PaymentEntry: o journal é reconstruído de
+// forma idempotente a partir do lançamento, nunca digitado em paralelo.
+// Alíquotas moram em TaxRate (versionadas por vigência), nunca no código.
+// ─────────────────────────────────────────────
+
+enum TaxRegime {
+  MEI
+  SIMPLES
+  PRESUMIDO
+  REAL
+}
+
+enum AccountingNature {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  COST
+  EXPENSE
+}
+
+enum TaxKind {
+  DAS
+  DAS_MEI
+  IRPJ
+  CSLL
+  PIS
+  COFINS
+  ISS
+  ICMS
+  CBS
+  IBS
+  IS
+  INSS
+  FGTS
+  IRRF
+}
+
+enum TaxAssessmentStatus {
+  DRAFT
+  CONFIRMED
+  PAID
+  CANCELLED
+}
+
+enum FiscalObligationStatus {
+  PENDING
+  DONE
+  OVERDUE
+  NOT_APPLICABLE
+}
+
+enum TaxCreditStatus {
+  PENDING_PAYMENT
+  AVAILABLE
+  USED
+  GLOSSED
+}
+
+enum ProductTaxKind {
+  PRODUCT
+  SERVICE
+}
+
+model OrganizationTaxProfile {
+  id                    String    @id @default(cuid())
+  organizationId        String    @unique @map("organization_id")
+  regime                TaxRegime @default(SIMPLES)
+  cnaePrincipal         String?   @map("cnae_principal")
+  cnaesSecundarios      String[]  @default([]) @map("cnaes_secundarios")
+  /// Anexo do Simples ("I".."V"). Anexo III/V decidido pelo Fator R quando aplicável.
+  simplesAnnex          String?   @map("simples_annex")
+  /// Serviço sujeito ao Fator R (anexo V que pode cair no III).
+  isFatorRSubject       Boolean   @default(false) @map("is_fator_r_subject")
+  stateRegistration     String?   @map("state_registration")
+  municipalRegistration String?   @map("municipal_registration")
+  municipioIbge         String?   @map("municipio_ibge")
+  uf                    String?
+  openedAt              DateTime? @map("opened_at")
+  /// Folha dos últimos 12 meses (salários + pró-labore + encargos), em centavos — Fator R.
+  payroll12mCents       Int       @default(0) @map("payroll_12m_cents")
+  hasEmployees          Boolean   @default(false) @map("has_employees")
+  isIcmsContributor     Boolean   @default(false) @map("is_icms_contributor")
+  isIssContributor      Boolean   @default(true) @map("is_iss_contributor")
+  /// Presunção do IRPJ no Lucro Presumido, em bps (serviços = 3200).
+  presumedIrpjBaseBps   Int       @default(3200) @map("presumed_irpj_base_bps")
+  presumedCsllBaseBps   Int       @default(3200) @map("presumed_csll_base_bps")
+  /// Alíquota de ISS do município, em bps (quando não houver TaxRate municipal).
+  issRateBps            Int?      @map("iss_rate_bps")
+  /// Opção do Simples por recolher IBS/CBS por fora do DAS (a partir de 2027, LC 214).
+  ibsCbsOutsideSimples  Boolean   @default(false) @map("ibs_cbs_outside_simples")
+  /// Telefones que recebem avisos fiscais pelo WhatsApp (além das regras de alerta).
+  alertPhones           String[]  @default([]) @map("alert_phones")
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_tax_profiles")
+}
+
+model AccountingAccount {
+  id              String           @id @default(cuid())
+  organizationId  String           @map("organization_id")
+  code            String
+  name            String
+  nature          AccountingNature
+  parentId        String?          @map("parent_id")
+  isAnalytical    Boolean          @default(true) @map("is_analytical")
+  /// Código do plano referencial do SPED (ECD/ECF).
+  referentialCode String?          @map("referential_code")
+  /// Conta usada pelo motor (ex.: "suppliers_payable"). Única por org.
+  systemKey       String?          @map("system_key")
+  isActive        Boolean          @default(true) @map("is_active")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       AccountingAccount?  @relation("AccountingAccountTree", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children     AccountingAccount[] @relation("AccountingAccountTree")
+  mappings     AccountingMapping[]
+  lines        JournalLine[]
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, systemKey])
+  @@index([organizationId, nature])
+  @@map("accounting_accounts")
+}
+
+/// Liga uma categoria ou conta bancária do financeiro a uma conta contábil.
+model AccountingMapping {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  /// "CATEGORY" | "BANK_ACCOUNT"
+  sourceType     String   @map("source_type")
+  sourceId       String   @map("source_id")
+  accountId      String   @map("account_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      AccountingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, sourceType, sourceId])
+  @@map("accounting_mappings")
+}
+
+model JournalEntry {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  date           DateTime
+  description    String
+  /// "PAYMENT_ENTRY" | "MANUAL"
+  sourceType     String   @map("source_type")
+  sourceId       String?  @map("source_id")
+  /// "ACCRUAL" (competência) | "SETTLEMENT" (baixa) | "MANUAL"
+  sourceEvent    String   @map("source_event")
+  createdById    String?  @map("created_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lines        JournalLine[]
+
+  @@index([organizationId, date])
+  @@index([sourceType, sourceId])
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id             String  @id @default(cuid())
+  journalEntryId String  @map("journal_entry_id")
+  organizationId String  @map("organization_id")
+  accountId      String  @map("account_id")
+  debitCents     Int     @default(0) @map("debit_cents")
+  creditCents    Int     @default(0) @map("credit_cents")
+  costCenterId   String? @map("cost_center_id")
+  memo           String?
+
+  journalEntry JournalEntry      @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account      AccountingAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, accountId])
+  @@index([journalEntryId])
+  @@map("journal_lines")
+}
+
+/// Tabela de alíquotas versionada por vigência. organizationId null = global.
+model TaxRate {
+  id               String     @id @default(cuid())
+  organizationId   String?    @map("organization_id")
+  tax              TaxKind
+  regime           TaxRegime?
+  /// Anexo do Simples ("I".."V") ou chave de agrupamento (ex.: "SERVICOS").
+  annex            String?
+  bracket          Int?
+  revenueFromCents Int?       @map("revenue_from_cents")
+  revenueToCents   Int?       @map("revenue_to_cents")
+  rateBps          Int        @map("rate_bps")
+  deductionCents   Int?       @map("deduction_cents")
+  /// Valor fixo (ex.: DAS do MEI, piso/teto de contribuição), em centavos.
+  fixedAmountCents Int?       @map("fixed_amount_cents")
+  municipioIbge    String?    @map("municipio_ibge")
+  cClassTrib       String?    @map("c_class_trib")
+  reductionBps     Int?       @map("reduction_bps")
+  /// Repartição do DAS por tributo (fração de 10000 por TaxKind), quando houver.
+  distribution     Json?
+  validFrom        DateTime   @map("valid_from")
+  validTo          DateTime?  @map("valid_to")
+  /// Base legal (ex.: "LC 123/2006, Anexo III").
+  legalSource      String     @map("legal_source")
+  note             String?
+  /// Chave estável do seed — permite reprovisionar sem duplicar.
+  seedKey          String?    @unique @map("seed_key")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([tax, regime, validFrom])
+  @@index([organizationId])
+  @@map("tax_rates")
+}
+
+model TaxAssessment {
+  id               String              @id @default(cuid())
+  organizationId   String              @map("organization_id")
+  /// "AAAA-MM" (mensal) ou "AAAA-Tn" (trimestral).
+  period           String
+  tax              TaxKind
+  baseCents        Int                 @map("base_cents")
+  effectiveRateBps Int                 @map("effective_rate_bps")
+  amountCents      Int                 @map("amount_cents")
+  creditsCents     Int                 @default(0) @map("credits_cents")
+  /// Memória de cálculo passo a passo (etapas, tabela usada, base legal).
+  calculationMemo  Json                @map("calculation_memo")
+  status           TaxAssessmentStatus @default(DRAFT)
+  dueDate          DateTime?           @map("due_date")
+  /// Guia gerada ao confirmar (PaymentEntry PAYABLE).
+  paymentEntryId   String?             @unique @map("payment_entry_id")
+  confirmedById    String?             @map("confirmed_by_id")
+  confirmedAt      DateTime?           @map("confirmed_at")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  obligations  FiscalObligation[]
+
+  @@unique([organizationId, tax, period])
+  @@index([organizationId, status])
+  @@map("tax_assessments")
+}
+
+model FiscalObligation {
+  id             String                 @id @default(cuid())
+  organizationId String                 @map("organization_id")
+  /// Código do calendário (ex.: "DAS", "DEFIS", "DCTFWEB", "FGTS_DIGITAL").
+  kind           String
+  period         String
+  dueDate        DateTime               @map("due_date")
+  status         FiscalObligationStatus @default(PENDING)
+  assessmentId   String?                @map("assessment_id")
+  completedAt    DateTime?              @map("completed_at")
+  notes          String?
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assessment   TaxAssessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, kind, period])
+  @@index([organizationId, dueDate])
+  @@map("fiscal_obligations")
+}
+
+/// Crédito de tributo não cumulativo vindo de nota de entrada (fornecedor/parceiro).
+model TaxCredit {
+  id                 String          @id @default(cuid())
+  organizationId     String          @map("organization_id")
+  attachmentId       String?         @map("attachment_id")
+  entryId            String?         @map("entry_id")
+  supplierContactId  String?         @map("supplier_contact_id")
+  supplierDocument   String?         @map("supplier_document")
+  supplierName       String?         @map("supplier_name")
+  /// Chave de acesso (44 dígitos) da NF-e, ou número da NFS-e prefixado.
+  accessKey          String          @map("access_key")
+  tax                TaxKind
+  amountCents        Int             @map("amount_cents")
+  /// Valor total da nota — para comparar crédito x preço por fornecedor.
+  invoiceTotalCents  Int?            @map("invoice_total_cents")
+  /// "AAAA-MM" de competência da entrada.
+  competence         String
+  status             TaxCreditStatus @default(PENDING_PAYMENT)
+  usedInAssessmentId String?         @map("used_in_assessment_id")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, accessKey, tax])
+  @@index([organizationId, competence])
+  @@index([entryId])
+  @@map("tax_credits")
+}
+
+model ProductTaxClassification {
+  id               String         @id @default(cuid())
+  organizationId   String         @map("organization_id")
+  name             String
+  kind             ProductTaxKind @default(SERVICE)
+  ncm              String?
+  nbs              String?
+  /// Item da lista de serviços da LC 116/2003 (ex.: "1.03").
+  lc116Item        String?        @map("lc116_item")
+  /// Código de classificação tributária do IBS/CBS.
+  cClassTrib       String?        @map("c_class_trib")
+  cst              String?
+  /// Redução de alíquota do regime diferenciado, em bps (3000/6000/10000).
+  reductionBps     Int            @default(0) @map("reduction_bps")
+  issMunicipioIbge String?        @map("iss_municipio_ibge")
+  issRateBps       Int?           @map("iss_rate_bps")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  forgeProducts ForgeProduct[]
+
+  @@index([organizationId])
+  @@map("product_tax_classifications")
+}
+
+/// Documento da empresa (certidão, alvará, cartão CNPJ...). O arquivo mora no
+/// N-Box, na pasta restrita "Documentos da empresa". O catálogo de tipos está
+/// em código (features/accounting/lib/compliance/document-catalog.ts).
+model CompanyDocument {
+  id             String    @id @default(cuid())
+  organizationId String    @map("organization_id")
+  typeCode       String    @map("type_code")
+  /// Rótulo livre para documento avulso (typeCode = "CUSTOM").
+  label          String?
+  nboxItemId     String?   @unique @map("nbox_item_id")
+  number         String?
+  issuedAt       DateTime? @map("issued_at")
+  expiresAt      DateTime? @map("expires_at")
+  /// "AAAA-MM" para documentos mensais (guias, notas do mês).
+  period         String?
+  /// "VALID" | "PENDING_REVIEW" | "REPLACED"
+  status         String    @default("VALID")
+  extraction     Json?
+  notes          String?
+  uploadedById   String?   @map("uploaded_by_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, typeCode])
+  @@index([organizationId, expiresAt])
+  @@map("company_documents")
+}
+
+/// Ajuste por org do catálogo de documentos: marcar como não aplicável, peso, validade.
+model CompanyDocumentRequirement {
+  id                  String   @id @default(cuid())
+  organizationId      String   @map("organization_id")
+  typeCode            String   @map("type_code")
+  isApplicable        Boolean? @map("is_applicable")
+  weight              Int?
+  defaultValidityDays Int?     @map("default_validity_days")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, typeCode])
+  @@map("company_document_requirements")
+}
+
+/// Cofre de credenciais de portais (e-CAC, SEFAZ-PI, Prefeitura...). Segredo
+/// cifrado com AES-256-GCM (src/lib/crypto.ts); revelar exige WebAuthn.
+model CompanyCredential {
+  id              String   @id @default(cuid())
+  organizationId  String   @map("organization_id")
+  portal          String
+  label           String
+  username        String?
+  secretEncrypted String   @map("secret_encrypted")
+  secretLast4     String?  @map("secret_last4")
+  url             String?
+  notes           String?
+  createdById     String   @map("created_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reveals      CompanyCredentialRevealLog[]
+
+  @@index([organizationId])
+  @@map("company_credentials")
+}
+
+model CompanyCredentialRevealLog {
+  id             String   @id @default(cuid())
+  credentialId   String   @map("credential_id")
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  revealedAt     DateTime @default(now()) @map("revealed_at")
+
+  credential CompanyCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+
+  @@index([credentialId, revealedAt])
+  @@map("company_credential_reveal_logs")
+}
+
+/// Certificado digital A1 (.pfx) cifrado. Usado pela emissora de notas (Fase 2).
+model CompanyCertificate {
+  id                String   @id @default(cuid())
+  organizationId    String   @map("organization_id")
+  /// "A1"
+  kind              String   @default("A1")
+  subjectName       String?  @map("subject_name")
+  document          String?
+  validFrom         DateTime @map("valid_from")
+  validTo           DateTime @map("valid_to")
+  pfxEncrypted      String   @map("pfx_encrypted")
+  passwordEncrypted String   @map("password_encrypted")
+  createdById       String   @map("created_by_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, validTo])
+  @@map("company_certificates")
+}
+
+model RegularityScoreSnapshot {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  date           DateTime @db.Date
+  /// 0..10000 (pontos-base de 100%).
+  scoreBps       Int      @map("score_bps")
+  breakdown      Json
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, date])
+  @@map("regularity_score_snapshots")
 }

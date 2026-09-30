@@ -6,6 +6,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { addCalendarMonths, parseCalendarDate } from "@/features/payment/lib/dates";
 import { shouldTriggerApproval } from "@/features/payment/server/approvals/should-trigger-approval";
 import { ENTRY_INCLUDE, type PaymentActor } from "./entry-include";
+import { queueJournalSync } from "@/features/accounting/server/journal/queue-journal-sync";
 
 // Criação de lançamento (com parcelas, aprovação, régua e anexos) como serviço.
 // A transação só grava; todos os efeitos rodam depois do commit, best-effort —
@@ -96,6 +97,7 @@ export async function createPaymentEntryRecord(params: {
   );
 
   await runPostCreateEffects({ organizationId, actor, input, entries, installments });
+  await queueJournalSync(organizationId, entries.map((entry) => entry.id));
 
   return entries;
 }

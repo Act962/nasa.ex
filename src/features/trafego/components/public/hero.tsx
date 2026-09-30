@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HeroPhone } from "./hero-phone";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 /**
  * Hero: a promessa em seis partes. A primeira é o título; as outras cinco ficam
@@ -86,6 +87,7 @@ export function Hero({ onStart }: { onStart: () => void }) {
         <button
           type="button"
           onClick={onStart}
+          data-guide={GUIDE_ANCHORS.trafegoStartButton.id}
           className="mt-8 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-900/40 transition hover:bg-violet-500"
         >
           Montar minha campanha

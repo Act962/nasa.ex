@@ -1,9 +1,9 @@
 // Etapa "Cartão" do assistente (spec 0040, RF-3): os passos de pagamento do guia,
 // cada um com o print da Meta e o destaque vermelho no que clicar.
 
-import { GUIDE_STEPS } from "../../lib/whatsapp-connect-guide";
-import { GuideShot } from "./guide-shot";
-import { InstructionChecklist } from "./instruction-checklist";
+import { GUIDE_STEPS, WHATSAPP_GUIDE } from "../../lib/whatsapp-connect-guide";
+import { GuideShot } from "@/features/meta-guide/components/guide-shot";
+import { InstructionChecklist } from "@/features/meta-guide/components/instruction-checklist";
 import { type ChecklistItem } from "./guided-checklist";
 
 const PAYMENT_ALERT_STEP = GUIDE_STEPS.find((step) => step.slug === "aviso-pagamento");
@@ -31,7 +31,7 @@ export function buildCardChecklist(params: { paymentMethodsUrl: string }): Check
       howTo: PAYMENT_ALERT_STEP ? (
         <div className="space-y-2">
           <InstructionChecklist instruction={PAYMENT_ALERT_STEP.instruction} />
-          <GuideShot step={PAYMENT_ALERT_STEP} />
+          <GuideShot step={PAYMENT_ALERT_STEP} imageBasePath={WHATSAPP_GUIDE.imageBasePath} />
         </div>
       ) : undefined,
       doneLabel: "Abri",
@@ -51,7 +51,7 @@ export function buildCardChecklist(params: { paymentMethodsUrl: string }): Check
               {step.tip && (
                 <p className="rounded-md bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">{step.tip}</p>
               )}
-              <GuideShot step={step} />
+              <GuideShot step={step} imageBasePath={WHATSAPP_GUIDE.imageBasePath} />
             </li>
           ))}
         </ol>

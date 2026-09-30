@@ -29,6 +29,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useMutationCreateForm } from "../hooks/use-form";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 type CreateFormProps = {
   trackingId?: string;
@@ -75,6 +78,7 @@ export function CreateForm({
           setIsOpen(false);
           toast("Formulário criado com sucesso");
           router.push(`/form/builder/${data.form?.id}`);
+          emitTourResult({ kind: GUIDE_RESULT_KINDS.formCreated });
         },
         onError: () => {
           toast("Algo deu errado!");
@@ -89,7 +93,10 @@ export function CreateForm({
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         {trigger ?? (
-          <Button className="bg-primary! font-medium! gap-1">
+          <Button
+            className="bg-primary! font-medium! gap-1"
+            data-guide={GUIDE_ANCHORS.formCreateButton.id}
+          >
             <PlusIcon />
             Criar formulário
           </Button>
@@ -117,6 +124,7 @@ export function CreateForm({
                       <Input
                         autoComplete="off"
                         placeholder="Titulo do formulário"
+                        data-guide={GUIDE_ANCHORS.formCreateTitle.id}
                         {...field}
                       />
                     </FormControl>
@@ -145,6 +153,7 @@ export function CreateForm({
               <Button
                 type="submit"
                 disabled={isLoading}
+                data-guide={GUIDE_ANCHORS.formCreateSubmit.id}
                 className="px-5 flex place-self-end bg-primary!"
               >
                 {isLoading && <Loader className="w-4 h-4 animate-spin" />}

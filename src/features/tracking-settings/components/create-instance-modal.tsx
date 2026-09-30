@@ -18,6 +18,7 @@ import { useParams } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 import { AlertCircleIcon, CheckCircle2Icon } from "lucide-react";
 import { WhatsAppProvider } from "@/generated/prisma/enums";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 interface CreateInstanceModalProps {
   open: boolean;
@@ -112,6 +113,7 @@ export function CreateInstanceModal({
             <div className="space-y-2">
               <Label className="text-sm font-medium">Provedor</Label>
               <RadioGroup
+                data-guide={GUIDE_ANCHORS.whatsappProviderChoice.id}
                 value={provider}
                 onValueChange={(value) =>
                   setProvider(value as WhatsAppProvider)
@@ -141,6 +143,7 @@ export function CreateInstanceModal({
               </Label>
               <Input
                 id="name"
+                data-guide={GUIDE_ANCHORS.whatsappInstanceName.id}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Nome único da instância"
@@ -155,6 +158,7 @@ export function CreateInstanceModal({
               type="submit"
               className="w-full"
               disabled={createInstanceMutation.isPending || !name}
+              data-guide={GUIDE_ANCHORS.whatsappInstanceSubmit.id}
             >
               {createInstanceMutation.isPending && <Spinner />}
               Criar

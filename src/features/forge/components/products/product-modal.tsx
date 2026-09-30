@@ -33,6 +33,10 @@ import {
   useCreateForgeProduct,
   useUpdateForgeProduct,
 } from "../../hooks/use-forge";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
+import { ProductTaxClassificationSelect } from "./product-tax-classification-select";
 
 export const UNITS = ["un", "hr", "dia", "mês", "km", "kg", "L", "outro"];
 
@@ -58,6 +62,7 @@ export interface Product {
   description: string | null;
   value: string;
   imageUrl: string | null;
+  taxClassificationId?: string | null;
 }
 
 function ProductImageUploader({
@@ -86,6 +91,9 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
   const create = useCreateForgeProduct();
   const update = useUpdateForgeProduct();
   const [imageKey, setImageKey] = useState<string>(product?.imageUrl ?? "");
+  const [taxClassificationId, setTaxClassificationId] = useState<string | null>(
+    product?.taxClassificationId ?? null,
+  );
 
   const form = useForm<ProductFormData>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -115,6 +123,7 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
       imageUrl: product?.imageUrl ?? "",
     });
     setImageKey(product?.imageUrl ?? "");
+    setTaxClassificationId(product?.taxClassificationId ?? null);
   }, [open, product, form]);
 
   const onSubmit = async (data: ProductFormData) => {
@@ -123,6 +132,7 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
         ...data,
         value: moneyToDecimalString(data.value),
         imageUrl: imageKey || undefined,
+        taxClassificationId,
       };
       if (product) {
         await update.mutateAsync({ id: product.id, ...payload });
@@ -130,6 +140,7 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
       } else {
         await create.mutateAsync(payload);
         toast.success("Produto criado");
+        emitTourResult({ kind: GUIDE_RESULT_KINDS.productCreated });
       }
       onClose();
     } catch {
@@ -153,6 +164,7 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
               <Label>Nome *</Label>
               <Input
                 {...form.register("name")}
+                data-guide={GUIDE_ANCHORS.forgeProductName.id}
                 placeholder="Ex: Gestão de Social Media"
               />
               {form.formState.errors.name && (
@@ -163,7 +175,7 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
             </div>
             <div className="space-y-1.5">
               <Label>SKU *</Label>
-              <Input {...form.register("sku")} placeholder="Ex: SMS-001" />
+              <Input {...form.register("sku")} placeholder="Ex: SMS-001" data-guide={GUIDE_ANCHORS.forgeProductSku.id} />
               {form.formState.errors.sku && (
                 <p className="text-xs text-destructive">
                   {form.formState.errors.sku.message}
@@ -195,6 +207,7 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
               <Label>Valor *</Label>
               <Input
                 {...form.register("value")}
+                data-guide={GUIDE_ANCHORS.forgeProductValue.id}
                 value={form.watch("value") ?? ""}
                 onChange={(e) =>
                   form.setValue("value", maskMoney(e.target.value), {
@@ -212,6 +225,11 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
               )}
             </div>
           </div>
+
+          <ProductTaxClassificationSelect
+            value={taxClassificationId}
+            onChange={setTaxClassificationId}
+          />
 
           <div className="space-y-1.5">
             <Label>Imagem do Produto</Label>
@@ -241,6 +259,7 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
               type="submit"
               disabled={isPending}
               className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+              data-guide={GUIDE_ANCHORS.forgeProductSave.id}
             >
               {isPending ? "Salvando..." : "Salvar Produto"}
             </Button>

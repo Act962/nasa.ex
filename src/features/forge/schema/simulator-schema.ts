@@ -56,6 +56,9 @@ export const simulationInputSchema = z.object({
   name: z.string().min(1),
   mode: simulationModeSchema.default("COMERCIAL"),
   markupPercentage: z.number().min(0).default(0),
+  // Imposto embutido no preço (spec 0051): alíquota em bps e de onde veio.
+  taxRateBps: z.number().int().min(0).max(10000).nullish(),
+  taxRateSource: z.enum(["PROFILE", "MANUAL"]).nullish(),
   // Comercial
   userCount: z.number().int().min(0).default(1),
   aiPriceItemId: z.string().nullish(),

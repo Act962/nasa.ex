@@ -93,6 +93,7 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — par de chaves do Web Push (spec 0022). Gerar com `npx web-push generate-vapid-keys`. **A privada nunca pode ganhar prefixo `NEXT_PUBLIC_`** — iria para o bundle do browser.
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY` — mesma chave pública acima, exposta ao client para `pushManager.subscribe`. Pública por definição do protocolo. Trocar o par invalida todas as inscrições existentes (elas passam a devolver 403 e ficam no banco de propósito — ver spec 0022, D-4).
 - `VAPID_SUBJECT` — contato exigido pelo protocolo (`mailto:...` ou URL). Padrão: `mailto:suporte@nasaex.com`. Ausente não quebra.
+- `ACCOUNTING_ALERT_WHATSAPP_TEMPLATE` — (opcional) nome do template aprovado na Meta para os avisos fiscais da aba Contábil (idioma `pt_BR`; parâmetros na ordem: o que vence, data, valor, link). Sem ele, orgs no WhatsApp Oficial fora da janela de 24h não recebem o aviso por WhatsApp (sino/push seguem normais). Ver `docs/contabil-overview.md`.
 - Sem `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`, o canal Web Push se declara indisponível e o envio vira no-op — o resto das notificações (bell, popup, Pusher) segue funcionando.
 
 ## Estrutura do Projeto
@@ -243,9 +244,13 @@ src/features/<dominio>/
 
     c. **Ao mover, renomear ou remover** um componente com `data-guide`, rode `pnpm guides:check` — ele falha se algum guia ficou apontando para âncora que não existe mais.
 
-    d. **Ação que termina um guia** (salvar lead, criar tracking) chama `emitTourResult({ href })` de `@/features/tour/store` no `onSuccess`, para o guia entregar o link no fim.
+    d. **Ação que termina um guia** (salvar lead, criar tracking) chama `emitTourResult({ kind: GUIDE_RESULT_KINDS.<tipo>, href? })` de `@/features/tour/store` no `onSuccess`. O `kind` diz o que foi feito: sem ele, qualquer ação encerraria qualquer guia (spec [0048](specs/astro/0048-astro-guia-em-outros-apps.md)). `pnpm guides:check` falha se um passo espera um tipo que nenhuma tela emite.
+
+    e. **Guias por app** moram em `src/features/astro-guides/lib/guides/<app>.ts`. No `ASTRO_GUIDES`, assuntos mais específicos vêm antes (enviar/publicar antes de criar; Forge e Chat antes do Tracking).
 
 22. **Tipo do cliente Prisma em parâmetros (OBRIGATÓRIO)** — função que aceita "cliente global ou transação" recebe `Prisma.TransactionClient` (ou `Pick<Prisma.TransactionClient, ...>`); se precisa de `$transaction`, recebe `AppPrismaClient` de `@/lib/prisma`. **Proibido**: o tipo público `PrismaClient` em anotações, união com o cliente, `Omit`/`Pick` de `typeof prisma`. Esses padrões fazem o TypeScript comparar os ~300 models estruturalmente — um único arquivo custava 63 s e a checagem de tipos passava de 12 GB, derrubando o build. O ESLint barra; os genéricos fixos em `src/lib/prisma.ts` não podem ser removidos. Ver [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) §0.1.
+
+23. **Documentação da aba Contábil** — sempre que criar ou alterar qualquer coisa em `src/features/accounting/`, `src/app/router/accounting/`, `src/inngest/functions/accounting/`, nos modelos contábeis do `prisma/schema.prisma` (seção "ABA CONTÁBIL") ou nas tabelas de alíquotas (`lib/tax/seed/default-tax-rates.ts`), **atualize também [`docs/contabil-overview.md`](docs/contabil-overview.md)** na mesma sessão. Espelha as regras 10, 14 e 19. Regras do domínio: alíquota **nunca** fixa em código de cálculo (vem de `TaxRate`, versionada por vigência); a contabilidade é **derivada** do `PaymentEntry` (nunca escriturada em paralelo); toda explicação de termo técnico vem do glossário (`lib/glossary/terms.ts`) — novo rótulo técnico na aba exige `FiscalTermHint`; mudança em motor fiscal exige caso novo em `scripts/accounting-qa-check.ts` citando o `CA-n` da spec 0051.
 
 ## Obsidian
 

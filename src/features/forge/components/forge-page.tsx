@@ -23,6 +23,7 @@ import { HeaderTracking } from "@/features/leads/components/header-tracking";
 import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
 import { authClient } from "@/lib/auth-client";
 import { useForgeRealtime } from "../hooks/use-forge-realtime";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export function ForgePage() {
   // Propostas criadas ou alteradas pelo ASTRO aparecem sem recarregar (spec 0032).
@@ -75,10 +76,10 @@ export function ForgePage() {
             <TabsTrigger value="dashboard" className="text-xs gap-1.5">
               📊 Painel
             </TabsTrigger>
-            <TabsTrigger value="products" className="text-xs gap-1.5">
+            <TabsTrigger value="products" className="text-xs gap-1.5" data-guide={GUIDE_ANCHORS.forgeProductsTab.id}>
               📦 Produtos
             </TabsTrigger>
-            <TabsTrigger value="proposals" className="text-xs gap-1.5">
+            <TabsTrigger value="proposals" className="text-xs gap-1.5" data-guide={GUIDE_ANCHORS.forgeProposalsTab.id}>
               📄 Propostas
             </TabsTrigger>
             <TabsTrigger value="contracts" className="text-xs gap-1.5">

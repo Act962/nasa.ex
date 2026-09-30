@@ -66,6 +66,9 @@ import {
   useCreatePlanner,
   useDeletePlanner,
 } from "../hooks/use-nasa-planner";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 export function NasaPlannerListPage() {
   const router = useRouter();
@@ -108,7 +111,7 @@ export function NasaPlannerListPage() {
 
   const handleCreate = async () => {
     if (!form.name.trim() || !selectedOrgId) return;
-    await createPlanner.mutateAsync({
+    const { planner } = await createPlanner.mutateAsync({
       name: form.name,
       description: form.description || undefined,
       clientOrgId: selectedOrgId,
@@ -117,6 +120,7 @@ export function NasaPlannerListPage() {
     });
     setCreateOpen(false);
     resetForm();
+    emitTourResult({ kind: GUIDE_RESULT_KINDS.plannerCreated, href: `/nasa-planner/${planner.id}` });
   };
 
   const handleDelete = async () => {
@@ -140,7 +144,11 @@ export function NasaPlannerListPage() {
             </p>
           </div>
         </div>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2">
+        <Button
+          onClick={() => setCreateOpen(true)}
+          className="gap-2"
+          data-guide={GUIDE_ANCHORS.plannerNewButton.id}
+        >
           <PlusIcon className="size-4" />
           Novo Planner
         </Button>
@@ -171,7 +179,10 @@ export function NasaPlannerListPage() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+            data-guide={GUIDE_ANCHORS.plannerList.id}
+          >
             {planners.map((planner: any) => (
               <Card
                 key={planner.id}
@@ -280,6 +291,7 @@ export function NasaPlannerListPage() {
                     variant="outline"
                     role="combobox"
                     className="w-full justify-between font-normal"
+                    data-guide={GUIDE_ANCHORS.plannerOrgPicker.id}
                   >
                     {selectedOrgName ? (
                       <div className="flex items-center gap-2 truncate">
@@ -423,6 +435,7 @@ export function NasaPlannerListPage() {
               <Input
                 placeholder="Ex: Planner Q2 2026"
                 value={form.name}
+                data-guide={GUIDE_ANCHORS.plannerName.id}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, name: e.target.value }))
                 }
@@ -455,6 +468,7 @@ export function NasaPlannerListPage() {
               disabled={
                 !form.name.trim() || !selectedOrgId || createPlanner.isPending
               }
+              data-guide={GUIDE_ANCHORS.plannerSubmit.id}
             >
               {createPlanner.isPending ? "Criando..." : "Criar Planner"}
             </Button>

@@ -12,6 +12,7 @@ import {
   PLATFORM_SHORT_LABEL,
 } from "@/features/trafego/lib/catalog-labels";
 import { OrderStatusBadge } from "./order-status-badge";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export function TrafegoOrdersList() {
   const { data: orders, isLoading } = useTrafegoOrders();
@@ -34,7 +35,7 @@ export function TrafegoOrdersList() {
         <p className="mt-2 text-sm text-muted-foreground">
           Contrate um plano e nossa equipe coloca sua campanha no ar.
         </p>
-        <Button asChild className="mt-6">
+        <Button asChild className="mt-6" data-guide={GUIDE_ANCHORS.trafegoNewCampaign.id}>
           <Link href="/trafego?nova=1#montar">
             <Plus className="mr-1.5 size-4" />
             Nova campanha
@@ -53,7 +54,7 @@ export function TrafegoOrdersList() {
             Acompanhe o andamento e o desempenho de cada uma.
           </p>
         </div>
-        <Button asChild size="sm">
+        <Button asChild size="sm" data-guide={GUIDE_ANCHORS.trafegoNewCampaign.id}>
           <Link href="/trafego?nova=1#montar">
             <Plus className="mr-1.5 size-4" />
             Nova campanha

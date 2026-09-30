@@ -68,6 +68,9 @@ import {
   usePaymentPeriodIso,
   usePaymentCategoryFilter,
 } from "../../store/use-payment-filters-store";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 interface EntriesTableProps {
   type: "RECEIVABLE" | "PAYABLE";
@@ -189,6 +192,12 @@ export function EntriesTable({ type }: EntriesTableProps) {
       await createEntry.mutateAsync(formData);
       setShowForm(false);
       toast.success(type === "RECEIVABLE" ? "Receita criada!" : "Despesa criada!");
+      emitTourResult({
+        kind:
+          type === "RECEIVABLE"
+            ? GUIDE_RESULT_KINDS.receivableCreated
+            : GUIDE_RESULT_KINDS.payableCreated,
+      });
     } catch (error) {
       toast.error(describePaymentError(error, "Não foi possível criar o lançamento"));
     }
@@ -203,6 +212,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
       setPayDialog(null);
       setPayAmount("");
       toast.success("Pagamento registrado!");
+      emitTourResult({ kind: GUIDE_RESULT_KINDS.paymentRegistered });
     } catch (error) {
       toast.error(describePaymentError(error, "Não foi possível registrar o pagamento"));
     }
@@ -330,6 +340,11 @@ export function EntriesTable({ type }: EntriesTableProps) {
         <Button
           onClick={() => setShowForm(true)}
           className="h-9 w-full gap-1.5 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90 sm:w-auto"
+          data-guide={
+            type === "RECEIVABLE"
+              ? GUIDE_ANCHORS.paymentNewReceivableButton.id
+              : GUIDE_ANCHORS.paymentNewPayableButton.id
+          }
         >
           <Plus className="size-4" />
           Nova {typeLabel}
@@ -529,7 +544,10 @@ export function EntriesTable({ type }: EntriesTableProps) {
       </div>
 
       {/* Tabela — desktop */}
-      <div className="hidden overflow-hidden rounded-xl border border-border/50 md:block">
+      <div
+        className="hidden overflow-hidden rounded-xl border border-border/50 md:block"
+        data-guide={GUIDE_ANCHORS.paymentEntriesTable.id}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -719,6 +737,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
                 value={payAmount}
                 onChange={(e) => setPayAmount(e.target.value)}
                 autoFocus
+                data-guide={GUIDE_ANCHORS.paymentPaidAmount.id}
               />
               {payDialog && (
                 <p className="text-xs text-muted-foreground">
@@ -741,6 +760,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
                 className="flex-1 bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/20"
                 onClick={handlePay}
                 disabled={payEntry.isPending}
+                data-guide={GUIDE_ANCHORS.paymentConfirmPay.id}
               >
                 {payEntry.isPending ? "Salvando..." : "Confirmar Pagamento"}
               </Button>

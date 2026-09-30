@@ -13,9 +13,23 @@ const productShape = z.object({
   unit: z.string(),
   description: z.string().nullable(),
   value: z.string(),
+  taxClassificationId: z.string().nullable().optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
+
+/** Classificação tributária (aba Contábil, spec 0051) só vale se for da própria org. */
+async function resolveOwnClassificationId(
+  classificationId: string | null | undefined,
+  organizationId: string,
+): Promise<string | null> {
+  if (!classificationId) return null;
+  const classification = await prisma.productTaxClassification.findFirst({
+    where: { id: classificationId, organizationId },
+    select: { id: true },
+  });
+  return classification?.id ?? null;
+}
 
 export const listForgeProducts = base
   .use(requiredAuthMiddleware)
@@ -57,6 +71,7 @@ export const createForgeProduct = base
       unit: z.string().default("un"),
       description: z.string().optional(),
       value: z.string(),
+      taxClassificationId: z.string().nullable().optional(),
     }),
   )
   .output(z.object({ product: productShape }))
@@ -72,6 +87,7 @@ export const createForgeProduct = base
           description: input.description && input.description.trim() !== "" ? input.description : null,
           value: input.value,
           createdById: context.user.id,
+          taxClassificationId: await resolveOwnClassificationId(input.taxClassificationId, context.org.id),
         },
       });
       return { product: { ...product, value: product.value.toString() } };
@@ -94,6 +110,7 @@ export const updateForgeProduct = base
       unit: z.string().optional(),
       description: z.string().nullable().optional(),
       value: z.string().optional(),
+      taxClassificationId: z.string().nullable().optional(),
     }),
   )
   .output(z.object({ product: productShape }))
@@ -108,6 +125,9 @@ export const updateForgeProduct = base
           unit: input.unit,
           description: input.description,
           value: input.value,
+          ...(input.taxClassificationId !== undefined
+            ? { taxClassificationId: await resolveOwnClassificationId(input.taxClassificationId, context.org.id) }
+            : {}),
         },
       });
       return { product: { ...product, value: product.value.toString() } };

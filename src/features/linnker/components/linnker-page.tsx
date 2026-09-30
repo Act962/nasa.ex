@@ -8,6 +8,7 @@ import { Plus, Link2, QrCode } from "lucide-react";
 import { LinnkerPageCard } from "./linnker-page-card";
 import { CreateLinnkerPageDialog } from "./create-linnker-page-dialog";
 import type { LinnkerPage } from "../types";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export function LinnkerPage_() {
   const [createOpen, setCreateOpen] = useState(false);
@@ -27,7 +28,7 @@ export function LinnkerPage_() {
             Crie páginas de bio com links personalizados e QR codes para capturar leads
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button onClick={() => setCreateOpen(true)} data-guide={GUIDE_ANCHORS.linnkerNewButton.id}>
           <Plus className="size-4 mr-2" />
           Nova página
         </Button>
@@ -56,7 +57,10 @@ export function LinnkerPage_() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4"
+          data-guide={GUIDE_ANCHORS.linnkerList.id}
+        >
           {pages.map((page) => (
             <LinnkerPageCard key={page.id} page={page} onRefetch={refetch} />
           ))}

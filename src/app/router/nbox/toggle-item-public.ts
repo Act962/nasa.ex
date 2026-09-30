@@ -5,6 +5,10 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { randomBytes } from "crypto";
+import {
+  canViewRestrictedNBox,
+  isItemInRestrictedFolder,
+} from "@/features/nbox/server/can-view-restricted-nbox";
 
 /**
  * Alterna a flag `isPublic` de um item do N-Box.
@@ -35,6 +39,16 @@ export const toggleItemPublic = base
     });
     if (!existing) {
       throw errors.NOT_FOUND({ message: "Arquivo não encontrado." });
+    }
+
+    const isRestricted = await isItemInRestrictedFolder(existing.id, context.org.id);
+    if (isRestricted && !(await canViewRestrictedNBox(context.user, context.org.id))) {
+      throw errors.FORBIDDEN({ message: "Arquivo restrito: só administradores do financeiro." });
+    }
+    if (isRestricted && input.isPublic) {
+      throw errors.BAD_REQUEST({
+        message: "Arquivos da pasta restrita (documentos da empresa) não podem ficar públicos.",
+      });
     }
 
     if (input.isPublic && !input.consent) {

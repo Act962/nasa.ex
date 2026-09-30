@@ -25,9 +25,10 @@ export function useAstroContext(): AstroRouteContext {
   // aqui obrigaria um Suspense em toda rota da plataforma (este hook roda no
   // provider global do Astro).
   const paymentTabFromStore = usePaymentTabStore((state) => state.activeTab);
-  const paymentTab = pathname?.startsWith("/payment")
-    ? paymentTabFromStore ?? "dashboard"
-    : undefined;
+  const paymentSubTabFromStore = usePaymentTabStore((state) => state.activeSubTab);
+  const isOnPayment = Boolean(pathname?.startsWith("/payment"));
+  const paymentTab = isOnPayment ? paymentTabFromStore ?? "dashboard" : undefined;
+  const paymentSubTab = isOnPayment ? paymentSubTabFromStore ?? undefined : undefined;
 
   return useMemo<AstroRouteContext>(() => {
     const ctx: AstroRouteContext = { pathname };
@@ -49,7 +50,8 @@ export function useAstroContext(): AstroRouteContext {
     if (workspace) ctx.workspaceId = workspace;
     if (action) ctx.actionId = action;
     if (paymentTab) ctx.paymentTab = paymentTab;
+    if (paymentSubTab) ctx.paymentSubTab = paymentSubTab;
 
     return ctx;
-  }, [pathname, params, paymentTab]);
+  }, [pathname, params, paymentTab, paymentSubTab]);
 }

@@ -13,6 +13,8 @@ import { BuilderSidebar } from "./builder-sidebar";
 import "../../lib/animations.css";
 import { BuilderCanvas } from "./builder-canvas";
 import type { PageLayout } from "../../types";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 interface Props {
   pageId: string;
@@ -153,6 +155,7 @@ export function PagesBuilder({ pageId }: Props) {
       mutationFn: () => client.pages.publishPage({ id: pageId }),
       onSuccess: () => {
         toast.success("Publicado com sucesso");
+        emitTourResult({ kind: GUIDE_RESULT_KINDS.pagePublished });
         qc.invalidateQueries({
           queryKey: orpc.pages.getPage.queryKey({ input: { id: pageId } }),
         });

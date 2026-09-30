@@ -39,6 +39,7 @@ import { spacePointRouter } from "./space-point";
 import { userRouter } from "./user";
 import { publicRouter } from "./public";
 import { paymentRouter } from "./payment";
+import { accountingRouter } from "./accounting";
 import { orgProjectsRouter } from "./org-projects";
 import { clientPortalRouter } from "./client-portal";
 import { supportRouter } from "./support";
@@ -127,6 +128,7 @@ export const router = {
   user: userRouter,
   public: publicRouter,
   payment: paymentRouter,
+  accounting: accountingRouter,
   orgProjects: orgProjectsRouter,
   clientPortal: clientPortalRouter,
   support: supportRouter,

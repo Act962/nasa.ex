@@ -78,6 +78,7 @@ import {
 } from "@/components/ui/select";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 const LAST_TRACKING_STORAGE_KEY = "tracking-chat:last-tracking-id";
 
@@ -389,6 +390,7 @@ export function ConversationsList() {
               variant="ghost"
               size="sm"
               onClick={() => router.push(pageSettings)}
+              data-guide={GUIDE_ANCHORS.chatSettingsButton.id}
             >
               <SettingsIcon className="size-4" />
             </Button>
@@ -593,6 +595,7 @@ export function ConversationsList() {
               <div
                 ref={scrollRef}
                 onScroll={handleScroll}
+                data-guide={GUIDE_ANCHORS.chatConversationList.id}
                 className="overflow-y-auto flex flex-col gap-2 flex-1 pb-4 scroll-cols-tracking min-h-0"
               >
                 {orderedItems.map((item) => (

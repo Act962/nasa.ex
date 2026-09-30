@@ -6,6 +6,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { addCalendarMonths } from "@/features/payment/lib/dates";
 import { MAX_INSTALLMENTS } from "@/features/payment/schemas/entry-form-schema";
 import type { PaymentActor } from "./entry-include";
+import { queueJournalSync } from "@/features/accounting/server/journal/queue-journal-sync";
 
 // Transforma um lançamento avulso (ou uma parcela solta) na série completa:
 // gera só as posições que faltam, mês a mês, a partir da parcela atual.
@@ -125,6 +126,12 @@ export async function generateEntryInstallments(params: {
       data: { installmentTotal, installmentCurrent: currentPosition, installmentGroupId: groupId },
     }),
   ]);
+
+  const groupEntries = await prisma.paymentEntry.findMany({
+    where: { organizationId, installmentGroupId: groupId },
+    select: { id: true },
+  });
+  await queueJournalSync(organizationId, groupEntries.map((groupEntry) => groupEntry.id));
 
   await logActivity({
     organizationId,

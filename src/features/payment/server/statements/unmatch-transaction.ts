@@ -3,6 +3,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { revertPaymentFromEntry } from "./apply-payment";
 import { statementFailure, type StatementFailure } from "./service-result";
+import { queueJournalSync } from "@/features/accounting/server/journal/queue-journal-sync";
 
 // Desfaz a conciliação: estorna a baixa do lançamento e devolve a transação
 // para a fila.
@@ -46,5 +47,6 @@ export async function unmatchStatementTransactionRecord(params: {
       },
     });
   });
+  await queueJournalSync(params.organizationId, [matchedEntryId]);
   return { ok: true, entryId: matchedEntryId };
 }

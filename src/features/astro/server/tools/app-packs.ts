@@ -7,6 +7,11 @@ import {
 } from "@/features/astro/server/tools/finance";
 import { FINANCE_SCOPE_PROMPT } from "@/features/astro/lib/prompts/finance";
 import {
+  buildAccountingReadTools,
+  buildAccountingWriteTools,
+} from "@/features/astro/server/tools/accounting";
+import { ACCOUNTING_SCOPE_PROMPT } from "@/features/astro/lib/prompts/accounting";
+import {
   buildWhatsAppSetupReadTools,
   buildWhatsAppSetupWriteTools,
 } from "@/features/astro/server/tools/whatsapp-setup";
@@ -31,6 +36,14 @@ export const APP_TOOL_PACKS: Record<string, AppToolPack> = {
     read: buildFinanceReadTools,
     write: buildFinanceWriteTools,
     systemPrompt: FINANCE_SCOPE_PROMPT,
+  },
+  // Aba Contábil (spec 0051): mesmo app do financeiro, pack separado para o
+  // prompt contábil não inchar o financeiro. Só leitura.
+  accounting: {
+    appSlug: "payment",
+    read: buildAccountingReadTools,
+    write: buildAccountingWriteTools,
+    systemPrompt: ACCOUNTING_SCOPE_PROMPT,
   },
   "whatsapp-setup": {
     appSlug: "campanhas",

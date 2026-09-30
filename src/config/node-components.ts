@@ -79,6 +79,7 @@ export const nodeComponents = {
   [NodeType.MESSAGE_INCOMING]: AgentNode,
   [NodeType.WEBHOOK_EXTERNAL]: AgentNode,
   [NodeType.SCHEDULE_TRIGGER]: AgentNode,
+  [NodeType.COMPLIANCE_ITEM_DUE]: AgentNode,
   [NodeType.NOTIFY_TEAM]: AgentNode,
 } as const satisfies NodeTypes;
 

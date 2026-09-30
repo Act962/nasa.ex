@@ -4,6 +4,11 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import {
+  canViewRestrictedNBox,
+  isItemInRestrictedFolder,
+  loadFolderRestriction,
+} from "@/features/nbox/server/can-view-restricted-nbox";
 
 export const updateItem = base
   .use(requiredAuthMiddleware)
@@ -15,7 +20,17 @@ export const updateItem = base
     folderId: z.string().nullable().optional(),
     tags: z.array(z.string()).optional(),
   }))
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
+    const isCurrentlyRestricted = await isItemInRestrictedFolder(input.itemId, context.org.id);
+    const targetFolder = input.folderId ? await loadFolderRestriction(input.folderId, context.org.id) : null;
+    const isMovingIntoRestricted = targetFolder?.isRestricted === true;
+    if (
+      (isCurrentlyRestricted || isMovingIntoRestricted) &&
+      !(await canViewRestrictedNBox(context.user, context.org.id))
+    ) {
+      throw errors.FORBIDDEN({ message: "Arquivo restrito: só administradores do financeiro." });
+    }
+
     const item = await prisma.nBoxItem.update({
       where: { id: input.itemId, organizationId: context.org.id },
       data: {
@@ -23,6 +38,8 @@ export const updateItem = base
         ...(input.description !== undefined && { description: input.description }),
         ...(input.folderId !== undefined && { folderId: input.folderId }),
         ...(input.tags !== undefined && { tags: input.tags }),
+        // Item em pasta restrita nunca fica público.
+        ...(isMovingIntoRestricted && { isPublic: false, publicToken: null }),
       },
     });
     await logActivity({

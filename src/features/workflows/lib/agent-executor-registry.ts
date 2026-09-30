@@ -47,6 +47,14 @@ import { sendEmailExecutor } from "./agent-executors/email";
 import { seiActionAgentExecutor } from "./agent-executors/sei";
 import { notifyTeamExecutor } from "./agent-executors/notify-team";
 
+// COMPLIANCE_ITEM_DUE ainda não está na lista de gatilhos de `run-workflow.ts`;
+// como nó de entrada ele só repassa para a saída principal.
+const complianceItemDueTriggerExecutor: NodeExecutor = async ({ nodeType }) => ({
+  output: { triggered: true, triggerType: nodeType },
+  chosenOutput: "main",
+  status: "SUCCESS",
+});
+
 /**
  * Mapa principal usado pelo `runWorkflow`. Use `getAgentExecutorRegistry()`
  * em vez de exportar a Map diretamente pra permitir override em testes
@@ -78,5 +86,7 @@ export function getAgentExecutorRegistry(): Map<string, NodeExecutor> {
     ["SEI_ACTION", seiActionAgentExecutor],
     // Construtor rápido (spec 0039)
     ["NOTIFY_TEAM", notifyTeamExecutor],
+    // Gatilho da aba Contábil (spec 0051)
+    ["COMPLIANCE_ITEM_DUE", complianceItemDueTriggerExecutor],
   ]);
 }

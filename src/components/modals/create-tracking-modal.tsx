@@ -32,6 +32,7 @@ import { useRouter } from "next/navigation";
 import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 const createTrackingSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
@@ -72,7 +73,7 @@ export function ModalCreateTracking() {
         reset();
         onClose();
         earn("create_pipeline", "Novo tracking criado 📈");
-        emitTourResult({ href: `/tracking/${data.trackingId}` });
+        emitTourResult({ kind: GUIDE_RESULT_KINDS.trackingCreated, href: `/tracking/${data.trackingId}` });
         router.push(`/tracking/${data.trackingId}`);
       },
       onError: (error) => {

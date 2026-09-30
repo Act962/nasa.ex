@@ -33,6 +33,9 @@ import {
   applyTemplate,
   type PageTemplate,
 } from "../../lib/page-templates";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 interface Props {
   open: boolean;
@@ -244,6 +247,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
       qc.invalidateQueries({ queryKey: orpc.pages.getCost.queryKey() });
       qc.invalidateQueries({ queryKey: orpc.stars.getBalance.queryKey() });
       onOpenChange(false);
+      emitTourResult({ kind: GUIDE_RESULT_KINDS.pageCreated, href: `/pages/${res.page.id}` });
       router.push(`/pages/${res.page.id}`);
     },
     onError: (e: Error) => toast.error(e.message ?? "Erro ao criar"),
@@ -271,6 +275,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
           deixa confortável em qualquer tela. */}
       <DialogContent
         className="p-0 gap-0 flex flex-col w-[calc(100vw-2rem)] sm:w-[80vw] max-w-[80vw] max-h-[92vh]"
+        data-guide={GUIDE_ANCHORS.pagesWizard.id}
       >
         <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
           <DialogTitle className="flex items-center gap-2">

@@ -1,4 +1,5 @@
 import type { AstroCommandPersona } from "@/generated/prisma/enums";
+import { ACCOUNTING_TOOL_NAMES } from "@/features/astro/server/tools/accounting/tool-names";
 
 /**
  * Personas do ASTRO COMMANDER (spec 0028). A persona é um atributo do comando,
@@ -68,13 +69,23 @@ const ACCOUNTING: PersonaDefinition = {
   key: "ACCOUNTING",
   label: "Contábil",
   description:
-    "Separa documentos, confere notas e prepara o que a contabilidade pede.",
+    "Acompanha prazos fiscais, documentos e score, simula impostos e prepara o que a contabilidade pede.",
   systemPrompt: `
 [PERSONA — CONTÁBIL]
 Você prepara e confere documento fiscal e financeiro.
 - Classificação contábil é sugestão sua, decisão do contador: sempre proponha, nunca finalize.
-- Documento ilegível ou incompleto: aponte o que falta, sem preencher por conta própria.`,
-  defaultTools: [],
+- Documento ilegível ou incompleto: aponte o que falta, sem preencher por conta própria.
+- Número fiscal (alíquota, prazo, valor de guia) só sai das ferramentas contábeis; cite a base legal que elas devolvem.
+- Comece pelo panorama (get_accounting_overview) e detalhe só o que mudou ou exige ação: guia a confirmar, obrigação vencendo, certidão vencendo, despesa sem nota.
+- Você não apura, não confirma guia nem anexa documento: aponte o que fazer e o link da subaba.`,
+  // Pack contábil inteiro (spec 0051) + leituras do financeiro que ele cruza.
+  defaultTools: [
+    ...ACCOUNTING_TOOL_NAMES,
+    "get_finance_dashboard",
+    "list_payment_entries",
+    "list_overdue_entries",
+    "list_payment_documents",
+  ],
   defaultMaxRunsPerDay: 48,
   defaultMaxStarsPerRun: 300,
 };

@@ -18,6 +18,7 @@ import {
   useDisconnectNerp,
 } from "@/features/nerp/hooks/use-nerp-connection";
 import { NerpConnectionStatus } from "./nerp-connection-status";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 // Após o consent no nerp o usuário volta pra `/apps`, onde fica o card do
 // NERP. Centraliza o fluxo pós-conexão em um só destino.
@@ -113,7 +114,11 @@ export function NerpConnectCard() {
             </>
           ) : (
             <>
-              <Button onClick={handleConnect} disabled={isRedirecting}>
+              <Button
+                onClick={handleConnect}
+                disabled={isRedirecting}
+                data-guide={GUIDE_ANCHORS.nerpConnectButton.id}
+              >
                 {isRedirecting ? (
                   <Loader2 className="size-3.5 animate-spin" />
                 ) : (

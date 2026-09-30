@@ -9,6 +9,9 @@ import {
   useMutationPublishForm,
   useMutationUpdateForm,
 } from "../../hooks/use-form";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 export function PublishFormBtn() {
   const { formData, setFormData, blockLayouts } = useBuilderStore();
@@ -102,6 +105,10 @@ export function PublishFormBtn() {
             ...formData,
             published: response.published || false,
           });
+          // Despublicar não conclui o guia (spec 0048, CA-6).
+          if (response.published) {
+            emitTourResult({ kind: GUIDE_RESULT_KINDS.formPublished, href: `/submit-form/${id}` });
+          }
         },
         onError: () => {
           toast.error("Falha ao publicar formulário");
@@ -119,6 +126,7 @@ export function PublishFormBtn() {
       variant={isPublished ? "destructive" : "secondary"}
       className={cn(isPublished && "bg-red-500 hover:bg-red-600", "text-white")}
       onClick={togglePublishState}
+      data-guide={GUIDE_ANCHORS.formPublishButton.id}
     >
       {mutate.isPending || saveMutate.isPending ? (
         <Loader className="w-4 h-4 animate-spin" />

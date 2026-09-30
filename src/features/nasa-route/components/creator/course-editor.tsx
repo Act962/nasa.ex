@@ -37,6 +37,7 @@ import { PurchaseEmailTab } from "./purchase-email-tab";
 import { LessonsBoard } from "./lessons-board";
 import { CourseShareMenu } from "../shared/course-share-menu";
 import { useRouter } from "next/navigation";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 interface Props {
   courseId: string;
@@ -366,6 +367,7 @@ export function CourseEditor({ courseId }: Props) {
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
               <Button
+                data-guide={GUIDE_ANCHORS.routeNewLessonButton.id}
                 onClick={() => {
                   setEditingLesson(null);
                   setShowLessonForm(true);

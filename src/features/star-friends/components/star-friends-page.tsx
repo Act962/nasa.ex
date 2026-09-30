@@ -16,6 +16,7 @@ import { RewardsManager } from "./rewards-manager";
 import { MembersList } from "./members-list";
 import { RedemptionsQueue } from "./redemptions-queue";
 import { HistoryAudit } from "./history-audit";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export function StarFriendsPage() {
   const overview = useStarFriendsOverview();
@@ -71,7 +72,9 @@ export function StarFriendsPage() {
         <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="redemptions">Resgates{stats.pendingRedemptions > 0 ? ` (${stats.pendingRedemptions})` : ""}</TabsTrigger>
-          <TabsTrigger value="rewards">Cartões e prêmios</TabsTrigger>
+          <TabsTrigger value="rewards" data-guide={GUIDE_ANCHORS.starFriendsRewardsTab.id}>
+            Cartões e prêmios
+          </TabsTrigger>
           <TabsTrigger value="members">Participantes</TabsTrigger>
           <TabsTrigger value="history">Histórico</TabsTrigger>
           <TabsTrigger value="tiers">Níveis e regras</TabsTrigger>

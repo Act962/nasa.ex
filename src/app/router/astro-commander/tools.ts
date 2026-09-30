@@ -7,6 +7,7 @@ import {
   isFinancialTool,
 } from "@/features/astro-commander/lib/guardrails";
 import { isMutatingTool } from "@/features/astro-commander/server/tool-guard";
+import { isAccountingToolName } from "@/features/astro/server/tools/accounting/tool-names";
 
 /**
  * Catálogo de ferramentas para a aba Ações (spec 0028, RF-22). As opções vêm
@@ -16,6 +17,8 @@ import { isMutatingTool } from "@/features/astro-commander/server/tool-guard";
 
 /** Grupos por prefixo — o suficiente para a tela não virar uma lista crua. */
 const GROUPS: Array<{ label: string; test: (name: string) => boolean }> = [
+  // Antes dos prefixos: "list_company_documents" e "list_tax_rates" cairiam em "Outras".
+  { label: "Contábil", test: (name) => isAccountingToolName(name) },
   { label: "Leads e funis", test: (name) => /lead|tracking|status|tag|pipeline/.test(name) },
   { label: "Conversas", test: (name) => /chat|message|whatsapp|conversation/.test(name) },
   { label: "Agenda", test: (name) => /agenda|appointment|schedule|reminder|calendar/.test(name) },

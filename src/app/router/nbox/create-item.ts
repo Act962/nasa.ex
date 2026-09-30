@@ -6,6 +6,10 @@ import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { NBoxItemType } from "@/generated/prisma/enums";
+import {
+  canViewRestrictedNBox,
+  loadFolderRestriction,
+} from "@/features/nbox/server/can-view-restricted-nbox";
 
 export const createItem = base
   .use(requiredAuthMiddleware)
@@ -22,7 +26,12 @@ export const createItem = base
     forgeContractId: z.string().optional(),
     forgeProposalId: z.string().optional(),
   }))
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
+    const folder = await loadFolderRestriction(input.folderId, context.org.id);
+    if (folder?.isRestricted && !(await canViewRestrictedNBox(context.user, context.org.id))) {
+      throw errors.FORBIDDEN({ message: "Pasta restrita: só administradores do financeiro." });
+    }
+
     const item = await prisma.nBoxItem.create({
       data: {
         organizationId: context.org.id,

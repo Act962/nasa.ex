@@ -24,6 +24,9 @@ import {
 } from "@/features/insights/lib/insights-metric-catalog";
 import { ALL_MODULES, type AppModule } from "@/features/insights/types";
 import type { InsightBlock } from "@/features/insights/lib/app-metrics";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 interface SaveReportModalProps {
   open: boolean;
@@ -69,6 +72,7 @@ export function SaveReportModal({
     }) => orpc.insights.saveReport.call(vars),
     onSuccess: (data) => {
       toast.success("Relatório salvo!");
+      emitTourResult({ kind: GUIDE_RESULT_KINDS.reportSaved });
       setSavedToken(data.report.shareToken ?? null);
       queryClient.invalidateQueries({ queryKey: ["insights", "listSavedReports"] });
     },
@@ -142,6 +146,7 @@ export function SaveReportModal({
               <Label htmlFor="report-name">Nome*</Label>
               <Input
                 id="report-name"
+                data-guide={GUIDE_ANCHORS.insightsReportName.id}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex: Q1 2026 - Funil completo"
@@ -209,7 +214,12 @@ export function SaveReportModal({
               <Button variant="outline" onClick={handleClose} disabled={isPending}>
                 Cancelar
               </Button>
-              <Button onClick={handleSave} disabled={isPending} className="gap-2">
+              <Button
+                onClick={handleSave}
+                disabled={isPending}
+                className="gap-2"
+                data-guide={GUIDE_ANCHORS.insightsReportSave.id}
+              >
                 {isPending ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (

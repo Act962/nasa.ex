@@ -1,165 +1,58 @@
 import { guideSelector } from "./anchors";
 import type { GuideDef } from "./types";
 import type { TourStep } from "@/features/tour/types";
+import { TRACKING_GUIDES } from "./guides/tracking";
+import { CHAT_GUIDES } from "./guides/chat";
+import { AGENDA_GUIDES } from "./guides/agenda";
+import { FORGE_GUIDES } from "./guides/forge";
+import { FORM_GUIDES } from "./guides/form";
+import { WORKSPACE_GUIDES } from "./guides/workspace";
+import { PAYMENT_GUIDES } from "./guides/payment";
+import { CAMPANHAS_GUIDES } from "./guides/campanhas";
+import { SETTINGS_GUIDES } from "./guides/settings";
+import { CONTACTS_GUIDES } from "./guides/contacts";
+import { TRAFEGO_GUIDES } from "./guides/trafego";
+import { PAGES_GUIDES } from "./guides/pages";
+import { LINNKER_GUIDES } from "./guides/linnker";
+import { NBOX_GUIDES } from "./guides/nbox";
+import { PLANNER_GUIDES } from "./guides/planner";
+import { ROUTE_GUIDES } from "./guides/route";
+import { ENGAGEMENT_GUIDES } from "./guides/engagement";
+import { INTEGRATIONS_GUIDES } from "./guides/integrations";
+import { INSIGHTS_GUIDES } from "./guides/insights";
+import { COMMENTS_GUIDES } from "./guides/comments";
+import { ASTRO_APP_GUIDES } from "./guides/astro";
 
-const BOARD_PATH = "^/tracking/[^/]+$";
-
+// Ordem importa: o primeiro guia cujo assunto casa responde. Assuntos mais
+// específicos antes — "proposta pro lead" é Forge, "mensagem pro lead" é Chat,
+// e só o que sobra cai nos guias genéricos de lead do Tracking.
 export const ASTRO_GUIDES: GuideDef[] = [
-  {
-    key: "tracking.create-lead",
-    app: "tracking",
-    title: "Criar um lead",
-    summary: "Do tracking até o lead salvo, com o link da ficha no fim.",
-    topicPattern: /\b(cri\w*|cadastr\w*|adicion\w*|coloc\w*|inclu\w*|inser\w*|novos?|novas?)\b.*\bleads?\b|\bleads? novos?\b/,
-    steps: [
-      {
-        anchor: "trackingList",
-        route: "/tracking",
-        skipWhenPath: BOARD_PATH,
-        title: "Escolha o tracking",
-        message: "Cada tracking é um funil de vendas. Clique no tracking onde o lead vai entrar.",
-        position: "top",
-        advanceOn: "click",
-      },
-      {
-        anchor: "boardNewLeadButton",
-        title: "Clique em Novo Lead",
-        message: "É por aqui que todo lead entra no funil.",
-        position: "bottom",
-        advanceOn: "click",
-      },
-      {
-        anchor: "leadSheetName",
-        title: "Digite o nome do lead aqui",
-        message: "Pode ser o nome da pessoa ou da empresa. Quando terminar, clique em Continuar.",
-        position: "left",
-        advanceOn: "input",
-      },
-      {
-        anchor: "leadSheetPhone",
-        title: "Agora o WhatsApp",
-        message: "Com o número certo, as conversas desse lead aparecem no Chat automaticamente.",
-        position: "left",
-        advanceOn: "input",
-      },
-      {
-        anchor: "leadSheetSubmit",
-        title: "Clique em Criar lead",
-        message: "Assim que ele for salvo, eu te mando o link da ficha.",
-        position: "top",
-        advanceOn: "result",
-      },
-    ],
-    finish: {
-      title: "Lead criado! 🎉",
-      message: "Ele já está na primeira etapa do funil. Quer abrir a ficha dele?",
-      resultLabel: "Abrir lead",
-    },
-  },
-  {
-    key: "tracking.create-tracking",
-    app: "tracking",
-    title: "Criar um tracking",
-    summary: "Monte um funil novo e caia direto no board dele.",
-    topicPattern: /\b(cri\w*|mont\w*|novos?|novas?|fac\w*)\b.*\b(trackings?|funil|funis|pipelines?)\b/,
-    spaceHelp: { categorySlug: "tracking", featureSlug: "criar-novo-tracking" },
-    steps: [
-      {
-        anchor: "trackingNewButton",
-        route: "/tracking",
-        title: "Clique em Novo tracking",
-        message: "Um tracking é um funil: as colunas são as etapas e os cards são os leads.",
-        position: "bottom",
-        advanceOn: "click",
-      },
-      {
-        anchor: "trackingCreateName",
-        title: "Dê um nome ao tracking",
-        message: "Algo que a equipe reconheça, como Vendas ou Pós-venda. Depois clique em Continuar.",
-        position: "bottom",
-        advanceOn: "input",
-      },
-      {
-        anchor: "trackingCreateSubmit",
-        title: "Clique em Criar",
-        message: "Eu te levo para o board novo assim que ele for criado.",
-        position: "top",
-        advanceOn: "result",
-      },
-    ],
-    finish: {
-      title: "Tracking criado! 🚀",
-      message: "Agora é só colocar os leads. Se quiser, me peça: \"como crio um lead?\"",
-      resultLabel: "Abrir tracking",
-    },
-  },
-  {
-    key: "tracking.move-lead",
-    app: "tracking",
-    title: "Mover um lead de etapa",
-    summary: "Arraste o card entre as colunas do board.",
-    topicPattern: /\b(mov\w*|arrast\w*|mud\w*|pass\w*|avanc\w*|trocar?)\b.*\b(leads?|cards?|etapas?|colunas?)\b/,
-    spaceHelp: { categorySlug: "tracking", featureSlug: "mover-leads-pelo-kanban" },
-    steps: [
-      {
-        anchor: "trackingList",
-        route: "/tracking",
-        skipWhenPath: BOARD_PATH,
-        title: "Escolha o tracking",
-        message: "Clique no tracking onde está o lead.",
-        position: "top",
-        advanceOn: "click",
-      },
-      {
-        anchor: "boardColumns",
-        title: "Segure o card e arraste",
-        message: "Cada coluna é uma etapa do funil. Arraste o card do lead até a coluna da nova etapa. Pode testar agora e depois clicar em Próximo.",
-        position: "top",
-        advanceOn: "next",
-        padding: 0,
-      },
-    ],
-    finish: {
-      title: "Pronto! ✅",
-      message: "Sempre que a negociação avançar, arraste o card. A mudança fica registrada no histórico do lead.",
-    },
-  },
-  {
-    key: "tracking.customize-board",
-    app: "tracking",
-    title: "Personalizar o board",
-    summary: "Escolha quais campos aparecem nos cards e nas colunas.",
-    topicPattern: /\b(personaliz\w*|escond\w*|ocult\w*|mostr\w*|exib\w*|configur\w*|tir\w*)\b.*\b(board|cards?|campos?|kanban|colunas?)\b/,
-    steps: [
-      {
-        anchor: "trackingList",
-        route: "/tracking",
-        skipWhenPath: BOARD_PATH,
-        title: "Escolha o tracking",
-        message: "Clique no tracking que você quer personalizar.",
-        position: "top",
-        advanceOn: "click",
-      },
-      {
-        anchor: "boardCustomizeButton",
-        title: "Clique em Personalizar",
-        message: "Só aparece para quem pode editar o tracking.",
-        position: "bottom",
-        advanceOn: "click",
-      },
-      {
-        anchor: "boardCustomizeSheet",
-        title: "Ligue e desligue os campos",
-        message: "Cada chave mostra ou esconde um campo do card ou da coluna, para toda a equipe desse tracking.",
-        position: "left",
-        advanceOn: "next",
-      },
-    ],
-    finish: {
-      title: "Board do seu jeito ✨",
-      message: "Dá para voltar aqui e mudar quando quiser.",
-    },
-  },
+  ...FORGE_GUIDES,
+  ...FORM_GUIDES,
+  ...AGENDA_GUIDES,
+  // Antes de Campanhas: "campanha de tráfego" é trafeGO, não disparo em massa.
+  ...TRAFEGO_GUIDES,
+  // Antes do Chat: "mensagem em massa" é campanha, não conversa.
+  ...CAMPANHAS_GUIDES,
+  // Antes de Integrações: "conectar o Instagram" é o Comments.
+  ...COMMENTS_GUIDES,
+  ...CHAT_GUIDES,
+  ...PAYMENT_GUIDES,
+  ...WORKSPACE_GUIDES,
+  ...SETTINGS_GUIDES,
+  // Antes do Tracking: "cadastrar cliente/contato" parte de /contatos.
+  ...CONTACTS_GUIDES,
+  // Antes de Pages: "colocar o Astro no meu site" não é criar site.
+  ...ASTRO_APP_GUIDES,
+  ...PAGES_GUIDES,
+  ...LINNKER_GUIDES,
+  ...NBOX_GUIDES,
+  ...PLANNER_GUIDES,
+  ...ROUTE_GUIDES,
+  ...ENGAGEMENT_GUIDES,
+  ...INSIGHTS_GUIDES,
+  ...INTEGRATIONS_GUIDES,
+  ...TRACKING_GUIDES,
 ];
 
 export function findGuide(guideKey: string): GuideDef | undefined {
@@ -184,5 +77,8 @@ export function toTourSteps(guide: GuideDef): TourStep[] {
     advanceOn: step.advanceOn,
     route: step.route,
     skipWhenPath: step.skipWhenPath,
+    skipWhenVisible: step.skipWhenVisible ? guideSelector(step.skipWhenVisible) : undefined,
+    resultKind: step.resultKind,
+    missingMessage: step.missingMessage,
   }));
 }

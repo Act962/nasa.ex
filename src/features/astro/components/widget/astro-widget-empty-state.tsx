@@ -2,13 +2,16 @@
 
 import {
   AlarmClock,
+  BadgeCheck,
   CalendarClock,
+  Landmark,
   ListChecks,
   TrendingUp,
   Users,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { usePaymentTabStore } from "@/features/payment/store/use-payment-tab-store";
 
 /**
  * Tela inicial do painel: uma pergunta grande e três sugestões que dependem de
@@ -26,6 +29,12 @@ const FINANCE_SUGGESTIONS: WidgetSuggestion[] = [
   { label: "O que está vencido?", icon: AlarmClock },
 ];
 
+const ACCOUNTING_SUGGESTIONS: WidgetSuggestion[] = [
+  { label: "Quanto vou pagar de DAS este mês?", icon: Landmark },
+  { label: "Quais impostos e declarações vencem nos próximos 30 dias?", icon: CalendarClock },
+  { label: "Minha empresa está regular?", icon: BadgeCheck },
+];
+
 const GENERAL_SUGGESTIONS: WidgetSuggestion[] = [
   { label: "O que tenho pra fazer hoje?", icon: ListChecks },
   { label: "Quantos leads entraram esta semana?", icon: Users },
@@ -41,8 +50,14 @@ export function AstroWidgetEmptyState({
   disabled: boolean;
   onSelect: (text: string) => void;
 }) {
+  const paymentTab = usePaymentTabStore((state) => state.activeTab);
   const isOnFinance = pathname.startsWith("/payment");
-  const suggestions = isOnFinance ? FINANCE_SUGGESTIONS : GENERAL_SUGGESTIONS;
+  const isOnAccounting = isOnFinance && paymentTab === "accounting";
+  const suggestions = isOnAccounting
+    ? ACCOUNTING_SUGGESTIONS
+    : isOnFinance
+      ? FINANCE_SUGGESTIONS
+      : GENERAL_SUGGESTIONS;
 
   return (
     <div className="flex min-h-full flex-col justify-end px-4 pb-4 pt-6">
@@ -65,7 +80,7 @@ export function AstroWidgetEmptyState({
           </button>
         ))}
       </div>
-      {isOnFinance && (
+      {isOnFinance && !isOnAccounting && (
         <p className="mt-4 text-xs leading-relaxed text-white/35">
           Anexe um boleto ou uma nota fiscal pelo clipe e peça pra lançar. Nada é gravado sem a
           sua confirmação.

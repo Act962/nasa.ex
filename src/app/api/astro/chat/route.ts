@@ -383,7 +383,7 @@ export async function POST(req: Request) {
       const queried = answeringAQuestion
         ? null
         : await runAstroQuery({
-            ctx: { userId, organizationId } as never,
+            ctx: { userId, organizationId, route: parsed.context ?? {} } as never,
             text: lastUserText,
             history: extractConversationHistory(uiMessages),
           });

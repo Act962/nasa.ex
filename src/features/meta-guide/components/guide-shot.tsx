@@ -4,12 +4,8 @@ import { useState } from "react";
 import { ImageOff, ZoomIn } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import {
-  guideImageSrc,
-  guideTargetPercent,
-  type GuideArrowSide,
-  type GuideStep,
-} from "../../lib/whatsapp-connect-guide";
+import { guideImageSrc, guideTargetPercent } from "../lib/guide-helpers";
+import type { GuideArrowSide, MetaGuideStep } from "../lib/types";
 
 const ARROW_ROTATION: Record<GuideArrowSide, number> = {
   left: 0,
@@ -57,23 +53,25 @@ function TargetArrow({ side }: { side: GuideArrowSide }) {
 }
 
 /** Largura ÷ altura do print já recortado. */
-function shotRatio(shot: NonNullable<GuideStep["shot"]>): number {
+function shotRatio(shot: NonNullable<MetaGuideStep["shot"]>): number {
   const [left, top, right, bottom] = shot.crop ?? [0, 0, shot.w, shot.h];
   return (right - left) / (bottom - top);
 }
 
 function ShotWithTarget({
   step,
+  imageBasePath,
   isFitted = false,
   onMissing,
 }: {
-  step: GuideStep;
+  step: MetaGuideStep;
+  imageBasePath: string;
   /** Cabe inteiro na caixa do pai (altura fixa), sem distorcer: a seta continua no alvo. */
   isFitted?: boolean;
   onMissing: () => void;
 }) {
   const [isLoaded, setIsLoaded] = useState(false);
-  const src = guideImageSrc(step);
+  const src = guideImageSrc(step, imageBasePath);
   if (!src || !step.shot) return null;
   const target = guideTargetPercent(step.shot);
   const ratio = shotRatio(step.shot);
@@ -117,10 +115,13 @@ function ShotWithTarget({
 /** Print da tela da Meta com o botão onde clicar destacado em vermelho (spec 0040, RF-3). */
 export function GuideShot({
   step,
+  imageBasePath,
   isFitted = false,
   className,
 }: {
-  step: GuideStep;
+  step: MetaGuideStep;
+  /** Pasta em `public/` com os prints do guia. */
+  imageBasePath: string;
   /** Ocupa o espaço que o pai der (popup sem rolagem): o print encolhe inteiro. */
   isFitted?: boolean;
   className?: string;
@@ -155,7 +156,7 @@ export function GuideShot({
         )}
         style={isFitted ? { containerType: "size" } : undefined}
       >
-        <ShotWithTarget step={step} isFitted={isFitted} onMissing={() => setIsMissing(true)} />
+        <ShotWithTarget step={step} imageBasePath={imageBasePath} isFitted={isFitted} onMissing={() => setIsMissing(true)} />
         <span className="absolute right-2 bottom-2 flex items-center gap-1 rounded-md bg-black/60 px-2 py-1 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100">
           <ZoomIn className="size-3.5" /> Ampliar
         </span>
@@ -163,7 +164,7 @@ export function GuideShot({
       <Dialog open={isZoomed} onOpenChange={setIsZoomed}>
         <DialogContent className="max-w-[min(96vw,1400px)] p-2 sm:max-w-[min(96vw,1400px)]">
           <DialogTitle className="sr-only">{step.title}</DialogTitle>
-          <ShotWithTarget step={step} onMissing={() => setIsMissing(true)} />
+          <ShotWithTarget step={step} imageBasePath={imageBasePath} onMissing={() => setIsMissing(true)} />
         </DialogContent>
       </Dialog>
     </>

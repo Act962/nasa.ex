@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/input-group";
 import { countries } from "@/types/some";
 import { toast } from "sonner";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 interface ConnectModalProps {
   open: boolean;
@@ -437,7 +438,10 @@ export function ConnectModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md border-border/50">
+      <DialogContent
+        className="sm:max-w-md border-border/50"
+        data-guide={GUIDE_ANCHORS.whatsappQrDialog.id}
+      >
         <DialogHeader>
           <DialogTitle className="text-xl">Conectar Instância</DialogTitle>
         </DialogHeader>

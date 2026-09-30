@@ -31,6 +31,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 interface DashboardHeaderProps {
   settings: DashboardSettings;
@@ -118,6 +119,7 @@ export function DashboardHeader({
           icon={<BookmarkPlusIcon className="size-4" />}
           onClick={() => setSaveOpen(true)}
           disabled={isLoading}
+          guideAnchorId={GUIDE_ANCHORS.insightsSaveReportButton.id}
         />
         <SettingsPanel
           settings={settings}
@@ -170,9 +172,11 @@ interface ActionButtonProps {
   icon: React.ReactNode;
   onClick?: () => void;
   disabled?: boolean;
+  /** Âncora do guia do Astro (spec 0050). */
+  guideAnchorId?: string;
 }
 
-function ActionButton({ label, icon, onClick, disabled }: ActionButtonProps) {
+function ActionButton({ label, icon, onClick, disabled, guideAnchorId }: ActionButtonProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -182,6 +186,7 @@ function ActionButton({ label, icon, onClick, disabled }: ActionButtonProps) {
           onClick={onClick}
           disabled={disabled}
           aria-label={label}
+          data-guide={guideAnchorId}
         >
           {icon}
         </Button>

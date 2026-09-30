@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSaveMetaKeys } from "../../hooks/use-meta-setup";
 import { KeyDraftField } from "./key-draft-field";
-import { MetaLogo } from "./meta-logo";
+import { MetaLogo } from "@/features/meta-guide/components/meta-logo";
 import { GUIDE_STEPS, guideStepLink } from "../../lib/whatsapp-connect-guide";
 
 const API_SETUP_STEP = GUIDE_STEPS.find((step) => step.linkKey === "waApiSetup");

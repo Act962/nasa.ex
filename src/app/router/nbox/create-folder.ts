@@ -4,6 +4,10 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import {
+  canViewRestrictedNBox,
+  loadFolderRestriction,
+} from "@/features/nbox/server/can-view-restricted-nbox";
 
 export const createFolder = base
   .use(requiredAuthMiddleware)
@@ -13,12 +17,19 @@ export const createFolder = base
     parentId: z.string().optional(),
     color: z.string().optional(),
   }))
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
+    const parent = await loadFolderRestriction(input.parentId, context.org.id);
+    if (parent?.isRestricted && !(await canViewRestrictedNBox(context.user, context.org.id))) {
+      throw errors.FORBIDDEN({ message: "Pasta restrita: só administradores do financeiro." });
+    }
+
     const folder = await prisma.nBoxFolder.create({
       data: {
         name: input.name,
         parentId: input.parentId ?? null,
         color: input.color ?? null,
+        // Subpasta de pasta restrita nasce restrita, senão vazaria o conteúdo.
+        isRestricted: parent?.isRestricted ?? false,
         organizationId: context.org.id,
         createdById: context.user.id,
       },
