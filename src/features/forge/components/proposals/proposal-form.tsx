@@ -229,14 +229,11 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
         await update.mutateAsync({ id: proposalId, ...sanitized });
         toast.success("Proposta atualizada");
       } else {
-        const { proposal } = await create.mutateAsync(
+        await create.mutateAsync(
           sanitized as Parameters<typeof create.mutateAsync>[0],
         );
         toast.success("Proposta criada");
-        emitTourResult({
-          kind: GUIDE_RESULT_KINDS.proposalCreated,
-          href: proposal.publicToken ? `/proposta/${proposal.publicToken}` : undefined,
-        });
+        emitTourResult({ kind: GUIDE_RESULT_KINDS.proposalCreated });
       }
       onClose();
     } catch {

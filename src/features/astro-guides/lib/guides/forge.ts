@@ -72,7 +72,7 @@ export const FORGE_GUIDES: GuideDef[] = [
       {
         anchor: "forgeProposalSave",
         title: "Clique em Salvar Proposta",
-        message: "Assim que ela for salva, eu te mostro como o cliente vai ver.",
+        message: "Ela aparece na lista de propostas assim que for salva.",
         position: "top",
         advanceOn: "result",
         resultKind: GUIDE_RESULT_KINDS.proposalCreated,
@@ -80,8 +80,7 @@ export const FORGE_GUIDES: GuideDef[] = [
     ],
     finish: {
       title: "Proposta criada! 📄",
-      message: "Para mandar ao cliente, use o botão de copiar link no card da proposta.",
-      resultLabel: "Ver como o cliente vê",
+      message: "Para mandar ao cliente, use o botão de copiar link no card da proposta. Se quiser, me peça: \"como envio a proposta?\"",
     },
   },
   {
