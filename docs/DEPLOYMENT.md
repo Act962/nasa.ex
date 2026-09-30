@@ -30,9 +30,17 @@ roda por `workflow_dispatch` em qualquer branch, mas só a `main` recebe a tag `
 | `COOLIFY_TOKEN` | Token de API do Coolify (Keys & Tokens). |
 
 **Coolify:** recurso do tipo *Docker Image* → `ghcr.io/act962/nasa.ex`, tag `latest`, com credencial de
-registry (usuário do GitHub + PAT com `read:packages`). Porta `3000`, healthcheck já está na imagem
+registry (usuário do GitHub + PAT com `read:packages`). O campo da imagem vai **sem** tag (a tag fica no campo
+próprio; `nasa.ex:latest` + tag `latest` vira `latest:latest` e o pull falha). Healthcheck já está na imagem
 (`/api/health`). As variáveis **de runtime** (`DATABASE_URL`, segredos, etc.) continuam no painel do
 Coolify. Desligue o build por Nixpacks (`.nixpacks.toml` fica só como legado).
+
+- **Porta:** `Ports Exposes` = `3000`, sem variável `PORT`. Cada container tem a própria rede — outro app usar a
+  3000 não conflita. Se definir `PORT`, `Ports Exposes` tem que ser igual (o healthcheck segue o `PORT`).
+- **`DIRECT_URL`:** conexão direta com o Postgres, sem PgBouncer. O `migrate deploy` do boot usa ela quando existe;
+  via PgBouncer (pool por transação) o advisory lock do Prisma expira (`P1002`) e o container reinicia em loop.
+- **Valores com `$`** (ex.: `ASAAS_API_KEY`): o recurso *Docker Image* sobe via `docker compose`, que interpola `$`.
+  Marque a variável como **Is Literal** (ou escreva `$$`); senão ela chega vazia, sem erro.
 
 ### Notas
 
