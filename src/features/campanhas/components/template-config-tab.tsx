@@ -16,6 +16,10 @@ import {
 import { useTemplates } from "../hooks/use-templates";
 import { useSetBroadcastTemplate } from "../hooks/use-broadcasts";
 import { languageLabel } from "../lib/template-constants";
+import {
+  findTemplateMappingProblems,
+  isParamIncomplete,
+} from "../lib/template-variables";
 import type { BroadcastTemplateParam } from "../schema/broadcast-schemas";
 
 interface AttachedTemplate {
@@ -75,6 +79,10 @@ export function TemplateConfigTab({
   const selected = approved.find(
     (template) => templateKey(template.name, template.language) === selectedKey,
   );
+  const mappingProblems = selected
+    ? findTemplateMappingProblems(body, selected.variableCount)
+    : [];
+  const hasMappingProblems = mappingProblems.length > 0;
 
   function handleSelect(key: string) {
     setSelectedKey(key);
@@ -99,7 +107,7 @@ export function TemplateConfigTab({
   }
 
   function handleSave() {
-    if (!selected) return;
+    if (!selected || hasMappingProblems) return;
     setTemplate.mutate(
       {
         broadcastId,
@@ -213,6 +221,7 @@ export function TemplateConfigTab({
                           ? "Texto fixo"
                           : "Nome da coluna na planilha"
                       }
+                      aria-invalid={isParamIncomplete(param)}
                       className="flex-1"
                     />
                   )}
@@ -222,10 +231,22 @@ export function TemplateConfigTab({
           )}
 
           {!readOnly && (
-            <div>
-              <Button onClick={handleSave} disabled={setTemplate.isPending}>
-                {setTemplate.isPending ? "Salvando..." : "Salvar modelo"}
-              </Button>
+            <div className="flex flex-col gap-2">
+              {hasMappingProblems && (
+                <ul className="flex flex-col gap-1 text-sm text-destructive">
+                  {mappingProblems.map((problem) => (
+                    <li key={problem}>{problem}</li>
+                  ))}
+                </ul>
+              )}
+              <div>
+                <Button
+                  onClick={handleSave}
+                  disabled={setTemplate.isPending || hasMappingProblems}
+                >
+                  {setTemplate.isPending ? "Salvando..." : "Salvar modelo"}
+                </Button>
+              </div>
             </div>
           )}
         </>

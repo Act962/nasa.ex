@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { WhatsAppTemplateCategory } from "@/generated/prisma/enums";
 import { setBroadcastTemplateSchema } from "@/features/campanhas/schema/broadcast-schemas";
 import { loadBroadcastForOrg } from "@/features/campanhas/server/lib/broadcast-access";
+import { findTemplateMappingProblems } from "@/features/campanhas/lib/template-variables";
 
 /**
  * Anexa um template aprovado (nome, idioma, categoria) + o mapa de variáveis a
@@ -23,6 +24,14 @@ export const setTemplate = base
       throw errors.BAD_REQUEST({
         message: "Só é possível trocar o template de uma campanha em rascunho.",
       });
+    }
+
+    const mappingProblems = findTemplateMappingProblems(
+      input.mapping.body,
+      input.mapping.body.length,
+    );
+    if (mappingProblems.length > 0) {
+      throw errors.BAD_REQUEST({ message: mappingProblems[0] });
     }
 
     const updated = await prisma.broadcast.update({

@@ -305,7 +305,7 @@ O `Broadcast.templateCategory` (enum Prisma `WhatsAppTemplateCategory { MARKETIN
 
 ### 13.4 Mapeamento de variáveis
 
-Cada `{{n}}` do corpo mapeia por destinatário para uma origem: `static` (texto fixo), `recipientName`, `recipientPhone` ou `customField` (chave em `BroadcastRecipient.variables` vindo do CSV). Resolvido no envio (`resolveTemplateParams`) — sem pré-cômputo por destinatário. Header dinâmico fica pra evolução (MVP mapeia só o corpo).
+Cada `{{n}}` do corpo mapeia por destinatário para uma origem: `static` (texto fixo), `recipientName`, `recipientPhone` ou `customField` (chave em `BroadcastRecipient.variables` vindo do CSV). Resolvido no envio (`resolveTemplateParams`) — sem pré-cômputo por destinatário. Header dinâmico fica pra evolução (MVP mapeia só o corpo). Variável sem valor é barrada em três pontos (spec 0052): aba Modelo, `setTemplate` e `assertBroadcastSendable`; valor vazio por destinatário (ex.: coluna da planilha em branco) marca só aquele contato `FAILED`.
 
 ### 13.5 Decisões
 
@@ -461,3 +461,27 @@ Rascunho (DRAFT) + template + destinatários (Fases 1–3)
 - Trocar o custo do dashboard da Fase 10 para `pricing_analytics`.
 - Capturas reais da Meta para o assistente.
 - Tela de admin para as faixas (a procedure já existe).
+
+## 17. Disparo espelhado no chat + variáveis obrigatórias (spec 0052, 2026-09-30)
+
+Todo envio bem-sucedido vira mensagem `fromMe` na conversa do contato no chat do tracking de origem — inclusive para quem nunca conversou (CSV, leads de outro tracking). Spec: [`specs/campanhas/0052-campanha-no-chat-e-variaveis-obrigatorias.md`](../specs/campanhas/0052-campanha-no-chat-e-variaveis-obrigatorias.md).
+
+```
+dispatchBroadcast
+  → step "load-template-texts": header TEXT + corpo do template na Meta (falhou = não espelha, disparo segue)
+  → por destinatário, depois do SENT: recordBroadcastChatMessage (best-effort)
+        lead no tracking por waIdLookupVariants(wa_id) → senão cria (1º status, ACTIVE, sem automações)
+        conversa por leadId_trackingId → senão cria (remoteJid = <phone>@s.whatsapp.net)
+        Message.upsert(messageId = wamid, fromMe, body renderizado, metadata.source = "broadcast")
+        lastMessage só é promovida se a atual for mais antiga; lead FINISHED volta a ACTIVE
+        Pusher message:new (conversa + tracking) — sem conversation:new (tocaria som)
+```
+
+| Arquivo | Papel |
+| --- | --- |
+| `lib/template-variables.ts` | `findTemplateMappingProblems`, `isParamIncomplete`, `countTemplatePlaceholders`, `renderTemplateText` (puros, client + server) |
+| `server/lib/record-broadcast-chat-message.ts` | acha/cria lead + conversa e grava a mensagem |
+| `server/lib/broadcast-sender.ts` | devolve `{ wamid, waId, headerParameters, bodyParameters }`; lança se variável resolver vazia |
+| `server/lib/assert-broadcast-sendable.ts` | exige mapa cobrindo todas as `{{n}}` do corpo aprovado |
+
+Status (entregue/lido) atualiza a `Message` e o `BroadcastRecipient` pelo mesmo `wamid` — os dois handlers do webhook são independentes. Lead criado pela campanha não dispara workflow NEW_LEAD, rodízio nem IA (spec 0052, D-2); a resposta do contato segue o pipeline inbound normal.
