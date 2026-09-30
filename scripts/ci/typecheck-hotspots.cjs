@@ -5,10 +5,14 @@ const path = require("node:path");
 
 const traceDir = process.argv[2] ?? "trace";
 const events = JSON.parse(fs.readFileSync(path.join(traceDir, "trace.json"), "utf8"));
-const projectRoot = process.cwd() + "/";
+const toPosix = (filePath) => filePath.split(path.sep).join("/");
+const projectRoot = toPosix(process.cwd()).toLowerCase() + "/";
 const EXPRESSION_THRESHOLD_MS = 1000;
 
-const toRelative = (filePath) => (filePath ?? "").replace(projectRoot, "");
+const toRelative = (filePath) => {
+  const normalized = toPosix(filePath ?? "");
+  return normalized.toLowerCase().startsWith(projectRoot) ? normalized.slice(projectRoot.length) : normalized;
+};
 const toFolder = (filePath) => {
   const parts = filePath.split("/");
   if (filePath.startsWith("src/app/router/")) return parts.slice(0, 4).join("/");

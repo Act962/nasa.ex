@@ -23,6 +23,7 @@ jobs:
       - name: Conferir NEXT_PUBLIC_ENV
         env:
           PUBLIC_ENV: ${{ secrets.NEXT_PUBLIC_ENV }}
+          PUBLIC_ENV_FILE: ${{ runner.temp }}/public.env
         run: bash scripts/ci/check-public-env.sh
 
       # A checagem de tipos passa de 8 GB de heap; swap extra dá folga ao runner de 16 GB.
@@ -45,5 +46,5 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             BUILD_HEAP_MB=12288
-          secrets: |
-            public_env=${{ secrets.NEXT_PUBLIC_ENV }}
+          secret-files: |
+            public_env=${{ runner.temp }}/public.env
