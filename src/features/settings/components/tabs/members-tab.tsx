@@ -33,6 +33,7 @@ import {
   getPositionLabel,
   type PositionOption,
 } from "@/features/company/constants";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 interface FallbackMember {
   id: string;
@@ -111,7 +112,7 @@ export function MembersTab({ members: ssrMembers }: MemberTabsProps) {
         </div>
 
         {canManage && (
-          <Button onClick={() => onOpen()}>
+          <Button onClick={() => onOpen()} data-guide={GUIDE_ANCHORS.memberAddButton.id}>
             <Plus className="size-4" /> Adicionar Membro
           </Button>
         )}

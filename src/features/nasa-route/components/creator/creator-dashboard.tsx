@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { COURSE_FORMAT_LABELS, COURSE_LEVEL_LABELS } from "../../types";
 import { PriceStarsDisplay } from "../shared/price-stars-display";
 import { imgSrc } from "@/features/public-calendar/utils/img-src";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export function CreatorDashboard() {
   const { data, isLoading } = useQuery({
@@ -67,7 +68,7 @@ export function CreatorDashboard() {
               Acesso livre
             </Link>
           </Button>
-          <Button asChild className="gap-1.5">
+          <Button asChild className="gap-1.5" data-guide={GUIDE_ANCHORS.routeNewCourseButton.id}>
             <Link href="/nasa-route/criador/curso/novo">
               <Plus className="size-4" />
               Novo curso
@@ -119,7 +120,7 @@ export function CreatorDashboard() {
             </Button>
           </div>
         ) : (
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 space-y-3" data-guide={GUIDE_ANCHORS.routeCourseList.id}>
             {courses.map((c) => (
               <Link
                 key={c.id}

@@ -20,6 +20,7 @@ import {
 import { useOrgLayout } from "@/features/insights/context/org-layout-provider";
 import type { AppModule } from "@/features/insights/types";
 import type { InsightBlock } from "@/features/insights/lib/app-metrics";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 interface AddSectionInsightButtonProps {
   appModule: AppModule;
@@ -96,12 +97,20 @@ export function AddSectionInsightButton({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5 h-8">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 h-8"
+          data-guide={GUIDE_ANCHORS.insightsAddInsightButton.id}
+        >
           <PlusIcon className="size-3.5" />
           <span>Adicionar Insight</span>
         </Button>
       </SheetTrigger>
-      <SheetContent className="flex flex-col p-0 overflow-hidden">
+      <SheetContent
+        className="flex flex-col p-0 overflow-hidden"
+        data-guide={GUIDE_ANCHORS.insightsAddInsightSheet.id}
+      >
         <SheetHeader className="px-6 pt-6 shrink-0">
           <SheetTitle>Indicadores da seção</SheetTitle>
           <SheetDescription>

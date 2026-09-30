@@ -24,6 +24,7 @@ import { useOrgRole } from "@/hooks/use-org-role";
 import { authClient } from "@/lib/auth-client";
 import { Copy, EllipsisVertical, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 interface Members {
   id: string;
@@ -97,7 +98,7 @@ export function InvitationsTab({
         </div>
 
         {canManage && (
-          <Button onClick={() => onOpen()}>
+          <Button onClick={() => onOpen()} data-guide={GUIDE_ANCHORS.memberAddButton.id}>
             <Plus className="size-4" /> Adicionar Membro
           </Button>
         )}

@@ -29,6 +29,52 @@ const isoDate = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Use AAAA-MM-DD")
   .describe("Data no formato AAAA-MM-DD.");
 
+const centsOrNull = z.number().int().nullable();
+
+// Campos fiscais (spec 0051): alimentam os créditos de IBS/CBS da aba Contábil.
+// Na geração são `nullable` (o modo estrito da OpenAI exige toda chave
+// presente); no tipo guardado são opcionais, porque leituras antigas não os têm.
+export const fiscalTaxesSchema = z
+  .object({
+    icmsCents: centsOrNull,
+    ipiCents: centsOrNull,
+    pisCents: centsOrNull,
+    cofinsCents: centsOrNull,
+    issCents: centsOrNull,
+    ibsCents: centsOrNull.describe("IBS destacado (estadual + municipal), em centavos."),
+    cbsCents: centsOrNull.describe("CBS destacada, em centavos."),
+    isCents: centsOrNull.describe("Imposto Seletivo destacado, em centavos."),
+  })
+  .describe("Tributos destacados no documento, em centavos. null no que não aparecer.");
+
+export const fiscalItemSchema = z.object({
+  description: z.string(),
+  ncm: z.string().nullable().describe("NCM (8 dígitos) do produto, só dígitos."),
+  nbs: z.string().nullable().describe("Código NBS do serviço, só dígitos."),
+  cfop: z.string().nullable(),
+  cst: z.string().nullable().describe("CST do IBS/CBS, quando houver."),
+  cClassTrib: z.string().nullable().describe("Código de classificação tributária do IBS/CBS."),
+  amountCents: z.number().int().describe("Valor do item em centavos."),
+});
+
+export const ISSUER_TAX_REGIMES = ["SIMPLES", "MEI", "PRESUMIDO", "REAL", "DESCONHECIDO"] as const;
+
+const fiscalExtractionFields = {
+  taxes: fiscalTaxesSchema
+    .nullable()
+    .describe("Só em NOTA_FISCAL/NFSE: tributos destacados. null nos demais documentos."),
+  items: z
+    .array(fiscalItemSchema)
+    .nullable()
+    .describe("Só em NOTA_FISCAL/NFSE: itens da nota (até 30). null nos demais documentos."),
+  issuerTaxRegime: z
+    .enum(ISSUER_TAX_REGIMES)
+    .nullable()
+    .describe(
+      "Regime do emitente quando a nota informar (CRT 1/2 = SIMPLES, 4 = MEI, 3 = regime normal → PRESUMIDO se não der para distinguir). DESCONHECIDO ou null se não constar.",
+    ),
+};
+
 export const financialDocumentExtractionSchema = z.object({
   documentType: z
     .enum(FINANCIAL_DOCUMENT_TYPES)
@@ -113,9 +159,34 @@ export const financialDocumentExtractionSchema = z.object({
   warnings: z
     .array(z.string())
     .describe("Ressalvas curtas em português: campos ausentes, valores inferidos, documento cortado."),
+  ...fiscalExtractionFields,
 });
 
-export type FinancialDocumentExtraction = z.infer<typeof financialDocumentExtractionSchema>;
+type FiscalExtractionFields = {
+  [Key in keyof typeof fiscalExtractionFields]?: z.infer<(typeof fiscalExtractionFields)[Key]>;
+};
+
+export type FinancialDocumentExtraction = Omit<
+  z.infer<typeof financialDocumentExtractionSchema>,
+  keyof FiscalExtractionFields
+> &
+  FiscalExtractionFields;
+export type FiscalTaxesExtraction = z.infer<typeof fiscalTaxesSchema>;
+export type FiscalItemExtraction = z.infer<typeof fiscalItemSchema>;
+
+/** Leitura tolerante dos campos fiscais de uma extração guardada (antigas não os têm). */
+export const storedFiscalExtractionSchema = z.object({
+  documentType: z.enum(FINANCIAL_DOCUMENT_TYPES),
+  direction: z.enum(["PAYABLE", "RECEIVABLE", "UNKNOWN"]).catch("UNKNOWN"),
+  issuer: z.object({ name: z.string().nullish(), document: z.string().nullish() }).nullish(),
+  payer: z.object({ name: z.string().nullish(), document: z.string().nullish() }).nullish(),
+  amountCents: z.number().nullish(),
+  issueDate: z.string().nullish(),
+  documentNumber: z.string().nullish(),
+  invoice: z.object({ number: z.string().nullish(), accessKey: z.string().nullish() }).nullish(),
+  taxes: fiscalTaxesSchema.partial().nullish(),
+  issuerTaxRegime: z.enum(ISSUER_TAX_REGIMES).nullish().catch(null),
+});
 
 /**
  * Resultado enriquecido guardado em `PaymentAttachment.extraction`: a leitura

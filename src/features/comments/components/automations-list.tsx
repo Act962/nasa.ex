@@ -18,6 +18,9 @@ import {
   useCreateCommentsAutomation,
   useDeleteCommentsAutomation,
 } from "../hooks/use-comments-automations";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 export function AutomationsList({ canCreate }: { canCreate: boolean }) {
   const router = useRouter();
@@ -37,12 +40,15 @@ export function AutomationsList({ canCreate }: { canCreate: boolean }) {
         <Button
           size="sm"
           disabled={!canCreate || create.isPending}
+          data-guide={GUIDE_ANCHORS.commentsNewAutomation.id}
           onClick={() =>
             create.mutate(
               { name: "Sem título" },
               {
-                onSuccess: (created) =>
-                  router.push(`/comments/automations/${created.id}`),
+                onSuccess: (created) => {
+                  emitTourResult({ kind: GUIDE_RESULT_KINDS.commentAutomationCreated });
+                  router.push(`/comments/automations/${created.id}`);
+                },
                 onError: (error) => toast.error(error.message),
               },
             )

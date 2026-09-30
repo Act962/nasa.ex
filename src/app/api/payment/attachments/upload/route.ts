@@ -17,6 +17,7 @@ import { v4 as uuidv4 } from "uuid";
 import { S3 } from "@/lib/s3-client";
 import prisma from "@/lib/prisma";
 import { authorizeAttachmentRequest } from "@/features/payment/server/attachments/authorize-attachment-request";
+import { registerCreditsFromAttachmentSafely } from "@/features/accounting/server/credits/register-credit-from-attachment";
 import {
   MAX_ATTACHMENT_BYTES,
   isAllowedAttachmentType,
@@ -125,6 +126,14 @@ export async function POST(request: NextRequest) {
       createdAt: true,
     },
   });
+
+  // XML de nota de entrada já vira crédito de IBS/CBS (spec 0051); falha aqui não derruba o upload.
+  if (attachment.kind === "NOTA_FISCAL" || file.name.toLowerCase().endsWith(".xml")) {
+    await registerCreditsFromAttachmentSafely({
+      organizationId: authorization.context.organizationId,
+      attachmentIds: [attachment.id],
+    });
+  }
 
   return NextResponse.json({ attachment });
 }

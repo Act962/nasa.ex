@@ -24,6 +24,7 @@ import {
 import { parseCommandIntent } from "./ai-intent";
 import { createProposalAction } from "@/features/astro/actions/forge/create-proposal";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
+import { UNRESTRICTED_ITEM_FILTER } from "@/features/nbox/server/can-view-restricted-nbox";
 
 // ─── Fuzzy normaliser ─────────────────────────────────────────────────────────
 // Maps common misspellings / phonetic variants to canonical tokens so intent
@@ -1822,7 +1823,8 @@ CTA: [chamada para ação]`;
 
         const folder = folderName
           ? await prisma.nBoxFolder.findFirst({
-              where: { organizationId: orgId, name: { contains: folderName, mode: "insensitive" } },
+              // Pasta restrita (documentos da empresa) só se consulta pela aba Contábil.
+              where: { organizationId: orgId, isRestricted: false, name: { contains: folderName, mode: "insensitive" } },
               select: { id: true, name: true },
             })
           : null;
@@ -1830,6 +1832,7 @@ CTA: [chamada para ação]`;
         const items = await prisma.nBoxItem.findMany({
           where: {
             organizationId: orgId,
+            ...UNRESTRICTED_ITEM_FILTER,
             ...(folder ? { folderId: folder.id } : {}),
             ...(typeFilter ? { type: typeFilter as never } : {}),
           },

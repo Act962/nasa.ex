@@ -16,6 +16,8 @@ export const astroRouteContextSchema = z
     actionId: z.string().optional(),
     /** Aba aberta em /payment (dashboard, payables, documents...). */
     paymentTab: z.string().optional(),
+    /** Subaba dentro da aba do /payment (ex.: `?sub=` da aba Contábil). */
+    paymentSubTab: z.string().optional(),
   })
   .partial();
 

@@ -6,6 +6,7 @@
  *   - `dispatchMessageIncoming`  ← webhook WhatsApp (chat/webhook/route.ts)
  *                                  ao receber mensagem inbound do lead.
  *   - `dispatchPaymentReceived`  ← webhook Stripe + Asaas após confirmação.
+ *   - `broadcastComplianceItemDue` ← cron `detect-compliance-due` (aba Contábil).
  *
  * Resultado: publica evento Inngest correspondente. As funções
  * `agent-workflow-triggers.ts` consomem e disparam `runWorkflow` em todos
@@ -93,5 +94,48 @@ export async function dispatchPaymentReceived(args: DispatchPaymentReceivedArgs)
     });
   } catch (err) {
     console.error("[agent-trigger:payment-received] dispatch failed", err);
+  }
+}
+
+export const COMPLIANCE_ITEM_KINDS = ["OBLIGATION", "DOCUMENT", "ASSESSMENT", "INVOICE_MONTH"] as const;
+export type ComplianceItemKind = (typeof COMPLIANCE_ITEM_KINDS)[number];
+
+export interface ComplianceItemDueArgs {
+  organizationId: string;
+  itemKind: ComplianceItemKind;
+  code: string;
+  label: string;
+  /** AAAA-MM-DD. */
+  dueDate: string;
+  /** Dias até o vencimento; negativo = já vencido há N dias. */
+  daysBefore: number;
+  amountCents?: number | null;
+  /** Mesmo `entityKey` do aviso — o gatilho não dispara duas vezes o mesmo item. */
+  entityKey: string;
+}
+
+/**
+ * Prazo fiscal, documento ou apuração pedindo atenção (spec 0051, RF-16).
+ * Quem chama: `features/alerts/lib/detectors/compliance-due.ts`.
+ */
+export async function broadcastComplianceItemDue(args: ComplianceItemDueArgs) {
+  try {
+    await inngest.send({
+      name: "agent-workflow/compliance-item-due",
+      // Id do evento = dedupe nativo do Inngest (24h) para o mesmo item.
+      id: `compliance-item-due:${args.entityKey}`,
+      data: {
+        organizationId: args.organizationId,
+        itemKind: args.itemKind,
+        code: args.code,
+        label: args.label,
+        dueDate: args.dueDate,
+        daysBefore: args.daysBefore,
+        amountCents: args.amountCents ?? null,
+        entityKey: args.entityKey,
+      },
+    });
+  } catch (error) {
+    console.error("[agent-trigger:compliance-item-due] dispatch failed", error);
   }
 }

@@ -11,10 +11,15 @@ import { create } from "zustand";
  */
 interface PaymentTabState {
   activeTab: string | null;
+  /** Subaba da aba aberta (ex.: `sub` da aba Contábil), publicada pela própria aba. */
+  activeSubTab: string | null;
   setActiveTab: (tab: string | null) => void;
+  setActiveSubTab: (subTab: string | null) => void;
 }
 
 export const usePaymentTabStore = create<PaymentTabState>((set) => ({
   activeTab: null,
+  activeSubTab: null,
   setActiveTab: (tab) => set({ activeTab: tab }),
+  setActiveSubTab: (subTab) => set({ activeSubTab: subTab }),
 }));

@@ -37,6 +37,9 @@ import {
   useQueryStatus,
 } from "@/features/trackings/hooks/use-trackings";
 import { SearchConversations } from "@/features/tracking-chat/components/search-conversaitons";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -80,6 +83,7 @@ export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
   const handleOnLead = ({ id }: { id: string }) => {
     router.push(`/contatos/${id}`);
     onOpenChange(false);
+    emitTourResult({ kind: GUIDE_RESULT_KINDS.contactOpened });
   };
 
   // Reset para página 1 quando a busca mudar
@@ -172,7 +176,11 @@ export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
         onOpenChange(open);
       }}
     >
-      <DialogContent className="w-full md:max-w-5xl" showCloseButton={false}>
+      <DialogContent
+        className="w-full md:max-w-5xl"
+        showCloseButton={false}
+        data-guide={GUIDE_ANCHORS.contactsSearchDialog.id}
+      >
         <DialogHeader className="sr-only">
           <DialogTitle>Buscar Lead</DialogTitle>
         </DialogHeader>

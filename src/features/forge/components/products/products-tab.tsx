@@ -18,6 +18,7 @@ import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { ProductModal, type Product } from "./product-modal";
 import { ProductList } from "./product-list";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export function ProductsTab() {
   const [search, setSearch] = useState("");
@@ -67,6 +68,7 @@ export function ProductsTab() {
           className="ml-auto bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-1.5"
           onClick={handleAdd}
           size="sm"
+          data-guide={GUIDE_ANCHORS.forgeNewProductButton.id}
         >
           <Plus className="size-4" />
           Novo Produto

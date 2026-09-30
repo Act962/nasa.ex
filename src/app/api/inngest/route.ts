@@ -50,6 +50,7 @@ import { detectAiTokenUsage } from "@/inngest/functions/crons/detect-ai-token-us
 import { fireLeadTriggers } from "@/inngest/functions/leads/fire-lead-triggers";
 import { runScheduledWorkflowsCron } from "@/inngest/functions/crons/run-scheduled-workflows";
 import { detectExpensesDueToday } from "@/inngest/functions/crons/detect-expenses-due-today";
+import { detectComplianceDue } from "@/inngest/functions/crons/detect-compliance-due";
 import { detectContractsExpiring } from "@/inngest/functions/crons/detect-contracts-expiring";
 import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-structure";
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
@@ -99,6 +100,7 @@ import {
   agentTriggerPaymentReceivedFn,
   agentTriggerMessageIncomingFn,
   agentTriggerWebhookExternalFn,
+  agentTriggerComplianceItemDueFn,
 } from "@/inngest/functions/agent-workflow-triggers";
 // ── NASA Payment Fase 2 (governança + cobrança event-driven) ──
 import { paymentDunningFire }      from "@/inngest/functions/payment/dunning-fire";
@@ -108,6 +110,12 @@ import { paymentGoalWeeklySummary } from "@/inngest/functions/payment/goal-weekl
 // ── Astro Financeiro (lembretes com boleto + caixa Gmail) ──
 import { paymentReminderFire } from "@/inngest/functions/payment/reminder-fire";
 import { paymentInboxSyncCron, paymentInboxSyncOrg } from "@/inngest/functions/payment/inbox-sync";
+// ── Aba Contábil (spec 0051) ──
+import {
+  accountingJournalSync,
+  accountingJournalBackfill,
+  accountingNightly,
+} from "@/inngest/functions/accounting/journal-sync";
 // ── Campanhas (disparo em massa WhatsApp Oficial — Fase 3/4) ──
 import { dispatchBroadcast } from "@/inngest/functions/campanhas/dispatch-broadcast";
 import { dispatchDueBroadcasts } from "@/inngest/functions/campanhas/dispatch-due-broadcasts";
@@ -168,6 +176,7 @@ export const { GET, POST, PUT } = serve({
     runScheduledWorkflowsCron,
     detectExpensesDueToday,
     detectContractsExpiring,
+    detectComplianceDue,
     // ── NASA Planner ──
     publishPostHandler,
     publishScheduledPosts,
@@ -232,6 +241,7 @@ export const { GET, POST, PUT } = serve({
     agentTriggerPaymentReceivedFn,
     agentTriggerMessageIncomingFn,
     agentTriggerWebhookExternalFn,
+    agentTriggerComplianceItemDueFn,
     // ── NASA Payment Fase 2 — event-driven, sem cron ──
     paymentDunningFire,
     paymentApprovalReminder,
@@ -241,6 +251,10 @@ export const { GET, POST, PUT } = serve({
     paymentReminderFire,
     paymentInboxSyncCron,
     paymentInboxSyncOrg,
+    // ── Aba Contábil — journal derivado + reconciliação noturna ──
+    accountingJournalSync,
+    accountingJournalBackfill,
+    accountingNightly,
     // ── Campanhas — disparo em massa (Fase 3) + agendamento (Fase 4, cron) ──
     dispatchBroadcast,
     dispatchDueBroadcasts,

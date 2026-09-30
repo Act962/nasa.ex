@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,6 @@ import {
   useDeleteNBoxFolder,
   useCreateNBoxItem,
   useDeleteNBoxItem,
-  useToggleNBoxItemPublic,
 } from "../hooks/use-nbox";
 import {
   Dialog,
@@ -32,122 +31,41 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { PublicVisibilityDialog } from "@/components/public-visibility-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   FolderIcon,
+  FolderLockIcon,
   FolderOpenIcon,
-  FileIcon,
-  FileTextIcon,
-  ImageIcon,
   Link2Icon,
-  FileSpreadsheetIcon,
   FilePenIcon,
   PlusIcon,
   SearchIcon,
   UploadIcon,
   GridIcon,
   ListIcon,
-  MoreVerticalIcon,
   TrashIcon,
-  DownloadIcon,
-  ExternalLinkIcon,
   ChevronRightIcon,
   HardDriveIcon,
   FileCheckIcon as FileContractIcon,
   BoxIcon,
-  GlobeIcon,
-  LockIcon,
-  AlertTriangleIcon,
-  CopyIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
 import { NBoxItemType } from "@/generated/prisma/enums";
 import Link from "next/link";
-import { useConstructUrl } from "@/hooks/use-construct-url";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type ViewMode = "grid" | "list";
-
-interface NBoxFolder {
-  id: string;
-  name: string;
-  color: string | null;
-  parentId: string | null;
-  createdAt: Date | string;
-}
-
-interface NBoxItem {
-  id: string;
-  name: string;
-  type: NBoxItemType;
-  url: string | null;
-  mimeType: string | null;
-  size: number | null;
-  description: string | null;
-  tags: string[];
-  folderId: string | null;
-  createdAt: Date | string;
-  createdBy: { name: string; image: string | null };
-  isPublic: boolean;
-  publicToken: string | null;
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
+import { formatBytes } from "./nbox-file-type-icon";
+import { ItemCardGrid, ItemRowList } from "./nbox-item-views";
+import type { NBoxFolderView as NBoxFolder, NBoxViewMode as ViewMode } from "./nbox-types";
 
 const PLAN_LABELS: Record<string, string> = {
   earth: "Earth (500 MB)",
   explore: "Explore (2 GB)",
   constellation: "Constellation (10 GB)",
 };
-
-// ─── File Icon ────────────────────────────────────────────────────────────────
-
-function FileTypeIcon({
-  type,
-  mimeType,
-  className,
-}: {
-  type: NBoxItemType;
-  mimeType?: string | null;
-  className?: string;
-}) {
-  const cls = cn("shrink-0", className);
-  if (type === "IMAGE")
-    return <ImageIcon className={cn(cls, "text-pink-500")} />;
-  if (type === "LINK")
-    return <Link2Icon className={cn(cls, "text-blue-500")} />;
-  if (type === "CONTRACT")
-    return <FilePenIcon className={cn(cls, "text-emerald-600")} />;
-  if (type === "PROPOSAL")
-    return <FileContractIcon className={cn(cls, "text-purple-600")} />;
-  if (mimeType?.includes("pdf"))
-    return <FileTextIcon className={cn(cls, "text-red-500")} />;
-  if (
-    mimeType?.includes("spreadsheet") ||
-    mimeType?.includes("excel") ||
-    mimeType?.includes("csv")
-  )
-    return <FileSpreadsheetIcon className={cn(cls, "text-green-600")} />;
-  return <FileIcon className={cn(cls, "text-slate-400")} />;
-}
 
 // ─── Storage Bar ─────────────────────────────────────────────────────────────
 
@@ -231,12 +149,15 @@ function FolderTreeItem({
         ) : (
           <span className="size-3" />
         )}
-        {expanded ? (
+        {folder.isRestricted ? (
+          <FolderLockIcon className="size-3.5 shrink-0 text-violet-500" />
+        ) : expanded ? (
           <FolderOpenIcon className="size-3.5 shrink-0 text-yellow-500" />
         ) : (
           <FolderIcon className="size-3.5 shrink-0 text-yellow-500" />
         )}
         <span className="flex-1 truncate">{folder.name}</span>
+        {!folder.systemKey && (
         <button
           type="button"
           className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-destructive/10 hover:text-destructive transition-all"
@@ -247,6 +168,7 @@ function FolderTreeItem({
         >
           <TrashIcon className="size-3" />
         </button>
+        )}
       </div>
       {expanded &&
         children.map((child) => (
@@ -260,274 +182,6 @@ function FolderTreeItem({
             onDelete={onDelete}
           />
         ))}
-    </div>
-  );
-}
-
-// ─── Visibilidade pública — Menu item + AlertDialog reutilizáveis ────────────
-
-/**
- * Quando o arquivo é privado: mostra item "Tornar público" → abre Alert
- * com aviso explícito (qualquer pessoa com o link acessa e baixa) → ao
- * confirmar, dispara a mutation com `consent: true`.
- *
- * Quando público: mostra "Tornar privado" + badge na linha + opção
- * "Copiar link público".
- *
- * O log fica em "Atividades no admin" + insights via `logActivity` no
- * backend (procedure `toggleItemPublic`).
- */
-function PublicVisibilityActions({ item }: { item: NBoxItem }) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const toggle = useToggleNBoxItemPublic();
-
-  function copyPublicLink() {
-    if (!item.publicToken) return;
-    const url = `${window.location.origin}/api/nbox/public/${item.publicToken}`;
-    navigator.clipboard.writeText(url).then(
-      () => toast.success("Link público copiado!"),
-      () => toast.error("Falha ao copiar o link."),
-    );
-  }
-
-  return (
-    <>
-      {item.isPublic ? (
-        <>
-          <DropdownMenuItem onClick={copyPublicLink}>
-            <CopyIcon className="size-3.5" />
-            Copiar link público
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() =>
-              toggle.mutate({ itemId: item.id, isPublic: false })
-            }
-          >
-            <LockIcon className="size-3.5" />
-            Tornar privado
-          </DropdownMenuItem>
-        </>
-      ) : (
-        <DropdownMenuItem
-          onClick={(e) => {
-            e.preventDefault();
-            setConfirmOpen(true);
-          }}
-        >
-          <GlobeIcon className="size-3.5" />
-          Visualização Pública
-        </DropdownMenuItem>
-      )}
-
-      <PublicVisibilityDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        isPending={toggle.isPending}
-        onConfirm={() => {
-          toggle.mutate(
-            { itemId: item.id, isPublic: true, consent: true },
-            { onSuccess: () => setConfirmOpen(false) },
-          );
-        }}
-      />
-    </>
-  );
-}
-
-function PublicBadge() {
-  return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-300"
-      title="Este arquivo está visível publicamente"
-    >
-      <GlobeIcon className="size-2.5" />
-      Público
-    </span>
-  );
-}
-
-// ─── Item Card (Grid) ─────────────────────────────────────────────────────────
-
-function ItemCardGrid({
-  item,
-  onDelete,
-}: {
-  item: NBoxItem;
-  onDelete: (id: string) => void;
-}) {
-  const s3Url = useConstructUrl(item.url ?? "");
-  const isS3Key = !!item.url && !item.url.startsWith("http");
-  const resolvedUrl = item.url ? (isS3Key ? s3Url : item.url) : null;
-
-  const isImagePreview =
-    (item.type === "IMAGE" ||
-      (item.type === "FILE" && item.mimeType?.startsWith("image/"))) &&
-    resolvedUrl;
-
-  return (
-    <div className="group relative bg-card border border-border rounded-xl overflow-hidden hover:border-primary/40 hover:shadow-sm transition-all">
-      {/* Thumbnail or icon */}
-      <div className="h-28 bg-muted/30 flex items-center justify-center overflow-hidden">
-        {isImagePreview ? (
-          <img
-            src={resolvedUrl!}
-            alt={item.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <FileTypeIcon
-            type={item.type}
-            mimeType={item.mimeType}
-            className="size-10 opacity-60"
-          />
-        )}
-      </div>
-
-      {/* Badge "Público" no canto sup. esquerdo */}
-      {item.isPublic && (
-        <div className="absolute top-2 left-2">
-          <PublicBadge />
-        </div>
-      )}
-
-      {/* Info */}
-      <div className="px-3 py-2.5">
-        <p className="text-xs font-medium truncate leading-tight">
-          {item.name}
-        </p>
-        <p className="text-[10px] text-muted-foreground mt-0.5">
-          {item.size ? formatBytes(item.size) : item.type.toLowerCase()}
-        </p>
-      </div>
-
-      {/* Actions */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="p-1 bg-background/90 backdrop-blur rounded-lg border border-border shadow-sm">
-              <MoreVerticalIcon className="size-3.5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {resolvedUrl && (
-              <DropdownMenuItem asChild>
-                <a
-                  href={resolvedUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download={item.type !== "LINK"}
-                >
-                  {item.type === "LINK" ? (
-                    <ExternalLinkIcon className="size-3.5" />
-                  ) : (
-                    <DownloadIcon className="size-3.5" />
-                  )}
-                  {item.type === "LINK" ? "Abrir link" : "Baixar"}
-                </a>
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <PublicVisibilityActions item={item} />
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={() => onDelete(item.id)}
-            >
-              <TrashIcon className="size-3.5" /> Excluir
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </div>
-  );
-}
-
-// ─── Item Row (List) ──────────────────────────────────────────────────────────
-
-function ItemRowList({
-  item,
-  onDelete,
-}: {
-  item: NBoxItem;
-  onDelete: (id: string) => void;
-}) {
-  const s3Url = useConstructUrl(item.url ?? "");
-  const isS3Key = !!item.url && !item.url.startsWith("http");
-  const resolvedUrl = item.url ? (isS3Key ? s3Url : item.url) : null;
-
-  const isImagePreview =
-    (item.type === "IMAGE" ||
-      (item.type === "FILE" && item.mimeType?.startsWith("image/"))) &&
-    resolvedUrl;
-
-  return (
-    <div className="group flex items-center gap-3 px-4 py-2.5 rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-sm transition-all">
-      {/* Thumbnail for images, icon otherwise */}
-      <div className="size-9 shrink-0 rounded-lg overflow-hidden bg-muted/40 flex items-center justify-center">
-        {isImagePreview ? (
-          <img
-            src={resolvedUrl!}
-            alt={item.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <FileTypeIcon
-            type={item.type}
-            mimeType={item.mimeType}
-            className="size-5"
-          />
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium truncate">{item.name}</p>
-          {item.isPublic && <PublicBadge />}
-        </div>
-        {item.description && (
-          <p className="text-xs text-muted-foreground truncate">
-            {item.description}
-          </p>
-        )}
-      </div>
-      <div className="shrink-0 flex items-center gap-3 text-xs text-muted-foreground">
-        <span>{item.size ? formatBytes(item.size) : "—"}</span>
-        <span>{new Date(item.createdAt).toLocaleDateString("pt-BR")}</span>
-      </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-all">
-            <MoreVerticalIcon className="size-4" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {resolvedUrl && (
-            <DropdownMenuItem asChild>
-              <a
-                href={resolvedUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                download={item.type !== "LINK"}
-              >
-                {item.type === "LINK" ? (
-                  <ExternalLinkIcon className="size-3.5" />
-                ) : (
-                  <DownloadIcon className="size-3.5" />
-                )}
-                {item.type === "LINK" ? "Abrir link" : "Baixar"}
-              </a>
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuSeparator />
-          <PublicVisibilityActions item={item} />
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="destructive"
-            onClick={() => onDelete(item.id)}
-          >
-            <TrashIcon className="size-3.5" /> Excluir
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
     </div>
   );
 }
@@ -596,6 +250,7 @@ function UploadModal({
       setUploading(false);
       if (successCount > 0) {
         earn("upload_nbox", "Upload de arquivo no N.Box 📁");
+        emitTourResult({ kind: GUIDE_RESULT_KINDS.nboxFileUploaded });
       }
       onClose();
     },
@@ -626,6 +281,7 @@ function UploadModal({
         </DialogHeader>
         <div
           {...getRootProps()}
+          data-guide={GUIDE_ANCHORS.nboxDropzone.id}
           className={cn(
             "border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors",
             isDragActive
@@ -763,6 +419,7 @@ function NewFolderModal({
     });
     setName("");
     onClose();
+    emitTourResult({ kind: GUIDE_RESULT_KINDS.nboxFolderCreated });
   };
 
   return (
@@ -777,6 +434,7 @@ function NewFolderModal({
           <Input
             placeholder="Nome da pasta *"
             value={name}
+            data-guide={GUIDE_ANCHORS.nboxFolderName.id}
             onChange={(e) => setName(e.target.value)}
             autoFocus
           />
@@ -801,6 +459,7 @@ function NewFolderModal({
             <Button
               onClick={handleSubmit}
               disabled={!name.trim() || createFolder.isPending}
+              data-guide={GUIDE_ANCHORS.nboxFolderSubmit.id}
             >
               Criar
             </Button>
@@ -986,10 +645,15 @@ export function NBoxApp() {
             size="sm"
             variant="outline"
             onClick={() => setFolderOpen(true)}
+            data-guide={GUIDE_ANCHORS.nboxNewFolderButton.id}
           >
             <FolderIcon className="size-3.5" /> Pasta
           </Button>
-          <Button size="sm" onClick={() => setUploadOpen(true)}>
+          <Button
+            size="sm"
+            onClick={() => setUploadOpen(true)}
+            data-guide={GUIDE_ANCHORS.nboxUploadButton.id}
+          >
             <UploadIcon className="size-3.5" /> Enviar
           </Button>
         </div>
@@ -1044,6 +708,7 @@ export function NBoxApp() {
                   key={item.id}
                   item={item}
                   onDelete={setDeleteItemId}
+                  canPublish={!selectedFolder?.isRestricted}
                 />
               ))}
             </div>
@@ -1054,6 +719,7 @@ export function NBoxApp() {
                   key={item.id}
                   item={item}
                   onDelete={setDeleteItemId}
+                  canPublish={!selectedFolder?.isRestricted}
                 />
               ))}
             </div>

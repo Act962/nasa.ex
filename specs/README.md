@@ -199,6 +199,11 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0039](workflows/0039-construtor-rapido-de-gatilhos.md) | workflows | Construtor rápido de Gatilhos Automáticos (passo a passo, por frase e por lead) | implementada |
 | [0040](campanhas/0040-disparo-em-massa-self-service.md) | campanhas | Disparo em Massa self-service — número oficial, custos, taxa e subida de volume | em-revisao |
 | [0046](astro/0046-astro-guia-na-tela.md) | astro | Astro Guia — passo a passo na tela real, com seta e balão | implementada |
+| [0047](comments/0047-guia-conectar-instagram-comments.md) | comments | Guia passo a passo para conectar o Instagram no COMMENTS | em-revisao |
+| [0048](astro/0048-astro-guia-em-outros-apps.md) | astro | Astro Guia em Chat, Agenda, Forge e Formulários | em-revisao |
+| [0049](astro/0049-astro-guia-workspace-financeiro-campanhas-contatos-equipe.md) | astro | Astro Guia em Workspace, Financeiro, Campanhas, Contatos e Equipe | em-revisao |
+| [0050](astro/0050-astro-guia-em-todos-os-apps.md) | astro | Astro Guia em todos os apps restantes | em-revisao |
+| [0051](accounting/0051-aba-contabil-fundacao.md) | accounting | Aba Contábil — fundação contábil, guias, documentos, créditos e precificação | em-revisao |
 
 ---
 

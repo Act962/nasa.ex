@@ -17,6 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 const PAYABLE_STATUSES = ["PENDING", "PARTIAL", "OVERDUE"];
 
@@ -61,13 +62,20 @@ export function EntryActionsMenu({
           size="icon"
           className={cn("size-8", className)}
           aria-label={`Ações de ${entry.description}`}
+          data-guide={
+            PAYABLE_STATUSES.includes(entry.status) ? GUIDE_ANCHORS.paymentOpenEntryMenu.id : undefined
+          }
         >
           <MoreHorizontal className="size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         {PAYABLE_STATUSES.includes(entry.status) && (
-          <DropdownMenuItem onClick={onPay} className="gap-2">
+          <DropdownMenuItem
+            onClick={onPay}
+            className="gap-2"
+            data-guide={GUIDE_ANCHORS.paymentRegisterPayment.id}
+          >
             <CheckCircle2 className="size-4 text-green-500" />
             Registrar pagamento
           </DropdownMenuItem>

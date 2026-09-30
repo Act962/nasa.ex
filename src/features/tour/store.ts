@@ -22,7 +22,8 @@ interface TourStore {
   result: TourResult | null;
 
   startTour: (steps: TourStep[], options?: StartTourOptions) => void;
-  nextStep: () => void;
+  /** `fromIndex` torna o avanço idempotente: só avança se ainda estiver nele (RF-8). */
+  nextStep: (fromIndex?: number) => void;
   prevStep: () => void;
   endTour: () => void;
   completeWithResult: (result: TourResult) => void;
@@ -52,8 +53,9 @@ export const useTourStore = create<TourStore>()(
           finish: options?.finish ?? null,
         }),
 
-      nextStep: () => {
+      nextStep: (fromIndex) => {
         const { stepIndex, steps, finish } = get();
+        if (fromIndex !== undefined && fromIndex !== stepIndex) return;
         if (stepIndex + 1 < steps.length) {
           set({ stepIndex: stepIndex + 1 });
           return;
@@ -67,9 +69,11 @@ export const useTourStore = create<TourStore>()(
       endTour: () => set(IDLE_STATE),
 
       completeWithResult: (result) => {
-        const { isActive, steps, finish } = get();
-        const waitsForResult = steps.some((step) => step.advanceOn === "result");
-        if (!isActive || !waitsForResult) return;
+        const { isActive, isFinished, steps, finish } = get();
+        const waitsForThisResult = steps.some(
+          (step) => step.advanceOn === "result" && step.resultKind === result.kind,
+        );
+        if (!isActive || isFinished || !waitsForThisResult) return;
         if (finish) set({ isFinished: true, result });
         else set(IDLE_STATE);
       },

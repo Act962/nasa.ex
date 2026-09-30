@@ -11,6 +11,7 @@ import { describeSiteStatus } from "../utils/site-status";
 import { CreateSiteDialog } from "./create-site-dialog";
 import { SiteDetail } from "./site-detail";
 import { SiteStatusPill } from "./site-status-pill";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 /** App ASTRO CHAT (spec 0031, RF-1): sites com o ASTRO atendendo. O site aberto vive em `?site=`. */
 
@@ -58,7 +59,10 @@ export function AstroChatApp() {
             </div>
             <div className="flex flex-col items-start gap-2 md:items-end">
               <span className="text-sm text-muted-foreground">{monthlyPrice} Stars / mês por site</span>
-              <Button onClick={() => setIsCreateOpen(true)}>
+              <Button
+                onClick={() => setIsCreateOpen(true)}
+                data-guide={GUIDE_ANCHORS.astroChatAddSite.id}
+              >
                 <Plus className="size-4" /> Adicionar site
               </Button>
             </div>

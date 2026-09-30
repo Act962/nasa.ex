@@ -28,6 +28,7 @@ import {
   MoveHorizontalIcon,
   RepeatIcon,
   RouteIcon,
+  ScaleIcon,
   SendIcon,
   ShuffleIcon,
   SparklesIcon,
@@ -185,6 +186,16 @@ export const triggerNodes: NodeTypeOption[] = [
       "Dispara quando o lead envia uma nova mensagem no WhatsApp",
     icon: MailIcon,
     agentModeOnly: true,
+  },
+  {
+    type: NodeType.COMPLIANCE_ITEM_DUE,
+    category: "trigger",
+    label: "Contábil: prazo fiscal/documento vencendo",
+    description:
+      "Dispara quando uma guia, declaração, certidão ou apuração da aba Contábil está perto de vencer ou venceu",
+    icon: ScaleIcon,
+    agentModeOnly: true,
+    defaultData: { itemKinds: [], daysBefore: [] },
   },
   {
     type: NodeType.WEBHOOK_EXTERNAL,

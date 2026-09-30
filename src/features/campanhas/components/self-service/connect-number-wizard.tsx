@@ -25,6 +25,7 @@ import { GUIDE_STEPS, WHATSAPP_GUIDE } from "../../lib/whatsapp-connect-guide";
 import { KeyDraftField } from "./key-draft-field";
 import { SpaceJourney } from "@/features/space-journey";
 import { buildConnectJourneyStops } from "../../lib/connect-journey";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 const NUMBER_STEP_ID = "number";
 /** Título do popup fora da etapa Meta (nela, é o passo atual). */
@@ -59,6 +60,7 @@ export function ConnectNumberWizard({ trackingId, open, onOpenChange }: { tracki
       <DialogContent
         className="flex h-[min(92vh,860px)] flex-col overflow-hidden sm:max-w-3xl lg:max-w-5xl"
         onInteractOutside={(event) => event.preventDefault()}
+        data-guide={GUIDE_ANCHORS.officialNumberWizard.id}
       >
         {isLoading || !progress ? (
           <>

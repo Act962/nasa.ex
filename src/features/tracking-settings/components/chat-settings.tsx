@@ -47,6 +47,7 @@ import { orpc } from "@/lib/orpc";
 import { Lock } from "lucide-react";
 import { InChatManualToggle } from "@/features/tracking-chat/components/in-chat-manual-toggle";
 import { WhatsAppProviderSettings } from "./whatsapp-provider-settings";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 // ── Popup plano necessário ────────────────────────────────────────────────────
 function NoPlanPopup({
@@ -218,7 +219,7 @@ export function ChatSettings() {
   };
 
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-8 pb-10" data-guide={GUIDE_ANCHORS.whatsappInstancesPanel.id}>
       <NoPlanPopup open={showNoPlan} onClose={() => setShowNoPlan(false)} />
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 rounded-2xl">
@@ -271,7 +272,12 @@ export function ChatSettings() {
                 carregar as existentes.
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={handleCreateClick}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCreateClick}
+              data-guide={GUIDE_ANCHORS.whatsappCreateFirstInstance.id}
+            >
               {!hasPlan && <Lock className="size-3.5" />}
               Criar primeira instância
             </Button>

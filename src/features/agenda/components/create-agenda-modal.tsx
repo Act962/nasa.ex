@@ -39,6 +39,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 interface Props {
   open: boolean;
@@ -88,9 +91,10 @@ export function CreateAgendaModal({ open, onOpenChange }: Props) {
         trackingId: data.trackingId,
       },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           earn("create_event", "Agenda criada 📅");
           onOpenChange(false);
+          emitTourResult({ kind: GUIDE_RESULT_KINDS.agendaCreated, href: `/agendas/${data.agenda.id}` });
         },
       },
     );
@@ -125,6 +129,7 @@ export function CreateAgendaModal({ open, onOpenChange }: Props) {
               <FieldLabel>Título</FieldLabel>
               <Input
                 placeholder="Título da agenda"
+                data-guide={GUIDE_ANCHORS.agendaCreateTitle.id}
                 {...form.register("title")}
                 disabled={isSubmitting}
               />
@@ -171,7 +176,7 @@ export function CreateAgendaModal({ open, onOpenChange }: Props) {
                     onValueChange={field.onChange}
                     disabled={isSubmitting}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger data-guide={GUIDE_ANCHORS.agendaCreateTracking.id}>
                       <SelectValue placeholder="Selecione um tracking" />
                     </SelectTrigger>
                     <SelectContent>
@@ -216,7 +221,11 @@ export function CreateAgendaModal({ open, onOpenChange }: Props) {
                 Fechar
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              data-guide={GUIDE_ANCHORS.agendaCreateSubmit.id}
+            >
               Continuar
             </Button>
           </DialogFooter>

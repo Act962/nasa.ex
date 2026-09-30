@@ -223,7 +223,7 @@ export async function runWorkflow(
     const availableTriggers = [
       ...new Set(
         workflow.nodes
-          .filter((n) => /TRIGGER|NEW_LEAD|LEAD_TAGGED|MOVE_LEAD_STATUS|AI_FINISHED|FIRST_CHAT_INTERACTION|FIRST_INTERACTION_OF_DAY|LAST_INBOUND_TIMEOUT|PAYMENT_RECEIVED|MESSAGE_INCOMING|WEBHOOK_EXTERNAL|INITIAL|WS_/.test(n.type))
+          .filter((n) => /TRIGGER|NEW_LEAD|LEAD_TAGGED|MOVE_LEAD_STATUS|AI_FINISHED|FIRST_CHAT_INTERACTION|FIRST_INTERACTION_OF_DAY|LAST_INBOUND_TIMEOUT|PAYMENT_RECEIVED|COMPLIANCE_ITEM_DUE|MESSAGE_INCOMING|WEBHOOK_EXTERNAL|INITIAL|WS_/.test(n.type))
           .map((n) => n.type),
       ),
     ];
@@ -508,6 +508,7 @@ async function executeNode(params: {
     node.type === "MESSAGE_INCOMING" ||
     node.type === "WEBHOOK_EXTERNAL" ||
     node.type === "SCHEDULE_TRIGGER" ||
+    node.type === "COMPLIANCE_ITEM_DUE" ||
     node.type === "WS_INITIAL" ||
     node.type === "WS_MANUAL_TRIGGER" ||
     node.type === "WS_ACTION_CREATED" ||

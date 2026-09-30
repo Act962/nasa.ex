@@ -13,6 +13,7 @@ import { payPaymentEntryRecord } from "@/features/payment/server/entries/pay-ent
 import { generateEntryInstallments } from "@/features/payment/server/entries/generate-installments";
 import { MAX_INSTALLMENTS } from "@/features/payment/schemas/entry-form-schema";
 import { formatCents } from "@/features/payment/server/entries/entry-include";
+import { queueJournalSync } from "@/features/accounting/server/journal/queue-journal-sync";
 
 // As procedures validam contrato e traduzem resultado em erro HTTP; a lógica
 // mora em `features/payment/server/entries/*`, compartilhada com o Astro.
@@ -367,6 +368,7 @@ export const deletePaymentEntry = base
         where: { id: input.id },
         data: { status: "CANCELLED" },
       });
+      await queueJournalSync(context.org.id, [input.id]);
       return { ok: true };
     } catch (err) {
       console.error("[payment/entries cancel]", err);
@@ -397,6 +399,7 @@ export const removePaymentEntry = base
       await prisma.paymentEntry.delete({
         where: { id: input.id, organizationId: context.org.id },
       });
+      await queueJournalSync(context.org.id, [input.id]);
 
       await logActivity({
         organizationId: context.org.id,

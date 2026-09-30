@@ -2,6 +2,8 @@ import { orpc } from "@/lib/orpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSpacePointCtx } from "@/features/space-point";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 export const useCreateIntegration = ({
   trackingId,
@@ -36,6 +38,7 @@ export const useConnectIntegrationStatus = (trackingId: string) => {
     orpc.integrations.connect.mutationOptions({
       onSuccess: () => {
         toast.success("Integração atualizada com sucesso!");
+        emitTourResult({ kind: GUIDE_RESULT_KINDS.whatsappConnected, href: "/tracking-chat" });
         queryClient.invalidateQueries({
           queryKey: orpc.integrations.get.queryKey({
             input: { trackingId },

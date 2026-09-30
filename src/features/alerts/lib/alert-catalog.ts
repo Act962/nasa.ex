@@ -712,6 +712,232 @@ const forgeContractExpiring: AlertEventDefinition = {
   },
 };
 
+// ─── Aba Contábil (spec 0051, RF-16) ─────────────────────────────────────────
+// Detectados pelo cron `detect-compliance-due`. O payload carrega `entityKey`
+// porque o detector usa a notificação já gravada como trava de "rodou hoje".
+
+const complianceBasePayload = {
+  label: z.string(),
+  entityKey: z.string().optional(),
+  actionUrl: z.string().optional(),
+  orgId: z.string(),
+};
+
+const accountingObligationDueSoon: AlertEventDefinition = {
+  key: "accounting.obligation_due_soon",
+  label: "Prazo fiscal chegando",
+  description: "Uma guia ou declaração vence em 5 dias, em 2 dias ou hoje.",
+  category: "payment",
+  appKey: "financeiro",
+  paramsSchema: z.object({}),
+  payloadSchema: z.object({
+    ...complianceBasePayload,
+    obligationId: z.string(),
+    kind: z.string(),
+    period: z.string(),
+    dueDate: z.string(),
+    daysBefore: z.number().int(),
+    amountCents: z.number().int().nullable().optional(),
+  }),
+  audienceOptions: ["org_admins"],
+  supportsCooldown: false,
+  entityKey: (p) => {
+    const payload = p as { obligationId: string; daysBefore: number };
+    return `obligation-due:${payload.obligationId}:${payload.daysBefore}`;
+  },
+  mockPayload: {
+    label: "DAS (Simples Nacional)",
+    obligationId: "mock_obligation",
+    kind: "DAS",
+    period: "2026-09",
+    dueDate: "2026-10-20",
+    daysBefore: 2,
+    amountCents: 123456,
+    orgId: "mock_org",
+  },
+};
+
+const accountingObligationOverdue: AlertEventDefinition = {
+  key: "accounting.obligation_overdue",
+  label: "Prazo fiscal vencido",
+  description: "Uma guia ou declaração passou do vencimento e ainda não foi resolvida.",
+  category: "payment",
+  appKey: "financeiro",
+  paramsSchema: z.object({}),
+  payloadSchema: z.object({
+    ...complianceBasePayload,
+    obligationId: z.string(),
+    kind: z.string(),
+    period: z.string(),
+    dueDate: z.string(),
+    daysOverdue: z.number().int(),
+    /** Dia (AAAA-MM-DD, São Paulo) do aviso: um por dia, no máximo 3 dias. */
+    dayKey: z.string(),
+    amountCents: z.number().int().nullable().optional(),
+  }),
+  audienceOptions: ["org_admins"],
+  supportsCooldown: false,
+  entityKey: (p) => {
+    const payload = p as { obligationId: string; dayKey: string };
+    return `obligation-overdue:${payload.obligationId}:${payload.dayKey}`;
+  },
+  mockPayload: {
+    label: "DAS (Simples Nacional)",
+    obligationId: "mock_obligation",
+    kind: "DAS",
+    period: "2026-08",
+    dueDate: "2026-09-19",
+    daysOverdue: 1,
+    dayKey: "2026-09-20",
+    amountCents: 123456,
+    orgId: "mock_org",
+  },
+};
+
+const accountingAssessmentReady: AlertEventDefinition = {
+  key: "accounting.assessment_ready",
+  label: "Imposto do mês para conferir",
+  description: "A apuração do mês passado ainda não foi confirmada e a guia não foi gerada.",
+  category: "payment",
+  appKey: "financeiro",
+  paramsSchema: z.object({}),
+  payloadSchema: z.object({
+    ...complianceBasePayload,
+    period: z.string(),
+    dueDate: z.string().optional(),
+    amountCents: z.number().int().nullable().optional(),
+  }),
+  audienceOptions: ["org_admins"],
+  supportsCooldown: false,
+  entityKey: (p) => {
+    const payload = p as { orgId: string; period: string };
+    return `assessment-ready:${payload.orgId}:${payload.period}`;
+  },
+  mockPayload: {
+    label: "Apuração de 09/2026",
+    period: "2026-09",
+    amountCents: 98700,
+    orgId: "mock_org",
+  },
+};
+
+const accountingCreditMissingInvoice: AlertEventDefinition = {
+  key: "accounting.credit_missing_invoice",
+  label: "Despesas pagas sem nota",
+  description: "Resumo semanal: despesas pagas sem nota anexada perdem o crédito de IBS/CBS.",
+  category: "payment",
+  appKey: "financeiro",
+  paramsSchema: z.object({}),
+  payloadSchema: z.object({
+    ...complianceBasePayload,
+    weekKey: z.string(),
+    missingCount: z.number().int(),
+    totalCents: z.number().int(),
+  }),
+  audienceOptions: ["org_admins"],
+  supportsCooldown: false,
+  entityKey: (p) => {
+    const payload = p as { orgId: string; weekKey: string };
+    return `credit-missing:${payload.orgId}:${payload.weekKey}`;
+  },
+  mockPayload: {
+    label: "4 despesas pagas sem nota",
+    weekKey: "2026-W40",
+    missingCount: 4,
+    totalCents: 250000,
+    orgId: "mock_org",
+  },
+};
+
+const accountingDocumentExpiring: AlertEventDefinition = {
+  key: "accounting.document_expiring",
+  label: "Documento da empresa vencendo",
+  description: "Uma certidão, alvará ou certificado vence em 30, 15 ou 5 dias.",
+  category: "payment",
+  appKey: "financeiro",
+  paramsSchema: z.object({}),
+  payloadSchema: z.object({
+    ...complianceBasePayload,
+    typeCode: z.string(),
+    documentId: z.string().nullable(),
+    expiresAt: z.string(),
+    daysBefore: z.number().int(),
+  }),
+  audienceOptions: ["org_admins"],
+  supportsCooldown: false,
+  entityKey: (p) => {
+    const payload = p as { orgId: string; typeCode: string; documentId: string | null; daysBefore: number };
+    return `document-expiring:${payload.documentId ?? `${payload.orgId}:${payload.typeCode}`}:${payload.daysBefore}`;
+  },
+  mockPayload: {
+    label: "CND Federal",
+    typeCode: "CND_FEDERAL",
+    documentId: "mock_document",
+    expiresAt: "2026-10-15",
+    daysBefore: 15,
+    orgId: "mock_org",
+  },
+};
+
+const accountingDocumentExpired: AlertEventDefinition = {
+  key: "accounting.document_expired",
+  label: "Documento da empresa vencido",
+  description: "Uma certidão, alvará ou certificado venceu. Pode travar licitação, nota ou crédito.",
+  category: "payment",
+  appKey: "financeiro",
+  paramsSchema: z.object({}),
+  payloadSchema: z.object({
+    ...complianceBasePayload,
+    typeCode: z.string(),
+    documentId: z.string().nullable(),
+    expiresAt: z.string(),
+    blockingImpact: z.string().nullable().optional(),
+  }),
+  audienceOptions: ["org_admins"],
+  supportsCooldown: false,
+  // Um aviso por documento: quando ele for renovado, o documento novo tem outro id.
+  entityKey: (p) => {
+    const payload = p as { orgId: string; typeCode: string; documentId: string | null; expiresAt: string };
+    return `document-expired:${payload.documentId ?? `${payload.orgId}:${payload.typeCode}`}:${payload.expiresAt}`;
+  },
+  mockPayload: {
+    label: "CRF do FGTS",
+    typeCode: "CRF_FGTS",
+    documentId: "mock_document",
+    expiresAt: "2026-09-20",
+    blockingImpact: "Impede licitação.",
+    orgId: "mock_org",
+  },
+};
+
+const accountingRegularityScoreDropped: AlertEventDefinition = {
+  key: "accounting.regularity_score_dropped",
+  label: "Score de regularidade caiu",
+  description: "O score de regularidade da empresa caiu 5 pontos ou mais em relação à semana passada.",
+  category: "payment",
+  appKey: "financeiro",
+  paramsSchema: z.object({}),
+  payloadSchema: z.object({
+    ...complianceBasePayload,
+    weekKey: z.string(),
+    previousScoreBps: z.number().int(),
+    currentScoreBps: z.number().int(),
+  }),
+  audienceOptions: ["org_admins"],
+  supportsCooldown: false,
+  entityKey: (p) => {
+    const payload = p as { orgId: string; weekKey: string };
+    return `score-dropped:${payload.orgId}:${payload.weekKey}`;
+  },
+  mockPayload: {
+    label: "Score de regularidade",
+    weekKey: "2026-W40",
+    previousScoreBps: 9200,
+    currentScoreBps: 8100,
+    orgId: "mock_org",
+  },
+};
+
 export const ALERT_CATALOG = [
   leadStatusChanged,
   leadTagAdded,
@@ -732,6 +958,13 @@ export const ALERT_CATALOG = [
   chatLeadWaiting,
   paymentExpenseDueToday,
   forgeContractExpiring,
+  accountingObligationDueSoon,
+  accountingObligationOverdue,
+  accountingAssessmentReady,
+  accountingCreditMissingInvoice,
+  accountingDocumentExpiring,
+  accountingDocumentExpired,
+  accountingRegularityScoreDropped,
 ] as const satisfies readonly AlertEventDefinition[];
 
 export type AlertEventKey = (typeof ALERT_CATALOG)[number]["key"];

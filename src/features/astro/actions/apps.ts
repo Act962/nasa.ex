@@ -26,7 +26,8 @@ export const ASTRO_APPS = {
   form:
     "Formulários, briefings e fichas de cadastro: mandar o FORMULÁRIO ao cliente, publicar, tirar do ar. Só quando a palavra formulário, briefing ou ficha aparecer",
   payment:
-    "Financeiro/dinheiro: LANÇAR despesa ou receita, DAR BAIXA em conta paga/recebida, contas a pagar e receber, conciliação. Use quando a frase falar em R$, valor, despesa, gasto, receita ou pagamento",
+    "Financeiro/dinheiro: LANÇAR despesa ou receita, DAR BAIXA em conta paga/recebida, contas a pagar e receber, conciliação. Use quando a frase falar em R$, valor, despesa, gasto, receita ou pagamento. " +
+    "Apurar imposto, simular DAS, gerar guia, certidão e dúvida de imposto NÃO são daqui (aba Contábil): responda null",
   pages: "Sites e páginas publicadas",
   workspaces:
     "Trabalho interno da equipe: criar DEMANDA/tarefa dentro de um quadro, criar workspace, tarefas pendentes. Não é funil de leads",

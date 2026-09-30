@@ -23,6 +23,7 @@ import { readAttachmentBytes } from "./read-attachment-bytes";
 import { extractPdfText } from "./extract-pdf-text";
 import { matchPaymentContact } from "./match-payment-contact";
 import { findPossibleDuplicateEntries } from "./find-duplicate-entries";
+import { registerCreditsFromAttachmentSafely } from "@/features/accounting/server/credits/register-credit-from-attachment";
 
 // Leitura de boleto / nota fiscal / fatura (spec 0014, RF-6/RF-8). O modelo
 // recebe o arquivo inteiro (vision cobre boleto escaneado); o resultado passa
@@ -51,7 +52,8 @@ Extraia os campos do schema com rigor:
 - "issuer" é quem emite/cobra (beneficiário, emitente, prestador). "payer" é quem paga (sacado, destinatário, tomador).
 - Não invente dígitos: se um número estiver ilegível, deixe null e registre em warnings.
 - "description" curta, sem markdown, útil como descrição de lançamento.
-- Em nota fiscal com duplicatas/parcelas, liste todas em invoice.installments.`;
+- Em nota fiscal com duplicatas/parcelas, liste todas em invoice.installments.
+- Em NF-e/NFS-e, preencha "taxes" com os tributos destacados (ICMS, IPI, PIS, COFINS, ISS, IBS, CBS, IS) em centavos, "items" com até 30 itens (descrição, NCM, NBS, CFOP, CST, cClassTrib, valor) e "issuerTaxRegime" se a nota informar o regime do emitente (ex.: "Optante pelo Simples Nacional"). Use null no que não constar; nos demais documentos, null nesses três campos.`;
 
 /** O anexo chega ao modelo como arquivo, imagem ou texto extraído localmente. */
 type ModelFileContent =
@@ -264,7 +266,7 @@ export async function extractFinancialDocument(params: {
           content: [{ type: "text", text: EXTRACTION_PROMPT }, ...fileContent],
         },
       ],
-      maxOutputTokens: 2_000,
+      maxOutputTokens: 4_000,
       experimental_telemetry: {
         isEnabled: true,
         functionId: "astro-finance-extract-document",
@@ -365,6 +367,13 @@ export async function extractFinancialDocument(params: {
       ...(attachment.kind === "OUTRO" && detectedKind !== "OUTRO" ? { kind: detectedKind } : {}),
     },
   });
+
+  if (extraction.documentType === "NOTA_FISCAL" || extraction.documentType === "NFSE") {
+    await registerCreditsFromAttachmentSafely({
+      organizationId: params.organizationId,
+      attachmentIds: [attachment.id],
+    });
+  }
 
   return { ok: true, attachmentId: attachment.id, extraction: stored, fromCache: false };
 }

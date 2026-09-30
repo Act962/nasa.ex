@@ -3,6 +3,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { ENTRY_INCLUDE, formatCents, type PaymentActor } from "./entry-include";
+import { queueJournalSync } from "@/features/accounting/server/journal/queue-journal-sync";
 
 // Baixa (total ou parcial) de um lançamento. Devolve um resultado
 // discriminado em vez de lançar, para que a procedure escolha o erro HTTP e a
@@ -100,6 +101,8 @@ export async function payPaymentEntryRecord(params: {
       type: existing.type,
     },
   });
+
+  await queueJournalSync(organizationId, [entry.id]);
 
   return { ok: true, entry, status };
 }

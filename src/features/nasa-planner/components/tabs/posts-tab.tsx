@@ -52,6 +52,9 @@ import { useNetworkConnectionStatus } from "../../hooks/use-network-status";
 import { PostMetricsRow } from "../post-metrics-row";
 import { PostPreview } from "../post-preview";
 import { PublishTargetPicker } from "../publish-target-picker";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 const POST_TYPE_OPTIONS = [
   { value: "STATIC", label: "Imagem" },
@@ -153,6 +156,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
     });
     setCreateOpen(false);
     resetForm();
+    emitTourResult({ kind: GUIDE_RESULT_KINDS.plannerPostCreated });
   };
 
   const handleDelete = async () => {
@@ -221,7 +225,12 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
         <p className="text-sm text-muted-foreground">{posts.length} posts no total</p>
-        <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
+        <Button
+          size="sm"
+          className="gap-1.5"
+          onClick={() => setCreateOpen(true)}
+          data-guide={GUIDE_ANCHORS.plannerNewPostButton.id}
+        >
           <PlusIcon className="size-3.5" />
           Novo Post
         </Button>
@@ -754,7 +763,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
 
             <div className="space-y-1.5">
               <Label>Título *</Label>
-              <Input placeholder="Ex: Post de lançamento do produto X" value={newPost.title} onChange={(e) => setNewPost((p) => ({ ...p, title: e.target.value }))} />
+              <Input placeholder="Ex: Post de lançamento do produto X" data-guide={GUIDE_ANCHORS.plannerPostTitle.id} value={newPost.title} onChange={(e) => setNewPost((p) => ({ ...p, title: e.target.value }))} />
             </div>
 
             <div className="space-y-1.5">
@@ -842,7 +851,11 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setCreateOpen(false); resetForm(); }}>Cancelar</Button>
-            <Button onClick={handleCreatePost} disabled={!newPost.title.trim() || createPost.isPending}>
+            <Button
+              onClick={handleCreatePost}
+              disabled={!newPost.title.trim() || createPost.isPending}
+              data-guide={GUIDE_ANCHORS.plannerPostSubmit.id}
+            >
               {createPost.isPending ? "Criando..." : "Criar Post"}
             </Button>
           </DialogFooter>

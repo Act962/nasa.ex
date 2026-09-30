@@ -51,6 +51,9 @@ import { CheckIcon, UserPlusIcon, XIcon } from "lucide-react";
 import { useWorkspaceMembers } from "@/features/workspace/hooks/use-workspace";
 import { authClient } from "@/lib/auth-client";
 import { ShareTargetsField } from "./share-targets-field";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 interface Props {
   open: boolean;
@@ -212,6 +215,7 @@ export const CreateActionModal = ({
       {
         onSuccess: (result) => {
           form.reset();
+          emitTourResult({ kind: GUIDE_RESULT_KINDS.actionCreated });
           // Quando há `onCreated`, deixamos o caller decidir o que fazer:
           // ele tipicamente fecha a modal E atualiza a URL atomicamente
           // (ex: setar actionId+highlight numa única navegação). Evita
@@ -251,6 +255,7 @@ export const CreateActionModal = ({
               <FieldLabel>Título</FieldLabel>
               <Input
                 placeholder="Ex: Finalizar relatório"
+                data-guide={GUIDE_ANCHORS.actionCreateTitle.id}
                 {...form.register("title")}
                 disabled={isPending}
               />
@@ -531,7 +536,11 @@ export const CreateActionModal = ({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button
+              type="submit"
+              disabled={isPending}
+              data-guide={GUIDE_ANCHORS.actionCreateSubmit.id}
+            >
               {isPending && <Spinner className="size-4 mr-2" />}
               Criar ação
             </Button>

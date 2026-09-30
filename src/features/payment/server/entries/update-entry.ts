@@ -3,6 +3,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { parseCalendarDate } from "@/features/payment/lib/dates";
 import { ENTRY_INCLUDE, formatCents } from "./entry-include";
+import { queueJournalSync } from "@/features/accounting/server/journal/queue-journal-sync";
 
 // Edição de lançamento com o estado de caixa revalidado (spec 0023): `amount`,
 // `paidAmount` e `status` só são gravados juntos se descreverem o mesmo fato.
@@ -122,5 +123,6 @@ export async function updatePaymentEntryRecord(params: {
       ? { installmentCurrent: null, installmentGroupId: null }
       : {}),
   });
+  await queueJournalSync(params.organizationId, [entry.id]);
   return { ok: true, entry };
 }

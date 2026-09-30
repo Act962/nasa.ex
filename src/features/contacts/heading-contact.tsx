@@ -1,6 +1,7 @@
 "use client";
 
-import { SearchLeadModal } from "@/components/modals/search-lead-modal";
+import AddLeadSheet from "@/features/trackings/components/modal/add-lead-sheet";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,7 +17,6 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useSearchModal } from "@/hooks/modal/use-search-modal";
 import { useOrgRole } from "@/hooks/use-org-role";
 import { AstroCommandButton } from "@/features/astro-commander/components/astro-command-button";
 import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
@@ -37,9 +37,9 @@ import { useContactsFilters } from "./hooks/use-contacts-filters";
 import { useLeadSegments } from "./hooks/use-lead-segments";
 
 export default function HeadingContacts() {
-  const searchLead = useSearchModal();
   const [modalImportIsOpen, setImportIsModal] = useState(false);
   const [modalExportIsOpen, setExportIsModal] = useState(false);
+  const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
   const { isSingle } = useOrgRole();
   const filters = useContactsFilters();
   // O total no título é o do recorte atual: um número fixo ao lado de uma
@@ -89,7 +89,12 @@ export default function HeadingContacts() {
             </Button>
           )}
           <AstroCommandButton examples={ASTRO_COMMAND_EXAMPLES.contacts} />
-          <Button>Adicionar novo lead</Button>
+          <Button
+            onClick={() => setIsAddLeadOpen(true)}
+            data-guide={GUIDE_ANCHORS.contactsNewLeadButton.id}
+          >
+            Adicionar novo lead
+          </Button>
         </div>
 
         <DropdownMenu>
@@ -118,7 +123,7 @@ export default function HeadingContacts() {
                   Exportar
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsAddLeadOpen(true)}>
                 <Plus className="size-4" />
                 Novo lead
               </DropdownMenuItem>
@@ -135,10 +140,8 @@ export default function HeadingContacts() {
         </DropdownMenu>
       </div>
 
-      <SearchLeadModal
-        open={searchLead.isOpen}
-        onOpenChange={searchLead.setIsOpen}
-      />
+      <AddLeadSheet open={isAddLeadOpen} onOpenChange={setIsAddLeadOpen} />
+
       {!isSingle && (
         <LeadImportDialog
           onOpenChange={setImportIsModal}

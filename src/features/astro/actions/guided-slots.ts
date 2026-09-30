@@ -2,7 +2,8 @@ import "server-only";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { getAstroAction } from "./registry";
 import { classifyStaged } from "./classify-staged";
-import { matchIntentPattern } from "./match-intent-pattern";
+import { matchIntentPattern, matchesAnyIntentPattern } from "./match-intent-pattern";
+import { isAccountingQuestion } from "@/features/astro/queries/accounting-question";
 import {
   resolveActionWithFields,
   resolveClassifiedAction,
@@ -208,6 +209,12 @@ export async function resolveGuided(params: {
       }
     }
     slots.delete(params.sessionId);
+  }
+
+  // Pergunta contábil não é verbo: pular o classificador poupa tokens e evita
+  // que "quanto vou pagar de DAS" vire proposta de lançamento.
+  if (isAccountingQuestion(params.text, params.ctx.route) && !matchesAnyIntentPattern(params.text)) {
+    return null;
   }
 
   // Pedido composto vira plano antes de escolher um verbo só.

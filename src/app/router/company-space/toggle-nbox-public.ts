@@ -22,9 +22,13 @@ export const toggleNBoxPublic = base
   .handler(async ({ input, context, errors }) => {
     const item = await prisma.nBoxItem.findFirst({
       where: { id: input.itemId, organizationId: context.orgId },
-      select: { id: true, publicToken: true },
+      select: { id: true, publicToken: true, folder: { select: { isRestricted: true } } },
     });
     if (!item) throw errors.NOT_FOUND({ message: "Arquivo não encontrado." });
+    // Documento da pasta restrita (spec 0051) nunca vira público.
+    if (input.isPublic && item.folder?.isRestricted) {
+      throw errors.FORBIDDEN({ message: "Arquivos da pasta restrita não podem ser públicos." });
+    }
 
     const token =
       input.isPublic && !item.publicToken

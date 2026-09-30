@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { ProposalForm } from "./proposal-form";
 import { ContractForm } from "../contracts/contract-form";
 import { PatternsSection } from "@/features/admin/components/patterns-section";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   RASCUNHO:    { label: "Rascunho",    color: "bg-gray-100 text-gray-600 border-gray-200" },
@@ -159,6 +160,7 @@ export function ProposalsTab() {
         <Button
           className="ml-auto bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-1.5 shrink-0"
           onClick={() => { setEditingId(null); setFormOpen(true); }}
+          data-guide={GUIDE_ANCHORS.forgeNewProposalButton.id}
         >
           <Plus className="size-4" />
           Nova Proposta
@@ -248,6 +250,7 @@ export function ProposalsTab() {
                         title={p.publicToken ? "Copiar link" : "Re-salve a proposta para gerar link"}
                         disabled={!p.publicToken}
                         onClick={() => handleShare(p.publicToken)}
+                        data-guide={GUIDE_ANCHORS.forgeProposalShareButton.id}
                       >
                         <Share2 className="size-3.5" />
                       </Button>

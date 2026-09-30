@@ -85,6 +85,9 @@ import { FileBadgeIcon } from "lucide-react";
 
 import { StarFriendsRedeemDialog } from "@/features/star-friends/components/star-friends-redeem-dialog";
 import { useStarFriendsPermissions } from "@/features/star-friends/hooks/use-star-friends-permissions";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 interface FooterProps {
   conversationId: string;
@@ -285,6 +288,8 @@ export function Footer({
         replyId: messageSelected?.messageId,
         replyIdInternal: messageSelected?.id,
         id: messageSelected?.id,
+      }, {
+        onSuccess: () => emitTourResult({ kind: GUIDE_RESULT_KINDS.chatMessageSent }),
       });
 
       setMessage("");
@@ -414,6 +419,9 @@ export function Footer({
   return (
     <>
       <form
+        // Sem instância o formulário continua na tela, mas sem campo de texto:
+        // o guia de responder não pode apontar para ele (spec 0048, CB-1).
+        data-guide={isTextDisabled ? undefined : GUIDE_ANCHORS.chatComposer.id}
         // Footer SEM fundo — herda transparência do chat, deixa o pattern
         // de background (WhatsApp) ou a cor customizada do user aparecer.
         // Input com fundo SÓLIDO: branco no tema Claro, cinza-escuro

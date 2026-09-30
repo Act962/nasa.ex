@@ -228,6 +228,8 @@ async function persistSimulation(
       bidNumber: payload.bidNumber ?? null,
       contractMonths: payload.contractMonths ?? 12,
       ceilingTotalBrl: payload.ceilingTotalBrl != null ? String(payload.ceilingTotalBrl) : null,
+      taxRateBps: payload.taxRateBps ?? null,
+      taxRateSource: payload.taxRateSource ?? null,
     };
 
     const simId = await prisma.$transaction(async (tx) => {
@@ -309,6 +311,8 @@ async function persistSimulation(
     cachedTokensPerUser: payload.cachedTokensPerUser ?? 0,
     whatsappEnabled: payload.whatsappEnabled ?? false,
     whatsappMix: (payload.whatsapp ?? []) as unknown as Prisma.InputJsonValue,
+    taxRateBps: payload.taxRateBps ?? null,
+    taxRateSource: payload.taxRateSource ?? null,
   };
 
   const simId = await prisma.$transaction(async (tx) => {
@@ -428,6 +432,7 @@ export const convertSimulationToProposal = base
       type ProposalLine = { sku: string; name: string; quantity: string; unitValue: string; order: number };
       let proposalLines: ProposalLine[] = [];
       let headerConfig: Record<string, unknown> = {};
+      let taxBreakdown: Prisma.InputJsonValue | undefined;
 
       if (simulation.mode === "LICITACAO") {
         proposalLines = simulation.bidItems
@@ -473,6 +478,27 @@ export const convertSimulationToProposal = base
             contractTotal: round2(monthlyTotal * termMonths + oneTimeTotal),
           },
         };
+        // Imposto estruturado para a aba Contábil (spec 0051); as linhas "Impostos" acima seguem por compatibilidade.
+        if (simulation.taxRateBps !== null) {
+          const isTaxLine = (label: string) => /^impostos?\b/i.test(label.trim());
+          const toCents = (value: number) => Math.round(value * 100);
+          const taxProfile = await prisma.organizationTaxProfile.findUnique({
+            where: { organizationId: orgId },
+            select: { regime: true },
+          });
+          taxBreakdown = {
+            rateBps: simulation.taxRateBps,
+            source: simulation.taxRateSource ?? "MANUAL",
+            recurringTaxCents: recurring
+              .filter((line) => isTaxLine(line.label))
+              .reduce((total, line) => total + toCents(line.monthly), 0),
+            oneTimeTaxCents: oneTime
+              .filter((line) => isTaxLine(line.label))
+              .reduce((total, line) => total + toCents(line.amount), 0),
+            computedAt: new Date().toISOString(),
+            ...(taxProfile ? { regime: taxProfile.regime } : {}),
+          };
+        }
       } else {
         proposalLines = [
           {
@@ -518,6 +544,7 @@ export const convertSimulationToProposal = base
             participants: [],
             createdById: userId,
             headerConfig: headerConfig as Prisma.InputJsonValue,
+            ...(taxBreakdown ? { taxBreakdown } : {}),
             products: {
               create: proposalLines.map((line) => ({
                 productId: productIdBySku.get(line.sku)!,

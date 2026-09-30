@@ -4,12 +4,29 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import {
+  canViewRestrictedNBox,
+  isCompanyDocumentFile,
+  isItemInRestrictedFolder,
+} from "@/features/nbox/server/can-view-restricted-nbox";
 
 export const deleteItem = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .input(z.object({ itemId: z.string() }))
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
+    if (
+      (await isItemInRestrictedFolder(input.itemId, context.org.id)) &&
+      !(await canViewRestrictedNBox(context.user, context.org.id))
+    ) {
+      throw errors.FORBIDDEN({ message: "Arquivo restrito: só administradores do financeiro." });
+    }
+    if (await isCompanyDocumentFile(input.itemId, context.org.id)) {
+      throw errors.BAD_REQUEST({
+        message: "Este arquivo é um documento da empresa. Exclua pela aba Contábil › Documentos.",
+      });
+    }
+
     const item = await prisma.nBoxItem.findUnique({
       where: { id: input.itemId, organizationId: context.org.id },
       select: { name: true },

@@ -17,6 +17,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { useOrgRole } from "@/hooks/use-org-role";
 import { AiAgentMode } from "@/generated/prisma/enums";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 const MODE_LABEL: Record<AiAgentMode, string> = {
   MANUAL: "Manual — usuário inicia",
@@ -56,7 +57,7 @@ export function AgentsSection() {
   );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-guide={GUIDE_ANCHORS.astroAgentsPanel.id}>
       {!canEdit && (
         <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
           Você está em modo somente-leitura. Apenas Owner/Admin pode alterar

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import { subscribeTourResult, useTourStore } from "./store";
-import { useTourTarget } from "./use-tour-target";
+import { findRenderedElement, useTourTarget } from "./use-tour-target";
 import { HoleBlockers, Spotlight, toHoleRect } from "./spotlight";
 import { GuideArrow } from "./guide-arrow";
 import { TourBubble, placeBubble } from "./tour-bubble";
@@ -25,7 +25,17 @@ const TOUR_KEYFRAMES = `
     0%, 100% { transform: translateX(-5px); }
     50%      { transform: translateX(5px); }
   }
+  /* Select, Dropdown e Popover do Radix abrem em portal com z-50: sem isto
+     ficariam atrás do escurecido e fora do alcance do clique (spec 0048, RF-4). */
+  [data-radix-popper-content-wrapper] { z-index: 10010 !important; pointer-events: auto; }
+  /* Select em modo item-aligned não usa o wrapper do popper: o Radix copia para
+     o contêiner o z-index calculado do conteúdo no momento em que abre. */
+  [data-slot="select-content"],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="popover-content"] { z-index: 10010 !important; }
 `;
+
+const SKIP_CHECK_INTERVAL_MS = 200;
 
 /** Pula o passo desnecessário e abre a rota do passo (spec 0046, RF-3). */
 function useStepRouting() {
@@ -41,15 +51,37 @@ function useStepRouting() {
   const nextStep = useTourStore((state) => state.nextStep);
   const currentStep = steps[stepIndex];
 
+  // Reavaliado a cada troca de rota: o usuário pode chegar ao destino do passo
+  // por conta própria (ex.: menu ⋯ → Editar), e o passo fica para trás.
   useEffect(() => {
-    if (!isActive || isFinished || !currentStep) return;
+    if (!isActive || isFinished || !currentStep?.skipWhenPath) return;
+    if (new RegExp(currentStep.skipWhenPath).test(pathname)) nextStep(stepIndex);
+  }, [isActive, isFinished, currentStep, stepIndex, pathname, nextStep]);
+
+  // Só na entrada do passo: navegar de novo a cada troca de rota prenderia o usuário.
+  useEffect(() => {
+    if (!isActive || isFinished || !currentStep?.route) return;
     const currentPath = pathnameRef.current;
-    if (currentStep.skipWhenPath && new RegExp(currentStep.skipWhenPath).test(currentPath)) {
-      nextStep();
-      return;
-    }
-    if (currentStep.route && currentPath !== currentStep.route) router.push(currentStep.route);
-  }, [isActive, isFinished, currentStep, nextStep, router]);
+    const isSkippedByPath =
+      currentStep.skipWhenPath && new RegExp(currentStep.skipWhenPath).test(currentPath);
+    // Rota com query (ex.: /payment?tab=payables) compara também a busca: a aba é o destino.
+    const currentLocation = currentStep.route.includes("?")
+      ? `${window.location.pathname}${window.location.search}`
+      : currentPath;
+    if (!isSkippedByPath && currentLocation !== currentStep.route) router.push(currentStep.route);
+  }, [isActive, isFinished, currentStep, stepIndex, router]);
+
+  // A tela pode chegar ao estado do passo seguinte sozinha (lista já aberta).
+  useEffect(() => {
+    const skipSelector = currentStep?.skipWhenVisible;
+    if (!isActive || isFinished || !skipSelector) return;
+    const skipIfVisible = () => {
+      if (findRenderedElement(skipSelector)) nextStep(stepIndex);
+    };
+    skipIfVisible();
+    const intervalId = window.setInterval(skipIfVisible, SKIP_CHECK_INTERVAL_MS);
+    return () => window.clearInterval(intervalId);
+  }, [isActive, isFinished, currentStep, stepIndex, nextStep]);
 }
 
 /** Avança quando o usuário clica no próprio alvo (RF-2, `click`). */
@@ -106,15 +138,17 @@ export function TourOverlay() {
   useEffect(() => setIsMounted(true), []);
   useEffect(() => (isActive ? subscribeTourResult(completeWithResult) : undefined), [isActive, completeWithResult]);
   useStepRouting();
-  useAdvanceOnTargetClick(target.element, currentStep?.advanceOn === "click", nextStep);
+  const advanceFromCurrentStep = useCallback(() => nextStep(stepIndex), [nextStep, stepIndex]);
+  useAdvanceOnTargetClick(target.element, currentStep?.advanceOn === "click", advanceFromCurrentStep);
   useIsolateFromOutsideClick(rootElement);
 
   if (!isMounted || !isActive) return null;
 
   const renderContent = () => {
     if (isFinished && finish) {
+      const resultHref = result?.href;
       const openResult = () => {
-        if (result) router.push(result.href);
+        if (resultHref) router.push(resultHref);
         endTour();
       };
       return (
@@ -122,10 +156,10 @@ export function TourOverlay() {
           title={finish.title}
           message={finish.message}
           actions={
-            result
+            resultHref
               ? [
                   { label: "Fechar", onClick: endTour },
-                  { label: result.label ?? finish.resultLabel ?? "Abrir", onClick: openResult, isPrimary: true },
+                  { label: result?.label ?? finish.resultLabel ?? "Abrir", onClick: openResult, isPrimary: true },
                 ]
               : [{ label: "Fechar", onClick: endTour, isPrimary: true }]
           }
@@ -134,16 +168,25 @@ export function TourOverlay() {
     }
 
     if (!currentStep) return null;
+    const isLastStep = stepIndex === steps.length - 1;
 
     if (target.isMissing) {
       return (
         <TourCenterCard
           title="Não encontrei esse item nesta tela"
-          message={`Eu procurava "${currentStep.title}". A tela pode estar carregando, ou esse item não está disponível para você.`}
-          actions={[
-            { label: "Encerrar", onClick: endTour },
-            { label: "Pular passo", onClick: nextStep, isPrimary: true },
-          ]}
+          message={
+            currentStep.missingMessage ??
+            `Eu procurava "${currentStep.title}". A tela pode estar carregando, ou esse item não está disponível para você.`
+          }
+          actions={
+            // Pular o último passo abriria o cartão de sucesso sem nada ter sido feito.
+            isLastStep
+              ? [{ label: "Encerrar", onClick: endTour, isPrimary: true }]
+              : [
+                  { label: "Encerrar", onClick: endTour },
+                  { label: "Pular passo", onClick: advanceFromCurrentStep, isPrimary: true },
+                ]
+          }
         />
       );
     }
@@ -165,7 +208,7 @@ export function TourOverlay() {
           total={steps.length}
           placement={placement}
           isInputFilled={target.isInputFilled}
-          onNext={nextStep}
+          onNext={advanceFromCurrentStep}
           onPrev={prevStep}
           onSkip={endTour}
         />

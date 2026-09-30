@@ -29,6 +29,14 @@ export const ASTRO_COMMAND_EXAMPLES = {
     "todo dia às 9h me avisar o que vence hoje",
     "toda segunda me mandar o fluxo de caixa da semana",
   ],
+  accounting: [
+    "toda segunda às 8h me dizer as guias e declarações que vencem na semana",
+    "todo dia 5 me mandar a simulação do DAS do mês passado",
+    "todo dia 1º me listar as certidões que vencem nos próximos 30 dias",
+    "todo dia 10 me avisar se a apuração do mês passado ainda não foi confirmada",
+    "toda sexta me listar as despesas pagas sem nota e o crédito que estou perdendo",
+    "todo dia 1º me mandar o resumo contábil: score, pendências e balanço do mês",
+  ],
   agenda: [
     "todo dia às 7h30 me mandar a agenda do dia",
     "quando um compromisso for cancelado, sugerir novo horário ao lead",

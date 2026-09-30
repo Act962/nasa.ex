@@ -41,6 +41,9 @@ import {
   formatNumericForInput,
 } from "@/utils/mask-number";
 import { maskMoney, formatDecimalToMoney } from "@/utils/mask-money";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 const GATEWAYS = [
   { value: "STRIPE", label: "Stripe" },
@@ -226,10 +229,14 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
         await update.mutateAsync({ id: proposalId, ...sanitized });
         toast.success("Proposta atualizada");
       } else {
-        await create.mutateAsync(
+        const { proposal } = await create.mutateAsync(
           sanitized as Parameters<typeof create.mutateAsync>[0],
         );
         toast.success("Proposta criada");
+        emitTourResult({
+          kind: GUIDE_RESULT_KINDS.proposalCreated,
+          href: proposal.publicToken ? `/proposta/${proposal.publicToken}` : undefined,
+        });
       }
       onClose();
     } catch {
@@ -333,6 +340,7 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
               <Label>Título *</Label>
               <Input
                 {...form.register("title")}
+                data-guide={GUIDE_ANCHORS.forgeProposalTitle.id}
                 placeholder="Ex: Proposta de Social Media — Janeiro 2026"
               />
               {form.formState.errors.title && (
@@ -407,6 +415,7 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
                 size="sm"
                 onClick={handleAddProduct}
                 className="gap-1.5"
+                data-guide={GUIDE_ANCHORS.forgeProposalAddProduct.id}
               >
                 <Plus className="size-3.5" /> Adicionar
               </Button>
@@ -668,6 +677,7 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
               type="submit"
               disabled={isPending}
               className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+              data-guide={GUIDE_ANCHORS.forgeProposalSave.id}
             >
               {isPending ? "Salvando..." : "Salvar Proposta"}
             </Button>

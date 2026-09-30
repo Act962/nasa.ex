@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/empty";
 import { CreateForm } from "./create-form";
 import { Skeleton } from "@/components/ui/skeleton";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export function FormList() {
   const { forms, isLoading } = useQueryListForms();
@@ -33,6 +34,7 @@ export function FormList() {
       )}
       {forms && (
         <div
+          data-guide={forms.length > 0 ? GUIDE_ANCHORS.formList.id : undefined}
           className="flex flex-col w-full items-center justify-center gap-4
            "
         >

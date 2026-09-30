@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { UNRESTRICTED_ITEM_FILTER } from "@/features/nbox/server/can-view-restricted-nbox";
 
 export const getPortal = base
   .input(z.object({ clientCode: z.string() }))
@@ -55,7 +56,7 @@ export const getPortal = base
 
     // Arquivos/entregáveis públicos da org (tag "public")
     const deliverables = await prisma.nBoxItem.findMany({
-      where: { organizationId: process.organizationId, tags: { has: "public" } },
+      where: { organizationId: process.organizationId, tags: { has: "public" }, ...UNRESTRICTED_ITEM_FILTER },
       select: { id: true, name: true, type: true, url: true, mimeType: true, description: true, createdAt: true },
       orderBy: { createdAt: "desc" },
       take: 20,

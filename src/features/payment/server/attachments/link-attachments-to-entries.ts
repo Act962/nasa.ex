@@ -1,6 +1,7 @@
 import "server-only";
 
 import prisma from "@/lib/prisma";
+import { registerCreditsFromAttachmentSafely } from "@/features/accounting/server/credits/register-credit-from-attachment";
 
 // Vincula anexos já enviados a um ou mais lançamentos (spec 0008, RF-5).
 //
@@ -37,7 +38,7 @@ export async function linkAttachmentsToEntries({
 
   const [firstEntry, ...siblingEntries] = entries;
 
-  return prisma.$transaction(async (tx) => {
+  const linkedCount = await prisma.$transaction(async (tx) => {
     await tx.paymentAttachment.updateMany({
       where: { id: { in: attachments.map((attachment) => attachment.id) } },
       data: { entryId: firstEntry.id },
@@ -62,4 +63,12 @@ export async function linkAttachmentsToEntries({
 
     return attachments.length + copies.length;
   });
+
+  // Nota de entrada vira crédito de IBS/CBS (spec 0051) — depois do commit, sem travar o vínculo.
+  await registerCreditsFromAttachmentSafely({
+    organizationId,
+    attachmentIds: attachments.map((attachment) => attachment.id),
+  });
+
+  return linkedCount;
 }

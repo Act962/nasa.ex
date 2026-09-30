@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { spaceVisibilityGuard } from "./middlewares/visibility-guard";
+import { UNRESTRICTED_ITEM_FILTER } from "@/features/nbox/server/can-view-restricted-nbox";
 
 /**
  * Itens N-Box marcados como públicos por uma empresa.
@@ -14,7 +15,7 @@ export const listPublicNBox = base
   .input(z.object({ nick: z.string().min(1) }))
   .handler(async ({ context }) => {
     const items = await prisma.nBoxItem.findMany({
-      where: { organizationId: context.organization.id, isPublic: true },
+      where: { organizationId: context.organization.id, isPublic: true, ...UNRESTRICTED_ITEM_FILTER },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,

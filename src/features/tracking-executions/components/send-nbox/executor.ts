@@ -9,6 +9,7 @@ import {
 } from "../../lib/interpolate-message";
 import { sendAppActionChannel } from "@/inngest/channels/send-app-action";
 import { randomBytes } from "crypto";
+import { UNRESTRICTED_ITEM_FILTER } from "@/features/nbox/server/can-view-restricted-nbox";
 
 /**
  * SEND_NBOX — garante que o `NBoxItem` está público (gera `publicToken`
@@ -70,6 +71,8 @@ export const sendNboxExecutor: NodeExecutor<SendNboxData> = async ({
         where: {
           id: data.nboxItemId,
           organizationId: lead.tracking.organizationId,
+          // Documento de pasta restrita nunca vira link público para lead.
+          ...UNRESTRICTED_ITEM_FILTER,
         },
         select: {
           id: true,
@@ -81,7 +84,7 @@ export const sendNboxExecutor: NodeExecutor<SendNboxData> = async ({
       });
       if (!item) {
         throw new NonRetriableError(
-          "N-Box item not found or not in lead's organization",
+          "N-Box item not found, restricted, or not in lead's organization",
         );
       }
 

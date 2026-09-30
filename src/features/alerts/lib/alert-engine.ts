@@ -452,8 +452,12 @@ function readPayloadActionUrl(payload: unknown): string | null {
   return typeof actionUrl === "string" && actionUrl.startsWith("/") ? actionUrl : null;
 }
 
+// A aba Contábil mora dentro do Payment: seus avisos usam o ícone do financeiro.
+const APP_KEY_ALIASES: Record<string, string> = { accounting: "payment" };
+
 function deriveAppKey(eventType: string): string {
-  return eventType.split(".")[0] ?? "alerts";
+  const prefix = eventType.split(".")[0] ?? "alerts";
+  return APP_KEY_ALIASES[prefix] ?? prefix;
 }
 
 function renderTitle(defaultLabel: string, _payload: unknown): string {

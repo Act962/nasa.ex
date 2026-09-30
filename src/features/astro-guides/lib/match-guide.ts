@@ -4,7 +4,7 @@ import type { GuideDef } from "./types";
 // "crie um lead João" é ordem e segue para a ação; só pedido de aprender vira guia.
 // "como está o lead novo?" é consulta: depois do "como" precisa vir um verbo de fazer.
 const HOW_TO_VERB =
-  "(cri|cadastr|adicion|coloc|inclu|inser|mov|arrast|mud|pass|avanc|troc|personaliz|escond|ocult|mostr|exib|configur|mont|fac|faz|tir)\\w*";
+  "(cri|cadastr|adicion|coloc|inclu|inser|mov|arrast|mud|pass|avanc|troc|personaliz|escond|ocult|mostr|exib|configur|mont|fac|faz|tir|respond|atend|envi|mand|escrev|conect|lig|vincul|integr|ativ|public|compartilh|copi|divulg|peg|ger|elabor|marc|agend|lanc|registr|dispar|convid|busc|procur|encontr|ach|pesquis|localiz|baix|quit|cham|dou|dar|sub|carreg|guard|salv|instal|plane|grav|ped|contrat|anunc|impulsion|fix|escolh|export|deslig|desativ|limit|upload|organiz|vend)\\w*";
 const ASKS_HOW_TO = new RegExp(
   `\\bcomo (e que |que )?(eu |a gente |se |posso |consigo |devo |faco (pra|para) |faz (pra|para) )?${HOW_TO_VERB}` +
     "|\\bme (ensina|ensine|mostra|mostre|explica|explique|ajuda|ajude|guia|guie) (a |como |pra |para )" +

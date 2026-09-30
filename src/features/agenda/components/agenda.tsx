@@ -45,6 +45,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 const SIDEBAR_PALETTE = [
   "#7c3aed",
@@ -125,7 +126,11 @@ export const AgendaList = () => {
                 </p>
               </div>
               <div className="flex items-center gap-1">
-                <Button size="sm" onClick={() => setOpen(true)}>
+                <Button
+                  size="sm"
+                  onClick={() => setOpen(true)}
+                  data-guide={GUIDE_ANCHORS.agendaNewButton.id}
+                >
                   <PlusIcon className="size-4" />
                   Nova
                 </Button>
@@ -147,6 +152,7 @@ export const AgendaList = () => {
               className="hidden size-8 lg:inline-flex"
               onClick={() => setSidebarOpen(true)}
               title="Mostrar agendas"
+              data-guide={GUIDE_ANCHORS.agendaShowListButton.id}
             >
               <PanelLeftOpen className="size-4" />
             </Button>
@@ -324,6 +330,7 @@ function AgendaSidebarItem({
             className="size-7"
             onClick={() => onCopyLink(agenda.slug)}
             title="Copiar link"
+            data-guide={GUIDE_ANCHORS.agendaCopyLinkButton.id}
           >
             <LinkIcon className="size-3.5" />
           </Button>

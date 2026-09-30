@@ -59,6 +59,9 @@ import type {
   LinnkerLinkType,
   LinnkerDisplayStyle,
 } from "../types";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 const LINK_TYPE_LABELS: Record<LinnkerLinkType, string> = {
   EXTERNAL: "🔗 Link externo",
@@ -225,6 +228,7 @@ export function LinnkerLinksEditor({ page, onRefetch }: Props) {
         color: newLink.color || undefined,
       }),
     onSuccess: async (data: any) => {
+      emitTourResult({ kind: GUIDE_RESULT_KINDS.linnkerLinkCreated });
       if (
         newLink.type === "TRACKING" &&
         data?.link?.id &&
@@ -435,6 +439,7 @@ export function LinnkerLinksEditor({ page, onRefetch }: Props) {
             <Input
               placeholder="Ex: Fale conosco"
               value={newLink.title}
+              data-guide={GUIDE_ANCHORS.linnkerLinkTitle.id}
               onChange={(e) =>
                 setNewLink((p) => ({ ...p, title: e.target.value }))
               }
@@ -482,6 +487,7 @@ export function LinnkerLinksEditor({ page, onRefetch }: Props) {
               <Input
                 placeholder="https://..."
                 value={newLink.url}
+                data-guide={GUIDE_ANCHORS.linnkerLinkUrl.id}
                 onChange={(e) =>
                   setNewLink((p) => ({ ...p, url: e.target.value }))
                 }
@@ -513,6 +519,7 @@ export function LinnkerLinksEditor({ page, onRefetch }: Props) {
               size="sm"
               onClick={() => createLink()}
               disabled={creating || !canSubmit}
+              data-guide={GUIDE_ANCHORS.linnkerLinkSubmit.id}
             >
               {creating ? "Adicionando..." : "Adicionar"}
             </Button>
@@ -523,6 +530,7 @@ export function LinnkerLinksEditor({ page, onRefetch }: Props) {
           variant="outline"
           className="w-full border-dashed mt-2"
           onClick={() => setAdding(true)}
+          data-guide={GUIDE_ANCHORS.linnkerAddLinkButton.id}
         >
           <Plus className="size-4 mr-2" /> Adicionar link
         </Button>

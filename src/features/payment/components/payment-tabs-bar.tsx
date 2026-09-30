@@ -3,6 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 import { ChevronDown, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 /**
  * Barra de navegação do módulo.
@@ -37,7 +38,10 @@ export function PaymentTabsBar({
 }) {
   return (
     <div className={cn("flex items-center gap-1.5", className)}>
-      <div className="flex flex-1 items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        className="flex flex-1 items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        data-guide={GUIDE_ANCHORS.paymentTabsBar.id}
+      >
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.value;

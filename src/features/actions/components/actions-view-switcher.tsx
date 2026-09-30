@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { CreateActionWithAi } from "./ai-button";
 import { useTour } from "@/features/tour/context";
 import { WorkspaceCalendarModal } from "@/features/workspace/components/workspace-calendar-modal";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 interface Props {
   workspaceId: string;
@@ -179,6 +180,7 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
                 size="sm"
                 className="flex-1 lg:w-auto"
                 onClick={() => setOpen(true)}
+                data-guide={GUIDE_ANCHORS.actionNewButton.id}
               >
                 <PlusIcon className="size-4" />
                 Nova ação

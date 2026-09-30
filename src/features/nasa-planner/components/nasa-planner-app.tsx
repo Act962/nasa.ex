@@ -15,6 +15,7 @@ import { PostsTab } from "./tabs/posts-tab";
 import { MindMapsTab } from "./tabs/mind-maps-tab";
 import { CalendarTab } from "./tabs/calendar-tab";
 import { CampaignsTab } from "./tabs/campaigns-tab";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 const TAB_TRIGGER_CLASS =
   "rounded-none border-b-2 border-transparent data-[state=active]:border-violet-600 data-[state=active]:text-violet-600 data-[state=active]:bg-transparent px-3 py-2 text-sm";
@@ -62,7 +63,11 @@ export function NasaPlannerApp({ plannerId }: { plannerId: string }) {
             <TabsTrigger value="campaigns" className={TAB_TRIGGER_CLASS}>
               <RocketIcon className="size-3.5 mr-1.5" />Campanhas
             </TabsTrigger>
-            <TabsTrigger value="posts" className={TAB_TRIGGER_CLASS}>
+            <TabsTrigger
+              value="posts"
+              className={TAB_TRIGGER_CLASS}
+              data-guide={GUIDE_ANCHORS.plannerPostsTab.id}
+            >
               <FileImageIcon className="size-3.5 mr-1.5" />Posts
             </TabsTrigger>
             <TabsTrigger value="mindmaps" className={TAB_TRIGGER_CLASS}>

@@ -20,11 +20,31 @@ const TEXT_FIELD_SELECTOR =
   'input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([aria-hidden="true"]), textarea';
 
 function readInputValue(element: Element): string {
+  // Select do Radix: o gatilho é um combobox com `data-placeholder` enquanto vazio (spec 0048, RF-5).
+  const selectTrigger = element.matches('[role="combobox"]')
+    ? element
+    : element.querySelector('button[role="combobox"]');
+  if (selectTrigger) return selectTrigger.hasAttribute("data-placeholder") ? "" : "selected";
+
   const field =
     element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement
       ? element
       : element.querySelector<HTMLInputElement | HTMLTextAreaElement>(TEXT_FIELD_SELECTOR);
   return field?.value ?? "";
+}
+
+/**
+ * Elemento escondido por CSS (`hidden lg:flex`) continua no DOM com tamanho
+ * zero: tratar como ausente, senão o guia destaca um ponto invisível (spec 0048, CB-6).
+ */
+export function findRenderedElement(selector: string): Element | null {
+  const candidates = Array.from(document.querySelectorAll(selector));
+  return (
+    candidates.find((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      return rect.width > 0 || rect.height > 0;
+    }) ?? null
+  );
 }
 
 function isSameRect(previous: DOMRect | null, next: DOMRect): boolean {
@@ -50,7 +70,7 @@ export function useTourTarget(selector: string | null, stepKey: string): TourTar
     let hasScrolledIntoView = false;
 
     const update = () => {
-      const element = document.querySelector(selector);
+      const element = findRenderedElement(selector);
       if (!element) {
         const isMissing = Date.now() - startedAt > MISSING_AFTER_MS;
         setTarget((previous) =>

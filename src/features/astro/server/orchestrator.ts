@@ -122,6 +122,7 @@ function classifyComplexity(text: string): "simple" | "complex" {
     /\b(curso|nasa\s*route|aula|trilha)/,
     /\b(form[uú]l[áa]rio|submiss)/,
     /\b(insights?|relat[óo]rio)/,
+    /\b(imposto|tribut|das\b|simples\s*nacional|al[íi]quota|cbs\b|ibs\b|reforma\s*tribut|certid|cont[áa]bil|balancete|balan[çc]o|apura[çc])/,
   ];
   const domainHits = domains.filter((re) => re.test(lower)).length;
   if (domainHits >= 2) return "complex";
@@ -536,6 +537,7 @@ function buildRouteContextBlock(
   const fields: Array<[string, string | undefined]> = [
     ["trackingId", route.trackingId],
     ["paymentTab", route.paymentTab],
+    ["paymentSubTab", route.paymentSubTab],
     ["leadId", route.leadId],
     ["conversationId", route.conversationId],
     ["workspaceId", route.workspaceId],

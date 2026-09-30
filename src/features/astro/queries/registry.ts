@@ -20,6 +20,7 @@ import { PLATFORM_QUERIES } from "./platform";
 import { RESPONSE_QUERIES } from "./responses";
 import { LEAD_LOOKUP_QUERIES } from "./lead-lookup";
 import { matchesAnyIntentPattern } from "@/features/astro/actions/match-intent-pattern";
+import { isAccountingQuestion } from "./accounting-question";
 
 export type { AstroQuery, AstroQueryResult } from "./types";
 
@@ -62,6 +63,9 @@ export async function runAstroQuery(params: {
   // "paguei 50 reais de estacionamento" casava com "quanto foi pago no mês"
   // e devolvia relatório em vez de lançar (spec 0033, RF-9).
   if (matchesAnyIntentPattern(params.text)) return null;
+  // Imposto, guia, certidão, balanço: quem responde são as tools contábeis do
+  // orquestrador — as consultas do financeiro dariam número de outra coisa.
+  if (isAccountingQuestion(params.text, params.ctx.route)) return null;
   const history = normalizeQuestion((params.history ?? []).slice(-4).join(" "));
 
   // Duas perguntas numa frase (F5-CRS-01): cada uma responde, as duas juntas.

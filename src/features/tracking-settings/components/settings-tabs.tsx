@@ -8,6 +8,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export type SettingsTab = {
   name: string;
@@ -38,6 +39,7 @@ export function SettingsTabs({ tabs, defaultTab }: Props) {
           <TabsTrigger
             key={t.value}
             value={t.value}
+            data-guide={t.value === "instance" ? GUIDE_ANCHORS.settingsInstanceTab.id : undefined}
             className="bg-background data-[state=active]:border-primary dark:data-[state=active]:border-primary h-full w-auto sm:w-full justify-start rounded-none border-0 border-b-2 sm:border-l-2 sm:border-b-0 border-transparent data-[state=active]:shadow-none sm:py-3 whitespace-nowrap px-4 first:pl-0 sm:first:pl-4"
           >
             {t.name}

@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { applyPaymentToEntry } from "./apply-payment";
 import { statementFailure, type StatementActor, type StatementFailure } from "./service-result";
+import { queueJournalSync } from "@/features/accounting/server/journal/queue-journal-sync";
 
 // Casa uma transação do extrato com um lançamento em aberto e dá a baixa.
 // A validação é exportada à parte para a proposta do Astro recusar cedo.
@@ -97,6 +98,8 @@ export async function reconcileStatementTransactionRecord(params: {
     resourceId: entry.id,
     metadata: { transactionId: transaction.id, amountCents: transaction.amountCents },
   });
+
+  await queueJournalSync(params.organizationId, [entry.id]);
 
   return {
     ok: true,

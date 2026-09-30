@@ -18,6 +18,7 @@ import {
 import type { PlatformDef } from "@/features/integrations/components/integrations-page";
 import { IntegrationPlatform } from "@/generated/prisma/enums";
 import { useOrgRole } from "@/hooks/use-org-role";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_LABELS) as IntegrationCategory[];
 
@@ -148,7 +149,12 @@ function PlatformDefCard({
             </Button>
           </>
         ) : (
-          <Button size="sm" className="w-full h-7 gap-1.5 text-xs bg-[#7C3AED] hover:bg-[#6D28D9] text-white" onClick={onConfigure}>
+          <Button
+            size="sm"
+            className="w-full h-7 gap-1.5 text-xs bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+            onClick={onConfigure}
+            data-guide={GUIDE_ANCHORS.integrationsConnectButton.id}
+          >
             <Plug className="size-3" /> Conectar
           </Button>
         )}
@@ -381,6 +387,7 @@ export function IntegrationGrid({
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              data-guide={GUIDE_ANCHORS.integrationsSearch.id}
               placeholder="Buscar integração..."
               className="pl-9 h-9 text-sm"
             />

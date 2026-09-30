@@ -14,6 +14,9 @@ import {
 import { useCreateAstroChatSite } from "../hooks/use-astro-chat-sites";
 import { SiteFormFields } from "./site-form-fields";
 import { EMPTY_SITE_FORM, toSitePayload, type SiteFormValues } from "./site-form-values";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 /** Cadastro de site: o essencial para o widget ir ao ar (spec 0031, RF-2). */
 export function CreateSiteDialog({
@@ -34,6 +37,7 @@ export function CreateSiteDialog({
   const submit = () => {
     createSite.mutate(toSitePayload(values), {
       onSuccess: (created) => {
+        emitTourResult({ kind: GUIDE_RESULT_KINDS.astroChatSiteCreated });
         if (created.isCharged) {
           toast.success(
             created.price > 0 ? `Site criado. ${created.price} Stars debitados pelo 1º mês.` : "Site criado.",
@@ -51,7 +55,10 @@ export function CreateSiteDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
+        data-guide={GUIDE_ANCHORS.astroChatSiteDialog.id}
+      >
         <DialogHeader>
           <DialogTitle>Adicionar site</DialogTitle>
           <DialogDescription>
@@ -68,7 +75,11 @@ export function CreateSiteDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={submit} disabled={!isValid || createSite.isPending}>
+          <Button
+            onClick={submit}
+            disabled={!isValid || createSite.isPending}
+            data-guide={GUIDE_ANCHORS.astroChatSiteSubmit.id}
+          >
             {createSite.isPending ? "Criando…" : "Criar e ativar"}
           </Button>
         </DialogFooter>

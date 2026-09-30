@@ -413,6 +413,10 @@ export function validateNode(
       // feito num IF_CONDITION sobre `trigger.messageText`.
       return { valid: true, errors: [], skip: true };
 
+    case "COMPLIANCE_ITEM_DUE":
+      // data: { itemKinds?, daysBefore? } — vazio = todos os avisos.
+      return { valid: true, errors: [], skip: true };
+
     case "WEBHOOK_EXTERNAL":
       // data: { secret? } — secret recomendado, mas não obrigatório
       return { valid: true, errors: [], skip: true };
@@ -445,6 +449,8 @@ export function isTriggerNode(type: string): boolean {
     "PAYMENT_RECEIVED",
     "MESSAGE_INCOMING",
     "WEBHOOK_EXTERNAL",
+    "SCHEDULE_TRIGGER",
+    "COMPLIANCE_ITEM_DUE",
   ].includes(type);
 }
 

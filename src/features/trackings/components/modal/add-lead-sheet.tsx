@@ -74,8 +74,10 @@ import { countries } from "@/types/some";
 import { normalizePhone, phoneMask } from "@/utils/format-phone";
 import { Switch } from "@/components/ui/switch-variable";
 import { useOrgProjects } from "@/features/org-projects/hooks/use-org-projects";
+import { useQueryTrackings } from "@/features/trackings/hooks/use-trackings";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 const schema = z.object({
   name: z.string().min(2, "Nome obrigatório"),
@@ -95,7 +97,8 @@ type FormData = z.infer<typeof schema>;
 interface AddLeadSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  trackingId: string;
+  /** Sem tracking (ex.: /contatos), o formulário pergunta em qual ele entra. */
+  trackingId?: string;
 }
 
 export default function AddLeadSheet({
@@ -105,7 +108,11 @@ export default function AddLeadSheet({
 }: AddLeadSheetProps) {
   const queryClient = useQueryClient();
   const { earn } = useSpacePointCtx();
-  const { status, isLoadingStatus } = useStatus(trackingId ?? "");
+  const [chosenTrackingId, setChosenTrackingId] = useState("");
+  const selectedTrackingId = trackingId ?? chosenTrackingId;
+  const shouldAskTracking = !trackingId;
+  const { trackings, isLoading: isLoadingTrackings } = useQueryTrackings();
+  const { status, isLoadingStatus } = useStatus(selectedTrackingId);
   const { projects, isLoading: isLoadingProjects } = useOrgProjects();
   const [selectedCountry, setSelectedCountry] = useState(countries[0]);
   const [validateNumber, setValidateNumber] = useState(true);
@@ -149,9 +156,12 @@ export default function AddLeadSheet({
           ],
         });
 
+        if (shouldAskTracking) {
+          queryClient.invalidateQueries({ queryKey: orpc.leads.key() });
+        }
         toast.success("Lead criado com sucesso");
         earn("create_lead", "Lead criado 🎯");
-        emitTourResult({ href: `/contatos/${data.lead.id}` });
+        emitTourResult({ kind: GUIDE_RESULT_KINDS.leadCreated, href: `/contatos/${data.lead.id}` });
         reset();
         onOpenChange(false);
       },
@@ -161,7 +171,7 @@ export default function AddLeadSheet({
     }),
   );
 
-  const { tags, isLoadingTags } = useTags({ trackingId });
+  const { tags, isLoadingTags } = useTags({ trackingId: selectedTrackingId });
   const createTag = useCreateTag();
   const [newTag, setNewTag] = useState("");
 
@@ -188,7 +198,7 @@ export default function AddLeadSheet({
     if (newTag.trim() === "") return;
     createTag.mutate({
       name: newTag,
-      trackingId: trackingId!,
+      trackingId: selectedTrackingId,
     });
     setNewTag("");
   };
@@ -196,6 +206,10 @@ export default function AddLeadSheet({
   const selectedTagsData = tags?.filter((t) => selectedTags.includes(t.id));
 
   const onSubmit = (data: FormData) => {
+    if (!selectedTrackingId) {
+      toast.error("Escolha o tracking do lead");
+      return;
+    }
     const phone = normalizePhone(selectedCountry.ddi + data.phone);
     onCreateLead.mutate({
       name: data.name.trim(),
@@ -203,7 +217,7 @@ export default function AddLeadSheet({
       email: data.email,
       description: data.description,
       statusId: data.statusId,
-      trackingId: trackingId,
+      trackingId: selectedTrackingId,
       position: data.position,
       tagIds: selectedTags,
       validateNumber,
@@ -225,6 +239,28 @@ export default function AddLeadSheet({
           onSubmit={handleSubmit(onSubmit)}
           className="space-y-4 h-full overflow-y-auto px-4 pb-4"
         >
+          {shouldAskTracking && (
+            <div className="flex flex-col gap-y-2">
+              <Label>
+                Tracking <span className="text-red-500">*</span>
+              </Label>
+              <Select value={chosenTrackingId} onValueChange={setChosenTrackingId}>
+                <SelectTrigger className="w-full" data-guide={GUIDE_ANCHORS.leadSheetTracking.id}>
+                  <SelectValue
+                    placeholder={isLoadingTrackings ? "Carregando…" : "Em qual funil o lead entra?"}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {trackings.map((tracking) => (
+                    <SelectItem key={tracking.id} value={tracking.id}>
+                      {tracking.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Nome */}
           <div className="flex flex-col gap-y-2">
             <Label htmlFor="name">
@@ -365,7 +401,7 @@ export default function AddLeadSheet({
                 render={({ field }) => (
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                     disabled={isCreatingLead}
                   >
                     <SelectTrigger className="w-full">

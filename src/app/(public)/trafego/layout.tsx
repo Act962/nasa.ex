@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TourOverlay } from "@/features/tour/overlay";
 
 export const metadata: Metadata = {
   title: "trafeGO — tráfego pago sem agência",
@@ -14,6 +15,8 @@ export default function TrafegoPublicLayout({
   return (
     <main className="w-full min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
       {children}
+      {/* O guia do Astro começa no painel da plataforma e continua aqui (spec 0050). */}
+      <TourOverlay />
     </main>
   );
 }

@@ -12,6 +12,7 @@ import { useCreateOfficialTracking } from "../../hooks/use-official-number";
 import { BeforeYouStart } from "./before-you-start";
 import { ConnectNumberWizard } from "./connect-number-wizard";
 import { MetaNumberPanel } from "./meta-number-panel";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 const OFFICIAL_TRACKING_NAME = "WhatsApp Oficial";
 
@@ -86,6 +87,7 @@ export function OfficialNumberOverview() {
       ) : (
         <div
           ref={bannerRef}
+          data-guide={GUIDE_ANCHORS.officialNumberBanner.id}
           className={cn(
             "flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 transition-shadow duration-500",
             isHighlighted && "shadow-[0_0_0_4px] shadow-amber-500/40",

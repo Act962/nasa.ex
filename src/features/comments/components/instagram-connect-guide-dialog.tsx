@@ -28,6 +28,9 @@ import {
   useCommentsWebhookSetup,
   useConnectCommentsChannel,
 } from "../hooks/use-comments-channel";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 const PROGRESS_STORAGE_KEY = "orbita:comments-instagram-guide";
 
@@ -95,6 +98,7 @@ export function InstagramConnectGuideDialog({
       <DialogContent
         className="flex h-[min(92vh,860px)] flex-col overflow-hidden sm:max-w-3xl lg:max-w-5xl"
         onInteractOutside={(event) => event.preventDefault()}
+        data-guide={GUIDE_ANCHORS.commentsConnectDialog.id}
       >
         {open && (
           <GuideContent
@@ -159,6 +163,7 @@ function GuideContent({
       {
         onSuccess: (result) => {
           setIsConnectedNow(true);
+          emitTourResult({ kind: GUIDE_RESULT_KINDS.instagramConnected });
           const account = result.handle ? `@${result.handle}` : result.externalAccountId;
           if (!result.subscribed) {
             toast.warning(`Conectado em ${account}, mas a inscrição nos eventos falhou`, {

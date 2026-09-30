@@ -32,6 +32,7 @@ import Link from "next/link";
 import { usePages, usePagesCost } from "../../hooks/use-pages";
 import { CreatePageWizard } from "../wizard/create-page-wizard";
 import { INTENT_LABELS } from "../../constants";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export function PagesList() {
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -82,7 +83,12 @@ export function PagesList() {
               Templates
             </Link>
           </Button>
-          <Button onClick={() => setWizardOpen(true)} size="sm" className="gap-2 sm:size-default">
+          <Button
+            onClick={() => setWizardOpen(true)}
+            size="sm"
+            className="gap-2 sm:size-default"
+            data-guide={GUIDE_ANCHORS.pagesNewButton.id}
+          >
             <Plus className="size-4" />
             Novo site
           </Button>
@@ -107,7 +113,10 @@ export function PagesList() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+          data-guide={GUIDE_ANCHORS.pagesList.id}
+        >
           {data.pages.map((p) => (
             <Card key={p.id} className="flex flex-col">
               <CardContent className="p-5 flex-1 flex flex-col gap-3">

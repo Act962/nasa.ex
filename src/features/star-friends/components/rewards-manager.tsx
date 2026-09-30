@@ -27,6 +27,9 @@ import { useDeleteStarFriendsReward, useStarFriendsRewards, useUpsertStarFriends
 import { useStarFriendsPermissions } from "../hooks/use-star-friends-permissions";
 import { REWARD_TYPE_LABELS } from "../utils/labels";
 import { TIER_LABELS, TIER_ORDER, type LoyaltyTierId } from "../utils/tiers";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 type RewardType = "PRODUCT" | "DISCOUNT" | "PRIZE";
 
@@ -121,6 +124,7 @@ export function RewardsManager({ canEdit, variant = "grid" }: { canEdit: boolean
         onSuccess: () => {
           toast.success("Prêmio salvo");
           closeDraft();
+          emitTourResult({ kind: GUIDE_RESULT_KINDS.rewardSaved });
         },
         onError: (error) => toast.error(error.message),
       },
@@ -147,7 +151,7 @@ export function RewardsManager({ canEdit, variant = "grid" }: { canEdit: boolean
               </SelectContent>
             </Select>
             <Label htmlFor="reward-name">Nome</Label>
-            <Input id="reward-name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
+            <Input id="reward-name" data-guide={GUIDE_ANCHORS.starFriendsRewardName.id} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
             <Label htmlFor="reward-description">Descrição</Label>
             <Textarea
               id="reward-description"
@@ -157,6 +161,7 @@ export function RewardsManager({ canEdit, variant = "grid" }: { canEdit: boolean
             <Label htmlFor="reward-cost">Compras para ganhar (custo em ⭐)</Label>
             <Input
               id="reward-cost"
+              data-guide={GUIDE_ANCHORS.starFriendsRewardCost.id}
               type="number"
               min={1}
               value={draft.costStars}
@@ -229,7 +234,11 @@ export function RewardsManager({ canEdit, variant = "grid" }: { canEdit: boolean
           <Button variant="outline" onClick={closeDraft}>
             Cancelar
           </Button>
-          <Button onClick={save} disabled={upsert.isPending || !draft?.name.trim()}>
+          <Button
+            onClick={save}
+            disabled={upsert.isPending || !draft?.name.trim()}
+            data-guide={GUIDE_ANCHORS.starFriendsRewardSave.id}
+          >
             {upsert.isPending && <Loader2 className="size-4 animate-spin" />}
             Salvar
           </Button>
@@ -279,7 +288,10 @@ export function RewardsManager({ canEdit, variant = "grid" }: { canEdit: boolean
           O que o cliente pode ganhar trocando stars. Estoque em branco = ilimitado.
         </p>
         {canEdit && (
-          <Button onClick={() => setDraft(EMPTY_DRAFT)}>
+          <Button
+            onClick={() => setDraft(EMPTY_DRAFT)}
+            data-guide={GUIDE_ANCHORS.starFriendsNewReward.id}
+          >
             <Plus className="size-4" /> Novo prêmio
           </Button>
         )}

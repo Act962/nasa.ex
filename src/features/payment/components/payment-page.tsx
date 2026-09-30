@@ -31,6 +31,7 @@ import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-e
 import { ApprovalsTab } from "./approvals/approvals-tab";
 import { GovernanceSettingsTab } from "./governance/governance-settings-tab";
 import { DunningRulesTab } from "./dunning/dunning-rules-tab";
+import { AccountingTab } from "@/features/accounting/components/accounting-tab";
 import { NerpFinancialToggle } from "./governance/nerp-financial-toggle";
 import {
   usePendingApprovals,
@@ -64,6 +65,7 @@ import {
   CalendarDays,
   FileText,
   Factory,
+  Scale,
 } from "lucide-react";
 
 /**
@@ -81,6 +83,7 @@ const MAIN_TABS: PaymentTab[] = [
   { value: "accounts", label: "Contas", icon: Landmark },
   { value: "contacts", label: "Contatos", icon: Users },
   { value: "documents", label: "Documentos", icon: Paperclip },
+  { value: "accounting", label: "Contábil", icon: Scale },
 ];
 
 const CASHFLOW_VIEWS = [
@@ -106,6 +109,7 @@ const MOBILE_TABS: PaymentTabItem[] = [
   { value: "contacts", label: "Contatos", emoji: "👥" },
   { value: "contracts", label: "Contratos Ativos", emoji: "📝" },
   { value: "documents", label: "Documentos", emoji: "📎" },
+  { value: "accounting", label: "Contábil", emoji: "⚖️" },
 ];
 
 // Abas cujo conteúdo responde ao período e/ou às categorias. A Projeção entra
@@ -225,7 +229,9 @@ export function PaymentPage() {
       {/* Header */}
       <HeaderTracking
         title="Payment"
-        astroCommand={{ examples: ASTRO_COMMAND_EXAMPLES.payment }}
+        astroCommand={{
+          examples: activeTab === "accounting" ? ASTRO_COMMAND_EXAMPLES.accounting : ASTRO_COMMAND_EXAMPLES.payment,
+        }}
       />
       {/* No mobile o título do módulo é redundante com o header do app — no
           lugar dele fica a aba atual e o menu sanduíche. */}
@@ -361,6 +367,9 @@ export function PaymentPage() {
           </TabsContent>
           <TabsContent value="documents" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <DocumentsTab />
+          </TabsContent>
+          <TabsContent value="accounting" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
+            <AccountingTab />
           </TabsContent>
         </div>
       </Tabs>

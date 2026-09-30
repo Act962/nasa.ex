@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Uploader } from "@/components/file-uploader/uploader";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export interface HeaderFieldsValue {
   coverUrl: string;
@@ -50,6 +51,7 @@ export function HeaderFields({ value, onChange, onAutoSlug }: Props) {
           <Label htmlFor="title">Título *</Label>
           <Input
             id="title"
+            data-guide={GUIDE_ANCHORS.routeCourseTitle.id}
             value={value.title}
             onChange={(e) => update("title", e.target.value)}
             onBlur={onAutoSlug}

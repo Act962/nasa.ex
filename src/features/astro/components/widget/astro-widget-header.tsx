@@ -5,10 +5,14 @@ import Link from "next/link";
 import { MoreHorizontal, Plus, Settings, X } from "lucide-react";
 import { AstroMark } from "@/features/astro/components/astro-mark";
 import { AstroVoiceMenuItems } from "@/features/astro/voice/astro-voice-menu";
+import { usePaymentTabStore } from "@/features/payment/store/use-payment-tab-store";
 
 /** Cabeçalho do painel: marca, contexto da tela, nova conversa, voz e fechar. */
 
-function describeScreen(pathname: string): string {
+function describeScreen(pathname: string, paymentTab: string | null): string {
+  if (pathname.startsWith("/payment") && paymentTab === "accounting") {
+    return "Na aba Contábil — pergunte sobre impostos, guias e documentos";
+  }
   if (pathname.startsWith("/payment")) return "No financeiro — pergunte sobre o que está na tela";
   if (pathname.startsWith("/tracking")) return "No tracking";
   if (pathname.startsWith("/agendas")) return "Na agenda";
@@ -28,6 +32,7 @@ export function AstroWidgetHeader({
   onClose: () => void;
 }) {
   const [voiceMenuOpen, setVoiceMenuOpen] = useState(false);
+  const paymentTab = usePaymentTabStore((state) => state.activeTab);
 
   return (
     <header className="relative flex shrink-0 items-center gap-2 border-b border-white/[0.07] px-4 py-3">
@@ -36,7 +41,7 @@ export function AstroWidgetHeader({
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-white">Astro</p>
-        <p className="truncate text-[11px] text-white/40">{describeScreen(pathname)}</p>
+        <p className="truncate text-[11px] text-white/40">{describeScreen(pathname, paymentTab)}</p>
       </div>
 
       {canStartNewConversation && (

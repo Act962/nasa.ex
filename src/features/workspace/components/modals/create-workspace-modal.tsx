@@ -37,6 +37,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useQueryTrackings } from "@/features/trackings/hooks/use-trackings";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 // O Select do shadcn não aceita item com value vazio, então "sem vínculo"
 // vira um sentinel traduzido pra `undefined` no submit.
@@ -80,9 +83,13 @@ export function CreateWorkspaceModal({
           data.trackingId === NO_TRACKING ? undefined : data.trackingId,
       },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           onOpenChange(false);
           form.reset();
+          emitTourResult({
+            kind: GUIDE_RESULT_KINDS.workspaceCreated,
+            href: `/workspaces/${data.workspace.id}`,
+          });
         },
       },
     );
@@ -140,6 +147,7 @@ export function CreateWorkspaceModal({
               <FieldLabel>Nome</FieldLabel>
               <Input
                 placeholder="Ex: Marketing"
+                data-guide={GUIDE_ANCHORS.workspaceCreateName.id}
                 {...form.register("name")}
                 disabled={isPending}
               />
@@ -196,7 +204,11 @@ export function CreateWorkspaceModal({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button
+              type="submit"
+              disabled={isPending}
+              data-guide={GUIDE_ANCHORS.workspaceCreateSubmit.id}
+            >
               {isPending && <Spinner className="size-4" />}
               Criar workspace
             </Button>

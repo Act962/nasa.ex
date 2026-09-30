@@ -20,6 +20,9 @@ import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { Spinner } from "../ui/spinner";
 import { useRouter } from "next/navigation";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { emitTourResult } from "@/features/tour/store";
+import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
 export function AddMemberModal() {
   const router = useRouter();
@@ -39,6 +42,7 @@ export function AddMemberModal() {
           setEmail("");
           onClose();
           toast.success("Membro convidado com sucesso!");
+          emitTourResult({ kind: GUIDE_RESULT_KINDS.memberInvited });
           router.refresh();
         },
         onError: ({ error }) => {
@@ -71,6 +75,7 @@ export function AddMemberModal() {
             <InputGroupInput
               type="email"
               placeholder="Digite o e-mail do membro"
+              data-guide={GUIDE_ANCHORS.memberInviteEmail.id}
               value={email}
               disabled={isSendInvitation}
               onChange={(e) => setEmail(e.target.value)}
@@ -84,6 +89,7 @@ export function AddMemberModal() {
             disabled={isSendInvitation}
             className="w-full"
             onClick={onInvite}
+            data-guide={GUIDE_ANCHORS.memberInviteSubmit.id}
           >
             {isSendInvitation && <Spinner />}
             Adicionar

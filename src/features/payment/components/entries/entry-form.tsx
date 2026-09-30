@@ -30,6 +30,7 @@ import {
 } from "../../schemas/entry-form-schema";
 import { AttachmentUploader } from "../attachments/attachment-uploader";
 import { FieldError, fieldErrorClass } from "../shared/field-error";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 interface EntryFormProps {
   type: "RECEIVABLE" | "PAYABLE";
@@ -146,6 +147,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
         <Input
           placeholder="Ex: Mensalidade cliente..."
           value={description}
+          data-guide={GUIDE_ANCHORS.paymentEntryDescription.id}
           aria-invalid={!!fieldErrors.description}
           className={fieldErrors.description ? fieldErrorClass : undefined}
           onChange={(e) => {
@@ -181,6 +183,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
             placeholder="R$ 0,00"
             inputMode="numeric"
             value={amountStr}
+            data-guide={GUIDE_ANCHORS.paymentEntryAmount.id}
             aria-invalid={!!fieldErrors.amount}
             className={fieldErrors.amount ? fieldErrorClass : undefined}
             onChange={(e) => {
@@ -341,7 +344,12 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
 
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={onCancel} className="flex-1">Cancelar</Button>
-        <Button type="submit" disabled={isLoading} className="flex-1 bg-[#1E90FF] hover:bg-[#1E90FF]/90 text-white">
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="flex-1 bg-[#1E90FF] hover:bg-[#1E90FF]/90 text-white"
+          data-guide={GUIDE_ANCHORS.paymentEntrySave.id}
+        >
           {isLoading ? "Salvando..." : "Salvar"}
         </Button>
       </div>

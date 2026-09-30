@@ -113,6 +113,17 @@ Stores/hooks/lib:
 - `lib/event-date.ts` — formatação compacta (“13 mai · 19h00”, “30 mai – 02 jun”).
 - `lib/video-url.ts` — presigned R2 + URL otimizada via CDN.
 
+### Guias do Astro na tela (spec 0050)
+
+O Astro conduz dois fluxos do criador na tela real (`src/features/astro-guides/lib/guides/route.ts`):
+
+| Guia | Âncoras (`data-guide`) | Fim do guia |
+|---|---|---|
+| Criar um curso | `route.new-course` (creator-dashboard), `route.course.title` (forms/header-fields), `route.course.submit` (course-form) | `route.course-created`, emitido no `onSuccess` do `creatorUpsertCourse` **antes** de navegar para o editor |
+| Adicionar uma aula | `route.course-list` (creator-dashboard), `route.new-lesson` (course-editor), `route.lesson.title` / `route.lesson.submit` (lesson-form) | `route.lesson-created`, só na criação (não na edição) |
+
+Ao mover ou renomear esses componentes, mantenha os `data-guide` — `pnpm guides:check` falha se algum sumir.
+
 ---
 
 ## 5. Procedures oRPC
