@@ -52,6 +52,10 @@ Coolify. Desligue o build por Nixpacks (`.nixpacks.toml` fica só como legado).
 - A checagem de tipos roda dentro do `next build` no GitHub, não mais na VPS.
 - O build não precisa de banco: `generateStaticParams` do calendário degrada para `[]`.
 - Rollback: aponte a tag no Coolify para um `sha-<commit>` anterior.
+- **Cache de build** fica na tag `buildcache` do pacote no GHCR (`type=registry`), não no cache do Actions: o
+  upload lá levava 4–6 min por run e o limite de 10 GB do repositório encheu em poucos runs. Só o deploy da
+  `main` grava; o CI dos PRs só lê (reaproveita as dependências instaladas quando o lockfile não mudou).
+  Repositório público: runners padrão não consomem minutos do plano.
 
 ---
 
