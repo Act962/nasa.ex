@@ -15,8 +15,9 @@ O build **não roda na VPS**. Fluxo:
 3. No boot, `docker/entrypoint.sh` roda `prisma migrate deploy` e sobe o servidor. Migration
    falhou → o container não fica healthy e o Coolify mantém a versão anterior.
 
-**CI de PR:** `.github/workflows/ci.yml` roda o mesmo build (com checagem de tipos) em todo PR para a
-`main`, sem publicar. Deixe-o como check obrigatório na proteção da branch. O `deploy-image.yml` também
+**CI de PR:** `.github/workflows/ci.yml` roda o `next build` (com checagem de tipos) direto no runner em todo
+PR; a imagem Docker só é buildada no PR quando ele mexe em `Dockerfile`, `docker/`, dependências,
+`next.config.ts`, Prisma ou workflows. Nos demais casos a imagem é buildada uma vez, no deploy da `main`. Deixe-o como check obrigatório na proteção da branch. O `deploy-image.yml` também
 roda por `workflow_dispatch` em qualquer branch, mas só a `main` recebe a tag `latest`.
 
 ### Configuração única
