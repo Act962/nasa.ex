@@ -12,6 +12,14 @@ export function useCommentsChannel() {
   return useQuery(orpc.comments.channel.get.queryOptions({ input: {} }));
 }
 
+/** URL e verify token do webhook, para o passo final do guia (só admin). */
+export function useCommentsWebhookSetup({ enabled = true }: { enabled?: boolean } = {}) {
+  return useQuery({
+    ...orpc.comments.channel.webhookSetup.queryOptions({ input: {} }),
+    enabled,
+  });
+}
+
 export function useConnectCommentsChannel() {
   const invalidate = useInvalidateChannel();
   return useMutation(

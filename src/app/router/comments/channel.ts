@@ -162,6 +162,31 @@ export const reactivateChannel = commentsProcedure
     return { reactivated: true, subscribed: subscription.ok };
   });
 
+/**
+ * URL e verify token para o passo do webhook no guia (spec 0047, CB-1): quem
+ * fecha o popup depois de conectar volta outro dia sem perder o token.
+ */
+export const getWebhookSetup = commentsProcedure
+  .input(z.object({}).optional())
+  .handler(async ({ context }) => {
+    await requireOrgAdmin(context.org.id, context.user.id);
+
+    const { channels } = repositoriesFor(context.org.id);
+    const channel = await channels.findWithCredentials();
+    if (!channel) {
+      return { webhookUrl: null, verifyToken: null };
+    }
+
+    return {
+      webhookUrl: webhookUrlFor(
+        channel.provider,
+        channel.webhookPathToken,
+        context.headers,
+      ),
+      verifyToken: channel.credentials.verifyToken,
+    };
+  });
+
 /** Publicações da conta, para o passo "escolha o post" do editor. */
 export const listContent = commentsProcedure
   .input(z.object({ cursor: z.string().optional() }).optional())

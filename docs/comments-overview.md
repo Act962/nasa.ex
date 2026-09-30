@@ -63,14 +63,16 @@ src/modules/social/
 | Rota | Papel |
 | --- | --- |
 | `POST/GET /api/social/webhook/instagram/[token]` | Webhook, **um endpoint por conexão** |
-| `src/app/router/comments/channel.ts` | Conectar, desconectar, status, listar publicações |
+| `src/app/router/comments/channel.ts` | Conectar, desconectar, status, listar publicações, `webhookSetup` (URL + verify token, só admin) |
 | `src/app/router/comments/automations.ts` | CRUD, salvar gatilho, ativar, histórico |
 
 ### UI
 
 | Arquivo | Papel |
 | --- | --- |
-| `features/comments/components/channel-connect-card.tsx` | Credenciais + URL do webhook com copiar |
+| `features/comments/components/channel-connect-card.tsx` | Status da conta + URL do webhook com copiar; abre o guia para conectar/trocar |
+| `features/comments/components/instagram-connect-guide-dialog.tsx` | Popup passo a passo com prints da Meta (spec 0047) |
+| `features/comments/lib/instagram-connect-guide.{ts,json}` | Os 24 passos do guia: fases, prints, alvo da seta, dicas |
 | `features/comments/components/automations-list.tsx` | Lista e criação |
 | `features/comments/components/automation-editor.tsx` | Painel guiado em 3 passos |
 | `features/comments/components/automation-canvas.tsx` | Canvas `@xyflow` derivado dos dados |
@@ -113,10 +115,20 @@ Sem contadores denormalizados: `sentCount` é derivado dos runs.
 
 ## 5. Configuração pelo usuário
 
-1. Criar App na Meta com Instagram habilitado.
-2. Em `/comments`, informar Instagram Account ID, Access Token, App Secret e um Verify Token à escolha. O token é conferido contra a Graph API antes de salvar.
-3. Copiar a URL do webhook exibida e colar no App da Meta (Webhooks → Instagram), com o mesmo verify token.
-4. Assinar os campos `comments` e `messages` no painel do App.
+Feita pelo guia **"Conectar Instagram passo a passo"** (spec 0047), com print
+de cada tela da Meta. Resumo dos 24 passos:
+
+1. **Criar o app** — Criar aplicativo → caso de uso *Gerenciar mensagens e conteúdo no Instagram* (filtro Business Messaging) → sem portfólio → Criar (a Meta pede a senha do Facebook). **O nome não pode conter "Instagram"**.
+2. **Ligar o Instagram** — Personalizar o caso de uso → *Add all required permissions*.
+3. **Publicar** — Configurações do app → Básico: URL de privacidade (`/privacidade` da ÓRBITA) + categoria → Publicar. **Sem publicar, a Meta não entrega webhook.**
+4. **Liberar a conta** — Funções → Adicionar pessoas → *Testador do Instagram* → aceitar em instagram.com → Configurações → Apps e sites → Convites do testador.
+5. **Chaves** — ID da conta (embaixo do @, começa com 1784 — **não** o "ID do app do Instagram"), Gerar token (login + Permitir), Chave secreta do app **do Instagram**.
+6. **Conectar** — o popup envia as três chaves e um verify token gerado pela ÓRBITA. O token é conferido contra a Graph API antes de salvar.
+7. **Webhook** — colar URL de callback e verify token no bloco *3. Configurar webhooks* → Verificar e salvar (se falhar, tentar de novo: na 1ª tentativa real falhou e na 2ª passou). `comments` e `messages` já vêm assinados.
+
+Prints: `public/guides/instagram-comments/`, gerados por
+`python3 scripts/guides/prepare-whatsapp-guide.py <pasta> --guide src/features/comments/lib/instagram-connect-guide.json --out public/guides/instagram-comments`.
+Tirados do app de teste "ÓRBITA GUIA COMMENTS" (ID 1143172268148079) com a conta @orbitahub.plataforma.
 
 > ⚠️ Assinar os campos no painel diz apenas **quais** eventos o app quer — não faz a
 > conta entregar nada. É preciso inscrever o app na conta
@@ -158,6 +170,7 @@ cria lead, o outro responde. Sem dedupe entre sistemas nesta fase.
 | 1 | Resposta por IA cobrada em Stars | ✅ |
 | 1 | Editor painel + canvas derivado | ✅ |
 | 1 | Histórico de execuções | ✅ |
+| 1 | Guia passo a passo com prints para conectar (spec 0047) | ✅ |
 | 1 | Job de limpeza de `social_inbound_events` | ⬜ |
 | 1 | Resposta com IA fora do request (Inngest) | ⬜ |
 | 2 | Canvas editável, passos encadeados, delay, condição | ⬜ |
@@ -186,6 +199,7 @@ cria lead, o outro responde. Sem dedupe entre sistemas nesta fase.
 
 | Data | Mudança |
 | --- | --- |
+| 2026-09-29 | **Guia "Conectar Instagram passo a passo"** (spec 0047): popup com 24 passos e prints reais da Meta no lugar do formulário solto; verify token gerado pela ÓRBITA; nova procedure `channel.webhookSetup`. O stepper do WhatsApp virou o módulo compartilhado `src/features/meta-guide/` |
 | 2026-09-24 | **Trocar de conta passou a funcionar.** `connect` criava uma linha nova quando o `external_account_id` mudava — o unique é `(provider, account)`, então não havia colisão — e as leituras, que pegam a linha mais antiga da organização, seguiam devolvendo a conta anterior: a UI dizia "conectada" e mostrava a conta errada, sem como sair dela. Agora a troca reaproveita a linha canônica (preserva automações, histórico e a URL na Meta), remove linhas órfãs de tentativas anteriores e desativa as automações que apontavam para publicações da conta antiga, informando quantas |
 | 2026-09-24 | Credencial recusada passou a ser sinalizada pelo `DispatchResult.authError` do gateway (status 401/403) em vez de regex sobre o texto do erro, que marcaria a conexão como quebrada em qualquer mensagem contendo "token" |
 | 2026-09-24 | Publicação escolhida volta a mostrar miniatura: o editor descartava `contentType`/`mediaUrl` ao carregar e gravava o vazio por cima no save seguinte. `TriggerTarget` passou a carregar os campos de apresentação, e a miniatura cai para ícone por tipo quando a URL da Meta expira |

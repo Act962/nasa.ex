@@ -2,6 +2,7 @@ import {
   connectChannelProcedure,
   disconnectChannel,
   getChannel,
+  getWebhookSetup,
   listContent,
   reactivateChannel,
   repairSubscription,
@@ -33,6 +34,7 @@ export const commentsRouter = {
     reactivate: reactivateChannel,
     listContent,
     repairSubscription,
+    webhookSetup: getWebhookSetup,
   },
   automations: {
     list: listAutomations,

@@ -11,17 +11,17 @@ import { WhatsAppEmbeddedSignupButton } from "@/features/tracking-settings/compo
 import { useAstroWidgetStore } from "@/features/astro/voice/use-astro-widget-store";
 import { metaPaymentMethodsUrl } from "../../lib/meta-links";
 import { useMetaNumberPanel, useSalvyNumbers } from "../../hooks/use-official-number";
-import { CopyField } from "./copy-field";
+import { CopyField } from "@/features/meta-guide/components/copy-field";
 import { MetaNumberPanel } from "./meta-number-panel";
 import { RequestTeamHelp } from "./request-team-help";
 import { buildCardChecklist } from "./connect-steps-content";
 import { ChecklistProgress, GuidedChecklist } from "./guided-checklist";
-import { MetaGuideStepper } from "./meta-guide-stepper";
+import { MetaGuideStepper } from "@/features/meta-guide/components/meta-guide-stepper";
 import { LiveSmsCode, OWN_NUMBER_CHECKLIST, SalvyPurchase, STEPS, Stepper, type NumberSource } from "./wizard-parts";
 import { MetaKeysForm } from "./meta-keys-form";
 import { NumberSetup } from "./number-setup";
 import { useConnectProgress, useMetaSetupStatus, useSaveConnectProgress } from "../../hooks/use-meta-setup";
-import { GUIDE_STEPS } from "../../lib/whatsapp-connect-guide";
+import { GUIDE_STEPS, WHATSAPP_GUIDE } from "../../lib/whatsapp-connect-guide";
 import { KeyDraftField } from "./key-draft-field";
 import { SpaceJourney } from "@/features/space-journey";
 import { buildConnectJourneyStops } from "../../lib/connect-journey";
@@ -291,6 +291,7 @@ function WizardContent({
                 <NumberSetup trackingId={trackingId} onConnected={handleConnected} />
               ) : (
                 <MetaGuideStepper
+                  guide={WHATSAPP_GUIDE}
                   isTitleHidden
                   initialSlug={progress.guideSlug}
                   cheeredIds={doneIds}

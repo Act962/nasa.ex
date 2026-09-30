@@ -28,40 +28,12 @@ import {
 } from "@/components/ui/card";
 import {
   useCommentsChannel,
-  useConnectCommentsChannel,
   useDisconnectCommentsChannel,
   useReactivateCommentsChannel,
   useRepairCommentsSubscription,
 } from "../hooks/use-comments-channel";
-
-const FIELDS = [
-  {
-    key: "externalAccountId" as const,
-    label: "Instagram Account ID",
-    placeholder: "17841400000000000",
-    hint: null,
-  },
-  {
-    key: "accessToken" as const,
-    label: "Access Token",
-    placeholder: "IGQVJ...",
-    hint: null,
-  },
-  {
-    key: "appSecret" as const,
-    label: "App Secret",
-    placeholder: "32 caracteres",
-    // A pegadinha que custou um teste inteiro: o app secret que assina o
-    // webhook do Instagram não é o de Configurações → Básico.
-    hint: "Use o secret de Instagram → Configuração da API, não o de Configurações → Básico.",
-  },
-  {
-    key: "verifyToken" as const,
-    label: "Verify Token",
-    placeholder: "Você escolhe — o mesmo vai no App da Meta",
-    hint: null,
-  },
-];
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { InstagramConnectGuideDialog } from "./instagram-connect-guide-dialog";
 
 function CopyField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
@@ -88,94 +60,12 @@ function CopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function CredentialsForm({
-  initialAccountId = "",
-  submitLabel,
-  onDone,
-}: {
-  initialAccountId?: string;
-  submitLabel: string;
-  onDone?: () => void;
-}) {
-  const connect = useConnectCommentsChannel();
-  const [form, setForm] = useState({
-    externalAccountId: initialAccountId,
-    accessToken: "",
-    appSecret: "",
-    verifyToken: "",
-  });
-
-  return (
-    <div className="space-y-3">
-      {FIELDS.map((field) => (
-        <div key={field.key} className="space-y-1.5">
-          <Label className="text-xs">{field.label}</Label>
-          <Input
-            value={form[field.key]}
-            placeholder={field.placeholder}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                [field.key]: event.target.value,
-              }))
-            }
-          />
-          {field.hint && (
-            <p className="text-xs text-muted-foreground">{field.hint}</p>
-          )}
-        </div>
-      ))}
-
-      <Button
-        className="w-full"
-        disabled={connect.isPending}
-        onClick={() =>
-          connect.mutate(
-            { provider: "INSTAGRAM", ...form },
-            {
-              onSuccess: (result) => {
-                const account = result.handle
-                  ? `@${result.handle}`
-                  : result.externalAccountId;
-
-                if (!result.subscribed) {
-                  toast.warning(
-                    `Conectado em ${account}, mas a inscrição nos eventos falhou: ${result.subscriptionError ?? "motivo desconhecido"}`,
-                  );
-                } else if (result.replacedExternalAccountId) {
-                  toast.success(`Conta trocada para ${account}`, {
-                    description:
-                      result.deactivatedAutomations > 0
-                        ? `${result.deactivatedAutomations} ${result.deactivatedAutomations === 1 ? "automação foi desativada porque apontava" : "automações foram desativadas porque apontavam"} para publicações da conta anterior. Reescolha os posts e ative de novo.`
-                        : "A URL do webhook continua a mesma.",
-                  });
-                } else {
-                  toast.success(`Conectado em ${account} e recebendo eventos`);
-                }
-                onDone?.();
-              },
-              onError: (error) => toast.error(error.message),
-            },
-          )
-        }
-      >
-        {connect.isPending ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <Plug className="size-4" />
-        )}
-        {submitLabel}
-      </Button>
-    </div>
-  );
-}
-
 export function ChannelConnectCard() {
   const { data: channel, isLoading } = useCommentsChannel();
   const disconnect = useDisconnectCommentsChannel();
   const repair = useRepairCommentsSubscription();
   const reactivate = useReactivateCommentsChannel();
-  const [isEditingCredentials, setEditingCredentials] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -310,10 +200,10 @@ export function ChannelConnectCard() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setEditingCredentials((current) => !current)}
+              onClick={() => setIsGuideOpen(true)}
             >
               <KeyRound className="size-4" />
-              {isEditingCredentials ? "Cancelar" : "Trocar conta ou credenciais"}
+              Trocar conta ou credenciais
             </Button>
 
             <Button
@@ -335,20 +225,12 @@ export function ChannelConnectCard() {
             </Button>
           </div>
 
-          {isEditingCredentials && (
-            <div className="space-y-3 border-t pt-4">
-              <p className="text-xs text-muted-foreground">
-                Serve para renovar o token e também para trocar de conta: mude o
-                Instagram Account ID e informe as credenciais da nova. A URL do
-                webhook continua a mesma — não precisa mexer na Meta de novo.
-              </p>
-              <CredentialsForm
-                initialAccountId={channel.externalAccountId}
-                submitLabel="Salvar credenciais"
-                onDone={() => setEditingCredentials(false)}
-              />
-            </div>
-          )}
+          <InstagramConnectGuideDialog
+            open={isGuideOpen}
+            onOpenChange={setIsGuideOpen}
+            initialAccountId={channel.externalAccountId}
+            isStartingAtKeys
+          />
         </CardContent>
       </Card>
     );
@@ -362,12 +244,22 @@ export function ChannelConnectCard() {
           Conectar Instagram
         </CardTitle>
         <CardDescription>
-          Informe as credenciais do seu App da Meta. Conferimos o token antes de
-          salvar.
+          Um passo a passo com as telas da Meta: crie o app, pegue as chaves e
+          cole aqui. Leva uns 15 minutos.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <CredentialsForm submitLabel="Conectar" />
+        <Button
+          data-guide={GUIDE_ANCHORS.commentsConnectInstagram.id}
+          onClick={() => setIsGuideOpen(true)}
+        >
+          <Instagram className="size-4" />
+          Conectar Instagram passo a passo
+        </Button>
+        <InstagramConnectGuideDialog
+          open={isGuideOpen}
+          onOpenChange={setIsGuideOpen}
+        />
       </CardContent>
     </Card>
   );
