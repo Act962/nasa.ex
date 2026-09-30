@@ -27,7 +27,7 @@ roda por `workflow_dispatch` em qualquer branch, mas só a `main` recebe a tag `
 | --- | --- |
 | `NEXT_PUBLIC_ENV` | Todas as `NEXT_PUBLIC_*` de produção, uma por linha (`CHAVE=valor`). São embutidas no bundle do browser em tempo de build — mudar uma exige novo build. |
 | `COOLIFY_WEBHOOK` | URL do webhook de deploy do recurso no Coolify (opcional; sem ele o passo é pulado). |
-| `COOLIFY_TOKEN` | Token de API do Coolify (Keys & Tokens). |
+| `COOLIFY_TOKEN` | Token de API do Coolify (Keys & Tokens) **com permissão `deploy`**. HTTP 403 no passo *Avisar o Coolify* = token sem essa permissão, API desligada (Settings → API Access) ou *Allowed IPs* barrando os runners do GitHub. |
 
 **Coolify:** recurso do tipo *Docker Image* → `ghcr.io/act962/nasa.ex`, tag `latest`, com credencial de
 registry (usuário do GitHub + PAT com `read:packages`). O campo da imagem vai **sem** tag (a tag fica no campo

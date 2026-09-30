@@ -83,6 +83,15 @@ jobs:
       - name: Avisar o Coolify
         run: |
           if [ -z "${COOLIFY_WEBHOOK}" ]; then echo "COOLIFY_WEBHOOK ausente, pulando"; exit 0; fi
-          curl --fail --silent --show-error \
+          # Mostra status e mensagem do Coolify: um 403 diz se falta permissão de deploy no
+          # token, se a API está desligada ou se o IP do runner não está liberado.
+          response_file=$(mktemp)
+          status=$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
             -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
-            "${COOLIFY_WEBHOOK}"
+            "${COOLIFY_WEBHOOK}")
+          echo "Coolify respondeu HTTP ${status}:"
+          cat "$response_file"; echo
+          if [ "$status" -ge 300 ]; then
+            echo "::error::Coolify recusou o deploy (HTTP ${status}). Ver docs/DEPLOYMENT.md §0."
+            exit 1
+          fi
