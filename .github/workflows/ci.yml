@@ -20,6 +20,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Conferir NEXT_PUBLIC_ENV
+        env:
+          PUBLIC_ENV: ${{ secrets.NEXT_PUBLIC_ENV }}
+        run: bash scripts/ci/check-public-env.sh
+
       # A checagem de tipos passa de 8 GB de heap; swap extra dá folga ao runner de 16 GB.
       - name: Ampliar swap
         run: |
