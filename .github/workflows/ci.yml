@@ -60,20 +60,20 @@ jobs:
           sudo swapon /mnt/swapfile
 
       - uses: pnpm/action-setup@v4
+      # Sem cache do store do pnpm: ocupava 523 MB por PR para economizar ~3 s de install.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 
-      # Cache de compilação do Turbopack entre execuções do mesmo PR.
+      # Cache de compilação do Turbopack (~1 GB): uma entrada por PR, salva no primeiro push e só
+      # restaurada nos seguintes — por commit, cada push gravaria mais ~1 GB no limite de 10 GB.
+      # Medido: next build 5,8 min frio → 56 s quente.
       - uses: actions/cache@v4
         with:
           path: .next/cache
-          key: next-cache-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            next-cache-${{ hashFiles('pnpm-lock.yaml') }}-
+          key: next-cache-${{ hashFiles('pnpm-lock.yaml') }}-pr${{ github.event.pull_request.number }}
 
       - run: pnpm exec prisma generate
         env:

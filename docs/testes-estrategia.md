@@ -206,7 +206,7 @@ tudo. Vira gate na Fase 3, e só em `src/modules/**`.
 
 | Workflow | Quando | O que faz |
 | --- | --- | --- |
-| `ci.yml` → `next-build` | todo PR | `pnpm install` (cache do store) + `prisma generate` + `next build` direto no runner: checagem de tipos, coleta de páginas, bundling. `.next/cache` por PR via `actions/cache`. |
+| `ci.yml` → `next-build` | todo PR | `pnpm install` + `prisma generate` + `next build` direto no runner: checagem de tipos, coleta de páginas, bundling. `.next/cache` (~1 GB) com uma entrada por PR via `actions/cache` — `next build` 5,8 min frio → 56 s quente. Sem cache do store do pnpm (523 MB para ~3 s). |
 | `ci.yml` → `docker-image` | PR que mexe em `Dockerfile`, `docker/`, dependências, `next.config.ts`, Prisma, workflows | Builda a imagem (sem push, sem checagem de tipos) lendo o cache `buildcache` do GHCR. |
 | `deploy-image.yml` | push na `main` | Builda a imagem (sem checagem de tipos — o PR é o portão), publica no GHCR, grava o cache `buildcache`, avisa o Coolify. |
 | `typecheck-diagnostics.yml` | manual | Mede memória/tempo/instanciações do `tsc` e lista os arquivos mais caros. |
