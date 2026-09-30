@@ -21,7 +21,7 @@
  * derruba o caller (tracking.create).
  */
 import "server-only";
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { AppPrismaClient } from "@/lib/prisma";
 import {
   buildAgendamentoBlueprint,
   type AgendamentoParams,
@@ -94,7 +94,7 @@ const DEFAULT_PRESETS: PresetSpec[] = [
 ];
 
 interface ApplyParams {
-  prisma: PrismaClient;
+  prisma: AppPrismaClient;
   organizationId: string;
   trackingId: string;
   /**

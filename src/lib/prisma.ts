@@ -2,7 +2,7 @@ import { PrismaClient, type Prisma } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = global as unknown as {
-  prisma?: PrismaClient;
+  prisma?: AppPrismaClient;
   prismaSchemaVersion: string;
 };
 
@@ -43,5 +43,8 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
   globalForPrisma.prismaSchemaVersion = SCHEMA_VERSION;
 }
+
+// Tipo do cliente global, para quem precisa de `$transaction`. Sem `$transaction`, use `Prisma.TransactionClient`.
+export type AppPrismaClient = ReturnType<typeof createClient>;
 
 export default prisma;

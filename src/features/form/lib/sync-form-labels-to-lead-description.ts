@@ -22,12 +22,12 @@
  * a resposta do form é mais importante que o sync da description.
  */
 
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 
 const MARKER = "--- Respostas dos formulários ---";
 
 export async function syncFormLabelsToLeadDescription(
-  prisma: PrismaClient,
+  prisma: Prisma.TransactionClient,
   leadId: string | null | undefined,
 ): Promise<void> {
   if (!leadId) return;
