@@ -723,6 +723,7 @@ acrescentar itens à Fase 0**.
 
 | Data | O quê |
 | --- | --- |
+| 2026-09-30 | **CI de PR independente de secrets.** PR de fork (#425) falhava em 9 s: o GitHub não passa secrets a workflows de fork e o `NEXT_PUBLIC_ENV` chegava vazio. O CI de PR passa a usar placeholders versionados em `.github/ci-public.env`; o deploy da `main` segue usando e conferindo o secret real |
 | 2026-09-30 | **CI de PR sem Docker.** `ci.yml` roda `next build` direto no runner (tipos + coleta de páginas + bundling, `.next/cache` via `actions/cache`); o job `docker-image` só roda quando o PR mexe em Dockerfile, dependências, `next.config`, Prisma ou workflows. A imagem passa a ser buildada uma vez por mudança, no deploy da `main`. `testes-estrategia.md` §8.0 registra o pipeline implementado |
 | 2026-09-30 | **Cache de build no GHCR.** Exportar para o cache do Actions (`type=gha,mode=max`) custava 224–348 s por run (~45% do job) e ocupou 7,7 de 10 GB em poucos runs. Agora `type=registry` na tag `buildcache`: só o deploy da `main` grava, o CI dos PRs só lê; `.next/cache` sai da camada do build |
 | 2026-09-30 | Primeiro deploy pela imagem: healthcheck passa a seguir o `PORT` do container (fixo na 3000 deixava o app `unhealthy`); `migrate deploy` do boot usa `DIRECT_URL` quando existe (via PgBouncer o advisory lock expirava) e tenta 3 vezes. `docs/DEPLOYMENT.md` §0 documenta porta, `DIRECT_URL` e `$` literal no Coolify |

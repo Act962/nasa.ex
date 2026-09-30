@@ -26,7 +26,7 @@ roda por `workflow_dispatch` em qualquer branch, mas só a `main` recebe a tag `
 
 | Secret | Valor |
 | --- | --- |
-| `NEXT_PUBLIC_ENV` | Todas as `NEXT_PUBLIC_*` de produção, uma por linha (`CHAVE=valor`). São embutidas no bundle do browser em tempo de build — mudar uma exige novo build. |
+| `NEXT_PUBLIC_ENV` | Todas as `NEXT_PUBLIC_*` de produção, uma por linha (`CHAVE=valor`). São embutidas no bundle do browser em tempo de build — mudar uma exige novo build. Só o deploy da `main` usa: o CI de PR usa os placeholders de `.github/ci-public.env`, porque PR de fork não recebe secrets. |
 | `COOLIFY_WEBHOOK` | URL do webhook de deploy do recurso no Coolify (opcional; sem ele o passo é pulado). |
 | `COOLIFY_TOKEN` | Token de API do Coolify (Keys & Tokens) **com permissão `deploy`**. HTTP 403 no passo *Avisar o Coolify* = token sem essa permissão, API desligada (Settings → API Access) ou *Allowed IPs* barrando os runners do GitHub. |
 

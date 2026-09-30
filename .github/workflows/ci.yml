@@ -30,7 +30,7 @@ jobs:
           changed_files=$(gh api --paginate \
             "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
             -q '.[].filename')
-          image_pattern='^(Dockerfile|\.dockerignore|docker/|package\.json|pnpm-lock\.yaml|next\.config\.ts|prisma\.config\.ts|prisma/schema\.prisma|prisma/migrations/|\.github/workflows/(ci|deploy-image)\.yml|scripts/ci/)'
+          image_pattern='^(Dockerfile|\.dockerignore|docker/|package\.json|pnpm-lock\.yaml|next\.config\.ts|prisma\.config\.ts|prisma/schema\.prisma|prisma/migrations/|\.github/workflows/(ci|deploy-image)\.yml|\.github/ci-public\.env|scripts/ci/)'
           if printf '%s\n' "$changed_files" | grep -qE "$image_pattern"; then
             echo "affects-image=true" >> "$GITHUB_OUTPUT"
             echo "PR mexe em arquivos da imagem — o job docker-image vai rodar."
@@ -44,11 +44,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Conferir NEXT_PUBLIC_ENV
-        env:
-          PUBLIC_ENV: ${{ secrets.NEXT_PUBLIC_ENV }}
-          PUBLIC_ENV_FILE: .env.production
-        run: bash scripts/ci/check-public-env.sh
+      # Placeholders versionados em vez do secret: PRs de fork não recebem secrets.
+      - name: Env pública de CI
+        run: cp .github/ci-public.env .env.production
 
       # Folga de memória para o `next build` (a checagem de tipos usa ~6 GB).
       - name: Ampliar swap
@@ -93,12 +91,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Conferir NEXT_PUBLIC_ENV
-        env:
-          PUBLIC_ENV: ${{ secrets.NEXT_PUBLIC_ENV }}
-          PUBLIC_ENV_FILE: ${{ runner.temp }}/public.env
-        run: bash scripts/ci/check-public-env.sh
-
       - uses: docker/setup-buildx-action@v3
 
       # Lê o cache de build que o deploy da main grava no GHCR (dependências já instaladas).
@@ -122,4 +114,4 @@ jobs:
           build-args: |
             SKIP_TYPECHECK=1
           secret-files: |
-            public_env=${{ runner.temp }}/public.env
+            public_env=.github/ci-public.env

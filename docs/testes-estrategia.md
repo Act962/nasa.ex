@@ -211,6 +211,9 @@ tudo. Vira gate na Fase 3, e só em `src/modules/**`.
 | `deploy-image.yml` | push na `main` | Builda a imagem (sem checagem de tipos — o PR é o portão), publica no GHCR, grava o cache `buildcache`, avisa o Coolify. |
 | `typecheck-diagnostics.yml` | manual | Mede memória/tempo/instanciações do `tsc` e lista os arquivos mais caros. |
 
+O CI de PR **não usa secrets** de configuração: as `NEXT_PUBLIC_*` vêm de placeholders em `.github/ci-public.env`
+(PR de fork não recebe secrets, e a imagem do PR nunca é publicada). O deploy da `main` usa o secret real.
+
 Portão de merge hoje: `next-build` verde (e `docker-image` quando roda). `tsc` sozinho **não** basta — no
 mesmo dia três erros passaram nele e só o `next build` pegou (cliente criado no import sem variável de
 ambiente, Pusher sem cluster, Dockerfile). Detalhes de deploy em `DEPLOYMENT.md` §0.
