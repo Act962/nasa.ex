@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import prismaDefault from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import {
@@ -6,7 +6,7 @@ import {
   type LeadJourneyEventKind,
 } from "@/lib/lead-journey/track";
 
-type PrismaLike = PrismaClient | Prisma.TransactionClient;
+type PrismaLike = Prisma.TransactionClient;
 
 /**
  * Tipos de evento usados pela feature de Formulários/SLA/Link Público.

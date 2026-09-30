@@ -245,6 +245,8 @@ src/features/<dominio>/
 
     d. **Ação que termina um guia** (salvar lead, criar tracking) chama `emitTourResult({ href })` de `@/features/tour/store` no `onSuccess`, para o guia entregar o link no fim.
 
+22. **Tipo do cliente Prisma em parâmetros (OBRIGATÓRIO)** — função que aceita "cliente global ou transação" recebe `Prisma.TransactionClient` (ou `Pick<Prisma.TransactionClient, ...>`); se precisa de `$transaction`, recebe `AppPrismaClient` de `@/lib/prisma`. **Proibido**: o tipo público `PrismaClient` em anotações, união com o cliente, `Omit`/`Pick` de `typeof prisma`. Esses padrões fazem o TypeScript comparar os ~300 models estruturalmente — um único arquivo custava 63 s e a checagem de tipos passava de 12 GB, derrubando o build. O ESLint barra; os genéricos fixos em `src/lib/prisma.ts` não podem ser removidos. Ver [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) §0.1.
+
 ## Obsidian
 
 Vault: `NASA Agents` em `/Users/weydsonlima/Documents/NASA Agents/`

@@ -4,10 +4,10 @@
 // (coluna, tag, automação) escopam pelo workspace dono; folder escopa direto
 // pela org. Ver docs/workspace-actions-overview.md §6.1, débito S6.
 
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import prismaDefault from "@/lib/prisma";
 
-type PrismaLike = PrismaClient | Prisma.TransactionClient;
+type PrismaLike = Prisma.TransactionClient;
 
 export function findWorkspaceInOrg(
   workspaceId: string,

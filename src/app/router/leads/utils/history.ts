@@ -1,10 +1,8 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { LeadAction } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 
-type PrismaTx = Omit<
-  typeof prisma,
-  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
->;
+type PrismaTx = Prisma.TransactionClient;
 
 interface RecordLeadHistory {
   leadId: string;

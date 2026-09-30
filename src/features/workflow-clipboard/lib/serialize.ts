@@ -11,7 +11,7 @@
  *   6. Retorna BlueprintV2 com metadata + refs lista.
  */
 import "server-only";
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { extractRefs, type ExtractedNode } from "./ref-extractor";
 import { injectPlaceholders, type RefLookup } from "./ref-injector";
 import type {
@@ -22,7 +22,7 @@ import type {
   RefType,
 } from "./types";
 
-type PrismaLike = PrismaClient | Prisma.TransactionClient;
+type PrismaLike = Prisma.TransactionClient;
 
 export interface SerializeFullWorkflowParams {
   workflowId: string;

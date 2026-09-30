@@ -1,8 +1,8 @@
-import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaClient, type Prisma } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = global as unknown as {
-  prisma: PrismaClient | undefined;
+  prisma?: AppPrismaClient;
   prismaSchemaVersion: string;
 };
 
@@ -17,6 +17,9 @@ const SCHEMA_VERSION = "v101-status-system-key";
 const POOL_MAX_CONNECTIONS =
   Number(process.env.DATABASE_POOL_MAX) || (process.env.NODE_ENV === "development" ? 15 : 5);
 
+// Os genéricos explícitos deixam o cliente global com o mesmo tipo do `tx` de `$transaction`
+// (`Prisma.TransactionClient`). Inferidos, divergem (`log`, `omit`) e o TypeScript passa a comparar
+// os ~300 models estruturalmente a cada encontro dos dois — era o que levava a checagem a 12 GB.
 const createClient = () => {
   const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL,
@@ -24,7 +27,7 @@ const createClient = () => {
     idleTimeoutMillis: 60000,
     connectionTimeoutMillis: 30000,
   });
-  return new PrismaClient({
+  return new PrismaClient<Prisma.PrismaClientOptions, never, undefined>({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["error"] : [],
   });
@@ -40,5 +43,8 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
   globalForPrisma.prismaSchemaVersion = SCHEMA_VERSION;
 }
+
+// Tipo do cliente global, para quem precisa de `$transaction`. Sem `$transaction`, use `Prisma.TransactionClient`.
+export type AppPrismaClient = ReturnType<typeof createClient>;
 
 export default prisma;

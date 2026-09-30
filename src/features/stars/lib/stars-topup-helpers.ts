@@ -13,13 +13,10 @@
  * registro do evento → Stripe re-tenta e reprocessa.
  */
 
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { StarTransactionType } from "@/generated/prisma/client";
 
-type Tx = Omit<
-  PrismaClient,
-  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
->;
+type Tx = Prisma.TransactionClient;
 
 export interface FinalizeStarsTopUpOpts {
   tx: Tx;

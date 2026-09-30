@@ -4,10 +4,10 @@
 // passa por aqui antes de ler/escrever. Ver docs/workspace-actions-overview.md
 // §6.1, débitos S4/S5.
 
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import prismaDefault from "@/lib/prisma";
 
-type PrismaLike = PrismaClient | Prisma.TransactionClient;
+type PrismaLike = Prisma.TransactionClient;
 
 const SCOPED_ACTION_SELECT = {
   id: true,
