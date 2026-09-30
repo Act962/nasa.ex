@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useBuySalvyNumber, useSalvyLatestCode, useSalvyNumberOffer } from "../../hooks/use-official-number";
-import { CopyField } from "./copy-field";
+import { CopyField } from "@/features/meta-guide/components/copy-field";
 
 export const STEPS = [
   { id: "number", label: "Número" },

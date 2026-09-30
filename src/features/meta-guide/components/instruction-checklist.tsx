@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { instructionChecklist } from "../../lib/whatsapp-connect-guide";
+import { instructionChecklist } from "../lib/guide-helpers";
 
 const SHINE_STEP_SECONDS = 0.9;
 

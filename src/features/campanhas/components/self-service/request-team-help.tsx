@@ -11,19 +11,32 @@ import { useRequestTeamHelp } from "../../hooks/use-team-help";
 const SUPPORT_WHATSAPP = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP?.replace(/\D/g, "") ?? "";
 
 /** "Pedir ajuda à equipe" (spec 0040, RF-9): chamado com o contexto do passo + WhatsApp. */
-export function RequestTeamHelp({ step, errorMessage, size = "sm" }: { step: string; errorMessage?: string | null; size?: "sm" | "default" }) {
+export function RequestTeamHelp({
+  step,
+  errorMessage,
+  size = "sm",
+  contextLabel = "Disparo em Massa",
+  appId = "campanhas",
+}: {
+  step: string;
+  errorMessage?: string | null;
+  size?: "sm" | "default";
+  /** App de origem do chamado — o guia do Instagram reaproveita este botão. */
+  contextLabel?: string;
+  appId?: string;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [details, setDetails] = useState("");
   const createTicket = useRequestTeamHelp();
 
-  const context = `[Disparo em Massa] Passo: ${step}${errorMessage ? ` · Erro: ${errorMessage}` : ""}`;
+  const context = `[${contextLabel}] Passo: ${step}${errorMessage ? ` · Erro: ${errorMessage}` : ""}`;
   const whatsappUrl = SUPPORT_WHATSAPP
     ? `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(`Olá! Preciso de ajuda. ${context}`)}`
     : null;
 
   function submitTicket() {
     createTicket.mutate(
-      { appId: "campanhas", improvement: `${context}\n\n${details.trim() || "Preciso de ajuda neste passo."}` },
+      { appId, improvement: `${context}\n\n${details.trim() || "Preciso de ajuda neste passo."}` },
       {
         onSuccess: () => {
           toast.success("Chamado aberto. A equipe vai te responder em breve.");

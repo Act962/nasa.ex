@@ -3,6 +3,10 @@
 // confere que cada âncora usada por um guia ainda existe no código.
 
 export const GUIDE_ANCHORS = {
+  commentsConnectInstagram: {
+    id: "comments.connect-instagram",
+    description: "Botão \"Conectar Instagram passo a passo\" em /comments → Integrações",
+  },
   trackingList: {
     id: "tracking.list",
     description: "Lista de trackings da organização em /tracking",

@@ -1,0 +1,747 @@
+{
+  "sourceNote": "Prints do app de teste ÓRBITA GUIA COMMENTS (spec 0047). target/redact/crop em pixels do print original (1920x1080).",
+  "phases": [
+    {
+      "id": "app",
+      "title": "Criar o app na Meta",
+      "cheer": "App criado! A parte mais chata já foi 🚀"
+    },
+    {
+      "id": "instagram",
+      "title": "Ligar o Instagram no app",
+      "cheer": "Instagram ligado no seu app. Seguimos juntos!"
+    },
+    {
+      "id": "publish",
+      "title": "Publicar o app",
+      "cheer": "App publicado! A Meta já pode entregar os comentários."
+    },
+    {
+      "id": "tester",
+      "title": "Liberar a sua conta",
+      "cheer": "Conta liberada. Agora é pegar as chaves."
+    },
+    {
+      "id": "keys",
+      "title": "Suas chaves",
+      "cheer": "Chaves na mão! Falta pouco."
+    },
+    {
+      "id": "connect",
+      "title": "Conectar na ÓRBITA",
+      "cheer": "Conectado na ÓRBITA! Último passo: o webhook."
+    },
+    {
+      "id": "webhook",
+      "title": "Receber comentários e directs",
+      "cheer": "Tudo pronto! Comentários e directs já chegam na ÓRBITA 🎉"
+    }
+  ],
+  "steps": [
+    {
+      "n": 1,
+      "phase": "app",
+      "slug": "tem-app",
+      "title": "Você já tem um app do Instagram na Meta?",
+      "instruction": "Abra developers.facebook.com → Meus apps. Se já existe um app da sua empresa com o caso de uso do Instagram, use esse app. Se não, crie um novo.",
+      "link": "https://developers.facebook.com/apps/",
+      "isLinkHighlighted": true,
+      "choice": {
+        "yesLabel": "Já tenho",
+        "noLabel": "Não, vou criar",
+        "skipToSlug": "id-conta"
+      }
+    },
+    {
+      "n": 2,
+      "phase": "app",
+      "slug": "nome-app",
+      "title": "Dê um nome ao seu app",
+      "instruction": "Em developers.facebook.com, clique em Criar aplicativo. Escreva um nome (ex.: Comentários da Minha Loja), confira o e-mail e clique em Avançar.",
+      "link": "https://developers.facebook.com/apps/creation/",
+      "tip": "Não use a palavra Instagram (nem Facebook, WhatsApp ou Meta) no nome: a Meta recusa e o botão Avançar não funciona.",
+      "source": "02-nome-app.png",
+      "redact": [
+        [
+          533,
+          366,
+          857,
+          386
+        ],
+        [
+          533,
+          465,
+          857,
+          484
+        ]
+      ],
+      "labels": [
+        {
+          "x": 534,
+          "y": 367,
+          "text": "Comentários da Minha Loja"
+        }
+      ],
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          1321,
+          505,
+          1396,
+          536
+        ],
+        "arrow": "left",
+        "crop": [
+          496,
+          177,
+          1420,
+          563
+        ]
+      }
+    },
+    {
+      "n": 3,
+      "phase": "app",
+      "slug": "caso-de-uso",
+      "title": "Escolha o caso de uso do Instagram",
+      "instruction": "Em Filtrar por, clique em Business Messaging. Marque Gerenciar mensagens e conteúdo no Instagram e clique em Avançar.",
+      "source": "03-caso-de-uso.png",
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          780,
+          502,
+          1396,
+          571
+        ],
+        "arrow": "left",
+        "crop": [
+          496,
+          233,
+          1420,
+          741
+        ]
+      }
+    },
+    {
+      "n": 4,
+      "phase": "app",
+      "slug": "empresa",
+      "title": "Portfólio empresarial",
+      "instruction": "Marque Ainda não quero me conectar a um portfólio empresarial e clique em Avançar. Na tela Requisitos, clique em Avançar de novo.",
+      "source": "04-empresa.png",
+      "redact": [
+        [
+          551,
+          467,
+          759,
+          533
+        ]
+      ],
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          523,
+          542,
+          877,
+          566
+        ],
+        "arrow": "left",
+        "crop": [
+          496,
+          233,
+          1420,
+          668
+        ]
+      }
+    },
+    {
+      "n": 5,
+      "phase": "app",
+      "slug": "criar-app",
+      "title": "Crie o app",
+      "instruction": "Confira o resumo e clique em Criar aplicativo.",
+      "tip": "A Meta pede a sua senha do Facebook para confirmar. É normal: digite e clique em Enviar.",
+      "source": "05-criar-app.png",
+      "redact": [
+        [
+          538,
+          548,
+          686,
+          562
+        ]
+      ],
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          1282,
+          908,
+          1396,
+          937
+        ],
+        "arrow": "left",
+        "crop": [
+          496,
+          233,
+          1420,
+          962
+        ]
+      }
+    },
+    {
+      "n": 6,
+      "phase": "instagram",
+      "slug": "personalizar",
+      "title": "Abra a configuração do Instagram",
+      "instruction": "No Painel do app, clique em Personalizar o caso de uso Gerenciar mensagens e conteúdo no Instagram.",
+      "link": "https://developers.facebook.com/apps/",
+      "source": "07-painel.png",
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          534,
+          356,
+          1657,
+          389
+        ],
+        "arrow": "top",
+        "crop": [
+          0,
+          227,
+          1690,
+          643
+        ]
+      }
+    },
+    {
+      "n": 7,
+      "phase": "instagram",
+      "slug": "permissoes",
+      "title": "Libere as permissões",
+      "instruction": "No bloco 1. Adicionar permissões obrigatórias de mensagens, clique em Add all required permissions.",
+      "source": "08-config-api.png",
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          609,
+          788,
+          800,
+          820
+        ],
+        "arrow": "right",
+        "crop": [
+          576,
+          349,
+          1690,
+          986
+        ]
+      }
+    },
+    {
+      "n": 8,
+      "phase": "publish",
+      "slug": "privacidade",
+      "title": "Política de privacidade e categoria",
+      "instruction": "No menu da esquerda, abra Configurações do app → Básico. Cole a URL abaixo em URL da Política de Privacidade, escolha a Categoria Negócio e Páginas, role até o fim e clique em Salvar alterações.",
+      "copy": [
+        "privacyUrl"
+      ],
+      "source": "18-basico-privacidade.png",
+      "redact": [
+        [
+          1102,
+          445,
+          1657,
+          477
+        ]
+      ],
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          534,
+          517,
+          1087,
+          549
+        ],
+        "arrow": "right",
+        "crop": [
+          514,
+          251,
+          1678,
+          766
+        ]
+      }
+    },
+    {
+      "n": 9,
+      "phase": "publish",
+      "slug": "publicar",
+      "title": "Publique o app",
+      "instruction": "No menu da esquerda, clique em Publicar. Confira a mensagem Todas as configurações necessárias do app foram concluídas e clique em Publicar, no canto de baixo.",
+      "tip": "O botão Publicar está apagado? Falta a URL de privacidade ou a categoria: volte um passo. Sem publicar, a Meta não entrega os comentários.",
+      "source": "21-publicar.png",
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          1817,
+          1034,
+          1893,
+          1068
+        ],
+        "arrow": "top",
+        "crop": [
+          500,
+          180,
+          1920,
+          1080
+        ]
+      }
+    },
+    {
+      "n": 10,
+      "phase": "publish",
+      "slug": "publicado",
+      "title": "App publicado",
+      "instruction": "Apareceu Seu app foi publicado com sucesso. Clique em Concluir.",
+      "source": "22-publicado.png",
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          1136,
+          638,
+          1216,
+          672
+        ],
+        "arrow": "left",
+        "crop": [
+          680,
+          295,
+          1240,
+          695
+        ]
+      }
+    },
+    {
+      "n": 11,
+      "phase": "tester",
+      "slug": "adicionar-testador",
+      "title": "Adicione sua conta como testadora",
+      "instruction": "No menu da esquerda, abra Funções do app → Funções e clique em Adicionar pessoas. Marque Testador do Instagram.",
+      "source": "11-funcoes-adicionar.png",
+      "redact": [
+        [
+          540,
+          429,
+          667,
+          457
+        ]
+      ],
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          705,
+          698,
+          1222,
+          754
+        ],
+        "arrow": "left",
+        "crop": [
+          686,
+          288,
+          1237,
+          827
+        ]
+      }
+    },
+    {
+      "n": 12,
+      "phase": "tester",
+      "slug": "arroba-testador",
+      "title": "Digite o @ do seu Instagram",
+      "instruction": "Digite o @ da sua conta do Instagram, escolha ela na lista e clique em Adicionar.",
+      "source": "13-testador-adicionar.png",
+      "redact": [
+        [
+          540,
+          429,
+          667,
+          457
+        ]
+      ],
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          1133,
+          840,
+          1215,
+          870
+        ],
+        "arrow": "left",
+        "crop": [
+          686,
+          258,
+          1237,
+          888
+        ]
+      }
+    },
+    {
+      "n": 13,
+      "phase": "tester",
+      "slug": "convite-pendente",
+      "title": "Convite enviado",
+      "instruction": "A sua conta aparece como Testador do Instagram com o status Pendente. Agora é só aceitar no Instagram.",
+      "source": "14-testador-pendente.png",
+      "redact": [
+        [
+          538,
+          426,
+          680,
+          458
+        ]
+      ],
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          1378,
+          484,
+          1448,
+          508
+        ],
+        "arrow": "left",
+        "crop": [
+          516,
+          250,
+          1672,
+          544
+        ]
+      }
+    },
+    {
+      "n": 14,
+      "phase": "tester",
+      "slug": "aceitar-convite",
+      "title": "Aceite o convite no Instagram",
+      "instruction": "Abra instagram.com logado na sua conta, vá em Configurações → Apps e sites → Convites do testador e clique em Aceitar.",
+      "link": "https://www.instagram.com/accounts/manage_access/",
+      "tip": "Não aparece convite? Confira se está logado na mesma conta que você adicionou como testadora.",
+      "source": "15-aceitar-convite.png",
+      "redact": [
+        [
+          1800,
+          1005,
+          1892,
+          1041
+        ]
+      ],
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          924,
+          589,
+          1505,
+          626
+        ],
+        "arrow": "left",
+        "crop": [
+          686,
+          227,
+          1543,
+          766
+        ]
+      }
+    },
+    {
+      "n": 15,
+      "phase": "keys",
+      "slug": "id-conta",
+      "title": "Copie o ID da sua conta",
+      "instruction": "Volte ao app na Meta: Casos de uso → Personalizar → Configuração da API com login do Instagram. No bloco 2. Gerar tokens de acesso, a sua conta já aparece. Copie o número azul embaixo do nome e cole aqui.",
+      "link": "https://developers.facebook.com/apps/",
+      "tip": "É o número embaixo do @ da conta (começa com 1784). Não é o ID do app do Instagram que aparece lá em cima.",
+      "source": "16-conta-id-token.png",
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          667,
+          406,
+          790,
+          424
+        ],
+        "arrow": "right",
+        "crop": [
+          588,
+          227,
+          1690,
+          607
+        ]
+      }
+    },
+    {
+      "n": 16,
+      "phase": "keys",
+      "slug": "gerar-token",
+      "title": "Gere o token de acesso",
+      "instruction": "Na mesma linha da sua conta, clique em Gerar token.",
+      "source": "16-conta-id-token.png",
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          1038,
+          396,
+          1120,
+          418
+        ],
+        "arrow": "left",
+        "crop": [
+          588,
+          227,
+          1690,
+          607
+        ]
+      }
+    },
+    {
+      "n": 17,
+      "phase": "keys",
+      "slug": "entrar-instagram",
+      "title": "Entre no Instagram",
+      "instruction": "Abre uma janela do Instagram. Entre com a sua conta e clique em Entrar.",
+      "source": "17-login-instagram.png",
+      "redact": [
+        [
+          830,
+          495,
+          1090,
+          515
+        ]
+      ],
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          826,
+          576,
+          1094,
+          608
+        ],
+        "arrow": "left",
+        "crop": [
+          700,
+          300,
+          1220,
+          720
+        ]
+      }
+    },
+    {
+      "n": 18,
+      "phase": "keys",
+      "slug": "permitir",
+      "title": "Permita o acesso",
+      "instruction": "Deixe todas as opções ligadas e clique em Permitir.",
+      "source": "17b-permitir.png",
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          710,
+          845,
+          1210,
+          886
+        ],
+        "arrow": "left",
+        "crop": [
+          661,
+          264,
+          1261,
+          986
+        ]
+      }
+    },
+    {
+      "n": 19,
+      "phase": "keys",
+      "slug": "copiar-token",
+      "title": "Copie o token",
+      "instruction": "Marque Estou ciente, clique em Copiar e cole o token aqui.",
+      "tip": "A Meta mostra o token uma vez só. Cole aqui antes de clicar em Concluir.",
+      "source": "17d-token-copiar.png",
+      "redact": [
+        [
+          700,
+          589,
+          1127,
+          620
+        ]
+      ],
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          1134,
+          589,
+          1218,
+          620
+        ],
+        "arrow": "left",
+        "crop": [
+          686,
+          331,
+          1237,
+          747
+        ]
+      }
+    },
+    {
+      "n": 20,
+      "phase": "keys",
+      "slug": "chave-secreta",
+      "title": "Copie a chave secreta do Instagram",
+      "instruction": "Lá em cima, em Chave secreta do app do Instagram, clique em Mostrar e depois no ícone de copiar. Cole a chave aqui.",
+      "tip": "Use esta chave (a do Instagram). A de Configurações do app → Básico é outra e não funciona. A Meta pode pedir sua senha do Facebook para mostrar.",
+      "source": "17e-chave-secreta.png",
+      "redact": [
+        [
+          1398,
+          548,
+          1555,
+          582
+        ]
+      ],
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          1638,
+          548,
+          1670,
+          582
+        ],
+        "arrow": "left",
+        "crop": [
+          588,
+          349,
+          1690,
+          607
+        ]
+      }
+    },
+    {
+      "n": 21,
+      "phase": "connect",
+      "slug": "conectar",
+      "title": "Conecte na ÓRBITA",
+      "instruction": "Confira as três chaves e clique em Conectar. A ÓRBITA testa o token na Meta antes de salvar."
+    },
+    {
+      "n": 22,
+      "phase": "webhook",
+      "slug": "webhook",
+      "title": "Configure o webhook",
+      "instruction": "Na Meta, no bloco 3. Configurar webhooks, cole a URL de callback e o Verificar token abaixo. Clique em Verificar e salvar.",
+      "copy": [
+        "callbackUrl",
+        "verifyToken"
+      ],
+      "tip": "Apareceu Não foi possível validar a URL? Clique em Verificar e salvar de novo: na segunda tentativa costuma passar.",
+      "source": "25-webhook-preenchido.png",
+      "redact": [
+        [
+          900,
+          556,
+          1300,
+          576
+        ],
+        [
+          608,
+          616,
+          700,
+          636
+        ]
+      ],
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          1542,
+          678,
+          1666,
+          706
+        ],
+        "arrow": "left",
+        "crop": [
+          580,
+          410,
+          1690,
+          720
+        ]
+      }
+    },
+    {
+      "n": 23,
+      "phase": "webhook",
+      "slug": "campos",
+      "title": "Confira os campos assinados",
+      "instruction": "Embaixo aparece Campos do webhook. Confira se comments e messages estão Assinado. Se algum estiver desligado, ligue.",
+      "source": "26-campos-webhook.png",
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          1405,
+          334,
+          1525,
+          370
+        ],
+        "arrow": "left",
+        "crop": [
+          580,
+          250,
+          1690,
+          1000
+        ]
+      }
+    },
+    {
+      "n": 24,
+      "phase": "webhook",
+      "slug": "conferir",
+      "title": "Tudo pronto",
+      "instruction": "No bloco 2, a Assinatura do webhook da sua conta aparece Ativado. Pronto: os comentários e directs já chegam na ÓRBITA.",
+      "source": "27-meta-tudo-pronto.png",
+      "shot": {
+        "w": 1920,
+        "h": 1080,
+        "target": [
+          1251,
+          469,
+          1353,
+          496
+        ],
+        "arrow": "left",
+        "crop": [
+          588,
+          313,
+          1690,
+          754
+        ]
+      }
+    }
+  ]
+}
