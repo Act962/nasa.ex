@@ -1,9 +1,6 @@
-import prisma from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 
-type PrismaTx = Omit<
-  typeof prisma,
-  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
->;
+type PrismaTx = Prisma.TransactionClient;
 
 export async function assignLeadRoundRobin(prisma: PrismaTx, leadId: string) {
   // 1. Buscar lead

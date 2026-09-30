@@ -57,7 +57,7 @@
  *   <<MSG_APROVADO>>     Texto da mensagem final pós-aprovação
  *   <<MSG_FALLBACK>>     Texto pra leads que escolheram outra opção
  */
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { AppPrismaClient } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { NodeType } from "@/generated/prisma/enums";
 import { createId } from "@paralleldrive/cuid2";
@@ -576,7 +576,7 @@ export function buildCloserComFollowupBlueprint(
  * no engine novo (run-workflow.ts).
  */
 export async function seedCloserComFollowup(
-  prisma: PrismaClient,
+  prisma: AppPrismaClient,
   params: SeedCloserComFollowupParams,
 ) {
   const blueprint = buildCloserComFollowupBlueprint(params);

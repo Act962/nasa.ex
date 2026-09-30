@@ -5,7 +5,7 @@
 // Preços marcados com source "seed:conferir" são valores de referência e devem
 // ser conferidos nas páginas oficiais antes de embasar preço de proposta.
 
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { listPricedModels } from "@/features/ia/lib/token-pricing";
 
 type SeedRow = {
@@ -109,7 +109,7 @@ export function forgePriceCatalogRows(): SeedRow[] {
 }
 
 export async function seedForgePriceCatalog(
-  db: PrismaClient,
+  db: Prisma.TransactionClient,
   organizationId: string,
 ): Promise<number> {
   const rows = forgePriceCatalogRows();

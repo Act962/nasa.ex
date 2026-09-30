@@ -5,6 +5,95 @@ Passos pra colocar em produção tudo que está nas PRs mergeadas
 
 ---
 
+## 0. Deploy por imagem Docker (Coolify + GHCR)
+
+O build **não roda na VPS**. Fluxo:
+
+1. Push na `main` → `.github/workflows/deploy-image.yml` builda o `Dockerfile` no runner do GitHub
+   e publica `ghcr.io/act962/nasa.ex:latest` (e `:sha-<commit>`).
+2. O último passo chama o webhook de deploy do Coolify, que só faz `pull` e troca o container.
+3. No boot, `docker/entrypoint.sh` roda `prisma migrate deploy` e sobe o servidor. Migration
+   falhou → o container não fica healthy e o Coolify mantém a versão anterior.
+
+**CI de PR:** `.github/workflows/ci.yml` roda o `next build` (com checagem de tipos) direto no runner em todo
+PR; a imagem Docker só é buildada no PR quando ele mexe em `Dockerfile`, `docker/`, dependências,
+`next.config.ts`, Prisma ou workflows. Nos demais casos a imagem é buildada uma vez, no deploy da `main`. Deixe-o como check obrigatório na proteção da branch. O `deploy-image.yml` também
+roda por `workflow_dispatch` em qualquer branch, mas só a `main` recebe a tag `latest`.
+
+### Configuração única
+
+**GitHub → Settings → Secrets and variables → Actions:**
+
+| Secret | Valor |
+| --- | --- |
+| `NEXT_PUBLIC_ENV` | Todas as `NEXT_PUBLIC_*` de produção, uma por linha (`CHAVE=valor`). São embutidas no bundle do browser em tempo de build — mudar uma exige novo build. |
+| `COOLIFY_WEBHOOK` | URL do webhook de deploy do recurso no Coolify (opcional; sem ele o passo é pulado). |
+| `COOLIFY_TOKEN` | Token de API do Coolify (Keys & Tokens) **com permissão `deploy`**. HTTP 403 no passo *Avisar o Coolify* = token sem essa permissão, API desligada (Settings → API Access) ou *Allowed IPs* barrando os runners do GitHub. |
+
+**Coolify:** recurso do tipo *Docker Image* → `ghcr.io/act962/nasa.ex`, tag `latest`, com credencial de
+registry (usuário do GitHub + PAT com `read:packages`). O campo da imagem vai **sem** tag (a tag fica no campo
+próprio; `nasa.ex:latest` + tag `latest` vira `latest:latest` e o pull falha). Healthcheck já está na imagem
+(`/api/health`). As variáveis **de runtime** (`DATABASE_URL`, segredos, etc.) continuam no painel do
+Coolify. Desligue o build por Nixpacks (`.nixpacks.toml` fica só como legado).
+
+- **Porta:** `Ports Exposes` = `3000`, sem variável `PORT`. Cada container tem a própria rede — outro app usar a
+  3000 não conflita. Se definir `PORT`, `Ports Exposes` tem que ser igual (o healthcheck segue o `PORT`).
+- **`DIRECT_URL`:** conexão direta com o Postgres, sem PgBouncer. O `migrate deploy` do boot usa ela quando existe;
+  via PgBouncer (pool por transação) o advisory lock do Prisma expira (`P1002`) e o container reinicia em loop.
+- **Valores com `$`** (ex.: `ASAAS_API_KEY`): o recurso *Docker Image* sobe via `docker compose`, que interpola `$`.
+  Marque a variável como **Is Literal** (ou escreva `$$`); senão ela chega vazia, sem erro.
+
+### Notas
+
+- O repositório é público: se o pacote no GHCR também for público (Package settings → Change visibility),
+  o Coolify puxa sem credencial. A imagem não carrega segredos — só as `NEXT_PUBLIC_*`, que já vão para o browser.
+- "Mantém a versão anterior se a migration falhar" depende do healthcheck estar ativo no recurso do Coolify.
+- Push só de `docs/`, `specs/` ou `.md` não dispara deploy.
+
+- A checagem de tipos roda dentro do `next build` no GitHub, não mais na VPS.
+- O build não precisa de banco: `generateStaticParams` do calendário degrada para `[]`.
+- Rollback: aponte a tag no Coolify para um `sha-<commit>` anterior.
+- **Cache de build** fica na tag `buildcache` do pacote no GHCR (`type=registry`), não no cache do Actions: o
+  upload lá levava 4–6 min por run e o limite de 10 GB do repositório encheu em poucos runs. Só o deploy da
+  `main` grava; o CI dos PRs só lê (reaproveita as dependências instaladas quando o lockfile não mudou).
+  Repositório público: runners padrão não consomem minutos do plano.
+
+---
+
+### 0.1 Checagem de tipos — custo e como manter baixo
+
+A checagem de tipos é a etapa mais pesada do build. Medida em 2026-09-30, antes e depois das correções abaixo
+(`tsc` completo):
+
+| Métrica | Antes | Depois |
+| --- | --- | --- |
+| Memória | 12,8 GB | 6,1 GB |
+| Tipos | 10,1 mi | 1,8 mi |
+| Instanciações | 52 mi | 8,1 mi |
+| Checagem no CI (`next build`) | 4–5 min, estourando 8 GB | 96 s |
+
+Antes, um único arquivo (`create-lead.ts`) respondia por 63 s, e um seed (`prisma/seed-forge-price-catalog.ts`) por 65 s.
+
+**Causa:** o cliente Prisma global e o `tx` de `$transaction` tinham tipos diferentes. `new PrismaClient({ log })`
+inferia `PrismaClient<"error", PrismaClientOptions['omit']>`, enquanto o `tx` é `PrismaClient<never, undefined>`.
+Com o parâmetro de `omit` invariante, cada vez que um encontrava o outro (união `PrismaClient | Prisma.TransactionClient`,
+`Omit<typeof prisma, ...>` feito à mão, passar o global onde se espera o `tx`) o TypeScript comparava os ~300 models
+estruturalmente — e ainda mantinha duas famílias de tipos para cada query.
+
+**Regra:**
+- `src/lib/prisma.ts` fixa os genéricos do cliente global (`new PrismaClient<Prisma.PrismaClientOptions, never, undefined>`).
+  Não remova.
+- `tsconfig.json` exclui `prisma/` e `scripts/`: rodam via `tsx` (que não checa tipos) e não fazem parte do app.
+- Parâmetro que aceita "cliente global ou transação" é `Prisma.TransactionClient` (ou `Pick<Prisma.TransactionClient, ...>`);
+  quem precisa de `$transaction` usa `AppPrismaClient` de `@/lib/prisma`. Nunca o tipo público `PrismaClient`, nunca
+  `Omit`/`Pick`/união com `typeof prisma`. O ESLint (`no-restricted-syntax`) barra esses padrões.
+
+**Medir:** Actions → *Typecheck diagnostics* → Run workflow. O resumo do run traz memória, tempo, instanciações e os
+arquivos/expressões mais caros (`scripts/ci/typecheck-hotspots.cjs`). O deploy da `main` pula a checagem
+(`SKIP_TYPECHECK=1`) porque o CI do PR já é o portão.
+
+---
+
 ## 1. Variáveis de ambiente
 
 Copie `.env.example` → `.env.local` (dev) ou seta no host de produção

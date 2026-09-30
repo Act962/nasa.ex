@@ -1,6 +1,6 @@
 import { DEFAULT_RESCUE_CONFIG } from "@/lib/lead-journey/sla";
 
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 
 /**
  * As réguas dos segmentos de /contatos, em um lugar só.
@@ -89,7 +89,7 @@ const MAX_LOYAL_SCAN = 2000;
  * `strictFunctionTypes` o `findMany` real, que aceita só os args do Prisma,
  * não é atribuível a um que aceita qualquer coisa.
  */
-type LeadFinder = Pick<PrismaClient, "lead">;
+type LeadFinder = Pick<Prisma.TransactionClient, "lead">;
 
 /**
  * "Leal" exige contar mensagens, e `where` do Prisma não compara contagem de

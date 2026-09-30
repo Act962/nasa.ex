@@ -11,7 +11,7 @@
  * sem perder a config. Quem chama: `useMigrateAgentToWorkflow` na UI.
  */
 import { createId } from "@paralleldrive/cuid2";
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { AppPrismaClient } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { NodeType } from "@/generated/prisma/enums";
 import { agentSpecSchema } from "@/features/auto-agent/lib/agent-spec.schema";
@@ -30,7 +30,7 @@ interface ConvertParams {
  * Devolve o `workflowId` criado.
  */
 export async function convertSpecToWorkflow(
-  prisma: PrismaClient,
+  prisma: AppPrismaClient,
   params: ConvertParams,
 ) {
   const spec = agentSpecSchema.parse(params.spec);

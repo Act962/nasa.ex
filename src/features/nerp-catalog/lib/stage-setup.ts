@@ -1,8 +1,9 @@
 import "server-only";
+import type { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { CATALOG_STAGES, type CatalogStageKey } from "./catalog-stages";
 
-type StageSetupClient = Pick<typeof prisma, "status" | "tag">;
+type StageSetupClient = Pick<Prisma.TransactionClient, "status" | "tag">;
 
 /**
  * Garante as 5 colunas e tags de etapa do pedido num tracking (spec 0044, RF-3/RF-4).

@@ -31,13 +31,18 @@ const getFullEvent = cache(async (slug: string) => {
 });
 
 export async function generateStaticParams() {
-  const events = await prisma.action.findMany({
-    where: { isPublic: true, isGuestDraft: false, isArchived: false },
-    select: { publicSlug: true },
-  });
-  return events
-    .filter((e) => !!e.publicSlug)
-    .map((e) => ({ slug: e.publicSlug as string }));
+  // Build roda sem banco (CI): sem slugs pré-gerados, as páginas nascem sob demanda (ISR).
+  try {
+    const events = await prisma.action.findMany({
+      where: { isPublic: true, isGuestDraft: false, isArchived: false },
+      select: { publicSlug: true },
+    });
+    return events
+      .filter((e) => !!e.publicSlug)
+      .map((e) => ({ slug: e.publicSlug as string }));
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({

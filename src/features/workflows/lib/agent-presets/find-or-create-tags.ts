@@ -17,7 +17,7 @@
  * lowercase, sem stopwords curtas).
  */
 import "server-only";
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 
 export interface TagRequest {
   /** Slug sugerido pelo LLM (kebab-case). Pode colidir com existente. */
@@ -37,7 +37,7 @@ export interface FindOrCreateTagsResult {
 }
 
 export async function findOrCreateTags(
-  client: PrismaClient | Prisma.TransactionClient,
+  client: Prisma.TransactionClient,
   organizationId: string,
   requests: TagRequest[],
 ): Promise<FindOrCreateTagsResult> {

@@ -40,6 +40,34 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    // O cliente Prisma tem dois tipos, e só eles:
+    // - `Prisma.TransactionClient` — "cliente global ou transação" (sem `$transaction`);
+    // - `AppPrismaClient` de `@/lib/prisma` — o cliente global, quando precisa de `$transaction`.
+    //
+    // O tipo público `PrismaClient`, uniões com ele e `Omit`/`Pick` de `typeof prisma`
+    // têm genéricos diferentes do `tx`: o TypeScript compara os ~300 models
+    // estruturalmente a cada encontro — um arquivo chegou a 63 s e a checagem
+    // inteira passava de 12 GB. Ver docs/DEPLOYMENT.md §0.1.
+    files: ["src/**/*.ts", "src/**/*.tsx"],
+    ignores: ["src/generated/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "TSTypeReference[typeName.name='PrismaClient']",
+          message:
+            "Use Prisma.TransactionClient, ou AppPrismaClient (@/lib/prisma) se precisar de $transaction.",
+        },
+        {
+          selector:
+            "TSUnionType > TSTypeQuery[exprName.name='prisma'], TSTypeReference[typeName.name=/^(Omit|Pick)$/] > TSTypeParameterInstantiation > TSTypeQuery[exprName.name='prisma']",
+          message:
+            "Use Prisma.TransactionClient (ou Pick<Prisma.TransactionClient, ...>) — derivar de typeof prisma explode a checagem de tipos.",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

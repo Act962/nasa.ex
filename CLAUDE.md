@@ -82,7 +82,7 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 - `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` — Stripe (cliente + webhook compartilhado de cursos/planos/better-auth)
 - `STRIPE_COURSE_WEBHOOK_SECRET` — secret do endpoint dedicado de cursos (`/api/stripe/webhook`)
 - `STRIPE_STARS_WEBHOOK_SECRET` — secret do endpoint dedicado de recarga de Stars (`/api/stars/webhook`). O fluxo de Stars usa o Stripe do sistema (`STRIPE_SECRET_KEY`), não o `PaymentGatewayConfig`.
-- `ASAAS_API_KEY` — chave da API do Asaas, usada no PIX do trafeGO (spec 0022). Ausente = o PIX volta ao fluxo manual (chave estática + comprovante). **⚠️ A chave do Asaas começa com `$`** (ex.: `$aact_hmlg_...`). Em arquivo `.env`, o `dotenv-expand` lê isso como nome de variável, não acha nada e entrega **string vazia** — a integração fica silenciosamente desligada, sem erro nenhum. Escape a cifra: `ASAAS_API_KEY=\$aact_...`. Aspas simples **não** resolvem. Em variável de ambiente de verdade (painel do Coolify) não há expansão e o problema não existe.
+- `ASAAS_API_KEY` — chave da API do Asaas, usada no PIX do trafeGO (spec 0022). Ausente = o PIX volta ao fluxo manual (chave estática + comprovante). **⚠️ A chave do Asaas começa com `$`** (ex.: `$aact_hmlg_...`). Em arquivo `.env`, o `dotenv-expand` lê isso como nome de variável, não acha nada e entrega **string vazia** — a integração fica silenciosamente desligada, sem erro nenhum. Escape a cifra: `ASAAS_API_KEY=\$aact_...`. Aspas simples **não** resolvem. No Coolify, recurso *Docker Image* (sobe via `docker compose`) **também interpola** `$`: marque a variável como **Is Literal** (ou use `$$`).
 - `ASAAS_ENV` — `sandbox` (padrão) ou `production`. O padrão é sandbox de propósito: errar para esse lado não move dinheiro.
 - `ASAAS_WEBHOOK_TOKEN` — valor do header `asaas-access-token`, conferido pelo webhook `/api/trafego/asaas/webhook`. Aleatório, 32+ caracteres, **nunca** a chave de API. Ausente = o webhook recusa todos os eventos (fail-closed, porque credita dinheiro).
 - `ASAAS_WEBHOOK_PUBLIC_ORIGIN` — opcional. Origem pública usada no webhook do Asaas do Catálogo online (`buildAsaasWebhookUrl`), lida em tempo de execução. Serve para testar PIX real em localhost via túnel (ngrok) sem trocar `NEXT_PUBLIC_APP_URL`. Ausente = usa `NEXT_PUBLIC_APP_URL`.
@@ -244,6 +244,8 @@ src/features/<dominio>/
     c. **Ao mover, renomear ou remover** um componente com `data-guide`, rode `pnpm guides:check` — ele falha se algum guia ficou apontando para âncora que não existe mais.
 
     d. **Ação que termina um guia** (salvar lead, criar tracking) chama `emitTourResult({ href })` de `@/features/tour/store` no `onSuccess`, para o guia entregar o link no fim.
+
+22. **Tipo do cliente Prisma em parâmetros (OBRIGATÓRIO)** — função que aceita "cliente global ou transação" recebe `Prisma.TransactionClient` (ou `Pick<Prisma.TransactionClient, ...>`); se precisa de `$transaction`, recebe `AppPrismaClient` de `@/lib/prisma`. **Proibido**: o tipo público `PrismaClient` em anotações, união com o cliente, `Omit`/`Pick` de `typeof prisma`. Esses padrões fazem o TypeScript comparar os ~300 models estruturalmente — um único arquivo custava 63 s e a checagem de tipos passava de 12 GB, derrubando o build. O ESLint barra; os genéricos fixos em `src/lib/prisma.ts` não podem ser removidos. Ver [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) §0.1.
 
 ## Obsidian
 

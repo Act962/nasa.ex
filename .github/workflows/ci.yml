@@ -1,0 +1,125 @@
+name: CI
+
+# Portão de PR. O `next build` roda direto no runner (tipos, coleta de páginas, bundling),
+# sem Docker. A imagem só é buildada aqui quando o PR mexe no que pode quebrá-la sem quebrar
+# o `next build` (Dockerfile, dependências, next.config, Prisma); nos demais casos ela é
+# buildada uma vez só, no deploy da main (deploy-image.yml).
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  packages: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      affects-image: ${{ steps.detect.outputs.affects-image }}
+    steps:
+      - id: detect
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          changed_files=$(gh api --paginate \
+            "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+            -q '.[].filename')
+          image_pattern='^(Dockerfile|\.dockerignore|docker/|package\.json|pnpm-lock\.yaml|next\.config\.ts|prisma\.config\.ts|prisma/schema\.prisma|prisma/migrations/|\.github/workflows/(ci|deploy-image)\.yml|scripts/ci/)'
+          if printf '%s\n' "$changed_files" | grep -qE "$image_pattern"; then
+            echo "affects-image=true" >> "$GITHUB_OUTPUT"
+            echo "PR mexe em arquivos da imagem — o job docker-image vai rodar."
+          else
+            echo "affects-image=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  next-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Conferir NEXT_PUBLIC_ENV
+        env:
+          PUBLIC_ENV: ${{ secrets.NEXT_PUBLIC_ENV }}
+          PUBLIC_ENV_FILE: .env.production
+        run: bash scripts/ci/check-public-env.sh
+
+      # Folga de memória para o `next build` (a checagem de tipos usa ~6 GB).
+      - name: Ampliar swap
+        run: |
+          sudo swapoff -a
+          sudo fallocate -l 10G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Cache de compilação do Turbopack entre execuções do mesmo PR.
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-cache-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            next-cache-${{ hashFiles('pnpm-lock.yaml') }}-
+
+      - run: pnpm exec prisma generate
+        env:
+          DATABASE_URL: postgresql://build:build@localhost:5432/build
+
+      - run: pnpm exec next build
+        env:
+          NODE_OPTIONS: --max-old-space-size=12288
+          NEXT_TELEMETRY_DISABLED: "1"
+          BETTER_AUTH_SECRET: build-only-placeholder-never-used-at-runtime
+
+  docker-image:
+    needs: changes
+    if: needs.changes.outputs.affects-image == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Conferir NEXT_PUBLIC_ENV
+        env:
+          PUBLIC_ENV: ${{ secrets.NEXT_PUBLIC_ENV }}
+          PUBLIC_ENV_FILE: ${{ runner.temp }}/public.env
+        run: bash scripts/ci/check-public-env.sh
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Lê o cache de build que o deploy da main grava no GHCR (dependências já instaladas).
+      # Não grava: a camada do build muda a cada commit e exportá-la custava ~4 min por run.
+      - uses: docker/login-action@v3
+        continue-on-error: true
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Referência do cache
+        run: echo "CACHE_REF=ghcr.io/${GITHUB_REPOSITORY,,}:buildcache" >> "$GITHUB_ENV"
+
+      # A checagem de tipos já roda no job next-build.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=registry,ref=${{ env.CACHE_REF }}
+          build-args: |
+            SKIP_TYPECHECK=1
+          secret-files: |
+            public_env=${{ runner.temp }}/public.env

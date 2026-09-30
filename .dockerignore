@@ -1,0 +1,21 @@
+**/node_modules
+.next
+out
+coverage
+src/generated
+
+# Segredos e ambiente local — no deploy as variáveis vêm do Coolify.
+.env*
+
+.git
+.github
+.claude
+.agents
+docs
+specs
+docker
+!docker/entrypoint.sh
+*.log
+Dockerfile
+.dockerignore
+.nixpacks.toml
