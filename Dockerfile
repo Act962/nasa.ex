@@ -48,7 +48,8 @@ COPY . .
 RUN --mount=type=secret,id=public_env,target=/app/.env.production,required=false \
 	DATABASE_URL="postgresql://build:build@localhost:5432/build" pnpm exec prisma generate \
 	&& (pnpm exec tsx scripts/legal/sync-orbita-legal.ts || true) \
-	&& SKIP_TYPECHECK=${SKIP_TYPECHECK} NODE_OPTIONS=--max-old-space-size=${BUILD_HEAP_MB} pnpm exec next build \n	&& rm -rf .next/cache
+	&& SKIP_TYPECHECK=${SKIP_TYPECHECK} NODE_OPTIONS=--max-old-space-size=${BUILD_HEAP_MB} pnpm exec next build \
+	&& rm -rf .next/cache
 
 # ─── runner ──────────────────────────────────────────────────────────────────
 FROM node:${NODE_VERSION}-bookworm-slim AS runner
