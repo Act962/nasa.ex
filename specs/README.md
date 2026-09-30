@@ -198,6 +198,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0038](tracking-chat/0038-gatilho-do-lead.md) | tracking-chat | Gatilho do lead — mensagem agendada com período de ativação | implementada |
 | [0039](workflows/0039-construtor-rapido-de-gatilhos.md) | workflows | Construtor rápido de Gatilhos Automáticos (passo a passo, por frase e por lead) | implementada |
 | [0040](campanhas/0040-disparo-em-massa-self-service.md) | campanhas | Disparo em Massa self-service — número oficial, custos, taxa e subida de volume | em-revisao |
+| [0046](astro/0046-astro-guia-na-tela.md) | astro | Astro Guia — passo a passo na tela real, com seta e balão | implementada |
 
 ---
 

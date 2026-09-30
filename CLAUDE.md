@@ -235,7 +235,17 @@ src/features/<dominio>/
 
 20. **Deriva conhecida entre este arquivo e o código** — auditoria de 2026-08-18 encontrou divergências ainda não corrigidas. Enquanto não forem, **confie no código, não neste documento**, nestes pontos: procedures oRPC estão em `src/app/router/` (não em `src/server/`, que não existe); a Regra 9 tem 518 violações; a Regra 5 convive com Jotai além de Zustand; a Regra 17 é **inexequível** (não há runner de teste instalado); `.claude/settings.json` não existe (o hook `PreToolUse` descrito no Git Workflow não está ativo); `.env.example` e `prisma/migrations/MANUAL_*.sql` referenciados em `docs/DEPLOYMENT.md` não existem — `scripts/apply-prod-migrations.sh` quebra por causa disso. Lista completa em [`docs/arquitetura-evolucao-overview.md`](docs/arquitetura-evolucao-overview.md) §3.5. Corrigir a deriva é item da Fase 0.
 
-21. **Tipo do cliente Prisma em parâmetros (OBRIGATÓRIO)** — função que aceita "cliente global ou transação" recebe `Prisma.TransactionClient` (ou `Pick<Prisma.TransactionClient, ...>`). **Proibido**: união `PrismaClient | Prisma.TransactionClient`, `Omit<typeof prisma, ...>`, `Pick<PrismaClient, ...>`. Esses padrões fazem o TypeScript comparar os ~300 models estruturalmente — um único arquivo custava 63 s e a checagem de tipos passava de 12 GB, derrubando o build. O ESLint barra; os genéricos fixos em `src/lib/prisma.ts` não podem ser removidos. Ver [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) §0.1.
+21. **Guias do Astro na tela (OBRIGATÓRIO)** — o Astro ensina a usar a plataforma destacando botões e campos reais (spec [0046](specs/astro/0046-astro-guia-na-tela.md)), em vez de prints que envelhecem. Para isso continuar funcionando sozinho:
+
+    a. **Botão ou campo relevante de tela nova** ganha âncora: registre em `GUIDE_ANCHORS` (`src/features/astro-guides/lib/anchors.ts`) com uma descrição curta e use `data-guide={GUIDE_ANCHORS.<chave>.id}` no componente.
+
+    b. **Funcionalidade nova** ganha guia em `ASTRO_GUIDES` (`src/features/astro-guides/lib/registry.ts`): passos apontando para as âncoras, `topicPattern` com o assunto do pedido e, se houver artigo no Space Help, `spaceHelp` para o botão "Me mostre na tela" aparecer nele.
+
+    c. **Ao mover, renomear ou remover** um componente com `data-guide`, rode `pnpm guides:check` — ele falha se algum guia ficou apontando para âncora que não existe mais.
+
+    d. **Ação que termina um guia** (salvar lead, criar tracking) chama `emitTourResult({ href })` de `@/features/tour/store` no `onSuccess`, para o guia entregar o link no fim.
+
+22. **Tipo do cliente Prisma em parâmetros (OBRIGATÓRIO)** — função que aceita "cliente global ou transação" recebe `Prisma.TransactionClient` (ou `Pick<Prisma.TransactionClient, ...>`). **Proibido**: união `PrismaClient | Prisma.TransactionClient`, `Omit<typeof prisma, ...>`, `Pick<PrismaClient, ...>`. Esses padrões fazem o TypeScript comparar os ~300 models estruturalmente — um único arquivo custava 63 s e a checagem de tipos passava de 12 GB, derrubando o build. O ESLint barra; os genéricos fixos em `src/lib/prisma.ts` não podem ser removidos. Ver [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) §0.1.
 
 ## Obsidian
 

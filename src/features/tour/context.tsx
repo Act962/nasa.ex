@@ -1,64 +1,22 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState } from "react";
+import { useTourStore } from "./store";
 
-export interface TourStep {
-  id:       string;
-  selector: string;           // CSS selector → target element
-  title:    string;
-  message:  string;
-  position: "top" | "bottom" | "left" | "right";
-  padding?: number;           // extra space around the spotlight (px)
-  pulse?:   boolean;          // add pulsing ring to the target
-}
+export type { TourStep } from "./types";
 
-interface TourCtx {
-  isActive:  boolean;
-  stepIndex: number;
-  steps:     TourStep[];
-  startTour: (steps: TourStep[]) => void;
-  nextStep:  () => void;
-  prevStep:  () => void;
-  endTour:   () => void;
-}
-
-const TourContext = createContext<TourCtx>({
-  isActive: false, stepIndex: 0, steps: [],
-  startTour: () => {}, nextStep: () => {}, prevStep: () => {}, endTour: () => {},
-});
-
-export const useTour = () => useContext(TourContext);
-
+// O estado mora na store Zustand (spec 0046); o provider ficou só para não
+// quebrar quem ainda o monta.
 export function TourProvider({ children }: { children: React.ReactNode }) {
-  const [steps, setSteps]         = useState<TourStep[]>([]);
-  const [stepIndex, setStepIndex] = useState(0);
-  const [isActive, setIsActive]   = useState(false);
+  return <>{children}</>;
+}
 
-  const startTour = useCallback((s: TourStep[]) => {
-    setSteps(s);
-    setStepIndex(0);
-    setIsActive(true);
-  }, []);
-
-  const nextStep = useCallback(() => {
-    setStepIndex((i) => {
-      if (i + 1 >= steps.length) { setIsActive(false); return 0; }
-      return i + 1;
-    });
-  }, [steps.length]);
-
-  const prevStep = useCallback(() => {
-    setStepIndex((i) => Math.max(0, i - 1));
-  }, []);
-
-  const endTour = useCallback(() => {
-    setIsActive(false);
-    setStepIndex(0);
-  }, []);
-
-  return (
-    <TourContext.Provider value={{ isActive, stepIndex, steps, startTour, nextStep, prevStep, endTour }}>
-      {children}
-    </TourContext.Provider>
-  );
+export function useTour() {
+  const isActive = useTourStore((state) => state.isActive);
+  const stepIndex = useTourStore((state) => state.stepIndex);
+  const steps = useTourStore((state) => state.steps);
+  const startTour = useTourStore((state) => state.startTour);
+  const nextStep = useTourStore((state) => state.nextStep);
+  const prevStep = useTourStore((state) => state.prevStep);
+  const endTour = useTourStore((state) => state.endTour);
+  return { isActive, stepIndex, steps, startTour, nextStep, prevStep, endTour };
 }

@@ -11,6 +11,8 @@ import { isAstroTablePayload } from "@/features/astro/lib/astro-table";
 import { AstroDataTable } from "@/features/astro/components/astro-data-table";
 import { isAstroVideosPayload } from "@/features/astro/lib/astro-video";
 import { AstroVideoCardList } from "@/features/astro/components/astro-video-card";
+import { isAstroGuidePayload } from "@/features/astro/lib/astro-guide";
+import { AstroGuideCard } from "@/features/astro/components/astro-guide-card";
 import { isAstroChartPayload } from "@/features/astro/lib/astro-chart";
 import { AstroChartCard } from "@/features/astro/components/astro-chart-card";
 import { isAstroTagSuggestionsPayload } from "@/features/astro/lib/astro-tag-suggestions";
@@ -167,6 +169,16 @@ export function AstroMessage({
                 className="w-full max-w-[95%] sm:max-w-[85%]"
               >
                 <AstroVideoCardList payload={output} />
+              </div>
+            );
+          }
+          if (isAstroGuidePayload(output)) {
+            return (
+              <div
+                key={idx}
+                className="self-stretch w-full max-w-[95%] sm:max-w-[85%]"
+              >
+                <AstroGuideCard payload={output} />
               </div>
             );
           }

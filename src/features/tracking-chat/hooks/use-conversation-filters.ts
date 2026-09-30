@@ -33,6 +33,13 @@ export function useConversationFilters() {
   const [statusFlowQuery, setStatusFlowQuery] = useQueryState("status_flow");
   const [sortByQuery, setSortByQuery] = useQueryState("sort");
   const [sortDirectionQuery, setSortDirectionQuery] = useQueryState("sort_dir");
+  const [favoritesQuery, setFavoritesQuery] = useQueryState("favorites");
+  const favoritesOnly = favoritesQuery === "1";
+
+  const setFavoritesOnly = useCallback(
+    (value: boolean) => setFavoritesQuery(value ? "1" : null),
+    [setFavoritesQuery],
+  );
 
   const statusFlows = useMemo(
     () => parseCsvOptions(statusFlowQuery, CONVERSATION_STATUS_FLOWS),
@@ -94,6 +101,7 @@ export function useConversationFilters() {
     (participantQuery ? 1 : 0) +
     (temperatures.length > 0 ? 1 : 0) +
     (statusFlows.length > 0 ? 1 : 0) +
+    (favoritesOnly ? 1 : 0) +
     (isSortDefault ? 0 : 1);
 
   const clearAll = useCallback(() => {
@@ -102,12 +110,14 @@ export function useConversationFilters() {
     setStatusFlowQuery(null);
     setSortByQuery(null);
     setSortDirectionQuery(null);
+    setFavoritesQuery(null);
   }, [
     setParticipantQuery,
     setTemperatureQuery,
     setStatusFlowQuery,
     setSortByQuery,
     setSortDirectionQuery,
+    setFavoritesQuery,
   ]);
 
   return {
@@ -118,6 +128,8 @@ export function useConversationFilters() {
     sortDirection,
     setSortBy,
     setSortDirection,
+    favoritesOnly,
+    setFavoritesOnly,
     toggleStatusFlow,
     activeCount,
     clearAll,

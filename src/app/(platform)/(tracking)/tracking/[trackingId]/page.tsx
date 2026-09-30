@@ -1,6 +1,7 @@
 import { FiltersTracking } from "@/features/trackings/components/filters";
 import { BoardContainer } from "@/features/trackings/components/board-container";
 import { KanbanCanvas } from "@/features/trackings/components/kanban-canvas";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 type TrackingPageProps = {
   params: Promise<{ trackingId: string }>;
@@ -17,7 +18,10 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
     // do kanban (ou o do tema, se nada foi configurado).
     <KanbanCanvas trackingId={trackingId}>
       <FiltersTracking />
-      <div className="relative flex-1 min-h-0 overflow-x-auto scroll-cols-tracking">
+      <div
+        data-guide={GUIDE_ANCHORS.boardColumns.id}
+        className="relative flex-1 min-h-0 overflow-x-auto scroll-cols-tracking"
+      >
         <BoardContainer trackingId={trackingId} />
       </div>
     </KanbanCanvas>

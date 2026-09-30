@@ -13,6 +13,7 @@ import { buildProposalTools } from "@/features/astro/server/tools/_shared/propos
 import { listAppToolPacks } from "@/features/astro/server/tools/app-packs";
 import { buildTrafegoAstroTools } from "@/features/trafego/server/lib/astro-tools";
 import { buildActionRegistryTools } from "@/features/astro/actions/to-tools";
+import { buildGuideTools } from "@/features/astro/server/tools/guides";
 
 /**
  * Escopos de tools do orquestrador (spec 0014, D-1):
@@ -85,6 +86,7 @@ export function resolveToolSetForScope(scope: AstroToolScope, ctx: AgentContext)
       // Registro único de ações (spec 0023). É o que dá ao orquestrador as
       // escritas que antes só o executor por regex sabia fazer.
       ...buildActionRegistryTools(ctx),
+      ...buildGuideTools(),
     },
     packPrompts,
     allowsRouting: true,

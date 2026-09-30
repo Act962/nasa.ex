@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { SidebarInset } from "@/components/ui/sidebar";
 import { NasaCommandCenter } from "@/features/nasa-command/components/nasa-command-center";
-import { SIDEBAR_NAV_ITEMS } from "@/features/apps/lib/sidebar-items";
+import { resolveHomeAppUrl as resolveAppLinkHomeUrl } from "@/features/apps/lib/app-signup-link";
 import { HOME_APP_PREFIX } from "@/app/router/sidebar-prefs";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -25,9 +25,8 @@ async function resolveHomeAppUrl(): Promise<string | null> {
   });
   if (!preference) return null;
 
-  const appKey = preference.itemKey.slice(HOME_APP_PREFIX.length);
-  const navItem = SIDEBAR_NAV_ITEMS.find((item) => item.key === appKey);
-  return navItem && navItem.url !== "/home" ? navItem.url : null;
+  // Item do menu ou app fora do menu (Astro, Astro Chat, Comments, NERP).
+  return resolveAppLinkHomeUrl(preference.itemKey.slice(HOME_APP_PREFIX.length));
 }
 
 export default async function PlatformHomePage({

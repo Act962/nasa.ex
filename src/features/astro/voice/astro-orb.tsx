@@ -242,6 +242,7 @@ export function AstroOrb() {
           }}
           title={orbTitle}
           aria-label={orbTitle}
+          data-tour="astro-button"
           aria-expanded={isOnHome ? menuOpen : isWidgetOpen}
           className={cn(
             "pointer-events-auto relative size-12 rounded-full flex items-center justify-center shadow-xl transition-all duration-500 hover:scale-105 active:scale-95 cursor-grab select-none",
