@@ -4,9 +4,6 @@ name: Typecheck diagnostics
 # Rodar à mão quando o CI ficar lento ou perto do limite de memória. Ver docs/DEPLOYMENT.md §0.1.
 on:
   workflow_dispatch:
-  push:
-    branches: [claude/deploy-build-optimization-ac90aa]
-    paths: [".github/workflows/typecheck-diagnostics.yml", "scripts/ci/typecheck-hotspots.cjs"]
 
 permissions:
   contents: read

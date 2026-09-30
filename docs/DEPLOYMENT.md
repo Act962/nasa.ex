@@ -49,9 +49,17 @@ Coolify. Desligue o build por Nixpacks (`.nixpacks.toml` fica só como legado).
 
 ### 0.1 Checagem de tipos — custo e como manter baixo
 
-A checagem de tipos é a etapa mais pesada do build. Medida em 2026-09-30 (antes da correção abaixo):
-12,8 GB de memória, 236 s de checagem, 52 milhões de instanciações de tipo — e um único arquivo
-(`create-lead.ts`) respondendo por 63 s.
+A checagem de tipos é a etapa mais pesada do build. Medida em 2026-09-30, antes e depois das correções abaixo
+(`tsc` completo):
+
+| Métrica | Antes | Depois |
+| --- | --- | --- |
+| Memória | 12,8 GB | 6,1 GB |
+| Tipos | 10,1 mi | 1,8 mi |
+| Instanciações | 52 mi | 8,1 mi |
+| Checagem no CI (`next build`) | 4–5 min, estourando 8 GB | 96 s |
+
+Antes, um único arquivo (`create-lead.ts`) respondia por 63 s, e um seed (`prisma/seed-forge-price-catalog.ts`) por 65 s.
 
 **Causa:** o cliente Prisma global e o `tx` de `$transaction` tinham tipos diferentes. `new PrismaClient({ log })`
 inferia `PrismaClient<"error", PrismaClientOptions['omit']>`, enquanto o `tx` é `PrismaClient<never, undefined>`.
@@ -62,9 +70,10 @@ estruturalmente — e ainda mantinha duas famílias de tipos para cada query.
 **Regra:**
 - `src/lib/prisma.ts` fixa os genéricos do cliente global (`new PrismaClient<Prisma.PrismaClientOptions, never, undefined>`).
   Não remova.
-- Parâmetro que aceita "cliente global ou transação" é `Prisma.TransactionClient` (ou `Pick<Prisma.TransactionClient, ...>`).
-  Nunca união com `PrismaClient`, nunca `Omit`/`Pick` de `typeof prisma`/`PrismaClient`. O ESLint (`no-restricted-syntax`)
-  barra os dois padrões.
+- `tsconfig.json` exclui `prisma/` e `scripts/`: rodam via `tsx` (que não checa tipos) e não fazem parte do app.
+- Parâmetro que aceita "cliente global ou transação" é `Prisma.TransactionClient` (ou `Pick<Prisma.TransactionClient, ...>`);
+  quem precisa de `$transaction` usa `AppPrismaClient` de `@/lib/prisma`. Nunca o tipo público `PrismaClient`, nunca
+  `Omit`/`Pick`/união com `typeof prisma`. O ESLint (`no-restricted-syntax`) barra esses padrões.
 
 **Medir:** Actions → *Typecheck diagnostics* → Run workflow. O resumo do run traz memória, tempo, instanciações e os
 arquivos/expressões mais caros (`scripts/ci/typecheck-hotspots.cjs`). O deploy da `main` pula a checagem
