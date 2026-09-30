@@ -3,11 +3,17 @@ import { ORPCError } from "@orpc/server";
 import prisma from "@/lib/prisma";
 import { getMessageTemplates } from "@/http/whats-oficial";
 import { resolveCampaignMetaCredentials } from "./broadcast-access";
+import { broadcastTemplateMappingSchema } from "../../schema/broadcast-schemas";
+import {
+  countTemplatePlaceholders,
+  findTemplateMappingProblems,
+} from "../../lib/template-variables";
 
 /**
  * Valida que uma campanha está pronta pra ir ao envio: está em rascunho (ou
  * já agendada, permitindo reagendar/disparar agora), tem template escolhido,
- * destinatários pendentes e o template está APROVADO na Meta. Lança
+ * destinatários pendentes, o template está APROVADO na Meta e toda variável
+ * `{{n}}` do corpo tem valor configurado (spec 0052). Lança
  * `ORPCError BAD_REQUEST` em cada falha; retorna a contagem de pendentes.
  * Compartilhado por `send` (disparo imediato) e `schedule` (agendamento).
  */
@@ -18,6 +24,7 @@ interface SendableBroadcast {
   readonly templateName: string | null;
   readonly templateLanguage: string | null;
   readonly templateCategory: string | null;
+  readonly templateVariables: unknown;
 }
 
 export async function assertBroadcastSendable(
@@ -67,6 +74,20 @@ export async function assertBroadcastSendable(
       message:
         "O template selecionado não está aprovado pela Meta. Aguarde a aprovação ou escolha outro.",
     });
+  }
+
+  const bodyText = approved.components.find(
+    (component) => component.type === "BODY",
+  )?.text;
+  const mapping = broadcastTemplateMappingSchema.safeParse(
+    broadcast.templateVariables ?? {},
+  );
+  const mappingProblems = findTemplateMappingProblems(
+    mapping.success ? mapping.data.body : [],
+    countTemplatePlaceholders(bodyText),
+  );
+  if (mappingProblems.length > 0) {
+    throw new ORPCError("BAD_REQUEST", { message: mappingProblems[0] });
   }
 
   return pendingCount;

@@ -66,50 +66,69 @@ export function resolveTemplateParams(
   return params.map((param) => resolveParam(param, recipient));
 }
 
+export interface BroadcastSendResult {
+  readonly wamid: string;
+  /** Número canônico devolvido pela Meta — o mesmo que chega no webhook de resposta. */
+  readonly waId: string;
+  readonly headerParameters: string[];
+  readonly bodyParameters: string[];
+}
+
+function assertParamsFilled(parameters: string[], section: string): void {
+  const emptyIndex = parameters.findIndex((value) => value.trim() === "");
+  if (emptyIndex === -1) return;
+  throw new Error(
+    `A variável {{${emptyIndex + 1}}} do ${section} ficou vazia para este contato.`,
+  );
+}
+
 /**
- * Envia o template do broadcast pra um destinatário. Retorna o `wamid`; lança
- * se a Meta não devolver id (o chamador marca o recipient como FAILED).
+ * Envia o template do broadcast pra um destinatário. Lança se alguma variável
+ * resolver vazia (a Meta rejeitaria ou entregaria a frase quebrada) ou se a
+ * Meta não devolver id — o chamador marca o recipient como FAILED.
  */
 export async function sendBroadcastMessage(
   credentials: BroadcastSenderCredentials,
   config: BroadcastSendConfig,
   recipient: BroadcastSenderRecipient,
-): Promise<string> {
+): Promise<BroadcastSendResult> {
   const headerParameters = resolveTemplateParams(config.mapping.header, recipient);
   const bodyParameters = resolveTemplateParams(config.mapping.body, recipient);
+  assertParamsFilled(headerParameters, "cabeçalho");
+  assertParamsFilled(bodyParameters, "corpo");
 
   // Rede de segurança: garante o 9º dígito BR mesmo em destinatários gravados
   // antes da normalização no atrelar (idempotente).
   const to = toWhatsAppBrazilPhone(recipient.phone);
+  const message = {
+    to,
+    templateName: config.templateName,
+    languageCode: config.languageCode,
+    headerParameters: headerParameters.length ? headerParameters : undefined,
+    bodyParameters: bodyParameters.length ? bodyParameters : undefined,
+  };
 
   const response =
     config.category === "MARKETING"
       ? await sendMarketingMessage(
           credentials.accessToken,
           credentials.phoneNumberId,
-          {
-            to,
-            templateName: config.templateName,
-            languageCode: config.languageCode,
-            headerParameters: headerParameters.length ? headerParameters : undefined,
-            bodyParameters: bodyParameters.length ? bodyParameters : undefined,
-          },
+          message,
         )
       : await sendOfficialTemplate(
           credentials.accessToken,
           credentials.phoneNumberId,
-          {
-            to,
-            templateName: config.templateName,
-            languageCode: config.languageCode,
-            headerParameters: headerParameters.length ? headerParameters : undefined,
-            bodyParameters: bodyParameters.length ? bodyParameters : undefined,
-          },
+          message,
         );
 
   const wamid = response.messages?.[0]?.id;
   if (!wamid) {
     throw new Error("Meta não retornou o id da mensagem (wamid).");
   }
-  return wamid;
+  return {
+    wamid,
+    waId: response.contacts?.[0]?.wa_id || to,
+    headerParameters,
+    bodyParameters,
+  };
 }
