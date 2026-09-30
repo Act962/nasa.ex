@@ -15,8 +15,9 @@ O build **não roda na VPS**. Fluxo:
 3. No boot, `docker/entrypoint.sh` roda `prisma migrate deploy` e sobe o servidor. Migration
    falhou → o container não fica healthy e o Coolify mantém a versão anterior.
 
-**CI de PR:** `.github/workflows/ci.yml` roda o mesmo build (com checagem de tipos) em todo PR para a
-`main`, sem publicar. Deixe-o como check obrigatório na proteção da branch. O `deploy-image.yml` também
+**CI de PR:** `.github/workflows/ci.yml` roda o `next build` (com checagem de tipos) direto no runner em todo
+PR; a imagem Docker só é buildada no PR quando ele mexe em `Dockerfile`, `docker/`, dependências,
+`next.config.ts`, Prisma ou workflows. Nos demais casos a imagem é buildada uma vez, no deploy da `main`. Deixe-o como check obrigatório na proteção da branch. O `deploy-image.yml` também
 roda por `workflow_dispatch` em qualquer branch, mas só a `main` recebe a tag `latest`.
 
 ### Configuração única
@@ -27,7 +28,7 @@ roda por `workflow_dispatch` em qualquer branch, mas só a `main` recebe a tag `
 | --- | --- |
 | `NEXT_PUBLIC_ENV` | Todas as `NEXT_PUBLIC_*` de produção, uma por linha (`CHAVE=valor`). São embutidas no bundle do browser em tempo de build — mudar uma exige novo build. |
 | `COOLIFY_WEBHOOK` | URL do webhook de deploy do recurso no Coolify (opcional; sem ele o passo é pulado). |
-| `COOLIFY_TOKEN` | Token de API do Coolify (Keys & Tokens). |
+| `COOLIFY_TOKEN` | Token de API do Coolify (Keys & Tokens) **com permissão `deploy`**. HTTP 403 no passo *Avisar o Coolify* = token sem essa permissão, API desligada (Settings → API Access) ou *Allowed IPs* barrando os runners do GitHub. |
 
 **Coolify:** recurso do tipo *Docker Image* → `ghcr.io/act962/nasa.ex`, tag `latest`, com credencial de
 registry (usuário do GitHub + PAT com `read:packages`). O campo da imagem vai **sem** tag (a tag fica no campo
@@ -52,6 +53,10 @@ Coolify. Desligue o build por Nixpacks (`.nixpacks.toml` fica só como legado).
 - A checagem de tipos roda dentro do `next build` no GitHub, não mais na VPS.
 - O build não precisa de banco: `generateStaticParams` do calendário degrada para `[]`.
 - Rollback: aponte a tag no Coolify para um `sha-<commit>` anterior.
+- **Cache de build** fica na tag `buildcache` do pacote no GHCR (`type=registry`), não no cache do Actions: o
+  upload lá levava 4–6 min por run e o limite de 10 GB do repositório encheu em poucos runs. Só o deploy da
+  `main` grava; o CI dos PRs só lê (reaproveita as dependências instaladas quando o lockfile não mudou).
+  Repositório público: runners padrão não consomem minutos do plano.
 
 ---
 

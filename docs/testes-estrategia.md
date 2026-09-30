@@ -5,7 +5,8 @@
 > **Regra de manutenção:** ao adicionar um tipo de teste, mudar a configuração do runner, alterar o
 > pipeline ou promover/remover um quality gate, **atualize este arquivo na mesma sessão**.
 
-**Estado atual:** 0 testes, 0 frameworks de teste, 0 pipelines de CI. Confirmado por quatro
+**Estado atual:** 0 testes, 0 frameworks de teste. **CI existe desde 2026-09-30** (§8.0) — só build e
+checagem de tipos, ainda sem testes. Na auditoria original: Confirmado por quatro
 verificações independentes (arquivos `*.test.*`/`*.spec.*`, diretórios `__tests__`/`e2e`/`cypress`,
 configs de runner, dependências do `package.json`). Não existe `.github/`, `.husky/`, nem hook em
 `.git/hooks/`. 375 PRs foram revisados só por humano.
@@ -201,6 +202,22 @@ tudo. Vira gate na Fase 3, e só em `src/modules/**`.
 
 ## 8. CI — GitHub Actions
 
+### 8.0 Implementado (2026-09-30)
+
+| Workflow | Quando | O que faz |
+| --- | --- | --- |
+| `ci.yml` → `next-build` | todo PR | `pnpm install` (cache do store) + `prisma generate` + `next build` direto no runner: checagem de tipos, coleta de páginas, bundling. `.next/cache` por PR via `actions/cache`. |
+| `ci.yml` → `docker-image` | PR que mexe em `Dockerfile`, `docker/`, dependências, `next.config.ts`, Prisma, workflows | Builda a imagem (sem push, sem checagem de tipos) lendo o cache `buildcache` do GHCR. |
+| `deploy-image.yml` | push na `main` | Builda a imagem (sem checagem de tipos — o PR é o portão), publica no GHCR, grava o cache `buildcache`, avisa o Coolify. |
+| `typecheck-diagnostics.yml` | manual | Mede memória/tempo/instanciações do `tsc` e lista os arquivos mais caros. |
+
+Portão de merge hoje: `next-build` verde (e `docker-image` quando roda). `tsc` sozinho **não** basta — no
+mesmo dia três erros passaram nele e só o `next build` pegou (cliente criado no import sem variável de
+ambiente, Pusher sem cluster, Dockerfile). Detalhes de deploy em `DEPLOYMENT.md` §0.
+
+A §8.1 abaixo segue como alvo (lint, testes, arquitetura).
+
+
 ### 8.1 Pipeline de Pull Request (alvo: < 10 min)
 
 ```yaml
@@ -242,8 +259,9 @@ Tudo do PR, mais:
 - Publicação de cobertura
 - Deploy
 
-⚠️ **A reavaliar:** `pnpm build` roda `prisma migrate deploy` no build. Migration no build é frágil —
-build sem banco falha e rollback fica ambíguo. Decisão própria, fora do escopo da auditoria.
+✅ **Resolvido (2026-09-30):** na imagem Docker o `migrate deploy` saiu do build e roda no boot do
+container (`docker/entrypoint.sh`, conexão direta via `DIRECT_URL`). O script `pnpm build` ainda migra —
+só o Nixpacks legado o usa.
 
 ### 8.3 Prettier — adotar por módulo, não de uma vez
 

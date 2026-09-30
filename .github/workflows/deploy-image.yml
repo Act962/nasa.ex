@@ -34,7 +34,7 @@ jobs:
           PUBLIC_ENV_FILE: ${{ runner.temp }}/public.env
         run: bash scripts/ci/check-public-env.sh
 
-      # A checagem de tipos passa de 8 GB de heap; swap extra dá folga ao runner de 16 GB.
+      # Folga de memória para o `next build` (a checagem de tipos usa ~6 GB).
       - name: Ampliar swap
         run: |
           sudo swapoff -a
@@ -52,6 +52,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Cache de build numa tag do próprio pacote no GHCR: upload rápido e fora do limite de
+      # 10 GB do cache do Actions. Só a main grava; o CI dos PRs só lê.
+      - name: Referência do cache
+        run: echo "CACHE_REF=ghcr.io/${GITHUB_REPOSITORY,,}:buildcache" >> "$GITHUB_ENV"
+
       - id: meta
         uses: docker/metadata-action@v5
         with:
@@ -66,8 +71,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.CACHE_REF }}
+          cache-to: type=registry,ref=${{ env.CACHE_REF }},mode=max,ignore-error=true
           # A checagem de tipos já é o portão do PR (ci.yml); repetir aqui só atrasa o deploy.
           build-args: |
             BUILD_HEAP_MB=12288
@@ -78,6 +83,15 @@ jobs:
       - name: Avisar o Coolify
         run: |
           if [ -z "${COOLIFY_WEBHOOK}" ]; then echo "COOLIFY_WEBHOOK ausente, pulando"; exit 0; fi
-          curl --fail --silent --show-error \
+          # Mostra status e mensagem do Coolify: um 403 diz se falta permissão de deploy no
+          # token, se a API está desligada ou se o IP do runner não está liberado.
+          response_file=$(mktemp)
+          status=$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
             -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
-            "${COOLIFY_WEBHOOK}"
+            "${COOLIFY_WEBHOOK}")
+          echo "Coolify respondeu HTTP ${status}:"
+          cat "$response_file"; echo
+          if [ "$status" -ge 300 ]; then
+            echo "::error::Coolify recusou o deploy (HTTP ${status}). Ver docs/DEPLOYMENT.md §0."
+            exit 1
+          fi

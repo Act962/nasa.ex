@@ -43,11 +43,13 @@ COPY . .
 
 # Variáveis NEXT_PUBLIC_* são embutidas no bundle do browser em tempo de build. Chegam como
 # secret (arquivo .env.production com só as NEXT_PUBLIC_*), sem virar camada da imagem.
-# Sem o secret o build passa, mas o front sai sem essas configs.
+# Sem o secret o build passa, mas o front sai sem essas configs. O `.next/cache` sai da camada:
+# a imagem não usa e ele só incharia o cache de build exportado a cada deploy.
 RUN --mount=type=secret,id=public_env,target=/app/.env.production,required=false \
 	DATABASE_URL="postgresql://build:build@localhost:5432/build" pnpm exec prisma generate \
 	&& (pnpm exec tsx scripts/legal/sync-orbita-legal.ts || true) \
-	&& SKIP_TYPECHECK=${SKIP_TYPECHECK} NODE_OPTIONS=--max-old-space-size=${BUILD_HEAP_MB} pnpm exec next build
+	&& SKIP_TYPECHECK=${SKIP_TYPECHECK} NODE_OPTIONS=--max-old-space-size=${BUILD_HEAP_MB} pnpm exec next build \
+	&& rm -rf .next/cache
 
 # ─── runner ──────────────────────────────────────────────────────────────────
 FROM node:${NODE_VERSION}-bookworm-slim AS runner
