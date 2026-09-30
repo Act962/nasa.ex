@@ -37,6 +37,8 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 FROM deps AS builder
 ARG BUILD_HEAP_MB=8192
 ARG SKIP_TYPECHECK=0
+# Só para o `next build` carregar os módulos de auth; o estágio `runner` não herda e usa o do Coolify.
+ENV BETTER_AUTH_SECRET=build-only-placeholder-never-used-at-runtime
 COPY . .
 
 # Variáveis NEXT_PUBLIC_* são embutidas no bundle do browser em tempo de build. Chegam como
