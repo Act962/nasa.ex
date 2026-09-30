@@ -37,6 +37,13 @@ export interface RecordBroadcastChatMessageInput {
   };
 }
 
+const leadSelect = {
+  id: true,
+  phone: true,
+  statusFlow: true,
+  conversation: { select: { id: true } },
+} satisfies Prisma.LeadSelect;
+
 const messageInclude = {
   quotedMessage: true,
   conversation: { include: { lead: true } },
@@ -63,7 +70,7 @@ export function renderBroadcastChatBody(
 async function findLeadByPhone(trackingId: string, waId: string) {
   return prisma.lead.findFirst({
     where: { trackingId, phone: { in: waIdLookupVariants(waId) } },
-    select: { id: true, phone: true, conversation: { select: { id: true } } },
+    select: leadSelect,
   });
 }
 
@@ -101,7 +108,7 @@ async function createBroadcastLead(
         order: topLead ? Number(topLead.order) - 1 : 0,
         statusFlow: "ACTIVE",
       },
-      select: { id: true, phone: true, conversation: { select: { id: true } } },
+      select: leadSelect,
     });
   } catch (error) {
     // Resposta do contato criou o lead no meio do caminho — usa o dele.
@@ -193,13 +200,27 @@ export async function recordBroadcastChatMessage(
     include: messageInclude,
   });
 
-  await prisma.conversation.update({
-    where: { id: conversationId },
-    data: {
-      lastMessage: { connect: { id: message.id } },
-      lastMessageAt: message.createdAt,
+  // Condicional: se o contato respondeu entre o upsert e aqui, a resposta já
+  // é a última mensagem e não pode ser rebaixada pela da campanha.
+  await prisma.conversation.updateMany({
+    where: {
+      id: conversationId,
+      OR: [
+        { lastMessageId: null },
+        { lastMessage: { is: { createdAt: { lte: message.createdAt } } } },
+      ],
     },
+    data: { lastMessageId: message.id, lastMessageAt: message.createdAt },
   });
+
+  // Conversa finalizada fica fora da lista padrão do chat, e o client só a
+  // reabre se já estiver no cache — reabre aqui pra mensagem aparecer.
+  if (lead.statusFlow === "FINISHED") {
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: { statusFlow: "ACTIVE" },
+    });
+  }
 
   // Sem `conversation:new`: ele toca som no client, e uma campanha grande
   // viraria milhares de notificações. O `message:new` do tracking já faz a

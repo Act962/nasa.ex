@@ -473,6 +473,7 @@ dispatchBroadcast
         lead no tracking por waIdLookupVariants(wa_id) → senão cria (1º status, ACTIVE, sem automações)
         conversa por leadId_trackingId → senão cria (remoteJid = <phone>@s.whatsapp.net)
         Message.upsert(messageId = wamid, fromMe, body renderizado, metadata.source = "broadcast")
+        lastMessage só é promovida se a atual for mais antiga; lead FINISHED volta a ACTIVE
         Pusher message:new (conversa + tracking) — sem conversation:new (tocaria som)
 ```
 

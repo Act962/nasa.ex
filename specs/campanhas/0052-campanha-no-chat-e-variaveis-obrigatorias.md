@@ -92,7 +92,8 @@ variável sem valor.
 | CB-9 | Webhook de status chega antes da `Message` existir | Aquele status é perdido para o chat; os seguintes (entregue/lido) atualizam. O destinatário da campanha não é afetado. |
 | CB-10 | Template não encontrado na Meta ao carregar o texto | Disparo segue; nenhuma mensagem é espelhada. |
 | CB-11 | Tracking sem nenhum status | Não cria lead; loga aviso; envio segue. |
-| CB-12 | Lead finalizado (`FINISHED`) | Mensagem gravada; o client já reabre o lead ao receber `message:new` (comportamento existente do chat). |
+| CB-12 | Lead finalizado (`FINISHED`) | Mensagem gravada e lead reaberto (`ACTIVE`) no servidor — a lista padrão do chat exclui finalizados e o client só reabre conversa que já está no cache. |
+| CB-15 | Contato responde entre gravar a mensagem e promovê-la a última da conversa | Promoção condicional: só vira `lastMessage` se a atual for mais antiga (ou não existir). A resposta não é rebaixada. |
 | CB-13 | Template com variável no cabeçalho de texto | Fora do escopo: o mapa não cobre o header; a Meta recusa como hoje. |
 | CB-14 | "Nome do contato" sem nome e sem valor reserva | Resolve vazio → destinatário `FAILED` (RF-9). |
 
@@ -151,3 +152,4 @@ Não há runner de teste no projeto (CLAUDE.md, item 20). Verificação manual:
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-30 | João Gabriel | Criada |
+| 2026-09-30 | João Gabriel | Review do PR #427: CB-12 passa a reabrir o lead no servidor; CB-15 (promoção condicional da última mensagem). |
