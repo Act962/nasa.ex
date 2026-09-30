@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   // aqui são versionados e curados à mão. Desligado pra não sujar a árvore de
   // todo dev a cada `pnpm dev`. Sem efeito em runtime/produção.
   agentRules: false,
+  // Imagem Docker enxuta: só o necessário vai para `.next/standalone` (ver Dockerfile).
+  output: "standalone",
   // React Compiler custa CPU+RAM a cada compile. Mantemos no build de produção
   // (ganho de perf real) e desligamos no dev pra aliviar o `next dev` numa
   // máquina com pouca RAM. Funcionalmente inócuo — o compiler só memoiza.

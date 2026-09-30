@@ -5,6 +5,48 @@ Passos pra colocar em produção tudo que está nas PRs mergeadas
 
 ---
 
+## 0. Deploy por imagem Docker (Coolify + GHCR)
+
+O build **não roda na VPS**. Fluxo:
+
+1. Push na `main` → `.github/workflows/deploy-image.yml` builda o `Dockerfile` no runner do GitHub
+   e publica `ghcr.io/act962/nasa.ex:latest` (e `:sha-<commit>`).
+2. O último passo chama o webhook de deploy do Coolify, que só faz `pull` e troca o container.
+3. No boot, `docker/entrypoint.sh` roda `prisma migrate deploy` e sobe o servidor. Migration
+   falhou → o container não fica healthy e o Coolify mantém a versão anterior.
+
+**CI de PR:** `.github/workflows/ci.yml` roda o mesmo build (com checagem de tipos) em todo PR para a
+`main`, sem publicar. Deixe-o como check obrigatório na proteção da branch. O `deploy-image.yml` também
+roda por `workflow_dispatch` em qualquer branch, mas só a `main` recebe a tag `latest`.
+
+### Configuração única
+
+**GitHub → Settings → Secrets and variables → Actions:**
+
+| Secret | Valor |
+| --- | --- |
+| `NEXT_PUBLIC_ENV` | Todas as `NEXT_PUBLIC_*` de produção, uma por linha (`CHAVE=valor`). São embutidas no bundle do browser em tempo de build — mudar uma exige novo build. |
+| `COOLIFY_WEBHOOK` | URL do webhook de deploy do recurso no Coolify (opcional; sem ele o passo é pulado). |
+| `COOLIFY_TOKEN` | Token de API do Coolify (Keys & Tokens). |
+
+**Coolify:** recurso do tipo *Docker Image* → `ghcr.io/act962/nasa.ex`, tag `latest`, com credencial de
+registry (usuário do GitHub + PAT com `read:packages`). Porta `3000`, healthcheck já está na imagem
+(`/api/health`). As variáveis **de runtime** (`DATABASE_URL`, segredos, etc.) continuam no painel do
+Coolify. Desligue o build por Nixpacks (`.nixpacks.toml` fica só como legado).
+
+### Notas
+
+- O repositório é público: se o pacote no GHCR também for público (Package settings → Change visibility),
+  o Coolify puxa sem credencial. A imagem não carrega segredos — só as `NEXT_PUBLIC_*`, que já vão para o browser.
+- "Mantém a versão anterior se a migration falhar" depende do healthcheck estar ativo no recurso do Coolify.
+- Push só de `docs/`, `specs/` ou `.md` não dispara deploy.
+
+- A checagem de tipos roda dentro do `next build` no GitHub, não mais na VPS.
+- O build não precisa de banco: `generateStaticParams` do calendário degrada para `[]`.
+- Rollback: aponte a tag no Coolify para um `sha-<commit>` anterior.
+
+---
+
 ## 1. Variáveis de ambiente
 
 Copie `.env.example` → `.env.local` (dev) ou seta no host de produção
