@@ -252,6 +252,26 @@ src/features/<dominio>/
 
 23. **Documentação da aba Contábil** — sempre que criar ou alterar qualquer coisa em `src/features/accounting/`, `src/app/router/accounting/`, `src/inngest/functions/accounting/`, nos modelos contábeis do `prisma/schema.prisma` (seção "ABA CONTÁBIL") ou nas tabelas de alíquotas (`lib/tax/seed/default-tax-rates.ts`), **atualize também [`docs/contabil-overview.md`](docs/contabil-overview.md)** na mesma sessão. Espelha as regras 10, 14 e 19. Regras do domínio: alíquota **nunca** fixa em código de cálculo (vem de `TaxRate`, versionada por vigência); a contabilidade é **derivada** do `PaymentEntry` (nunca escriturada em paralelo); toda explicação de termo técnico vem do glossário (`lib/glossary/terms.ts`) — novo rótulo técnico na aba exige `FiscalTermHint`; mudança em motor fiscal exige caso novo em `scripts/accounting-qa-check.ts` citando o `CA-n` da spec 0051.
 
+24. **Build leve e deployável (OBRIGATÓRIO)** — o `next build` roda **fora da VPS**, sem banco e sem segredos: no CI de PR (`next build` direto no runner) e na imagem Docker do deploy (GitHub Actions → GHCR → Coolify). Em 2026-09-30 a checagem de tipos chegava a 12,8 GB e derrubava o deploy; hoje fica em ~6 GB e 96 s. Para não regredir:
+
+    a. **Nada que exija variável de ambiente ou rede no import do módulo.** Na coleta de páginas o build carrega os módulos das rotas; cliente criado no topo do arquivo que lança erro sem chave (Resend) ou sem config (Pusher sem cluster) quebra o build. Crie sob demanda ou com placeholder, como `src/lib/stripe.ts` e `src/lib/email/resend.ts`.
+
+    b. **`NEXT_PUBLIC_*` nova** é embutida no bundle **no build**: adicione ao secret `NEXT_PUBLIC_ENV` do GitHub (senão chega `undefined` no browser em produção, sem erro). Se ela for lida no import de algum módulo, adicione também um placeholder em `.github/ci-public.env` — o CI de PR não recebe secrets.
+
+    c. **Página que consulta o banco no build** (`generateStaticParams`, `revalidate` com prerender) envolve a consulta em `try/catch` e degrada (ex.: `generateStaticParams` devolve `[]`). O build não tem banco.
+
+    d. **Scripts e seeds avulsos** ficam em `scripts/` ou `prisma/`, que estão fora da checagem de tipos (rodam via `tsx`). Em `src/` eles entram no build — um seed sozinho custava 65 s.
+
+    e. **Tipos do Prisma**: regra 22. É a causa principal de memória na checagem de tipos.
+
+    f. **Lib pesada só de servidor** (SDK de IA, AWS, parsers, binários nativos) entra em `serverExternalPackages` no `next.config.ts`.
+
+    g. **Medir antes de aceitar regressão.** O log do CI mostra `Finished TypeScript in Ns` (referência: ~96 s frio, ~18 s com cache). Passou de ~3 min, ou o build pediu mais memória: rode **Actions → Typecheck diagnostics**, que aponta os arquivos mais caros, antes de aumentar heap ou runner.
+
+    h. **Migration nova roda no boot do container** (`docker/entrypoint.sh`) a cada deploy. Migration quebrada impede o container novo de subir (a versão anterior segue no ar, mas o deploy trava) — revise o SQL antes do merge.
+
+    Detalhes, números e armadilhas do Coolify em [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) §0 e §0.1; pipeline em [`docs/testes-estrategia.md`](docs/testes-estrategia.md) §8.0.
+
 ## Obsidian
 
 Vault: `NASA Agents` em `/Users/weydsonlima/Documents/NASA Agents/`
