@@ -89,7 +89,7 @@ export function AstroWidgetComposer({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="shrink-0 border-t border-white/[0.07] px-3 pb-3 pt-2.5">
+    <form onSubmit={handleSubmit} className="shrink-0 border-t border-foreground/[0.07] px-3 pb-3 pt-2.5">
       <div onDrop={handleDrop} onDragOver={handleDragOver}>
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5">
@@ -109,7 +109,7 @@ export function AstroWidgetComposer({
 
         <div
           className={cn(
-            "flex items-end gap-1 rounded-[26px] bg-white/[0.05] p-1.5 transition-shadow",
+            "flex items-end gap-1 rounded-[26px] bg-foreground/[0.05] p-1.5 transition-shadow",
             isListening
               ? "shadow-[inset_0_0_0_1.5px_rgba(59,130,246,0.85)]"
               : "shadow-[inset_0_0_0_1.5px_rgba(139,92,246,0.45)] focus-within:shadow-[inset_0_0_0_1.5px_rgba(167,139,250,0.9)]",
@@ -133,7 +133,7 @@ export function AstroWidgetComposer({
             disabled={loading || isLockedByPicker}
             aria-label="Anexar boleto, nota fiscal ou comprovante"
             title="Anexar boleto, nota fiscal ou comprovante"
-            className="grid size-9 shrink-0 place-items-center rounded-full text-white/50 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-40"
+            className="grid size-9 shrink-0 place-items-center rounded-full text-foreground/50 transition hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-40"
           >
             <Paperclip className="size-4" />
           </button>
@@ -155,7 +155,7 @@ export function AstroWidgetComposer({
                   : "Pergunte ao Astro…"
             }
             aria-label="Mensagem para o Astro"
-            className="min-h-9 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-white outline-none placeholder:text-white/30 disabled:cursor-not-allowed"
+            className="min-h-9 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-foreground outline-none placeholder:text-foreground/30 disabled:cursor-not-allowed"
           />
 
           {isVoiceSupported && !loading && !isLockedByPicker && (
@@ -171,7 +171,7 @@ export function AstroWidgetComposer({
                 "grid size-9 shrink-0 place-items-center rounded-full transition",
                 isListening
                   ? "animate-pulse bg-info/20 text-info"
-                  : "text-white/50 hover:bg-white/[0.06] hover:text-white",
+                  : "text-foreground/50 hover:bg-foreground/[0.06] hover:text-foreground",
               )}
             >
               <Mic className="size-4" />
@@ -183,7 +183,7 @@ export function AstroWidgetComposer({
               type="button"
               onClick={onStop}
               aria-label="Parar resposta"
-              className="grid size-9 shrink-0 place-items-center rounded-full bg-white/[0.1] text-white transition hover:bg-white/[0.16]"
+              className="grid size-9 shrink-0 place-items-center rounded-full bg-foreground/[0.1] text-foreground transition hover:bg-foreground/[0.16]"
             >
               <Square className="size-3.5 fill-current" />
             </button>
@@ -192,7 +192,7 @@ export function AstroWidgetComposer({
               type="submit"
               disabled={!canSend}
               aria-label="Enviar"
-              className="grid size-9 shrink-0 place-items-center rounded-full bg-info text-white transition hover:bg-info disabled:bg-white/[0.08] disabled:text-white/30"
+              className="grid size-9 shrink-0 place-items-center rounded-full bg-info text-white transition hover:bg-info disabled:bg-foreground/[0.08] disabled:text-foreground/30"
             >
               <SendHorizonal className="size-4" />
             </button>
@@ -200,7 +200,7 @@ export function AstroWidgetComposer({
         </div>
       </div>
 
-      <p className="mt-2 px-1 text-[10px] text-white/30">
+      <p className="mt-2 px-1 text-[10px] text-foreground/30">
         O Astro é uma IA e pode errar. Nada é gravado sem a sua confirmação.
       </p>
     </form>

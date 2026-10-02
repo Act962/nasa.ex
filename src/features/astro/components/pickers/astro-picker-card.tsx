@@ -23,7 +23,7 @@ export function AstroPickerCard({
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-line/70 bg-card/60">
       <div className="px-3.5 pb-2 pt-3">
-        <p className="text-sm font-semibold text-white">{payload.title}</p>
+        <p className="text-sm font-semibold text-foreground">{payload.title}</p>
         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{payload.description}</p>
       </div>
 

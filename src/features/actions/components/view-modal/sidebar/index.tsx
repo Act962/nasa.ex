@@ -44,7 +44,7 @@ export function ActionSidebar({
 }: SidebarProps) {
   if (isLoading) {
     return (
-      <div className="h-full overflow-y-auto bg-muted/80">
+      <div className="h-full overflow-y-auto border-l bg-panel">
         <div className="p-4 space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="space-y-1.5">
@@ -58,7 +58,7 @@ export function ActionSidebar({
   }
 
   return (
-    <ScrollArea className="h-full w-full border-l bg-muted/80">
+    <ScrollArea className="h-full w-full border-l bg-panel">
       <div className="space-y-4 p-4">
         <PublicVisibilityField
           isPublic={action?.isPublic}

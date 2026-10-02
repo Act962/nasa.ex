@@ -49,7 +49,7 @@ export function LinksSection({ links = [], onUpdate, disabled }: Props) {
       {links.length > 0 && (
         <div className="space-y-1.5">
           {links.map((link, i) => (
-            <div key={i} className="flex items-center gap-2 p-2 rounded-md border bg-background text-sm group">
+            <div key={i} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30 text-sm group">
               <Link2Icon className="size-3.5 text-muted-foreground shrink-0" />
               <span className="flex-1 truncate text-xs">{link.title}</span>
               <div className="flex items-center gap-1 hover-reveal">

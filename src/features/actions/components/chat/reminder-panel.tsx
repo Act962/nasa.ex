@@ -28,10 +28,10 @@ export function ActionReminderPanel({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="p-0 sm:max-w-md overflow-hidden flex flex-col gap-0 bg-background"
+        className="p-0 sm:max-w-md overflow-hidden flex flex-col gap-0"
         showCloseButton={false}
       >
-        <DialogHeader className="flex flex-row items-center justify-between px-5 py-3 shrink-0 space-y-0 text-left">
+        <DialogHeader className="flex flex-row items-center justify-between border-b px-5 py-3 shrink-0 space-y-0 text-left">
           <div className="flex items-center gap-2">
             <BellIcon className="size-4 text-muted-foreground" />
             <DialogTitle className="text-sm font-semibold truncate">

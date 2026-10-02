@@ -235,7 +235,7 @@ export function AttachmentsSection({
                   return (
                     <div
                       key={i}
-                      className="flex flex-col items-center justify-center p-3 gap-2 rounded-md border bg-background text-sm group relative aspect-video"
+                      className="flex flex-col items-center justify-center p-3 gap-2 rounded-md border bg-muted/30 text-sm group relative aspect-video"
                     >
                       <div className="flex-1 flex flex-col items-center justify-center gap-2 mb-6">
                         <div className="bg-muted p-2.5 rounded-full [&>svg]:size-6">
@@ -250,7 +250,7 @@ export function AttachmentsSection({
                       </div>
 
                       {/* Actions wrapper: Always visible on mobile, hidden -> hover on desktop */}
-                      <div className="absolute inset-0 bg-background/90 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-2">
+                      <div className="absolute inset-0 bg-card/90 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-2">
                         <Button
                           size="icon"
                           variant="secondary"

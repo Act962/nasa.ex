@@ -39,13 +39,13 @@ const SURFACE_CLASSES: Record<
 > = {
   "astro-panel": {
     container: "border-b border-warning/20 bg-warning/[0.07]",
-    title: "text-white",
-    chevron: "text-white/60",
-    item: "border border-white/10 bg-black/30",
-    itemTitle: "text-white",
-    itemSummary: "text-white/60",
-    rejectButton: "bg-white/[0.08] text-white/70 hover:bg-white/[0.14]",
-    footerLink: "text-white/40 hover:text-white/70",
+    title: "text-foreground",
+    chevron: "text-foreground/60",
+    item: "border border-foreground/10 bg-foreground/[0.03] dark:bg-black/30",
+    itemTitle: "text-foreground",
+    itemSummary: "text-foreground/60",
+    rejectButton: "bg-foreground/[0.08] text-foreground/70 hover:bg-foreground/[0.14]",
+    footerLink: "text-foreground/40 hover:text-foreground/70",
   },
   theme: {
     container: "rounded-2xl border border-warning/30 bg-warning/15",

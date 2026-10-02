@@ -25,7 +25,7 @@ export function StatusField({
   return (
     <SidebarField label="Status">
       <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-        <SelectTrigger className="h-8 text-xs bg-background w-full">
+        <SelectTrigger className="h-8 w-full bg-card text-xs dark:bg-card">
           <SelectValue placeholder="Sem coluna">
             {currentColumn && (
               <div className="flex items-center gap-2">

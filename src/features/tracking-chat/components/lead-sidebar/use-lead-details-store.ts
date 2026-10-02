@@ -17,7 +17,7 @@ interface LeadDetailsState {
 export const useLeadDetailsStore = create<LeadDetailsState>()((set) => ({
   isMobileOpen: false,
   setIsMobileOpen: (isOpen) => set({ isMobileOpen: isOpen }),
-  isDesktopCollapsed: false,
+  isDesktopCollapsed: true,
   setIsDesktopCollapsed: (isCollapsed) => set({ isDesktopCollapsed: isCollapsed }),
   requestOpen: () => {
     if (window.matchMedia(DESKTOP_MEDIA_QUERY).matches) {

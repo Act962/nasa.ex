@@ -39,8 +39,8 @@ export function AstroWidgetTabs({
             className={cn(
               "relative flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] transition",
               isActive
-                ? "bg-white/[0.09] font-medium text-white"
-                : "text-white/45 hover:bg-white/[0.04] hover:text-white/70",
+                ? "bg-foreground/[0.09] font-medium text-foreground"
+                : "text-foreground/45 hover:bg-foreground/[0.04] hover:text-foreground/70",
             )}
           >
             {tab.label}

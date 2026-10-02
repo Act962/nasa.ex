@@ -56,7 +56,7 @@ export function AstroWidgetMessages({
           {TYPING_DOT_DELAYS_MS.map((delayMs) => (
             <span
               key={delayMs}
-              className="size-1.5 animate-bounce rounded-full bg-white/40"
+              className="size-1.5 animate-bounce rounded-full bg-foreground/40"
               style={{ animationDelay: `${delayMs}ms` }}
             />
           ))}

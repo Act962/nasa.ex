@@ -91,7 +91,7 @@ function VideoCard({ video }: { video: AstroVideoCard }) {
         )}
       </div>
       <div className="flex flex-1 flex-col gap-1 px-2.5 py-2">
-        <div className="line-clamp-2 text-xs font-medium text-foreground group-hover:text-white">
+        <div className="line-clamp-2 text-xs font-medium text-foreground">
           {video.title}
         </div>
         {video.category && (
