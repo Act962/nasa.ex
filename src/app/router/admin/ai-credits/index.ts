@@ -35,7 +35,7 @@ const addAiCreditEntry = base
   .route({ method: "POST", summary: "Admin — add AI credit entry", tags: ["Admin"] })
   .input(aiCreditEntryInputSchema)
   .handler(async ({ input, context }) =>
-    createAiCreditEntry({ organizationId: null, createdById: context.user.id, entry: input }),
+    createAiCreditEntry({ organizationId: null, createdById: context.adminUser.id, entry: input }),
   );
 
 const removeAiCreditEntry = base

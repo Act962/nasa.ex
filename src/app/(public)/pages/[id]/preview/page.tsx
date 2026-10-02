@@ -30,7 +30,7 @@ function withoutTrackingScripts(layout: PageLayout): PageLayout {
   return {
     ...layoutWithMeta,
     meta: { ...layoutWithMeta.meta, metaPixelId: undefined, googleTagId: undefined, gtmId: undefined },
-  } as PageLayout;
+  } as unknown as PageLayout;
 }
 
 export default async function PreviewPage({
