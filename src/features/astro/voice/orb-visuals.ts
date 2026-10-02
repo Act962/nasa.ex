@@ -1,26 +1,26 @@
 import type { OrbPhase } from "./use-astro-orb-store";
 
-/** Cor, anel e brilho do orb em cada fase da voz. */
+/** Cor, anel e brilho do orb em cada fase da voz: disco azul, efeitos em branco. */
 export const ORB_PHASES: Record<OrbPhase, { bg: string; ring: string; glow: string }> = {
   idle: {
-    bg: "bg-gradient-to-br from-violet-600 to-purple-700",
-    ring: "ring-2 ring-violet-500/40",
-    glow: "0 8px 32px -8px rgba(124,58,237,0.55), 0 0 0 1px rgba(255,255,255,0.06)",
+    bg: "bg-gradient-to-br from-info to-info",
+    ring: "ring-2 ring-white/30",
+    glow: "0 8px 32px -8px rgba(37,99,235,0.6), 0 0 0 1px rgba(255,255,255,0.08)",
   },
   listening: {
-    bg: "bg-gradient-to-br from-blue-500 to-blue-700",
-    ring: "ring-2 ring-blue-400/40",
-    glow: "0 10px 36px -6px rgba(59,130,246,0.7), 0 0 0 1px rgba(255,255,255,0.08)",
+    bg: "bg-gradient-to-br from-info to-info",
+    ring: "ring-2 ring-white/50",
+    glow: "0 10px 36px -6px rgba(37,99,235,0.7), 0 0 0 1px rgba(255,255,255,0.12)",
   },
   thinking: {
-    bg: "bg-gradient-to-br from-purple-500 to-fuchsia-700",
-    ring: "ring-2 ring-fuchsia-400/40",
-    glow: "0 10px 36px -6px rgba(217,70,239,0.65), 0 0 0 1px rgba(255,255,255,0.06)",
+    bg: "bg-gradient-to-br from-info to-info",
+    ring: "ring-2 ring-white/40",
+    glow: "0 10px 36px -6px rgba(37,99,235,0.65), 0 0 0 1px rgba(255,255,255,0.1)",
   },
   speaking: {
-    bg: "bg-gradient-to-br from-emerald-500 to-teal-700",
-    ring: "ring-2 ring-emerald-400/40",
-    glow: "0 12px 40px -4px rgba(16,185,129,0.75), 0 0 0 1px rgba(255,255,255,0.1)",
+    bg: "bg-gradient-to-br from-info to-info",
+    ring: "ring-2 ring-white/60",
+    glow: "0 12px 40px -4px rgba(255,255,255,0.35), 0 0 0 1px rgba(255,255,255,0.14)",
   },
 };
 

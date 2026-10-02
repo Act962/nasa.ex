@@ -25,6 +25,7 @@ import {
   TrashIcon,
 } from "lucide-react";
 import { AgendaMonthCalendar } from "./agenda-month-calendar";
+import { AgendaQuickMenu } from "./quick-menu/agenda-quick-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -110,6 +111,8 @@ export const AgendaList = () => {
       <aside
         className={cn(
           "flex w-full shrink-0 flex-col gap-3 transition-[width,padding] duration-200 lg:overflow-hidden",
+          // No celular a lateral não abre (o botão de abrir é só do computador): vazia, só empurrava o conteúdo.
+          !sidebarOpen && "max-lg:hidden",
           sidebarOpen
             ? "lg:w-[300px] lg:border-r lg:pr-4"
             : "lg:w-9 lg:border-r lg:pr-0",
@@ -195,8 +198,14 @@ export const AgendaList = () => {
           ))}
       </aside>
 
+      <AgendaQuickMenu
+        appointments={appointments as Parameters<typeof AgendaQuickMenu>[0]["appointments"]}
+        agendas={summaries}
+        bookingBaseUrl={baseUrl}
+      />
+
       {/* Calendário principal */}
-      <main className="relative flex min-w-0 flex-1 flex-col rounded-xl border bg-card/30">
+      <main className="relative flex min-w-0 flex-1 flex-col rounded-xl border bg-card/30 max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent">
         <AgendaMonthCalendar
           agendas={summaries}
           appointments={appointments as Parameters<typeof AgendaMonthCalendar>[0]["appointments"]}
@@ -373,7 +382,7 @@ export const AgendaHeader = () => {
     <div className="flex flex-row items-center justify-between gap-x-4">
       <div className="flex flex-col">
         <h1 className="text-lg md:text-xl font-semibold">Agenda</h1>
-        <p className="text-xs md:text-sm text-muted-foreground">
+        <p className="hidden text-sm text-muted-foreground lg:block">
           Gerencie seus compromissos e visualize todos os agendamentos
         </p>
       </div>
@@ -387,7 +396,7 @@ export const AgendaContainer = ({
   children: React.ReactNode;
 }) => {
   return (
-    <div className="h-full w-full px-6 py-4 space-y-4">
+    <div className="h-full w-full space-y-2 px-4 py-3 lg:space-y-4 lg:px-6 lg:py-4">
       <AgendaHeader />
       {children}
     </div>

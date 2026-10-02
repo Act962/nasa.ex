@@ -31,7 +31,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, Package, Link2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Package, Link2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -549,7 +550,7 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
                         className={cn(
                           "px-2 py-0.5 rounded text-[11px] border",
                           form.watch("discountType") === "PERCENTUAL"
-                            ? "bg-[#7C3AED] text-white border-[#7C3AED]"
+                            ? "bg-info text-white border-info"
                             : "border-border",
                         )}
                       >
@@ -561,7 +562,7 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
                         className={cn(
                           "px-2 py-0.5 rounded text-[11px] border",
                           form.watch("discountType") === "FIXO"
-                            ? "bg-[#7C3AED] text-white border-[#7C3AED]"
+                            ? "bg-info text-white border-info"
                             : "border-border",
                         )}
                       >
@@ -593,7 +594,7 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
                       {fmt(discountAmount)}
                     </span>
                   </div>
-                  <div className="flex justify-between gap-2 font-bold text-[#7C3AED] text-base border-t pt-1">
+                  <div className="flex justify-between gap-2 font-bold text-info text-base border-t pt-1">
                     <span className="shrink-0">Total</span>
                     <span className="min-w-0 truncate text-right">
                       {fmt(total)}
@@ -649,7 +650,7 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
                       disabled={generatingLink || !form.watch("paymentGateway")}
                     >
                       {generatingLink ? (
-                        <Loader2 className="size-4 animate-spin" />
+                        <OrbitaSpinner className="size-4 " />
                       ) : (
                         <Link2 className="size-4" />
                       )}
@@ -673,7 +674,6 @@ export function ProposalForm({ open, onClose, proposalId }: ProposalFormProps) {
             <Button
               type="submit"
               disabled={isPending}
-              className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
               data-guide={GUIDE_ANCHORS.forgeProposalSave.id}
             >
               {isPending ? "Salvando..." : "Salvar Proposta"}

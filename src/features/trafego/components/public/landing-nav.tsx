@@ -15,7 +15,7 @@ const LINKS = [
  */
 export function LandingNav({ onStart }: { onStart: () => void }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#08080c]/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl">
       <nav className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3 sm:px-6">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -43,8 +43,8 @@ export function LandingNav({ onStart }: { onStart: () => void }) {
           type="button"
           onClick={onStart}
           className={cn(
-            "ml-auto inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-2",
-            "text-sm font-semibold text-white transition hover:bg-violet-500",
+            "ml-auto inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2",
+            "text-sm font-semibold text-primary-foreground transition hover:bg-primary/90",
           )}
         >
           Começar agora

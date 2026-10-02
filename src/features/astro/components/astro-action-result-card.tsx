@@ -36,14 +36,14 @@ export function AstroActionResultCard({
   };
 
   return (
-    <div className="rounded-2xl border border-zinc-700/70 bg-zinc-900/60 overflow-hidden">
+    <div className="rounded-2xl border border-line/70 bg-card/60 overflow-hidden">
       <div className="flex items-start gap-2.5 px-3.5 py-3">
-        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/15">
-          <FileText className="h-3.5 w-3.5 text-violet-300" />
+        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-info/15">
+          <FileText className="h-3.5 w-3.5 text-info" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-white">{payload.title}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
             {payload.description}
           </p>
         </div>
@@ -52,7 +52,7 @@ export function AstroActionResultCard({
       {previewable ? (
         <>
           {/* 3:4 — proporção de página, para a miniatura parecer o documento. */}
-          <div className="relative mx-3.5 aspect-[3/4] overflow-hidden rounded-xl border border-zinc-700/60 bg-white">
+          <div className="relative mx-3.5 aspect-[3/4] overflow-hidden rounded-xl border border-line/60 bg-white">
             <iframe
               src={payload.publicUrl}
               title={`Prévia de ${payload.title}`}
@@ -70,8 +70,8 @@ export function AstroActionResultCard({
               className={cn(
                 "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
                 copied
-                  ? "bg-emerald-500/15 text-emerald-300"
-                  : "bg-violet-500/15 text-violet-200 hover:bg-violet-500/25",
+                  ? "bg-success/15 text-success"
+                  : "bg-info/15 text-info hover:bg-info/25",
               )}
             >
               {copied ? (
@@ -86,7 +86,7 @@ export function AstroActionResultCard({
               href={payload.publicUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-card"
             >
               <ExternalLink className="h-3 w-3" />
               Abrir
@@ -95,7 +95,7 @@ export function AstroActionResultCard({
             {payload.internalUrl ? (
               <a
                 href={payload.internalUrl}
-                className="ml-auto text-xs text-zinc-500 hover:text-zinc-300"
+                className="ml-auto text-xs text-muted-foreground hover:text-muted-foreground"
               >
                 Editar no {payload.appName}
               </a>
@@ -108,7 +108,7 @@ export function AstroActionResultCard({
         <div className="px-3.5 pb-3">
           <a
             href={payload.internalUrl}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500/15 px-2.5 py-1.5 text-xs font-medium text-violet-200 transition-colors hover:bg-violet-500/25"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-info/15 px-2.5 py-1.5 text-xs font-medium text-info transition-colors hover:bg-info/25"
           >
             <ExternalLink className="h-3 w-3" />
             {payload.openLabel ?? `Abrir no ${payload.appName}`}

@@ -12,7 +12,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { X, Loader2, Scissors, Maximize2 } from "lucide-react";
+import { X, Scissors, Maximize2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { removeBackground } from "../../../utils/remove-background";
 import type { LibraryItem } from "./categories";
 
@@ -208,7 +209,7 @@ export function ImageImportModal({ file, onClose, onConfirm }: Props) {
             )}
             {processing && (
               <div className="absolute inset-0 flex items-center justify-center bg-slate-900/70 rounded-xl">
-                <Loader2 className="h-6 w-6 text-indigo-400 animate-spin" />
+                <OrbitaSpinner className="h-6 w-6 text-indigo-400 " />
               </div>
             )}
           </div>
@@ -308,7 +309,7 @@ export function ImageImportModal({ file, onClose, onConfirm }: Props) {
             className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
           >
             {uploading
-              ? <><Loader2 className="h-4 w-4 animate-spin" />Enviando…</>
+              ? <><OrbitaSpinner className="h-4 w-4 " />Enviando…</>
               : "Adicionar ao mapa"
             }
           </button>

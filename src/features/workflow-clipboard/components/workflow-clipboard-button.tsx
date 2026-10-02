@@ -22,10 +22,10 @@ import {
   Copy,
   Download,
   FileUp,
-  Loader2,
   Sparkles,
   Trash2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import {
@@ -199,9 +199,9 @@ export function WorkflowClipboardButton({ workflowId, trackingId }: Props) {
                   className="gap-1.5"
                 >
                   {busy ? (
-                    <Loader2 className="size-3.5 animate-spin" />
+                    <OrbitaSpinner className="size-3.5 " />
                   ) : recentlyCopied ? (
-                    <Sparkles className="size-3.5 text-emerald-500" />
+                    <Sparkles className="size-3.5 text-success" />
                   ) : (
                     <ClipboardCopy className="size-3.5" />
                   )}

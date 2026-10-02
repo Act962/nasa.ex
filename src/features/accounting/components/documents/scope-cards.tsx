@@ -42,7 +42,7 @@ export function ScopeCards() {
                 <p
                   className={cn(
                     "text-lg font-bold tabular-nums",
-                    isAllOk ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400",
+                    isAllOk ? "text-success dark:text-success" : "text-warning dark:text-warning",
                   )}
                 >
                   {okCount}/{scopeItems.length} <span className="text-xs font-normal text-muted-foreground">em dia</span>

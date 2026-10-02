@@ -122,7 +122,7 @@ export function TrackingsReport({ from, to, memberIds }: Props) {
                     {tr.totals.leads}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="text-sm font-medium text-emerald-600">
+                    <div className="text-sm font-medium text-success">
                       {tr.totals.won}
                     </div>
                     <div className="text-[10px] text-muted-foreground flex items-center gap-0.5 justify-end">

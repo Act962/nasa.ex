@@ -1,7 +1,8 @@
 "use client";
 
 import Script from "next/script";
-import { Loader2, MessageSquare } from "lucide-react";
+import { MessageSquare } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 import { Button } from "@/components/ui/button";
 import { useEmbeddedSignup } from "../hooks/use-embedded-signup";
@@ -76,10 +77,10 @@ function EmbeddedSignupReady({
         defer
         crossOrigin="anonymous"
       />
-      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2.5">
+      <div className="rounded-xl border border-success/30 bg-success/5 p-4 space-y-2.5">
         <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-emerald-500/10 p-2 mt-0.5">
-            <MessageSquare className="size-4 text-emerald-600" />
+          <div className="rounded-lg bg-success/10 p-2 mt-0.5">
+            <MessageSquare className="size-4 text-success" />
           </div>
           <div className="flex-1">
             <h4 className="text-sm font-semibold">Conectar via Meta</h4>
@@ -95,9 +96,9 @@ function EmbeddedSignupReady({
             size="sm"
             onClick={launchSignup}
             disabled={busy}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+           
           >
-            {busy && <Loader2 className="size-3.5 animate-spin mr-1.5" />}
+            {busy && <OrbitaSpinner className="size-3.5 mr-1.5" />}
             {isCompleting
               ? "Finalizando..."
               : isLaunching

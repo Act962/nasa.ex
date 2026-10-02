@@ -53,7 +53,7 @@ export function LeadAuditDetails({ metrics }: { metrics: LeadMetricsView }) {
       <MetricSection title="Comportamento do lead" metrics={behaviorMetrics(metrics)} potential={metrics.purchasePotential} />
       <MetricSection title="Qualidade do atendimento" metrics={serviceMetrics(metrics)} />
       <p className="flex items-start gap-1 text-[10px] leading-snug text-muted-foreground">
-        {metrics.source === "AI" && <SparklesIcon className="mt-0.5 size-3 shrink-0 text-violet-400" />}
+        {metrics.source === "AI" && <SparklesIcon className="mt-0.5 size-3 shrink-0 text-info" />}
         <span>
           {metrics.source === "AI"
             ? `Potencial e interesse estimados pelo ASTRO: ${metrics.aiRationale ?? ""}`

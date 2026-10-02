@@ -52,9 +52,9 @@ export function RecentTasks() {
           >
             <ItemMedia>
               {action.isDone ? (
-                <CheckCircle2 className="size-5 text-emerald-500" />
+                <CheckCircle2 className="size-5 text-success" />
               ) : (
-                <Clock className="size-5 text-amber-500" />
+                <Clock className="size-5 text-warning" />
               )}
             </ItemMedia>
             <ItemContent>

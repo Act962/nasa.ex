@@ -20,7 +20,7 @@ export function StarConsumptionBadge({ action, costs }: StarConsumptionBadgeProp
     return <span className="text-muted-foreground text-[10px]">—</span>;
   }
   return (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-yellow-600 dark:text-yellow-400">
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-warning dark:text-warning">
       <Star className="size-3" />
       {stars}
     </span>

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Check, ChevronDown, Loader2, ShieldAlert, X } from "lucide-react";
+import { Check, ChevronDown, ShieldAlert, X } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import {
   useApproveAstroAction,
@@ -21,12 +22,53 @@ import {
  * preparada pelo comando depende de alguém — esconder isso numa outra tela é
  * o que faz a execução automática parar sem ninguém perceber.
  */
+type ApprovalsSurface = "astro-panel" | "theme";
+
+const SURFACE_CLASSES: Record<
+  ApprovalsSurface,
+  {
+    container: string;
+    title: string;
+    chevron: string;
+    item: string;
+    itemTitle: string;
+    itemSummary: string;
+    rejectButton: string;
+    footerLink: string;
+  }
+> = {
+  "astro-panel": {
+    container: "border-b border-warning/20 bg-warning/[0.07]",
+    title: "text-white",
+    chevron: "text-white/60",
+    item: "border border-white/10 bg-black/30",
+    itemTitle: "text-white",
+    itemSummary: "text-white/60",
+    rejectButton: "bg-white/[0.08] text-white/70 hover:bg-white/[0.14]",
+    footerLink: "text-white/40 hover:text-white/70",
+  },
+  theme: {
+    container: "rounded-2xl border border-warning/30 bg-warning/15",
+    title: "text-foreground",
+    chevron: "text-muted-foreground",
+    item: "border border-line bg-card",
+    itemTitle: "text-foreground",
+    itemSummary: "text-muted-foreground",
+    rejectButton: "bg-knob text-muted-foreground hover:text-foreground",
+    footerLink: "text-muted-foreground hover:text-foreground",
+  },
+};
+
 export function AstroWidgetApprovals({
   defaultExpanded = false,
+  surface = "astro-panel",
 }: {
   /** Na aba Início a fila já abre expandida; na Conversa fica recolhida. */
   defaultExpanded?: boolean;
+  /** O painel do ASTRO é sempre escuro; fora dele a fila segue o tema. */
+  surface?: ApprovalsSurface;
 } = {}) {
+  const surfaceClasses = SURFACE_CLASSES[surface];
   const [expanded, setExpanded] = useState(defaultExpanded);
   const { approvals, pendingCount } = useAstroPendingApprovals();
   const approve = useApproveAstroAction();
@@ -51,21 +93,22 @@ export function AstroWidgetApprovals({
   }
 
   return (
-    <div className="shrink-0 border-b border-amber-400/20 bg-amber-400/[0.07]">
+    <div className={cn("shrink-0", surfaceClasses.container)}>
       <button
         type="button"
         onClick={() => setExpanded((current) => !current)}
         className="flex w-full items-center gap-2 px-4 py-2.5 text-left"
       >
-        <ShieldAlert className="size-4 shrink-0 text-amber-300" />
-        <span className="min-w-0 flex-1 text-[13px] text-amber-100">
+        <ShieldAlert className="size-4 shrink-0 text-warning" />
+        <span className={cn("min-w-0 flex-1 text-[13px]", surfaceClasses.title)}>
           {pendingCount === 1
             ? "1 ação esperando sua aprovação"
             : `${pendingCount} ações esperando sua aprovação`}
         </span>
         <ChevronDown
           className={cn(
-            "size-4 shrink-0 text-amber-200/70 transition-transform",
+            "size-4 shrink-0 transition-transform",
+            surfaceClasses.chevron,
             expanded && "rotate-180",
           )}
         />
@@ -76,12 +119,12 @@ export function AstroWidgetApprovals({
           {approvals.map((approval) => (
             <div
               key={approval.id}
-              className="rounded-xl border border-white/10 bg-black/30 p-3"
+              className={cn("rounded-xl p-3", surfaceClasses.item)}
             >
-              <p className="text-[12px] font-medium text-white">
+              <p className={cn("text-[12px] font-medium", surfaceClasses.itemTitle)}>
                 {approval.commandTitle ?? "Ação do ASTRO"}
               </p>
-              <p className="mt-0.5 line-clamp-3 text-[11px] leading-relaxed text-white/60">
+              <p className={cn("mt-0.5 line-clamp-3 text-[11px] leading-relaxed", surfaceClasses.itemSummary)}>
                 {approval.summary}
               </p>
 
@@ -90,10 +133,10 @@ export function AstroWidgetApprovals({
                   type="button"
                   disabled={isBusy}
                   onClick={() => resolve(approval.id, "approve")}
-                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-emerald-500/90 px-2 py-1.5 text-[11px] font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-success/90 px-2 py-1.5 text-[11px] font-medium text-white transition hover:bg-success disabled:opacity-50"
                 >
                   {approve.isPending ? (
-                    <Loader2 className="size-3 animate-spin" />
+                    <OrbitaSpinner className="size-3 " />
                   ) : (
                     <Check className="size-3" />
                   )}
@@ -103,7 +146,10 @@ export function AstroWidgetApprovals({
                   type="button"
                   disabled={isBusy}
                   onClick={() => resolve(approval.id, "reject")}
-                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-white/[0.08] px-2 py-1.5 text-[11px] text-white/70 transition hover:bg-white/[0.14] disabled:opacity-50"
+                  className={cn(
+                    "inline-flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] transition disabled:opacity-50",
+                    surfaceClasses.rejectButton,
+                  )}
                 >
                   <X className="size-3" />
                   Rejeitar
@@ -114,7 +160,10 @@ export function AstroWidgetApprovals({
 
           <Link
             href="/astro?aba=aprovacoes"
-            className="block py-1 text-center text-[11px] text-white/40 underline-offset-2 hover:text-white/70 hover:underline"
+            className={cn(
+              "block py-1 text-center text-[11px] underline-offset-2 hover:underline",
+              surfaceClasses.footerLink,
+            )}
           >
             Ver todas no App ASTRO
           </Link>

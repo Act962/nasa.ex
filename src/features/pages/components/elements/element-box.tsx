@@ -203,8 +203,8 @@ export function ElementBox({ element, editable }: Props) {
         // Sections não têm cursor-move (não são draggable) — usa
         // cursor-pointer pra deixar claro que é clicável.
         editable && !isEditing && (isSection ? "cursor-pointer" : "cursor-move"),
-        selected && !isEditing && "outline-2 outline-offset-2 outline-indigo-500 outline",
-        isEditing && "outline-2 outline-offset-2 outline-indigo-400 outline",
+        selected && !isEditing && "outline-2 outline-offset-2 outline-primary outline",
+        isEditing && "outline-2 outline-offset-2 outline-info outline",
       )}
       style={{
         left: element.x,
@@ -339,7 +339,7 @@ function Handle({
   } as const;
   return (
     <div
-      className={cn("absolute size-3 rounded-sm bg-white border-2 border-indigo-500", map[pos])}
+      className={cn("absolute size-3 rounded-sm bg-background border-2 border-primary", map[pos])}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

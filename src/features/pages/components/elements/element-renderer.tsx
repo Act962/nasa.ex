@@ -513,7 +513,7 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
       // monta o listener real.
       if (readonly) return <ExitIntent element={element} />;
       return (
-        <div className="w-full h-full p-4 border-2 border-dashed border-amber-500/40 bg-amber-50/30 rounded-lg flex items-center justify-center text-xs text-amber-900 text-center">
+        <div className="w-full h-full p-4 border-2 border-dashed border-warning/30 bg-warning/10 rounded-lg flex items-center justify-center text-xs text-foreground text-center">
           🚪 Exit Intent — dispara quando user vai sair da página
         </div>
       );

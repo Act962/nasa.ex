@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, ExternalLink, Fingerprint, Loader2, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Copy, ExternalLink, Fingerprint, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -125,7 +126,7 @@ export function CredentialRow({ credential, hasPasskey, onEdit }: CredentialRowP
           </Button>
         ) : (
           <Button size="sm" variant="outline" disabled={!hasPasskey || revealCredential.isPending} onClick={reveal}>
-            {revealCredential.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Fingerprint className="size-3.5" />}
+            {revealCredential.isPending ? <OrbitaSpinner className="size-3.5 " /> : <Fingerprint className="size-3.5" />}
             Revelar
           </Button>
         )}

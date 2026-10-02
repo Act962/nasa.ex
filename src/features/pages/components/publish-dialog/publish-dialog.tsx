@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { DIALOG_AS_MOBILE_BOTTOM_SHEET_CLASSES } from "../../lib/mobile-sheet-classes";
 
 interface Props {
   open: boolean;
@@ -71,21 +73,23 @@ export function PublishDialog({ open, onOpenChange, pageId }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className={cn("max-h-[92dvh] overflow-y-auto sm:max-w-2xl", DIALOG_AS_MOBILE_BOTTOM_SHEET_CLASSES)}>
         <DialogHeader>
           <DialogTitle>Domínio do site</DialogTitle>
           <DialogDescription>
-            Publique em um slug ÓRBITA, em um domínio próprio ou registre um novo
-            diretamente.
+            Use o endereço da ÓRBITA, um domínio que você já tem ou registre um
+            novo.
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="external" className="mt-2">
-          <TabsList>
-            <TabsTrigger value="external">Já tenho um domínio</TabsTrigger>
-            <TabsTrigger value="register">Registrar domínio</TabsTrigger>
-            <TabsTrigger value="nasa">Slug ÓRBITA</TabsTrigger>
-          </TabsList>
+          <div className="scroll-hidden-x -mx-6 overflow-x-auto px-6">
+            <TabsList className="w-max">
+              <TabsTrigger value="external">Já tenho um domínio</TabsTrigger>
+              <TabsTrigger value="register">Registrar domínio</TabsTrigger>
+              <TabsTrigger value="nasa">Endereço ÓRBITA</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="external" className="space-y-3">
             <div>
@@ -102,7 +106,7 @@ export function PublishDialog({ open, onOpenChange, pageId }: Props) {
               </div>
             </div>
             {page?.customDomain && page?.domainVerifyToken && (
-              <div className="rounded-md border p-3 text-xs space-y-2">
+              <div className="rounded-[18px] border p-3 text-xs space-y-2">
                 <div className="font-semibold">Configure no seu DNS:</div>
                 <div className="font-mono">
                   CNAME <b>www</b> → pages.nasaex.com
@@ -110,7 +114,7 @@ export function PublishDialog({ open, onOpenChange, pageId }: Props) {
                 <div className="font-mono">
                   TXT{" "}
                   <b>_nasa-verify.{page.customDomain}</b> ={" "}
-                  <span className="bg-muted px-1 rounded">
+                  <span className="break-all rounded-full bg-muted px-1.5">
                     {page.domainVerifyToken}
                   </span>
                 </div>
@@ -142,13 +146,13 @@ export function PublishDialog({ open, onOpenChange, pageId }: Props) {
               </div>
             </div>
             {search?.results && (
-              <div className="rounded-md border divide-y">
+              <div className="rounded-[18px] border divide-y">
                 {search.results.map((r) => (
                   <div key={r.domain} className="flex items-center justify-between p-2 text-sm">
                     <div>
                       <span className="font-mono">{r.domain}</span>{" "}
                       {r.available ? (
-                        <span className="text-emerald-600 text-xs ml-2">disponível</span>
+                        <span className="text-success text-xs ml-2">disponível</span>
                       ) : (
                         <span className="text-muted-foreground text-xs ml-2">
                           indisponível
@@ -172,7 +176,7 @@ export function PublishDialog({ open, onOpenChange, pageId }: Props) {
               </div>
             )}
             {page?.domainPurchase && (
-              <div className="rounded-md border p-3 text-xs">
+              <div className="rounded-[18px] border p-3 text-xs">
                 <div className="font-semibold mb-1">Compra em andamento</div>
                 <div className="font-mono">{page.domainPurchase.requestedDomain}</div>
                 <div className="flex items-center gap-2 mt-2">
@@ -182,7 +186,7 @@ export function PublishDialog({ open, onOpenChange, pageId }: Props) {
                       href={page.domainPurchase.checkoutUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-indigo-600 underline"
+                      className="text-info underline"
                     >
                       Abrir checkout
                     </a>
@@ -193,7 +197,7 @@ export function PublishDialog({ open, onOpenChange, pageId }: Props) {
           </TabsContent>
 
           <TabsContent value="nasa" className="space-y-3">
-            <div className="rounded-md border p-3 text-xs space-y-2">
+            <div className="rounded-[18px] border p-3 text-xs space-y-2">
               <div>Seu site fica disponível em:</div>
               <div className="font-mono text-sm">
                 {typeof window !== "undefined" ? window.location.origin : ""}
@@ -210,7 +214,7 @@ export function PublishDialog({ open, onOpenChange, pageId }: Props) {
 function StatusBadge({ status }: { status: string }) {
   if (status === "VERIFIED" || status === "ACTIVE" || status === "PAID") {
     return (
-      <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-medium">
+      <span className="inline-flex items-center gap-1 text-success text-xs font-medium">
         <CheckCircle2 className="size-3" /> {status}
       </span>
     );
@@ -223,7 +227,7 @@ function StatusBadge({ status }: { status: string }) {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 text-amber-600 text-xs font-medium">
+    <span className="inline-flex items-center gap-1 text-warning text-xs font-medium">
       <Clock className="size-3" /> {status}
     </span>
   );

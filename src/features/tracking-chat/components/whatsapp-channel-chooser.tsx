@@ -89,7 +89,7 @@ export function WhatsAppChannelChooser({ trackingId }: { trackingId: string | nu
               <p className="text-sm text-muted-foreground">
                 Usa o número que você já tem no celular: é só ler um QR Code. Rápido de conectar.
               </p>
-              <p className="flex items-start gap-2 rounded-md bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
+              <p className="flex items-start gap-2 rounded-md bg-warning/10 p-2 text-xs text-warning dark:text-warning">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                 Alto risco de bloqueio pela Meta, principalmente se enviar muitas mensagens ou disparos.
               </p>
@@ -108,23 +108,23 @@ export function WhatsAppChannelChooser({ trackingId }: { trackingId: string | nu
               </Button>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-xl border border-emerald-500/60 bg-emerald-500/5 p-4">
+            <div className="flex flex-col gap-3 rounded-xl border border-success/60 bg-success/5 p-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <BadgeCheck className="size-5 text-emerald-600" />
+                  <BadgeCheck className="size-5 text-success" />
                   <p className="font-semibold">API Oficial da Meta</p>
                 </div>
-                <Badge className="bg-emerald-600 text-white">Recomendado</Badge>
+                <Badge className="bg-success text-white">Recomendado</Badge>
               </div>
               <p className="text-sm text-muted-foreground">
                 Número oficial do WhatsApp Business, liberado para disparos em massa. A gente guia cada tela da Meta.
               </p>
-              <p className="flex items-start gap-2 rounded-md bg-emerald-500/10 p-2 text-xs text-emerald-800 dark:text-emerald-300">
+              <p className="flex items-start gap-2 rounded-md bg-success/10 p-2 text-xs text-success dark:text-success">
                 <ShieldCheck className="mt-0.5 size-3.5 shrink-0" />
                 Menos risco de banimento. Precisa de um número novo, que não esteja no aplicativo do WhatsApp.
               </p>
               <Button
-                className="mt-auto bg-emerald-600 text-white hover:bg-emerald-700"
+                className="mt-auto bg-success text-white hover:bg-success"
                 disabled={createTracking.isPending}
                 onClick={() => withTracking("WhatsApp Oficial", setWizardTrackingId)}
               >

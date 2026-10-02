@@ -9,7 +9,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Loader2,
   ExternalLink,
   ArrowLeft,
   Image as ImageIcon,
@@ -19,6 +18,7 @@ import {
   X,
   Rocket,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { StepAnnotationEditor } from "./step-annotation-editor";
 import type { StepAnnotation } from "@/features/space-help/types";
 
@@ -159,8 +159,8 @@ export function FeatureStepsEditor({ featureId }: { featureId: string }) {
 
   if (isLoading) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center text-sm text-zinc-500">
-        <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Carregando…
+      <div className="bg-card border border-border rounded-xl p-8 text-center text-sm text-muted-foreground">
+        <OrbitaSpinner className="w-5 h-5 mx-auto mb-2" /> Carregando…
       </div>
     );
   }
@@ -175,33 +175,33 @@ export function FeatureStepsEditor({ featureId }: { featureId: string }) {
         <div className="flex items-center gap-3">
           <Link
             href={`/admin/space-help/categorias/${feature.category.id}`}
-            className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors"
+            className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <p className="text-[11px] text-zinc-500 uppercase tracking-wider">
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
               {feature.category.name}
             </p>
-            <h1 className="text-xl font-bold text-white">{feature.title}</h1>
+            <h1 className="text-xl font-bold text-foreground">{feature.title}</h1>
             {feature.summary && (
-              <p className="text-xs text-zinc-500 mt-0.5">{feature.summary}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{feature.summary}</p>
             )}
           </div>
         </div>
         <Link
           href={`/space-help/${feature.category.slug}/${feature.slug}`}
           target="_blank"
-          className="flex items-center gap-2 text-xs text-zinc-400 hover:text-violet-300 border border-zinc-800 hover:border-violet-500/40 px-3 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-info border border-border hover:border-info/30 px-3 py-2 rounded-lg transition-colors"
         >
           <ExternalLink className="w-3.5 h-3.5" /> Ver na plataforma
         </Link>
       </div>
 
       {/* Vídeo */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-white">
-          <Video className="w-4 h-4 text-violet-400" /> Vídeo (YouTube ou Vimeo)
+      <div className="bg-card border border-border rounded-xl p-5 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <Video className="w-4 h-4 text-info" /> Vídeo (YouTube ou Vimeo)
         </div>
         <div className="flex gap-2">
           <input
@@ -211,15 +211,15 @@ export function FeatureStepsEditor({ featureId }: { featureId: string }) {
               setVideoDirty(true);
             }}
             placeholder="https://youtube.com/watch?v=... ou https://vimeo.com/..."
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60"
+            className="flex-1 bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/30"
           />
           <button
             onClick={handleSaveVideo}
             disabled={setVideoMut.isPending}
-            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-3.5 py-2 rounded-lg transition-colors disabled:opacity-60"
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium px-3.5 py-2 rounded-lg transition-colors disabled:opacity-60"
           >
             {setVideoMut.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <OrbitaSpinner className="w-4 h-4 " />
             ) : (
               <Save className="w-4 h-4" />
             )}
@@ -233,7 +233,7 @@ export function FeatureStepsEditor({ featureId }: { featureId: string }) {
                 setVideoMut.mutate({ target: "feature", id: featureId, youtubeUrl: "" });
               }}
               disabled={setVideoMut.isPending}
-              className="px-3.5 py-2 text-sm text-zinc-400 hover:text-red-400 border border-zinc-800 hover:border-red-500/40 rounded-lg transition-colors"
+              className="px-3.5 py-2 text-sm text-muted-foreground hover:text-destructive border border-border hover:border-destructive/30 rounded-lg transition-colors"
             >
               Remover
             </button>
@@ -245,14 +245,14 @@ export function FeatureStepsEditor({ featureId }: { featureId: string }) {
       <div>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-sm font-semibold text-white">Passos do tutorial</h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
+            <h2 className="text-sm font-semibold text-foreground">Passos do tutorial</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
               Cada passo é uma instrução com texto + screenshot opcional.
             </p>
           </div>
           <button
             onClick={openCreateStep}
-            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-3.5 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium px-3.5 py-2 rounded-lg transition-colors"
           >
             <Plus className="w-4 h-4" /> Novo passo
           </button>
@@ -262,19 +262,19 @@ export function FeatureStepsEditor({ featureId }: { featureId: string }) {
           {feature.steps.map((step: any, idx: number) => (
             <div
               key={step.id}
-              className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex gap-4"
+              className="bg-card border border-border rounded-xl p-5 flex gap-4"
             >
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white text-sm font-bold">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
                 {idx + 1}
               </span>
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-white">{step.title}</h3>
-                <p className="text-xs text-zinc-400 mt-1 whitespace-pre-line">
+                <h3 className="text-sm font-semibold text-foreground">{step.title}</h3>
+                <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line">
                   {step.description}
                 </p>
                 {step.screenshotUrl ? (
                   <div className="mt-3 space-y-2 max-w-md">
-                    <div className="overflow-hidden rounded-lg border border-zinc-800">
+                    <div className="overflow-hidden rounded-lg border border-border">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={step.screenshotUrl}
@@ -294,14 +294,14 @@ export function FeatureStepsEditor({ featureId }: { featureId: string }) {
                           annotations: (step.annotations as StepAnnotation[] | null) ?? null,
                         })
                       }
-                      className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-red-600/15 hover:bg-red-600/25 border border-red-500/40 text-red-300 hover:text-red-200 transition-colors"
+                      className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-destructive/15 hover:bg-destructive/25 border border-destructive/30 text-destructive hover:text-destructive transition-colors"
                     >
                       <Rocket className="w-3.5 h-3.5" />
                       Anotar setas ({step.annotations?.length ?? 0})
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-zinc-600">
+                  <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
                     <ImageIcon className="w-3 h-3" /> Sem screenshot
                   </div>
                 )}
@@ -309,7 +309,7 @@ export function FeatureStepsEditor({ featureId }: { featureId: string }) {
               <div className="flex flex-col gap-1 shrink-0">
                 <button
                   onClick={() => openEditStep(step)}
-                  className="p-1.5 text-zinc-500 hover:text-violet-300 hover:bg-zinc-800 rounded transition-colors"
+                  className="p-1.5 text-muted-foreground hover:text-info hover:bg-muted rounded transition-colors"
                   title="Editar"
                 >
                   <Pencil className="w-4 h-4" />
@@ -317,11 +317,11 @@ export function FeatureStepsEditor({ featureId }: { featureId: string }) {
                 <button
                   onClick={() => handleDeleteStep(step.id, step.title)}
                   disabled={deletingStepId === step.id}
-                  className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded transition-colors disabled:opacity-50"
+                  className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-muted rounded transition-colors disabled:opacity-50"
                   title="Remover"
                 >
                   {deletingStepId === step.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <OrbitaSpinner className="w-4 h-4 " />
                   ) : (
                     <Trash2 className="w-4 h-4" />
                   )}
@@ -331,11 +331,11 @@ export function FeatureStepsEditor({ featureId }: { featureId: string }) {
           ))}
 
           {feature.steps.length === 0 && (
-            <div className="bg-zinc-900 border border-dashed border-zinc-800 rounded-xl p-12 text-center">
-              <p className="text-sm text-zinc-500">Nenhum passo cadastrado ainda.</p>
+            <div className="bg-card border border-dashed border-border rounded-xl p-12 text-center">
+              <p className="text-sm text-muted-foreground">Nenhum passo cadastrado ainda.</p>
               <button
                 onClick={openCreateStep}
-                className="mt-3 text-xs text-violet-400 hover:text-violet-300"
+                className="mt-3 text-xs text-info hover:text-info"
               >
                 Criar o primeiro passo →
               </button>
@@ -430,39 +430,39 @@ function StepFormDialog({
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
       <form
         onSubmit={onSubmit}
-        className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+        className="bg-card border border-border rounded-xl w-full max-w-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto"
       >
-        <h3 className="text-base font-semibold text-white">
+        <h3 className="text-base font-semibold text-foreground">
           {stepId ? "Editar passo" : "Novo passo"}
         </h3>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Título *</label>
+          <label className="text-xs font-medium text-muted-foreground">Título *</label>
           <input
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
             placeholder="Acesse o menu Configurações"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60"
+            className="w-full bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/30"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Descrição *</label>
+          <label className="text-xs font-medium text-muted-foreground">Descrição *</label>
           <textarea
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="Detalhe o que o usuário deve fazer neste passo."
             rows={4}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60 resize-none"
+            className="w-full bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/30 resize-none"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Screenshot</label>
+          <label className="text-xs font-medium text-muted-foreground">Screenshot</label>
 
           {form.screenshotUrl ? (
             <div className="space-y-2">
-              <div className="overflow-hidden rounded-lg border border-zinc-800 relative">
+              <div className="overflow-hidden rounded-lg border border-border relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={form.screenshotUrl} alt="Preview" className="block w-full h-auto" />
                 <button
@@ -478,7 +478,7 @@ function StepFormDialog({
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 disabled={uploading}
-                className="text-xs text-violet-400 hover:text-violet-300"
+                className="text-xs text-info hover:text-info"
               >
                 Substituir imagem
               </button>
@@ -488,18 +488,18 @@ function StepFormDialog({
               type="button"
               onClick={() => inputRef.current?.click()}
               disabled={uploading}
-              className="w-full flex flex-col items-center justify-center gap-2 py-8 bg-zinc-800/50 border border-dashed border-zinc-700 hover:border-violet-500/60 rounded-lg text-zinc-400 hover:text-violet-300 transition-colors"
+              className="w-full flex flex-col items-center justify-center gap-2 py-8 bg-muted/50 border border-dashed border-line hover:border-info/30 rounded-lg text-muted-foreground hover:text-info transition-colors"
             >
               {uploading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <OrbitaSpinner className="w-5 h-5 " />
                   <span className="text-xs">Enviando…</span>
                 </>
               ) : (
                 <>
                   <ImagePlus className="w-5 h-5" />
                   <span className="text-xs">Adicionar screenshot</span>
-                  <span className="text-[10px] text-zinc-600">
+                  <span className="text-[10px] text-muted-foreground/70">
                     JPG · PNG · WebP · GIF · máx {MAX_SIZE_MB}MB
                   </span>
                 </>
@@ -518,30 +518,30 @@ function StepFormDialog({
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Ordem</label>
+          <label className="text-xs font-medium text-muted-foreground">Ordem</label>
           <input
             type="number"
             value={form.order}
             onChange={(e) => setForm({ ...form, order: Number(e.target.value) || 0 })}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/60"
+            className="w-full bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-info/30"
           />
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
           <button
             type="button"
             onClick={onClose}
             disabled={isPending}
-            className="px-3.5 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+            className="px-3.5 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={isPending || uploading}
-            className="px-3.5 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
+            className="px-3.5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
           >
-            {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isPending && <OrbitaSpinner className="w-4 h-4 " />}
             Salvar
           </button>
         </div>

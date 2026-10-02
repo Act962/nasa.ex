@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Loader2, Plus, Pencil, RefreshCw } from "lucide-react";
+import { Plus, Pencil, RefreshCw } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -180,7 +181,7 @@ function CustomerFormDialog({
             </div>
             <DialogFooter>
               <Button type="submit" disabled={isPending}>
-                {isPending && <Loader2 className="size-3.5 animate-spin" />}
+                {isPending && <OrbitaSpinner className="size-3.5 " />}
                 Salvar
               </Button>
             </DialogFooter>
@@ -215,7 +216,7 @@ export default function NerpCustomerPage() {
       actions={
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => query.refetch()} disabled={query.isFetching}>
-            {query.isFetching ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            {query.isFetching ? <OrbitaSpinner className="size-3.5 " /> : <RefreshCw className="size-3.5" />}
           </Button>
           <CustomerFormDialog
             title="Novo cliente"
@@ -272,7 +273,7 @@ export default function NerpCustomerPage() {
                   {query.isLoading && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                        <Loader2 className="size-4 animate-spin inline mr-2" /> Carregando…
+                        <OrbitaSpinner className="size-4 inline mr-2" /> Carregando…
                       </TableCell>
                     </TableRow>
                   )}

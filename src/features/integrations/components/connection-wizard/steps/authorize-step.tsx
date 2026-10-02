@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useConnectionWizardStore } from "@/features/integrations/store/connection-wizard-store";
 
 export function AuthorizeStep() {
@@ -17,8 +17,8 @@ export function AuthorizeStep() {
 
   return (
     <div className="space-y-6 text-center py-6">
-      <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-[#7C3AED]/10">
-        <Loader2 className="size-8 text-[#7C3AED] animate-spin" />
+      <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-info/10">
+        <OrbitaSpinner className="size-8 text-info " />
       </div>
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">Aguardando autorização…</h2>

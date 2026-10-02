@@ -112,12 +112,12 @@ export function MemberActivityReport({ from, to, memberIds }: Props) {
           <SummaryCard
             label="Stars consumidas"
             value={orgTotals.starsConsumed}
-            icon={<Star className="size-4 text-yellow-500" />}
+            icon={<Star className="size-4 text-warning" />}
           />
           <SummaryCard
             label="Space Points"
             value={orgTotals.totalSpacePoints}
-            icon={<Coins className="size-4 text-amber-600" />}
+            icon={<Coins className="size-4 text-warning" />}
           />
         </div>
       )}
@@ -130,7 +130,7 @@ export function MemberActivityReport({ from, to, memberIds }: Props) {
         <div className="space-y-3">
           <div className="rounded-lg border bg-card p-4">
             <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <Trophy className="size-4 text-yellow-500" /> Ranking
+              <Trophy className="size-4 text-warning" /> Ranking
             </h3>
             <div className="space-y-2">
               {members.slice(0, 10).map((m, idx) => (

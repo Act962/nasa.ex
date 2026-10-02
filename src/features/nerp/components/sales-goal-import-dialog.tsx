@@ -12,7 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2, ArrowLeft, ArrowRight } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, ArrowLeft, ArrowRight } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   parseSalesGoalWorkbook,
   type ParsedSalesGoalWorkbook,
@@ -194,9 +195,9 @@ export function SalesGoalImportDialog({ open, onOpenChange }: SalesGoalImportDia
               </div>
 
               {parsed.warnings.length > 0 && (
-                <div className="flex flex-col gap-1.5 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg p-3 border border-yellow-200 dark:border-yellow-900">
+                <div className="flex flex-col gap-1.5 bg-warning/10 rounded-lg p-3 border border-warning/30">
                   {parsed.warnings.map((warning) => (
-                    <div key={warning} className="flex items-start gap-2 text-xs text-yellow-800 dark:text-yellow-200">
+                    <div key={warning} className="flex items-start gap-2 text-xs text-warning">
                       <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                       {warning}
                     </div>
@@ -238,19 +239,19 @@ export function SalesGoalImportDialog({ open, onOpenChange }: SalesGoalImportDia
 
           {step === "importing" && (
             <div className="flex flex-col items-center justify-center py-10 gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <OrbitaSpinner className="h-8 w-8 text-primary" />
               <p className="text-sm text-muted-foreground">Importando {totalEntries} metas...</p>
             </div>
           )}
 
           {step === "done" && (
-            <div className="flex items-start gap-3 bg-green-50 dark:bg-green-950/20 rounded-lg p-4 border border-green-200 dark:border-green-900">
-              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 bg-success/10 rounded-lg p-4 border border-success/30">
+              <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-green-900 dark:text-green-100">
+                <p className="text-sm font-semibold text-success">
                   Metas importadas com sucesso
                 </p>
-                <p className="text-xs text-green-700 dark:text-green-200 mt-1">
+                <p className="text-xs text-success mt-1">
                   O ranking já está atualizado com os novos dados.
                 </p>
               </div>

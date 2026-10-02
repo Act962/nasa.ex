@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { Loader2, Save } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Save } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +42,14 @@ import {
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { emitTourResult } from "@/features/tour/store";
 import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
+import {
+  BOTTOM_SHEET_ACTION_CLASS,
+  BOTTOM_SHEET_BODY_CLASS,
+  BOTTOM_SHEET_DIALOG_CLASS,
+  BOTTOM_SHEET_FOOTER_CLASS,
+  BOTTOM_SHEET_HANDLE_CLASS,
+  BOTTOM_SHEET_HEADER_CLASS,
+} from "../../lib/bottom-sheet-dialog";
 
 interface LessonAttachment {
   /** Vazio quando o item é novo (ainda não salvo). */
@@ -55,7 +65,7 @@ interface LessonAttachment {
   order: number;
 }
 
-interface Lesson {
+export interface LessonFormInitial {
   id?: string;
   moduleId?: string | null;
   title: string;
@@ -81,7 +91,7 @@ interface Props {
   onClose: () => void;
   courseId: string;
   modules: ModuleOption[];
-  initial?: Lesson;
+  initial?: LessonFormInitial;
 }
 
 export function LessonForm({ open, onClose, courseId, modules, initial }: Props) {
@@ -154,12 +164,14 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
+      <DialogContent className={cn(BOTTOM_SHEET_DIALOG_CLASS, "sm:max-w-2xl")}>
+        <div aria-hidden className={BOTTOM_SHEET_HANDLE_CLASS} />
+        <DialogHeader className={BOTTOM_SHEET_HEADER_CLASS}>
           <DialogTitle>{isEdit ? "Editar aula" : "Nova aula"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className={BOTTOM_SHEET_BODY_CLASS}>
           <div className="space-y-2">
             <Label htmlFor="lesson-title">Título da aula *</Label>
             <Input
@@ -206,7 +218,7 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
           <div className="space-y-2">
             <Label>Thumbnail da aula</Label>
             {thumbnailKey ? (
-              <div className="relative h-40 w-full overflow-hidden rounded-md border bg-muted">
+              <div className="relative h-40 w-full overflow-hidden rounded-[18px] border bg-muted">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={thumbnailPreviewUrl}
@@ -292,7 +304,7 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3">
+          <div className="flex items-center justify-between rounded-[18px] border border-border bg-muted/30 p-3">
             <div>
               <Label htmlFor="free-preview" className="cursor-pointer">
                 Aula gratuita (preview)
@@ -307,24 +319,26 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
               onCheckedChange={setIsFreePreview}
             />
           </div>
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className={BOTTOM_SHEET_FOOTER_CLASS}>
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={upsert.isPending}
+              className="max-sm:hidden"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={upsert.isPending}
-              className="gap-1.5"
+              className={cn(BOTTOM_SHEET_ACTION_CLASS, "gap-1.5")}
               data-guide={GUIDE_ANCHORS.routeLessonSubmit.id}
             >
               {upsert.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
+                <OrbitaSpinner className="size-4 " />
               ) : (
                 <Save className="size-4" />
               )}
@@ -409,7 +423,7 @@ function LessonAttachmentsEditor({
           {attachments.map((att, i) => (
             <div
               key={att.id ?? `new-${i}`}
-              className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2"
+              className="flex items-center gap-2 rounded-[14px] border bg-muted/30 px-3 py-2"
             >
               <span className="shrink-0 text-muted-foreground">
                 {att.kind === "image" ? (
@@ -457,7 +471,7 @@ function LessonAttachmentsEditor({
           input file fica em cima da área visível pra abrir o seletor. */}
       <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
         <div className="relative">
-          <div className="flex h-9 items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-border bg-background text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
+          <div className="flex h-9 items-center justify-center gap-1.5 rounded-full border-2 border-dashed border-border bg-background text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
             <PlusIcon className="size-3.5" />
             Arquivo (PDF, doc, planilha)
           </div>
@@ -469,7 +483,7 @@ function LessonAttachmentsEditor({
           </div>
         </div>
         <div className="relative">
-          <div className="flex h-9 items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-border bg-background text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
+          <div className="flex h-9 items-center justify-center gap-1.5 rounded-full border-2 border-dashed border-border bg-background text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
             <ImageIcon className="size-3.5" />
             Imagem
           </div>
@@ -494,7 +508,7 @@ function LessonAttachmentsEditor({
 
       {/* Mini-form inline pra adicionar link externo */}
       {linkOpen && (
-        <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+        <div className="space-y-2 rounded-[14px] border bg-muted/20 p-3">
           <Input
             placeholder="Título (ex: Apostila completa)"
             value={linkTitle}

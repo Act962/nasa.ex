@@ -171,7 +171,7 @@ function UploadButton({
     >
       {previewUrl && (
         <div
-          className="w-full rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700 flex items-center justify-center"
+          className="w-full rounded-lg overflow-hidden bg-panel border border-border flex items-center justify-center"
           style={{ height: size === "md" ? "80px" : "48px" }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -194,7 +194,7 @@ function UploadButton({
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
           className={cn(
-            "flex items-center gap-1 rounded-lg bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 hover:text-white transition-all disabled:opacity-50",
+            "flex items-center gap-1 rounded-lg bg-info/20 hover:bg-info/40 text-info hover:text-foreground transition-all disabled:opacity-50",
             size === "sm" ? "px-2 py-1 text-[10px]" : "px-3 py-1.5 text-xs",
           )}
         >
@@ -206,7 +206,7 @@ function UploadButton({
             onClick={handleDelete}
             disabled={delMut.isPending}
             className={cn(
-              "flex items-center gap-1 rounded-lg bg-red-500/10 hover:bg-red-500/25 text-red-400 hover:text-red-300 transition-all disabled:opacity-50",
+              "flex items-center gap-1 rounded-lg bg-destructive/10 hover:bg-destructive/25 text-destructive hover:text-destructive transition-all disabled:opacity-50",
               size === "sm" ? "px-2 py-1 text-[10px]" : "px-3 py-1.5 text-xs",
             )}
           >
@@ -283,10 +283,10 @@ function SelosTab({
         return (
           <div
             key={level.id}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 flex flex-col items-center gap-2 hover:border-zinc-700 transition-all"
+            className="bg-card border border-border rounded-2xl p-3 flex flex-col items-center gap-2 hover:border-knob transition-all"
           >
             {/* Badge preview */}
-            <div className="relative w-16 h-16 rounded-full overflow-hidden bg-zinc-800 flex items-center justify-center">
+            <div className="relative w-16 h-16 rounded-full overflow-hidden bg-panel flex items-center justify-center">
               <Image
                 src={badgeUrl}
                 alt={level.name}
@@ -296,7 +296,7 @@ function SelosTab({
               />
               {customUrl && (
                 <div
-                  className="absolute top-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border border-zinc-900"
+                  className="absolute top-0 right-0 w-3 h-3 rounded-full bg-success border border-card"
                   title="Imagem personalizada"
                 />
               )}
@@ -314,7 +314,7 @@ function SelosTab({
                         planetEmoji: e.target.value,
                       }))
                     }
-                    className="w-10 text-center text-sm bg-zinc-800 border border-zinc-700 rounded-lg px-1 py-1 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                    className="w-10 text-center text-sm bg-panel border border-border rounded-lg px-1 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     placeholder="🌍"
                   />
                   <input
@@ -322,7 +322,7 @@ function SelosTab({
                     onChange={(e) =>
                       setEditVals((v) => ({ ...v, name: e.target.value }))
                     }
-                    className="flex-1 text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                    className="flex-1 text-xs bg-panel border border-border rounded-lg px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     placeholder="Nome"
                   />
                 </div>
@@ -335,20 +335,20 @@ function SelosTab({
                       requiredPoints: e.target.value,
                     }))
                   }
-                  className="w-full text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  className="w-full text-xs bg-panel border border-border rounded-lg px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   placeholder="Pontos necessários"
                 />
                 <div className="flex gap-1 justify-end">
                   <button
                     onClick={() => setEditingId(null)}
-                    className="h-6 w-6 flex items-center justify-center rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-400"
+                    className="h-6 w-6 flex items-center justify-center rounded-md bg-muted hover:bg-knob text-muted-foreground"
                   >
                     <X className="w-3 h-3" />
                   </button>
                   <button
                     onClick={() => saveEdit(level)}
                     disabled={saveMut.isPending}
-                    className="h-6 w-6 flex items-center justify-center rounded-md bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-50"
+                    className="h-6 w-6 flex items-center justify-center rounded-md bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
                   >
                     <Check className="w-3 h-3" />
                   </button>
@@ -357,17 +357,17 @@ function SelosTab({
             ) : (
               <div className="text-center w-full">
                 <div className="flex items-center justify-center gap-1">
-                  <p className="text-xs font-semibold text-white leading-tight">
+                  <p className="text-xs font-semibold text-foreground leading-tight">
                     {level.planetEmoji} {level.name}
                   </p>
                   <button
                     onClick={() => startEdit(level)}
-                    className="shrink-0 h-4 w-4 flex items-center justify-center rounded hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300"
+                    className="shrink-0 h-4 w-4 flex items-center justify-center rounded hover:bg-accent text-muted-foreground hover:text-foreground"
                   >
                     <Pencil className="w-2.5 h-2.5" />
                   </button>
                 </div>
-                <p className="text-[10px] text-zinc-500">
+                <p className="text-[10px] text-muted-foreground">
                   {level.requiredPoints.toLocaleString("pt-BR")} pts · #badge
                   {level.badgeNumber}
                 </p>
@@ -407,10 +407,10 @@ function AppsTab({
         return (
           <div
             key={app.slug}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-zinc-700 transition-all"
+            className="bg-card border border-border rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-knob transition-all"
           >
             {/* Icon preview */}
-            <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-zinc-800 flex items-center justify-center border border-zinc-700">
+            <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-panel flex items-center justify-center border border-border">
               {customUrl ? (
                 <>
                   <Image
@@ -421,7 +421,7 @@ function AppsTab({
                     unoptimized
                   />
                   <div
-                    className="absolute top-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border border-zinc-900"
+                    className="absolute top-0 right-0 w-3 h-3 rounded-full bg-success border border-card"
                     title="Imagem personalizada"
                   />
                 </>
@@ -431,8 +431,8 @@ function AppsTab({
             </div>
 
             <div className="text-center">
-              <p className="text-xs font-semibold text-white">{app.label}</p>
-              <p className="text-[10px] text-zinc-500 font-mono">{app.slug}</p>
+              <p className="text-xs font-semibold text-foreground">{app.label}</p>
+              <p className="text-[10px] text-muted-foreground font-mono">{app.slug}</p>
             </div>
 
             <UploadButton
@@ -479,18 +479,18 @@ function IntegrationsTab({
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar integração..."
-            className="w-full pl-8 pr-3 py-2 text-sm bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+            className="w-full pl-8 pr-3 py-2 text-sm bg-panel border border-border rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="text-sm bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+          className="text-sm bg-panel border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="all">Todas as categorias</option>
           {categories.map((c) => (
@@ -513,7 +513,7 @@ function IntegrationsTab({
           return (
             <div
               key={integration.slug}
-              className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 flex flex-col items-center gap-2 hover:border-zinc-700 transition-all"
+              className="bg-card border border-border rounded-xl p-3 flex flex-col items-center gap-2 hover:border-knob transition-all"
             >
               {/* Icon preview */}
               <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-white flex items-center justify-center shrink-0">
@@ -533,17 +533,17 @@ function IntegrationsTab({
                 )}
                 {customUrl && (
                   <div
-                    className="absolute top-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border border-white"
+                    className="absolute top-0 right-0 w-3 h-3 rounded-full bg-success border border-white"
                     title="Imagem personalizada"
                   />
                 )}
               </div>
 
               <div className="text-center w-full">
-                <p className="text-xs font-semibold text-white leading-tight truncate">
+                <p className="text-xs font-semibold text-foreground leading-tight truncate">
                   {integration.name}
                 </p>
-                <p className="text-[9px] text-zinc-500 truncate">
+                <p className="text-[9px] text-muted-foreground truncate">
                   {integration.category}
                 </p>
               </div>
@@ -560,7 +560,7 @@ function IntegrationsTab({
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center py-12 text-zinc-500 text-sm">
+        <div className="text-center py-12 text-muted-foreground text-sm">
           Nenhuma integração encontrada.
         </div>
       )}
@@ -585,15 +585,15 @@ function PlatformTab({
         return (
           <div
             key={pk.key}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3"
+            className="bg-card border border-border rounded-2xl p-4 space-y-3"
           >
             <div>
-              <p className="text-sm font-semibold text-white">{pk.label}</p>
-              <p className="text-xs text-zinc-500">{pk.hint}</p>
+              <p className="text-sm font-semibold text-foreground">{pk.label}</p>
+              <p className="text-xs text-muted-foreground">{pk.hint}</p>
             </div>
 
             {/* Preview */}
-            <div className="w-full h-28 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden">
+            <div className="w-full h-28 rounded-xl bg-panel border border-border flex items-center justify-center overflow-hidden">
               {customUrl ? (
                 <Image
                   src={customUrl}
@@ -604,7 +604,7 @@ function PlatformTab({
                   unoptimized
                 />
               ) : (
-                <div className="flex flex-col items-center gap-1 text-zinc-600">
+                <div className="flex flex-col items-center gap-1 text-muted-foreground">
                   <ImageIcon className="w-6 h-6" />
                   <p className="text-[10px]">Sem imagem</p>
                 </div>
@@ -641,12 +641,12 @@ function ElementosTab({
 }) {
   return (
     <div className="space-y-4">
-      <div className="bg-violet-600/10 border border-violet-500/20 rounded-xl px-4 py-3 text-sm text-zinc-300">
+      <div className="bg-info/10 border border-info/20 rounded-xl px-4 py-3 text-sm text-foreground">
         Faça upload de imagens{" "}
-        <span className="text-white font-semibold">1:1 (quadradas)</span> de
+        <span className="text-foreground font-semibold">1:1 (quadradas)</span> de
         elementos visuais. Eles poderão ser arrastados e posicionados livremente
         nos banners de popup em{" "}
-        <strong className="text-zinc-300">Editar/Novo Template → Prévia</strong>
+        <strong className="text-foreground">Editar/Novo Template → Prévia</strong>
         .
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -655,9 +655,9 @@ function ElementosTab({
           return (
             <div
               key={key}
-              className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col items-center gap-3 hover:border-zinc-700 transition-all"
+              className="bg-card border border-border rounded-2xl p-4 flex flex-col items-center gap-3 hover:border-knob transition-all"
             >
-              <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700 flex items-center justify-center">
+              <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-panel border border-border flex items-center justify-center">
                 {url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -666,16 +666,16 @@ function ElementosTab({
                     className="w-full h-full object-contain"
                   />
                 ) : (
-                  <div className="flex flex-col items-center gap-1 text-zinc-600">
+                  <div className="flex flex-col items-center gap-1 text-muted-foreground">
                     <ImageIcon className="w-8 h-8" />
                     <p className="text-[10px]">Vazio</p>
                   </div>
                 )}
                 {url && (
-                  <div className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-zinc-900" />
+                  <div className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-success border border-card" />
                 )}
               </div>
-              <p className="text-xs font-medium text-zinc-300">{label}</p>
+              <p className="text-xs font-medium text-foreground">{label}</p>
               <UploadButton
                 assetKey={key}
                 currentUrl={url}
@@ -755,12 +755,12 @@ export function AssetsManager({
   return (
     <div className="space-y-5">
       {/* Stats bar */}
-      <div className="flex items-center gap-4 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5">
-        <span className="text-xs text-zinc-400">
-          <span className="text-white font-bold">{customCount}</span> ativos
+      <div className="flex items-center gap-4 bg-card border border-border rounded-xl px-4 py-2.5">
+        <span className="text-xs text-muted-foreground">
+          <span className="text-foreground font-bold">{customCount}</span> ativos
           personalizados
           {" · "}
-          <span className="text-white font-bold">
+          <span className="text-foreground font-bold">
             {levels.length +
               apps.length +
               integrations.length +
@@ -768,23 +768,23 @@ export function AssetsManager({
           </span>{" "}
           total configurável
         </span>
-        <span className="text-[10px] text-zinc-600 ml-auto">
+        <span className="text-[10px] text-muted-foreground ml-auto">
           Arquivos são enviados para S3 e o fallback é a imagem padrão do
           sistema
         </span>
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 w-fit">
+      <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-panel p-1">
         {TABS.map(({ key, label, icon: Icon, count }) => (
           <button
             key={key}
             onClick={() => setTab(key)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+              "flex shrink-0 items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
               tab === key
-                ? "bg-violet-600 text-white"
-                : "text-zinc-400 hover:text-white hover:bg-zinc-800",
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <Icon className="w-3.5 h-3.5" />
@@ -794,8 +794,8 @@ export function AssetsManager({
                 className={cn(
                   "text-[10px] px-1.5 py-0.5 rounded-full font-bold",
                   tab === key
-                    ? "bg-white/20 text-white"
-                    : "bg-zinc-700 text-zinc-400",
+                    ? "bg-background/20 text-background"
+                    : "bg-muted text-muted-foreground",
                 )}
               >
                 {count}
@@ -859,7 +859,7 @@ function PopupsTab() {
 
   if (loading)
     return (
-      <div className="text-zinc-400 text-sm py-6 text-center">
+      <div className="text-muted-foreground text-sm py-6 text-center">
         Carregando...
       </div>
     );

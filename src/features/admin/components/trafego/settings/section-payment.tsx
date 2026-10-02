@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,7 +124,7 @@ function ReconcilePixButton() {
         }
       >
         {reconcile.isPending ? (
-          <Loader2 className="mr-1.5 size-4 animate-spin" />
+          <OrbitaSpinner className="mr-1.5 size-4 " />
         ) : (
           <RefreshCw className="mr-1.5 size-4" />
         )}

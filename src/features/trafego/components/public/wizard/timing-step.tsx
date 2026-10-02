@@ -62,8 +62,8 @@ export function TimingStep({
 
       <div className="grid gap-4 sm:grid-cols-2">
         {reuseSocialConnection ? (
-          <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/[0.08] p-3">
-            <p className="flex items-center gap-2 text-xs font-medium text-emerald-200">
+          <div className="rounded-xl border border-success/30 bg-success/15 p-3">
+            <p className="flex items-center gap-2 text-xs font-medium text-success">
               <Check className="size-4" />
               Instagram e Facebook já vinculados
             </p>
@@ -97,9 +97,9 @@ export function TimingStep({
 
       <div className="rounded-2xl border border-white/[0.09] bg-white/[0.03] p-4">
         <p className="flex items-center gap-2 text-sm font-semibold text-white">
-          <CalendarClock className="size-4 shrink-0 text-violet-300" />
+          <CalendarClock className="size-4 shrink-0 text-info" />
           Com o que você tem hoje, a campanha começa a partir de{" "}
-          <span className="text-violet-300">
+          <span className="text-info">
             {formatStartDate(estimate.earliestStart)}
           </span>
         </p>
@@ -122,9 +122,9 @@ export function TimingStep({
       </div>
 
       {isTooSoon && (
-        <div className="rounded-xl border border-amber-400/30 bg-amber-500/[0.08] p-4">
-          <p className="flex items-start gap-2.5 text-xs leading-relaxed text-amber-100">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-300" />
+        <div className="rounded-xl border border-warning/30 bg-warning/15 p-4">
+          <p className="flex items-start gap-2.5 text-xs leading-relaxed text-foreground/85">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
             <span>
               Você escolheu uma data anterior a{" "}
               <strong>{formatStartDate(estimate.earliestStart)}</strong>. Vamos
@@ -140,9 +140,9 @@ export function TimingStep({
               onChange={(event) =>
                 patch({ acknowledged: event.target.checked })
               }
-              className="mt-0.5 size-3.5 shrink-0 accent-amber-500"
+              className="mt-0.5 size-3.5 shrink-0 accent-warning"
             />
-            <span className="text-xs leading-relaxed text-amber-100/90">
+            <span className="text-xs leading-relaxed text-foreground/85">
               Entendi que a data realista é{" "}
               <strong>{formatStartDate(estimate.earliestStart)}</strong> e que o
               prazo depende dos acessos e materiais que eu enviar.
@@ -182,7 +182,7 @@ function YesNo({
               className={cn(
                 "inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm transition",
                 isSelected
-                  ? "border-violet-400 bg-violet-500/[0.12] font-medium text-white"
+                  ? "border-info bg-info/15 font-medium text-white"
                   : "border-white/[0.09] bg-white/[0.02] text-white/50 hover:border-white/20",
               )}
             >

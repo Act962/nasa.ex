@@ -76,7 +76,7 @@ export function SortableSectionItem(props: Props) {
       style={style}
       className={cn(
         "border rounded-md bg-card mb-2 overflow-hidden",
-        isDragging && "ring-2 ring-indigo-300",
+        isDragging && "ring-2 ring-info/40",
       )}
     >
       <div className="flex items-center gap-1 px-1 py-1.5 bg-muted/30 border-b">

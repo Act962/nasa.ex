@@ -7,6 +7,7 @@ import {
   LinkIcon, CheckCircle2Icon, CopyIcon, AlertCircleIcon,
   RocketIcon, FileImageIcon, LayoutGridIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -85,18 +86,20 @@ export function CalendarTab({ plannerId }: { plannerId: string }) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-3 border-b shrink-0 gap-4 flex-wrap">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between px-6 py-3 shrink-0 gap-4 flex-wrap">
+        <div className="flex items-center gap-1 rounded-full bg-panel p-1">
           <Button
-            variant={filter === "all" ? "secondary" : "ghost"}
-            size="sm" className="h-7 text-xs gap-1.5"
+            variant="ghost"
+            size="sm"
+            className={cn("h-7 rounded-full text-xs gap-1.5", filter === "all" && "bg-foreground text-background hover:bg-foreground/90 hover:text-background")}
             onClick={() => setFilter("all")}
           >
             <LayoutGridIcon className="size-3.5" />Todos
           </Button>
           <Button
-            variant={filter === "post" ? "secondary" : "ghost"}
-            size="sm" className="h-7 text-xs gap-1.5"
+            variant="ghost"
+            size="sm"
+            className={cn("h-7 rounded-full text-xs gap-1.5", filter === "post" && "bg-foreground text-background hover:bg-foreground/90 hover:text-background")}
             onClick={() => setFilter("post")}
           >
             <FileImageIcon className="size-3.5" />Posts
@@ -105,13 +108,13 @@ export function CalendarTab({ plannerId }: { plannerId: string }) {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-pink-500 shrink-0" />Instagram
+              <span className="size-2.5 rounded-full bg-brand-instagram shrink-0" />Instagram
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-blue-500 shrink-0" />Facebook
+              <span className="size-2.5 rounded-full bg-brand-facebook shrink-0" />Facebook
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-zinc-800 shrink-0" />TikTok
+              <span className="size-2.5 rounded-full bg-foreground shrink-0" />TikTok
             </span>
           </div>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setCampaignWizardOpen(true)}>

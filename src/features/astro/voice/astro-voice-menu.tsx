@@ -62,7 +62,7 @@ export function AstroVoiceMenuItems({ onAction }: { onAction?: () => void }) {
             pauseTts();
             setPaused(true);
           }}
-          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-zinc-100 hover:bg-zinc-800/80 transition-colors"
+          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-card/80 transition-colors"
         >
           {paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
           {paused ? "Continuar a fala" : "Pausar a fala"}
@@ -71,7 +71,7 @@ export function AstroVoiceMenuItems({ onAction }: { onAction?: () => void }) {
 
       {degraded && (
         <div
-          className="flex items-start gap-2 border-b border-zinc-800 px-3 py-2 text-[11px] text-amber-300/90"
+          className="flex items-start gap-2 border-b border-line px-3 py-2 text-[11px] text-warning/90"
           title="Rode `docker compose up piper -d` para recuperar a voz natural."
         >
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
@@ -91,7 +91,7 @@ export function AstroVoiceMenuItems({ onAction }: { onAction?: () => void }) {
           // Clique manual: pula a saudação — o usuário já decidiu falar.
           captureUtterance({ withGreeting: false });
         }}
-        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-zinc-100 hover:bg-zinc-800/80 transition-colors"
+        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-card/80 transition-colors"
       >
         <Mic className="size-3.5" />
         Falar com o Astro
@@ -100,16 +100,16 @@ export function AstroVoiceMenuItems({ onAction }: { onAction?: () => void }) {
         type="button"
         role="menuitem"
         onClick={() => void toggleWakeWord()}
-        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-zinc-100 hover:bg-zinc-800/80 transition-colors border-t border-zinc-800"
+        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-card/80 transition-colors border-t border-line"
       >
         {wakeWordEnabled ? (
           <>
-            <HeadphoneOff className="size-3.5 text-amber-400" />
+            <HeadphoneOff className="size-3.5 text-warning" />
             Desativar escuta ("ASTRO")
           </>
         ) : (
           <>
-            <Headphones className="size-3.5 text-emerald-400" />
+            <Headphones className="size-3.5 text-success" />
             Ativar escuta ("ASTRO")
           </>
         )}
@@ -123,7 +123,7 @@ export function AstroVoiceMenuItems({ onAction }: { onAction?: () => void }) {
             setAnchor(null);
             onAction?.();
           }}
-          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-zinc-100 hover:bg-zinc-800/80 transition-colors border-t border-zinc-800"
+          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-card/80 transition-colors border-t border-line"
         >
           <CornerRightDown className="size-3.5" />
           Voltar o Astro para o canto
@@ -138,7 +138,7 @@ export function AstroVoiceMenuItems({ onAction }: { onAction?: () => void }) {
           closeWidget();
           onAction?.();
         }}
-        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-zinc-400 hover:bg-zinc-800/80 transition-colors border-t border-zinc-800"
+        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-card/80 transition-colors border-t border-line"
       >
         <EyeOff className="size-3.5" />
         Esconder orb

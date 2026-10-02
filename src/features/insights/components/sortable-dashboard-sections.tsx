@@ -188,7 +188,7 @@ function SortableBlock({ id, children }: { id: string; children: ReactNode }) {
         {...listeners}
         aria-label="Arrastar bloco"
         title="Arrastar para reorganizar"
-        className="absolute -left-2 md:-left-8 top-2 z-10 flex size-7 items-center justify-center rounded-md border bg-background text-muted-foreground hover:text-foreground hover:bg-muted cursor-grab active:cursor-grabbing shadow-sm"
+        className="absolute -left-2 md:-left-8 top-2 z-10 flex size-7 items-center justify-center rounded-full border bg-background text-muted-foreground hover:text-foreground hover:bg-muted cursor-grab active:cursor-grabbing shadow-sm"
       >
         <GripVerticalIcon className="size-4" />
       </button>

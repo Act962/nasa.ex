@@ -109,12 +109,12 @@ function SignersPanel({ signers }: { signers: Signer[] }) {
           className={cn(
             "flex items-center gap-3 px-4 py-3 rounded-xl border text-sm",
             s.signed_at
-              ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/40"
+              ? "bg-success/10 border-success/30 dark:bg-success/20 dark:border-success/40"
               : "bg-muted/40 border-border"
           )}
         >
           {s.signed_at ? (
-            <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+            <CheckCircle2 className="size-4 text-success shrink-0" />
           ) : (
             <Clock className="size-4 text-muted-foreground shrink-0" />
           )}
@@ -126,7 +126,7 @@ function SignersPanel({ signers }: { signers: Signer[] }) {
           </div>
           {s.signed_at ? (
             <div className="text-right shrink-0">
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Assinado</p>
+              <p className="text-xs text-success dark:text-success font-medium">Assinado</p>
               <p className="text-xs text-muted-foreground">{fmtDateTime(s.signed_at)}</p>
               {s.sign_method && (
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
@@ -342,14 +342,14 @@ function SharingBar({
           target="_blank"
           rel="noopener noreferrer"
           aria-disabled={!url}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-medium hover:bg-emerald-500/20 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success/10 border border-success/30 text-success dark:text-success text-xs font-medium hover:bg-success/20 transition-colors"
         >
           <MessageCircle className="size-3.5" /> WhatsApp
         </a>
         <a
           href={url ? `mailto:${signerEmail ?? ""}?subject=${mailSubject}&body=${mailBody}` : undefined}
           aria-disabled={!url}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 text-xs font-medium hover:bg-blue-500/20 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-info/10 border border-info/30 text-info dark:text-info text-xs font-medium hover:bg-info/20 transition-colors"
         >
           <Mail className="size-3.5" /> E-mail
         </a>
@@ -370,8 +370,8 @@ function SharingBar({
 function SignedSuccess({ method, signerName }: { method?: string; signerName: string }) {
   return (
     <div className="flex flex-col items-center gap-3 py-8 text-center">
-      <div className="size-16 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center">
-        <CheckCircle2 className="size-8 text-emerald-500" />
+      <div className="size-16 rounded-full bg-success/15 dark:bg-success/15 flex items-center justify-center">
+        <CheckCircle2 className="size-8 text-success" />
       </div>
       <div>
         <p className="font-bold text-lg">Assinado com sucesso!</p>
@@ -415,7 +415,7 @@ export function PublicContractView({ contract }: { contract: Contract }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-neutral-950 print:bg-white">
+    <div className="min-h-screen bg-muted dark:bg-background print:bg-white">
       {/* Print running elements */}
       <PrintHeader logo={logo} orgName={contract.organization.name} number={contract.number} />
       <PrintFooter orgName={contract.organization.name} />
@@ -423,7 +423,7 @@ export function PublicContractView({ contract }: { contract: Contract }) {
       {/* Floating PDF button */}
       <button
         onClick={() => window.print()}
-        className="forge-pdf-btn fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-xl shadow-purple-900/30 transition-all hover:scale-105 active:scale-95"
+        className="forge-pdf-btn fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-xl shadow-info/30 transition-all hover:scale-105 active:scale-95"
       >
         <Download className="size-4" /> Baixar PDF
       </button>
@@ -431,7 +431,7 @@ export function PublicContractView({ contract }: { contract: Contract }) {
       <div className="max-w-3xl mx-auto py-8 px-4 space-y-4">
 
         {/* ── Header card ──────────────────────────────────────────────────── */}
-        <div className="forge-avoid-break bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-border overflow-hidden">
+        <div className="forge-avoid-break bg-white dark:bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
           {/* Letterhead or default */}
           {contract.settings?.letterheadHeader ? (
             <div
@@ -457,9 +457,9 @@ export function PublicContractView({ contract }: { contract: Contract }) {
               <span className={cn(
                 "text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wide",
                 contract.status === "ATIVO"
-                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                  ? "bg-success/15 text-success dark:bg-success/15 dark:text-success"
                   : contract.status === "ENCERRADO"
-                  ? "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+                  ? "bg-destructive/15 text-destructive dark:bg-destructive/15 dark:text-destructive"
                   : "bg-muted text-muted-foreground"
               )}>
                 {contract.status}
@@ -492,7 +492,7 @@ export function PublicContractView({ contract }: { contract: Contract }) {
 
         {/* ── Contract content ─────────────────────────────────────────────── */}
         {contract.content && (
-          <div className="forge-avoid-break bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-border px-8 py-6">
+          <div className="forge-avoid-break bg-white dark:bg-card rounded-2xl shadow-sm border border-border px-8 py-6">
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
               <FileText className="size-3.5" /> Termos do Contrato
             </h2>
@@ -505,7 +505,7 @@ export function PublicContractView({ contract }: { contract: Contract }) {
         )}
 
         {/* ── Signers status ───────────────────────────────────────────────── */}
-        <div className="forge-avoid-break forge-no-print bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-border px-8 py-6">
+        <div className="forge-avoid-break forge-no-print bg-white dark:bg-card rounded-2xl shadow-sm border border-border px-8 py-6">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
             <User className="size-3.5" /> Assinantes
           </h2>
@@ -513,7 +513,7 @@ export function PublicContractView({ contract }: { contract: Contract }) {
         </div>
 
         {/* ── Signature action ─────────────────────────────────────────────── */}
-        <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-border px-8 py-6 space-y-6">
+        <div className="bg-white dark:bg-card rounded-2xl shadow-sm border border-border px-8 py-6 space-y-6">
 
           {signed ? (
             <SignedSuccess method={usedMethod} signerName={currentSigner?.name ?? ""} />
@@ -596,7 +596,7 @@ export function PublicContractView({ contract }: { contract: Contract }) {
         </div>
 
         {/* ── Footer ───────────────────────────────────────────────────────── */}
-        <div className="forge-avoid-break bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-border overflow-hidden">
+        <div className="forge-avoid-break bg-white dark:bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
           {contract.settings?.letterheadFooter ? (
             <div
               className="px-8 py-4"

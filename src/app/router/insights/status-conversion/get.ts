@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "../../../middlewares/auth";
 import { requireOrgMiddleware } from "../../../middlewares/org";
 import { z } from "zod";
 import { computeStatusConversion } from "@/features/insights/lib/metrics/status-conversion";
+import { resolveInsightsOrganizationIds } from "../resolve-insights-organizations";
 
 /**
  * Conversão por status no período. Dos leads criados na janela (cohort),
@@ -31,10 +32,11 @@ export const getStatusConversion = base
   )
   .handler(async ({ input, context, errors }) => {
     const { org } = context;
-    const organizationIds =
-      input.organizationIds && input.organizationIds.length > 0
-        ? input.organizationIds
-        : [org.id];
+    const organizationIds = await resolveInsightsOrganizationIds({
+      userId: context.user.id,
+      activeOrganizationId: org.id,
+      requestedOrganizationIds: input.organizationIds,
+    });
 
     const result = await computeStatusConversion({
       organizationIds,

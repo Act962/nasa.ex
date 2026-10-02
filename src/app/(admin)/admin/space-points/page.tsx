@@ -51,12 +51,12 @@ export default async function AdminSpacePointsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-violet-600/20 flex items-center justify-center">
-          <Rocket className="w-5 h-5 text-violet-400" />
+        <div className="w-10 h-10 rounded-xl bg-info/15 flex items-center justify-center">
+          <Rocket className="w-5 h-5 text-info" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white">Space Points</h1>
-          <p className="text-sm text-zinc-400">
+          <h1 className="text-xl font-bold text-foreground">Space Points</h1>
+          <p className="text-sm text-muted-foreground">
             Controle de gamificação por empresa e usuário
           </p>
         </div>
@@ -69,29 +69,29 @@ export default async function AdminSpacePointsPage() {
             icon: Users,
             label: "Usuários ativos",
             value: stats.totalUsers.toLocaleString("pt-BR"),
-            color: "text-violet-400",
+            color: "text-info",
           },
           {
             icon: Zap,
             label: "Pontos distribuídos",
             value: stats.totalPointsAwarded.toLocaleString("pt-BR") + " pts",
-            color: "text-yellow-400",
+            color: "text-warning",
           },
           {
             icon: Building2,
             label: "Empresas com pontos",
             value: stats.activeOrgs.toString(),
-            color: "text-cyan-400",
+            color: "text-info",
           },
         ].map(({ icon: Icon, label, value, color }) => (
           <div
             key={label}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-3"
+            className="bg-card border border-border rounded-xl p-4 flex items-center gap-3"
           >
             <Icon className={`w-5 h-5 ${color} shrink-0`} />
             <div>
-              <p className="text-xs text-zinc-400">{label}</p>
-              <p className="text-lg font-bold text-white">{value}</p>
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-lg font-bold text-foreground">{value}</p>
             </div>
           </div>
         ))}

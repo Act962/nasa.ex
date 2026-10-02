@@ -9,7 +9,7 @@ const ALL_APPS = [
   { slug: "spacetime",       label: "SpaceTime" },
   { slug: "nasa-planner",    label: "ÓRBITA Planner" },
   { slug: "insights",        label: "Insights" },
-  { slug: "integrations",    label: "Integrações" },
+  { slug: "integrations",    label: "Satélites" },
   { slug: "explorer",        label: "ÓRBITA Explorer" },
   { slug: "nbox",            label: "N-Box" },
   { slug: "forge-contracts", label: "Forge Contracts" },
@@ -33,8 +33,8 @@ export default async function AppsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-white">Configuração dos Apps</h1>
-        <p className="text-sm text-zinc-400 mt-1">Custo em Stars por aplicativo</p>
+        <h1 className="text-xl font-bold text-foreground">Configuração dos Apps</h1>
+        <p className="text-sm text-muted-foreground mt-1">Custo em Stars por aplicativo</p>
       </div>
 
       <AppCostManager apps={appData} />

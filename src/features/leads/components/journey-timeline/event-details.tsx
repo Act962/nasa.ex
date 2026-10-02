@@ -41,7 +41,7 @@ export function EventMetadataPreview({
             href={String(metadata.sourceUrl)}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-emerald-700 hover:underline"
+            className="inline-flex items-center gap-1 text-success hover:underline"
           >
             Ver criativo <ExternalLink className="size-3" />
           </a>

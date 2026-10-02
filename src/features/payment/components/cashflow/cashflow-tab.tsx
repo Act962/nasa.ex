@@ -47,29 +47,29 @@ export function CashflowTab() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="bg-card border-border/50">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-green-400 mb-1">
+            <div className="flex items-center gap-2 text-success mb-1">
               <ArrowDownCircle className="size-4" />
               <span className="text-xs font-medium">Total Entradas</span>
             </div>
-            <p className="text-xl font-black text-green-400">{formatCurrency(totalIn)}</p>
+            <p className="text-xl font-black text-success">{formatCurrency(totalIn)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-red-400 mb-1">
+            <div className="flex items-center gap-2 text-destructive mb-1">
               <ArrowUpCircle className="size-4" />
               <span className="text-xs font-medium">Total Saídas</span>
             </div>
-            <p className="text-xl font-black text-red-400">{formatCurrency(totalOut)}</p>
+            <p className="text-xl font-black text-destructive">{formatCurrency(totalOut)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border/50">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-blue-400 mb-1">
+            <div className="flex items-center gap-2 text-info mb-1">
               <TrendingUp className="size-4" />
               <span className="text-xs font-medium">Saldo Final</span>
             </div>
-            <p className={`text-xl font-black ${finalBalance >= 0 ? "text-green-400" : "text-red-400"}`}>
+            <p className={`text-xl font-black ${finalBalance >= 0 ? "text-success" : "text-destructive"}`}>
               {formatCurrency(finalBalance)}
             </p>
           </CardContent>
@@ -80,7 +80,7 @@ export function CashflowTab() {
       <Card className="bg-card border-border/50">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <TrendingUp className="size-4 text-blue-400" />
+            <TrendingUp className="size-4 text-info" />
             Fluxo de Caixa Diário
           </CardTitle>
         </CardHeader>
@@ -133,9 +133,9 @@ export function CashflowTab() {
             <thead>
               <tr className="border-b border-border/50 bg-muted/30">
                 <th className="text-left px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium">Data</th>
-                <th className="text-right px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium text-green-400">Entradas</th>
-                <th className="text-right px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium text-red-400">Saídas</th>
-                <th className="text-right px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium text-blue-400">Saldo</th>
+                <th className="text-right px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium text-success">Entradas</th>
+                <th className="text-right px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium text-destructive">Saídas</th>
+                <th className="text-right px-3 sm:px-4 py-3 text-xs text-muted-foreground font-medium text-info">Saldo</th>
                 <th className="w-10" />
               </tr>
             </thead>
@@ -149,13 +149,13 @@ export function CashflowTab() {
                   <td className="px-3 sm:px-4 py-2.5 font-medium">
                     {formatDate(r.date)}
                   </td>
-                  <td className="px-3 sm:px-4 py-2.5 text-right text-green-400">
+                  <td className="px-3 sm:px-4 py-2.5 text-right text-success">
                     {r.receivable > 0 ? formatCurrency(r.receivable) : "—"}
                   </td>
-                  <td className="px-3 sm:px-4 py-2.5 text-right text-red-400">
+                  <td className="px-3 sm:px-4 py-2.5 text-right text-destructive">
                     {r.payable > 0 ? formatCurrency(r.payable) : "—"}
                   </td>
-                  <td className={`px-3 sm:px-4 py-2.5 text-right font-semibold ${r.balance >= 0 ? "text-green-400" : "text-red-400"}`}>
+                  <td className={`px-3 sm:px-4 py-2.5 text-right font-semibold ${r.balance >= 0 ? "text-success" : "text-destructive"}`}>
                     {formatCurrency(r.balance)}
                   </td>
                   <td className="px-2 py-2.5 text-right">

@@ -16,7 +16,7 @@
 | Severidade | Itens | Status |
 | --- | ---: | --- |
 | 🔴 Crítico — explorável anonimamente | 8 | ⬜ 7 · ✅ 1 |
-| 🟠 Alto | 6 | ⬜ 6 |
+| 🟠 Alto | 7 | ⬜ 6 · ✅ 1 |
 | 🟡 Médio | 5 | ⬜ 5 |
 
 **Ponto de partida:** as quatro primeiras (S1–S4) são **horas de trabalho cada** e os templates
@@ -377,6 +377,16 @@ implementação correspondente.
 
 ---
 
+
+### A7 — Insights aceitava IDs de empresa sem conferir se o usuário é membro
+
+| | |
+| --- | --- |
+| **Status** | ✅ corrigido em `feature/W-orbita-melhorias-ui-ux-20261001` |
+| **Arquivos** | `src/app/router/insights/{get-apps-insights,funnel/get,status-conversion/get,lead-rescue/list,lead-origin/get,tracking-performance/get}.ts` |
+| **Impacto** | **Vazamento entre empresas.** Qualquer usuário logado lia números de outra empresa passando o ID dela em `organizationIds` |
+| **Correção** | `resolveInsightsOrganizationIds` (`src/app/router/insights/resolve-insights-organizations.ts`): só valem empresas de que o usuário é membro; sem seleção, todas as dele (mesmo critério do relatório do Tracking) |
+
 ## 🟡 Médios
 
 | # | Item | Arquivo | Ação |
@@ -419,3 +429,4 @@ Registrados para não serem re-auditados sem motivo:
 | 2026-08-18 | Registro inicial. 8 críticos, 6 altos, 5 médios, a partir da auditoria de `f67796d2`. Todos os itens 🔴 confirmados por leitura direta do código. Nenhuma correção aplicada. |
 | 2026-09-29 | S8 corrigido: bloco de debug removido depois de gravar em log a API key do Asaas de uma loja durante teste de PIX real. Pendentes: logging com redação e rotação das chaves expostas. |
 | 2026-09-26 | M6 adicionado e corrigido (vazamento do Financeiro pelo ASTRO para membro sem acesso), achado pela bateria de testes do ASTRO. |
+| 2026-10-01 | A7 adicionado e corrigido (Insights lia dados de qualquer empresa pelo ID), achado ao auditar os filtros do Insights. |

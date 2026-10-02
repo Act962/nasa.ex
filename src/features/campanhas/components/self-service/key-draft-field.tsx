@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, ClipboardPaste, Loader2, Pencil } from "lucide-react";
+import { CheckCircle2, ClipboardPaste, Pencil } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,11 +13,11 @@ export type KeyDraftName = "accessToken" | "appId" | "appSecret" | "appPageUrl" 
 
 const FIELD_COPY: Record<KeyDraftName, { label: string; savedLabel: string; placeholder: string; isSecret: boolean }> = {
   accessToken: { label: "Cole aqui a chave de acesso", savedLabel: "Chave de acesso salva", placeholder: "EAA…", isSecret: true },
-  appId: { label: "Cole aqui o ID do app", savedLabel: "ID do app salvo", placeholder: "Ex.: 2140009873262854", isSecret: false },
+  appId: { label: "Cole aqui o ID da conexão (ID do Aplicativo)", savedLabel: "ID da conexão salvo", placeholder: "Ex.: 2140009873262854", isSecret: false },
   appSecret: { label: "Cole aqui a chave secreta", savedLabel: "Chave secreta salva", placeholder: "32 letras e números", isSecret: true },
   appPageUrl: {
     label: "Cole aqui o link desta página (barra de endereço do navegador)",
-    savedLabel: "Seu app foi encontrado",
+    savedLabel: "Sua conexão foi encontrada",
     placeholder: "https://developers.facebook.com/apps/…",
     isSecret: false,
   },
@@ -68,8 +69,8 @@ export function KeyDraftField({
 
   if (!isEditing && savedHint) {
     return (
-      <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-3 text-sm">
-        <span className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+      <div className="flex items-center justify-between gap-2 rounded-lg border border-success/40 bg-success/5 p-3 text-sm">
+        <span className="flex items-center gap-2 text-success dark:text-success">
           <CheckCircle2 className="size-4" />
           {copy.savedLabel}
           <span className="font-mono text-xs text-muted-foreground">{copy.isSecret ? `••••${savedHint}` : savedHint}</span>
@@ -82,9 +83,9 @@ export function KeyDraftField({
   }
 
   return (
-    <div className="space-y-1 rounded-lg border border-dashed border-emerald-500/60 p-3">
+    <div className="space-y-1 rounded-lg border border-dashed border-success/60 p-3">
       <Label htmlFor={`draft-${name}`} className="flex items-center gap-1.5">
-        <ClipboardPaste className="size-4 text-emerald-600" /> {copy.label}
+        <ClipboardPaste className="size-4 text-success" /> {copy.label}
       </Label>
       <div className="flex gap-2">
         <Input
@@ -107,11 +108,11 @@ export function KeyDraftField({
           }}
         />
         <Button size="sm" onClick={() => save(value)} disabled={!value.trim() || saveDraft.isPending}>
-          {saveDraft.isPending ? <Loader2 className="size-4 animate-spin" /> : "Salvar"}
+          {saveDraft.isPending ? <OrbitaSpinner className="size-4 " /> : "Salvar"}
         </Button>
       </div>
       {errorMessage ? (
-        <p role="alert" className="text-xs font-medium text-red-600 dark:text-red-400">
+        <p role="alert" className="text-xs font-medium text-destructive dark:text-destructive">
           {errorMessage}
         </p>
       ) : (

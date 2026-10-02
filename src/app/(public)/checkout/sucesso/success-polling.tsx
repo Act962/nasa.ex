@@ -5,10 +5,10 @@ import { client as orpcClient } from "@/lib/orpc";
 import {
   AlertCircle,
   CheckCircle2,
-  Loader2,
   Mail,
   XCircle,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_ATTEMPTS = 30;
@@ -104,7 +104,7 @@ export function SuccessPolling({ pendingId }: Props) {
   if (state.kind === "missing-token") {
     return (
       <Banner
-        icon={<AlertCircle className="size-12 text-rose-400" />}
+        icon={<AlertCircle className="size-12 text-destructive" />}
         title="Token ausente"
         subtitle="Não conseguimos identificar a sua compra. Verifique o link recebido por e-mail."
       />
@@ -114,7 +114,7 @@ export function SuccessPolling({ pendingId }: Props) {
   if (state.kind === "not-found") {
     return (
       <Banner
-        icon={<XCircle className="size-12 text-rose-400" />}
+        icon={<XCircle className="size-12 text-destructive" />}
         title="Compra não encontrada"
         subtitle="Verifique o link ou aguarde alguns instantes — pode demorar até alguns segundos para o Stripe sincronizar."
       />
@@ -124,7 +124,7 @@ export function SuccessPolling({ pendingId }: Props) {
   if (state.kind === "expired") {
     return (
       <Banner
-        icon={<AlertCircle className="size-12 text-amber-400" />}
+        icon={<AlertCircle className="size-12 text-warning" />}
         title="Compra expirou"
         subtitle="Esta compra estourou o prazo de resgate. Contate o suporte para reabertura."
       />
@@ -134,7 +134,7 @@ export function SuccessPolling({ pendingId }: Props) {
   if (state.kind === "error") {
     return (
       <Banner
-        icon={<XCircle className="size-12 text-rose-400" />}
+        icon={<XCircle className="size-12 text-destructive" />}
         title="Erro inesperado"
         subtitle={state.message}
       />
@@ -144,7 +144,7 @@ export function SuccessPolling({ pendingId }: Props) {
   if (state.kind === "still-pending") {
     return (
       <Banner
-        icon={<Loader2 className="size-12 animate-spin text-violet-400" />}
+        icon={<OrbitaSpinner className="size-12 text-info" />}
         title="Pagamento ainda processando"
         subtitle={`Estamos aguardando a confirmação do Stripe. Pode levar até 1 minuto. Já enviamos seu acesso para ${state.email} assim que confirmar.`}
       />
@@ -153,9 +153,9 @@ export function SuccessPolling({ pendingId }: Props) {
 
   if (state.kind === "paid") {
     return (
-      <div className="rounded-3xl border border-emerald-400/20 bg-emerald-500/[0.04] p-8 text-center">
+      <div className="rounded-3xl border border-success/20 bg-success/[0.04] p-8 text-center">
         <div className="inline-flex">
-          <CheckCircle2 className="size-14 text-emerald-400" />
+          <CheckCircle2 className="size-14 text-success" />
         </div>
         <h1 className="mt-4 text-2xl font-bold text-white">
           Compra confirmada! 🎉
@@ -168,7 +168,7 @@ export function SuccessPolling({ pendingId }: Props) {
 
         <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-left">
           <p className="flex items-center gap-2 text-sm font-semibold text-white">
-            <Mail className="size-4 text-violet-400" />
+            <Mail className="size-4 text-info" />
             Próximo passo: verifique seu e-mail
           </p>
           <p className="mt-2 text-sm text-white/70">
@@ -191,7 +191,7 @@ export function SuccessPolling({ pendingId }: Props) {
   // Loading
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center">
-      <Loader2 className="mx-auto size-12 animate-spin text-violet-400" />
+      <OrbitaSpinner className="mx-auto size-12 text-info" />
       <h1 className="mt-4 text-xl font-bold text-white">
         Confirmando seu pagamento…
       </h1>

@@ -1,166 +1,155 @@
-import React from "react";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
-import { Bot, CheckCircle2, ChevronDown, Sparkles } from "lucide-react";
+import React, { useRef, useState } from "react";
+import Link from "next/link";
+import { CheckCircle2, ChevronDown, Orbit, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { ModelOption, ModelType } from "../types";
-import {
-  AI_PLATFORMS,
-  PROVIDER_MODELS,
-  PROVIDER_LABELS,
-} from "../data/constants";
+import { AI_PLATFORMS, PROVIDER_LABELS } from "../data/constants";
+import { useQueryPlatformIntegrations } from "@/features/integrations/hooks/use-integrations";
+import { useAstroAiMode, useSetAstroAiMode } from "@/features/astro/hooks/use-astro-ai-mode";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuGroup,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 
-interface ModelSelectorProps {
-  value: ModelType;
-  onChange: (v: ModelType) => void;
+interface MenuPlacement {
+  widthPx: number;
+  alignOffsetPx: number;
+  sideOffsetPx: number;
 }
 
-export function ModelSelector({ value, onChange }: ModelSelectorProps) {
-  const { data: integrationsData } = useQuery(
-    orpc.platformIntegrations.getMany.queryOptions({}),
-  );
+const MENU_GAP_PX = 8;
 
-  const connectedPlatforms = (integrationsData?.integrations ?? [])
-    .map((i) => i.platform)
-    .filter((p) => AI_PLATFORMS.includes(p as (typeof AI_PLATFORMS)[number]));
+// O menu abre com a mesma largura e as mesmas bordas da caixa de comando, logo acima dela.
+function measureMenuPlacement(trigger: HTMLElement): MenuPlacement | null {
+  const composer = trigger.closest<HTMLElement>("[data-home-composer]");
+  if (!composer) return null;
+  const triggerRect = trigger.getBoundingClientRect();
+  const composerRect = composer.getBoundingClientRect();
+  return {
+    widthPx: composerRect.width,
+    alignOffsetPx: composerRect.left - triggerRect.left,
+    sideOffsetPx: triggerRect.top - composerRect.top + MENU_GAP_PX,
+  };
+}
 
-  const connectedSet = new Set(connectedPlatforms);
+/** IA do ASTRO (spec 0053): a da empresa, conectada como satélite, ou o modelo ÓRBITA. */
+export function ModelSelector() {
+  const { data: aiModeData } = useAstroAiMode();
+  const setAstroAiMode = useSetAstroAiMode();
+  const { data: integrationsData } = useQueryPlatformIntegrations();
 
-  const individualOptions: ModelOption[] = [];
-  for (const platform of AI_PLATFORMS) {
-    if (connectedSet.has(platform)) {
-      individualOptions.push(...(PROVIDER_MODELS[platform] ?? []));
-    }
-  }
+  const connectedAiProviders = (integrationsData?.integrations ?? [])
+    .filter(
+      (integration) =>
+        integration.isActive &&
+        AI_PLATFORMS.includes(integration.platform as (typeof AI_PLATFORMS)[number]),
+    )
+    .map((integration) => PROVIDER_LABELS[integration.platform] ?? integration.platform);
 
-  const isAstro = value === "astro";
-  const selectedIndividual = individualOptions.find((o) => o.id === value);
+  const mode = aiModeData?.mode ?? null;
+  const isOwnKeyConnected = aiModeData?.isOwnKeyConnected ?? false;
+  const chipLabel = mode === "OWN" ? "Sua IA" : mode === "PLATFORM" ? "ÓRBITA" : "Escolher IA";
+  const chipDetail =
+    mode === "OWN" ? connectedAiProviders[0] : mode === "PLATFORM" ? "GPT-4o mini" : undefined;
+
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [menuPlacement, setMenuPlacement] = useState<MenuPlacement | null>(null);
+
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen && triggerRef.current) setMenuPlacement(measureMenuPlacement(triggerRef.current));
+  };
+
+  const choosePlatformModel = () => {
+    setAstroAiMode.mutate(
+      { mode: "PLATFORM" },
+      { onError: () => toast.error("Não consegui salvar a escolha. Tente de novo.") },
+    );
+  };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
-          className={cn(
-            "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors border outline-none",
-            isAstro
-              ? "bg-violet-950/60 border-violet-700/50 text-violet-300 hover:bg-violet-900/60"
-              : "bg-zinc-800 border-zinc-700/50 text-zinc-300 hover:bg-zinc-700",
-          )}
+          ref={triggerRef}
+          className="flex h-10 max-w-[11rem] shrink-0 items-center gap-1.5 rounded-full bg-knob px-3.5 text-sm font-medium text-foreground outline-none transition-colors hover:bg-accent"
         >
-          {isAstro ? (
-            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+          {mode === null ? (
+            <Orbit className="size-3.5 shrink-0 text-warning" />
           ) : (
-            (selectedIndividual?.icon ?? (
-              <Bot className="w-3.5 h-3.5 text-zinc-400" />
-            ))
+            <Sparkles className="size-3.5 shrink-0 text-info" />
           )}
-          <span>
-            {isAstro ? "Astro" : (selectedIndividual?.label ?? "Modelo")}
-          </span>
-          <ChevronDown className="w-3 h-3 opacity-50" />
+          <span className="min-w-0 truncate">{chipLabel}</span>
+          {chipDetail && <span className="shrink-0 text-muted-foreground">{chipDetail}</span>}
+          <ChevronDown className="size-3.5 shrink-0 opacity-50" />
         </button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        align="end"
-        sideOffset={8}
-        className="w-64 bg-zinc-900 border-zinc-700/60 p-0!"
+        side="top"
+        align={menuPlacement ? "start" : "end"}
+        alignOffset={menuPlacement?.alignOffsetPx}
+        sideOffset={menuPlacement?.sideOffsetPx ?? MENU_GAP_PX}
+        avoidCollisions={!menuPlacement}
+        style={menuPlacement ? { width: menuPlacement.widthPx } : undefined}
+        className={cn("bg-card", !menuPlacement && "w-72")}
       >
-        <DropdownMenuGroup className="p-0">
+        <DropdownMenuLabel className="px-2 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Inteligência do ASTRO
+        </DropdownMenuLabel>
+        <DropdownMenuGroup>
           <DropdownMenuItem
-            onClick={() => onChange("astro")}
+            asChild
             className={cn(
-              "flex flex-col items-start gap-1 p-3 cursor-pointer",
-              isAstro
-                ? "bg-violet-950/80 focus:bg-violet-950/80"
-                : "focus:bg-zinc-800/80",
+              "flex cursor-pointer flex-col items-start gap-1 rounded-[13px] p-3",
+              mode === "OWN" ? "bg-info/15 focus:bg-info/20" : "focus:bg-accent",
             )}
           >
-            <div className="flex items-center gap-2.5 w-full">
-              <div className="w-7 h-7 rounded-lg bg-violet-600/20 border border-violet-500/30 flex justify-center items-center shrink-0">
-                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-white">
-                    Astro
-                  </span>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-violet-600/30 text-violet-300 uppercase tracking-wide">
-                    Recomendado
-                  </span>
-                  {isAstro && (
-                    <CheckCircle2 className="w-3 h-3 text-violet-400 ml-auto" />
-                  )}
+            <Link href="/integrations?connect=OPENAI">
+              <div className="flex w-full items-center gap-2.5">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-info/20 text-info">
+                  <Orbit className="size-3.5" />
                 </div>
-                <p className="text-[10px] text-zinc-400 mt-0.5 leading-snug whitespace-normal">
-                  Consolida todas as IAs conectadas e direciona cada comando ao
-                  modelo mais adequado.
-                </p>
-                {connectedPlatforms.length > 0 ? (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {connectedPlatforms.map((p) => (
-                      <span
-                        key={p}
-                        className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-700/60 text-zinc-400 font-medium"
-                      >
-                        {PROVIDER_LABELS[p] ?? p}
-                      </span>
-                    ))}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-foreground">Sua IA</span>
+                    <span className="rounded-full bg-info/30 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-info">
+                      Recomendado
+                    </span>
+                    {mode === "OWN" && <CheckCircle2 className="ml-auto size-3 text-info" />}
                   </div>
-                ) : (
-                  <p className="text-[9px] text-zinc-600 mt-1">
-                    Conecte IAs para potencializar.
+                  <p className="mt-0.5 whitespace-normal text-[10px] leading-snug text-muted-foreground">
+                    {isOwnKeyConnected
+                      ? `Conectada como satélite: ${connectedAiProviders.join(", ")}. Sem custo de tokens em Stars.`
+                      : "Conecte a OpenAI, Gemini ou Anthropic da sua empresa — o primeiro satélite do ASTRO."}
                   </p>
-                )}
+                </div>
               </div>
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={choosePlatformModel}
+            disabled={isOwnKeyConnected}
+            className={cn(
+              "flex cursor-pointer items-center gap-2.5 rounded-[13px] px-3 py-2.5",
+              mode === "PLATFORM" ? "bg-accent text-foreground" : "focus:bg-accent",
+            )}
+          >
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-knob text-foreground">
+              <Sparkles className="size-3.5" />
             </div>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="text-xs font-medium leading-tight">Modelo ÓRBITA</span>
+              <span className="text-[10px] leading-tight text-muted-foreground">
+                GPT-4o mini · cobrado em Stars
+              </span>
+            </div>
+            {mode === "PLATFORM" && <CheckCircle2 className="size-3.5 shrink-0 text-info" />}
           </DropdownMenuItem>
         </DropdownMenuGroup>
-
-        {individualOptions.length > 0 && (
-          <>
-            <DropdownMenuSeparator className="bg-zinc-800 m-0" />
-            <DropdownMenuGroup className="p-1">
-              <DropdownMenuLabel className="text-[9px] font-semibold uppercase tracking-widest text-zinc-600 px-2">
-                Modelo específico
-              </DropdownMenuLabel>
-              {individualOptions.map((opt) => (
-                <DropdownMenuItem
-                  key={opt.id}
-                  onClick={() => onChange(opt.id)}
-                  className={cn(
-                    "flex items-center gap-2.5 px-3 py-2 cursor-pointer focus:bg-zinc-800",
-                    value === opt.id
-                      ? "bg-zinc-800 text-white"
-                      : "text-zinc-400",
-                  )}
-                >
-                  {opt.icon}
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-xs font-medium leading-tight">
-                      {opt.label}
-                    </span>
-                    <span className="text-[10px] text-zinc-500 leading-tight">
-                      {opt.sublabel}
-                    </span>
-                  </div>
-                  {value === opt.id && (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-violet-400 shrink-0" />
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
-          </>
-        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

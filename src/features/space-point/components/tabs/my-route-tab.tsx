@@ -34,17 +34,17 @@ function Planet({
         className={cn(
           "relative flex items-center justify-center rounded-full transition-all duration-500",
           "animate-[float_4s_ease-in-out_infinite]",
-          isCurrent && "ring-4 ring-[#7a1fe7]/70 ring-offset-2 ring-offset-[#050510]",
-          isNext && "ring-2 ring-dashed ring-[#7a1fe7]/40 ring-offset-1 ring-offset-[#050510]",
+          isCurrent && "ring-4 ring-info/70 ring-offset-2 ring-offset-panel",
+          isNext && "ring-2 ring-dashed ring-info/40 ring-offset-1 ring-offset-panel",
           !isEarned && !isCurrent && !isNext && "opacity-40 grayscale",
         )}
         style={{
           width: size, height: size,
           animationDelay: `${delay}ms`,
           background: isEarned
-            ? "radial-gradient(circle at 35% 35%, rgba(122,31,231,0.4), rgba(122,31,231,0.1))"
-            : "rgba(255,255,255,0.03)",
-          border: isEarned ? "1px solid rgba(122,31,231,0.4)" : "1px solid rgba(255,255,255,0.1)",
+            ? "radial-gradient(circle at 35% 35%, color-mix(in oklch, var(--info) 40%, transparent), color-mix(in oklch, var(--info) 10%, transparent))"
+            : "color-mix(in oklch, var(--foreground) 4%, transparent)",
+          border: isEarned ? "1px solid color-mix(in oklch, var(--info) 40%, transparent)" : "1px solid var(--line)",
         }}
       >
         <span style={{ fontSize: size * 0.5 }}>{emoji}</span>
@@ -63,7 +63,7 @@ function Planet({
         {isEarned && (
           <div
             className="absolute inset-0 rounded-full opacity-30 blur-md"
-            style={{ background: "radial-gradient(circle, #7a1fe7, transparent)" }}
+            style={{ background: "radial-gradient(circle, var(--info), transparent)" }}
           />
         )}
       </div>
@@ -71,7 +71,7 @@ function Planet({
       {/* Label */}
       <p className={cn(
         "text-[10px] font-semibold text-center leading-tight",
-        isCurrent ? "text-[#a78bfa]" : isEarned ? "text-foreground" : "text-muted-foreground",
+        isCurrent ? "text-info" : isEarned ? "text-foreground" : "text-muted-foreground",
       )}>
         {name}
       </p>
@@ -88,10 +88,10 @@ function PathLine({ earned }: { earned: boolean }) {
     <div className="flex-1 flex items-center px-1">
       <div className={cn(
         "h-px w-full rounded-full",
-        earned ? "bg-gradient-to-r from-[#7a1fe7] to-[#7a1fe7]" : "bg-border/30",
+        earned ? "bg-info" : "bg-border/30",
       )}>
         {earned && (
-          <div className="h-px w-full bg-gradient-to-r from-[#7a1fe7] via-[#a855f7] to-[#7a1fe7] animate-pulse" />
+          <div className="h-px w-full bg-info animate-pulse" />
         )}
       </div>
     </div>
@@ -110,10 +110,10 @@ export function MyRouteTab({
   return (
     <div className="flex flex-col gap-4 pb-4">
       {/* Points summary */}
-      <div className="flex items-center justify-between bg-[#7a1fe7]/10 border border-[#7a1fe7]/20 rounded-2xl px-4 py-3">
+      <div className="flex items-center justify-between bg-info/10 border border-info/20 rounded-2xl px-4 py-3">
         <div>
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Seus pontos</p>
-          <p className="text-2xl font-extrabold tabular-nums text-[#a78bfa]">
+          <p className="text-2xl font-extrabold tabular-nums text-info">
             {totalPoints.toLocaleString("pt-BR")}
           </p>
         </div>
@@ -133,11 +133,11 @@ export function MyRouteTab({
         <div className="space-y-1.5">
           <div className="flex justify-between text-[11px] text-muted-foreground">
             <span>Progresso para próximo nível</span>
-            <span className="font-semibold text-[#a78bfa]">{progressPct}%</span>
+            <span className="font-semibold text-info">{progressPct}%</span>
           </div>
           <div className="h-2 bg-muted/40 rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#7a1fe7] to-[#a855f7] transition-all duration-700"
+              className="h-full rounded-full bg-info transition-all duration-700"
               style={{ width: `${progressPct}%` }}
             />
           </div>
@@ -145,13 +145,13 @@ export function MyRouteTab({
       )}
 
       {/* Space background */}
-      <div className="relative rounded-2xl overflow-hidden bg-[#050510] border border-[#7a1fe7]/20 p-6">
+      <div className="relative rounded-2xl overflow-hidden bg-panel border border-info/20 p-6">
         {/* Stars background */}
         <div className="absolute inset-0 pointer-events-none">
           {Array.from({ length: 40 }, (_, i) => (
             <div
               key={i}
-              className="absolute rounded-full bg-white"
+              className="absolute rounded-full bg-foreground"
               style={{
                 width:   i % 5 === 0 ? 2 : 1,
                 height:  i % 5 === 0 ? 2 : 1,

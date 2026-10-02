@@ -48,7 +48,7 @@ export function DateField({
           className={cn(
             fieldClass,
             "flex items-center justify-between gap-2 text-left hover:border-white/20",
-            isOpen && "border-violet-400/60",
+            isOpen && "border-info/60",
           )}
         >
           <span className={cn(!selectedDate && "text-white/25")}>

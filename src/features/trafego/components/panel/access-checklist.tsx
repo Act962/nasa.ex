@@ -56,7 +56,7 @@ export function AccessChecklist({ orderId }: { orderId: string }) {
           <li key={item.id}>
             <label
               className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm transition hover:bg-muted/50",
+                "flex min-h-11 cursor-pointer items-center gap-3 rounded-[18px] border border-transparent px-3 py-2.5 text-sm transition hover:bg-muted/50",
                 items[item.id] && "text-muted-foreground",
               )}
             >
@@ -73,7 +73,7 @@ export function AccessChecklist({ orderId }: { orderId: string }) {
       </ul>
 
       {partnerBusinessId && (
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-[20px] border border-border bg-card p-4">
           <h4 className="text-xs font-semibold">
             Como nos dar acesso à sua conta de anúncios
             <TechnicalTerm term="adAccount" />
@@ -91,12 +91,13 @@ export function AccessChecklist({ orderId }: { orderId: string }) {
           </ol>
 
           <div className="mt-3 flex items-center gap-2">
-            <code className="flex-1 rounded-lg border border-border bg-muted/50 px-3 py-2 font-mono text-sm">
+            <code className="min-w-0 flex-1 truncate rounded-full border border-border bg-muted/50 px-4 py-2 font-mono text-sm">
               {partnerBusinessId}
             </code>
             <Button
               variant="outline"
               size="icon"
+              className="size-9 shrink-0 rounded-full"
               onClick={() => {
                 void navigator.clipboard.writeText(partnerBusinessId);
                 toast.success("ID copiado.");
@@ -111,7 +112,7 @@ export function AccessChecklist({ orderId }: { orderId: string }) {
             href="https://business.facebook.com/settings/partners"
             target="_blank"
             rel="noreferrer"
-            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-violet-600 hover:underline dark:text-violet-400"
+            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-info hover:underline"
           >
             Abrir o Gerenciador de Negócios
             <ExternalLink className="size-3" />
@@ -127,11 +128,11 @@ export function AccessChecklist({ orderId }: { orderId: string }) {
       )}
 
       {supportWhatsapp && (
-        <div className="flex items-start gap-3 rounded-xl border border-violet-500/25 bg-violet-500/[0.06] p-4">
-          <Palette className="mt-0.5 size-4 shrink-0 text-violet-500" />
+        <div className="flex items-start gap-3 rounded-[20px] border border-info/30 bg-info/15 p-4">
+          <Palette className="mt-0.5 size-4 shrink-0 text-info" />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold">
-              Precisa de criativo?
+              Precisa de imagem ou vídeo para o anúncio?
               <TechnicalTerm term="creative" />
             </p>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -144,7 +145,7 @@ export function AccessChecklist({ orderId }: { orderId: string }) {
               )}`}
               target="_blank"
               rel="noreferrer"
-              className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-violet-600 hover:underline dark:text-violet-400"
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-info hover:underline"
             >
               Pedir orçamento
               <ExternalLink className="size-3" />

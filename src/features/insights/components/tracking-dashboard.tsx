@@ -43,7 +43,6 @@ import {
 import { useInsightsMembers } from "@/features/insights/hooks/use-insights-members";
 import type { DashboardReport } from "@/features/insights/types";
 import { authClient } from "@/lib/auth-client";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KPIAtendimentCards } from "./kpi/atendiment-cards";
 import { cn } from "@/lib/utils";
 import { useHeaderPin } from "../context/use-header-pin";
@@ -72,13 +71,18 @@ import {
   StarsSection,
   SpaceStationSection,
   NasaRouteSection,
+  CampanhasSection,
+  TrafegoSection,
+  NerpSection,
+  StarFriendsSection,
   TrackingDynamicSection,
 } from "./apps-sections";
 import { SortableDashboardSections } from "./sortable-dashboard-sections";
 import { useQueryAppsInsights } from "@/features/insights/hooks/use-dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { CustomizableChart } from "./customizable-chart";
+import { CrossChart } from "./cross-chart/cross-chart";
+import { CrossInsightTiles } from "./cross-insight-tiles";
 import { InsightReport } from "./insight-report";
 import { InsightsSidebar } from "./insights-sidebar";
 
@@ -418,7 +422,7 @@ export function TrackingDashboard({
 
   return (
     <OrgLayoutProvider>
-      <Tabs defaultValue="general">
+      <div>
         <div className="flex h-full w-full">
           <InsightsSidebar actions={sidebarActions} />
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -514,29 +518,16 @@ export function TrackingDashboard({
               />
             </>
           )}
-          <TabsList className="overflow-x-auto w-full justify-start">
-            <TabsTrigger value="general">Visão Geral</TabsTrigger>
-            {showTrackingFilters && (
-              <TabsTrigger value="tracking">📊 Tracking</TabsTrigger>
-            )}
-            {selectedModules.includes("chat") && (
-              <TabsTrigger value="atendiment">💬 Atendimento</TabsTrigger>
-            )}
-            {selectedModules.includes("integrations") && (
-              <TabsTrigger value="channels">📡 Canais</TabsTrigger>
-            )}
-          </TabsList>
         </div>
 
         <div className="px-2 sm:px-6">
           {/* ── VISÃO GERAL CRUZADA ──────────────────────────────────────────── */}
-          <TabsContent
-            value="general"
-            className="flex-1 overflow-y-auto pt-6 space-y-8 "
+          <div className="pt-6 space-y-8"
           >
-            {/* Customizable Chart — full width between tabs and CrossDataOverview */}
-            <CustomizableChart
-              selectedModules={selectedModules}
+            {/* Gráfico Cruzado: filtros próprios por série; não segue o menu. */}
+            <CrossChart />
+            {/* Cartões de cruzamento seguem o menu de filtros, como o resto da página. */}
+            <CrossInsightTiles
               tracking={
                 data?.summary
                   ? {
@@ -570,6 +561,7 @@ export function TrackingDashboard({
                       canceladas: appsInsights.forge.canceladas,
                       revenueTotal: appsInsights.forge.revenueTotal,
                       revenuePipeline: appsInsights.forge.revenuePipeline,
+                      leadsWithPaidProposal: appsInsights.forge.leadsWithPaidProposal,
                     }
                   : undefined
               }
@@ -747,6 +739,10 @@ export function TrackingDashboard({
                 stars: appsInsights?.stars ? <StarsSection data={appsInsights.stars} /> : null,
                 "space-station": appsInsights?.spaceStation ? <SpaceStationSection data={appsInsights.spaceStation} /> : null,
                 "nasa-route": appsInsights?.nasaRoute ? <NasaRouteSection data={appsInsights.nasaRoute} /> : null,
+                campanhas: appsInsights?.campanhas ? <CampanhasSection data={appsInsights.campanhas} /> : null,
+                trafego: appsInsights?.trafego ? <TrafegoSection data={appsInsights.trafego} /> : null,
+                nerp: appsInsights?.nerp ? <NerpSection data={appsInsights.nerp} /> : null,
+                "star-friends": appsInsights?.starFriends ? <StarFriendsSection data={appsInsights.starFriends} /> : null,
               }}
               renderTagTile={(b) => (
                 <WidgetTag
@@ -776,13 +772,11 @@ export function TrackingDashboard({
               trackingId={trackingId || undefined}
               memberIds={memberIds.length ? memberIds : undefined}
             />
-          </TabsContent>
+          </div>
 
-          {/* ── TRACKING ─────────────────────────────────────────────────────── */}
+          {/* ── TRACKING (só com o App Tracking marcado no seletor) ───────────── */}
           {showTrackingFilters && (
-            <TabsContent
-              value="tracking"
-              className="flex-1 overflow-y-auto pt-6 space-y-6"
+            <div className="pt-10 space-y-6"
             >
               {settings.visibleSections.summary && (
                 <section>
@@ -812,6 +806,7 @@ export function TrackingDashboard({
               {!isLoading && (
                 <TrackingDynamicSection
                   summary={data.summary as unknown as Record<string, unknown>}
+                  extras={appsInsights?.tracking}
                 />
               )}
               <div className={cn("grid gap-6 lg:grid-cols-2")}>
@@ -900,31 +895,27 @@ export function TrackingDashboard({
                     </ChartWrapper>
                   ))}
               </div>
-            </TabsContent>
+            </div>
           )}
 
           {/* ── ATENDIMENTO ───────────────────────────────────────────────────── */}
           {selectedModules.includes("chat") && (
-            <TabsContent
-              value="atendiment"
-              className="flex-1 overflow-y-auto pt-6 space-y-6"
+            <div className="pt-10 space-y-6"
             >
               <h2 className="mb-4 text-lg font-semibold">Atendimento</h2>
               <KPIAtendimentCards
                 summary={data.summary}
                 onSentRemindersClick={() => setIsSentRemindersModalOpen(true)}
               />
-            </TabsContent>
+            </div>
           )}
 
           {/* ── CANAIS ────────────────────────────────────────────────────────── */}
           {selectedModules.includes("integrations") && (
-            <TabsContent
-              value="channels"
-              className="flex-1 overflow-y-auto pt-6"
+            <div className="pt-10"
             >
               <ChannelInsights />
-            </TabsContent>
+            </div>
           )}
             </div>
           </div>
@@ -944,7 +935,7 @@ export function TrackingDashboard({
             dateRange={dateRange}
           />
         </div>
-      </Tabs>
+      </div>
     </OrgLayoutProvider>
   );
 }

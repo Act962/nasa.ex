@@ -33,10 +33,10 @@ export function AppTemplateToggle({
   };
 
   return (
-    <div className="flex items-center gap-3 p-4 border border-zinc-800 rounded-lg bg-zinc-900">
+    <div className="flex items-center gap-3 p-4 border border-border rounded-lg bg-card">
       <div className="flex-1">
-        <p className="text-sm font-medium text-white">Marcar como Padrão ÓRBITA</p>
-        <p className="text-xs text-zinc-400 mt-1">
+        <p className="text-sm font-medium text-foreground">Marcar como Padrão ÓRBITA</p>
+        <p className="text-xs text-muted-foreground mt-1">
           Este {appType} será disponível como modelo pré-configurado para outras
           empresas
         </p>
@@ -45,11 +45,11 @@ export function AppTemplateToggle({
         onClick={handleToggle}
         disabled={isLoading}
         className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-          isMarked ? "bg-violet-600" : "bg-zinc-700"
+          isMarked ? "bg-primary" : "bg-knob"
         } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
       >
         <span
-          className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+          className={`inline-block h-6 w-6 transform rounded-full bg-background transition-transform ${
             isMarked ? "translate-x-7" : "translate-x-1"
           }`}
         />

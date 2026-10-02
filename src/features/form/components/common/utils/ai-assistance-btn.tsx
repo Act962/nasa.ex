@@ -12,21 +12,28 @@ import { toast } from "sonner";
 import { AIChatSession } from "@/features/form/lib/google-ai";
 import { v4 as uuidv4 } from "uuid";
 import { generateFormQuestionPrompt } from "@/features/form/lib/prompts";
-import { Loader, Sparkles } from "lucide-react";
+import { AstroSymbolIcon } from "@/components/astro-symbol-icon";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useState } from "react";
+
+const PROMPT_SUGGESTIONS = [
+  "Formulário de orçamento",
+  "Pesquisa de satisfação curta",
+  "Inscrição para evento",
+  "Adicionar 3 perguntas sobre o cliente",
+];
 
 export function AiAssistanceBtn() {
   const { formData, blockLayouts, setBlockLayouts } = useBuilderStore();
   const [userRequest, setUserRequest] = useState("");
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [show, setShow] = useState(false);
 
   const isPublished = formData?.published;
 
   const GenerateFormQuestionsWithAI = async () => {
     if (!userRequest) {
-      toast.error("Please enter a request");
+      toast.error("Conte ao Astro o que você quer criar.");
       return;
     }
     try {
@@ -64,7 +71,7 @@ export function AiAssistanceBtn() {
       setUserRequest("");
     } catch (error) {
       console.log(error, "error");
-      toast.error("Failed to generate summary");
+      toast.error("O Astro não conseguiu gerar agora. Tente de novo.");
     } finally {
       setLoading(false);
     }
@@ -81,150 +88,73 @@ export function AiAssistanceBtn() {
   }
 
   return (
-    <>
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            size="icon"
-            className="rounded-lg bg-purple-500!
-            border-none p-4 shadow-sm"
-            aria-label="AI assistance"
-          >
-            <Sparkles className="w-8 h-8 text-foreground" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-auto p-0"
-          forceMount
-          align="start"
-          side="right"
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          size="icon"
+          className="size-10 rounded-full border-none bg-info! text-white shadow-sm shadow-info/30 hover:bg-info/90!"
+          aria-label="Criar com o Astro"
+          title="Criar com o Astro"
         >
-          <div
-            className="
-          flex flex-col  
-          w-[390px] 
-          rounded-lg px-5 pb-[14px] pt-[18px] shadow-xl
-          "
-          >
-            <div className="flex relative">
-              <div
-                className="pb-5 sm:pb-0 
-                flex w-full overflow-x-auto 
-                overflow-y-hidden scrollbar-hide 
-              border-b border-gray-200"
-              >
-                <div className="block mx-4 ml-0!">
-                  <nav className="flex space-x-6 -mb-px">
-                    <a
-                      className="inline-flex items-center
-                     px-1 pb-2 text-xs font-medium
-                      border-b-2"
-                    >
-                      Ask to generate form or questions
-                    </a>
-                  </nav>
-                </div>
-              </div>
-              <div
-                className="flex absolute top-0 
-              right-0  -mt-[6px] whitespace-nowrap
-              text-xs py-1 px-[6px] bg-foreground/10
-              rounded-md "
-              >
-                Beta
-              </div>
+          <AstroSymbolIcon className="size-5" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[380px] max-w-[calc(100vw-1rem)] p-0" forceMount align="start" side="right">
+        <div className="flex flex-col gap-4 p-4">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-info text-white shadow-sm shadow-info/30">
+              <AstroSymbolIcon className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">Criar com o Astro</p>
+              <p className="text-xs text-muted-foreground">Descreva o formulário ou as perguntas que você quer.</p>
             </div>
-
-            <div className="mt-[22px]">
-              <Textarea
-                value={userRequest}
-                rows={4}
-                readOnly={isPublished}
-                className="shadow-sm block w-full 
-                sm:text-sm border-gray-300 rounded-md 
-                focus:ring-primary"
-                placeholder="Describe the form or questions 
-                you want to generate with AI..."
-                spellCheck="false"
-                onChange={(e) => {
-                  setUserRequest(e.target.value);
-                }}
-              />
-            </div>
-
-            <div
-              className="flex 
-            justify-between
-            items-center mt-4"
-            >
-              <div
-                role="button"
-                className=" text-purple-400 
-                font-medium underline text-sm ml-1"
-                onClick={() => setShow(!show)}
-              >
-                {show ? "Hide tips" : "Tips"}
-              </div>
-
-              <Button
-                type="button"
-                size="sm"
-                className="px-3 font-medium! 
-                py-2!"
-                disabled={loading || isPublished}
-                onClick={GenerateFormQuestionsWithAI}
-              >
-                <Sparkles />
-                Generate
-                {loading && <Loader size="15px" className="animate-spin" />}
-              </Button>
-            </div>
-
-            {show && (
-              <div
-                className="flex 
-              flex-col
-              rounded border
-               border-purple-300
-               dark:border-foreground/10
-                bg-foreground
-                dark:bg-foreground/10
-                 text-purple-500
-                 dark:text-purple-300
-                 px-3 pt-3
-                 mt-2
-                 mb-1"
-              >
-                <div
-                  className="flex 
-                font-semibold text-sm mb-1"
-                >
-                  Let the AI know:
-                </div>
-                <ul
-                  className="tips-options 
-                text-sm mx-4 space-y-2 pb-2"
-                >
-                  <li>
-                    What Form you want it create (e.g Create a booking form for
-                    our hotel)?
-                  </li>
-                  <li>
-                    What information you'd like to collect (e.g. email, name,
-                    description)
-                  </li>
-
-                  <li>
-                    What tone would you like the questions in (e.g. formal,
-                    informal)?
-                  </li>
-                  <li>How many questions do you want to ask?</li>
-                </ul>
-              </div>
-            )}
+            <span className="rounded-full bg-info/10 px-2 py-0.5 text-[10px] font-semibold text-info">Beta</span>
           </div>
-        </PopoverContent>
-      </Popover>
-    </>
+
+          <Textarea
+            value={userRequest}
+            rows={4}
+            readOnly={isPublished}
+            className="min-h-24 resize-none rounded-[18px] text-sm"
+            placeholder="Ex.: formulário de inscrição para um workshop, com e-mail, WhatsApp e nível de experiência"
+            spellCheck="false"
+            onChange={(event) => setUserRequest(event.target.value)}
+          />
+
+          <div className="flex flex-wrap gap-1.5">
+            {PROMPT_SUGGESTIONS.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                disabled={isPublished}
+                onClick={() => setUserRequest(suggestion)}
+                className="rounded-full bg-info/10 px-2.5 py-1 text-[11px] font-medium text-info transition-colors hover:bg-info/20 disabled:opacity-50"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+
+          {isPublished && (
+            <p className="text-xs text-muted-foreground">Formulário publicado: despublique para gerar perguntas com o Astro.</p>
+          )}
+
+          <Button
+            type="button"
+            className="w-full bg-info! text-white hover:bg-info/90!"
+            disabled={loading || isPublished || !userRequest.trim()}
+            onClick={GenerateFormQuestionsWithAI}
+          >
+            {loading ? <OrbitaSpinner className="size-4" isOnBrandColor /> : <AstroSymbolIcon className="size-4" />}
+            {loading ? "O Astro está montando…" : "Gerar com o Astro"}
+          </Button>
+
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            Dica: diga o objetivo, o que quer coletar, o tom (formal ou informal) e quantas perguntas.
+          </p>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -9,8 +9,8 @@ import {
   CheckCircle2,
   Edit2,
   ExternalLink,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -211,7 +211,7 @@ export function NerpSubdomainDialog() {
                           )}
                         />
                         {isAvailable && hasChanges && (
-                          <CheckCircle2 className="absolute right-3 top-2.5 size-4 text-emerald-600" />
+                          <CheckCircle2 className="absolute right-3 top-2.5 size-4 text-success" />
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
@@ -238,10 +238,10 @@ export function NerpSubdomainDialog() {
                   <Button
                     type="submit"
                     disabled={isSaving}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                   
                   >
                     {isSaving && (
-                      <Loader2 className="size-3.5 animate-spin" />
+                      <OrbitaSpinner className="size-3.5 " />
                     )}
                     Salvar
                   </Button>
@@ -251,7 +251,7 @@ export function NerpSubdomainDialog() {
                     disabled={!isFormValid || !hasChanges || isLoading}
                   >
                     {isChecking && (
-                      <Loader2 className="size-3.5 animate-spin" />
+                      <OrbitaSpinner className="size-3.5 " />
                     )}
                     Verificar disponibilidade
                   </Button>

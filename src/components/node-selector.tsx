@@ -227,14 +227,14 @@ export function NodeSelector({
             Desbloqueia multi-gatilhos, multi-ações, condicionais, loops,
             decisão por IA, voz, mídia, sub-workflows. */}
         {workflowId && (
-          <div className="mx-4 mt-2 mb-3 rounded-lg border bg-gradient-to-br from-emerald-50 to-cyan-50 dark:from-emerald-950/40 dark:to-cyan-950/40 p-3">
+          <div className="mx-4 mt-2 mb-3 rounded-lg border bg-gradient-to-br from-success/15 to-info/15 p-3">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <SparklesIcon className="size-4 text-emerald-600" />
+                  <SparklesIcon className="size-4 text-success" />
                   <span className="font-semibold text-sm">Modo Agente IA</span>
                   {agentMode && (
-                    <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-300 text-[10px] uppercase tracking-wide">
+                    <Badge className="bg-success/15 text-success border-success/30 text-[10px] uppercase tracking-wide">
                       Ativo
                     </Badge>
                   )}

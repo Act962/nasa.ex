@@ -29,7 +29,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-bungee: var(--font-bungee);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -65,76 +65,308 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-temp-cold: var(--temp-cold);
+  --color-temp-warm: var(--temp-warm);
+  --color-temp-hot: var(--temp-hot);
+  --color-temp-very-hot: var(--temp-very-hot);
+  --color-brand-whatsapp: var(--brand-whatsapp);
+  --color-brand-whatsapp-deep: var(--brand-whatsapp-deep);
+  --color-brand-instagram: var(--brand-instagram);
+  --color-brand-facebook: var(--brand-facebook);
+  --color-brand-messenger: var(--brand-messenger);
+  --color-brand-claude: var(--brand-claude);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --color-knob: var(--knob);
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+  --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
+  --tracking-tight: calc(var(--tracking-normal) - 0.025em);
+  --tracking-wide: calc(var(--tracking-normal) + 0.025em);
+  --tracking-wider: calc(var(--tracking-normal) + 0.05em);
+  --tracking-widest: calc(var(--tracking-normal) + 0.1em);
   --breakpoint-tiny: 380px;
 }
 
 :root {
-  --radius: 0.65rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
+  --radius: 1.85rem;
+  --spacing: 0.28rem;
+  --tracking-normal: -0.015em;
+  --background: oklch(0.955 0 0);
+  --foreground: oklch(0.2178 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
+  --card-foreground: oklch(0.2178 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.488 0.243 264.376);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(91.973% 0.00413 285.946);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.546 0.245 262.881);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.708 0 0);
+  --popover-foreground: oklch(0.2178 0 0);
+  --primary: oklch(0.2178 0 0);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.2435 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.6167 0 0);
+  --accent: oklch(0.955 0 0);
+  --accent-foreground: oklch(0.2435 0 0);
+  --destructive: oklch(0.577 0.215 27.3);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.6 0.15 150);
+  --warning: oklch(0.7 0.16 70);
+  --info: oklch(0.58 0.19 250);
+
+  /* Temperatura do lead (cor de dado, igual nos dois modos). */
+  --temp-cold: #3498db;
+  --temp-warm: #f1c40f;
+  --temp-hot: #e67e22;
+  --temp-very-hot: #e74c3c;
+
+  /* Marca dos canais: identidade de cada serviço, igual nos dois modos. */
+  --brand-whatsapp: #25d366;
+  --brand-whatsapp-deep: #103928;
+  --brand-instagram: #e1306c;
+  --brand-facebook: #1877f2;
+  --brand-messenger: #0082fb;
+  --brand-claude: #d97757;
+  --border: oklch(0.9 0 0);
+  --input: oklch(0.86 0 0);
+  --ring: oklch(0.6764 0 0);
+  /* Gráficos: tons do azul do ASTRO, do claro ao marinho. */
+  --chart-1: oklch(0.809 0.105 251.8);
+  --chart-2: oklch(0.685 0.169 237.3);
+  --chart-3: oklch(0.546 0.215 262.9);
+  --chart-4: oklch(0.424 0.199 265.6);
+  --chart-5: oklch(0.33 0.12 268);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.2435 0 0);
+  --sidebar-primary: oklch(0.6764 0 0);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.955 0 0);
+  --sidebar-accent-foreground: oklch(0.2178 0 0);
+  --sidebar-border: oklch(0.9 0 0);
+  --sidebar-ring: oklch(0.6764 0 0);
+
+  /* Elementos visuais da Órbita (trilho, círculos, switch de linha) */
+  --panel: oklch(0.97 0 0);
+  --line: oklch(0.86 0 0);
+  --knob: oklch(0.8 0 0);
+
+  --shadow-2xs: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.08);
+  --shadow-xs: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.1);
+  --shadow-sm: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.15), 1px 1px 2px -1px hsl(0 0% 0% / 0.15);
+  --shadow: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.15), 1px 1px 2px -1px hsl(0 0% 0% / 0.15);
+  --shadow-md: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.2), 1px 2px 4px -1px hsl(0 0% 0% / 0.2);
+  --shadow-lg: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.3), 1px 4px 6px -1px hsl(0 0% 0% / 0.3);
+  --shadow-xl: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.3), 1px 8px 10px -1px hsl(0 0% 0% / 0.3);
+  --shadow-2xl: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.75);
 }
 
 .dark {
-  --background: oklch(14.077% 0.0044 285.776);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(48.78% 0.24331 264.421);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklab(100% 0 -0.00011 / 0.102);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.623 0.214 259.815);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.439 0 0);
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(1 0 0);
+  --card: oklch(0.2178 0 0);
+  --card-foreground: oklch(1 0 0);
+  --popover: oklch(0.2178 0 0);
+  --popover-foreground: oklch(1 0 0);
+  --primary: oklch(0.94 0 0);
+  --primary-foreground: oklch(0.1822 0 0);
+  --secondary: oklch(0.3171 0 0);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.3171 0 0);
+  --muted-foreground: oklch(0.7826 0 0);
+  --accent: oklch(0.3171 0 0);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.704 0.18 22.2);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.76 0.15 155);
+  --warning: oklch(0.82 0.15 80);
+  --info: oklch(0.72 0.15 240);
+  --border: oklch(0.3171 0 0);
+  --input: oklch(0.3171 0 0);
+  --ring: oklch(0.6268 0 0);
+  --chart-1: oklch(0.88 0.06 240);
+  --chart-2: oklch(0.75 0.14 237.3);
+  --chart-3: oklch(0.64 0.19 255);
+  --chart-4: oklch(0.54 0.2 262.9);
+  --chart-5: oklch(0.44 0.17 265.6);
+  --sidebar: oklch(0.175 0 0);
+  --sidebar-foreground: oklch(1 0 0);
+  --sidebar-primary: oklch(0.7348 0 0);
+  --sidebar-primary-foreground: oklch(0.2178 0 0);
+  --sidebar-accent: oklch(0.3171 0 0);
+  --sidebar-accent-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(0.3171 0 0);
+  --sidebar-ring: oklch(0.6268 0 0);
+
+  --panel: oklch(0.175 0 0);
+  --line: oklch(0.29 0 0);
+  --knob: oklch(0.29 0 0);
+
+  --shadow-2xs: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.15);
+  --shadow-xs: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.15);
+  --shadow-sm: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.3), 1px 1px 2px -1px hsl(0 0% 0% / 0.3);
+  --shadow: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.3), 1px 1px 2px -1px hsl(0 0% 0% / 0.3);
+  --shadow-md: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.3), 1px 2px 4px -1px hsl(0 0% 0% / 0.3);
+  --shadow-lg: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.3), 1px 4px 6px -1px hsl(0 0% 0% / 0.3);
+  --shadow-xl: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.3), 1px 8px 10px -1px hsl(0 0% 0% / 0.3);
+  --shadow-2xl: 1px 9.5px 28.5px 0px hsl(0 0% 0% / 0.75);
+}
+
+/* Carregamento: brilho passando sobre o esqueleto. */
+.orbita-shimmer {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklch, var(--knob) 45%, transparent) 0%,
+    color-mix(in oklch, var(--knob) 85%, transparent) 50%,
+    color-mix(in oklch, var(--knob) 45%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: orbita-shimmer 1.4s linear infinite;
+}
+
+@keyframes orbita-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbita-shimmer {
+    animation: none;
+  }
+}
+
+/* Logo do ASTRO flutuando na Início. */
+/* Na Início o céu continua atrás dos cantos arredondados do menu lateral, em vez do fundo claro da página. */
+html:has([data-home-space]) body,
+html:has([data-home-space]) [data-slot="sidebar-wrapper"] {
+  background-color: oklch(0.145 0 0);
+}
+
+.astro-home-float {
+  animation: astro-home-float 4.5s ease-in-out infinite;
+}
+
+@keyframes astro-home-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .astro-home-float {
+    animation: none;
+  }
+}
+
+/* Céu da Início: estrelas piscando e asteroides cruzando (SpaceScene). */
+.space-star {
+  opacity: var(--star-opacity, 0.8);
+  animation-name: space-twinkle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes space-twinkle {
+  0%,
+  100% {
+    opacity: var(--star-opacity, 0.8);
+    transform: scale(1);
+  }
+  50% {
+    opacity: calc(var(--star-opacity, 0.8) * 0.2);
+    transform: scale(0.7);
+  }
+}
+
+.space-asteroid {
+  opacity: 0;
+  animation-name: space-asteroid-fly;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.space-asteroid::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  width: 140px;
+  height: 1px;
+  background: linear-gradient(to left, rgb(255 255 255 / 0.55), transparent);
+}
+
+@keyframes space-asteroid-fly {
+  0% {
+    opacity: 0;
+    transform: translate3d(-15vw, 0, 0) rotate(var(--asteroid-angle, 15deg));
+  }
+  0.6% {
+    opacity: 1;
+  }
+  5.4% {
+    opacity: 1;
+  }
+  6%,
+  100% {
+    opacity: 0;
+    transform: translate3d(115vw, 32vh, 0) rotate(var(--asteroid-angle, 15deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .space-star,
+  .space-asteroid {
+    animation: none;
+  }
+  .space-asteroid {
+    display: none;
+  }
+}
+
+/* Card da lista de conversas ao abrir: o lado direito encolhe e volta levando o card para a conversa. */
+.lead-card-opening {
+  transform-origin: left center;
+  animation: lead-card-open 320ms cubic-bezier(0.3, 0.7, 0.4, 1) forwards;
+}
+
+@keyframes lead-card-open {
+  0% {
+    transform: none;
+    opacity: 1;
+  }
+  40% {
+    transform: scaleX(0.95);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-16px) scaleX(1);
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lead-card-opening {
+    animation: none;
+  }
+}
+
+/* Com o dock em órbita no celular, o conteúdo das telas termina acima dele. */
+@media (max-width: 1023.98px) {
+  html[data-orbit-dock=""] [data-slot="sidebar-inset"] {
+    padding-bottom: calc(150px + env(safe-area-inset-bottom));
+  }
 }
 
 /* ── Auth page dark input autofill fix ─────────────────────────────────── */
@@ -160,6 +392,7 @@ input::placeholder {
 
   body {
     @apply bg-background text-foreground;
+    letter-spacing: var(--tracking-normal);
   }
 
   html,
@@ -208,6 +441,28 @@ input::placeholder {
 .scroll-cols-tracking {
   scrollbar-width: thin;
   scrollbar-color: #555 transparent;
+}
+
+/* Seletor de cor nativo redondo, como os demais elementos da ÓRBITA. */
+input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: none;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+input[type="color"]::-webkit-color-swatch {
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+}
+input[type="color"]::-moz-color-swatch {
+  border: 1px solid var(--line);
+  border-radius: 9999px;
 }
 
 /* Esconde a barra de rolagem horizontal nativa mantendo o scroll funcional.

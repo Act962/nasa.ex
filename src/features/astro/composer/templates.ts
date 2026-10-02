@@ -989,33 +989,33 @@ export const CHIP_STYLE: Record<
   { bg: string; border: string; text: string }
 > = {
   verb: {
-    bg: "bg-blue-500/15",
-    border: "border-blue-500/40",
-    text: "text-blue-300",
+    bg: "bg-info/15",
+    border: "border-info/40",
+    text: "text-info",
   },
   app: {
-    bg: "bg-violet-500/15",
-    border: "border-violet-500/40",
-    text: "text-violet-300",
+    bg: "bg-info/15",
+    border: "border-info/40",
+    text: "text-info",
   },
   entity: {
-    bg: "bg-pink-500/15",
-    border: "border-pink-500/40",
-    text: "text-pink-300",
+    bg: "bg-info/15",
+    border: "border-info/40",
+    text: "text-info",
   },
   param: {
-    bg: "bg-zinc-500/15",
-    border: "border-zinc-500/40",
-    text: "text-zinc-300",
+    bg: "bg-knob/15",
+    border: "border-line/40",
+    text: "text-muted-foreground",
   },
   date: {
-    bg: "bg-amber-500/15",
-    border: "border-amber-500/40",
-    text: "text-amber-300",
+    bg: "bg-warning/15",
+    border: "border-warning/40",
+    text: "text-warning",
   },
   enum: {
-    bg: "bg-emerald-500/15",
-    border: "border-emerald-500/40",
-    text: "text-emerald-300",
+    bg: "bg-success/15",
+    border: "border-success/40",
+    text: "text-success",
   },
 };

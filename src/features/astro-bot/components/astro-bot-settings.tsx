@@ -20,7 +20,7 @@ export function AstroBotSettings() {
     <div className="space-y-6">
       <Card className="p-5">
         <div className="flex items-start gap-3">
-          <Bot className="size-6 text-violet-500 shrink-0" />
+          <Bot className="size-6 text-info shrink-0" />
           <div className="space-y-1">
             <h3 className="font-semibold">Insights pelo WhatsApp</h3>
             <p className="text-sm text-muted-foreground">
@@ -41,8 +41,8 @@ export function AstroBotSettings() {
           <Skeleton className="h-28 w-full" />
         </div>
       ) : !canConfigure ? (
-        <div className="flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm">
-          <AlertTriangle className="size-4 text-yellow-600 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-4 text-sm">
+          <AlertTriangle className="size-4 text-warning shrink-0 mt-0.5" />
           <p>
             A configuração do Astro pelo WhatsApp é gerenciada por um Master ou
             Admin da organização. Fale com eles pra liberar seu número.

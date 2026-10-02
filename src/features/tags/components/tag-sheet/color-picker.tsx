@@ -18,7 +18,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
         <button
           type="button"
           aria-label="Selecionar cor"
-          className="size-5 rounded-sm cursor-pointer"
+          className="size-5 rounded-full cursor-pointer"
           style={{ backgroundColor: value }}
         />
       </PopoverTrigger>
@@ -32,7 +32,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
                 type="button"
                 aria-label={`Cor ${color}`}
                 className={cn(
-                  "size-5 rounded-sm cursor-pointer hover:scale-110 transition-transform",
+                  "size-5 rounded-full cursor-pointer hover:scale-110 transition-transform",
                   isSelected && "ring-1 ring-offset-1 ring-primary",
                 )}
                 style={{ backgroundColor: color }}

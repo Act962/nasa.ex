@@ -14,8 +14,8 @@ import {
   Copy,
   Zap,
   Search,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { Modal } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -44,10 +44,10 @@ interface Org {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  info: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  warning: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-  success: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  error: "bg-red-500/10 text-red-400 border-red-500/20",
+  info: "bg-info/10 text-info border-info/20",
+  warning: "bg-warning/10 text-warning border-warning/20",
+  success: "bg-success/10 text-success border-success/20",
+  error: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
 const TARGET_ICON: Record<string, React.ElementType> = {
@@ -174,7 +174,7 @@ export function NotificationCenterV2({
       <div className="flex gap-3 justify-end">
         <button
           onClick={() => setShowTemplateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-panel hover:bg-accent text-foreground text-sm rounded-lg transition-colors"
         >
           <Zap className="w-4 h-4" />
           Usar Template
@@ -184,7 +184,7 @@ export function NotificationCenterV2({
             resetForm();
             setShowFormModal(true);
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm rounded-lg transition-colors"
         >
           <Send className="w-4 h-4" />
           Nova Notificação
@@ -208,27 +208,27 @@ export function NotificationCenterV2({
               onClick={() => handleTemplateSelect(template)}
               className={`w-full text-left p-3 rounded-lg border transition-colors ${
                 selectedTemplate?.id === template.id
-                  ? "bg-violet-600/20 border-violet-500"
-                  : "bg-zinc-800 border-zinc-700 hover:border-zinc-600"
+                  ? "bg-info/20 border-info"
+                  : "bg-panel border-border hover:border-knob"
               }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1">
-                  <p className="font-semibold text-white text-sm">
+                  <p className="font-semibold text-foreground text-sm">
                     {template.name}
                   </p>
-                  <p className="text-xs text-zinc-400 mt-1">{template.title}</p>
-                  <p className="text-xs text-zinc-500 mt-1 line-clamp-2">
+                  <p className="text-xs text-muted-foreground mt-1">{template.title}</p>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                     {template.body}
                   </p>
                 </div>
                 <span
                   className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${
                     {
-                      info: "bg-blue-500/20 text-blue-300",
-                      warning: "bg-yellow-500/20 text-yellow-300",
-                      success: "bg-emerald-500/20 text-emerald-300",
-                      error: "bg-red-500/20 text-red-300",
+                      info: "bg-info/20 text-info",
+                      warning: "bg-warning/20 text-warning",
+                      success: "bg-success/20 text-success",
+                      error: "bg-destructive/20 text-destructive",
                     }[template.type]
                   }`}
                 >
@@ -257,7 +257,7 @@ export function NotificationCenterV2({
                   setShowTemplateModal(false);
                   setSelectedTemplate(null);
                 }}
-                className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium transition-colors"
+                className="px-4 py-2 rounded-lg bg-panel hover:bg-accent text-foreground text-sm font-medium transition-colors"
               >
                 Cancelar
               </button>
@@ -269,7 +269,7 @@ export function NotificationCenterV2({
                     (v) => !templateForm.variables[v],
                   )
                 }
-                className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
+                className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors disabled:opacity-50"
               >
                 Aplicar Template
               </button>
@@ -281,7 +281,7 @@ export function NotificationCenterV2({
             <div className="space-y-4">
               {selectedTemplate.variables.map((variable) => (
                 <div key={variable}>
-                  <label className="block text-xs text-zinc-400 mb-1.5 capitalize">
+                  <label className="block text-xs text-muted-foreground mb-1.5 capitalize">
                     {variable} *
                   </label>
                   <input
@@ -297,13 +297,13 @@ export function NotificationCenterV2({
                       }))
                     }
                     placeholder={`Digite ${variable}...`}
-                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"
+                    className="w-full px-3 py-2 bg-panel border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring"
                   />
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-muted-foreground">
               Este template não requer variáveis adicionais.
             </p>
           )}
@@ -320,14 +320,14 @@ export function NotificationCenterV2({
           <>
             <button
               onClick={() => setShowFormModal(false)}
-              className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium transition-colors"
+              className="px-4 py-2 rounded-lg bg-panel hover:bg-accent text-foreground text-sm font-medium transition-colors"
             >
               Cancelar
             </button>
             <button
               onClick={() => mut.mutate()}
               disabled={mut.isPending || !form.title || !form.body}
-              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm rounded-lg transition-colors"
             >
               <Send className="w-4 h-4" />
               {sent ? "Enviada! ✓" : mut.isPending ? "Enviando..." : "Enviar"}
@@ -337,13 +337,13 @@ export function NotificationCenterV2({
       >
         <div className="space-y-4">
           {mut.isError && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400">
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-xs text-destructive">
               Erro ao enviar notificação.
             </div>
           )}
 
           <div>
-            <label className="block text-xs text-zinc-400 mb-1.5">
+            <label className="block text-xs text-muted-foreground mb-1.5">
               Título *
             </label>
             <input
@@ -353,12 +353,12 @@ export function NotificationCenterV2({
               }
               maxLength={100}
               placeholder="Título da notificação"
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"
+              className="w-full px-3 py-2 bg-panel border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring"
             />
           </div>
 
           <div>
-            <label className="block text-xs text-zinc-400 mb-1.5">
+            <label className="block text-xs text-muted-foreground mb-1.5">
               Mensagem *
             </label>
             <textarea
@@ -367,13 +367,13 @@ export function NotificationCenterV2({
               maxLength={2000}
               rows={4}
               placeholder="Conteúdo da notificação..."
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500 resize-none"
+              className="w-full px-3 py-2 bg-panel border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring resize-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-zinc-400 mb-1.5">Tipo</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">Tipo</label>
               <select
                 value={form.type}
                 onChange={(e) =>
@@ -382,7 +382,7 @@ export function NotificationCenterV2({
                     type: e.target.value as typeof form.type,
                   }))
                 }
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500"
+                className="w-full px-3 py-2 bg-panel border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ring"
               >
                 <option value="info">Info</option>
                 <option value="success">Sucesso</option>
@@ -392,7 +392,7 @@ export function NotificationCenterV2({
             </div>
 
             <div>
-              <label className="block text-xs text-zinc-400 mb-1.5">
+              <label className="block text-xs text-muted-foreground mb-1.5">
                 Destinatário
               </label>
               <select
@@ -404,7 +404,7 @@ export function NotificationCenterV2({
                     targetId: "",
                   }))
                 }
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500"
+                className="w-full px-3 py-2 bg-panel border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ring"
               >
                 <option value="all">Todos os usuários</option>
                 <option value="org">Empresa específica</option>
@@ -414,8 +414,8 @@ export function NotificationCenterV2({
           </div>
 
           {/* ── Severidade (camada de alertas) ─────────────────────────── */}
-          <div className="rounded-lg border border-zinc-700/80 bg-zinc-900/40 p-3 space-y-3">
-            <p className="text-xs text-zinc-400 font-medium">
+          <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+            <p className="text-xs text-muted-foreground font-medium">
               Severidade do alerta
             </p>
             <div className="grid grid-cols-3 gap-2">
@@ -452,17 +452,17 @@ export function NotificationCenterV2({
                     className={`text-left rounded-lg border px-3 py-2 transition-colors ${
                       isActive
                         ? opt.color === "blue"
-                          ? "border-blue-500 bg-blue-500/15"
+                          ? "border-info bg-info/15"
                           : opt.color === "amber"
-                            ? "border-amber-500 bg-amber-500/15"
-                            : "border-red-500 bg-red-500/15"
-                        : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-600"
+                            ? "border-warning bg-warning/15"
+                            : "border-destructive bg-destructive/15"
+                        : "border-border bg-panel hover:border-knob"
                     }`}
                   >
-                    <p className="text-sm font-semibold text-white">
+                    <p className="text-sm font-semibold text-foreground">
                       {opt.label}
                     </p>
-                    <p className="text-[10px] text-zinc-400 mt-0.5">{opt.sub}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{opt.sub}</p>
                   </button>
                 );
               })}
@@ -475,13 +475,13 @@ export function NotificationCenterV2({
                 onChange={(e) =>
                   setForm((f) => ({ ...f, urgentPopup: e.target.checked }))
                 }
-                className="mt-0.5 accent-red-500"
+                className="mt-0.5 accent-destructive"
               />
               <div>
-                <p className="text-sm text-white font-medium">
+                <p className="text-sm text-foreground font-medium">
                   Mostrar como popup urgente
                 </p>
-                <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
                   Independente da severidade, força popup full-screen que
                   exige confirmação do usuário pra fechar. Use só em situações
                   realmente urgentes — interrompe o que o destinatário
@@ -494,28 +494,28 @@ export function NotificationCenterV2({
           {form.targetType === "org" && (
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-zinc-400 mb-1.5 font-medium">
+                <label className="block text-xs text-muted-foreground mb-1.5 font-medium">
                   Pesquisar Empresa
                 </label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
                     type="text"
                     value={searchOrg}
                     onChange={(e) => setSearchOrg(e.target.value)}
                     placeholder="Nome da empresa..."
-                    className="w-full pl-9 pr-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"
+                    className="w-full pl-9 pr-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring"
                   />
                   {isLoadingOrgs && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <Loader2 className="w-4 h-4 text-zinc-500 animate-spin" />
+                      <OrbitaSpinner className="w-4 h-4 text-muted-foreground " />
                     </div>
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs text-zinc-400 mb-1.5 font-medium">
+                <label className="block text-xs text-muted-foreground mb-1.5 font-medium">
                   Selecionar Empresa *
                 </label>
                 <select
@@ -523,7 +523,7 @@ export function NotificationCenterV2({
                   onChange={(e) =>
                     setForm((f) => ({ ...f, targetId: e.target.value }))
                   }
-                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500"
+                  className="w-full px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ring"
                 >
                   <option value="">
                     {isLoadingOrgs ? "Carregando..." : "Selecione..."}
@@ -545,7 +545,7 @@ export function NotificationCenterV2({
 
           {form.targetType === "user" && (
             <div>
-              <label className="block text-xs text-zinc-400 mb-1.5">
+              <label className="block text-xs text-muted-foreground mb-1.5">
                 ID do usuário
               </label>
               <input
@@ -554,7 +554,7 @@ export function NotificationCenterV2({
                   setForm((f) => ({ ...f, targetId: e.target.value }))
                 }
                 placeholder="ID do usuário"
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"
+                className="w-full px-3 py-2 bg-panel border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring"
               />
             </div>
           )}
@@ -564,8 +564,8 @@ export function NotificationCenterV2({
       {/* Notifications List */}
       <div className="space-y-3">
         {notifications.length === 0 && (
-          <div className="text-center py-12 text-zinc-500 text-sm">
-            <Bell className="w-8 h-8 mx-auto mb-3 text-zinc-700" />
+          <div className="text-center py-12 text-muted-foreground text-sm">
+            <Bell className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
             Nenhuma notificação enviada ainda.
           </div>
         )}
@@ -582,9 +582,9 @@ export function NotificationCenterV2({
                     <span className="text-xs font-semibold uppercase tracking-wide opacity-80">
                       {n.type}
                     </span>
-                    <span className="text-zinc-600">·</span>
-                    <TargetIcon className="w-3 h-3 text-zinc-500" />
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-muted-foreground">·</span>
+                    <TargetIcon className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">
                       {n.targetType === "all"
                         ? "Todos"
                         : n.targetType === "org"
@@ -592,18 +592,18 @@ export function NotificationCenterV2({
                           : "Usuário"}
                     </span>
                   </div>
-                  <p className="text-sm font-semibold text-white">{n.title}</p>
-                  <p className="text-xs text-zinc-300 mt-1 line-clamp-2">
+                  <p className="text-sm font-semibold text-foreground">{n.title}</p>
+                  <p className="text-xs text-foreground mt-1 line-clamp-2">
                     {n.body}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
                   <div className="flex flex-col items-end gap-2">
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-muted-foreground">
                       {new Date(n.createdAt).toLocaleDateString("pt-BR")}
                     </p>
                     <div className="flex items-center gap-2">
-                      <p className="text-xs text-zinc-600">
+                      <p className="text-xs text-muted-foreground">
                         {n.readCount} leitura(s)
                       </p>
                       <DeleteNotification notificationId={n.id} />

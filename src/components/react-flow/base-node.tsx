@@ -5,9 +5,9 @@ import { type NodeStatus } from "./node-status-indicator";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
-  Loader2Icon,
   XCircleIcon,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -51,9 +51,9 @@ export function BaseNode({
   const hasNodeError =
     !!(validation && !validation.skip && !validation.valid) || hasGraphErrors;
   const validationBorder = hasNodeError
-    ? "border-red-500/80"
+    ? "border-destructive/80"
     : validation && !validation.skip && validation.valid
-      ? "border-emerald-500/70"
+      ? "border-success/70"
       : "";
 
   const innerNode = (
@@ -69,19 +69,19 @@ export function BaseNode({
     >
       {props.children}
       {status === "error" && (
-        <XCircleIcon className="absolute right-0.5 bottom-0.5 size-2 text-red-700 stroke-3" />
+        <XCircleIcon className="absolute right-0.5 bottom-0.5 size-2 text-destructive stroke-3" />
       )}
       {status === "success" && (
-        <CheckCircle2Icon className="absolute right-0.5 bottom-0.5 size-2 text-green-700 stroke-3" />
+        <CheckCircle2Icon className="absolute right-0.5 bottom-0.5 size-2 text-success stroke-3" />
       )}
       {status === "loading" && (
-        <Loader2Icon className="absolute -right-0.5 -bottom-0.5 size-2 text-blue-700 stroke-3 animate-spin" />
+        <OrbitaSpinner className="absolute -right-0.5 -bottom-0.5 size-2 text-info stroke-3 " />
       )}
       {/* Indicador de validação no canto superior direito quando inválido —
           visível mesmo sem hover, pra usuário identificar rápido qual ação
           falta configurar. */}
       {hasNodeError && (
-        <AlertTriangleIcon className="absolute -top-1 -right-1 size-3 text-red-600 fill-red-100" />
+        <AlertTriangleIcon className="absolute -top-1 -right-1 size-3 text-destructive fill-destructive/15" />
       )}
     </div>
   );

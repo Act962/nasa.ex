@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, ExternalLink, KeyRound, Loader2 } from "lucide-react";
+import { CheckCircle2, ExternalLink, KeyRound } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +48,7 @@ export function MetaKeysForm({
 
   if (hasSavedKeys && !isComplete) {
     return (
-      <p className="flex items-start gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-3 text-sm text-emerald-800 dark:text-emerald-300">
+      <p className="flex items-start gap-2 rounded-lg border border-success/40 bg-success/5 p-3 text-sm text-success dark:text-success">
         <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> Chaves conferidas e guardadas no seu funil. Pode seguir.
       </p>
     );
@@ -79,9 +80,9 @@ export function MetaKeysForm({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-4">
+    <div className="space-y-3 rounded-lg border border-success/40 bg-success/5 p-4">
       <p className="flex items-center gap-2 text-sm font-semibold">
-        <KeyRound className="size-4 text-emerald-600" /> Suas 3 chaves
+        <KeyRound className="size-4 text-success" /> Suas 3 chaves
       </p>
       <KeyDraftField trackingId={trackingId} name="accessToken" savedHint={drafts.accessToken.last4} />
       <KeyDraftField trackingId={trackingId} name="appId" savedHint={drafts.appId} />
@@ -112,7 +113,7 @@ export function MetaKeysForm({
               asChild
               size="sm"
               variant="outline"
-              className="border-[#0866FF]/40 text-[#0866FF] hover:bg-[#0866FF]/10 hover:text-[#0866FF] dark:text-[#4d94ff]"
+              className="border-brand-facebook/40 text-brand-facebook hover:bg-brand-facebook/10 hover:text-brand-facebook"
             >
               <a
                 href={guideStepLink(API_SETUP_STEP, { appId: drafts.appId, businessId: drafts.businessId ?? null }) ?? "#"}
@@ -160,20 +161,20 @@ export function MetaKeysForm({
           </div>
           {saveKeys.isPending && (
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Loader2 className="size-3.5 animate-spin" /> Conferindo na Meta…
+              <OrbitaSpinner className="size-3.5 " /> Conferindo na Meta…
             </p>
           )}
         </div>
       )}
 
       {errorMessage && (
-        <p role="alert" className="rounded-md border border-red-500/40 bg-red-500/5 p-2 text-xs font-medium text-red-700 dark:text-red-400">
+        <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs font-medium text-destructive dark:text-destructive">
           {errorMessage}
         </p>
       )}
 
-      <Button onClick={() => submit()} disabled={!isComplete || saveKeys.isPending} className="bg-emerald-600 text-white hover:bg-emerald-700">
-        {saveKeys.isPending && <Loader2 className="size-4 animate-spin" />} Conferir e salvar
+      <Button onClick={() => submit()} disabled={!isComplete || saveKeys.isPending} className="bg-success text-white hover:bg-success">
+        {saveKeys.isPending && <OrbitaSpinner className="size-4 " />} Conferir e salvar
       </Button>
     </div>
   );

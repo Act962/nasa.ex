@@ -68,7 +68,7 @@ export function DocumentsTable({ documents, canManage, onUpload, onReview }: Doc
               </Label>
             </div>
           )}
-          <Button size="sm" className="bg-violet-600 text-white hover:bg-violet-700" onClick={onUpload}>
+          <Button size="sm" className="bg-info text-white hover:bg-info" onClick={onUpload}>
             <FilePlus2 className="size-3.5" /> Enviar documento
           </Button>
         </div>
@@ -102,7 +102,7 @@ export function DocumentsTable({ documents, canManage, onUpload, onReview }: Doc
                   <TableRow key={document.id} className={cn(document.displayStatus === "REPLACED" && "opacity-60")}>
                     <TableCell className="min-w-48 whitespace-normal">
                       <p className="flex items-center gap-1.5 font-medium">
-                        {document.isFromCertificate && <KeyRound className="size-3.5 text-violet-500" />}
+                        {document.isFromCertificate && <KeyRound className="size-3.5 text-info" />}
                         {document.typeLabel}
                       </p>
                       <p className="text-xs text-muted-foreground">

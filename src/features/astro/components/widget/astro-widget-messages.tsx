@@ -64,7 +64,7 @@ export function AstroWidgetMessages({
       )}
 
       {error && (
-        <p className="mx-4 my-2 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+        <p className="mx-4 my-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           {describeWidgetError(error)}
         </p>
       )}

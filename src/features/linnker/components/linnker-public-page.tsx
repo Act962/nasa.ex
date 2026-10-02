@@ -69,6 +69,8 @@ interface Props {
    * vez de `wa.me/...`. Null = WhatsApp normal está funcionando.
    */
   inChatUrl?: string | null;
+  /** Miniatura da área logada (`?preview=1`): não registra visita. */
+  isPreview?: boolean;
 }
 
 /** Detecta se um URL é WhatsApp (wa.me, api.whatsapp.com, whatsapp://). */
@@ -83,7 +85,7 @@ function isWhatsAppUrl(url: string): boolean {
   );
 }
 
-export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null }: Props) {
+export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null, isPreview = false }: Props) {
   const radius = BUTTON_RADIUS[page.buttonStyle] ?? "16px";
   const socialLinks = (page.socialLinks as SocialLink[]) ?? [];
   const iconColor = page.socialIconColor ?? "#52525b";
@@ -97,12 +99,12 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null }: P
   const qrShouldShow = page.qrEnabled !== false;
 
   useEffect(() => {
-    if (!isDraft) {
+    if (!isDraft && !isPreview) {
       client.linnker
         .registerScan({ slug: page.slug, tracking: getTrackingParamsClient() })
         .catch(() => {});
     }
-  }, [page.slug, isDraft]);
+  }, [page.slug, isDraft, isPreview]);
 
   const handleLinkClick = (link: LinnkerLink) => {
     // In-Chat Fallback — só vale pra links do tipo CHAT (que apontam pro

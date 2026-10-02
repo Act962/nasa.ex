@@ -12,10 +12,10 @@ export function AutoIntelligenceTab() {
   return (
     <div className="max-w-3xl space-y-10">
       <KnowledgeSection />
-      <div className="border-t pt-10">
+      <div>
         <MemoriesSection />
       </div>
-      <div className="border-t pt-10">
+      <div>
         <FeedbackSection />
       </div>
     </div>

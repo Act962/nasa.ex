@@ -20,7 +20,7 @@ export default async function Page({
   const { token } = await searchParams;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 px-4 py-12">
+    <div className="dark min-h-screen bg-background px-4 py-12 text-foreground">
       <div className="mx-auto max-w-md">
         <SuccessPolling pendingId={token ?? null} />
       </div>

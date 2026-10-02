@@ -28,8 +28,8 @@ export interface ProfileStepProps {
 
 export function WhyWeAsk({ children }: { children: React.ReactNode }) {
   return (
-    <p className="flex gap-2 rounded-md bg-violet-500/5 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-      <Lightbulb className="mt-0.5 size-3.5 shrink-0 text-violet-600" />
+    <p className="flex gap-2 rounded-md bg-info/5 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+      <Lightbulb className="mt-0.5 size-3.5 shrink-0 text-info" />
       <span>
         <strong className="font-medium text-foreground">Por que perguntamos isso? </strong>
         {children}
@@ -95,8 +95,8 @@ export function RegimeStep({ form, onChange, onNavigate }: ProfileStepProps) {
                 }
               }}
               className={cn(
-                "cursor-pointer space-y-1 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500",
-                isSelected ? "border-violet-500 bg-violet-500/10" : "hover:bg-muted/50",
+                "cursor-pointer space-y-1 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info",
+                isSelected ? "border-info bg-info/10" : "hover:bg-muted/50",
               )}
             >
               <span className="flex items-center gap-1.5 text-sm font-semibold">
@@ -108,7 +108,7 @@ export function RegimeStep({ form, onChange, onNavigate }: ProfileStepProps) {
           );
         })}
       </div>
-      <Button type="button" variant="link" size="sm" className="h-auto gap-1.5 px-0 text-violet-600 dark:text-violet-300" onClick={() => onNavigate?.("calculator")}>
+      <Button type="button" variant="link" size="sm" className="h-auto gap-1.5 px-0 text-info dark:text-info" onClick={() => onNavigate?.("calculator")}>
         <Calculator className="size-3.5" />
         Não sabe qual compensa mais? Compare os regimes na calculadora
       </Button>
@@ -436,7 +436,7 @@ export function PeopleStep({ form, onChange }: ProfileStepProps) {
             checked={form.ibsCbsOutsideSimples}
             onCheckedChange={(checked) => onChange({ ibsCbsOutsideSimples: checked })}
           />
-          <p className="text-xs text-amber-700 dark:text-amber-300">Essa opção só vale a partir de 2027. Em 2026 tudo continua dentro do DAS.</p>
+          <p className="text-xs text-warning dark:text-warning">Essa opção só vale a partir de 2027. Em 2026 tudo continua dentro do DAS.</p>
         </div>
       )}
     </div>
@@ -494,7 +494,7 @@ export function AlertsStep({ form, onChange }: ProfileStepProps) {
             <Plus className="size-4" />
           </Button>
         </div>
-        {phoneError && <p className="text-xs text-red-600 dark:text-red-400">{phoneError}</p>}
+        {phoneError && <p className="text-xs text-destructive dark:text-destructive">{phoneError}</p>}
         {form.alertPhones.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nenhum telefone ainda. Sem telefone, os avisos aparecem só aqui no sistema.</p>
         ) : (

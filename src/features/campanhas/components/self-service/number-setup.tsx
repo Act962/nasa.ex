@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Loader2, Phone, RefreshCw } from "lucide-react";
+import { CheckCircle2, Phone, RefreshCw } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +58,7 @@ export function NumberSetup({
   if (isLoading) {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" /> Conferindo sua conta na Meta…
+        <OrbitaSpinner className="size-4 " /> Conferindo sua conta na Meta…
       </p>
     );
   }
@@ -67,8 +68,8 @@ export function NumberSetup({
 
   if (status.phone) {
     return (
-      <div className="space-y-1 rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-3 text-sm">
-        <p className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-300">
+      <div className="space-y-1 rounded-lg border border-success/40 bg-success/5 p-3 text-sm">
+        <p className="flex items-center gap-2 font-medium text-success dark:text-success">
           <CheckCircle2 className="size-4" /> Número conectado: {status.phone.displayNumber}
         </p>
         <p className="text-muted-foreground">
@@ -111,13 +112,13 @@ export function NumberSetup({
         <p className="text-sm font-medium">Digite o código de 6 dígitos que chegou por SMS</p>
         {salvyNumberId && !salvyCode && (
           <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" /> Esperando o SMS chegar no seu número comprado…
+            <OrbitaSpinner className="size-3.5 " /> Esperando o SMS chegar no seu número comprado…
           </p>
         )}
         <div className="flex gap-2">
           <Input value={code} onChange={(event) => setCode(event.target.value)} placeholder="000000" inputMode="numeric" className="max-w-40 text-center font-mono text-lg tracking-widest" />
           <Button onClick={confirmCode} disabled={code.replace(/\D/g, "").length < 6 || verifyCode.isPending}>
-            {verifyCode.isPending && <Loader2 className="size-4 animate-spin" />} Confirmar
+            {verifyCode.isPending && <OrbitaSpinner className="size-4 " />} Confirmar
           </Button>
         </div>
         <Button
@@ -155,9 +156,9 @@ export function NumberSetup({
                   { onSuccess: () => toast.success("Número ligado ao funil!"), onError: (error) => toast.error(error.message) },
                 )
               }
-              className={cn("flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:border-emerald-500")}
+              className={cn("flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:border-success")}
             >
-              <Phone className="size-4 text-emerald-600" />
+              <Phone className="size-4 text-success" />
               <span className="flex-1 text-sm">
                 <strong>{phone.displayNumber}</strong> · {phone.verifiedName ?? "sem nome"}
               </span>
@@ -181,12 +182,12 @@ export function NumberSetup({
             <p className="text-[11px] text-muted-foreground">Use o nome da empresa — a Meta revisa e pode recusar nomes genéricos.</p>
           </div>
           <Button onClick={startNew} disabled={phoneNumber.replace(/\D/g, "").length < 10 || verifiedName.trim().length < 2 || addNumber.isPending}>
-            {addNumber.isPending && <Loader2 className="size-4 animate-spin" />} Cadastrar e pedir código
+            {addNumber.isPending && <OrbitaSpinner className="size-4 " />} Cadastrar e pedir código
           </Button>
         </div>
       )}
       <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-        <RefreshCw className={cn("size-4", isFetching && "animate-spin")} /> Conferir conexão
+        {isFetching ? <OrbitaSpinner className="size-4" /> : <RefreshCw className="size-4" />} Conferir conexão
       </Button>
     </div>
   );

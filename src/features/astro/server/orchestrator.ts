@@ -20,6 +20,7 @@ import {
   resolveModels,
   resolvePrimaryModel,
   type AstroTier,
+  type AiProviderId,
   type ResolvedModel,
 } from "@/features/ia/lib/router";
 import { z } from "zod";
@@ -283,6 +284,12 @@ export async function buildAstroAgent(opts: {
    * que o próprio agente acabou de obter (spec 0028).
    */
   inlineSubAgentTools?: boolean;
+  /** Modelo ÓRBITA (spec 0053, RF-5): força provedor + modelo no lugar do `ASTRO_DEFAULT_MODEL`. */
+  modelOverride?: { provider: AiProviderId; modelId: string };
+  /** Ordem das IAs escolhida no "Uso do ASTRO" (spec 0055, RF-15): só essas, nesta ordem. */
+  providerOrder?: AiProviderId[];
+  /** Modelos desligados no "Uso do ASTRO" (spec 0055, RF-16). */
+  disabledModelIds?: string[];
 }): Promise<BuiltAstroAgent> {
   const { ctx, lastUserText } = opts;
   const toolScope = opts.toolScope ?? "full";
@@ -301,7 +308,10 @@ export async function buildAstroAgent(opts: {
     organizationId: ctx.organizationId,
     tier: SUB_AGENT_TIER,
     requires: { tools: true },
-    forceModelId: process.env.ASTRO_DEFAULT_MODEL,
+    forceModelId: opts.modelOverride?.modelId ?? process.env.ASTRO_DEFAULT_MODEL,
+    preferProvider: opts.modelOverride?.provider,
+    providerOrder: opts.providerOrder,
+    disabledModelIds: opts.disabledModelIds,
   });
 
   if (ctx.pinnedAgentKey) {
@@ -360,7 +370,10 @@ export async function buildAstroAgent(opts: {
     organizationId: ctx.organizationId,
     tier: tierFor(complexity),
     requires: { tools: true },
-    forceModelId: process.env.ASTRO_DEFAULT_MODEL,
+    forceModelId: opts.modelOverride?.modelId ?? process.env.ASTRO_DEFAULT_MODEL,
+    preferProvider: opts.modelOverride?.provider,
+    providerOrder: opts.providerOrder,
+    disabledModelIds: opts.disabledModelIds,
   });
   // Sem candidato no nível pedido, cai para o modelo dos sub-agentes em vez
   // de derrubar a conversa.
@@ -500,6 +513,12 @@ export async function streamAstro(opts: {
    * (spec 0021).
    */
   onModelResolved?: (info: { provider: string; modelId: string; usingCustomKey: boolean }) => void;
+  /** Modelo ÓRBITA (spec 0053, RF-5): força provedor + modelo no lugar do `ASTRO_DEFAULT_MODEL`. */
+  modelOverride?: { provider: AiProviderId; modelId: string };
+  /** Ordem das IAs escolhida no "Uso do ASTRO" (spec 0055, RF-15): só essas, nesta ordem. */
+  providerOrder?: AiProviderId[];
+  /** Modelos desligados no "Uso do ASTRO" (spec 0055, RF-16). */
+  disabledModelIds?: string[];
 }) {
   const agent = await buildAstroAgent({
     ctx: opts.ctx,
@@ -507,6 +526,9 @@ export async function streamAstro(opts: {
     toolScope: opts.toolScope,
     forceComplexModel: opts.forceComplexModel,
     outputStyle: opts.outputStyle,
+    modelOverride: opts.modelOverride,
+    providerOrder: opts.providerOrder,
+    disabledModelIds: opts.disabledModelIds,
   });
   opts.onModelResolved?.({ provider: agent.provider, modelId: agent.modelId, usingCustomKey: agent.usingCustomKey });
 

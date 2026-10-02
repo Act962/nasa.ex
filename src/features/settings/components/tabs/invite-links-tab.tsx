@@ -21,7 +21,8 @@ import {
 import { useOrgRole } from "@/hooks/use-org-role";
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, EllipsisVertical, Plus, Star, Trash2 } from "lucide-react";
+import { Copy, EllipsisVertical, Link2, Plus, Star, Trash2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CreateInviteLinkDialog } from "./create-invite-link-dialog";
@@ -34,8 +35,8 @@ function buildLinkUrl(token: string) {
   return `${base}/join/${token}`;
 }
 
-function formatDate(d: Date | string) {
-  const date = typeof d === "string" ? new Date(d) : d;
+function formatDate(value: Date | string) {
+  const date = typeof value === "string" ? new Date(value) : value;
   return date.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
@@ -43,38 +44,46 @@ function formatDate(d: Date | string) {
   });
 }
 
-function getStatus(link: { revokedAt: Date | string | null; expiresAt: Date | string }) {
+type InviteLinkStatus = "active" | "expired" | "revoked";
+
+function getStatus(link: {
+  revokedAt: Date | string | null;
+  expiresAt: Date | string;
+}): InviteLinkStatus {
   if (link.revokedAt) return "revoked" as const;
-  const exp = typeof link.expiresAt === "string" ? new Date(link.expiresAt) : link.expiresAt;
-  if (exp.getTime() < Date.now()) return "expired" as const;
+  const expiresAt =
+    typeof link.expiresAt === "string" ? new Date(link.expiresAt) : link.expiresAt;
+  if (expiresAt.getTime() < Date.now()) return "expired" as const;
   return "active" as const;
 }
 
 export function InviteLinksTab() {
   const { canManage } = useOrgRole();
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data: links = [], isLoading } = useQuery(
     orpc.inviteLinks.list.queryOptions(),
   );
 
-  const revoke = useMutation({
+  const revokeLinkMutation = useMutation({
     mutationFn: (id: string) => orpc.inviteLinks.revoke.call({ id }),
     onSuccess: () => {
-      qc.invalidateQueries();
+      queryClient.invalidateQueries();
       toast.success("Link revogado");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao revogar link"),
+    onError: (error: unknown) =>
+      toast.error(error instanceof Error ? error.message : "Erro ao revogar link"),
   });
 
-  const del = useMutation({
+  const deleteLinkMutation = useMutation({
     mutationFn: (id: string) => orpc.inviteLinks.delete.call({ id }),
     onSuccess: () => {
-      qc.invalidateQueries();
-      toast.success("Link deletado");
+      queryClient.invalidateQueries();
+      toast.success("Link excluído");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao deletar link"),
+    onError: (error: unknown) =>
+      toast.error(error instanceof Error ? error.message : "Erro ao excluir link"),
   });
 
   const copyLink = async (token: string) => {
@@ -84,19 +93,20 @@ export function InviteLinksTab() {
 
   return (
     <div className="space-y-6">
-      <div className="w-full flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">
-            Links de Convite
-          </h2>
-          <p className="text-sm text-foreground/50">
-            Gere links compartilháveis para adicionar membros à organização.
+      <div className="flex w-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="max-md:hidden">
+          <h2 className="text-2xl font-bold text-foreground">Links de convite</h2>
+          <p className="text-sm text-muted-foreground">
+            Crie um link e envie para quem deve entrar na empresa.
           </p>
         </div>
 
         {canManage && (
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="size-4" /> Criar Link
+          <Button
+            onClick={() => setDialogOpen(true)}
+            className="h-11 w-full rounded-full md:h-9 md:w-auto"
+          >
+            <Plus className="size-4" /> Criar link
           </Button>
         )}
       </div>
@@ -107,7 +117,53 @@ export function InviteLinksTab() {
         </span>
       </div>
 
-      <div>
+      <div className="flex flex-col gap-2 md:hidden">
+        {isLoading && (
+          <div className="flex justify-center py-6">
+            <OrbitaSpinner className="size-5 text-muted-foreground" />
+          </div>
+        )}
+        {!isLoading && links.length === 0 && (
+          <p className="rounded-[20px] border border-dashed border-line p-4 text-center text-sm text-muted-foreground">
+            Nenhum link criado ainda.
+          </p>
+        )}
+        {links.map((link) => {
+          const status = getStatus(link);
+          return (
+            <div
+              key={link.id}
+              className="flex items-center gap-3 rounded-[20px] border border-line bg-card p-3"
+            >
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-knob">
+                <Link2 className="size-[18px]" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate font-medium capitalize">{link.role}</span>
+                  <InviteLinkStatusBadge status={status} />
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  Expira em {formatDate(link.expiresAt)} · {link.usesCount} usos
+                </p>
+                <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                  <Star className="size-3 text-warning" />
+                  {link.starsOnJoin} Stars ao entrar
+                </p>
+              </div>
+              <InviteLinkOptionsMenu
+                status={status}
+                canManage={canManage}
+                onCopy={() => copyLink(link.token)}
+                onRevoke={() => revokeLinkMutation.mutate(link.id)}
+                onDelete={() => deleteLinkMutation.mutate(link.id)}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="max-md:hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -123,8 +179,10 @@ export function InviteLinksTab() {
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground text-sm">
-                  Carregando...
+                <TableCell colSpan={7}>
+                  <div className="flex justify-center py-2">
+                    <OrbitaSpinner className="size-5 text-muted-foreground" />
+                  </div>
                 </TableCell>
               </TableRow>
             )}
@@ -149,66 +207,21 @@ export function InviteLinksTab() {
                   <TableCell>{link.usesCount}</TableCell>
                   <TableCell>
                     <span className="inline-flex items-center gap-1 text-sm">
-                      <Star className="size-3.5 text-amber-400" />
+                      <Star className="size-3.5 text-warning" />
                       {link.starsOnJoin}
                     </span>
                   </TableCell>
                   <TableCell>
-                    {status === "active" && (
-                      <Badge className="bg-emerald-600/20 text-emerald-400">
-                        Ativo
-                      </Badge>
-                    )}
-                    {status === "expired" && (
-                      <Badge variant="outline">Expirado</Badge>
-                    )}
-                    {status === "revoked" && (
-                      <Badge variant="destructive">Revogado</Badge>
-                    )}
+                    <InviteLinkStatusBadge status={status} />
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="icon-xs" variant="ghost">
-                          <EllipsisVertical className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Opções</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          className="cursor-pointer"
-                          onClick={() => copyLink(link.token)}
-                        >
-                          <Copy className="size-4" />
-                          Copiar Link
-                        </DropdownMenuItem>
-                        {canManage && status === "active" && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              variant="destructive"
-                              onClick={() => revoke.mutate(link.id)}
-                            >
-                              Revogar Link
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        {canManage && status === "revoked" && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              variant="destructive"
-                              onClick={() => del.mutate(link.id)}
-                            >
-                              <Trash2 className="size-4" />
-                              Deletar Link
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <InviteLinkOptionsMenu
+                      status={status}
+                      canManage={canManage}
+                      onCopy={() => copyLink(link.token)}
+                      onRevoke={() => revokeLinkMutation.mutate(link.id)}
+                      onDelete={() => deleteLinkMutation.mutate(link.id)}
+                    />
                   </TableCell>
                 </TableRow>
               );
@@ -220,8 +233,78 @@ export function InviteLinksTab() {
       <CreateInviteLinkDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onCreated={() => qc.invalidateQueries()}
+        onCreated={() => queryClient.invalidateQueries()}
       />
     </div>
+  );
+}
+
+function InviteLinkStatusBadge({ status }: { status: InviteLinkStatus }) {
+  if (status === "active") {
+    return (
+      <Badge className="rounded-full border-success/30 bg-success/15 text-success">Ativo</Badge>
+    );
+  }
+  if (status === "expired") {
+    return (
+      <Badge variant="outline" className="rounded-full">
+        Expirado
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="destructive" className="rounded-full">
+      Revogado
+    </Badge>
+  );
+}
+
+interface InviteLinkOptionsMenuProps {
+  status: InviteLinkStatus;
+  canManage: boolean;
+  onCopy: () => void;
+  onRevoke: () => void;
+  onDelete: () => void;
+}
+
+function InviteLinkOptionsMenu({
+  status,
+  canManage,
+  onCopy,
+  onRevoke,
+  onDelete,
+}: InviteLinkOptionsMenuProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="icon" variant="ghost" aria-label="Opções do link" className="size-9 rounded-full">
+          <EllipsisVertical className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Opções</DropdownMenuLabel>
+        <DropdownMenuItem className="cursor-pointer" onClick={onCopy}>
+          <Copy className="size-4" />
+          Copiar link
+        </DropdownMenuItem>
+        {canManage && status === "active" && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer" variant="destructive" onClick={onRevoke}>
+              Revogar link
+            </DropdownMenuItem>
+          </>
+        )}
+        {canManage && status === "revoked" && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer" variant="destructive" onClick={onDelete}>
+              <Trash2 className="size-4" />
+              Excluir link
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

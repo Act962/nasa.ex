@@ -56,21 +56,21 @@ const POSITION_BY_SLUG = new Map(POSITIONS.map((p) => [p.slug, p]));
 
 export function ProfileView({ user, card, skills, tools, memberships }: ProfileViewProps) {
   return (
-    <div className="min-h-screen bg-slate-950 pb-20 text-white">
+    <div className="dark min-h-screen bg-background pb-20 text-foreground">
       <div className="mx-auto max-w-4xl px-4 pt-6 md:px-6">
         {/* Voltar */}
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-white/60 hover:text-white transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="size-4" />
           Voltar
         </Link>
 
         {/* Header do perfil */}
-        <section className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-950 p-6 shadow-xl md:p-8">
+        <section className="mt-4 overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-xl md:p-8">
           <div className="flex flex-col items-center gap-4 text-center md:flex-row md:items-start md:gap-6 md:text-left">
-            <div className="relative size-24 shrink-0 overflow-hidden rounded-full border-4 border-white/20 bg-slate-800 md:size-32">
+            <div className="relative size-24 shrink-0 overflow-hidden rounded-full border-4 border-border bg-muted md:size-32">
               {user.image ? (
                 <Image
                   src={user.image}
@@ -82,7 +82,7 @@ export function ProfileView({ user, card, skills, tools, memberships }: ProfileV
                   priority
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-orange-300">
+                <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-info">
                   {user.name?.[0]?.toUpperCase() ?? "?"}
                 </div>
               )}
@@ -93,10 +93,10 @@ export function ProfileView({ user, card, skills, tools, memberships }: ProfileV
                 {user.name ?? "Sem nome"}
               </h1>
               {card?.headline && (
-                <p className="text-base text-white/80">{card.headline}</p>
+                <p className="text-base text-foreground/80">{card.headline}</p>
               )}
               {card?.bio && (
-                <p className="text-sm leading-relaxed text-white/60 max-w-2xl">
+                <p className="text-sm leading-relaxed text-muted-foreground max-w-2xl">
                   {card.bio}
                 </p>
               )}
@@ -127,9 +127,9 @@ export function ProfileView({ user, card, skills, tools, memberships }: ProfileV
 
         {/* Empresas (Memberships) */}
         {memberships.length > 0 && (
-          <section className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 p-5">
+          <section className="mt-5 overflow-hidden rounded-2xl border border-border bg-card p-5">
             <h2 className="mb-3 flex items-center gap-2 text-base font-semibold">
-              <Building2 className="size-4 text-orange-400" />
+              <Building2 className="size-4 text-info" />
               Empresas
             </h2>
             <ul className="space-y-2">
@@ -141,21 +141,21 @@ export function ProfileView({ user, card, skills, tools, memberships }: ProfileV
 
                 const content = (
                   <div className="flex items-center gap-3">
-                    <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5">
+                    <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-border bg-muted/50">
                       {m.organization.logo ? (
                         <Image src={m.organization.logo} alt={m.organization.name} fill className="object-cover" sizes="40px" unoptimized />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white/60">
+                        <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground">
                           {m.organization.name[0]?.toUpperCase()}
                         </div>
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-white">{m.organization.name}</p>
-                      <p className="truncate text-xs text-white/60">{positionLabel}</p>
+                      <p className="truncate text-sm font-medium text-foreground">{m.organization.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{positionLabel}</p>
                     </div>
                     {linkable && (
-                      <span className="shrink-0 text-xs text-orange-300">
+                      <span className="shrink-0 text-xs text-info">
                         Ver Spacehome →
                       </span>
                     )}
@@ -167,12 +167,12 @@ export function ProfileView({ user, card, skills, tools, memberships }: ProfileV
                     {linkable ? (
                       <Link
                         href={`/space/${stationNick}`}
-                        className="block rounded-xl border border-white/5 bg-white/5 p-3 transition-colors hover:border-orange-400/40 hover:bg-orange-500/5"
+                        className="block rounded-xl border border-border bg-muted/50 p-3 transition-colors hover:border-info/30 hover:bg-info/10"
                       >
                         {content}
                       </Link>
                     ) : (
-                      <div className="rounded-xl border border-white/5 bg-white/5 p-3">
+                      <div className="rounded-xl border border-border bg-muted/50 p-3">
                         {content}
                       </div>
                     )}
@@ -185,9 +185,9 @@ export function ProfileView({ user, card, skills, tools, memberships }: ProfileV
 
         {/* Skills */}
         {skills.length > 0 && (
-          <section className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 p-5">
+          <section className="mt-5 overflow-hidden rounded-2xl border border-border bg-card p-5">
             <h2 className="mb-3 flex items-center gap-2 text-base font-semibold">
-              <Sparkles className="size-4 text-emerald-400" />
+              <Sparkles className="size-4 text-success" />
               Skills
             </h2>
             <div className="flex flex-wrap gap-2">
@@ -195,10 +195,10 @@ export function ProfileView({ user, card, skills, tools, memberships }: ProfileV
                 <Badge
                   key={s.skill.id}
                   variant="outline"
-                  className="border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                  className="border-success/30 bg-success/15 text-success"
                 >
                   {s.skill.name}
-                  <span className="ml-1.5 text-[10px] text-emerald-300/70">{s.level}</span>
+                  <span className="ml-1.5 text-[10px] text-success/70">{s.level}</span>
                 </Badge>
               ))}
             </div>
@@ -207,22 +207,22 @@ export function ProfileView({ user, card, skills, tools, memberships }: ProfileV
 
         {/* Tools */}
         {tools.length > 0 && (
-          <section className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 p-5">
+          <section className="mt-5 overflow-hidden rounded-2xl border border-border bg-card p-5">
             <h2 className="mb-3 flex items-center gap-2 text-base font-semibold">
-              <Wrench className="size-4 text-sky-400" />
+              <Wrench className="size-4 text-info" />
               Ferramentas
             </h2>
             <div className="flex flex-wrap gap-2">
               {tools.map((t) => (
                 <div
                   key={t.tool.id}
-                  className="flex items-center gap-1.5 rounded-md border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-xs text-sky-200"
+                  className="flex items-center gap-1.5 rounded-md border border-info/30 bg-info/15 px-2.5 py-1 text-xs text-info"
                 >
                   {t.tool.iconUrl && (
                     <Image src={t.tool.iconUrl} alt={t.tool.name} width={14} height={14} className="rounded" unoptimized />
                   )}
                   <span>{t.tool.name}</span>
-                  <span className="text-[10px] text-sky-300/70">{t.proficiency}</span>
+                  <span className="text-[10px] text-info/70">{t.proficiency}</span>
                 </div>
               ))}
             </div>
@@ -231,8 +231,8 @@ export function ProfileView({ user, card, skills, tools, memberships }: ProfileV
 
         {/* Vazio */}
         {!card && memberships.length === 0 && skills.length === 0 && tools.length === 0 && (
-          <section className="mt-5 rounded-2xl border border-white/10 bg-slate-900/60 p-8 text-center">
-            <p className="text-sm text-white/60">
+          <section className="mt-5 rounded-2xl border border-border bg-card p-8 text-center">
+            <p className="text-sm text-muted-foreground">
               Este usuário ainda não publicou um perfil completo.
             </p>
           </section>
@@ -257,7 +257,7 @@ function SocialButton({
       asChild
       size="sm"
       variant="outline"
-      className="h-7 border-white/20 bg-white/5 px-2.5 text-xs text-white/80 hover:bg-white/10"
+      className="h-7 border-border bg-muted/50 px-2.5 text-xs text-foreground/80 hover:bg-muted"
     >
       <a
         href={href}

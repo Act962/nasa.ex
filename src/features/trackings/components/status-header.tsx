@@ -206,7 +206,7 @@ export const StatusHeader = ({
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangleIcon className="size-5 text-amber-500" />
+              <AlertTriangleIcon className="size-5 text-warning" />
               Excluir status "{data.name}"?
             </DialogTitle>
             <DialogDescription>
@@ -236,7 +236,7 @@ export const StatusHeader = ({
                     <ZapIcon
                       className={cn(
                         "size-3.5 shrink-0",
-                        wf.isActive ? "text-amber-500" : "text-muted-foreground",
+                        wf.isActive ? "text-warning" : "text-muted-foreground",
                       )}
                     />
                     <div className="min-w-0 flex-1">

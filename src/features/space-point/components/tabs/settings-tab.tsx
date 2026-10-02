@@ -12,12 +12,12 @@ import { useOrgRole } from "@/hooks/use-org-role";
 import { toast } from "sonner";
 
 const CATEGORY_COLOR: Record<string, string> = {
-  leads:     "bg-orange-500/15 text-orange-300 border-orange-500/30",
-  agenda:    "bg-blue-500/15 text-blue-300 border-blue-500/30",
+  leads:     "bg-warning/15 text-warning border-warning/30",
+  agenda:    "bg-info/15 text-info border-info/30",
   workspace: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
-  form:      "bg-green-500/15 text-green-300 border-green-500/30",
-  system:    "bg-purple-500/15 text-purple-300 border-purple-500/30",
-  tools:     "bg-yellow-500/15 text-yellow-300 border-yellow-500/30",
+  form:      "bg-success/15 text-success border-success/30",
+  system:    "bg-info/15 text-info border-info/30",
+  tools:     "bg-warning/15 text-warning border-warning/30",
   custom:    "bg-pink-500/15 text-pink-300 border-pink-500/30",
 };
 
@@ -79,16 +79,16 @@ function RuleRow({ rule, canManage, onSave, onDelete }: {
 
   return (
     <div className={cn("rounded-xl border p-3 space-y-2 transition-all",
-      rule.isActive ? "border-[#7a1fe7]/25 bg-[#7a1fe7]/5" : "border-border/40 bg-muted/10 opacity-50")}>
+      rule.isActive ? "border-info/25 bg-info/5" : "border-border/40 bg-muted/10 opacity-50")}>
       <div className="flex items-start gap-2">
         <button onClick={handleToggle} disabled={loading || !canManage}
-          className={cn("mt-0.5 w-8 h-5 rounded-full transition-all shrink-0", rule.isActive ? "bg-[#7a1fe7]" : "bg-muted", !canManage && "cursor-default")}>
-          <div className={cn("w-4 h-4 rounded-full bg-white shadow transition-transform mx-0.5", rule.isActive ? "translate-x-3" : "translate-x-0")} />
+          className={cn("mt-0.5 w-8 h-5 rounded-full transition-all shrink-0", rule.isActive ? "bg-info" : "bg-muted", !canManage && "cursor-default")}>
+          <div className={cn("w-4 h-4 rounded-full bg-background shadow transition-transform mx-0.5", rule.isActive ? "translate-x-3" : "translate-x-0")} />
         </button>
 
         <div className="flex-1 min-w-0">
           {editing ? (
-            <input className="w-full text-sm bg-background border border-[#7a1fe7]/30 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#7a1fe7]"
+            <input className="w-full text-sm bg-background border border-info/30 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-info"
               value={label} onChange={(e) => setLabel(e.target.value)} />
           ) : (
             <p className="text-sm font-medium truncate">{rule.label}</p>
@@ -103,16 +103,16 @@ function RuleRow({ rule, canManage, onSave, onDelete }: {
 
         <div className="shrink-0 flex items-center gap-1">
           {editing ? (
-            <input type="number" min={0} className="w-16 text-sm bg-background border border-[#7a1fe7]/30 rounded-lg px-2 py-1 text-center focus:outline-none focus:ring-1 focus:ring-[#7a1fe7]"
+            <input type="number" min={0} className="w-16 text-sm bg-background border border-info/30 rounded-lg px-2 py-1 text-center focus:outline-none focus:ring-1 focus:ring-info"
               value={points} onChange={(e) => setPoints(parseInt(e.target.value, 10) || 0)} />
           ) : (
-            <span className="text-sm font-bold text-[#a78bfa]">{rule.points}</span>
+            <span className="text-sm font-bold text-info">{rule.points}</span>
           )}
           <span className="text-[10px] text-muted-foreground">pts</span>
         </div>
 
         {isCustom && canManage && !editing && (
-          <button onClick={handleDelete} disabled={loading} className="shrink-0 text-red-400/60 hover:text-red-400 transition-all p-1">
+          <button onClick={handleDelete} disabled={loading} className="shrink-0 text-destructive/60 hover:text-destructive transition-all p-1">
             <Trash2 className="size-3.5" />
           </button>
         )}
@@ -122,7 +122,7 @@ function RuleRow({ rule, canManage, onSave, onDelete }: {
         <div className="flex items-center gap-2 pl-10">
           <span className="text-[11px] text-muted-foreground">Cooldown (h):</span>
           <input type="number" min={0} step={0.5} placeholder="sem limite"
-            className="w-24 text-xs bg-background border border-[#7a1fe7]/30 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#7a1fe7]"
+            className="w-24 text-xs bg-background border border-info/30 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-info"
             value={cooldown} onChange={(e) => setCooldown(e.target.value)} />
         </div>
       )}
@@ -136,12 +136,12 @@ function RuleRow({ rule, canManage, onSave, onDelete }: {
           {editing ? (
             <>
               <button onClick={() => setEditing(false)} className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded">Cancelar</button>
-              <button onClick={handleSave} disabled={loading} className="text-[11px] bg-[#7a1fe7] text-white px-3 py-1 rounded-lg hover:bg-[#6d28d9] disabled:opacity-50">
+              <button onClick={handleSave} disabled={loading} className="text-[11px] bg-primary text-primary-foreground px-3 py-1 rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {loading ? "..." : "Salvar"}
               </button>
             </>
           ) : (
-            <button onClick={() => setEditing(true)} className="text-[11px] text-[#a78bfa] hover:text-[#7a1fe7] px-2 py-1 rounded">Editar</button>
+            <button onClick={() => setEditing(true)} className="text-[11px] text-info hover:underline px-2 py-1 rounded">Editar</button>
           )}
         </div>
       )}
@@ -164,28 +164,28 @@ function CreateRuleForm({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <div className="rounded-xl border border-[#7a1fe7]/30 bg-[#7a1fe7]/5 p-3 space-y-2">
-      <p className="text-xs font-semibold text-[#a78bfa]">Nova regra personalizada</p>
+    <div className="rounded-xl border border-info/30 bg-info/5 p-3 space-y-2">
+      <p className="text-xs font-semibold text-info">Nova regra personalizada</p>
       <div className="grid grid-cols-2 gap-2">
         <input placeholder="Identificador (ex: minha_acao)" value={action} onChange={(e) => setAction(e.target.value)}
-          className="col-span-2 text-xs bg-background border border-[#7a1fe7]/30 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#7a1fe7]" />
+          className="col-span-2 text-xs bg-background border border-info/30 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-info" />
         <input placeholder="Descrição (ex: Criar proposta)" value={label} onChange={(e) => setLabel(e.target.value)}
-          className="col-span-2 text-xs bg-background border border-[#7a1fe7]/30 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#7a1fe7]" />
+          className="col-span-2 text-xs bg-background border border-info/30 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-info" />
         <div className="flex items-center gap-1.5">
           <input type="number" min={1} placeholder="Pontos" value={points} onChange={(e) => setPoints(parseInt(e.target.value) || 1)}
-            className="w-full text-xs bg-background border border-[#7a1fe7]/30 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#7a1fe7]" />
+            className="w-full text-xs bg-background border border-info/30 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-info" />
           <span className="text-[10px] text-muted-foreground shrink-0">pts</span>
         </div>
         <div className="flex items-center gap-1.5">
           <input type="number" min={0} step={0.5} placeholder="Cooldown (h)" value={cooldown} onChange={(e) => setCooldown(e.target.value)}
-            className="w-full text-xs bg-background border border-[#7a1fe7]/30 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#7a1fe7]" />
+            className="w-full text-xs bg-background border border-info/30 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-info" />
           <span className="text-[10px] text-muted-foreground shrink-0">h</span>
         </div>
       </div>
       <div className="flex gap-2 justify-end">
         <button onClick={onDone} className="text-xs text-muted-foreground hover:text-foreground px-3 py-1 rounded">Cancelar</button>
         <button onClick={handleSubmit} disabled={isPending}
-          className="text-xs bg-[#7a1fe7] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d28d9] disabled:opacity-50 flex items-center gap-1.5">
+          className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5">
           <Plus className="size-3" /> {isPending ? "Criando..." : "Criar regra"}
         </button>
       </div>
@@ -211,7 +211,7 @@ function PrizeCard({ rank, prize, period, canManage }: {
     2: "border-zinc-400/40 bg-zinc-400/8",
     3: "border-orange-400/40 bg-orange-400/8",
   };
-  const accent = accentMap[rank] ?? "border-[#7a1fe7]/25 bg-[#7a1fe7]/5";
+  const accent = accentMap[rank] ?? "border-info/25 bg-info/5";
 
   const handleSave = async () => {
     if (!title.trim()) return;
@@ -233,7 +233,7 @@ function PrizeCard({ rank, prize, period, canManage }: {
         <div className="flex-1 min-w-0">
           {editing ? (
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Prêmio para ${rank}º lugar`}
-              className="w-full text-sm bg-background border border-[#7a1fe7]/30 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#7a1fe7]" />
+              className="w-full text-sm bg-background border border-info/30 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-info" />
           ) : prize ? (
             <p className="text-sm font-semibold truncate">{prize.title}</p>
           ) : (
@@ -243,11 +243,11 @@ function PrizeCard({ rank, prize, period, canManage }: {
         {canManage && !editing && (
           <div className="flex gap-1">
             <button onClick={() => { setTitle(prize?.title ?? ""); setDesc(prize?.description ?? ""); setEditing(true); }}
-              className="text-[10px] text-[#a78bfa] hover:text-white px-2 py-1 rounded bg-[#7a1fe7]/15 hover:bg-[#7a1fe7]/30 transition-all">
+              className="text-[10px] text-info hover:text-foreground px-2 py-1 rounded bg-info/15 hover:bg-info/30 transition-all">
               {prize ? "Editar" : "+ Adicionar"}
             </button>
             {prize && (
-              <button onClick={handleDelete} disabled={deleting} className="text-red-400/60 hover:text-red-400 p-1 transition-all">
+              <button onClick={handleDelete} disabled={deleting} className="text-destructive/60 hover:text-destructive p-1 transition-all">
                 <Trash2 className="size-3" />
               </button>
             )}
@@ -258,11 +258,11 @@ function PrizeCard({ rank, prize, period, canManage }: {
       {editing && (
         <>
           <textarea value={description} onChange={(e) => setDesc(e.target.value)} placeholder="Descrição do prêmio (opcional)" rows={2}
-            className="w-full text-xs bg-background border border-[#7a1fe7]/30 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#7a1fe7] resize-none" />
+            className="w-full text-xs bg-background border border-info/30 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-info resize-none" />
           <div className="flex gap-2 justify-end">
             <button onClick={() => setEditing(false)} className="text-xs text-muted-foreground px-2 py-1 rounded">Cancelar</button>
             <button onClick={handleSave} disabled={saving}
-              className="text-xs bg-[#7a1fe7] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d28d9] disabled:opacity-50">
+              className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-50">
               {saving ? "..." : "Salvar"}
             </button>
           </div>
@@ -298,10 +298,10 @@ export function SettingsTab() {
     <div className="flex flex-col gap-4 pb-4">
 
       {/* ── Prizes section ── */}
-      <div className="rounded-xl border border-[#7a1fe7]/20 overflow-hidden">
+      <div className="rounded-xl border border-info/20 overflow-hidden">
         <button onClick={() => setOpenSection(openSection === "prizes" ? "rules" : "prizes")}
-          className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-yellow-500/10 to-[#7a1fe7]/10 hover:bg-[#7a1fe7]/10 transition-all">
-          <Trophy className="size-4 text-yellow-400 shrink-0" />
+          className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-warning/10 to-info/10 hover:bg-info/10 transition-all">
+          <Trophy className="size-4 text-warning shrink-0" />
           <div className="flex-1 text-left">
             <p className="text-sm font-semibold">🏆 Premiações por Colocação</p>
             <p className="text-[10px] text-muted-foreground">Configure prêmios para os melhores colocados do ranking</p>
@@ -310,12 +310,12 @@ export function SettingsTab() {
         </button>
 
         {openSection === "prizes" && (
-          <div className="p-3 space-y-3 border-t border-[#7a1fe7]/15">
-            <div className="flex gap-1 bg-white/5 rounded-xl p-1">
+          <div className="p-3 space-y-3 border-t border-info/15">
+            <div className="flex gap-1 bg-panel rounded-full p-1">
               {PRIZE_PERIODS.map((p) => (
                 <button key={p.key} onClick={() => setPrizePeriod(p.key)}
-                  className={cn("flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all",
-                    prizePeriod === p.key ? "bg-[#7a1fe7] text-white" : "text-muted-foreground hover:text-foreground")}>
+                  className={cn("flex-1 py-1.5 rounded-full text-[11px] font-semibold transition-all",
+                    prizePeriod === p.key ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
                   {p.label}
                 </button>
               ))}
@@ -338,10 +338,10 @@ export function SettingsTab() {
       </div>
 
       {/* ── Rules section ── */}
-      <div className="rounded-xl border border-[#7a1fe7]/20 overflow-hidden">
+      <div className="rounded-xl border border-info/20 overflow-hidden">
         <button onClick={() => setOpenSection(openSection === "rules" ? "prizes" : "rules")}
-          className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-[#7a1fe7]/10 to-transparent hover:bg-[#7a1fe7]/10 transition-all">
-          <Settings2 className="size-4 text-[#a78bfa] shrink-0" />
+          className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-info/10 to-transparent hover:bg-info/10 transition-all">
+          <Settings2 className="size-4 text-info shrink-0" />
           <div className="flex-1 text-left">
             <p className="text-sm font-semibold">⚙️ Regras de Pontuação</p>
             <p className="text-[10px] text-muted-foreground">{(rules ?? []).length} regras • ative/desative e ajuste valores</p>
@@ -350,7 +350,7 @@ export function SettingsTab() {
         </button>
 
         {openSection === "rules" && (
-          <div className="p-3 border-t border-[#7a1fe7]/15 space-y-3">
+          <div className="p-3 border-t border-info/15 space-y-3">
             {!canManage && (
               <p className="text-[11px] text-muted-foreground bg-muted/20 rounded-lg px-3 py-2">
                 🔒 Apenas master e moderadores podem editar regras.
@@ -386,7 +386,7 @@ export function SettingsTab() {
                   <CreateRuleForm onDone={() => setShowCreateRule(false)} />
                 ) : (
                   <button onClick={() => setShowCreateRule(true)}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-[#7a1fe7]/30 text-[#a78bfa] hover:bg-[#7a1fe7]/10 transition-all text-xs">
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-info/30 text-info hover:bg-info/10 transition-all text-xs">
                     <Plus className="size-3.5" /> Nova regra personalizada
                   </button>
                 )}

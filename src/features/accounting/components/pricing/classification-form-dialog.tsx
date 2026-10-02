@@ -289,7 +289,7 @@ export function ClassificationFormDialog({ open, onOpenChange, classification, o
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSaving} className="bg-violet-600 text-white hover:bg-violet-700">
+            <Button type="submit" disabled={isSaving} className="bg-info text-white hover:bg-info">
               {isSaving ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>

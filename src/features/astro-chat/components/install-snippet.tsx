@@ -35,7 +35,7 @@ export function InstallSnippet({ publicKey }: { publicKey: string }) {
         <li>Abra o site num dos domínios cadastrados: o ASTRO aparece no canto.</li>
       </ol>
       <div className="relative">
-        <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-xl border bg-zinc-950 p-4 pr-14 font-mono text-xs text-zinc-100">
+        <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-xl border bg-card p-4 pr-14 font-mono text-xs text-foreground">
           {snippet}
         </pre>
         <Button

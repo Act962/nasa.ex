@@ -21,7 +21,7 @@ export function UserBadgesSection({ userId }: { userId?: string }) {
   return (
     <section className="rounded-2xl border border-border bg-card p-6">
       <header className="flex items-center gap-2 mb-4">
-        <GraduationCap className="size-5 text-violet-600" />
+        <GraduationCap className="size-5 text-info" />
         <h2 className="text-lg font-bold tracking-tight">Selos de Aprendizado</h2>
       </header>
 
@@ -39,7 +39,7 @@ export function UserBadgesSection({ userId }: { userId?: string }) {
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             Conclua rotas de conhecimento em{" "}
-            <span className="text-violet-600">Space Help</span> para ganhar selos
+            <span className="text-info">Space Help</span> para ganhar selos
             exclusivos.
           </p>
         </div>
@@ -48,7 +48,7 @@ export function UserBadgesSection({ userId }: { userId?: string }) {
           {data.badges.map((b) => (
             <div
               key={b.id}
-              className="group relative flex flex-col items-center rounded-xl border border-border bg-gradient-to-br from-violet-500/5 to-transparent p-4 text-center hover:border-violet-500/50 transition"
+              className="group relative flex flex-col items-center rounded-xl border border-border bg-gradient-to-br from-info/5 to-transparent p-4 text-center hover:border-info/50 transition"
               title={b.badge.description ?? undefined}
             >
               <div

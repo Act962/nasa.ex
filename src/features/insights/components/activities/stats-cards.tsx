@@ -55,16 +55,16 @@ export function StatsCards({ orgIds, from, to, memberIds }: Props) {
       label: "Tempo ativo",
       value: isLoading ? null : formatDuration((data?.totalActiveSec ?? 0) * 1000),
       icon: Clock,
-      color: "text-violet-600",
-      bg: "bg-violet-50 dark:bg-violet-950/30",
+      color: "text-info",
+      bg: "bg-info/10 dark:bg-info/15",
       hint: null as string | null,
     },
     {
       label: "Tempo inativo",
       value: isLoading ? null : formatDuration((data?.totalInactiveSec ?? 0) * 1000),
       icon: EyeOff,
-      color: "text-slate-600",
-      bg: "bg-slate-50 dark:bg-slate-900/30",
+      color: "text-muted-foreground",
+      bg: "bg-muted dark:bg-card/30",
       hint: null,
     },
     {
@@ -73,24 +73,24 @@ export function StatsCards({ orgIds, from, to, memberIds }: Props) {
         ? null
         : formatNum(data?.byUser.reduce((s, u) => s + u.actions, 0) ?? 0),
       icon: Activity,
-      color: "text-blue-600",
-      bg: "bg-blue-50 dark:bg-blue-950/30",
+      color: "text-info",
+      bg: "bg-info/10 dark:bg-info/15",
       hint: null,
     },
     {
       label: "Space Points",
       value: isLoading ? null : formatNum(data?.spacePointsEarned ?? 0),
       icon: Sparkles,
-      color: "text-amber-600",
-      bg: "bg-amber-50 dark:bg-amber-950/30",
+      color: "text-warning",
+      bg: "bg-warning/10 dark:bg-warning/15",
       hint: null,
     },
     {
       label: "Stars consumidos",
       value: isLoading ? null : formatNum(data?.starsConsumed ?? 0),
       icon: Star,
-      color: "text-rose-600",
-      bg: "bg-rose-50 dark:bg-rose-950/30",
+      color: "text-destructive",
+      bg: "bg-destructive/10 dark:bg-destructive/15",
       // STARs são contabilizadas a nível de organização — sem coluna de
       // userId em StarTransaction. Quando há membros filtrados, deixamos
       // explícito que esse total continua sendo o da org inteira.

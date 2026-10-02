@@ -17,11 +17,11 @@ export function AstroBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-600 dark:text-violet-300",
+        "inline-flex items-center gap-1.5 rounded-full border border-info/30 bg-info/10 px-2 py-0.5 text-[11px] font-medium text-info",
         className,
       )}
     >
-      <span className="grid size-3.5 place-items-center overflow-hidden rounded-full bg-[#0b1220]">
+      <span className="grid size-3.5 place-items-center overflow-hidden rounded-full bg-info">
         <AstroMark className="size-3.5" />
       </span>
       {label}

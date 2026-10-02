@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +22,7 @@ export function InstallStarFriends({ canInstall }: { canInstall: boolean }) {
     <Card className="mx-auto max-w-2xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-2xl">
-          <Sparkles className="size-6 text-amber-500" /> STAR FRIENDS
+          <Sparkles className="size-6 text-warning" /> STAR FRIENDS
         </CardTitle>
         <CardDescription>Programa de fidelidade para os seus clientes.</CardDescription>
       </CardHeader>
@@ -53,7 +54,7 @@ export function InstallStarFriends({ canInstall }: { canInstall: boolean }) {
             )
           }
         >
-          {install.isPending && <Loader2 className="size-4 animate-spin" />}
+          {install.isPending && <OrbitaSpinner className="size-4 " />}
           Instalar STAR FRIENDS
         </Button>
       </CardContent>

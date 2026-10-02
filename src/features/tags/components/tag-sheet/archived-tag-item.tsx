@@ -75,7 +75,7 @@ export function ArchivedTagItem(tag: ArchivedTagItemProps) {
               /contatos.
             </p>
             {automationCount > 0 && (
-              <p className="text-amber-600 text-[11px] inline-flex items-center gap-1">
+              <p className="text-warning text-[11px] inline-flex items-center gap-1">
                 <ZapIcon className="size-3" />
                 {automationCount} automação(ões) ainda referenciam
               </p>

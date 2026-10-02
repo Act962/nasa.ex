@@ -12,16 +12,14 @@ export default async function Page() {
 
   return (
     <div className="px-4">
-      <Tabs
-        defaultValue="members"
-        orientation="vertical"
-        className="flex-col sm:flex-row gap-12"
-      >
-        <TabsList className="h-full flex-col">
-          <TabsTrigger value="members">Membros</TabsTrigger>
-          <TabsTrigger value="invitations">Convites</TabsTrigger>
-          <TabsTrigger value="invite-links">Links de Convite</TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="members" className="gap-5">
+        <div className="scroll-hidden-x -mx-4 px-4">
+          <TabsList className="w-max">
+            <TabsTrigger value="members">Membros</TabsTrigger>
+            <TabsTrigger value="invitations">Convites</TabsTrigger>
+            <TabsTrigger value="invite-links">Links de convite</TabsTrigger>
+          </TabsList>
+        </div>
         <TabsContent value="members">
           <MembersTab members={organization?.members || []} />
         </TabsContent>

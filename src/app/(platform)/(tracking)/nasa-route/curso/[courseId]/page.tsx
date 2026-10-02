@@ -1,5 +1,6 @@
 import { CourseRouteViewer } from "@/features/nasa-route/components/student/viewers/course-route-viewer";
 import { ensureEnrollmentOrRedirect } from "@/features/nasa-route/lib/server-access";
+import { NasaRouteShell } from "@/features/nasa-route/components/shared/nasa-route-shell";
 
 interface Params {
   courseId: string;
@@ -20,5 +21,9 @@ interface Params {
 export default async function Page({ params }: { params: Promise<Params> }) {
   const { courseId } = await params;
   await ensureEnrollmentOrRedirect({ courseId });
-  return <CourseRouteViewer courseId={courseId} />;
+  return (
+    <NasaRouteShell>
+      <CourseRouteViewer courseId={courseId} />
+    </NasaRouteShell>
+  );
 }

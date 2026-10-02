@@ -7,10 +7,10 @@ import {
   CalendarDays,
   CheckCircle2,
   ExternalLink,
-  Loader2,
   ShieldAlert,
   XCircle,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import Link from "next/link";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
@@ -65,7 +65,7 @@ export function ClaimResponseClient({ token }: { token: string }) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center p-12">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          <OrbitaSpinner className="size-5 text-muted-foreground" />
         </CardContent>
       </Card>
     );
@@ -118,7 +118,7 @@ export function ClaimResponseClient({ token }: { token: string }) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <ShieldAlert className="size-5 text-amber-500" />
+            <ShieldAlert className="size-5 text-warning" />
             Reivindicação do evento "{claim.action.title}"
           </CardTitle>
           <CardDescription>
@@ -160,7 +160,7 @@ export function ClaimResponseClient({ token }: { token: string }) {
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
               Reivindicação
             </Label>
-            <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
+            <div className="rounded-md border border-warning/30 bg-warning/10 p-3 space-y-2">
               <div className="text-sm">
                 <strong>{claim.claimantName}</strong>{" "}
                 <span className="text-xs text-muted-foreground">({claim.claimantEmail})</span>
@@ -205,7 +205,7 @@ export function ClaimResponseClient({ token }: { token: string }) {
                 disabled={respondMutation.isPending}
               >
                 {respondMutation.isPending ? (
-                  <Loader2 className="mr-1.5 size-4 animate-spin" />
+                  <OrbitaSpinner className="mr-1.5 size-4 " />
                 ) : (
                   <CheckCircle2 className="mr-1.5 size-4" />
                 )}
@@ -217,8 +217,8 @@ export function ClaimResponseClient({ token }: { token: string }) {
       </Card>
 
       {!isResolved && (
-        <Card className="border-amber-200 bg-amber-50/60 dark:border-amber-400/40 dark:bg-amber-950/20">
-          <CardContent className="flex items-start gap-2 p-3 text-xs text-amber-900 dark:text-amber-200">
+        <Card className="border-warning/30 bg-warning/10">
+          <CardContent className="flex items-start gap-2 p-3 text-xs text-warning">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <span>
               Se você não responder até{" "}
@@ -295,7 +295,7 @@ function RejectForm({
           Cancelar
         </Button>
         <Button onClick={onSubmit} disabled={!valid || loading}>
-          {loading && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+          {loading && <OrbitaSpinner className="mr-1.5 size-4 " />}
           Enviar contestação
         </Button>
       </div>

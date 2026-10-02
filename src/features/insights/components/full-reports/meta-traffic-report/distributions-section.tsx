@@ -1,5 +1,6 @@
 "use client";
 
+import { CHART_PALETTE } from "@/lib/chart-palette";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -48,16 +49,7 @@ const fmtCurrency = (v: number) =>
   }).format(v);
 
 // Paleta consistente com o resto dos relatórios (Meta blue + variações).
-const PALETTE = [
-  "#0082FB",
-  "#7c3aed",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#06b6d4",
-  "#84cc16",
-  "#ec4899",
-];
+const PALETTE = CHART_PALETTE;
 
 // ─── Charts ───────────────────────────────────────────────────────────────
 

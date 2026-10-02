@@ -96,7 +96,7 @@ export function SortableLayerRow(props: Props) {
         className={cn(
           "group relative flex items-center gap-1.5 px-1 py-1 rounded-md text-xs transition-colors cursor-pointer",
           isSelected
-            ? "bg-indigo-50 ring-1 ring-indigo-300 text-indigo-900"
+            ? "bg-info/10 ring-1 ring-info/40 text-foreground"
             : "hover:bg-accent",
           hidden && "opacity-50",
         )}

@@ -70,7 +70,7 @@ export const DropdownBlock: ObjectBlockType = {
       ],
     } satisfies AttributesType,
   }),
-  blockBtnElement: { icon: ChevronsUpDown, label: "Lista (dropdown)" },
+  blockBtnElement: { icon: ChevronsUpDown, label: "Lista suspensa" },
   canvasComponent: CanvasView,
   formComponent: FormView,
   propertiesComponent: PropertiesView,
@@ -88,7 +88,7 @@ function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
 
           {label}
 
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
 
         </Label>
 
@@ -147,13 +147,13 @@ function FormView({
   return (
     <div className="flex flex-col gap-2 w-full">
       {label?.trim() && (
-        <Label className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}>
+        <Label className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-destructive" : ""}`}>
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className={isError || isSubmitError ? "border-red-500!" : ""}>
+        <SelectTrigger className={isError || isSubmitError ? "border-destructive!" : ""}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
@@ -166,7 +166,7 @@ function FormView({
       </Select>
       {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
       {(isError || isSubmitError) && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage || "Selecione uma opção."}</p>
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">{errorMessage || "Selecione uma opção."}</p>
       )}
     </div>
   );

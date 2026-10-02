@@ -51,18 +51,18 @@ export function isAstroChartPayload(value: unknown): value is AstroChartPayload 
 }
 
 /**
- * Paleta consistente — escolhida pra contrastar bem no fundo dark do
- * Explorer. Cicla quando há mais de N fatias.
+ * Paleta dos gráficos: tons do azul do ASTRO (`--chart-1..5`, decisão D-2 do Design System)
+ * e as cores de estado para séries extras. Cicla quando há mais de N fatias.
  */
 export const ASTRO_CHART_COLORS = [
-  "#8b5cf6", // violet-500
-  "#06b6d4", // cyan-500
-  "#f59e0b", // amber-500
-  "#10b981", // emerald-500
-  "#ec4899", // pink-500
-  "#3b82f6", // blue-500
-  "#ef4444", // red-500
-  "#84cc16", // lime-500
+  "var(--chart-2)",
+  "var(--chart-4)",
+  "var(--chart-1)",
+  "var(--chart-3)",
+  "var(--chart-5)",
+  "var(--success)",
+  "var(--warning)",
+  "var(--destructive)",
 ];
 
 export function chartColor(i: number): string {

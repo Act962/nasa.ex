@@ -3,6 +3,9 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { loadNewAppsInsights } from "./load-new-apps-insights";
+import { loadKpiExtras } from "./load-kpi-extras";
+import { resolveInsightsOrganizationIds } from "./resolve-insights-organizations";
 
 export const getAppsInsights = base
   .use(requiredAuthMiddleware)
@@ -19,7 +22,11 @@ export const getAppsInsights = base
   )
   .handler(async ({ input, context }) => {
     const orgId = context.org.id;
-    const orgIds = input.organizationIds?.length ? input.organizationIds : [orgId];
+    const orgIds = await resolveInsightsOrganizationIds({
+      userId: context.user.id,
+      activeOrganizationId: orgId,
+      requestedOrganizationIds: input.organizationIds,
+    });
 
     const dateFilter =
       input.startDate && input.endDate
@@ -247,8 +254,16 @@ export const getAppsInsights = base
       }),
     ]);
 
-    // Active conversations as proxy for "attended"
-    const attendedCount = conversations.filter((c) => c.isActive).length;
+    // Atendida = recebeu ao menos uma resposta da equipe. Antes contava "conversa ativa", o que
+    // marcava como atendida a conversa aberta que ninguém respondeu.
+    const repliedConversations = conversations.length > 0
+      ? await prisma.message.findMany({
+          where: { fromMe: true, conversationId: { in: conversations.map((conversation) => conversation.id) } },
+          distinct: ["conversationId"],
+          select: { conversationId: true },
+        })
+      : [];
+    const attendedCount = repliedConversations.length;
 
     // Duração média da conversa em horas (criação → última mensagem)
     const avgConversationDuration =
@@ -819,20 +834,42 @@ export const getAppsInsights = base
       avgTimeToCertificate,
     };
 
+    const extraFilters = {
+      organizationIds: orgIds,
+      createdAtFilter: dateFilter,
+      trackingId: input.trackingId,
+      tagIds: input.tagIds,
+      workspaceIds: input.workspaceIds,
+    };
+    const [newAppsData, kpiExtras] = await Promise.all([
+      loadNewAppsInsights(extraFilters),
+      loadKpiExtras(extraFilters),
+    ]);
+
     return {
-      forge:        forgeData,
-      spacetime:    spacetimeData,
-      nasaPlanner:  nasaPlannerData,
-      chat:         chatData,
-      workspace:    workspaceData,
-      forms:        formsData,
+      campanhas:    { ...newAppsData.campanhas, ...kpiExtras.campanhas },
+      trafego:      { ...newAppsData.trafego, ...kpiExtras.trafego },
+      nerp:         { ...newAppsData.nerp, ...kpiExtras.nerp },
+      starFriends:  { ...newAppsData.starFriends, ...kpiExtras.starFriends },
+      tracking:     kpiExtras.tracking,
+      forge:        { ...forgeData, ...kpiExtras.forge },
+      spacetime:    { ...spacetimeData, ...kpiExtras.spacetime },
+      nasaPlanner:  { ...nasaPlannerData, ...kpiExtras.nasaPlanner },
+      chat:         { ...chatData, ...kpiExtras.chat },
+      workspace:    { ...workspaceData, ...kpiExtras.workspace },
+      forms:        { ...formsData, ...kpiExtras.forms },
       nbox:         nboxData,
-      payment:      paymentData,
-      linnker:      linnkerData,
+      payment:      { ...paymentData, ...kpiExtras.payment },
+      linnker:      {
+        ...linnkerData,
+        captureRate: linnkerData.totalScans > 0
+          ? Math.round((linnkerData.scansWithLead / linnkerData.totalScans) * 1000) / 10
+          : 0,
+      },
       spacePoints:  spacePointsData,
-      stars:        starsData,
+      stars:        { ...starsData, ...kpiExtras.stars },
       spaceStation: spaceStationData,
-      nasaRoute:    nasaRouteData,
+      nasaRoute:    { ...nasaRouteData, ...kpiExtras.nasaRoute },
       period:       { startDate: input.startDate, endDate: input.endDate },
     };
   });

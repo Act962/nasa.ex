@@ -27,8 +27,8 @@ import {
   ToggleRight,
   ChevronRight,
   Star,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -98,7 +98,7 @@ export function DunningRulesTab() {
           </p>
         </div>
         <Button onClick={handleCreate} disabled={createRule.isPending} size="sm">
-          {createRule.isPending ? <Loader2 className="size-4 animate-spin mr-2" /> : <Plus className="size-4 mr-2" />}
+          {createRule.isPending ? <OrbitaSpinner className="size-4 mr-2" /> : <Plus className="size-4 mr-2" />}
           Nova régua
         </Button>
       </div>
@@ -214,13 +214,13 @@ function RuleAccordion({
         <div className="flex-1 min-w-0 flex items-center gap-2">
           <span className="font-medium text-sm">{rule.name}</span>
           {rule.isDefault && (
-            <Badge variant="outline" className="border-amber-500/40 text-amber-600 text-[10px]">
+            <Badge variant="outline" className="border-warning/40 text-warning text-[10px]">
               <Star className="size-2.5 mr-0.5" />
               Padrão
             </Badge>
           )}
           {rule.isActive ? (
-            <Badge variant="outline" className="border-green-500/40 text-green-600 text-[10px]">Ativa</Badge>
+            <Badge variant="outline" className="border-success/40 text-success text-[10px]">Ativa</Badge>
           ) : (
             <Badge variant="outline" className="text-[10px]">Desligada</Badge>
           )}
@@ -248,13 +248,13 @@ function RuleAccordion({
               onClick={handleToggleActive}
               title={rule.isActive ? "Desligar régua" : "Ligar régua"}
             >
-              {rule.isActive ? <ToggleRight className="size-4 text-green-600" /> : <ToggleLeft className="size-4" />}
+              {rule.isActive ? <ToggleRight className="size-4 text-success" /> : <ToggleLeft className="size-4" />}
             </Button>
             <Button variant="outline" size="sm" onClick={handleToggleDefault} title={rule.isDefault ? "Remover padrão" : "Marcar como padrão"}>
-              <Star className={`size-4 ${rule.isDefault ? "fill-amber-500 text-amber-500" : ""}`} />
+              <Star className={`size-4 ${rule.isDefault ? "fill-warning text-warning" : ""}`} />
             </Button>
             <Button variant="outline" size="sm" onClick={handleDelete} title="Excluir régua">
-              <Trash2 className="size-4 text-red-500" />
+              <Trash2 className="size-4 text-destructive" />
             </Button>
           </div>
 
@@ -318,8 +318,8 @@ function StepEditor({
     <Card className="p-3 bg-background">
       <div className="flex items-start gap-3">
         <div className={`size-8 rounded-md flex items-center justify-center shrink-0 ${
-          channel === "EMAIL" ? "bg-blue-500/15 text-blue-600"
-          : channel === "WHATSAPP" ? "bg-green-500/15 text-green-600"
+          channel === "EMAIL" ? "bg-info/15 text-info"
+          : channel === "WHATSAPP" ? "bg-success/15 text-success"
           : "bg-muted text-muted-foreground"
         }`}>
           <Icon className="size-4" />
@@ -397,7 +397,7 @@ function StepEditor({
             if (confirm("Excluir esse step?")) deleteStep.mutate({ id: step.id });
           }}
         >
-          <Trash2 className="size-3.5 text-red-500" />
+          <Trash2 className="size-3.5 text-destructive" />
         </Button>
       </div>
     </Card>

@@ -26,7 +26,7 @@
 "use client";
 
 import { useState } from "react";
-import { SquareStack, LayoutTemplate, Settings2, Layers3, Files } from "lucide-react";
+import { SquareStack } from "lucide-react";
 import { toast } from "sonner";
 import {
   DndContext,
@@ -49,7 +49,6 @@ import {
   mapElementToInterludeBlock,
 } from "../../lib/visible-section";
 import type { ElementType, ElementBase } from "../../types";
-import { cn } from "@/lib/utils";
 import { LayersPanel } from "./layers-panel";
 import { PagesPanel } from "./pages-panel";
 import { BlocksPanel } from "./blocks-panel";
@@ -65,22 +64,35 @@ import {
 import { getByPath, setByPath } from "./builder-path-utils";
 import { DraggableElementButton } from "./draggable-element-button";
 import { PageSettingsPanel } from "./page-settings-panel";
+import { ALL_BUILDER_SIDEBAR_TAB_IDS, BuilderSidebarTabs } from "./builder-sidebar-tabs";
+import { BuilderSelectionHint } from "./builder-selection-hint";
+
+interface BuilderSidebarPanelProps {
+  /** Abas mostradas (no celular cada gaveta mostra só as dela). */
+  visibleTabIds?: Tab[];
+  /** Painel de propriedades embaixo das abas; no celular ele tem gaveta própria. */
+  isPropertiesEmbedded?: boolean;
+}
 
 /**
  * Versão drawer/sheet: mesmo conteúdo do BuilderSidebar mas SEM o
  * `<aside>` wrapper. Pra usar dentro de `<SheetContent>` quando em
  * mobile (sidebar lateral vira gaveta deslizante).
  */
-export function BuilderSidebarPanel() {
-  return <BuilderSidebarBody asPanel />;
+export function BuilderSidebarPanel(panelProps: BuilderSidebarPanelProps) {
+  return <BuilderSidebarBody asPanel {...panelProps} />;
 }
 
 export function BuilderSidebar() {
   return <BuilderSidebarBody />;
 }
 
-function BuilderSidebarBody({ asPanel = false }: { asPanel?: boolean }) {
-  const [tab, setTab] = useState<Tab>("elements");
+function BuilderSidebarBody({
+  asPanel = false,
+  visibleTabIds = ALL_BUILDER_SIDEBAR_TAB_IDS,
+  isPropertiesEmbedded = true,
+}: BuilderSidebarPanelProps & { asPanel?: boolean }) {
+  const [tab, setTab] = useState<Tab>(visibleTabIds[0] ?? "elements");
   const addElement = usePagesBuilderStore((s) => s.addElement);
   const insertElementAt = usePagesBuilderStore((s) => s.insertElementAt);
   const appendInterludeBlockToSection = usePagesBuilderStore(
@@ -108,7 +120,7 @@ function BuilderSidebarBody({ asPanel = false }: { asPanel?: boolean }) {
   // existe pra ser arrastada).
   const handleDragStart = (event: DragStartEvent) => {
     const kind = event.active.data.current?.kind;
-    if (kind === "add-element-button") setTab("layers");
+    if (kind === "add-element-button" && visibleTabIds.includes("layers")) setTab("layers");
   };
 
   const updateElement = usePagesBuilderStore((s) => s.updateElement);
@@ -345,41 +357,9 @@ function BuilderSidebarBody({ asPanel = false }: { asPanel?: boolean }) {
       onDragEnd={handleDragEnd}
     >
       <Tag data-builder-sidebar className={wrapperCls}>
-        {/* Tab bar — layout vertical (ícone topo + label embaixo) pra
-          acomodar 5 abas confortavelmente em 320px sem espremer
-          texto. Padding compacto pra altura ~52px. */}
-        <div className="flex border-b shrink-0 bg-card">
-          {(
-            [
-              { id: "elements", icon: SquareStack, tip: "Elementos" },
-              { id: "blocks", icon: LayoutTemplate, tip: "Blocos" },
-              { id: "layers", icon: Layers3, tip: "Camadas" },
-              { id: "pages", icon: Files, tip: "Páginas" },
-              { id: "page", icon: Settings2, tip: "Ajustes" },
-            ] as {
-              id: Tab;
-              icon: React.ComponentType<{ className?: string }>;
-              tip: string;
-            }[]
-          ).map(({ id, icon: Icon, tip }) => (
-            <button
-              key={id}
-              title={tip}
-              onClick={() => setTab(id)}
-              className={cn(
-                "flex-1 min-w-0 py-1.5 px-0.5 flex flex-col items-center justify-center gap-0.5 transition-colors",
-                tab === id
-                  ? "bg-indigo-50 text-indigo-600 border-b-2 border-indigo-500"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/30 border-b-2 border-transparent",
-              )}
-            >
-              <Icon className="size-[18px] shrink-0" />
-              <span className="text-[10px] font-medium leading-tight truncate max-w-full">
-                {tip}
-              </span>
-            </button>
-          ))}
-        </div>
+        {visibleTabIds.length > 1 && (
+          <BuilderSidebarTabs visibleTabIds={visibleTabIds} activeTab={tab} onTabChange={setTab} />
+        )}
 
         {/* scrollable content */}
         <div className="flex-1 overflow-y-auto">
@@ -419,37 +399,8 @@ function BuilderSidebarBody({ asPanel = false }: { asPanel?: boolean }) {
             />
           )}
 
-          {/* ─── Properties panel embutido ─────────────────────────────── */}
-          {selected.length > 0 ? (
-            <PropertiesPanelContent />
-          ) : (
-            // Empty state educativo — mostra DESTACADO quando nada está
-            // selecionado. Usuário tá confuso: "criou só uma imagem
-            // fixa?". Não é fixa — cada bloco é editável. Esse hint
-            // resolve a falha de discoverability.
-            <div className="mt-2 mx-2 mb-3 rounded-lg border-2 border-dashed border-indigo-300 bg-gradient-to-br from-indigo-50 to-violet-50 p-4 text-center">
-              <div className="text-2xl mb-1.5">👆</div>
-              <p className="text-xs font-semibold text-indigo-900 leading-tight mb-1.5">
-                Clique em qualquer bloco no canvas
-              </p>
-              <p className="text-[11px] text-indigo-700/80 leading-relaxed">
-                Cada seção (hero, navbar, features, footer…) é{" "}
-                <strong>editável</strong>. Quando você clica, este painel mostra
-                todos os campos:{" "}
-                <em>
-                  título, subtítulo, textos, imagens, botões, links, cores
-                </em>{" "}
-                — tudo dá pra trocar.
-              </p>
-              <div className="mt-2.5 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1 rounded-full bg-white border px-2 py-0.5">
-                  <span className="size-1.5 rounded-full bg-indigo-500" />
-                  Dica
-                </span>
-                <span>arrasta também pra mover</span>
-              </div>
-            </div>
-          )}
+          {isPropertiesEmbedded &&
+            (selected.length > 0 ? <PropertiesPanelContent /> : <BuilderSelectionHint />)}
         </div>
       </Tag>
     </DndContext>

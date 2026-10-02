@@ -45,10 +45,10 @@ export interface RegularityItemView {
 }
 
 const STATUS_ICONS: Record<RegularityStatus, { icon: typeof Clock; className: string }> = {
-  OK: { icon: Clock, className: "text-emerald-500" },
-  EXPIRING_SOON: { icon: Clock, className: "text-amber-500" },
-  EXPIRED: { icon: AlertOctagon, className: "text-red-500" },
-  OVERDUE: { icon: CircleAlert, className: "text-red-500" },
+  OK: { icon: Clock, className: "text-success" },
+  EXPIRING_SOON: { icon: Clock, className: "text-warning" },
+  EXPIRED: { icon: AlertOctagon, className: "text-destructive" },
+  OVERDUE: { icon: CircleAlert, className: "text-destructive" },
   MISSING: { icon: FileQuestion, className: "text-muted-foreground" },
 };
 
@@ -79,16 +79,16 @@ export function MissingItemCard({ item, onUpload, onDisable, isDisabling }: Miss
           <p className="text-xs text-muted-foreground">
             {groupLabel} · {scopeLabel}
           </p>
-          <p className={cn("text-sm", isCritical ? "text-red-700 dark:text-red-300" : "text-amber-700 dark:text-amber-300")}>
+          <p className={cn("text-sm", isCritical ? "text-destructive dark:text-destructive" : "text-warning dark:text-warning")}>
             {reason}
           </p>
           {item.impactBps > 0 && (
-            <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
+            <p className="text-xs font-medium text-info dark:text-info">
               +{formatBps(item.impactBps, 0)} no score ao resolver
             </p>
           )}
           {item.blockingImpact && isCritical && (
-            <p className="rounded-md bg-red-500/10 px-2 py-1 text-xs font-medium text-red-700 dark:text-red-300">
+            <p className="rounded-md bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive dark:text-destructive">
               {item.blockingImpact}
             </p>
           )}
@@ -108,7 +108,7 @@ export function MissingItemCard({ item, onUpload, onDisable, isDisabling }: Miss
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2 sm:pl-8">
-        <Button size="sm" className="bg-violet-600 text-white hover:bg-violet-700" onClick={() => onUpload(item.typeCode, item.openPeriods[0])}>
+        <Button size="sm" className="bg-info text-white hover:bg-info" onClick={() => onUpload(item.typeCode, item.openPeriods[0])}>
           <Upload className="size-3.5" /> Enviar documento
         </Button>
         {item.officialUrl && (

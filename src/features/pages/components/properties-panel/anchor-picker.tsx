@@ -108,7 +108,7 @@ export function AnchorPicker({
           <button
             type="button"
             onClick={() => setMode("select")}
-            className="text-[10px] text-indigo-600 hover:underline flex items-center gap-1 self-start"
+            className="text-[10px] text-info hover:underline flex items-center gap-1 self-start"
           >
             <ChevronDown className="size-3" /> Escolher da lista de camadas
           </button>
@@ -141,7 +141,7 @@ export function AnchorPicker({
       </div>
 
       {noAnchors && (
-        <p className="text-[10px] text-amber-700 flex items-start gap-1 leading-snug">
+        <p className="text-[10px] text-warning flex items-start gap-1 leading-snug">
           <AlertCircle className="size-3 shrink-0 mt-0.5" />
           Nenhuma section tem âncora ainda. Selecione uma section no canvas e
           defina &quot;ID da âncora&quot; no painel direito pra ela aparecer aqui.
@@ -152,7 +152,7 @@ export function AnchorPicker({
         <button
           type="button"
           onClick={() => setMode("custom")}
-          className="text-[10px] text-indigo-600 hover:underline flex items-center gap-1 self-start"
+          className="text-[10px] text-info hover:underline flex items-center gap-1 self-start"
         >
           <Pencil className="size-3" /> Digitar URL/âncora manualmente
         </button>

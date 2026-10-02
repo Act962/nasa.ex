@@ -6,9 +6,9 @@ import { orpc } from "@/lib/orpc";
 import {
   ChevronLeft,
   ExternalLink,
-  Loader2,
   MessageCircle,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -92,7 +92,7 @@ export function CommunityViewer({ course }: Props) {
             />
           </div>
         ) : (
-          <div className="aspect-video bg-linear-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/30 dark:to-emerald-950/30" />
+          <div className="aspect-video bg-success/10" />
         )}
 
         <div className="space-y-5 p-6">
@@ -114,20 +114,20 @@ export function CommunityViewer({ course }: Props) {
           )}
 
           {/* Card grande com ícone */}
-          <div className="space-y-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 p-6 text-center dark:border-emerald-800/40 dark:bg-emerald-900/20">
+          <div className="space-y-4 rounded-2xl border-2 border-success/30 bg-success/5 p-6 text-center">
             <div className="text-5xl">{icon}</div>
-            <p className="text-sm text-emerald-900 dark:text-emerald-200">
+            <p className="text-sm text-success">
               Sua matrícula está ativa. Clique abaixo pra abrir o convite.
             </p>
             <Button
               size="lg"
-              className="w-full bg-emerald-600 hover:bg-emerald-700"
+              className="w-full"
               onClick={() => inviteMutation.mutate({ courseId: course.id })}
               disabled={inviteMutation.isPending}
             >
               {inviteMutation.isPending ? (
                 <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <OrbitaSpinner className="mr-2 size-4 " />
                   Abrindo...
                 </>
               ) : (
@@ -138,7 +138,7 @@ export function CommunityViewer({ course }: Props) {
                 </>
               )}
             </Button>
-            <p className="text-xs text-emerald-900/70 dark:text-emerald-200/70">
+            <p className="text-xs text-success/70">
               Se o link não funcionar, avise o criador. Pode ser um grupo cheio
               ou expirado.
             </p>

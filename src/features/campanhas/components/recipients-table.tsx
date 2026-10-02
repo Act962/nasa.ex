@@ -93,7 +93,7 @@ export function RecipientsTable({ broadcastId }: { broadcastId: string }) {
                     </Badge>
                     {recipient.errorMessage && (
                       <span
-                        className="max-w-md text-xs text-red-600 dark:text-red-400"
+                        className="max-w-md text-xs text-destructive dark:text-destructive"
                         title={recipient.errorMessage}
                       >
                         {recipient.errorCode ? `[${recipient.errorCode}] ` : ""}

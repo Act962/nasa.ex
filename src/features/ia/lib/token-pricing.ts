@@ -36,6 +36,11 @@ const PRICING: Record<string, ModelPricing> = {
   "gpt-4.1-mini": { inputPer1k: 0.0004, outputPer1k: 0.0016 }, // conferir
   "gpt-4.1-nano": { inputPer1k: 0.0001, outputPer1k: 0.0004 }, // conferir
   "gpt-4o-mini": { inputPer1k: 0.00015, outputPer1k: 0.0006 },
+  // Voz em tempo real: preço do áudio, que domina a conversa (texto sai mais barato) — conferir.
+  // Voz econômica: texto entra a US$ 0,60/1M e o áudio sai a US$ 12/1M (~US$ 0,015 por minuto falado).
+  "gpt-4o-mini-tts": { inputPer1k: 0.0006, outputPer1k: 0.012 },
+  "gpt-realtime-mini": { inputPer1k: 0.01, outputPer1k: 0.02, cachedInputPer1k: 0.0003 },
+  "gpt-realtime": { inputPer1k: 0.032, outputPer1k: 0.064, cachedInputPer1k: 0.0004 },
   "gpt-4o": { inputPer1k: 0.0025, outputPer1k: 0.01 },
   "gpt-4-turbo": { inputPer1k: 0.01, outputPer1k: 0.03 },
   "gpt-4": { inputPer1k: 0.03, outputPer1k: 0.06 },
@@ -178,4 +183,44 @@ export function formatTokens(total: number): string {
   if (total < 1000) return total.toString();
   if (total < 1_000_000) return `${(total / 1000).toFixed(1)}K`;
   return `${(total / 1_000_000).toFixed(2)}M`;
+}
+
+/** Fatia de entrada quando o registro só tem o total de tokens (prompts do ASTRO são longos, respostas curtas). */
+const ESTIMATED_INPUT_SHARE = 0.8;
+
+/** Modelo usado como preço de referência quando o registro não diz o modelo (spec 0055, RF-3). */
+const DEFAULT_MODEL_BY_PROVIDER: Record<string, string> = {
+  openai: "gpt-4o-mini",
+  google: "gemini-2.5-flash",
+  anthropic: "claude-haiku-4",
+};
+
+export interface UsageForCostEstimate {
+  provider?: string | null;
+  modelId?: string | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  cachedTokens?: number | null;
+  totalTokens?: number | null;
+}
+
+/**
+ * Custo estimado mesmo quando falta a divisão entrada/saída ou o modelo é desconhecido.
+ * `source` diz o quanto confiar: `table` (divisão real), `estimate` (dividido ou modelo de referência), `unknown`.
+ */
+export function estimateUsageCostUsd(usage: UsageForCostEstimate): { usd: number; source: "table" | "estimate" | "unknown" } {
+  const hasSplit = Boolean(usage.inputTokens || usage.outputTokens);
+  const totalTokens = usage.totalTokens ?? 0;
+  if (!hasSplit && totalTokens <= 0) return { usd: 0, source: "unknown" };
+
+  const inputTokens = hasSplit ? (usage.inputTokens ?? 0) : Math.round(totalTokens * ESTIMATED_INPUT_SHARE);
+  const outputTokens = hasSplit ? (usage.outputTokens ?? 0) : totalTokens - inputTokens;
+  const cachedTokens = usage.cachedTokens ?? 0;
+
+  const exactCost = calculateCost(usage.modelId, inputTokens, outputTokens, cachedTokens);
+  if (exactCost.source !== "unknown") return { usd: exactCost.usd, source: hasSplit ? "table" : "estimate" };
+
+  const referenceModelId = DEFAULT_MODEL_BY_PROVIDER[usage.provider ?? ""] ?? DEFAULT_MODEL_BY_PROVIDER.openai;
+  const referenceCost = calculateCost(referenceModelId, inputTokens, outputTokens, cachedTokens);
+  return { usd: referenceCost.usd, source: "estimate" };
 }

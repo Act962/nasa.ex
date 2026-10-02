@@ -1,7 +1,8 @@
 "use client";
 
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle, Clock, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Clock } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import {
   useNerpConnection,
@@ -48,7 +49,7 @@ export function NerpConnectionStatus() {
             {conn.lastErrorAt ? (
               <AlertTriangle className="size-3 text-destructive" />
             ) : (
-              <CheckCircle2 className="size-3 text-emerald-600" />
+              <CheckCircle2 className="size-3 text-success" />
             )}
             Último erro
           </div>
@@ -78,7 +79,7 @@ export function NerpConnectionStatus() {
           disabled={ping.isPending}
         >
           {ping.isPending ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <OrbitaSpinner className="size-3.5 " />
           ) : (
             <CheckCircle2 className="size-3.5" />
           )}

@@ -68,7 +68,7 @@ function EyeToggle({ show, onToggle }: { show: boolean; onToggle: () => void }) 
         border: "none",
         cursor: "pointer",
         padding: "4px 6px",
-        color: "rgba(255,255,255,0.35)",
+        color: "var(--muted-foreground)",
         display: "flex",
       }}
     >
@@ -151,17 +151,17 @@ export function ResetPasswordForm() {
   };
 
   return (
-    <Card className="border-white/10 bg-white/5 text-white shadow-[0_24px_60px_rgba(0,0,0,0.5),0_0_0_1px_rgba(124,58,237,0.12)] backdrop-blur-2xl">
-      <CardHeader className="space-y-3 border-b border-white/8 pb-6">
-        <div className="flex items-center gap-2 text-sm text-violet-200/70">
+    <Card className="dark border-line bg-card/60 text-foreground shadow-2xl backdrop-blur-2xl">
+      <CardHeader className="space-y-3 pb-6">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <ShieldCheck className="size-4" />
           Recuperação de acesso
         </div>
         <div className="space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight text-white">
+          <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
             {isResetMode ? "Crie uma nova senha" : "Recuperar senha"}
           </CardTitle>
-          <CardDescription className="text-sm text-white/45">
+          <CardDescription className="text-sm text-muted-foreground">
             {isResetMode
               ? "Digite sua nova senha para concluir a redefinição."
               : "Informe seu e-mail e enviaremos um link seguro para redefinir o acesso."}
@@ -171,7 +171,7 @@ export function ResetPasswordForm() {
 
       <CardContent className="pt-6">
         {error === "INVALID_TOKEN" ? (
-          <div className="mb-6 flex items-start gap-3 rounded-lg border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+          <div className="mb-6 flex items-start gap-3 rounded-lg border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
             <p>
               Este link de redefinição expirou ou é inválido. Peça um novo
@@ -199,7 +199,7 @@ export function ResetPasswordForm() {
                     aria-invalid={!!requestForm.formState.errors.email}
                     disabled={isPending}
                     {...requestForm.register("email")}
-                    className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:border-violet-400 focus-visible:ring-violet-500/30"
+                    className="border-line bg-foreground/5 text-foreground placeholder:text-muted-foreground"
                   />
                   <FieldError errors={[requestForm.formState.errors.email]} />
                 </FieldContent>
@@ -217,20 +217,20 @@ export function ResetPasswordForm() {
               )}
             </Button>
 
-            <p className="text-center text-sm text-white/40">
+            <p className="text-center text-sm text-muted-foreground">
               Lembrou a senha?{" "}
               <Button
                 type="button"
                 variant="link"
                 onClick={() => router.push("/sign-in")}
-                className="h-auto px-0 text-violet-200"
+                className="h-auto px-0 text-info"
               >
                 Voltar para o login
               </Button>
             </p>
 
             {sent ? (
-              <div className="rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+              <div className="rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
                 Se o e-mail existir, você receberá um link de redefinição em
                 instantes.
               </div>
@@ -257,7 +257,7 @@ export function ResetPasswordForm() {
                         transform: "translateY(-50%)",
                         width: 15,
                         height: 15,
-                        color: "rgba(255,255,255,0.3)",
+                        color: "var(--muted-foreground)",
                       }}
                     />
                     <Input
@@ -267,7 +267,7 @@ export function ResetPasswordForm() {
                       aria-invalid={!!resetForm.formState.errors.newPassword}
                       disabled={isPending}
                       {...resetForm.register("newPassword")}
-                      className="border-white/10 bg-white/5 pl-9 pr-11 text-white placeholder:text-white/30 focus-visible:border-violet-400 focus-visible:ring-violet-500/30"
+                      className="border-line bg-foreground/5 pl-9 pr-11 text-foreground placeholder:text-muted-foreground"
                     />
                     <div
                       style={{
@@ -305,7 +305,7 @@ export function ResetPasswordForm() {
                         transform: "translateY(-50%)",
                         width: 15,
                         height: 15,
-                        color: "rgba(255,255,255,0.3)",
+                        color: "var(--muted-foreground)",
                       }}
                     />
                     <Input
@@ -315,7 +315,7 @@ export function ResetPasswordForm() {
                       aria-invalid={!!resetForm.formState.errors.confirmPassword}
                       disabled={isPending}
                       {...resetForm.register("confirmPassword")}
-                      className="border-white/10 bg-white/5 pl-9 pr-11 text-white placeholder:text-white/30 focus-visible:border-violet-400 focus-visible:ring-violet-500/30"
+                      className="border-line bg-foreground/5 pl-9 pr-11 text-foreground placeholder:text-muted-foreground"
                     />
                     <div
                       style={{
@@ -355,7 +355,7 @@ export function ResetPasswordForm() {
               type="button"
               variant="ghost"
               onClick={() => router.push("/sign-in")}
-              className="w-full justify-start px-0 text-white/50 hover:bg-transparent hover:text-white"
+              className="w-full justify-start px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
             >
               <ArrowLeft data-icon="inline-start" />
               Voltar para o login

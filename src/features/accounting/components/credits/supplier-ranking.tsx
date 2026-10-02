@@ -30,7 +30,7 @@ function RegimeBadge({ taxRegime }: { taxRegime: TaxRegimeDisplay | null }) {
         variant="outline"
         className={cn(
           "font-normal",
-          isSimplesLike && "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+          isSimplesLike && "border-warning/40 bg-warning/10 text-warning dark:text-warning",
         )}
       >
         {REGIME_LABELS[taxRegime]}
@@ -100,7 +100,7 @@ export function SupplierRanking() {
                       {supplier.entriesWithoutInvoiceCount > 0 && (
                         <Badge
                           variant="outline"
-                          className="mt-1 border-red-500/40 bg-red-500/10 font-normal text-red-700 dark:text-red-300"
+                          className="mt-1 border-destructive/40 bg-destructive/10 font-normal text-destructive dark:text-destructive"
                         >
                           {supplier.entriesWithoutInvoiceCount} de {supplier.entryCount} sem nota
                         </Badge>

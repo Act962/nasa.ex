@@ -32,7 +32,7 @@ export default function RelatoriosPage() {
               <Card className="h-full transition-colors group-hover:border-primary">
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-start justify-between">
-                    <div className="p-2 rounded-lg bg-[#0082FB]/10 text-[#0082FB]">
+                    <div className="p-2 rounded-lg bg-brand-facebook/10 text-brand-facebook">
                       <BarChart3 className="size-4" />
                     </div>
                     <ArrowRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -54,7 +54,7 @@ export default function RelatoriosPage() {
         {/* Evolução de campanhas */}
         <section>
           <div className="mb-3 flex items-center gap-2">
-            <TrendingUp className="size-5 text-violet-600" />
+            <TrendingUp className="size-5 text-info" />
             <div>
               <h2 className="text-xl font-bold">Evolução de campanhas</h2>
               <p className="text-sm text-muted-foreground mt-1">

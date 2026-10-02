@@ -19,19 +19,19 @@ export const ORDER_STATUS_LABEL: Record<TrafegoOrderStatus, string> = {
 };
 
 export const ORDER_STATUS_STYLE: Record<TrafegoOrderStatus, string> = {
-  PAID: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  ACCOUNT_REVIEW: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
-  ONBOARDING: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-  MATERIALS_SUBMITTED: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
-  REQUESTED: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
-  IN_REVIEW: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
-  CHANGES_REQUESTED: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
-  SCHEDULED: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
-  RUNNING: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  PAUSED: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  PAID: "bg-success/15 text-success",
+  ACCOUNT_REVIEW: "bg-info/15 text-info",
+  ONBOARDING: "bg-warning/15 text-warning",
+  MATERIALS_SUBMITTED: "bg-info/15 text-info",
+  REQUESTED: "bg-info/15 text-info",
+  IN_REVIEW: "bg-info/15 text-info",
+  CHANGES_REQUESTED: "bg-warning/15 text-warning",
+  SCHEDULED: "bg-info/15 text-info",
+  RUNNING: "bg-success/15 text-success",
+  PAUSED: "bg-warning/15 text-warning",
   COMPLETED: "bg-muted text-muted-foreground",
   CANCELLED: "bg-muted text-muted-foreground",
-  REFUNDED: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+  REFUNDED: "bg-destructive/15 text-destructive",
 };
 
 /**

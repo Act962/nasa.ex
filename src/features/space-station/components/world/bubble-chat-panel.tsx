@@ -8,7 +8,8 @@
 
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { X, Loader2, AlertTriangle } from "lucide-react";
+import { X, AlertTriangle } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Body } from "@/features/tracking-chat/components/body";
 import { Footer } from "@/features/tracking-chat/components/footer-chat";
 import { orpc } from "@/lib/orpc";
@@ -105,7 +106,7 @@ export function BubbleChatPanel({
         {/* Content */}
         {mutation.isPending && !resolved && (
           <div className="flex-1 flex items-center justify-center text-slate-400">
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <OrbitaSpinner className="h-5 w-5 " />
           </div>
         )}
 

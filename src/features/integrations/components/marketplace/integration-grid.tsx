@@ -79,16 +79,16 @@ function PlatformDefCard({
   return (
     <div className={cn(
       "group relative border rounded-xl bg-card overflow-hidden transition-all duration-200",
-      "hover:shadow-[0_4px_20px_rgba(124,58,237,0.12)] hover:-translate-y-0.5 hover:border-[#7C3AED]/30",
-      isConnected && "border-emerald-200/70 bg-gradient-to-br from-emerald-50/30 to-card dark:from-emerald-950/20",
+      "hover:shadow-md hover:-translate-y-0.5 hover:border-info/30",
+      isConnected && "border-success/30 bg-gradient-to-br from-success/5 to-card",
       "p-4",
     )}>
       {/* Top accent line */}
       <div className={cn(
         "absolute top-0 left-0 right-0 h-0.5 transition-opacity",
         isConnected
-          ? "bg-gradient-to-r from-emerald-400 to-emerald-500 opacity-100"
-          : "bg-gradient-to-r from-[#7C3AED] to-[#a855f7] opacity-0 group-hover:opacity-100",
+          ? "bg-gradient-to-r from-success to-success opacity-100"
+          : "bg-gradient-to-r from-info to-info/70 opacity-0 group-hover:opacity-100",
       )} />
 
       <div className="flex gap-3 items-start">
@@ -101,16 +101,16 @@ function PlatformDefCard({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <h3 className="font-semibold text-sm leading-tight truncate">{def.label}</h3>
-                {isConnected && <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />}
+                {isConnected && <CheckCircle2 className="size-3.5 text-success shrink-0" />}
               </div>
             </div>
             <Badge className={cn(
               "text-[10px] shrink-0 border",
               isConnected
-                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                : "bg-blue-50 text-blue-600 border-blue-200"
+                ? "bg-success/15 text-success border-success/30"
+                : "bg-info/10 text-info border-info/30"
             )}>
-              <span className={cn("size-1.5 rounded-full mr-1 inline-block", isConnected ? "bg-emerald-500" : "bg-blue-400")} />
+              <span className={cn("size-1.5 rounded-full mr-1 inline-block", isConnected ? "bg-success" : "bg-info")} />
               {isConnected ? "Conectado" : "Disponível"}
             </Badge>
           </div>
@@ -132,7 +132,7 @@ function PlatformDefCard({
       {/* Actions */}
       <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-border/50">
         {isSingle ? (
-          <Button size="sm" variant="outline" className="w-full h-7 text-xs gap-1 border-slate-200 text-slate-400 cursor-not-allowed" disabled>
+          <Button size="sm" variant="outline" className="w-full h-7 text-xs gap-1 border-border text-muted-foreground cursor-not-allowed" disabled>
             Sem permissão
           </Button>
         ) : def.platform === "WHATSAPP" ? (
@@ -141,7 +141,7 @@ function PlatformDefCard({
           </Button>
         ) : isConnected ? (
           <>
-            <Button size="sm" variant="outline" className="flex-1 h-7 text-xs gap-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={onConfigure}>
+            <Button size="sm" variant="outline" className="flex-1 h-7 text-xs gap-1 border-success/30 text-success hover:bg-success/10" onClick={onConfigure}>
               <Plug className="size-3" /> Reconfigurar
             </Button>
             <Button size="sm" variant="ghost" className="h-7 text-destructive hover:text-destructive text-xs" onClick={onDisconnect}>
@@ -151,7 +151,7 @@ function PlatformDefCard({
         ) : (
           <Button
             size="sm"
-            className="w-full h-7 gap-1.5 text-xs bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+            className="w-full h-7 gap-1.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
             onClick={onConfigure}
             data-guide={GUIDE_ANCHORS.integrationsConnectButton.id}
           >
@@ -276,16 +276,16 @@ export function IntegrationGrid({
           <button
             onClick={() => setSelectedCategory("ALL")}
             className={cn(
-              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-left transition-all",
+              "w-full flex items-center gap-2.5 px-3 py-2 rounded-full text-sm font-medium text-left transition-all",
               selectedCategory === "ALL"
-                ? "bg-[#7C3AED] text-white shadow-sm"
-                : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                ? "bg-foreground text-background"
+                : "hover:bg-panel text-muted-foreground hover:text-foreground",
             )}
           >
             <Puzzle className="size-4 shrink-0" />
             <span className="flex-1">Todas</span>
             <span className={cn("text-[10px] rounded-full px-1.5 py-0.5 font-semibold",
-              selectedCategory === "ALL" ? "bg-white/20" : "bg-muted")}>
+              selectedCategory === "ALL" ? "bg-background/20" : "bg-muted")}>
               {ALL_INTEGRATIONS.length + platformDefs.length}
             </span>
           </button>
@@ -294,17 +294,17 @@ export function IntegrationGrid({
           <button
             onClick={() => setSelectedCategory("INSTALLED")}
             className={cn(
-              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-left transition-all",
+              "w-full flex items-center gap-2.5 px-3 py-2 rounded-full text-sm font-medium text-left transition-all",
               selectedCategory === "INSTALLED"
-                ? "bg-emerald-600 text-white shadow-sm"
-                : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                ? "bg-foreground text-background"
+                : "hover:bg-panel text-muted-foreground hover:text-foreground",
             )}
           >
             <CheckCircle2 className="size-4 shrink-0" />
             <span className="flex-1">Instalados</span>
             {installedCount > 0 && (
               <span className={cn("text-[10px] rounded-full px-1.5 py-0.5 font-semibold",
-                selectedCategory === "INSTALLED" ? "bg-white/20" : "bg-emerald-100 text-emerald-700")}>
+                selectedCategory === "INSTALLED" ? "bg-background/20" : "bg-success/15 text-success")}>
                 {installedCount}
               </span>
             )}
@@ -327,16 +327,16 @@ export function IntegrationGrid({
                       key={cat}
                       onClick={() => setSelectedCategory(cat)}
                       className={cn(
-                        "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-left transition-all",
+                        "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-full text-xs font-medium text-left transition-all",
                         selectedCategory === cat
-                          ? "bg-[#7C3AED]/10 text-[#7C3AED] font-semibold"
-                          : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                          ? "bg-foreground text-background font-semibold"
+                          : "hover:bg-panel text-muted-foreground hover:text-foreground",
                       )}
                     >
                       <span className="text-base leading-none">{meta.icon}</span>
                       <span className="flex-1 truncate">{meta.label}</span>
                       <span className={cn("text-[10px] rounded-full px-1.5 py-0.5",
-                        selectedCategory === cat ? "bg-[#7C3AED]/20" : "bg-muted")}>
+                        selectedCategory === cat ? "bg-background/20" : "bg-muted")}>
                         {count}
                       </span>
                     </button>
@@ -359,16 +359,16 @@ export function IntegrationGrid({
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={cn(
-                    "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-left transition-all",
+                    "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-full text-xs font-medium text-left transition-all",
                     selectedCategory === cat
-                      ? "bg-[#7C3AED]/10 text-[#7C3AED] font-semibold"
-                      : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                      ? "bg-foreground text-background font-semibold"
+                      : "hover:bg-panel text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <span className="text-base leading-none">{CATEGORY_ICONS[cat]}</span>
                   <span className="flex-1 truncate">{CATEGORY_LABELS[cat]}</span>
                   <span className={cn("text-[10px] rounded-full px-1.5 py-0.5",
-                    selectedCategory === cat ? "bg-[#7C3AED]/20" : "bg-muted")}>
+                    selectedCategory === cat ? "bg-background/20" : "bg-muted")}>
                     {count}
                   </span>
                 </button>
@@ -393,16 +393,16 @@ export function IntegrationGrid({
             />
           </div>
 
-          <div className="flex rounded-lg border overflow-hidden shrink-0">
+          <div className="flex shrink-0 gap-0.5 rounded-full bg-panel p-0.5">
             <button
               onClick={() => setViewMode("grid")}
-              className={cn("px-2.5 py-1.5 transition-colors", viewMode === "grid" ? "bg-[#7C3AED] text-white" : "text-muted-foreground hover:bg-muted")}
+              className={cn("rounded-full px-2.5 py-1.5 transition-colors", viewMode === "grid" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
             >
               <LayoutGrid className="size-4" />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={cn("px-2.5 py-1.5 transition-colors", viewMode === "list" ? "bg-[#7C3AED] text-white" : "text-muted-foreground hover:bg-muted")}
+              className={cn("rounded-full px-2.5 py-1.5 transition-colors", viewMode === "list" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
             >
               <List className="size-4" />
             </button>
@@ -443,7 +443,7 @@ export function IntegrationGrid({
                     <span className="text-xs text-muted-foreground">({items.length})</span>
                     <button
                       onClick={() => setSelectedCategory(cat as PlatformCategory)}
-                      className="ml-auto text-xs text-[#7C3AED] hover:underline"
+                      className="ml-auto text-xs text-info hover:underline"
                     >
                       Ver todos →
                     </button>
@@ -467,7 +467,7 @@ export function IntegrationGrid({
                   {items.length > (viewMode === "grid" ? 6 : 4) && (
                     <button
                       onClick={() => setSelectedCategory(cat as PlatformCategory)}
-                      className="mt-2 text-xs text-muted-foreground hover:text-[#7C3AED] transition-colors"
+                      className="mt-2 text-xs text-muted-foreground hover:text-info transition-colors"
                     >
                       + {items.length - (viewMode === "grid" ? 6 : 4)} mais em {meta.label}
                     </button>
@@ -485,7 +485,7 @@ export function IntegrationGrid({
                   <span className="text-xs text-muted-foreground">({items.length})</span>
                   <button
                     onClick={() => setSelectedCategory(cat)}
-                    className="ml-auto text-xs text-[#7C3AED] hover:underline"
+                    className="ml-auto text-xs text-info hover:underline"
                   >
                     Ver todos →
                   </button>
@@ -506,7 +506,7 @@ export function IntegrationGrid({
                 {items.length > (viewMode === "grid" ? 6 : 4) && (
                   <button
                     onClick={() => setSelectedCategory(cat)}
-                    className="mt-2 text-xs text-muted-foreground hover:text-[#7C3AED] transition-colors"
+                    className="mt-2 text-xs text-muted-foreground hover:text-info transition-colors"
                   >
                     + {items.length - (viewMode === "grid" ? 6 : 4)} mais em {CATEGORY_LABELS[cat]}
                   </button>

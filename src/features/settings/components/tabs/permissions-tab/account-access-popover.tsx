@@ -105,7 +105,7 @@ export function AccountAccessPopover({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[320px] p-0" align="end">
-        <div className="border-b p-2 space-y-2">
+        <div className="p-2 space-y-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <Input
@@ -120,7 +120,7 @@ export function AccountAccessPopover({
               type="button"
               onClick={toggleAllFiltered}
               disabled={filtered.length === 0}
-              className="text-[11px] text-[#7C3AED] font-medium hover:underline disabled:opacity-40"
+              className="text-[11px] text-info font-medium hover:underline disabled:opacity-40"
             >
               {allSelected ? "Desmarcar todos" : "Marcar todos"}
             </button>
@@ -157,7 +157,7 @@ export function AccountAccessPopover({
             })
           )}
         </div>
-        <div className="flex items-center justify-end gap-2 border-t p-2">
+        <div className="flex items-center justify-end gap-2 p-2">
           <Button size="sm" variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
             Cancelar
           </Button>

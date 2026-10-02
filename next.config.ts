@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   // aqui são versionados e curados à mão. Desligado pra não sujar a árvore de
   // todo dev a cada `pnpm dev`. Sem efeito em runtime/produção.
   agentRules: false,
+  // Indicador "N" do Next em dev no canto inferior esquerdo, longe dos botões do cabeçalho.
+  devIndicators: { position: "bottom-left" },
   // Imagem Docker enxuta: só o necessário vai para `.next/standalone` (ver Dockerfile).
   output: "standalone",
   // React Compiler custa CPU+RAM a cada compile. Mantemos no build de produção

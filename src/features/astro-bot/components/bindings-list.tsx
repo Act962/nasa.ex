@@ -10,11 +10,11 @@ import {
 } from "@/features/astro-bot/hooks/use-astro-bot";
 import {
   Clock,
-  Loader2,
   MessageCircle,
   Smartphone,
   Trash2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 
 function timeAgo(value: Date | string | null): string {
@@ -60,7 +60,7 @@ export function BindingsList() {
 
       {isLoading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground p-4">
-          <Loader2 className="size-4 animate-spin" /> Carregando…
+          <OrbitaSpinner className="size-4 " /> Carregando…
         </div>
       ) : bindings.length === 0 ? (
         <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
@@ -84,8 +84,8 @@ export function BindingsList() {
                     </AvatarFallback>
                   </Avatar>
                 ) : (
-                  <div className="size-9 rounded-full bg-violet-500/10 flex items-center justify-center">
-                    <Smartphone className="size-4 text-violet-500" />
+                  <div className="size-9 rounded-full bg-info/10 flex items-center justify-center">
+                    <Smartphone className="size-4 text-info" />
                   </div>
                 )}
                 <div className="min-w-0">

@@ -11,7 +11,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useDeleteTracking } from "@/features/trackings/hooks/use-trackings";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
@@ -97,7 +97,7 @@ export function TrackingDangerZone({ trackingId }: TrackingDangerZoneProps) {
             <AlertDialogAction
               onClick={handleConfirm}
               disabled={deleteTracking.isPending}
-              className="bg-red-600 hover:bg-red-700"
+              className={buttonVariants({ variant: "destructive" })}
             >
               {deleteTracking.isPending ? "Deletando..." : "Deletar"}
             </AlertDialogAction>

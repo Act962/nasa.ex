@@ -137,7 +137,7 @@ export default function Page() {
     <div className="w-full min-h-screen flex flex-col bg-background">
       <FormTrackingScripts settings={response.form.settings} />
       {/* Cabeçalho — contexto do atendimento */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-20">
+      <header className="bg-card/50 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-[920px] mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -149,7 +149,7 @@ export default function Page() {
                   • {tracking.name}
                 </span>
               )}
-              <span className="text-[10px] uppercase font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded inline-flex items-center gap-1">
+              <span className="text-[10px] uppercase font-semibold text-info bg-info/10 px-2 py-0.5 rounded inline-flex items-center gap-1">
                 <Lock className="size-2.5" />
                 Visualização do cliente
               </span>

@@ -44,11 +44,10 @@ export function NerpAppCard({ app }: { app: AppDef }) {
         href={app.href ?? "/nerp"}
         className={cn(
           "group relative flex flex-col rounded-2xl border bg-card transition-all duration-300 overflow-hidden cursor-pointer",
-          "hover:border-[#7C3AED]/60 hover:shadow-lg hover:shadow-[#7C3AED]/15 hover:-translate-y-1",
-          "before:absolute before:inset-0 before:rounded-2xl before:bg-linear-to-br before:from-[#7C3AED]/[0.03] before:to-transparent before:pointer-events-none",
+          "hover:border-foreground/30 hover:shadow-lg hover:-translate-y-1",
         )}
       >
-        <div className="absolute inset-0 rounded-2xl ring-1 ring-[#7C3AED]/0 group-hover:ring-[#7C3AED]/30 transition-all pointer-events-none" />
+        <div className="absolute inset-0 rounded-2xl ring-1 ring-transparent group-hover:ring-foreground/10 transition-all pointer-events-none" />
 
         {/* Botão "+"/"-" flutuante canto superior direito */}
         {sidebarItem && (
@@ -77,16 +76,16 @@ export function NerpAppCard({ app }: { app: AppDef }) {
               "size-2 rounded-full ring-2 ring-background",
               conn.connected
                 ? conn.isActive
-                  ? "bg-emerald-500"
-                  : "bg-zinc-400"
-                : "bg-amber-500",
+                  ? "bg-success"
+                  : "bg-muted-foreground"
+                : "bg-warning",
             )}
           />
         </div>
 
         {/* Body */}
         <div className="relative flex flex-col items-center justify-center gap-2.5 px-3 pt-8 pb-3 flex-1">
-          <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 shadow-md transition-transform duration-300 group-hover:scale-110 group-hover:shadow-[#7C3AED]/25">
+          <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 shadow-md transition-transform duration-300 group-hover:scale-110">
             <Icon />
           </div>
           <div className="text-center min-w-0 w-full px-1">
@@ -124,9 +123,8 @@ export function NerpAppCard({ app }: { app: AppDef }) {
             type="button"
             className={cn(
               "flex-1 h-7 rounded-md text-[11px] font-medium",
-              "bg-linear-to-r from-[#7C3AED] to-[#8B5CF6] text-white",
-              "hover:from-[#6D28D9] hover:to-[#7C3AED] transition-all",
-              "shadow-sm hover:shadow-md hover:shadow-[#7C3AED]/25",
+              "bg-primary text-primary-foreground hover:bg-primary/90 transition-all",
+              "shadow-sm hover:shadow-md",
               "flex items-center justify-center gap-1",
             )}
           >
@@ -209,7 +207,7 @@ function NerpSetupDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Settings className="size-4 text-[#7C3AED]" />
+            <Settings className="size-4 text-info" />
             Como conectar o NERP
           </DialogTitle>
           <DialogDescription>
@@ -224,8 +222,8 @@ function NerpSetupDialog({
                 className={cn(
                   "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
                   connected && i < steps.length - 1
-                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                    : "bg-[#7C3AED]/15 text-[#7C3AED]",
+                    ? "bg-success/15 text-success"
+                    : "bg-info/15 text-info",
                 )}
               >
                 {connected && i < steps.length - 1 ? (

@@ -51,7 +51,7 @@ export function YoutubeSection({ youtubeUrl, onUpdate, disabled }: Props) {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-          <YoutubeIcon className="size-3.5 text-red-500" />YouTube
+          <YoutubeIcon className="size-3.5 text-destructive" />YouTube
         </span>
         {youtubeUrl && !disabled && (
           <Button size="icon" variant="ghost" className="size-5 text-destructive" onClick={handleRemove}>

@@ -60,11 +60,11 @@ export function CoursePoster({ href, course, size = "md", progressPct, completed
     <Link
       href={href}
       className={cn(
-        "group relative shrink-0 overflow-hidden rounded-xl border border-border/40 bg-card transition-all duration-300 hover:scale-[1.06] hover:border-violet-500/60 hover:shadow-2xl hover:shadow-violet-500/20 hover:z-20",
+        "group relative min-w-0 shrink-0 overflow-hidden rounded-[18px] border border-line bg-card transition-all duration-300 md:hover:z-20 md:hover:scale-[1.06] md:hover:border-info/60 md:hover:shadow-2xl md:hover:shadow-info/20",
         widthClass,
       )}
     >
-      <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-violet-500/20 via-indigo-500/15 to-fuchsia-500/10">
+      <div className="relative aspect-video w-full overflow-hidden bg-info/15">
         {course.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -73,13 +73,13 @@ export function CoursePoster({ href, course, size = "md", progressPct, completed
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-violet-500/40">
+          <div className="flex h-full w-full items-center justify-center text-info/40">
             <GraduationCap className="size-10" />
           </div>
         )}
 
         {eventDate && (
-          <div className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-black/75 px-1.5 py-1 text-white backdrop-blur-sm">
+          <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/75 px-2 py-1 text-white backdrop-blur-sm">
             <CalendarDays className="size-3" />
             <div className="leading-tight">
               <div className="text-[10px] font-semibold">{eventDate.dateLine}</div>
@@ -121,8 +121,8 @@ export function CoursePoster({ href, course, size = "md", progressPct, completed
           )}
         </div>
 
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-          <div className="flex size-12 items-center justify-center rounded-full bg-white/95 text-violet-700 shadow-xl">
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 max-md:hidden group-hover:opacity-100">
+          <div className="flex size-12 items-center justify-center rounded-full bg-white/95 text-info shadow-xl">
             <Play className="size-5 fill-current" />
           </div>
         </div>
@@ -132,7 +132,7 @@ export function CoursePoster({ href, course, size = "md", progressPct, completed
             <div
               className={cn(
                 "h-full transition-all",
-                completed ? "bg-amber-500" : "bg-violet-500",
+                completed ? "bg-warning" : "bg-info",
               )}
               style={{ width: `${Math.min(100, Math.max(0, progressPct))}%` }}
             />
@@ -140,7 +140,7 @@ export function CoursePoster({ href, course, size = "md", progressPct, completed
         )}
       </div>
 
-      <div className="space-y-1 px-3 pb-3 pt-2">
+      <div className="space-y-1 px-2.5 pt-2 pb-2.5 md:px-3 md:pb-3">
         <h3 className="line-clamp-1 text-sm font-semibold leading-tight">
           {course.title}
         </h3>

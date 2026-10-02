@@ -89,7 +89,7 @@ function StarRatingCanvasComponent({
       {label?.trim() && (
         <Label className="text-base font-normal mb-1 whitespace-normal break-words leading-snug">
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       <div className="flex items-center gap-10 justify-center">
@@ -175,11 +175,11 @@ function StarRatingFormComponent({
       {label?.trim() && (
         <Label
           className={`text-base font-normal mb-1 whitespace-normal break-words leading-snug ${
-            isError || isSubmitError ? "text-red-500" : ""
+            isError || isSubmitError ? "text-destructive" : ""
           }`}
         >
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       <div className="flex items-center gap-10 justify-center">
@@ -207,12 +207,12 @@ function StarRatingFormComponent({
         />
       </div>
       {isError || isSubmitError ? (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
           {required && rating === 0 ? "This field is required." : ""}
         </p>
       ) : (
         errorMessage && (
-          <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage}</p>
+          <p className="text-destructive text-[0.8rem] break-words whitespace-normal">{errorMessage}</p>
         )
       )}
 

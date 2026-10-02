@@ -57,7 +57,7 @@ const WsEditorActiveToggle = ({ workflowId }: { workflowId: string }) => {
 export const WsEditorHeader = ({ workflowId }: { workflowId: string }) => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   return (
-    <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 bg-background">
+    <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-4 bg-background">
       <div className="flex items-center gap-2 min-w-0">
         <Button asChild size="sm" variant="ghost" className="gap-1.5">
           <Link href={`/workspaces/${workspaceId}`}>
@@ -185,7 +185,7 @@ const WsEditorOptions = ({ workflowId }: { workflowId: string }) => {
         className="cursor-pointer"
         onClick={() => setOpen(true)}
       >
-        <Trash2Icon className="size-4 text-red-500" />
+        <Trash2Icon className="size-4 text-destructive" />
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

@@ -150,17 +150,17 @@ export function EntitySearchField({
       {/* Input */}
       <div
         className={cn(
-          "flex items-center gap-2 w-full bg-zinc-800 border rounded-lg px-3 py-2 transition-colors",
+          "flex items-center gap-2 w-full bg-card border rounded-lg px-3 py-2 transition-colors",
           open
-            ? "border-violet-500/60"
-            : "border-zinc-700 hover:border-zinc-600",
+            ? "border-info/60"
+            : "border-line hover:border-line",
         )}
         onClick={() => {
           setOpen(true);
           inputRef.current?.focus();
         }}
       >
-        <SearchIcon className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+        <SearchIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         <input
           ref={inputRef}
           type="text"
@@ -177,24 +177,24 @@ export function EntitySearchField({
             if (e.key === "Enter" && results[0]) handleSelect(results[0]);
           }}
           placeholder={placeholder ?? `Buscar ${label.toLowerCase()}...`}
-          className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-600 outline-none"
+          className="flex-1 bg-transparent text-sm text-white placeholder:text-muted-foreground outline-none"
         />
         {isFetching && (
-          <span className="text-[10px] text-zinc-600 animate-pulse">
+          <span className="text-[10px] text-muted-foreground animate-pulse">
             buscando...
           </span>
         )}
         {isSelected && (
-          <CheckIcon className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+          <CheckIcon className="w-3.5 h-3.5 text-info shrink-0" />
         )}
         {!isSelected && (
-          <ChevronDownIcon className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
+          <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         )}
       </div>
 
       {/* Dropdown */}
       {open && results.length > 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl overflow-hidden max-h-52 overflow-y-auto">
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-line/60 rounded-xl shadow-2xl overflow-hidden max-h-52 overflow-y-auto">
           {results.map((item) => (
             <button
               key={item.id}
@@ -204,20 +204,20 @@ export function EntitySearchField({
                 handleSelect(item);
               }}
               className={cn(
-                "w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-zinc-800 transition-colors",
-                value === item.id && "bg-zinc-800",
+                "w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-card transition-colors",
+                value === item.id && "bg-card",
               )}
             >
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-white truncate">{item.label}</p>
                 {item.sublabel && (
-                  <p className="text-[11px] text-zinc-500 truncate">
+                  <p className="text-[11px] text-muted-foreground truncate">
                     {item.sublabel}
                   </p>
                 )}
               </div>
               {value === item.id && (
-                <CheckIcon className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                <CheckIcon className="w-3.5 h-3.5 text-info shrink-0" />
               )}
             </button>
           ))}
@@ -226,8 +226,8 @@ export function EntitySearchField({
 
       {/* No results */}
       {open && !isFetching && query.length > 0 && results.length === 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-xl px-3 py-3">
-          <p className="text-xs text-zinc-500">
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-line/60 rounded-xl shadow-xl px-3 py-3">
+          <p className="text-xs text-muted-foreground">
             Nenhum resultado para "{query}"
           </p>
         </div>
@@ -262,7 +262,7 @@ export function PlainField({
         if (e.key === "Enter" && onEnter) onEnter();
       }}
       placeholder={placeholder ?? label}
-      className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60 transition-colors"
+      className="w-full bg-card border border-line hover:border-line rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-info/60 transition-colors"
     />
   );
 }
@@ -288,7 +288,7 @@ export function TextareaField({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder ?? label}
       rows={3}
-      className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60 transition-colors resize-none"
+      className="w-full bg-card border border-line hover:border-line rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-info/60 transition-colors resize-none"
     />
   );
 }
@@ -309,12 +309,12 @@ export function DatePickerField({ value, onChange }: DatePickerFieldProps) {
         max="9999-12-31"
         onChange={(e) => onChange(e.target.value)}
         className={cn(
-          "w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-lg px-3 py-2",
-          "text-sm text-white focus:outline-none focus:border-violet-500/60 transition-colors scheme-dark",
+          "w-full bg-card border border-line hover:border-line rounded-lg px-3 py-2",
+          "text-sm text-white focus:outline-none focus:border-info/60 transition-colors scheme-dark",
         )}
       />
       {value && (
-        <p className="text-[11px] text-zinc-500">
+        <p className="text-[11px] text-muted-foreground">
           {new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR", {
             weekday: "long",
             day: "2-digit",
@@ -357,14 +357,14 @@ export function DateTimePickerField({
           if (e.key === "Enter" && onConfirm) onConfirm();
         }}
         className={cn(
-          "w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-lg px-3 py-2",
-          "text-sm text-white focus:outline-none focus:border-violet-500/60 transition-colors",
+          "w-full bg-card border border-line hover:border-line rounded-lg px-3 py-2",
+          "text-sm text-white focus:outline-none focus:border-info/60 transition-colors",
           // Estiliza o ícone nativo do datetime-local
           "scheme-dark",
         )}
       />
       {value && (
-        <p className="text-[11px] text-zinc-500">
+        <p className="text-[11px] text-muted-foreground">
           {new Date(value).toLocaleDateString("pt-BR", {
             weekday: "long",
             day: "2-digit",

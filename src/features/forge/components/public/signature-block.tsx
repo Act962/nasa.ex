@@ -70,7 +70,7 @@ export function SignatureBlock({ signers }: SignatureBlockProps) {
               <p className="text-[13px] font-medium text-foreground">{s.name}</p>
               <p className="text-[11px] text-muted-foreground">{s.email}</p>
               {signed && s.signed_at ? (
-                <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-1">
+                <p className="text-[10px] text-success dark:text-success mt-1">
                   Assinado em {fmtDateTime(s.signed_at)} via {methodLabel(s.sign_method)}
                 </p>
               ) : (

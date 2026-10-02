@@ -9,8 +9,12 @@ import {
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { FormBlockInstance, FormBlockType } from "@/features/form/types";
 import { FormBlocks } from "@/features/form/lib/form-blocks";
-import { allBlockLayouts } from "@/features/form/constants";
+import { allBlockLayouts, defaultBackgroundColor } from "@/features/form/constants";
 import { v4 as uuidv4 } from "uuid";
+import { ArrowDownIcon, ArrowUpIcon, PencilIcon } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { StarterTemplatePicker } from "./starter-template-picker";
+import { useMobileBuilderStore } from "./mobile/use-mobile-builder-store";
 
 export function BuilderCanvas() {
   const {
@@ -20,6 +24,11 @@ export function BuilderCanvas() {
     repositionBlockLayout,
     insertBlockLayoutAtIndex,
   } = useBuilderStore();
+  const isMobile = useIsMobile();
+  const setOpenPanel = useMobileBuilderStore((state) => state.setOpenPanel);
+  // "Em branco" esconde os modelos; no celular já abre a gaveta de blocos.
+  const [isBlankStart, setIsBlankStart] = useState(false);
+  const shouldOfferTemplates = Boolean(formData) && !formData?.published && blockLayouts.length === 0 && !isBlankStart;
 
   const [activeBlock, setActiveBlock] = useState<Active | null>(null);
 
@@ -110,13 +119,15 @@ export function BuilderCanvas() {
   });
   return (
     <div
+      data-builder-canvas
       className="relative w-full h-full
-  px-5 md:px-0 pt-4 pb-[120px] overflow-auto
+  px-2 md:px-0 pt-3 md:pt-4 pb-[190px] md:pb-[120px] overflow-auto
   transition-all duration-300 scrollbar
   "
       style={{
-        backgroundColor: formData?.settings?.backgroundColor || "",
-        backgroundImage: formData?.settings?.backgroundImage
+        // Enquanto escolhe o modelo, o fundo do formulário (cor do modelo anterior/padrão) não tinge a tela.
+        backgroundColor: shouldOfferTemplates ? "" : formData?.settings?.backgroundColor || defaultBackgroundColor,
+        backgroundImage: !shouldOfferTemplates && formData?.settings?.backgroundImage
           ? `url(${formData.settings.backgroundImage})`
           : undefined,
         backgroundSize: "cover",
@@ -143,10 +154,18 @@ export function BuilderCanvas() {
               "ring-4 ring-primary/20 ring-inset",
           )}
         >
+          {shouldOfferTemplates && (
+            <StarterTemplatePicker
+              onStartBlank={() => {
+                setIsBlankStart(true);
+                if (isMobile) setOpenPanel("add-block");
+              }}
+            />
+          )}
           {blockLayouts.length > 0 && (
             <div
               className={cn(
-                "flex flex-col w-full gap-4 p-4 rounded-md shadow-lg",
+                "flex flex-col w-full gap-4 p-4 rounded-md shadow-lg max-md:gap-2 max-md:rounded-[20px] max-md:p-1.5 max-md:shadow-none",
                 formData?.settings?.backgroundImage
                   ? "bg-white/10 backdrop-blur-md border border-white/20"
                   : "",
@@ -158,6 +177,7 @@ export function BuilderCanvas() {
                   activeBlock={activeBlock}
                   blockLayout={blockLayout}
                   settings={formData?.settings}
+                  isMobile={isMobile}
                 />
               ))}
             </div>
@@ -172,12 +192,23 @@ function CanvasBlockLayoutWrapper({
   blockLayout,
   activeBlock,
   settings,
+  isMobile,
 }: {
   blockLayout: FormBlockInstance;
   activeBlock: Active | null;
   settings?: any;
+  isMobile: boolean;
 }) {
   const CanvasBlockLayout = FormBlocks[blockLayout.blockType].canvasComponent;
+  const { blockLayouts, selectedBlockLayout, repositionBlockLayout } = useBuilderStore();
+  const setOpenPanel = useMobileBuilderStore((state) => state.setOpenPanel);
+  const isSelected = selectedBlockLayout?.id === blockLayout.id;
+  const blockIndex = blockLayouts.findIndex((layout) => layout.id === blockLayout.id);
+  const previousLayout = blockLayouts[blockIndex - 1];
+  const nextLayout = blockLayouts[blockIndex + 1];
+  // O cabeçalho travado fica sempre no topo: nada sobe acima dele.
+  const canMoveUp = Boolean(previousLayout) && !previousLayout?.isLocked && !blockLayout.isLocked;
+  const canMoveDown = Boolean(nextLayout) && !blockLayout.isLocked;
 
   const topCorner = useDroppable({
     id: blockLayout.id + "_above",
@@ -230,6 +261,38 @@ function CanvasBlockLayoutWrapper({
       <div className="relative">
         <CanvasBlockLayout blockInstance={blockLayout} settings={settings} />
       </div>
+
+      {/* Celular: sem arrastar no toque — subir, descer e abrir a edição em gaveta. */}
+      {isMobile && isSelected && (
+        <div className="mt-2 flex items-center gap-1.5">
+          <button
+            type="button"
+            disabled={!canMoveUp}
+            onClick={() => previousLayout && repositionBlockLayout(blockLayout.id, previousLayout.id, "above")}
+            aria-label="Subir bloco"
+            className="grid h-9 flex-1 place-items-center rounded-full bg-panel disabled:opacity-40"
+          >
+            <ArrowUpIcon className="size-4" />
+          </button>
+          <button
+            type="button"
+            disabled={!canMoveDown}
+            onClick={() => nextLayout && repositionBlockLayout(blockLayout.id, nextLayout.id, "below")}
+            aria-label="Descer bloco"
+            className="grid h-9 flex-1 place-items-center rounded-full bg-panel disabled:opacity-40"
+          >
+            <ArrowDownIcon className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpenPanel("edit-block")}
+            className="flex h-9 flex-[2] items-center justify-center gap-1.5 rounded-full bg-foreground text-xs font-semibold text-background"
+          >
+            <PencilIcon className="size-3.5" />
+            Editar
+          </button>
+        </div>
+      )}
     </div>
   );
 }

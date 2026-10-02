@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useDeleteNotification } from "../../hooks/use-notification";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -49,7 +50,7 @@ export function DeleteNotification({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
         >
           <Trash2 className="w-4 h-4" />
         </Button>
@@ -72,11 +73,11 @@ export function DeleteNotification({
               handleDelete();
             }}
             disabled={deleteMut.isPending}
-            className="bg-red-600 hover:bg-red-700 text-white"
+            className="bg-destructive/15 hover:bg-destructive/25 text-destructive"
           >
             {deleteMut.isPending ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <OrbitaSpinner className="mr-2 h-4 w-4 " />
                 Excluindo...
               </>
             ) : (

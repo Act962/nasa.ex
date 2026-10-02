@@ -134,11 +134,11 @@ export function BuilderSidebar({
 
   return (
     <div
-      className="border-r left-12 h-full overflow-y-auto pb-12 w-[300px] shrink-0"
+      className="border-r left-12 h-full overflow-y-auto pb-12 w-[clamp(300px,28vw,440px)] shrink-0"
       {...rest}
     >
       <div className="py-4 px-0">
-        <header className="border-b border-border w-full pt-1 pb-2 flex shrink-0 items-center gap-2">
+        <header className="w-full pt-1 pb-2 flex shrink-0 items-center gap-2">
           <div className="flex items-center gap-2 px-4 flex-1 min-w-0">
             <HomeIcon className="-ml-1 w-4 h-4 shrink-0" />
             <Separator orientation="vertical" className="mr-2 h-4" />
@@ -170,7 +170,7 @@ export function BuilderSidebar({
                         className="group flex items-center gap-1 cursor-pointer px-1 rounded-sm transition-colors"
                         onClick={() => setIsEditing(true)}
                       >
-                        <h5 className="truncate max-w-[110px] text-sm font-medium">
+                        <h5 className="truncate max-w-[260px] text-sm font-medium">
                           {formData?.name || "Untitled"}
                         </h5>
                         <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />

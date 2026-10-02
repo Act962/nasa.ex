@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, Building2, Loader2 } from "lucide-react";
+import { Check, ChevronsUpDown, Building2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,7 +55,7 @@ export function MetaAccountSwitcher({ className }: { className?: string }) {
   if (accountsQuery.isLoading) {
     return (
       <Button variant="outline" size="sm" disabled className={cn("gap-2", className)}>
-        <Loader2 className="size-3.5 animate-spin" />
+        <OrbitaSpinner className="size-3.5 " />
         Carregando contas…
       </Button>
     );
@@ -97,7 +98,7 @@ export function MetaAccountSwitcher({ className }: { className?: string }) {
                 <Check
                   className={cn(
                     "size-4 mt-0.5 shrink-0",
-                    isActive ? "opacity-100 text-emerald-600" : "opacity-0",
+                    isActive ? "opacity-100 text-success" : "opacity-0",
                   )}
                 />
                 <div className="min-w-0 flex-1">

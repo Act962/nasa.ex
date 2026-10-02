@@ -68,29 +68,29 @@ function getStatus(args: {
 
   if (totalAvailable < criticalThreshold) {
     return {
-      color: "text-red-500",
-      bg: "bg-red-500",
+      color: "text-destructive",
+      bg: "bg-destructive",
       label: "Saldo crítico",
     };
   }
   if (totalAvailable < lowThreshold) {
     return {
-      color: "text-amber-500",
-      bg: "bg-amber-500",
+      color: "text-warning",
+      bg: "bg-warning",
       label: "Saldo baixo",
     };
   }
   if (consumed > planLimit) {
     // Estourou plano mensal mas saldo extra cobre → informativo (roxo).
     return {
-      color: "text-[#7C3AED]",
-      bg: "bg-[#7C3AED]",
+      color: "text-info",
+      bg: "bg-info",
       label: "Consumindo saldo extra",
     };
   }
   return {
-    color: "text-emerald-500",
-    bg: "bg-emerald-500",
+    color: "text-success",
+    bg: "bg-success",
     label: "Folga",
   };
 }
@@ -239,7 +239,7 @@ export function StarsMeter() {
 
               {/* Saldo bônus */}
               {(balance.bonusBalance ?? 0) > 0 && (
-                <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/40 px-2 py-1.5 text-[11px] text-emerald-700 dark:text-emerald-400 flex items-center justify-between">
+                <div className="rounded-md bg-success/15 border border-success/30 px-2 py-1.5 text-[11px] text-success flex items-center justify-between">
                   <span>Bônus disponível</span>
                   <span className="tabular-nums font-medium">
                     +{balance.bonusBalance.toLocaleString()}
@@ -284,8 +284,8 @@ export function StarsMeter() {
                   className={cn(
                     "rounded-md px-2 py-2 text-[11px] flex items-start gap-1.5",
                     thresh.label === "Saldo crítico"
-                      ? "bg-red-50 dark:bg-red-950/30 border border-red-200/40 text-red-700 dark:text-red-400"
-                      : "bg-amber-50 dark:bg-amber-950/30 border border-amber-200/40 text-amber-700 dark:text-amber-400",
+                      ? "bg-destructive/15 border border-destructive/30 text-destructive"
+                      : "bg-warning/15 border border-warning/30 text-warning",
                   )}
                 >
                   <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
@@ -299,7 +299,7 @@ export function StarsMeter() {
 
               {/* Info roxa quando estourou plano mas saldo extra cobre */}
               {overplan && !showAlert && (
-                <div className="rounded-md bg-purple-50 dark:bg-purple-950/30 border border-purple-200/40 px-2 py-2 text-[11px] text-purple-700 dark:text-purple-300">
+                <div className="rounded-md bg-info/15 border border-info/30 px-2 py-2 text-[11px] text-info">
                   <div className="flex items-start gap-1.5">
                     <Sparkles className="size-3.5 shrink-0 mt-0.5" />
                     <div>

@@ -1,5 +1,6 @@
 import { CoursePlayerShell } from "@/features/nasa-route/components/student/course-player-shell";
 import { ensureEnrollmentOrRedirect } from "@/features/nasa-route/lib/server-access";
+import { NasaRouteShell } from "@/features/nasa-route/components/shared/nasa-route-shell";
 
 interface Params {
   courseId: string;
@@ -13,5 +14,9 @@ export default async function Page({ params }: { params: Promise<Params> }) {
     courseId,
     allowFreePreviewLessonId: lessonId,
   });
-  return <CoursePlayerShell courseId={courseId} initialLessonId={lessonId} />;
+  return (
+    <NasaRouteShell>
+      <CoursePlayerShell courseId={courseId} initialLessonId={lessonId} />
+    </NasaRouteShell>
+  );
 }

@@ -1,14 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import {
-  ImageIcon,
-  LinkIcon,
-  Loader2,
-  Trash2,
-  Upload,
-  VideoIcon,
-} from "lucide-react";
+import { ImageIcon, LinkIcon, Trash2, Upload, VideoIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,7 +60,7 @@ export function CreativesManager({
     const remaining = maxCreatives - creatives.length;
     const selected = Array.from(files).slice(0, remaining);
     if (selected.length < files.length) {
-      toast.warning(`Seu plano permite até ${maxCreatives} criativos.`);
+      toast.warning(`Seu plano permite até ${maxCreatives} imagens ou vídeos.`);
     }
 
     setIsUploading(true);
@@ -107,10 +101,10 @@ export function CreativesManager({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h3 className="text-sm font-semibold">
-            Criativos
+            Imagens e vídeos
             <TechnicalTerm term="creative" />
           </h3>
           <p className="text-xs text-muted-foreground">
@@ -131,14 +125,14 @@ export function CreativesManager({
             />
             <Button
               type="button"
-              size="sm"
               variant="outline"
+              className="h-11 w-full rounded-full sm:h-9 sm:w-auto"
               disabled={isFull || isUploading}
               onClick={() => inputRef.current?.click()}
             >
               {isUploading ? (
                 <>
-                  <Loader2 className="mr-1.5 size-4 animate-spin" />
+                  <OrbitaSpinner className="mr-1.5 size-4" />
                   Enviando…
                 </>
               ) : (
@@ -153,19 +147,21 @@ export function CreativesManager({
       </div>
 
       {!readOnly && (
-        <div className="mt-4 flex flex-col gap-2 rounded-xl border bg-muted/30 p-3 sm:flex-row sm:items-center">
-          <LinkIcon className="size-4 shrink-0 text-muted-foreground" />
-          <input
-            type="url"
-            value={profileLink}
-            onChange={(event) => setProfileLink(event.target.value)}
-            placeholder="Já tenho um perfil pronto — cole o link aqui"
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-          />
+        <div className="mt-4 flex flex-col gap-2 rounded-[20px] border bg-muted/30 p-2 sm:flex-row sm:items-center sm:rounded-full sm:pl-4">
+          <div className="flex min-w-0 flex-1 items-center gap-2 max-sm:px-2 max-sm:py-1.5">
+            <LinkIcon className="size-4 shrink-0 text-muted-foreground" />
+            <input
+              type="url"
+              value={profileLink}
+              onChange={(event) => setProfileLink(event.target.value)}
+              placeholder="Já tenho um perfil pronto — cole o link aqui"
+              className="min-h-9 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+          </div>
           <Button
             type="button"
-            size="sm"
             variant="secondary"
+            className="h-11 rounded-full sm:h-9"
             disabled={setMaterialsProfileLink.isPending}
             onClick={() =>
               setMaterialsProfileLink.mutate(
@@ -183,18 +179,22 @@ export function CreativesManager({
       )}
 
       {creatives.length === 0 && !materialsProfileLink ? (
-        <div className="mt-4 rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Nenhum criativo enviado ainda. Envie as imagens ou vídeos que devem
-          aparecer no anúncio.
+        <div className="mt-4 rounded-[22px] border border-dashed px-6 py-8 text-center">
+          <div className="mx-auto grid size-11 place-items-center rounded-full bg-muted">
+            <ImageIcon className="size-5 text-muted-foreground" />
+          </div>
+          <p className="mx-auto mt-3 max-w-sm text-sm text-muted-foreground">
+            Nenhuma imagem ou vídeo ainda. Envie o que deve aparecer no anúncio.
+          </p>
         </div>
       ) : creatives.length > 0 ? (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
           {creatives.map((creative) => (
             <div
               key={creative.id}
               className={cn(
-                "group relative overflow-hidden rounded-xl border bg-card",
-                creative.status === "REJECTED" && "border-rose-400/50",
+                "group relative overflow-hidden rounded-[18px] border bg-card",
+                creative.status === "REJECTED" && "border-destructive/30",
               )}
             >
               <div className="aspect-video bg-muted">
@@ -214,7 +214,7 @@ export function CreativesManager({
                 )}
               </div>
 
-              <div className="flex items-center gap-2 px-3 py-2">
+              <div className="flex min-w-0 items-center gap-2 py-1 pr-1 pl-3">
                 {creative.kind === "IMAGE" ? (
                   <ImageIcon className="size-3.5 shrink-0 text-muted-foreground" />
                 ) : (
@@ -231,13 +231,13 @@ export function CreativesManager({
                       removeCreative.mutate(
                         { creativeId: creative.id },
                         {
-                          onSuccess: () => toast.success("Criativo removido."),
+                          onSuccess: () => toast.success("Arquivo removido."),
                           onError: (error) => toast.error(error.message),
                         },
                       )
                     }
-                    className="ml-auto text-muted-foreground transition hover:text-destructive"
-                    aria-label="Remover criativo"
+                    className="ml-auto grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-destructive/15 hover:text-destructive"
+                    aria-label="Remover arquivo"
                   >
                     <Trash2 className="size-3.5" />
                   </button>
@@ -245,7 +245,7 @@ export function CreativesManager({
               </div>
 
               {creative.reviewNote && (
-                <p className="border-t bg-rose-500/5 px-3 py-2 text-xs text-rose-600 dark:text-rose-300">
+                <p className="border-t border-destructive/30 bg-destructive/15 px-3 py-2 text-xs text-destructive">
                   {creative.reviewNote}
                 </p>
               )}

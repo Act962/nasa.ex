@@ -38,7 +38,7 @@ export function WelcomeStep() {
       <Button
         onClick={handleConnect}
         size="lg"
-        className="w-full gap-2 bg-[#1877F2] hover:bg-[#166FE5] text-white font-semibold"
+        className="w-full gap-2 bg-brand-facebook hover:bg-brand-facebook/90 text-white font-semibold"
       >
         {(() => {
           const Icon = providerIcon;

@@ -61,7 +61,7 @@ export function MindMapsTab({ plannerId }: { plannerId: string }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
+      <div className="flex items-center justify-between px-6 py-3 shrink-0">
         <p className="text-sm text-muted-foreground">{mindMaps.length} mapas mentais</p>
         <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
           <PlusIcon className="size-3.5" />Novo Mapa Mental
@@ -88,13 +88,13 @@ export function MindMapsTab({ plannerId }: { plannerId: string }) {
               return (
                 <Card
                   key={map.id}
-                  className="group cursor-pointer hover:shadow-md transition-all border hover:border-violet-300 dark:hover:border-violet-700"
+                  className="group cursor-pointer hover:shadow-md transition-all border hover:border-info/40"
                   onClick={() => router.push(`/nasa-planner/${plannerId}/mindmap/${map.id}`)}
                 >
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
-                      <div className="size-9 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                        <Icon className="size-4.5 text-violet-600 dark:text-violet-400" />
+                      <div className="size-9 rounded-lg bg-info/15 flex items-center justify-center">
+                        <Icon className="size-4.5 text-info" />
                       </div>
                       <Button
                         variant="ghost"
@@ -138,9 +138,9 @@ export function MindMapsTab({ plannerId }: { plannerId: string }) {
                     key={key}
                     type="button"
                     onClick={() => setSelectedTemplate(key)}
-                    className={`rounded-lg border p-3 text-left transition-all hover:border-violet-400 ${selectedTemplate === key ? "border-violet-500 bg-violet-50 dark:bg-violet-900/20" : "border-border"}`}
+                    className={`rounded-lg border p-3 text-left transition-all hover:border-info ${selectedTemplate === key ? "border-info bg-info/15" : "border-border"}`}
                   >
-                    <Icon className="size-5 mb-1.5 text-violet-600 dark:text-violet-400" />
+                    <Icon className="size-5 mb-1.5 text-info" />
                     <p className="text-sm font-medium">{label}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
                   </button>

@@ -23,7 +23,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { DownloadIcon, Loader2 } from "lucide-react";
+import { DownloadIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 interface ImportFromWhatsAppButtonProps {
   trackingId: string;
@@ -99,7 +100,7 @@ export function ImportFromWhatsAppButton({
     >
       {mutation.isPending ? (
         <>
-          <Loader2 className="size-4 animate-spin" /> Importando...
+          <OrbitaSpinner className="size-4 " /> Importando...
         </>
       ) : (
         <>

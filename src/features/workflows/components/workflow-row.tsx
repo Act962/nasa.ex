@@ -97,9 +97,9 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
 
   const statusStyles = {
     active: {
-      ring: "ring-1 ring-emerald-500/40",
-      bg: "bg-emerald-500/10 text-emerald-600",
-      badge: "bg-emerald-500/10 text-emerald-600",
+      ring: "ring-1 ring-success/40",
+      bg: "bg-success/10 text-success",
+      badge: "bg-success/10 text-success",
       label: "Ativo",
     },
     ready: {
@@ -109,15 +109,15 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
       label: "Inativo",
     },
     broken: {
-      ring: "ring-1 ring-red-500/50",
-      bg: "bg-red-500/10 text-red-600",
-      badge: "bg-red-500/10 text-red-600",
+      ring: "ring-1 ring-destructive/50",
+      bg: "bg-destructive/10 text-destructive",
+      badge: "bg-destructive/10 text-destructive",
       label: "Incompleto",
     },
     warning: {
-      ring: "ring-1 ring-amber-500/50",
-      bg: "bg-amber-500/10 text-amber-600",
-      badge: "bg-amber-500/10 text-amber-600",
+      ring: "ring-1 ring-warning/50",
+      bg: "bg-warning/10 text-warning",
+      badge: "bg-warning/10 text-warning",
       label: "Atenção",
     },
   }[status];
@@ -156,7 +156,7 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
         </div>
         <ItemDescription className="truncate">
           {!canActivate && (
-            <span className="text-red-600 font-medium">
+            <span className="text-destructive font-medium">
               {validation.blockingNodes.length} ação(ões) com campos faltando ·{" "}
             </span>
           )}

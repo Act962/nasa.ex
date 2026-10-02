@@ -494,7 +494,7 @@ export function ActionSubActions({
       {totalSubActions > 0 && (
         <div className="w-full bg-muted rounded-full h-1.5 mb-2">
           <div
-            className="bg-emerald-500 h-1.5 rounded-full transition-all"
+            className="bg-success h-1.5 rounded-full transition-all"
             style={{
               width: `${(doneSubActions / totalSubActions) * 100}%`,
             }}

@@ -1,23 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bot, Check, Loader2, Phone, ShoppingCart, Smartphone } from "lucide-react";
+import { Bot, Check, Copy, Laptop, Phone, ShoppingCart, Smartphone } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { WhatsAppEmbeddedSignupButton } from "@/features/tracking-settings/components/whatsapp-embedded-signup-button";
 import { useAstroWidgetStore } from "@/features/astro/voice/use-astro-widget-store";
 import { metaPaymentMethodsUrl } from "../../lib/meta-links";
-import { useMetaNumberPanel, useSalvyNumbers } from "../../hooks/use-official-number";
+import { useMetaNumberPanel, useNotifyNumberPurchaseInterest, useSalvyNumbers } from "../../hooks/use-official-number";
+import { buildNumberPurchaseWhatsAppUrl } from "../../lib/number-purchase-contact";
 import { CopyField } from "@/features/meta-guide/components/copy-field";
 import { MetaNumberPanel } from "./meta-number-panel";
 import { RequestTeamHelp } from "./request-team-help";
 import { buildCardChecklist } from "./connect-steps-content";
 import { ChecklistProgress, GuidedChecklist } from "./guided-checklist";
 import { MetaGuideStepper } from "@/features/meta-guide/components/meta-guide-stepper";
-import { LiveSmsCode, OWN_NUMBER_CHECKLIST, SalvyPurchase, STEPS, Stepper, type NumberSource } from "./wizard-parts";
+import { LiveSmsCode, OWN_NUMBER_CHECKLIST, STEPS, Stepper, type NumberSource } from "./wizard-parts";
 import { MetaKeysForm } from "./meta-keys-form";
 import { NumberSetup } from "./number-setup";
 import { useConnectProgress, useMetaSetupStatus, useSaveConnectProgress } from "../../hooks/use-meta-setup";
@@ -53,12 +55,15 @@ const DEFAULT_GUIDE_STEPS = GUIDE_STEPS.filter((step) => step.phase !== "payment
  * O progresso mora no banco: o cliente fecha, volta outro dia, em outro
  * aparelho, e continua do mesmo passo.
  */
+const PRIMARY_STEP_BUTTON_CLASS =
+  "rounded-full bg-brand-whatsapp! font-bold text-brand-whatsapp-deep! hover:bg-brand-whatsapp/90! max-sm:h-11 max-sm:px-6";
+
 export function ConnectNumberWizard({ trackingId, open, onOpenChange }: { trackingId: string; open: boolean; onOpenChange: (open: boolean) => void }) {
   const { data: progress, isLoading } = useConnectProgress(trackingId, { enabled: open });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex h-[min(92vh,860px)] flex-col overflow-hidden sm:max-w-3xl lg:max-w-5xl"
+        className="flex h-[min(92vh,860px)] flex-col overflow-hidden max-sm:h-[100dvh] max-sm:max-w-none max-sm:rounded-none max-sm:border-0 max-sm:p-4 sm:max-w-3xl lg:max-w-5xl"
         onInteractOutside={(event) => event.preventDefault()}
         data-guide={GUIDE_ANCHORS.officialNumberWizard.id}
       >
@@ -66,7 +71,7 @@ export function ConnectNumberWizard({ trackingId, open, onOpenChange }: { tracki
           <>
             <DialogTitle className="sr-only">Conectar número oficial</DialogTitle>
             <p className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" /> Carregando de onde você parou…
+              <OrbitaSpinner className="size-4 " /> Carregando de onde você parou…
             </p>
           </>
         ) : (
@@ -94,9 +99,20 @@ function WizardContent({
   const { data: salvyNumbers } = useSalvyNumbers();
   const [doneIds, setDoneIds] = useState<Set<string>>(() => new Set(progress.doneIds));
   const [stepIndex, setStepIndex] = useState(() => resumeStepIndex(new Set(progress.doneIds)));
+  const isMobile = useIsMobile();
+  const [isDesktopTipDismissed, setIsDesktopTipDismissed] = useState(false);
+  // No celular, antes de começar: o passo a passo alterna entre a Meta e a ÓRBITA — no computador fica bem mais fácil.
+  const isDesktopTipOpen = isMobile && stepIndex === 0 && !isDesktopTipDismissed;
+
+  function copyLinkForComputer() {
+    navigator.clipboard
+      .writeText(`${window.location.origin}/campanhas`)
+      .then(() => toast.success("Link copiado! Abra no computador e clique em Conectar número."))
+      .catch(() => toast.info(`${window.location.origin}/campanhas`));
+    setIsDesktopTipDismissed(true);
+  }
   const [numberSource, setNumberSourceState] = useState<NumberSource | null>(progress.numberSource);
   const [isChecklistConfirmed, setIsChecklistConfirmed] = useState(progress.doneIds.includes(NUMBER_STEP_ID));
-  const [freshSalvyNumber, setFreshSalvyNumber] = useState<{ id: string; phoneNumber: string } | null>(null);
   const [isConnectedNow, setIsConnectedNow] = useState(false);
   const [guideStepTitle, setGuideStepTitle] = useState(
     () => (DEFAULT_GUIDE_STEPS.find((step) => step.slug === progress.guideSlug) ?? DEFAULT_GUIDE_STEPS[0])?.title ?? "Meta",
@@ -106,8 +122,8 @@ function WizardContent({
     total: DEFAULT_GUIDE_STEPS.length,
   }));
   const savedSalvyNumber = salvyNumbers?.find((number) => number.id === progress.salvyNumberId);
-  const salvyNumber =
-    freshSalvyNumber ?? (savedSalvyNumber ? { id: savedSalvyNumber.id, phoneNumber: savedSalvyNumber.phoneNumber } : null);
+  // Número já comprado em versões anteriores do assistente continua aparecendo para colar na Meta.
+  const salvyNumber = savedSalvyNumber ? { id: savedSalvyNumber.id, phoneNumber: savedSalvyNumber.phoneNumber } : null;
 
   function persist(patch: Omit<Parameters<typeof saveProgress.mutate>[0], "trackingId">) {
     saveProgress.mutate({ trackingId, ...patch });
@@ -169,6 +185,30 @@ function WizardContent({
     setDoneIds((current) => new Set(current).add(id));
     persist({ addDoneIds: [id] });
   };
+  const [isOwnNumberDialogOpen, setIsOwnNumberDialogOpen] = useState(false);
+  const notifyNumberPurchase = useNotifyNumberPurchaseInterest();
+
+  function chooseOwnNumber() {
+    setNumberSource("own");
+    setIsOwnNumberDialogOpen(true);
+  }
+
+  function confirmOwnNumber() {
+    setIsChecklistConfirmed(true);
+    setIsOwnNumberDialogOpen(false);
+    markDone(NUMBER_STEP_ID);
+    setStepIndex(1);
+  }
+
+  // Comprar número = conversa com o comercial: o cliente manda a mensagem pelo WhatsApp dele e a equipe recebe uma cópia.
+  function requestNumberPurchase() {
+    window.open(buildNumberPurchaseWhatsAppUrl(), "_blank", "noopener,noreferrer");
+    notifyNumberPurchase.mutate(undefined, {
+      onSuccess: () => toast.success("Pedido enviado! A equipe vai te chamar no WhatsApp."),
+      onError: () => toast.success("Abrimos o WhatsApp do nosso comercial para você."),
+    });
+  }
+
   const undo = (id: string) => {
     setDoneIds((current) => {
       const next = new Set(current);
@@ -201,6 +241,27 @@ function WizardContent({
 
   return (
     <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
+      <Dialog open={isDesktopTipOpen} onOpenChange={(isOpen) => !isOpen && setIsDesktopTipDismissed(true)}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] gap-6 px-6 pt-7 pb-6 sm:max-w-md" showCloseButton={false}>
+          <DialogHeader className="items-center gap-3 text-center">
+            <span className="grid size-14 place-items-center rounded-full bg-info/15 text-info">
+              <Laptop className="size-7" />
+            </span>
+            <DialogTitle className="text-lg">Melhor no computador</DialogTitle>
+            <DialogDescription className="text-[15px] leading-relaxed text-muted-foreground">
+              Para uma experiência melhor, faça este passo a passo num <strong className="text-foreground">notebook ou computador</strong>: você vê a Meta e a ÓRBITA lado a lado e termina em uns 10 minutos. Seu progresso fica salvo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Button className="h-12 w-full rounded-full text-[15px]" onClick={copyLinkForComputer}>
+              <Copy className="size-4" /> Copiar link para o computador
+            </Button>
+            <Button variant="ghost" className="h-11 w-full rounded-full" onClick={() => setIsDesktopTipDismissed(true)}>
+              Continuar pelo celular
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <div className="flex min-h-0 min-w-0 flex-col gap-4">
         <DialogHeader>
           {/* O título é a ação da tela atual — o passo a passo fala por si. */}
@@ -210,6 +271,7 @@ function WizardContent({
 
         <Stepper currentIndex={stepIndex} />
         <ChecklistProgress
+          className="max-sm:hidden"
           doneCount={overallDone}
           total={overallTotal}
           label={`Passo ${Math.min(overallDone + 1, overallTotal)} de ${overallTotal}`}
@@ -225,52 +287,66 @@ function WizardContent({
               <div className="grid gap-3 sm:grid-cols-2">
                 {([
                   { source: "own", icon: Smartphone, title: "Tenho um número", text: "Uso um chip da empresa." },
-                  { source: "salvy", icon: ShoppingCart, title: "Comprar número", text: "Pronto na hora, pago em Stars." },
+                  { source: "salvy", icon: ShoppingCart, title: "Comprar número", text: "Fale com a equipe pelo WhatsApp e receba um número pronto." },
                 ] as const).map((option) => (
                   <button
                     key={option.source}
                     type="button"
-                    onClick={() => setNumberSource(option.source)}
+                    onClick={() => (option.source === "own" ? chooseOwnNumber() : requestNumberPurchase())}
                     className={cn(
-                      "rounded-xl border p-4 text-left transition-all hover:border-emerald-500/60",
-                      numberSource === option.source && "border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500",
+                      "rounded-xl border p-4 text-left transition-all hover:border-success/60",
+                      numberSource === option.source && "border-success bg-success/5 ring-1 ring-success",
                     )}
                   >
-                    <option.icon className="mb-2 size-5 text-emerald-600" />
+                    <option.icon className="mb-2 size-5 text-success" />
                     <p className="font-medium">{option.title}</p>
                     <p className="text-xs text-muted-foreground">{option.text}</p>
                   </button>
                 ))}
               </div>
 
-              {numberSource === "own" && (
-                <div className="space-y-2 rounded-lg border p-3">
-                  {OWN_NUMBER_CHECKLIST.map((item) => (
-                    <p key={item} className="flex items-start gap-2 text-sm">
-                      <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" /> {item}
-                    </p>
-                  ))}
-                  <p className="rounded-md bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
-                    Atenção: se esse número hoje está no aplicativo do WhatsApp, ele deixa de funcionar lá — os clientes passam
-                    a falar com você pela ÓRBITA. Se não quer abrir mão dele, use um número novo (chip novo ou &quot;Comprar
-                    número&quot;).
-                  </p>
-                  <label className="flex items-center gap-2 pt-1 text-sm font-medium">
-                    <Checkbox checked={isChecklistConfirmed} onCheckedChange={(checked) => setIsChecklistConfirmed(checked === true)} />
-                    Meu número atende a tudo isso
-                  </label>
-                </div>
+              {numberSource === "own" && isChecklistConfirmed && (
+                <button
+                  type="button"
+                  onClick={() => setIsOwnNumberDialogOpen(true)}
+                  className="flex items-center gap-2 self-start rounded-full bg-success/10 px-3 py-1.5 text-xs font-medium text-success"
+                >
+                  <Check className="size-3.5" /> Número confere com os requisitos · ver de novo
+                </button>
               )}
 
-              {numberSource === "salvy" &&
-                (salvyNumber ? (
-                  <CopyField label="Seu número novo — use no pop-up da Meta" value={salvyNumber.phoneNumber} />
-                ) : (
-                  <SalvyPurchase trackingId={trackingId} onBought={(id, phoneNumber) => {
-                    setFreshSalvyNumber({ id, phoneNumber });
-                    persist({ salvyNumberId: id });
-                  }} />
-                ))}
+              {numberSource === "salvy" && salvyNumber && (
+                <CopyField label="Seu número novo — use no pop-up da Meta" value={salvyNumber.phoneNumber} />
+              )}
+
+              <Dialog open={isOwnNumberDialogOpen} onOpenChange={setIsOwnNumberDialogOpen}>
+                <DialogContent className="max-w-[calc(100vw-2rem)] gap-3 sm:max-w-md">
+                  <DialogHeader className="items-center text-center">
+                    <span className="grid size-12 place-items-center rounded-full bg-success/15 text-success">
+                      <Smartphone className="size-6" />
+                    </span>
+                    <DialogTitle>Seu número precisa ter</DialogTitle>
+                    <DialogDescription>Confira os 3 itens antes de seguir.</DialogDescription>
+                  </DialogHeader>
+                  <ul className="space-y-2">
+                    {OWN_NUMBER_CHECKLIST.map((item) => (
+                      <li key={item} className="flex items-start gap-2.5 rounded-[14px] bg-muted/60 p-2.5 text-sm">
+                        <Check className="mt-0.5 size-4 shrink-0 text-success" /> {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="rounded-[14px] bg-brand-whatsapp/10 p-2.5 text-xs text-foreground/80">
+                    Depois de conectado, todas as conversas desse número chegam no <strong>Chat da ÓRBITA</strong>: a equipe
+                    atende junto, cada contato vira lead no funil e o Astro ajuda nas respostas.
+                  </p>
+                  <Button
+                    className="h-11 w-full rounded-full bg-brand-whatsapp! font-bold text-brand-whatsapp-deep! hover:bg-brand-whatsapp/90!"
+                    onClick={confirmOwnNumber}
+                  >
+                    Meu número atende a tudo isso
+                  </Button>
+                </DialogContent>
+              </Dialog>
             </>
           )}
 
@@ -293,6 +369,10 @@ function WizardContent({
                 <NumberSetup trackingId={trackingId} onConnected={handleConnected} />
               ) : (
                 <MetaGuideStepper
+                  onAskAstro={(question) => {
+                    onOpenChange(false);
+                    useAstroWidgetStore.getState().open({ text: question, fromVoice: false });
+                  }}
                   guide={WHATSAPP_GUIDE}
                   isTitleHidden
                   initialSlug={progress.guideSlug}
@@ -354,7 +434,7 @@ function WizardContent({
           )}
 
           {stepIndex === 2 && isTestNumber && (
-            <p className="rounded-md border border-sky-500/30 bg-sky-500/5 p-3 text-sm text-sky-900 dark:text-sky-200">
+            <p className="rounded-md border border-info/30 bg-info/5 p-3 text-sm text-info dark:text-info">
               Você está usando um <strong>número de teste</strong> da Meta: as mensagens para os celulares cadastrados são
               grátis, então o cartão pode ficar para depois. Cadastre o cartão antes de trocar para o número da empresa.
             </p>
@@ -365,31 +445,31 @@ function WizardContent({
           {stepIndex === 3 &&
             (isPanelLoading ? (
               <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" /> Conferindo seu número na Meta…
+                <OrbitaSpinner className="size-4 " /> Conferindo seu número na Meta…
               </p>
             ) : isConnected ? (
               <>
-                <p className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                <p className="flex items-center gap-2 text-sm font-medium text-success dark:text-success">
                   <Phone className="size-4" /> Tudo pronto! Este é o seu número oficial:
                 </p>
                 <MetaNumberPanel trackingId={trackingId} />
               </>
             ) : (
-              <div className="space-y-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
+              <div className="space-y-3 rounded-lg border border-warning/40 bg-warning/5 p-4 text-sm">
                 <p className="font-medium">Falta só a Meta confirmar seu número</p>
                 <p className="text-muted-foreground">
                   Ainda não encontramos um número conectado neste funil. Se a nossa equipe está conectando com você, ele aparece
                   aqui assim que terminar — aí você já pode criar a primeira campanha.
                 </p>
                 <Button size="sm" variant="outline" onClick={() => refetchPanel()} disabled={isPanelFetching}>
-                  {isPanelFetching && <Loader2 className="size-4 animate-spin" />} Conferir de novo
+                  {isPanelFetching && <OrbitaSpinner className="size-4 " />} Conferir de novo
                 </Button>
               </div>
             ))}
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t pt-3">
-          <div className="flex flex-wrap items-center gap-1">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t pt-3 sm:flex-wrap">
+          <div className="scroll-hidden-x flex min-w-0 items-center gap-1 overflow-x-auto sm:flex-wrap">
             <RequestTeamHelp step={`Conectar número — ${STEPS[stepIndex].label}`} />
             {stepIndex === 1 && (
               <Button
@@ -408,7 +488,7 @@ function WizardContent({
               </Button>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex shrink-0 gap-2">
             {stepIndex === 2 && (
               <Button variant="ghost" onClick={() => setStepIndex(stepIndex - 1)}>
                 Voltar
@@ -416,6 +496,7 @@ function WizardContent({
             )}
             {stepIndex === 0 && (
               <Button
+                className={PRIMARY_STEP_BUTTON_CLASS}
                 onClick={() => {
                   markDone(NUMBER_STEP_ID);
                   setStepIndex(1);
@@ -426,14 +507,14 @@ function WizardContent({
               </Button>
             )}
             {stepIndex === 1 && isConnected && isGuideDone && (
-              <Button onClick={() => setStepIndex(2)}>Continuar</Button>
+              <Button className={PRIMARY_STEP_BUTTON_CLASS} onClick={() => setStepIndex(2)}>Continuar</Button>
             )}
             {stepIndex === 2 && (
-              <Button onClick={() => setStepIndex(3)} disabled={!isCardDone}>
+              <Button className={PRIMARY_STEP_BUTTON_CLASS} onClick={() => setStepIndex(3)} disabled={!isCardDone}>
                 Continuar
               </Button>
             )}
-            {stepIndex === 3 && <Button onClick={() => onOpenChange(false)}>Concluir</Button>}
+            {stepIndex === 3 && <Button className={PRIMARY_STEP_BUTTON_CLASS} onClick={() => onOpenChange(false)}>Concluir</Button>}
           </div>
         </div>
       </div>

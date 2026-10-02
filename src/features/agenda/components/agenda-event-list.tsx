@@ -19,11 +19,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_TONE: Record<string, string> = {
-  PENDING: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
-  CONFIRMED: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  CANCELLED: "bg-red-500/15 text-red-700 dark:text-red-300",
-  NO_SHOW: "bg-red-500/15 text-red-700 dark:text-red-300",
-  DONE: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  PENDING: "bg-warning/15 text-warning dark:text-warning",
+  CONFIRMED: "bg-success/15 text-success dark:text-success",
+  CANCELLED: "bg-destructive/15 text-destructive dark:text-destructive",
+  NO_SHOW: "bg-destructive/15 text-destructive dark:text-destructive",
+  DONE: "bg-info/15 text-info dark:text-info",
 };
 
 interface AgendaEventListProps {
@@ -188,7 +188,7 @@ export function AgendaEventList({
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-3">
+    <div className="flex flex-1 flex-col gap-4 overflow-y-auto py-3 lg:px-3">
       {groups.map(([dayKey, dayAppts]) => {
         const date = dayjs(dayKey);
         const isToday = date.isSame(dayjs(), "day");

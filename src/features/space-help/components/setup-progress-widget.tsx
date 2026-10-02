@@ -54,9 +54,9 @@ export function SetupProgressWidget({ variant = "full" }: SetupProgressWidgetPro
   if (rewardClaimed) {
     if (variant === "compact") return null;
     return (
-      <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-transparent p-5 md:p-6 flex items-center gap-4">
-        <div className="size-12 shrink-0 rounded-full bg-emerald-500/15 flex items-center justify-center">
-          <Trophy className="size-6 text-emerald-600" />
+      <div className="rounded-3xl border border-success/30 bg-gradient-to-br from-success/10 via-success/5 to-transparent p-5 md:p-6 flex items-center gap-4">
+        <div className="size-12 shrink-0 rounded-full bg-success/15 flex items-center justify-center">
+          <Trophy className="size-6 text-success" />
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-base md:text-lg font-bold">Setup Inicial completo</h3>
@@ -73,14 +73,14 @@ export function SetupProgressWidget({ variant = "full" }: SetupProgressWidgetPro
       className={cn(
         "rounded-3xl border p-5 md:p-7",
         isFullyCompleted
-          ? "border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-amber-400/8 to-transparent shadow-md shadow-amber-500/10"
-          : "border-violet-500/30 bg-gradient-to-br from-violet-600/10 via-fuchsia-500/5 to-emerald-500/5",
+          ? "border-warning/40 bg-gradient-to-br from-warning/15 via-warning/8 to-transparent shadow-md shadow-warning/10"
+          : "border-info/30 bg-gradient-to-br from-info/10 via-info/5 to-success/5",
         celebrating && "animate-pulse"
       )}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 text-xs font-medium text-violet-700 dark:text-violet-300">
+          <div className="flex items-center gap-2 text-xs font-medium text-info">
             <Rocket className="size-4" />
             Setup Inicial ÓRBITA
           </div>
@@ -113,8 +113,8 @@ export function SetupProgressWidget({ variant = "full" }: SetupProgressWidgetPro
           className={cn(
             "h-full rounded-full transition-all duration-500",
             isFullyCompleted
-              ? "bg-gradient-to-r from-amber-400 to-amber-500"
-              : "bg-gradient-to-r from-violet-500 via-fuchsia-500 to-emerald-500"
+              ? "bg-warning"
+              : "bg-gradient-to-r from-info via-info to-success"
           )}
           style={{ width: `${percent}%` }}
         />
@@ -128,13 +128,13 @@ export function SetupProgressWidget({ variant = "full" }: SetupProgressWidgetPro
             className={cn(
               "flex items-start gap-3 rounded-xl border p-3 transition",
               step.isCompleted
-                ? "border-emerald-500/30 bg-emerald-500/5"
-                : "border-border bg-background/50 hover:border-violet-500/40"
+                ? "border-success/30 bg-success/5"
+                : "border-border bg-background/50 hover:border-info/40"
             )}
           >
             <div className="shrink-0 mt-0.5">
               {step.isCompleted ? (
-                <CheckCircle2 className="size-5 text-emerald-600" />
+                <CheckCircle2 className="size-5 text-success" />
               ) : (
                 <Circle className="size-5 text-muted-foreground" />
               )}
@@ -145,7 +145,7 @@ export function SetupProgressWidget({ variant = "full" }: SetupProgressWidgetPro
                 <h3
                   className={cn(
                     "font-semibold leading-tight",
-                    step.isCompleted && "text-muted-foreground line-through decoration-emerald-500/50"
+                    step.isCompleted && "text-muted-foreground line-through decoration-success/50"
                   )}
                 >
                   {step.label}
@@ -156,14 +156,14 @@ export function SetupProgressWidget({ variant = "full" }: SetupProgressWidgetPro
             <div className="flex shrink-0 items-center gap-2">
               <Link
                 href={`/space-help/${step.helpCategorySlug}/${step.helpFeatureSlug}`}
-                className="text-xs text-violet-700 dark:text-violet-300 hover:underline whitespace-nowrap"
+                className="text-xs text-info hover:underline whitespace-nowrap"
               >
                 Como fazer
               </Link>
               {!step.isCompleted && (
                 <Link
                   href={step.ctaHref}
-                  className="rounded-md bg-violet-600 hover:bg-violet-700 px-2.5 py-1 text-xs font-medium text-white whitespace-nowrap"
+                  className="rounded-md bg-primary hover:bg-primary/90 px-2.5 py-1 text-xs font-medium text-primary-foreground whitespace-nowrap"
                 >
                   {step.ctaLabel}
                 </Link>
@@ -175,9 +175,9 @@ export function SetupProgressWidget({ variant = "full" }: SetupProgressWidgetPro
 
       {/* Botão de resgate quando 100% */}
       {isFullyCompleted && (
-        <div className="mt-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-amber-500/15 to-amber-400/10 border border-amber-500/30 p-4">
+        <div className="mt-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-warning/15 to-warning/10 border border-warning/30 p-4">
           <div className="flex items-center gap-3">
-            <Sparkles className="size-6 text-amber-600 shrink-0" />
+            <Sparkles className="size-6 text-warning shrink-0" />
             <div>
               <div className="font-semibold">Recompensa pronta pra resgatar</div>
               <div className="text-xs text-muted-foreground">
@@ -189,7 +189,7 @@ export function SetupProgressWidget({ variant = "full" }: SetupProgressWidgetPro
             onClick={() => claimMutation.mutate({})}
             disabled={claimMutation.isPending}
             size="lg"
-            className="bg-amber-500 hover:bg-amber-600 text-white"
+            className="bg-warning hover:bg-warning/90 text-background"
           >
             {claimMutation.isPending ? "Resgatando…" : "🎁 Resgatar STARs"}
           </Button>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Send } from "lucide-react";
+import { Send } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,13 +46,13 @@ export function SupportThread({ orderId }: { orderId: string }) {
       <div className="mt-4 flex-1 space-y-3">
         {isLoading && (
           <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4" />
             Carregando conversa…
           </div>
         )}
 
         {!isLoading && (!messages || messages.length === 0) && (
-          <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+          <div className="rounded-[22px] border border-dashed px-6 py-8 text-center text-sm text-muted-foreground">
             Nenhuma mensagem ainda. Escreva abaixo — nossa equipe responde por
             aqui.
           </div>
@@ -109,19 +110,20 @@ export function SupportThread({ orderId }: { orderId: string }) {
           }}
           placeholder="Escreva sua mensagem…"
           rows={3}
+          className="rounded-[20px]"
         />
         <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground max-sm:hidden">
             ⌘/Ctrl + Enter para enviar
           </span>
           <Button
             type="button"
-            size="sm"
+            className="h-11 w-full rounded-full sm:ml-auto sm:h-9 sm:w-auto"
             onClick={handleSend}
             disabled={!draft.trim() || sendMessage.isPending}
           >
             {sendMessage.isPending ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" />
+              <OrbitaSpinner className="mr-1.5 size-4" />
             ) : (
               <Send className="mr-1.5 size-4" />
             )}

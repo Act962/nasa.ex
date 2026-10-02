@@ -3,11 +3,11 @@
 import { useState } from "react";
 import {
   CheckCircle2,
-  Loader2,
   Save,
   SearchCheck,
   TriangleAlert,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -179,15 +179,15 @@ export function BriefingForm({
               {!readOnly && (
                 <Button
                   type="button"
-                  size="sm"
                   variant="outline"
+                  className="h-9 shrink-0 rounded-full"
                   onClick={handleCheckWhatsapp}
                   disabled={
                     whatsappDigits.length < 10 || checkWhatsapp.isPending
                   }
                 >
                   {checkWhatsapp.isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <OrbitaSpinner className="size-4" />
                   ) : (
                     <SearchCheck className="size-4" />
                   )}
@@ -196,7 +196,7 @@ export function BriefingForm({
               )}
             </div>
             {whatsappCheck?.status === "found" && (
-              <p className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-600">
+              <p className="mt-1.5 flex items-center gap-1.5 text-xs text-success">
                 <CheckCircle2 className="size-3.5" />
                 Número ativo no WhatsApp
                 {whatsappCheck.verifiedName
@@ -242,16 +242,16 @@ export function BriefingForm({
           <div className="flex justify-end">
             <Button
               type="button"
-              size="sm"
+              className="h-11 w-full rounded-full sm:h-9 sm:w-auto"
               onClick={handleSave}
               disabled={updateBriefing.isPending || !whatsappCanBeSaved}
             >
               {updateBriefing.isPending ? (
-                <Loader2 className="mr-1.5 size-4 animate-spin" />
+                <OrbitaSpinner className="mr-1.5 size-4" />
               ) : (
                 <Save className="mr-1.5 size-4" />
               )}
-              Salvar
+              Salvar informações
             </Button>
           </div>
         )}

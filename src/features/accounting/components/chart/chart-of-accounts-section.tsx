@@ -42,9 +42,9 @@ export function ChartOfAccountsSection({ onNavigate }: { onNavigate?: (section: 
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border bg-violet-500/5 p-4 text-sm">
+      <div className="rounded-xl border bg-info/5 p-4 text-sm">
         <p className="flex items-center gap-1.5 font-semibold">
-          <ListTree className="size-4 text-violet-600" />
+          <ListTree className="size-4 text-info" />
           Plano de contas
           <FiscalTermHint termId="plano-de-contas" />
         </p>
@@ -58,7 +58,7 @@ export function ChartOfAccountsSection({ onNavigate }: { onNavigate?: (section: 
           — o valor sai de uma conta e entra em outra.
         </p>
         {onNavigate && (
-          <Button type="button" variant="link" size="sm" className="mt-1 h-auto px-0 text-[#1E90FF]" onClick={() => onNavigate("reports")}>
+          <Button type="button" variant="link" size="sm" className="mt-1 h-auto px-0 text-info" onClick={() => onNavigate("reports")}>
             Ver balancete e balanço
           </Button>
         )}
@@ -92,7 +92,7 @@ export function ChartOfAccountsSection({ onNavigate }: { onNavigate?: (section: 
               <Button
                 type="button"
                 size="sm"
-                className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700"
+                className="gap-1.5 bg-info text-white hover:bg-info"
                 onClick={() => setIsNewDialogOpen(true)}
               >
                 <Plus className="size-4" />

@@ -121,9 +121,9 @@ export function FavoritesSection({ workspaceId }: Props) {
                         }
                       >
                         {action.favoriteKind === "global" ? (
-                          <PinIcon className="size-3.5 fill-violet-500 text-violet-500 drop-shadow" />
+                          <PinIcon className="size-3.5 fill-info text-info drop-shadow" />
                         ) : (
-                          <StarIcon className="size-3.5 fill-yellow-400 text-yellow-400 drop-shadow" />
+                          <StarIcon className="size-3.5 fill-warning text-warning drop-shadow" />
                         )}
                       </div>
 
@@ -194,7 +194,7 @@ export function FavoritesSection({ workspaceId }: Props) {
                                 className={cn(
                                   "flex items-center gap-0.5 text-[10px]",
                                   doneSubActions === totalSubActions &&
-                                    "text-emerald-500",
+                                    "text-success",
                                 )}
                               >
                                 <ListTodoIcon className="size-3 shrink-0" />
@@ -206,9 +206,9 @@ export function FavoritesSection({ workspaceId }: Props) {
                                 className={cn(
                                   "flex items-center gap-0.5 text-[10px]",
                                   dueDateInfo.overdue &&
-                                    "text-red-500 font-medium",
+                                    "text-destructive font-medium",
                                   dueDateInfo.today &&
-                                    "text-orange-500 font-medium",
+                                    "text-warning font-medium",
                                 )}
                               >
                                 <CalendarIcon className="size-3 shrink-0" />

@@ -249,19 +249,19 @@ export const LeadItem = memo(
         data-order={data.order}
         onClick={handleSelect}
         className={cn(
-          // `bg-muted` é o default — sobrescrito por `kanbanCardBackgroundColor`
+          // `bg-card` é o default — sobrescrito por `kanbanCardBackgroundColor`
           // via style inline. Contorno: `border-primary/50` quando selecionado
           // sempre prevalece; senão usa cor configurada OU transparente.
           // isDragging=true → este card é o placeholder do dnd-kit (ghost),
           // forçamos border-transparent para o fantasma ficar limpo.
-          "relative w-full min-w-0 max-w-full border-2 text-sm rounded-md shadow-sm group cursor-pointer transition-all overflow-hidden",
-          !appearance?.kanbanCardBackgroundColor && "bg-muted",
+          "relative w-full min-w-0 max-w-full border-[1.5px] text-sm rounded-[20px] shadow-xs group cursor-pointer transition-all overflow-hidden hover:-translate-y-0.5 hover:shadow-sm",
+          !appearance?.kanbanCardBackgroundColor && "bg-card",
           selected
             ? "border-primary/50"
             : isDragging
               ? "border-transparent"
               : !appearance?.kanbanCardBorderColor &&
-                "border-transparent hover:border-muted",
+                "border-line hover:border-foreground/20",
         )}
         style={{
           ...style,
@@ -419,7 +419,7 @@ export const LeadItem = memo(
         <Separator />
         <div
           data-dnd-handle
-          className="flex items-center justify-between bg-secondary px-3 py-2"
+          className="flex items-center justify-between px-3 py-2"
           {...listeners}
           {...attributes}
         >
@@ -541,7 +541,7 @@ export const LeadItem = memo(
               mesma proporção dos outros ícones do footer. */}
             {data.nextAppointment && isFieldVisible(visibility, "nextAppointment") && (
               <span
-                className="inline-flex items-center gap-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400"
+                className="inline-flex items-center gap-0.5 text-[10px] font-medium text-info"
                 title={`${dayjs(data.nextAppointment.startsAt).format("DD/MM HH:mm")} — ${
                   data.nextAppointment.agendaName
                 }${
@@ -765,7 +765,7 @@ function LeadActionsIndicator({
         onPointerDown={(e) => e.stopPropagation()}
         className={cn(
           "inline-flex items-center gap-0.5 hover:opacity-80 transition-opacity cursor-pointer",
-          pending > 0 ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground",
+          pending > 0 ? "text-info" : "text-muted-foreground",
         )}
         aria-label={tooltip}
         title={tooltip}
@@ -811,10 +811,10 @@ function DeadlineBadge({ hint }: { hint: NonNullable<Lead["deadlineHint"]> }) {
   // tenham EXATAMENTE o mesmo visual no card.
   const isBreached = info.tier === "expired";
   const colorClass = isBreached
-    ? "bg-red-500/15 text-red-700 border-red-500/30"
+    ? "bg-destructive/15 text-destructive border-destructive/30"
     : info.tier === "urgent" || info.tier === "warning"
-      ? "bg-yellow-500/15 text-yellow-700 border-yellow-500/30"
-      : "bg-emerald-500/15 text-emerald-700 border-emerald-500/30";
+      ? "bg-warning/15 text-warning border-warning/30"
+      : "bg-success/15 text-success border-success/30";
   const Icon = isBreached ? TimerOff : Timer;
 
   return (

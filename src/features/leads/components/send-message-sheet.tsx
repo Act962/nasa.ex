@@ -34,7 +34,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
 import { countries } from "@/types/some";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { InfoIcon, Loader2 } from "lucide-react";
+import { InfoIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import Link from "next/link";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -393,7 +394,7 @@ export function SendMessageSheet({
               disabled={isPending}
             >
               {isPending ? (
-                <Loader2 className="size-4 animate-spin mr-2" />
+                <OrbitaSpinner className="size-4 mr-2" />
               ) : null}
               {isPending ? "Enviando..." : "Enviar"}
             </Button>

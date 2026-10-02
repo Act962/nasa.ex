@@ -1,5 +1,6 @@
 "use client";
 
+import { WhatsappIcon } from "@/components/whatsapp";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -90,14 +91,20 @@ function formatScheduledAt(value: Date | string): string {
   });
 }
 
-function CounterCard({ label, value }: { label: string; value: number }) {
+function CounterCell({ label, shortLabel, value }: { label: string; shortLabel: string; value: number }) {
   return (
-    <div className="rounded-lg border p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-xl font-semibold tabular-nums">{value}</p>
+    <div className="min-w-0 px-1.5 py-2.5 text-center sm:px-3 sm:py-3 sm:text-left">
+      <p className="truncate text-[10.5px] text-muted-foreground sm:text-xs">
+        <span className="sm:hidden">{shortLabel}</span>
+        <span className="max-sm:hidden">{label}</span>
+      </p>
+      <p className="text-lg font-semibold tabular-nums sm:text-xl">{value.toLocaleString("pt-BR")}</p>
     </div>
   );
 }
+
+const PRIMARY_SEND_BUTTON_CLASS =
+  "rounded-full bg-brand-whatsapp! font-bold text-brand-whatsapp-deep! hover:bg-brand-whatsapp/90! max-sm:h-11 max-sm:flex-1";
 
 export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
   const router = useRouter();
@@ -140,7 +147,7 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center text-muted-foreground">
         Campanha não encontrada.{" "}
-        <Link href="/campanhas" className="underline">
+        <Link href="/campanhas?lista=1" className="underline">
           Voltar
         </Link>
       </div>
@@ -234,7 +241,7 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
       {
         onSuccess: () => {
           toast.success("Campanha excluída.");
-          router.push("/campanhas");
+          router.push("/campanhas?lista=1");
         },
         onError: (error) => toast.error(error.message ?? "Falha ao excluir."),
       },
@@ -255,27 +262,30 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
   return (
     <div>
       <Link
-        href="/campanhas"
+        href="/campanhas?lista=1"
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" /> Voltar para campanhas
       </Link>
 
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold">{broadcast.name}</h1>
-            <Badge variant="secondary">
+      <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h1 className="min-w-0 text-xl font-semibold break-words sm:text-2xl">{broadcast.name}</h1>
+            <Badge variant="secondary" className="rounded-full">
               {BROADCAST_STATUS_LABEL[broadcast.status] ?? broadcast.status}
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground">Origem: {number}</p>
+          <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <WhatsappIcon className="size-3.5 shrink-0 text-brand-whatsapp" /> {number}
+          </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
           {broadcast.status === "FAILED" && (
             <Button
               variant="outline"
+              className="rounded-full max-sm:h-11 max-sm:flex-1"
               onClick={handleReopen}
               disabled={reopenBroadcast.isPending}
             >
@@ -287,6 +297,7 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
             <>
               <Button
                 variant="outline"
+                className="rounded-full max-sm:h-11 max-sm:flex-1"
                 onClick={openSchedule}
                 disabled={!canSend || scheduleBroadcast.isPending}
               >
@@ -295,7 +306,7 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
 
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button disabled={!canSend || sendBroadcast.isPending}>
+                  <Button className={PRIMARY_SEND_BUTTON_CLASS} disabled={!canSend || sendBroadcast.isPending}>
                     <Send className="size-4" /> Disparar
                   </Button>
                 </AlertDialogTrigger>
@@ -324,6 +335,7 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
             <>
               <Button
                 variant="outline"
+                className="rounded-full max-sm:h-11 max-sm:flex-1"
                 onClick={handleUnschedule}
                 disabled={unscheduleBroadcast.isPending}
               >
@@ -331,6 +343,7 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
               </Button>
               <Button
                 variant="outline"
+                className="rounded-full max-sm:h-11 max-sm:flex-1"
                 onClick={openSchedule}
                 disabled={scheduleBroadcast.isPending}
               >
@@ -338,7 +351,7 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button disabled={sendBroadcast.isPending}>
+                  <Button className={PRIMARY_SEND_BUTTON_CLASS} disabled={sendBroadcast.isPending}>
                     <Send className="size-4" /> Disparar agora
                   </Button>
                 </AlertDialogTrigger>
@@ -371,7 +384,7 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" aria-label="Mais ações">
+              <Button variant="outline" size="icon" className="shrink-0 rounded-full max-sm:size-11" aria-label="Mais ações">
                 <MoreVertical className="size-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -395,7 +408,7 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
       </div>
 
       {broadcast.status === "DRAFT" && !isReady && (
-        <p className="mb-6 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+        <p className="mb-5 rounded-[18px] border border-dashed p-3 text-sm text-muted-foreground sm:mb-6">
           Para disparar: escolha um modelo na aba{" "}
           <span className="font-medium text-foreground">Modelo</span> e adicione
           destinatários.
@@ -409,7 +422,7 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
       )}
 
       {isScheduled && broadcast.scheduledAt && (
-        <p className="mb-6 flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+        <p className="mb-6 flex items-center gap-2 rounded-[18px] border border-warning/30 bg-warning/10 p-3 text-sm text-warning dark:border-warning dark:bg-warning/15 dark:text-warning">
           <CalendarClock className="size-4 shrink-0" />
           Disparo agendado para{" "}
           <span className="font-medium">
@@ -420,25 +433,25 @@ export function BroadcastDetail({ broadcastId }: { broadcastId: string }) {
       )}
 
       {broadcast.status === "FAILED" && (
-        <p className="mb-6 rounded-md border border-dashed border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+        <p className="mb-6 rounded-[18px] border border-dashed border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive dark:border-destructive dark:bg-destructive/15 dark:text-destructive">
           O disparo falhou. Clique em{" "}
           <span className="font-medium">Reabrir</span> (ou atrele novos contatos
           em Contatos) para voltar ao rascunho, corrigir e disparar de novo.
         </p>
       )}
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <CounterCard label="Destinatários" value={broadcast.totalRecipients} />
-        <CounterCard label="Enviados" value={broadcast.sentCount} />
-        <CounterCard label="Entregues" value={broadcast.deliveredCount} />
-        <CounterCard label="Lidos" value={broadcast.readCount} />
-        <CounterCard label="Falhas" value={broadcast.failedCount} />
+      <div className="mb-5 grid grid-cols-5 divide-x divide-line rounded-[20px] border bg-card sm:mb-6">
+        <CounterCell label="Destinatários" shortLabel="Contatos" value={broadcast.totalRecipients} />
+        <CounterCell label="Enviados" shortLabel="Enviados" value={broadcast.sentCount} />
+        <CounterCell label="Entregues" shortLabel="Entregues" value={broadcast.deliveredCount} />
+        <CounterCell label="Lidos" shortLabel="Lidos" value={broadcast.readCount} />
+        <CounterCell label="Falhas" shortLabel="Falhas" value={broadcast.failedCount} />
       </div>
 
       <Tabs defaultValue="template">
-        <TabsList>
-          <TabsTrigger value="template">Modelo</TabsTrigger>
-          <TabsTrigger value="recipients">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="template" className="flex-1 sm:flex-none">Modelo</TabsTrigger>
+          <TabsTrigger value="recipients" className="flex-1 sm:flex-none">
             Destinatários ({broadcast.totalRecipients})
           </TabsTrigger>
         </TabsList>

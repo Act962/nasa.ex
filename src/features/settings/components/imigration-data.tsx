@@ -31,8 +31,8 @@ export function MigrationData() {
   if (isSingle) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
-        <div className="flex items-center justify-center size-14 rounded-full bg-amber-100 dark:bg-amber-950/40">
-          <Lock className="size-7 text-amber-600 dark:text-amber-400" />
+        <div className="flex items-center justify-center size-14 rounded-full bg-warning/15">
+          <Lock className="size-7 text-warning" />
         </div>
         <div>
           <h3 className="text-base font-semibold">Acesso Restrito</h3>
@@ -100,14 +100,14 @@ export function MigrationData() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Imigração Total */}
+        {/* Migração completa */}
         <Card className="flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <DatabaseBackup className="size-6 text-primary" />
+              <div className="grid size-11 shrink-0 place-items-center rounded-full bg-knob">
+                <DatabaseBackup className="size-5 text-foreground" />
               </div>
-              <CardTitle>Imigração Total</CardTitle>
+              <CardTitle>Migração completa</CardTitle>
             </div>
             <CardDescription>
               Migre todos os dados históricos e registros completos.
@@ -149,14 +149,14 @@ export function MigrationData() {
           </CardFooter>
         </Card>
 
-        {/* Imigração Parcial */}
+        {/* Migração parcial */}
         <Card className="flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Database className="size-6 text-primary" />
+              <div className="grid size-11 shrink-0 place-items-center rounded-full bg-knob">
+                <Database className="size-5 text-foreground" />
               </div>
-              <CardTitle>Imigração Parcial</CardTitle>
+              <CardTitle>Migração parcial</CardTitle>
             </div>
             <CardDescription>
               Migre apenas os dados recentes e essenciais para operação.

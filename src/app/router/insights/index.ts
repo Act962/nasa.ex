@@ -1,4 +1,5 @@
 import { getAppsInsights } from "./get-apps-insights";
+import { getCrossSeries } from "./cross-series/get-cross-series";
 import { generateReport } from "./generate-report";
 import { getLeadCountByTracking } from "./get-lead-count-by-tracking";
 import { getLeadsByAcquisitionChannel } from "./get-leads-by-acquisition-channel";
@@ -42,6 +43,7 @@ import { getStatusConversion } from "./status-conversion/get";
 
 export const insightsRouter = {
   getAppsInsights,
+  getCrossSeries,
   generateReport,
   getTrackingDashboardReport,
   getLeadsByAcquisitionChannel,

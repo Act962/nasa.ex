@@ -199,7 +199,6 @@ export function PriceItemModal({
           <Button
             onClick={handleSubmit}
             disabled={createMutation.isPending || updateMutation.isPending}
-            className="bg-[#7C3AED] hover:bg-[#6D28D9]"
           >
             Salvar
           </Button>

@@ -8,7 +8,6 @@ import {
   MouseEvent as ReactMouseEvent,
   KeyboardEvent,
 } from "react";
-import { useRouter } from "next/navigation";
 import {
   ReactFlow,
   Background,
@@ -62,7 +61,6 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
-  ArrowLeftIcon,
   PlusIcon,
   SaveIcon,
   Trash2Icon,
@@ -78,8 +76,8 @@ import {
   FileJsonIcon,
   ImageIcon,
   FileImageIcon,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import {
   useNasaPlannerMindMap,
@@ -204,11 +202,11 @@ function NodeContextToolbar({
   const [showColorPicker, setShowColorPicker] = useState(false);
   return (
     <NodeToolbar isVisible position={Position.Top} offset={8}>
-      <div className="flex items-center gap-1 bg-white dark:bg-zinc-900 border rounded-xl shadow-lg px-2 py-1.5">
+      <div className="flex items-center gap-1 bg-popover border rounded-xl shadow-lg px-2 py-1.5">
         <button
           title="Adicionar filho (Tab)"
           onClick={onAddChild}
-          className="size-6 flex items-center justify-center rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 text-violet-600 transition-colors"
+          className="size-6 flex items-center justify-center rounded-full hover:bg-info/15 text-info transition-colors"
         >
           <PlusIcon className="size-3.5" />
         </button>
@@ -217,14 +215,14 @@ function NodeContextToolbar({
           title="Gerar com IA (Ctrl+G)"
           onClick={onGenerateAI}
           disabled={isGenerating}
-          className="size-6 flex items-center justify-center rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-600 transition-colors disabled:opacity-40"
+          className="size-6 flex items-center justify-center rounded-full hover:bg-warning/15 text-warning transition-colors disabled:opacity-40"
         >
-          {isGenerating ? <Loader2 className="size-3 animate-spin" /> : <BotIcon className="size-3.5" />}
+          {isGenerating ? <OrbitaSpinner className="size-3 " /> : <BotIcon className="size-3.5" />}
         </button>
         <button
           title="Criar Post"
           onClick={onCreatePost}
-          className="size-6 flex items-center justify-center rounded-lg hover:bg-pink-100 dark:hover:bg-pink-900/30 text-pink-500 transition-colors"
+          className="size-6 flex items-center justify-center rounded-full hover:bg-info/15 text-info transition-colors"
         >
           <FileImageIcon className="size-3.5" />
         </button>
@@ -233,12 +231,12 @@ function NodeContextToolbar({
           <button
             title="Cor"
             onClick={() => setShowColorPicker((p) => !p)}
-            className="size-6 flex items-center justify-center rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="size-6 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
           >
             <div className="size-3.5 rounded-full border border-white/50" style={{ background: color }} />
           </button>
           {showColorPicker && (
-            <div className="absolute top-8 left-0 z-50 bg-white dark:bg-zinc-900 border rounded-xl shadow-xl p-2 flex flex-wrap gap-1.5 w-[130px]">
+            <div className="absolute top-8 left-0 z-50 bg-popover border rounded-xl shadow-xl p-2 flex flex-wrap gap-1.5 w-[130px]">
               {BRANCH_COLORS.map((c) => (
                 <button
                   key={c}
@@ -254,7 +252,7 @@ function NodeContextToolbar({
         <button
           title="Excluir (Delete)"
           onClick={onDelete}
-          className="size-6 flex items-center justify-center rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-colors"
+          className="size-6 flex items-center justify-center rounded-full hover:bg-destructive/15 text-destructive transition-colors"
         >
           <Trash2Icon className="size-3.5" />
         </button>
@@ -384,7 +382,7 @@ function TopicNode({ id, data, selected }: { id: string; data: any; selected?: b
             {!data.aiSuggested && (
               <button
                 onClick={(e) => { e.stopPropagation(); handleAddChild(); }}
-                className="absolute -right-3 top-1/2 -translate-y-1/2 size-5 rounded-full bg-white/90 text-zinc-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-white hover:scale-110 border border-zinc-200"
+                className="absolute -right-3 top-1/2 -translate-y-1/2 size-5 rounded-full bg-card/90 text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-card hover:scale-110 border border-line"
                 title="Adicionar filho"
               >
                 <PlusIcon className="size-3" />
@@ -399,7 +397,7 @@ function TopicNode({ id, data, selected }: { id: string; data: any; selected?: b
         <button
           onClick={(e) => { e.stopPropagation(); handleCollapse(); }}
           className={cn(
-            "absolute -right-1.5 top-1/2 -translate-y-1/2 translate-x-full flex items-center justify-center rounded-full border-2 bg-white dark:bg-zinc-900 shadow-sm transition-colors hover:bg-zinc-50 z-10",
+            "absolute -right-1.5 top-1/2 -translate-y-1/2 translate-x-full flex items-center justify-center rounded-full border-2 bg-card shadow-sm transition-colors hover:bg-muted z-10",
             collapsed ? "size-5 text-xs font-bold" : "size-4",
           )}
           style={{ borderColor: data.color ?? "#7C3AED", color: data.color ?? "#7C3AED" }}
@@ -421,7 +419,7 @@ function StickyNoteNode({ id, data, selected }: { id: string; data: any; selecte
       <Handle type="target" position={Position.Left} className="!opacity-0" />
       <Handle type="source" position={Position.Right} className="!opacity-0" />
       <div
-        className={cn("px-3 py-2 rounded-lg text-sm shadow min-w-[120px] max-w-[200px] select-none cursor-pointer", selected && "ring-2 ring-violet-400")}
+        className={cn("px-3 py-2 rounded-lg text-sm shadow min-w-[120px] max-w-[200px] select-none cursor-pointer", selected && "ring-2 ring-info")}
         style={{ background: data.color ?? "#FEF08A", color: "#1F2937" }}
       >
         {data.editing ? (
@@ -441,35 +439,35 @@ function StickyNoteNode({ id, data, selected }: { id: string; data: any; selecte
 // ─── Card Node ────────────────────────────────────────────────────────────────
 function CardNode({ data, selected }: { data: any; selected?: boolean }) {
   const priorityColors: Record<string, string> = {
-    LOW: "bg-blue-100 text-blue-700",
-    MEDIUM: "bg-amber-100 text-amber-700",
-    HIGH: "bg-orange-100 text-orange-700",
-    URGENT: "bg-red-100 text-red-700",
+    LOW: "bg-temp-cold/15 text-temp-cold",
+    MEDIUM: "bg-temp-warm/15 text-temp-warm",
+    HIGH: "bg-temp-hot/15 text-temp-hot",
+    URGENT: "bg-temp-very-hot/15 text-temp-very-hot",
   };
   const statusColors: Record<string, string> = {
-    PENDING: "bg-zinc-100 text-zinc-600",
-    IN_PROGRESS: "bg-blue-100 text-blue-700",
-    COMPLETED: "bg-green-100 text-green-700",
-    CANCELLED: "bg-red-100 text-red-500",
+    PENDING: "bg-muted text-muted-foreground",
+    IN_PROGRESS: "bg-info/15 text-info",
+    COMPLETED: "bg-success/15 text-success",
+    CANCELLED: "bg-destructive/15 text-destructive",
   };
   return (
     <>
       <Handle type="target" position={Position.Left} className="!opacity-0" />
       <div
-        className={cn("bg-white dark:bg-zinc-800 rounded-xl border shadow-md p-3 min-w-[180px] max-w-[240px] select-none cursor-pointer", selected && "ring-2 ring-violet-400")}
+        className={cn("bg-card rounded-xl border shadow-md p-3 min-w-[180px] max-w-[240px] select-none cursor-pointer", selected && "ring-2 ring-info")}
       >
         <p className="text-sm font-semibold line-clamp-2 mb-2">{data.title ?? "Card"}</p>
         <div className="flex flex-wrap gap-1">
           {data.status && (
-            <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", statusColors[data.status] ?? "bg-zinc-100")}>
+            <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", statusColors[data.status] ?? "bg-muted")}>
               {data.status === "PENDING" ? "Pendente" : data.status === "IN_PROGRESS" ? "Em andamento" : data.status === "COMPLETED" ? "Concluído" : "Cancelado"}
             </span>
           )}
           {data.priority && (
-            <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", priorityColors[data.priority] ?? "bg-zinc-100")}>{data.priority}</span>
+            <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", priorityColors[data.priority] ?? "bg-muted")}>{data.priority}</span>
           )}
           {data.dueDate && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
               📅 {new Date(data.dueDate).toLocaleDateString("pt-BR")}
             </span>
           )}
@@ -500,7 +498,7 @@ function CustomEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, ta
           className="nodrag nopan"
         >
           <button
-            className="size-4 rounded-full bg-red-500 text-white text-[8px] flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+            className="size-4 rounded-full bg-destructive text-white text-[8px] flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
             onClick={() => setEdges((eds) => eds.filter((e) => e.id !== id))}
           >×</button>
         </div>
@@ -516,7 +514,6 @@ type HistoryEntry = { nodes: Node[]; edges: Edge[] };
 
 // ─── Main Editor ──────────────────────────────────────────────────────────────
 function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindMapId: string }) {
-  const router = useRouter();
   const { mindMap, isLoading } = useNasaPlannerMindMap(mindMapId);
   const updateMindMap = useUpdateMindMap();
   const createCard = useCreateCard();
@@ -1095,10 +1092,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center gap-1.5 px-3 py-2 border-b bg-background z-10 shrink-0 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={() => router.push(`/nasa-planner/${plannerId}`)}>
-          <ArrowLeftIcon className="size-4" />
-        </Button>
+      <div className="flex items-center gap-1.5 px-3 py-2 bg-background z-10 shrink-0 flex-wrap">
         <div className="h-5 w-px bg-border" />
         <span className="font-semibold text-sm truncate max-w-[200px]">
           {(mindMap as any)?.name ?? "Mapa Mental"}
@@ -1167,14 +1161,14 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
         </DropdownMenu>
 
         <Button size="sm" onClick={handleSave} disabled={isSaving} className="gap-1.5 h-8">
-          {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <SaveIcon className="size-3.5" />}
+          {isSaving ? <OrbitaSpinner className="size-3.5 " /> : <SaveIcon className="size-3.5" />}
           Salvar
         </Button>
       </div>
 
       {/* Search bar */}
       {searchOpen && (
-        <div className="flex items-center gap-2 px-4 py-2 border-b bg-background/95 backdrop-blur z-10">
+        <div className="flex items-center gap-2 px-4 py-2 bg-background/95 backdrop-blur z-10">
           <SearchIcon className="size-4 text-muted-foreground shrink-0" />
           <Input
             autoFocus
@@ -1193,7 +1187,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
       )}
 
       {/* Keyboard shortcuts hint */}
-      <div className="flex items-center gap-3 px-4 py-1 text-[10px] text-muted-foreground bg-muted/30 border-b shrink-0 overflow-x-auto">
+      <div className="flex items-center gap-3 px-4 py-1 text-[10px] text-muted-foreground bg-muted/30 shrink-0 overflow-x-auto">
         <span><kbd className="font-mono bg-muted px-1 rounded">Tab</kbd> filho</span>
         <span><kbd className="font-mono bg-muted px-1 rounded">Enter</kbd> irmão</span>
         <span><kbd className="font-mono bg-muted px-1 rounded">F2</kbd> editar</span>
@@ -1235,7 +1229,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
           <Panel position="bottom-center">
             {isSaving && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1.5 rounded-full border shadow-sm">
-                <Loader2 className="size-3 animate-spin" />
+                <OrbitaSpinner className="size-3 " />
                 Salvando...
               </div>
             )}
@@ -1309,7 +1303,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <BotIcon className="size-4 text-amber-500" />
+                <BotIcon className="size-4 text-warning" />
                 Sugestões de IA para "{aiSuggestionDialog.label}"
               </DialogTitle>
             </DialogHeader>
@@ -1318,7 +1312,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
               <ul className="space-y-1.5">
                 {aiSuggestionDialog.suggestions.map((s, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg bg-muted/50">
-                    <span className="size-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span>
+                    <span className="size-5 rounded-full bg-warning/15 text-warning flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span>
                     {s}
                   </li>
                 ))}

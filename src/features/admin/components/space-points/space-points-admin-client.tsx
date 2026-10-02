@@ -148,42 +148,42 @@ function AdjustModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-80 space-y-4">
-        <h3 className="text-sm font-bold text-white">
+      <div className="bg-card border border-line rounded-2xl p-6 w-80 space-y-4">
+        <h3 className="text-sm font-bold text-foreground">
           Ajustar pontos — {userName}
         </h3>
-        <p className="text-xs text-zinc-400">
+        <p className="text-xs text-muted-foreground">
           Total atual:{" "}
-          <span className="text-violet-300 font-bold">
+          <span className="text-info font-bold">
             {totalPoints.toLocaleString("pt-BR")} pts
           </span>
         </p>
 
         <div className="space-y-2">
-          <label className="text-xs text-zinc-400">
+          <label className="text-xs text-muted-foreground">
             Valor (positivo = adicionar, negativo = remover)
           </label>
           <input
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full text-sm bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+            className="w-full text-sm bg-muted border border-line rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
         <div className="space-y-2">
-          <label className="text-xs text-zinc-400">Motivo (opcional)</label>
+          <label className="text-xs text-muted-foreground">Motivo (opcional)</label>
           <input
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Ex: Premiação do mês"
-            className="w-full text-sm bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+            className="w-full text-sm bg-muted border border-line rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div className="flex gap-2 pt-2">
           <button
             onClick={onClose}
-            className="flex-1 text-sm py-2 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+            className="flex-1 text-sm py-2 rounded-lg bg-muted text-foreground hover:bg-knob"
           >
             Cancelar
           </button>
@@ -192,7 +192,7 @@ function AdjustModal({
             disabled={
               isPending || amount.trim() === "" || parseInt(amount) === 0
             }
-            className="flex-1 text-sm py-2 rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+            className="flex-1 text-sm py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {isPending ? "..." : "Confirmar"}
           </button>
@@ -233,12 +233,12 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
       )}
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar usuário..."
-          className="w-full pl-8 pr-3 py-2 text-sm bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+          className="w-full pl-8 pr-3 py-2 text-sm bg-muted border border-line rounded-lg text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -247,12 +247,12 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
           {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
-              className="h-12 rounded-lg bg-zinc-800 animate-pulse"
+              className="h-12 rounded-lg bg-muted animate-pulse"
             />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-zinc-500 text-center py-6">
+        <p className="text-sm text-muted-foreground text-center py-6">
           Nenhum usuário encontrado.
         </p>
       ) : (
@@ -260,12 +260,12 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
           {filtered.map((u, idx) => (
             <div
               key={u.userId}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 transition-all"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-all"
             >
-              <span className="text-xs text-zinc-500 w-5 shrink-0">
+              <span className="text-xs text-muted-foreground w-5 shrink-0">
                 {(page - 1) * 20 + idx + 1}
               </span>
-              <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-zinc-700">
+              <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-line">
                 {u.image ? (
                   <Image
                     src={u.image}
@@ -274,7 +274,7 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
                     className="object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full bg-violet-900 flex items-center justify-center text-xs text-white font-bold">
+                  <div className="w-full h-full bg-info/15 flex items-center justify-center text-xs text-info font-bold">
                     {u.name
                       .split(" ")
                       .map((w) => w[0])
@@ -285,18 +285,18 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
+                <p className="text-sm font-medium text-foreground truncate">
                   {u.name}
                 </p>
-                <p className="text-[10px] text-zinc-500 truncate">
+                <p className="text-[10px] text-muted-foreground truncate">
                   {u.email} {u.levelName ? `· ${u.levelName}` : ""}
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-sm font-bold text-violet-300">
+                <p className="text-sm font-bold text-info">
                   {u.totalPoints.toLocaleString("pt-BR")} pts
                 </p>
-                <p className="text-[10px] text-zinc-500">
+                <p className="text-[10px] text-muted-foreground">
                   {u.weeklyPoints} esta semana
                 </p>
               </div>
@@ -309,7 +309,7 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
                   })
                 }
                 title="Ajustar pontos"
-                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg bg-zinc-700 hover:bg-violet-600/30 transition-all text-zinc-400 hover:text-violet-300"
+                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg bg-knob hover:bg-info/15 transition-all text-muted-foreground hover:text-info"
               >
                 <Zap className="w-3.5 h-3.5" />
               </button>
@@ -323,17 +323,17 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
           <button
             disabled={page === 1}
             onClick={() => setPage((p) => p - 1)}
-            className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40"
+            className="text-xs px-3 py-1.5 rounded-lg bg-muted text-foreground hover:bg-knob disabled:opacity-40"
           >
             ← Anterior
           </button>
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-muted-foreground">
             Página {page} · {data.total} total
           </span>
           <button
             disabled={page * 20 >= data.total}
             onClick={() => setPage((p) => p + 1)}
-            className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40"
+            className="text-xs px-3 py-1.5 rounded-lg bg-muted text-foreground hover:bg-knob disabled:opacity-40"
           >
             Próximo →
           </button>
@@ -378,7 +378,7 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
 //           {Array.from({ length: 4 }).map((_, i) => (
 //             <div
 //               key={i}
-//               className="h-12 rounded-lg bg-zinc-800 animate-pulse"
+//               className="h-12 rounded-lg bg-muted animate-pulse"
 //             />
 //           ))}
 //         </div>
@@ -390,8 +390,8 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
 //               className={cn(
 //                 "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all",
 //                 rule.isActive
-//                   ? "bg-zinc-800/50 border-zinc-700"
-//                   : "bg-zinc-900 border-zinc-800 opacity-50",
+//                   ? "bg-muted/50 border-line"
+//                   : "bg-card border-border opacity-50",
 //               )}
 //             >
 //               <button
@@ -400,7 +400,7 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
 //                 }
 //                 className={cn(
 //                   "w-8 h-5 rounded-full transition-all shrink-0",
-//                   rule.isActive ? "bg-violet-600" : "bg-zinc-700",
+//                   rule.isActive ? "bg-primary" : "bg-knob",
 //                 )}
 //               >
 //                 <div
@@ -411,13 +411,13 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
 //                 />
 //               </button>
 //               <div className="flex-1 min-w-0">
-//                 <p className="text-sm text-white truncate">{rule.label}</p>
-//                 <p className="text-[10px] text-zinc-500 font-mono">
+//                 <p className="text-sm text-foreground truncate">{rule.label}</p>
+//                 <p className="text-[10px] text-muted-foreground font-mono">
 //                   {rule.action}{" "}
 //                   {rule.cooldownHours ? `· ⏱ ${rule.cooldownHours}h` : ""}
 //                 </p>
 //               </div>
-//               <span className="text-sm font-bold text-violet-300 shrink-0">
+//               <span className="text-sm font-bold text-info shrink-0">
 //                 {rule.points} pts
 //               </span>
 //             </div>
@@ -426,20 +426,20 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
 //       )}
 
 //       {showCreate ? (
-//         <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3 space-y-2">
-//           <p className="text-xs font-semibold text-violet-400">Nova regra</p>
+//         <div className="rounded-xl border border-info/30 bg-info/5 p-3 space-y-2">
+//           <p className="text-xs font-semibold text-info">Nova regra</p>
 //           <div className="grid grid-cols-2 gap-2">
 //             <input
 //               placeholder="Identificador"
 //               value={newAction}
 //               onChange={(e) => setNewAction(e.target.value)}
-//               className="col-span-2 text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+//               className="col-span-2 text-xs bg-muted border border-line rounded-lg px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
 //             />
 //             <input
 //               placeholder="Descrição"
 //               value={newLabel}
 //               onChange={(e) => setNewLabel(e.target.value)}
-//               className="col-span-2 text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+//               className="col-span-2 text-xs bg-muted border border-line rounded-lg px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
 //             />
 //             <input
 //               type="number"
@@ -447,7 +447,7 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
 //               placeholder="Pontos"
 //               value={newPoints}
 //               onChange={(e) => setNewPoints(parseInt(e.target.value) || 1)}
-//               className="text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+//               className="text-xs bg-muted border border-line rounded-lg px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
 //             />
 //             <input
 //               type="number"
@@ -456,20 +456,20 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
 //               placeholder="Cooldown (h)"
 //               value={newCooldown}
 //               onChange={(e) => setNewCooldown(e.target.value)}
-//               className="text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+//               className="text-xs bg-muted border border-line rounded-lg px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
 //             />
 //           </div>
 //           <div className="flex gap-2 justify-end">
 //             <button
 //               onClick={() => setShowCreate(false)}
-//               className="text-xs text-zinc-400 hover:text-white px-3 py-1"
+//               className="text-xs text-muted-foreground hover:text-foreground px-3 py-1"
 //             >
 //               Cancelar
 //             </button>
 //             <button
 //               onClick={handleCreate}
 //               disabled={creating}
-//               className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg hover:bg-violet-700 disabled:opacity-50"
+//               className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-50"
 //             >
 //               {creating ? "..." : "Criar"}
 //             </button>
@@ -478,7 +478,7 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
 //       ) : (
 //         <button
 //           onClick={() => setShowCreate(true)}
-//           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-violet-500/30 text-violet-400 hover:bg-violet-500/10 transition-all text-xs"
+//           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-info/30 text-info hover:bg-info/10 transition-all text-xs"
 //         >
 //           <Plus className="w-3.5 h-3.5" /> Nova regra para esta empresa
 //         </button>
@@ -492,10 +492,10 @@ function OrgPanel({ orgId, orgName }: { orgId: string; orgName: string }) {
   const [tab, setTab] = useState<"users" | "rules">("users");
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-800/50">
-        <p className="text-sm font-semibold text-white">{orgName}</p>
-        <div className="flex gap-1 bg-zinc-900 rounded-lg p-0.5">
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 bg-muted/50">
+        <p className="text-sm font-semibold text-foreground">{orgName}</p>
+        <div className="flex gap-1 bg-panel rounded-full p-1">
           {(
             [
               { key: "users", icon: Users, label: "Usuários" },
@@ -506,10 +506,10 @@ function OrgPanel({ orgId, orgName }: { orgId: string; orgName: string }) {
               key={key}
               onClick={() => setTab(key)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                 tab === key
-                  ? "bg-violet-600 text-white"
-                  : "text-zinc-400 hover:text-white",
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               <Icon className="w-3 h-3" />
@@ -549,7 +549,7 @@ export function SpacePointsAdminClient({ topOrgs, allOrgs }: Props) {
       {/* Left: top orgs + selector */}
       <div className="space-y-4">
         <div>
-          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
             Top Empresas
           </h2>
           <div className="space-y-1.5">
@@ -560,11 +560,11 @@ export function SpacePointsAdminClient({ topOrgs, allOrgs }: Props) {
                 className={cn(
                   "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-all",
                   selectedOrg === org.orgId
-                    ? "bg-violet-600/20 border border-violet-500/40"
-                    : "bg-zinc-900 border border-zinc-800 hover:bg-zinc-800",
+                    ? "bg-info/15 border border-info/30"
+                    : "bg-card border border-border hover:bg-muted",
                 )}
               >
-                <span className="text-xs text-zinc-500 w-4 shrink-0">
+                <span className="text-xs text-muted-foreground w-4 shrink-0">
                   #{idx + 1}
                 </span>
                 {org.orgLogo ? (
@@ -577,38 +577,38 @@ export function SpacePointsAdminClient({ topOrgs, allOrgs }: Props) {
                     />
                   </div>
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-violet-900 flex items-center justify-center text-[9px] text-white font-bold shrink-0">
+                  <div className="w-6 h-6 rounded-full bg-info/15 flex items-center justify-center text-[9px] text-info font-bold shrink-0">
                     {org.orgName[0]}
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-white truncate">
+                  <p className="text-xs font-medium text-foreground truncate">
                     {org.orgName}
                   </p>
-                  <p className="text-[9px] text-zinc-500">
+                  <p className="text-[9px] text-muted-foreground">
                     {org.userCount} usuários
                   </p>
                 </div>
-                <span className="text-[10px] font-bold text-violet-300 shrink-0">
+                <span className="text-[10px] font-bold text-info shrink-0">
                   {org.totalPoints.toLocaleString("pt-BR")}
                 </span>
-                <ChevronRight className="w-3 h-3 text-zinc-600 shrink-0" />
+                <ChevronRight className="w-3 h-3 text-muted-foreground/70 shrink-0" />
               </button>
             ))}
           </div>
         </div>
 
         <div>
-          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             Todas as empresas
           </h2>
           <div className="relative mb-2">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar empresa..."
-              className="w-full pl-7 pr-3 py-1.5 text-xs bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+              className="w-full pl-7 pr-3 py-1.5 text-xs bg-muted border border-line rounded-lg text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
           <div className="max-h-48 overflow-y-auto space-y-0.5">
@@ -619,8 +619,8 @@ export function SpacePointsAdminClient({ topOrgs, allOrgs }: Props) {
                 className={cn(
                   "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition-all",
                   selectedOrg === org.id
-                    ? "bg-violet-600/20 text-violet-300"
-                    : "text-zinc-400 hover:bg-zinc-800 hover:text-white",
+                    ? "bg-info/15 text-info"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 <span className="text-xs truncate">{org.name}</span>
@@ -635,12 +635,12 @@ export function SpacePointsAdminClient({ topOrgs, allOrgs }: Props) {
         {selectedOrg ? (
           <OrgPanel orgId={selectedOrg} orgName={selectedOrgName} />
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-center py-20 bg-zinc-900 border border-zinc-800 rounded-xl">
-            <BarChart2 className="w-10 h-10 text-zinc-700 mb-3" />
-            <p className="text-sm font-semibold text-zinc-400">
+          <div className="h-full flex flex-col items-center justify-center text-center py-20 bg-card border border-border rounded-xl">
+            <BarChart2 className="w-10 h-10 text-muted-foreground/70 mb-3" />
+            <p className="text-sm font-semibold text-muted-foreground">
               Selecione uma empresa
             </p>
-            <p className="text-xs text-zinc-600 mt-1">
+            <p className="text-xs text-muted-foreground/70 mt-1">
               para ver usuários, pontos e gerenciar regras
             </p>
           </div>

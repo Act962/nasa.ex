@@ -32,9 +32,9 @@ interface Props {
 }
 
 const STATUS_CONFIG = {
-  PENDING:  { label: "Aguardando", color: "bg-yellow-500/15 text-yellow-600 border-yellow-300", icon: ClockIcon },
-  APPROVED: { label: "Aprovado",   color: "bg-emerald-500/15 text-emerald-600 border-emerald-300", icon: CheckCircle2Icon },
-  REJECTED: { label: "Rejeitado",  color: "bg-red-500/15 text-red-600 border-red-300", icon: XCircleIcon },
+  PENDING:  { label: "Aguardando", color: "bg-warning/15 text-warning border-warning/30", icon: ClockIcon },
+  APPROVED: { label: "Aprovado",   color: "bg-success/15 text-success border-success/30", icon: CheckCircle2Icon },
+  REJECTED: { label: "Rejeitado",  color: "bg-destructive/15 text-destructive border-destructive/30", icon: XCircleIcon },
 } as const;
 
 export function ShareActionDialog({ actionId, actionTitle, open, onOpenChange }: Props) {
@@ -64,9 +64,9 @@ export function ShareActionDialog({ actionId, actionTitle, open, onOpenChange }:
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg gap-0 p-0 overflow-hidden">
-        <DialogHeader className="px-5 py-4 border-b">
+        <DialogHeader className="px-5 py-4">
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Share2Icon className="size-4 text-violet-500" />
+            <Share2Icon className="size-4 text-info" />
             Compartilhar card com outra empresa
           </DialogTitle>
           <p className="text-xs text-muted-foreground mt-0.5 truncate">

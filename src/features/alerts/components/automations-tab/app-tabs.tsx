@@ -23,8 +23,8 @@ export function AppTabs({ apps, activeApp, onChange }: AppTabsProps) {
   }
 
   return (
-    <div className="border-b border-zinc-800/60 overflow-x-auto">
-      <div className="flex gap-1 min-w-max">
+    <div className="overflow-x-auto">
+      <div className="inline-flex gap-1 min-w-max rounded-full bg-panel p-1">
         {apps.map((app) => {
           const active = app.key === activeApp;
           return (
@@ -33,10 +33,10 @@ export function AppTabs({ apps, activeApp, onChange }: AppTabsProps) {
               type="button"
               onClick={() => onChange(app.key)}
               className={cn(
-                "px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors border-b-2",
+                "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
                 active
-                  ? "text-violet-300 border-violet-500"
-                  : "text-zinc-400 hover:text-zinc-200 border-transparent",
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {app.label}

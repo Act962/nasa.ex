@@ -3,12 +3,6 @@
 import { SearchLeadModal } from "@/components/modals/search-lead-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
-import {
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   InputGroup,
   InputGroupAddon,
@@ -17,31 +11,27 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useSearchModal } from "@/hooks/modal/use-search-modal";
 import { orpc } from "@/lib/orpc";
-import { DropdownMenu } from "@radix-ui/react-dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowLeftIcon,
-  CalendarDaysIcon,
-  Columns3Icon,
-  MessageSquareIcon,
-  MoreHorizontalIcon,
   Plus,
   Search,
-  SettingsIcon,
-  ZapIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { useState } from "react";
 import { AddParticipantDialog } from "./add-participant-dialog";
 import { cn } from "@/lib/utils";
+import { useAddLead } from "@/hooks/modal/use-add-lead";
+import AddLeadSheet from "@/features/trackings/components/modal/add-lead-sheet";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export function NavTracking() {
   const params = useParams<{ trackingId: string; workflowId: string }>();
   const pathname = usePathname();
-  const router = useRouter();
   const searchLead = useSearchModal();
   const [addMemberDialogIsOpen, setAddMemberDialogIsOpen] = useState(false);
+  const addLeadSheet = useAddLead();
+  const isBoardPage = pathname === `/tracking/${params.trackingId}`;
   const { data, isPending } = useQuery(
     orpc.tracking.listParticipants.queryOptions({
       input: {
@@ -54,40 +44,32 @@ export function NavTracking() {
     {
       label: "Tracking",
       href: `/tracking/${params.trackingId}`,
-      icon: <Columns3Icon />,
     },
     {
       label: "Chat",
       href: `/tracking-chat?trackingId=${params.trackingId}`,
-      icon: <MessageSquareIcon />,
     },
     {
       label: "Agendamentos",
       href: `/tracking/${params.trackingId}/appointments`,
-      icon: <CalendarDaysIcon />,
     },
     {
       label: "Gatilhos Automáticos",
       href: `/tracking/${params.trackingId}/workflows`,
-      icon: <ZapIcon />,
     },
     {
       label: "Configurações",
       href: `/tracking/${params.trackingId}/settings`,
-      icon: <SettingsIcon />,
     },
   ];
 
   return (
     <>
-      <div className="sticky top-0 bg-background z-10 flex justify-between items-center px-4 py-2 gap-2 border-b border-border">
+      <div className="sticky top-0 bg-background z-10 flex justify-between items-center px-4 py-2 gap-2">
         <div className="flex items-center gap-x-2">
-          <Button variant="ghost" size="icon" className="size-7" onClick={() => router.back()}>
-            <ArrowLeftIcon className="size-4" />
-          </Button>
           <SidebarTrigger />
 
-          <InputGroup onClick={() => searchLead.setIsOpen(true)}>
+          <InputGroup className="hidden lg:flex" onClick={() => searchLead.setIsOpen(true)}>
             <InputGroupInput placeholder="Pesquisar..." className="h-6" />
             <InputGroupAddon>
               <Search />
@@ -125,62 +107,54 @@ export function NavTracking() {
               </button>
             </div>
           )}
-          <ButtonGroup>
-            <ButtonGroup className="hidden lg:flex">
-              {navItems.map((item) => {
-                const isActive = pathname.startsWith("/tracking-chat")
-                  ? item.href.startsWith("/tracking-chat")
-                  : item.href === pathname;
+          <nav
+            aria-label="Seções do tracking"
+            className="hidden lg:inline-flex gap-0.5 rounded-full border border-line bg-panel p-[3px]"
+          >
+            {navItems.map((item) => {
+              const isActive = pathname.startsWith("/tracking-chat")
+                ? item.href.startsWith("/tracking-chat")
+                : item.href === pathname;
 
-                return (
-                  <Button
-                    key={item.label}
-                    variant="outline"
-                    size="sm"
-                    className={cn("", isActive && "opacity-60")}
-                  >
-                    <Link href={item.href} prefetch>
-                      {item.label}
-                    </Link>
-                  </Button>
-                );
-              })}
-            </ButtonGroup>
-
-            {/* Mobile */}
-            <ButtonGroup>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label="More Options"
-                    className="lg:hidden"
-                  >
-                    <MoreHorizontalIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  {navItems.map((item) => {
-                    return (
-                      <DropdownMenuItem
-                        key={item.label}
-                        asChild
-                        className="cursor-pointer"
-                      >
-                        <Link href={item.href} prefetch>
-                          {item.icon}
-                          {item.label}
-                        </Link>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </ButtonGroup>
-          </ButtonGroup>
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  prefetch
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "flex h-8 items-center rounded-full px-3.5 text-sm whitespace-nowrap transition-colors",
+                    isActive
+                      ? "bg-foreground font-medium text-background"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+          {isBoardPage && (
+            <Button
+              size="sm"
+              className="lg:hidden"
+              onClick={() => addLeadSheet.setIsOpen(true)}
+              data-guide={GUIDE_ANCHORS.boardNewLeadButton.id}
+            >
+              <Plus className="size-4" />
+              Novo Lead
+            </Button>
+          )}
         </div>
       </div>
+
+      {isBoardPage && (
+        <AddLeadSheet
+          trackingId={params.trackingId}
+          open={addLeadSheet.isOpen}
+          onOpenChange={addLeadSheet.setIsOpen}
+        />
+      )}
 
       <SearchLeadModal
         open={searchLead.isOpen}

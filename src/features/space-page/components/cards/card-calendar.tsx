@@ -37,7 +37,6 @@ export function CardCalendar({ nick }: CardCalendarProps) {
           asChild
           size="sm"
           variant="outline"
-          className="border-white/20 bg-white/5 text-white hover:bg-white/10"
         >
           <Link href={`/space/${nick}/agenda`}>
             Ver agenda completa
@@ -53,7 +52,7 @@ export function CardCalendar({ nick }: CardCalendarProps) {
       }
       emptyAction={
         isAuthenticated ? (
-          <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600">
+          <Button asChild size="sm" >
             <Link href="/agendas">
               <Plus className="mr-1 size-4" />
               Criar meu primeiro agendamento
@@ -64,8 +63,8 @@ export function CardCalendar({ nick }: CardCalendarProps) {
     >
       {isLoading ? (
         <div className="space-y-2">
-          <div className="h-16 animate-pulse rounded-xl bg-white/5" />
-          <div className="h-16 animate-pulse rounded-xl bg-white/5" />
+          <div className="h-16 animate-pulse rounded-xl bg-muted/50" />
+          <div className="h-16 animate-pulse rounded-xl bg-muted/50" />
         </div>
       ) : (
         <ul className="space-y-2">
@@ -77,21 +76,21 @@ export function CardCalendar({ nick }: CardCalendarProps) {
             return (
               <li
                 key={ev.id}
-                className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/5 p-3 transition hover:border-orange-500/30"
+                className="flex items-start gap-3 rounded-xl border border-border bg-muted/50 p-3 transition hover:border-info/30"
               >
-                <div className="flex w-14 shrink-0 flex-col items-center rounded-lg bg-slate-950/60 p-2 text-center">
-                  <span className="text-[10px] uppercase text-orange-400">
+                <div className="flex w-14 shrink-0 flex-col items-center rounded-lg bg-background/60 p-2 text-center">
+                  <span className="text-[10px] uppercase text-info">
                     {month}
                   </span>
-                  <span className="text-lg font-bold leading-none text-white">
+                  <span className="text-lg font-bold leading-none text-foreground">
                     {day}
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-white">
+                  <p className="truncate text-sm font-medium text-foreground">
                     {ev.title}
                   </p>
-                  <p className="flex items-center gap-1 text-xs text-white/60">
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
                     <CalendarDays className="size-3" />
                     {ev.city ?? "Online"}
                     {ev.eventCategory && <span>· {ev.eventCategory}</span>}

@@ -120,7 +120,7 @@ function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
 
           {label}
 
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
 
         </Label>
 
@@ -202,9 +202,9 @@ function FormView({
   return (
     <div className="flex flex-col gap-2 w-full">
       {label?.trim() && (
-        <Label className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}>
+        <Label className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-destructive" : ""}`}>
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       {/* `<style>` injetado no escopo do form pra forçar a cor do texto do
@@ -222,7 +222,7 @@ function FormView({
               variant="outline"
               data-date-trigger
               className={`justify-start font-normal flex-1 bg-transparent! hover:bg-foreground/10! ${
-                isError || isSubmitError ? "border-red-500!" : ""
+                isError || isSubmitError ? "border-destructive!" : ""
               }`}
               style={{
                 color: textColor || undefined,
@@ -272,7 +272,7 @@ function FormView({
       </div>
       {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
       {(isError || isSubmitError) && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage || "Selecione uma data."}</p>
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">{errorMessage || "Selecione uma data."}</p>
       )}
     </div>
   );

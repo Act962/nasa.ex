@@ -56,8 +56,8 @@ function fromLocalInput(s: string): Date | null {
 
 export function EventSection({ value, onChange }: Props) {
   return (
-    <div className="space-y-4 rounded-xl border border-rose-200 bg-rose-50/50 p-4 dark:border-rose-800/40 dark:bg-rose-900/10">
-      <div className="flex items-center gap-2 text-rose-900 dark:text-rose-200">
+    <div className="space-y-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+      <div className="flex items-center gap-2 text-destructive">
         <Calendar className="size-4" />
         <h3 className="text-sm font-semibold">Detalhes do evento</h3>
       </div>

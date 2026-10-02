@@ -107,7 +107,7 @@ export function TypographyEditor({
         <span
           className={cn(
             "text-[10px] font-mono truncate max-w-[120px]",
-            hasOverrides ? "text-indigo-600" : "text-muted-foreground/70",
+            hasOverrides ? "text-info" : "text-muted-foreground/70",
           )}
           title={summary}
         >

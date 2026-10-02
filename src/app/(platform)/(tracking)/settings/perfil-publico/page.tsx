@@ -35,11 +35,11 @@ import {
   FileText,
   Plus,
   Trash2,
-  Loader2,
   Eye,
   EyeOff,
   Rocket,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 /**
  * Página de edição do ProfileCard público — é onde o usuário "publica" o
@@ -137,7 +137,7 @@ export default function PerfilPublicoPage() {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <OrbitaSpinner className="size-6 text-muted-foreground" />
       </div>
     );
   }
@@ -175,10 +175,7 @@ export default function PerfilPublicoPage() {
               {/* Atalho direto pro World 2D da Station (sem passar por
                   /space/<nick>). Útil pro owner editar o mundo / colaborar
                   sem precisar abrir o perfil público antes. */}
-              <Button
-                asChild
-                className="bg-gradient-to-r from-orange-500 to-purple-500 text-white hover:opacity-90"
-              >
+              <Button asChild>
                 <Link
                   href={`/station/${stationNick}/world`}
                   target="_blank"
@@ -193,7 +190,7 @@ export default function PerfilPublicoPage() {
           )}
           <Button onClick={handleSave} disabled={upsert.isPending}>
             {upsert.isPending && (
-              <Loader2 className="mr-2 size-4 animate-spin" />
+              <OrbitaSpinner className="mr-2 size-4 " />
             )}
             Salvar
           </Button>
@@ -205,7 +202,7 @@ export default function PerfilPublicoPage() {
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             {isPublic ? (
-              <Eye className="mt-0.5 size-5 text-emerald-500" />
+              <Eye className="mt-0.5 size-5 text-success" />
             ) : (
               <EyeOff className="mt-0.5 size-5 text-muted-foreground" />
             )}
@@ -263,7 +260,7 @@ export default function PerfilPublicoPage() {
         <h2 className="font-medium">Links</h2>
 
         <FieldWithToggle
-          icon={<Linkedin className="size-4 text-blue-500" />}
+          icon={<Linkedin className="size-4 text-info" />}
           label="LinkedIn"
           visible={showLinkedin}
           onVisibleChange={setShowLinkedin}
@@ -291,7 +288,7 @@ export default function PerfilPublicoPage() {
         </FieldWithToggle>
 
         <FieldWithToggle
-          icon={<ExternalLink className="size-4 text-orange-500" />}
+          icon={<ExternalLink className="size-4 text-warning" />}
           label="Portfólio"
           visible={showPortfolio}
           onVisibleChange={setShowPortfolio}
@@ -305,7 +302,7 @@ export default function PerfilPublicoPage() {
         </FieldWithToggle>
 
         <FieldWithToggle
-          icon={<FileText className="size-4 text-emerald-500" />}
+          icon={<FileText className="size-4 text-success" />}
           label="Currículo (CV)"
           visible={showCv}
           onVisibleChange={setShowCv}
@@ -349,7 +346,7 @@ export default function PerfilPublicoPage() {
 
       <div className="sticky bottom-4 mt-8 flex justify-end gap-2">
         <Button onClick={handleSave} disabled={upsert.isPending} size="lg">
-          {upsert.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+          {upsert.isPending && <OrbitaSpinner className="mr-2 size-4 " />}
           Salvar alterações
         </Button>
       </div>

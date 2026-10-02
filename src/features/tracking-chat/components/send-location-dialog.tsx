@@ -52,7 +52,7 @@ export function SendLocationDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <MapPinIcon className="size-4 text-red-500" />
+            <MapPinIcon className="size-4 text-destructive" />
             Enviar localização
           </DialogTitle>
           <DialogDescription>
@@ -79,7 +79,7 @@ export function SendLocationDialog({
               rel="noopener noreferrer"
               className="flex items-start gap-2 p-3 bg-accent/40 hover:bg-accent/60 transition-colors"
             >
-              <MapPinIcon className="size-4 mt-0.5 shrink-0 text-red-500" />
+              <MapPinIcon className="size-4 mt-0.5 shrink-0 text-destructive" />
               <div className="flex flex-col text-xs">
                 <span className="font-medium">Abrir no Google Maps</span>
                 <span className="text-muted-foreground font-mono">

@@ -90,7 +90,7 @@ export function ImageCropEditor({ src, initialCrop, onApply, onClose }: Props) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="bg-card rounded-xl shadow-2xl flex flex-col w-full max-w-2xl mx-4">
-        <div className="flex items-center justify-between px-4 py-3 border-b">
+        <div className="flex items-center justify-between px-4 py-3">
           <span className="font-semibold text-sm">Cortar imagem</span>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded">
             <X size={16} />

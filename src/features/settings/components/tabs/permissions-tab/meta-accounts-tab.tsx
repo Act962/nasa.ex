@@ -47,8 +47,8 @@ export function MetaAccountsTab() {
 
   if (!data?.connected) {
     return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900/50 p-4 flex items-start gap-3">
-        <AlertCircle className="size-5 text-amber-600 mt-0.5" />
+      <div className="rounded-xl border border-warning/30 bg-warning/15 p-4 flex items-start gap-3">
+        <AlertCircle className="size-5 text-warning mt-0.5" />
         <div>
           <p className="text-sm font-medium">Meta não está conectado</p>
           <p className="text-xs text-muted-foreground">
@@ -85,8 +85,8 @@ export function MetaAccountsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border bg-blue-50/40 dark:bg-blue-950/20 border-blue-200/60 dark:border-blue-900/40 p-3 flex items-start gap-3">
-        <Sparkles className="size-4 text-blue-600 mt-0.5" />
+      <div className="rounded-xl border bg-info/10 border-info/30 p-3 flex items-start gap-3">
+        <Sparkles className="size-4 text-info mt-0.5" />
         <div className="text-xs">
           <p className="font-medium">Whitelist por conta Meta</p>
           <p className="text-muted-foreground">
@@ -136,7 +136,7 @@ export function MetaAccountsTab() {
                       <p className="truncate text-[11px] text-muted-foreground">
                         {m.role}
                         {m.fullAccess && (
-                          <span className="ml-2 inline-flex items-center gap-1 text-emerald-600">
+                          <span className="ml-2 inline-flex items-center gap-1 text-success">
                             <Lock className="size-2.5" />
                             acesso total
                           </span>
@@ -203,7 +203,7 @@ function CellAccess({
   if (member.fullAccess) {
     return (
       <td className="py-2 px-3">
-        <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
+        <span className="inline-flex items-center gap-1 text-[11px] text-success font-medium">
           <Lock className="size-3" /> todas ({total})
         </span>
       </td>

@@ -56,7 +56,7 @@ export function MissingItemsList({ requirementOverrides, onUpload }: MissingItem
       <CardContent className="space-y-4">
         {pendingItems.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-8 text-center">
-            <PartyPopper className="size-8 text-violet-500" />
+            <PartyPopper className="size-8 text-info" />
             <p className="text-sm font-medium">Tudo em dia!</p>
             <p className="max-w-sm text-xs text-muted-foreground">
               Nenhum documento vencido ou faltando. Avisaremos aqui quando algo estiver perto de vencer.

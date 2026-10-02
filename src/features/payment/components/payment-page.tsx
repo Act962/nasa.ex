@@ -1,5 +1,6 @@
 "use client";
 
+import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -67,6 +68,7 @@ import {
   Factory,
   Scale,
 } from "lucide-react";
+import { AppReportButton } from "@/features/insights/components/app-report-button";
 
 /**
  * Projeção, DRE e DRO moram dentro do Fluxo de Caixa: os quatro respondem à
@@ -150,6 +152,18 @@ export function PaymentPage() {
     [router, searchParams],
   );
 
+  // No celular as quatro abas do dia a dia ficam no dock em órbita; as demais seguem na barra.
+  useRegisterOrbitDock({
+    leftItems: [
+      { label: "Painel", icon: <LayoutDashboard />, onSelect: () => setActiveTab("dashboard"), isActive: activeTab === "dashboard" },
+      { label: "Receita", icon: <ArrowUpFromLine />, onSelect: () => setActiveTab("receivables"), isActive: activeTab === "receivables" },
+    ],
+    rightItems: [
+      { label: "Despesa", icon: <ArrowDownToLine />, onSelect: () => setActiveTab("payables"), isActive: activeTab === "payables" },
+      { label: "Fluxo", icon: <TrendingUp />, onSelect: () => setActiveTab("cashflow"), isActive: activeTab === "cashflow" },
+    ],
+  });
+
   // Alguém abriu /payment?tab=documentos numa nova navegação (link do Astro).
   useEffect(() => {
     const tabFromUrl = searchParams.get("tab") ?? "dashboard";
@@ -191,17 +205,6 @@ export function PaymentPage() {
   const activeTabLabel =
     tabs.find((tab) => tab.value === activeTab)?.label ?? "Painel";
 
-  const isOnDashboard = activeTab === "dashboard";
-
-  // Volta um nível: de qualquer aba para o Painel; do Painel, sai do Payment.
-  function handleBack() {
-    if (isOnDashboard) {
-      router.back();
-      return;
-    }
-    setActiveTab("dashboard");
-  }
-
   async function handleExport() {
     try {
       const result = await exportEntries.mutateAsync({
@@ -235,23 +238,13 @@ export function PaymentPage() {
       />
       {/* No mobile o título do módulo é redundante com o header do app — no
           lugar dele fica a aba atual e o menu sanduíche. */}
-      <div className="flex items-center justify-between px-4 sm:px-6 pt-2 sm:pt-6 pb-2 sm:pb-4 border-b shrink-0">
+      <div className="flex items-center justify-between px-4 sm:px-6 pt-2 sm:pt-6 pb-2 sm:pb-4 shrink-0">
         <div className="flex min-w-0 items-center gap-2">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-8 shrink-0"
-            onClick={handleBack}
-            aria-label="Voltar"
-            title={isOnDashboard ? "Voltar" : "Voltar para o Painel"}
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
           <span className="truncate text-sm font-semibold sm:hidden">
             {activeTabLabel}
           </span>
           <div className="hidden sm:flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-[#1E90FF] flex items-center justify-center shadow-sm">
+            <div className="w-9 h-9 rounded-xl bg-info flex items-center justify-center shadow-sm">
               <Landmark className="size-5 text-white" />
             </div>
             <div>
@@ -380,7 +373,7 @@ export function PaymentPage() {
           side="right"
           className="w-full sm:max-w-lg overflow-y-auto p-0"
         >
-          <SheetHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b sticky top-0 bg-background z-20">
+          <SheetHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 sticky top-0 bg-background z-20">
             <div className="flex items-center gap-2">
               <SheetClose asChild>
                 <Button
@@ -397,6 +390,7 @@ export function PaymentPage() {
                 <Settings className="size-4 shrink-0" />
                 <span className="truncate">Configurações do Payment</span>
               </SheetTitle>
+              <AppReportButton appModule="payment" className="ml-auto" />
             </div>
           </SheetHeader>
           <div className="px-4 sm:px-6 py-6 space-y-10">
@@ -408,7 +402,7 @@ export function PaymentPage() {
                 <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">
                   Aprovações pendentes
                   {pendingCount > 0 && (
-                    <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-bold leading-4 text-amber-950">
+                    <span className="rounded-full bg-warning px-1.5 text-[10px] font-bold leading-4 text-black/85">
                       {pendingCount > 99 ? "99+" : pendingCount}
                     </span>
                   )}

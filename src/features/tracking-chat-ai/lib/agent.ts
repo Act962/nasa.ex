@@ -161,6 +161,8 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
         usingCustomKey: resolved.usingCustom,
         source: "tracking-chat-ai",
         error,
+        // Chave própria daqui é a do AiSettings do tracking, não a de Satélites; a padrão é a OpenAI da plataforma.
+        provider: resolved.usingCustom ? undefined : "openai",
       });
       throw error;
     });

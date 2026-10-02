@@ -72,7 +72,7 @@ function ChipEditor({
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <span className="inline-flex items-center rounded-full border border-violet-400/35 bg-violet-500/[0.12] pl-3 text-xs text-white">
+    <span className="inline-flex items-center rounded-full border border-info/30 bg-info/15 pl-3 text-xs text-white">
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <button type="button" className="inline-flex items-center gap-1 py-1.5">
@@ -196,7 +196,7 @@ function ValuePicker({
         <button
           type="submit"
           disabled={!draft.trim()}
-          className="mt-1.5 w-full rounded-md bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:opacity-40"
+          className="mt-1.5 w-full rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-40"
         >
           Adicionar
         </button>

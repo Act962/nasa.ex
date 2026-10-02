@@ -12,9 +12,9 @@ import {
   Eye,
   EyeOff,
   ChevronRight,
-  Loader2,
   ExternalLink,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { slugify } from "./slug-utils";
 
 interface CategoryRow {
@@ -149,28 +149,28 @@ export function CategoriesManager() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-white">Tópicos</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">
+          <h2 className="text-sm font-semibold text-foreground">Tópicos</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
             Categorias principais do Space Help (ex: Tracking, Forge, NasaChat).
           </p>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-3.5 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium px-3.5 py-2 rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" /> Novo tópico
         </button>
       </div>
 
       {isLoading ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center text-sm text-zinc-500">
-          <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Carregando…
+        <div className="bg-card border border-border rounded-xl p-8 text-center text-sm text-muted-foreground">
+          <OrbitaSpinner className="w-5 h-5 mx-auto mb-2" /> Carregando…
         </div>
       ) : (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-900 border-b border-zinc-800">
-              <tr className="text-left text-xs uppercase tracking-wider text-zinc-500">
+            <thead className="bg-card border-b border-border">
+              <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Ordem</th>
                 <th className="px-4 py-3 font-medium">Nome</th>
                 <th className="px-4 py-3 font-medium">Slug</th>
@@ -180,37 +180,37 @@ export function CategoriesManager() {
                 <th className="px-4 py-3 font-medium text-right">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody className="divide-y divide-border">
               {data?.categories.map((cat) => (
-                <tr key={cat.id} className="hover:bg-zinc-800/40 transition-colors">
-                  <td className="px-4 py-3 text-zinc-400">{cat.order}</td>
+                <tr key={cat.id} className="hover:bg-muted transition-colors">
+                  <td className="px-4 py-3 text-muted-foreground">{cat.order}</td>
                   <td className="px-4 py-3">
                     <Link
                       href={`/admin/space-help/categorias/${cat.id}`}
-                      className="text-white font-medium hover:text-violet-300"
+                      className="text-foreground font-medium hover:text-info"
                     >
                       {cat.name}
                     </Link>
                     {cat.description && (
-                      <p className="text-[11px] text-zinc-500 mt-0.5 line-clamp-1">
+                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
                         {cat.description}
                       </p>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-zinc-400 font-mono text-xs">{cat.slug}</td>
-                  <td className="px-4 py-3 text-center text-zinc-300">
+                  <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{cat.slug}</td>
+                  <td className="px-4 py-3 text-center text-foreground">
                     {cat._count.features}
                   </td>
-                  <td className="px-4 py-3 text-center text-zinc-300">
+                  <td className="px-4 py-3 text-center text-foreground">
                     {cat._count.tracks}
                   </td>
                   <td className="px-4 py-3 text-center">
                     {cat.isPublished ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                      <span className="inline-flex items-center gap-1 text-[11px] text-success bg-success/10 border border-success/30 px-2 py-0.5 rounded-full">
                         <Eye className="w-3 h-3" /> Publicado
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500 bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded-full">
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-muted border border-line px-2 py-0.5 rounded-full">
                         <EyeOff className="w-3 h-3" /> Rascunho
                       </span>
                     )}
@@ -220,21 +220,21 @@ export function CategoriesManager() {
                       <Link
                         href={`/space-help/${cat.slug}`}
                         target="_blank"
-                        className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
                         title="Ver na plataforma"
                       >
                         <ExternalLink className="w-4 h-4" />
                       </Link>
                       <button
                         onClick={() => openEdit(cat)}
-                        className="p-1.5 text-zinc-500 hover:text-violet-300 hover:bg-zinc-800 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-info hover:bg-muted rounded transition-colors"
                         title="Editar"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
                       <Link
                         href={`/admin/space-help/categorias/${cat.id}`}
-                        className="p-1.5 text-zinc-500 hover:text-violet-300 hover:bg-zinc-800 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-info hover:bg-muted rounded transition-colors"
                         title="Gerenciar funcionalidades"
                       >
                         <ChevronRight className="w-4 h-4" />
@@ -248,11 +248,11 @@ export function CategoriesManager() {
                           )
                         }
                         disabled={deletingId === cat.id}
-                        className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded transition-colors disabled:opacity-50"
+                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-muted rounded transition-colors disabled:opacity-50"
                         title="Remover"
                       >
                         {deletingId === cat.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <OrbitaSpinner className="w-4 h-4 " />
                         ) : (
                           <Trash2 className="w-4 h-4" />
                         )}
@@ -263,7 +263,7 @@ export function CategoriesManager() {
               ))}
               {data?.categories.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-zinc-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-muted-foreground">
                     Nenhum tópico cadastrado ainda.
                   </td>
                 </tr>
@@ -306,99 +306,99 @@ function FormDialog({
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
       <form
         onSubmit={onSubmit}
-        className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-lg p-6 space-y-4"
+        className="bg-card border border-border rounded-xl w-full max-w-lg p-6 space-y-4"
       >
-        <h3 className="text-base font-semibold text-white">{title}</h3>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Nome *</label>
+          <label className="text-xs font-medium text-muted-foreground">Nome *</label>
           <input
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="Tracking de Leads"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60"
+            className="w-full bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/30"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Slug (URL)</label>
+          <label className="text-xs font-medium text-muted-foreground">Slug (URL)</label>
           <input
             value={form.slug}
             onChange={(e) => setForm({ ...form, slug: e.target.value })}
             placeholder={slugify(form.name) || "tracking"}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60 font-mono"
+            className="w-full bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/30 font-mono"
           />
-          <p className="text-[11px] text-zinc-600">Gerado automaticamente a partir do nome se vazio.</p>
+          <p className="text-[11px] text-muted-foreground/70">Gerado automaticamente a partir do nome se vazio.</p>
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Descrição</label>
+          <label className="text-xs font-medium text-muted-foreground">Descrição</label>
           <textarea
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="Resumo curto que aparece abaixo do título"
             rows={2}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60 resize-none"
+            className="w-full bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/30 resize-none"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">Ícone (chave)</label>
+            <label className="text-xs font-medium text-muted-foreground">Ícone (chave)</label>
             <input
               value={form.iconKey}
               onChange={(e) => setForm({ ...form, iconKey: e.target.value })}
               placeholder="rocket"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60"
+              className="w-full bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/30"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">App ID</label>
+            <label className="text-xs font-medium text-muted-foreground">App ID</label>
             <input
               value={form.appId}
               onChange={(e) => setForm({ ...form, appId: e.target.value })}
               placeholder="tracking"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60"
+              className="w-full bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/30"
             />
           </div>
         </div>
 
         <div className="flex items-end gap-3">
           <div className="space-y-1.5 flex-1">
-            <label className="text-xs font-medium text-zinc-400">Ordem</label>
+            <label className="text-xs font-medium text-muted-foreground">Ordem</label>
             <input
               type="number"
               value={form.order}
               onChange={(e) => setForm({ ...form, order: Number(e.target.value) || 0 })}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/60"
+              className="w-full bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-info/30"
             />
           </div>
-          <label className="flex items-center gap-2 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg cursor-pointer hover:border-zinc-600">
+          <label className="flex items-center gap-2 px-3 py-2 bg-muted border border-line rounded-lg cursor-pointer hover:border-muted-foreground/40">
             <input
               type="checkbox"
               checked={form.isPublished}
               onChange={(e) => setForm({ ...form, isPublished: e.target.checked })}
-              className="accent-violet-500"
+              className="accent-primary"
             />
-            <span className="text-xs text-zinc-300">Publicado</span>
+            <span className="text-xs text-foreground">Publicado</span>
           </label>
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
           <button
             type="button"
             onClick={onClose}
             disabled={isPending}
-            className="px-3.5 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+            className="px-3.5 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={isPending}
-            className="px-3.5 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
+            className="px-3.5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
           >
-            {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isPending && <OrbitaSpinner className="w-4 h-4 " />}
             Salvar
           </button>
         </div>

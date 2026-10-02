@@ -46,14 +46,14 @@ export function MySealsTab({ totalPoints, allLevels, seals }: MySealsTabProps) {
             {earned.map((seal) => (
               <div
                 key={seal.levelId}
-                className="relative flex flex-col items-center gap-2 rounded-2xl border border-[#7a1fe7]/30 bg-gradient-to-b from-[#7a1fe7]/10 to-transparent p-4 text-center"
+                className="relative flex flex-col items-center gap-2 rounded-2xl border border-info/30 bg-gradient-to-b from-info/10 to-transparent p-4 text-center"
               >
                 <div className="relative w-24 h-24">
                   <Image
                     src={seal.badgeUrl}
                     alt={seal.name}
                     fill
-                    className="object-contain drop-shadow-[0_0_12px_rgba(122,31,231,0.6)]"
+                    className="object-contain drop-shadow-[0_0_12px_color-mix(in_oklch,var(--info)_60%,transparent)]"
                     unoptimized
                   />
                 </div>
@@ -108,7 +108,7 @@ export function MySealsTab({ totalPoints, allLevels, seals }: MySealsTabProps) {
                   {/* Mini progress bar */}
                   <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#7a1fe7] rounded-full transition-all duration-500"
+                      className="h-full bg-info rounded-full transition-all duration-500"
                       style={{ width: `${progress}%` }}
                     />
                   </div>

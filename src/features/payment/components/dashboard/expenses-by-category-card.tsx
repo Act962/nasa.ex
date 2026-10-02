@@ -1,18 +1,12 @@
 "use client";
 
+import { CHART_PALETTE } from "@/lib/chart-palette";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart as PieChartIcon } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { formatCurrency, formatPercent } from "../../lib/format";
 
-const SLICE_COLORS = [
-  "#3b82f6",
-  "#10b981",
-  "#f59e0b",
-  "#8b5cf6",
-  "#ef4444",
-  "#94a3b8",
-];
+const SLICE_COLORS = CHART_PALETTE;
 
 const MAX_SLICES = 5;
 
@@ -36,9 +30,9 @@ export function ExpensesByCategoryCard({ items }: { items: CategorySlice[] }) {
 
   return (
     <Card className="gap-0 py-0">
-      <CardHeader className="border-b p-4 sm:p-5">
+      <CardHeader className="p-4 sm:p-5">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <PieChartIcon className="size-4 shrink-0 text-violet-500" />
+          <PieChartIcon className="size-4 shrink-0 text-info" />
           <span className="truncate">Gastos por Categoria</span>
         </CardTitle>
       </CardHeader>

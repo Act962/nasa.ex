@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
+export const SPACE_HELP_SEARCH_INPUT_ID = "space-help-search";
+
 export function SpaceHelpSidebarNav() {
   const pathname = usePathname() || "";
   const [query, setQuery] = useState("");
@@ -40,7 +42,7 @@ export function SpaceHelpSidebarNav() {
           href="/space-help"
           className="flex items-center gap-2 text-sm font-semibold tracking-tight"
         >
-          <Sparkles className="size-4 text-violet-600" />
+          <Sparkles className="size-4 text-info" />
           ÓRBITA Space Help
         </Link>
       </div>
@@ -49,6 +51,7 @@ export function SpaceHelpSidebarNav() {
         <div className="relative">
           <Search className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
+            id={SPACE_HELP_SEARCH_INPUT_ID}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar funcionalidade…"
@@ -104,7 +107,7 @@ function CategoryNode({
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "w-full flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm font-medium transition",
-          isActive ? "bg-violet-600/10 text-violet-700 dark:text-violet-300" : "hover:bg-muted",
+          isActive ? "bg-info/10 text-info" : "hover:bg-muted",
         )}
       >
         <span className="truncate">{category.name}</span>
@@ -126,9 +129,9 @@ function CategoryNode({
                 <Link
                   href={href}
                   className={cn(
-                    "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] transition",
+                    "flex items-center gap-2 rounded-full px-2.5 py-1.5 text-[13px] transition",
                     active
-                      ? "bg-violet-600 text-white"
+                      ? "bg-foreground text-background"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted",
                   )}
                 >
@@ -137,7 +140,7 @@ function CategoryNode({
                     <Youtube
                       className={cn(
                         "size-3 shrink-0",
-                        active ? "text-white" : "text-red-500",
+                        active ? "text-background" : "text-destructive",
                       )}
                     />
                   )}

@@ -1,4 +1,3 @@
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMutationLeadUpdate } from "../../hooks/use-lead-update";
 import { useState, useRef, useEffect } from "react";
 import { useDebouncedValue } from "@/hooks/use-debounced";
@@ -66,14 +65,14 @@ export function ObservationLead({
         <h2 className="text-lg font-semibold">Observações</h2>
       </div>
 
-      <ScrollArea className="flex-1 w-full min-h-0 rounded-md">
+      <div className="min-h-0 w-full min-w-0 flex-1 overflow-y-auto rounded-md">
         <Textarea
           placeholder="Adicione suas observações aqui..."
-          className=" w-full h-full min-h-50"
+          className="h-full min-h-50 w-full"
           value={editor}
-          onChange={(e) => setEditor(e.target.value)}
+          onChange={(event) => setEditor(event.target.value)}
         />
-      </ScrollArea>
+      </div>
     </div>
   );
 }

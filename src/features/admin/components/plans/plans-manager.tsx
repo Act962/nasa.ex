@@ -212,10 +212,10 @@ function PlanFormDialog({
         if (!o) onClose();
       }}
     >
-      <DialogContent className="max-w-2xl bg-zinc-900 border-zinc-700 text-white max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl bg-card border-border text-foreground max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-white flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-violet-400" />
+          <DialogTitle className="text-foreground flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-info" />
             {editing ? "Editar Plano" : "Criar Novo Plano"}
           </DialogTitle>
         </DialogHeader>
@@ -224,45 +224,45 @@ function PlanFormDialog({
           {/* Row 1: ordem + nome */}
           <div className="grid grid-cols-4 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-zinc-300 text-xs">Ordem</Label>
+              <Label className="text-foreground text-xs">Ordem</Label>
               <Input
                 type="number"
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-white"
+                className="bg-panel border-border text-foreground"
               />
             </div>
             <div className="col-span-3 space-y-1.5">
-              <Label className="text-zinc-300 text-xs">
-                Nome do plano <span className="text-red-400">*</span>
+              <Label className="text-foreground text-xs">
+                Nome do plano <span className="text-destructive">*</span>
               </Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex: Explore, Pro, Enterprise..."
-                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                className="bg-panel border-border text-foreground placeholder:text-muted-foreground"
               />
             </div>
           </div>
 
           {/* Slogan */}
           <div className="space-y-1.5">
-            <Label className="text-zinc-300 text-xs">
-              Slogan <span className="text-zinc-500">(opcional)</span>
+            <Label className="text-foreground text-xs">
+              Slogan <span className="text-muted-foreground">(opcional)</span>
             </Label>
             <Input
               value={slogan}
               onChange={(e) => setSlogan(e.target.value)}
               placeholder="Ex: Para equipes que querem mais"
-              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+              className="bg-panel border-border text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           {/* Row: valor + tipo de cobrança */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-zinc-300 text-xs">
-                Valor (R$) <span className="text-red-400">*</span>
+              <Label className="text-foreground text-xs">
+                Valor (R$) <span className="text-destructive">*</span>
               </Label>
               <Input
                 type="number"
@@ -270,16 +270,16 @@ function PlanFormDialog({
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="0.00"
-                className="bg-zinc-800 border-zinc-700 text-white"
+                className="bg-panel border-border text-foreground"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-zinc-300 text-xs">Tipo de cobrança</Label>
+              <Label className="text-foreground text-xs">Tipo de cobrança</Label>
               <Select value={billingType} onValueChange={setBillingType}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                <SelectTrigger className="bg-panel border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
+                <SelectContent className="bg-panel border-border text-foreground">
                   <SelectItem value="monthly">Mensal</SelectItem>
                   <SelectItem value="annual">Anual</SelectItem>
                   <SelectItem value="weekly">Semanal</SelectItem>
@@ -290,9 +290,9 @@ function PlanFormDialog({
 
           {/* Rótulo de preço (override do canto direito do card) */}
           <div className="space-y-1.5">
-            <Label className="text-zinc-300 text-xs">
+            <Label className="text-foreground text-xs">
               Rótulo de preço{" "}
-              <span className="text-zinc-500">
+              <span className="text-muted-foreground">
                 (opcional — substitui o "R$ X" / "Consultar" no card)
               </span>
             </Label>
@@ -300,63 +300,63 @@ function PlanFormDialog({
               value={priceLabel}
               onChange={(e) => setPriceLabel(e.target.value)}
               placeholder='Ex: "Gratuito", "Sob consulta", "A partir de R$ 197"'
-              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+              className="bg-panel border-border text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           {/* Row: stars + usuários + rollover */}
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-zinc-300 text-xs">Qtd. Stars ★</Label>
+              <Label className="text-foreground text-xs">Qtd. Stars ★</Label>
               <Input
                 type="number"
                 value={stars}
                 onChange={(e) => setStars(e.target.value)}
                 placeholder="500"
-                className="bg-zinc-800 border-zinc-700 text-white"
+                className="bg-panel border-border text-foreground"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-zinc-300 text-xs">Qtd. Usuários</Label>
+              <Label className="text-foreground text-xs">Qtd. Usuários</Label>
               <Input
                 type="number"
                 value={maxUsers}
                 onChange={(e) => setMaxUsers(e.target.value)}
                 placeholder="3"
-                className="bg-zinc-800 border-zinc-700 text-white"
+                className="bg-panel border-border text-foreground"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-zinc-300 text-xs">Rollover %</Label>
+              <Label className="text-foreground text-xs">Rollover %</Label>
               <Input
                 type="number"
                 value={rolloverPct}
                 onChange={(e) => setRolloverPct(e.target.value)}
                 placeholder="30"
-                className="bg-zinc-800 border-zinc-700 text-white"
+                className="bg-panel border-border text-foreground"
               />
             </div>
           </div>
 
           {/* Benefícios */}
           <div className="space-y-2">
-            <Label className="text-zinc-300 text-xs">Benefícios</Label>
+            <Label className="text-foreground text-xs">Benefícios</Label>
             <div className="space-y-2">
               {benefits.map((b, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span className="text-zinc-600 text-xs w-5 text-right shrink-0">
+                  <span className="text-muted-foreground text-xs w-5 text-right shrink-0">
                     {i + 1}.
                   </span>
                   <Input
                     value={b}
                     onChange={(e) => editBenefit(i, e.target.value)}
                     placeholder={`Benefício ${i + 1}...`}
-                    className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 flex-1"
+                    className="bg-panel border-border text-foreground placeholder:text-muted-foreground flex-1"
                   />
                   <button
                     type="button"
                     onClick={() => removeBenefit(i)}
-                    className="text-zinc-600 hover:text-red-400 transition-colors p-1"
+                    className="text-muted-foreground hover:text-destructive transition-colors p-1"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -368,7 +368,7 @@ function PlanFormDialog({
               variant="outline"
               size="sm"
               onClick={addBenefit}
-              className="border-zinc-700 text-zinc-400 hover:text-white hover:border-violet-500/50 gap-1.5"
+              className="border-border text-muted-foreground hover:text-foreground hover:border-info/50 gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" /> Adicionar benefício
             </Button>
@@ -376,12 +376,12 @@ function PlanFormDialog({
 
           {/* CTA */}
           <div className="space-y-2">
-            <Label className="text-zinc-300 text-xs">Botão CTA</Label>
+            <Label className="text-foreground text-xs">Botão CTA</Label>
             <Input
               value={ctaLabel}
               onChange={(e) => setCtaLabel(e.target.value)}
               placeholder="Assinar agora"
-              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+              className="bg-panel border-border text-foreground placeholder:text-muted-foreground"
             />
             <div className="flex gap-2 mt-2">
               <button
@@ -390,8 +390,8 @@ function PlanFormDialog({
                 className={cn(
                   "flex-1 py-2 rounded-lg border text-xs font-medium transition-colors",
                   ctaType === "link"
-                    ? "bg-violet-600/20 border-violet-500 text-violet-300"
-                    : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600",
+                    ? "bg-info/20 border-info text-info"
+                    : "bg-panel border-border text-muted-foreground hover:border-knob",
                 )}
               >
                 🔗 Link externo
@@ -402,8 +402,8 @@ function PlanFormDialog({
                 className={cn(
                   "flex-1 py-2 rounded-lg border text-xs font-medium transition-colors",
                   ctaType === "gateway"
-                    ? "bg-violet-600/20 border-violet-500 text-violet-300"
-                    : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600",
+                    ? "bg-info/20 border-info text-info"
+                    : "bg-panel border-border text-muted-foreground hover:border-knob",
                 )}
               >
                 💳 Gateway de pagamento
@@ -414,14 +414,14 @@ function PlanFormDialog({
                 value={ctaLink}
                 onChange={(e) => setCtaLink(e.target.value)}
                 placeholder="https://..."
-                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                className="bg-panel border-border text-foreground placeholder:text-muted-foreground"
               />
             ) : (
               <Select value={ctaGatewayId} onValueChange={setCtaGatewayId}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                <SelectTrigger className="bg-panel border-border text-foreground">
                   <SelectValue placeholder="Selecione o gateway..." />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
+                <SelectContent className="bg-panel border-border text-foreground">
                   {gateways.map((gw) => (
                     <SelectItem key={gw.id} value={gw.id}>
                       {gw.provider === "stripe" ? "💳" : "🏦"}{" "}
@@ -430,7 +430,7 @@ function PlanFormDialog({
                     </SelectItem>
                   ))}
                   {gateways.length === 0 && (
-                    <div className="p-2 text-xs text-zinc-500">
+                    <div className="p-2 text-xs text-muted-foreground">
                       Nenhum gateway configurado em /admin/payments
                     </div>
                   )}
@@ -440,23 +440,23 @@ function PlanFormDialog({
           </div>
 
           {/* Vínculo Stripe */}
-          <div className="space-y-2 p-3 rounded-lg border border-zinc-700/60 bg-zinc-800/40">
-            <Label className="text-zinc-300 text-xs flex items-center gap-1.5">
-              <CreditCard className="w-3 h-3 text-violet-400" /> Vínculo Stripe
+          <div className="space-y-2 p-3 rounded-lg border border-border bg-panel">
+            <Label className="text-foreground text-xs flex items-center gap-1.5">
+              <CreditCard className="w-3 h-3 text-info" /> Vínculo Stripe
             </Label>
             <Input
               value={stripePriceId}
               onChange={(e) => setStripePriceId(e.target.value)}
               placeholder="price_xxx (Stripe Price ID — obrigatório p/ checkout)"
-              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 font-mono text-xs"
+              className="bg-panel border-border text-foreground placeholder:text-muted-foreground font-mono text-xs"
             />
             <Input
               value={stripeProductId}
               onChange={(e) => setStripeProductId(e.target.value)}
               placeholder="prod_xxx (Stripe Product ID — opcional, p/ sync de nome)"
-              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 font-mono text-xs"
+              className="bg-panel border-border text-foreground placeholder:text-muted-foreground font-mono text-xs"
             />
-            <p className="text-[10px] text-zinc-500 leading-relaxed">
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
               Pegue os IDs no painel do Stripe → Produtos. Sem o{" "}
               <strong>Price ID</strong> o checkout deste plano não funciona. Se
               alterar o valor do plano, gere um novo Price no Stripe (Prices
@@ -466,30 +466,28 @@ function PlanFormDialog({
 
           {/* Toggles */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800 border border-zinc-700">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-panel border border-border">
               <div>
-                <p className="text-sm font-medium text-white">Destaque</p>
-                <p className="text-xs text-zinc-400">
+                <p className="text-sm font-medium text-foreground">Destaque</p>
+                <p className="text-xs text-muted-foreground">
                   Exibe badge "Mais popular"
                 </p>
               </div>
               <Switch
                 checked={highlighted}
                 onCheckedChange={setHighlighted}
-                className="data-[state=checked]:bg-violet-600"
               />
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800 border border-zinc-700">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-panel border border-border">
               <div>
-                <p className="text-sm font-medium text-white">Ativo</p>
-                <p className="text-xs text-zinc-400">
+                <p className="text-sm font-medium text-foreground">Ativo</p>
+                <p className="text-xs text-muted-foreground">
                   Visível na página de planos
                 </p>
               </div>
               <Switch
                 checked={isActive}
                 onCheckedChange={setIsActive}
-                className="data-[state=checked]:bg-emerald-600"
               />
             </div>
           </div>
@@ -499,14 +497,13 @@ function PlanFormDialog({
           <Button
             variant="ghost"
             onClick={onClose}
-            className="text-zinc-400 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
           >
             Cancelar
           </Button>
           <Button
             onClick={handleSave}
             disabled={isPending}
-            className="bg-violet-600 hover:bg-violet-700 text-white"
           >
             {isPending
               ? "Salvando..."
@@ -551,8 +548,8 @@ export function PlansManager() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-white">Planos de Assinatura</h2>
-          <p className="text-sm text-zinc-400">
+          <h2 className="text-lg font-bold text-foreground">Planos de Assinatura</h2>
+          <p className="text-sm text-muted-foreground">
             Configure os planos exibidos na aba "Escolha seu plano" da home.
           </p>
         </div>
@@ -561,21 +558,21 @@ export function PlansManager() {
             setEditing(null);
             setFormOpen(true);
           }}
-          className="bg-violet-600 hover:bg-violet-700 text-white gap-2"
+          className="gap-2"
         >
           <Plus className="w-4 h-4" /> Novo plano
         </Button>
       </div>
 
       {/* Info banner */}
-      <div className="flex gap-3 p-4 rounded-xl bg-blue-950/20 border border-blue-800/30">
-        <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-        <p className="text-sm text-blue-200/80">
+      <div className="flex gap-3 p-4 rounded-xl bg-info/10 border border-info/30">
+        <Info className="w-4 h-4 text-info shrink-0 mt-0.5" />
+        <p className="text-sm text-info">
           A ordem de exibição é definida pelo campo <strong>Ordem</strong>.
           Planos com destaque aparecem com badge <strong>"Mais popular"</strong>
           . O botão CTA pode redirecionar para um link externo ou iniciar um
           checkout via gateway configurado em{" "}
-          <a href="/admin/payments" className="text-blue-400 underline">
+          <a href="/admin/payments" className="text-info underline">
             Gateways
           </a>
           .
@@ -588,15 +585,15 @@ export function PlansManager() {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-64 rounded-xl bg-zinc-800 animate-pulse"
+              className="h-64 rounded-xl bg-panel animate-pulse"
             />
           ))}
         </div>
       ) : plans.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-20 text-center border border-dashed border-zinc-700 rounded-xl">
-          <Sparkles className="w-12 h-12 text-zinc-700" />
-          <p className="text-zinc-400 font-medium">Nenhum plano criado</p>
-          <p className="text-zinc-600 text-sm max-w-xs">
+        <div className="flex flex-col items-center gap-3 py-20 text-center border border-dashed border-border rounded-xl">
+          <Sparkles className="w-12 h-12 text-muted-foreground" />
+          <p className="text-muted-foreground font-medium">Nenhum plano criado</p>
+          <p className="text-muted-foreground text-sm max-w-xs">
             Crie planos para exibir na tela inicial e permitir assinaturas.
           </p>
           <Button
@@ -605,7 +602,7 @@ export function PlansManager() {
               setFormOpen(true);
             }}
             variant="outline"
-            className="border-violet-700 text-violet-400 hover:bg-violet-950/30 mt-2 gap-2"
+            className="border-info/50 text-info hover:bg-info/10 mt-2 gap-2"
           >
             <Plus className="w-4 h-4" /> Criar primeiro plano
           </Button>
@@ -694,8 +691,8 @@ function PlanCard({
         className={cn(
           "rounded-xl border p-4 space-y-3 transition-opacity",
           plan.highlighted
-            ? "border-violet-500/50 bg-violet-950/20"
-            : "border-zinc-700/50 bg-zinc-900",
+            ? "border-info/50 bg-info/10"
+            : "border-border bg-card",
           !plan.isActive && "opacity-50",
         )}
       >
@@ -706,12 +703,12 @@ function PlanCard({
               <button
                 type="button"
                 onClick={() => setDetailOpen(true)}
-                className="font-bold text-white hover:text-violet-300 transition-colors cursor-pointer underline-offset-2 hover:underline text-left"
+                className="font-bold text-foreground hover:text-info transition-colors cursor-pointer underline-offset-2 hover:underline text-left"
               >
                 {plan.name}
               </button>
               {plan.highlighted && (
-                <Badge className="bg-violet-600/30 text-violet-300 border-violet-700/50 text-[10px]">
+                <Badge className="bg-info/30 text-info border-info/50 text-[10px]">
                   ⭐ Destaque
                 </Badge>
               )}
@@ -719,27 +716,27 @@ function PlanCard({
                 className={cn(
                   "text-[10px]",
                   plan.isActive
-                    ? "bg-emerald-950/40 text-emerald-300 border-emerald-800/30"
-                    : "bg-zinc-800 text-zinc-500 border-zinc-700",
+                    ? "bg-success/10 text-success border-success/30"
+                    : "bg-panel text-muted-foreground border-border",
                 )}
               >
                 {plan.isActive ? "Ativo" : "Inativo"}
               </Badge>
             </div>
             {plan.slogan && (
-              <p className="text-xs text-zinc-400 mt-0.5">{plan.slogan}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{plan.slogan}</p>
             )}
-            <p className="text-[10px] text-zinc-600 font-mono mt-0.5">
+            <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
               ordem: {plan.sortOrder}
             </p>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-xl font-bold text-white">
+            <p className="text-xl font-bold text-foreground">
               {Number(plan.priceMonthly) === 0
                 ? "Consultar"
                 : `R$ ${Number(plan.priceMonthly).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
             </p>
-            <p className="text-[10px] text-zinc-500">
+            <p className="text-[10px] text-muted-foreground">
               {BILLING_LABELS[plan.billingType] ?? plan.billingType}
             </p>
           </div>
@@ -747,26 +744,26 @@ function PlanCard({
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-2 text-xs">
-          <div className="flex flex-col items-center p-2 rounded-lg bg-zinc-800/60">
-            <Star className="w-3.5 h-3.5 text-yellow-400 mb-0.5" />
-            <span className="font-semibold text-white">
+          <div className="flex flex-col items-center p-2 rounded-lg bg-panel">
+            <Star className="w-3.5 h-3.5 text-warning mb-0.5" />
+            <span className="font-semibold text-foreground">
               {plan.monthlyStars.toLocaleString("pt-BR")}
             </span>
-            <span className="text-zinc-500">Stars</span>
+            <span className="text-muted-foreground">Stars</span>
           </div>
-          <div className="flex flex-col items-center p-2 rounded-lg bg-zinc-800/60">
-            <Users className="w-3.5 h-3.5 text-blue-400 mb-0.5" />
-            <span className="font-semibold text-white">
+          <div className="flex flex-col items-center p-2 rounded-lg bg-panel">
+            <Users className="w-3.5 h-3.5 text-info mb-0.5" />
+            <span className="font-semibold text-foreground">
               {plan.maxUsers === 999 ? "∞" : plan.maxUsers}
             </span>
-            <span className="text-zinc-500">Usuários</span>
+            <span className="text-muted-foreground">Usuários</span>
           </div>
-          <div className="flex flex-col items-center p-2 rounded-lg bg-zinc-800/60">
+          <div className="flex flex-col items-center p-2 rounded-lg bg-panel">
             <span className="text-[16px] mb-0.5">🔁</span>
-            <span className="font-semibold text-white">
+            <span className="font-semibold text-foreground">
               {plan.rolloverPct}%
             </span>
-            <span className="text-zinc-500">Rollover</span>
+            <span className="text-muted-foreground">Rollover</span>
           </div>
         </div>
 
@@ -776,7 +773,7 @@ function PlanCard({
             <button
               type="button"
               onClick={() => setShowBenefits(!showBenefits)}
-              className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white transition-colors"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               {showBenefits ? (
                 <ChevronUp className="w-3 h-3" />
@@ -790,9 +787,9 @@ function PlanCard({
                 {plan.benefits.map((b, i) => (
                   <li
                     key={i}
-                    className="flex items-start gap-1.5 text-xs text-zinc-400"
+                    className="flex items-start gap-1.5 text-xs text-muted-foreground"
                   >
-                    <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-3 h-3 text-success shrink-0 mt-0.5" />
                     {b}
                   </li>
                 ))}
@@ -803,7 +800,7 @@ function PlanCard({
 
         {/* CTA & Stripe info */}
         <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-xs text-zinc-500 truncate">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
             {plan.ctaGatewayId ? (
               <>
                 <CreditCard className="w-3 h-3 shrink-0" /> Gateway:{" "}
@@ -816,27 +813,27 @@ function PlanCard({
               </>
             ) : (
               <>
-                <span className="text-zinc-600">CTA: {plan.ctaLabel}</span>
+                <span className="text-muted-foreground">CTA: {plan.ctaLabel}</span>
               </>
             )}
           </div>
 
           {plan.stripePriceId && (
-            <div className="flex items-center gap-1.5 text-[10px] text-zinc-600 font-mono truncate">
-              <CreditCard className="w-3 h-3 shrink-0 text-violet-500/60" />
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono truncate">
+              <CreditCard className="w-3 h-3 shrink-0 text-info" />
               <span className="truncate">{plan.stripePriceId}</span>
             </div>
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 pt-2 border-t border-zinc-700/40">
+        <div className="flex items-center gap-2 pt-2 border-t border-border">
           <button
             onClick={onToggle}
-            className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white transition-colors"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             {plan.isActive ? (
-              <ToggleRight className="w-4 h-4 text-emerald-400" />
+              <ToggleRight className="w-4 h-4 text-success" />
             ) : (
               <ToggleLeft className="w-4 h-4" />
             )}
@@ -845,14 +842,14 @@ function PlanCard({
 
           <button
             onClick={onEdit}
-            className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white transition-colors ml-2"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors ml-2"
           >
             <Pencil className="w-3.5 h-3.5" /> Editar
           </button>
 
           <button
             onClick={onDelete}
-            className="flex items-center gap-1 text-xs text-zinc-400 hover:text-red-400 transition-colors ml-2"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors ml-2"
             title={
               plan.orgCount > 0
                 ? `${plan.orgCount} empresa(s) com este plano`
@@ -861,11 +858,11 @@ function PlanCard({
           >
             <Trash2 className="w-3.5 h-3.5" />
             {plan.orgCount > 0 && (
-              <span className="text-amber-400">{plan.orgCount}</span>
+              <span className="text-warning">{plan.orgCount}</span>
             )}
           </button>
 
-          <div className="ml-auto text-[10px] text-zinc-600 font-mono">
+          <div className="ml-auto text-[10px] text-muted-foreground font-mono">
             {plan.slug.slice(0, 16)}
           </div>
         </div>

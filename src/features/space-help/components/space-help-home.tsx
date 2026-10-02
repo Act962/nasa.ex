@@ -16,8 +16,8 @@ export function SpaceHelpHome() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:py-10">
-      <div className="rounded-3xl border border-border bg-gradient-to-br from-violet-600/10 via-fuchsia-500/5 to-amber-500/5 p-6 md:p-10">
-        <div className="flex items-center gap-2 text-xs font-medium text-violet-700 dark:text-violet-300">
+      <div className="rounded-3xl border border-border bg-gradient-to-br from-info/10 via-info/5 to-warning/5 p-6 md:p-10">
+        <div className="flex items-center gap-2 text-xs font-medium text-info">
           <Sparkles className="size-4" />
           ÓRBITA Space Help
         </div>
@@ -37,12 +37,12 @@ export function SpaceHelpHome() {
       </div>
 
       <Tabs defaultValue="tracks" className="mt-8">
-        <TabsList className="bg-muted/40">
-          <TabsTrigger value="tracks" className="data-[state=active]:bg-background">
+        <TabsList>
+          <TabsTrigger value="tracks">
             <GraduationCap className="size-4 mr-2" />
             Rotas de Conhecimento
           </TabsTrigger>
-          <TabsTrigger value="features" className="data-[state=active]:bg-background">
+          <TabsTrigger value="features">
             <BookOpen className="size-4 mr-2" />
             Funcionalidades
           </TabsTrigger>
@@ -85,7 +85,7 @@ export function SpaceHelpHome() {
                         >
                           <span className="flex-1 truncate">{f.title}</span>
                           {f.youtubeUrl && (
-                            <Youtube className="size-3.5 text-red-500" />
+                            <Youtube className="size-3.5 text-destructive" />
                           )}
                         </Link>
                       </li>

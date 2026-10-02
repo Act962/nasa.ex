@@ -40,8 +40,8 @@ export function CommunitySection({ value, onChange }: Props) {
   const selected = value.communityType;
 
   return (
-    <div className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-800/40 dark:bg-emerald-900/10">
-      <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200">
+    <div className="space-y-4 rounded-xl border border-success/30 bg-success/5 p-4">
+      <div className="flex items-center gap-2 text-success">
         <MessageCircle className="size-4" />
         <h3 className="text-sm font-semibold">Detalhes da comunidade</h3>
       </div>
@@ -57,8 +57,8 @@ export function CommunitySection({ value, onChange }: Props) {
               className={cn(
                 "flex flex-col items-center gap-1 rounded-lg border-2 p-3 text-xs font-medium transition",
                 selected === t
-                  ? "border-emerald-500 bg-emerald-100 dark:bg-emerald-800/30"
-                  : "border-border hover:border-emerald-300",
+                  ? "border-success bg-success/15"
+                  : "border-border hover:border-success/30",
               )}
             >
               <span className="text-xl">{TYPE_ICON[t]}</span>

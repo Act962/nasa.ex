@@ -14,6 +14,7 @@ import {
   Lock,
   UserPlus,
   Building2,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -119,7 +120,7 @@ export function PermissionsTab() {
     <div className="space-y-8">
       {/* ── Page header ───────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4">
-        <div>
+        <div className="max-md:hidden">
           <h2 className="text-2xl font-bold">Gerenciamento de Permissões</h2>
           <p className="text-sm text-muted-foreground mt-1">
             Controle o acesso de cada tipo de usuário aos apps e ferramentas da
@@ -127,8 +128,8 @@ export function PermissionsTab() {
           </p>
         </div>
         {currentMember && (
-          <div className="shrink-0 text-right">
-            <p className="text-xs text-muted-foreground mb-1">Seu cargo</p>
+          <div className="flex shrink-0 items-center gap-2 md:block md:text-right">
+            <p className="text-xs text-muted-foreground md:mb-1">Seu cargo</p>
             <RoleBadge role={currentMember.role} />
           </div>
         )}
@@ -157,20 +158,20 @@ export function PermissionsTab() {
 
       {/* ── Members table ─────────────────────────────────────────────────── */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-base font-semibold flex items-center gap-2">
             <Users className="size-4" /> Participantes (
             {data?.members.length ?? 0})
           </h3>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">
-              ⭐ {(data?.starsBalance ?? 0).toLocaleString("pt-BR")} stars na
-              conta
+          <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Star className="size-3.5 text-warning" />
+              {(data?.starsBalance ?? 0).toLocaleString("pt-BR")} Stars na conta
             </span>
             {canManage && (
               <Button
                 size="sm"
-                className="h-8 gap-1.5 text-xs"
+                className="h-11 w-full gap-1.5 rounded-full text-xs sm:h-9 sm:w-auto"
                 onClick={() => {
                   setCreatedPassword(null);
                   setAddDialogOpen(true);
@@ -201,7 +202,7 @@ export function PermissionsTab() {
       {/* ── Permission Matrix ──────────────────────────────────────────────── */}
       <div className="space-y-3">
         <button
-          className="flex items-center gap-2 text-base font-semibold w-full text-left"
+          className="flex min-h-11 w-full items-center gap-2 text-left text-base font-semibold"
           onClick={() => setShowMatrix((v) => !v)}
         >
           <Shield className="size-4" />
@@ -216,7 +217,7 @@ export function PermissionsTab() {
         {showMatrix && (
           <div className="rounded-xl border overflow-hidden">
             {!isMaster && (
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/30 border-b text-xs text-amber-700 dark:text-amber-400">
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-warning/15 text-xs text-warning">
                 <Lock className="size-3.5" /> Apenas o Master pode editar as
                 permissões
               </div>
@@ -238,7 +239,7 @@ export function PermissionsTab() {
       {isMaster && (
         <div className="space-y-3">
           <button
-            className="flex items-center gap-2 text-base font-semibold w-full text-left"
+            className="flex min-h-11 w-full items-center gap-2 text-left text-base font-semibold"
             onClick={() => setShowMetaAccounts((v) => !v)}
           >
             <Building2 className="size-4" />
@@ -261,18 +262,18 @@ export function PermissionsTab() {
       {canSeePaymentAccess && (
         <div className="space-y-3">
           <button
-            className="flex items-center gap-2 text-base font-semibold w-full text-left"
+            className="flex min-h-11 w-full items-center gap-2 text-left text-base font-semibold"
             onClick={() => setShowPaymentAccess((value) => !value)}
           >
-            <Landmark className="size-4 text-[#1E90FF]" />
+            <Landmark className="size-4 text-info" />
             Acesso Financeiro
             {isBootstrapPhase && (
-              <span className="text-[10px] font-normal text-amber-600 border border-amber-400/50 bg-amber-50 rounded-sm px-1.5">
+              <span className="text-[10px] font-normal text-warning border border-warning/30 bg-warning/15 rounded-full px-1.5">
                 bootstrap — defina o primeiro OWNER
               </span>
             )}
             {!canEditPaymentAccess && !isBootstrapPhase && (
-              <span className="text-[10px] font-normal text-muted-foreground border rounded-sm px-1.5">
+              <span className="text-[10px] font-normal text-muted-foreground border rounded-full px-1.5">
                 somente leitura
               </span>
             )}

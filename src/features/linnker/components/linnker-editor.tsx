@@ -1,21 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
+import { useRef, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { client, orpc } from "@/lib/orpc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CheckIcon, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
+import { useRegisterOrbitDock, type OrbitDockConfig } from "@/components/orbit-dock/orbit-dock-store";
 import { LinnkerLinksEditor } from "./linnker-links-editor";
 import { LinnkerAppearanceEditor } from "./linnker-appearance-editor";
 import { LinnkerQRCode } from "./linnker-qrcode";
 import { LinnkerScans } from "./linnker-scans";
 import { LinnkerPreview } from "./linnker-preview";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ExternalLink, Eye, EyeOff } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
-import { client } from "@/lib/orpc";
-import { toast } from "sonner";
-import Link from "next/link";
+import { LinnkerEditorHeader } from "./editor/linnker-editor-header";
+import { LinnkerPreviewDialog } from "./editor/linnker-preview-dialog";
+import {
+  LINNKER_EDITOR_SECTIONS,
+  LINNKER_EDITOR_SECTION_ORDER,
+  isLinnkerEditorSection,
+  type LinnkerEditorSection,
+} from "./editor/linnker-editor-sections";
 import type { LinnkerPage } from "../types";
 
 interface Props {
@@ -30,8 +35,12 @@ export function LinnkerEditor({ pageId }: Props) {
   const page = data?.page as LinnkerPage | undefined;
   const [previewOverride, setPreviewOverride] = useState<Partial<LinnkerPage>>({});
   const previewPage = page ? { ...page, ...previewOverride } : undefined;
+  const [activeSection, setActiveSection] = useState<LinnkerEditorSection>("links");
+  const [isAddLinkOpen, setIsAddLinkOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const saveAppearanceRef = useRef<(() => void) | null>(null);
 
-  const { mutate: togglePublish, isPending: toggling } = useMutation({
+  const { mutate: togglePublish, isPending: isTogglingPublish } = useMutation({
     mutationFn: () =>
       client.linnker.updatePage({ id: pageId, isPublished: !page?.isPublished }),
     onSuccess: () => {
@@ -40,73 +49,84 @@ export function LinnkerEditor({ pageId }: Props) {
     },
   });
 
+  const toDockItem = (section: LinnkerEditorSection) => {
+    const SectionIcon = LINNKER_EDITOR_SECTIONS[section].icon;
+    return {
+      label: LINNKER_EDITOR_SECTIONS[section].label,
+      icon: <SectionIcon />,
+      onSelect: () => setActiveSection(section),
+      isActive: activeSection === section,
+    };
+  };
+
+  // Botão central = a ação da seção: novo link em Links, salvar em Aparência; nas demais, o ASTRO.
+  const centerActionBySection: Partial<Record<LinnkerEditorSection, OrbitDockConfig["centerAction"]>> = {
+    links: { label: "Novo link", icon: <Plus />, onSelect: () => setIsAddLinkOpen(true) },
+    appearance: { label: "Salvar", icon: <CheckIcon />, onSelect: () => saveAppearanceRef.current?.() },
+  };
+
+  useRegisterOrbitDock({
+    leftItems: [toDockItem("links"), toDockItem("appearance")],
+    rightItems: [toDockItem("qrcode"), toDockItem("scans")],
+    centerAction: page ? centerActionBySection[activeSection] : undefined,
+  });
+
   if (isLoading) {
     return (
-      <div className="w-full flex items-center justify-center py-24">
-        <div className="size-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      <div className="flex w-full items-center justify-center py-24">
+        <OrbitaSpinner className="size-8" />
       </div>
     );
   }
 
   if (!page) return null;
 
-  const publicUrl = `/l/${page.slug}`;
-
   return (
-    <div className="w-full">
-      <div className="flex items-center justify-between py-5 gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/linnker"><ArrowLeft className="size-4" /></Link>
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold">{page.title}</h1>
-              <Badge variant={page.isPublished ? "default" : "secondary"} className="text-xs">
-                {page.isPublished ? "Publicado" : "Rascunho"}
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">/l/{page.slug}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <a href={publicUrl} target="_blank" rel="noreferrer">
-              <ExternalLink className="size-4 mr-2" /> Ver página
-            </a>
-          </Button>
-          <Button
-            variant={page.isPublished ? "outline" : "default"}
-            size="sm"
-            onClick={() => togglePublish()}
-            disabled={toggling}
-          >
-            {page.isPublished ? (
-              <><EyeOff className="size-4 mr-2" /> Despublicar</>
-            ) : (
-              <><Eye className="size-4 mr-2" /> Publicar</>
-            )}
-          </Button>
-        </div>
-      </div>
+    <div className="w-full px-4 pb-[150px] md:px-0 lg:pb-10">
+      <LinnkerEditorHeader
+        page={page}
+        activeSection={activeSection}
+        onTogglePublish={() => togglePublish()}
+        isTogglingPublish={isTogglingPublish}
+        onOpenPreview={() => setIsPreviewOpen(true)}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Editor panel */}
-        <div className="lg:col-span-2">
-          <Tabs defaultValue="links">
-            <TabsList className="mb-4">
-              <TabsTrigger value="links">Links</TabsTrigger>
-              <TabsTrigger value="appearance">Aparência</TabsTrigger>
-              <TabsTrigger value="qrcode">QR Code</TabsTrigger>
-              <TabsTrigger value="scans">Scans</TabsTrigger>
-            </TabsList>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
+          <Tabs
+            value={activeSection}
+            onValueChange={(value) => isLinnkerEditorSection(value) && setActiveSection(value)}
+          >
+            {/* No celular as seções ficam no menu de baixo; as abas ficam só no computador. */}
+            <div className="mb-4 overflow-x-auto max-md:sr-only">
+              <TabsList className="h-10 w-max">
+                {LINNKER_EDITOR_SECTION_ORDER.map((section) => {
+                  const SectionIcon = LINNKER_EDITOR_SECTIONS[section].icon;
+                  return (
+                    <TabsTrigger key={section} value={section} className="gap-1.5 text-xs">
+                      <SectionIcon className="size-3.5" /> {LINNKER_EDITOR_SECTIONS[section].label}
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </div>
 
             <TabsContent value="links">
-              <LinnkerLinksEditor page={page} onRefetch={refetch} />
+              <LinnkerLinksEditor
+                page={page}
+                onRefetch={refetch}
+                isAddLinkOpen={isAddLinkOpen}
+                onAddLinkOpenChange={setIsAddLinkOpen}
+              />
             </TabsContent>
 
             <TabsContent value="appearance">
-              <LinnkerAppearanceEditor page={page} onRefetch={refetch} onPreviewChange={setPreviewOverride} />
+              <LinnkerAppearanceEditor
+                page={page}
+                onRefetch={refetch}
+                onPreviewChange={setPreviewOverride}
+                saveActionRef={saveAppearanceRef}
+              />
             </TabsContent>
 
             <TabsContent value="qrcode">
@@ -119,14 +139,15 @@ export function LinnkerEditor({ pageId }: Props) {
           </Tabs>
         </div>
 
-        {/* Preview panel */}
         <div className="hidden lg:block">
-          <div className="sticky top-6">
-            <p className="text-xs text-muted-foreground mb-3 font-medium">Preview</p>
+          <div className="sticky top-20">
+            <p className="mb-3 text-xs font-medium text-muted-foreground">Prévia</p>
             <LinnkerPreview page={previewPage} />
           </div>
         </div>
       </div>
+
+      <LinnkerPreviewDialog page={previewPage} open={isPreviewOpen} onOpenChange={setIsPreviewOpen} />
     </div>
   );
 }

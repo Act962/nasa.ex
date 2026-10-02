@@ -10,13 +10,22 @@ import {
   Gift,
   Globe,
   BookOpen,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import {
+  BOTTOM_SHEET_ACTION_CLASS,
+  BOTTOM_SHEET_BODY_CLASS,
+  BOTTOM_SHEET_DIALOG_CLASS,
+  BOTTOM_SHEET_FOOTER_CLASS,
+  BOTTOM_SHEET_HANDLE_CLASS,
+  BOTTOM_SHEET_HEADER_CLASS,
+} from "../../lib/bottom-sheet-dialog";
 import {
   Select,
   SelectContent,
@@ -36,9 +45,16 @@ import {
 interface Props {
   /** Se passado, apenas mostra/grant para este curso. Sem isso, gerencia tudo da org. */
   scope?: { courseId?: string };
+  /** A página já mostra o título "Acesso livre": fica só o botão de adicionar. */
+  isTitleHidden?: boolean;
 }
 
-export function FreeAccessManager({ scope }: Props) {
+const SCOPE_OPTIONS: { value: "org" | "course"; label: string }[] = [
+  { value: "org", label: "Todos os cursos" },
+  { value: "course", label: "Curso específico" },
+];
+
+export function FreeAccessManager({ scope, isTitleHidden = false }: Props) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -73,7 +89,7 @@ export function FreeAccessManager({ scope }: Props) {
       setNote("");
       if (!scope?.courseId) setChosenCourseId("");
     },
-    onError: (err: any) => toast.error(err?.message ?? "Não foi possível conceder."),
+    onError: (error) => toast.error(error.message || "Não foi possível conceder."),
   });
 
   const revoke = useMutation({
@@ -86,11 +102,11 @@ export function FreeAccessManager({ scope }: Props) {
         }),
       });
     },
-    onError: (err: any) => toast.error(err?.message ?? "Não foi possível revogar."),
+    onError: (error) => toast.error(error.message || "Não foi possível revogar."),
   });
 
-  function handleGrant(e: React.FormEvent) {
-    e.preventDefault();
+  function handleGrant(event: React.FormEvent) {
+    event.preventDefault();
     if (!email.trim()) {
       toast.error("Informe o email do usuário.");
       return;
@@ -107,13 +123,19 @@ export function FreeAccessManager({ scope }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">Acesso livre</h2>
-          <p className="text-sm text-muted-foreground">
-            Usuários nesta lista têm acesso gratuito automático aos cursos.
+        {isTitleHidden ? (
+          <p className="text-sm text-muted-foreground max-md:hidden">
+            Quem está nesta lista entra nos cursos sem pagar.
           </p>
-        </div>
-        <Button onClick={() => setOpen(true)} className="gap-1.5">
+        ) : (
+          <div>
+            <h2 className="text-lg font-semibold">Acesso livre</h2>
+            <p className="text-sm text-muted-foreground">
+              Usuários nesta lista têm acesso gratuito automático aos cursos.
+            </p>
+          </div>
+        )}
+        <Button onClick={() => setOpen(true)} className="h-11 w-full gap-1.5 rounded-full md:h-9 md:w-auto">
           <UserPlus className="size-4" />
           Adicionar usuário
         </Button>
@@ -122,12 +144,14 @@ export function FreeAccessManager({ scope }: Props) {
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-14 rounded-xl" />
+            <Skeleton key={i} className="h-14 rounded-[18px]" />
           ))}
         </div>
       ) : entries.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-12 text-center">
-          <Gift className="mx-auto size-8 text-muted-foreground" />
+        <div className="rounded-[22px] border border-dashed border-line p-10 text-center">
+          <div className="mx-auto grid size-12 place-items-center rounded-full bg-muted">
+            <Gift className="size-5 text-muted-foreground" />
+          </div>
           <p className="mt-3 text-sm font-medium">Nenhum usuário com acesso livre</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Use esta lista para liberar cursos a alunos VIP, parceiros, beta-testers, etc.
@@ -135,33 +159,36 @@ export function FreeAccessManager({ scope }: Props) {
         </div>
       ) : (
         <div className="space-y-2">
-          {entries.map((e) => (
+          {entries.map((entry) => (
             <div
-              key={e.id}
-              className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3"
+              key={entry.id}
+              className="flex items-center gap-3 rounded-[18px] border border-line bg-card p-3"
             >
-              {e.user.image ? (
+              {entry.user.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={e.user.image}
-                  alt={e.user.name ?? ""}
-                  className="size-8 rounded-full object-cover"
+                  src={entry.user.image}
+                  alt={entry.user.name ?? ""}
+                  className="size-9 shrink-0 rounded-full object-cover"
                 />
               ) : (
-                <div className="size-8 rounded-full bg-muted" />
+                <div className="size-9 shrink-0 rounded-full bg-muted" />
               )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{e.user.name ?? "Sem nome"}</p>
-                <p className="truncate text-xs text-muted-foreground">{e.user.email}</p>
+                <p className="truncate text-sm font-medium">{entry.user.name ?? "Sem nome"}</p>
+                <p className="truncate text-xs text-muted-foreground">{entry.user.email}</p>
+                <div className="mt-1 text-xs md:hidden">
+                  <FreeAccessScopeChip courseTitle={entry.course?.title ?? null} />
+                </div>
               </div>
-              <div className="text-xs">
-                {e.course ? (
+              <div className="text-xs max-md:hidden">
+                {entry.course ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">
                     <BookOpen className="size-3" />
-                    {e.course.title}
+                    {entry.course.title}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-1 text-violet-700 dark:bg-violet-900/20 dark:text-violet-300">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-info/10 px-2 py-1 text-info">
                     <Globe className="size-3" />
                     Todos os cursos
                   </span>
@@ -170,10 +197,13 @@ export function FreeAccessManager({ scope }: Props) {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => revoke.mutate({ id: e.id })}
+                className="shrink-0 rounded-full"
+                onClick={() => revoke.mutate({ id: entry.id })}
                 disabled={revoke.isPending}
+                aria-label="Revogar acesso"
+                title="Revogar acesso"
               >
-                <Trash2 className="size-4 text-rose-600" />
+                <Trash2 className="size-4 text-destructive" />
               </Button>
             </div>
           ))}
@@ -181,8 +211,9 @@ export function FreeAccessManager({ scope }: Props) {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className={cn(BOTTOM_SHEET_DIALOG_CLASS, "sm:max-w-md")}>
+          <div aria-hidden className={BOTTOM_SHEET_HANDLE_CLASS} />
+          <DialogHeader className={BOTTOM_SHEET_HEADER_CLASS}>
             <DialogTitle>Liberar acesso</DialogTitle>
             <DialogDescription>
               O usuário precisa já estar cadastrado na plataforma. Ele entrará no(s)
@@ -190,14 +221,15 @@ export function FreeAccessManager({ scope }: Props) {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleGrant} className="space-y-4">
+          <form onSubmit={handleGrant} className="flex min-h-0 flex-1 flex-col">
+            <div className={BOTTOM_SHEET_BODY_CLASS}>
             <div className="space-y-2">
               <Label htmlFor="fa-email">Email do usuário *</Label>
               <Input
                 id="fa-email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
                 placeholder="usuario@exemplo.com"
                 required
               />
@@ -206,32 +238,39 @@ export function FreeAccessManager({ scope }: Props) {
             {!scope?.courseId && (
               <>
                 <div className="space-y-2">
-                  <Label>Escopo</Label>
-                  <Select
-                    value={scopeChoice}
-                    onValueChange={(v) => setScopeChoice(v as "org" | "course")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="org">Todos os cursos da organização</SelectItem>
-                      <SelectItem value="course">Curso específico</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Vale para</Label>
+                  <div className="flex rounded-full bg-muted p-1" role="radiogroup" aria-label="Vale para">
+                    {SCOPE_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={scopeChoice === option.value}
+                        onClick={() => setScopeChoice(option.value)}
+                        className={cn(
+                          "h-9 flex-1 rounded-full px-3 text-xs font-medium transition",
+                          scopeChoice === option.value
+                            ? "bg-foreground text-background"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {scopeChoice === "course" && (
                   <div className="space-y-2">
                     <Label htmlFor="fa-course">Curso</Label>
                     <Select value={chosenCourseId} onValueChange={setChosenCourseId}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-11 w-full sm:h-9">
                         <SelectValue placeholder="Selecione…" />
                       </SelectTrigger>
                       <SelectContent>
-                        {coursesData?.courses.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.title}
+                        {coursesData?.courses.map((course) => (
+                          <SelectItem key={course.id} value={course.id}>
+                            {course.title}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -246,23 +285,25 @@ export function FreeAccessManager({ scope }: Props) {
               <Input
                 id="fa-note"
                 value={note}
-                onChange={(e) => setNote(e.target.value)}
+                onChange={(event) => setNote(event.target.value)}
                 placeholder="Ex.: parceiro, aluno bolsista, beta-tester…"
               />
             </div>
+            </div>
 
-            <DialogFooter>
+            <DialogFooter className={BOTTOM_SHEET_FOOTER_CLASS}>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setOpen(false)}
                 disabled={grant.isPending}
+                className="max-sm:hidden"
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={grant.isPending} className="gap-1.5">
+              <Button type="submit" disabled={grant.isPending} className={cn(BOTTOM_SHEET_ACTION_CLASS, "gap-1.5")}>
                 {grant.isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <OrbitaSpinner className="size-4 " />
                 ) : (
                   <Plus className="size-4" />
                 )}
@@ -273,5 +314,22 @@ export function FreeAccessManager({ scope }: Props) {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function FreeAccessScopeChip({ courseTitle }: { courseTitle: string | null }) {
+  if (courseTitle) {
+    return (
+      <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-muted px-2 py-0.5">
+        <BookOpen className="size-3 shrink-0" />
+        <span className="truncate">{courseTitle}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-info/10 px-2 py-0.5 text-info">
+      <Globe className="size-3" />
+      Todos os cursos
+    </span>
   );
 }

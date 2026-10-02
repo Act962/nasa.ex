@@ -18,10 +18,10 @@ export default async function ModeratorsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-violet-400" /> Moderadores do Sistema
+        <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5 text-info" /> Moderadores do Sistema
         </h1>
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           {admins.length} usuário(s) com acesso administrativo ao sistema
         </p>
       </div>

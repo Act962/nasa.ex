@@ -18,7 +18,7 @@ import { useState } from "react";
 import { DeleteFormModal } from "./delete-form-modal";
 import { Trash2 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
-import { Switch } from "@/components/ui/switch-variable";
+import { Switch } from "@/components/ui/switch";
 import {
   Item,
   ItemContent,
@@ -97,7 +97,7 @@ export const FormItem = (props: PropsType) => {
               {responses} respostas
             </span>
             {isPublicOnSpace && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-300">
+              <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-semibold text-success dark:text-success">
                 <Globe className="h-2.5 w-2.5" />
                 Spacehome
               </span>

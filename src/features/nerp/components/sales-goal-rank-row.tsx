@@ -67,7 +67,7 @@ export function SalesGoalRankRow({
         <span
           className={cn(
             "text-[9px] truncate block",
-            goalReached ? "text-emerald-500 font-semibold" : "text-muted-foreground",
+            goalReached ? "text-success font-semibold" : "text-muted-foreground",
           )}
         >
           {goalReached ? "🎉 Meta batida" : `Faltam ${formatBrl(entry.remainingAmount)}`}

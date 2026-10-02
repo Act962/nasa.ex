@@ -22,7 +22,7 @@ import {
 import { useMemberModal } from "@/hooks/use-member";
 import { useOrgRole } from "@/hooks/use-org-role";
 import { authClient } from "@/lib/auth-client";
-import { Copy, EllipsisVertical, Plus } from "lucide-react";
+import { Copy, EllipsisVertical, Mail, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
@@ -77,8 +77,8 @@ export function InvitationsTab({
       .cancelInvitation({
         invitationId,
       })
-      .then((res) => {
-        if (res.error) {
+      .then((response) => {
+        if (response.error) {
           toast.error("Erro ao cancelar convite");
           return;
         }
@@ -89,17 +89,21 @@ export function InvitationsTab({
 
   return (
     <div className="space-y-6">
-      <div className="w-full flex items-center justify-between">
-        <div>
+      <div className="flex w-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="max-md:hidden">
           <h2 className="text-2xl font-bold text-foreground">Convites</h2>
-          <p className="text-sm text-foreground/50">
-            Gerencie os convites para a sua organização.
+          <p className="text-sm text-muted-foreground">
+            Convites enviados que ainda não foram aceitos.
           </p>
         </div>
 
         {canManage && (
-          <Button onClick={() => onOpen()} data-guide={GUIDE_ANCHORS.memberAddButton.id}>
-            <Plus className="size-4" /> Adicionar Membro
+          <Button
+            onClick={() => onOpen()}
+            data-guide={GUIDE_ANCHORS.memberAddButton.id}
+            className="h-11 w-full rounded-full md:h-9 md:w-auto"
+          >
+            <Plus className="size-4" /> Adicionar membro
           </Button>
         )}
       </div>
@@ -110,13 +114,45 @@ export function InvitationsTab({
         </span>
       </div>
 
-      <div>
+      <div className="flex flex-col gap-2 md:hidden">
+        {invitations.map((invitation) => {
+          const inviter = getInviter(invitation.inviterId);
+          return (
+            <div
+              key={invitation.id}
+              className="flex items-center gap-3 rounded-[20px] border border-line bg-card p-3"
+            >
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-knob">
+                <Mail className="size-[18px]" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{invitation.email}</p>
+                <p className="truncate text-xs text-muted-foreground capitalize">
+                  {invitation.role}
+                  {inviter ? ` · convidado por ${inviter.user.name}` : ""}
+                </p>
+              </div>
+              <InvitationOptionsMenu
+                onCopyLink={() => copyInvitationLink(invitation.id)}
+                onCancel={() => cancelInvitation(invitation.id)}
+              />
+            </div>
+          );
+        })}
+        {invitations.length === 0 && (
+          <p className="rounded-[20px] border border-dashed border-line p-4 text-center text-sm text-muted-foreground">
+            Nenhum convite pendente.
+          </p>
+        )}
+      </div>
+
+      <div className="max-md:hidden">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>E-mail</TableHead>
               <TableHead>Cargo</TableHead>
-              <TableHead>Convite Por</TableHead>
+              <TableHead>Convidado por</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -145,33 +181,10 @@ export function InvitationsTab({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size={"icon-xs"} variant={"ghost"}>
-                        <EllipsisVertical className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Opções</DropdownMenuLabel>
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem
-                          className="cursor-pointer"
-                          onClick={() => copyInvitationLink(invitation.id)}
-                        >
-                          <Copy className="size-4" />
-                          Copiar Link
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="cursor-pointer"
-                          variant="destructive"
-                          onClick={() => cancelInvitation(invitation.id)}
-                        >
-                          Revogar Convite
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <InvitationOptionsMenu
+                    onCopyLink={() => copyInvitationLink(invitation.id)}
+                    onCancel={() => cancelInvitation(invitation.id)}
+                  />
                 </TableCell>
               </TableRow>
             ))}
@@ -179,5 +192,36 @@ export function InvitationsTab({
         </Table>
       </div>
     </div>
+  );
+}
+
+function InvitationOptionsMenu({
+  onCopyLink,
+  onCancel,
+}: {
+  onCopyLink: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="icon" variant="ghost" aria-label="Opções do convite" className="size-9 rounded-full">
+          <EllipsisVertical className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Opções</DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuItem className="cursor-pointer" onClick={onCopyLink}>
+            <Copy className="size-4" />
+            Copiar link
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="cursor-pointer" variant="destructive" onClick={onCancel}>
+            Cancelar convite
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

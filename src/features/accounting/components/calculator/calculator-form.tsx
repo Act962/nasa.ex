@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Calculator, ExternalLink, Loader2, Send, TriangleAlert } from "lucide-react";
+import { ArrowRight, Calculator, ExternalLink, Send, TriangleAlert } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -100,9 +101,9 @@ export function CalculatorForm({ calculator, context, isRbt12Proportional, onNav
   return (
     <div className="space-y-5">
       {usesRbt12 && isRbt12Proportional && (
-        <Alert className="border-amber-500/30 bg-amber-500/10">
-          <TriangleAlert className="size-4 text-amber-600" />
-          <AlertDescription className="text-xs text-amber-900 dark:text-amber-200">
+        <Alert className="border-warning/30 bg-warning/10">
+          <TriangleAlert className="size-4 text-warning" />
+          <AlertDescription className="text-xs text-warning dark:text-warning">
             Sua empresa tem menos de 12 meses de faturamento, então o RBT12 foi proporcionalizado (média dos meses × 12),
             como manda a LC 123/2006.
           </AlertDescription>
@@ -122,8 +123,8 @@ export function CalculatorForm({ calculator, context, isRbt12Proportional, onNav
             />
           ))}
         </div>
-        <Button type="submit" className="w-full gap-1.5 bg-violet-600 text-white hover:bg-violet-700 sm:w-auto" disabled={isPending}>
-          {isPending ? <Loader2 className="size-4 animate-spin" /> : <Calculator className="size-4" />}
+        <Button type="submit" className="w-full gap-1.5 bg-info text-white hover:bg-info sm:w-auto" disabled={isPending}>
+          {isPending ? <OrbitaSpinner className="size-4 " /> : <Calculator className="size-4" />}
           Calcular
         </Button>
       </form>
@@ -146,7 +147,7 @@ export function CalculatorForm({ calculator, context, isRbt12Proportional, onNav
           />
 
           {markupPriceCents !== null && markupPriceCents > 0 && (
-            <div className="flex flex-col gap-2 rounded-lg border border-violet-500/30 bg-violet-500/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 rounded-lg border border-info/30 bg-info/5 p-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm">
                 Preço sugerido: <span className="font-semibold tabular-nums">{formatCentsBrl(markupPriceCents)}</span>
                 {typeof submittedValues?.taxRateBps === "number" && (
@@ -174,7 +175,7 @@ export function CalculatorForm({ calculator, context, isRbt12Proportional, onNav
                 href={OFFICIAL_LINKS.selicReceita.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[#1E90FF] hover:underline"
+                className="inline-flex items-center gap-1 text-info hover:underline"
               >
                 {OFFICIAL_LINKS.selicReceita.label}
                 <ExternalLink className="size-3" />

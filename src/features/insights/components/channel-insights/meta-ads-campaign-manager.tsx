@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Megaphone, Plus, RefreshCw, Trash2, PauseCircle, PlayCircle } from "lucide-react";
 import { MetaAccountSwitcher } from "@/features/integrations/components/meta-account-switcher";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 const OBJECTIVES = [
   { value: "OUTCOME_LEADS", label: "Leads" },
@@ -119,7 +120,7 @@ export function MetaAdsCampaignManager() {
     <Card>
       <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="text-base flex items-center gap-2">
-          <Megaphone className="size-4 text-[#0082FB]" />
+          <Megaphone className="size-4 text-brand-facebook" />
           Gerenciar Campanhas Meta Ads
         </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
@@ -131,7 +132,7 @@ export function MetaAdsCampaignManager() {
             disabled={syncing}
             className="gap-1.5"
           >
-            <RefreshCw className={syncing ? "size-3.5 animate-spin" : "size-3.5"} />
+            {syncing ? <OrbitaSpinner className="size-3.5" /> : <RefreshCw className="size-3.5" />}
             Sincronizar
           </Button>
           <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1.5">
@@ -192,7 +193,7 @@ export function MetaAdsCampaignManager() {
                     <td className="py-2 px-2 text-right text-xs">{k ? fmtNum(k.conversions) : "—"}</td>
                     <td className="py-2 px-2 text-right text-xs">{k ? fmtCurrency(k.cpa) : "—"}</td>
                     <td className="py-2 px-2 text-right text-xs font-medium">
-                      <span className={k && k.roas >= 2 ? "text-emerald-600" : k && k.roas >= 1 ? "text-amber-600" : "text-muted-foreground"}>
+                      <span className={k && k.roas >= 2 ? "text-success" : k && k.roas >= 1 ? "text-warning" : "text-muted-foreground"}>
                         {k ? fmtX(k.roas) : "—"}
                       </span>
                     </td>

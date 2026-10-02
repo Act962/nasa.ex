@@ -190,7 +190,7 @@ export function DryRunButton({ workflowId }: { workflowId: string }) {
               {/* 🟨 Avisos */}
               {result.preflight?.warnings.length > 0 && (
                 <div className="space-y-2">
-                  <div className="text-xs uppercase tracking-wide font-semibold text-yellow-700 dark:text-yellow-400">
+                  <div className="text-xs uppercase tracking-wide font-semibold text-warning">
                     Avisos
                   </div>
                   {result.preflight.warnings.map((w, i) => (
@@ -199,10 +199,10 @@ export function DryRunButton({ workflowId }: { workflowId: string }) {
                       type="button"
                       onClick={() => focusNode(w.nodeId)}
                       disabled={!w.nodeId}
-                      className="w-full text-left rounded-md border border-yellow-300/60 hover:bg-yellow-50 dark:hover:bg-yellow-950/20 p-3 transition-colors disabled:cursor-default disabled:opacity-80"
+                      className="w-full text-left rounded-md border border-warning/60 hover:bg-warning/10 p-3 transition-colors disabled:cursor-default disabled:opacity-80"
                     >
                       <div className="flex items-center gap-2 mb-1">
-                        <AlertTriangleIcon className="size-3.5 text-yellow-600" />
+                        <AlertTriangleIcon className="size-3.5 text-warning" />
                         <Badge variant="secondary" className="text-[10px]">
                           {w.code}
                         </Badge>
@@ -215,15 +215,15 @@ export function DryRunButton({ workflowId }: { workflowId: string }) {
 
               {/* Cycle warnings legados (loop sem controle) */}
               {result.cycleReport && !result.cycleReport.safe && (
-                <div className="rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 p-3 space-y-1">
-                  <div className="flex items-center gap-2 font-medium text-sm text-yellow-700 dark:text-yellow-300">
+                <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 space-y-1">
+                  <div className="flex items-center gap-2 font-medium text-sm text-warning">
                     <AlertCircleIcon className="size-4" />
                     Loop sem nó de controle detectado
                   </div>
                   {result.cycleReport.warnings.map((w, i) => (
                     <p
                       key={i}
-                      className="text-xs text-yellow-700 dark:text-yellow-200"
+                      className="text-xs text-warning"
                     >
                       {w}
                     </p>
@@ -260,7 +260,7 @@ export function DryRunButton({ workflowId }: { workflowId: string }) {
                         {step.status === "FAILED" ? (
                           <AlertCircleIcon className="size-3.5 text-destructive" />
                         ) : (
-                          <CheckCircleIcon className="size-3.5 text-emerald-600" />
+                          <CheckCircleIcon className="size-3.5 text-success" />
                         )}
                       </div>
                       {step.errorMessage && (

@@ -10,6 +10,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { S3 } from "@/lib/s3-client";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { readIntegrationApiKey } from "@/features/integrations/lib/integration-api-key";
 
 const STARS_VIDEO_FALAI = 3;   // fal.ai kling 5s ~$0.04 = R$0.23 × 1.5 ÷ 0.15
 const STARS_VIDEO_RUNWAY = 15; // RunwayML 5s ~$0.25 = R$1.43 × 1.5 ÷ 0.15
@@ -44,7 +45,7 @@ export const generateVideoClip = base
     });
     const apiKey = openaiIntegration
       ? ((openaiIntegration.config as Record<string, string>).falaiKey ??
-         (openaiIntegration.config as Record<string, string>).apiKey)
+         readIntegrationApiKey(openaiIntegration.config as Record<string, unknown> | null))
       : process.env.FAL_API_KEY;
 
     if (!apiKey) {

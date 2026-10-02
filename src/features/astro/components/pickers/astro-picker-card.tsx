@@ -21,10 +21,10 @@ export function AstroPickerCard({
   disabled?: boolean;
 }) {
   return (
-    <div className="w-full overflow-hidden rounded-2xl border border-zinc-700/70 bg-zinc-900/60">
+    <div className="w-full overflow-hidden rounded-2xl border border-line/70 bg-card/60">
       <div className="px-3.5 pb-2 pt-3">
         <p className="text-sm font-semibold text-white">{payload.title}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">{payload.description}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{payload.description}</p>
       </div>
 
       <div className="px-3.5 pb-3">
@@ -47,12 +47,12 @@ export function AstroPickerCard({
         )}
       </div>
 
-      <div className="border-t border-zinc-800/80 px-3.5 py-2">
+      <div className="border-t border-line/80 px-3.5 py-2">
         <button
           type="button"
           disabled={disabled}
           onClick={() => onRespond("cancelar")}
-          className="text-[11px] text-zinc-500 transition-colors hover:text-zinc-300 disabled:opacity-50"
+          className="text-[11px] text-muted-foreground transition-colors hover:text-muted-foreground disabled:opacity-50"
         >
           Cancelar pedido
         </button>

@@ -98,7 +98,7 @@ export function StepBlocks({
   const currentMascot = getCurrentMascot(mascots, progressPct);
 
   const ProgressHeader = (
-    <div className="w-full max-w-[80%] mx-auto flex flex-col gap-1.5 px-1 xl:flex-row xl:items-center xl:justify-between xl:gap-3">
+    <div className="w-full mx-auto flex flex-col gap-1.5 px-1 xl:flex-row xl:items-center xl:justify-between xl:gap-3">
       <span className="text-[11px] xl:text-xs text-muted-foreground/80 shrink-0">
         {stepMode === "off"
           ? `${filledFields} de ${totalFields} campos`
@@ -236,7 +236,7 @@ export function StepBlocks({
         );
       })}
 
-      <div className="w-full max-w-[80%] mx-auto flex flex-col-reverse xl:flex-row justify-between gap-3 xl:gap-4">
+      <div className="w-full mx-auto flex flex-col-reverse xl:flex-row justify-between gap-3 xl:gap-4">
         {currentStep > 0 ? (
           <Button
             variant="outline"
@@ -273,7 +273,7 @@ export function StepBlocks({
             style={primaryBtnStyle}
             onClick={onSubmit}
           >
-            {isLoading && <Spinner className="w-4 h-4 mr-2 animate-spin" />}
+            {isLoading && <Spinner className="mr-2 size-4" />}
             {submitLabel ?? "Enviar"}
           </Button>
         ) : (

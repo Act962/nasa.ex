@@ -115,7 +115,7 @@ export function OrgProjectsSettings() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" className="size-8 text-violet-600" title="Marca" onClick={() => setBrandProject({ id: p.id, name: p.name })}>
+                  <Button variant="ghost" size="icon" className="size-8 text-info" title="Marca" onClick={() => setBrandProject({ id: p.id, name: p.name })}>
                     <TagIcon className="size-3.5" />
                   </Button>
                   <Button variant="ghost" size="icon" className="size-8" onClick={() => handleEdit(p)}>

@@ -20,7 +20,7 @@ export function Field({
     <div className={cn(wide && "sm:col-span-2")}>
       <div className="text-xs font-medium text-white/55">
         {label}
-        {required && <span className="ml-0.5 text-violet-300">*</span>}
+        {required && <span className="ml-0.5 text-info">*</span>}
       </div>
       <div className="mt-1.5">{children}</div>
       {hint && (

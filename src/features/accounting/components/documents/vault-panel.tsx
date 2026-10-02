@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Fingerprint, KeyRound, Loader2, Lock, Plus, ShieldCheck } from "lucide-react";
+import { Fingerprint, KeyRound, Lock, Plus, ShieldCheck } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,15 +29,15 @@ function PasskeySetupNotice() {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 sm:flex-row sm:items-center">
-      <Fingerprint className="size-6 shrink-0 text-amber-500" />
+    <div className="flex flex-col gap-3 rounded-xl border border-warning/40 bg-warning/5 p-3 sm:flex-row sm:items-center">
+      <Fingerprint className="size-6 shrink-0 text-warning" />
       <p className="flex-1 text-sm text-muted-foreground">
         Para ver uma senha guardada, confirme que é você com Face ID, Touch ID, Windows Hello ou a senha do aparelho.
         {!isSupported && " Este navegador não oferece essa confirmação — use outro aparelho."}
       </p>
       {isSupported && (
         <Button size="sm" variant="outline" disabled={registerPasskey.isPending} onClick={register}>
-          {registerPasskey.isPending && <Loader2 className="size-3.5 animate-spin" />}
+          {registerPasskey.isPending && <OrbitaSpinner className="size-3.5 " />}
           Cadastrar biometria
         </Button>
       )}
@@ -71,8 +72,8 @@ export function VaultPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-3 rounded-xl border border-violet-500/30 bg-violet-500/5 p-3 text-sm">
-        <ShieldCheck className="mt-0.5 size-5 shrink-0 text-violet-500" />
+      <div className="flex gap-3 rounded-xl border border-info/30 bg-info/5 p-3 text-sm">
+        <ShieldCheck className="mt-0.5 size-5 shrink-0 text-info" />
         <p className="text-muted-foreground">
           Senhas e certificados ficam cifrados (AES-256) e nunca aparecem na tela sem a sua biometria. Cada vez que
           alguém revela uma senha, fica registrado quem viu e quando. Só administradores do financeiro entram aqui.
@@ -84,9 +85,9 @@ export function VaultPanel() {
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
-            <KeyRound className="size-4 text-violet-500" /> Senhas de portais
+            <KeyRound className="size-4 text-info" /> Senhas de portais
           </CardTitle>
-          <Button size="sm" className="bg-violet-600 text-white hover:bg-violet-700" onClick={openNewCredential}>
+          <Button size="sm" className="bg-info text-white hover:bg-info" onClick={openNewCredential}>
             <Plus className="size-3.5" /> Nova credencial
           </Button>
         </CardHeader>

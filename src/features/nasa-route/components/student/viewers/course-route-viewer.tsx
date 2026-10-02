@@ -9,6 +9,7 @@ import { EbookViewer } from "./ebook-viewer";
 import { EventViewer } from "./event-viewer";
 import { CommunityViewer } from "./community-viewer";
 import { SubscriptionViewer } from "./subscription-viewer";
+import { StudentDockRegistrar } from "../../shared/student-dock-registrar";
 
 interface Props {
   courseId: string;
@@ -63,13 +64,33 @@ export function CourseRouteViewer({ courseId }: Props) {
   // Demais formatos → viewer específico
   switch (course.format) {
     case "ebook":
-      return <EbookViewer course={course as any} />;
+      return (
+        <>
+          <StudentDockRegistrar activeSection="my-courses" />
+          <div className="pb-[150px] lg:pb-0"><EbookViewer course={course as any} /></div>
+        </>
+      );
     case "event":
-      return <EventViewer course={course as any} />;
+      return (
+        <>
+          <StudentDockRegistrar activeSection="my-courses" />
+          <div className="pb-[150px] lg:pb-0"><EventViewer course={course as any} /></div>
+        </>
+      );
     case "community":
-      return <CommunityViewer course={course as any} />;
+      return (
+        <>
+          <StudentDockRegistrar activeSection="my-courses" />
+          <div className="pb-[150px] lg:pb-0"><CommunityViewer course={course as any} /></div>
+        </>
+      );
     case "subscription":
-      return <SubscriptionViewer course={course as any} />;
+      return (
+        <>
+          <StudentDockRegistrar activeSection="my-courses" />
+          <div className="pb-[150px] lg:pb-0"><SubscriptionViewer course={course as any} /></div>
+        </>
+      );
     default:
       // Fallback: formato desconhecido cai no player (não deve acontecer)
       return <CoursePlayerShell courseId={courseId} />;

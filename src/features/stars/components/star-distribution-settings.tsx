@@ -62,7 +62,7 @@ export function StarDistributionSettings() {
     return (
       <div className="space-y-3">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-16 rounded-xl bg-zinc-800 animate-pulse" />
+          <div key={i} className="h-16 rounded-xl bg-knob animate-pulse" />
         ))}
       </div>
     );
@@ -82,13 +82,13 @@ export function StarDistributionSettings() {
   return (
     <div className="space-y-5">
       {/* Plan info bar */}
-      <div className="flex items-center gap-3 p-3 rounded-xl bg-yellow-400/8 border border-yellow-400/20">
-        <Star className="size-4 text-yellow-400 shrink-0" />
-        <p className="text-sm text-white/70">
-          Plano atual: <strong className="text-white">{planStars.toLocaleString("pt-BR")} ★/mês</strong>
+      <div className="flex items-center gap-3 p-3 rounded-xl bg-warning/8 border border-warning/20">
+        <Star className="size-4 text-warning shrink-0" />
+        <p className="text-sm text-muted-foreground">
+          Plano atual: <strong className="text-foreground">{planStars.toLocaleString("pt-BR")} ★/mês</strong>
           {memberCount > 0 && (
-            <> · <strong className="text-white">{memberCount}</strong> usuários ·{" "}
-              divisão igual: <strong className="text-violet-300">{equalShare.toLocaleString("pt-BR")} ★/usuário</strong>
+            <> · <strong className="text-foreground">{memberCount}</strong> usuários ·{" "}
+              divisão igual: <strong className="text-info">{equalShare.toLocaleString("pt-BR")} ★/usuário</strong>
             </>
           )}
         </p>
@@ -105,26 +105,26 @@ export function StarDistributionSettings() {
             className={cn(
               "flex items-start gap-4 p-4 rounded-xl border text-left transition-all",
               mode === id
-                ? "border-violet-500/60 bg-violet-500/10"
-                : "border-zinc-700/50 bg-zinc-900 hover:border-zinc-600/60",
+                ? "border-info/60 bg-info/10"
+                : "border-line bg-card hover:border-border",
             )}
           >
             <div className={cn(
               "mt-0.5 w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
-              mode === id ? "bg-violet-600/30" : "bg-zinc-800",
+              mode === id ? "bg-info/30" : "bg-knob",
             )}>
-              <Icon className={cn("size-4", mode === id ? "text-violet-300" : "text-zinc-500")} />
+              <Icon className={cn("size-4", mode === id ? "text-info" : "text-muted-foreground")} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
-                <p className={cn("font-semibold text-sm", mode === id ? "text-white" : "text-zinc-300")}>
+                <p className={cn("font-semibold text-sm", mode === id ? "text-foreground" : "text-muted-foreground")}>
                   {label}
                 </p>
                 {mode === id && (
-                  <CheckCircle2 className="size-3.5 text-violet-400 shrink-0" />
+                  <CheckCircle2 className="size-3.5 text-info shrink-0" />
                 )}
               </div>
-              <p className="text-xs text-zinc-500 leading-relaxed">{desc}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
             </div>
           </button>
         ))}
@@ -132,11 +132,11 @@ export function StarDistributionSettings() {
 
       {/* Equal mode info */}
       {mode === "equal" && members.length > 0 && (
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-500/8 border border-blue-500/20">
-          <Info className="size-3.5 text-blue-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-blue-200/70 leading-relaxed">
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-info/8 border border-info/20">
+          <Info className="size-3.5 text-info shrink-0 mt-0.5" />
+          <p className="text-xs text-info/70 leading-relaxed">
             Cada usuário recebe automaticamente{" "}
-            <strong className="text-blue-300">{equalShare.toLocaleString("pt-BR")} ★/mês</strong>.
+            <strong className="text-info">{equalShare.toLocaleString("pt-BR")} ★/mês</strong>.
             O orçamento é recalculado sempre que houver mudança de plano ou no número de membros.
           </p>
         </div>
@@ -148,7 +148,7 @@ export function StarDistributionSettings() {
           <button
             type="button"
             onClick={() => setShowMembers(!showMembers)}
-            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             {showMembers ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
             {showMembers ? "Ocultar" : "Ver"} orçamentos por usuário
@@ -158,11 +158,11 @@ export function StarDistributionSettings() {
             <div className="space-y-2">
               {/* Summary row */}
               {mode === "custom" && (
-                <div className="flex items-center justify-between text-xs text-zinc-500 px-1 pb-1 border-b border-zinc-700/40">
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1 pb-1 border-b border-line">
                   <span>Total alocado</span>
                   <span className={cn(
                     "font-semibold",
-                    totalCustomBudget > planStars ? "text-red-400" : "text-emerald-400"
+                    totalCustomBudget > planStars ? "text-destructive" : "text-success"
                   )}>
                     {totalCustomBudget.toLocaleString("pt-BR")} / {planStars.toLocaleString("pt-BR")} ★
                   </span>
@@ -177,31 +177,31 @@ export function StarDistributionSettings() {
                 return (
                   <div
                     key={m.userId}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-zinc-900 border border-zinc-700/40"
+                    className="flex items-center gap-3 p-3 rounded-xl bg-card border border-line"
                   >
                     {/* Avatar placeholder */}
-                    <div className="w-7 h-7 rounded-full bg-violet-600/30 border border-violet-700/50 flex items-center justify-center shrink-0">
-                      <span className="text-[10px] font-bold text-violet-300 uppercase">
+                    <div className="w-7 h-7 rounded-full bg-info/30 border border-info/50 flex items-center justify-center shrink-0">
+                      <span className="text-[10px] font-bold text-info uppercase">
                         {m.userName.charAt(0)}
                       </span>
                     </div>
 
                     {/* Name + usage */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-white truncate">{m.userName}</p>
+                      <p className="text-xs font-medium text-foreground truncate">{m.userName}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <div className="flex-1 h-1 bg-zinc-700 rounded-full overflow-hidden">
+                        <div className="flex-1 h-1 bg-knob rounded-full overflow-hidden">
                           <div
                             className={cn(
                               "h-full rounded-full transition-all",
-                              usagePct >= 90 ? "bg-red-500"
-                              : usagePct >= 70 ? "bg-amber-500"
-                              : "bg-violet-500"
+                              usagePct >= 90 ? "bg-destructive"
+                              : usagePct >= 70 ? "bg-warning"
+                              : "bg-info"
                             )}
                             style={{ width: `${usagePct}%` }}
                           />
                         </div>
-                        <span className="text-[9px] text-zinc-500 shrink-0">
+                        <span className="text-[9px] text-muted-foreground shrink-0">
                           {m.currentUsage.toLocaleString("pt-BR")} ★ usados
                         </span>
                       </div>
@@ -220,9 +220,9 @@ export function StarDistributionSettings() {
                               [m.userId]: Number(e.target.value) || 0,
                             }))
                           }
-                          className="w-20 h-7 text-xs bg-zinc-800 border-zinc-700 text-white text-right"
+                          className="w-20 h-7 text-xs bg-background border-line text-foreground text-right"
                         />
-                        <span className="text-[10px] text-zinc-500">★</span>
+                        <span className="text-[10px] text-muted-foreground">★</span>
                         {isEdited && (
                           <Button
                             size="sm"
@@ -231,14 +231,14 @@ export function StarDistributionSettings() {
                               saveBudget({ userId: m.userId, monthlyBudget: budget })
                             }
                             disabled={isSavingBudget}
-                            className="h-7 px-2 text-[10px] text-violet-400 hover:text-white hover:bg-violet-600/20"
+                            className="h-7 px-2 text-[10px] text-info hover:text-foreground hover:bg-info/20"
                           >
                             Salvar
                           </Button>
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs font-semibold text-violet-300 shrink-0">
+                      <span className="text-xs font-semibold text-info shrink-0">
                         {equalShare.toLocaleString("pt-BR")} ★
                       </span>
                     )}

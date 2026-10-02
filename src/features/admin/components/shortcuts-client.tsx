@@ -9,7 +9,7 @@ import { ExternalLink, Keyboard } from "lucide-react";
 
 function Key({ label }: { label: string }) {
   return (
-    <kbd className="inline-flex items-center justify-center min-w-7 h-7 px-2 rounded-md text-xs font-mono font-medium bg-zinc-800 text-zinc-200 border border-zinc-700 shadow-sm">
+    <kbd className="inline-flex items-center justify-center min-w-7 h-7 px-2 rounded-md text-xs font-mono font-medium bg-muted text-foreground border border-line shadow-sm">
       {label}
     </kbd>
   );
@@ -25,14 +25,14 @@ function ShortcutRow({ shortcut }: { shortcut: Shortcut }) {
   const separator = shortcut.sequence ? "->" : "+";
 
   return (
-    <div className="flex items-center justify-between py-3 border-b border-zinc-800 last:border-0">
-      <span className="text-sm text-zinc-300">{shortcut.description}</span>
+    <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
+      <span className="text-sm text-foreground">{shortcut.description}</span>
       <div className="flex items-center gap-1 shrink-0 ml-4">
         {keys.map((k, i) => (
           <span key={i} className="flex items-center gap-1">
             <Key label={k} />
             {i < keys.length - 1 && (
-              <span className="text-zinc-600 text-xs">{separator}</span>
+              <span className="text-muted-foreground/70 text-xs">{separator}</span>
             )}
           </span>
         ))}
@@ -73,6 +73,8 @@ export function useGlobalShortcuts() {
     const handler = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       const shift = e.shiftKey;
+      // Autopreenchimento do navegador dispara keydown sem `key`: ignora.
+      if (typeof e.key !== "string") return;
       const key = e.key.toLowerCase();
       const target = e.target as HTMLElement;
 
@@ -168,25 +170,25 @@ export function ShortcutsClient() {
     <div className="p-8 max-w-3xl">
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
-        <div className="w-10 h-10 rounded-xl bg-violet-600/20 flex items-center justify-center">
-          <Keyboard className="w-5 h-5 text-violet-400" />
+        <div className="w-10 h-10 rounded-xl bg-info/20 flex items-center justify-center">
+          <Keyboard className="w-5 h-5 text-info" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white">Atalhos de Teclado</h1>
-          <p className="text-sm text-zinc-400">
+          <h1 className="text-xl font-bold text-foreground">Atalhos de Teclado</h1>
+          <p className="text-sm text-muted-foreground">
             Navegue pela plataforma ÓRBITA com velocidade
           </p>
         </div>
       </div>
 
       {/* Info banner */}
-      <div className="mb-6 flex items-start gap-3 bg-violet-600/10 border border-violet-500/20 rounded-xl px-4 py-3">
-        <ExternalLink className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
-        <p className="text-sm text-zinc-300">
+      <div className="mb-6 flex items-start gap-3 bg-info/10 border border-info/20 rounded-xl px-4 py-3">
+        <ExternalLink className="w-4 h-4 text-info shrink-0 mt-0.5" />
+        <p className="text-sm text-foreground">
           Os atalhos são globais — funcionam em qualquer página da plataforma
           (exceto quando o cursor está em um campo de texto). Use{" "}
           <Key label="⌘" /> no Mac e <Key label="Ctrl" /> no Windows/Linux. Os
-          atalhos com <span className="text-zinc-400">{"->"}</span> são em
+          atalhos com <span className="text-muted-foreground">{"->"}</span> são em
           sequência: pressione <Key label="N" /> e <em>depois</em> a letra.
         </p>
       </div>
@@ -196,10 +198,10 @@ export function ShortcutsClient() {
         {categories.map((category) => (
           <div
             key={category}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden"
+            className="bg-card border border-border rounded-xl overflow-hidden"
           >
-            <div className="px-5 py-3 border-b border-zinc-800 bg-zinc-800/50">
-              <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+            <div className="px-5 py-3 bg-muted/50">
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {category}
               </h2>
             </div>
@@ -215,9 +217,9 @@ export function ShortcutsClient() {
       </div>
 
       {/* Tip */}
-      <p className="mt-6 text-xs text-zinc-600 text-center">
+      <p className="mt-6 text-xs text-muted-foreground/70 text-center">
         Para adicionar novos atalhos, edite{" "}
-        <code className="text-zinc-500">shortcuts-client.tsx</code>
+        <code className="text-muted-foreground">shortcuts-client.tsx</code>
       </p>
     </div>
   );

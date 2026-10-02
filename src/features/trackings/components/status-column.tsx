@@ -157,19 +157,18 @@ function StatusColumnImpl({
         index === 0 && "ml-4",
       )}
     >
-      {/* Cor + contorno customizados da coluna sobrescrevem `bg-muted/60`
+      {/* Cor + contorno customizados da coluna sobrescrevem `bg-panel`
           quando definidos nas Configurações. Se a cor estiver setada,
           aplicamos via style inline; senão usamos o fallback default. */}
       <div
         className={cn(
-          "flex flex-col flex-1 min-h-0 rounded-md shadow-md",
-          !appearance?.kanbanColumnBackgroundColor && "bg-muted/60",
-          appearance?.kanbanColumnBorderColor && "border",
+          "flex flex-col flex-1 min-h-0 rounded-[var(--radius)] border border-line",
+          !appearance?.kanbanColumnBackgroundColor && "bg-panel",
         )}
         style={{
           // Cor de fundo computada como `rgba()` — slider de transparência
           // controla o alpha. Opacidade default = 100 (opaco). Sem cor =
-          // herda `bg-muted/60` do fallback.
+          // herda `bg-panel` do fallback.
           ...(appearance?.kanbanColumnBackgroundColor && {
             backgroundColor:
               hexToRgba(
@@ -231,7 +230,7 @@ function LeadsList({
       {isLoading && (
         <div className="flex flex-col gap-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-md shadow-sm" />
+            <Skeleton key={i} className="h-32 rounded-[20px]" />
           ))}
         </div>
       )}
@@ -262,7 +261,7 @@ StatusColumn.displayName = "StatusColumn";
 export const StatusItemSkeleton = () => {
   return (
     <li className="shrink-0 w-72 h-full flex flex-col select-none">
-      <div className="flex flex-col flex-1 min-h-0 rounded-xl bg-muted/40 border border-border/50 shadow-sm pb-2 overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0 rounded-[var(--radius)] bg-panel border border-line pb-2 overflow-hidden">
         <div className="p-3">
           <Skeleton className="h-7 w-3/4 rounded-md" />
         </div>

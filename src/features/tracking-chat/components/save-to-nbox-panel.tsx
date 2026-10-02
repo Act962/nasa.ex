@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ArchiveIcon, XIcon, PlusIcon, FolderIcon, CheckIcon, Loader2Icon } from "lucide-react";
+import { ArchiveIcon, XIcon, PlusIcon, FolderIcon, CheckIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -100,8 +101,7 @@ export function SaveToNBoxPanel({ onClose, message }: SaveToNBoxPanelProps) {
     <>
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
       <div
-        className="
-          fixed z-50
+        className="fixed z-50
           w-[90vw] max-w-sm
           bg-background border border-border shadow-2xl flex flex-col overflow-hidden
           bottom-0 left-1/2 -translate-x-1/2 rounded-t-2xl
@@ -154,7 +154,7 @@ export function SaveToNBoxPanel({ onClose, message }: SaveToNBoxPanelProps) {
               disabled={!newFolderName.trim() || createFolder.isPending}
               onClick={handleCreateFolder}
             >
-              {createFolder.isPending ? <Loader2Icon className="size-3.5 animate-spin" /> : "Criar"}
+              {createFolder.isPending ? <OrbitaSpinner className="size-3.5 " /> : "Criar"}
             </Button>
           </div>
         )}
@@ -185,7 +185,7 @@ export function SaveToNBoxPanel({ onClose, message }: SaveToNBoxPanelProps) {
                     className="flex items-center justify-between px-5 py-3 gap-3 hover:bg-muted/40 transition-colors"
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <FolderIcon className="size-4 text-yellow-500 shrink-0" />
+                      <FolderIcon className="size-4 text-warning shrink-0" />
                       <span className="text-sm truncate">{folder.name}</span>
                     </div>
                     <Button
@@ -198,7 +198,7 @@ export function SaveToNBoxPanel({ onClose, message }: SaveToNBoxPanelProps) {
                       {saved ? (
                         <><CheckIcon className="size-3 mr-1" />Salvo!</>
                       ) : saving ? (
-                        <Loader2Icon className="size-3.5 animate-spin" />
+                        <OrbitaSpinner className="size-3.5 " />
                       ) : (
                         "salvar aqui"
                       )}

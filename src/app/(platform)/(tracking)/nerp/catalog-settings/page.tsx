@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, Save } from "lucide-react";
+import { RefreshCw, Save } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -307,7 +308,7 @@ export default function NerpCatalogSettingsPage() {
           disabled={query.isFetching}
         >
           {query.isFetching ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <OrbitaSpinner className="size-3.5 " />
           ) : (
             <RefreshCw className="size-3.5" />
           )}
@@ -318,13 +319,13 @@ export default function NerpCatalogSettingsPage() {
         {query.isLoading ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
-              <Loader2 className="size-4 animate-spin inline mr-2" /> Carregando…
+              <OrbitaSpinner className="size-4 inline mr-2" /> Carregando…
             </CardContent>
           </Card>
         ) : !settings?.id ? (
           <Card>
             <CardContent className="py-6">
-              <div className="rounded border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+              <div className="rounded border border-warning/40 bg-warning/5 p-3 text-sm">
                 Configurações do catálogo ainda não criadas no nerp.
               </div>
             </CardContent>
@@ -1102,7 +1103,7 @@ export default function NerpCatalogSettingsPage() {
                   className="w-full sm:w-auto"
                 >
                   {update.isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <OrbitaSpinner className="size-4 " />
                   ) : (
                     <Save className="size-4" />
                   )}

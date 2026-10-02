@@ -75,7 +75,7 @@ export function FunnelPanel({ trackingId, organizationIds }: FunnelPanelProps) {
             return (
               <div key={s.statusId}>
                 {idx > 0 && s.dropoffFromPrevious > 0 && (
-                  <div className="flex items-center gap-1 text-xs text-rose-600 px-2 py-1">
+                  <div className="flex items-center gap-1 text-xs text-destructive px-2 py-1">
                     <ArrowDown className="size-3" />
                     {s.dropoffFromPrevious} leads ({s.dropoffPercent}%) de queda
                   </div>

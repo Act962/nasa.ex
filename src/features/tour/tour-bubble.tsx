@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, MousePointerClick, Loader2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, MousePointerClick, X } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { TOUR_ACCENT, type HoleRect } from "./spotlight";
 import type { TourPosition, TourStep } from "./types";
 
@@ -138,7 +139,7 @@ function StepActions({ step, isFirst, isLast, isInputFilled, onNext, onPrev }: {
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         {backButton}
         <span style={hintStyle}>
-          <Loader2 className="animate-spin" style={{ width: 14, height: 14 }} /> Esperando você concluir…
+          <OrbitaSpinner className="" style={{ width: 14, height: 14 }} /> Esperando você concluir…
         </span>
       </div>
     );

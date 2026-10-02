@@ -34,7 +34,7 @@ export function PostCardDropdownMenu({ post, onAction }: Props) {
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-1 right-1 z-20 size-5 bg-black/50 hover:bg-black/70 text-white rounded p-0"
+          className="absolute top-1 right-1 z-20 size-5 bg-black/50 hover:bg-black/70 text-white rounded-full p-0"
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
         >
@@ -44,12 +44,12 @@ export function PostCardDropdownMenu({ post, onAction }: Props) {
       <DropdownMenuContent align="end" className="z-50">
         {post.type !== "REEL" && (
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAction({ type: "editImage" }); }}>
-            <ImagePlusIcon className="size-3.5 mr-2 text-pink-500" />Editar Imagem
+            <ImagePlusIcon className="size-3.5 mr-2 text-info" />Editar Imagem
           </DropdownMenuItem>
         )}
         {(post.type === "REEL" || !!post.videoKey) && (
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAction({ type: "editVideo" }); }}>
-            <VideoIcon className="size-3.5 mr-2 text-violet-500" />Editar Vídeo
+            <VideoIcon className="size-3.5 mr-2 text-info" />Editar Vídeo
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAction({ type: "generate" }); }}>
@@ -67,7 +67,7 @@ export function PostCardDropdownMenu({ post, onAction }: Props) {
         )}
         {post.status !== "PUBLISHED" && (
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAction({ type: "publish" }); }}>
-            <SendIcon className="size-3.5 mr-2 text-violet-500" />Publicar Agora
+            <SendIcon className="size-3.5 mr-2 text-info" />Publicar Agora
           </DropdownMenuItem>
         )}
         {post.thumbnail && (

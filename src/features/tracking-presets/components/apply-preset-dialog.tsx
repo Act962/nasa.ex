@@ -332,7 +332,7 @@ export function ApplyPresetDialog({
                                   className="flex items-start gap-2 text-xs"
                                 >
                                   {wf.isActive ? (
-                                    <PowerIcon className="size-3 text-emerald-600 shrink-0 mt-0.5" />
+                                    <PowerIcon className="size-3 text-success shrink-0 mt-0.5" />
                                   ) : (
                                     <PowerOffIcon className="size-3 text-muted-foreground shrink-0 mt-0.5" />
                                   )}
@@ -351,7 +351,7 @@ export function ApplyPresetDialog({
                         ))}
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-2 inline-flex items-center gap-1">
-                        <PowerIcon className="size-3 text-emerald-600" />
+                        <PowerIcon className="size-3 text-success" />
                         Ativas ·{" "}
                         <PowerOffIcon className="size-3 text-muted-foreground" />
                         Inativas (precisam configuração antes de ligar)
@@ -397,7 +397,7 @@ export function ApplyPresetDialog({
               </RadioGroup>
 
               {mode === "merge" && (
-                <div className="space-y-2 pl-2 border-l-2 border-amber-300">
+                <div className="space-y-2 pl-2 border-l-2 border-warning/30">
                   <Label className="text-xs">Tracking destino</Label>
                   <Select
                     value={targetTrackingId}
@@ -432,12 +432,12 @@ export function ApplyPresetDialog({
                   </Label>
 
                   {!!preview?.warnings.length && (
-                    <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-3 space-y-1 mt-3">
-                      <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-medium text-xs">
+                    <div className="rounded-md border border-warning/30 bg-warning/10 p-3 space-y-1 mt-3">
+                      <div className="flex items-center gap-2 text-warning font-medium text-xs">
                         <AlertTriangleIcon className="size-3.5" />
                         Alertas anti-quebra
                       </div>
-                      <ul className="text-[11px] text-amber-800 dark:text-amber-300 space-y-0.5 ml-5 list-disc">
+                      <ul className="text-[11px] text-warning space-y-0.5 ml-5 list-disc">
                         {preview.warnings.map((w, i) => (
                           <li key={i}>{w}</li>
                         ))}
@@ -603,7 +603,7 @@ export function ApplyPresetDialog({
               </div>
 
               {preview.starsCost > 0 && (
-                <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-3 text-xs text-amber-900 dark:text-amber-200">
+                <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
                   <ZapIcon className="size-3.5 inline mr-1" />
                   Esta aplicação vai consumir{" "}
                   <b>{preview.starsCost} estrela(s)</b> da sua org.

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { AppModule, ChartType, DashboardSettings, DateRange } from "../types";
 import { ALL_MODULES } from "../types";
+import type { AppChartConfig, CrossChartConfig } from "../lib/cross-chart-catalog";
 
 interface DashboardState {
   trackingId?: string;
@@ -17,6 +18,10 @@ interface DashboardState {
   /** Configuração de resgate (Para Resgatar) — persistida na sessão. */
   rescueSlaHours?: number;
   rescueStuckDays?: number;
+  /** Gráfico Cruzado como o usuário deixou (séries, filtros, tipo, agrupamento). */
+  crossChart?: CrossChartConfig;
+  /** Gráfico "Evolução" de cada App como o usuário deixou. */
+  appCharts: Partial<Record<AppModule, AppChartConfig>>;
 }
 
 interface DashboardActions {
@@ -42,6 +47,8 @@ interface DashboardActions {
   setModuleOrder: (order: AppModule[]) => void;
   resetModuleOrder: () => void;
   setRescueConfig: (config: { slaHours: number; stuckDays: number }) => void;
+  setCrossChart: (config: CrossChartConfig) => void;
+  setAppChart: (appModule: AppModule, config: AppChartConfig) => void;
 }
 
 const defaultSettings: DashboardSettings = {
@@ -76,6 +83,8 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
       moduleOrder: ALL_MODULES,
       rescueSlaHours: 24,
       rescueStuckDays: 7,
+      crossChart: undefined,
+      appCharts: {},
 
       // Status é escopado por tracking — trocar de funil (ou de org, que
       // zera o tracking) precisa limpar `statusIds`, senão o painel filtra
@@ -185,16 +194,24 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
 
       setRescueConfig: ({ slaHours, stuckDays }) =>
         set({ rescueSlaHours: slaHours, rescueStuckDays: stuckDays }),
+
+      setCrossChart: (config) => set({ crossChart: config }),
+
+      setAppChart: (appModule, config) =>
+        set((state) => ({ appCharts: { ...state.appCharts, [appModule]: config } })),
     }),
     {
       name: "insights-storage",
       storage: createJSONStorage(() => localStorage),
-      // Persistimos as configurações de visualização e os filtros — mas
-      // NÃO persistimos `dateRange` pra evitar UX confusa: cliente cria
-      // ações hoje e vê "0" porque o range ficou travado num período
-      // antigo da sessão anterior. Cada sessão começa sem filtro de data
-      // (undefined → query retorna tudo).
+      // Tudo que o usuário ajusta no relatório volta igual: filtros (inclusive o período),
+      // Apps escolhidos, ordem, Gráfico Cruzado e gráficos de cada App.
       partialize: (state) => ({
+        dateRange: {
+          from: state.dateRange.from?.toISOString(),
+          to: state.dateRange.to?.toISOString(),
+        },
+        crossChart: state.crossChart,
+        appCharts: state.appCharts,
         settings: state.settings,
         trackingId: state.trackingId,
         organizationIds: state.organizationIds,
@@ -208,10 +225,14 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
         rescueStuckDays: state.rescueStuckDays,
       }),
       onRehydrateStorage: () => (state) => {
-        // dateRange não é mais persistido — sessões antigas podem ter
-        // strings antigas de data armazenadas; ignoramos.
+        // O período volta do armazenamento como texto; vira Date de novo.
         if (state) {
-          state.dateRange = { from: undefined, to: undefined };
+          const storedRange = state.dateRange as unknown as { from?: string; to?: string } | undefined;
+          state.dateRange = {
+            from: storedRange?.from ? new Date(storedRange.from) : undefined,
+            to: storedRange?.to ? new Date(storedRange.to) : undefined,
+          };
+          state.appCharts = state.appCharts ?? {};
         }
         // O persist faz merge RASO no topo: o `settings` de um usuário antigo
         // substitui `defaultSettings` inteiro, então chaves novas de seção

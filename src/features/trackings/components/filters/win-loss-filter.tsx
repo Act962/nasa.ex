@@ -31,13 +31,13 @@ export function WinLossFilter() {
           </div>
         </SelectItem>
         <SelectItem value="WON">
-          <div className="flex items-center gap-2 text-green-600">
+          <div className="flex items-center gap-2 text-success">
             <CheckCircle2 className="size-4" />
             <span>Ganhos</span>
           </div>
         </SelectItem>
         <SelectItem value="LOST">
-          <div className="flex items-center gap-2 text-red-600">
+          <div className="flex items-center gap-2 text-destructive">
             <XCircle className="size-4" />
             <span>Perdidos</span>
           </div>

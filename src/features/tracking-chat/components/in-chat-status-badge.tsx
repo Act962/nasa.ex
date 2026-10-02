@@ -44,19 +44,19 @@ export function InChatStatusBadge({ trackingId }: { trackingId: string }) {
     manual: {
       label: "In-Chat ON",
       colors:
-        "bg-violet-100 text-violet-900 border-violet-300 hover:bg-violet-200 dark:bg-violet-950/50 dark:text-violet-200 dark:border-violet-800",
+        "bg-info/15 text-info border-info/30 hover:bg-info/20 dark:bg-info/15 dark:text-info dark:border-info/40",
       title: "In-Chat manual ativado pelo time. Clique pra gerenciar.",
     },
     auto: {
       label: "In-Chat AUTO",
       colors:
-        "bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800",
+        "bg-warning/15 text-warning border-warning/30 hover:bg-warning/20 dark:bg-warning/15 dark:text-warning dark:border-warning/40",
       title: "WhatsApp fora do ar. In-Chat assumiu automaticamente.",
     },
     both: {
       label: "In-Chat BOTH",
       colors:
-        "bg-rose-100 text-rose-900 border-rose-300 hover:bg-rose-200 dark:bg-rose-950/50 dark:text-rose-200 dark:border-rose-800",
+        "bg-destructive/15 text-destructive border-destructive/30 hover:bg-destructive/20 dark:bg-destructive/15 dark:text-destructive dark:border-destructive/40",
       title:
         "WhatsApp banido E In-Chat manual ativo. Clique pra gerenciar.",
     },

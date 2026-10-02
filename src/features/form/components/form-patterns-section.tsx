@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, Loader2, X } from "lucide-react";
+import { Copy, X } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles } from "lucide-react";
 import { FormBlocks } from "@/features/form/lib/form-blocks";
 import { FormBlockInstance } from "@/features/form/types";
+import { STARTER_FORM_TEMPLATES, type StarterFormTemplate } from "@/features/form/lib/starter-templates";
+import { useMutationCreateForm } from "@/features/form/hooks/use-form";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,20 +42,20 @@ function FormPatternCard({
   duplicating: string | null;
 }) {
   return (
-    <div className="w-full h-auto cursor-pointer rounded-xl border-2 border-violet-500/40 hover:border-violet-500/70 transition-colors overflow-hidden" onClick={() => onPreview(template)}>
+    <div className="w-full min-w-0 h-auto cursor-pointer rounded-xl border-2 border-info/40 hover:border-info/70 transition-colors overflow-hidden" onClick={() => onPreview(template)}>
       <div className="w-full relative flex items-center justify-center overflow-hidden h-[150px] bg-linear-to-b from-primary/10 to-primary/10">
         <button
           onClick={(e) => { e.stopPropagation(); onUse(template); }}
           disabled={duplicating === template.id}
-          className="absolute top-2 right-2 z-10 flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-500 bg-background/90 rounded-md px-2 py-1 border border-violet-200 shadow-sm disabled:opacity-50"
+          className="absolute top-2 right-2 z-10 flex items-center gap-1 text-xs font-semibold text-info hover:text-info bg-background/90 rounded-md px-2 py-1 border border-info/30 shadow-sm disabled:opacity-50"
         >
           {duplicating === template.id
-            ? <Loader2 className="w-3 h-3 animate-spin" />
+            ? <OrbitaSpinner className="w-3 h-3 " />
             : <Copy className="w-3 h-3" />}
           Usar
         </button>
         <div className="w-36 absolute bottom-0 flex items-center flex-col px-4 pt-6 h-32 rounded-t-xl bg-white shadow-lg">
-          <h5 className="text-sm font-medium mb-1 text-center text-gray-400 truncate block w-full px-2">
+          <h5 className="text-sm font-medium mb-1 text-center text-muted-foreground truncate block w-full px-2">
             {template.name}
           </h5>
           {[0, 1, 2].map((i) => (
@@ -104,10 +107,10 @@ function FormPreviewModal({
             <button
               onClick={() => onUse(template)}
               disabled={duplicating === template.id}
-              className="flex items-center gap-1.5 text-sm font-semibold text-violet-600 hover:text-violet-500 border border-violet-300 rounded-md px-3 py-1.5 disabled:opacity-50"
+              className="flex items-center gap-1.5 text-sm font-semibold text-info hover:text-info border border-info/30 rounded-md px-3 py-1.5 disabled:opacity-50"
             >
               {duplicating === template.id
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ? <OrbitaSpinner className="w-3.5 h-3.5 " />
                 : <Copy className="w-3.5 h-3.5" />}
               Usar
             </button>
@@ -148,6 +151,23 @@ export function FormPatternsSection() {
   const [preview, setPreview] = useState<FormTemplate | null>(null);
   const [confirm, setConfirm] = useState<FormTemplate | null>(null);
   const router = useRouter();
+  const createForm = useMutationCreateForm();
+  const [creatingStarterId, setCreatingStarterId] = useState<string | null>(null);
+
+  // Modelo pronto do sistema: cria o formulário e o construtor aplica o modelo (?template=…).
+  const startFromStarterTemplate = (starterTemplate: StarterFormTemplate) => {
+    setCreatingStarterId(starterTemplate.id);
+    createForm.mutate(
+      { name: starterTemplate.name, description: starterTemplate.description },
+      {
+        onSuccess: ({ form }) => router.push(`/form/builder/${form.id}?template=${starterTemplate.id}`),
+        onError: () => {
+          toast.error("Não consegui criar o formulário agora.");
+          setCreatingStarterId(null);
+        },
+      },
+    );
+  };
 
   useEffect(() => {
     fetch("/api/admin/app-templates?appType=form")
@@ -180,18 +200,52 @@ export function FormPatternsSection() {
     }
   };
 
-  if (isLoading || templates.length === 0) return null;
-
   return (
     <>
-      <div className="mt-8 border-2 border-violet-500/50 rounded-xl p-5">
+      <div className="mt-8 space-y-3">
+        <div>
+          <h3 className="text-xl font-semibold tracking-tight">Modelos prontos</h3>
+          <p className="text-sm text-muted-foreground">Comece com um formulário pronto e ajuste do seu jeito.</p>
+        </div>
+        <div className="grid w-full min-w-0 grid-cols-2 gap-2.5 lg:grid-cols-4">
+          {STARTER_FORM_TEMPLATES.map((starterTemplate) => (
+            <button
+              key={starterTemplate.id}
+              type="button"
+              disabled={creatingStarterId !== null}
+              onClick={() => startFromStarterTemplate(starterTemplate)}
+              className="flex min-w-0 flex-col items-start gap-2 rounded-[20px] bg-card p-3 text-left ring-1 ring-line transition-colors hover:bg-panel disabled:opacity-60 sm:flex-row sm:items-center sm:gap-3"
+            >
+              <span
+                className="grid size-11 shrink-0 place-items-center rounded-[14px] text-lg"
+                style={{ backgroundColor: `${starterTemplate.primaryColor}1a` }}
+                aria-hidden
+              >
+                {starterTemplate.emoji}
+              </span>
+              <span className="w-full min-w-0 sm:flex-1">
+                <span className="block truncate text-sm font-semibold">{starterTemplate.name}</span>
+                <span className="line-clamp-2 text-xs text-muted-foreground sm:line-clamp-1">{starterTemplate.description}</span>
+              </span>
+              {creatingStarterId === starterTemplate.id ? (
+                <OrbitaSpinner className="size-4 shrink-0 text-info" />
+              ) : (
+                <span className="shrink-0 text-xs font-semibold text-info">Usar</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {!isLoading && templates.length > 0 && (
+      <div className="mt-8 min-w-0 border-2 border-info/50 rounded-xl p-3 sm:p-5">
         <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="w-4 h-4 text-violet-500" />
-          <h3 className="text-sm font-semibold text-violet-400 uppercase tracking-wide">
+          <Sparkles className="w-4 h-4 text-info" />
+          <h3 className="text-sm font-semibold text-info uppercase tracking-wide">
             Padrões ÓRBITA disponíveis
           </h3>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
           {templates.map((t) => (
             <FormPatternCard
               key={t.id}
@@ -203,6 +257,7 @@ export function FormPatternsSection() {
           ))}
         </div>
       </div>
+      )}
 
       <FormPreviewModal
         template={preview}

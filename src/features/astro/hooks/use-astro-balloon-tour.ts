@@ -86,6 +86,8 @@ export function useAstroBalloonTour(params: {
   useEffect(() => {
     // Uma sequência por página: o efeito só roda de novo quando a página muda.
     if (!isReady) return;
+    // Página nova: o "×" do balão valia só para a anterior.
+    useAstroFeedStore.getState().setHidden(false);
 
     const balloons: Array<Omit<AstroFeedItem, "createdAt">> = [];
 

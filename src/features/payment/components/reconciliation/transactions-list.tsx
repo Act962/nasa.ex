@@ -8,12 +8,12 @@ import {
   CheckCircle2,
   EyeOff,
   FileText,
-  Loader2,
   Plus,
   RotateCcw,
   Sparkles,
   TriangleAlert,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -127,7 +127,7 @@ export function TransactionsList({
       <div className="space-y-2">
         {transactions.map((transaction) => {
           const isCredit = transaction.direction === "CREDIT";
-          const color = isCredit ? "text-green-400" : "text-red-400";
+          const color = isCredit ? "text-success" : "text-destructive";
           const Icon = isCredit ? ArrowDownCircle : ArrowUpCircle;
           const suggestion = transaction.suggestion;
 
@@ -147,7 +147,7 @@ export function TransactionsList({
                       {transaction.source === "PDF_UPLOAD" && (
                         <Badge
                           variant="outline"
-                          className="border-violet-500/30 bg-violet-500/10 text-[10px] text-violet-300"
+                          className="border-info/30 bg-info/10 text-[10px] text-info"
                           title="Transação lida por IA de um extrato em PDF"
                         >
                           PDF
@@ -218,9 +218,9 @@ export function TransactionsList({
                         title="Ler o comprovante com o Astro e conferir pagador × valor × data"
                       >
                         {astroBusyId === transaction.id ? (
-                          <Loader2 className="size-3.5 animate-spin" />
+                          <OrbitaSpinner className="size-3.5 " />
                         ) : (
-                          <Sparkles className="size-3.5 text-violet-400" />
+                          <Sparkles className="size-3.5 text-info" />
                         )}
                         Conferir com Astro
                       </Button>
@@ -242,7 +242,7 @@ export function TransactionsList({
                       }
                     >
                       <CheckCircle2
-                        className={`size-3.5 ${transaction.reviewedAt ? "text-emerald-500" : ""}`}
+                        className={`size-3.5 ${transaction.reviewedAt ? "text-success" : ""}`}
                       />
                       {transaction.reviewedAt ? "Conferido" : "Conferir"}
                     </Button>
@@ -286,7 +286,7 @@ export function TransactionsList({
               </div>
 
               {status === "PENDING" && suggestion && (
-                <div className="mt-2.5 rounded-lg border border-blue-500/25 bg-blue-500/5 p-2.5">
+                <div className="mt-2.5 rounded-lg border border-info/25 bg-info/5 p-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -299,7 +299,7 @@ export function TransactionsList({
                         {suggestion.isAmbiguous && (
                           <Badge
                             variant="outline"
-                            className="gap-1 border-amber-500/30 bg-amber-500/10 text-[10px] text-amber-400"
+                            className="gap-1 border-warning/30 bg-warning/10 text-[10px] text-warning"
                           >
                             <TriangleAlert className="size-3" />
                             outro lançamento parecido
@@ -312,7 +312,7 @@ export function TransactionsList({
                     </div>
                     <Button
                       size="sm"
-                      className="h-8 gap-1.5 bg-emerald-600 text-xs text-white hover:bg-emerald-600/90"
+                      className="h-8 gap-1.5 bg-success text-xs text-white hover:bg-success/90"
                       disabled={reconcile.isPending}
                       onClick={() =>
                         void run(
@@ -376,13 +376,13 @@ function ReviewVerdict({ review }: { review: TransactionReviewResult }) {
     },
   ];
   const tone = review.matches
-    ? "border-emerald-500/25 bg-emerald-500/5"
-    : "border-amber-500/25 bg-amber-500/5";
+    ? "border-success/25 bg-success/5"
+    : "border-warning/25 bg-warning/5";
 
   return (
     <div className={`mt-2.5 rounded-lg border p-2.5 ${tone}`}>
       <div className="flex items-center gap-1.5">
-        <Sparkles className="size-3.5 text-violet-400" />
+        <Sparkles className="size-3.5 text-info" />
         <p className="text-[11px] font-medium">
           {review.matches
             ? "Astro conferiu o comprovante — tudo bate"
@@ -393,9 +393,9 @@ function ReviewVerdict({ review }: { review: TransactionReviewResult }) {
         {rows.map((row) => (
           <span key={row.label} className="inline-flex items-center gap-1 text-[11px]">
             {row.status === "match" ? (
-              <Check className="size-3 text-emerald-500" />
+              <Check className="size-3 text-success" />
             ) : row.status === "divergent" ? (
-              <TriangleAlert className="size-3 text-amber-500" />
+              <TriangleAlert className="size-3 text-warning" />
             ) : (
               <span className="text-muted-foreground">?</span>
             )}

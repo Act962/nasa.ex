@@ -22,10 +22,10 @@ export function AstroChoiceCard({
   disabled?: boolean;
 }) {
   return (
-    <div className="w-full overflow-hidden rounded-2xl border border-zinc-700/70 bg-zinc-900/60">
+    <div className="w-full overflow-hidden rounded-2xl border border-line/70 bg-card/60">
       <div className="px-3.5 py-3">
         <p className="text-sm font-semibold text-white">{payload.title}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
+        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
           {payload.description}
         </p>
       </div>
@@ -39,7 +39,7 @@ export function AstroChoiceCard({
             onClick={() => onRespond(option.label)}
             className={cn(
               "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-              "bg-violet-500/15 text-violet-200 hover:bg-violet-500/25",
+              "bg-info/15 text-info hover:bg-info/25",
               "disabled:cursor-not-allowed disabled:opacity-50",
             )}
           >

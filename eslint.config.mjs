@@ -1,5 +1,6 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
+import { orbitaPlugin } from "./eslint-rules/no-hardcoded-color.mjs";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -66,6 +67,18 @@ const eslintConfig = defineConfig([
             "Use Prisma.TransactionClient (ou Pick<Prisma.TransactionClient, ...>) — derivar de typeof prisma explode a checagem de tipos.",
         },
       ],
+    },
+  },
+  {
+    // Telas usam os tokens do Design System Órbita, não cor fixa: cor fixa não
+    // acompanha o modo escuro nem uma troca de tema. Aviso (não erro) enquanto
+    // os Apps migram — ver o roadmap em docs/design-system-overview.md.
+    // `src/components/ui` define as variações e pode usar cor de propósito.
+    files: ["src/**/*.tsx"],
+    ignores: ["src/components/ui/**", "src/generated/**"],
+    plugins: { orbita: orbitaPlugin },
+    rules: {
+      "orbita/no-hardcoded-color": "warn",
     },
   },
 ]);

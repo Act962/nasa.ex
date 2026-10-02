@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { ArrowLeft, Loader2, Printer, Share2 } from "lucide-react";
+import { ArrowLeft, Printer, Share2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { CertificateView } from "./certificate-view";
@@ -26,7 +27,7 @@ export function CertificateDetailPage({
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <OrbitaSpinner className="size-6 text-muted-foreground" />
       </div>
     );
   }
@@ -76,7 +77,7 @@ export function CertificateDetailPage({
 
   return (
     <div>
-      <div className="certificate-no-print sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
+      <div className="certificate-no-print sticky top-0 z-30 bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-[1100px] items-center justify-between px-4 py-3">
           <Button asChild variant="ghost" size="sm" className="gap-1.5">
             <Link href={publicView || !isAuthenticated ? "/" : "/nasa-route/certificados"}>

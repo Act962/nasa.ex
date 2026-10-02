@@ -69,9 +69,9 @@ export function FileMessageBox({ mediaUrl, fileName }: FileMessageBoxProps) {
   };
 
   return (
-    <div className="rounded-lg border overflow-hidden bg-foreground/10">
+    <div className="rounded-[11px] border overflow-hidden bg-foreground/10">
       <div className="flex items-center gap-3 px-3 py-5 bg-background/50">
-        <div className="p-2 bg-secondary/10 rounded-lg">
+        <div className="p-2 bg-secondary/10 rounded-[8px]">
           <FileIcon className="w-4 h-4 text-foreground" />
         </div>
         <div className="flex flex-col overflow-hidden">

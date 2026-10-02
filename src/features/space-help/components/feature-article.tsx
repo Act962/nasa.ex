@@ -55,7 +55,7 @@ export function FeatureArticle({ categorySlug, featureSlug }: Props) {
       )}
 
       {liveGuide && (
-        <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-violet-500/30 bg-violet-500/5 px-4 py-3">
+        <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-info/30 bg-info/5 px-4 py-3">
           <p className="flex-1 text-sm text-muted-foreground">
             Prefere aprender fazendo? O Astro te guia na sua tela, clique por clique.
           </p>
@@ -78,7 +78,7 @@ export function FeatureArticle({ categorySlug, featureSlug }: Props) {
       )}
 
       {!embed && feature.youtubeUrl && (
-        <div className="mt-6 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">
+        <div className="mt-6 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning">
           <Play className="size-4" />
           URL de vídeo inválida — peça a um moderador para corrigir.
         </div>
@@ -88,7 +88,7 @@ export function FeatureArticle({ categorySlug, featureSlug }: Props) {
         {feature.steps.map((step, idx) => (
           <li key={step.id} className="relative">
             <div className="flex items-baseline gap-3 mb-3">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white text-sm font-bold">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-info text-background text-sm font-bold">
                 {idx + 1}
               </span>
               <h3 className="text-lg md:text-xl font-semibold leading-tight">

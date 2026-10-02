@@ -39,12 +39,12 @@ import {
 
 function StatusBadge({ status }: { status: string }) {
   const variant: Record<string, { cls: string; icon: typeof CheckCircleIcon }> = {
-    SUCCESS: { cls: "bg-emerald-500/10 text-emerald-700 border-emerald-300", icon: CheckCircleIcon },
-    FAILED: { cls: "bg-red-500/10 text-red-700 border-red-300", icon: AlertCircleIcon },
-    SUSPENDED: { cls: "bg-amber-500/10 text-amber-700 border-amber-300", icon: PauseIcon },
-    RUNNING: { cls: "bg-blue-500/10 text-blue-700 border-blue-300", icon: ActivityIcon },
-    MAX_EXECUTIONS_HIT: { cls: "bg-red-500/10 text-red-700 border-red-300", icon: AlertCircleIcon },
-    RATE_LIMITED: { cls: "bg-orange-500/10 text-orange-700 border-orange-300", icon: AlertCircleIcon },
+    SUCCESS: { cls: "bg-success/10 text-success border-success/30", icon: CheckCircleIcon },
+    FAILED: { cls: "bg-destructive/10 text-destructive border-destructive/30", icon: AlertCircleIcon },
+    SUSPENDED: { cls: "bg-warning/10 text-warning border-warning/30", icon: PauseIcon },
+    RUNNING: { cls: "bg-info/10 text-info border-info/30", icon: ActivityIcon },
+    MAX_EXECUTIONS_HIT: { cls: "bg-destructive/10 text-destructive border-destructive/30", icon: AlertCircleIcon },
+    RATE_LIMITED: { cls: "bg-warning/10 text-warning border-warning/30", icon: AlertCircleIcon },
   };
   const v = variant[status] ?? variant.SUCCESS;
   const Icon = v.icon;
@@ -256,11 +256,11 @@ export function AgentDetailButton({ workflowId }: { workflowId: string }) {
                       hint="WAIT_FOR_EVENT pendente"
                     />
                   </div>
-                  <div className="rounded-lg border bg-emerald-50 dark:bg-emerald-950/30 p-3">
-                    <div className="text-xs font-medium text-emerald-900 dark:text-emerald-200">
+                  <div className="rounded-lg border bg-success/10 p-3">
+                    <div className="text-xs font-medium text-success">
                       Rate limit (sliding window 1h)
                     </div>
-                    <div className="text-2xl font-bold mt-1 text-emerald-700 dark:text-emerald-300">
+                    <div className="text-2xl font-bold mt-1 text-success">
                       {runsQuery.data.metrics.runsLastHour} runs
                     </div>
                   </div>

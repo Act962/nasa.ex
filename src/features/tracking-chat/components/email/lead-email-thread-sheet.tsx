@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Send } from "lucide-react";
+import { Send } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   Sheet,
   SheetContent,
@@ -213,7 +214,7 @@ export function LeadEmailThreadSheet({
 
           <Button className="w-full gap-2" onClick={handleSend} disabled={!canSend}>
             {sendEmail.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
+              <OrbitaSpinner className="size-4 " />
             ) : (
               <Send className="size-4" />
             )}

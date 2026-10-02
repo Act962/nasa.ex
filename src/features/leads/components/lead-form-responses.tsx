@@ -6,13 +6,13 @@ import { format, formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   ArrowRight,
-  Loader,
   MoreVertical,
   PencilLine,
   RotateCcw,
   SquarePenIcon,
   Timer,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { useOrgRole } from "@/hooks/use-org-role";
 import { authClient } from "@/lib/auth-client";
@@ -359,7 +359,7 @@ function StatsCard({
       <CardHeader className="pb-2">
         <CardDescription>{title}</CardDescription>
         <CardTitle className={compact ? "text-2xl" : "text-4xl"}>
-          {isLoading ? <Loader className="h-[36px] animate-spin" /> : value}
+          {isLoading ? <OrbitaSpinner className="h-[36px] " /> : value}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -530,13 +530,13 @@ function FormGroupItem({
               className={
                 "inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-medium tabular-nums whitespace-nowrap " +
                 {
-                  safe: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+                  safe: "border-success/30 bg-success/10 text-success dark:bg-success/15 dark:text-success",
                   warning:
-                    "border-yellow-300 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300",
+                    "border-warning/30 bg-warning/10 text-warning dark:bg-warning/15 dark:text-warning",
                   urgent:
-                    "border-orange-300 bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300",
+                    "border-warning/30 bg-warning/10 text-warning dark:bg-warning/15 dark:text-warning",
                   expired:
-                    "border-red-300 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300",
+                    "border-destructive/30 bg-destructive/10 text-destructive dark:bg-destructive/15 dark:text-destructive",
                 }[deadlineInfo.tier]
               }
               title={`Prazo: ${group.lastDeadline?.toLocaleString("pt-BR")}`}
@@ -637,7 +637,7 @@ function FormGroupItem({
             >
               {cancelMutation.isPending ? (
                 <>
-                  <Loader className="size-4 animate-spin" />
+                  <OrbitaSpinner className="size-4 " />
                   Cancelando...
                 </>
               ) : (

@@ -46,7 +46,7 @@ export function ProposalsTaxReview({ proposals }: { proposals: ProposalTaxRow[] 
           </p>
         ) : problematicProposals.length === 0 ? (
           <p className="flex items-center gap-2 rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
-            <CheckCircle2 className="size-4 text-emerald-500" />
+            <CheckCircle2 className="size-4 text-success" />
             Todas as {proposals.length} propostas consideram imposto com a alíquota certa.
           </p>
         ) : (
@@ -80,11 +80,11 @@ export function ProposalsTaxReview({ proposals }: { proposals: ProposalTaxRow[] 
                       <td className="px-3 py-2 text-right tabular-nums">{formatBps(proposal.effectiveRateBps)}</td>
                       <td className="py-2 pl-3">
                         {proposal.isMissingTax ? (
-                          <Badge variant="outline" className="border-red-500/40 bg-red-500/10 font-normal text-red-700 dark:text-red-300">
+                          <Badge variant="outline" className="border-destructive/40 bg-destructive/10 font-normal text-destructive dark:text-destructive">
                             Sem imposto
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 font-normal text-amber-700 dark:text-amber-300">
+                          <Badge variant="outline" className="border-warning/40 bg-warning/10 font-normal text-warning dark:text-warning">
                             Alíquota diferente da efetiva
                           </Badge>
                         )}

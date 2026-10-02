@@ -11,7 +11,7 @@ export function ShowMeOnScreenButton({ guideKey, className }: { guideKey: string
     <Button
       size="sm"
       onClick={() => startGuide(guideKey)}
-      className={cn("bg-violet-600 text-white hover:bg-violet-700", className)}
+      className={cn(className)}
     >
       <MousePointerClick className="size-4" />
       Me mostre na tela

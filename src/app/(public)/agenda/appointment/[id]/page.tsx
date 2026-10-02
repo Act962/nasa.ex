@@ -50,22 +50,22 @@ const statusConfig: Record<
 > = {
   CONFIRMED: {
     label: "Confirmado",
-    color: "bg-green-500/10 text-green-600 border-green-200",
+    color: "bg-success/10 text-success border-success/30",
     icon: <CheckCircleIcon className="size-3 mr-1" />,
   },
   PENDING: {
     label: "Pendente",
-    color: "bg-yellow-500/10 text-yellow-600 border-yellow-200",
+    color: "bg-warning/10 text-warning border-warning/30",
     icon: <AlertCircleIcon className="size-3 mr-1" />,
   },
   CANCELLED: {
     label: "Cancelado",
-    color: "bg-red-500/10 text-red-600 border-red-200",
+    color: "bg-destructive/10 text-destructive border-destructive/30",
     icon: <XCircleIcon className="size-3 mr-1" />,
   },
   RESCHEDULED: {
     label: "Reagendado",
-    color: "bg-blue-500/10 text-blue-600 border-blue-200",
+    color: "bg-info/10 text-info border-info/30",
     icon: <CalendarPlusIcon className="size-3 mr-1" />,
   },
 };
@@ -331,7 +331,7 @@ export default function PublicAppointmentPage() {
 
           {/* Quem cancelou */}
           {isCancelled && cancelledByLabel && (
-            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50/50 dark:bg-red-950/20 dark:border-red-900/40 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+            <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               <XCircleIcon className="size-4 shrink-0" />
               {cancelledByLabel}
             </div>

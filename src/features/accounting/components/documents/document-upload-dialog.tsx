@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { FileText, Loader2, Lock, UploadCloud, X } from "lucide-react";
+import { FileText, Lock, UploadCloud, X } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -118,7 +119,7 @@ export function DocumentUploadDialog({ request, onClose }: DocumentUploadDialogP
           <div className="space-y-4">
             {selectedFile ? (
               <div className="flex items-center gap-3 rounded-xl border bg-muted/30 p-3">
-                <FileText className="size-8 shrink-0 text-violet-500" />
+                <FileText className="size-8 shrink-0 text-info" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{selectedFile.name}</p>
                   <p className="text-xs text-muted-foreground">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
@@ -132,7 +133,7 @@ export function DocumentUploadDialog({ request, onClose }: DocumentUploadDialogP
                 {...getRootProps()}
                 className={cn(
                   "cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-colors",
-                  isDragActive ? "border-violet-500 bg-violet-500/5" : "border-border hover:border-violet-500/50",
+                  isDragActive ? "border-info bg-info/5" : "border-border hover:border-info/50",
                 )}
               >
                 <input {...getInputProps()} />
@@ -151,8 +152,8 @@ export function DocumentUploadDialog({ request, onClose }: DocumentUploadDialogP
               <Button variant="ghost" onClick={closeDialog}>
                 Cancelar
               </Button>
-              <Button className="bg-violet-600 text-white hover:bg-violet-700" disabled={!canUpload} onClick={upload}>
-                {uploadDocument.isPending && <Loader2 className="size-3.5 animate-spin" />}
+              <Button className="bg-info text-white hover:bg-info" disabled={!canUpload} onClick={upload}>
+                {uploadDocument.isPending && <OrbitaSpinner className="size-3.5 " />}
                 Enviar e ler com IA
               </Button>
             </div>

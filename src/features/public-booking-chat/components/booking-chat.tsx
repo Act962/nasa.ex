@@ -136,7 +136,7 @@ function ChatHeader({
   isActive: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 p-4 border-b">
+    <div className="flex items-center gap-3 p-4">
       {orgLogo ? (
         <img
           src={orgLogo}
@@ -156,7 +156,7 @@ function ChatHeader({
         <span
           className={cn(
             "w-2 h-2 rounded-full",
-            isActive ? "bg-green-500" : "bg-yellow-400",
+            isActive ? "bg-success" : "bg-warning",
           )}
         />
         <span className="text-xs text-muted-foreground">

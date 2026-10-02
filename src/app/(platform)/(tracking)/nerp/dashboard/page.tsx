@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,7 +33,7 @@ function DeltaBadge({ value, label }: { value: number; label: string }) {
         <>Sem variação {label}</>
       ) : (
         <>
-          <span className={positive ? "text-emerald-600" : "text-red-600"}>
+          <span className={positive ? "text-success" : "text-destructive"}>
             {positive ? "+" : ""}
             {formatNumber(value)}
           </span>{" "}
@@ -59,7 +60,7 @@ export default function NerpDashboardPage() {
           disabled={query.isFetching}
         >
           {query.isFetching ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <OrbitaSpinner className="size-3.5 " />
           ) : (
             <RefreshCw className="size-3.5" />
           )}
@@ -69,7 +70,7 @@ export default function NerpDashboardPage() {
       <NerpConnectionGuard>
         {query.isLoading && (
           <div className="py-12 text-center text-muted-foreground">
-            <Loader2 className="size-4 animate-spin inline mr-2" />
+            <OrbitaSpinner className="size-4 inline mr-2" />
             Carregando métricas…
           </div>
         )}

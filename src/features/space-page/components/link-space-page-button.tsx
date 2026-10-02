@@ -43,7 +43,7 @@ export function LinkSpacehomeButton() {
       <Button
         asChild
         size="sm"
-        className="h-8 gap-1 bg-orange-500 px-2.5 text-white hover:bg-orange-600"
+        className="h-8 gap-1 px-2.5"
       >
         <Link href="/onboarding/space-page">
           <Plus className="size-3" />
@@ -73,18 +73,18 @@ export function LinkSpacehomeButton() {
       <Button
         asChild
         size="sm"
-        className="h-8 gap-1.5 bg-orange-500 px-2.5 text-white hover:bg-orange-600"
+        className="h-8 gap-1.5 px-2.5"
       >
         <Link href={url} target="_blank">
           <ExternalLink className="size-3" />
           <span className="text-xs font-medium">Spacehome</span>
           {isPublic ? (
-            <Badge className="bg-green-500/25 px-1.5 py-0 text-[10px] text-green-50">
+            <Badge className="bg-success/25 px-1.5 py-0 text-[10px] text-success">
               <ShieldCheck className="mr-0.5 size-2.5" />
               Pública
             </Badge>
           ) : (
-            <Badge className="bg-yellow-500/25 px-1.5 py-0 text-[10px] text-yellow-50">
+            <Badge className="bg-warning/25 px-1.5 py-0 text-[10px] text-warning">
               <Lock className="mr-0.5 size-2.5" />
               Privada
             </Badge>

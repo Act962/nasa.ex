@@ -8,12 +8,12 @@ import {
   CornerUpLeft,
   Copy,
   ExternalLink,
-  Loader2,
   Phone,
   Plus,
   Trash2,
   Variable,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -446,7 +446,7 @@ export function TemplateBuilder({
                   onClick={() => fileInputRef.current?.click()}
                 >
                   {header.uploading ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <OrbitaSpinner className="size-4 " />
                   ) : (
                     <Plus className="size-4" />
                   )}
@@ -606,7 +606,7 @@ export function TemplateBuilder({
         </section>
 
         {submitted && validationErrors.length > 0 && (
-          <ul className="flex flex-col gap-1 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+          <ul className="flex flex-col gap-1 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive dark:border-destructive dark:bg-destructive/20 dark:text-destructive">
             {validationErrors.map((message) => (
               <li key={message}>• {message}</li>
             ))}
@@ -627,7 +627,7 @@ export function TemplateBuilder({
             disabled={createTemplate.isPending}
           >
             {createTemplate.isPending && (
-              <Loader2 className="size-4 animate-spin" />
+              <OrbitaSpinner className="size-4 " />
             )}
             Enviar para análise
           </Button>

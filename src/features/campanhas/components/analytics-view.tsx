@@ -111,25 +111,25 @@ export function AnalyticsView() {
               label="Enviados"
               value={totals.sent}
               icon={Send}
-              accent="text-sky-500"
+              accent="text-info"
             />
             <StatCard
               label="Entregues"
               value={totals.delivered}
               icon={CheckCheck}
-              accent="text-emerald-500"
+              accent="text-success"
             />
             <StatCard
               label="Lidos"
               value={totals.read}
               icon={Eye}
-              accent="text-violet-500"
+              accent="text-info"
             />
             <StatCard
               label="Falhas"
               value={totals.failed}
               icon={TriangleAlert}
-              accent="text-red-500"
+              accent="text-destructive"
             />
           </div>
 
@@ -140,19 +140,19 @@ export function AnalyticsView() {
                 label="Entrega (entregues / enviados)"
                 part={totals.delivered}
                 total={totals.sent}
-                color="bg-emerald-500"
+                color="bg-success"
               />
               <RateBar
                 label="Leitura (lidos / enviados)"
                 part={totals.read}
                 total={totals.sent}
-                color="bg-violet-500"
+                color="bg-info"
               />
               <RateBar
                 label="Falha (falhas / destinatários)"
                 part={totals.failed}
                 total={totals.recipients}
-                color="bg-red-500"
+                color="bg-destructive"
               />
             </div>
           </div>

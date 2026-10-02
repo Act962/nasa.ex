@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCatalogOrderPortal, useCatalogOrderStarFriends } from "../../hooks/use-catalog-order-portal";
 import { OrderChat } from "./order-chat";
@@ -52,7 +53,7 @@ export function OrderPortal({ token }: { token: string }) {
   if (orderQuery.isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <OrbitaSpinner className="size-6 text-muted-foreground" />
       </div>
     );
   }
@@ -123,7 +124,7 @@ export function OrderPortal({ token }: { token: string }) {
             <>
               <Avatar className="size-10">
                 {order.store.logo && <AvatarImage src={order.store.logo} alt={order.store.name} />}
-                <AvatarFallback className="bg-rose-600 text-xs font-bold text-white">
+                <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">
                   {order.store.name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>

@@ -25,13 +25,13 @@ export function OptionalLabel({
     <Label
       className={cn(
         "text-base font-normal! mb-2",
-        isError && "text-red-500",
+        isError && "text-destructive",
         className,
       )}
       style={style}
     >
       {label}
-      {required && <span className="text-red-500"> *</span>}
+      {required && <span className="text-destructive"> *</span>}
     </Label>
   );
 }

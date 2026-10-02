@@ -1,4 +1,5 @@
 import type { AppModule } from "@/features/insights/types";
+import type { KpiCardStyle } from "./kpi-card-style";
 
 export type AppMetricSource =
   | "tracking"
@@ -161,6 +162,8 @@ export interface InsightBlockSectionPrefs extends InsightBlockBase {
   type: "section-prefs";
   appModule: AppModule;
   visibleKeys: string[];
+  /** Aparência de cada bloco da seção, por chave da métrica. */
+  cardStyles?: Record<string, KpiCardStyle>;
 }
 
 export type InsightBlock =

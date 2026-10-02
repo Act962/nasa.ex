@@ -31,7 +31,7 @@ export function CopyComplianceBadge({
 
   if (!level || level === "OK") {
     return (
-      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success">
         <ShieldCheck className="size-3" />
         Dentro das regras
       </span>
@@ -48,8 +48,8 @@ export function CopyComplianceBadge({
         className={cn(
           "inline-flex items-center gap-1 text-[11px] font-medium",
           isBlocked
-            ? "text-red-600 dark:text-red-400"
-            : "text-amber-600 dark:text-amber-400",
+            ? "text-destructive"
+            : "text-warning",
         )}
       >
         {isBlocked ? <ShieldAlert className="size-3" /> : <AlertTriangle className="size-3" />}
@@ -60,10 +60,10 @@ export function CopyComplianceBadge({
       {isOpen && hits.length > 0 && (
         <ul
           className={cn(
-            "mt-2 space-y-2 rounded-lg border p-3",
+            "mt-2 space-y-2 rounded-[18px] border p-3",
             isBlocked
-              ? "border-red-500/30 bg-red-500/[0.05]"
-              : "border-amber-500/30 bg-amber-500/[0.05]",
+              ? "border-destructive/30 bg-destructive/15"
+              : "border-warning/30 bg-warning/15",
           )}
         >
           {hits.map((hit) => (

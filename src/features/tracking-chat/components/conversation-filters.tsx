@@ -3,8 +3,8 @@
 /**
  * Usado em DESKTOP (lg+) na sidebar do /tracking-chat — row de "channel
  * circles + filter pills" abaixo do search input. Em MOBILE, esses
- * filtros migraram pra `tracking-chat-bottom-tabs.tsx` (pill flutuante
- * estilo WhatsApp iOS) + dropdown "..." do header — o componente é
+ * filtros migraram pro dock em órbita (`chat-orbit-dock.tsx`) e a gaveta
+ * `chat-mobile-filters-sheet.tsx` + dropdown "..." do header — o componente é
  * renderizado com `hidden lg:flex` no `conversations-list.tsx`.
  */
 
@@ -68,21 +68,9 @@ export function ConversationFilters({
   selectedTagIds,
   onSelectedTagIdsChange,
 }: ConversationFiltersProps) {
-  const { installedSlugs } = useMarketplace();
   const { statusFlows, toggleStatusFlow, activeCount, sortBy, setSortBy } =
     useConversationFilters();
   const isAwaitingReplyFirst = sortBy === "awaitingReply";
-
-  // Só canais que o Tracking Chat recebe de verdade. O catálogo tem Telegram,
-  // LinkedIn, Slack etc. marcados só no navegador, sem integração por trás, e
-  // o Messenger está incompleto (sempre cai no primeiro tracking, sem mídia).
-  const messengerIntegrations = integrations.filter(
-    (integration) =>
-      integration.category === "messengers" &&
-      CHAT_CHANNEL_SLUGS.has(integration.slug) &&
-      (integration.status === "installed" ||
-        installedSlugs.has(integration.slug)),
-  );
 
   const { data, isLoading } = useQuery({
     ...orpc.tags.listTags.queryOptions({
@@ -107,179 +95,13 @@ export function ConversationFilters({
 
   const hasTagSelection = selectedTagIds.length > 0;
 
-  // O Instagram chega pelo COMMENTS: sem conta conectada (ou com credencial
-  // recusada), o ícone fica apagado e leva à conexão (spec 0029, RF-13).
-  const { data: commentsChannel } = useCommentsChannel();
-  const isInstagramReady =
-    commentsChannel?.connected === true && commentsChannel.status === "ACTIVE";
-  const instagramNeedsReconnect =
-    commentsChannel?.connected === true && commentsChannel.status !== "ACTIVE";
-  const [instagramDialogOpen, setInstagramDialogOpen] = useState(false);
-
-  // Contadores de "sem resposta" por canal e o estado do Gmail da empresa.
-  const unanswered = useUnansweredCounts(trackingId);
-  const gmailStatus = useGmailStatus();
-  const { unansweredLeadCount: unansweredEmailLeads } = useLeadEmailThreads(
-    trackingId,
-    gmailStatus.isConnected,
-  );
-
   return (
     <div className="space-y-3 rounded-2xl border border-border/60 bg-accent-foreground/5 p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {messengerIntegrations.map((integration) => {
-          const mapping = getChannelMappingFromSlug(integration.slug);
-          const channelId = mapping?.id ?? "ALL";
-          const isActive = selectedChannel === channelId;
-          const isDisconnectedInstagram =
-            channelId === "INSTAGRAM" && !isInstagramReady;
-
-          const unansweredCount = unanswered.byChannel[channelId] ?? 0;
-
-          return (
-            <span key={integration.slug} className="relative">
-              <button
-                type="button"
-                title={
-                  isDisconnectedInstagram
-                    ? "Instagram não conectado — conectar pelo COMMENTS"
-                    : integration.name
-                }
-                onClick={() =>
-                  isDisconnectedInstagram
-                    ? setInstagramDialogOpen(true)
-                    : onChannelChange(isActive ? "ALL" : channelId)
-                }
-                className={cn(
-                  "flex size-11 items-center justify-center rounded-full border transition-colors overflow-hidden bg-background",
-                  isActive
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border/70 text-muted-foreground hover:bg-accent",
-                  isDisconnectedInstagram &&
-                    "opacity-60 grayscale hover:opacity-90",
-                )}
-              >
-                {mapping?.renderIcon ? (
-                  mapping.renderIcon()
-                ) : (
-                  <span className="text-base">{integration.icon}</span>
-                )}
-              </button>
-              <UnansweredBadge
-                count={unansweredCount}
-                label={`${unansweredCount} lead(s) sem resposta no ${integration.name}`}
-              />
-            </span>
-          );
-        })}
-
-        <span className="relative">
-          <button
-            type="button"
-            title="ASTRO CHAT — visitantes do site atendidos pelo ASTRO"
-            onClick={() =>
-              onChannelChange(selectedChannel === "ASTRO_CHAT" ? "ALL" : "ASTRO_CHAT")
-            }
-            className={cn(
-              "flex size-11 items-center justify-center rounded-full border transition-colors bg-background",
-              selectedChannel === "ASTRO_CHAT"
-                ? "border-violet-500 bg-violet-500/10"
-                : "border-border/70 hover:bg-accent",
-            )}
-          >
-            <AstroMark className="size-7" />
-          </button>
-          <UnansweredBadge
-            count={unanswered.byChannel.ASTRO_CHAT ?? 0}
-            label={`${unanswered.byChannel.ASTRO_CHAT ?? 0} visitante(s) sem resposta no ASTRO CHAT`}
-          />
-        </span>
-
-        <span className="relative">
-          <button
-            type="button"
-            title={
-              gmailStatus.isConnected
-                ? `E-mail — ${gmailStatus.mailboxEmail ?? "Gmail da empresa"}`
-                : "E-mail — Gmail da empresa não conectado"
-            }
-            onClick={() =>
-              onChannelChange(selectedChannel === "EMAIL" ? "ALL" : "EMAIL")
-            }
-            className={cn(
-              "flex size-11 items-center justify-center rounded-full border transition-colors bg-background",
-              selectedChannel === "EMAIL"
-                ? "border-primary bg-primary/10"
-                : "border-border/70 hover:bg-accent",
-              // Sem Gmail conectado o ícone fica apagado, como o Instagram.
-              !gmailStatus.isConnected &&
-                "opacity-60 grayscale hover:opacity-90",
-            )}
-          >
-            <GmailLogoIcon className="size-5" />
-          </button>
-          <UnansweredBadge
-            count={gmailStatus.isConnected ? unansweredEmailLeads : 0}
-            label={`${unansweredEmailLeads} lead(s) esperando resposta por e-mail`}
-          />
-        </span>
-
-        <AppNotConnectedDialog
-          open={instagramDialogOpen}
-          onOpenChange={setInstagramDialogOpen}
-          icon={<InstagramLogoIcon />}
-          title={
-            instagramNeedsReconnect
-              ? "Reconecte seu Instagram"
-              : "Conecte seu Instagram pelo COMMENTS"
-          }
-          description={
-            instagramNeedsReconnect
-              ? "A conta do Instagram perdeu a autorização. Reconecte pelo COMMENTS para voltar a receber as mensagens aqui."
-              : "O Instagram entra no ÓRBITA pelo app COMMENTS. Conecte sua conta lá e as mensagens do direct passam a aparecer aqui."
-          }
-          actionLabel="Ir para o COMMENTS"
-          actionHref="/comments?tab=integracoes"
-        />
-
-        <span className="relative">
-          <button
-            type="button"
-            title={CATALOG_CHANNEL_LABEL}
-            aria-label={CATALOG_CHANNEL_LABEL}
-            onClick={() =>
-              onChannelChange(selectedChannel === "CATALOG" ? "ALL" : "CATALOG")
-            }
-            className={cn(
-              "flex size-11 items-center justify-center rounded-full border transition-colors bg-background",
-              selectedChannel === "CATALOG"
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border/70 text-muted-foreground hover:bg-accent",
-            )}
-          >
-            <ShoppingBasket className="size-5 text-emerald-500" />
-          </button>
-          <UnansweredBadge
-            count={unanswered.byChannel.CATALOG ?? 0}
-            label={`${unanswered.byChannel.CATALOG ?? 0} pedido(s) do Catálogo online sem resposta`}
-          />
-        </span>
-
-        <Link href="/integrations?category=mensageiros">
-          <button
-            type="button"
-            title="Todos os canais"
-            className={cn(
-              "flex size-11 items-center justify-center rounded-full border transition-colors",
-              selectedChannel === "ALL"
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border/70 text-muted-foreground hover:bg-accent",
-            )}
-          >
-            <MoreChannelsIcon className="size-5" />
-          </button>
-        </Link>
-      </div>
+      <ConversationChannelCircles
+        trackingId={trackingId}
+        selectedChannel={selectedChannel}
+        onChannelChange={onChannelChange}
+      />
 
       {/* Duas linhas de três, todos do mesmo tamanho, abaixo dos canais. */}
       <div className="grid grid-cols-3 gap-1.5 pt-1">
@@ -399,6 +221,208 @@ export function ConversationFilters({
   );
 }
 
+interface ConversationChannelCirclesProps {
+  trackingId: string | null;
+  selectedChannel: ChannelFilter;
+  onChannelChange: (channel: ChannelFilter) => void;
+  className?: string;
+}
+
+/** Círculos dos canais com contador de "sem resposta": fileira no desktop, aba do dock no celular. */
+export function ConversationChannelCircles({
+  trackingId,
+  selectedChannel,
+  onChannelChange,
+  className,
+}: ConversationChannelCirclesProps) {
+  const { installedSlugs } = useMarketplace();
+  // Só canais que o Tracking Chat recebe de verdade. O catálogo tem Telegram,
+  // LinkedIn, Slack etc. marcados só no navegador, sem integração por trás, e
+  // o Messenger está incompleto (sempre cai no primeiro tracking, sem mídia).
+  const messengerIntegrations = integrations.filter(
+    (integration) =>
+      integration.category === "messengers" &&
+      CHAT_CHANNEL_SLUGS.has(integration.slug) &&
+      (integration.status === "installed" ||
+        installedSlugs.has(integration.slug)),
+  );
+
+  // O Instagram chega pelo COMMENTS: sem conta conectada (ou com credencial
+  // recusada), o ícone fica apagado e leva à conexão (spec 0029, RF-13).
+  const { data: commentsChannel } = useCommentsChannel();
+  const isInstagramReady =
+    commentsChannel?.connected === true && commentsChannel.status === "ACTIVE";
+  const instagramNeedsReconnect =
+    commentsChannel?.connected === true && commentsChannel.status !== "ACTIVE";
+  const [instagramDialogOpen, setInstagramDialogOpen] = useState(false);
+
+  // Contadores de "sem resposta" por canal e o estado do Gmail da empresa.
+  const unanswered = useUnansweredCounts(trackingId);
+  const gmailStatus = useGmailStatus();
+  const { unansweredLeadCount: unansweredEmailLeads } = useLeadEmailThreads(
+    trackingId,
+    gmailStatus.isConnected,
+  );
+
+  return (
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+      {messengerIntegrations.map((integration) => {
+        const mapping = getChannelMappingFromSlug(integration.slug);
+        const channelId = mapping?.id ?? "ALL";
+        const isActive = selectedChannel === channelId;
+        const isDisconnectedInstagram =
+          channelId === "INSTAGRAM" && !isInstagramReady;
+
+        const unansweredCount = unanswered.byChannel[channelId] ?? 0;
+
+        return (
+          <span key={integration.slug} className="relative">
+            <button
+              type="button"
+              title={
+                isDisconnectedInstagram
+                  ? "Instagram não conectado — conectar pelo COMMENTS"
+                  : integration.name
+              }
+              onClick={() =>
+                isDisconnectedInstagram
+                  ? setInstagramDialogOpen(true)
+                  : onChannelChange(isActive ? "ALL" : channelId)
+              }
+              className={cn(
+                "flex size-11 items-center justify-center rounded-full border transition-colors overflow-hidden bg-background",
+                isActive
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border/70 text-muted-foreground hover:bg-accent",
+                isDisconnectedInstagram &&
+                  "opacity-60 grayscale hover:opacity-90",
+              )}
+            >
+              {mapping?.renderIcon ? (
+                mapping.renderIcon()
+              ) : (
+                <span className="text-base">{integration.icon}</span>
+              )}
+            </button>
+            <UnansweredBadge
+              count={unansweredCount}
+              label={`${unansweredCount} lead(s) sem resposta no ${integration.name}`}
+            />
+          </span>
+        );
+      })}
+
+      <span className="relative">
+        <button
+          type="button"
+          title="ASTRO CHAT — visitantes do site atendidos pelo ASTRO"
+          onClick={() =>
+            onChannelChange(
+              selectedChannel === "ASTRO_CHAT" ? "ALL" : "ASTRO_CHAT",
+            )
+          }
+          className={cn(
+            "flex size-11 items-center justify-center rounded-full border transition-colors bg-background",
+            selectedChannel === "ASTRO_CHAT"
+              ? "border-info bg-info/10"
+              : "border-border/70 hover:bg-accent",
+          )}
+        >
+          <AstroMark className="size-7" />
+        </button>
+        <UnansweredBadge
+          count={unanswered.byChannel.ASTRO_CHAT ?? 0}
+          label={`${unanswered.byChannel.ASTRO_CHAT ?? 0} visitante(s) sem resposta no ASTRO CHAT`}
+        />
+      </span>
+
+      <span className="relative">
+        <button
+          type="button"
+          title={
+            gmailStatus.isConnected
+              ? `E-mail — ${gmailStatus.mailboxEmail ?? "Gmail da empresa"}`
+              : "E-mail — Gmail da empresa não conectado"
+          }
+          onClick={() =>
+            onChannelChange(selectedChannel === "EMAIL" ? "ALL" : "EMAIL")
+          }
+          className={cn(
+            "flex size-11 items-center justify-center rounded-full border transition-colors bg-background",
+            selectedChannel === "EMAIL"
+              ? "border-primary bg-primary/10"
+              : "border-border/70 hover:bg-accent",
+            // Sem Gmail conectado o ícone fica apagado, como o Instagram.
+            !gmailStatus.isConnected && "opacity-60 grayscale hover:opacity-90",
+          )}
+        >
+          <GmailLogoIcon className="size-5" />
+        </button>
+        <UnansweredBadge
+          count={gmailStatus.isConnected ? unansweredEmailLeads : 0}
+          label={`${unansweredEmailLeads} lead(s) esperando resposta por e-mail`}
+        />
+      </span>
+
+      <AppNotConnectedDialog
+        open={instagramDialogOpen}
+        onOpenChange={setInstagramDialogOpen}
+        icon={<InstagramLogoIcon />}
+        title={
+          instagramNeedsReconnect
+            ? "Reconecte seu Instagram"
+            : "Conecte seu Instagram pelo COMMENTS"
+        }
+        description={
+          instagramNeedsReconnect
+            ? "A conta do Instagram perdeu a autorização. Reconecte pelo COMMENTS para voltar a receber as mensagens aqui."
+            : "O Instagram entra no ÓRBITA pelo app COMMENTS. Conecte sua conta lá e as mensagens do direct passam a aparecer aqui."
+        }
+        actionLabel="Ir para o COMMENTS"
+        actionHref="/comments?tab=integracoes"
+      />
+
+      <span className="relative">
+        <button
+          type="button"
+          title={CATALOG_CHANNEL_LABEL}
+          aria-label={CATALOG_CHANNEL_LABEL}
+          onClick={() =>
+            onChannelChange(selectedChannel === "CATALOG" ? "ALL" : "CATALOG")
+          }
+          className={cn(
+            "flex size-11 items-center justify-center rounded-full border transition-colors bg-background",
+            selectedChannel === "CATALOG"
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border/70 text-muted-foreground hover:bg-accent",
+          )}
+        >
+          <ShoppingBasket className="size-5 text-success" />
+        </button>
+        <UnansweredBadge
+          count={unanswered.byChannel.CATALOG ?? 0}
+          label={`${unanswered.byChannel.CATALOG ?? 0} pedido(s) do Catálogo online sem resposta`}
+        />
+      </span>
+
+      <Link href="/integrations?category=mensageiros">
+        <button
+          type="button"
+          title="Todos os canais"
+          className={cn(
+            "flex size-11 items-center justify-center rounded-full border transition-colors",
+            selectedChannel === "ALL"
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border/70 text-muted-foreground hover:bg-accent",
+          )}
+        >
+          <MoreChannelsIcon className="size-5" />
+        </button>
+      </Link>
+    </div>
+  );
+}
+
 function QuickFilterButton({
   label,
   active,
@@ -430,7 +454,9 @@ function getChannelMappingFromSlug(slug: string):
   if (slug === "whatsapp-business") {
     return {
       id: "WHATSAPP",
-      renderIcon: () => <WhatsappLogoIcon className="size-5 text-green-500" />,
+      renderIcon: () => (
+        <WhatsappLogoIcon className="size-5 text-brand-whatsapp" />
+      ),
     };
   }
 
@@ -451,7 +477,9 @@ function getChannelMappingFromSlug(slug: string):
   if (slug === "facebook-messenger") {
     return {
       id: "FACEBOOK",
-      renderIcon: () => <FacebookLogoIcon className="size-5 text-[#0082FB]" />,
+      renderIcon: () => (
+        <FacebookLogoIcon className="size-5 text-brand-messenger" />
+      ),
     };
   }
 
@@ -501,7 +529,7 @@ function UnansweredBadge({ count, label }: { count: number; label: string }) {
     <span
       aria-label={label}
       title={label}
-      className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white ring-2 ring-background"
+      className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white ring-2 ring-background"
     >
       {count > 99 ? "99+" : count}
     </span>

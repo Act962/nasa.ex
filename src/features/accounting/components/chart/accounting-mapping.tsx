@@ -1,6 +1,7 @@
 "use client";
 
-import { Info, Landmark, Loader2, Tags } from "lucide-react";
+import { Info, Landmark, Tags } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -96,7 +97,7 @@ export function AccountingMapping({ accounts, mappings }: AccountingMappingProps
             ))}
           </SelectContent>
         </Select>
-        {isRowSaving(sourceId) && <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />}
+        {isRowSaving(sourceId) && <OrbitaSpinner className="size-4 shrink-0 text-muted-foreground" />}
       </div>
     );
   }
@@ -112,7 +113,7 @@ export function AccountingMapping({ accounts, mappings }: AccountingMappingProps
 
       <div className="space-y-2">
         <p className="flex items-center gap-1.5 text-sm font-semibold">
-          <Tags className="size-4 text-violet-600" />
+          <Tags className="size-4 text-info" />
           Categorias do financeiro
         </p>
         {categories.isLoading ? (
@@ -142,7 +143,7 @@ export function AccountingMapping({ accounts, mappings }: AccountingMappingProps
 
       <div className="space-y-2">
         <p className="flex items-center gap-1.5 text-sm font-semibold">
-          <Landmark className="size-4 text-violet-600" />
+          <Landmark className="size-4 text-info" />
           Contas bancárias
         </p>
         {bankAccounts.isLoading ? (

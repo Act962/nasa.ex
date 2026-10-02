@@ -83,7 +83,7 @@ export function MetaAdsDrilldown() {
     <Card>
       <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="text-base flex items-center gap-2">
-          <Layers className="size-4 text-[#0082FB]" />
+          <Layers className="size-4 text-brand-facebook" />
           Drill-down por {level === "campaign" ? "campanha" : level === "adset" ? "conjunto" : "anúncio"}
         </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
@@ -132,7 +132,7 @@ export function MetaAdsDrilldown() {
                       <TooltipTrigger className="inline-flex items-center gap-1">
                         Conv.
                         {conversionMode === "tag" && (
-                          <Tag className="size-3 text-[#0082FB]" />
+                          <Tag className="size-3 text-brand-facebook" />
                         )}
                       </TooltipTrigger>
                       <TooltipContent>

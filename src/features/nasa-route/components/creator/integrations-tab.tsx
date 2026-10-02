@@ -7,11 +7,11 @@ import { toast } from "sonner";
 import {
   ExternalLink,
   Facebook,
-  Loader2,
   Save,
   Tag,
   Link as LinkIcon,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -139,7 +139,7 @@ export function IntegrationsTab({
       {/* ── Facebook Pixel ─────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <Facebook className="size-4 text-blue-600" />
+          <Facebook className="size-4 text-info" />
           <h3 className="text-sm font-semibold">Facebook Pixel</h3>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -149,7 +149,7 @@ export function IntegrationsTab({
             href="https://business.facebook.com/events_manager"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 underline"
+            className="text-info underline"
           >
             Events Manager
           </a>
@@ -171,7 +171,7 @@ export function IntegrationsTab({
       {/* ── Google Tag Manager ─────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <Tag className="size-4 text-emerald-600" />
+          <Tag className="size-4 text-success" />
           <h3 className="text-sm font-semibold">Google Tag Manager</h3>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -193,7 +193,7 @@ export function IntegrationsTab({
 
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={upsert.isPending} className="gap-1.5">
-          {upsert.isPending && <Loader2 className="size-4 animate-spin" />}
+          {upsert.isPending && <OrbitaSpinner className="size-4 " />}
           <Save className="size-4" />
           Salvar integrações
         </Button>
@@ -202,7 +202,7 @@ export function IntegrationsTab({
       {/* ── Link com UTM ───────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <LinkIcon className="size-4 text-violet-600" />
+          <LinkIcon className="size-4 text-info" />
           <h3 className="text-sm font-semibold">Link com UTM</h3>
         </div>
         <p className="text-xs text-muted-foreground">

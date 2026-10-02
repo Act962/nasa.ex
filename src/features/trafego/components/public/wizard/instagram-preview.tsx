@@ -17,8 +17,8 @@ export function InstagramPreview({ profile }: { profile: TrafegoSocialProfile })
 
   return (
     <div className="mx-auto w-full max-w-[250px]">
-      <div className="rounded-[2rem] border border-white/15 bg-black/70 p-2 shadow-2xl shadow-violet-950/40">
-        <div className="overflow-hidden rounded-[1.65rem] bg-[#0f0f13]">
+      <div className="rounded-[2rem] border border-white/15 bg-black/70 p-2 shadow-2xl shadow-black/40">
+        <div className="overflow-hidden rounded-[1.65rem] bg-background">
           <div className="flex items-center justify-between px-4 pb-1 pt-2.5 text-[9px] text-white/40">
             <span>9:41</span>
             <span className="flex gap-1">
@@ -37,7 +37,7 @@ export function InstagramPreview({ profile }: { profile: TrafegoSocialProfile })
               </div>
 
               <div className="flex items-center gap-3 px-3.5">
-                <span className="size-14 shrink-0 overflow-hidden rounded-full border-2 border-violet-400/40 bg-white/10">
+                <span className="size-14 shrink-0 overflow-hidden rounded-full border-2 border-info/40 bg-white/10">
                   {profile.pictureUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -92,7 +92,7 @@ export function InstagramPreview({ profile }: { profile: TrafegoSocialProfile })
                 {PLACEHOLDER_TILES.map((tile) => (
                   <span
                     key={tile}
-                    className="flex aspect-square items-center justify-center bg-[#15151a]"
+                    className="flex aspect-square items-center justify-center bg-card"
                   >
                     <ImageIcon className="size-3.5 text-white/15" />
                   </span>

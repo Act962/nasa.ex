@@ -64,7 +64,7 @@ export function InvestmentSimulator({
           step={10_000}
           value={sliderValue}
           onChange={(event) => onChangeBudget(Number(event.target.value))}
-          className="mt-5 w-full accent-violet-500"
+          className="mt-5 w-full accent-info"
           aria-label="Ajustar verba"
         />
 
@@ -77,7 +77,7 @@ export function InvestmentSimulator({
               className={cn(
                 "rounded-lg border px-3.5 py-1.5 text-xs font-medium transition",
                 adBudgetBrlCents === preset
-                  ? "border-violet-400 bg-violet-500/15 text-violet-100"
+                  ? "border-info bg-info/15 text-foreground"
                   : "border-white/[0.09] text-white/45 hover:border-white/25 hover:text-white/70",
               )}
             >
@@ -87,13 +87,13 @@ export function InvestmentSimulator({
         </div>
 
         {adBudgetBrlCents < MIN_AD_BUDGET_BRL_CENTS && (
-          <p className="mt-3 text-xs text-amber-300">
+          <p className="mt-3 text-xs text-warning">
             O investimento mínimo é {formatBrlFromCents(MIN_AD_BUDGET_BRL_CENTS)}.
             Vamos simular com esse valor.
           </p>
         )}
         {adBudgetBrlCents > MAX_AD_BUDGET_BRL_CENTS && (
-          <p className="mt-3 text-xs text-amber-300">
+          <p className="mt-3 text-xs text-warning">
             Acima de {formatBrlFromCents(MAX_AD_BUDGET_BRL_CENTS)} o plano é montado
             junto com um gestor. Simulamos com o teto — fale com a gente para valores
             maiores.
@@ -111,10 +111,10 @@ export function InvestmentSimulator({
           onClick={() =>
             onChangeBudget(quote.adBudgetBrlCents + quote.nextTierGapBrlCents!)
           }
-          className="flex w-full items-start gap-2.5 rounded-xl border border-emerald-400/30 bg-emerald-500/[0.08] p-3.5 text-left transition hover:border-emerald-400/50"
+          className="flex w-full items-start gap-2.5 rounded-xl border border-success/30 bg-success/15 p-3.5 text-left transition hover:border-success/50"
         >
-          <TrendingDown className="mt-0.5 size-4 shrink-0 text-emerald-300" />
-          <span className="min-w-0 text-xs leading-relaxed text-emerald-100">
+          <TrendingDown className="mt-0.5 size-4 shrink-0 text-success" />
+          <span className="min-w-0 text-xs leading-relaxed text-foreground/85">
             Investindo <strong>{formatBrlFromCents(quote.nextTierGapBrlCents)}</strong> a
             mais, sua taxa cai para <strong>{quote.nextTierFeePercent}%</strong>
             {needsSetup &&
@@ -183,7 +183,7 @@ function TierTable({
                 return (
                   <tr
                     key={tier.id}
-                    className={cn("border-t border-white/5", isCurrent && "bg-violet-500/10")}
+                    className={cn("border-t border-white/5", isCurrent && "bg-info/10")}
                   >
                     <td className="px-3 py-2">
                       <span
@@ -192,7 +192,7 @@ function TierTable({
                           isCurrent ? "font-semibold text-white" : "text-white/55",
                         )}
                       >
-                        {isCurrent && <Check className="size-3 text-violet-300" />}
+                        {isCurrent && <Check className="size-3 text-info" />}
                         {tier.label}
                       </span>
                     </td>
@@ -207,7 +207,7 @@ function TierTable({
                     {needsSetup && (
                       <td className="px-3 py-2 text-right tabular-nums">
                         {tier.setupBrlCents === 0 ? (
-                          <span className="font-semibold text-emerald-300">Grátis</span>
+                          <span className="font-semibold text-success">Grátis</span>
                         ) : (
                           <span className={isCurrent ? "text-white" : "text-white/55"}>
                             {formatBrlFromCents(tier.setupBrlCents)}
@@ -240,7 +240,7 @@ export function TalkToManagerButton({
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-5 py-3 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20"
+      className="inline-flex items-center justify-center gap-2 rounded-lg border border-success/30 bg-success/15 px-5 py-3 text-sm font-semibold text-success transition hover:bg-success/25"
     >
       <MessageCircle className="size-4" />
       Falar com um gestor

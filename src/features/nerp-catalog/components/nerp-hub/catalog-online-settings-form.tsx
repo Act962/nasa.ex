@@ -5,7 +5,8 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { AlertTriangle, Copy, Loader2 } from "lucide-react";
+import { AlertTriangle, Copy } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -222,7 +223,7 @@ export function CatalogOnlineSettingsForm({
           error={form.formState.errors.ordersTrackingId?.message}
         />
         {ordersTracking && !ordersTracking.isAiActive && (
-          <p className="flex items-center gap-2 text-sm text-amber-600">
+          <p className="flex items-center gap-2 text-sm text-warning">
             <AlertTriangle className="size-4" />
             A IA está desligada neste tracking — ligue o Astro nas configurações do tracking para ele negociar sozinho.
           </p>
@@ -335,7 +336,7 @@ export function CatalogOnlineSettingsForm({
           </p>
         )}
         <Button type="submit" disabled={upsert.isPending || !canEdit}>
-          {upsert.isPending && <Loader2 className="size-4 animate-spin" />}
+          {upsert.isPending && <OrbitaSpinner className="size-4 " />}
           Salvar configuração
         </Button>
       </div>

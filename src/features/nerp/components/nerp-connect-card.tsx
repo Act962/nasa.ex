@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowRight, Loader2, Plug, PlugZap, Power } from "lucide-react";
+import { ArrowRight, Plug, PlugZap, Power } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -83,7 +84,7 @@ export function NerpConnectCard() {
                 disabled={isRedirecting}
               >
                 {isRedirecting ? (
-                  <Loader2 className="size-3.5 animate-spin" />
+                  <OrbitaSpinner className="size-3.5 " />
                 ) : (
                   <Plug className="size-3.5" />
                 )}
@@ -105,7 +106,7 @@ export function NerpConnectCard() {
                 disabled={disconnect.isPending}
               >
                 {disconnect.isPending ? (
-                  <Loader2 className="size-3.5 animate-spin" />
+                  <OrbitaSpinner className="size-3.5 " />
                 ) : (
                   <Power className="size-3.5" />
                 )}
@@ -120,7 +121,7 @@ export function NerpConnectCard() {
                 data-guide={GUIDE_ANCHORS.nerpConnectButton.id}
               >
                 {isRedirecting ? (
-                  <Loader2 className="size-3.5 animate-spin" />
+                  <OrbitaSpinner className="size-3.5 " />
                 ) : (
                   <Plug className="size-3.5" />
                 )}

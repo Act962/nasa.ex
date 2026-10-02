@@ -7,11 +7,11 @@ import {
   BellRing,
   Check,
   FileCheck2,
-  Loader2,
   Mail,
   Rocket,
   SearchCheck,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useTrafegoPendingPurchase } from "@/features/trafego/hooks/use-trafego-purchase";
 import { useTrafegoPublicConfig } from "@/features/trafego/hooks/use-trafego-plans";
 
@@ -60,7 +60,7 @@ export function TrafegoSuccessPolling({
   if (!pendingId) {
     return (
       <Panel
-        icon={<AlertCircle className="size-12 text-rose-400" />}
+        icon={<AlertCircle className="size-12 text-destructive" />}
         title="Link incompleto"
         subtitle="Não conseguimos identificar sua compra. Se o pagamento foi feito, verifique seu e-mail — enviamos o acesso por lá."
       />
@@ -70,7 +70,7 @@ export function TrafegoSuccessPolling({
   if (isError) {
     return (
       <Panel
-        icon={<AlertCircle className="size-12 text-rose-400" />}
+        icon={<AlertCircle className="size-12 text-destructive" />}
         title="Compra não encontrada"
         subtitle="Se o pagamento foi concluído, o acesso chega por e-mail em instantes."
       />
@@ -79,7 +79,7 @@ export function TrafegoSuccessPolling({
 
   if (isConfirmed && data) {
     return (
-      <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-7 text-center sm:p-9">
+      <div className="dark rounded-3xl border border-white/[0.08] bg-white/[0.025] p-7 text-center sm:p-9">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/trafego-logo.png"
@@ -89,11 +89,11 @@ export function TrafegoSuccessPolling({
           className="mx-auto h-6 w-auto"
         />
 
-        <span className="mx-auto mt-7 flex size-14 items-center justify-center rounded-2xl bg-violet-500/15">
-          <Check className="size-7 text-violet-300" />
+        <span className="mx-auto mt-7 flex size-14 items-center justify-center rounded-2xl bg-info/15">
+          <Check className="size-7 text-info" />
         </span>
 
-        <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-300/80">
+        <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.14em] text-info/80">
           Contratação realizada
         </p>
         <h1 className="mt-1.5 text-2xl font-bold text-white">
@@ -124,7 +124,7 @@ export function TrafegoSuccessPolling({
                   ? `/trafego/painel/${data.orderId}`
                   : `/trafego/ativar/${data.signupToken}`
               }
-              className="flex-1 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-violet-500"
+              className="flex-1 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             >
               Acessar meu painel
             </Link>
@@ -153,7 +153,7 @@ export function TrafegoSuccessPolling({
   if (gaveUp) {
     return (
       <Panel
-        icon={<Mail className="size-12 text-amber-400" />}
+        icon={<Mail className="size-12 text-warning" />}
         title="Ainda estamos confirmando"
         subtitle="O pagamento pode levar alguns minutos para ser processado. Assim que confirmar, enviamos o link de acesso por e-mail — não é preciso manter esta página aberta."
       />
@@ -162,7 +162,7 @@ export function TrafegoSuccessPolling({
 
   return (
     <Panel
-      icon={<Loader2 className="size-12 animate-spin text-violet-400" />}
+      icon={<OrbitaSpinner className="size-12 text-info" />}
       title="Confirmando seu pagamento"
       subtitle="Isso costuma levar poucos segundos. Não feche esta página."
     />
@@ -179,7 +179,7 @@ function Panel({
   subtitle: string;
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center">
+    <div className="dark rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center">
       <div className="inline-flex">{icon}</div>
       <h1 className="mt-4 text-2xl font-bold text-white">{title}</h1>
       <p className="mt-2 text-sm leading-relaxed text-white/60">{subtitle}</p>

@@ -68,11 +68,11 @@ export function TokenMeter() {
     trendTokens === null
       ? "text-muted-foreground"
       : trendTokens > 50
-        ? "text-red-500"
+        ? "text-destructive"
         : trendTokens > 20
-          ? "text-yellow-500"
+          ? "text-warning"
           : trendTokens < -10
-            ? "text-emerald-500"
+            ? "text-success"
             : "text-muted-foreground";
 
   const trendIcon =
@@ -178,7 +178,7 @@ export function TokenMeter() {
                     </div>
                   )}
                   {trendTokens !== null && trendTokens > 50 && (
-                    <div className="flex items-start gap-1.5 text-[10px] text-red-600 dark:text-red-400 mt-1 pt-1 border-t">
+                    <div className="flex items-start gap-1.5 text-[10px] text-destructive mt-1 pt-1 border-t">
                       <AlertTriangle className="size-3 shrink-0 mt-0.5" />
                       <span>
                         Consumo cresceu &gt;50% — verifique se algum workflow

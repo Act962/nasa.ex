@@ -10,7 +10,7 @@ import { Info } from "lucide-react";
 export function WhatsappWarmupNote() {
   return (
     <div className="flex items-start gap-3 rounded-xl border border-white/[0.09] bg-white/[0.03] p-4">
-      <Info className="mt-0.5 size-4 shrink-0 text-sky-300" />
+      <Info className="mt-0.5 size-4 shrink-0 text-info" />
       <div className="space-y-1.5 text-xs leading-relaxed text-white/55">
         <p className="font-semibold text-white/85">
           Importante sobre os primeiros envios

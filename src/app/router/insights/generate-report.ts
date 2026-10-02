@@ -4,7 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { requireStarsMiddleware } from "@/app/middlewares/require-stars";
 import { z } from "zod";
 import { generateText } from "ai";
-import { createAnthropic } from "@ai-sdk/anthropic";
+import { NoAiProviderError, resolvePrimaryModel } from "@/features/ia/lib/router/resolve-model";
 import { ORPCError } from "@orpc/server";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
@@ -87,10 +87,14 @@ export const generateReport = base
     }),
   )
   .handler(async ({ input, context }) => {
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    if (!anthropicApiKey) {
-      throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "ANTHROPIC_API_KEY não configurada" });
-    }
+    // Mesma IA do Astro: chave da org (Satélites) antes da plataforma. Resolvida antes da cobrança
+    // para nunca debitar Stars quando não há IA disponível.
+    const resolvedModel = await resolvePrimaryModel({ organizationId: context.org.id, tier: "SMART" }).catch((resolveError) => {
+      if (resolveError instanceof NoAiProviderError) {
+        throw new ORPCError("PRECONDITION_FAILED", { message: resolveError.message });
+      }
+      throw resolveError;
+    });
 
     // Cobra Stars antes de chamar o LLM (regra global "insights_report_ai").
     const charge = await chargeStarsByAction(
@@ -107,8 +111,6 @@ export const generateReport = base
         message: "Saldo de Stars insuficiente pra gerar relatório com IA.",
       });
     }
-
-    const anthropic = createAnthropic({ apiKey: anthropicApiKey });
 
     const fmtBRL = (n: number) =>
       n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -189,7 +191,7 @@ export const generateReport = base
     const dataText = sections.join("\n\n");
 
     const { text } = await generateText({
-      model: anthropic("claude-sonnet-4-5"),
+      model: resolvedModel.model,
       system: `Você é um analista de marketing e negócios especialista em análise de dados.
 Sua função é gerar relatórios profissionais, objetivos e estratégicos para gestores e clientes.
 Escreva em português do Brasil, de forma clara, direta e profissional.

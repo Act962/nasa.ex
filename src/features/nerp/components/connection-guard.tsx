@@ -1,7 +1,8 @@
 "use client";
 
 import { ReactNode } from "react";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ export function NerpConnectionGuard({ children }: { children: ReactNode }) {
   if (conn.isLoading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground">
-        <Loader2 className="size-4 animate-spin mr-2" />
+        <OrbitaSpinner className="size-4 mr-2" />
         Verificando conexão com nerp…
       </div>
     );

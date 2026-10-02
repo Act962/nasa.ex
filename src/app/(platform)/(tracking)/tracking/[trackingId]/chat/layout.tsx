@@ -37,7 +37,7 @@ export default function Layout({ children }: LayoutProps) {
             </ResizablePanel>
             <ResizableHandle
               withHandle
-              className="outline-none data-[separator=hover]:bg-zinc-600 data-[separator=active]:bg-zinc-700  data-[separator=active]: transition-colors duration-150"
+              className="outline-none data-[separator=hover]:bg-knob data-[separator=active]:bg-knob  data-[separator=active]: transition-colors duration-150"
             />
           </>
         )}

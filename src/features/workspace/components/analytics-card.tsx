@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader, ArrowBigDownIcon, ArrowBigUpIcon } from "lucide-react";
+import { ArrowBigDownIcon, ArrowBigUpIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 export const AnalyticsCard = (props: {
   title: string;
@@ -13,23 +14,23 @@ export const AnalyticsCard = (props: {
   const getArrowIcon = () => {
     if (type === "task") {
       return value > 0 ? (
-        <ArrowBigDownIcon strokeWidth={2.5} className="h-4 w-4 text-red-500" />
+        <ArrowBigDownIcon strokeWidth={2.5} className="h-4 w-4 text-destructive" />
       ) : (
-        <ArrowBigUpIcon strokeWidth={2.5} className="h-4 w-4 text-green-500" />
+        <ArrowBigUpIcon strokeWidth={2.5} className="h-4 w-4 text-success" />
       );
     }
     if (type === "project") {
       return value > 0 ? (
-        <ArrowBigUpIcon strokeWidth={2.5} className="h-4 w-4 text-green-500" />
+        <ArrowBigUpIcon strokeWidth={2.5} className="h-4 w-4 text-success" />
       ) : (
-        <ArrowBigDownIcon strokeWidth={2.5} className="h-4 w-4 text-red-500" />
+        <ArrowBigDownIcon strokeWidth={2.5} className="h-4 w-4 text-destructive" />
       );
     }
     if (type === "member") {
       return value > 0 ? (
-        <ArrowBigUpIcon strokeWidth={2.5} className="h-4 w-4 text-green-500" />
+        <ArrowBigUpIcon strokeWidth={2.5} className="h-4 w-4 text-success" />
       ) : (
-        <ArrowBigDownIcon strokeWidth={2.5} className="h-4 w-4 text-red-500" />
+        <ArrowBigDownIcon strokeWidth={2.5} className="h-4 w-4 text-destructive" />
       );
     }
     return null;
@@ -67,7 +68,7 @@ export const AnalyticsCard = (props: {
       <CardContent className="flex w-full flex-1 items-end justify-center px-3 sm:px-6">
         <div className="text-center text-3xl font-bold sm:text-5xl">
           {isLoading ? (
-            <Loader className="mx-auto h-8 w-8 animate-spin sm:h-9 sm:w-9" />
+            <OrbitaSpinner className="mx-auto h-8 w-8 sm:h-9 sm:w-9" />
           ) : (
             value
           )}

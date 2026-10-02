@@ -5,6 +5,7 @@ import { canEditInsightsLayout } from "@/features/insights/lib/permissions/can-e
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
+import { kpiCardStyleSchema } from "@/features/insights/lib/kpi-card-style";
 
 const insightBlockSchema = z.object({
   id: z.string(),
@@ -27,6 +28,7 @@ const insightBlockSchema = z.object({
   label: z.string().optional(),
   // Pra blocos do tipo `section-prefs`: lista de métricas visíveis na seção.
   visibleKeys: z.array(z.string()).optional(),
+  cardStyles: z.record(z.string(), kpiCardStyleSchema).optional(),
 });
 
 export const saveOrgLayout = base

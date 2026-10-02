@@ -181,7 +181,11 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          className={cn(
+            "bg-sidebar text-sidebar-foreground w-(--sidebar-width) overflow-visible p-0 [&>button]:hidden inset-y-0 border-0 sm:w-(--sidebar-width)",
+            side === "left" && "left-0 rounded-none rounded-r-[34px] border-r border-line",
+            side === "right" && "right-0 rounded-none",
+          )}
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -193,7 +197,10 @@ function Sidebar({
             <SheetTitle>Sidebar</SheetTitle>
             <SheetDescription>Displays the mobile sidebar.</SheetDescription>
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <div className="relative flex h-full w-full flex-col">
+            {children}
+            {side === "left" && <SidebarEdgeHandle />}
+          </div>
         </SheetContent>
       </Sheet>
     );
@@ -230,7 +237,7 @@ function Sidebar({
           // Adjust the padding for floating and inset variants.
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
-            : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
+            : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=right]:border-l",
           className,
         )}
         {...props}
@@ -238,12 +245,32 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="bg-sidebar group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
+          className="relative bg-sidebar group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm group-data-[variant=sidebar]:group-data-[side=left]:rounded-r-[34px] group-data-[variant=sidebar]:group-data-[side=left]:border-r group-data-[variant=sidebar]:group-data-[side=left]:border-line"
         >
           {children}
+          {side === "left" && variant === "sidebar" && <SidebarEdgeHandle />}
         </div>
       </div>
     </div>
+  );
+}
+
+/** Alça na borda do menu (padrão Órbita): dois traços que recolhem no desktop e fecham no celular. */
+function SidebarEdgeHandle() {
+  const { toggleSidebar } = useSidebar();
+
+  return (
+    <button
+      type="button"
+      onClick={toggleSidebar}
+      aria-label="Recolher menu"
+      title="Recolher menu"
+      className="group/edge-handle absolute top-[46%] right-1 z-20 flex h-[30px] w-4 items-center justify-end gap-[3px] pr-0.5 transition-transform active:scale-95"
+    >
+      {/* Traço de dentro um pouco menor; o mais rente à borda, maior. */}
+      <span className="h-2.5 w-[2.5px] rounded-full bg-line transition-colors group-hover/edge-handle:bg-muted-foreground" />
+      <span className="h-3.5 w-[2.5px] rounded-full bg-line transition-colors group-hover/edge-handle:bg-muted-foreground" />
+    </button>
   );
 }
 
@@ -260,7 +287,7 @@ function SidebarTrigger({
       data-slot="sidebar-trigger"
       variant="ghost"
       size="icon"
-      className={cn("size-7", className)}
+      className={cn("size-9 rounded-full bg-knob text-foreground hover:bg-accent", className)}
       onClick={(event) => {
         onClick?.(event);
         toggleSidebar();

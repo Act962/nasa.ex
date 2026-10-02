@@ -19,6 +19,13 @@ import {
 } from "@/components/ui/dialog";
 import { UserPlus, CheckCircle2, Lock, Check, Copy } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import {
+  BOTTOM_SHEET_DIALOG_CLASS,
+  BOTTOM_SHEET_FOOTER_CLASS,
+} from "../../../lib/dialog-classes";
+
+type MemberRole = "owner" | "admin" | "member" | "moderador";
 
 interface AddMemberDialogProps {
   open: boolean;
@@ -45,9 +52,7 @@ export function AddMemberDialog({
 }: AddMemberDialogProps) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
-  const [role, setRole] = useState<"owner" | "admin" | "member" | "moderador">(
-    "member",
-  );
+  const [role, setRole] = useState<MemberRole>("member");
   const [copiedPassword, setCopiedPassword] = useState(false);
 
   const resetForm = () => {
@@ -87,7 +92,7 @@ export function AddMemberDialog({
         else onOpenChange(v);
       }}
     >
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className={cn(BOTTOM_SHEET_DIALOG_CLASS, "sm:max-w-[440px]")}>
         {!createdPassword ? (
           <>
             <DialogHeader>
@@ -128,7 +133,7 @@ export function AddMemberDialog({
                 <Label htmlFor="add-role">Cargo</Label>
                 <Select
                   value={role}
-                  onValueChange={(v) => setRole(v as any)}
+                  onValueChange={(value) => setRole(value as MemberRole)}
                   disabled={isAdding}
                 >
                   <SelectTrigger id="add-role">
@@ -146,7 +151,7 @@ export function AddMemberDialog({
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className={BOTTOM_SHEET_FOOTER_CLASS}>
               <Button variant="outline" onClick={handleClose} disabled={isAdding}>
                 Cancelar
               </Button>
@@ -161,7 +166,7 @@ export function AddMemberDialog({
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+              <DialogTitle className="flex items-center gap-2 text-success">
                 <CheckCircle2 className="size-5" /> Usuário criado com sucesso!
               </DialogTitle>
               <DialogDescription>
@@ -191,7 +196,7 @@ export function AddMemberDialog({
                       onClick={handleCopyPassword}
                     >
                       {copiedPassword ? (
-                        <Check className="size-3.5 text-emerald-500" />
+                        <Check className="size-3.5 text-success" />
                       ) : (
                         <Copy className="size-3.5" />
                       )}
@@ -200,13 +205,13 @@ export function AddMemberDialog({
                 </div>
               </div>
 
-              <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+              <p className="text-xs text-warning flex items-start gap-1.5">
                 <Lock className="size-3.5 mt-0.5 shrink-0" />O usuário deverá
                 alterar a senha após o primeiro acesso por razões de segurança.
               </p>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className={BOTTOM_SHEET_FOOTER_CLASS}>
               <Button onClick={handleClose}>Fechar</Button>
             </DialogFooter>
           </>

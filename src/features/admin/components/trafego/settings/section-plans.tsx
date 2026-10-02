@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Plus, Power, Trash2 } from "lucide-react";
+import { Plus, Power, Trash2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -120,7 +121,7 @@ export function PlansSection({
       >
         {isLoading && (
           <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
             Carregando planos…
           </div>
         )}

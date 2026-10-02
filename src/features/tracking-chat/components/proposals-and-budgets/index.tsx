@@ -84,7 +84,7 @@ export function ProposalsAndBudgetsPanel({
       >
         <DialogHeader className="flex flex-row items-center justify-between space-y-0 border-b px-5 py-3 text-left">
           <div className="flex items-center gap-2">
-            <FileSignatureIcon className="size-4 text-emerald-500" />
+            <FileSignatureIcon className="size-4 text-success" />
             <DialogTitle className="text-sm font-semibold">
               Propostas e Orçamentos — {leadName}
             </DialogTitle>

@@ -124,8 +124,8 @@ export default function Page() {
             )}
             {invitationStatus === "accepted" && (
               <div className="space-y-4">
-                <div className="flex items-center justify-center w-16 h-16 mx-auto bg-green-100 rounded-full">
-                  <CheckIcon className="w-8 h-8 text-green-600" />
+                <div className="flex items-center justify-center w-16 h-16 mx-auto bg-success/10 rounded-full">
+                  <CheckIcon className="w-8 h-8 text-success" />
                 </div>
                 <h2 className="text-2xl font-bold text-center">
                   Bem-vindo à {invitation?.organizationName}!
@@ -138,8 +138,8 @@ export default function Page() {
             )}
             {invitationStatus === "rejected" && (
               <div className="space-y-4">
-                <div className="flex items-center justify-center w-16 h-16 mx-auto bg-red-100 rounded-full">
-                  <XIcon className="w-8 h-8 text-red-600" />
+                <div className="flex items-center justify-center w-16 h-16 mx-auto bg-destructive/10 rounded-full">
+                  <XIcon className="w-8 h-8 text-destructive" />
                 </div>
                 <h2 className="text-2xl font-bold text-center">
                   Convite Recusado

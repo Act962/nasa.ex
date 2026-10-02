@@ -66,14 +66,14 @@ const PROVIDER_META: Record<
 > = {
   stripe: {
     name: "Stripe",
-    color: "text-indigo-400",
-    bg: "bg-indigo-950/40",
+    color: "text-info",
+    bg: "bg-info/10",
     logo: "💳",
   },
   asaas: {
     name: "Asaas",
-    color: "text-green-400",
-    bg: "bg-green-950/40",
+    color: "text-success",
+    bg: "bg-success/10",
     logo: "🏦",
   },
 };
@@ -88,18 +88,18 @@ function WebhookUrlBox({ url }: { url: string }) {
     setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-600 rounded-lg px-3 py-2">
-      <code className="flex-1 text-[11px] text-violet-300 break-all font-mono">
+    <div className="flex items-center gap-2 bg-card border border-knob rounded-lg px-3 py-2">
+      <code className="flex-1 text-[11px] text-info break-all font-mono">
         {url}
       </code>
       <button
         type="button"
         onClick={copy}
-        className="shrink-0 text-zinc-400 hover:text-white transition-colors"
+        className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
         title="Copiar URL"
       >
         {copied ? (
-          <Check className="w-3.5 h-3.5 text-emerald-400" />
+          <Check className="w-3.5 h-3.5 text-success" />
         ) : (
           <Copy className="w-3.5 h-3.5" />
         )}
@@ -121,77 +121,77 @@ function SetupGuide({
 
   if (provider === "stripe") {
     return (
-      <div className="rounded-lg border border-zinc-700 overflow-hidden">
+      <div className="rounded-lg border border-border overflow-hidden">
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="w-full flex items-center justify-between px-3 py-2.5 bg-zinc-800/60 hover:bg-zinc-800 transition-colors text-left"
+          className="w-full flex items-center justify-between px-3 py-2.5 bg-panel hover:bg-accent transition-colors text-left"
         >
-          <div className="flex items-center gap-2 text-sm text-zinc-300 font-medium">
-            <Info className="w-4 h-4 text-indigo-400" />
+          <div className="flex items-center gap-2 text-sm text-foreground font-medium">
+            <Info className="w-4 h-4 text-info" />
             Como obter as chaves do Stripe
           </div>
           {open ? (
-            <ChevronUp className="w-4 h-4 text-zinc-500" />
+            <ChevronUp className="w-4 h-4 text-muted-foreground" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-zinc-500" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
           )}
         </button>
 
         {open && (
-          <div className="px-3 pb-3 pt-2 bg-zinc-800/30 space-y-3 text-xs text-zinc-400">
+          <div className="px-3 pb-3 pt-2 bg-panel space-y-3 text-xs text-muted-foreground">
             {/* Secret Key */}
             <div className="space-y-1">
-              <p className="font-semibold text-zinc-200">
+              <p className="font-semibold text-foreground">
                 1. Secret Key & Publishable Key
               </p>
-              <ol className="space-y-1 list-decimal list-inside text-zinc-400">
+              <ol className="space-y-1 list-decimal list-inside text-muted-foreground">
                 <li>
                   Acesse{" "}
                   <a
                     href="https://dashboard.stripe.com/apikeys"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-indigo-400 hover:underline inline-flex items-center gap-0.5"
+                    className="text-info hover:underline inline-flex items-center gap-0.5"
                   >
                     dashboard.stripe.com/apikeys{" "}
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </li>
                 <li>
-                  Copie a <span className="text-zinc-200">Secret key</span>{" "}
-                  <code className="bg-zinc-700 px-1 rounded">sk_live_...</code>
+                  Copie a <span className="text-foreground">Secret key</span>{" "}
+                  <code className="bg-muted px-1 rounded">sk_live_...</code>
                 </li>
                 <li>
-                  Copie a <span className="text-zinc-200">Publishable key</span>{" "}
-                  <code className="bg-zinc-700 px-1 rounded">pk_live_...</code>
+                  Copie a <span className="text-foreground">Publishable key</span>{" "}
+                  <code className="bg-muted px-1 rounded">pk_live_...</code>
                 </li>
               </ol>
-              <p className="text-zinc-500 italic">
+              <p className="text-muted-foreground italic">
                 Para testes, use as chaves{" "}
-                <code className="bg-zinc-700 px-1 rounded">sk_test_...</code>{" "}
+                <code className="bg-muted px-1 rounded">sk_test_...</code>{" "}
                 com ambiente Sandbox.
               </p>
             </div>
 
-            <div className="border-t border-zinc-700" />
+            <div className="border-t border-border" />
 
             {/* Webhook Secret */}
             <div className="space-y-1">
-              <p className="font-semibold text-zinc-200">
+              <p className="font-semibold text-foreground">
                 2. Webhook Secret{" "}
-                <code className="bg-zinc-700 px-1 rounded text-violet-300">
+                <code className="bg-muted px-1 rounded text-info">
                   whsec_...
                 </code>
               </p>
-              <ol className="space-y-1 list-decimal list-inside text-zinc-400">
+              <ol className="space-y-1 list-decimal list-inside text-muted-foreground">
                 <li>
                   Acesse{" "}
                   <a
                     href="https://dashboard.stripe.com/webhooks"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-indigo-400 hover:underline inline-flex items-center gap-0.5"
+                    className="text-info hover:underline inline-flex items-center gap-0.5"
                   >
                     dashboard.stripe.com/webhooks{" "}
                     <ExternalLink className="w-3 h-3" />
@@ -199,49 +199,49 @@ function SetupGuide({
                 </li>
                 <li>
                   Clique em{" "}
-                  <span className="text-zinc-200">"Add destination"</span>
+                  <span className="text-foreground">"Add destination"</span>
                 </li>
                 <li>
                   Cole a URL do webhook abaixo no campo{" "}
-                  <span className="text-zinc-200">"Endpoint URL"</span>
+                  <span className="text-foreground">"Endpoint URL"</span>
                 </li>
                 <li>
                   Em eventos, selecione:{" "}
-                  <code className="bg-zinc-700 px-1 rounded">
+                  <code className="bg-muted px-1 rounded">
                     checkout.session.completed
                   </code>
                 </li>
                 <li>
                   Clique em{" "}
-                  <span className="text-zinc-200">"Add endpoint"</span>
+                  <span className="text-foreground">"Add endpoint"</span>
                 </li>
                 <li>
                   Abra o endpoint criado → clique em{" "}
-                  <span className="text-zinc-200">"Reveal"</span> na seção{" "}
-                  <span className="text-zinc-200">"Signing secret"</span>
+                  <span className="text-foreground">"Reveal"</span> na seção{" "}
+                  <span className="text-foreground">"Signing secret"</span>
                 </li>
                 <li>
                   Copie o valor{" "}
-                  <code className="bg-zinc-700 px-1 rounded">whsec_...</code> e
+                  <code className="bg-muted px-1 rounded">whsec_...</code> e
                   cole aqui
                 </li>
               </ol>
             </div>
 
-            <div className="border-t border-zinc-700" />
+            <div className="border-t border-border" />
 
             <div className="space-y-1">
-              <p className="font-semibold text-zinc-200">URL do Webhook:</p>
+              <p className="font-semibold text-foreground">URL do Webhook:</p>
               <WebhookUrlBox url={webhookUrl} />
             </div>
 
-            <div className="p-2 rounded bg-amber-950/40 border border-amber-800/30 text-amber-300">
+            <div className="p-2 rounded bg-warning/10 border border-warning/30 text-warning">
               💡 <strong>Testes locais:</strong> Use o Stripe CLI —{" "}
-              <code className="bg-zinc-700 px-1 rounded">
+              <code className="bg-muted px-1 rounded">
                 stripe listen --forward-to localhost:3000/api/stripe/webhook
               </code>{" "}
               — ele gera um{" "}
-              <code className="bg-zinc-700 px-1 rounded">whsec_...</code>{" "}
+              <code className="bg-muted px-1 rounded">whsec_...</code>{" "}
               temporário para desenvolvimento.
             </div>
           </div>
@@ -252,28 +252,28 @@ function SetupGuide({
 
   if (provider === "asaas") {
     return (
-      <div className="rounded-lg border border-zinc-700 overflow-hidden">
+      <div className="rounded-lg border border-border overflow-hidden">
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="w-full flex items-center justify-between px-3 py-2.5 bg-zinc-800/60 hover:bg-zinc-800 transition-colors text-left"
+          className="w-full flex items-center justify-between px-3 py-2.5 bg-panel hover:bg-accent transition-colors text-left"
         >
-          <div className="flex items-center gap-2 text-sm text-zinc-300 font-medium">
-            <Info className="w-4 h-4 text-green-400" />
+          <div className="flex items-center gap-2 text-sm text-foreground font-medium">
+            <Info className="w-4 h-4 text-success" />
             Como obter a API Key do Asaas
           </div>
           {open ? (
-            <ChevronUp className="w-4 h-4 text-zinc-500" />
+            <ChevronUp className="w-4 h-4 text-muted-foreground" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-zinc-500" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
           )}
         </button>
 
         {open && (
-          <div className="px-3 pb-3 pt-2 bg-zinc-800/30 space-y-3 text-xs text-zinc-400">
+          <div className="px-3 pb-3 pt-2 bg-panel space-y-3 text-xs text-muted-foreground">
             {/* API Key */}
             <div className="space-y-1">
-              <p className="font-semibold text-zinc-200">
+              <p className="font-semibold text-foreground">
                 1. API Key (token de acesso)
               </p>
               <ol className="space-y-1 list-decimal list-inside">
@@ -283,7 +283,7 @@ function SetupGuide({
                     href="https://www.asaas.com/config/accessToken"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-green-400 hover:underline inline-flex items-center gap-0.5"
+                    className="text-success hover:underline inline-flex items-center gap-0.5"
                   >
                     asaas.com → Configurações → Integrações{" "}
                     <ExternalLink className="w-3 h-3" />
@@ -291,28 +291,28 @@ function SetupGuide({
                 </li>
                 <li>
                   Clique em{" "}
-                  <span className="text-zinc-200">"Gerar novo token"</span>
+                  <span className="text-foreground">"Gerar novo token"</span>
                 </li>
                 <li>
                   Copie o token{" "}
-                  <code className="bg-zinc-700 px-1 rounded">$aact_...</code> e
+                  <code className="bg-muted px-1 rounded">$aact_...</code> e
                   cole no campo API Key
                 </li>
               </ol>
-              <p className="text-zinc-500 italic">
+              <p className="text-muted-foreground italic">
                 Para sandbox, acesse{" "}
-                <code className="bg-zinc-700 px-1 rounded">
+                <code className="bg-muted px-1 rounded">
                   sandbox.asaas.com
                 </code>{" "}
                 e crie uma conta de teste.
               </p>
             </div>
 
-            <div className="border-t border-zinc-700" />
+            <div className="border-t border-border" />
 
             {/* Webhook */}
             <div className="space-y-1">
-              <p className="font-semibold text-zinc-200">
+              <p className="font-semibold text-foreground">
                 2. Webhook (notificação de pagamento)
               </p>
               <ol className="space-y-1 list-decimal list-inside">
@@ -322,7 +322,7 @@ function SetupGuide({
                     href="https://www.asaas.com/config/webhookConfig"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-green-400 hover:underline inline-flex items-center gap-0.5"
+                    className="text-success hover:underline inline-flex items-center gap-0.5"
                   >
                     asaas.com → Configurações → Notificações/Webhook{" "}
                     <ExternalLink className="w-3 h-3" />
@@ -331,11 +331,11 @@ function SetupGuide({
                 <li>Cole a URL abaixo no campo de URL</li>
                 <li>
                   Ative os eventos:{" "}
-                  <code className="bg-zinc-700 px-1 rounded">
+                  <code className="bg-muted px-1 rounded">
                     PAYMENT_RECEIVED
                   </code>{" "}
                   e{" "}
-                  <code className="bg-zinc-700 px-1 rounded">
+                  <code className="bg-muted px-1 rounded">
                     PAYMENT_CONFIRMED
                   </code>
                 </li>
@@ -346,7 +346,7 @@ function SetupGuide({
               </div>
             </div>
 
-            <div className="p-2 rounded bg-amber-950/40 border border-amber-800/30 text-amber-300">
+            <div className="p-2 rounded bg-warning/10 border border-warning/30 text-warning">
               ⚠️ O Asaas <strong>usa token de webhook</strong>, no header{" "}
               <code>asaas-access-token</code> — este endpoint (recarga de Stars)
               ainda <strong>não valida</strong>, e isso é o item S1 da auditoria
@@ -431,9 +431,9 @@ function GatewayFormDialog({
         if (!o) onClose();
       }}
     >
-      <DialogContent className="max-w-lg bg-zinc-900 border-zinc-700 text-white max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg bg-card border-border text-foreground max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-white">
+          <DialogTitle className="text-foreground">
             {editing ? "Editar Gateway" : "Adicionar Gateway de Pagamento"}
           </DialogTitle>
         </DialogHeader>
@@ -441,12 +441,12 @@ function GatewayFormDialog({
         <div className="space-y-4 py-1">
           {/* Provider */}
           <div className="space-y-1.5">
-            <Label className="text-zinc-300">Provedor</Label>
+            <Label className="text-foreground">Provedor</Label>
             <Select value={provider} onValueChange={setProvider}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+              <SelectTrigger className="bg-panel border-border text-foreground">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
+              <SelectContent className="bg-panel border-border text-foreground">
                 <SelectItem value="stripe">
                   💳 Stripe — Cartão de crédito/débito
                 </SelectItem>
@@ -462,8 +462,8 @@ function GatewayFormDialog({
 
           {/* Label */}
           <div className="space-y-1.5">
-            <Label className="text-zinc-300">
-              Nome de exibição <span className="text-zinc-500">(opcional)</span>
+            <Label className="text-foreground">
+              Nome de exibição <span className="text-muted-foreground">(opcional)</span>
             </Label>
             <Input
               value={label}
@@ -471,18 +471,18 @@ function GatewayFormDialog({
               placeholder={
                 provider === "stripe" ? "Ex: Stripe Principal" : "Ex: Asaas PIX"
               }
-              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+              className="bg-panel border-border text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           {/* Environment */}
           <div className="space-y-1.5">
-            <Label className="text-zinc-300">Ambiente</Label>
+            <Label className="text-foreground">Ambiente</Label>
             <Select value={environment} onValueChange={setEnvironment}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+              <SelectTrigger className="bg-panel border-border text-foreground">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
+              <SelectContent className="bg-panel border-border text-foreground">
                 <SelectItem value="production">
                   🔴 Produção — cobranças reais
                 </SelectItem>
@@ -495,7 +495,7 @@ function GatewayFormDialog({
 
           {/* Secret Key */}
           <div className="space-y-1.5">
-            <Label className="text-zinc-300">
+            <Label className="text-foreground">
               {provider === "stripe"
                 ? "Secret Key"
                 : "API Key (token de acesso)"}
@@ -510,12 +510,12 @@ function GatewayFormDialog({
                     ? "sk_live_... ou sk_test_..."
                     : "$aact_..."
                 }
-                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 pr-10"
+                className="bg-panel border-border text-foreground placeholder:text-muted-foreground pr-10"
               />
               <button
                 type="button"
                 onClick={() => setShowSecret(!showSecret)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 {showSecret ? (
                   <EyeOff className="w-4 h-4" />
@@ -530,9 +530,9 @@ function GatewayFormDialog({
           {provider === "stripe" && (
             <>
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">
+                <Label className="text-foreground">
                   Publishable Key{" "}
-                  <span className="text-zinc-500">
+                  <span className="text-muted-foreground">
                     (opcional, para uso no frontend)
                   </span>
                 </Label>
@@ -540,14 +540,14 @@ function GatewayFormDialog({
                   value={publicKey}
                   onChange={(e) => setPublicKey(e.target.value)}
                   placeholder="pk_live_... ou pk_test_..."
-                  className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                  className="bg-panel border-border text-foreground placeholder:text-muted-foreground"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">
+                <Label className="text-foreground">
                   Webhook Secret
-                  <span className="ml-2 text-[10px] text-amber-400 font-normal">
+                  <span className="ml-2 text-[10px] text-warning font-normal">
                     Necessário para confirmar pagamentos
                   </span>
                 </Label>
@@ -557,12 +557,12 @@ function GatewayFormDialog({
                     value={webhookSecret}
                     onChange={(e) => setWebhookSecret(e.target.value)}
                     placeholder="whsec_..."
-                    className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 pr-10"
+                    className="bg-panel border-border text-foreground placeholder:text-muted-foreground pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowWebhook(!showWebhook)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showWebhook ? (
                       <EyeOff className="w-4 h-4" />
@@ -571,7 +571,7 @@ function GatewayFormDialog({
                     )}
                   </button>
                 </div>
-                <p className="text-[11px] text-zinc-500">
+                <p className="text-[11px] text-muted-foreground">
                   Encontrado no painel Stripe → Developers → Webhooks → seu
                   endpoint → &quot;Signing secret&quot;. Veja as instruções
                   acima.
@@ -581,17 +581,16 @@ function GatewayFormDialog({
           )}
 
           {/* Is Default */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800 border border-zinc-700">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-panel border border-border">
             <div>
-              <p className="text-sm font-medium text-white">Gateway padrão</p>
-              <p className="text-xs text-zinc-400">
+              <p className="text-sm font-medium text-foreground">Gateway padrão</p>
+              <p className="text-xs text-muted-foreground">
                 Priorizado quando houver múltiplos gateways ativos
               </p>
             </div>
             <Switch
               checked={isDefault}
               onCheckedChange={setIsDefault}
-              className="data-[state=checked]:bg-violet-600"
             />
           </div>
         </div>
@@ -600,14 +599,13 @@ function GatewayFormDialog({
           <Button
             variant="ghost"
             onClick={onClose}
-            className="text-zinc-400 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
           >
             Cancelar
           </Button>
           <Button
             onClick={handleSave}
             disabled={isPending}
-            className="bg-violet-600 hover:bg-violet-700 text-white"
           >
             {isPending
               ? "Salvando..."
@@ -663,16 +661,16 @@ export function PaymentsManager() {
   return (
     <div className="space-y-6">
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-zinc-800">
+      <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-panel p-1">
         {(["gateways", "payments"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+              "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors",
               activeTab === tab
-                ? "border-violet-500 text-violet-300"
-                : "border-transparent text-zinc-500 hover:text-zinc-300",
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {tab === "gateways"
@@ -687,10 +685,10 @@ export function PaymentsManager() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-white">
+              <h2 className="text-lg font-bold text-foreground">
                 Gateways de Pagamento
               </h2>
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-muted-foreground">
                 Configure os provedores de pagamento disponíveis para compra de
                 Stars e planos.
               </p>
@@ -700,17 +698,17 @@ export function PaymentsManager() {
                 setEditing(null);
                 setFormOpen(true);
               }}
-              className="bg-violet-600 hover:bg-violet-700 text-white gap-2"
+              className="gap-2"
             >
               <Plus className="w-4 h-4" /> Adicionar Gateway
             </Button>
           </div>
 
           {/* Info banner */}
-          <div className="flex gap-3 p-4 rounded-xl bg-amber-950/20 border border-amber-800/30">
-            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-            <div className="text-sm text-amber-200/80 space-y-1">
-              <p className="font-medium text-amber-300">Como funciona</p>
+          <div className="flex gap-3 p-4 rounded-xl bg-warning/10 border border-warning/30">
+            <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+            <div className="text-sm text-warning space-y-1">
+              <p className="font-medium text-warning">Como funciona</p>
               <p>
                 As chaves configuradas aqui são usadas para processar pagamentos
                 de Stars e planos. Use chaves de produção apenas quando estiver
@@ -727,17 +725,17 @@ export function PaymentsManager() {
               {[1, 2].map((i) => (
                 <div
                   key={i}
-                  className="h-24 bg-zinc-800 rounded-xl animate-pulse"
+                  className="h-24 bg-panel rounded-xl animate-pulse"
                 />
               ))}
             </div>
           ) : gateways.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-16 text-center">
-              <Landmark className="w-12 h-12 text-zinc-700" />
-              <p className="text-zinc-400 font-medium">
+              <Landmark className="w-12 h-12 text-muted-foreground" />
+              <p className="text-muted-foreground font-medium">
                 Nenhum gateway configurado
               </p>
-              <p className="text-zinc-600 text-sm max-w-xs">
+              <p className="text-muted-foreground text-sm max-w-xs">
                 Adicione Stripe ou Asaas para aceitar pagamentos de Stars e
                 planos.
               </p>
@@ -747,7 +745,7 @@ export function PaymentsManager() {
                   setFormOpen(true);
                 }}
                 variant="outline"
-                className="border-violet-700 text-violet-400 hover:bg-violet-950/30 mt-2 gap-2"
+                className="border-info/50 text-info hover:bg-info/10 mt-2 gap-2"
               >
                 <Plus className="w-4 h-4" /> Adicionar primeiro gateway
               </Button>
@@ -757,15 +755,15 @@ export function PaymentsManager() {
               {gateways.map((gw) => {
                 const meta = PROVIDER_META[gw.provider] ?? {
                   name: gw.provider,
-                  color: "text-zinc-400",
-                  bg: "bg-zinc-800",
+                  color: "text-muted-foreground",
+                  bg: "bg-panel",
                   logo: "💰",
                 };
                 return (
                   <div
                     key={gw.id}
                     className={cn(
-                      "p-4 rounded-xl border border-zinc-700/50",
+                      "p-4 rounded-xl border border-border",
                       meta.bg,
                     )}
                   >
@@ -774,11 +772,11 @@ export function PaymentsManager() {
                         <div className="text-2xl">{meta.logo}</div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold text-white">
+                            <p className="font-semibold text-foreground">
                               {gw.label ?? meta.name}
                             </p>
                             {gw.isDefault && (
-                              <Badge className="bg-violet-600/30 text-violet-300 border-violet-700/50 text-[10px]">
+                              <Badge className="bg-info/30 text-info border-info/50 text-[10px]">
                                 Padrão
                               </Badge>
                             )}
@@ -786,8 +784,8 @@ export function PaymentsManager() {
                               className={cn(
                                 "text-[10px]",
                                 gw.environment === "production"
-                                  ? "bg-red-950/40 text-red-300 border-red-800/30"
-                                  : "bg-yellow-950/40 text-yellow-300 border-yellow-800/30",
+                                  ? "bg-destructive/10 text-destructive border-destructive/30"
+                                  : "bg-warning/10 text-warning border-warning/30",
                               )}
                             >
                               {gw.environment === "production"
@@ -808,14 +806,14 @@ export function PaymentsManager() {
 
                       <div className="flex items-center gap-2 shrink-0">
                         {gw.isActive ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <CheckCircle2 className="w-4 h-4 text-success" />
                         ) : (
-                          <XCircle className="w-4 h-4 text-zinc-600" />
+                          <XCircle className="w-4 h-4 text-muted-foreground" />
                         )}
                         <span
                           className={cn(
                             "text-xs",
-                            gw.isActive ? "text-emerald-400" : "text-zinc-500",
+                            gw.isActive ? "text-success" : "text-muted-foreground",
                           )}
                         >
                           {gw.isActive ? "Ativo" : "Inativo"}
@@ -823,15 +821,15 @@ export function PaymentsManager() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-zinc-700/40">
+                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
                       <button
                         onClick={() =>
                           toggleActive({ id: gw.id, isActive: !gw.isActive })
                         }
-                        className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
                       >
                         {gw.isActive ? (
-                          <ToggleRight className="w-4 h-4 text-emerald-400" />
+                          <ToggleRight className="w-4 h-4 text-success" />
                         ) : (
                           <ToggleLeft className="w-4 h-4" />
                         )}
@@ -843,7 +841,7 @@ export function PaymentsManager() {
                           setEditing(gw);
                           setFormOpen(true);
                         }}
-                        className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors ml-2"
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors ml-2"
                       >
                         <Pencil className="w-3.5 h-3.5" /> Editar
                       </button>
@@ -853,20 +851,20 @@ export function PaymentsManager() {
                           if (confirm(`Remover ${gw.label ?? meta.name}?`))
                             deleteGw({ id: gw.id });
                         }}
-                        className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-red-400 transition-colors ml-2"
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors ml-2"
                       >
                         <Trash2 className="w-3.5 h-3.5" /> Remover
                       </button>
 
-                      <div className="ml-auto flex gap-2 text-xs text-zinc-600">
+                      <div className="ml-auto flex gap-2 text-xs text-muted-foreground">
                         {gw.publicKey && (
                           <span title="Publishable key configurada">
-                            <CreditCard className="w-3.5 h-3.5 text-zinc-500" />
+                            <CreditCard className="w-3.5 h-3.5 text-muted-foreground" />
                           </span>
                         )}
                         {gw.hasWebhookSecret && (
                           <span title="Webhook secret configurado">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-zinc-500" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-muted-foreground" />
                           </span>
                         )}
                       </div>
@@ -881,13 +879,13 @@ export function PaymentsManager() {
 
       {activeTab === "payments" && (
         <div className="space-y-4">
-          <h2 className="text-lg font-bold text-white">
+          <h2 className="text-lg font-bold text-foreground">
             Histórico de Pagamentos — Stars
           </h2>
-          <div className="overflow-x-auto rounded-xl border border-zinc-800">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-900/50">
+                <tr className="border-b border-border bg-card">
                   {[
                     "ID",
                     "Provedor",
@@ -898,20 +896,20 @@ export function PaymentsManager() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="px-4 py-3 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider"
+                      className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider"
                     >
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800">
+              <tbody className="divide-y divide-border">
                 {(paymentsData?.payments ?? []).map((p) => (
                   <tr
                     key={p.id}
-                    className="hover:bg-zinc-800/30 transition-colors"
+                    className="hover:bg-accent transition-colors"
                   >
-                    <td className="px-4 py-3 font-mono text-xs text-zinc-400">
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                       {p.id.slice(0, 8)}…
                     </td>
                     <td className="px-4 py-3">
@@ -919,17 +917,17 @@ export function PaymentsManager() {
                         className={cn(
                           "px-2 py-0.5 rounded-full text-xs font-medium",
                           p.provider === "stripe"
-                            ? "bg-indigo-950/60 text-indigo-300"
-                            : "bg-green-950/60 text-green-300",
+                            ? "bg-info/15 text-info"
+                            : "bg-success/15 text-success",
                         )}
                       >
                         {p.provider}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-white font-medium">
+                    <td className="px-4 py-3 text-foreground font-medium">
                       +{p.starsAmount.toLocaleString("pt-BR")} ★
                     </td>
-                    <td className="px-4 py-3 text-white">
+                    <td className="px-4 py-3 text-foreground">
                       R$ {p.amountBrl.toFixed(2).replace(".", ",")}
                     </td>
                     <td className="px-4 py-3">
@@ -937,18 +935,18 @@ export function PaymentsManager() {
                         className={cn(
                           "px-2 py-0.5 rounded-full text-xs font-medium",
                           {
-                            "bg-emerald-950/60 text-emerald-300":
+                            "bg-success/15 text-success":
                               p.status === "paid",
-                            "bg-amber-950/60 text-amber-300":
+                            "bg-warning/15 text-warning":
                               p.status === "pending",
-                            "bg-red-950/60 text-red-300": p.status === "failed",
+                            "bg-destructive/15 text-destructive": p.status === "failed",
                           },
                         )}
                       >
                         {p.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-zinc-400 text-xs">
+                    <td className="px-4 py-3 text-muted-foreground text-xs">
                       {new Date(p.createdAt).toLocaleDateString("pt-BR")}
                     </td>
                   </tr>
@@ -957,7 +955,7 @@ export function PaymentsManager() {
                   <tr>
                     <td
                       colSpan={6}
-                      className="px-4 py-12 text-center text-zinc-500"
+                      className="px-4 py-12 text-center text-muted-foreground"
                     >
                       Nenhum pagamento registrado ainda.
                     </td>

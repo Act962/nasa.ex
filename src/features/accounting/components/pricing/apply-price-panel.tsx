@@ -39,12 +39,12 @@ export function ApplyPricePanel({ suggestion, products, onDismiss }: ApplyPriceP
   }
 
   return (
-    <Card className="border-violet-500 bg-violet-500/5">
+    <Card className="border-info bg-info/5">
       <CardContent className="space-y-3 py-4">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <p className="flex items-center gap-2 font-semibold">
-              <Tag className="size-4 text-violet-600" />
+              <Tag className="size-4 text-info" />
               Aplicar preço sugerido
             </p>
             <p className="text-sm text-muted-foreground">
@@ -79,7 +79,7 @@ export function ApplyPricePanel({ suggestion, products, onDismiss }: ApplyPriceP
             <Button
               onClick={handleApply}
               disabled={!selectedProduct || applySuggestedPrice.isPending}
-              className="bg-violet-600 text-white hover:bg-violet-700"
+              className="bg-info text-white hover:bg-info"
             >
               {applySuggestedPrice.isPending ? "Aplicando..." : "Confirmar novo preço"}
             </Button>

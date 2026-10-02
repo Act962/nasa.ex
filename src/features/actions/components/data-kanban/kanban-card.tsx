@@ -155,13 +155,13 @@ export function KanbanCard({ action, isOverlay }: Props) {
               <div className="absolute top-2 left-2 flex items-center gap-1">
                 {(action as any).isFavorited && (
                   <PinIcon
-                    className="size-4 fill-violet-500 text-violet-500 drop-shadow"
+                    className="size-4 fill-info text-info drop-shadow"
                     aria-label="Fixado para o workspace"
                   />
                 )}
                 {(action as any).isFavoritedByMe && (
                   <StarIcon
-                    className="size-4 fill-yellow-400 text-yellow-400 drop-shadow"
+                    className="size-4 fill-warning text-warning drop-shadow"
                     aria-label="Seu favorito"
                   />
                 )}
@@ -190,7 +190,7 @@ export function KanbanCard({ action, isOverlay }: Props) {
               </span>
             )}
             {action.isDone && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-success/15 text-success dark:text-success">
                 <CheckCircle2Icon className="size-3" />
                 Concluído
               </span>
@@ -253,7 +253,7 @@ export function KanbanCard({ action, isOverlay }: Props) {
           {action.lead && (
             <div className="flex">
               <span
-                className="inline-flex max-w-full items-center gap-1 rounded-full border border-indigo-500/15 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-400"
+                className="inline-flex max-w-full items-center gap-1 rounded-full border border-info/15 bg-info/10 px-2 py-0.5 text-[10px] font-medium text-info dark:text-info"
                 title={`Lead: ${action.lead.name}`}
               >
                 <UserRoundIcon className="size-3 shrink-0" />
@@ -281,7 +281,7 @@ export function KanbanCard({ action, isOverlay }: Props) {
                 <span
                   className={cn(
                     "flex items-center gap-0.5 text-[11px]",
-                    doneSubActions === totalSubActions && "text-emerald-500",
+                    doneSubActions === totalSubActions && "text-success",
                   )}
                 >
                   <ListTodoIcon className="size-3.5 shrink-0" />
@@ -293,8 +293,8 @@ export function KanbanCard({ action, isOverlay }: Props) {
                 <span
                   className={cn(
                     "flex items-center gap-0.5 text-[11px]",
-                    dueDateInfo.overdue && "text-red-500 font-medium",
-                    dueDateInfo.today && "text-orange-500 font-medium",
+                    dueDateInfo.overdue && "text-destructive font-medium",
+                    dueDateInfo.today && "text-warning font-medium",
                   )}
                 >
                   <CalendarIcon className="size-3.5 shrink-0" />

@@ -4,7 +4,6 @@ import { useState, type Dispatch, type SetStateAction } from "react";
 import {
   ChevronLeft,
   Instagram,
-  Loader2,
   MessageCircle,
   Pencil,
   Plus,
@@ -14,6 +13,7 @@ import {
   Link as LinkIcon,
   Zap,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -103,7 +103,7 @@ function PanelHeader({
   onBack?: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 border-b px-3 py-3">
+    <div className="flex items-center gap-2 px-3 py-3">
       {onBack && (
         <Button variant="ghost" size="icon" className="size-7" onClick={onBack}>
           <ChevronLeft className="size-4" />
@@ -247,7 +247,7 @@ function OverviewView({
         </section>
 
         {issues.length > 0 && (
-          <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs">
+          <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-xs">
             <p className="mb-1 font-medium">Falta para poder ativar:</p>
             <ul className="list-inside list-disc text-muted-foreground">
               {issues.map((issue, index) => (
@@ -425,7 +425,7 @@ function TriggerWizard({
       />
 
       {isMultiStep && (
-        <div className="space-y-1.5 border-b px-3 py-3">
+        <div className="space-y-1.5 px-3 py-3">
           <p className="text-xs text-muted-foreground">
             Etapa {stepIndex + 1} de {steps.length}
           </p>
@@ -663,7 +663,7 @@ function TriggerWizard({
         </Button>
         <Button className="flex-1" onClick={goNext} disabled={isSaving}>
           {isSaving ? (
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
           ) : isLast ? (
             <Save className="size-4" />
           ) : null}
@@ -859,7 +859,7 @@ function ResponseView({
 
 
         {!(isAi ? state.aiPrompt : state.dmText).trim() && (
-          <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
+          <p className="flex items-center gap-1.5 text-xs text-warning">
             <Instagram className="size-3.5" />
             Escreva a mensagem para poder ativar a automação.
           </p>
@@ -869,7 +869,7 @@ function ResponseView({
       <div className="border-t p-3">
         <Button className="w-full" onClick={onSave} disabled={isSaving}>
           {isSaving ? (
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
           ) : (
             <Save className="size-4" />
           )}

@@ -34,7 +34,7 @@ export function CardForms({ nick }: CardFormsProps) {
       }
       emptyAction={
         isAuthenticated ? (
-          <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600">
+          <Button asChild size="sm" >
             <Link href="/form">
               <Plus className="mr-1 size-4" />
               Criar meu primeiro formulário
@@ -45,23 +45,23 @@ export function CardForms({ nick }: CardFormsProps) {
     >
       {isLoading ? (
         <div className="space-y-2">
-          <div className="h-14 animate-pulse rounded-xl bg-white/5" />
-          <div className="h-14 animate-pulse rounded-xl bg-white/5" />
+          <div className="h-14 animate-pulse rounded-xl bg-muted/50" />
+          <div className="h-14 animate-pulse rounded-xl bg-muted/50" />
         </div>
       ) : (
         <ul className="space-y-2">
           {forms.map((f) => (
             <li
               key={f.id}
-              className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/5 p-3"
+              className="flex items-center gap-3 rounded-xl border border-border bg-muted/50 p-3"
             >
-              <FileText className="size-5 shrink-0 text-orange-400" />
+              <FileText className="size-5 shrink-0 text-info" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-white">
+                <p className="truncate text-sm font-medium text-foreground">
                   {f.name}
                 </p>
                 {f.description && (
-                  <p className="truncate text-xs text-white/50">
+                  <p className="truncate text-xs text-muted-foreground">
                     {f.description}
                   </p>
                 )}
@@ -71,7 +71,6 @@ export function CardForms({ nick }: CardFormsProps) {
                   asChild
                   size="sm"
                   variant="outline"
-                  className="border-white/20 bg-white/5 text-white hover:bg-white/10"
                 >
                   <a href={f.shareUrl} target="_blank" rel="noreferrer">
                     Abrir

@@ -10,10 +10,10 @@ import {
   ExternalLink,
   Link2,
   Link2Off,
-  Loader2,
   Send,
   Sparkles,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,7 +73,7 @@ export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center gap-2 p-20 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" />
+        <OrbitaSpinner className="size-4 " />
         Carregando pedido…
       </div>
     );
@@ -136,8 +136,8 @@ export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
       </div>
 
       {order.pendingPurchase?.amountMismatch && (
-        <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-400/40 bg-amber-500/10 p-3 text-sm">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
+        <div className="mt-4 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
           <div>
             <p className="font-medium">Valor cobrado diverge do plano</p>
             <p className="text-xs text-muted-foreground">
@@ -287,7 +287,7 @@ export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
                     {new Date(event.createdAt).toLocaleString("pt-BR")}
                   </time>
                   {event.clientNotifiedAt && (
-                    <span className="ml-2 inline-flex items-center gap-1 text-[11px] text-emerald-600">
+                    <span className="ml-2 inline-flex items-center gap-1 text-[11px] text-success">
                       <BellRing className="size-3" /> cliente avisado
                     </span>
                   )}
@@ -341,7 +341,7 @@ export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
             </Select>
             {updateStatus.isPending && (
               <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Loader2 className="size-3 animate-spin" />
+                <OrbitaSpinner className="size-3 " />
                 Salvando…
               </p>
             )}
@@ -404,7 +404,7 @@ export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
                 </Button>
               )}
               {order.metaAutoLinkedAt && (
-                <p className="mt-2 flex items-start gap-1.5 text-[11px] text-emerald-600">
+                <p className="mt-2 flex items-start gap-1.5 text-[11px] text-success">
                   <Sparkles className="mt-0.5 size-3 shrink-0" />
                   Vinculada automaticamente pelo código no nome, em{" "}
                   {new Date(order.metaAutoLinkedAt).toLocaleDateString("pt-BR")}.
@@ -558,7 +558,7 @@ function AdminSupportThread({ orderId }: { orderId: string }) {
           }
         >
           {reply.isPending ? (
-            <Loader2 className="mr-1.5 size-4 animate-spin" />
+            <OrbitaSpinner className="mr-1.5 size-4 " />
           ) : (
             <Send className="mr-1.5 size-4" />
           )}

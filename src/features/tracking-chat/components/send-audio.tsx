@@ -234,7 +234,7 @@ export function SendAudio({ onSend, onCancel, disabled }: SendAudioProps) {
       >
         {isRecording ? (
           <div className="flex items-center gap-3 w-full">
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
             <span className="text-sm font-medium tabular-nums">
               {formatTime(recordingDuration)}
             </span>
@@ -247,7 +247,7 @@ export function SendAudio({ onSend, onCancel, disabled }: SendAudioProps) {
                   className="h-8 w-8"
                   onClick={handleResumeRecording}
                 >
-                  <MicIcon className="w-4 h-4 text-green-500" />
+                  <MicIcon className="w-4 h-4 text-success" />
                 </Button>
               ) : (
                 <Button
@@ -256,7 +256,7 @@ export function SendAudio({ onSend, onCancel, disabled }: SendAudioProps) {
                   className="h-8 w-8"
                   onClick={handlePauseRecording}
                 >
-                  <PauseIcon className="w-4 h-4 text-yellow-500" />
+                  <PauseIcon className="w-4 h-4 text-warning" />
                 </Button>
               )}
               <Button

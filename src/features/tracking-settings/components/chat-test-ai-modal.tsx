@@ -13,7 +13,8 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { authClient } from "@/lib/auth-client";
-import { SendIcon, Bot, User, Loader2 } from "lucide-react";
+import { SendIcon, Bot, User } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { FormEvent, useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -189,7 +190,7 @@ export const ChatTestAiModal = ({
                   )}
                 >
                   {isLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <OrbitaSpinner className="w-5 h-5 " />
                   ) : (
                     <SendIcon className="w-4 h-4" />
                   )}

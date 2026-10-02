@@ -1,17 +1,22 @@
+import { Suspense } from "react";
 import { SidebarInset } from "@/components/ui/sidebar";
-import { UserInfo } from "@/features/settings/components/user-info";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
-import { TabsList } from "@/features/settings/components/tabs-list";
+import { SettingsShell } from "@/features/settings/components/shell/settings-shell";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarInset className="min-h-full pb-8">
-      <HeaderTracking title="Configurações" />
-      <div className="h-full mt-4 space-y-6">
-        <UserInfo />
-        <TabsList />
-        <main className="w-full max-w-7xl mx-auto">{children}</main>
-      </div>
+      <HeaderTracking title="Configurações" isTitleHidden />
+      <Suspense
+        fallback={
+          <div className="flex justify-center py-20">
+            <OrbitaSpinner className="size-6 text-muted-foreground" />
+          </div>
+        }
+      >
+        <SettingsShell>{children}</SettingsShell>
+      </Suspense>
     </SidebarInset>
   );
 }

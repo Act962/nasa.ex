@@ -81,7 +81,7 @@ export function MetaMcpSection() {
                 Astro Meta Ads não habilitado nesta organização
               </p>
               <p className="text-muted-foreground/70 mt-0.5">
-                Peça ao Master ou Moderador pra habilitar em Integrações.
+                Peça ao Master ou Moderador pra habilitar em Satélites.
               </p>
             </div>
           </CardContent>
@@ -160,7 +160,7 @@ export function MetaMcpSection() {
         <CardContent className="p-4 space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <div className="p-2 rounded-lg bg-success/10 text-success">
                 <Bot className="size-4" />
               </div>
               <div className="min-w-0">
@@ -168,9 +168,9 @@ export function MetaMcpSection() {
                   Astro Meta Ads
                   <Badge
                     variant="outline"
-                    className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+                    className="text-[10px] gap-1 border-success/30 text-success"
                   >
-                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                    <span className="size-1.5 rounded-full bg-success" />
                     Ativo
                   </Badge>
                 </h3>
@@ -191,23 +191,23 @@ export function MetaMcpSection() {
 
           {currentUser.canManage && (
             <>
-              <div className="flex gap-1 border-b">
+              <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-panel p-1">
                 {[
                   { id: "general", label: "Geral" },
                   { id: "ops", label: "Operações permitidas" },
                   { id: "members", label: "Membros autorizados" },
-                ].map((t) => (
+                ].map((tabOption) => (
                   <button
-                    key={t.id}
+                    key={tabOption.id}
                     type="button"
-                    onClick={() => setTab(t.id as typeof tab)}
-                    className={`px-3 py-1.5 text-xs border-b-2 transition-colors ${
-                      tab === t.id
-                        ? "border-primary text-foreground"
-                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    onClick={() => setTab(tabOption.id as typeof tab)}
+                    className={`shrink-0 rounded-full px-3 py-1.5 text-xs transition-colors ${
+                      tab === tabOption.id
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    {t.label}
+                    {tabOption.label}
                   </button>
                 ))}
               </div>

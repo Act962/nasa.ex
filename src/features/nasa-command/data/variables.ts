@@ -150,35 +150,35 @@ export const variableCategories: VariableCategory[] = [
 // ─── #Apps NASA ──────────────────────────────────────────────────────────────
 
 export const nasaApps: AppItem[] = [
-  { id: "nasachat",     label: "#nasachat",     color: "text-violet-400",  url: "/tracking-chat", group: "nasa" },
-  { id: "forge",        label: "#forge",        color: "text-orange-400",  url: "/forge",         group: "nasa" },
-  { id: "agenda",       label: "#agenda",       color: "text-blue-400",    url: "/agendas",       group: "nasa" },
-  { id: "nasa-planner", label: "#nasa-planner", color: "text-pink-400",    url: "/nasa-planner",     group: "nasa" },
-  { id: "tracking",     label: "#tracking",     color: "text-green-400",   url: "/tracking",      group: "nasa" },
-  { id: "nbox",         label: "#nbox",         color: "text-purple-400",  url: "/nbox",          group: "nasa" },
-  { id: "contatos",     label: "#contatos",     color: "text-yellow-400",  url: "/contatos",      group: "nasa" },
-  { id: "linnker",      label: "#linnker",      color: "text-cyan-400",    url: "/integrations",  group: "nasa" },
-  { id: "apps",         label: "#apps",         color: "text-rose-400",    url: "/apps",          group: "nasa" },
+  { id: "nasachat",     label: "#nasachat",     color: "text-info",  url: "/tracking-chat", group: "nasa" },
+  { id: "forge",        label: "#forge",        color: "text-warning",  url: "/forge",         group: "nasa" },
+  { id: "agenda",       label: "#agenda",       color: "text-info",    url: "/agendas",       group: "nasa" },
+  { id: "nasa-planner", label: "#nasa-planner", color: "text-info",    url: "/nasa-planner",     group: "nasa" },
+  { id: "tracking",     label: "#tracking",     color: "text-success",   url: "/tracking",      group: "nasa" },
+  { id: "nbox",         label: "#nbox",         color: "text-info",  url: "/nbox",          group: "nasa" },
+  { id: "contatos",     label: "#contatos",     color: "text-warning",  url: "/contatos",      group: "nasa" },
+  { id: "linnker",      label: "#linnker",      color: "text-info",    url: "/integrations",  group: "nasa" },
+  { id: "apps",         label: "#apps",         color: "text-destructive",    url: "/apps",          group: "nasa" },
 ];
 
 // ─── #Apps Integrações ────────────────────────────────────────────────────────
 
 export const integrationApps: AppItem[] = [
-  { id: "whatsapp",          label: "#whatsapp",          color: "text-emerald-400",  url: "/integrations?slug=whatsapp-business",  group: "integration" },
-  { id: "instagram",         label: "#instagram",         color: "text-pink-400",     url: "/integrations?slug=instagram-dm",       group: "integration" },
-  { id: "telegram",          label: "#telegram",          color: "text-sky-400",      url: "/integrations?slug=telegram",           group: "integration" },
-  { id: "facebook",          label: "#facebook",          color: "text-blue-500",     url: "/integrations?slug=facebook-messenger", group: "integration" },
-  { id: "tiktok",            label: "#tiktok",            color: "text-zinc-100",     url: "/integrations?slug=tiktok",             group: "integration" },
-  { id: "linkedin",          label: "#linkedin",          color: "text-blue-400",     url: "/integrations?slug=linkedin",           group: "integration" },
-  { id: "slack",             label: "#slack",             color: "text-yellow-400",   url: "/integrations?slug=slack",              group: "integration" },
-  { id: "discord",           label: "#discord",           color: "text-indigo-400",   url: "/integrations?slug=discord",            group: "integration" },
-  { id: "microsoft-teams",   label: "#microsoft-teams",   color: "text-violet-400",   url: "/integrations?slug=microsoft-teams",    group: "integration" },
-  { id: "gmail",             label: "#gmail",             color: "text-red-400",      url: "/integrations?slug=gmail",              group: "integration" },
-  { id: "google-calendar",   label: "#google-calendar",   color: "text-blue-400",     url: "/integrations?slug=google-calendar",    group: "integration" },
-  { id: "stripe",            label: "#stripe",            color: "text-violet-400",   url: "/integrations?slug=stripe",             group: "integration" },
-  { id: "hubspot",           label: "#hubspot",           color: "text-orange-500",   url: "/integrations?slug=hubspot",            group: "integration" },
-  { id: "openai",            label: "#openai",            color: "text-green-400",    url: "/integrations?slug=openai",             group: "integration" },
-  { id: "zapier",            label: "#zapier",            color: "text-orange-400",   url: "/integrations?slug=zapier",             group: "integration" },
+  { id: "whatsapp",          label: "#whatsapp",          color: "text-success",  url: "/integrations?slug=whatsapp-business",  group: "integration" },
+  { id: "instagram",         label: "#instagram",         color: "text-info",     url: "/integrations?slug=instagram-dm",       group: "integration" },
+  { id: "telegram",          label: "#telegram",          color: "text-info",      url: "/integrations?slug=telegram",           group: "integration" },
+  { id: "facebook",          label: "#facebook",          color: "text-info",     url: "/integrations?slug=facebook-messenger", group: "integration" },
+  { id: "tiktok",            label: "#tiktok",            color: "text-foreground",     url: "/integrations?slug=tiktok",             group: "integration" },
+  { id: "linkedin",          label: "#linkedin",          color: "text-info",     url: "/integrations?slug=linkedin",           group: "integration" },
+  { id: "slack",             label: "#slack",             color: "text-warning",   url: "/integrations?slug=slack",              group: "integration" },
+  { id: "discord",           label: "#discord",           color: "text-info",   url: "/integrations?slug=discord",            group: "integration" },
+  { id: "microsoft-teams",   label: "#microsoft-teams",   color: "text-info",   url: "/integrations?slug=microsoft-teams",    group: "integration" },
+  { id: "gmail",             label: "#gmail",             color: "text-destructive",      url: "/integrations?slug=gmail",              group: "integration" },
+  { id: "google-calendar",   label: "#google-calendar",   color: "text-info",     url: "/integrations?slug=google-calendar",    group: "integration" },
+  { id: "stripe",            label: "#stripe",            color: "text-info",   url: "/integrations?slug=stripe",             group: "integration" },
+  { id: "hubspot",           label: "#hubspot",           color: "text-warning",   url: "/integrations?slug=hubspot",            group: "integration" },
+  { id: "openai",            label: "#openai",            color: "text-success",    url: "/integrations?slug=openai",             group: "integration" },
+  { id: "zapier",            label: "#zapier",            color: "text-warning",   url: "/integrations?slug=zapier",             group: "integration" },
 ];
 
 // ─── Todos os Apps (NASA + Integrações) ──────────────────────────────────────

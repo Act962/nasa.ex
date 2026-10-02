@@ -38,7 +38,7 @@ export function CookiePreferencesPanel() {
       className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-base font-semibold text-sky-400">Suas preferências</h2>
+        <h2 className="text-base font-semibold text-info">Suas preferências</h2>
         <p className="text-xs text-white/40">
           {hasMounted && decidedAt
             ? `Escolha salva em ${DECIDED_AT_FORMATTER.format(new Date(decidedAt))}`
@@ -88,7 +88,7 @@ export function CookiePreferencesPanel() {
           <button
             type="button"
             onClick={acceptAll}
-            className="rounded-full bg-sky-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-sky-400"
+            className="rounded-full bg-info px-4 py-1.5 text-sm font-semibold text-white hover:bg-info/90"
           >
             Aceitar
           </button>

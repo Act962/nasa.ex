@@ -87,7 +87,7 @@ export function PalettePanel({
           <button
             type="button"
             onClick={seedDefaults}
-            className="text-[10px] text-indigo-600 hover:text-indigo-700 font-medium underline"
+            className="text-[10px] text-info hover:text-info/80 font-medium underline"
           >
             Usar paleta padrão (primary, accent, bg…)
           </button>

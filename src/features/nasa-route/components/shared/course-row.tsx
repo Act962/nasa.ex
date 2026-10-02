@@ -9,35 +9,39 @@ interface Props {
   subtitle?: string;
   children: React.ReactNode;
   rightSlot?: React.ReactNode;
+  /** No celular vira grade de 2 colunas em vez de carrossel. */
+  isGridOnMobile?: boolean;
 }
 
-export function CourseRow({ title, subtitle, children, rightSlot }: Props) {
+export function CourseRow({ title, subtitle, children, rightSlot, isGridOnMobile = false }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = () => {
-      setCanScrollLeft(el.scrollLeft > 4);
-      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    const scrollContainer = ref.current;
+    if (!scrollContainer) return;
+    const updateScrollButtons = () => {
+      setCanScrollLeft(scrollContainer.scrollLeft > 4);
+      setCanScrollRight(
+        scrollContainer.scrollLeft + scrollContainer.clientWidth < scrollContainer.scrollWidth - 4,
+      );
     };
-    update();
-    el.addEventListener("scroll", update, { passive: true });
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
+    updateScrollButtons();
+    scrollContainer.addEventListener("scroll", updateScrollButtons, { passive: true });
+    const resizeObserver = new ResizeObserver(updateScrollButtons);
+    resizeObserver.observe(scrollContainer);
     return () => {
-      el.removeEventListener("scroll", update);
-      ro.disconnect();
+      scrollContainer.removeEventListener("scroll", updateScrollButtons);
+      resizeObserver.disconnect();
     };
   }, []);
 
-  function scroll(dir: 1 | -1) {
-    const el = ref.current;
-    if (!el) return;
-    const amount = Math.max(el.clientWidth * 0.85, 320);
-    el.scrollBy({ left: dir * amount, behavior: "smooth" });
+  function scroll(direction: 1 | -1) {
+    const scrollContainer = ref.current;
+    if (!scrollContainer) return;
+    const amount = Math.max(scrollContainer.clientWidth * 0.85, 320);
+    scrollContainer.scrollBy({ left: direction * amount, behavior: "smooth" });
   }
 
   return (
@@ -69,7 +73,12 @@ export function CourseRow({ title, subtitle, children, rightSlot }: Props) {
 
         <div
           ref={ref}
-          className="flex gap-3 overflow-x-auto overflow-y-visible scroll-smooth px-4 pb-8 pt-2 [scrollbar-width:none] md:gap-4 md:px-8 [&::-webkit-scrollbar]:hidden"
+          className={cn(
+            "scroll-hidden-x flex gap-3 overflow-x-auto overflow-y-visible scroll-smooth px-4 pt-2 pb-6 md:gap-4 md:px-8 md:pb-8",
+            isGridOnMobile
+              ? "max-md:grid max-md:grid-cols-2 max-md:overflow-visible max-md:pb-2 max-md:*:w-auto"
+              : "snap-x snap-mandatory scroll-px-4 max-md:*:w-[62%] max-md:*:snap-start md:snap-none",
+          )}
         >
           {children}
         </div>

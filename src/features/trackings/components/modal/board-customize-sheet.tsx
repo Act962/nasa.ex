@@ -15,7 +15,7 @@ import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -50,6 +50,7 @@ import {
   CardFieldId,
   isFieldVisible,
 } from "../../lib/card-visibility";
+import { FiltersPanel } from "../filters/filters";
 import {
   useCardConfig,
   useUpdateCardConfig,
@@ -59,12 +60,19 @@ interface Props {
   trackingId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Sem permissão de personalizar, o sheet mostra só os filtros (celular). */
+  canCustomize?: boolean;
 }
 
 const cardFields = CARD_FIELDS.filter((field) => field.group === "card");
 const columnFields = CARD_FIELDS.filter((field) => field.group === "column");
 
-export function BoardCustomizeSheet({ trackingId, open, onOpenChange }: Props) {
+export function BoardCustomizeSheet({
+  trackingId,
+  open,
+  onOpenChange,
+  canCustomize = true,
+}: Props) {
   const { data: config } = useCardConfig(trackingId);
   const updateMutation = useUpdateCardConfig();
 
@@ -176,17 +184,30 @@ export function BoardCustomizeSheet({ trackingId, open, onOpenChange }: Props) {
           <SheetHeader className="p-4 border-b">
             <SheetTitle>Personalizar board</SheetTitle>
             <SheetDescription>
-              Escolha o que aparece nos cards e colunas. As mudanças aparecem no
-              board em tempo real; clique em Salvar para aplicar a todos.
+              {canCustomize
+                ? "Escolha o que aparece nos cards e colunas. As mudanças aparecem no board em tempo real; clique em Salvar para aplicar a todos."
+                : "Aplique filtros para refinar sua busca."}
             </SheetDescription>
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto p-4">
             <Accordion
               type="multiple"
-              defaultValue={["card", "column"]}
+              defaultValue={["filters", "card", "column"]}
               className="w-full"
             >
+              {/* No desktop os filtros têm botão próprio na barra; no celular moram aqui. */}
+              <AccordionItem value="filters" className="lg:hidden">
+                <AccordionTrigger className="text-sm font-semibold text-muted-foreground">
+                  Filtros
+                </AccordionTrigger>
+                <AccordionContent>
+                  <FiltersPanel />
+                </AccordionContent>
+              </AccordionItem>
+
+              {canCustomize && (
+              <>
               <AccordionItem value="card">
                 <AccordionTrigger className="text-sm font-semibold text-muted-foreground">
                   Card do lead
@@ -224,20 +245,24 @@ export function BoardCustomizeSheet({ trackingId, open, onOpenChange }: Props) {
                   ))}
                 </AccordionContent>
               </AccordionItem>
+              </>
+              )}
             </Accordion>
           </div>
 
+          {canCustomize && (
           <SheetFooter className="border-t">
             <Button
               onClick={handleSave}
               disabled={updateMutation.isPending || isLoadingConfig || !isDirty}
             >
               {updateMutation.isPending && (
-                <Loader2 className="size-4 animate-spin mr-2" />
+                <OrbitaSpinner className="size-4 mr-2" />
               )}
               Salvar
             </Button>
           </SheetFooter>
+          )}
         </SheetContent>
       </Sheet>
 
@@ -269,7 +294,7 @@ export function BoardCustomizeSheet({ trackingId, open, onOpenChange }: Props) {
               disabled={updateMutation.isPending}
             >
               {updateMutation.isPending && (
-                <Loader2 className="size-4 animate-spin mr-2" />
+                <OrbitaSpinner className="size-4 mr-2" />
               )}
               Salvar
             </AlertDialogAction>

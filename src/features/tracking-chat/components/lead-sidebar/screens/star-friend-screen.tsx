@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { LeadStarFriendsCard } from "@/features/star-friends/components/lead-star-friends-card";
 import { useStarFriendsByLead, useStarFriendsOverview } from "@/features/star-friends/hooks/use-star-friends";
@@ -10,7 +11,7 @@ import { useStarFriendsPermissions } from "@/features/star-friends/hooks/use-sta
 function EmptyState({ message, action }: { message: string; action?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-10 text-center text-muted-foreground">
-      <Sparkles className="size-8 text-amber-500" />
+      <Sparkles className="size-8 text-warning" />
       <p className="max-w-64 text-sm">{message}</p>
       {action}
     </div>
@@ -25,7 +26,7 @@ export function StarFriendScreen({ leadId }: { leadId: string }) {
   if (overview.isLoading || starFriends.isLoading || permissions.isLoading) {
     return (
       <div className="flex justify-center py-10">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        <OrbitaSpinner className="size-5 text-muted-foreground" />
       </div>
     );
   }

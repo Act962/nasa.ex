@@ -116,7 +116,8 @@ export function DashboardFilters({
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center overflow-x-auto">
+      {/* Sem sombra nos controles: a linha rola na horizontal e cortava a sombra, desenhando uma faixa escura atrás deles. */}
+      <div className="flex flex-col gap-2 overflow-x-auto p-0.5 sm:flex-row sm:items-center [&_[data-slot=button]]:shadow-none [&_[data-slot=select-trigger]]:shadow-none">
         <OrganizationFilterButton
           options={organizationOptions}
           selectedIds={organizationIds}

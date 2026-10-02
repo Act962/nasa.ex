@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
+import { ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,7 +42,7 @@ export function PaymentGate({ children }: { children: React.ReactNode }) {
   if (my.isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh] w-full">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <OrbitaSpinner className="size-6 text-muted-foreground" />
       </div>
     );
   }
@@ -51,8 +52,8 @@ export function PaymentGate({ children }: { children: React.ReactNode }) {
   if (my.isError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] w-full gap-6 px-4 text-center">
-        <div className="size-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-          <TriangleAlert className="size-8 text-amber-500" />
+        <div className="size-16 rounded-2xl bg-warning/10 border border-warning/20 flex items-center justify-center">
+          <TriangleAlert className="size-8 text-warning" />
         </div>
         <div className="space-y-1.5 max-w-md">
           <h1 className="text-xl font-bold">Não foi possível verificar seu acesso</h1>
@@ -75,8 +76,8 @@ export function PaymentGate({ children }: { children: React.ReactNode }) {
   if (my.data?.canClaimAsOrgOwner) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] w-full gap-6 px-4 text-center">
-        <div className="size-16 rounded-2xl bg-[#1E90FF]/10 border border-[#1E90FF]/20 flex items-center justify-center">
-          <ShieldCheck className="size-8 text-[#1E90FF]" />
+        <div className="size-16 rounded-2xl bg-info/10 border border-info/20 flex items-center justify-center">
+          <ShieldCheck className="size-8 text-info" />
         </div>
         <div className="space-y-1.5 max-w-md">
           <h1 className="text-xl font-bold">Liberar seu acesso financeiro</h1>
@@ -89,10 +90,10 @@ export function PaymentGate({ children }: { children: React.ReactNode }) {
         <Button
           onClick={handleClaim}
           disabled={claimAccess.isPending}
-          className="h-11 bg-[#1E90FF] hover:bg-[#1E90FF]/90 text-white"
+          className="h-11 bg-info hover:bg-info/90 text-white"
         >
           {claimAccess.isPending ? (
-            <><Loader2 className="size-4 animate-spin mr-2" />Liberando...</>
+            <><OrbitaSpinner className="size-4 mr-2" />Liberando...</>
           ) : (
             <><ShieldCheck className="size-4 mr-2" />Liberar meu acesso</>
           )}
@@ -103,8 +104,8 @@ export function PaymentGate({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] w-full gap-6 px-4 text-center">
-      <div className="size-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-        <ShieldX className="size-8 text-red-500" />
+      <div className="size-16 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
+        <ShieldX className="size-8 text-destructive" />
       </div>
       <div className="space-y-1.5 max-w-md">
         <h1 className="text-xl font-bold">Acesso financeiro restrito</h1>

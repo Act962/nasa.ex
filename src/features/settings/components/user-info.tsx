@@ -11,54 +11,45 @@ export function UserInfo() {
     authClient.useActiveOrganization();
 
   return (
-    <div>
-      <div className="flex items-center gap-4 px-4 w-full max-w-7xl mx-auto">
-        {isPending && <Skeleton className="h-12 w-12 rounded-full" />}
-        {!isPending && (
-          <Avatar className="size-12">
-            {session?.user?.image && <AvatarImage src={session?.user?.image} />}
-            <AvatarFallback>{session?.user?.name?.charAt(0)}</AvatarFallback>
-          </Avatar>
-        )}
+    <div className="flex min-w-0 items-center gap-3">
+      {isPending ? (
+        <Skeleton className="size-10 rounded-full" />
+      ) : (
+        <Avatar className="size-10">
+          {session?.user?.image && <AvatarImage src={session.user.image} />}
+          <AvatarFallback>{session?.user?.name?.charAt(0)}</AvatarFallback>
+        </Avatar>
+      )}
 
-        <div className="flex items-center gap-8">
-          {isPending && (
-            <div className="space-y-1">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-12" />
-            </div>
-          )}
-          {!isPending && (
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {session?.user?.name}
-              </p>
-              <span className="text-sm text-foreground/50">
-                {session?.user?.email}
-              </span>
-            </div>
-          )}
-
-          <Separator orientation="vertical" className="h-8! w-px! " />
-
-          <div>
-            {isPendingOrganization && (
-              <div className="space-y-1">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-12" />
-              </div>
-            )}
-            {!isPendingOrganization && (
-              <div className="hidden sm:block">
-                <p className="text-sm font-medium text-foreground">Empresa</p>
-                <span className="text-sm text-foreground/50">
-                  {activeOrganization?.name}
-                </span>
-              </div>
-            )}
-          </div>
+      {isPending ? (
+        <div className="space-y-1">
+          <Skeleton className="h-4 w-24 rounded-full" />
+          <Skeleton className="h-4 w-12 rounded-full" />
         </div>
-      </div>
+      ) : (
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-foreground">{session?.user?.name}</p>
+          <span className="block truncate text-sm text-muted-foreground">
+            {session?.user?.email}
+          </span>
+        </div>
+      )}
+
+      <Separator orientation="vertical" className="h-8! w-px!" />
+
+      {isPendingOrganization ? (
+        <div className="space-y-1">
+          <Skeleton className="h-4 w-24 rounded-full" />
+          <Skeleton className="h-4 w-12 rounded-full" />
+        </div>
+      ) : (
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">Empresa</p>
+          <span className="block truncate text-sm text-muted-foreground">
+            {activeOrganization?.name}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

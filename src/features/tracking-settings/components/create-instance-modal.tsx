@@ -98,7 +98,7 @@ export function CreateInstanceModal({
 
         {success ? (
           <div className="flex flex-col items-center py-8 space-y-4">
-            <CheckCircle2Icon className="h-16 w-16 text-emerald-500" />
+            <CheckCircle2Icon className="h-16 w-16 text-success" />
             <p className="text-center text-foreground">{success}</p>
           </div>
         ) : (

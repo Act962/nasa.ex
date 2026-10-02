@@ -65,7 +65,7 @@ function SimulationsList({
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" onClick={onNew} className="bg-[#7C3AED] hover:bg-[#6D28D9]">
+        <Button size="sm" onClick={onNew}>
           <Plus className="mr-1 size-4" /> Nova simulação
         </Button>
       </div>
@@ -110,7 +110,7 @@ function SimulationsList({
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">{formatBrl(Number(sim.internalCostTotal))}</TableCell>
-                <TableCell className="text-right font-semibold text-[#7C3AED]">
+                <TableCell className="text-right font-semibold text-info">
                   {formatBrl(Number(sim.clientPriceTotal))}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">

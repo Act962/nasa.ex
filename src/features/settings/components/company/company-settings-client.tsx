@@ -19,9 +19,9 @@ interface Company {
 }
 
 const TABS = [
-  { id: "geral",   label: "Geral",   icon: Building2Icon },
-  { id: "empresa", label: "Empresa", icon: MapPinIcon },
-  { id: "marca",   label: "Marca",   icon: TagIcon },
+  { id: "geral", label: "Dados", icon: Building2Icon },
+  { id: "empresa", label: "Negócio", icon: MapPinIcon },
+  { id: "marca", label: "Marca", icon: TagIcon },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -31,18 +31,19 @@ export function CompanySettingsClient({ company }: { company: Company }) {
 
   return (
     <div className="space-y-4">
-      {/* Inner tab nav */}
-      <div className="flex items-center gap-1 border-b">
+      <div role="tablist" className="flex w-full rounded-full bg-muted p-1 sm:w-max">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-md border-b-2 transition-colors",
+              "flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors sm:flex-none",
               activeTab === tab.id
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <tab.icon className="size-3.5" />

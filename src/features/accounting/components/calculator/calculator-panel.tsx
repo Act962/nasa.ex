@@ -56,7 +56,7 @@ export function CalculatorPanel({ initialCalculatorId = null, onNavigate }: Calc
           Todas as calculadoras
         </Button>
         <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-violet-600 dark:text-violet-300">
+          <p className="text-xs font-medium uppercase tracking-wide text-info dark:text-info">
             {CALCULATOR_GROUP_LABELS[selectedCalculator.group]}
           </p>
           <h3 className="text-base font-semibold leading-tight">{selectedCalculator.title}</h3>
@@ -114,7 +114,7 @@ export function CalculatorPanel({ initialCalculatorId = null, onNavigate }: Calc
                 key={calculator.id}
                 type="button"
                 onClick={() => setSelectedCalculatorId(calculator.id)}
-                className="group flex items-start justify-between gap-3 rounded-lg border bg-background p-3 text-left transition-colors hover:border-violet-500/40 hover:bg-violet-500/5 focus-visible:border-violet-500 focus-visible:outline-none"
+                className="group flex items-start justify-between gap-3 rounded-lg border bg-background p-3 text-left transition-colors hover:border-info/40 hover:bg-info/5 focus-visible:border-info focus-visible:outline-none"
               >
                 <span className="min-w-0 space-y-0.5">
                   <span className="block text-sm font-medium">{calculator.title}</span>

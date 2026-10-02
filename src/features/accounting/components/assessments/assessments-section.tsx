@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { z } from "zod";
-import { ChevronDown, ChevronLeft, ChevronRight, Loader2, Receipt, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Receipt, RotateCcw } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,9 +44,9 @@ const calculationMemoSchema = z.object({
 });
 
 const ASSESSMENT_STATUS_DISPLAY = {
-  DRAFT: { label: "Rascunho", className: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" },
-  CONFIRMED: { label: "Confirmada", className: "border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300" },
-  PAID: { label: "Paga", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
+  DRAFT: { label: "Rascunho", className: "border-warning/30 bg-warning/10 text-warning dark:text-warning" },
+  CONFIRMED: { label: "Confirmada", className: "border-info/30 bg-info/10 text-info dark:text-info" },
+  PAID: { label: "Paga", className: "border-success/30 bg-success/10 text-success dark:text-success" },
   CANCELLED: { label: "Cancelada", className: "border-border bg-muted text-muted-foreground" },
 } as const;
 
@@ -108,7 +109,7 @@ function AssessmentRow({ assessment }: { assessment: AssessmentItem }) {
                 {statusDisplay.label}
               </Badge>
               {isInformative && (
-                <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 font-medium text-sky-700 dark:text-sky-300">
+                <Badge variant="outline" className="border-info/30 bg-info/10 font-medium text-info dark:text-info">
                   ano-teste — informativo
                 </Badge>
               )}
@@ -144,17 +145,17 @@ function AssessmentRow({ assessment }: { assessment: AssessmentItem }) {
               {assessment.status === "DRAFT" && !isInformative && (
                 <Button
                   size="sm"
-                  className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700"
+                  className="gap-1.5 bg-info text-white hover:bg-info"
                   disabled={confirmAssessment.isPending}
                   onClick={handleConfirm}
                 >
-                  {confirmAssessment.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Receipt className="size-3.5" />}
+                  {confirmAssessment.isPending ? <OrbitaSpinner className="size-3.5 " /> : <Receipt className="size-3.5" />}
                   Confirmar e gerar guia
                 </Button>
               )}
               {assessment.status === "CONFIRMED" && (
                 <Button size="sm" variant="outline" className="gap-1.5" disabled={reopenAssessment.isPending} onClick={handleReopen}>
-                  {reopenAssessment.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+                  {reopenAssessment.isPending ? <OrbitaSpinner className="size-3.5 " /> : <RotateCcw className="size-3.5" />}
                   Reabrir
                 </Button>
               )}
@@ -243,8 +244,8 @@ export function AssessmentsSection({ onNavigate }: { onNavigate?: (section: stri
               <ChevronRight className="size-4" />
             </Button>
           </div>
-          <Button className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700" disabled={runAssessment.isPending} onClick={handleRun}>
-            {runAssessment.isPending && <Loader2 className="size-4 animate-spin" />}
+          <Button className="gap-1.5 bg-info text-white hover:bg-info" disabled={runAssessment.isPending} onClick={handleRun}>
+            {runAssessment.isPending && <OrbitaSpinner className="size-4 " />}
             {hasSelectedMonth ? "Apurar de novo" : "Apurar este mês"}
           </Button>
         </CardContent>
@@ -274,7 +275,7 @@ export function AssessmentsSection({ onNavigate }: { onNavigate?: (section: stri
               receitas do financeiro.
             </p>
             <div className="flex flex-wrap justify-center gap-2">
-              <Button size="sm" className="bg-violet-600 text-white hover:bg-violet-700" disabled={runAssessment.isPending} onClick={handleRun}>
+              <Button size="sm" className="bg-info text-white hover:bg-info" disabled={runAssessment.isPending} onClick={handleRun}>
                 Apurar {monthTitle(selectedMonth)}
               </Button>
               <Button size="sm" variant="outline" onClick={() => onNavigate?.("profile")}>
@@ -293,13 +294,13 @@ export function AssessmentsSection({ onNavigate }: { onNavigate?: (section: stri
                 <h3
                   className={cn(
                     "flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground",
-                    isHighlighted && "text-violet-700 dark:text-violet-300",
+                    isHighlighted && "text-info dark:text-info",
                   )}
                 >
                   <span>{/-T\d$/.test(period) ? `Trimestre ${formatPeriodLabel(period)}` : monthTitle(period)}</span>
                   <span className="tabular-nums normal-case">{formatCentsBrl(periodTotalCents)}</span>
                 </h3>
-                <ul className={cn("divide-y rounded-lg border", isHighlighted && "border-violet-500/40")}>
+                <ul className={cn("divide-y rounded-lg border", isHighlighted && "border-info/40")}>
                   {periodAssessments.map((assessment) => (
                     <AssessmentRow key={assessment.id} assessment={assessment} />
                   ))}

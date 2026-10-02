@@ -2,10 +2,11 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
-import { Plus } from "lucide-react";
+import { BellRingIcon, LayoutDashboardIcon, Plus, ShieldCheckIcon, TerminalSquareIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
 import { openCreateCommand } from "@/features/astro-commander/lib/open-create-command";
 import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
 import { AstroBotSettings } from "@/features/astro-bot/components/astro-bot-settings";
@@ -56,12 +57,23 @@ export function AstroAppShell() {
     [router, searchParams],
   );
 
+  useRegisterOrbitDock({
+    leftItems: [
+      { label: "Comandos", icon: <TerminalSquareIcon />, onSelect: () => handleTabChange("comandos"), isActive: activeTab === "comandos" },
+      { label: "Visão geral", icon: <LayoutDashboardIcon />, onSelect: () => handleTabChange("visao-geral"), isActive: activeTab === "visao-geral" },
+    ],
+    rightItems: [
+      { label: "Aprovações", icon: <ShieldCheckIcon />, onSelect: () => handleTabChange("aprovacoes"), isActive: activeTab === "aprovacoes" },
+      { label: "Alertas", icon: <BellRingIcon />, onSelect: () => handleTabChange("alertas"), isActive: activeTab === "alertas" },
+    ],
+  });
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
       {/* Mesmo cabeçalho de /contatos: identificação à esquerda, ação à direita.
           Antes a página abria direto nas abas, com a busca e os botões soltos
           no meio do conteúdo. */}
-      <header className="flex items-center justify-between gap-2 border-b px-4 py-2">
+      <header className="flex items-center justify-between gap-2 px-4 py-2">
         <div className="flex items-center gap-2">
           <SidebarTrigger className="-ml-1" />
           <h1 className="text-sm font-medium">ASTRO</h1>
@@ -82,17 +94,15 @@ export function AstroAppShell() {
         onValueChange={handleTabChange}
         className="flex min-h-0 flex-1 flex-col gap-0"
       >
-        <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-transparent px-4 py-0">
-          {TABS.map((tab) => (
-            <TabsTrigger
-              key={tab.value}
-              value={tab.value}
-              className="flex-none rounded-none border-b-2 border-transparent px-3 py-2.5 text-sm text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
-            >
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="max-w-full overflow-x-auto px-4 pb-1">
+          <TabsList className="justify-start">
+            {TABS.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} className="flex-none">
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
         <TabsContent value="comandos" className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
           <CommandsTab />

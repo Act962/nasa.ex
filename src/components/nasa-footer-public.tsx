@@ -50,7 +50,7 @@ export function NasaFooterPublic() {
   }
 
   return (
-    <footer className="mt-20 border-t border-white/10 bg-slate-950 py-10 text-white">
+    <footer className="dark mt-20 bg-background py-10 text-foreground">
       <div className="mx-auto grid max-w-6xl gap-8 px-6 md:grid-cols-4">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
@@ -64,10 +64,10 @@ export function NasaFooterPublic() {
             />
             <span className="font-bold tracking-tight">ÓRBITA</span>
           </div>
-          <p className="text-xs text-white/60">
+          <p className="text-xs text-muted-foreground">
             © {year} NASAEX Inc. Todos os direitos reservados.
           </p>
-          <p className="text-[11px] text-white/40">
+          <p className="text-[11px] text-muted-foreground/70">
             A plataforma que centraliza times, leads e operação.
           </p>
         </div>
@@ -75,17 +75,17 @@ export function NasaFooterPublic() {
         <nav aria-labelledby="footer-platform" className="md:col-span-2">
           <h4
             id="footer-platform"
-            className="mb-3 text-sm font-semibold text-white"
+            className="mb-3 text-sm font-semibold text-foreground"
           >
             Plataforma
           </h4>
-          <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-white/60">
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-muted-foreground">
             {NASA_APPS.map((app) => (
               <li key={app.path}>
                 <a
                   href={isAuthenticated ? app.path : `/sign-up?next=${encodeURIComponent(app.path)}`}
                   onClick={(e) => handleAppClick(e, app.path)}
-                  className="inline-flex items-center gap-1.5 transition hover:text-white"
+                  className="inline-flex items-center gap-1.5 transition hover:text-foreground"
                 >
                   {app.emoji && <span aria-hidden>{app.emoji}</span>}
                   {app.label}
@@ -94,24 +94,24 @@ export function NasaFooterPublic() {
             ))}
           </ul>
 
-          <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/50">
+          <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <li>
-              <Link href="/" className="transition hover:text-white">
+              <Link href="/" className="transition hover:text-foreground">
                 Nossa Space
               </Link>
             </li>
             <li>
-              <Link href="/calendario" className="transition hover:text-white">
+              <Link href="/calendario" className="transition hover:text-foreground">
                 Calendário público
               </Link>
             </li>
             <li>
-              <Link href="/termos" className="transition hover:text-white">
+              <Link href="/termos" className="transition hover:text-foreground">
                 Termos de uso
               </Link>
             </li>
             <li>
-              <Link href="/privacidade" className="transition hover:text-white">
+              <Link href="/privacidade" className="transition hover:text-foreground">
                 Privacidade
               </Link>
             </li>
@@ -119,7 +119,7 @@ export function NasaFooterPublic() {
         </nav>
 
         <div>
-          <h4 className="mb-3 text-sm font-semibold text-white">
+          <h4 className="mb-3 text-sm font-semibold text-foreground">
             Siga a gente
           </h4>
           <div className="flex flex-wrap gap-2">
@@ -145,7 +145,7 @@ export function NasaFooterPublic() {
             />
           </div>
 
-          <p className="mt-4 text-[11px] text-white/40">
+          <p className="mt-4 text-[11px] text-muted-foreground/70">
             Acompanhe novidades e cases reais.
           </p>
         </div>
@@ -170,7 +170,7 @@ function SocialIcon({
       rel="noreferrer"
       aria-label={label}
       title={label}
-      className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition hover:border-orange-400/40 hover:bg-orange-500/10 hover:text-orange-200"
+      className="flex size-9 items-center justify-center rounded-full bg-knob text-muted-foreground transition hover:bg-info/15 hover:text-info"
     >
       {icon}
     </a>

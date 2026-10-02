@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   useDunningRules,
   useAssignDunningRuleToEntry,
@@ -111,7 +111,7 @@ export function DunningAssignDialog({ entryId, initialRuleId, entryName, onClose
             Cancelar
           </Button>
           <Button onClick={handleSave} disabled={assignMut.isPending}>
-            {assignMut.isPending && <Loader2 className="size-4 animate-spin mr-2" />}
+            {assignMut.isPending && <OrbitaSpinner className="size-4 mr-2" />}
             Salvar
           </Button>
         </DialogFooter>

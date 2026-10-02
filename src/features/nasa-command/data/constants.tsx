@@ -159,7 +159,7 @@ export const exampleCategories: ExampleCategory[] = [
   // ── Integrações ───────────────────────────────────────────────────────────
   {
     emoji: "🔌",
-    label: "Integrações",
+    label: "Satélites",
     examples: [
       "Quais integrações estão conectadas?",
       "Tem alguma integração com erro?",
@@ -234,14 +234,14 @@ export const PROVIDER_MODELS: Record<string, ModelOption[]> = {
       id: "claude-sonnet-4-5",
       label: "Claude Sonnet",
       sublabel: "4.5",
-      icon: <Bot className="w-4 h-4 text-[#D97757]" />,
+      icon: <Bot className="w-4 h-4 text-brand-claude" />,
       provider: "Anthropic",
     },
     {
       id: "claude-3-5-haiku-latest",
       label: "Claude Haiku",
       sublabel: "3.5",
-      icon: <Bot className="w-4 h-4 text-[#D97757]/70" />,
+      icon: <Bot className="w-4 h-4 text-brand-claude/70" />,
       provider: "Anthropic",
     },
   ],
@@ -252,7 +252,7 @@ export const PROVIDER_MODELS: Record<string, ModelOption[]> = {
       sublabel: "OpenAI",
       icon: (
         <svg
-          className="w-4 h-4 text-emerald-400"
+          className="w-4 h-4 text-success"
           viewBox="0 0 24 24"
           fill="currentColor"
         >
@@ -267,7 +267,7 @@ export const PROVIDER_MODELS: Record<string, ModelOption[]> = {
       sublabel: "OpenAI",
       icon: (
         <svg
-          className="w-4 h-4 text-emerald-400/70"
+          className="w-4 h-4 text-success/70"
           viewBox="0 0 24 24"
           fill="currentColor"
         >

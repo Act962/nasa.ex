@@ -20,13 +20,13 @@ import {
   FileSpreadsheet,
   AlertCircle,
   CheckCircle2,
-  Loader2,
   X,
   ArrowRight,
   ArrowLeft,
   Download,
   AlertTriangle,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   parseFile,
   LEAD_FIELDS,
@@ -457,7 +457,7 @@ export function LeadImportDialog({
           {/* IMPORTING STEP */}
           {step === "importing" && (
             <div className="flex flex-col items-center justify-center py-10 gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <OrbitaSpinner className="h-8 w-8 text-primary" />
               <p className="text-sm text-muted-foreground">
                 Importando {parsed?.totalRows} leads...
               </p>
@@ -468,13 +468,13 @@ export function LeadImportDialog({
           {step === "done" && importResult && (
             <div className="flex flex-col gap-4">
               {/* Success Summary */}
-              <div className="flex items-start gap-3 bg-green-50 dark:bg-green-950/20 rounded-lg p-4 border border-green-200 dark:border-green-900">
-                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 bg-success/10 dark:bg-success/20 rounded-lg p-4 border border-success/30 dark:border-success/40">
+                <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-green-900 dark:text-green-100">
+                  <p className="text-sm font-semibold text-success">
                     {importResult.imported} leads importados com sucesso
                   </p>
-                  <p className="text-xs text-green-700 dark:text-green-200 mt-1">
+                  <p className="text-xs text-success mt-1">
                     Estes leads foram adicionados ao funil e estão prontos para
                     uso.
                   </p>
@@ -484,13 +484,13 @@ export function LeadImportDialog({
               {/* Failed Leads Table */}
               {importResult.errors.length > 0 && (
                 <div className="flex flex-col gap-2">
-                  <div className="flex items-start gap-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-900">
-                    <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-3 bg-warning/10 dark:bg-warning/20 rounded-lg p-4 border border-warning/30 dark:border-warning/40">
+                    <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">
+                      <p className="text-sm font-semibold text-warning">
                         {importResult.errors.length} leads não foram importados
                       </p>
-                      <p className="text-xs text-yellow-700 dark:text-yellow-200 mt-1">
+                      <p className="text-xs text-warning mt-1">
                         Abaixo estão os leads que encontraram problemas durante
                         a importação.
                       </p>

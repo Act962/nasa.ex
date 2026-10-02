@@ -14,8 +14,8 @@ export function InChatLinkBar({ trackingId }: { trackingId: string | null }) {
   if (!url) return null;
 
   return (
-    <div className="mt-2 flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/5 px-3 py-2">
-      <Globe className="size-4 shrink-0 text-violet-500" />
+    <div className="mt-2 flex items-center gap-2 rounded-xl border border-info/30 bg-info/5 px-3 py-2">
+      <Globe className="size-4 shrink-0 text-info" />
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium">Link do chat do site</p>
         <p className="truncate text-[11px] text-muted-foreground">{url}</p>

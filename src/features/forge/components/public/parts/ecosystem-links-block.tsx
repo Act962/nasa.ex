@@ -76,28 +76,28 @@ export function EcosystemLinksBlock({
 
   const titleCls =
     variant === "dark"
-      ? "text-slate-400 text-xs font-semibold uppercase tracking-widest"
-      : "text-gray-500 text-xs font-semibold uppercase tracking-widest";
+      ? "text-muted-foreground text-xs font-semibold uppercase tracking-widest"
+      : "text-muted-foreground text-xs font-semibold uppercase tracking-widest";
 
   const cardCls =
     variant === "dark"
-      ? "bg-slate-900/60 border border-slate-800 hover:border-[#7C3AED]/60 hover:bg-slate-900"
-      : "bg-white border border-gray-200 hover:border-blue-500 hover:shadow-md";
+      ? "bg-card/60 border border-line hover:border-[#7C3AED]/60 hover:bg-card"
+      : "bg-white border border-line hover:border-info hover:shadow-md";
 
   const iconWrapCls =
     variant === "dark"
       ? "bg-[#7C3AED]/15 text-[#a78bfa]"
-      : "bg-blue-50 text-blue-600";
+      : "bg-info/10 text-info";
 
   const itemTitleCls =
     variant === "dark"
       ? "text-white text-sm font-semibold"
-      : "text-gray-900 text-sm font-semibold";
+      : "text-foreground text-sm font-semibold";
 
   const itemSubCls =
-    variant === "dark" ? "text-slate-500 text-xs" : "text-gray-500 text-xs";
+    variant === "dark" ? "text-muted-foreground text-xs" : "text-muted-foreground text-xs";
 
-  const arrowCls = variant === "dark" ? "text-slate-600" : "text-gray-400";
+  const arrowCls = variant === "dark" ? "text-muted-foreground" : "text-muted-foreground";
 
   return (
     <div className="max-w-3xl mx-auto px-8 pb-8 forge-no-print">

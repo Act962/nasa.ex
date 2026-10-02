@@ -142,8 +142,8 @@ function CategoryBadge({ category }: { category: string }) {
           : category;
   const className =
     category === "UTILITY"
-      ? "border-0 bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
-      : "border-0 bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300";
+      ? "border-0 bg-info/15 text-info dark:bg-info/20 dark:text-info"
+      : "border-0 bg-info/15 text-info dark:bg-info/20 dark:text-info";
   return (
     <Badge className={`shrink-0 text-[10px] ${className}`}>{label}</Badge>
   );

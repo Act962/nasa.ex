@@ -7,13 +7,22 @@ import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Button } from "@/components/ui/button";
+import { SettingsStickySave } from "../settings-sticky-save";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
-  Sparkles, Globe, Target, Mic2, Palette, Bot, BarChart2, Loader2, ChevronDown,
+  Sparkles,
+  Globe,
+  Target,
+  Mic2,
+  Palette,
+  Bot,
+  BarChart2,
+  ChevronDown,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -53,7 +62,7 @@ function Section({
   return (
     <div className={cn("rounded-xl border p-4 space-y-3", className)}>
       <div className="flex items-center gap-2 text-sm font-semibold">
-        <Icon className="size-4 text-violet-500" />
+        <Icon className="size-4 text-info" />
         {title}
       </div>
       {children}
@@ -206,16 +215,16 @@ export function BrandTab({ entity, projectId }: Props) {
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
       {/* ── Gerar com Astro ───────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 overflow-hidden">
+      <div className="rounded-xl border border-info/30 bg-info/10 overflow-hidden">
         <button
           type="button"
-          className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-violet-700 dark:text-violet-400"
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-info"
           onClick={() => setAstroOpen((v) => !v)}
         >
           <span className="flex items-center gap-2">
             <Sparkles className="size-4" />
             Gerar com Astro
-            <span className="text-xs font-normal text-violet-500">
+            <span className="text-xs font-normal text-info">
               — extraia a identidade da marca automaticamente
             </span>
           </span>
@@ -238,10 +247,10 @@ export function BrandTab({ entity, projectId }: Props) {
                 type="button"
                 onClick={handleGenerateWithAstro}
                 disabled={generating || !astroSource.trim()}
-                className="gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+                className="gap-2"
               >
                 {generating ? (
-                  <><Loader2 className="size-4 animate-spin" /> Analisando...</>
+                  <><OrbitaSpinner className="size-4 " /> Analisando...</>
                 ) : (
                   <><Sparkles className="size-4" /> Gerar</>
                 )}
@@ -325,12 +334,12 @@ export function BrandTab({ entity, projectId }: Props) {
         </div>
       </Section>
 
-      <div className="flex justify-end pt-2">
+      <SettingsStickySave>
         <Button type="submit" disabled={isSaving} className="gap-2">
-          {isSaving && <Loader2 className="size-4 animate-spin" />}
-          Salvar Marca
+          {isSaving && <OrbitaSpinner className="size-4" />}
+          Salvar marca
         </Button>
-      </div>
+      </SettingsStickySave>
     </form>
   );
 }

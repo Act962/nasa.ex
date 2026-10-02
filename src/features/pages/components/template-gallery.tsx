@@ -37,9 +37,9 @@ export function TemplateGallery({ onSelect, onStartBlank }: Props) {
         {onStartBlank && (
           <button
             onClick={onStartBlank}
-            className="group relative rounded-2xl border-2 border-dashed border-muted-foreground/30 p-6 hover:border-violet-500/60 hover:bg-violet-500/5 transition-all min-h-[260px] flex flex-col items-center justify-center gap-2"
+            className="group relative rounded-2xl border-2 border-dashed border-muted-foreground/30 p-6 hover:border-info/60 hover:bg-info/5 transition-all min-h-[260px] flex flex-col items-center justify-center gap-2"
           >
-            <div className="size-12 rounded-full bg-violet-500/15 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+            <div className="size-12 rounded-full bg-info/15 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
               ✨
             </div>
             <span className="font-bold text-sm">Começar do zero</span>
@@ -63,7 +63,7 @@ function TemplateCard({
   return (
     <button
       onClick={onSelect}
-      className="group relative overflow-hidden rounded-2xl border border-border bg-card text-left hover:border-violet-500/60 hover:shadow-lg hover:shadow-violet-500/15 transition-all min-h-[260px] flex flex-col"
+      className="group relative overflow-hidden rounded-2xl border border-border bg-card text-left hover:border-info/60 hover:shadow-lg hover:shadow-info/15 transition-all min-h-[260px] flex flex-col"
     >
       {/* Thumbnail (placeholder com cor do template) */}
       <div
@@ -101,7 +101,7 @@ function TemplateCard({
         <p className="text-xs text-muted-foreground leading-snug flex-1">
           {template.description}
         </p>
-        <span className="mt-2 text-xs font-semibold text-violet-400 group-hover:text-violet-300">
+        <span className="mt-2 text-xs font-semibold text-info group-hover:text-info/80">
           Usar este modelo →
         </span>
       </div>

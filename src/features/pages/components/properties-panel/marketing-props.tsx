@@ -135,7 +135,7 @@ function Section({
           )}
         </button>
         <Icon
-          className={cn("size-3.5 shrink-0", enabled ? "text-purple-500" : "text-muted-foreground")}
+          className={cn("size-3.5 shrink-0", enabled ? "text-info" : "text-muted-foreground")}
         />
         <span className="text-[11px] font-medium flex-1 truncate">{title}</span>
         <Switch checked={enabled} onCheckedChange={onToggle} />
@@ -253,7 +253,7 @@ function ToastsConfig({ el, update }: Props) {
           onChange={(e) =>
             update({ toastMalePercent: Number(e.target.value) })
           }
-          className="w-full mt-1 accent-indigo-500"
+          className="w-full mt-1 accent-primary"
         />
         <p className="text-[10px] text-muted-foreground/80 mt-0.5 leading-snug">
           Ex: 80% M = a cada 10 toasts, ~8 têm nome masculino.
@@ -278,7 +278,7 @@ function ToastsConfig({ el, update }: Props) {
           onChange={(e) =>
             update({ toastLocalCityPercent: Number(e.target.value) })
           }
-          className="w-full mt-1 accent-indigo-500"
+          className="w-full mt-1 accent-primary"
         />
         <p className="text-[10px] text-muted-foreground/80 mt-0.5 leading-snug">
           Detecta cidade via IP (só BR). Quando &gt; 0, a porcentagem dos
@@ -700,14 +700,14 @@ function PurchaseToastsConfig({ el, update }: Props) {
             {detectedPlans.map((plan) => (
               <span
                 key={plan}
-                className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200"
+                className="text-[10px] px-1.5 py-0.5 rounded bg-success/15 text-success border border-success/30"
               >
                 {plan}
               </span>
             ))}
           </div>
         ) : (
-          <p className="text-[10px] text-amber-700 mt-1 leading-snug">
+          <p className="text-[10px] text-warning mt-1 leading-snug">
             ⚠ Nenhuma section &quot;Planos / Pricing&quot; nesta página. Adicione
             uma ou defina a lista manual abaixo.
           </p>
@@ -726,7 +726,7 @@ function PurchaseToastsConfig({ el, update }: Props) {
         <Label className="text-[10px] text-muted-foreground">
           Lista manual ({customPlans.length})
           {useCustomList && (
-            <span className="ml-1 text-emerald-700">— sobrescreve auto</span>
+            <span className="ml-1 text-success">— sobrescreve auto</span>
           )}
         </Label>
         <Button

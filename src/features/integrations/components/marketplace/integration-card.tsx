@@ -21,13 +21,13 @@ interface IntegrationCardProps {
 }
 
 const TAG_COLORS: Record<string, string> = {
-  "Popular":     "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-  "Novo":        "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-  "IA":          "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
-  "Gratuito":    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  "Brasileiro":  "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
-  "Open Source": "bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400",
-  "Enterprise":  "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  "Popular":     "bg-info/15 text-info",
+  "Novo":        "bg-info/15 text-info",
+  "IA":          "bg-info/15 text-info",
+  "Gratuito":    "bg-success/15 text-success",
+  "Brasileiro":  "bg-warning/15 text-warning",
+  "Open Source": "bg-muted text-muted-foreground",
+  "Enterprise":  "bg-info/15 text-info",
 };
 
 function IntegrationLogo({ icon, name, category }: { icon: string; name: string; category: Integration["category"] }) {
@@ -39,7 +39,7 @@ function IntegrationLogo({ icon, name, category }: { icon: string; name: string;
   // For emoji icons, render directly
   if (!isUrl) {
     return (
-      <div className="size-10 rounded-xl bg-gradient-to-br from-[#7C3AED]/10 to-[#a855f7]/10 border border-[#7C3AED]/20 flex items-center justify-center shrink-0 text-xl">
+      <div className="size-10 rounded-xl bg-gradient-to-br from-info/10 to-info/10 border border-info/20 flex items-center justify-center shrink-0 text-xl">
         {icon}
       </div>
     );
@@ -50,7 +50,7 @@ function IntegrationLogo({ icon, name, category }: { icon: string; name: string;
     <div className="size-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 relative">
       {/* Emoji fallback — always rendered underneath */}
       <div className={cn(
-        "absolute inset-0 rounded-xl bg-gradient-to-br from-[#7C3AED]/10 to-[#a855f7]/10 border border-[#7C3AED]/20 flex items-center justify-center text-xl",
+        "absolute inset-0 rounded-xl bg-gradient-to-br from-info/10 to-info/10 border border-info/20 flex items-center justify-center text-xl",
         imgLoaded && !imgFailed && "opacity-0",
       )}>
         {fallbackEmoji}
@@ -88,18 +88,18 @@ export function IntegrationCard({ integration, onInstall, compact = false }: Int
   const statusConfig = {
     installed: {
       label: "Instalado",
-      badge: "bg-emerald-100 text-emerald-700 border-emerald-200",
-      dot: "bg-emerald-500",
+      badge: "bg-success/15 text-success border-success/30",
+      dot: "bg-success",
     },
     available: {
       label: "Disponível",
-      badge: "bg-blue-50 text-blue-600 border-blue-200",
-      dot: "bg-blue-400",
+      badge: "bg-info/10 text-info border-info/30",
+      dot: "bg-info",
     },
     view_only: {
       label: "Em Breve",
-      badge: "bg-amber-50 text-amber-600 border-amber-200",
-      dot: "bg-amber-400",
+      badge: "bg-warning/10 text-warning border-warning/30",
+      dot: "bg-warning",
     },
   }[effectiveStatus];
 
@@ -107,8 +107,8 @@ export function IntegrationCard({ integration, onInstall, compact = false }: Int
     <div
       className={cn(
         "group relative border rounded-xl bg-card overflow-hidden transition-all duration-200",
-        "hover:shadow-[0_4px_20px_rgba(124,58,237,0.12)] hover:-translate-y-0.5 hover:border-[#7C3AED]/30",
-        effectiveStatus === "installed" && "border-emerald-200/70 bg-gradient-to-br from-emerald-50/30 to-card dark:from-emerald-950/20",
+        "hover:shadow-md hover:-translate-y-0.5 hover:border-info/30",
+        effectiveStatus === "installed" && "border-success/30 bg-gradient-to-br from-success/5 to-card",
         compact ? "p-3" : "p-4",
       )}
     >
@@ -116,8 +116,8 @@ export function IntegrationCard({ integration, onInstall, compact = false }: Int
       <div className={cn(
         "absolute top-0 left-0 right-0 h-0.5 transition-opacity",
         effectiveStatus === "installed"
-          ? "bg-gradient-to-r from-emerald-400 to-emerald-500 opacity-100"
-          : "bg-gradient-to-r from-[#7C3AED] to-[#a855f7] opacity-0 group-hover:opacity-100",
+          ? "bg-gradient-to-r from-success to-success opacity-100"
+          : "bg-gradient-to-r from-info to-info/70 opacity-0 group-hover:opacity-100",
       )} />
 
       <div className={cn("flex gap-3", compact ? "items-center" : "items-start")}>
@@ -129,7 +129,7 @@ export function IntegrationCard({ integration, onInstall, compact = false }: Int
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h3 className="font-semibold text-sm leading-tight truncate">{integration.name}</h3>
                 {effectiveStatus === "installed" && (
-                  <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
+                  <CheckCircle2 className="size-3.5 text-success shrink-0" />
                 )}
               </div>
               {!compact && (
@@ -174,15 +174,15 @@ export function IntegrationCard({ integration, onInstall, compact = false }: Int
             {isSingle ? (
               /* Single users see a locked state instead of action buttons */
               <Button variant="outline" size="sm"
-                className="h-7 text-xs gap-1 border-slate-200 text-slate-400 cursor-not-allowed"
+                className="h-7 text-xs gap-1 border-border text-muted-foreground cursor-not-allowed"
                 disabled
-                title="Seu perfil não tem permissão para instalar ou configurar integrações">
+                title="Seu perfil não tem permissão para instalar ou configurar satélites">
                 <Lock className="size-3" /> Sem permissão
               </Button>
             ) : effectiveStatus === "installed" ? (
               <>
                 <Button variant="outline" size="sm"
-                  className="h-7 text-xs gap-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  className="h-7 text-xs gap-1 border-success/30 text-success hover:bg-success/10"
                   asChild>
                   <Link href={`/integrations/${integration.slug}`}>
                     <Settings2 className="size-3" /> Configurar
@@ -201,13 +201,13 @@ export function IntegrationCard({ integration, onInstall, compact = false }: Int
               </>
             ) : effectiveStatus === "view_only" ? (
               <Button variant="outline" size="sm"
-                className="h-7 text-xs gap-1 border-amber-200 text-amber-600 hover:bg-amber-50 cursor-not-allowed"
+                className="h-7 text-xs gap-1 border-warning/30 text-warning hover:bg-warning/10 cursor-not-allowed"
                 disabled>
                 <Lock className="size-3" /> Em Breve
               </Button>
             ) : (
               <Button size="sm"
-                className="h-7 text-xs gap-1 bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+                className="h-7 text-xs gap-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                 onClick={() => onInstall?.(integration)}>
                 <Plus className="size-3" /> Instalar
               </Button>

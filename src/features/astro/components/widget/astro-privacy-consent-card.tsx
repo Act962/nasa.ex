@@ -10,7 +10,7 @@ import {
 } from "@/features/legal/hooks/use-privacy-consent-store";
 import { ORBITA_LEGAL_URLS } from "@/features/legal/lib/orbita-legal";
 
-const linkClassName = "font-semibold text-sky-400 underline underline-offset-2 hover:text-sky-300";
+const linkClassName = "font-semibold text-info underline underline-offset-2 hover:text-info";
 
 export function AstroPrivacyConsentCard() {
   const decidedAt = usePrivacyConsentStore((state) => state.decidedAt);
@@ -33,8 +33,8 @@ export function AstroPrivacyConsentCard() {
       className="mx-3 my-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)]"
     >
       <header className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-bold text-sky-400">Controle sua privacidade</h3>
-        <span className="text-xs font-medium text-sky-400/80">Órbita</span>
+        <h3 className="text-sm font-bold text-info">Controle sua privacidade</h3>
+        <span className="text-xs font-medium text-info/80">Órbita</span>
       </header>
 
       <p className="mt-2 text-[13px] text-white/80">
@@ -50,15 +50,15 @@ export function AstroPrivacyConsentCard() {
         <a href={ORBITA_LEGAL_URLS.privacy} target="_blank" rel="noreferrer" className={linkClassName}>
           Política de Privacidade
         </a>
-        <span className="text-sky-400">-</span>
+        <span className="text-info">-</span>
         <a href={ORBITA_LEGAL_URLS.cookies} target="_blank" rel="noreferrer" className={linkClassName}>
           Política de Cookies
         </a>
-        <span className="text-sky-400">-</span>
+        <span className="text-info">-</span>
         <a href={ORBITA_LEGAL_URLS.terms} target="_blank" rel="noreferrer" className={linkClassName}>
           Termos de uso
         </a>
-        <span className="text-sky-400">-</span>
+        <span className="text-info">-</span>
         <button type="button" onClick={() => setIsShowingOptions(true)} className={linkClassName}>
           Opt-out
         </button>
@@ -118,7 +118,7 @@ export function AstroPrivacyConsentCard() {
           <button
             type="button"
             onClick={acceptAll}
-            className="rounded-full bg-sky-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-sky-400"
+            className="rounded-full bg-info px-4 py-1.5 text-xs font-semibold text-white hover:bg-info"
           >
             Aceitar
           </button>

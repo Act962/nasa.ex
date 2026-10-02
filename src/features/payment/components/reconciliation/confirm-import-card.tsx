@@ -63,14 +63,14 @@ export function ConfirmImportCard({
   const isPdf = pending.format === "PDF";
 
   return (
-    <Card className="gap-0 border-blue-500/30 py-0">
+    <Card className="gap-0 border-info/30 py-0">
       <CardContent className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-2">
             {isIdentified ? (
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
             ) : (
-              <Info className="mt-0.5 size-4 shrink-0 text-amber-400" />
+              <Info className="mt-0.5 size-4 shrink-0 text-warning" />
             )}
             <div className="min-w-0">
               <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold">
@@ -79,7 +79,7 @@ export function ConfirmImportCard({
                 {isPdf && (
                   <Badge
                     variant="outline"
-                    className="gap-1 border-violet-500/30 bg-violet-500/10 text-[10px] text-violet-300"
+                    className="gap-1 border-info/30 bg-info/10 text-[10px] text-info"
                   >
                     <Sparkles className="size-3" />
                     PDF lido por IA
@@ -126,7 +126,7 @@ export function ConfirmImportCard({
           <Button
             onClick={onConfirm}
             disabled={isImporting || !accountId}
-            className="h-9 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90"
+            className="h-9 bg-info text-white hover:bg-info/90"
           >
             {isImporting ? "Importando..." : "Confirmar importação"}
           </Button>

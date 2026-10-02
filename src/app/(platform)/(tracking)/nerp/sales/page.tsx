@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Loader2, Plus, RefreshCw, Trash2, Eye } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Eye } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -350,7 +351,7 @@ function CreateSaleDialog({
 
             <DialogFooter>
               <Button type="submit" disabled={isPending}>
-                {isPending && <Loader2 className="size-3.5 animate-spin" />}
+                {isPending && <OrbitaSpinner className="size-3.5 " />}
                 Criar venda
               </Button>
             </DialogFooter>
@@ -376,7 +377,7 @@ function SaleDetailDialog({ saleId, trigger }: { saleId: string; trigger: React.
         </DialogHeader>
         {query.isLoading && (
           <div className="py-8 text-center text-muted-foreground">
-            <Loader2 className="size-4 animate-spin inline mr-2" /> Carregando…
+            <OrbitaSpinner className="size-4 inline mr-2" /> Carregando…
           </div>
         )}
         {sale && (
@@ -441,7 +442,7 @@ export default function NerpSalesPage() {
       actions={
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => query.refetch()} disabled={query.isFetching}>
-            {query.isFetching ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            {query.isFetching ? <OrbitaSpinner className="size-3.5 " /> : <RefreshCw className="size-3.5" />}
           </Button>
           <CreateSaleDialog
             isPending={create.isPending}
@@ -492,7 +493,7 @@ export default function NerpSalesPage() {
                 {query.isLoading && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      <Loader2 className="size-4 animate-spin inline mr-2" /> Carregando…
+                      <OrbitaSpinner className="size-4 inline mr-2" /> Carregando…
                     </TableCell>
                   </TableRow>
                 )}

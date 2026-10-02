@@ -72,22 +72,22 @@ export default async function UserDetailPage({ params }: { params: Promise<{ use
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href="/admin/users" className="text-zinc-400 hover:text-white transition-colors">
+        <Link href="/admin/users" className="text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="w-5 h-5" />
         </Link>
         <div className="flex items-center gap-3">
           {user.image && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.image} alt={user.name} className="w-9 h-9 rounded-full object-cover ring-2 ring-zinc-700" />
+            <img src={user.image} alt={user.name} className="w-9 h-9 rounded-full object-cover ring-2 ring-line" />
           )}
           <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
               {user.name}
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${user.isActive ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`}>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${user.isActive ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
                 {user.isActive ? "Ativo" : "Inativo"}
               </span>
             </h1>
-            <p className="text-sm text-zinc-400">{user.email}</p>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
           </div>
         </div>
       </div>

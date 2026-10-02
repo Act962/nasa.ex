@@ -152,7 +152,7 @@ export function LeadsByMetricDialog({
             </div>
           ) : leads.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-              <CheckCircle2 className="size-10 text-emerald-500 mb-2" />
+              <CheckCircle2 className="size-10 text-success mb-2" />
               <p className="text-sm font-medium">Nenhum lead nesta métrica</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Tente ajustar o filtro de período ou empresa.
@@ -168,7 +168,7 @@ export function LeadsByMetricDialog({
         </div>
 
         {hasNextPage && (
-          <div className="border-t px-6 py-3 flex justify-center shrink-0">
+          <div className="px-6 py-3 flex justify-center shrink-0">
             <Button
               variant="outline"
               size="sm"

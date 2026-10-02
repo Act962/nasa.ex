@@ -68,7 +68,7 @@ export function SharePanel({ nick, onClose }: Props) {
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-lg text-slate-400 hover:text-white hover:bg-white/8 flex items-center justify-center transition-all"
+            className="w-7 h-7 rounded-full text-slate-400 hover:text-white hover:bg-white/8 flex items-center justify-center transition-all"
           >
             <X className="h-3.5 w-3.5" />
           </button>

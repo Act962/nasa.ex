@@ -47,7 +47,7 @@ export function LocationMessageBox({
         rel="noopener noreferrer"
         className="flex items-start gap-2 p-2 hover:bg-accent/40 transition-colors"
       >
-        <MapPinIcon className="size-4 mt-0.5 shrink-0 text-red-500" />
+        <MapPinIcon className="size-4 mt-0.5 shrink-0 text-destructive" />
         <div className="flex flex-col min-w-0">
           <span className="text-sm font-medium truncate">
             {name || "Localização"}

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { client } from "@/lib/orpc";
-import { Loader2, AlertTriangle, Sparkles } from "lucide-react";
+import { AlertTriangle, Sparkles } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 interface Props {
   slug: string;
@@ -53,7 +54,7 @@ export function EventEnterClient({ slug, token }: Props) {
   if (state.kind === "loading") {
     return (
       <CenterShell>
-        <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
+        <OrbitaSpinner className="w-8 h-8 text-violet-400 " />
         <p className="text-sm text-zinc-400">Validando seu ingresso…</p>
       </CenterShell>
     );

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Lock, ShieldCheck, ExternalLink, BarChart3Icon, ChevronDown } from "lucide-react";
+import { Lock, ShieldCheck, ExternalLink, BarChart3Icon, ChevronDown } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -123,7 +124,7 @@ export function WhatsAppProviderSettings({
     return (
       <Card className="border-border/50">
         <CardContent className="flex items-center justify-center py-10">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          <OrbitaSpinner className="size-5 text-muted-foreground" />
         </CardContent>
       </Card>
     );
@@ -194,7 +195,7 @@ export function WhatsAppProviderSettings({
     <Card className="border-border/50">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <ShieldCheck className="size-4 text-emerald-500" />
+          <ShieldCheck className="size-4 text-success" />
           Provider WhatsApp
           <Badge variant="outline" className="text-[10px] uppercase">
             {data.provider === "META_CLOUD" ? "Oficial Meta" : "Uazapi"}
@@ -419,7 +420,7 @@ export function WhatsAppProviderSettings({
             size="sm"
           >
             {updateMutation.isPending && (
-              <Loader2 className="size-3.5 animate-spin" />
+              <OrbitaSpinner className="size-3.5 " />
             )}
             Salvar
           </Button>
@@ -526,11 +527,11 @@ function MetaPhoneStatusCard({
 }) {
   const qualityColor =
     qualityRating === "GREEN"
-      ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+      ? "bg-success/10 text-success border-success/30"
       : qualityRating === "YELLOW"
-        ? "bg-amber-500/10 text-amber-700 border-amber-500/30"
+        ? "bg-warning/10 text-warning border-warning/30"
         : qualityRating === "RED"
-          ? "bg-red-500/10 text-red-700 border-red-500/30"
+          ? "bg-destructive/10 text-destructive border-destructive/30"
           : "bg-muted text-muted-foreground border-border/50";
 
   return (

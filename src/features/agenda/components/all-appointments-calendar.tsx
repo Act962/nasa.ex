@@ -78,13 +78,13 @@ interface ShowMoreState {
 // ─── Status colours ───────────────────────────────────────────────────────────
 
 const statusChipColors: Record<string, string> = {
-  PENDING: "bg-yellow-100 border-l-yellow-500 text-yellow-800",
-  CONFIRMED: "bg-green-100  border-l-green-500  text-green-800",
-  CANCELLED: "bg-red-100    border-l-red-500    text-red-800",
-  NO_SHOW: "bg-red-100    border-l-red-500    text-red-800",
-  DONE: "bg-blue-100   border-l-blue-500   text-blue-800",
+  PENDING: "bg-warning/15 border-l-warning text-warning",
+  CONFIRMED: "bg-success/15  border-l-success  text-success",
+  CANCELLED: "bg-destructive/15    border-l-destructive    text-destructive",
+  NO_SHOW: "bg-destructive/15    border-l-destructive    text-destructive",
+  DONE: "bg-info/15   border-l-info   text-info",
 };
-const defaultChip = "bg-slate-100 border-l-slate-400 text-slate-800";
+const defaultChip = "bg-muted border-l-line text-foreground";
 
 function EventChip({ event }: { event: CalendarEvent }) {
   const chip = statusChipColors[event.status] ?? defaultChip;

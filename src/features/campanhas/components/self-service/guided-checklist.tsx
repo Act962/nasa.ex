@@ -35,23 +35,25 @@ export function ChecklistProgress({
   total,
   label,
   isCountHidden = false,
+  className,
 }: {
   doneCount: number;
   total: number;
   label: string;
   isCountHidden?: boolean;
+  className?: string;
 }) {
   const percent = total ? Math.round((doneCount / total) * 100) : 0;
   return (
-    <div className="space-y-1">
+    <div className={cn("space-y-1", className)}>
       <div className="flex justify-between text-xs">
         <span className="text-muted-foreground">
           {isCountHidden ? label : `${label} · ${doneCount} de ${total}`}
         </span>
-        <span className={cn("font-semibold", percent === 100 ? "text-emerald-600" : "text-foreground")}>{percent}%</span>
+        <span className={cn("font-semibold", percent === 100 ? "text-success" : "text-foreground")}>{percent}%</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-emerald-500 transition-all duration-700 ease-out" style={{ width: `${percent}%` }} />
+        <div className="h-full rounded-full bg-success transition-all duration-700 ease-out" style={{ width: `${percent}%` }} />
       </div>
     </div>
   );
@@ -92,8 +94,8 @@ export function GuidedChecklist({
               key={item.id}
               className={cn(
                 "overflow-hidden rounded-xl border transition-all duration-500",
-                isDone && "border-emerald-500/50 bg-emerald-500/5",
-                isCurrent && "border-emerald-500 shadow-[0_0_0_3px] shadow-emerald-500/15",
+                isDone && "border-success/50 bg-success/5",
+                isCurrent && "border-success shadow-[0_0_0_3px] shadow-success/15",
               )}
             >
               <button
@@ -104,16 +106,16 @@ export function GuidedChecklist({
                 <span
                   className={cn(
                     "flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-all duration-500",
-                    isDone && "border-emerald-500 bg-emerald-500 text-white",
-                    isCurrent && "border-emerald-500 text-emerald-600",
+                    isDone && "border-success bg-success text-white",
+                    isCurrent && "border-success text-success",
                   )}
                 >
                   {isDone ? <Check className="size-4 animate-in zoom-in spin-in-45 duration-300" /> : index + 1}
                 </span>
-                <span className={cn("flex-1 text-sm font-medium", isDone && "text-emerald-700 dark:text-emerald-400")}>
+                <span className={cn("flex-1 text-sm font-medium", isDone && "text-success dark:text-success")}>
                   {item.title}
                 </span>
-                {isCurrent && <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">Agora</span>}
+                {isCurrent && <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-medium text-success dark:text-success">Agora</span>}
                 <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", isExpanded && "rotate-180")} />
               </button>
 
@@ -128,7 +130,7 @@ export function GuidedChecklist({
                           key={link.href}
                           size="sm"
                           variant={link.isPrimary ? "default" : "outline"}
-                          className={cn(link.isPrimary && "bg-emerald-600 text-white hover:bg-emerald-700")}
+                          className={cn(link.isPrimary && "bg-success text-white hover:bg-success")}
                           asChild
                         >
                           <a href={link.href} target="_blank" rel="noreferrer">
@@ -148,7 +150,7 @@ export function GuidedChecklist({
                       <button
                         type="button"
                         onClick={() => setHelpOpenId(helpOpenId === item.id ? null : item.id)}
-                        className="flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                        className="flex items-center gap-1 text-xs font-medium text-success hover:underline dark:text-success"
                       >
                         <HelpCircle className="size-3.5" /> {helpOpenId === item.id ? "Esconder o passo a passo" : "Não sei como fazer"}
                       </button>
@@ -168,7 +170,7 @@ export function GuidedChecklist({
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-emerald-500/60 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400"
+                          className="border-success/60 text-success hover:bg-success/10 dark:text-success"
                           onClick={() => {
                             onMarkDone(item.id);
                             setOpenedId(null);
@@ -196,7 +198,7 @@ export function HowToSteps({ steps }: { steps: ReactNode[] }) {
     <ol className="space-y-1.5">
       {steps.map((step, index) => (
         <li key={index} className="flex gap-2">
-          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-success/15 text-[11px] font-semibold text-success dark:text-success">
             {index + 1}
           </span>
           <span>{step}</span>

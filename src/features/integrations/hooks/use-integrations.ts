@@ -11,6 +11,11 @@ export const useQueryPlatformIntegrations = () => {
   );
 };
 
+/** WhatsApp (instância conectada) e Instagram (app Comments) em órbita sem integração própria. */
+export const useChannelOrbit = () => {
+  return useQuery(orpc.platformIntegrations.channelOrbit.queryOptions({}));
+};
+
 export const useUpsertPlatformIntegration = () => {
   const qc = useQueryClient();
   return useMutation(

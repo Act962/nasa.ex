@@ -37,10 +37,10 @@ export function LeadsWithAlerts({ appKey }: Props) {
   if (q.isLoading) {
     return (
       <div className="space-y-2">
-        <div className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
           Leads em atenção
         </div>
-        <div className="text-xs text-zinc-500">Carregando leads…</div>
+        <div className="text-xs text-muted-foreground">Carregando leads…</div>
       </div>
     );
   }
@@ -62,19 +62,19 @@ export function LeadsWithAlerts({ appKey }: Props) {
     <div className="space-y-2">
       <div className="flex items-end justify-between">
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
             Leads em atenção
           </div>
-          <div className="text-[11px] text-zinc-500 mt-0.5">
+          <div className="text-[11px] text-muted-foreground mt-0.5">
             Leads que dispararam alertas nos últimos 30 dias.
           </div>
         </div>
-        <div className="text-[11px] text-zinc-500">
+        <div className="text-[11px] text-muted-foreground">
           {startIdx}–{endIdx} de {totalLeads}
         </div>
       </div>
 
-      <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/30 divide-y divide-zinc-800/60">
+      <div className="rounded-lg border border-line bg-panel divide-y divide-line">
         {items.map((it) => (
           <LeadRow key={it.leadId} item={it} />
         ))}
@@ -90,14 +90,14 @@ export function LeadsWithAlerts({ appKey }: Props) {
             className={cn(
               "inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md transition-colors",
               page === 1
-                ? "text-zinc-600 cursor-not-allowed"
-                : "text-zinc-300 hover:bg-zinc-800",
+                ? "text-muted-foreground/70 cursor-not-allowed"
+                : "text-foreground hover:bg-muted",
             )}
           >
             <ChevronLeft className="w-3 h-3" />
             Anterior
           </button>
-          <div className="text-[11px] text-zinc-500">
+          <div className="text-[11px] text-muted-foreground">
             Página {page} de {totalPages}
           </div>
           <button
@@ -107,8 +107,8 @@ export function LeadsWithAlerts({ appKey }: Props) {
             className={cn(
               "inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md transition-colors",
               !hasMore
-                ? "text-zinc-600 cursor-not-allowed"
-                : "text-zinc-300 hover:bg-zinc-800",
+                ? "text-muted-foreground/70 cursor-not-allowed"
+                : "text-foreground hover:bg-muted",
             )}
           >
             Próxima
@@ -137,20 +137,20 @@ interface LeadItem {
 function LeadRow({ item }: { item: LeadItem }) {
   const sevColor =
     item.lastAlertSeverity === "critical"
-      ? "text-red-400"
+      ? "text-destructive"
       : item.lastAlertSeverity === "warning"
-        ? "text-amber-400"
-        : "text-blue-400";
+        ? "text-warning"
+        : "text-info";
 
   return (
     <div className="flex items-center gap-3 px-3 py-2.5">
-      <div className="p-1.5 rounded-md bg-zinc-800/60 text-zinc-400 shrink-0">
+      <div className="p-1.5 rounded-md bg-muted/60 text-muted-foreground shrink-0">
         <User2 className="w-3.5 h-3.5" />
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-semibold text-zinc-200 truncate">
+          <span className="text-xs font-semibold text-foreground truncate">
             {item.leadName}
           </span>
           {item.statusName && (
@@ -159,23 +159,23 @@ function LeadRow({ item }: { item: LeadItem }) {
               style={{
                 backgroundColor: item.statusColor
                   ? `${item.statusColor}20`
-                  : "rgb(39 39 42 / 0.6)",
-                color: item.statusColor ?? "rgb(161 161 170)",
+                  : "var(--muted)",
+                color: item.statusColor ?? "var(--muted-foreground)",
               }}
             >
               {item.statusName}
             </span>
           )}
           {item.alertCount > 1 && (
-            <span className="inline-flex items-center text-[10px] text-zinc-400 bg-zinc-800/60 px-1.5 py-0.5 rounded">
+            <span className="inline-flex items-center text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
               {item.alertCount} alertas
             </span>
           )}
         </div>
-        <div className="text-[11px] text-zinc-500 mt-0.5 truncate">
+        <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
           <span className={sevColor}>{item.lastAlertTitle}</span>
           {" · "}
-          <span className="text-zinc-600">
+          <span className="text-muted-foreground/70">
             {formatDistanceToNow(new Date(item.lastAlertAt), {
               locale: ptBR,
               addSuffix: true,
@@ -184,7 +184,7 @@ function LeadRow({ item }: { item: LeadItem }) {
           {item.trackingName && (
             <>
               {" · "}
-              <span className="text-zinc-600">{item.trackingName}</span>
+              <span className="text-muted-foreground/70">{item.trackingName}</span>
             </>
           )}
         </div>
@@ -192,7 +192,7 @@ function LeadRow({ item }: { item: LeadItem }) {
 
       <Link
         href={`/contatos/${item.leadId}`}
-        className="shrink-0 inline-flex items-center gap-1 text-[11px] text-zinc-300 hover:text-zinc-100 bg-zinc-800 hover:bg-zinc-700 px-2 py-1.5 rounded-md transition-colors"
+        className="shrink-0 inline-flex items-center gap-1 text-[11px] text-foreground hover:text-foreground bg-muted hover:bg-knob px-2 py-1.5 rounded-md transition-colors"
         title="Ver detalhes do lead"
       >
         Ver detalhes

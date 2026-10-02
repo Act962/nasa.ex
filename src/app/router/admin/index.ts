@@ -61,8 +61,10 @@ import { calendarDisputesRouter } from "./calendar-disputes";
 import { getRouterPaymentSettings } from "./get-router-payment-settings";
 import { updateRouterPaymentSettings } from "./update-router-payment-settings";
 import { nerpLoginAs } from "./nerp-login-as";
+import { adminAiCreditsRouter } from "./ai-credits";
 
 export const adminRouter = {
+  aiCredits: adminAiCreditsRouter,
   getDashboard,
   listOrganizations,
   getOrganization,

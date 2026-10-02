@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { Loader2, Save } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Save } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +18,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  BOTTOM_SHEET_ACTION_CLASS,
+  BOTTOM_SHEET_BODY_CLASS,
+  BOTTOM_SHEET_DIALOG_CLASS,
+  BOTTOM_SHEET_FOOTER_CLASS,
+  BOTTOM_SHEET_HANDLE_CLASS,
+  BOTTOM_SHEET_HEADER_CLASS,
+} from "../../lib/bottom-sheet-dialog";
 
 interface ModuleData {
   id?: string;
@@ -70,12 +80,14 @@ export function ModuleForm({ open, onClose, courseId, initial }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className={cn(BOTTOM_SHEET_DIALOG_CLASS, "sm:max-w-md")}>
+        <div aria-hidden className={BOTTOM_SHEET_HANDLE_CLASS} />
+        <DialogHeader className={BOTTOM_SHEET_HEADER_CLASS}>
           <DialogTitle>{isEdit ? "Editar módulo" : "Novo módulo"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className={BOTTOM_SHEET_BODY_CLASS}>
           <div className="space-y-2">
             <Label htmlFor="module-title">Título *</Label>
             <Input
@@ -95,19 +107,21 @@ export function ModuleForm({ open, onClose, courseId, initial }: Props) {
               rows={3}
             />
           </div>
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className={BOTTOM_SHEET_FOOTER_CLASS}>
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={upsert.isPending}
+              className="max-sm:hidden"
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={upsert.isPending} className="gap-1.5">
+            <Button type="submit" disabled={upsert.isPending} className={cn(BOTTOM_SHEET_ACTION_CLASS, "gap-1.5")}>
               {upsert.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
+                <OrbitaSpinner className="size-4 " />
               ) : (
                 <Save className="size-4" />
               )}

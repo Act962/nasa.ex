@@ -36,9 +36,9 @@ export function QuotedMessage({ message }: QuotedMessageProps) {
     if (element) {
       window.dispatchEvent(new CustomEvent("manual-scroll-started"));
       element.scrollIntoView({ behavior: "smooth", block: "center" });
-      element.classList.add("bg-green-500/20");
+      element.classList.add("bg-success/20");
       setTimeout(() => {
-        element.classList.remove("bg-green-500/20");
+        element.classList.remove("bg-success/20");
       }, 2000);
     } else {
       console.warn(
@@ -51,10 +51,10 @@ export function QuotedMessage({ message }: QuotedMessageProps) {
   return (
     <div
       onClick={handleScrollToMessage}
-      className="flex bg-foreground/5 border-l-4 border-green-500 my-1 rounded-md text-xs max-w-[300px] overflow-hidden cursor-pointer hover:bg-foreground/10 transition-colors"
+      className="flex bg-foreground/5 border-l-4 border-success my-1 rounded-md text-xs max-w-[300px] overflow-hidden cursor-pointer hover:bg-foreground/10 transition-colors"
     >
       <div className="flex-1 flex flex-col p-2 min-w-0 justify-center gap-0.5">
-        <span className="font-bold text-green-600 truncate">{quotedName}</span>
+        <span className="font-bold text-success truncate">{quotedName}</span>
         <div className="flex items-center gap-1.5 text-muted-foreground min-w-0">
           {isImage && (
             <>

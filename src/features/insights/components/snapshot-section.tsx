@@ -7,9 +7,12 @@ import {
   SECTION_META,
   resolveDataPath,
   formatMetricValue,
+  toRankingItems,
   type MetricDef,
 } from "@/features/insights/lib/insights-metric-catalog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import type { KpiCardStyle } from "@/features/insights/lib/kpi-card-style";
+import { KpiCardShell } from "./kpi-card-shell";
 
 /**
  * Renderiza uma seção de app a partir de um snapshot salvo —
@@ -25,12 +28,15 @@ interface SnapshotSectionProps {
   data: Record<string, unknown> | null | undefined;
   /** Lista de keys do catálogo que devem aparecer; vinda do snapshot. */
   visibleKeys: string[];
+  /** Aparência de cada bloco no momento do salvamento. */
+  cardStyles?: Record<string, KpiCardStyle>;
 }
 
 export function SnapshotSection({
   appModule,
   data,
   visibleKeys,
+  cardStyles,
 }: SnapshotSectionProps) {
   const meta = SECTION_META[appModule];
   const visibleMetrics: MetricDef[] = visibleKeys
@@ -59,14 +65,34 @@ export function SnapshotSection({
           </div>
         </div>
       )}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {visibleMetrics.map((metric) => {
           const Icon = metric.icon;
           const value = resolveDataPath(data, metric.dataPath);
 
           // KPIs com layout customizado (ranking, top criador)
           let customBody: React.ReactNode = null;
-          if (metric.format === "ranking") {
+          if (metric.format === "ranking" && metric.ranking) {
+            const rankingItems = toRankingItems(value);
+            const { labelKey, valueKey, valueFormat } = metric.ranking;
+            customBody =
+              Array.isArray(rankingItems) && rankingItems.length > 0 ? (
+                <div className="space-y-1.5">
+                  {(rankingItems.slice(0, 5) as Array<Record<string, unknown>>).map((item, itemIndex) => (
+                    <div key={itemIndex} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="truncate font-medium">
+                        {itemIndex + 1}. {String(item[labelKey] ?? item.name ?? "—")}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">
+                        {formatMetricValue(item[valueKey] as number, valueFormat)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Sem dados no período</p>
+              );
+          } else if (metric.format === "ranking") {
             if (
               appModule === "workspace" &&
               metric.key === "topFastestCreator" &&
@@ -126,45 +152,18 @@ export function SnapshotSection({
           }
 
           return (
-            <div
+            <KpiCardShell
               key={metric.key}
-              className="rounded-xl border bg-card p-4 flex flex-col gap-3"
+              label={metric.label}
+              value={formatMetricValue(value, metric.format)}
+              sub={metric.description}
+              icon={Icon}
+              iconColor={metric.color}
+              iconBg={metric.bg}
+              cardStyle={cardStyles?.[metric.key]}
             >
-              <div className="flex items-center justify-between">
-                <div
-                  className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center",
-                    metric.bg,
-                  )}
-                >
-                  <Icon className={cn("size-4", metric.color)} />
-                </div>
-              </div>
-              <div>
-                {customBody ? (
-                  <>
-                    {customBody}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {metric.label}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-2xl font-bold leading-tight">
-                      {formatMetricValue(value, metric.format)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {metric.label}
-                    </p>
-                    {metric.description && (
-                      <p className="text-[11px] text-muted-foreground/80 mt-1">
-                        {metric.description}
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
+              {customBody ?? undefined}
+            </KpiCardShell>
           );
         })}
       </div>

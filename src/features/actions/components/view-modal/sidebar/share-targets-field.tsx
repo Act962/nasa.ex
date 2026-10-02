@@ -26,17 +26,17 @@ const STATUS_META = {
   PENDING: {
     label: "Aguardando aprovação",
     Icon: ClockIcon,
-    className: "text-amber-600 dark:text-amber-400",
+    className: "text-warning dark:text-warning",
   },
   APPROVED: {
     label: "Compartilhado",
     Icon: CheckCircle2Icon,
-    className: "text-emerald-600 dark:text-emerald-400",
+    className: "text-success dark:text-success",
   },
   REJECTED: {
     label: "Rejeitado",
     Icon: XCircleIcon,
-    className: "text-red-600 dark:text-red-400",
+    className: "text-destructive dark:text-destructive",
   },
 } as const;
 

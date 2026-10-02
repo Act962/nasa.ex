@@ -82,7 +82,7 @@ const MAX_VISIBLE_AVATARS = 5;
 
 /**
  * Botão do status da instância WhatsApp do tracking.
- * - CONNECTED               → azul (`text-blue-500`)
+ * - CONNECTED               → azul (`text-info`)
  * - DISCONNECTED / sem inst → cor neutra (`text-muted-foreground`, mesma
  *                              do "há X dias" ao lado)
  *
@@ -123,7 +123,7 @@ function WhatsappPowerIcon({
           aria-label={label}
           className={
             isConnected
-              ? "inline-flex items-center text-blue-500 hover:text-blue-600 cursor-pointer transition-colors"
+              ? "inline-flex items-center text-info hover:text-info cursor-pointer transition-colors"
               : "inline-flex items-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
           }
         >
@@ -278,7 +278,7 @@ function TrackingCard({ tracking }: { tracking: TrackingDashboardItem }) {
                               </Avatar>
                               {p.isOnline && (
                                 <span
-                                  className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-500 border-2 border-background"
+                                  className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-success border-2 border-background"
                                   title="Online"
                                 />
                               )}
@@ -289,7 +289,7 @@ function TrackingCard({ tracking }: { tracking: TrackingDashboardItem }) {
                               <span className="font-medium">
                                 {p.name}
                                 {p.isCreator && (
-                                  <span className="ml-1 text-[10px] text-blue-500">
+                                  <span className="ml-1 text-[10px] text-info">
                                     · criador
                                   </span>
                                 )}
@@ -298,7 +298,7 @@ function TrackingCard({ tracking }: { tracking: TrackingDashboardItem }) {
                                 {p.email}
                               </span>
                               {p.isOnline && (
-                                <span className="text-emerald-500">
+                                <span className="text-success">
                                   • online agora
                                 </span>
                               )}
@@ -321,7 +321,7 @@ function TrackingCard({ tracking }: { tracking: TrackingDashboardItem }) {
                                   <span key={p.id}>
                                     {p.name}
                                     {p.isOnline && (
-                                      <span className="ml-1 text-emerald-500">
+                                      <span className="ml-1 text-success">
                                         •
                                       </span>
                                     )}
@@ -470,7 +470,7 @@ export function TrackingList() {
           remapeia slugs → IDs reais corretamente. Aparece sempre, abaixo da
           lista de trackings (ou no lugar dela quando empty). */}
       <section className="mt-10">
-        <div className="mb-4 flex items-center gap-2 text-amber-500">
+        <div className="mb-4 flex items-center gap-2 text-warning">
           <Sparkles className="size-4" />
           <span className="text-xs font-semibold uppercase tracking-wide">
             Padrões ÓRBITA

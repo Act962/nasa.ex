@@ -32,7 +32,7 @@ export const INTEGRATIONS_GUIDES: GuideDef[] = [
     title: "Conectar uma integração",
     summary: "Ligue Instagram, Meta, Google e outras ferramentas.",
     topicPattern:
-      /\b(conect\w*|lig\w*|integr\w*|instal\w*|vincul\w*|ativ\w*)\b.*\b(integrac\w*|facebook|meta|google|gmail|instagram dm|ferramentas?|apps? externos?|marketplace)\b/,
+      /\b(conect\w*|lig\w*|integr\w*|instal\w*|vincul\w*|ativ\w*|orbit\w*|coloc\w*)\b.*\b(integrac\w*|satelites?|facebook|meta|google|gmail|instagram dm|ferramentas?|apps? externos?|marketplace)\b/,
     steps: [
       {
         anchor: "integrationsSearch",

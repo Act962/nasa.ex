@@ -3,13 +3,13 @@
   "phases": [
     {
       "id": "app",
-      "title": "Criar seu app na Meta",
-      "cheer": "Primeiro app criado! A parte mais chata já foi 🚀"
+      "title": "Criar a conexão na Meta",
+      "cheer": "Conexão criada! A parte mais chata já foi 🚀"
     },
     {
       "id": "whatsapp",
-      "title": "Ligar o WhatsApp no app",
-      "cheer": "WhatsApp ligado no seu app. Seguimos juntos!"
+      "title": "Ligar o WhatsApp na conexão",
+      "cheer": "WhatsApp ligado na sua conexão. Seguimos juntos!"
     },
     {
       "id": "number",
@@ -28,7 +28,7 @@
     },
     {
       "id": "keys",
-      "title": "Suas chaves do app",
+      "title": "As chaves da conexão",
       "cheer": "Chaves copiadas. Agora é só colar na ÓRBITA!"
     },
     {
@@ -47,13 +47,13 @@
       "n": 1,
       "phase": "app",
       "slug": "tem-app",
-      "title": "Você já tem um app na Meta?",
-      "instruction": "Abra developers.facebook.com → Meus apps. Se já existe um app da sua empresa com o WhatsApp, use esse app. Se a lista estiver vazia, crie um novo.",
+      "title": "Sua empresa já tem uma conexão na Meta?",
+      "instruction": "Abra developers.facebook.com → Meus apps (a Meta chama a conexão de \"app\"). Se já existe uma da sua empresa com o WhatsApp, use essa. Se a lista estiver vazia, crie uma nova.",
       "link": "https://developers.facebook.com/apps/",
-      "tip": "O app já é usado por outro sistema (outro CRM ou chatbot)? Crie um app novo só para a ÓRBITA: trocar o webhook de um app em uso desliga o outro sistema.",
+      "tip": "Essa conexão já é usada por outra ferramenta de atendimento? **Crie uma conexão nova para a ÓRBITA.** Assim todas as conversas do seu número passam a chegar no **Chat da ÓRBITA**: equipe atendendo junto, funil de vendas e Astro num lugar só — sem pagar outra ferramenta.",
       "choice": {
         "yesLabel": "Já tenho",
-        "noLabel": "Não, vou criar",
+        "noLabel": "Prosseguir",
         "skipToSlug": "painel"
       }
     },
@@ -61,8 +61,8 @@
       "n": 2,
       "phase": "app",
       "slug": "criar-app",
-      "title": "Dê um nome ao seu app",
-      "instruction": "Em developers.facebook.com, clique em Criar aplicativo. Escreva um nome (ex.: WhatsApp da sua loja), confira o e-mail e clique em Avançar.",
+      "title": "Dê um nome à conexão",
+      "instruction": "Em developers.facebook.com, clique no botão Criar aplicativo (é assim que a Meta chama a conexão). Escreva um nome (ex.: WhatsApp da sua loja), confira o e-mail e clique em Avançar.",
       "link": "https://developers.facebook.com/apps/creation/",
       "shot": {
         "w": 1600,
@@ -189,7 +189,7 @@
       "phase": "app",
       "slug": "criar-aplicativo",
       "title": "Confira e crie",
-      "instruction": "Confira o resumo e clique em Criar aplicativo.",
+      "instruction": "Confira o resumo e clique no botão Criar aplicativo.",
       "shot": {
         "w": 1600,
         "h": 857,
@@ -279,8 +279,8 @@
       "n": 8,
       "phase": "whatsapp",
       "slug": "painel",
-      "title": "Abra o WhatsApp do app",
-      "instruction": "No painel do app, clique em Personalizar o caso de uso \"Conectar-se com os clientes pelo WhatsApp\". Antes, copie o endereço desta página (barra do navegador) e cole abaixo: assim cada botão daqui pra frente abre direto no seu app.",
+      "title": "Abra o WhatsApp da conexão",
+      "instruction": "No painel da conexão, clique em Personalizar o caso de uso \"Conectar-se com os clientes pelo WhatsApp\". Antes, copie o endereço desta página (barra do navegador) e cole abaixo: assim cada botão daqui pra frente abre direto na sua conexão.",
       "shot": {
         "w": 1600,
         "h": 863,
@@ -367,7 +367,7 @@
         "noLabel": "Ainda não, vou criar",
         "skipToSlug": "tem-usuario-sistema"
       },
-      "tip": "Só quer testar antes de ter o número da empresa? No app, em Configuração da API, abra a lista \"De\" e clique em \"Obter novo número de teste\": a Meta cria uma conta de teste grátis (envia só para até 5 números cadastrados)."
+      "tip": "Só quer testar antes de ter o número da empresa? Na conexão, em Configuração da API, abra a lista \"De\" e clique em \"Obter novo número de teste\": a Meta cria uma conta de teste grátis (envia só para até 5 números cadastrados)."
     },
     {
       "n": 12,
@@ -489,7 +489,7 @@
       ],
       "source": "13.jpeg",
       "linkKey": "bizWhatsappAccounts",
-      "tip": "A Meta diz que o número já está em uso? Ele ainda está no aplicativo do WhatsApp ou em outro provedor. No celular, apague a conta do WhatsApp desse número (Configurações → Conta → Apagar conta) ou peça ao provedor antigo para liberar, e tente de novo."
+      "tip": "A Meta diz que o número já está em uso? Ele ainda está ativo em um WhatsApp. No celular, abra o WhatsApp desse número em Configurações → Conta → Apagar conta e tente de novo. A partir daí, as conversas dele chegam no **Chat da ÓRBITA**."
     },
     {
       "n": 15,
@@ -848,7 +848,7 @@
       "source": "17.jpeg",
       "choice": {
         "yesLabel": "Já tenho",
-        "noLabel": "Não, vou criar",
+        "noLabel": "Prosseguir",
         "skipToSlug": "atribuir-ativos"
       },
       "tip": "Não aparece \"Usuários do sistema\" no menu? Você precisa ser administrador do portfólio. Peça para quem administra liberar o seu acesso (Pessoas → Acesso total)."
@@ -888,7 +888,7 @@
       ],
       "source": "17.jpeg",
       "linkKey": "bizSystemUsers",
-      "tip": "Apareceu \"atingiu o número máximo de usuários administradores\"? Você já tem um usuário do sistema — não precisa criar outro. Clique em Cancelar, escolha o usuário que já está na lista e vá para \"Dê acesso ao app e ao WhatsApp\"."
+      "tip": "Apareceu \"atingiu o número máximo de usuários administradores\"? Você já tem um usuário do sistema — não precisa criar outro. Clique em Cancelar, escolha o usuário que já está na lista e vá para \"Dê acesso à conexão e ao WhatsApp\"."
     },
     {
       "n": 26,
@@ -959,13 +959,13 @@
       ],
       "source": "19.jpeg",
       "linkKey": "bizSystemUsers",
-      "tip": "Apareceu \"atingiu o número máximo de usuários administradores\"? Você já tem um usuário do sistema — não precisa criar outro. Clique em Cancelar, escolha o usuário que já está na lista e vá para \"Dê acesso ao app e ao WhatsApp\"."
+      "tip": "Apareceu \"atingiu o número máximo de usuários administradores\"? Você já tem um usuário do sistema — não precisa criar outro. Clique em Cancelar, escolha o usuário que já está na lista e vá para \"Dê acesso à conexão e ao WhatsApp\"."
     },
     {
       "n": 28,
       "phase": "token",
       "slug": "atribuir-ativos",
-      "title": "Dê acesso ao app e ao WhatsApp",
+      "title": "Dê acesso à conexão e ao WhatsApp",
       "instruction": "Na lista de Usuários do sistema, clique no seu usuário (ex.: ORBITA). No lado direito, clique em ⋯ (ao lado de Anular tokens) → Atribuir ativos.",
       "shot": {
         "w": 1568,
@@ -1060,8 +1060,8 @@
       "n": 30,
       "phase": "token",
       "slug": "atribuir-app",
-      "title": "Dê acesso ao app",
-      "instruction": "Abra de novo ⋯ → Atribuir ativos. Na coluna da esquerda, clique em Apps.",
+      "title": "Dê acesso à conexão",
+      "instruction": "Abra de novo ⋯ → Atribuir ativos. Na coluna da esquerda, clique em Apps (é onde a Meta lista as conexões).",
       "shot": {
         "w": 1489,
         "h": 933,
@@ -1106,8 +1106,8 @@
       "n": 31,
       "phase": "token",
       "slug": "app-gerenciar",
-      "title": "App com acesso total",
-      "instruction": "Marque o app que você criou no passo 1, ligue Gerenciar app e clique em Atribuir ativos → Concluir.",
+      "title": "Conexão com acesso total",
+      "instruction": "Marque a conexão que você criou no passo 1, ligue Gerenciar app e clique em Atribuir ativos → Concluir.",
       "shot": {
         "w": 1572,
         "h": 932,
@@ -1153,7 +1153,7 @@
       "phase": "token",
       "slug": "whatsapp-atribuido",
       "title": "Conta liberada: gere a chave",
-      "instruction": "Pronto: o usuário agora aparece com o app e a conta do WhatsApp com Acesso total. Espere uns segundos e clique em Gerar token (no alto, ao lado de Anular tokens).",
+      "instruction": "Pronto: o usuário agora aparece com a conexão e a conta do WhatsApp com Acesso total. Espere uns segundos e clique em Gerar token (no alto, ao lado de Anular tokens).",
       "shot": {
         "w": 1568,
         "h": 737,
@@ -1199,14 +1199,14 @@
       ],
       "source": "wa-app-e-whatsapp-liberados.png",
       "linkKey": "bizSystemUsers",
-      "tip": "Nunca clique em \"Anular tokens\": isso desliga todas as chaves desse usuário, inclusive as de outros sistemas."
+      "tip": "Nunca clique em \"Anular tokens\": isso **desliga a conexão** do seu número com a ÓRBITA."
     },
     {
       "n": 33,
       "phase": "token",
       "slug": "gerar-token-app",
-      "title": "Gerar a chave: escolha o app",
-      "instruction": "Na janela que abriu, escolha o app que você criou no passo 1 e clique em Avançar.",
+      "title": "Gerar a chave: escolha a conexão",
+      "instruction": "Na janela que abriu, escolha a conexão que você criou no passo 1 e clique em Avançar.",
       "shot": {
         "w": 1349,
         "h": 882,
@@ -1281,7 +1281,7 @@
       "redact": [],
       "source": "wa-token-permissoes.png",
       "linkKey": "bizSystemUsers",
-      "tip": "Apareceu \"Nenhuma permissão disponível\"? O app ainda não foi liberado para o usuário do sistema (passo \"Dê acesso ao app\") ou a Meta ainda está processando: feche no X, espere 1 minuto e gere o token de novo."
+      "tip": "Apareceu \"Nenhuma permissão disponível\"? A conexão ainda não foi liberada para o usuário do sistema (passo \"Dê acesso à conexão\") ou a Meta ainda está processando: feche no X, espere 1 minuto e gere o token de novo."
     },
     {
       "n": 36,
@@ -1360,8 +1360,8 @@
     {
       "phase": "keys",
       "slug": "menu-basico",
-      "title": "Abra as configurações do app",
-      "instruction": "No painel do app na Meta, abra Configurações do app → Básico.",
+      "title": "Abra as configurações da conexão",
+      "instruction": "No painel da conexão na Meta, abra Configurações do app → Básico.",
       "link": "https://developers.facebook.com/apps/",
       "source": "31.jpeg",
       "shot": {
@@ -1389,7 +1389,7 @@
       "phase": "keys",
       "slug": "id-e-chave-secreta",
       "title": "Copie o ID e a chave secreta",
-      "instruction": "Copie o ID do Aplicativo e cole abaixo. Em Chave Secreta do Aplicativo clique em Mostrar, confirme a senha, copie e cole abaixo.",
+      "instruction": "Copie o ID do Aplicativo (é o número da conexão) e cole abaixo. Em Chave Secreta do Aplicativo clique em Mostrar, confirme a senha, copie e cole abaixo.",
       "source": "32.jpeg",
       "shot": {
         "w": 1600,
@@ -1603,7 +1603,7 @@
       "phase": "webhook",
       "slug": "webhook-vazio",
       "title": "Abra a tela do Webhook",
-      "instruction": "No seu app, abra Casos de uso → Personalizar → Configuração. É lá que a Meta pergunta para onde mandar as mensagens dos seus clientes.",
+      "instruction": "Na sua conexão, abra Casos de uso → Personalizar → Configuração. É lá que a Meta pergunta para onde mandar as mensagens dos seus clientes.",
       "source": "35.jpeg",
       "shot": {
         "w": 1600,
@@ -1633,7 +1633,7 @@
       ],
       "n": 44,
       "linkKey": "waWebhook",
-      "tip": "O campo URL de callback já está preenchido com outro endereço? Ele é de outro sistema. Não troque: fale com a equipe da ÓRBITA pelo botão \"Pedir ajuda\"."
+      "tip": "O campo URL de callback já tem outro endereço? Troque pelo endereço da ÓRBITA no próximo passo: é ele que faz as conversas chegarem no **Chat da ÓRBITA**. Ficou em dúvida? Clique em \"Pedir ajuda à equipe\" que fazemos com você."
     },
     {
       "phase": "webhook",
@@ -1678,7 +1678,7 @@
       ],
       "n": 45,
       "linkKey": "waWebhook",
-      "tip": "Use exatamente o token mostrado aqui: ele é só deste funil. A URL precisa começar com https:// — com http:// a Meta recusa."
+      "tip": "Use exatamente o token mostrado aqui — ele vale só para este funil. O endereço precisa começar com https://; com http:// a Meta recusa."
     },
     {
       "phase": "webhook",
@@ -1746,7 +1746,7 @@
       "n": 48,
       "phase": "publish",
       "slug": "publicar",
-      "title": "Publique o app",
+      "title": "Publique a conexão",
       "instruction": "Em Configurações do app → Básico, preencha a URL da política de privacidade do seu site e a categoria. Depois clique em Publicar no menu. Sem publicar, a Meta não entrega as respostas dos clientes.",
       "linkKey": "appSettingsBasic"
     },

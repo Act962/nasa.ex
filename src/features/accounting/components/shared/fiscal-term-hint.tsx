@@ -30,7 +30,7 @@ export function FiscalTermHint({ termId, className, withLabel = false }: FiscalT
           type="button"
           aria-label={`O que é ${glossaryTerm.label}?`}
           className={cn(
-            "inline-flex items-center gap-1 align-middle text-muted-foreground transition-colors hover:text-[#1E90FF] focus-visible:text-[#1E90FF] focus-visible:outline-none",
+            "inline-flex items-center gap-1 align-middle text-muted-foreground transition-colors hover:text-info focus-visible:text-info focus-visible:outline-none",
             className,
           )}
         >
@@ -61,12 +61,12 @@ export function FiscalTermHint({ termId, className, withLabel = false }: FiscalT
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-[#1E90FF] hover:underline"
+                  className="inline-flex items-center gap-1 text-xs text-info hover:underline"
                 >
                   <ExternalLink className="size-3" />
                   {link.label}
                   {link.needsVerification && (
-                    <TriangleAlert className="size-3 text-amber-500" aria-label="Link a confirmar" />
+                    <TriangleAlert className="size-3 text-warning" aria-label="Link a confirmar" />
                   )}
                 </a>
               </li>

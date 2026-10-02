@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, RefreshCw, Scale } from "lucide-react";
+import { RefreshCw, Scale } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -68,10 +69,10 @@ export function LedgerReportsSection({ onNavigate }: { onNavigate?: (section: st
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 rounded-xl border bg-violet-500/5 p-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-xl border bg-info/5 p-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1 text-sm">
           <p className="flex items-center gap-1.5 font-semibold">
-            <Scale className="size-4 text-violet-600" />
+            <Scale className="size-4 text-info" />
             Balancete, razão e balanço
           </p>
           <p className="text-muted-foreground">
@@ -79,7 +80,7 @@ export function LedgerReportsSection({ onNavigate }: { onNavigate?: (section: st
             conta; o balanço mostra o que a empresa tem, o que deve e o que é dos sócios.
           </p>
           {onNavigate && (
-            <Button type="button" variant="link" size="sm" className="h-auto px-0 text-[#1E90FF]" onClick={() => onNavigate("chart")}>
+            <Button type="button" variant="link" size="sm" className="h-auto px-0 text-info" onClick={() => onNavigate("chart")}>
               Ver plano de contas e mapeamento
             </Button>
           )}
@@ -101,7 +102,7 @@ export function LedgerReportsSection({ onNavigate }: { onNavigate?: (section: st
               className={cn(
                 "shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
                 preset === option.id
-                  ? "border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-200"
+                  ? "border-info/40 bg-info/10 text-info dark:text-info"
                   : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
               )}
             >
@@ -187,9 +188,9 @@ export function LedgerReportsSection({ onNavigate }: { onNavigate?: (section: st
               type="button"
               onClick={handleReprocess}
               disabled={reprocessJournal.isPending}
-              className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700"
+              className="gap-1.5 bg-info text-white hover:bg-info"
             >
-              {reprocessJournal.isPending && <Loader2 className="size-4 animate-spin" />}
+              {reprocessJournal.isPending && <OrbitaSpinner className="size-4 " />}
               Reprocessar
             </Button>
           </AlertDialogFooter>

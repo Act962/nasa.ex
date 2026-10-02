@@ -1,14 +1,18 @@
 "use client";
 
-import type { ComponentType } from "react";
+import { Suspense, type ComponentType } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { BarChart3, LayoutTemplate, Megaphone, Send, Users } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import { BarChart3, CircleHelp, LayoutTemplate, Lock, Send, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
+import { useCampanhasSectionCounts } from "../hooks/use-campanhas-section-counts";
+import { useSendingNumbers } from "../hooks/use-sending-numbers";
 
 /**
- * Shell do app de Campanhas: navegação lateral (rail) no desktop + barra
- * horizontal rolável no mobile. Envolve o conteúdo de todas as telas do app
+ * Shell do app de Campanhas: menu das seções no topo (desktop, com totais) + dock em
+ * órbita no celular. Envolve o conteúdo de todas as telas do app
  * pra dar uma navegação única e consistente (Campanhas / Modelos / Contatos /
  * Analytics).
  */
@@ -47,8 +51,13 @@ const NAV: NavItem[] = [
 
 // "Campanhas" (disparos) fica no topo e cobre a home + o detalhe /campanhas/<id>,
 // desde que não seja uma das seções específicas acima.
+/** A lista de campanhas só aparece depois de clicar em "Campanhas" (a home fica com o número e o convite). */
+export const CAMPAIGNS_LIST_PARAM = "lista";
+const CAMPAIGNS_LIST_HREF = `/campanhas?${CAMPAIGNS_LIST_PARAM}=1`;
+const NO_NUMBER_MESSAGE = "Conecte seu número e crie sua primeira campanha";
+
 const CAMPAIGNS_ITEM: NavItem = {
-  href: "/campanhas",
+  href: CAMPAIGNS_LIST_HREF,
   label: "Campanhas",
   description: "Disparos em massa",
   icon: Send,
@@ -57,87 +66,123 @@ const CAMPAIGNS_ITEM: NavItem = {
     (path.startsWith("/campanhas/") && !NAV.some((item) => item.match(path))),
 };
 
-const ALL_ITEMS = [CAMPAIGNS_ITEM, ...NAV];
+/** Primeira aba: benefícios, custos e passo a passo (a home das Campanhas sem a lista). */
+const HOW_IT_WORKS_ITEM: NavItem = {
+  href: "/campanhas",
+  label: "Como funciona?",
+  description: "Benefícios e custos",
+  icon: CircleHelp,
+  match: (path) => path === "/campanhas",
+};
+
+const ALL_ITEMS = [HOW_IT_WORKS_ITEM, CAMPAIGNS_ITEM, ...NAV];
+
+interface NavState {
+  pathname: string;
+  isListOpen: boolean;
+  isCampaignsLocked: boolean;
+}
+
+function isItemActive(item: NavItem, { pathname, isListOpen }: NavState): boolean {
+  if (item === CAMPAIGNS_ITEM && pathname === "/campanhas") return isListOpen;
+  if (item === HOW_IT_WORKS_ITEM) return pathname === "/campanhas" && !isListOpen;
+  return item.match(pathname);
+}
+
+function toDockItem(item: NavItem, navState: NavState) {
+  const Icon = item.icon;
+  if (item === CAMPAIGNS_ITEM && navState.isCampaignsLocked) {
+    return { label: item.label, icon: <Lock />, onSelect: () => toast.info(NO_NUMBER_MESSAGE) };
+  }
+  return { label: item.label, href: item.href, icon: <Icon />, isActive: isItemActive(item, navState) };
+}
+
+/** Lê a URL (?lista=1) e o número conectado; fica num Suspense por causa do useSearchParams. */
+function useNavState(): NavState {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { data: sendingNumbers, isLoading } = useSendingNumbers();
+  return {
+    pathname,
+    isListOpen: searchParams.get(CAMPAIGNS_LIST_PARAM) === "1",
+    isCampaignsLocked: !isLoading && !sendingNumbers?.length,
+  };
+}
 
 export function CampanhasShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  return (
+    <div className="flex min-h-[calc(100dvh-3.5rem)] min-w-0 flex-col">
+      <Suspense fallback={null}>
+        <CampanhasNavigation />
+      </Suspense>
+      <main className="min-w-0 flex-1">{children}</main>
+    </div>
+  );
+}
+
+function CampanhasNavigation() {
+  const navState = useNavState();
+
+  // No celular as quatro seções vão para o dock em órbita (a barra rolável saiu).
+  useRegisterOrbitDock({
+    leftItems: [toDockItem(CAMPAIGNS_ITEM, navState), toDockItem(NAV[0], navState)],
+    // Analytics fica só no menu do computador: no celular o 4º lugar é do "Como funciona?".
+    rightItems: [toDockItem(NAV[1], navState), toDockItem(HOW_IT_WORKS_ITEM, navState)],
+  });
 
   return (
-    <div className="flex min-h-[calc(100dvh-3.5rem)]">
-      <aside className="hidden w-60 shrink-0 flex-col border-r bg-muted/20 p-3 md:flex">
-        <div className="mb-4 flex items-center gap-2.5 px-2 py-1.5">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Megaphone className="size-[18px]" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold leading-tight tracking-tight">
-              Campanhas
-            </p>
-            <p className="truncate text-[11px] text-muted-foreground">
-              WhatsApp Oficial
-            </p>
-          </div>
-        </div>
-
-        <nav className="flex flex-col gap-0.5">
-          {ALL_ITEMS.map((item) => {
-            const active = item.match(pathname);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "group flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-colors",
-                  active
-                    ? "bg-background font-medium text-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
-                )}
-              >
-                <Icon
-                  className={cn(
-                    "size-4 shrink-0",
-                    active ? "text-primary" : "text-muted-foreground",
-                  )}
-                />
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate leading-tight">{item.label}</span>
-                  <span className="truncate text-[11px] font-normal text-muted-foreground">
-                    {item.description}
-                  </span>
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <nav className="flex gap-1.5 overflow-x-auto border-b px-3 py-2 md:hidden">
-          {ALL_ITEMS.map((item) => {
-            const active = item.match(pathname);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
-                  active
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className="size-3.5" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <main className="min-w-0 flex-1">{children}</main>
-      </div>
+    <div className="mx-auto hidden w-full max-w-5xl px-4 pt-6 sm:px-6 md:block lg:px-8">
+      <CampanhasSectionMenu navState={navState} />
     </div>
+  );
+}
+
+/** Menu das seções no desktop, acima do conteúdo, com o total de cada uma. */
+function CampanhasSectionMenu({ navState }: { navState: NavState }) {
+  const counts = useCampanhasSectionCounts();
+  return (
+    <nav className="flex items-center gap-1 rounded-full border bg-card p-1 shadow-xs">
+      {ALL_ITEMS.map((item) => {
+        const isActive = isItemActive(item, navState);
+        const Icon = item.icon;
+        const count = counts[item.href];
+        const itemClassName = cn(
+          "flex h-10 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium transition-colors",
+          isActive ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        );
+        if (item === CAMPAIGNS_ITEM && navState.isCampaignsLocked) {
+          return (
+            <button
+              key={item.href}
+              type="button"
+              aria-disabled
+              title={NO_NUMBER_MESSAGE}
+              onClick={() => toast.info(NO_NUMBER_MESSAGE)}
+              className={cn(itemClassName, "cursor-not-allowed opacity-50 hover:bg-transparent hover:text-muted-foreground")}
+            >
+              <Lock className="size-4 shrink-0" />
+              {item.label}
+            </button>
+          );
+        }
+        return (
+          <Link key={item.href} href={item.href} className={itemClassName}>
+            <Icon className="size-4 shrink-0" />
+            {item.label}
+            {count !== undefined && (
+              <span
+                className={cn(
+                  "min-w-6 rounded-full px-2 py-0.5 text-center text-[11px] font-semibold tabular-nums",
+                  isActive ? "bg-background/20 text-background" : "bg-muted text-foreground",
+                )}
+              >
+                {count.toLocaleString("pt-BR")}
+              </span>
+            )}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 

@@ -34,22 +34,22 @@ export function ComplianceAlert({
       className={cn(
         "rounded-xl border p-4",
         isBlocked
-          ? "border-rose-400/30 bg-rose-500/[0.08]"
-          : "border-amber-400/30 bg-amber-500/[0.08]",
+          ? "border-destructive/30 bg-destructive/15"
+          : "border-warning/30 bg-warning/15",
       )}
     >
       <div className="flex items-start gap-2.5">
         <Icon
           className={cn(
             "mt-0.5 size-4 shrink-0",
-            isBlocked ? "text-rose-300" : "text-amber-300",
+            isBlocked ? "text-destructive" : "text-warning",
           )}
         />
         <div className="min-w-0 flex-1">
           <p
             className={cn(
               "text-sm font-semibold",
-              isBlocked ? "text-rose-100" : "text-amber-100",
+              "text-foreground/85",
             )}
           >
             {isBlocked
@@ -94,7 +94,7 @@ export function ComplianceAlert({
               )}`}
               target="_blank"
               rel="noreferrer"
-              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/20"
+              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-success/30 bg-success/15 px-4 py-2 text-xs font-semibold text-success transition hover:bg-success/25"
             >
               Falar com um gestor
             </a>
@@ -106,9 +106,9 @@ export function ComplianceAlert({
                 type="checkbox"
                 checked={acknowledged ?? false}
                 onChange={(event) => onAcknowledge(event.target.checked)}
-                className="mt-0.5 size-3.5 shrink-0 accent-amber-500"
+                className="mt-0.5 size-3.5 shrink-0 accent-warning"
               />
-              <span className="text-xs leading-relaxed text-amber-100/90">
+              <span className="text-xs leading-relaxed text-foreground/85">
                 Entendi. Sei que a plataforma pode recusar o anúncio por isso e que a
                 taxa de serviço não é devolvida nesse caso.
               </span>

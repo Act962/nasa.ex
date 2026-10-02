@@ -302,7 +302,7 @@ function TextProps({ el, update }: { el: ElementBase; update: (p: Partial<Elemen
               onClick={() => update({ align: a })}
               className={cn(
                 "flex-1 py-1.5 text-[10px] uppercase transition-colors",
-                el.align === a ? "bg-indigo-500 text-white" : "hover:bg-muted",
+                el.align === a ? "bg-foreground text-background" : "hover:bg-muted",
               )}
             >
               {a === "left" ? "←" : a === "center" ? "↔" : a === "right" ? "→" : "≡"}
@@ -319,7 +319,7 @@ function TextProps({ el, update }: { el: ElementBase; update: (p: Partial<Elemen
             onClick={() => update({ [s]: !(el[s] as boolean) })}
             className={cn(
               "px-2.5 py-1 rounded border text-xs font-medium transition-colors",
-              el[s] ? "bg-indigo-500 text-white border-indigo-500" : "hover:bg-muted",
+              el[s] ? "bg-foreground text-background border-foreground" : "hover:bg-muted",
             )}
           >
             {s === "italic" ? "I" : s === "underline" ? "U" : "S̶"}
@@ -893,7 +893,7 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
             className={cn(
               "rounded border px-2 py-1.5 text-[10px] font-medium transition-colors text-center",
               stickyMode === opt.value
-                ? "bg-indigo-500 text-white border-indigo-500"
+                ? "bg-foreground text-background border-foreground"
                 : "bg-background text-muted-foreground border-border hover:bg-accent",
             )}
           >
@@ -906,7 +906,7 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
         sem cobrir o conteúdo.
       </p>
       {stickyMode === "fixed" && (
-        <p className="text-[10px] text-amber-700 mt-1 leading-snug">
+        <p className="text-[10px] text-warning mt-1 leading-snug">
           ⚠ No editor o &quot;Fixado&quot; aparece no fluxo normal
           (limitação do canvas com zoom). O comportamento real só
           aparece na página publicada.
@@ -1523,7 +1523,7 @@ function ResponsiveProps({ el, update }: { el: ElementBase; update: (p: Partial<
               className={cn(
                 "flex-1 py-1.5 rounded border text-xs font-medium transition-colors",
                 hiddenOn.includes(d)
-                  ? "bg-red-50 text-red-600 border-red-300"
+                  ? "bg-destructive/15 text-destructive border-destructive/30"
                   : "hover:bg-muted border-border",
               )}
             >
@@ -3789,8 +3789,8 @@ function OrgSlugSetup({ orgName }: { orgName: string }) {
   const isValid = /^[a-z0-9][a-z0-9-]+[a-z0-9]$/.test(slug);
 
   return (
-    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 flex flex-col gap-2">
-      <p className="text-[11px] text-amber-900 leading-relaxed">
+    <div className="rounded-md border border-warning/30 bg-warning/15 p-3 flex flex-col gap-2">
+      <p className="text-[11px] text-foreground leading-relaxed">
         Sua organização não tem <strong>slug público</strong> configurado.
         Esse slug é o que vai aparecer no link público do chat IA (
         <code className="font-mono">/whatsapp/&lt;slug&gt;</code>).
@@ -3816,7 +3816,7 @@ function OrgSlugSetup({ orgName }: { orgName: string }) {
         />
       </div>
       {!isValid && slug.length > 0 && (
-        <p className="text-[10px] text-amber-700">
+        <p className="text-[10px] text-warning">
           Use 3-32 caracteres: letras minúsculas, números, hífens. Não
           pode começar/terminar com hífen.
         </p>
@@ -3986,8 +3986,8 @@ function ChatButtonProps({
       </p>
 
       {dupCount > 0 && (
-        <div className="mb-3 p-2 rounded-md border border-amber-500/40 bg-amber-500/10">
-          <p className="text-[10px] text-amber-900 leading-relaxed mb-2">
+        <div className="mb-3 p-2 rounded-md border border-warning/30 bg-warning/15">
+          <p className="text-[10px] text-foreground leading-relaxed mb-2">
             ⚠ Você tem <strong>{allChatButtons.length} botões Chat IA</strong> nessa
             page. Só pode existir 1 — o público mostra só este, mas
             os outros {dupCount} entram no JSON e podem causar
@@ -4011,7 +4011,7 @@ function ChatButtonProps({
         <OrgSlugSetup orgName={org?.name ?? ""} />
       ) : (
         <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/30">
-          <div className="size-7 rounded bg-violet-500/20 text-violet-700 flex items-center justify-center text-xs font-bold shrink-0">
+          <div className="size-7 rounded bg-info/15 text-info flex items-center justify-center text-xs font-bold shrink-0">
             {org.name?.charAt(0).toUpperCase() ?? "?"}
           </div>
           <div className="min-w-0 flex-1">
@@ -4311,7 +4311,7 @@ export function PropertiesPanelContent() {
             <Copy className="size-3" />
           </Button>
           <Button size="icon" variant="ghost" className="size-6" onClick={() => update({ locked: !el.locked })} title={el.locked ? "Desbloquear" : "Bloquear"}>
-            {el.locked ? <Lock className="size-3 text-amber-500" /> : <Unlock className="size-3" />}
+            {el.locked ? <Lock className="size-3 text-warning" /> : <Unlock className="size-3" />}
           </Button>
           <Button size="icon" variant="ghost" className="size-6" onClick={() => removeElement(el.id)} title="Excluir (Del)">
             <Trash2 className="size-3 text-destructive" />

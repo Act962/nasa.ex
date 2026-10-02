@@ -304,7 +304,7 @@ export function LogicForm({ nodeType, data, onChange }: FormProps & { nodeType: 
           {isPreset &&
             (currentPreset === "no-first-response" ||
               currentPreset === "in-conv-idle") && (
-              <p className="text-[11px] text-yellow-700 dark:text-yellow-400 leading-snug">
+              <p className="text-[11px] text-warning leading-snug">
                 ⚠ Esse preset depende da Idle Automation estar ativa em
                 Tracking → Configurações → Interações. O tempo de espera é
                 controlado lá (e usado como timeout aqui).

@@ -59,7 +59,7 @@ export function TrafegoPublicLinkCard() {
               disabled={!baseUrl}
             >
               {copied ? (
-                <Check className="mr-1.5 size-4 text-emerald-500" />
+                <Check className="mr-1.5 size-4 text-success" />
               ) : (
                 <Copy className="mr-1.5 size-4" />
               )}

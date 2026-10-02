@@ -18,9 +18,12 @@ import {
   getContrastingMutedTextColor,
 } from "@/features/user-chat-preferences/lib/contrast";
 import { useConstructUrl } from "@/hooks/use-construct-url";
+import { useHideOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
+import { computeLeadHeat } from "@/features/leads/components/lead-audit/lead-heat";
 
 export default function Page() {
   const { conversationId } = useParams<{ conversationId: string }>();
+  useHideOrbitDock();
   const [messageSelected, setMessageSelected] = useState<
     MarkedMessage | undefined
   >(undefined);
@@ -112,7 +115,7 @@ export default function Page() {
             // Default WhatsApp pattern só renderiza se user não customizou
             !customBgImageKey &&
               !customBgColor &&
-              "bg-[url('/chat-bg/mobile.jpg')] md:bg-[url('/chat-bg/desktop.jpg')] bg-cover bg-center bg-fixed bg-[#dbe9f7] dark:bg-zinc-900",
+              "bg-[url('/chat-bg/mobile.jpg')] md:bg-[url('/chat-bg/desktop.jpg')] bg-cover bg-center bg-fixed bg-panel dark:bg-card",
           )}
           style={
             customBgImageKey
@@ -160,6 +163,15 @@ export default function Page() {
             channel={data.conversation.channel}
             trackingName={(data.conversation as any).tracking?.name ?? null}
             statusName={(data.conversation.lead as any).status?.name ?? null}
+            heat={
+              data.conversation.lead.metrics
+                ? computeLeadHeat({
+                    metrics: data.conversation.lead.metrics,
+                    createdAt: data.conversation.lead.createdAt,
+                    lastInboundAt: data.conversation.lead.lastInboundAt,
+                  })
+                : null
+            }
           />
           <Body
             messageSelected={messageSelected}

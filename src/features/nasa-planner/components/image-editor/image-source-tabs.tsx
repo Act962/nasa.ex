@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef } from "react";
-import { SparklesIcon, UploadIcon, LinkIcon, Loader2Icon } from "lucide-react";
+import { SparklesIcon, UploadIcon, LinkIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,21 +75,21 @@ export function ImageSourceTabs({
               onValueChange={(v) => onQualityChange(v as ImageQuality)}
               className="flex gap-3"
             >
-              <div className={cn("flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-colors", quality === "standard" ? "border-violet-500 bg-violet-50 dark:bg-violet-950/20" : "border-border hover:border-violet-300")}>
+              <div className={cn("flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-colors", quality === "standard" ? "border-info bg-info/15" : "border-border hover:border-info/40")}>
                 <RadioGroupItem value="standard" id="standard" />
                 <Label htmlFor="standard" className="cursor-pointer">
                   <span className="font-medium">Standard</span>
                   <span className="ml-1.5 text-xs text-muted-foreground flex items-center gap-0.5 inline-flex">
-                    <StarIcon className="size-3 fill-yellow-400 text-yellow-400" />3
+                    <StarIcon className="size-3 fill-warning text-warning" />3
                   </span>
                 </Label>
               </div>
-              <div className={cn("flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-colors", quality === "hd" ? "border-violet-500 bg-violet-50 dark:bg-violet-950/20" : "border-border hover:border-violet-300")}>
+              <div className={cn("flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-colors", quality === "hd" ? "border-info bg-info/15" : "border-border hover:border-info/40")}>
                 <RadioGroupItem value="hd" id="hd" />
                 <Label htmlFor="hd" className="cursor-pointer">
                   <span className="font-medium">HD</span>
                   <span className="ml-1.5 text-xs text-muted-foreground flex items-center gap-0.5 inline-flex">
-                    <StarIcon className="size-3 fill-yellow-400 text-yellow-400" />5
+                    <StarIcon className="size-3 fill-warning text-warning" />5
                   </span>
                 </Label>
               </div>
@@ -102,7 +103,7 @@ export function ImageSourceTabs({
           disabled={!aiPrompt.trim() || isGenerating}
         >
           {isGenerating ? (
-            <><Loader2Icon className="size-4 animate-spin" />Gerando...</>
+            <><OrbitaSpinner className="size-4 " />Gerando...</>
           ) : (
             <><SparklesIcon className="size-4" />Gerar Imagem
               <span className="ml-auto flex items-center gap-0.5 text-xs opacity-80">
@@ -115,7 +116,7 @@ export function ImageSourceTabs({
         {!hasOpenAI && (
           <p className="text-xs text-muted-foreground text-center">
             Conecte a integração <strong>OpenAI</strong> em{" "}
-            <a href="/integrations" className="underline text-violet-500 hover:text-violet-600">Integrações</a>{" "}
+            <a href="/integrations" className="underline text-info hover:underline">Integrações</a>{" "}
             para usar DALL-E 3 (melhor qualidade).
           </p>
         )}
@@ -136,10 +137,10 @@ export function ImageSourceTabs({
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          className="w-full flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border hover:border-violet-400 p-8 transition-colors"
+          className="w-full flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border hover:border-info p-8 transition-colors"
         >
-          <div className="size-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-            <UploadIcon className="size-5 text-violet-600" />
+          <div className="size-10 rounded-full bg-info/15 flex items-center justify-center">
+            <UploadIcon className="size-5 text-info" />
           </div>
           <div className="text-center">
             <p className="text-sm font-medium">Clique para fazer upload</p>

@@ -5,7 +5,8 @@ import { isTierReached, TIER_LABELS } from "../utils/tiers";
 import { RedemptionActions } from "./redemption-actions";
 import { useState } from "react";
 import { format } from "date-fns";
-import { Gift, Loader2, MinusCircle, PlusCircle, Sparkles } from "lucide-react";
+import { Gift, MinusCircle, PlusCircle, Sparkles } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,9 @@ import {
   formatStars,
 } from "../utils/labels";
 
+const BOTTOM_SHEET_DIALOG_CLASS =
+  "flex max-h-[88dvh] flex-col gap-0 p-0 max-sm:top-auto max-sm:bottom-0 max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-b-none max-sm:rounded-t-[26px]";
+
 interface LeadStarFriendsCardProps {
   leadId: string;
   channel?: "CONSULTANT" | "CHAT";
@@ -59,7 +63,7 @@ export function LeadStarFriendsCard({
     return (
       <Card>
         <CardContent className="flex justify-center py-6">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          <OrbitaSpinner className="size-5 text-muted-foreground" />
         </CardContent>
       </Card>
     );
@@ -87,7 +91,7 @@ export function LeadStarFriendsCard({
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Sparkles className="size-4 text-amber-500" />
+              <Sparkles className="size-4 text-warning" />
               {data.programName}
             </CardTitle>
             <CardDescription>
@@ -97,15 +101,15 @@ export function LeadStarFriendsCard({
             </CardDescription>
           </div>
           <div className="text-right">
-            <p className="text-3xl font-bold text-amber-500">{data.balance}</p>
+            <p className="text-3xl font-bold text-warning">{data.balance}</p>
             <p className="text-xs text-muted-foreground">stars disponíveis</p>
           </div>
         </div>
-        <div className="mt-2 flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5 text-xs">
+        <div className="mt-2 flex items-center gap-2 rounded-[18px] bg-muted px-3 py-2 text-xs">
           <TierPlanet tier={data.tier} size={22} />
-          <span className="font-semibold">Cliente {TIER_LABELS[data.tier]}</span>
-          <span className="text-muted-foreground">
-            · {data.lifetimeStars} ⭐ na vida
+          <span className="shrink-0 font-semibold">Cliente {TIER_LABELS[data.tier]}</span>
+          <span className="min-w-0 text-muted-foreground">
+            · {data.lifetimeStars} stars na vida
             {data.nextTier ? ` · faltam ${data.starsToNextTier} para ${TIER_LABELS[data.nextTier]}` : " · nível máximo"}
           </span>
         </div>
@@ -121,7 +125,7 @@ export function LeadStarFriendsCard({
             const isAffordable =
               !isTierLocked && data.balance >= reward.costStars && (reward.stock === null || reward.stock > 0);
             return (
-              <div key={reward.id} className="flex items-center gap-3 rounded-lg border p-2">
+              <div key={reward.id} className="flex items-center gap-3 rounded-[18px] border border-line bg-card p-2.5">
                 <Gift className="size-4 shrink-0 text-primary" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{reward.name}</p>
@@ -132,8 +136,8 @@ export function LeadStarFriendsCard({
                   </p>
                 </div>
                 <Button
-                  size="sm"
                   variant={isAffordable ? "default" : "outline"}
+                  className="h-9 shrink-0 rounded-full px-4"
                   disabled={
                     !isAffordable || requestRedemption.isPending || !data.hasPhone || !permissions.canRedeemAndCredit
                   }
@@ -146,18 +150,18 @@ export function LeadStarFriendsCard({
           })}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Button
-            size="sm"
             variant="outline"
+            className="h-11 rounded-full sm:h-9"
             disabled={!data.hasPhone || !permissions.canRedeemAndCredit}
             onClick={() => setAdjustDirection("credit")}
           >
             <PlusCircle className="size-4" /> Lançar stars
           </Button>
           <Button
-            size="sm"
             variant="outline"
+            className="h-11 rounded-full sm:h-9"
             disabled={!data.hasPhone || !permissions.canDebitAndCancel}
             onClick={() => setAdjustDirection("debit")}
           >
@@ -182,14 +186,14 @@ export function LeadStarFriendsCard({
                     {entry.reason ?? describeSnapshot(entry.itemsSnapshot)}
                   </p>
                 </div>
-                <span className={entry.stars > 0 ? "font-semibold text-emerald-600" : "font-semibold text-red-500"}>
+                <span className={entry.stars > 0 ? "font-semibold text-success" : "font-semibold text-destructive"}>
                   {formatStars(entry.stars)}
                 </span>
               </div>
             ))}
             {data.redemptions.length > 0 && <p className="pt-2 text-sm font-medium">Resgates</p>}
             {data.redemptions.map((redemption) => (
-              <div key={redemption.id} className="flex flex-col gap-2 rounded-lg border p-2 text-sm">
+              <div key={redemption.id} className="flex flex-col gap-2 rounded-[18px] border border-line bg-card p-3 text-sm">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-medium">{describeSnapshot(redemption.rewardSnapshot)}</p>
@@ -197,7 +201,7 @@ export function LeadStarFriendsCard({
                       {redemption.costStars} stars · {REDEMPTION_CHANNEL_LABELS[redemption.requestedVia]}
                     </p>
                   </div>
-                  <Badge variant="outline">{REDEMPTION_STATUS_LABELS[redemption.status]}</Badge>
+                  <Badge variant="outline" className="shrink-0 rounded-full">{REDEMPTION_STATUS_LABELS[redemption.status]}</Badge>
                 </div>
                 <RedemptionActions redemption={redemption} />
               </div>
@@ -250,27 +254,39 @@ function AdjustStarsDialog({
 
   return (
     <Dialog open={direction !== null} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className={BOTTOM_SHEET_DIALOG_CLASS}>
+        <DialogHeader className="px-6 pt-6 pb-4 text-left">
           <DialogTitle>{isCredit ? "Lançar stars manualmente" : "Retirar stars"}</DialogTitle>
           <DialogDescription>
             Fica registrado no histórico com o seu usuário, data, hora e o motivo.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-3">
-          <Input type="number" min={1} value={amount} onChange={(event) => setAmount(event.target.value)} />
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 pb-4">
+          <Input
+            type="number"
+            min={1}
+            aria-label="Quantidade de stars"
+            className="h-11 rounded-full"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+          />
           <Textarea
             placeholder="Motivo (obrigatório) — ex.: compra no balcão, cortesia, correção"
+            className="rounded-[18px]"
             value={reason}
             onChange={(event) => setReason(event.target.value)}
           />
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="flex-col-reverse gap-2 border-t border-line px-6 py-4 sm:flex-row">
+          <Button variant="outline" className="h-12 w-full rounded-full sm:h-9 sm:w-auto" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={adjust.isPending || reason.trim().length < 5}>
-            {adjust.isPending && <Loader2 className="size-4 animate-spin" />}
+          <Button
+            className="h-12 w-full rounded-full sm:h-9 sm:w-auto"
+            onClick={handleSubmit}
+            disabled={adjust.isPending || reason.trim().length < 5}
+          >
+            {adjust.isPending && <OrbitaSpinner className="size-4" />}
             Confirmar
           </Button>
         </DialogFooter>

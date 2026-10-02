@@ -35,7 +35,7 @@ export function CardLinnker({ nick }: CardLinnkerProps) {
       }
       emptyAction={
         isAuthenticated ? (
-          <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600">
+          <Button asChild size="sm" >
             <NextLink href="/linnker">
               <Plus className="mr-1 size-4" />
               Criar meu primeiro Linnker
@@ -46,8 +46,8 @@ export function CardLinnker({ nick }: CardLinnkerProps) {
     >
       {isLoading ? (
         <div className="space-y-2">
-          <div className="h-10 animate-pulse rounded-xl bg-white/5" />
-          <div className="h-10 animate-pulse rounded-xl bg-white/5" />
+          <div className="h-10 animate-pulse rounded-xl bg-muted/50" />
+          <div className="h-10 animate-pulse rounded-xl bg-muted/50" />
         </div>
       ) : (
         <ul className="space-y-2">
@@ -57,16 +57,16 @@ export function CardLinnker({ nick }: CardLinnkerProps) {
                 href={l.url}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/5 p-3 transition hover:border-orange-500/30"
+                className="flex items-center gap-3 rounded-xl border border-border bg-muted/50 p-3 transition hover:border-info/30"
               >
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-orange-500/20 text-orange-300">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-info/15 text-info">
                   {l.emoji ? (
                     <span className="text-base">{l.emoji}</span>
                   ) : (
                     <LinkIcon className="size-4" />
                   )}
                 </div>
-                <span className="truncate text-sm text-white">{l.title}</span>
+                <span className="truncate text-sm text-foreground">{l.title}</span>
               </a>
             </li>
           ))}

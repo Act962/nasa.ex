@@ -29,11 +29,11 @@ export function ReferralLinkCard({
   };
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-      <h2 className="text-sm font-semibold text-white mb-1">
+    <div className="bg-card border border-line rounded-xl p-5">
+      <h2 className="text-sm font-semibold text-foreground mb-1">
         Seu link de indicação
       </h2>
-      <p className="text-xs text-zinc-500 mb-4">
+      <p className="text-xs text-muted-foreground mb-4">
         Compartilhe e cada empresa cadastrada conta para o seu nível.
       </p>
 
@@ -41,11 +41,11 @@ export function ReferralLinkCard({
         <input
           readOnly
           value={url}
-          className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white font-mono"
+          className="flex-1 bg-muted border border-line rounded-full px-4 py-2 text-sm text-foreground font-mono"
         />
         <button
           onClick={onCopy}
-          className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-4 py-2 rounded-full transition-colors flex items-center gap-2"
         >
           <Copy className="w-4 h-4" />
           {copied ? "Copiado!" : "Copiar"}
@@ -53,19 +53,19 @@ export function ReferralLinkCard({
       </div>
 
       <div className="grid grid-cols-2 gap-3 mt-4">
-        <div className="bg-zinc-800/40 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-zinc-400 text-xs">
+        <div className="bg-muted/40 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
             <Eye className="w-3 h-3" /> Visitas
           </div>
-          <div className="text-white font-semibold mt-1">
+          <div className="text-foreground font-semibold mt-1">
             {visits.toLocaleString("pt-BR")}
           </div>
         </div>
-        <div className="bg-zinc-800/40 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-zinc-400 text-xs">
+        <div className="bg-muted/40 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
             <UserPlus className="w-3 h-3" /> Cadastros
           </div>
-          <div className="text-white font-semibold mt-1">
+          <div className="text-foreground font-semibold mt-1">
             {signups.toLocaleString("pt-BR")}
           </div>
         </div>

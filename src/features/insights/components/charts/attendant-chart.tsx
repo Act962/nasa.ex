@@ -1,5 +1,6 @@
 "use client";
 
+import { CHART_PALETTE, CHART_MUTED_FILL } from "@/lib/chart-palette";
 import {
   Bar,
   BarChart,
@@ -36,19 +37,10 @@ interface AttendantChartProps {
   onClick?: (leadIds?: string[]) => void;
 }
 
-const ATTENDANT_COLORS = [
-  "hsl(221, 83%, 53%)",
-  "hsl(142, 71%, 45%)",
-  "hsl(38, 92%, 50%)",
-  "hsl(330, 81%, 60%)",
-  "hsl(173, 80%, 40%)",
-  "hsl(262, 83%, 58%)",
-  "hsl(0, 84%, 60%)",
-  "hsl(199, 89%, 48%)",
-];
+const ATTENDANT_COLORS = CHART_PALETTE;
 
 const MAX_VISIBLE = 8;
-const OTHERS_FILL = "hsl(220, 9%, 46%)";
+const OTHERS_FILL = CHART_MUTED_FILL;
 
 export function AttendantChart({
   data,
@@ -122,7 +114,7 @@ export function AttendantChart({
               </div>
               <div className="flex items-center justify-between gap-4">
                 <span className="text-muted-foreground">Ganhos:</span>
-                <span className="font-mono font-medium text-green-600">
+                <span className="font-mono font-medium text-success">
                   {d.wonLeads}
                 </span>
               </div>
@@ -295,9 +287,9 @@ export function AttendantChart({
             <Line
               dataKey="count"
               type="natural"
-              stroke="hsl(221, 83%, 53%)"
+              stroke="var(--chart-3)"
               strokeWidth={2}
-              dot={{ fill: "hsl(221, 83%, 53%)", r: isTinyMobile ? 2 : 4 }}
+              dot={{ fill: "var(--chart-3)", r: isTinyMobile ? 2 : 4 }}
               activeDot={{ r: 6 }}
             />
           </LineChart>
@@ -343,8 +335,8 @@ export function AttendantChart({
             <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <defs>
               <linearGradient id="fillAttendant" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0.1} />
+                <stop offset="5%" stopColor="var(--chart-3)" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="var(--chart-3)" stopOpacity={0.1} />
               </linearGradient>
             </defs>
             <Area
@@ -352,7 +344,7 @@ export function AttendantChart({
               type="natural"
               fill="url(#fillAttendant)"
               fillOpacity={0.4}
-              stroke="hsl(221, 83%, 53%)"
+              stroke="var(--chart-3)"
               strokeWidth={2}
             />
           </AreaChart>

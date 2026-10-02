@@ -14,8 +14,8 @@ import {
   ChevronDown,
   ChevronRight,
   Upload,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { AREA_TYPE_META, type AreaType, type MapArea } from "../../../types";
@@ -854,7 +854,7 @@ function ImageUploader({
             className="flex-1 px-2 py-1.5 rounded-md border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-xs text-indigo-200 flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             {uploading ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
+              <OrbitaSpinner className="h-3 w-3 " />
             ) : (
               <Upload className="h-3 w-3" />
             )}

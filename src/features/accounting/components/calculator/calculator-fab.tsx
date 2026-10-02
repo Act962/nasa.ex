@@ -49,7 +49,7 @@ export function CalculatorFab({ contextSection }: { contextSection: string }) {
             size="icon"
             aria-label="Calculadora contábil"
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-24 right-4 z-40 size-12 rounded-full bg-violet-600 text-white shadow-lg hover:bg-violet-700 sm:bottom-6 sm:right-24"
+            className="fixed bottom-24 right-4 z-40 size-12 rounded-full bg-info text-white shadow-lg hover:bg-info sm:bottom-6 sm:right-24"
           >
             <Calculator className="size-5" />
           </Button>
@@ -61,7 +61,7 @@ export function CalculatorFab({ contextSection }: { contextSection: string }) {
         <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
-              <Calculator className="size-4 text-violet-600" />
+              <Calculator className="size-4 text-info" />
               Calculadora contábil
             </SheetTitle>
             <SheetDescription>Contas de imposto, preço e folha com os dados da sua empresa.</SheetDescription>

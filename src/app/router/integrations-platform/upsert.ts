@@ -7,6 +7,7 @@ import { IntegrationPlatform } from "@/generated/prisma/enums";
 import { assertSafeSeiEndpoint } from "@/features/sei/server/sei-client";
 import { encryptSeiIdentification } from "@/features/sei/server/sei-config";
 import { inngest } from "@/inngest/client";
+import { isAiKeyPlatform, maskIntegrationConfig, sealIntegrationConfig } from "@/features/integrations/lib/integration-api-key";
 
 const seiConfigSchema = z.object({
   endpoint: z.url("Informe uma URL válida para o WebService do SEI."),
@@ -55,6 +56,20 @@ export const upsertPlatformIntegration = base
       };
     }
 
+    if (isAiKeyPlatform(input.platform)) {
+      const current = await prisma.platformIntegration.findUnique({
+        where: {
+          organizationId_platform: { organizationId: context.org.id, platform: input.platform },
+        },
+        select: { config: true },
+      });
+      config = sealIntegrationConfig(
+        input.platform,
+        config,
+        current?.config as Record<string, unknown> | null,
+      );
+    }
+
     const integration = await prisma.platformIntegration.upsert({
       where: {
         organizationId_platform: {
@@ -79,5 +94,10 @@ export const upsertPlatformIntegration = base
         data: { organizationId: context.org.id },
       });
     }
-    return { integration };
+    return {
+      integration: {
+        ...integration,
+        config: maskIntegrationConfig(integration.platform, integration.config as Record<string, unknown>),
+      },
+    };
   });

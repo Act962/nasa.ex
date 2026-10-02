@@ -3,6 +3,7 @@ import { S3 } from "@/lib/s3-client";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
 import { IntegrationPlatform } from "@/generated/prisma/enums";
+import { readIntegrationApiKey } from "@/features/integrations/lib/integration-api-key";
 
 // ─── Timeout helper ───────────────────────────────────────────────────────────
 
@@ -42,8 +43,8 @@ export async function selectImageProvider(organizationId: string): Promise<Image
     where: { organizationId, platform: IntegrationPlatform.OPENAI, isActive: true },
   });
   if (openai) {
-    const config = openai.config as Record<string, string>;
-    if (config?.apiKey) return { provider: "dalle3", apiKey: config.apiKey };
+    const openaiApiKey = readIntegrationApiKey(openai.config as Record<string, unknown> | null);
+    if (openaiApiKey) return { provider: "dalle3", apiKey: openaiApiKey };
   }
   return { provider: "pollinations", apiKey: null };
 }

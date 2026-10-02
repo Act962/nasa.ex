@@ -57,7 +57,7 @@ export function MindMapToPostDialog({ open, onOpenChange, plannerId, initialTitl
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileImageIcon className="size-4 text-pink-500" />
+            <FileImageIcon className="size-4 text-info" />
             Criar Post do Mapa Mental
           </DialogTitle>
         </DialogHeader>

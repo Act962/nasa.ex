@@ -40,10 +40,10 @@ interface PlatformBrand {
 }
 
 const KNOWN_PLATFORMS: PlatformBrand[] = [
-  { key: "META",      label: "Meta (FB/IG)", Icon: FacebookIcon, bg: "bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900",       iconColor: "text-blue-600 dark:text-blue-400" },
-  { key: "INSTAGRAM", label: "Instagram",    Icon: InstagramIcon, bg: "bg-pink-50 dark:bg-pink-950/40 border-pink-200 dark:border-pink-900",       iconColor: "text-pink-600 dark:text-pink-400" },
-  { key: "LINKEDIN",  label: "LinkedIn",     Icon: LinkedinIcon, bg: "bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-900",            iconColor: "text-sky-600 dark:text-sky-400" },
-  { key: "TIKTOK",    label: "TikTok",       Icon: SparklesIcon, bg: "bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800",       iconColor: "text-zinc-700 dark:text-zinc-300" },
+  { key: "META",      label: "Meta (FB/IG)", Icon: FacebookIcon, bg: "bg-brand-facebook/10 border-brand-facebook/30", iconColor: "text-brand-facebook" },
+  { key: "INSTAGRAM", label: "Instagram",    Icon: InstagramIcon, bg: "bg-brand-instagram/10 border-brand-instagram/30", iconColor: "text-brand-instagram" },
+  { key: "LINKEDIN",  label: "LinkedIn",     Icon: LinkedinIcon, bg: "bg-info/15 border-info/30", iconColor: "text-info" },
+  { key: "TIKTOK",    label: "TikTok",       Icon: SparklesIcon, bg: "bg-panel border-line", iconColor: "text-foreground" },
 ];
 
 interface StatTone {
@@ -53,12 +53,12 @@ interface StatTone {
 }
 
 const TONES: Record<string, StatTone> = {
-  violet:  { ring: "from-violet-500/15 to-violet-500/0",   iconBg: "bg-violet-500/15",   iconColor: "text-violet-600 dark:text-violet-400" },
-  emerald: { ring: "from-emerald-500/15 to-emerald-500/0", iconBg: "bg-emerald-500/15",  iconColor: "text-emerald-600 dark:text-emerald-400" },
-  blue:    { ring: "from-blue-500/15 to-blue-500/0",       iconBg: "bg-blue-500/15",     iconColor: "text-blue-600 dark:text-blue-400" },
-  amber:   { ring: "from-amber-500/15 to-amber-500/0",     iconBg: "bg-amber-500/15",    iconColor: "text-amber-600 dark:text-amber-400" },
-  rose:    { ring: "from-rose-500/15 to-rose-500/0",       iconBg: "bg-rose-500/15",     iconColor: "text-rose-600 dark:text-rose-400" },
-  zinc:    { ring: "from-zinc-500/15 to-zinc-500/0",       iconBg: "bg-zinc-500/15",     iconColor: "text-zinc-600 dark:text-zinc-400" },
+  violet:  { ring: "from-info/15 to-transparent",        iconBg: "bg-info/15",             iconColor: "text-info" },
+  emerald: { ring: "from-success/15 to-transparent",     iconBg: "bg-success/15",          iconColor: "text-success" },
+  blue:    { ring: "from-info/15 to-transparent",        iconBg: "bg-info/15",             iconColor: "text-info" },
+  amber:   { ring: "from-warning/15 to-transparent",     iconBg: "bg-warning/15",          iconColor: "text-warning" },
+  rose:    { ring: "from-destructive/15 to-transparent", iconBg: "bg-destructive/15",      iconColor: "text-destructive" },
+  zinc:    { ring: "from-muted-foreground/15 to-transparent", iconBg: "bg-muted-foreground/15", iconColor: "text-muted-foreground" },
 };
 
 function StatCard({
@@ -216,24 +216,24 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
           <CardContent className="pt-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold flex items-center gap-2">
-                <TrendingUpIcon className="size-4 text-violet-500" />
+                <TrendingUpIcon className="size-4 text-info" />
                 Distribuição dos Posts
               </h3>
               <Badge variant="secondary" className="text-xs">{stats.total} total</Badge>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-              <StatusBar label="Rascunho"           count={stats.draft}     total={stats.total} color="bg-zinc-400 dark:bg-zinc-500" />
-              <StatusBar label="Aguardando aprov."  count={stats.pending}   total={stats.total} color="bg-amber-500" />
-              <StatusBar label="Aprovados"          count={stats.approved}  total={stats.total} color="bg-violet-500" />
-              <StatusBar label="Agendados"          count={stats.scheduled} total={stats.total} color="bg-blue-500" />
-              <StatusBar label="Publicados"         count={stats.published} total={stats.total} color="bg-emerald-500" />
+              <StatusBar label="Rascunho"           count={stats.draft}     total={stats.total} color="bg-muted-foreground" />
+              <StatusBar label="Aguardando aprov."  count={stats.pending}   total={stats.total} color="bg-warning" />
+              <StatusBar label="Aprovados"          count={stats.approved}  total={stats.total} color="bg-info/50" />
+              <StatusBar label="Agendados"          count={stats.scheduled} total={stats.total} color="bg-info" />
+              <StatusBar label="Publicados"         count={stats.published} total={stats.total} color="bg-success" />
               {stats.failed > 0 && (
-                <StatusBar label="Falhou"            count={stats.failed}    total={stats.total} color="bg-rose-500" />
+                <StatusBar label="Falhou"            count={stats.failed}    total={stats.total} color="bg-destructive" />
               )}
             </div>
             {stats.total > 0 && (
               <div className="pt-3 border-t flex items-center gap-3 text-xs text-muted-foreground">
-                <CircleIcon className="size-3 fill-emerald-500 stroke-emerald-500" />
+                <CircleIcon className="size-3 fill-success stroke-success" />
                 Taxa de conclusão:
                 <span className="font-semibold text-foreground tabular-nums">
                   {Math.round((stats.published / stats.total) * 100)}%
@@ -247,7 +247,7 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
           <CardContent className="pt-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold flex items-center gap-2">
-                <PlugIcon className="size-4 text-violet-500" />
+                <PlugIcon className="size-4 text-info" />
                 Integrações
               </h3>
               <Badge variant={activeCount > 0 ? "default" : "secondary"} className="text-xs">
@@ -266,7 +266,7 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
                   <p.Icon className={cn("size-4 shrink-0", p.isActive ? p.iconColor : "text-muted-foreground")} />
                   <span className="text-xs font-medium flex-1 truncate">{p.label}</span>
                   {p.isActive ? (
-                    <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" title="Conectado" />
+                    <span className="size-1.5 rounded-full bg-success shrink-0" title="Conectado" />
                   ) : (
                     <span className="text-[10px] text-muted-foreground shrink-0">off</span>
                   )}
@@ -283,7 +283,7 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
           <CardContent className="pt-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold flex items-center gap-2">
-                <BuildingIcon className="size-4 text-violet-500" />
+                <BuildingIcon className="size-4 text-info" />
                 Empresas / Clientes
               </h3>
               <Badge variant="secondary" className="text-xs">{companies.length}</Badge>
@@ -301,7 +301,7 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
                   >
                     <Avatar className="size-8 ring-1 ring-border">
                       <AvatarImage src={c.logo} alt={c.name} />
-                      <AvatarFallback className="text-xs font-bold bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300">
+                      <AvatarFallback className="text-xs font-bold bg-info/15 text-info">
                         {getInitial(c.name)}
                       </AvatarFallback>
                     </Avatar>
@@ -320,7 +320,7 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
           <CardContent className="pt-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold flex items-center gap-2">
-                <UsersIcon className="size-4 text-violet-500" />
+                <UsersIcon className="size-4 text-info" />
                 Equipe Ativa
               </h3>
               <Badge variant="secondary" className="text-xs">{participants.length}</Badge>
@@ -359,7 +359,7 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
         <CardContent className="pt-5 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold flex items-center gap-2">
-              <CalendarCheckIcon className="size-4 text-violet-500" />
+              <CalendarCheckIcon className="size-4 text-info" />
               Atividades Recentes
             </h3>
             <Badge variant="secondary" className="text-xs">{recentActivities.length}</Badge>
@@ -380,10 +380,10 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
                   : ev.status === "DONE" ? CheckCircle2Icon
                   : isPost ? PencilIcon : ListTodoIcon;
                 const tone =
-                  ev.status === "PUBLISHED" || ev.status === "DONE" ? "text-emerald-600 dark:text-emerald-400"
-                  : ev.status === "SCHEDULED" ? "text-blue-600 dark:text-blue-400"
-                  : ev.status === "FAILED" ? "text-rose-600 dark:text-rose-400"
-                  : ev.status === "IN_PROGRESS" ? "text-amber-600 dark:text-amber-400"
+                  ev.status === "PUBLISHED" || ev.status === "DONE" ? "text-success"
+                  : ev.status === "SCHEDULED" ? "text-info"
+                  : ev.status === "FAILED" ? "text-destructive"
+                  : ev.status === "IN_PROGRESS" ? "text-warning"
                   : "text-muted-foreground";
                 const cardStatusInfo = !isPost ? CARD_STATUSES[ev.status] : null;
                 return (

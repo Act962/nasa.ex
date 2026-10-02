@@ -88,10 +88,10 @@ function CrossCard({ label, value, sub, icon: Icon, color, bg, trend, alert, lea
         <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
         {sub && <p className="text-[11px] text-muted-foreground mt-1">{sub}</p>}
       </div>
-      {trend === "up" && <TrendingUp className="absolute top-3 right-3 size-4 text-emerald-500" />}
-      {trend === "down" && <TrendingDown className="absolute top-3 right-3 size-4 text-red-400" />}
+      {trend === "up" && <TrendingUp className="absolute top-3 right-3 size-4 text-success" />}
+      {trend === "down" && <TrendingDown className="absolute top-3 right-3 size-4 text-destructive" />}
       {alert && (
-        <div className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-lg px-2 py-1 mt-1">
+        <div className="flex items-center gap-1.5 text-[11px] text-warning dark:text-warning bg-warning/10 dark:bg-warning/15 rounded-lg px-2 py-1 mt-1">
           <AlertCircle className="size-3 shrink-0" />
           {alert}
         </div>
@@ -132,8 +132,8 @@ export function CrossDataOverview({ selectedModules, tracking, chat, forge, spac
       value: fmt(tracking.activeLeads),
       sub: `${fmt(tracking.wonLeads)} ganhos · ${fmtPct(tracking.conversionRate)} conversão`,
       icon: Users,
-      color: "text-emerald-600",
-      bg: "bg-emerald-50 dark:bg-emerald-950/40",
+      color: "text-success",
+      bg: "bg-success/10 dark:bg-success/15",
       trend: tracking.conversionRate > 20 ? "up" : "neutral",
       leadMetric: { app: "lead", metric: "lead.active" },
     });
@@ -147,8 +147,8 @@ export function CrossDataOverview({ selectedModules, tracking, chat, forge, spac
       value: fmt(chat.totalMessages),
       sub: `${fmt(chat.totalConversations)} conversas · ${fmtPct(chat.attendanceRate)} atendidas`,
       icon: MessageSquare,
-      color: "text-violet-600",
-      bg: "bg-violet-50 dark:bg-violet-950/40",
+      color: "text-info",
+      bg: "bg-info/10 dark:bg-info/15",
       trend: chat.attendanceRate > 80 ? "up" : chat.attendanceRate < 50 ? "down" : "neutral",
       alert:
         unattended > 0
@@ -165,8 +165,8 @@ export function CrossDataOverview({ selectedModules, tracking, chat, forge, spac
       value: fmtBRL(forge.revenueTotal),
       sub: `${fmtBRL(forge.revenuePipeline)} em pipeline · ${forge.pagas} propostas pagas`,
       icon: Flame,
-      color: "text-orange-600",
-      bg: "bg-orange-50 dark:bg-orange-950/40",
+      color: "text-warning",
+      bg: "bg-warning/10 dark:bg-warning/15",
       trend: forge.pagas > 0 ? "up" : "neutral",
       leadMetric: { app: "forge", metric: "forge.pagas" },
     });
@@ -179,8 +179,8 @@ export function CrossDataOverview({ selectedModules, tracking, chat, forge, spac
       value: fmt(spacetime.done),
       sub: `${fmt(spacetime.total)} totais · ${fmtPct(spacetime.conversionRate)} taxa de realização`,
       icon: Calendar,
-      color: "text-blue-600",
-      bg: "bg-blue-50 dark:bg-blue-950/40",
+      color: "text-info",
+      bg: "bg-info/10 dark:bg-info/15",
       trend: spacetime.conversionRate > 70 ? "up" : "neutral",
       leadMetric: { app: "spacetime", metric: "spacetime.done" },
     });
@@ -193,8 +193,8 @@ export function CrossDataOverview({ selectedModules, tracking, chat, forge, spac
       value: fmt(nasaPlanner.published),
       sub: `${fmt(nasaPlanner.total)} criados no período`,
       icon: Sparkles,
-      color: "text-pink-600",
-      bg: "bg-pink-50 dark:bg-pink-950/40",
+      color: "text-info",
+      bg: "bg-info/10 dark:bg-info/15",
     });
   }
 
@@ -207,8 +207,8 @@ export function CrossDataOverview({ selectedModules, tracking, chat, forge, spac
         ? `ROAS ${metaAds.roas.toFixed(2)}x · CPL ${fmtBRL(metaAds.cpl ?? 0)}`
         : "Meta Ads conectado",
       icon: TrendingUp,
-      color: "text-[#0082FB]",
-      bg: "bg-blue-50 dark:bg-blue-950/40",
+      color: "text-brand-facebook",
+      bg: "bg-info/10 dark:bg-info/15",
       trend: (metaAds.roas ?? 0) > 2 ? "up" : "neutral",
     });
   }
@@ -229,14 +229,14 @@ export function CrossDataOverview({ selectedModules, tracking, chat, forge, spac
       crossInsights.push(
         <div
           key="meta-chat"
-          className="flex items-start gap-2.5 p-3 rounded-xl border bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900"
+          className="flex items-start gap-2.5 p-3 rounded-xl border bg-warning/10 dark:bg-warning/20 border-warning/30 dark:border-warning"
         >
-          <AlertCircle className="size-4 text-amber-600 shrink-0 mt-0.5" />
+          <AlertCircle className="size-4 text-warning shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+            <p className="text-xs font-semibold text-warning dark:text-warning">
               Oportunidade: {fmt(unattended)} mensagens não atendidas durante o período de anúncios
             </p>
-            <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">
+            <p className="text-[11px] text-warning dark:text-warning mt-0.5">
               O investimento em Meta Ads trouxe tráfego mas o atendimento ficou em{" "}
               {fmtPct(chat.attendanceRate)}. Aumente a equipe ou ative o assistente de chatbot.
             </p>
@@ -259,14 +259,14 @@ export function CrossDataOverview({ selectedModules, tracking, chat, forge, spac
     crossInsights.push(
       <div
         key="tracking-forge"
-        className="flex items-start gap-2.5 p-3 rounded-xl border bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900"
+        className="flex items-start gap-2.5 p-3 rounded-xl border bg-success/10 dark:bg-success/20 border-success/30 dark:border-success"
       >
-        <CheckCircle2 className="size-4 text-emerald-600 shrink-0 mt-0.5" />
+        <CheckCircle2 className="size-4 text-success shrink-0 mt-0.5" />
         <div>
-          <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+          <p className="text-xs font-semibold text-success dark:text-success">
             {fmtPct(convRate)} dos leads resultaram em proposta paga
           </p>
-          <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-0.5">
+          <p className="text-[11px] text-success dark:text-success mt-0.5">
             {fmt(leadsWithProposal)} propostas geradas · {fmt(forge.pagas)} pagas ·{" "}
             {fmtBRL(forge.revenueTotal)} em receita fechada
           </p>

@@ -46,7 +46,7 @@ export function PriceSuggestionsPanel() {
                 <Badge variant="secondary">
                   Atual: {JSON.stringify(suggestion.currentValue ?? "—")}
                 </Badge>
-                <Badge variant="secondary" className="bg-[#7C3AED]/10 text-[#7C3AED]">
+                <Badge variant="secondary" className="bg-info/10 text-info">
                   Sugerido: {JSON.stringify(suggestion.suggestedValue)}
                 </Badge>
               </div>
@@ -64,7 +64,6 @@ export function PriceSuggestionsPanel() {
                 size="sm"
                 onClick={() => review(suggestion.id, "APPROVE")}
                 disabled={reviewMutation.isPending}
-                className="bg-[#7C3AED] hover:bg-[#6D28D9]"
               >
                 Aprovar
               </Button>

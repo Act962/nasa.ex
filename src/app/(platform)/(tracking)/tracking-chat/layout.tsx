@@ -67,7 +67,7 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="h-screen flex flex-col w-full overflow-hidden">
       {banner}
-      <div className="flex-1 min-h-0 flex lg:bg-[#161617] lg:p-3">
+      <div className="flex-1 min-h-0 flex lg:bg-background lg:p-3">
         <ResizablePanelGroup>
           {!isMobile && (
             <>
@@ -79,7 +79,7 @@ export default function Layout({ children }: LayoutProps) {
               </ResizablePanel>
               <ResizableHandle
                 withHandle
-                className="mx-1.5 w-0 bg-transparent outline-none data-[separator=hover]:bg-zinc-600 data-[separator=active]:bg-zinc-700 transition-colors duration-150"
+                className="mx-1.5 w-0 bg-transparent outline-none data-[separator=hover]:bg-knob data-[separator=active]:bg-knob transition-colors duration-150"
               />
             </>
           )}

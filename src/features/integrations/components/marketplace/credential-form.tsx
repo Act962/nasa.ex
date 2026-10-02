@@ -11,7 +11,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { CheckCircle2, Eye, EyeOff, ExternalLink, Info, Save, Loader2, Facebook, Chrome } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, ExternalLink, Info, Save, Facebook, Chrome } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/lib/orpc";
 import { useConnectionWizardStore } from "@/features/integrations/store/connection-wizard-store";
@@ -62,14 +63,14 @@ function CredentialInput({
       <div className="flex items-center justify-between gap-2">
         <Label htmlFor={field.key} className="text-sm font-medium flex items-center gap-1">
           {field.label}
-          {field.required && <span className="text-red-400 text-xs">*</span>}
+          {field.required && <span className="text-destructive text-xs">*</span>}
         </Label>
         {field.helpUrl && (
           <a
             href={field.helpUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-[11px] text-[#7C3AED] hover:underline shrink-0"
+            className="flex items-center gap-1 text-[11px] text-info hover:underline shrink-0"
           >
             Como obter? <ExternalLink className="size-3" />
           </a>
@@ -102,7 +103,7 @@ function CredentialInput({
       </div>
 
       <p className="text-[11px] text-muted-foreground flex items-start gap-1 leading-relaxed">
-        <Info className="size-3 mt-0.5 shrink-0 text-blue-400" />
+        <Info className="size-3 mt-0.5 shrink-0 text-info" />
         {field.helpText}
       </p>
     </div>
@@ -190,7 +191,7 @@ export function CredentialForm({
   if (oauthProvider) {
     const ProviderIcon = oauthProvider === "meta" ? Facebook : Chrome;
     const providerLabel = oauthProvider === "meta" ? "Facebook" : "Google";
-    const bgClass = oauthProvider === "meta" ? "bg-[#1877F2] hover:bg-[#166FE5]" : "bg-[#4285F4] hover:bg-[#357AE8]";
+    const bgClass = oauthProvider === "meta" ? "bg-brand-facebook hover:bg-brand-facebook/90" : "bg-[#4285F4] hover:bg-[#357AE8]";
 
     return (
       <div className={cn("space-y-4", compact ? "py-1" : "py-2")}>
@@ -232,7 +233,7 @@ export function CredentialForm({
                     className="w-full gap-2"
                   >
                     {saving ? (
-                      <><Loader2 className="size-3.5 animate-spin" /> Salvando...</>
+                      <><OrbitaSpinner className="size-3.5 " /> Salvando...</>
                     ) : saved ? (
                       <><CheckCircle2 className="size-3.5" /> Salvo</>
                     ) : (
@@ -263,9 +264,9 @@ export function CredentialForm({
       </div>
 
       {/* Security note */}
-      <div className="flex items-start gap-2 rounded-xl bg-blue-50 border border-blue-100 p-3 dark:bg-blue-950/20 dark:border-blue-900/50">
-        <Info className="size-4 text-blue-500 shrink-0 mt-0.5" />
-        <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+      <div className="flex items-start gap-2 rounded-xl bg-info/10 border border-info/30 p-3">
+        <Info className="size-4 text-info shrink-0 mt-0.5" />
+        <p className="text-xs text-info leading-relaxed">
           Suas credenciais são armazenadas com segurança e nunca compartilhadas.
           Cada empresa tem suas próprias credenciais.
         </p>
@@ -278,12 +279,12 @@ export function CredentialForm({
         className={cn(
           "w-full gap-2 font-semibold transition-all",
           saved
-            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-            : "bg-[#7C3AED] hover:bg-[#6D28D9] text-white",
+            ? "bg-success hover:bg-success/90 text-primary-foreground"
+            : "bg-primary hover:bg-primary/90 text-primary-foreground",
         )}
       >
         {saving ? (
-          <><Loader2 className="size-4 animate-spin" /> Salvando...</>
+          <><OrbitaSpinner className="size-4 " /> Salvando...</>
         ) : saved ? (
           <><CheckCircle2 className="size-4" /> Credenciais salvas!</>
         ) : (
@@ -292,7 +293,7 @@ export function CredentialForm({
       </Button>
 
       {saved && (
-        <p className="text-center text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+        <p className="text-center text-xs text-success font-medium">
           ✓ Integração configurada com sucesso
         </p>
       )}

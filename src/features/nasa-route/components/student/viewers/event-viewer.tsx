@@ -9,10 +9,10 @@ import {
   ChevronLeft,
   Clock,
   ExternalLink,
-  Loader2,
   MapPin,
   Video,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -141,7 +141,7 @@ export function EventViewer({ course }: Props) {
             />
           </div>
         ) : (
-          <div className="aspect-video bg-gradient-to-br from-rose-100 to-rose-50 dark:from-rose-900/30 dark:to-rose-950/30" />
+          <div className="aspect-video bg-destructive/10" />
         )}
 
         <div className="space-y-5 p-6">
@@ -165,7 +165,7 @@ export function EventViewer({ course }: Props) {
           {/* Data/hora */}
           {startsAt && (
             <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3 text-sm">
-              <Calendar className="mt-0.5 size-4 text-rose-600" />
+              <Calendar className="mt-0.5 size-4 text-destructive" />
               <div>
                 <p className="font-medium">{formatDateLong(startsAt, course.eventTimezone)}</p>
                 {course.eventTimezone && (
@@ -196,7 +196,7 @@ export function EventViewer({ course }: Props) {
             >
               {enterMutation.isPending ? (
                 <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <OrbitaSpinner className="mr-2 size-4 " />
                   Abrindo...
                 </>
               ) : (
@@ -208,8 +208,8 @@ export function EventViewer({ course }: Props) {
               )}
             </Button>
           ) : (
-            <div className="space-y-3 rounded-xl border border-rose-200 bg-rose-50/60 p-6 text-center dark:border-rose-800/40 dark:bg-rose-900/20">
-              <div className="flex items-center justify-center gap-2 text-sm font-semibold text-rose-900 dark:text-rose-200">
+            <div className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
+              <div className="flex items-center justify-center gap-2 text-sm font-semibold text-destructive">
                 <Clock className="size-4" />
                 Falta para começar
               </div>
@@ -222,7 +222,7 @@ export function EventViewer({ course }: Props) {
                 ].map((p) => (
                   <div
                     key={p.label}
-                    className="rounded-lg bg-white p-3 shadow-sm dark:bg-rose-950/40"
+                    className="rounded-lg bg-card p-3 shadow-sm"
                   >
                     <div className="text-2xl font-bold tabular-nums">
                       {p.value.toString().padStart(2, "0")}

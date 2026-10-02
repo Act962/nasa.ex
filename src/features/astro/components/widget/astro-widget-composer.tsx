@@ -101,7 +101,7 @@ export function AstroWidgetComposer({
                 sizeBytes={attachment.sizeBytes}
                 uploading={attachment.uploading}
                 onRemove={() => onRemoveAttachment(attachment.localId)}
-                className={attachment.error ? "border-rose-500/50 text-rose-300" : undefined}
+                className={attachment.error ? "border-destructive/50 text-destructive" : undefined}
               />
             ))}
           </div>
@@ -170,7 +170,7 @@ export function AstroWidgetComposer({
               className={cn(
                 "grid size-9 shrink-0 place-items-center rounded-full transition",
                 isListening
-                  ? "animate-pulse bg-blue-500/20 text-blue-300"
+                  ? "animate-pulse bg-info/20 text-info"
                   : "text-white/50 hover:bg-white/[0.06] hover:text-white",
               )}
             >
@@ -192,7 +192,7 @@ export function AstroWidgetComposer({
               type="submit"
               disabled={!canSend}
               aria-label="Enviar"
-              className="grid size-9 shrink-0 place-items-center rounded-full bg-violet-600 text-white transition hover:bg-violet-500 disabled:bg-white/[0.08] disabled:text-white/30"
+              className="grid size-9 shrink-0 place-items-center rounded-full bg-info text-white transition hover:bg-info disabled:bg-white/[0.08] disabled:text-white/30"
             >
               <SendHorizonal className="size-4" />
             </button>

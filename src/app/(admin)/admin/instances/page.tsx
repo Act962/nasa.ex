@@ -47,31 +47,31 @@ export default async function InstancesPage({ searchParams }: { searchParams: Pr
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-white">Instâncias Conectadas</h1>
-        <p className="text-sm text-zinc-400 mt-1">WhatsApp Business por empresa</p>
+        <h1 className="text-xl font-bold text-foreground">Instâncias Conectadas</h1>
+        <p className="text-sm text-muted-foreground mt-1">WhatsApp Business por empresa</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-3">
-          <Wifi className="w-5 h-5 text-emerald-400" />
+        <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+          <Wifi className="w-5 h-5 text-success" />
           <div>
-            <p className="text-2xl font-bold text-white">{connected}</p>
-            <p className="text-xs text-zinc-500">Conectadas</p>
+            <p className="text-2xl font-bold text-foreground">{connected}</p>
+            <p className="text-xs text-muted-foreground">Conectadas</p>
           </div>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-3">
-          <WifiOff className="w-5 h-5 text-red-400" />
+        <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+          <WifiOff className="w-5 h-5 text-destructive" />
           <div>
-            <p className="text-2xl font-bold text-white">{disconnected}</p>
-            <p className="text-xs text-zinc-500">Desconectadas</p>
+            <p className="text-2xl font-bold text-foreground">{disconnected}</p>
+            <p className="text-xs text-muted-foreground">Desconectadas</p>
           </div>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-3">
-          <Wifi className="w-5 h-5 text-zinc-400" />
+        <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+          <Wifi className="w-5 h-5 text-muted-foreground" />
           <div>
-            <p className="text-2xl font-bold text-white">{total}</p>
-            <p className="text-xs text-zinc-500">Total</p>
+            <p className="text-2xl font-bold text-foreground">{total}</p>
+            <p className="text-xs text-muted-foreground">Total</p>
           </div>
         </div>
       </div>
@@ -79,61 +79,61 @@ export default async function InstancesPage({ searchParams }: { searchParams: Pr
       {/* Filters */}
       <form method="GET" className="flex gap-2 flex-wrap">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             name="search"
             defaultValue={search}
             placeholder="Buscar instância ou empresa..."
-            className="pl-9 pr-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 w-64"
+            className="pl-9 pr-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring w-64"
           />
         </div>
         <select
           name="status"
           defaultValue={status}
-          className="px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500"
+          className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-ring"
         >
           <option value="">Todos os status</option>
           <option value="CONNECTED">Conectado</option>
           <option value="DISCONNECTED">Desconectado</option>
         </select>
-        <button type="submit" className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg transition-colors">
+        <button type="submit" className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm rounded-lg transition-colors">
           Filtrar
         </button>
         {(search || status) && (
-          <Link href="/admin/instances" className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm rounded-lg transition-colors">
+          <Link href="/admin/instances" className="px-4 py-2 bg-panel hover:bg-accent text-foreground text-sm rounded-lg transition-colors">
             Limpar
           </Link>
         )}
       </form>
 
       {/* Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-zinc-800">
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Instância</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Empresa</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Status</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Número</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Última sync</th>
+            <tr className="border-b border-border">
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Instância</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Empresa</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Número</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Última sync</th>
             </tr>
           </thead>
           <tbody>
             {instances.map((inst) => (
-              <tr key={inst.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+              <tr key={inst.id} className="border-b border-border hover:bg-accent transition-colors">
                 <td className="px-4 py-3">
-                  <p className="text-sm font-medium text-white">{inst.instanceName}</p>
+                  <p className="text-sm font-medium text-foreground">{inst.instanceName}</p>
                   {inst.profileName && (
-                    <p className="text-xs text-zinc-500">{inst.profileName}</p>
+                    <p className="text-xs text-muted-foreground">{inst.profileName}</p>
                   )}
                   {inst.isBusiness && (
-                    <span className="text-[10px] text-blue-400 font-medium">Business</span>
+                    <span className="text-[10px] text-info font-medium">Business</span>
                   )}
                 </td>
                 <td className="px-4 py-3">
                   <Link
                     href={`/admin/companies/${inst.organizationId}`}
-                    className="text-sm text-zinc-300 hover:text-violet-300 transition-colors"
+                    className="text-sm text-foreground hover:text-info transition-colors"
                   >
                     {inst.organization.name}
                   </Link>
@@ -141,8 +141,8 @@ export default async function InstancesPage({ searchParams }: { searchParams: Pr
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${
                     inst.status === "CONNECTED"
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : "bg-red-500/10 text-red-400"
+                      ? "bg-success/10 text-success"
+                      : "bg-destructive/10 text-destructive"
                   }`}>
                     {inst.status === "CONNECTED" ? (
                       <Wifi className="w-3 h-3" />
@@ -152,13 +152,13 @@ export default async function InstancesPage({ searchParams }: { searchParams: Pr
                     {inst.status === "CONNECTED" ? "Conectado" : "Desconectado"}
                   </span>
                   {!inst.isActive && (
-                    <span className="ml-2 text-[10px] text-zinc-600">inativo</span>
+                    <span className="ml-2 text-[10px] text-muted-foreground">inativo</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-sm text-zinc-400">
+                <td className="px-4 py-3 text-sm text-muted-foreground">
                   {inst.phoneNumber ?? "—"}
                 </td>
-                <td className="px-4 py-3 text-xs text-zinc-500">
+                <td className="px-4 py-3 text-xs text-muted-foreground">
                   {inst.lastSyncAt
                     ? new Date(inst.lastSyncAt).toLocaleString("pt-BR")
                     : "—"}
@@ -168,23 +168,23 @@ export default async function InstancesPage({ searchParams }: { searchParams: Pr
           </tbody>
         </table>
         {instances.length === 0 && (
-          <p className="text-center py-8 text-sm text-zinc-500">Nenhuma instância encontrada.</p>
+          <p className="text-center py-8 text-sm text-muted-foreground">Nenhuma instância encontrada.</p>
         )}
       </div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-zinc-500">Página {page} de {totalPages}</p>
+          <p className="text-sm text-muted-foreground">Página {page} de {totalPages}</p>
           <div className="flex gap-2">
             {page > 1 && (
               <Link href={`/admin/instances?search=${search}&status=${status}&page=${page - 1}`}
-                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm rounded-lg transition-colors">
+                className="px-3 py-1.5 bg-panel hover:bg-accent text-foreground text-sm rounded-lg transition-colors">
                 ← Anterior
               </Link>
             )}
             {page < totalPages && (
               <Link href={`/admin/instances?search=${search}&status=${status}&page=${page + 1}`}
-                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm rounded-lg transition-colors">
+                className="px-3 py-1.5 bg-panel hover:bg-accent text-foreground text-sm rounded-lg transition-colors">
                 Próximo →
               </Link>
             )}

@@ -9,7 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Loader2, QrCode, Copy, Check, ChevronDownIcon } from "lucide-react";
+import { QrCode, Copy, Check, ChevronDownIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Instance } from "./types";
 import { connectInstance } from "@/http/uazapi/connect-instance";
 import { getInstanceStatus } from "@/http/uazapi/get-instance-status";
@@ -269,8 +270,8 @@ export function ConnectModal({
 
   const renderConnectedView = () => (
     <div className="flex flex-col items-center justify-center py-10 space-y-4">
-      <div className="size-20 bg-emerald-500/10 rounded-full flex items-center justify-center">
-        <Check className="size-10 text-emerald-500" />
+      <div className="size-20 bg-success/10 rounded-full flex items-center justify-center">
+        <Check className="size-10 text-success" />
       </div>
       <div className="text-center">
         <h3 className="text-lg font-semibold">Conectado com sucesso!</h3>
@@ -290,7 +291,7 @@ export function ConnectModal({
       <div className="flex flex-col items-center space-y-3">
         {loading && !qrcode && !pairingCode ? (
           <div className="w-64 h-64 flex items-center justify-center bg-muted/50 rounded-lg border border-border/50">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <OrbitaSpinner className="h-10 w-10 text-primary" />
           </div>
         ) : qrcode ? (
           <div className="bg-white p-3 rounded-lg shadow-sm">
@@ -316,7 +317,7 @@ export function ConnectModal({
             >
               {copied ? (
                 <>
-                  <Check className="h-4 w-4 text-emerald-500" />
+                  <Check className="h-4 w-4 text-success" />
                   Copiado!
                 </>
               ) : (

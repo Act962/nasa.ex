@@ -1,15 +1,36 @@
-import { useId } from "react";
+import { useId, type ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
-/** Marca da ÓRBITA girando — anel azul com o recorte do ponto em órbita. */
-export function OrbitaSpinner({ className }: { className?: string }) {
+const HAS_SIZE_CLASS = /(^|\s)(size|w|h)-/;
+
+/** Marca da ÓRBITA girando — anel azul com o recorte do ponto em órbita. Loading padrão do app. */
+export function OrbitaSpinner({
+  className,
+  size,
+  isOnBrandColor = false,
+  ...svgProps
+}: Omit<ComponentProps<"svg">, "children"> & {
+  size?: number | string;
+  /** Sobre fundo azul (botão do Astro): desenha em branco para não sumir. */
+  isOnBrandColor?: boolean;
+}) {
+  const brandColor = isOnBrandColor ? "#FFFFFF" : "#00A1F8";
   const maskId = useId();
+  const hasSizeClass = HAS_SIZE_CLASS.test(className ?? "");
 
   return (
     <svg
       viewBox="0 0 1200 1200"
-      aria-hidden="true"
-      className={cn("size-16 animate-spin [animation-duration:1.4s]", className)}
+      role="status"
+      aria-label="Carregando"
+      width={size}
+      height={size}
+      {...svgProps}
+      className={cn(
+        "shrink-0 animate-spin [animation-duration:1.4s]",
+        !hasSizeClass && size === undefined && "size-4",
+        className,
+      )}
     >
       <defs>
         <mask id={maskId}>
@@ -22,11 +43,11 @@ export function OrbitaSpinner({ className }: { className?: string }) {
         cy="605"
         r="510"
         fill="none"
-        stroke="#00A1F8"
+        stroke={brandColor}
         strokeWidth="115"
         mask={`url(#${maskId})`}
       />
-      <circle cx="893" cy="202" r="190" fill="white" />
+      <circle cx="893" cy="202" r="190" fill={brandColor} />
     </svg>
   );
 }

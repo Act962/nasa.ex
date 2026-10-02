@@ -13,7 +13,7 @@ export default function TrafegoPublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="w-full min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
+    <main className="dark w-full min-h-screen bg-background text-foreground">
       {children}
       {/* O guia do Astro começa no painel da plataforma e continua aqui (spec 0050). */}
       <TourOverlay />

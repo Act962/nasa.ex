@@ -24,23 +24,23 @@ import { ExternalLinkIcon } from "lucide-react";
 export function AstroDataTable({ payload }: { payload: AstroTablePayload }) {
   if (payload.rows.length === 0) {
     return (
-      <div className="w-full rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-500">
+      <div className="w-full rounded-lg border border-line/80 bg-card/40 px-3 py-2 text-xs text-muted-foreground">
         {payload.caption ?? "Nenhum resultado encontrado."}
       </div>
     );
   }
 
   return (
-    <div className="w-full overflow-hidden rounded-lg border border-zinc-800/80 bg-zinc-900/40">
+    <div className="w-full overflow-hidden rounded-lg border border-line/80 bg-card/40">
       {payload.caption && (
-        <div className="border-b border-zinc-800/80 px-3 py-2 text-[11px] uppercase tracking-wider text-zinc-500">
+        <div className="border-b border-line/80 px-3 py-2 text-[11px] uppercase tracking-wider text-muted-foreground">
           {payload.caption}
         </div>
       )}
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-zinc-800/80 bg-zinc-900/60 text-left text-[11px] uppercase tracking-wider text-zinc-500">
+            <tr className="border-b border-line/80 bg-card/60 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
               {payload.columns.map((c) => (
                 <th key={c.key} className="px-3 py-2 font-medium">
                   {c.label}
@@ -63,7 +63,7 @@ export function AstroDataTable({ payload }: { payload: AstroTablePayload }) {
       </div>
       {payload.totalCount !== undefined &&
         payload.totalCount > payload.rows.length && (
-          <div className="border-t border-zinc-800/80 px-3 py-2 text-[10px] text-zinc-500">
+          <div className="border-t border-line/80 px-3 py-2 text-[10px] text-muted-foreground">
             Mostrando {payload.rows.length} de {payload.totalCount} —
             refine os filtros pra ver outros.
           </div>
@@ -86,7 +86,7 @@ function TableRow({
       key={c.key}
       className={cn(
         "px-3 py-2 align-middle",
-        i === 0 ? "font-medium text-zinc-200" : "text-zinc-400",
+        i === 0 ? "font-medium text-foreground" : "text-muted-foreground",
       )}
     >
       {formatCell(row[c.key], c.type)}
@@ -97,7 +97,7 @@ function TableRow({
   // hoje) só linkam pro app raiz; ainda assim faz sentido linkar.
   if (href) {
     return (
-      <tr className="group border-b border-zinc-800/40 transition-colors last:border-b-0 hover:bg-zinc-800/40">
+      <tr className="group border-b border-line/40 transition-colors last:border-b-0 hover:bg-card/40">
         {/* Wrappear `tr` em `Link` quebra HTML — colocamos Link na primeira
             célula com `colSpan` invisível? Não — usamos um onClick handler
             via Link wrapping cada célula pra preservar acessibilidade. */}
@@ -106,18 +106,18 @@ function TableRow({
             key={c.key}
             className={cn(
               "p-0 align-middle",
-              i === 0 ? "font-medium text-zinc-200" : "text-zinc-400",
+              i === 0 ? "font-medium text-foreground" : "text-muted-foreground",
             )}
           >
             <Link
               href={href}
-              className="block px-3 py-2 hover:text-white focus:outline-none focus-visible:bg-zinc-800/60"
+              className="block px-3 py-2 hover:text-white focus:outline-none focus-visible:bg-card/60"
             >
               {formatCell(row[c.key], c.type)}
             </Link>
           </td>
         ))}
-        <td className="px-2 align-middle text-zinc-600 group-hover:text-zinc-300">
+        <td className="px-2 align-middle text-muted-foreground group-hover:text-muted-foreground">
           <Link href={href} aria-label="Abrir detalhes" className="block px-1 py-2">
             <ExternalLinkIcon className="size-3" />
           </Link>
@@ -127,7 +127,7 @@ function TableRow({
   }
 
   return (
-    <tr className="border-b border-zinc-800/40 last:border-b-0">
+    <tr className="border-b border-line/40 last:border-b-0">
       {cells}
       <td aria-hidden />
     </tr>
@@ -199,7 +199,7 @@ function badgeTone(value: string): string {
       "PUBLISHED",
     ].includes(upper)
   ) {
-    return "bg-emerald-500/10 text-emerald-300 ring-emerald-500/30";
+    return "bg-success/10 text-success ring-success/30";
   }
   // Estados de alerta / atraso
   if (
@@ -214,7 +214,7 @@ function badgeTone(value: string): string {
       "CANCELLED",
     ].includes(upper)
   ) {
-    return "bg-red-500/10 text-red-300 ring-red-500/30";
+    return "bg-destructive/10 text-destructive ring-destructive/30";
   }
   // Estados intermediários
   if (
@@ -227,12 +227,12 @@ function badgeTone(value: string): string {
       "ABERTA",
     ].includes(upper)
   ) {
-    return "bg-amber-500/10 text-amber-300 ring-amber-500/30";
+    return "bg-warning/10 text-warning ring-warning/30";
   }
   if (["ACTIVE", "MEDIUM"].includes(upper)) {
-    return "bg-blue-500/10 text-blue-300 ring-blue-500/30";
+    return "bg-info/10 text-info ring-info/30";
   }
-  return "bg-zinc-700/40 text-zinc-300 ring-zinc-600/40";
+  return "bg-knob/40 text-muted-foreground ring-line/40";
 }
 
 /** Converte enums "screaming snake" em texto humano. */

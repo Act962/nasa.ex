@@ -43,9 +43,9 @@ interface JourneyTimelineProps {
 }
 
 const SEVERITY_STYLES: Record<GapSeverity, { line: string; chip: string }> = {
-  ok: { line: "bg-emerald-500/40", chip: "bg-emerald-500/10 text-emerald-500" },
-  warn: { line: "bg-amber-500/60", chip: "bg-amber-500/10 text-amber-500" },
-  idle: { line: "bg-red-500", chip: "bg-red-500/15 text-red-400" },
+  ok: { line: "bg-success/40", chip: "bg-success/10 text-success" },
+  warn: { line: "bg-warning/60", chip: "bg-warning/10 text-warning" },
+  idle: { line: "bg-destructive", chip: "bg-destructive/15 text-destructive" },
 };
 
 const STAGGER_MS = 60;
@@ -140,7 +140,7 @@ export function JourneyTimeline({ leadId, trackingId, onOpenScreen }: JourneyTim
             <span
               className={cn(
                 "flex size-8 shrink-0 items-center justify-center rounded-full",
-                idleNow === "idle" ? "animate-pulse bg-red-500 text-white" : "bg-foreground text-background",
+                idleNow === "idle" ? "animate-pulse bg-destructive text-white" : "bg-foreground text-background",
               )}
             >
               <FlagIcon className="size-4" />
@@ -148,7 +148,7 @@ export function JourneyTimeline({ leadId, trackingId, onOpenScreen }: JourneyTim
             <div className="flex flex-1 flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold">Hoje</p>
-                <p className={cn("text-xs", idleNow === "idle" ? "text-red-400" : "text-muted-foreground")}>
+                <p className={cn("text-xs", idleNow === "idle" ? "text-destructive" : "text-muted-foreground")}>
                   {idleNow === "idle"
                     ? `Parado há ${formatGap(idleMs)} — mais de ${IDLE_ALERT_DAYS} dias sem ninguém acionar.`
                     : `Última ação da equipe há ${formatGap(idleMs)}.`}
@@ -182,8 +182,8 @@ function OriginCard({ lead }: { lead: JourneyLead }) {
     lead.utmCampaign && `utm_campaign ${lead.utmCampaign}`,
   ].filter(Boolean);
   return (
-    <div className="flex items-start gap-3 rounded-2xl border bg-gradient-to-br from-emerald-500/10 to-transparent p-3 animate-in fade-in duration-500">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
+    <div className="flex items-start gap-3 rounded-2xl border bg-gradient-to-br from-success/10 to-transparent p-3 animate-in fade-in duration-500">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
         <Megaphone className="size-4" />
       </span>
       <div className="min-w-0 flex-1">
@@ -231,18 +231,18 @@ function TimelapseRuler({ events, start, now, idleSeverity }: { events: RulerEve
           {events.length} passo{events.length === 1 ? "" : "s"} em {formatGap(now.getTime() - start.getTime())}
         </span>
         <span className="flex items-center gap-3">
-          <Legend className="bg-amber-500/70" label={`+3 dias`} />
-          <Legend className="bg-red-500" label={`+${IDLE_ALERT_DAYS} dias parado`} />
+          <Legend className="bg-warning/70" label={`+3 dias`} />
+          <Legend className="bg-destructive" label={`+${IDLE_ALERT_DAYS} dias parado`} />
         </span>
       </div>
       <div className="relative h-2 rounded-full bg-muted">
-        <div className="animate-journey-grow absolute inset-y-0 left-0 w-full origin-left rounded-full bg-emerald-500/30" />
+        <div className="animate-journey-grow absolute inset-y-0 left-0 w-full origin-left rounded-full bg-success/30" />
         {idleSpans.map((span) => (
           <div
             key={span.key}
             className={cn(
               "absolute inset-y-0 rounded-full animate-in fade-in duration-700",
-              span.severity === "idle" ? "bg-red-500 animate-pulse" : "bg-amber-500/70",
+              span.severity === "idle" ? "bg-destructive animate-pulse" : "bg-warning/70",
             )}
             style={{ left: `${span.left}%`, width: `${Math.max(span.width, 1)}%` }}
           />
@@ -253,7 +253,7 @@ function TimelapseRuler({ events, start, now, idleSeverity }: { events: RulerEve
             title={dayjs(event.occurredAt).format("DD/MM/YYYY HH:mm")}
             className={cn(
               "absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background fill-mode-both animate-in zoom-in duration-300",
-              isTeamTouch(event.kind) ? "bg-emerald-400" : "bg-sky-400",
+              isTeamTouch(event.kind) ? "bg-success" : "bg-info",
             )}
             style={{ left: `${positionOnSpan(event.occurredAt, start, now)}%`, animationDelay: `${300 + index * 40}ms` }}
           />
@@ -261,15 +261,15 @@ function TimelapseRuler({ events, start, now, idleSeverity }: { events: RulerEve
         <span
           className={cn(
             "absolute right-0 top-1/2 size-3 -translate-y-1/2 translate-x-1/2 rounded-full border-2 border-background",
-            idleSeverity === "idle" ? "animate-ping bg-red-500" : "bg-foreground",
+            idleSeverity === "idle" ? "animate-ping bg-destructive" : "bg-foreground",
           )}
         />
       </div>
       <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
         <span>{dayjs(start).format("DD/MM/YY")}</span>
         <span className="flex items-center gap-2">
-          <Legend className="bg-emerald-400" label="equipe" />
-          <Legend className="bg-sky-400" label="lead" />
+          <Legend className="bg-success" label="equipe" />
+          <Legend className="bg-info" label="lead" />
         </span>
         <span>hoje</span>
       </div>

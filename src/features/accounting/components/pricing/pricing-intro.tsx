@@ -7,10 +7,10 @@ import { FiscalTermHint } from "../shared/fiscal-term-hint";
 /** Explicação do topo da subaba Produtos & Preços. */
 export function PricingIntro() {
   return (
-    <Card className="border-violet-500/30 bg-violet-500/5">
+    <Card className="border-info/30 bg-info/5">
       <CardContent className="space-y-3 py-5 text-sm">
         <p className="flex items-center gap-2 font-semibold">
-          <Lightbulb className="size-4 text-violet-600" />
+          <Lightbulb className="size-4 text-info" />
           Preço bom é o que sobra depois do imposto
         </p>
         <p className="text-muted-foreground">

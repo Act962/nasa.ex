@@ -1,8 +1,13 @@
 "use client";
 
 import {
-  MergeIcon, ScissorsIcon, SparklesIcon, DownloadIcon, SaveIcon, Loader2Icon,
+  MergeIcon,
+  ScissorsIcon,
+  SparklesIcon,
+  DownloadIcon,
+  SaveIcon,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -21,7 +26,7 @@ export function VideoEditorToolbar({
   onMerge, onRemoveSilence, onGenerateAI, onSave,
 }: Props) {
   return (
-    <div className="flex flex-wrap items-center gap-2 p-3 border-b bg-muted/30">
+    <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/30">
       <Button
         size="sm"
         variant="outline"
@@ -29,7 +34,7 @@ export function VideoEditorToolbar({
         disabled={!canMerge || processing}
         onClick={onMerge}
       >
-        {processing ? <Loader2Icon className="size-3.5 animate-spin" /> : <MergeIcon className="size-3.5" />}
+        {processing ? <OrbitaSpinner className="size-3.5 " /> : <MergeIcon className="size-3.5" />}
         Mesclar Clipes
         <span className="text-[10px] text-muted-foreground ml-0.5">1★</span>
       </Button>
@@ -49,7 +54,7 @@ export function VideoEditorToolbar({
       <Button
         size="sm"
         variant="outline"
-        className="gap-1.5 h-8 text-violet-600 border-violet-200 hover:border-violet-400"
+        className="gap-1.5 h-8 text-info border-info/30 hover:border-info"
         onClick={onGenerateAI}
         disabled={processing}
       >
@@ -66,7 +71,7 @@ export function VideoEditorToolbar({
         disabled={!canSave || processing}
         onClick={onSave}
       >
-        {processing ? <Loader2Icon className="size-3.5 animate-spin" /> : <SaveIcon className="size-3.5" />}
+        {processing ? <OrbitaSpinner className="size-3.5 " /> : <SaveIcon className="size-3.5" />}
         Salvar Vídeo
       </Button>
     </div>

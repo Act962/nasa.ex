@@ -53,19 +53,41 @@ export function ProductsTab() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="space-y-3 md:hidden">
+        <Button
+          className="h-11 w-full gap-1.5 rounded-full"
+          onClick={handleAdd}
+          data-guide={GUIDE_ANCHORS.forgeNewProductButton.id}
+        >
+          <Plus className="size-4" />
+          Novo produto
+        </Button>
+        <div className="sticky top-0 z-10 -mx-1 bg-background/95 px-1 py-1 backdrop-blur">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              className="h-11 rounded-full bg-muted pl-10"
+              placeholder="Buscar por nome ou SKU..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 max-md:hidden">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             className="pl-9"
             placeholder="Buscar por nome ou SKU..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
           />
         </div>
         <Button
-          className="ml-auto bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-1.5"
+          className="ml-auto gap-1.5"
           onClick={handleAdd}
           size="sm"
           data-guide={GUIDE_ANCHORS.forgeNewProductButton.id}
@@ -94,7 +116,7 @@ export function ProductsTab() {
 
       <AlertDialog
         open={!!deleteId}
-        onOpenChange={(o) => !o && setDeleteId(null)}
+        onOpenChange={(isOpen) => !isOpen && setDeleteId(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>

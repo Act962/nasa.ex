@@ -64,7 +64,7 @@ export const EditorOptions = ({ workflowId }: { workflowId: string }) => {
         className="cursor-pointer"
         onClick={() => setOpen(true)}
       >
-        <Trash2Icon className="size-4 text-red-500" />
+        <Trash2Icon className="size-4 text-destructive" />
       </Button>
       {/* <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -336,7 +336,7 @@ const EditorActiveToggle = ({ workflowId }: { workflowId: string }) => {
 
 export const EditorHeader = ({ workflowId }: { workflowId: string }) => {
   return (
-    <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 bg-background">
+    <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-4 bg-background">
       <EditorBreadcrumbs workflowId={workflowId} />
       <div className="flex items-center gap-2">
         <EditorActiveToggle workflowId={workflowId} />

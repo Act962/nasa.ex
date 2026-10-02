@@ -52,3 +52,4 @@ next-env.d.ts
 certificates
 # Relatórios da bateria do ASTRO (scripts/astro-qa)
 .astro-qa-reports/
+prisma/.seed-insights-demo-ids.json

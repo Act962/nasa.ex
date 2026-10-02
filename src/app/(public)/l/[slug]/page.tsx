@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 
 interface Props {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ preview?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -14,8 +15,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: page.title, description: page.bio ?? undefined };
 }
 
-export default async function LinnkerPublicRoute({ params }: Props) {
+export default async function LinnkerPublicRoute({ params, searchParams }: Props) {
   const { slug } = await params;
+  // Miniatura da área logada: mostra a página sem contar visita.
+  const isPreview = (await searchParams).preview === "1";
 
   const page = await prisma.linnkerPage.findUnique({
     where: { slug },
@@ -51,6 +54,7 @@ export default async function LinnkerPublicRoute({ params }: Props) {
       page={page as any}
       isDraft={!page.isPublished}
       inChatUrl={inChatUrl}
+      isPreview={isPreview}
     />
   );
 }

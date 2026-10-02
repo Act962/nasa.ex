@@ -79,7 +79,7 @@ export const HeadingBlock: ObjectBlockType = {
   }),
   blockBtnElement: {
     icon: HeadingIcon,
-    label: "Heading",
+    label: "Título",
   },
   canvasComponent: HeadingCanvasFormComponent, // Renders the heading block on the canvas
   formComponent: HeadingCanvasFormComponent, // Customize as needed

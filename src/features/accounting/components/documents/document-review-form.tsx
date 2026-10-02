@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Sparkles } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -95,14 +96,14 @@ export function DocumentReviewForm({ documentId, initialValues, shouldAutoExtrac
   return (
     <div className="space-y-4">
       {extractDocument.isPending && (
-        <div className="flex items-center gap-2 rounded-lg border border-violet-500/30 bg-violet-500/5 p-3 text-sm">
-          <Loader2 className="size-4 animate-spin text-violet-500" /> Lendo o documento com IA…
+        <div className="flex items-center gap-2 rounded-lg border border-info/30 bg-info/5 p-3 text-sm">
+          <OrbitaSpinner className="size-4 text-info" /> Lendo o documento com IA…
         </div>
       )}
 
       {extractionError && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
-          <p className="font-medium text-amber-700 dark:text-amber-300">A IA não conseguiu ler este arquivo</p>
+        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">
+          <p className="font-medium text-warning dark:text-warning">A IA não conseguiu ler este arquivo</p>
           <p className="text-muted-foreground">{extractionError} Preencha os dados abaixo à mão.</p>
         </div>
       )}
@@ -116,7 +117,7 @@ export function DocumentReviewForm({ documentId, initialValues, shouldAutoExtrac
       {extraction && (
         <div className="space-y-2 rounded-lg border bg-muted/30 p-3 text-sm">
           <p className="flex items-center gap-1.5 font-medium">
-            <CheckCircle2 className="size-4 text-violet-500" /> O que a IA leu
+            <CheckCircle2 className="size-4 text-info" /> O que a IA leu
             <span className="text-xs font-normal text-muted-foreground">
               (confiança {Math.round(extraction.confidence * 100)}%)
             </span>
@@ -137,20 +138,20 @@ export function DocumentReviewForm({ documentId, initialValues, shouldAutoExtrac
             {extraction.isNegative !== null && (
               <div>
                 <dt className="text-muted-foreground">Resultado da certidão</dt>
-                <dd className={cn(extraction.isNegative ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+                <dd className={cn(extraction.isNegative ? "text-success dark:text-success" : "text-destructive dark:text-destructive")}>
                   {extraction.isNegative ? "Negativa (empresa regular)" : "Positiva (há débitos)"}
                 </dd>
               </div>
             )}
           </dl>
           {extraction.cnpjMismatch && (
-            <p className="flex gap-1.5 rounded-md bg-red-500/10 px-2 py-1.5 text-xs font-medium text-red-700 dark:text-red-300">
+            <p className="flex gap-1.5 rounded-md bg-destructive/10 px-2 py-1.5 text-xs font-medium text-destructive dark:text-destructive">
               <AlertTriangle className="size-3.5 shrink-0" />
               O CNPJ do documento é diferente do CNPJ cadastrado da empresa. Confira se é o arquivo certo.
             </p>
           )}
           {extraction.warnings.length > 0 && (
-            <ul className="list-disc space-y-0.5 pl-4 text-xs text-amber-700 dark:text-amber-300">
+            <ul className="list-disc space-y-0.5 pl-4 text-xs text-warning dark:text-warning">
               {extraction.warnings.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
@@ -168,11 +169,11 @@ export function DocumentReviewForm({ documentId, initialValues, shouldAutoExtrac
         </Button>
         <Button
           type="button"
-          className="bg-violet-600 text-white hover:bg-violet-700"
+          className="bg-info text-white hover:bg-info"
           disabled={!canConfirm || extractDocument.isPending}
           onClick={confirm}
         >
-          {confirmDocument.isPending && <Loader2 className="size-3.5 animate-spin" />}
+          {confirmDocument.isPending && <OrbitaSpinner className="size-3.5 " />}
           Confirmar documento
         </Button>
       </div>

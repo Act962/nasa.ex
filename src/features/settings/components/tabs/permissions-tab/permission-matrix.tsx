@@ -122,7 +122,7 @@ export function PermissionMatrix({
                       className="w-6 flex justify-center"
                       title={PERM_LABELS[k].label}
                     >
-                      <CheckCircle2 className="size-3.5 text-violet-500" />
+                      <CheckCircle2 className="size-3.5 text-info" />
                     </div>
                   ))}
                 </div>
@@ -148,9 +148,9 @@ export function PermissionMatrix({
                               className="scale-50 -m-1.5"
                             />
                           ) : val ? (
-                            <CheckCircle2 className="size-3.5 text-emerald-500" />
+                            <CheckCircle2 className="size-3.5 text-success" />
                           ) : (
-                            <AlertCircle className="size-3.5 text-slate-300" />
+                            <AlertCircle className="size-3.5 text-muted-foreground/50" />
                           )}
                         </div>
                       );
@@ -229,7 +229,7 @@ function ExtendedActionsTable({
               </td>
               <td className="py-2 px-2">
                 <div className="flex justify-center">
-                  <CheckCircle2 className="size-3.5 text-violet-500" />
+                  <CheckCircle2 className="size-3.5 text-info" />
                 </div>
               </td>
               {editableRoles.map((role) => {
@@ -244,9 +244,9 @@ function ExtendedActionsTable({
                           className="scale-75"
                         />
                       ) : isEnabled ? (
-                        <CheckCircle2 className="size-3.5 text-emerald-500" />
+                        <CheckCircle2 className="size-3.5 text-success" />
                       ) : (
-                        <AlertCircle className="size-3.5 text-slate-300" />
+                        <AlertCircle className="size-3.5 text-muted-foreground/50" />
                       )}
                     </div>
                   </td>

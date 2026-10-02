@@ -58,3 +58,33 @@ export async function getMemberLifetimeStars(memberId: string): Promise<number> 
   });
   return lifetimeStarsFrom(grouped.map((row) => ({ type: row.type, stars: row._sum.stars ?? 0 })));
 }
+
+/** Stars "na vida" de cada membro (base do nível), numa consulta só para a página inteira. */
+export async function getLifetimeStarsForMembers(memberIds: string[]): Promise<Map<string, number>> {
+  if (memberIds.length === 0) return new Map();
+  const grouped = await prisma.loyaltyLedgerEntry.groupBy({
+    by: ["memberId", "type"],
+    where: { memberId: { in: memberIds } },
+    _sum: { stars: true },
+  });
+  const entriesByMember = new Map<string, { type: string; stars: number }[]>();
+  for (const row of grouped) {
+    const memberEntries = entriesByMember.get(row.memberId) ?? [];
+    memberEntries.push({ type: row.type, stars: row._sum.stars ?? 0 });
+    entriesByMember.set(row.memberId, memberEntries);
+  }
+  return new Map([...entriesByMember].map(([memberId, entries]) => [memberId, lifetimeStarsFrom(entries)]));
+}
+
+/** Último lançamento de stars de cada membro (compra, troca, ajuste ou expiração). */
+export async function getLastActivityForMembers(memberIds: string[]): Promise<Map<string, Date>> {
+  if (memberIds.length === 0) return new Map();
+  const grouped = await prisma.loyaltyLedgerEntry.groupBy({
+    by: ["memberId"],
+    where: { memberId: { in: memberIds } },
+    _max: { createdAt: true },
+  });
+  return new Map(
+    grouped.flatMap((row) => (row._max.createdAt ? [[row.memberId, row._max.createdAt] as const] : [])),
+  );
+}

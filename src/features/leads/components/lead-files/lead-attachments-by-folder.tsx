@@ -85,17 +85,17 @@ function getFileIcon(name: string) {
   const ext = name.split(".").pop()?.toLowerCase()?.split("?")[0];
   switch (ext) {
     case "jpg": case "jpeg": case "png": case "gif": case "svg": case "webp":
-      return <ImageIcon className="size-3.5 text-blue-500 shrink-0" />;
+      return <ImageIcon className="size-3.5 text-info shrink-0" />;
     case "pdf": case "txt": case "doc": case "docx":
-      return <FileTextIcon className="size-3.5 text-rose-500 shrink-0" />;
+      return <FileTextIcon className="size-3.5 text-destructive shrink-0" />;
     case "xls": case "xlsx": case "csv":
-      return <FileSpreadsheetIcon className="size-3.5 text-emerald-500 shrink-0" />;
+      return <FileSpreadsheetIcon className="size-3.5 text-success shrink-0" />;
     case "mp3": case "wav": case "ogg": case "m4a":
-      return <FileAudioIcon className="size-3.5 text-amber-500 shrink-0" />;
+      return <FileAudioIcon className="size-3.5 text-warning shrink-0" />;
     case "mp4": case "avi": case "mov": case "webm":
-      return <VideoIcon className="size-3.5 text-purple-500 shrink-0" />;
+      return <VideoIcon className="size-3.5 text-info shrink-0" />;
     case "zip": case "rar": case "7z": case "tar": case "gz":
-      return <ArchiveIcon className="size-3.5 text-amber-600 shrink-0" />;
+      return <ArchiveIcon className="size-3.5 text-warning shrink-0" />;
     default:
       return <FileIcon className="size-3.5 text-muted-foreground shrink-0" />;
   }
@@ -103,15 +103,15 @@ function getFileIcon(name: string) {
 
 function folderIcon(folder: string, open: boolean) {
   if (folder === "Chat") {
-    return <MessageSquare className="size-4 text-blue-600" />;
+    return <MessageSquare className="size-4 text-info" />;
   }
   if (folder === "Formulários") {
-    return <ClipboardCheck className="size-4 text-emerald-600" />;
+    return <ClipboardCheck className="size-4 text-success" />;
   }
   return open ? (
-    <FolderOpen className="size-4 text-amber-600" />
+    <FolderOpen className="size-4 text-warning" />
   ) : (
-    <Folder className="size-4 text-amber-600" />
+    <Folder className="size-4 text-warning" />
   );
 }
 
@@ -338,9 +338,9 @@ export function LeadAttachmentsByFolder({ leadId }: { leadId: string }) {
                           className="flex items-center gap-1.5 text-xs font-medium text-foreground/80 hover:text-foreground py-1"
                         >
                           {subOpen ? (
-                            <FolderOpen className="size-3.5 text-emerald-600" />
+                            <FolderOpen className="size-3.5 text-success" />
                           ) : (
-                            <Folder className="size-3.5 text-emerald-600" />
+                            <Folder className="size-3.5 text-success" />
                           )}
                           <span>{formName}</span>
                           <span className="text-foreground/50 text-[10px]">

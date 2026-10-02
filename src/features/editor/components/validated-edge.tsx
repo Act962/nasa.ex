@@ -84,17 +84,17 @@ export function ValidatedEdge({
   let opacity: number | undefined;
 
   if (stepEdgeStatus === "passed") {
-    stroke = "rgb(16,185,129)"; // emerald-500
+    stroke = "var(--success)";
     strokeWidth = 2.5;
   } else if (stepEdgeStatus === "failed") {
-    stroke = "rgb(239,68,68)"; // red-500
+    stroke = "var(--destructive)";
     strokeWidth = 2.5;
     animation = "edge-pulse 1.5s ease-in-out infinite";
   } else if (stepEdgeStatus === "skipped") {
-    stroke = "rgb(156,163,175)"; // gray-400
+    stroke = "var(--muted-foreground)";
     opacity = 0.35;
   } else if (hasError) {
-    stroke = "rgb(239,68,68)";
+    stroke = "var(--destructive)";
     strokeWidth = 2.5;
     animation = "edge-pulse 1.5s ease-in-out infinite";
   }
@@ -126,7 +126,7 @@ export function ValidatedEdge({
             }}
             className={
               hasError
-                ? "rounded-md border border-red-300 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5"
+                ? "rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5"
                 : "rounded-md border bg-background text-foreground text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5"
             }
           >

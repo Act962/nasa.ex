@@ -18,8 +18,8 @@ import {
   ChevronRight,
   CreditCard,
   FileText,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -221,9 +221,9 @@ export function EnrollmentModal({
                     type="button"
                     onClick={() => handlePickPlan(plan.id)}
                     className={cn(
-                      "group flex w-full items-start justify-between gap-3 rounded-xl border p-4 text-left transition hover:border-violet-400 hover:bg-violet-50/40 dark:hover:bg-violet-900/10",
+                      "group flex w-full items-start justify-between gap-3 rounded-xl border p-4 text-left transition hover:border-info hover:bg-info/5",
                       plan.isDefault
-                        ? "border-violet-300 bg-violet-50/50 dark:border-violet-700/50 dark:bg-violet-900/10"
+                        ? "border-info/30 bg-info/5"
                         : "border-border bg-card",
                     )}
                   >
@@ -231,7 +231,7 @@ export function EnrollmentModal({
                       <div className="flex flex-wrap items-center gap-1.5">
                         <h4 className="text-base font-semibold">{plan.name}</h4>
                         {plan.isDefault && (
-                          <Badge className="bg-violet-600 text-[10px] text-white hover:bg-violet-600">
+                          <Badge className="bg-info text-[10px] text-white hover:bg-info/90">
                             Recomendado
                           </Badge>
                         )}
@@ -259,15 +259,15 @@ export function EnrollmentModal({
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       {planFree ? (
-                        <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                        <span className="font-bold text-success">
                           Grátis
                         </span>
                       ) : (
-                        <span className="font-bold text-violet-700 dark:text-violet-300">
+                        <span className="font-bold text-info">
                           {formatBrl(plan.priceBrlCents)}
                         </span>
                       )}
-                      <ChevronRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-violet-600" />
+                      <ChevronRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-info" />
                     </div>
                   </button>
                 );
@@ -293,10 +293,10 @@ export function EnrollmentModal({
 
             <div className="space-y-4 py-2">
               {selectedPlan && (
-                <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4 dark:border-violet-900/40 dark:bg-violet-900/10">
+                <div className="rounded-xl border border-info/30 bg-info/5 p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="text-xs uppercase tracking-wider text-violet-700 dark:text-violet-300">
+                      <p className="text-xs uppercase tracking-wider text-info">
                         Plano selecionado
                       </p>
                       <p className="mt-0.5 font-semibold">
@@ -344,11 +344,11 @@ export function EnrollmentModal({
                   </span>
                   <span className="text-lg font-bold">
                     {isFree ? (
-                      <span className="text-emerald-700 dark:text-emerald-300">
+                      <span className="text-success">
                         Gratuito
                       </span>
                     ) : (
-                      <span className="text-violet-700 dark:text-violet-300">
+                      <span className="text-info">
                         {formatBrl(priceBrlCents)}
                       </span>
                     )}
@@ -390,7 +390,7 @@ export function EnrollmentModal({
 
         {step === "processing" && (
           <div className="py-10 text-center">
-            <Loader2 className="mx-auto size-10 animate-spin text-violet-600" />
+            <OrbitaSpinner className="mx-auto size-10 text-info" />
             <p className="mt-4 text-sm font-medium">
               {isFree ? "Processando matrícula…" : "Abrindo pagamento…"}
             </p>
@@ -404,8 +404,8 @@ export function EnrollmentModal({
 
         {step === "success" && (
           <div className="py-10 text-center">
-            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-              <CheckCircle2 className="size-8 text-emerald-600 dark:text-emerald-400" />
+            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-success/15">
+              <CheckCircle2 className="size-8 text-success" />
             </div>
             <p className="mt-4 text-base font-semibold">Matrícula concluída!</p>
             <p className="mt-1 text-sm text-muted-foreground">

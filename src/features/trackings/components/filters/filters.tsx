@@ -8,6 +8,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { ListFilter } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ParticipantsSwitcher } from "./participant-switcher";
 import { TagsFilter } from "./tags-filter";
 import { TemperatureFilter } from "./temperature-filter";
@@ -33,17 +34,23 @@ export function Filters() {
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-col gap-2 px-4">
-          <ParticipantsSwitcher />
-          <ProjectsFilter />
-          <TagsFilter />
-          <TemperatureFilter />
-          <StatusFlowFilter />
-          <WinLossFilter />
-          <CalendarFilter />
-          <SorterLead />
-        </div>
+        <FiltersPanel className="px-4" />
       </SheetContent>
     </Sheet>
+  );
+}
+
+export function FiltersPanel({ className }: { className?: string }) {
+  return (
+    <div className={cn("flex flex-col gap-2", className)}>
+      <ParticipantsSwitcher />
+      <ProjectsFilter />
+      <TagsFilter />
+      <TemperatureFilter />
+      <StatusFlowFilter />
+      <WinLossFilter />
+      <CalendarFilter />
+      <SorterLead />
+    </div>
   );
 }

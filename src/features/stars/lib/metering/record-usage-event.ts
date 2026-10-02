@@ -7,7 +7,7 @@
  */
 
 import type { UsageEventKind } from "@/generated/prisma/client";
-import { calculateCost } from "@/features/ia/lib/token-pricing";
+import { estimateUsageCostUsd } from "@/features/ia/lib/token-pricing";
 import prisma from "@/lib/prisma";
 import { getMonetarySettings } from "./fx";
 
@@ -66,21 +66,16 @@ function resolveProviderCost(input: RecordUsageInput): {
   const tokens = input.tokens;
   if (!tokens) return { usd: null, priceSource: "unknown" };
 
-  const inputTokens = tokens.inputTokens ?? 0;
-  const outputTokens = tokens.outputTokens ?? 0;
-  if (inputTokens === 0 && outputTokens === 0) {
-    return { usd: null, priceSource: "unknown" };
-  }
-
-  const { usd, source } = calculateCost(
-    input.modelId,
-    inputTokens,
-    outputTokens,
-    tokens.cachedTokens ?? 0,
-  );
-  return source === "unknown"
-    ? { usd: null, priceSource: "unknown" }
-    : { usd, priceSource: "table" };
+  // Só o total de tokens (caso do ASTRO): estima a divisão em vez de gravar custo zero (spec 0055, RF-3).
+  const { usd, source } = estimateUsageCostUsd({
+    provider: input.provider,
+    modelId: input.modelId,
+    inputTokens: tokens.inputTokens,
+    outputTokens: tokens.outputTokens,
+    cachedTokens: tokens.cachedTokens,
+    totalTokens: tokens.totalTokens,
+  });
+  return source === "unknown" ? { usd: null, priceSource: "unknown" } : { usd, priceSource: source };
 }
 
 export async function recordUsageEvent(

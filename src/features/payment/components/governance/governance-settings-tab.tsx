@@ -13,7 +13,8 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -77,19 +78,19 @@ export function GovernanceSettingsTab() {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
-        <Loader2 className="size-4 animate-spin" /> Carregando…
+        <OrbitaSpinner className="size-4 " /> Carregando…
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <Card className="p-4 border-amber-500/50 bg-amber-50/40">
+      <Card className="p-4 border-warning/50 bg-warning/40">
         <div className="flex items-start gap-3">
-          <ShieldCheck className="size-5 text-amber-600 shrink-0 mt-0.5" />
+          <ShieldCheck className="size-5 text-warning shrink-0 mt-0.5" />
           <div className="text-xs">
-            <p className="font-medium text-amber-900">Governança de pagamentos</p>
-            <p className="text-amber-800/80 mt-0.5">
+            <p className="font-medium text-warning">Governança de pagamentos</p>
+            <p className="text-warning/80 mt-0.5">
               Pagamentos que disparam aprovação nascem em <strong>PENDENTE APROVAÇÃO</strong>{" "}
               e ficam invisíveis pro fluxo de pagamento até serem aprovados por
               Master, Adm ou usuário com permissão explícita.
@@ -159,8 +160,8 @@ export function GovernanceSettingsTab() {
         </p>
       </div>
 
-      <div className="rounded-md border border-[#1E90FF]/30 bg-[#1E90FF]/5 p-3 space-y-3">
-        <p className="text-xs font-medium text-[#1E90FF]">
+      <div className="rounded-md border border-info/30 bg-info/5 p-3 space-y-3">
+        <p className="text-xs font-medium text-info">
           Segurança de Acesso (ÓRBITA Payment Gate)
         </p>
 
@@ -213,7 +214,7 @@ export function GovernanceSettingsTab() {
           disabled={updateMut.isPending}
           className="w-full"
         >
-          {updateMut.isPending && <Loader2 className="size-4 animate-spin mr-2" />}
+          {updateMut.isPending && <OrbitaSpinner className="size-4 mr-2" />}
           Salvar governança
         </Button>
       )}

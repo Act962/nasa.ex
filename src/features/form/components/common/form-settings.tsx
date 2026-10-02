@@ -1,5 +1,6 @@
 "use client";
 
+import { defaultBackgroundColor } from "@/features/form/constants";
 import { useRef, useState } from "react";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -48,6 +49,7 @@ import { useQueryFormById } from "@/features/form/hooks/use-form";
 import { GenerateActionsSection } from "./generate-actions-section";
 import { VariablePicker } from "@/features/tracking-executions/components/send-message/variable-picker";
 import { useVariableAutocomplete } from "@/features/tracking-executions/components/send-message/use-variable-autocomplete";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 export function FormSettings() {
   const { formData, updateSettings } = useBuilderStore();
@@ -285,7 +287,7 @@ export function FormSettings() {
             return (
               <label
                 key={option.value}
-                className={`flex items-start gap-2.5 rounded-md border p-2.5 ${
+                className={`flex items-start gap-2.5 rounded-[18px] border p-2.5 ${
                   canEditPolicy
                     ? "cursor-pointer hover:bg-accent/40"
                     : "opacity-60 cursor-not-allowed"
@@ -340,7 +342,7 @@ export function FormSettings() {
                 onChange={(e) =>
                   updateSettings({ primaryColor: e.target.value })
                 }
-                className="w-8 h-8 rounded cursor-pointer border-0"
+                className="size-9 shrink-0 cursor-pointer rounded-full border-0"
               />
               <Input
                 value={settings.primaryColor}
@@ -373,7 +375,7 @@ export function FormSettings() {
                 checked={!!settings.backgroundColor}
                 onCheckedChange={(enabled) =>
                   updateSettings({
-                    backgroundColor: enabled ? "#f0ebf8" : "",
+                    backgroundColor: enabled ? defaultBackgroundColor : "",
                   })
                 }
                 aria-label="Ativar/desativar cor de fundo"
@@ -387,7 +389,7 @@ export function FormSettings() {
                   onChange={(e) =>
                     updateSettings({ backgroundColor: e.target.value })
                   }
-                  className="w-8 h-8 rounded cursor-pointer border-0"
+                  className="size-9 shrink-0 cursor-pointer rounded-full border-0"
                 />
                 <Input
                   value={settings.backgroundColor}
@@ -463,7 +465,7 @@ export function FormSettings() {
                               stepMode: "auto",
                             } as Record<string, unknown>)
                           }
-                          className={`text-xs px-3 py-2 rounded border ${
+                          className={`text-xs px-3.5 py-2 rounded-full border ${
                             stepMode === "auto"
                               ? "border-primary bg-primary/10 text-foreground"
                               : "border-border hover:bg-accent"
@@ -478,7 +480,7 @@ export function FormSettings() {
                               stepMode: "manual",
                             } as Record<string, unknown>)
                           }
-                          className={`text-xs px-3 py-2 rounded border ${
+                          className={`text-xs px-3.5 py-2 rounded-full border ${
                             stepMode === "manual"
                               ? "border-primary bg-primary/10 text-foreground"
                               : "border-border hover:bg-accent"
@@ -609,7 +611,7 @@ export function FormSettings() {
           {whatsappChats.map((entry, idx) => (
             <div
               key={entry.chatId}
-              className="flex items-center gap-2 rounded border px-3 py-2"
+              className="flex items-center gap-2 rounded-full border py-1 pr-1 pl-4"
             >
               <span className="text-sm flex-1 truncate">{entry.chatName}</span>
               <Button
@@ -757,9 +759,9 @@ function MascotRow({
       : `${mascot.min}–${mascot.max}%`;
 
   return (
-    <div className="flex items-center gap-2 px-2 py-1.5 rounded border bg-foreground/2">
+    <div className="flex items-center gap-2 rounded-full border bg-foreground/2 py-1.5 pr-1.5 pl-1.5">
       {/* Preview */}
-      <div className="size-8 shrink-0 rounded border bg-background flex items-center justify-center overflow-hidden">
+      <div className="size-9 shrink-0 rounded-full border bg-background flex items-center justify-center overflow-hidden">
         {mascot.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -773,7 +775,7 @@ function MascotRow({
       </div>
 
       {/* Range badge */}
-      <span className="text-[10px] font-mono px-1 py-0.5 rounded bg-foreground/10 shrink-0 tabular-nums">
+      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-foreground/10 shrink-0 tabular-nums">
         {range}
       </span>
 
@@ -866,11 +868,11 @@ function MiniImageUploadButton({
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={uploading}
-        className="size-7 flex items-center justify-center rounded border bg-background hover:bg-accent transition-colors disabled:opacity-50"
+        className="size-8 flex items-center justify-center rounded-full border bg-background hover:bg-accent transition-colors disabled:opacity-50"
         title={currentUrl ? "Trocar imagem" : "Enviar imagem"}
       >
         {uploading ? (
-          <span className="size-3 rounded-full border-2 border-foreground/30 border-t-foreground animate-spin" />
+          <OrbitaSpinner className="size-3" />
         ) : (
           <UploadIcon className="size-3.5" />
         )}
@@ -879,7 +881,7 @@ function MiniImageUploadButton({
         <button
           type="button"
           onClick={onClear}
-          className="size-7 flex items-center justify-center rounded border bg-background hover:bg-destructive hover:text-destructive-foreground transition-colors"
+          className="size-8 flex items-center justify-center rounded-full border bg-background hover:bg-destructive hover:text-destructive-foreground transition-colors"
           title="Remover imagem"
         >
           <XIcon className="size-3.5" />
@@ -977,7 +979,7 @@ function NextButtonActionSection({
             key={opt.type}
             type="button"
             onClick={() => commit({ type: opt.type })}
-            className={`text-xs px-3 py-2 rounded border text-left ${
+            className={`text-xs px-3.5 py-2 rounded-[14px] border text-left ${
               action.type === opt.type
                 ? "border-primary bg-primary/10 text-foreground"
                 : "border-border hover:bg-accent"
@@ -1157,7 +1159,7 @@ function NextButtonTagPicker({
         </DropdownMenuContent>
       </DropdownMenu>
       {!trackingId && (
-        <p className="text-[11px] text-amber-500 mt-1">
+        <p className="text-[11px] text-warning mt-1">
           Selecione um tracking acima pra ver as tags disponíveis.
         </p>
       )}

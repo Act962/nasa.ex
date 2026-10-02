@@ -133,7 +133,7 @@ export function TagItem(tag: TagItemProps) {
           {tag.name}
           {(tag.leadCount ?? 0) > 0 && (
             <span
-              className="inline-flex items-center justify-center size-4 rounded-full bg-blue-500 text-white text-[9px] font-bold leading-none gap-0.5"
+              className="inline-flex items-center justify-center size-4 rounded-full bg-info text-white text-[9px] font-bold leading-none gap-0.5"
               title={`${tag.leadCount} lead(s) vinculado(s)`}
             >
               <UsersIcon className="size-2" />
@@ -142,7 +142,7 @@ export function TagItem(tag: TagItemProps) {
           )}
           {automationCount > 0 && (
             <span
-              className="inline-flex items-center justify-center size-4 rounded-full bg-amber-500 text-white text-[9px] font-bold leading-none gap-0.5"
+              className="inline-flex items-center justify-center size-4 rounded-full bg-warning text-white text-[9px] font-bold leading-none gap-0.5"
               title={`${automationCount} automação${automationCount > 1 ? "ões" : ""} usa(m) essa tag`}
             >
               <ZapIcon className="size-2" />
@@ -234,7 +234,7 @@ export function TagItem(tag: TagItemProps) {
         </form>
         <Separator />
         <div className="px-2 py-1.5 flex items-center gap-2 text-[11px]">
-          <span className="inline-flex items-center gap-1 text-blue-600">
+          <span className="inline-flex items-center gap-1 text-info">
             <UsersIcon className="size-3" />
             <b>{tag.leadCount ?? 0}</b> lead(s)
           </span>
@@ -247,7 +247,7 @@ export function TagItem(tag: TagItemProps) {
             className={cn(
               "inline-flex items-center gap-1 transition-colors",
               automationCount > 0
-                ? "text-amber-600 hover:text-amber-700 cursor-pointer"
+                ? "text-warning hover:text-warning cursor-pointer"
                 : "text-muted-foreground",
             )}
             disabled={automationCount === 0}
@@ -291,8 +291,8 @@ export function TagItem(tag: TagItemProps) {
                     className={cn(
                       "rounded px-1 py-0.5 text-[9px]",
                       workflow.nodeType === "TAG"
-                        ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+                        ? "bg-info/10 text-info"
+                        : "bg-success/10 text-success",
                     )}
                   >
                     {workflow.nodeType === "TAG" ? "Ação" : "Gatilho"}
@@ -367,8 +367,8 @@ export function TagItem(tag: TagItemProps) {
                         className={cn(
                           "rounded px-1 py-0.5",
                           workflow.nodeType === "TAG"
-                            ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                            : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+                            ? "bg-info/10 text-info"
+                            : "bg-success/10 text-success",
                         )}
                       >
                         {workflow.nodeType === "TAG" ? "Ação" : "Gatilho"}

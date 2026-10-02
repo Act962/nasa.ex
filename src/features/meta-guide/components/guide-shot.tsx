@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { ImageOff, ZoomIn } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -41,7 +41,7 @@ function TargetArrow({ side }: { side: GuideArrowSide }) {
           <path
             d="M2 11h22M17 3l9 8-9 8"
             fill="none"
-            stroke="#ef4444"
+            stroke="var(--destructive)"
             strokeWidth="4.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -49,6 +49,43 @@ function TargetArrow({ side }: { side: GuideArrowSide }) {
         </svg>
       </span>
     </span>
+  );
+}
+
+const LENS_SIZE_PX = 168;
+const LENS_ZOOM = 2.6;
+/** A lupa fica acima do dedo para ele não cobrir o que está sendo ampliado. */
+const LENS_LIFT_PX = 110;
+
+interface LensState {
+  /** Posição do dedo/mouse dentro do print, em px. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Lupa redonda que segue o dedo sobre o print e mostra o trecho ampliado e nítido. */
+function MagnifierLens({ src, lens }: { src: string; lens: LensState }) {
+  // Dentro do print (a moldura corta o que passa da borda); perto do topo, desce e encosta no dedo.
+  const lensTop = Math.min(Math.max(lens.y - LENS_LIFT_PX - LENS_SIZE_PX / 2, 0), Math.max(0, lens.height - LENS_SIZE_PX));
+  const lensLeft = Math.min(Math.max(lens.x - LENS_SIZE_PX / 2, 0), Math.max(0, lens.width - LENS_SIZE_PX));
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute z-20 rounded-full border-4 border-white shadow-[0_8px_30px_rgba(0,0,0,0.35)] ring-1 ring-black/10"
+      style={{
+        width: LENS_SIZE_PX,
+        height: LENS_SIZE_PX,
+        left: lensLeft,
+        top: lensTop,
+        backgroundColor: "white",
+        backgroundImage: `url(${src})`,
+        backgroundRepeat: "no-repeat",
+        backgroundSize: `${lens.width * LENS_ZOOM}px ${lens.height * LENS_ZOOM}px`,
+        backgroundPosition: `${LENS_SIZE_PX / 2 - lens.x * LENS_ZOOM}px ${LENS_SIZE_PX / 2 - lens.y * LENS_ZOOM}px`,
+      }}
+    />
   );
 }
 
@@ -62,26 +99,70 @@ function ShotWithTarget({
   step,
   imageBasePath,
   isFitted = false,
+  isMagnifierEnabled = false,
+  onMagnifierUsed,
   onMissing,
 }: {
   step: MetaGuideStep;
   imageBasePath: string;
   /** Cabe inteiro na caixa do pai (altura fixa), sem distorcer: a seta continua no alvo. */
   isFitted?: boolean;
+  /** Arrastar o dedo (ou o mouse pressionado) mostra a lupa. */
+  isMagnifierEnabled?: boolean;
+  onMagnifierUsed?: () => void;
   onMissing: () => void;
 }) {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [lens, setLens] = useState<LensState | null>(null);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  function updateLens(event: ReactPointerEvent<HTMLDivElement>) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = Math.min(Math.max(event.clientX - bounds.left, 0), bounds.width);
+    const y = Math.min(Math.max(event.clientY - bounds.top, 0), bounds.height);
+    setLens({ x, y, width: bounds.width, height: bounds.height });
+    const start = pointerStartRef.current;
+    // Só conta como "usou a lupa" quando arrastou: um toque parado continua abrindo o print em tela cheia.
+    if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8) onMagnifierUsed?.();
+  }
+
+  function stopLens() {
+    pointerStartRef.current = null;
+    setLens(null);
+  }
+
   const src = guideImageSrc(step, imageBasePath);
   if (!src || !step.shot) return null;
   const target = guideTargetPercent(step.shot);
   const ratio = shotRatio(step.shot);
   return (
     <div
-      className="relative shrink-0"
+      className={cn("relative shrink-0", isMagnifierEnabled && "touch-none select-none")}
       style={{
         aspectRatio: `${ratio}`,
         width: isFitted ? `min(100cqw, ${ratio} * 100cqh)` : "100%",
       }}
+      onPointerDown={
+        isMagnifierEnabled
+          ? (event) => {
+              if (event.pointerType === "mouse") return;
+              pointerStartRef.current = { x: event.clientX, y: event.clientY };
+              event.currentTarget.setPointerCapture(event.pointerId);
+              updateLens(event);
+            }
+          : undefined
+      }
+      onPointerMove={
+        isMagnifierEnabled
+          ? (event) => {
+              // Mouse: a lupa segue o cursor; toque: só enquanto o dedo está na tela.
+              if (event.pointerType === "mouse" || pointerStartRef.current) updateLens(event);
+            }
+          : undefined
+      }
+      onPointerUp={isMagnifierEnabled ? (event) => event.pointerType !== "mouse" && stopLens() : undefined}
+      onPointerLeave={isMagnifierEnabled ? stopLens : undefined}
+      onPointerCancel={isMagnifierEnabled ? stopLens : undefined}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -96,7 +177,7 @@ function ShotWithTarget({
       />
       {isLoaded && (
         <span
-          className="pointer-events-none absolute rounded-md ring-[3px] ring-red-500"
+          className="pointer-events-none absolute rounded-md ring-[3px] ring-destructive"
           style={{
             left: `${target.left}%`,
             top: `${target.top}%`,
@@ -104,10 +185,11 @@ function ShotWithTarget({
             height: `${target.height}%`,
           }}
         >
-          <span className="absolute inset-0 animate-ping rounded-md bg-red-500/30" />
+          <span className="absolute inset-0 animate-ping rounded-md bg-destructive/30" />
           <TargetArrow side={step.shot.arrow} />
         </span>
       )}
+      {isLoaded && lens && <MagnifierLens src={src} lens={lens} />}
     </div>
   );
 }
@@ -128,6 +210,7 @@ export function GuideShot({
 }) {
   const [isMissing, setIsMissing] = useState(!step.shot);
   const [isZoomed, setIsZoomed] = useState(false);
+  const wasMagnifierUsedRef = useRef(false);
 
   if (isMissing) {
     return (
@@ -148,17 +231,33 @@ export function GuideShot({
     <>
       <button
         type="button"
-        onClick={() => setIsZoomed(true)}
+        onClick={() => {
+          if (wasMagnifierUsedRef.current) {
+            wasMagnifierUsedRef.current = false;
+            return;
+          }
+          setIsZoomed(true);
+        }}
         className={cn(
-          "group guide-shot-frame relative w-full cursor-pointer overflow-hidden rounded-lg border text-left transition-colors hover:border-sky-500 focus-visible:border-sky-500 focus-visible:outline-none",
+          "group guide-shot-frame relative w-full cursor-pointer overflow-hidden rounded-lg border text-left transition-colors hover:border-info focus-visible:border-info focus-visible:outline-none",
           isFitted ? "flex items-center justify-center bg-muted/20" : "block bg-white",
           className,
         )}
         style={isFitted ? { containerType: "size" } : undefined}
       >
-        <ShotWithTarget step={step} imageBasePath={imageBasePath} isFitted={isFitted} onMissing={() => setIsMissing(true)} />
-        <span className="absolute right-2 bottom-2 flex items-center gap-1 rounded-md bg-black/60 px-2 py-1 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100">
-          <ZoomIn className="size-3.5" /> Ampliar
+        <ShotWithTarget
+          step={step}
+          imageBasePath={imageBasePath}
+          isFitted={isFitted}
+          isMagnifierEnabled
+          onMagnifierUsed={() => {
+            wasMagnifierUsedRef.current = true;
+          }}
+          onMissing={() => setIsMissing(true)}
+        />
+        <span className="pointer-events-none absolute right-2 bottom-2 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] text-white">
+          <ZoomIn className="size-3.5" /> <span className="md:hidden">Arraste o dedo para ampliar</span>
+          <span className="max-md:hidden">Passe o mouse para ampliar</span>
         </span>
       </button>
       <Dialog open={isZoomed} onOpenChange={setIsZoomed}>

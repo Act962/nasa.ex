@@ -43,17 +43,17 @@ export function FormFillProgressBar({
       className={cn(
         "sticky top-0 z-20 w-full rounded-md border px-3 py-2 backdrop-blur-md",
         isComplete
-          ? "border-emerald-500/40 bg-emerald-500/10"
-          : "border-amber-500/40 bg-amber-500/10",
+          ? "border-success/40 bg-success/10"
+          : "border-warning/40 bg-warning/10",
       )}
       style={{ color: textColor || undefined }}
     >
       <div className="flex items-center justify-between gap-3 mb-1.5">
         <div className="flex items-center gap-2 min-w-0">
           {isComplete ? (
-            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
           ) : (
-            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-warning shrink-0" />
           )}
           <span className="text-xs font-medium">
             {isComplete
@@ -91,7 +91,7 @@ export function FormFillProgressBar({
                       onClick={() => onFocusBlock?.(m.blockId)}
                       className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors"
                     >
-                      <AlertCircle className="w-4 h-4 mt-0.5 text-red-500 shrink-0" />
+                      <AlertCircle className="w-4 h-4 mt-0.5 text-destructive shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium truncate">
                           {m.label}

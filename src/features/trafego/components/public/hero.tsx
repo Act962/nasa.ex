@@ -53,7 +53,7 @@ export function Hero({ onStart }: { onStart: () => void }) {
       <div>
         <h1 className="text-3xl font-bold leading-[1.1] tracking-tight text-white sm:text-4xl md:text-[2.75rem]">
           Chega de pagar mensalidade em{" "}
-          <span className="text-violet-400">tráfego pago.</span>
+          <span className="text-info">tráfego pago.</span>
         </h1>
 
         <ol className="mt-7 space-y-3">
@@ -65,7 +65,7 @@ export function Hero({ onStart }: { onStart: () => void }) {
                   className={cn(
                     "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all duration-500",
                     isActive
-                      ? "scale-110 bg-violet-500 text-white"
+                      ? "scale-110 bg-info text-background"
                       : "bg-white/[0.07] text-white/45",
                   )}
                 >
@@ -88,7 +88,7 @@ export function Hero({ onStart }: { onStart: () => void }) {
           type="button"
           onClick={onStart}
           data-guide={GUIDE_ANCHORS.trafegoStartButton.id}
-          className="mt-8 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-900/40 transition hover:bg-violet-500"
+          className="mt-8 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg transition hover:bg-primary/90"
         >
           Montar minha campanha
           <ArrowRight className="size-4" />

@@ -377,7 +377,7 @@ function SortableModuleRow({
         {...attributes}
         {...listeners}
         aria-label={`Arrastar ${label}`}
-        className="flex size-6 items-center justify-center rounded text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted cursor-grab active:cursor-grabbing shrink-0"
+        className="flex size-6 items-center justify-center rounded-full text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted cursor-grab active:cursor-grabbing shrink-0"
       >
         <GripVertical className="size-4" />
       </button>

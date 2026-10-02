@@ -67,10 +67,10 @@ export function computeSlaState(
 }
 
 export function slaBadgeColor(consumedPct: number | null, isBreached: boolean): string {
-  if (isBreached) return "bg-red-500/15 text-red-700 border-red-500/30";
+  if (isBreached) return "bg-destructive/15 text-destructive border-destructive/30";
   if (consumedPct === null) return "bg-muted text-muted-foreground";
-  if (consumedPct >= 70) return "bg-yellow-500/15 text-yellow-700 border-yellow-500/30";
-  return "bg-emerald-500/15 text-emerald-700 border-emerald-500/30";
+  if (consumedPct >= 70) return "bg-warning/15 text-warning border-warning/30";
+  return "bg-success/15 text-success border-success/30";
 }
 
 export function formatRemaining(remainingMs: number | null): string {

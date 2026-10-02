@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { SettingsStickySave } from "../settings-sticky-save";
 import {
   Field,
   FieldError,
@@ -193,11 +194,11 @@ export function CompanyDetailsTab({
         </FieldGroup>
 
         {canEdit && (
-          <Field className="w-fit self-end">
+          <SettingsStickySave>
             <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending ? "Salvando…" : "Salvar"}
             </Button>
-          </Field>
+          </SettingsStickySave>
         )}
       </FieldSet>
     </form>

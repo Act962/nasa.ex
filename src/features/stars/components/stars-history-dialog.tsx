@@ -43,7 +43,7 @@ export function StarsHistoryDialog({ open, onOpenChange }: Props) {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Star className="size-4 text-yellow-500" />
+            <Star className="size-4 text-warning" />
             Histórico de consumo
           </DialogTitle>
           <DialogDescription>
@@ -80,7 +80,7 @@ export function StarsHistoryDialog({ open, onOpenChange }: Props) {
                   )}
                 </div>
                 <div className="text-right shrink-0 ml-3">
-                  <p className="text-xs font-bold text-red-500 tabular-nums">
+                  <p className="text-xs font-bold text-destructive tabular-nums">
                     {tx.amount.toLocaleString("pt-BR")} ⭐
                   </p>
                   <p className="text-[10px] text-muted-foreground">

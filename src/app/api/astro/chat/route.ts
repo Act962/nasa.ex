@@ -15,7 +15,15 @@ import type { AgentKey } from "@/features/astro/schemas/agent-config";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { meter, recordUsageEvent } from "@/features/stars/lib/metering";
 import { reportAiQuotaExhausted } from "@/features/alerts/lib/ai-token-alerts";
+import { resolvePreferredModelOverride } from "@/features/astro/lib/resolve-preferred-model";
+import { computeChosenModelStars } from "@/features/ai-credits/lib/model-pricing-settings";
 import { generateAutoTitle } from "@/features/astro/lib/auto-title";
+import {
+  ORBITA_PLATFORM_MODEL,
+  resolveAstroAiMode,
+  type AstroAiMode,
+} from "@/features/astro/lib/resolve-astro-ai-mode";
+import type { AstroChooseAiPayload } from "@/features/astro/lib/astro-choose-ai";
 import {
   runAstroQuery,
   type AstroQueryResult,
@@ -97,13 +105,59 @@ function describeStreamError(streamError: unknown): string {
  */
 const ASTRO_INTENT_ROUTING = process.env.ASTRO_INTENT_ROUTING !== "false";
 
+/** Conversa em andamento: respostas de atalho também gravam a sessão, senão o Histórico reabre vazio. */
+interface ChatTurn {
+  sessionId: string;
+  originalMessages: UIMessage[];
+}
+
+function extractFirstUserText(messages: UIMessage[]): string {
+  const firstUserMessage = messages.find((message) => message.role === "user");
+  if (!firstUserMessage) return "";
+  return firstUserMessage.parts
+    .filter((part): part is { type: "text"; text: string } => part.type === "text")
+    .map((part) => part.text)
+    .join(" ");
+}
+
+async function persistSessionMessages(sessionId: string, finalMessages: UIMessage[]) {
+  // Só define o título se a sessão ainda não tem um — o usuário pode renomear
+  // (via /astro/sessions/update-title) sem ser sobrescrito a cada mensagem.
+  const current = await prisma.aiSession.findUnique({
+    where: { id: sessionId },
+    select: { title: true },
+  });
+  const shouldSetTitle = !current?.title || current.title === "Conversa com ASTRO";
+  await prisma.aiSession.update({
+    where: { id: sessionId },
+    data: {
+      messages: finalMessages as unknown as object,
+      ...(shouldSetTitle ? { title: generateAutoTitle(extractFirstUserText(finalMessages)) } : {}),
+    },
+  });
+}
+
+function persistTurnOnFinish(turn: ChatTurn) {
+  return {
+    originalMessages: turn.originalMessages,
+    onFinish: async ({ messages }: { messages: UIMessage[] }) => {
+      try {
+        await persistSessionMessages(turn.sessionId, messages);
+      } catch (persistError) {
+        console.warn("[ASTRO/chat] falha ao salvar resposta de atalho:", persistError);
+      }
+    },
+  };
+}
+
 /**
  * Resposta de consulta em código, no mesmo formato de stream que o cliente já
  * renderiza — tabela vira cartão, texto vira mensagem.
  */
-function buildQueryResponse(result: AstroQueryResult): Response {
+function buildQueryResponse(turn: ChatTurn, result: AstroQueryResult): Response {
   const toolCallId = `astro-query-${Date.now()}`;
   const stream = createUIMessageStream({
+    ...persistTurnOnFinish(turn),
     execute: async ({ writer }) => {
       if (result.table) {
         writer.write({
@@ -129,6 +183,7 @@ function buildQueryResponse(result: AstroQueryResult): Response {
 
 /** Resposta do clique no cartão: mesma forma de stream das tools (spec 0032, RF-10). */
 function buildCardResponse(
+  turn: ChatTurn,
   toolName: string,
   output: unknown,
   text: string,
@@ -136,6 +191,7 @@ function buildCardResponse(
 ): Response {
   const toolCallId = `astro-card-${Date.now()}`;
   const stream = createUIMessageStream({
+    ...persistTurnOnFinish(turn),
     execute: async ({ writer }) => {
       writer.write({ type: "tool-input-available", toolCallId, toolName, input: {} });
       writer.write({ type: "tool-output-available", toolCallId, output });
@@ -222,6 +278,8 @@ export async function POST(req: Request) {
     );
   }
 
+  const chatTurn: ChatTurn = { sessionId, originalMessages: uiMessages };
+
   // Org do trafeGO: o cliente contratou tráfego, não a plataforma — ele não
   // tem Stars e não deveria precisar ter. A taxa de serviço já cobre o Astro
   // dele, que só enxerga as tools do próprio pedido.
@@ -268,14 +326,14 @@ export async function POST(req: Request) {
       const outcome = await cancelPendingAction({ ctx: cardCtx, proposalId: pendingId });
       const text = "error" in outcome ? outcome.error : outcome.summary;
       console.log("[ASTRO/chat] cartão cancelado em código");
-      return buildCardResponse("cancel_action", { summary: text }, text);
+      return buildCardResponse(chatTurn, "cancel_action", { summary: text }, text);
     }
 
     const outcome = await confirmPendingAction({ ctx: cardCtx, proposalId: pendingId });
     console.log(`[ASTRO/chat] cartão confirmado em código (ok=${outcome.ok})`);
     return outcome.ok
-      ? buildCardResponse("confirm_action", outcome.payload, outcome.payload.summary, outcome.payload.followUp)
-      : buildCardResponse("confirm_action", { error: outcome.error }, outcome.error);
+      ? buildCardResponse(chatTurn, "confirm_action", outcome.payload, outcome.payload.summary, outcome.payload.followUp)
+      : buildCardResponse(chatTurn, "confirm_action", { error: outcome.error }, outcome.error);
   }
 
   // "cancelar" / "sim" digitados com um cartão aberto (e sem pergunta do
@@ -290,12 +348,12 @@ export async function POST(req: Request) {
     } as never;
     const typed = await decideLatestCardByText({ ctx: typedCtx, text: cardReplyText });
     if (typed && "cancelledSummary" in typed) {
-      return buildCardResponse("cancel_action", { summary: typed.cancelledSummary }, typed.cancelledSummary);
+      return buildCardResponse(chatTurn, "cancel_action", { summary: typed.cancelledSummary }, typed.cancelledSummary);
     }
     if (typed) {
       return typed.ok
-        ? buildCardResponse("confirm_action", typed.payload, typed.payload.summary, typed.payload.followUp)
-        : buildCardResponse("confirm_action", { error: typed.error }, typed.error);
+        ? buildCardResponse(chatTurn, "confirm_action", typed.payload, typed.payload.summary, typed.payload.followUp)
+        : buildCardResponse(chatTurn, "confirm_action", { error: typed.error }, typed.error);
     }
   }
 
@@ -324,6 +382,7 @@ export async function POST(req: Request) {
         metadata: { guide: requestedGuide.key },
       });
       return buildCardResponse(
+        chatTurn,
         "start_guide",
         toAstroGuidePayload(requestedGuide),
         `Te mostro na sua tela, passo a passo. Clique em "Me mostre na tela".`,
@@ -345,26 +404,45 @@ export async function POST(req: Request) {
     );
   }
 
+  // Spec 0053: sem IA escolhida, o pedido que precisaria do LLM recebe o cartão
+  // de escolha. A taxa fixa só sai quando algum caminho de fato responde (D-3).
+  const astroAiMode: AstroAiMode | null = isTrafegoScope
+    ? "PLATFORM"
+    : await resolveAstroAiMode(organizationId);
+
   // Custo zero ou regra ausente = não cobra fixo. Saldo insuficiente = 402.
-  try {
-    const charge = isTrafegoScope
-      ? { skipped: true as const, success: true as const }
-      : await chargeStarsByAction(organizationId, "astro_prompt", {
-          userId,
-          description: "Astro IA — prompt (stake)",
-          appSlug: "astro",
-        });
-    if (!charge.skipped && !charge.success) {
-      return NextResponse.json(
-        {
-          error:
-            "Saldo de Stars insuficiente pra usar o Astro. Recarregue ou ajuste o plano.",
-        },
-        { status: 402 },
-      );
+  const chargeAstroStake = async (): Promise<Response | null> => {
+    try {
+      const charge = isTrafegoScope
+        ? { skipped: true as const, success: true as const }
+        : await chargeStarsByAction(organizationId, "astro_prompt", {
+            userId,
+            description: "Astro IA — prompt (stake)",
+            appSlug: "astro",
+          });
+      if (!charge.skipped && !charge.success) {
+        return NextResponse.json(
+          {
+            error:
+              "Saldo de Stars insuficiente pra usar o Astro. Recarregue ou ajuste o plano.",
+          },
+          { status: 402 },
+        );
+      }
+    } catch (e) {
+      console.error("[ASTRO/chat] charge failed (continuing)", e);
     }
-  } catch (e) {
-    console.error("[ASTRO/chat] charge failed (continuing)", e);
+    return null;
+  };
+  let isStakePending = astroAiMode === null;
+  const chargePendingStake = async (): Promise<Response | null> => {
+    if (!isStakePending) return null;
+    isStakePending = false;
+    return chargeAstroStake();
+  };
+  if (!isStakePending) {
+    const stakeRefusal = await chargeAstroStake();
+    if (stakeRefusal) return stakeRefusal;
   }
 
   // ── Roteamento por intenção (spec 0023, RF-3/RF-4) ──────────────────────
@@ -407,7 +485,9 @@ export async function POST(req: Request) {
           latencyMs: Date.now() - routingStartedAt,
           metadata: { query: queried.key },
         });
-        return buildQueryResponse(queried.result);
+        const stakeRefusal = await chargePendingStake();
+        if (stakeRefusal) return stakeRefusal;
+        return buildQueryResponse(chatTurn, queried.result);
       }
 
       const conversationHistory = extractConversationHistory(uiMessages);
@@ -431,7 +511,24 @@ export async function POST(req: Request) {
         );
         // RNF-4: o caminho barato também entra no registro de custo, senão a
         // economia fica invisível no relatório.
-        if (classified.tokensUsed > 0) {
+        const stakeRefusal = await chargePendingStake();
+        if (stakeRefusal) return stakeRefusal;
+        if (classified.tokensUsed > 0 && astroAiMode === "OWN") {
+          void recordUsageEvent({
+            organizationId,
+            userId,
+            kind: "LLM",
+            action: "astro_tokens",
+            appSlug: "astro",
+            feature: "astro.classifier",
+            usingCustomKey: true,
+            tokens: { totalTokens: classified.tokensUsed },
+            starsCharged: 0,
+            sessionId,
+            latencyMs: Date.now() - routingStartedAt,
+            metadata: { route: classified.route, action: classified.actionKey },
+          });
+        } else if (classified.tokensUsed > 0) {
           void meter({
             organizationId,
             action: "astro_tokens",
@@ -458,11 +555,28 @@ export async function POST(req: Request) {
     }
   }
 
+  // Spec 0053 (RF-2): pedido aberto sem IA escolhida pede a escolha, sem cobrar nada.
+  if (astroAiMode === null) {
+    return buildCardResponse(
+      chatTurn,
+      "choose_ai",
+      {
+        kind: "astro_choose_ai",
+        platformModelLabel: "GPT-4o mini",
+        retryText: extractLastUserText(uiMessages),
+      } satisfies AstroChooseAiPayload,
+      "Você precisa integrar sua IA ou escolher nosso modelo para deixar o Astro mais inteligente.",
+    );
+  }
+
   // Anexos declarados na última mensagem do usuário (spec 0014, D-3). O
   // arquivo já subiu pela rota REST; aqui só confirmamos que ele é desta
   // organização antes de deixar o modelo enxergar o id.
   const attachments = await resolveMessageAttachments(uiMessages, organizationId);
 
+  const preferredModelOverride = isTrafegoScope
+    ? null
+    : await resolvePreferredModelOverride(organizationId, parsed.preferredModelId);
   let resolvedModel: { provider: string; modelId: string; usingCustomKey: boolean } | null = null;
   let result;
   const startedAt = Date.now();
@@ -479,6 +593,14 @@ export async function POST(req: Request) {
       },
       uiMessages,
       toolScope: isTrafegoScope ? "trafego" : undefined,
+      modelOverride:
+        preferredModelOverride ??
+        // Modelo ÓRBITA só força a OpenAI quando ela é a principal; com outra IA principal, vale a ordem do usuário.
+        (astroAiMode === "PLATFORM" && !isTrafegoScope && (!parsed.providerOrder?.length || parsed.providerOrder[0] === "openai")
+          ? ORBITA_PLATFORM_MODEL
+          : undefined),
+      providerOrder: isTrafegoScope ? undefined : parsed.providerOrder,
+      disabledModelIds: isTrafegoScope ? undefined : parsed.disabledModelIds,
       onModelResolved: (info) => {
         resolvedModel = info;
       },
@@ -495,8 +617,12 @@ export async function POST(req: Request) {
   //  1) anexar como metadata da última UIMessage (cliente exibe "245 tokens")
   //  2) cobrar Stars proporcional no onFinish (silencioso)
   let capturedTokens = 0;
+  let capturedTokenSplit: { inputTokens?: number; outputTokens?: number; cachedTokens?: number } = {};
 
   return result.toUIMessageStreamResponse({
+    // Sem o histórico de entrada, o onFinish recebe só a resposta nova e a sessão
+    // salva perde as perguntas — o Histórico reabria conversas quase vazias.
+    originalMessages: uiMessages,
     onError: (streamError) => {
       console.error("[ASTRO/chat] stream error", streamError);
       void reportAiQuotaExhausted({
@@ -504,6 +630,7 @@ export async function POST(req: Request) {
         usingCustomKey: (resolvedModel as { usingCustomKey: boolean } | null)?.usingCustomKey ?? false,
         source: "astro.chat",
         error: streamError,
+        provider: (resolvedModel as { provider: string } | null)?.provider,
       });
       return describeStreamError(streamError);
     },
@@ -511,11 +638,18 @@ export async function POST(req: Request) {
     // Cliente lê em `message.metadata.tokens` e renderiza no rodapé.
     messageMetadata: ({ part }) => {
       if (part.type === "finish") {
-        const usage = (part as { totalUsage?: { totalTokens?: number } })
-          .totalUsage;
+        const usage = (part as {
+          totalUsage?: { totalTokens?: number; inputTokens?: number; outputTokens?: number; cachedInputTokens?: number };
+        }).totalUsage;
         const tokens = usage?.totalTokens ?? 0;
         if (tokens > 0) {
           capturedTokens = tokens;
+          // Entrada e saída separadas deixam o custo sair da tabela de preços, não de estimativa (spec 0055).
+          capturedTokenSplit = {
+            inputTokens: usage?.inputTokens,
+            outputTokens: usage?.outputTokens,
+            cachedTokens: usage?.cachedInputTokens,
+          };
           return { tokens };
         }
       }
@@ -531,12 +665,48 @@ export async function POST(req: Request) {
       // Convertida pra Stars via STARS_PER_1K_TOKENS. Não mostramos valor
       // pro user — só registramos a transação. Falha silenciosa: se debit
       // não passar, mantém o fluxo (já cobrou o stake no início).
-      if (capturedTokens > 0 && !isTrafegoScope) {
+      // Chave da própria org (RF-6): só a taxa fixa; os tokens ficam registrados a custo zero.
+      const isUsingCustomKey =
+        (resolvedModel as { usingCustomKey: boolean } | null)?.usingCustomKey ?? false;
+      if (capturedTokens > 0 && !isTrafegoScope && isUsingCustomKey) {
+        void recordUsageEvent({
+          organizationId,
+          userId,
+          kind: "LLM",
+          action: "astro_tokens",
+          appSlug: "astro",
+          feature: "astro.orchestrator",
+          provider: resolvedModel?.provider,
+          modelId: resolvedModel?.modelId,
+          usingCustomKey: true,
+          tokens: { totalTokens: capturedTokens, ...capturedTokenSplit },
+          starsCharged: 0,
+          sessionId,
+          latencyMs: Date.now() - startedAt,
+        });
+      } else if (capturedTokens > 0 && !isTrafegoScope) {
+        // Modelo escolhido pelo usuário na chave da plataforma: custo real do modelo + margem do admin (spec 0055, RF-12).
+        const isChosenPlatformModel =
+          preferredModelOverride?.isPlatformKey === true && resolvedModel?.modelId === preferredModelOverride.modelId;
+        const chosenModelCharge = isChosenPlatformModel
+          ? await computeChosenModelStars({
+              provider: resolvedModel?.provider,
+              modelId: resolvedModel?.modelId,
+              totalTokens: capturedTokens,
+              ...capturedTokenSplit,
+            }).catch((pricingError) => {
+              console.warn("[ASTRO/chat] preço do modelo escolhido falhou; cobrança padrão:", pricingError);
+              return null;
+            })
+          : null;
         try {
           await meter({
             organizationId,
             action: "astro_tokens",
             userId,
+            ...(chosenModelCharge
+              ? { computedStars: { stars: chosenModelCharge.stars, computedBy: `astro-model-markup-${chosenModelCharge.markupPercent}pct` } }
+              : {}),
             quantity: { unit: "token", amount: capturedTokens },
             appSlug: "astro",
             description: `Astro IA — ${capturedTokens.toLocaleString("pt-BR")} tokens`,
@@ -546,7 +716,7 @@ export async function POST(req: Request) {
               kind: "LLM",
               provider: resolvedModel?.provider,
               modelId: resolvedModel?.modelId,
-              tokens: { totalTokens: capturedTokens },
+              tokens: { totalTokens: capturedTokens, ...capturedTokenSplit },
               latencyMs: Date.now() - startedAt,
             },
           });
@@ -557,33 +727,7 @@ export async function POST(req: Request) {
         }
       }
 
-      const firstUserMsg = finalMessages.find((m) => m.role === "user");
-      const titleSrc =
-        firstUserMsg && Array.isArray((firstUserMsg as any).parts)
-          ? (firstUserMsg as any).parts
-              .filter((p: any) => p?.type === "text")
-              .map((p: any) => p.text)
-              .join(" ")
-          : "";
-      const autoTitle = generateAutoTitle(titleSrc);
-
-      // Só atualiza o título se a sessão ainda não tem um — assim o user
-      // pode renomear (via /astro/sessions/update-title) sem ser
-      // sobrescrito a cada nova mensagem.
-      const current = await prisma.aiSession.findUnique({
-        where: { id: sessionId },
-        select: { title: true },
-      });
-      const shouldSetTitle =
-        !current?.title || current.title === "Conversa com ASTRO";
-
-      await prisma.aiSession.update({
-        where: { id: sessionId },
-        data: {
-          messages: finalMessages as unknown as object,
-          ...(shouldSetTitle ? { title: autoTitle } : {}),
-        },
-      });
+      await persistSessionMessages(sessionId, finalMessages);
     },
   });
 }

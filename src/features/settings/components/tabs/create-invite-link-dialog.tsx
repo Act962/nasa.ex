@@ -19,6 +19,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  BOTTOM_SHEET_DIALOG_CLASS,
+  BOTTOM_SHEET_FOOTER_CLASS,
+} from "../../lib/dialog-classes";
 import { Copy, Check, LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
@@ -121,7 +125,7 @@ export function CreateInviteLinkDialog({
       open={open}
       onOpenChange={(o) => (o ? onOpenChange(true) : handleClose())}
     >
-      <DialogContent>
+      <DialogContent className={BOTTOM_SHEET_DIALOG_CLASS}>
         {!createdToken ? (
           <>
             <DialogHeader>
@@ -193,7 +197,7 @@ export function CreateInviteLinkDialog({
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className={BOTTOM_SHEET_FOOTER_CLASS}>
               <Button variant="ghost" onClick={handleClose}>
                 Cancelar
               </Button>
@@ -212,9 +216,15 @@ export function CreateInviteLinkDialog({
             </DialogHeader>
 
             <div className="py-2 space-y-3">
-              <div className="flex items-center gap-2 rounded-md border px-3 py-2 bg-muted/40">
+              <div className="flex items-center gap-2 rounded-full border border-line bg-muted/40 py-1 pr-1 pl-4">
                 <span className="text-xs truncate flex-1">{linkUrl}</span>
-                <Button size="sm" variant="ghost" onClick={handleCopy}>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Copiar link"
+                  className="size-9 rounded-full"
+                  onClick={handleCopy}
+                >
                   {copied ? (
                     <Check className="size-4" />
                   ) : (
@@ -224,7 +234,7 @@ export function CreateInviteLinkDialog({
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className={BOTTOM_SHEET_FOOTER_CLASS}>
               <Button onClick={handleClose}>Fechar</Button>
             </DialogFooter>
           </>

@@ -21,7 +21,7 @@ export function RotatingExample() {
     <div className="h-6 flex items-center justify-center overflow-hidden">
       <p
         className={cn(
-          "text-xs text-zinc-600 text-center transition-all duration-400 max-w-lg truncate px-4",
+          "text-xs text-muted-foreground text-center transition-all duration-400 max-w-lg truncate px-4",
           visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2",
         )}
       >

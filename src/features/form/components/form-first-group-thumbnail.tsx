@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { FormBlocks } from "@/features/form/lib/form-blocks";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import type { FormBlockInstance } from "../types";
+import { defaultBackgroundColor } from "../constants";
 
 /**
  * Miniatura real do primeiro grupo do form. Renderiza os blocos via
@@ -21,12 +22,29 @@ import type { FormBlockInstance } from "../types";
  */
 
 const VIRTUAL_WIDTH = 650; // mesma largura "natural" do PreviewDialog
-const ASPECT = 2 / 1;
+const DEFAULT_ASPECT = 2 / 1;
 
 export interface ThumbnailSettings {
   backgroundColor?: string | null;
   backgroundImage?: string | null;
   primaryColor?: string | null;
+}
+
+/** Primeira página do formulário (até a quebra de página), para a miniatura vertical. */
+function firstPage(jsonBlock: string): FormBlockInstance[] {
+  if (!jsonBlock) return [];
+  try {
+    const parsed = JSON.parse(jsonBlock) as FormBlockInstance[];
+    if (!Array.isArray(parsed)) return [];
+    const pageBlocks: FormBlockInstance[] = [];
+    for (const block of parsed) {
+      if (block?.blockType === "PageBreak") break;
+      pageBlocks.push(block);
+    }
+    return pageBlocks;
+  } catch {
+    return [];
+  }
 }
 
 function firstGroup(jsonBlock: string): FormBlockInstance[] {
@@ -53,19 +71,42 @@ export function FormFirstGroupThumbnail({
   settings,
   className,
   thumbWidthPx = 264, // largura aprox do card no carrossel (w-72 - paddings)
+  aspectRatio = DEFAULT_ASPECT,
+  scope = "first-group",
 }: {
   jsonBlock: string;
   settings?: ThumbnailSettings | null;
   className?: string;
   thumbWidthPx?: number;
+  /** Largura ÷ altura. 3/4 = vertical, como uma página. */
+  aspectRatio?: number;
+  /** "first-page" mostra o formulário inteiro até a primeira quebra de página. */
+  scope?: "first-group" | "first-page";
 }) {
-  const blocks = useMemo(() => firstGroup(jsonBlock), [jsonBlock]);
+  const blocks = useMemo(
+    () => (scope === "first-page" ? firstPage(jsonBlock) : firstGroup(jsonBlock)),
+    [jsonBlock, scope],
+  );
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [measuredWidthPx, setMeasuredWidthPx] = useState<number | null>(null);
+
+  // Escala pela largura real do card — a miniatura fica exata em qualquer tela.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setMeasuredWidthPx(entry.contentRect.width);
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
   // useConstructUrl resolve a key/URL do S3 — funciona tanto pra `https://…`
   // quanto pra keys cruas armazenadas no banco.
   const bgImage = useConstructUrl(settings?.backgroundImage ?? "");
 
-  const scale = thumbWidthPx / VIRTUAL_WIDTH;
-  const thumbHeight = thumbWidthPx / ASPECT;
+  const widthPx = measuredWidthPx || thumbWidthPx;
+  const scale = widthPx / VIRTUAL_WIDTH;
+  const thumbHeight = widthPx / aspectRatio;
   const virtualHeight = Math.ceil(thumbHeight / scale);
 
   // Mesma lógica do form público: settings.backgroundColor é a cor de fundo
@@ -80,13 +121,14 @@ export function FormFirstGroupThumbnail({
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         "relative w-full overflow-hidden rounded-lg border border-border",
         className,
       )}
       style={{
-        aspectRatio: `${ASPECT}`,
-        backgroundColor: settings?.backgroundColor || "var(--card)",
+        aspectRatio: `${aspectRatio}`,
+        backgroundColor: settings?.backgroundColor || defaultBackgroundColor,
         backgroundImage: bgImage ? `url(${bgImage})` : undefined,
         backgroundSize: "cover",
         backgroundPosition: "center",

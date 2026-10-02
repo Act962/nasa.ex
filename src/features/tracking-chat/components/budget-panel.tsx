@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import {
   DollarSignIcon,
   XIcon,
-  Loader2,
   PlusIcon,
   ListIcon,
   CheckCircleIcon,
@@ -17,6 +16,7 @@ import {
   PaperclipIcon,
   SparklesIcon,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useExtractBudget } from "../hooks/use-extract-budget";
 import {
   Dialog,
@@ -91,27 +91,27 @@ const STATUS_META: Record<
 > = {
   PENDING: {
     label: "Pendente",
-    className: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+    className: "bg-warning/10 text-warning border-warning/20",
     Icon: ClockIcon,
   },
   PARTIAL: {
     label: "Parcial",
-    className: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+    className: "bg-info/10 text-info border-info/20",
     Icon: ClockIcon,
   },
   PAID: {
     label: "Pago",
-    className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+    className: "bg-success/10 text-success border-success/20",
     Icon: CheckCircleIcon,
   },
   OVERDUE: {
     label: "Vencido",
-    className: "bg-red-500/10 text-red-600 border-red-500/20",
+    className: "bg-destructive/10 text-destructive border-destructive/20",
     Icon: AlertCircleIcon,
   },
   CANCELLED: {
     label: "Cancelado",
-    className: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20",
+    className: "bg-knob/10 text-muted-foreground border-line/20",
     Icon: XIcon,
   },
 };
@@ -480,7 +480,7 @@ export function BudgetPanel({
       >
         <DialogHeader className="flex flex-row items-center justify-between space-y-0 border-b px-5 py-3 text-left">
           <div className="flex items-center gap-2">
-            <DollarSignIcon className="size-4 text-emerald-500" />
+            <DollarSignIcon className="size-4 text-success" />
             <DialogTitle className="text-sm font-semibold">
               Orçamento — {leadName}
             </DialogTitle>
@@ -527,7 +527,7 @@ export function BudgetPanel({
           >
             <form onSubmit={handleSubmit} className="space-y-4 px-5 py-4">
               {isEditing && (
-                <div className="rounded-md bg-blue-500/10 px-3 py-2 text-xs text-blue-600 dark:text-blue-400">
+                <div className="rounded-md bg-info/10 px-3 py-2 text-xs text-info dark:text-info">
                   Editando orçamento existente. A mensagem no chat <strong>não</strong>{" "}
                   será reenviada.
                 </div>
@@ -581,7 +581,7 @@ export function BudgetPanel({
                         </p>
                       </div>
                       {(isUploading || isExtracting) && (
-                        <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
+                        <OrbitaSpinner className="size-4 shrink-0 text-muted-foreground" />
                       )}
                       {!isUploading && !isExtracting && (
                         <button
@@ -598,7 +598,7 @@ export function BudgetPanel({
                   {/* Banner de "preenchido pela IA" — some quando todos os
                       campos foram editados manualmente. */}
                   {(autoFilled.value || autoFilled.description) && (
-                    <div className="flex items-start gap-1.5 rounded-md bg-purple-500/10 px-2 py-1.5 text-[11px] text-purple-700 dark:text-purple-300">
+                    <div className="flex items-start gap-1.5 rounded-md bg-info/10 px-2 py-1.5 text-[11px] text-info dark:text-info">
                       <SparklesIcon className="mt-0.5 size-3 shrink-0" />
                       <span>
                         Campos preenchidos pela IA — confira e edite se
@@ -717,7 +717,7 @@ export function BudgetPanel({
                   disabled={isPending || cents <= 0 || !description.trim()}
                   className="gap-1.5"
                 >
-                  {isPending && <Loader2 className="size-4 animate-spin" />}
+                  {isPending && <OrbitaSpinner className="size-4 " />}
                   {isEditing ? (
                     "Salvar alterações"
                   ) : (
@@ -820,7 +820,7 @@ export function BudgetPanel({
                         </div>
 
                         {entry.paidAmount > 0 && !isPaid && (
-                          <p className="mt-1 text-[10px] text-blue-600 dark:text-blue-400">
+                          <p className="mt-1 text-[10px] text-info dark:text-info">
                             Já pago: {formatCurrency(entry.paidAmount)} · Restante:{" "}
                             <strong>{formatCurrency(remaining)}</strong>
                           </p>
@@ -856,7 +856,7 @@ export function BudgetPanel({
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-7 gap-1 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
+                                className="h-7 gap-1 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive"
                                 disabled={isPending}
                                 onClick={() => handleDelete(entry)}
                               >

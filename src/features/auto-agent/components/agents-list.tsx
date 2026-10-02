@@ -21,7 +21,7 @@ export function AgentsList({ trackingId }: { trackingId?: string }) {
     <div className="space-y-4">
       <header className="flex items-center justify-between gap-2">
         <div>
-          <div className="flex items-center gap-2 text-emerald-600 text-xs font-semibold uppercase tracking-wide">
+          <div className="flex items-center gap-2 text-success text-xs font-semibold uppercase tracking-wide">
             <SparklesIcon className="size-3.5" />
             ÓRBITA Auto Agent
           </div>

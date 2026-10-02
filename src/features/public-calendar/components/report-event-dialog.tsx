@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Flag, Loader2 } from "lucide-react";
+import { Flag } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   Dialog,
   DialogContent,
@@ -150,7 +151,7 @@ export function ReportEventDialog({
           </Button>
           <Button onClick={submit} disabled={mutation.isPending}>
             {mutation.isPending && (
-              <Loader2 className="size-3 animate-spin mr-1.5" />
+              <OrbitaSpinner className="size-3 mr-1.5" />
             )}
             Enviar denúncia
           </Button>

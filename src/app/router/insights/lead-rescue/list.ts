@@ -9,6 +9,7 @@ import {
   hoursUntilSlaBreach,
   type LeadRescueSnapshot,
 } from "@/lib/lead-journey/sla";
+import { resolveInsightsOrganizationIds } from "../resolve-insights-organizations";
 
 /**
  * Lista de leads que precisam de atenção, classificados em até 4 buckets:
@@ -46,10 +47,11 @@ export const listLeadRescue = base
     const now = new Date();
 
     // Quais orgs olhar
-    const orgIds =
-      input.organizationIds && input.organizationIds.length > 0
-        ? input.organizationIds
-        : [org.id];
+    const orgIds = await resolveInsightsOrganizationIds({
+      userId: context.user.id,
+      activeOrganizationId: org.id,
+      requestedOrganizationIds: input.organizationIds,
+    });
 
     const whereBase = {
       currentAction: "ACTIVE" as const,

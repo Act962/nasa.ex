@@ -12,7 +12,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { UserPlus2, X, Check, Users, Loader2, UserCheck } from "lucide-react";
+import { UserPlus2, X, Check, Users, UserCheck } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { client } from "@/lib/orpc";
 
 /* ─── Avatar canvas (idle-down frame Pipoya) ─────────────────────────────── */
@@ -333,7 +334,7 @@ export function ConnectPeoplePanel({ stationId, userId, userName, open, onClose 
                     className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium transition-colors"
                   >
                     {loadingAccept
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ? <OrbitaSpinner className="h-3.5 w-3.5 " />
                       : <Check className="h-3.5 w-3.5" />
                     }
                     Aceitar
@@ -431,7 +432,7 @@ export function ConnectPeoplePanel({ stationId, userId, userName, open, onClose 
                     ) : isPending ? (
                       /* ── Estado: Aguardando resposta ── */
                       <div className="flex-shrink-0 flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-400/30 text-xs font-medium cursor-wait">
-                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <OrbitaSpinner className="h-3 w-3 " />
                         <span>Aguardando</span>
                       </div>
                     ) : (
@@ -448,7 +449,7 @@ export function ConnectPeoplePanel({ stationId, userId, userName, open, onClose 
                         `}
                       >
                         {loadingId === p.userId
-                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                          ? <OrbitaSpinner className="h-3 w-3 " />
                           : <UserPlus2 className="h-3 w-3" />
                         }
                         <span>Conectar</span>

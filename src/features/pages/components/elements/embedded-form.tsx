@@ -31,7 +31,7 @@ export function EmbeddedForm({ element }: { element: ElementBase }) {
   if (!formId) {
     return (
       <div
-        className="w-full h-full min-h-64 flex items-center justify-center border-2 border-dashed border-zinc-300 rounded-xl text-sm text-muted-foreground p-6 text-center"
+        className="w-full h-full min-h-64 flex items-center justify-center border-2 border-dashed border-border rounded-xl text-sm text-muted-foreground p-6 text-center"
         style={{ background: bgColor }}
       >
         Configure um formulário no painel à direita

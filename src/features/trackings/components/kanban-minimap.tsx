@@ -82,7 +82,7 @@ function KanbanMinimapComponent({ scrollRef, columns }: KanbanMinimapProps) {
   return (
     <div
       className={cn(
-        "absolute bottom-3 left-3 z-30 h-9 rounded-md border border-border",
+        "absolute bottom-3 left-3 z-30 hidden h-9 rounded-md border border-border lg:block",
         "bg-background/80 p-1 shadow-sm backdrop-blur-sm",
         "select-none opacity-30 transition-opacity duration-200 hover:opacity-100",
       )}

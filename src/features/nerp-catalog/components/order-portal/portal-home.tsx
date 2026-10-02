@@ -47,7 +47,7 @@ export function PortalHome({
           <button
             type="button"
             onClick={onOpenOffers}
-            className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-primary to-blue-500 p-3.5 text-left text-white"
+            className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-chart-4 to-chart-2 p-3.5 text-left text-white"
           >
             <span className="text-xs leading-snug font-bold tracking-wide uppercase">
               Cada compra paga vale {starFriends.starsPerPurchase} ⭐

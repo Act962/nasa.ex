@@ -73,7 +73,7 @@ function Row({
       <dd
         className={
           highlight
-            ? "shrink-0 font-semibold tabular-nums text-emerald-300"
+            ? "shrink-0 font-semibold tabular-nums text-success"
             : "shrink-0 tabular-nums text-white"
         }
       >

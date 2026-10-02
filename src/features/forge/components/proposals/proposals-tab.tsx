@@ -31,25 +31,26 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ProposalForm } from "./proposal-form";
+import { ProposalThumbnail } from "./proposal-thumbnail";
 import { ContractForm } from "../contracts/contract-form";
 import { PatternsSection } from "@/features/admin/components/patterns-section";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  RASCUNHO:    { label: "Rascunho",    color: "bg-gray-100 text-gray-600 border-gray-200" },
-  ENVIADA:     { label: "Enviada",     color: "bg-blue-100 text-blue-600 border-blue-200" },
-  VISUALIZADA: { label: "Visualizada", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-  PAGA:        { label: "Paga",        color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  EXPIRADA:    { label: "Expirada",    color: "bg-red-100 text-red-600 border-red-200" },
-  CANCELADA:   { label: "Cancelada",   color: "bg-red-50 text-red-400 border-red-100" },
+  RASCUNHO:    { label: "Rascunho",    color: "bg-muted text-muted-foreground border-line" },
+  ENVIADA:     { label: "Enviada",     color: "bg-info/15 text-info border-info/30" },
+  VISUALIZADA: { label: "Visualizada", color: "bg-warning/15 text-warning border-warning/30" },
+  PAGA:        { label: "Paga",        color: "bg-success/15 text-success border-success/30" },
+  EXPIRADA:    { label: "Expirada",    color: "bg-destructive/15 text-destructive border-destructive/30" },
+  CANCELADA:   { label: "Cancelada",   color: "bg-destructive/10 text-destructive border-destructive/30" },
 };
 
 const STATUS_ACTIONS = [
-  { key: "ENVIADA",     label: "Enviada",     Icon: Send,         className: "text-blue-600" },
-  { key: "VISUALIZADA", label: "Visualizada", Icon: ScanEye,      className: "text-yellow-600" },
-  { key: "PAGA",        label: "Paga",        Icon: CheckCircle2, className: "text-emerald-600" },
-  { key: "EXPIRADA",    label: "Expirada",    Icon: Clock,        className: "text-red-500" },
-  { key: "CANCELADA",   label: "Cancelada",   Icon: XCircle,      className: "text-red-400" },
+  { key: "ENVIADA",     label: "Enviada",     Icon: Send,         className: "text-info" },
+  { key: "VISUALIZADA", label: "Visualizada", Icon: ScanEye,      className: "text-warning" },
+  { key: "PAGA",        label: "Paga",        Icon: CheckCircle2, className: "text-success" },
+  { key: "EXPIRADA",    label: "Expirada",    Icon: Clock,        className: "text-destructive" },
+  { key: "CANCELADA",   label: "Cancelada",   Icon: XCircle,      className: "text-destructive" },
 ] as const;
 
 function fmt(n: number) {
@@ -139,203 +140,169 @@ export function ProposalsTab() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-1.5">
-          {filters.map((f) => (
-            <button
-              key={f}
-              onClick={() => setStatusFilter(f)}
-              className={cn(
-                "px-3 py-1 rounded-full text-xs font-medium border transition-all",
-                statusFilter === f
-                  ? "bg-[#7C3AED] text-white border-[#7C3AED]"
-                  : "border-border text-muted-foreground hover:border-[#7C3AED]/50",
-              )}
-            >
-              {filterLabels[f]}
-            </button>
-          ))}
-        </div>
+      {/* Ações e filtros */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
         <Button
-          className="ml-auto bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-1.5 shrink-0"
+          className="h-11 w-full gap-1.5 rounded-full md:order-last md:ml-auto md:h-9 md:w-auto"
           onClick={() => { setEditingId(null); setFormOpen(true); }}
           data-guide={GUIDE_ANCHORS.forgeNewProposalButton.id}
         >
           <Plus className="size-4" />
-          Nova Proposta
+          Nova proposta
         </Button>
+        <div className="scroll-hidden-x -mx-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
+          {filters.map((filterKey) => (
+            <button
+              key={filterKey}
+              onClick={() => setStatusFilter(filterKey)}
+              className={cn(
+                "h-8 shrink-0 rounded-full border px-3.5 text-xs font-medium transition-colors",
+                statusFilter === filterKey
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-line bg-card text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {filterLabels[filterKey]}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Cards */}
+      {/* Miniaturas */}
       {isLoading ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-52 w-full rounded-xl" />)}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="aspect-[3/4] w-full rounded-[20px]" />
+          ))}
         </div>
       ) : !data?.proposals.length ? (
-        <div className="flex flex-col items-center py-16 gap-3 text-center">
-          <FileText className="size-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Nenhuma proposta encontrada.</p>
-          <Button variant="outline" onClick={() => { setEditingId(null); setFormOpen(true); }}>
-            <Plus className="size-4 mr-1.5" /> Criar proposta
-          </Button>
+        <div className="flex flex-col items-center gap-3 rounded-[22px] border border-dashed border-line py-14 text-center">
+          <span className="grid size-12 place-items-center rounded-full bg-muted">
+            <FileText className="size-5 text-muted-foreground" />
+          </span>
+          <p className="text-sm text-muted-foreground">Nenhuma proposta por aqui.</p>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.proposals.map((p) => {
-            const st = STATUS_CONFIG[p.status] ?? { label: p.status, color: "bg-gray-100 text-gray-600 border-gray-200" };
-            const total = calcTotal(p);
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-4">
+          {data.proposals.map((proposal) => {
+            const statusStyle = STATUS_CONFIG[proposal.status] ?? { label: proposal.status, color: "bg-muted text-muted-foreground border-line" };
+            const total = calcTotal(proposal);
+            const openPreview = () => {
+              if (!proposal.publicToken) {
+                toast.info("Re-salve a proposta para gerar o link público");
+                return;
+              }
+              window.open(`/proposta/${proposal.publicToken}`, "_blank");
+            };
             return (
-              <div
-                key={p.id}
-                className="border rounded-xl bg-card overflow-hidden hover:shadow-md transition-shadow flex flex-col"
+              <article
+                key={proposal.id}
+                className="group flex min-w-0 flex-col overflow-hidden rounded-[20px] border border-line bg-card transition-shadow hover:shadow-md"
               >
-                {/* color bar */}
-                <div className="h-1.5 bg-gradient-to-r from-[#7C3AED] to-[#a855f7]" />
-
-                <div className="p-4 space-y-3 flex-1 flex flex-col">
-                  {/* Title row */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-mono text-muted-foreground">
-                        PROPOSTA #{String(p.number).padStart(4, "0")}
-                      </p>
-                      <h3 className="font-bold text-sm leading-tight mt-0.5 line-clamp-2">{p.title}</h3>
-                    </div>
-                    <Badge className={cn("text-[10px] shrink-0 whitespace-nowrap", st.color)}>{st.label}</Badge>
-                  </div>
-
-                  {/* Meta */}
-                  <div className="space-y-1.5 flex-1">
-                    {p.client && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <User className="size-3 shrink-0" />
-                        <span className="truncate">Cliente: <strong>{p.client.name}</strong></span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <User className="size-3 shrink-0" />
-                      <span className="truncate">Responsável: {p.responsible.name}</span>
-                    </div>
-                    {p.validUntil && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Calendar className="size-3 shrink-0" />
-                        <span>Válida até {new Date(p.validUntil).toLocaleDateString("pt-BR")}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Footer */}
-                  <div className="border-t pt-3 flex items-center justify-between">
-                    <span className="font-bold text-[#7C3AED] text-base">{fmt(total)}</span>
-                    <div className="flex gap-1 items-center">
-                      {/* View */}
+                <div className="relative">
+                  <button type="button" onClick={openPreview} className="block w-full text-left" aria-label={`Abrir ${proposal.title}`}>
+                    <ProposalThumbnail
+                      publicToken={proposal.publicToken}
+                      title={proposal.title}
+                      versionKey={String(proposal.updatedAt)}
+                    />
+                  </button>
+                  <Badge className={cn("pointer-events-none absolute top-2 left-2 rounded-full text-[10px] shadow-sm", statusStyle.color)}>
+                    {statusStyle.label}
+                  </Badge>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <Button
-                        size="icon" variant="ghost" className="size-7"
-                        title={p.publicToken ? "Visualizar proposta pública" : "Re-salve a proposta para gerar link"}
-                        disabled={!p.publicToken}
-                        onClick={() => {
-                          if (!p.publicToken) {
-                            toast.info("Re-salve a proposta para gerar o link público");
-                            return;
-                          }
-                          window.open(`/proposta/${p.publicToken}`, "_blank");
-                        }}
+                        size="icon"
+                        variant="secondary"
+                        className="absolute top-2 right-2 size-8 rounded-full bg-card/90 shadow-sm backdrop-blur"
+                        aria-label="Mais ações"
                       >
-                        <Eye className="size-3.5" />
+                        <MoreHorizontal className="size-4" />
                       </Button>
-                      {/* Share */}
-                      <Button
-                        size="icon" variant="ghost" className="size-7"
-                        title={p.publicToken ? "Copiar link" : "Re-salve a proposta para gerar link"}
-                        disabled={!p.publicToken}
-                        onClick={() => handleShare(p.publicToken)}
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem className="gap-2 text-xs" disabled={!proposal.publicToken} onClick={openPreview}>
+                        <Eye className="size-3.5 shrink-0" /> Ver como o cliente
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="gap-2 text-xs"
+                        disabled={!proposal.publicToken}
+                        onClick={() => handleShare(proposal.publicToken)}
                         data-guide={GUIDE_ANCHORS.forgeProposalShareButton.id}
                       >
-                        <Share2 className="size-3.5" />
-                      </Button>
-
-                      {/* More actions dropdown */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="icon" variant="ghost" className="size-7" title="Mais ações">
-                            <MoreHorizontal className="size-3.5" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-52">
-                          {/* Status change */}
-                          <DropdownMenuLabel className="text-[11px] text-muted-foreground font-normal">
-                            Alterar status
-                          </DropdownMenuLabel>
-                          {STATUS_ACTIONS.map(({ key, label, Icon, className }) => (
-                            <DropdownMenuItem
-                              key={key}
-                              onClick={() => handleStatusChange(p.id, key, p.status)}
-                              className={cn("gap-2 cursor-pointer text-xs", p.status === key && "font-semibold")}
-                            >
-                              <Icon className={cn("size-3.5 shrink-0", className)} />
-                              <span className="flex-1">{label}</span>
-                              {p.status === key && (
-                                <CheckCircle2 className="size-3 text-emerald-500 shrink-0" />
-                              )}
-                            </DropdownMenuItem>
-                          ))}
-
-                          <DropdownMenuSeparator />
-
-                          {/* Generate contract */}
-                          <DropdownMenuItem
-                            className="gap-2 cursor-pointer text-xs text-[#7C3AED] focus:text-[#7C3AED]"
-                            onClick={() =>
-                              setGenerateContract({
-                                proposalId: p.id,
-                                defaultValue: String(total),
-                                clientName: p.client?.name,
-                                clientEmail: p.client?.email ?? undefined,
-                              })
-                            }
-                          >
-                            <FilePlus2 className="size-3.5 shrink-0" />
-                            Gerar Contrato
-                          </DropdownMenuItem>
-
-                          <DropdownMenuSeparator />
-
-                          {/* Template toggle */}
-                          <DropdownMenuItem
-                            className="gap-2 cursor-pointer text-xs text-[#7C3AED] focus:text-[#7C3AED]"
-                            onClick={() => handleTemplateToggle(p.id, p.isTemplate ?? false)}
-                            disabled={templateToggling === p.id}
-                          >
-                            <Sparkles className="size-3.5 shrink-0" />
-                            {p.isTemplate ? "Desmarcar como padrão" : "Marcar como padrão"}
-                          </DropdownMenuItem>
-
-                          <DropdownMenuSeparator />
-
-                          {/* Edit */}
-                          <DropdownMenuItem
-                            className="gap-2 cursor-pointer text-xs"
-                            onClick={() => { setEditingId(p.id); setFormOpen(true); }}
-                          >
-                            <Pencil className="size-3.5 shrink-0" />
-                            Editar proposta
-                          </DropdownMenuItem>
-
-                          {/* Delete */}
-                          <DropdownMenuItem
-                            className="gap-2 cursor-pointer text-xs text-destructive focus:text-destructive"
-                            onClick={() => setDeleteId(p.id)}
-                          >
-                            <Trash2 className="size-3.5 shrink-0" />
-                            Excluir proposta
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
+                        <Share2 className="size-3.5 shrink-0" /> Copiar link
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="gap-2 text-xs" onClick={() => { setEditingId(proposal.id); setFormOpen(true); }}>
+                        <Pencil className="size-3.5 shrink-0" /> Editar proposta
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">Alterar status</DropdownMenuLabel>
+                      {STATUS_ACTIONS.map(({ key, label, Icon, className }) => (
+                        <DropdownMenuItem
+                          key={key}
+                          onClick={() => handleStatusChange(proposal.id, key, proposal.status)}
+                          className={cn("gap-2 text-xs", proposal.status === key && "font-semibold")}
+                        >
+                          <Icon className={cn("size-3.5 shrink-0", className)} />
+                          <span className="flex-1">{label}</span>
+                          {proposal.status === key && <CheckCircle2 className="size-3 shrink-0 text-success" />}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="gap-2 text-xs text-info focus:text-info"
+                        onClick={() =>
+                          setGenerateContract({
+                            proposalId: proposal.id,
+                            defaultValue: String(total),
+                            clientName: proposal.client?.name,
+                            clientEmail: proposal.client?.email ?? undefined,
+                          })
+                        }
+                      >
+                        <FilePlus2 className="size-3.5 shrink-0" /> Gerar contrato
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="gap-2 text-xs text-info focus:text-info"
+                        onClick={() => handleTemplateToggle(proposal.id, proposal.isTemplate ?? false)}
+                        disabled={templateToggling === proposal.id}
+                      >
+                        <Sparkles className="size-3.5 shrink-0" />
+                        {proposal.isTemplate ? "Desmarcar como padrão" : "Marcar como padrão"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="gap-2 text-xs text-destructive focus:text-destructive"
+                        onClick={() => setDeleteId(proposal.id)}
+                      >
+                        <Trash2 className="size-3.5 shrink-0" /> Excluir proposta
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              </div>
+
+                <button
+                  type="button"
+                  onClick={() => { setEditingId(proposal.id); setFormOpen(true); }}
+                  className="flex flex-1 flex-col gap-0.5 border-t border-line p-2.5 text-left md:p-3"
+                >
+                  <span className="font-mono text-[10px] text-muted-foreground">#{String(proposal.number).padStart(4, "0")}</span>
+                  <span className="line-clamp-2 text-[13px] leading-tight font-semibold">{proposal.title}</span>
+                  {proposal.client && (
+                    <span className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+                      <User className="size-3 shrink-0" />
+                      <span className="truncate">{proposal.client.name}</span>
+                    </span>
+                  )}
+                  <span className="mt-auto pt-1 text-sm font-bold text-info tabular-nums">{fmt(total)}</span>
+                  {proposal.validUntil && (
+                    <span className="flex items-center gap-1 text-[10.5px] text-muted-foreground">
+                      <Calendar className="size-3 shrink-0" /> até {new Date(proposal.validUntil).toLocaleDateString("pt-BR")}
+                    </span>
+                  )}
+                </button>
+              </article>
             );
           })}
         </div>
@@ -363,7 +330,7 @@ export function ProposalsTab() {
       )}
 
       {/* Delete confirmation */}
-      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+      <AlertDialog open={!!deleteId} onOpenChange={(isOpen) => !isOpen && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir proposta?</AlertDialogTitle>

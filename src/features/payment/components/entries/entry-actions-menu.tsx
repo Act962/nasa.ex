@@ -76,33 +76,33 @@ export function EntryActionsMenu({
             className="gap-2"
             data-guide={GUIDE_ANCHORS.paymentRegisterPayment.id}
           >
-            <CheckCircle2 className="size-4 text-green-500" />
+            <CheckCircle2 className="size-4 text-success" />
             Registrar pagamento
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onClick={onEdit} className="gap-2">
-          <Pencil className="size-4 text-blue-500" />
+          <Pencil className="size-4 text-info" />
           Editar
         </DropdownMenuItem>
         {entry.type === "RECEIVABLE" && (
           <>
             <DropdownMenuItem onClick={onAssignDunning} className="gap-2">
-              <Bell className="size-4 text-amber-500" />
+              <Bell className="size-4 text-warning" />
               Atribuir régua de cobrança
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onDunningHistory} className="gap-2">
-              <History className="size-4 text-indigo-500" />
+              <History className="size-4 text-info" />
               Histórico de cobrança
             </DropdownMenuItem>
           </>
         )}
         {entry.status !== "CANCELLED" ? (
-          <DropdownMenuItem onClick={onCancel} className="gap-2 text-amber-500">
+          <DropdownMenuItem onClick={onCancel} className="gap-2 text-warning">
             <XCircle className="size-4" />
             Cancelar
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem onClick={onDelete} className="gap-2 text-red-500">
+          <DropdownMenuItem onClick={onDelete} className="gap-2 text-destructive">
             <Trash2 className="size-4" />
             Excluir
           </DropdownMenuItem>

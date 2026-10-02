@@ -224,7 +224,7 @@ function SortableColumnItem({
           <Button
             size="icon"
             variant="ghost"
-            className="size-8 text-emerald-600"
+            className="size-8 text-success"
             onClick={onSaveEdit}
           >
             <Check className="size-4" />

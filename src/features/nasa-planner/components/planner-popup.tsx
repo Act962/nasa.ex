@@ -56,11 +56,11 @@ import {
   Megaphone,
   Brain,
   FileText,
-  Loader2,
   AlertCircle,
   X,
   Check,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 export interface ActionContext {
   actionId: string;
@@ -157,9 +157,9 @@ export function PlannerPopup({
           "sm:w-[90vw] sm:h-[90vh] sm:max-w-[1400px] sm:rounded-xl",
         ].join(" ")}
       >
-        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 border-b">
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
           <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Sparkles className="size-4 sm:size-5 text-violet-500 shrink-0" />
+            <Sparkles className="size-4 sm:size-5 text-info shrink-0" />
             <span>ÓRBITA Planner</span>
             {actionContext && (
               <span className="text-xs sm:text-sm font-normal text-muted-foreground truncate">
@@ -174,7 +174,7 @@ export function PlannerPopup({
           onValueChange={(v) => setTab(v as typeof tab)}
           className="flex-1 flex flex-col overflow-hidden min-h-0"
         >
-          <div className="px-4 sm:px-6 pt-3 border-b shrink-0 overflow-x-auto">
+          <div className="px-4 sm:px-6 pt-3 shrink-0 overflow-x-auto">
             <TabsList className="grid grid-cols-4 w-full min-w-[420px] sm:min-w-0 sm:w-auto sm:inline-grid">
               <TabsTrigger value="campaigns" className="gap-1.5 text-xs sm:text-sm">
                 <Megaphone className="size-3.5" />
@@ -420,17 +420,17 @@ function PostsTab({
       <div className="space-y-4 min-w-0">
         {/* Brand kit indicator */}
         {brandKitComplete ? (
-          <div className="flex items-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 px-3 py-2 text-xs">
-            <Check className="size-3.5 text-emerald-600 shrink-0" />
+          <div className="flex items-center gap-2 rounded-lg bg-success/15 border border-success/30 px-3 py-2 text-xs">
+            <Check className="size-3.5 text-success shrink-0" />
             <span>Brand kit aplicado: paleta + fontes da marca</span>
           </div>
         ) : (
           <button
             type="button"
             onClick={onBrandingNavigate}
-            className="flex items-center gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 hover:border-amber-300 dark:hover:border-amber-700 px-3 py-2 text-xs w-full text-left transition"
+            className="flex items-center gap-2 rounded-lg bg-warning/15 border border-warning/30 hover:border-warning/40 px-3 py-2 text-xs w-full text-left transition"
           >
-            <AlertCircle className="size-3.5 text-amber-600 shrink-0" />
+            <AlertCircle className="size-3.5 text-warning shrink-0" />
             <span className="flex-1">
               Brand kit incompleto.{" "}
               <strong className="underline">Configurar agora →</strong>
@@ -518,12 +518,12 @@ function PostsTab({
                 <div className="rounded-md border border-dashed px-3 py-2 text-xs text-center hover:bg-muted/40 transition flex items-center justify-center gap-2 h-10">
                   {uploadingRef ? (
                     <>
-                      <Loader2 className="size-3.5 animate-spin" />
+                      <OrbitaSpinner className="size-3.5 " />
                       Subindo...
                     </>
                   ) : referenceFileName ? (
                     <>
-                      <Check className="size-3.5 text-emerald-600" />
+                      <Check className="size-3.5 text-success" />
                       <span className="truncate">{referenceFileName}</span>
                     </>
                   ) : (
@@ -632,15 +632,15 @@ function PostsTab({
         <Button
           onClick={handleGenerate}
           disabled={!prompt || prompt.length < 5 || creating || generating}
-          className="w-full gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+          className="w-full gap-2"
         >
           {creating ? (
             <>
-              <Loader2 className="size-4 animate-spin" /> Criando post...
+              <OrbitaSpinner className="size-4 " /> Criando post...
             </>
           ) : generating ? (
             <>
-              <Loader2 className="size-4 animate-spin" />
+              <OrbitaSpinner className="size-4 " />
               Gerando via {selectedModel.label}...
             </>
           ) : (
@@ -697,9 +697,9 @@ function PostsTab({
             <p>
               <strong>Brand aplicado:</strong>{" "}
               {lastResult.brandApplied ? (
-                <span className="text-emerald-600">✓ Sim</span>
+                <span className="text-success">✓ Sim</span>
               ) : (
-                <span className="text-amber-600">✗ Brand kit incompleto</span>
+                <span className="text-warning">✗ Brand kit incompleto</span>
               )}
             </p>
           </div>
@@ -784,11 +784,11 @@ function BrandingTab() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="rounded-lg bg-violet-50 dark:bg-violet-950/30 border border-violet-200/60 px-4 py-3 text-xs">
-        <p className="font-semibold text-violet-700 dark:text-violet-300 mb-1">
+      <div className="rounded-lg bg-info/15 border border-info/30 px-4 py-3 text-xs">
+        <p className="font-semibold text-info mb-1">
           O que é o brand kit?
         </p>
-        <p className="text-violet-900/70 dark:text-violet-200/70 leading-relaxed">
+        <p className="text-muted-foreground leading-relaxed">
           A paleta, fontes, slogan e tom de voz cadastrados aqui são
           injetados <strong>automaticamente</strong> em toda geração de
           imagem e texto pelo Planner. Garante consistência visual em
@@ -830,10 +830,10 @@ function BrandingTab() {
                 }}
                 disabled={uploadingLogo || extractFromLogo.isPending}
               />
-              <div className="inline-flex items-center gap-2 rounded-md bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-medium px-3 py-2 transition">
+              <div className="inline-flex items-center gap-2 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium px-3 py-2 transition">
                 {uploadingLogo || extractFromLogo.isPending ? (
                   <>
-                    <Loader2 className="size-3.5 animate-spin" />
+                    <OrbitaSpinner className="size-3.5 " />
                     {uploadingLogo ? "Subindo logo..." : "Extraindo com IA..."}
                   </>
                 ) : (
@@ -927,15 +927,15 @@ function AIConfigSection() {
     <div className="rounded-lg border bg-card p-4 space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <Sparkles className="size-4 text-violet-500" />
+          <Sparkles className="size-4 text-info" />
           <h3 className="font-semibold text-sm">Configuração de IA</h3>
         </div>
         {anthropicConfigured ? (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-success/15 text-success">
             <Check className="size-3" /> IA ativa
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-warning/15 text-warning">
             <AlertCircle className="size-3" /> Não configurada
           </span>
         )}
@@ -979,7 +979,7 @@ function AIConfigSection() {
               href="https://console.anthropic.com/settings/keys"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-violet-600 hover:underline font-medium"
+              className="text-info hover:underline font-medium"
             >
               Anthropic Console
             </a>
@@ -1013,7 +1013,7 @@ function AIConfigSection() {
               className="gap-2"
             >
               {upsert.isPending ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                <OrbitaSpinner className="size-3.5 " />
               ) : (
                 <Check className="size-3.5" />
               )}
@@ -1053,7 +1053,7 @@ function AIConfigSection() {
               href="https://ideogram.ai/manage-api"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-violet-600 hover:underline font-medium"
+              className="text-info hover:underline font-medium"
             >
               ideogram.ai/manage-api
             </a>
@@ -1121,12 +1121,12 @@ function PaletteEditor({
                   const v = e.target.value;
                   if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) updateColor(i, v);
                 }}
-                className="text-[10px] font-mono w-16 text-center bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-violet-500 rounded"
+                className="text-[10px] font-mono w-16 text-center bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-info rounded"
               />
               <button
                 type="button"
                 onClick={() => removeColor(i)}
-                className="text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+                className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition"
                 aria-label="Remover cor"
               >
                 <X className="size-3" />

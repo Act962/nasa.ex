@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, Settings2 } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Settings2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { TrafegoOrderStatus, TrafegoPlatform } from "@/generated/prisma/enums";
@@ -134,7 +135,7 @@ export function TrafegoOrdersTable() {
             {isLoading && (
               <TableRow>
                 <TableCell colSpan={7} className="py-10 text-center">
-                  <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
+                  <OrbitaSpinner className="mx-auto size-5 text-muted-foreground" />
                 </TableCell>
               </TableRow>
             )}
@@ -163,7 +164,7 @@ export function TrafegoOrdersTable() {
                     <span className="font-mono text-xs">{order.code}</span>
                     {order.amountMismatch && (
                       <AlertTriangle
-                        className="size-3.5 text-amber-500"
+                        className="size-3.5 text-warning"
                         aria-label="Valor cobrado divergente"
                       />
                     )}

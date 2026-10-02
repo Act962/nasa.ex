@@ -146,7 +146,7 @@ export function StatusConversionPanel({
             </div>
 
             {!hasJourneyData && (
-              <p className="text-xs text-amber-600">
+              <p className="text-xs text-warning">
                 Este período é anterior ao registro de jornada — os números
                 refletem apenas o status atual de cada lead.
               </p>

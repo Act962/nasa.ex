@@ -73,7 +73,7 @@ export function AstroWidgetEmptyState({
             onClick={() => onSelect(label)}
             className="flex w-full items-center gap-3 rounded-xl px-1 py-2 text-left text-sm text-white/75 transition hover:bg-white/[0.04] hover:text-white disabled:opacity-50"
           >
-            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-violet-300">
+            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-info/10 text-info">
               <SuggestionIcon className="size-5" />
             </span>
             {label}

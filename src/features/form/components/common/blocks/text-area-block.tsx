@@ -68,7 +68,7 @@ export const TextAreaBlock: ObjectBlockType = {
   }),
   blockBtnElement: {
     icon: LetterTextIcon, // Replace with your custom icon
-    label: "Textarea",
+    label: "Texto longo",
   },
   canvasComponent: TextAreaCanvasComponent,
   formComponent: TextAreaFormComponent,
@@ -98,7 +98,7 @@ function TextAreaCanvasComponent({
 
           {label}
 
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
 
         </Label>
 
@@ -174,18 +174,18 @@ function TextAreaFormComponent({
     <div className="flex flex-col gap-2 w-full">
       <Label
         className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${
-          isError || isSubmitError ? "text-red-500" : ""
+          isError || isSubmitError ? "text-destructive" : ""
         }`}
       >
         {label}
-        {required && <span className="text-red-500">*</span>}
+        {required && <span className="text-destructive">*</span>}
       </Label>
       <Textarea
         placeholder={placeHolder}
         rows={rows || 3}
         wrap="soft"
         className={`resize-y min-h-[50px]! w-full min-w-0 ${
-          isError || isSubmitError ? "border-red-500!" : ""
+          isError || isSubmitError ? "border-destructive!" : ""
         }`}
         style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
         value={value}
@@ -207,14 +207,14 @@ function TextAreaFormComponent({
       )}
 
       {isError || isSubmitError ? (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
           {required && value.trim().length === 0
             ? `This field is required.`
             : ""}
         </p>
       ) : (
         errorMessage && (
-          <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage}</p>
+          <p className="text-destructive text-[0.8rem] break-words whitespace-normal">{errorMessage}</p>
         )
       )}
     </div>

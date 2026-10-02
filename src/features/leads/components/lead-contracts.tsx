@@ -8,7 +8,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Badge } from "@/components/ui/badge";
-import { FileSignature, Loader2 } from "lucide-react";
+import { FileSignature } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 type Contract = {
   id: string;
@@ -27,19 +28,19 @@ const STATUS_STYLE: Record<
 > = {
   ATIVO: {
     label: "Ativo",
-    className: "text-emerald-500 border-emerald-500/30 bg-emerald-500/10",
+    className: "text-success border-success/30 bg-success/10",
   },
   PENDENTE_ASSINATURA: {
     label: "Pendente assinatura",
-    className: "text-amber-500 border-amber-500/30 bg-amber-500/10",
+    className: "text-warning border-warning/30 bg-warning/10",
   },
   ENCERRADO: {
     label: "Encerrado",
-    className: "text-blue-500 border-blue-500/30 bg-blue-500/10",
+    className: "text-info border-info/30 bg-info/10",
   },
   CANCELADO: {
     label: "Cancelado",
-    className: "text-red-500 border-red-500/30 bg-red-500/10",
+    className: "text-destructive border-destructive/30 bg-destructive/10",
   },
 };
 
@@ -69,7 +70,7 @@ export function LeadContracts({ leadId }: Props) {
             {active.length}{" "}
             {active.length === 1 ? "contrato ativo" : "contratos ativos"}
           </p>
-          <p className="text-xl font-black text-emerald-500">
+          <p className="text-xl font-black text-success">
             R${" "}
             {totalActive.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
           </p>
@@ -78,7 +79,7 @@ export function LeadContracts({ leadId }: Props) {
 
       {isLoading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
-          <Loader2 className="size-4 animate-spin" /> Carregando…
+          <OrbitaSpinner className="size-4 " /> Carregando…
         </div>
       ) : contracts.length === 0 ? (
         <div className="rounded-xl border border-border/40 py-10 text-center text-xs text-muted-foreground">
@@ -93,7 +94,7 @@ export function LeadContracts({ leadId }: Props) {
             >
               <div className="flex-1 min-w-0">
                 <p className="font-medium flex items-center gap-1.5 truncate">
-                  <FileSignature className="size-3.5 text-[#1E90FF]" />#
+                  <FileSignature className="size-3.5 text-info" />#
                   {contract.number}
                   {contract.proposalTitle && (
                     <span className="text-xs text-muted-foreground truncate">
@@ -114,7 +115,7 @@ export function LeadContracts({ leadId }: Props) {
                 >
                   {STATUS_STYLE[contract.status].label}
                 </Badge>
-                <p className="text-sm font-semibold tabular-nums text-emerald-500">
+                <p className="text-sm font-semibold tabular-nums text-success">
                   R${" "}
                   {Number.parseFloat(contract.value).toLocaleString("pt-BR", {
                     minimumFractionDigits: 2,

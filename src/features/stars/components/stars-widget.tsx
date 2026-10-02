@@ -15,8 +15,21 @@ import { StarIcon } from "./star-icon";
 import { StarsPurchaseModal } from "./stars-purchase-modal";
 import { SubscriptionPlansModal } from "./subscription-plans-modal";
 import { StarsHistoryDialog } from "./stars-history-dialog";
-import { History, Plus, TrendingUp, AlertTriangle, Zap, Sparkles, ShieldAlert } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  History,
+  Plus,
+  TrendingUp,
+  AlertTriangle,
+  Zap,
+  Sparkles,
+  ShieldAlert,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // ─── Consumed bar ─────────────────────────────────────────────────────────────
 
@@ -38,15 +51,15 @@ function ConsumedBar({
   // Estourar o plano mensal com bonus disponível NÃO deve disparar
   // vermelho — só quando o saldo cair de fato.
   const color = isCritical
-    ? "bg-red-500"
+    ? "bg-destructive"
     : isLow
-      ? "bg-amber-500"
+      ? "bg-warning"
       : pct >= 100
         ? // Estourou plano mas saldo OK: roxo indica "consumindo bonus"
-          "bg-[#7C3AED]"
+          "bg-info"
         : pct >= 70
-          ? "bg-yellow-400"
-          : "bg-[#7C3AED]";
+          ? "bg-warning"
+          : "bg-info";
 
   return (
     <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
@@ -68,9 +81,9 @@ function PlanBadge({
   planName: string;
 }) {
   const colors: Record<string, string> = {
-    earth: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-    explore: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-    constellation: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
+    earth: "bg-success/15 text-success",
+    explore: "bg-info/15 text-info",
+    constellation: "bg-info/15 text-info",
   };
   return (
     <span
@@ -86,7 +99,12 @@ function PlanBadge({
 
 // ─── Widget ───────────────────────────────────────────────────────────────────
 
-export function StarsWidget() {
+interface StarsWidgetProps {
+  /** "icon": botão redondo só com a estrela (topo da Início); o popover é o mesmo. */
+  variant?: "pill" | "icon";
+}
+
+export function StarsWidget({ variant = "pill" }: StarsWidgetProps = {}) {
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -144,7 +162,14 @@ export function StarsWidget() {
 
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (isLoading) {
-    return <div className="h-8 w-32 rounded-lg bg-muted/60 animate-pulse" />;
+    return (
+      <div
+        className={cn(
+          "animate-pulse bg-muted/60",
+          variant === "icon" ? "size-10 rounded-full" : "h-8 w-32 rounded-lg",
+        )}
+      />
+    );
   }
 
   const balance = data?.balance ?? 0;
@@ -190,8 +215,7 @@ export function StarsWidget() {
   const criticalThreshold = Math.max(50, planMonthlyStars * 0.05);
   const lowThreshold = Math.max(200, planMonthlyStars * 0.2);
   const isCritical = showLimitBar && totalAvailable < criticalThreshold;
-  const isLow =
-    showLimitBar && !isCritical && totalAvailable < lowThreshold;
+  const isLow = showLimitBar && !isCritical && totalAvailable < lowThreshold;
   // Flag separado pra indicar visualmente "estourou o plano mas tem
   // reserva" — bar fica roxa (info) em vez de vermelha (alerta).
   const overplan = showLimitBar && consumed > planMonthlyStars;
@@ -200,9 +224,7 @@ export function StarsWidget() {
   const graceStartedAt = data?.graceStartedAt
     ? new Date(data.graceStartedAt)
     : null;
-  const suspendedAt = data?.suspendedAt
-    ? new Date(data.suspendedAt)
-    : null;
+  const suspendedAt = data?.suspendedAt ? new Date(data.suspendedAt) : null;
   const daysInGrace = graceStartedAt
     ? Math.floor(
         (Date.now() - graceStartedAt.getTime()) / (24 * 60 * 60 * 1000),
@@ -216,44 +238,64 @@ export function StarsWidget() {
         {/* ── Stars counter pill ── */}
         <Popover>
           <PopoverTrigger asChild>
-            <button
-              className={cn(
-                "flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition-all focus-visible:outline-none",
-                isCritical
-                  ? "border-red-400/50 bg-red-500/10 text-red-500 hover:bg-red-500/15"
-                  : isLow
-                    ? "border-amber-400/50 bg-amber-500/10 text-amber-500 hover:bg-amber-500/15"
-                    : "border-border/60 bg-background hover:bg-muted/60 text-foreground",
-              )}
-            >
-              {isCritical || isLow ? (
-                <AlertTriangle className="size-3.5 shrink-0" />
-              ) : (
-                <StarIcon className="size-3.5 shrink-0" />
-              )}
-              {showLimitBar ? (
-                // Modelo "saldo bancário": número principal é o REMAINING
-                // (desce de planMonthlyStars → 0 conforme consome). User
-                // pega plano de 3000 e vê "3.000 / 3.000", vai usando até
-                // "0 / 3.000". Consumido vira info secundária no popover.
-                <>
+            {variant === "icon" ? (
+              <button
+                aria-label="Stars"
+                className={cn(
+                  "relative grid size-10 place-items-center rounded-full bg-knob transition-colors hover:bg-accent focus-visible:outline-none",
+                  isCritical
+                    ? "text-destructive"
+                    : isLow
+                      ? "text-warning"
+                      : "text-foreground",
+                )}
+              >
+                {isCritical || isLow ? (
+                  <AlertTriangle className="size-4" />
+                ) : (
+                  <StarIcon className="size-4" />
+                )}
+              </button>
+            ) : (
+              <button
+                className={cn(
+                  "flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition-all focus-visible:outline-none",
+                  isCritical
+                    ? "border-destructive/50 bg-destructive/10 text-destructive hover:bg-destructive/15"
+                    : isLow
+                      ? "border-warning/50 bg-warning/10 text-warning hover:bg-warning/15"
+                      : "border-border/60 bg-background hover:bg-muted/60 text-foreground",
+                )}
+              >
+                {isCritical || isLow ? (
+                  <AlertTriangle className="size-3.5 shrink-0" />
+                ) : (
+                  <StarIcon className="size-3.5 shrink-0" />
+                )}
+                {showLimitBar ? (
+                  // Modelo "saldo bancário": número principal é o REMAINING
+                  // (desce de planMonthlyStars → 0 conforme consome). User
+                  // pega plano de 3000 e vê "3.000 / 3.000", vai usando até
+                  // "0 / 3.000". Consumido vira info secundária no popover.
+                  <>
+                    <span className="tabular-nums">
+                      {remaining.toLocaleString("pt-BR")}
+                    </span>
+                    <span className="text-muted-foreground font-normal hidden sm:inline">
+                      /
+                    </span>
+                    <span className="tabular-nums text-muted-foreground font-normal hidden sm:inline">
+                      {planMonthlyStars.toLocaleString("pt-BR")}
+                    </span>
+                  </>
+                ) : (
+                  // SUITE / free: mostra só o saldo no pill (sem /limite)
                   <span className="tabular-nums">
-                    {remaining.toLocaleString("pt-BR")}
+                    {balance.toLocaleString("pt-BR")}
                   </span>
-                  <span className="text-muted-foreground font-normal hidden sm:inline">
-                    /
-                  </span>
-                  <span className="tabular-nums text-muted-foreground font-normal hidden sm:inline">
-                    {planMonthlyStars.toLocaleString("pt-BR")}
-                  </span>
-                </>
-              ) : (
-                // SUITE / free: mostra só o saldo no pill (sem /limite)
-                <span className="tabular-nums">
-                  {balance.toLocaleString("pt-BR")}
-                </span>
-              )}
-            </button>
+                )}
+              </button>
+            )}
           </PopoverTrigger>
 
           <PopoverContent
@@ -261,7 +303,7 @@ export function StarsWidget() {
             className="w-72 p-0 overflow-hidden shadow-xl border-border/60"
           >
             {/* Header */}
-            <div className="px-4 py-3 border-b bg-linear-to-br from-[#7C3AED]/8 to-transparent">
+            <div className="px-4 py-3 bg-linear-to-br from-info/8 to-transparent">
               <div className="flex items-center justify-between mb-2 gap-2">
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Saldo de Stars
@@ -270,7 +312,7 @@ export function StarsWidget() {
                   <button
                     type="button"
                     onClick={() => setHistoryOpen(true)}
-                    className="inline-flex items-center gap-1 text-[10px] font-medium text-[#7C3AED] hover:text-[#6D28D9] hover:bg-[#7C3AED]/10 rounded px-1.5 py-0.5 transition-colors"
+                    className="inline-flex items-center gap-1 text-[10px] font-medium text-info hover:bg-info/10 rounded px-1.5 py-0.5 transition-colors"
                     title="Ver histórico completo de consumo"
                   >
                     <History className="size-3" />
@@ -308,11 +350,12 @@ export function StarsWidget() {
                     <span className="text-3xl font-extrabold tabular-nums leading-none">
                       {consumed.toLocaleString("pt-BR")}
                     </span>
-                    <span className="text-xs text-muted-foreground">no ciclo</span>
+                    <span className="text-xs text-muted-foreground">
+                      no ciclo
+                    </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Saldo:{" "}
-                    <strong>{balance.toLocaleString("pt-BR")} ★</strong>{" "}
+                    Saldo: <strong>{balance.toLocaleString("pt-BR")} ★</strong>{" "}
                     · consumo livre
                   </p>
                 </>
@@ -325,7 +368,7 @@ export function StarsWidget() {
 
               {bonusBalance > 0 && (
                 <p className="mt-1.5 text-[11px] text-muted-foreground flex items-center gap-1">
-                  <Sparkles className="size-3 text-[#7C3AED]" />
+                  <Sparkles className="size-3 text-info" />
                   <span>
                     + <strong>{bonusBalance.toLocaleString("pt-BR")} ★</strong>{" "}
                     de bônus
@@ -345,9 +388,9 @@ export function StarsWidget() {
                       className={cn(
                         "font-semibold",
                         isCritical
-                          ? "text-red-500"
+                          ? "text-destructive"
                           : isLow
-                            ? "text-amber-500"
+                            ? "text-warning"
                             : "text-foreground",
                       )}
                     >
@@ -365,7 +408,8 @@ export function StarsWidget() {
 
               {isPayPerUse && consumed > 0 && (
                 <div className="text-[11px] text-muted-foreground">
-                  Plano <strong>SUITE</strong> · consumo livre · ★ {consumed.toLocaleString("pt-BR")} no ciclo
+                  Plano <strong>SUITE</strong> · consumo livre · ★{" "}
+                  {consumed.toLocaleString("pt-BR")} no ciclo
                 </div>
               )}
 
@@ -382,7 +426,7 @@ export function StarsWidget() {
                       <button
                         type="button"
                         onClick={() => setAllAppsOpen(true)}
-                        className="text-[10px] text-[#7C3AED] hover:underline"
+                        className="text-[10px] text-info hover:underline"
                       >
                         Ver todos ({usage.byApp.length})
                       </button>
@@ -396,7 +440,9 @@ export function StarsWidget() {
                       return (
                         <div key={app.appSlug} className="space-y-0.5">
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="font-medium truncate">{app.label}</span>
+                            <span className="font-medium truncate">
+                              {app.label}
+                            </span>
                             <span className="text-muted-foreground tabular-nums shrink-0">
                               {app.total} ★
                               {showLimitBar ? ` (${pct.toFixed(0)}%)` : ""}
@@ -404,7 +450,7 @@ export function StarsWidget() {
                           </div>
                           <div className="h-1 rounded-full bg-muted overflow-hidden">
                             <div
-                              className="h-full bg-yellow-500"
+                              className="h-full bg-warning"
                               style={{ width: `${Math.min(100, pct)}%` }}
                             />
                           </div>
@@ -416,18 +462,18 @@ export function StarsWidget() {
               )}
 
               {isCritical && (
-                <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200/60 p-2.5 dark:bg-red-950/20 dark:border-red-900/40">
-                  <AlertTriangle className="size-3.5 text-red-500 shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-red-700 dark:text-red-300 leading-relaxed">
+                <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/30 p-2.5">
+                  <AlertTriangle className="size-3.5 text-destructive shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-destructive leading-relaxed">
                     Saldo crítico! Integrações podem ser pausadas em breve.
                   </p>
                 </div>
               )}
 
               {isLow && !isCritical && (
-                <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200/60 p-2.5 dark:bg-amber-950/20 dark:border-amber-900/40">
-                  <Zap className="size-3.5 text-amber-500 shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                <div className="flex items-start gap-2 rounded-lg bg-warning/10 border border-warning/30 p-2.5">
+                  <Zap className="size-3.5 text-warning shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-warning leading-relaxed">
                     Saldo total ficando baixo (
                     {totalAvailable.toLocaleString("pt-BR")} ★). Considere
                     recarregar.
@@ -436,9 +482,9 @@ export function StarsWidget() {
               )}
 
               {overplan && !isLow && !isCritical && (
-                <div className="flex items-start gap-2 rounded-lg bg-purple-50 border border-purple-200/60 p-2.5 dark:bg-purple-950/20 dark:border-purple-900/40">
-                  <Sparkles className="size-3.5 text-[#7C3AED] shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-purple-700 dark:text-purple-300 leading-relaxed">
+                <div className="flex items-start gap-2 rounded-lg bg-info/10 border border-info/30 p-2.5">
+                  <Sparkles className="size-3.5 text-info shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-info leading-relaxed">
                     Você passou do plano mensal, mas seu saldo extra cobre.{" "}
                     {totalAvailable.toLocaleString("pt-BR")} ★ disponíveis.
                   </p>
@@ -447,10 +493,12 @@ export function StarsWidget() {
 
               {/* Banner persistente durante grace period — após o saldo zerar. */}
               {graceStartedAt && !suspendedAt && (
-                <div className="flex items-start gap-2 rounded-lg bg-orange-50 border border-orange-200/60 p-2.5 dark:bg-orange-950/20 dark:border-orange-900/40">
-                  <ShieldAlert className="size-3.5 text-orange-500 shrink-0 mt-0.5" />
-                  <div className="text-[11px] text-orange-700 dark:text-orange-300 leading-relaxed">
-                    <strong>Saldo zerou.</strong> Recarregue em <strong>{daysLeftGrace} dias</strong> pra evitar a suspensão da conta. Chat AI já está em modo humano.
+                <div className="flex items-start gap-2 rounded-lg bg-warning/10 border border-warning/30 p-2.5">
+                  <ShieldAlert className="size-3.5 text-warning shrink-0 mt-0.5" />
+                  <div className="text-[11px] text-warning leading-relaxed">
+                    <strong>Saldo zerou.</strong> Recarregue em{" "}
+                    <strong>{daysLeftGrace} dias</strong> pra evitar a suspensão
+                    da conta. Chat AI já está em modo humano.
                   </div>
                 </div>
               )}
@@ -469,7 +517,7 @@ export function StarsWidget() {
                   <div className="rounded-lg bg-muted/40 px-2 py-1.5">
                     <p className="text-[10px] text-muted-foreground">Plano</p>
                     <p className="text-sm font-semibold flex items-center justify-center gap-1">
-                      <TrendingUp className="size-3 text-[#7C3AED]" />
+                      <TrendingUp className="size-3 text-info" />
                       {planName}
                     </p>
                   </div>
@@ -481,14 +529,14 @@ export function StarsWidget() {
             <div className="px-4 pb-3 border-t pt-3 space-y-2">
               <Button
                 size="sm"
-                className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-2"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
                 onClick={() => setPurchaseOpen(true)}
               >
                 <Plus className="size-3.5" /> Comprar Stars
               </Button>
               <button
                 onClick={() => setPlanOpen(true)}
-                className="w-full text-center text-[11px] text-[#7C3AED] hover:underline"
+                className="w-full text-center text-[11px] text-info hover:underline"
               >
                 {hasPlan ? "Mudar de plano" : "Ver planos disponíveis"}
               </button>
@@ -504,10 +552,10 @@ export function StarsWidget() {
             className={cn(
               "flex items-center gap-1 h-8 px-2.5 rounded-lg border text-[10px] font-bold uppercase tracking-wide transition-all hover:opacity-80",
               planSlug === "earth"
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                ? "border-success/30 bg-success/10 text-success"
                 : planSlug === "explore"
-                  ? "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                  : "border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400",
+                  ? "border-info/30 bg-info/10 text-info"
+                  : "border-info/30 bg-info/10 text-info",
             )}
           >
             <TrendingUp className="size-3 sm:hidden" />
@@ -517,7 +565,7 @@ export function StarsWidget() {
           <button
             onClick={() => setPlanOpen(true)}
             title="Adquirir um plano"
-            className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-dashed border-[#7C3AED]/50 bg-[#7C3AED]/5 text-[#7C3AED] text-xs font-semibold hover:bg-[#7C3AED]/10 transition-all"
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-dashed border-info/50 bg-info/5 text-info text-xs font-semibold hover:bg-info/10 transition-all"
           >
             <Sparkles className="size-3.5 shrink-0" />
             <span className="sm:hidden">Plano</span>
@@ -535,7 +583,7 @@ export function StarsWidget() {
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
+            <DialogTitle className="flex items-center gap-2 text-destructive">
               <ShieldAlert className="size-5" />
               Conta suspensa por falta de STARs
             </DialogTitle>
@@ -554,7 +602,7 @@ export function StarsWidget() {
           </div>
           <div className="flex gap-2 pt-2">
             <Button
-              className="flex-1 bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-2"
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
               onClick={() => setPurchaseOpen(true)}
             >
               <Plus className="size-3.5" /> Comprar Stars
@@ -606,7 +654,7 @@ export function StarsWidget() {
                   </div>
                   <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                     <div
-                      className="h-full bg-[#7C3AED]"
+                      className="h-full bg-info"
                       style={{ width: `${Math.min(100, pct)}%` }}
                     />
                   </div>

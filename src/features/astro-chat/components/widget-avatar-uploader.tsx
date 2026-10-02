@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Loader2, Trash2, Upload } from "lucide-react";
+import { Trash2, Upload } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AstroMark } from "@/features/astro/components/astro-mark";
@@ -97,7 +98,7 @@ export function WidgetAvatarUploader({
           disabled={isUploading}
           onClick={() => inputRef.current?.click()}
         >
-          {isUploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          {isUploading ? <OrbitaSpinner className="size-4 " /> : <Upload className="size-4" />}
           {value ? "Trocar ícone" : "Enviar ícone"}
         </Button>
         {value && (

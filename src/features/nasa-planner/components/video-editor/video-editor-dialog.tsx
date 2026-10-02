@@ -15,7 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { AlertCircleIcon, Loader2Icon, VideoIcon } from "lucide-react";
+import { AlertCircleIcon, VideoIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent,
@@ -170,7 +171,7 @@ export function VideoEditorDialog({ open, onOpenChange, postId, postTitle, post 
       <DialogContent className="max-w-2xl max-h-[95vh] sm:max-h-[80vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <VideoIcon className="size-4 text-violet-500" />
+            <VideoIcon className="size-4 text-info" />
             Editor de Vídeo
             {postTitle && <span className="text-sm text-muted-foreground font-normal truncate">— {postTitle}</span>}
           </DialogTitle>
@@ -259,7 +260,7 @@ export function VideoEditorDialog({ open, onOpenChange, postId, postTitle, post 
                     onClick={handleMerge}
                     disabled={processing || ffmpegLoading}
                   >
-                    {ffmpegLoading ? <Loader2Icon className="size-3.5 animate-spin" /> : null}
+                    {ffmpegLoading ? <OrbitaSpinner className="size-3.5 " /> : null}
                     Mesclar {clips.length} clipes em 1 vídeo
                   </Button>
                 </div>
@@ -267,7 +268,7 @@ export function VideoEditorDialog({ open, onOpenChange, postId, postTitle, post 
             </TabsContent>
 
             <TabsContent value="ai" className="px-5 py-4 mt-0 space-y-4">
-              <div className="p-3 rounded-xl bg-violet-50/50 dark:bg-violet-950/20 border border-violet-200/50 text-xs text-muted-foreground">
+              <div className="p-3 rounded-xl bg-info/10 border border-info/30 text-xs text-muted-foreground">
                 Gera um clipe de vídeo curto com IA (fal.ai Kling). Requer chave fal.ai configurada em Integrações → OpenAI.
               </div>
               <div className="space-y-3">
@@ -298,7 +299,7 @@ export function VideoEditorDialog({ open, onOpenChange, postId, postTitle, post 
                   onClick={handleGenerateAI}
                   disabled={!aiPrompt.trim() || generateClip.isPending}
                 >
-                  {generateClip.isPending ? <Loader2Icon className="size-3.5 animate-spin" /> : null}
+                  {generateClip.isPending ? <OrbitaSpinner className="size-3.5 " /> : null}
                   Gerar Vídeo — 3 Stars
                 </Button>
               </div>
@@ -313,7 +314,7 @@ export function VideoEditorDialog({ open, onOpenChange, postId, postTitle, post 
                   onClick={handleSave}
                   disabled={saveEdited.isPending}
                 >
-                  {saveEdited.isPending ? <Loader2Icon className="size-3.5 animate-spin" /> : null}
+                  {saveEdited.isPending ? <OrbitaSpinner className="size-3.5 " /> : null}
                   Salvar no Post — 1 Star
                 </Button>
               </TabsContent>

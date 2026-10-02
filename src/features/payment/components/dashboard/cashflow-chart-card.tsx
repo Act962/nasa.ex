@@ -54,9 +54,9 @@ export function CashflowChartCard({
 }) {
   return (
     <Card className="gap-0 py-0">
-      <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 border-b p-4 sm:p-5">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 p-4 sm:p-5">
         <CardTitle className="flex min-w-0 items-center gap-2 text-base font-semibold">
-          <TrendingUp className="size-4 shrink-0 text-blue-500" />
+          <TrendingUp className="size-4 shrink-0 text-info" />
           <span className="truncate">Fluxo de Caixa</span>
         </CardTitle>
         <Select

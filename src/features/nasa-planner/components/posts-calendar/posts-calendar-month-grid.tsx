@@ -81,7 +81,7 @@ function DroppableCell({ dayKey, children }: { dayKey: string; children: React.R
   return (
     <div
       ref={setNodeRef}
-      className={cn("h-full w-full", isOver && "ring-2 ring-inset ring-violet-400 rounded-lg")}
+      className={cn("h-full w-full", isOver && "ring-2 ring-inset ring-info rounded-lg")}
     >
       {children}
     </div>
@@ -227,7 +227,7 @@ export function PostsCalendarMonthGrid({ posts, cursor, onCursorChange, onSelect
                                   onClick={() => onSelect(p)}
                                   className="flex w-full items-center gap-1.5 rounded px-2 py-1 text-left text-xs hover:bg-muted transition-colors"
                                 >
-                                  <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: "#7c3aed" }} />
+                                  <span className="size-2 shrink-0 rounded-full bg-info" />
                                   <span className="truncate">{p.title ?? "Post"}</span>
                                 </button>
                               ))}

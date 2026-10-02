@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 
 /**
@@ -33,7 +34,7 @@ export function StepShell({
   return (
     <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5 sm:p-7">
       {eyebrow && (
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-300/80">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-info/80">
           {eyebrow}
         </p>
       )}
@@ -64,9 +65,9 @@ export function StepShell({
           type="button"
           onClick={onNext}
           disabled={!canGoNext || isBusy}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {isBusy && <Loader2 className="size-4 animate-spin" />}
+          {isBusy && <OrbitaSpinner className="size-4 " />}
           {nextLabel}
           {!isBusy && <ArrowRight className="size-4" />}
         </button>

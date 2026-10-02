@@ -9,7 +9,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Check, Download, Loader2, Menu, Settings } from "lucide-react";
+import { Check, Download, Menu, Settings } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 
 export type PaymentTabItem = {
@@ -66,7 +67,7 @@ export function PaymentMobileMenu({
             <span aria-hidden>{tab.emoji}</span>
             <span className="flex-1 truncate">{tab.label}</span>
             {tab.badgeCount ? (
-              <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold leading-4 text-white">
+              <span className="rounded-full bg-warning px-1.5 text-[10px] font-semibold leading-4 text-white">
                 {tab.badgeCount > 99 ? "99+" : tab.badgeCount}
               </span>
             ) : null}
@@ -84,7 +85,7 @@ export function PaymentMobileMenu({
           className="gap-2"
         >
           {isExporting ? (
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
           ) : (
             <Download className="size-4" />
           )}

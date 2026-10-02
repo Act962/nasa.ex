@@ -68,7 +68,7 @@ export function checkOpAllowed(
     return {
       ok: false,
       error: "operation_not_allowed",
-      message: `A operação "${op}" não está habilitada para esta organização. Peça ao Master ou Moderador para habilitá-la em Integrações → Meta → Astro + IA → Operações permitidas.`,
+      message: `A operação "${op}" não está habilitada para esta organização. Peça ao Master ou Moderador para habilitá-la em Satélites → Meta → Astro + IA → Operações permitidas.`,
     };
   }
   return null;
@@ -85,7 +85,7 @@ export function checkBudget(
     return {
       ok: false,
       error: "budget_exceeded",
-      message: `Orçamento R$ ${budget.toFixed(2)}/dia excede o limite da organização (R$ ${config.maxBudgetPerCampaign.toFixed(2)}/dia). Master ou Moderador pode aumentar em Integrações → Meta → Astro + IA → Geral.`,
+      message: `Orçamento R$ ${budget.toFixed(2)}/dia excede o limite da organização (R$ ${config.maxBudgetPerCampaign.toFixed(2)}/dia). Master ou Moderador pode aumentar em Satélites → Meta → Astro + IA → Geral.`,
     };
   }
   return null;

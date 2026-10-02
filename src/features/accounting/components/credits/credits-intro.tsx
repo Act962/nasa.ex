@@ -7,10 +7,10 @@ import { FiscalTermHint } from "../shared/fiscal-term-hint";
 /** Explicação do topo: o que é crédito e por que pedir nota de todo fornecedor. */
 export function CreditsIntro({ isTestYear }: { isTestYear: boolean }) {
   return (
-    <Card className="border-violet-500/30 bg-violet-500/5">
+    <Card className="border-info/30 bg-info/5">
       <CardContent className="space-y-3 py-5 text-sm">
         <p className="flex items-center gap-2 font-semibold">
-          <Lightbulb className="size-4 text-violet-600" />
+          <Lightbulb className="size-4 text-info" />
           Imposto que você paga na compra volta como desconto na venda
         </p>
         <p className="text-muted-foreground">
@@ -33,7 +33,7 @@ export function CreditsIntro({ isTestYear }: { isTestYear: boolean }) {
           <li>Anexe o XML da nota no lançamento de Despesa: o crédito é registrado sozinho.</li>
         </ul>
         {isTestYear && (
-          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+          <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning dark:text-warning">
             2026 é o ano-teste: CBS (0,9%) e IBS (0,1%) aparecem nas notas, mas ninguém recolhe nem usa crédito de
             verdade ainda. Os números abaixo são informativos — servem para você organizar as notas antes de 2027,
             quando o crédito passa a valer dinheiro.

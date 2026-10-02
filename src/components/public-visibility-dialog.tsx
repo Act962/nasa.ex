@@ -52,7 +52,7 @@ export function PublicVisibilityDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-            <AlertTriangleIcon className="size-5 text-amber-500" />
+            <AlertTriangleIcon className="size-5 text-warning" />
             {title}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-sm leading-relaxed">
@@ -75,7 +75,6 @@ export function PublicVisibilityDialog({
               e.preventDefault();
               onConfirm();
             }}
-            className="bg-amber-600 hover:bg-amber-700 focus-visible:ring-amber-400"
           >
             {confirmLabel}
           </AlertDialogAction>

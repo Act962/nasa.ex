@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Paperclip, X, RotateCcw, Loader2, FileText, ImageIcon } from "lucide-react";
+import { Paperclip, X, RotateCcw, FileText, ImageIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import {
   useUploadPaymentAttachment,
@@ -185,7 +186,7 @@ export function AttachmentUploader({
               )}
             >
               {slot.status === "uploading" ? (
-                <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
+                <OrbitaSpinner className="size-4 shrink-0 text-muted-foreground" />
               ) : slot.file.type.startsWith("image/") ? (
                 <ImageIcon className="size-4 shrink-0 text-muted-foreground" />
               ) : (

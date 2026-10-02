@@ -56,7 +56,7 @@ export function ScrollRevealEditor({ el, update }: Props) {
       {/* Toggle principal */}
       <div className="flex items-center justify-between rounded-md border px-2 py-1.5 bg-muted/20">
         <div className="flex items-center gap-1.5 min-w-0">
-          <Sparkle className="size-3.5 text-emerald-500 shrink-0" />
+          <Sparkle className="size-3.5 text-success shrink-0" />
           <span className="text-[11px] font-medium truncate">
             Animação ao scrollar
           </span>
@@ -91,7 +91,7 @@ export function ScrollRevealEditor({ el, update }: Props) {
                     className={cn(
                       "border rounded-md p-1.5 transition-colors flex flex-col items-center gap-0.5",
                       active
-                        ? "bg-indigo-500 text-white border-indigo-500"
+                        ? "bg-foreground text-background border-foreground"
                         : "bg-background border-border hover:bg-accent text-muted-foreground",
                     )}
                     title={opt.label}
@@ -178,7 +178,7 @@ export function ScrollRevealEditor({ el, update }: Props) {
                   scrollRevealThreshold: Number(e.target.value) / 100,
                 })
               }
-              className="w-full mt-1 accent-indigo-500"
+              className="w-full mt-1 accent-primary"
             />
           </div>
 

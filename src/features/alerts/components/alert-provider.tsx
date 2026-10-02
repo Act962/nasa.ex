@@ -160,11 +160,11 @@ export function AlertProvider({ children }: { children?: React.ReactNode }) {
 
       const icon =
         severity === "critical" ? (
-          <AlertCircle className="size-4 text-red-500" />
+          <AlertCircle className="size-4 text-destructive" />
         ) : severity === "warning" ? (
-          <AlertTriangle className="size-4 text-amber-500" />
+          <AlertTriangle className="size-4 text-warning" />
         ) : (
-          <Info className="size-4 text-blue-500" />
+          <Info className="size-4 text-info" />
         );
 
       toast(data.title, {

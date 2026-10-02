@@ -1,7 +1,8 @@
 "use client";
 
 import { ReactNode } from "react";
-import { Loader2, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,7 +53,7 @@ export function DeleteButton({
             disabled={isPending}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isPending && <Loader2 className="size-3.5 animate-spin mr-1" />}
+            {isPending && <OrbitaSpinner className="size-3.5 mr-1" />}
             Remover
           </AlertDialogAction>
         </AlertDialogFooter>

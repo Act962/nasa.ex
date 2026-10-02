@@ -6,10 +6,10 @@ import {
   Trash2,
   ExternalLink,
   Copy,
-  Loader2,
   FileBarChart2,
   Eye,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -51,7 +51,7 @@ export function ReportsList() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="size-5 text-muted-foreground animate-spin" />
+        <OrbitaSpinner className="size-5 text-muted-foreground " />
       </div>
     );
   }
@@ -61,8 +61,8 @@ export function ReportsList() {
   if (reports.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-        <div className="size-14 rounded-full bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center">
-          <FileBarChart2 className="size-7 text-violet-600" />
+        <div className="size-14 rounded-full bg-info/15 dark:bg-info/15 flex items-center justify-center">
+          <FileBarChart2 className="size-7 text-info" />
         </div>
         <div>
           <h3 className="text-base font-semibold">Nenhum relatório salvo ainda</h3>
@@ -92,8 +92,8 @@ export function ReportsList() {
                   </p>
                 )}
               </div>
-              <div className="size-8 shrink-0 rounded-lg bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center">
-                <FileBarChart2 className="size-4 text-violet-600" />
+              <div className="size-8 shrink-0 rounded-lg bg-info/10 dark:bg-info/15 flex items-center justify-center">
+                <FileBarChart2 className="size-4 text-info" />
               </div>
             </div>
 
@@ -177,7 +177,7 @@ export function ReportsList() {
               disabled={isDeleting}
               className="bg-destructive text-white hover:bg-destructive/90"
             >
-              {isDeleting ? <Loader2 className="size-4 animate-spin" /> : "Excluir"}
+              {isDeleting ? <OrbitaSpinner className="size-4 " /> : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

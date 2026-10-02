@@ -58,7 +58,7 @@ export function BeforeYouStart({ trackingId, currentLimitTier }: { trackingId?: 
             className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both rounded-xl border p-3"
             style={{ animationDelay: `${index * 60}ms` }}
           >
-            <rule.icon className="mb-2 size-5 text-emerald-600" />
+            <rule.icon className="mb-2 size-5 text-success" />
             <p className="text-sm font-medium">{rule.title}</p>
             <p className="mt-1 text-xs text-muted-foreground">{rule.text}</p>
           </div>
@@ -70,8 +70,8 @@ export function BeforeYouStart({ trackingId, currentLimitTier }: { trackingId?: 
         <BroadcastCostSimulator currentLimitTier={currentLimitTier} />
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-4 sm:flex-row sm:items-center">
-        <Wand2 className="size-6 shrink-0 text-emerald-600" />
+      <div className="flex flex-col gap-3 rounded-xl border border-success/40 bg-success/5 p-4 sm:flex-row sm:items-center">
+        <Wand2 className="size-6 shrink-0 text-success" />
         <div className="flex-1 text-sm">
           <p className="font-medium">Recomendação: comece por Utilidade</p>
           <p className="text-muted-foreground">

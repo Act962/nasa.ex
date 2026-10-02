@@ -41,7 +41,7 @@ export function AstroChatApp() {
         <SiteDetail site={openSite} monthlyPrice={monthlyPrice} onBack={() => navigateToSite(null)} />
       ) : (
         <>
-          <section className="flex flex-col gap-5 rounded-3xl border bg-gradient-to-br from-violet-500/10 via-background to-background p-6 md:flex-row md:items-center">
+          <section className="flex flex-col gap-5 rounded-3xl border bg-gradient-to-br from-info/10 via-background to-background p-6 md:flex-row md:items-center">
             <AstroMark className="size-20 shrink-0" />
             <div className="flex-1 space-y-2">
               <h1 className="text-2xl font-semibold">ASTRO CHAT</h1>
@@ -51,7 +51,7 @@ export function AstroChatApp() {
               <ul className="grid gap-1.5 pt-1 text-sm md:grid-cols-3">
                 {HIGHLIGHTS.map((highlight) => (
                   <li key={highlight.text} className="flex gap-2">
-                    <highlight.icon className="mt-0.5 size-4 shrink-0 text-violet-500" />
+                    <highlight.icon className="mt-0.5 size-4 shrink-0 text-info" />
                     {highlight.text}
                   </li>
                 ))}

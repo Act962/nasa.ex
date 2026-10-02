@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 interface AlertConfig {
   alertAt20: boolean;
@@ -95,12 +96,12 @@ export function StarsAlertSettings({ initialConfig, className }: StarsAlertSetti
         className={cn(
           "w-full gap-2 font-semibold transition-all",
           saved
-            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-            : "bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+            ? "bg-success hover:bg-success/90 text-background"
+            : "bg-primary hover:bg-primary/90 text-primary-foreground"
         )}
       >
         {isPending ? (
-          <><Loader2 className="size-4 animate-spin" /> Salvando...</>
+          <><OrbitaSpinner className="size-4 " /> Salvando...</>
         ) : saved ? (
           <><CheckCircle2 className="size-4" /> Configurações salvas!</>
         ) : (

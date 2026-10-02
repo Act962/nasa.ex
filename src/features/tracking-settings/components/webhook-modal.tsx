@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Instance, WebhookPayload } from "./types";
 import { WebhookEvent } from "@/http/uazapi/types";
 import { configureWebhook } from "@/http/uazapi/configure-webhook";
@@ -92,7 +93,7 @@ export function WebhookModal({
 
         {success ? (
           <div className="flex flex-col items-center py-8 space-y-4">
-            <CheckCircle2 className="h-16 w-16 text-emerald-500" />
+            <CheckCircle2 className="h-16 w-16 text-success" />
             <p className="text-center text-foreground">{success}</p>
           </div>
         ) : (
@@ -161,7 +162,7 @@ export function WebhookModal({
               className="w-full h-11 text-base font-medium"
               disabled={loading || !url}
             >
-              {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {loading && <OrbitaSpinner className="h-4 w-4 mr-2 " />}
               Salvar Configuração
             </Button>
           </form>

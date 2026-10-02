@@ -37,12 +37,12 @@ export function AstroTextPicker({
           maxLength={picker.maxLength ?? 120}
           placeholder={picker.placeholder}
           onChange={(event) => setValue(event.target.value)}
-          className="h-9 min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-950/60 px-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-violet-500/60 focus:outline-none"
+          className="h-9 min-w-0 flex-1 rounded-lg border border-line bg-background/60 px-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-info/60 focus:outline-none"
         />
         <button
           type="submit"
           disabled={!canConfirm}
-          className="h-9 shrink-0 rounded-lg bg-violet-500 px-3 text-xs font-medium text-white transition-colors hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
+          className="h-9 shrink-0 rounded-lg bg-info px-3 text-xs font-medium text-white transition-colors hover:bg-info disabled:cursor-not-allowed disabled:opacity-40"
         >
           Usar
         </button>
@@ -52,7 +52,7 @@ export function AstroTextPicker({
           type="button"
           disabled={disabled}
           onClick={() => onPick(picker.skipOption!.answer)}
-          className="w-full rounded-lg border border-dashed border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-50"
+          className="w-full rounded-lg border border-dashed border-line px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-line hover:text-foreground disabled:opacity-50"
         >
           {picker.skipOption.label}
         </button>

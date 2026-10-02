@@ -57,7 +57,7 @@ export function AstroTagSuggestionsCard({
 
   if (payload.suggestions.length === 0) {
     return (
-      <div className="w-full rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-500">
+      <div className="w-full rounded-lg border border-line/80 bg-card/40 px-3 py-2 text-xs text-muted-foreground">
         Nenhuma tag nova a sugerir
         {payload.skipped && payload.skipped.length > 0
           ? ` — ${payload.skipped.length} já estavam aplicadas ou fora do catálogo.`
@@ -68,7 +68,7 @@ export function AstroTagSuggestionsCard({
 
   if (appliedCount !== null) {
     return (
-      <div className="flex w-full items-center gap-2 rounded-lg border border-emerald-800/60 bg-emerald-950/30 px-3 py-2 text-xs text-emerald-300">
+      <div className="flex w-full items-center gap-2 rounded-lg border border-success/60 bg-success/30 px-3 py-2 text-xs text-success">
         <CheckCircle2 className="size-4" />
         {appliedCount} tag{appliedCount !== 1 ? "s" : ""} aplicada
         {appliedCount !== 1 ? "s" : ""} ao lead.
@@ -77,21 +77,21 @@ export function AstroTagSuggestionsCard({
   }
 
   return (
-    <div className="w-full overflow-hidden rounded-lg border border-zinc-800/80 bg-zinc-900/40">
-      <div className="flex items-center gap-2 border-b border-zinc-800/80 px-3 py-2 text-[11px] uppercase tracking-wider text-zinc-500">
+    <div className="w-full overflow-hidden rounded-lg border border-line/80 bg-card/40">
+      <div className="flex items-center gap-2 border-b border-line/80 px-3 py-2 text-[11px] uppercase tracking-wider text-muted-foreground">
         <TagIcon className="size-3.5" />
         Sugestões de tag
       </div>
 
-      <ul className="divide-y divide-zinc-800/60">
+      <ul className="divide-y divide-line/60">
         {payload.suggestions.map((s) => {
           const checked = selected.has(s.tagId);
           return (
             <li key={s.tagId}>
               <label
                 className={cn(
-                  "flex cursor-pointer items-start gap-3 px-3 py-2 hover:bg-zinc-900/60",
-                  checked && "bg-zinc-900/40",
+                  "flex cursor-pointer items-start gap-3 px-3 py-2 hover:bg-card/60",
+                  checked && "bg-card/40",
                 )}
               >
                 <Checkbox
@@ -108,11 +108,11 @@ export function AstroTagSuggestionsCard({
                       }}
                       aria-hidden
                     />
-                    <span className="text-xs font-medium text-zinc-200">
+                    <span className="text-xs font-medium text-foreground">
                       {s.tagName}
                     </span>
                   </span>
-                  <span className="text-[11px] text-zinc-400">{s.reason}</span>
+                  <span className="text-[11px] text-muted-foreground">{s.reason}</span>
                 </div>
               </label>
             </li>
@@ -121,7 +121,7 @@ export function AstroTagSuggestionsCard({
       </ul>
 
       {payload.skipped && payload.skipped.length > 0 && (
-        <div className="border-t border-zinc-800/80 px-3 py-1.5 text-[10px] text-zinc-500">
+        <div className="border-t border-line/80 px-3 py-1.5 text-[10px] text-muted-foreground">
           {payload.skipped.length} tag
           {payload.skipped.length !== 1 ? "s" : ""} ignorada
           {payload.skipped.length !== 1 ? "s" : ""} (já aplicadas ou fora do
@@ -129,7 +129,7 @@ export function AstroTagSuggestionsCard({
         </div>
       )}
 
-      <div className="flex items-center justify-end gap-2 border-t border-zinc-800/80 bg-zinc-900/60 px-3 py-2">
+      <div className="flex items-center justify-end gap-2 border-t border-line/80 bg-card/60 px-3 py-2">
         <Button
           type="button"
           variant="ghost"

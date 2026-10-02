@@ -70,8 +70,8 @@ export function ShareTargetsField({ value, onChange, disabled }: Props) {
               className={cn(
                 "flex items-center gap-1.5 rounded-full border pl-1 pr-2 py-0.5",
                 o.canShareDirectly
-                  ? "border-emerald-300/60 bg-emerald-500/10"
-                  : "border-amber-300/60 bg-amber-500/10",
+                  ? "border-success/60 bg-success/10"
+                  : "border-warning/60 bg-warning/10",
               )}
             >
               <Avatar className="size-5">
@@ -82,7 +82,7 @@ export function ShareTargetsField({ value, onChange, disabled }: Props) {
               </Avatar>
               <span className="text-xs">{o.name}</span>
               {!o.canShareDirectly && (
-                <LockIcon className="size-3 text-amber-600 dark:text-amber-400" />
+                <LockIcon className="size-3 text-warning dark:text-warning" />
               )}
               <button
                 type="button"
@@ -146,8 +146,8 @@ export function ShareTargetsField({ value, onChange, disabled }: Props) {
                           className={cn(
                             "truncate text-[10px]",
                             o.canShareDirectly
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-amber-600 dark:text-amber-400",
+                              ? "text-success dark:text-success"
+                              : "text-warning dark:text-warning",
                           )}
                         >
                           {o.canShareDirectly

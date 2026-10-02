@@ -627,7 +627,7 @@ export function TrafegoLanding({
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="dark min-h-screen">
       <SocialBackdrop />
       <LandingNav onStart={startWizard} />
       <Hero onStart={startWizard} />
@@ -636,7 +636,7 @@ export function TrafegoLanding({
         <BrandsMarquee />
 
         {wasCancelled && (
-          <div className="mt-6 rounded-xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+          <div className="mt-6 rounded-xl border border-warning/30 bg-warning/15 p-4 text-sm text-warning">
             Pagamento cancelado. Seus dados continuam preenchidos — é só refazer
             a simulação quando quiser.
           </div>
@@ -864,11 +864,11 @@ export function TrafegoLanding({
                 >
                   <div className="space-y-5">
                     {repeatDefaults && (
-                      <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/[0.08] p-4">
+                      <div className="rounded-2xl border border-success/30 bg-success/15 p-4">
                         <div className="flex items-start gap-3">
-                          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15">
+                          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-success/15">
                             {useSavedCompany ? (
-                              <CheckCircle2 className="size-5 text-emerald-300" />
+                              <CheckCircle2 className="size-5 text-success" />
                             ) : (
                               <Building2 className="size-5 text-white/55" />
                             )}
@@ -888,7 +888,7 @@ export function TrafegoLanding({
                                 setUseSavedCompany(next);
                                 if (next) setBusiness(savedBusiness);
                               }}
-                              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-300 transition hover:text-emerald-200"
+                              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-success transition hover:text-success/80"
                             >
                               <Pencil className="size-3.5" />
                               {useSavedCompany
@@ -958,9 +958,9 @@ export function TrafegoLanding({
                   canGoNext={canGoNext}
                 >
                   {canReuseContact && !editContact ? (
-                    <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/[0.08] p-4">
+                    <div className="rounded-2xl border border-success/30 bg-success/15 p-4">
                       <div className="flex items-start gap-3">
-                        <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-300" />
+                        <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-white">
                             Usaremos os dados da sua conta
@@ -972,7 +972,7 @@ export function TrafegoLanding({
                           <button
                             type="button"
                             onClick={() => setEditContact(true)}
-                            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-300 transition hover:text-emerald-200"
+                            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-success transition hover:text-success/80"
                           >
                             <Pencil className="size-3.5" />
                             Alterar dados
@@ -1041,7 +1041,7 @@ export function TrafegoLanding({
                     )}
 
                     <div className="space-y-5 border-t border-white/[0.07] pt-6">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-300/80">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-info/80">
                         Pagamento
                       </p>
 
@@ -1094,7 +1094,7 @@ export function TrafegoLanding({
                       </div>
 
                       {formError && (
-                        <p className="rounded-lg border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-200">
+                        <p className="rounded-lg border border-destructive/30 bg-destructive/15 p-3 text-sm text-destructive">
                           {formError}
                         </p>
                       )}
@@ -1106,14 +1106,14 @@ export function TrafegoLanding({
                           onChange={(event) =>
                             setAcceptedTerms(event.target.checked)
                           }
-                          className="mt-0.5 size-4 shrink-0 accent-violet-500"
+                          className="mt-0.5 size-4 shrink-0 accent-info"
                         />
                         <span className="text-xs leading-relaxed text-white/55">
                           Li e aceito os{" "}
                           <Link
                             href="/trafego/termos"
                             target="_blank"
-                            className="font-medium text-violet-300 underline underline-offset-2"
+                            className="font-medium text-info underline underline-offset-2"
                           >
                             Termos de serviço
                           </Link>{" "}
@@ -1121,7 +1121,7 @@ export function TrafegoLanding({
                           <Link
                             href="/trafego/privacidade"
                             target="_blank"
-                            className="font-medium text-violet-300 underline underline-offset-2"
+                            className="font-medium text-info underline underline-offset-2"
                           >
                             Política de privacidade
                           </Link>
@@ -1215,7 +1215,7 @@ function ValueProps() {
           key={item.title}
           className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5"
         >
-          <item.icon className="size-5 text-violet-300" />
+          <item.icon className="size-5 text-info" />
           <p className="mt-3 text-sm font-semibold text-white">{item.title}</p>
           <p className="mt-1 text-xs leading-relaxed text-white/45">
             {item.text}

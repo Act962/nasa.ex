@@ -16,7 +16,7 @@ function renderWithLinks(text: string): ReactNode {
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className="underline text-blue-500 hover:text-blue-600 break-all"
+          className="underline text-info hover:text-info break-all"
         >
           {part}
         </a>

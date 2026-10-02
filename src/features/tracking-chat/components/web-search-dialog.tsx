@@ -94,7 +94,7 @@ export function WebSearchDialog({
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto gap-4 p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <GlobeIcon className="size-4 text-emerald-600" />
+            <GlobeIcon className="size-4 text-success" />
             Pesquisar na Web
           </DialogTitle>
           <DialogDescription>
@@ -136,7 +136,7 @@ export function WebSearchDialog({
           <div className="space-y-3">
             <div className="rounded-lg border p-4 space-y-3 min-w-0 overflow-hidden">
               <div className="flex flex-wrap items-center gap-2">
-                <SparklesIcon className="size-3.5 text-emerald-600 shrink-0" />
+                <SparklesIcon className="size-3.5 text-success shrink-0" />
                 <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Resumo
                 </span>

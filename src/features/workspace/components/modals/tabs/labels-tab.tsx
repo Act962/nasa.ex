@@ -157,7 +157,7 @@ export function LabelsTab({ workspaceId }: { workspaceId: string }) {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="size-8 text-emerald-600"
+                    className="size-8 text-success"
                     onClick={handleSaveEdit}
                   >
                     <Check className="size-4" />

@@ -22,6 +22,14 @@ import {
 } from "lucide-react";
 import { ReferralLinkCard } from "@/features/partner/components/referral-link-card";
 
+const TIER_BADGE_CLASS: Record<string, string> = {
+  SUITE: "bg-muted text-foreground",
+  EARTH: "bg-temp-cold/15 text-temp-cold",
+  GALAXY: "bg-temp-warm/15 text-temp-warm",
+  CONSTELLATION: "bg-temp-hot/15 text-temp-hot",
+  INFINITY: "bg-temp-very-hot/15 text-temp-very-hot",
+};
+
 export default async function PartnerDashboardPage() {
   const { user, partner } = await requirePartnerSession();
   const settings = await getProgramSettings();
@@ -102,27 +110,31 @@ export default async function PartnerDashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <Handshake className="w-5 h-5 text-amber-400" />
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <Handshake className="w-5 h-5 text-muted-foreground" />
             Bem-vindo de volta, {user.name.split(" ")[0]}
           </h1>
-          <p className="text-sm text-zinc-400 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Nível atual:{" "}
-            <span className="text-amber-300 font-semibold">
+            <span
+              className={`font-semibold px-2 py-0.5 rounded-full text-xs ${
+                partner.tier ? TIER_BADGE_CLASS[partner.tier] : "text-muted-foreground"
+              }`}
+            >
               {partner.tier ?? "—"}
             </span>{" "}
             ·{" "}
-            <span className="text-zinc-300">
+            <span className="text-foreground">
               {activeReferrals} org(s) ativa(s)
             </span>
           </p>
         </div>
         {nextTier && nextThreshold && (
-          <div className="text-right text-xs text-zinc-400">
-            <div className="text-zinc-500 uppercase tracking-wider mb-0.5">
+          <div className="text-right text-xs text-muted-foreground">
+            <div className="text-muted-foreground uppercase tracking-wider mb-0.5">
               Próximo nível
             </div>
-            <div className="text-amber-300 font-semibold">
+            <div className="text-foreground font-semibold">
               {nextTier} — faltam{" "}
               {Math.max(nextThreshold - activeReferrals, 0)} org(s)
             </div>
@@ -132,14 +144,14 @@ export default async function PartnerDashboardPage() {
 
       {/* Carência */}
       {partner.gracePeriodEndsAt && (
-        <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
-          <div className="text-sm text-amber-200">
+        <div className="bg-warning/15 border border-warning/30 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-warning mt-0.5 shrink-0" />
+          <div className="text-sm text-warning">
             <p className="font-semibold">
               Atenção: você está em período de carência até{" "}
               {new Date(partner.gracePeriodEndsAt).toLocaleDateString("pt-BR")}
             </p>
-            <p className="text-amber-300/80 mt-1">
+            <p className="text-warning mt-1">
               Se não recuperar orgs ativas, cairá de{" "}
               {partner.gracePeriodFromTier} para {partner.gracePeriodToTier}.
               Engaje empresas em risco para preservar seu nível.
@@ -152,28 +164,28 @@ export default async function PartnerDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card
           icon={ShoppingBag}
-          accent="text-blue-300"
+          accent="text-info"
           label="Compras das indicadas"
           value={`R$ ${fmt(referralRevenueBrl)}`}
           sub={`${pendingAgg._count._all} compra(s) — ${cycle}`}
         />
         <Card
           icon={TrendingUp}
-          accent="text-emerald-300"
+          accent="text-success"
           label={`Comissão (${commissionRate}%)`}
           value={`R$ ${fmt(grossCommissionBrl)}`}
           sub="Bruto a receber"
         />
         <Card
           icon={Sparkles}
-          accent="text-purple-300"
+          accent="text-info"
           label={`Suas compras (${discountRate}% off)`}
           value={`R$ ${fmt(partnerPaidBrl)}`}
           sub={`Economizou R$ ${fmt(partnerSavingsBrl)}`}
         />
         <Card
           icon={Wallet}
-          accent="text-amber-300"
+          accent="text-warning"
           label="A receber em"
           value={scheduledPayoutDate.toLocaleDateString("pt-BR")}
           sub={`R$ ${fmt(grossCommissionBrl)} líquido`}
@@ -182,36 +194,36 @@ export default async function PartnerDashboardPage() {
       </div>
 
       {/* Distribuição de orgs */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+      <div className="bg-card border border-line rounded-xl p-5">
         <header className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-amber-400" />
-            <h2 className="text-sm font-semibold text-white">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">
               Suas indicações
             </h2>
           </div>
           <a
             href="/partner/indicacoes"
-            className="text-xs text-amber-400 hover:text-amber-300"
+            className="text-xs text-info hover:underline"
           >
             Ver todas →
           </a>
         </header>
         <div className="grid grid-cols-3 gap-3">
           <Pill
-            color="bg-emerald-500/15 border-emerald-500/40"
+            color="bg-success/15 border-success/40"
             label="Ativas"
             value={activeReferrals}
             note="contam para nível"
           />
           <Pill
-            color="bg-amber-500/15 border-amber-500/40"
+            color="bg-warning/15 border-warning/40"
             label="Em risco"
             value={atRiskReferrals}
             note="≤ 14 dias para inativar"
           />
           <Pill
-            color="bg-zinc-700/40 border-zinc-700"
+            color="bg-muted border-line"
             label="Inativas"
             value={inactiveReferrals}
             note="não contam para nível"
@@ -229,8 +241,8 @@ export default async function PartnerDashboardPage() {
       )}
 
       {/* Vitalício */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-2">
-        <h2 className="text-sm font-semibold text-white">Acumulado vitalício</h2>
+      <div className="bg-card border border-line rounded-xl p-5 space-y-2">
+        <h2 className="text-sm font-semibold text-foreground">Acumulado vitalício</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
           <Field
             label="Receita das indicadas"
@@ -239,7 +251,7 @@ export default async function PartnerDashboardPage() {
           <Field
             label="Total ganho"
             value={`R$ ${fmt(Number(partner.totalEarnedBrl))}`}
-            accent="text-emerald-300"
+            accent="text-success"
           />
           <Field
             label="Total pago"
@@ -248,7 +260,7 @@ export default async function PartnerDashboardPage() {
           <Field
             label="Economia em compras"
             value={`R$ ${fmt(Number(partner.totalSavingsBrl))}`}
-            accent="text-purple-300"
+            accent="text-info"
           />
         </div>
       </div>
@@ -275,20 +287,20 @@ function Card({
     <div
       className={`rounded-xl p-4 border ${
         highlight
-          ? "bg-amber-500/10 border-amber-500/40"
-          : "bg-zinc-900 border-zinc-800"
+          ? "bg-warning/15 border-warning/30"
+          : "bg-card border-line"
       }`}
     >
       <div className="flex items-center gap-2 mb-2">
-        <Icon className={`w-4 h-4 ${accent ?? "text-zinc-400"}`} />
-        <div className="text-xs text-zinc-400 uppercase tracking-wide">
+        <Icon className={`w-4 h-4 ${accent ?? "text-muted-foreground"}`} />
+        <div className="text-xs text-muted-foreground uppercase tracking-wide">
           {label}
         </div>
       </div>
-      <div className={`text-lg font-bold ${accent ?? "text-white"}`}>
+      <div className={`text-lg font-bold ${accent ?? "text-foreground"}`}>
         {value}
       </div>
-      {sub && <div className="text-[11px] text-zinc-500 mt-1">{sub}</div>}
+      {sub && <div className="text-[11px] text-muted-foreground mt-1">{sub}</div>}
     </div>
   );
 }
@@ -306,11 +318,11 @@ function Pill({
 }) {
   return (
     <div className={`rounded-xl border p-4 ${color}`}>
-      <div className="text-xs text-zinc-400 uppercase tracking-wide">
+      <div className="text-xs text-muted-foreground uppercase tracking-wide">
         {label}
       </div>
-      <div className="text-2xl font-bold text-white mt-1">{value}</div>
-      <div className="text-[11px] text-zinc-400 mt-1">{note}</div>
+      <div className="text-2xl font-bold text-foreground mt-1">{value}</div>
+      <div className="text-[11px] text-muted-foreground mt-1">{note}</div>
     </div>
   );
 }
@@ -326,10 +338,10 @@ function Field({
 }) {
   return (
     <div>
-      <div className="text-[11px] text-zinc-500 uppercase tracking-wide">
+      <div className="text-[11px] text-muted-foreground uppercase tracking-wide">
         {label}
       </div>
-      <div className={`text-base font-semibold mt-1 ${accent ?? "text-white"}`}>
+      <div className={`text-base font-semibold mt-1 ${accent ?? "text-foreground"}`}>
         {value}
       </div>
     </div>

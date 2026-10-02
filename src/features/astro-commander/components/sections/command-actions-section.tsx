@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { orpc } from "@/lib/orpc";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -74,7 +75,7 @@ export function CommandActionsSection({ command }: { command: CommandDetailData 
           </p>
         </div>
         <Button onClick={handleSave} disabled={update.isPending} className="h-10 rounded-xl">
-          {update.isPending && <Loader2 className="size-4 animate-spin" />}
+          {update.isPending && <OrbitaSpinner className="size-4 " />}
           Salvar
         </Button>
       </div>

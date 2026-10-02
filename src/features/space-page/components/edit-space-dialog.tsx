@@ -106,7 +106,7 @@ export function EditSpaceDialog({ orgId, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="dark max-w-2xl">
         <DialogHeader>
           <DialogTitle>Editar Spacehome</DialogTitle>
           <DialogDescription>
@@ -122,7 +122,7 @@ export function EditSpaceDialog({ orgId, open, onOpenChange }: Props) {
               Moderação
               {data?.pending &&
                 data.pending.reviews + data.pending.comments > 0 && (
-                  <span className="ml-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] text-white">
+                  <span className="ml-1 rounded-full bg-destructive px-1.5 py-0.5 text-[10px] text-white">
                     {data.pending.reviews + data.pending.comments}
                   </span>
                 )}
@@ -248,7 +248,7 @@ function ModerationPanel({ orgId }: { orgId: string }) {
             Aprove ou oculte avaliações recebidas.
           </p>
         </div>
-        <span className="rounded-full bg-yellow-500/20 px-2 py-1 text-xs text-yellow-700">
+        <span className="rounded-full bg-warning/20 px-2 py-1 text-xs text-warning">
           {data.pending.reviews}
         </span>
       </div>
@@ -259,7 +259,7 @@ function ModerationPanel({ orgId }: { orgId: string }) {
             Posts precisam de aprovação manual.
           </p>
         </div>
-        <span className="rounded-full bg-yellow-500/20 px-2 py-1 text-xs text-yellow-700">
+        <span className="rounded-full bg-warning/20 px-2 py-1 text-xs text-warning">
           {data.pending.comments}
         </span>
       </div>
@@ -270,7 +270,7 @@ function ModerationPanel({ orgId }: { orgId: string }) {
             Membros aguardando confirmação pra aparecer publicamente.
           </p>
         </div>
-        <span className="rounded-full bg-yellow-500/20 px-2 py-1 text-xs text-yellow-700">
+        <span className="rounded-full bg-warning/20 px-2 py-1 text-xs text-warning">
           {data.pending.roleConsents}
         </span>
       </div>

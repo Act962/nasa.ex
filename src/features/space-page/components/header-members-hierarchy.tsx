@@ -108,7 +108,7 @@ function CrewMember({ member, onClick }: { member: CrewMemberData; onClick: () =
       title={`${member.displayName} — ${member.jobTitle}`}
       className="group flex flex-col items-center gap-1 transition-transform hover:scale-105 focus:outline-none"
     >
-      <div className="relative h-12 w-12 overflow-hidden rounded-full border-2 border-white/90 bg-slate-800 shadow-lg ring-0 transition group-hover:border-orange-300 group-hover:ring-2 group-hover:ring-orange-300/40">
+      <div className="relative h-12 w-12 overflow-hidden rounded-full border-2 border-white/90 bg-muted shadow-lg ring-0 transition group-hover:border-info group-hover:ring-2 group-hover:ring-info/40">
         {member.image ? (
           <Image
             src={member.image}

@@ -52,34 +52,34 @@ const getFileIcon = (fileName: string) => {
     case "gif":
     case "svg":
     case "webp":
-      return <ImageIcon className="size-3.5 text-blue-500 shrink-0" />;
+      return <ImageIcon className="size-3.5 text-info shrink-0" />;
     case "pdf":
     case "txt":
     case "doc":
     case "docx":
-      return <FileTextIcon className="size-3.5 text-rose-500 shrink-0" />;
+      return <FileTextIcon className="size-3.5 text-destructive shrink-0" />;
     case "xls":
     case "xlsx":
     case "csv":
       return (
-        <FileSpreadsheetIcon className="size-3.5 text-emerald-500 shrink-0" />
+        <FileSpreadsheetIcon className="size-3.5 text-success shrink-0" />
       );
     case "mp3":
     case "wav":
     case "ogg":
     case "m4a":
-      return <FileAudioIcon className="size-3.5 text-amber-500 shrink-0" />;
+      return <FileAudioIcon className="size-3.5 text-warning shrink-0" />;
     case "mp4":
     case "avi":
     case "mov":
     case "webm":
-      return <VideoIcon className="size-3.5 text-purple-500 shrink-0" />;
+      return <VideoIcon className="size-3.5 text-info shrink-0" />;
     case "zip":
     case "rar":
     case "7z":
     case "tar":
     case "gz":
-      return <ArchiveIcon className="size-3.5 text-amber-600 shrink-0" />;
+      return <ArchiveIcon className="size-3.5 text-warning shrink-0" />;
     default:
       return <FileIcon className="size-3.5 text-muted-foreground shrink-0" />;
   }

@@ -10,16 +10,20 @@ import { COURSE_FORMAT_LABELS, COURSE_LEVEL_LABELS } from "../../types";
 import { cn } from "@/lib/utils";
 import { imgSrc } from "@/features/public-calendar/utils/img-src";
 
-export function MyCoursesGrid() {
+interface MyCoursesGridProps {
+  onExploreCatalog?: () => void;
+}
+
+export function MyCoursesGrid({ onExploreCatalog }: MyCoursesGridProps) {
   const { data, isLoading } = useQuery({
     ...orpc.nasaRoute.listMyEnrollments.queryOptions(),
   });
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="aspect-[3/4] rounded-2xl" />
+      <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-3">
+        {[1, 2, 3, 4].map((placeholderIndex) => (
+          <Skeleton key={placeholderIndex} className="aspect-[3/4] rounded-[20px]" />
         ))}
       </div>
     );
@@ -29,120 +33,127 @@ export function MyCoursesGrid() {
 
   if (enrollments.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-16 text-center">
-        <Search className="mx-auto size-8 text-muted-foreground" />
-        <p className="mt-3 text-sm font-medium">Você ainda não está matriculado em cursos</p>
+      <div className="rounded-[22px] border border-dashed border-line p-10 text-center md:p-16">
+        <div className="mx-auto grid size-12 place-items-center rounded-full bg-muted">
+          <Search className="size-5 text-muted-foreground" />
+        </div>
+        <p className="mt-3 text-sm font-medium">Você ainda não está em nenhum curso</p>
         <p className="mt-1 text-xs text-muted-foreground">
           Explore o catálogo e comece sua jornada com STARs.
         </p>
+        {onExploreCatalog && (
+          <Button onClick={onExploreCatalog} className="mt-4 h-11 rounded-full md:h-9">
+            Explorar cursos
+          </Button>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {enrollments.map((e) => {
-        const lessonId = e.progress.lastLessonId;
+    <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-3">
+      {enrollments.map((enrollment) => {
+        const lessonId = enrollment.progress.lastLessonId;
         const href = lessonId
-          ? `/nasa-route/curso/${e.course.id}/aula/${lessonId}`
-          : `/nasa-route/curso/${e.course.id}`;
-        const isComplete = !!e.completedAt;
+          ? `/nasa-route/curso/${enrollment.course.id}/aula/${lessonId}`
+          : `/nasa-route/curso/${enrollment.course.id}`;
+        const isComplete = !!enrollment.completedAt;
         return (
           <Link
-            key={e.id}
+            key={enrollment.id}
             href={href}
-            className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-md"
+            className="group flex min-w-0 flex-col overflow-hidden rounded-[20px] border border-line bg-card transition-shadow hover:shadow-md"
           >
-            <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-violet-500/20 via-indigo-500/15 to-fuchsia-500/10">
-              {e.course.coverUrl ? (
+            <div className="relative aspect-video w-full overflow-hidden bg-info/15">
+              {enrollment.course.coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={imgSrc(e.course.coverUrl)}
-                  alt={e.course.title}
+                  src={imgSrc(enrollment.course.coverUrl)}
+                  alt={enrollment.course.title}
                   className="h-full w-full object-cover transition-transform group-hover:scale-105"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-violet-500/40">
+                <div className="flex h-full w-full items-center justify-center text-info/40">
                   <GraduationCap className="size-12" />
                 </div>
               )}
               {isComplete && (
-                <div className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-medium text-white">
+                <div className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-warning px-2 py-0.5 text-[10px] font-medium text-white md:px-2.5 md:py-1 md:text-[11px]">
                   <Trophy className="size-3" />
                   Concluído
                 </div>
               )}
               {!isComplete && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
-                  <div className="rounded-full bg-white/90 p-3 text-violet-700">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100 max-md:hidden">
+                  <div className="rounded-full bg-white/90 p-3 text-info">
                     <Play className="size-5 fill-current" />
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="flex flex-1 flex-col gap-2 p-4">
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3 md:gap-2 md:p-4">
+              <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground md:text-[11px]">
                 <span className="rounded-full bg-muted px-2 py-0.5 font-medium">
-                  {COURSE_FORMAT_LABELS[e.course.format] ?? e.course.format}
+                  {COURSE_FORMAT_LABELS[enrollment.course.format] ?? enrollment.course.format}
                 </span>
-                <span className="rounded-full bg-muted px-2 py-0.5">
-                  {COURSE_LEVEL_LABELS[e.course.level] ?? e.course.level}
+                <span className="rounded-full bg-muted px-2 py-0.5 max-md:hidden">
+                  {COURSE_LEVEL_LABELS[enrollment.course.level] ?? enrollment.course.level}
                 </span>
-                {e.source === "free_access" && (
-                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+                {enrollment.source === "free_access" && (
+                  <span className="rounded-full bg-success/10 px-2 py-0.5 font-medium text-success">
                     Acesso livre
                   </span>
                 )}
               </div>
 
-              <h3 className="line-clamp-2 font-semibold leading-tight">{e.course.title}</h3>
-              {e.course.subtitle && (
-                <p className="line-clamp-2 text-sm text-muted-foreground">
-                  {e.course.subtitle}
+              <h3 className="line-clamp-2 text-sm leading-tight font-semibold md:text-base">{enrollment.course.title}</h3>
+              {enrollment.course.subtitle && (
+                <p className="line-clamp-2 text-sm text-muted-foreground max-md:hidden">
+                  {enrollment.course.subtitle}
                 </p>
               )}
 
               <div className="mt-1">
                 <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
                   <span>
-                    {e.progress.completed} / {e.progress.total} aulas
+                    {enrollment.progress.completed} / {enrollment.progress.total} aulas
                   </span>
-                  <span className="font-medium">{e.progress.pct}%</span>
+                  <span className="font-medium">{enrollment.progress.pct}%</span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                   <div
                     className={cn(
                       "h-full rounded-full transition-all",
-                      isComplete ? "bg-amber-500" : "bg-violet-600",
+                      isComplete ? "bg-warning" : "bg-info",
                     )}
-                    style={{ width: `${e.progress.pct}%` }}
+                    style={{ width: `${enrollment.progress.pct}%` }}
                   />
                 </div>
               </div>
 
-              <div className="mt-auto flex flex-wrap items-center gap-3 pt-2 text-[11px] text-muted-foreground">
-                {e.course.durationMin && (
+              <div className="mt-auto flex flex-wrap items-center gap-3 pt-2 text-[11px] text-muted-foreground max-md:hidden">
+                {enrollment.course.durationMin && (
                   <span className="inline-flex items-center gap-1">
                     <Clock className="size-3" />
-                    {e.course.durationMin} min
+                    {enrollment.course.durationMin} min
                   </span>
                 )}
               </div>
 
-              {e.course.creatorOrg && (
-                <div className="flex items-center gap-2 border-t border-border pt-2 text-xs text-muted-foreground">
-                  {e.course.creatorOrg.logo ? (
+              {enrollment.course.creatorOrg && (
+                <div className="flex items-center gap-2 border-t border-line pt-2 text-xs text-muted-foreground max-md:hidden">
+                  {enrollment.course.creatorOrg.logo ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={e.course.creatorOrg.logo}
-                      alt={e.course.creatorOrg.name}
+                      src={enrollment.course.creatorOrg.logo}
+                      alt={enrollment.course.creatorOrg.name}
                       className="size-5 rounded-full object-cover"
                     />
                   ) : (
                     <div className="size-5 rounded-full bg-muted" />
                   )}
-                  <span className="truncate">{e.course.creatorOrg.name}</span>
+                  <span className="truncate">{enrollment.course.creatorOrg.name}</span>
                 </div>
               )}
             </div>

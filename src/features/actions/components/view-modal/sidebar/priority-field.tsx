@@ -18,10 +18,10 @@ const PRIORITY_CONFIG: Record<
     color: "text-muted-foreground",
     dot: "bg-muted-foreground",
   },
-  LOW: { label: "Baixa", color: "text-emerald-500", dot: "bg-emerald-500" },
-  MEDIUM: { label: "Média", color: "text-yellow-500", dot: "bg-yellow-500" },
-  HIGH: { label: "Alta", color: "text-orange-500", dot: "bg-orange-500" },
-  URGENT: { label: "Urgente", color: "text-red-600", dot: "bg-red-600" },
+  LOW: { label: "Baixa", color: "text-success", dot: "bg-success" },
+  MEDIUM: { label: "Média", color: "text-warning", dot: "bg-warning" },
+  HIGH: { label: "Alta", color: "text-warning", dot: "bg-warning" },
+  URGENT: { label: "Urgente", color: "text-destructive", dot: "bg-destructive" },
 };
 
 interface PriorityFieldProps {

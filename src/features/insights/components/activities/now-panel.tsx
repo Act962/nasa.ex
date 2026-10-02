@@ -66,10 +66,10 @@ export function NowPanel({ orgIds }: Props) {
   const count = data?.count ?? 0;
 
   return (
-    <div className="rounded-xl border bg-gradient-to-br from-emerald-50/50 to-transparent dark:from-emerald-950/20 p-4">
+    <div className="rounded-xl border bg-gradient-to-br from-success/50 to-transparent dark:from-success/20 p-4">
       <div className="flex items-center gap-2 mb-3">
-        <div className="size-7 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
-          <Activity className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+        <div className="size-7 rounded-full bg-success/15 dark:bg-success/15 flex items-center justify-center">
+          <Activity className="size-3.5 text-success dark:text-success" />
         </div>
         <div className="flex-1">
           <h3 className="text-sm font-semibold">O que está fazendo agora</h3>
@@ -80,7 +80,7 @@ export function NowPanel({ orgIds }: Props) {
         <div
           className={cn(
             "size-2 rounded-full",
-            count > 0 ? "bg-emerald-500 animate-pulse" : "bg-slate-300",
+            count > 0 ? "bg-success animate-pulse" : "bg-muted",
           )}
         />
       </div>
@@ -109,7 +109,7 @@ export function NowPanel({ orgIds }: Props) {
                           {initials(u.name)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="absolute -bottom-px -right-px size-1.5 rounded-full bg-emerald-500 ring-2 ring-background" />
+                      <span className="absolute -bottom-px -right-px size-1.5 rounded-full bg-success ring-2 ring-background" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-medium truncate">{u.name}</p>

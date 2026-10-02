@@ -23,7 +23,8 @@ import {
   useCreateBinding,
   useOrgMembers,
 } from "@/features/astro-bot/hooks/use-astro-bot";
-import { Loader2, MessageCircle, Smartphone, User } from "lucide-react";
+import { MessageCircle, Smartphone, User } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -148,7 +149,7 @@ export function BindWhatsappDialog({
             disabled={create.isPending || !phone || !userId}
           >
             {create.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
+              <OrbitaSpinner className="size-4 " />
             ) : (
               "Adicionar"
             )}

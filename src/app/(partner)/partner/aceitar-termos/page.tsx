@@ -15,12 +15,12 @@ export default async function AcceptTermsPage() {
   if (!activeTerms) {
     return (
       <div className="max-w-2xl mx-auto py-10">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-center">
-          <ScrollText className="w-10 h-10 text-zinc-500 mx-auto mb-3" />
-          <h1 className="text-lg font-bold text-white">
+        <div className="bg-card border border-line rounded-xl p-6 text-center">
+          <ScrollText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+          <h1 className="text-lg font-bold text-foreground">
             Termos do programa não publicados
           </h1>
-          <p className="text-sm text-zinc-400 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             O administrador ainda não publicou a versão ativa dos termos.
             Aguarde para acessar o painel.
           </p>
@@ -35,40 +35,40 @@ export default async function AcceptTermsPage() {
   return (
     <div className="max-w-3xl mx-auto py-6 space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <ScrollText className="w-5 h-5 text-amber-400" />
+        <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <ScrollText className="w-5 h-5 text-muted-foreground" />
           Termos ÓRBITA Partner — versão {activeTerms.version}
         </h1>
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           {activeTerms.title}
         </p>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
+      <div className="bg-card border border-line rounded-xl p-6 space-y-4">
         <div>
-          <h2 className="text-sm font-semibold text-white">
+          <h2 className="text-sm font-semibold text-foreground">
             Sobre esta versão
           </h2>
-          <p className="text-sm text-zinc-300 mt-1">
+          <p className="text-sm text-foreground mt-1">
             Esta versão entrou em vigor em{" "}
             {new Date(activeTerms.effectiveAt).toLocaleDateString("pt-BR")}.
             {activeTerms.changeSummary && (
-              <span className="block mt-2 text-zinc-400">
+              <span className="block mt-2 text-muted-foreground">
                 <strong>Mudanças:</strong> {activeTerms.changeSummary}
               </span>
             )}
           </p>
         </div>
 
-        <div className="border-t border-zinc-800 pt-4">
-          <h2 className="text-sm font-semibold text-white mb-2">
+        <div className="border-t border-line pt-4">
+          <h2 className="text-sm font-semibold text-foreground mb-2">
             Conteúdo dos termos
           </h2>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-muted-foreground">
             Leia o conteúdo completo na trilha educacional{" "}
             <Link
               href="/space-help/nasa-partner-regras"
-              className="text-amber-400 hover:text-amber-300 underline"
+              className="text-info hover:underline underline"
             >
               "ÓRBITA Partner — Regras, Privacidade e LGPD"
             </Link>{" "}
@@ -79,13 +79,13 @@ export default async function AcceptTermsPage() {
         </div>
 
         {alreadyAccepted ? (
-          <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-lg p-4 text-center">
-            <p className="text-sm text-emerald-300">
+          <div className="bg-success/15 border border-success/30 rounded-lg p-4 text-center">
+            <p className="text-sm text-success">
               ✅ Você já aceitou esta versão. Acesso liberado.
             </p>
             <Link
               href="/partner"
-              className="inline-block mt-3 bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-4 py-2 rounded-lg"
+              className="inline-block mt-3 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-4 py-2 rounded-full"
             >
               Ir para o painel
             </Link>

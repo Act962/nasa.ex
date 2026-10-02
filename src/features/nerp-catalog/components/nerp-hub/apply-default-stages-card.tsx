@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, Wand2 } from "lucide-react";
+import { Wand2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useApplyDefaultCatalogStages } from "../../hooks/use-nerp-catalog-integration";
@@ -54,7 +55,7 @@ export function ApplyDefaultStagesCard({
         disabled={!isEnabled || !trackingId || applyDefaultStages.isPending}
         onClick={handleApply}
       >
-        {applyDefaultStages.isPending ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
+        {applyDefaultStages.isPending ? <OrbitaSpinner className="size-4 " /> : <Wand2 className="size-4" />}
         Aplicar padrão do sistema
       </Button>
     </div>

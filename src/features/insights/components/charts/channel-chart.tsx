@@ -1,5 +1,6 @@
 "use client";
 
+import { CHART_PALETTE, CHART_MUTED_FILL } from "@/lib/chart-palette";
 import {
   Bar,
   BarChart,
@@ -36,19 +37,10 @@ interface ChannelChartProps {
   onClick?: (leadIds?: string[]) => void;
 }
 
-const CHANNEL_COLORS = [
-  "hsl(221, 83%, 53%)",
-  "hsl(142, 71%, 45%)",
-  "hsl(38, 92%, 50%)",
-  "hsl(330, 81%, 60%)",
-  "hsl(173, 80%, 40%)",
-  "hsl(262, 83%, 58%)",
-  "hsl(0, 84%, 60%)",
-  "hsl(199, 89%, 48%)",
-];
+const CHANNEL_COLORS = CHART_PALETTE;
 
 const MAX_VISIBLE = 8;
-const OTHERS_FILL = "hsl(220, 9%, 46%)";
+const OTHERS_FILL = CHART_MUTED_FILL;
 
 export function ChannelChart({ data, chartType, onClick }: ChannelChartProps) {
   const isMobile = useIsMobile();
@@ -275,9 +267,9 @@ export function ChannelChart({ data, chartType, onClick }: ChannelChartProps) {
             <Line
               dataKey="count"
               type="natural"
-              stroke="hsl(221, 83%, 53%)"
+              stroke="var(--chart-3)"
               strokeWidth={2}
-              dot={{ fill: "hsl(221, 83%, 53%)", r: isTinyMobile ? 2 : 4 }}
+              dot={{ fill: "var(--chart-3)", r: isTinyMobile ? 2 : 4 }}
               activeDot={{ r: 6 }}
             />
           </LineChart>

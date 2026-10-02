@@ -19,8 +19,8 @@ export function ImageFormatSelector({ value, onChange }: Props) {
           className={cn(
             "px-2.5 py-1 text-xs font-medium rounded-full border transition-colors",
             value === fmt
-              ? "border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400"
-              : "border-border text-muted-foreground hover:border-violet-300",
+              ? "border-info bg-info/10 text-info"
+              : "border-border text-muted-foreground hover:border-info/40",
           )}
         >
           {FORMAT_DIMENSIONS[fmt].label}

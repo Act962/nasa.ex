@@ -117,33 +117,32 @@ export function AlertCriticalPopup({ payload, onAcknowledge }: Props) {
       onClick={handleBackdrop}
     >
       <style>{KEYFRAMES}</style>
-      <div className="absolute inset-0 bg-red-950/70 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
       <div
         className={cn(
-          "relative z-10 pointer-events-auto rounded-2xl shadow-2xl",
+          "relative z-10 pointer-events-auto rounded-2xl shadow-2xl text-white border border-white/10",
           "max-w-md w-[92vw] overflow-hidden",
           animClass,
         )}
         style={{
           background:
-            "linear-gradient(135deg, #7f1d1d 0%, #991b1b 55%, #b91c1c 100%)",
-          color: "white",
+            "linear-gradient(135deg, color-mix(in oklch, var(--destructive) 60%, black) 0%, var(--destructive) 100%)",
           boxShadow:
-            "0 25px 60px -20px rgba(239,68,68,0.5), 0 0 0 1px rgba(255,255,255,0.08)",
+            "0 25px 60px -20px color-mix(in oklch, var(--destructive) 50%, transparent)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Linha de "alerta" superior animada */}
-        <div className="h-1 bg-gradient-to-r from-amber-400 via-red-300 to-amber-400 alert-popup-pulse" />
+        <div className="h-1 bg-gradient-to-r from-warning via-white/60 to-warning alert-popup-pulse" />
 
         <div className="px-6 pt-6 pb-5">
           <div className="flex items-start gap-4">
             <div className="shrink-0 size-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
-              <AlertTriangle className="size-7 text-amber-300" />
+              <AlertTriangle className="size-7 text-warning" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-red-200/80">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-white/80">
                 Alerta crítico
                 {payload.organizationName && (
                   <span className="text-white"> · {payload.organizationName}</span>
@@ -160,7 +159,7 @@ export function AlertCriticalPopup({ payload, onAcknowledge }: Props) {
 
           <p
             id="alert-popup-body"
-            className="mt-5 text-sm leading-relaxed text-red-50/90 whitespace-pre-wrap"
+            className="mt-5 text-sm leading-relaxed text-white/90 whitespace-pre-wrap"
           >
             {payload.body}
           </p>
@@ -171,7 +170,7 @@ export function AlertCriticalPopup({ payload, onAcknowledge }: Props) {
                 href={payload.actionUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold bg-white/10 hover:bg-white/15 border border-white/20 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-semibold bg-white/10 hover:bg-white/15 border border-white/20 transition-colors"
               >
                 Ver detalhes
                 <ExternalLink className="size-3.5" />
@@ -182,8 +181,8 @@ export function AlertCriticalPopup({ payload, onAcknowledge }: Props) {
               onClick={handleAck}
               disabled={acking}
               className={cn(
-                "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold",
-                "bg-white text-red-900 hover:bg-red-50 active:scale-95 transition-all",
+                "inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold",
+                "bg-white text-destructive hover:bg-white/90 active:scale-95 transition-all",
                 "disabled:opacity-60 disabled:cursor-wait",
               )}
             >

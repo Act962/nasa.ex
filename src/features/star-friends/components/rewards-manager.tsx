@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Gift, Loader2, Pencil, Plus } from "lucide-react";
+import { Gift, Pencil, Plus, Star } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,9 @@ const EMPTY_DRAFT: RewardDraft = {
   minTier: "EARTH",
   isActive: true,
 };
+
+const BOTTOM_SHEET_DIALOG_CLASS =
+  "flex max-h-[88dvh] flex-col gap-0 p-0 max-sm:top-auto max-sm:bottom-0 max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-b-none max-sm:rounded-t-[26px]";
 
 const toNullableNumber = (value: string) => (value.trim() === "" ? null : Number(value));
 
@@ -133,12 +137,12 @@ export function RewardsManager({ canEdit, variant = "grid" }: { canEdit: boolean
 
   const rewardDialog = (
     <Dialog open={draft !== null} onOpenChange={(isOpen) => !isOpen && closeDraft()}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className={BOTTOM_SHEET_DIALOG_CLASS}>
+        <DialogHeader className="px-6 pt-6 pb-4 text-left">
           <DialogTitle>{draft?.id ? "Editar prêmio" : "Novo prêmio"}</DialogTitle>
         </DialogHeader>
         {draft && (
-          <div className="flex flex-col gap-3">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 pb-4">
             <Label>Tipo</Label>
             <Select value={draft.type} onValueChange={(type) => setDraft({ ...draft, type: type as RewardType })}>
               <SelectTrigger className="w-full">
@@ -158,7 +162,7 @@ export function RewardsManager({ canEdit, variant = "grid" }: { canEdit: boolean
               value={draft.description}
               onChange={(event) => setDraft({ ...draft, description: event.target.value })}
             />
-            <Label htmlFor="reward-cost">Compras para ganhar (custo em ⭐)</Label>
+            <Label htmlFor="reward-cost">Compras para ganhar (custo em stars)</Label>
             <Input
               id="reward-cost"
               data-guide={GUIDE_ANCHORS.starFriendsRewardCost.id}
@@ -168,7 +172,7 @@ export function RewardsManager({ canEdit, variant = "grid" }: { canEdit: boolean
               onChange={(event) => setDraft({ ...draft, costStars: event.target.value })}
             />
             {draft.type === "DISCOUNT" && (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="reward-discount-value">Desconto em R$</Label>
                   <Input
@@ -221,27 +225,33 @@ export function RewardsManager({ canEdit, variant = "grid" }: { canEdit: boolean
             </div>
           </div>
         )}
-        <DialogFooter className="gap-2 sm:justify-between">
+        <DialogFooter className="flex-col-reverse gap-2 border-t border-line px-6 py-4 sm:flex-row sm:justify-between">
           {draft?.id && permissions.canDebitAndCancel ? (
-            <Button variant="destructive" onClick={removeReward} disabled={deleteReward.isPending}>
-              {deleteReward.isPending && <Loader2 className="size-4 animate-spin" />}
+            <Button
+              variant="destructive"
+              className="h-12 w-full rounded-full sm:h-9 sm:w-auto"
+              onClick={removeReward}
+              disabled={deleteReward.isPending}
+            >
+              {deleteReward.isPending && <OrbitaSpinner className="size-4" />}
               {isConfirmingDelete ? "Confirmar exclusão" : "Excluir"}
             </Button>
           ) : (
-            <span />
+            <span className="max-sm:hidden" />
           )}
-          <div className="flex gap-2">
-          <Button variant="outline" onClick={closeDraft}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={save}
-            disabled={upsert.isPending || !draft?.name.trim()}
-            data-guide={GUIDE_ANCHORS.starFriendsRewardSave.id}
-          >
-            {upsert.isPending && <Loader2 className="size-4 animate-spin" />}
-            Salvar
-          </Button>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <Button variant="outline" className="h-12 w-full rounded-full sm:h-9 sm:w-auto" onClick={closeDraft}>
+              Cancelar
+            </Button>
+            <Button
+              className="h-12 w-full rounded-full sm:h-9 sm:w-auto"
+              onClick={save}
+              disabled={upsert.isPending || !draft?.name.trim()}
+              data-guide={GUIDE_ANCHORS.starFriendsRewardSave.id}
+            >
+              {upsert.isPending && <OrbitaSpinner className="size-4" />}
+              Salvar
+            </Button>
           </div>
         </DialogFooter>
       </DialogContent>
@@ -264,7 +274,13 @@ export function RewardsManager({ canEdit, variant = "grid" }: { canEdit: boolean
               {!reward.isActive && " · inativo"}
             </span>
             {canEdit && (
-              <Button size="sm" variant="ghost" className="ml-auto h-7" onClick={() => openEdit(reward)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Editar ${reward.name}`}
+                className="ml-auto size-9 rounded-full"
+                onClick={() => openEdit(reward)}
+              >
                 <Pencil className="size-3.5" />
               </Button>
             )}
@@ -272,7 +288,7 @@ export function RewardsManager({ canEdit, variant = "grid" }: { canEdit: boolean
         ))}
         {rewards.data?.rewards.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma regra ainda.</p>}
         {canEdit && (
-          <Button size="sm" className="mt-2 w-fit" onClick={() => setDraft(EMPTY_DRAFT)}>
+          <Button className="mt-2 h-11 w-full rounded-full sm:h-9 sm:w-fit" onClick={() => setDraft(EMPTY_DRAFT)}>
             <Plus className="size-4" /> Nova regra
           </Button>
         )}
@@ -283,12 +299,13 @@ export function RewardsManager({ canEdit, variant = "grid" }: { canEdit: boolean
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           O que o cliente pode ganhar trocando stars. Estoque em branco = ilimitado.
         </p>
         {canEdit && (
           <Button
+            className="h-11 w-full shrink-0 rounded-full sm:h-9 sm:w-auto"
             onClick={() => setDraft(EMPTY_DRAFT)}
             data-guide={GUIDE_ANCHORS.starFriendsNewReward.id}
           >
@@ -296,38 +313,46 @@ export function RewardsManager({ canEdit, variant = "grid" }: { canEdit: boolean
           </Button>
         )}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {rewards.data?.rewards.map((reward) => (
-          <div key={reward.id} className="flex flex-col gap-2 rounded-xl border p-4">
-            <div className="flex items-center justify-between">
-              <Badge variant="secondary">{REWARD_TYPE_LABELS[reward.type]}</Badge>
-              {!reward.isActive && <Badge variant="outline">Inativo</Badge>}
-            </div>
-            <p className="flex items-center gap-2 font-semibold">
-              <Gift className="size-4 text-primary" /> {reward.name}
-            </p>
-            {reward.description && <p className="text-sm text-muted-foreground">{reward.description}</p>}
-            <p className="text-sm">
-              <span className="font-bold text-amber-500">{reward.costStars} stars</span>
-              {reward.stock !== null && <span className="text-muted-foreground"> · {reward.stock} em estoque</span>}
-              {reward.minTier !== "EARTH" && (
-                <span className="text-muted-foreground"> · só {TIER_LABELS[reward.minTier]} ou acima</span>
+          <div key={reward.id} className="flex flex-col gap-2 rounded-[20px] border border-line bg-card p-3 sm:p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex min-w-0 flex-wrap gap-1">
+                <Badge variant="secondary" className="rounded-full">{REWARD_TYPE_LABELS[reward.type]}</Badge>
+                {!reward.isActive && <Badge variant="outline" className="rounded-full">Inativo</Badge>}
+              </div>
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label={`Editar ${reward.name}`}
+                  className="size-9 shrink-0 rounded-full"
+                  onClick={() => openEdit(reward)}
+                >
+                  <Pencil className="size-3.5" />
+                </Button>
               )}
+            </div>
+            <p className="flex items-start gap-2 text-sm font-semibold sm:text-base">
+              <Gift className="mt-0.5 size-4 shrink-0 text-primary" />
+              <span className="min-w-0 break-words">{reward.name}</span>
             </p>
-            {canEdit && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-fit"
-              onClick={() => openEdit(reward)}
-            >
-              <Pencil className="size-3.5" /> Editar
-            </Button>
+            {reward.description && (
+              <p className="line-clamp-2 text-xs text-muted-foreground sm:text-sm">{reward.description}</p>
             )}
+            <div className="mt-auto flex flex-col gap-0.5 text-xs sm:text-sm">
+              <span className="flex items-center gap-1 font-bold text-warning">
+                <Star className="size-3.5 fill-current" /> {reward.costStars} stars
+              </span>
+              {reward.stock !== null && <span className="text-muted-foreground">{reward.stock} em estoque</span>}
+              {reward.minTier !== "EARTH" && (
+                <span className="text-muted-foreground">Só {TIER_LABELS[reward.minTier]} ou acima</span>
+              )}
+            </div>
           </div>
         ))}
         {rewards.data?.rewards.length === 0 && (
-          <p className="text-sm text-muted-foreground">Nenhum prêmio ainda. Crie o primeiro.</p>
+          <p className="col-span-full text-sm text-muted-foreground">Nenhum prêmio ainda. Crie o primeiro.</p>
         )}
       </div>
 

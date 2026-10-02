@@ -20,11 +20,6 @@ const timeFmt = new Intl.DateTimeFormat("pt-BR", {
   minute: "2-digit",
 });
 
-function truncate(s: string | null | undefined, max: number): string {
-  if (!s) return "";
-  return s.length > max ? s.slice(0, max - 1) + "…" : s;
-}
-
 interface ResponseItem {
   id: string;
   createdAt: Date | string;
@@ -68,12 +63,12 @@ export function RecentResponsesCarousel() {
   const responses = (data?.responses ?? []) as ResponseItem[];
 
   return (
-    <section className="w-full min-w-0 pt-7 pb-6">
+    <section className="w-full min-w-0 pt-2">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h5 className="text-xl font-semibold tracking-tight">
           Últimos formulários preenchidos
         </h5>
-        <div className="relative w-full max-w-xs">
+        <div className="relative w-full sm:max-w-xs">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={rawQuery}
@@ -97,7 +92,7 @@ export function RecentResponsesCarousel() {
             : "Nenhum formulário foi preenchido ainda."}
         </p>
       ) : (
-        <div className="flex gap-3 overflow-x-auto scroll-cols-tracking pb-2">
+        <div className="scroll-hidden-x -mx-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-3 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
           {responses.map((r) => (
             <ResponseCard key={r.id} response={r} />
           ))}
@@ -112,7 +107,6 @@ function ResponseCard({ response }: { response: ResponseItem }) {
     () => new Date(response.createdAt),
     [response.createdAt],
   );
-  const formTitle = truncate(response.form.name, 14);
   const responsibleImg = useConstructUrl(
     response.lead?.responsible?.image || "",
   );
@@ -125,21 +119,24 @@ function ResponseCard({ response }: { response: ResponseItem }) {
   return (
     <Link
       href={href}
-      className="group flex w-72 shrink-0 flex-col gap-2 rounded-xl border border-border bg-card p-3 transition-all hover:border-violet-400 hover:shadow-md"
+      className="group flex w-44 shrink-0 snap-start flex-col gap-2 rounded-[20px] bg-card p-2 ring-1 ring-line transition-all hover:shadow-md hover:ring-info sm:w-52"
     >
       <FormFirstGroupThumbnail
         jsonBlock={response.form.jsonBlock}
         settings={response.form.settings}
+        aspectRatio={3 / 4}
+        scope="first-page"
+        className="rounded-[14px] border-line"
       />
 
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-col gap-0.5 px-1">
         <h3
-          className="text-sm font-semibold leading-tight"
+          className="truncate text-sm font-semibold leading-tight"
           title={response.form.name}
         >
-          {formTitle}
+          {response.form.name}
         </h3>
-        <span className="inline-flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
           <Calendar className="size-3" />
           {dateFmt.format(createdAt)} {timeFmt.format(createdAt)}
         </span>
@@ -148,27 +145,45 @@ function ResponseCard({ response }: { response: ResponseItem }) {
       {/* Campo(s) marcados como "Usar valor como título da resposta" —
           armazenados em `FormResponses.label` (derivado server-side). */}
       {response.label && (
-        <div className="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-medium text-violet-900 dark:border-violet-800/40 dark:bg-violet-900/20 dark:text-violet-200">
+        <div className="mx-1 rounded-md border border-info/30 bg-info/10 px-2 py-1 text-xs font-medium text-info dark:border-info/40 dark:bg-info/20 dark:text-info">
           <span className="line-clamp-1">{response.label}</span>
         </div>
       )}
 
-      <div className="flex items-center gap-2 text-xs">
-        <User className="size-3 text-muted-foreground" />
-        <span className="truncate" title={response.lead?.name ?? "Sem lead"}>
+      <div className="flex min-w-0 items-center gap-2 px-1 text-xs">
+        <User className="size-3 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate" title={response.lead?.name ?? "Sem lead"}>
           {response.lead?.name ?? "Sem lead"}
         </span>
+        {responsible &&
+          (responsible.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={responsibleImg}
+              alt={responsible.name}
+              title={`Responsável: ${responsible.name}`}
+              className="size-5 shrink-0 rounded-full border object-cover"
+            />
+          ) : (
+            <span
+              title={`Responsável: ${responsible.name}`}
+              className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[9px] font-semibold"
+            >
+              {(responsible.name ?? "?").slice(0, 1).toUpperCase()}
+            </span>
+          ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+      {(tracking?.name || status?.name) && (
+      <div className="flex min-w-0 items-center gap-1.5 overflow-hidden px-1 pb-1 text-[10px]">
         {tracking?.name && (
-          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 font-medium">
+          <span className="inline-flex min-w-0 shrink items-center truncate rounded-full bg-muted px-2 py-0.5 font-medium">
             {tracking.name}
           </span>
         )}
         {status?.name && (
           <span
-            className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium"
+            className="inline-flex min-w-0 shrink items-center gap-1 truncate rounded-full border px-2 py-0.5 font-medium"
             style={{
               borderColor: status.color || undefined,
               color: status.color || undefined,
@@ -183,23 +198,6 @@ function ResponseCard({ response }: { response: ResponseItem }) {
           </span>
         )}
       </div>
-
-      {responsible && (
-        <div className="mt-auto flex items-center gap-2 border-t border-border pt-2 text-[11px] text-muted-foreground">
-          {responsible.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={responsibleImg}
-              alt={responsible.name}
-              className="size-5 rounded-full border object-cover"
-            />
-          ) : (
-            <span className="flex size-5 items-center justify-center rounded-full bg-foreground/10 text-[9px] font-semibold">
-              {(responsible.name ?? "?").slice(0, 1).toUpperCase()}
-            </span>
-          )}
-          <span className="truncate">{responsible.name}</span>
-        </div>
       )}
     </Link>
   );
@@ -213,10 +211,10 @@ function CarouselSkeleton() {
           <div
             key={i}
             className={cn(
-              "flex w-72 shrink-0 flex-col gap-2 rounded-xl border border-border bg-card p-3",
+              "flex w-44 shrink-0 flex-col gap-2 rounded-[20px] bg-card p-2 ring-1 ring-line sm:w-52",
             )}
           >
-            <Skeleton className="aspect-[2/1] w-full rounded-lg" />
+            <Skeleton className="aspect-[3/4] w-full rounded-[14px]" />
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-3 w-1/2" />
             <Skeleton className="h-3 w-2/3" />

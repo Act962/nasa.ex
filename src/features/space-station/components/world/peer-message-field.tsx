@@ -18,7 +18,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Loader2, Send, AlertTriangle } from "lucide-react";
+import { Send, AlertTriangle } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
@@ -151,7 +152,7 @@ export function PeerMessageField({ peerId, peerName, stationId, onSent }: Props)
   if (resolveMutation.isPending && !resolved) {
     return (
       <div className="flex items-center justify-center gap-2 py-6 text-slate-400 text-xs">
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <OrbitaSpinner className="h-4 w-4 " />
         Conectando a {peerName}…
       </div>
     );

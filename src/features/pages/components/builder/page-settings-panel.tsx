@@ -73,7 +73,7 @@ export function PageSettingsPanel({
               onChange={(e) =>
                 updateArtboard({ minHeight: Number(e.target.value) })
               }
-              className="mt-1 w-full h-8 rounded border px-2 text-xs bg-background"
+              className="mt-1 h-9 w-full rounded-full border border-line bg-background px-3 text-xs"
             />
           </div>
         </div>
@@ -89,11 +89,11 @@ export function PageSettingsPanel({
         <hr className="my-4" />
 
         <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">
-          Pixels & Analytics
+          Pixels de anúncio e medição
         </p>
         <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
-          IDs injetados no <code className="font-mono">&lt;head&gt;</code> da
-          página pública. Funcionam só após publicar.
+          Códigos da Meta e do Google para medir visitas e anúncios. Começam a
+          valer depois de publicar.
         </p>
         <div className="space-y-3">
           <div>
@@ -107,7 +107,7 @@ export function PageSettingsPanel({
                 updateMeta({ metaPixelId: e.target.value || undefined })
               }
               placeholder="123456789012345"
-              className="mt-1 w-full h-8 rounded border px-2 text-xs bg-background font-mono"
+              className="mt-1 h-9 w-full rounded-full border border-line bg-background px-3 text-xs font-mono"
             />
           </div>
           <div>
@@ -121,7 +121,7 @@ export function PageSettingsPanel({
                 updateMeta({ googleTagId: e.target.value || undefined })
               }
               placeholder="G-XXXXXXXXXX ou AW-XXXXXXXXX"
-              className="mt-1 w-full h-8 rounded border px-2 text-xs bg-background font-mono"
+              className="mt-1 h-9 w-full rounded-full border border-line bg-background px-3 text-xs font-mono"
             />
           </div>
           <div>
@@ -135,7 +135,7 @@ export function PageSettingsPanel({
                 updateMeta({ gtmId: e.target.value || undefined })
               }
               placeholder="GTM-XXXXXXX"
-              className="mt-1 w-full h-8 rounded border px-2 text-xs bg-background font-mono"
+              className="mt-1 h-9 w-full rounded-full border border-line bg-background px-3 text-xs font-mono"
             />
           </div>
         </div>
@@ -143,11 +143,11 @@ export function PageSettingsPanel({
         <hr className="my-4" />
 
         <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">
-          UTM defaults
+          Origem padrão do lead (UTM)
         </p>
         <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
-          Aplicados quando o lead chega sem utm na URL. Sobrescrevidos pela URL
-          quando presentes.
+          Usada quando a pessoa chega sem a origem no link (ex.: campanha que
+          esqueceu a UTM). Se o link tiver, vale a do link.
         </p>
         <div className="space-y-3">
           {(
@@ -158,17 +158,17 @@ export function PageSettingsPanel({
               ["utmContent", "utm_content", "banner-top"],
               ["utmTerm", "utm_term", "palavra-chave"],
             ] as const
-          ).map(([key, lbl, ph]) => (
+          ).map(([key, fieldLabel, fieldPlaceholder]) => (
             <div key={key}>
-              <Label className="text-[11px] text-muted-foreground">{lbl}</Label>
+              <Label className="text-[11px] text-muted-foreground">{fieldLabel}</Label>
               <input
                 type="text"
                 value={(meta[key] as string) ?? ""}
                 onChange={(e) =>
                   updateMeta({ [key]: e.target.value || undefined })
                 }
-                placeholder={ph}
-                className="mt-1 w-full h-8 rounded border px-2 text-xs bg-background font-mono"
+                placeholder={fieldPlaceholder}
+                className="mt-1 h-9 w-full rounded-full border border-line bg-background px-3 text-xs font-mono"
               />
             </div>
           ))}

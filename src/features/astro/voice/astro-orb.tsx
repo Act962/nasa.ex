@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Loader2, Mic, Sparkles, Volume2, X } from "lucide-react";
+import { Mic, Sparkles, Volume2, X } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import { AstroMark } from "@/features/astro/components/astro-mark";
 import { useAstroOrbStore } from "./use-astro-orb-store";
@@ -21,6 +22,9 @@ import { useAstroVoiceActions } from "./use-astro-voice-actions";
 import { AstroVoiceMenuItems } from "./astro-voice-menu";
 import { MicPermissionGuide } from "./mic-permission-guide";
 import { ORB_KEYFRAMES, ORB_PHASES } from "./orb-visuals";
+import { useIsOrbitCenterTaken, useIsOrbitDocked, useIsOrbitDockHidden } from "@/components/orbit-dock/use-is-orbit-docked";
+import { ORBIT_DOCK_CENTER_FROM_BOTTOM_PX } from "@/components/orbit-dock/orbit-dock-layout";
+import { useOrbitDockStore } from "@/components/orbit-dock/orbit-dock-store";
 
 /**
  * AstroOrb — o "pet" flutuante do Astro, montado globalmente no platform-providers.
@@ -33,6 +37,9 @@ import { ORB_KEYFRAMES, ORB_PHASES } from "./orb-visuals";
  * Privacy: indicador visual permanente quando a wake word está ligada.
  * A escuta pausa enquanto o TTS fala, pra não pegar a própria voz do Astro.
  */
+/** Distância do orb até as bordas quando ele vai para o canto (dock recolhido). */
+const ORB_CORNER_GAP_PX = 20;
+
 export function AstroOrb() {
   useAstroPulse();
   const visible = useAstroOrbStore((state) => state.visible);
@@ -70,8 +77,16 @@ export function AstroOrb() {
 
   // Orb arrastável: posição salva por usuário, balão e menu abrem para dentro da tela.
   const { center, viewport, isMeasured } = useOrbCenter();
-  const { opensUpward, alignsRight } = orbSides(center, viewport);
   const orbDrag = useOrbDrag(center, viewport);
+  // No celular, com o dock em órbita na tela, o orb vira o botão central do arco: fixo, sem arrastar e sem fechar.
+  const isDocked = useIsOrbitDocked();
+  const isDockCollapsed = useOrbitDockStore((state) => isDocked && state.isCollapsed);
+  const isDockHidden = useIsOrbitDockHidden();
+  // A tela pôs a própria ação no centro do dock (ex.: "+ Bloco"): o ASTRO não disputa o lugar.
+  const isCenterTaken = useIsOrbitCenterTaken();
+  const measuredSides = orbSides(center, viewport);
+  const opensUpward = isDocked || measuredSides.opensUpward;
+  const alignsRight = !isDocked && measuredSides.alignsRight;
 
   // Ao chegar na página, o ASTRO fala o que está pendente, como no site.
   useAstroBalloonTour({
@@ -116,14 +131,16 @@ export function AstroOrb() {
   // Escondido: sobra um alvo mínimo pra trazer o Astro de volta. Sem ele,
   // fechar o orb era irreversível — `visible` é persistido em localStorage e
   // nenhuma outra tela reativa.
-  if (!visible) {
+  if (isDockHidden || isCenterTaken) return null;
+
+  if (!visible && !isDocked) {
     return (
       <button
         type="button"
         onClick={() => setVisible(true)}
         title="Mostrar o Astro"
         aria-label="Mostrar o Astro"
-        className="fixed bottom-3 right-3 z-[9000] size-6 rounded-full border border-violet-500/30 bg-zinc-900/60 text-violet-300/70 opacity-40 shadow transition hover:opacity-100 flex items-center justify-center"
+        className="fixed bottom-3 right-3 z-[9000] size-6 rounded-full border border-info/40 bg-info/70 text-white opacity-40 shadow transition hover:opacity-100 flex items-center justify-center"
       >
         <Sparkles className="size-3" />
       </button>
@@ -173,14 +190,25 @@ export function AstroOrb() {
   return (
     <div
       className={cn(
-        "fixed z-[9000] size-12 pointer-events-none",
+        "fixed size-12 pointer-events-none",
+        // Encaixado no dock, fica na camada dele: menus e sheets (z-50) passam por cima.
+        isDocked ? "z-[45]" : "z-[9000]",
         // Antes de medir a tela, o canto de sempre: servidor e cliente desenham igual.
-        !isMeasured && "bottom-5 right-5",
+        !isMeasured && !isDocked && "bottom-5 right-5",
       )}
       style={
-        isMeasured
-          ? { left: center.x - ORB_SIZE_PX / 2, top: center.y - ORB_SIZE_PX / 2 }
-          : undefined
+        isDocked
+          ? {
+              // Dock recolhido: o orb sai do centro e vai para o canto inferior direito, inteiro e clicável.
+              left: isDockCollapsed ? `calc(100% - ${ORB_SIZE_PX + ORB_CORNER_GAP_PX}px)` : `calc(50% - ${ORB_SIZE_PX / 2}px)`,
+              bottom: isDockCollapsed
+                ? `calc(${ORB_CORNER_GAP_PX}px + env(safe-area-inset-bottom))`
+                : `calc(${ORBIT_DOCK_CENTER_FROM_BOTTOM_PX - ORB_SIZE_PX / 2}px + env(safe-area-inset-bottom))`,
+              transition: "left 500ms cubic-bezier(.22,1,.36,1), bottom 500ms cubic-bezier(.22,1,.36,1)",
+            }
+          : isMeasured
+            ? { left: center.x - ORB_SIZE_PX / 2, top: center.y - ORB_SIZE_PX / 2 }
+            : undefined
       }
     >
       {/* Balão e menu abrem para dentro da tela, a partir de onde o orb está. */}
@@ -189,7 +217,11 @@ export function AstroOrb() {
           // Largura explícita: preso a um orb de 48px, o balão encolheria até ele.
           "absolute flex w-[min(280px,calc(100vw-2.5rem))] gap-2",
           opensUpward ? "bottom-full mb-2 flex-col" : "top-full mt-2 flex-col-reverse",
-          alignsRight ? "right-0 items-end" : "left-0 items-start",
+          isDocked
+            ? "left-1/2 -translate-x-1/2 items-center"
+            : alignsRight
+              ? "right-0 items-end"
+              : "left-0 items-start",
         )}
       >
         {/* Balão de fala: atividades e alertas do ASTRO (spec 0029, RF-10). */}
@@ -203,7 +235,7 @@ export function AstroOrb() {
         {/* Menu de voz (só no /home) */}
         {menuOpen && (
           <div
-            className="pointer-events-auto rounded-xl bg-zinc-900/95 backdrop-blur border border-zinc-700/60 shadow-xl overflow-hidden"
+            className="pointer-events-auto rounded-xl bg-card/95 backdrop-blur border border-line/60 shadow-xl overflow-hidden"
             role="menu"
           >
             <AstroVoiceMenuItems onAction={() => setMenuOpen(false)} />
@@ -216,6 +248,7 @@ export function AstroOrb() {
 
       {/* O orb propriamente, com o botão de fechar sobreposto no canto */}
       <div className="pointer-events-none relative">
+        {!isDocked && (
         <button
           type="button"
           onClick={(event) => {
@@ -226,18 +259,19 @@ export function AstroOrb() {
           }}
           title="Fechar o Astro"
           aria-label="Fechar o Astro"
-          className="pointer-events-auto absolute -left-1.5 -top-1.5 z-20 flex size-5 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-400 shadow-md transition hover:bg-zinc-800 hover:text-zinc-100"
+          className="pointer-events-auto absolute -left-1.5 -top-1.5 z-20 flex size-5 items-center justify-center rounded-full border border-line bg-card text-muted-foreground shadow-md transition hover:bg-card hover:text-foreground"
         >
           <X className="size-3" />
         </button>
+        )}
 
         <button
           ref={discoRef}
           type="button"
-          {...orbDrag.handlers}
+          {...(isDocked ? {} : orbDrag.handlers)}
           onClick={() => {
             // Soltar um arraste dispara `click`: não pode abrir o painel.
-            if (orbDrag.shouldIgnoreClick()) return;
+            if (!isDocked && orbDrag.shouldIgnoreClick()) return;
             handleOrbClick();
           }}
           title={orbTitle}
@@ -245,7 +279,8 @@ export function AstroOrb() {
           data-tour="astro-button"
           aria-expanded={isOnHome ? menuOpen : isWidgetOpen}
           className={cn(
-            "pointer-events-auto relative size-12 rounded-full flex items-center justify-center shadow-xl transition-all duration-500 hover:scale-105 active:scale-95 cursor-grab select-none",
+            "pointer-events-auto relative size-12 rounded-full flex items-center justify-center shadow-xl transition-all duration-500 hover:scale-105 active:scale-95 select-none",
+            !isDocked && "cursor-grab",
             orbDrag.isDragging && "cursor-grabbing scale-110",
             phaseStyle.bg,
             phaseStyle.ring,
@@ -262,7 +297,7 @@ export function AstroOrb() {
               <span
                 className="absolute inset-0 rounded-full pointer-events-none"
                 style={{
-                  background: "radial-gradient(circle, rgba(59,130,246,0.35) 0%, rgba(59,130,246,0) 70%)",
+                  background: "radial-gradient(circle, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 70%)",
                   animation: "orb-ripple 1.6s ease-out infinite",
                 }}
                 aria-hidden
@@ -270,7 +305,7 @@ export function AstroOrb() {
               <span
                 className="absolute inset-0 rounded-full pointer-events-none"
                 style={{
-                  background: "radial-gradient(circle, rgba(59,130,246,0.25) 0%, rgba(59,130,246,0) 70%)",
+                  background: "radial-gradient(circle, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 70%)",
                   animation: "orb-ripple 1.6s ease-out infinite",
                   animationDelay: "0.53s",
                 }}
@@ -279,7 +314,7 @@ export function AstroOrb() {
               <span
                 className="absolute inset-0 rounded-full pointer-events-none"
                 style={{
-                  background: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0) 70%)",
+                  background: "radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%)",
                   animation: "orb-ripple 1.6s ease-out infinite",
                   animationDelay: "1.06s",
                 }}
@@ -294,7 +329,7 @@ export function AstroOrb() {
               className="absolute -inset-2 rounded-full pointer-events-none"
               style={{
                 background:
-                  "conic-gradient(from 0deg, rgba(16,185,129,0.6), rgba(59,130,246,0.6), rgba(168,85,247,0.6), rgba(16,185,129,0.6))",
+                  "conic-gradient(from 0deg, rgba(255,255,255,0.55), rgba(255,255,255,0.1), rgba(255,255,255,0.45), rgba(255,255,255,0.55))",
                 filter: "blur(8px)",
                 animation: "orb-aurora 4s linear infinite",
               }}
@@ -308,14 +343,14 @@ export function AstroOrb() {
               <span
                 className="absolute -inset-1 rounded-full pointer-events-none"
                 style={{
-                  background: "radial-gradient(circle, rgba(16,185,129,0.35) 0%, rgba(16,185,129,0) 70%)",
+                  background: "radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%)",
                   animation: "orb-breathe 3.6s ease-in-out infinite",
                 }}
                 aria-hidden
               />
               {/* 3 partículas esparsas orbitando */}
               <span
-                className="absolute size-1 rounded-full bg-emerald-300 pointer-events-none"
+                className="absolute size-1 rounded-full bg-white pointer-events-none"
                 style={{
                   top: "50%",
                   left: "50%",
@@ -325,7 +360,7 @@ export function AstroOrb() {
                 aria-hidden
               />
               <span
-                className="absolute size-1 rounded-full bg-violet-300 pointer-events-none"
+                className="absolute size-1 rounded-full bg-white pointer-events-none"
                 style={{
                   top: "50%",
                   left: "50%",
@@ -336,7 +371,7 @@ export function AstroOrb() {
                 aria-hidden
               />
               <span
-                className="absolute size-0.5 rounded-full bg-blue-300 pointer-events-none"
+                className="absolute size-0.5 rounded-full bg-white pointer-events-none"
                 style={{
                   top: "50%",
                   left: "50%",
@@ -364,7 +399,7 @@ export function AstroOrb() {
             {phase === "listening" ? (
               <Mic className="size-5" />
             ) : phase === "thinking" ? (
-              <Loader2 className="size-5 animate-spin" />
+              <OrbitaSpinner className="size-5 " />
             ) : phase === "speaking" ? (
               <Volume2 className="size-5" />
             ) : (
@@ -375,7 +410,7 @@ export function AstroOrb() {
           {/* Resposta nova com o painel fechado tem prioridade sobre o indicador da escuta */}
           {hasUnread ? (
             <span
-              className="absolute -top-1 -right-1 z-20 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white ring-2 ring-zinc-950 pointer-events-none"
+              className="absolute -top-1 -right-1 z-20 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-info ring-2 ring-line pointer-events-none"
               aria-label={
                 pendingApprovals > 0
                   ? `${pendingApprovals} ação(ões) do Astro esperando aprovação`
@@ -388,7 +423,7 @@ export function AstroOrb() {
             wakeWordEnabled &&
             phase === "idle" && (
               <span
-                className="absolute -top-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-zinc-950 pointer-events-none"
+                className="absolute -top-0.5 -right-0.5 size-3 rounded-full bg-white ring-2 ring-line pointer-events-none"
                 style={{ animation: "orb-breathe 3.6s ease-in-out infinite" }}
                 aria-label="Escuta ativa"
               />

@@ -401,10 +401,10 @@ const TagMultiSelect = ({
                 className={cn(
                   "text-[11px] h-6 gap-1 pr-1",
                   isPlaceholder &&
-                    "bg-amber-500/15 text-amber-700 border border-amber-500/40 dark:text-amber-300",
+                    "bg-warning/15 text-warning border border-warning/40",
                   isOrphan &&
                     !isPlaceholder &&
-                    "bg-red-500/15 text-red-700 border border-red-500/40 dark:text-red-300",
+                    "bg-destructive/15 text-destructive border border-destructive/40",
                 )}
                 style={
                   tag && !isOrphan
@@ -530,7 +530,7 @@ const CreateTagInline = ({ trackingId, onCreated }: CreateTagInlineProps) => {
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="size-7 shrink-0 rounded-sm border cursor-pointer"
+              className="size-7 shrink-0 rounded-full border cursor-pointer"
               style={{ backgroundColor: color }}
               aria-label="Selecionar cor"
             />
@@ -542,7 +542,7 @@ const CreateTagInline = ({ trackingId, onCreated }: CreateTagInlineProps) => {
                   key={c}
                   type="button"
                   className={cn(
-                    "size-5 rounded-sm cursor-pointer hover:scale-110 transition-transform",
+                    "size-5 rounded-full cursor-pointer hover:scale-110 transition-transform",
                     color === c && "ring-1 ring-offset-1 ring-primary",
                   )}
                   style={{ backgroundColor: c }}

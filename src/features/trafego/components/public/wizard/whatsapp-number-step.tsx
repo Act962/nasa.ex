@@ -54,14 +54,14 @@ export function WhatsappNumberStep({
               className={cn(
                 "flex w-full items-start gap-3 rounded-2xl border px-4 py-4 text-left transition",
                 isSelected
-                  ? "border-violet-400 bg-violet-500/[0.09]"
+                  ? "border-info bg-info/10"
                   : "border-white/[0.08] bg-white/[0.02] hover:border-white/20",
               )}
             >
               <span
                 className={cn(
                   "mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-full border transition",
-                  isSelected ? "border-violet-400 bg-violet-500" : "border-white/20",
+                  isSelected ? "border-info bg-info" : "border-white/20",
                 )}
               >
                 {isSelected && <Check className="size-2.5 text-white" />}
@@ -110,14 +110,14 @@ export function WhatsappAcquireStep({
         className={cn(
           "flex w-full items-start gap-3 rounded-2xl border px-4 py-4 text-left transition",
           confirmed
-            ? "border-violet-400 bg-violet-500/[0.09]"
+            ? "border-info bg-info/10"
             : "border-white/[0.08] bg-white/[0.02] hover:border-white/20",
         )}
       >
         <span
           className={cn(
             "mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded border transition",
-            confirmed ? "border-violet-400 bg-violet-500" : "border-white/20",
+            confirmed ? "border-info bg-info" : "border-white/20",
           )}
         >
           {confirmed && <Check className="size-2.5 text-white" />}

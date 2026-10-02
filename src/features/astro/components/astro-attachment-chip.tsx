@@ -1,6 +1,7 @@
 "use client";
 
-import { FileTextIcon, ImageIcon, Loader2Icon, XIcon } from "lucide-react";
+import { FileTextIcon, ImageIcon, XIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/features/payment/lib/attachments";
 
@@ -27,29 +28,29 @@ export function AstroAttachmentChip({
   return (
     <span
       className={cn(
-        "inline-flex max-w-[240px] items-center gap-1.5 rounded-lg border border-zinc-700/70 bg-zinc-800/60 px-2 py-1 text-[11px] text-zinc-200",
+        "inline-flex max-w-[240px] items-center gap-1.5 rounded-lg border border-line/70 bg-card/60 px-2 py-1 text-[11px] text-foreground",
         className,
       )}
     >
       {uploading ? (
-        <Loader2Icon className="size-3.5 shrink-0 animate-spin text-violet-400" />
+        <OrbitaSpinner className="size-3.5 shrink-0 text-info" />
       ) : isImage ? (
-        <ImageIcon className="size-3.5 shrink-0 text-violet-400" />
+        <ImageIcon className="size-3.5 shrink-0 text-info" />
       ) : (
-        <FileTextIcon className="size-3.5 shrink-0 text-violet-400" />
+        <FileTextIcon className="size-3.5 shrink-0 text-info" />
       )}
       <span className="truncate" title={fileName}>
         {fileName}
       </span>
       {typeof sizeBytes === "number" && !uploading && (
-        <span className="shrink-0 text-zinc-500">{formatFileSize(sizeBytes)}</span>
+        <span className="shrink-0 text-muted-foreground">{formatFileSize(sizeBytes)}</span>
       )}
       {onRemove && !uploading && (
         <button
           type="button"
           onClick={onRemove}
           aria-label={`Remover ${fileName}`}
-          className="shrink-0 rounded p-0.5 text-zinc-500 transition hover:bg-zinc-700 hover:text-zinc-200"
+          className="shrink-0 rounded p-0.5 text-muted-foreground transition hover:bg-knob hover:text-foreground"
         >
           <XIcon className="size-3" />
         </button>

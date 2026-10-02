@@ -32,7 +32,7 @@ export function AppDropdown({ search, onSelect }: AppDropdownProps) {
     return (
       <DropdownMenuGroup key={groupLabel}>
         <div className="px-3 py-1.5 flex items-center gap-1.5 opacity-80 pointer-events-none">
-          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
             {groupLabel}
           </span>
         </div>
@@ -40,7 +40,7 @@ export function AppDropdown({ search, onSelect }: AppDropdownProps) {
           <DropdownMenuItem
             key={app.id}
             onClick={() => onSelect(app.label)}
-            className="w-full flex items-center px-4 py-2 text-sm font-mono cursor-pointer focus:bg-zinc-800 transition-colors"
+            className="w-full flex items-center px-4 py-2 text-sm font-mono cursor-pointer focus:bg-card transition-colors"
           >
             <span className={app.color}>{app.label}</span>
           </DropdownMenuItem>
@@ -58,20 +58,20 @@ export function AppDropdown({ search, onSelect }: AppDropdownProps) {
         sideOffset={0}
         onCloseAutoFocus={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        className="w-64 bg-zinc-900 border-zinc-700/60 p-0 shadow-2xl max-h-72 overflow-y-auto"
+        className="w-64 bg-card border-line/60 p-0 shadow-2xl max-h-72 overflow-y-auto"
       >
-        <DropdownMenuLabel className="px-3 py-2 border-b border-zinc-800 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-          #Apps ÓRBITA &amp; Integrações
+        <DropdownMenuLabel className="px-3 py-2 border-b border-line text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+          #Apps ÓRBITA &amp; Satélites
         </DropdownMenuLabel>
 
         <div className="py-1">
           {renderGroup(filteredNasa, "🚀 ÓRBITA Apps")}
           {filteredNasa.length > 0 && filteredIntegration.length > 0 && (
-            <DropdownMenuSeparator className="bg-zinc-800 my-1" />
+            <DropdownMenuSeparator className="bg-card my-1" />
           )}
-          {renderGroup(filteredIntegration, "🔌 Integrações")}
+          {renderGroup(filteredIntegration, "🛰️ Satélites")}
           {totalFiltered === 0 && (
-            <p className="px-4 py-3 text-sm text-zinc-600 outline-none">
+            <p className="px-4 py-3 text-sm text-muted-foreground outline-none">
               App não encontrado.
             </p>
           )}

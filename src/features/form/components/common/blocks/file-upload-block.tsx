@@ -81,7 +81,7 @@ function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
 
           {label}
 
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
 
         </Label>
 
@@ -175,9 +175,9 @@ function FormView({
   return (
     <div className="flex flex-col gap-2 w-full">
       {label?.trim() && (
-        <Label className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}>
+        <Label className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-destructive" : ""}`}>
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       {(multiple || files.length === 0) && (
@@ -196,7 +196,7 @@ function FormView({
       )}
       {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
       {(isError || isSubmitError) && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage || "Envie um arquivo."}</p>
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">{errorMessage || "Envie um arquivo."}</p>
       )}
     </div>
   );

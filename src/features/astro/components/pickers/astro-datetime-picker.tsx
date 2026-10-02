@@ -132,7 +132,7 @@ export function AstroDateTimePicker({
     <div className="space-y-3">
       {picker.mode !== "time" && (
         <div className="space-y-1.5">
-          <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-zinc-500">
+          <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
             <CalendarIcon className="size-3" /> Dia
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -145,8 +145,8 @@ export function AstroDateTimePicker({
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs capitalize transition-colors",
                   date === quickDay.date
-                    ? "bg-violet-500 text-white"
-                    : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
+                    ? "bg-info text-white"
+                    : "bg-card text-muted-foreground hover:bg-knob",
                 )}
               >
                 {quickDay.label}
@@ -158,7 +158,7 @@ export function AstroDateTimePicker({
               value={date}
               disabled={disabled}
               onChange={(event) => setDate(event.target.value)}
-              className="h-7 rounded-md border border-zinc-700 bg-zinc-950/60 px-2 text-xs text-zinc-200 [color-scheme:dark]"
+              className="h-7 rounded-md border border-line bg-background/60 px-2 text-xs text-foreground [color-scheme:dark]"
             />
           </div>
         </div>
@@ -166,7 +166,7 @@ export function AstroDateTimePicker({
 
       {!isDateOnly && (
         <div className="space-y-1.5">
-          <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-zinc-500">
+          <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
             <ClockIcon className="size-3" /> Horário
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -179,8 +179,8 @@ export function AstroDateTimePicker({
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs tabular-nums transition-colors",
                   time === quickTime
-                    ? "bg-violet-500 text-white"
-                    : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
+                    ? "bg-info text-white"
+                    : "bg-card text-muted-foreground hover:bg-knob",
                 )}
               >
                 {quickTime}
@@ -192,21 +192,21 @@ export function AstroDateTimePicker({
               value={time}
               disabled={disabled}
               onChange={(event) => setTime(event.target.value)}
-              className="h-7 rounded-md border border-zinc-700 bg-zinc-950/60 px-2 text-xs text-zinc-200 [color-scheme:dark]"
+              className="h-7 rounded-md border border-line bg-background/60 px-2 text-xs text-foreground [color-scheme:dark]"
             />
           </div>
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3 rounded-lg bg-zinc-950/50 px-3 py-2">
+      <div className="flex items-center justify-between gap-3 rounded-lg bg-background/50 px-3 py-2">
         <p
           className={cn(
             "text-xs",
             blocksPast
-              ? "text-amber-400"
+              ? "text-warning"
               : chosen
-                ? "text-zinc-100"
-                : "text-zinc-500",
+                ? "text-foreground"
+                : "text-muted-foreground",
           )}
         >
           {chosen
@@ -232,7 +232,7 @@ export function AstroDateTimePicker({
                 : formatPickedDateTime(date, time),
             )
           }
-          className="shrink-0 rounded-md bg-violet-500 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
+          className="shrink-0 rounded-md bg-info px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-info disabled:cursor-not-allowed disabled:opacity-40"
         >
           {isDateOnly ? "Usar esta data" : "Usar este horário"}
         </button>
@@ -243,7 +243,7 @@ export function AstroDateTimePicker({
           type="button"
           disabled={disabled}
           onClick={() => onPick(picker.skipOption!.answer)}
-          className="w-full rounded-lg border border-dashed border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-50"
+          className="w-full rounded-lg border border-dashed border-line px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-line hover:text-foreground disabled:opacity-50"
         >
           {picker.skipOption.label}
         </button>

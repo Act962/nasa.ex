@@ -48,8 +48,8 @@ function ScoreDelta({ scoreBps, previousScoreBps }: { scoreBps: number; previous
     <p
       className={cn(
         "inline-flex items-center gap-1 text-xs font-medium",
-        deltaPoints > 0 && "text-emerald-600 dark:text-emerald-400",
-        deltaPoints < 0 && "text-red-600 dark:text-red-400",
+        deltaPoints > 0 && "text-success dark:text-success",
+        deltaPoints < 0 && "text-destructive dark:text-destructive",
         deltaPoints === 0 && "text-muted-foreground",
       )}
     >
@@ -79,7 +79,7 @@ export function RegularityDashboard() {
   const historyPoints = history?.points ?? [];
 
   return (
-    <Card className="border-violet-500/20">
+    <Card className="border-info/20">
       <CardContent className="grid gap-6 py-5 lg:grid-cols-[auto_1fr]">
         <div className="flex flex-col items-center gap-3 sm:flex-row lg:flex-col">
           <LargeScoreGauge scorePercent={scorePercent} />
@@ -96,10 +96,10 @@ export function RegularityDashboard() {
 
         <div className="min-w-0 space-y-4">
           {score.blockingCount > 0 ? (
-            <div className="flex gap-3 rounded-lg border border-red-500/30 bg-red-500/5 p-3">
-              <ShieldAlert className="mt-0.5 size-5 shrink-0 text-red-500" />
+            <div className="flex gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+              <ShieldAlert className="mt-0.5 size-5 shrink-0 text-destructive" />
               <div className="text-sm">
-                <p className="font-semibold text-red-700 dark:text-red-300">
+                <p className="font-semibold text-destructive dark:text-destructive">
                   {score.blockingCount} {score.blockingCount === 1 ? "impedimento" : "impedimentos"} agora
                 </p>
                 <p className="text-muted-foreground">
@@ -109,8 +109,8 @@ export function RegularityDashboard() {
               </div>
             </div>
           ) : (
-            <div className="flex gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
-              <ShieldCheck className="mt-0.5 size-5 shrink-0 text-emerald-500" />
+            <div className="flex gap-3 rounded-lg border border-success/30 bg-success/5 p-3">
+              <ShieldCheck className="mt-0.5 size-5 shrink-0 text-success" />
               <p className="text-sm text-muted-foreground">
                 Nenhum impedimento: os documentos críticos estão em dia. Mantenha as datas de validade atualizadas.
               </p>

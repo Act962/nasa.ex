@@ -7,6 +7,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   PlusIcon,
+  Search,
   SlidersHorizontal,
   SparklesIcon,
 } from "lucide-react";
@@ -25,6 +26,12 @@ import { useCanCustomizeBoard } from "../../hooks/use-can-customize-board";
 import { WorkspacesSwitcher } from "./workspaces-switcher";
 import { useKanbanStore } from "../../lib/kanban-store";
 import { cn } from "@/lib/utils";
+import { useSearchModal } from "@/hooks/modal/use-search-modal";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import {
   Tooltip,
@@ -35,6 +42,7 @@ import {
 export function FiltersTracking() {
   const { trackingId } = useParams<{ trackingId: string }>();
   const useLeadSheet = useAddLead();
+  const searchLead = useSearchModal();
   const canCustomizeBoard = useCanCustomizeBoard(trackingId);
   const [customizeOpen, setCustomizeOpen] = useState(false);
 
@@ -45,12 +53,23 @@ export function FiltersTracking() {
     <>
       <div
         className={cn(
-          "flex justify-between items-center px-4 py-2 gap-2 border-b border-border mb-2",
+          "flex justify-between items-center gap-2 mb-2 px-3 py-2 lg:px-4",
         )}
       >
-        <div className="flex items-center gap-x-2">
+        {/* Celular: busca ocupa a linha; filtros moram no "Personalizar board". */}
+        <InputGroup
+          className="h-10 min-w-0 flex-1 lg:hidden"
+          onClick={() => searchLead.setIsOpen(true)}
+        >
+          <InputGroupInput placeholder="Pesquisar..." readOnly />
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+        </InputGroup>
+
+        <div className="hidden lg:flex items-center gap-x-2">
           {!collapsed && (
-            <div className="hidden md:flex items-center gap-x-2">
+            <div className="flex items-center gap-x-2">
               <TrackingSwitcher />
               <ParticipantsSwitcher />
               <TagsFilter />
@@ -67,12 +86,7 @@ export function FiltersTracking() {
         <div className="flex items-center gap-2">
           <AstroCommandButton
             examples={ASTRO_COMMAND_EXAMPLES.tracking}
-            className="hidden md:inline-flex"
-          />
-          <AstroCommandButton
-            examples={ASTRO_COMMAND_EXAMPLES.tracking}
-            compact
-            className="size-8 md:hidden"
+            className="hidden lg:inline-flex"
           />
           {/* Botão de recolher/expandir */}
           <Tooltip>
@@ -80,7 +94,7 @@ export function FiltersTracking() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 shrink-0"
+                className="hidden size-8 shrink-0 lg:inline-flex"
                 onClick={toggleCollapsed}
                 aria-label={
                   collapsed ? "Expandir cabeçalho" : "Recolher cabeçalho"
@@ -98,8 +112,21 @@ export function FiltersTracking() {
             </TooltipContent>
           </Tooltip>
 
-          {/* Filtros — sempre visível, mesmo recolhido. */}
-          <Filters />
+          {/* Filtros — sempre visível no desktop, mesmo recolhido. */}
+          <div className="hidden lg:contents">
+            <Filters />
+          </div>
+
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-10 shrink-0 lg:hidden"
+            onClick={() => setCustomizeOpen(true)}
+            aria-label="Personalizar board e filtros"
+            data-guide={GUIDE_ANCHORS.boardCustomizeButton.id}
+          >
+            <SlidersHorizontal className="size-4" />
+          </Button>
 
           {canCustomizeBoard && !collapsed && (
             <Tooltip>
@@ -107,6 +134,7 @@ export function FiltersTracking() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="hidden lg:inline-flex"
                   onClick={() => setCustomizeOpen(true)}
                   aria-label="Personalizar board"
                   data-guide={GUIDE_ANCHORS.boardCustomizeButton.id}
@@ -121,9 +149,9 @@ export function FiltersTracking() {
 
           {!collapsed && (
             <AiLeadButton trackingId={trackingId}>
-              <Button variant="outline" size="icon-sm">
-                <SparklesIcon className="size-4 text-purple-500" />
-                {/* <span className="bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-semibold">
+              <Button variant="outline" size="icon-sm" className="hidden lg:inline-flex">
+                <SparklesIcon className="size-4 text-info" />
+                {/* <span className="bg-linear-to-r from-info to-info bg-clip-text text-transparent font-semibold">
                   Agente de Automações
                 </span> */}
               </Button>
@@ -132,6 +160,7 @@ export function FiltersTracking() {
 
           <Button
             size="sm"
+            className="hidden lg:inline-flex"
             onClick={() => useLeadSheet.setIsOpen(true)}
             data-guide={GUIDE_ANCHORS.boardNewLeadButton.id}
           >
@@ -147,13 +176,12 @@ export function FiltersTracking() {
         onOpenChange={useLeadSheet.setIsOpen}
       />
 
-      {canCustomizeBoard && (
-        <BoardCustomizeSheet
-          trackingId={trackingId}
-          open={customizeOpen}
-          onOpenChange={setCustomizeOpen}
-        />
-      )}
+      <BoardCustomizeSheet
+        trackingId={trackingId}
+        open={customizeOpen}
+        onOpenChange={setCustomizeOpen}
+        canCustomize={canCustomizeBoard}
+      />
     </>
   );
 }

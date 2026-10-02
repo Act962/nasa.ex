@@ -79,7 +79,7 @@ export function LeadEmailPanel({ trackingId }: { trackingId: string | null }) {
       <EmailLeadCaptureToggle trackingId={trackingId} />
 
       {isPartial && (
-        <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+        <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning dark:text-warning">
           Este tracking tem muitos leads com e-mail; mostrando os 50 mais recentes.
         </p>
       )}
@@ -122,7 +122,7 @@ export function LeadEmailPanel({ trackingId }: { trackingId: string | null }) {
                     <span className="flex min-w-0 items-center gap-1.5">
                       <span className="truncate text-sm font-medium">{thread.lead.leadName}</span>
                       {thread.isAwaitingReply && (
-                        <span className="shrink-0 rounded-full bg-rose-500/15 px-1.5 py-px text-[10px] font-medium text-rose-600 dark:text-rose-400">
+                        <span className="shrink-0 rounded-full bg-destructive/15 px-1.5 py-px text-[10px] font-medium text-destructive dark:text-destructive">
                           Aguardando resposta
                         </span>
                       )}

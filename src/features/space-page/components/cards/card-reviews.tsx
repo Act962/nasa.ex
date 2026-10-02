@@ -40,7 +40,6 @@ export function CardReviews({ nick }: CardReviewsProps) {
         action={
           <Button
             size="sm"
-            className="bg-orange-500 hover:bg-orange-600"
             onClick={() => setOpen(true)}
           >
             Avaliar empresa
@@ -51,7 +50,6 @@ export function CardReviews({ nick }: CardReviewsProps) {
         emptyAction={
           <Button
             size="sm"
-            className="bg-orange-500 hover:bg-orange-600"
             onClick={() => setOpen(true)}
           >
             Avaliar empresa
@@ -60,36 +58,36 @@ export function CardReviews({ nick }: CardReviewsProps) {
       >
         {isLoading ? (
           <div className="space-y-2">
-            <div className="h-20 animate-pulse rounded-xl bg-white/5" />
-            <div className="h-20 animate-pulse rounded-xl bg-white/5" />
+            <div className="h-20 animate-pulse rounded-xl bg-muted/50" />
+            <div className="h-20 animate-pulse rounded-xl bg-muted/50" />
           </div>
         ) : (
           <ul className="space-y-3">
             {reviews.map((r) => (
               <li
                 key={r.id}
-                className="rounded-xl border border-white/5 bg-white/5 p-3"
+                className="rounded-xl border border-border bg-muted/50 p-3"
               >
                 <div className="mb-1 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1 text-yellow-400">
+                  <div className="flex items-center gap-1 text-warning">
                     {Array.from({ length: r.rating }).map((_, i) => (
                       <Star key={i} className="size-3 fill-current" />
                     ))}
                   </div>
-                  <span className="text-xs text-white/50">
+                  <span className="text-xs text-muted-foreground">
                     {r.author?.name ?? r.authorName ?? "Anônimo"}
                     {r.verified && (
-                      <span className="ml-1 rounded bg-green-500/20 px-1 text-[10px] text-green-300">
+                      <span className="ml-1 rounded bg-success/15 px-1 text-[10px] text-success">
                         verificado
                       </span>
                     )}
                   </span>
                 </div>
                 {r.title && (
-                  <p className="text-sm font-medium text-white">{r.title}</p>
+                  <p className="text-sm font-medium text-foreground">{r.title}</p>
                 )}
                 {r.comment && (
-                  <p className="text-xs text-white/70">{r.comment}</p>
+                  <p className="text-xs text-muted-foreground">{r.comment}</p>
                 )}
               </li>
             ))}

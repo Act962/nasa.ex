@@ -62,3 +62,8 @@ export const useCreateOfficialTracking = () => {
     }),
   );
 };
+
+/** "Comprar número": cópia do pedido para a equipe. */
+export const useNotifyNumberPurchaseInterest = () => {
+  return useMutation(orpc.campanhas.notifyNumberPurchaseInterest.mutationOptions());
+};

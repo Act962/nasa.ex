@@ -9,9 +9,14 @@ import {
   BROADCAST_STATUS_LABEL,
   BROADCAST_STATUS_STYLE,
 } from "../lib/broadcast-status";
-import { PageHeader } from "./page-header";
 import { CreateBroadcastDialog } from "./create-broadcast-dialog";
 import { OfficialNumberOverview } from "./self-service/official-number-overview";
+import { CampanhasHero } from "./campanhas-hero";
+import { Suspense, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { useActiveTrackingId } from "../hooks/use-active-tracking-id";
+import { CAMPAIGNS_LIST_PARAM } from "./campanhas-shell";
+import { useActiveNumberStore } from "../stores/use-active-number-store";
 
 function StatusPill({ status }: { status: string }) {
   return (
@@ -27,25 +32,58 @@ function StatusPill({ status }: { status: string }) {
 }
 
 export function BroadcastsList() {
-  const { data: broadcasts, isLoading } = useBroadcasts();
+  const activeTrackingId = useActiveTrackingId();
+  const selectTrackingId = useActiveNumberStore((state) => state.selectTrackingId);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        icon={Send}
-        title="Campanhas"
-        description="Disparos em massa via WhatsApp API Oficial."
-        action={<CreateBroadcastDialog />}
+    <div className="flex flex-col gap-4 sm:gap-6">
+      <CampanhasHero />
+
+      <Suspense fallback={null}>
+        <CampanhasSections activeTrackingId={activeTrackingId} onActiveTrackingChange={selectTrackingId} />
+      </Suspense>
+    </div>
+  );
+}
+
+/** "Como funciona?" (padrão) ou a lista de campanhas (?lista=1), conforme o item do menu. */
+function CampanhasSections({
+  activeTrackingId,
+  onActiveTrackingChange,
+}: {
+  activeTrackingId: string | null;
+  onActiveTrackingChange: (trackingId: string) => void;
+}) {
+  const searchParams = useSearchParams();
+  const isListOpen = searchParams.get(CAMPAIGNS_LIST_PARAM) === "1";
+  return (
+    <>
+      <OfficialNumberOverview
+        activeTrackingId={activeTrackingId}
+        onActiveTrackingChange={onActiveTrackingChange}
+        isIntroVisible={!isListOpen}
       />
+      {isListOpen && <CampaignsListSection />}
+    </>
+  );
+}
 
-      <OfficialNumberOverview />
+function CampaignsListSection() {
+  const { data: broadcasts, isLoading } = useBroadcasts();
+  const sectionRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  return (
+    <div ref={sectionRef} className="scroll-mt-20">
       {isLoading ? (
         <div className="flex justify-center py-20">
           <Spinner />
         </div>
       ) : !broadcasts || broadcasts.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-20 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-[22px] border border-dashed px-4 py-10 text-center sm:py-20">
           <div className="flex size-12 items-center justify-center rounded-full bg-muted">
             <Send className="size-5 text-muted-foreground" />
           </div>
@@ -67,7 +105,7 @@ export function BroadcastsList() {
               <Link
                 key={broadcast.id}
                 href={`/campanhas/${broadcast.id}`}
-                className="group flex items-center gap-4 rounded-xl border bg-card p-4 transition-colors hover:border-foreground/20 hover:bg-accent/40"
+                className="group flex items-center gap-4 rounded-[20px] border bg-card p-4 transition-colors hover:border-foreground/20 hover:bg-accent/40"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -106,7 +144,7 @@ export function BroadcastsList() {
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                         <div
-                          className="h-full rounded-full bg-emerald-500 transition-all"
+                          className="h-full rounded-full bg-success transition-all"
                           style={{ width: `${progress}%` }}
                         />
                       </div>

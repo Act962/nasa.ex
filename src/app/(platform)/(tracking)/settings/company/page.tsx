@@ -21,7 +21,7 @@ export default async function CompanySettings() {
     : null;
 
   return (
-    <div className="py-4 px-5">
+    <div className="px-4 py-2 md:px-5 md:py-4">
       <CompanySettingsClient
         company={{
           id: organization?.id!,

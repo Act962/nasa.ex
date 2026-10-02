@@ -38,7 +38,7 @@ export function CopyField({
         className={cn(
           "group flex w-full min-w-0 justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2 text-left text-sm transition-colors hover:bg-muted",
           isMultiline ? "flex-col items-stretch" : "items-center font-mono",
-          isHighlighted && "animate-in fade-in zoom-in-95 border-emerald-500/50 bg-emerald-500/5 text-lg tracking-widest",
+          isHighlighted && "animate-in fade-in zoom-in-95 border-success/50 bg-success/5 text-lg tracking-widest",
         )}
       >
         <span className={cn("min-w-0", isMultiline ? "whitespace-pre-wrap break-words leading-relaxed" : "truncate")}>{value}</span>
@@ -46,7 +46,7 @@ export function CopyField({
           className={cn(
             "flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 font-sans text-xs transition-all",
             isMultiline && "self-end",
-            isCopied ? "bg-emerald-500 text-white" : "bg-background text-muted-foreground group-hover:text-foreground",
+            isCopied ? "bg-success text-white" : "bg-background text-muted-foreground group-hover:text-foreground",
           )}
         >
           {isCopied ? <Check className="size-3" /> : <Copy className="size-3" />}

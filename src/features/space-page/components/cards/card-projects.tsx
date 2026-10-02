@@ -37,7 +37,7 @@ export function CardProjects({ nick }: CardProjectsProps) {
       }
       emptyAction={
         isAuthenticated ? (
-          <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600">
+          <Button asChild size="sm" >
             <Link href="/workspaces">
               <Plus className="mr-1 size-4" />
               Criar meu primeiro projeto
@@ -48,28 +48,28 @@ export function CardProjects({ nick }: CardProjectsProps) {
     >
       {isLoading ? (
         <div className="space-y-2">
-          <div className="h-14 animate-pulse rounded-xl bg-white/5" />
-          <div className="h-14 animate-pulse rounded-xl bg-white/5" />
-          <div className="h-14 animate-pulse rounded-xl bg-white/5" />
+          <div className="h-14 animate-pulse rounded-xl bg-muted/50" />
+          <div className="h-14 animate-pulse rounded-xl bg-muted/50" />
+          <div className="h-14 animate-pulse rounded-xl bg-muted/50" />
         </div>
       ) : (
         <ul className="space-y-2">
           {projects.map((p) => (
             <li
               key={p.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/5 p-3 transition hover:border-orange-500/30"
+              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/50 p-3 transition hover:border-info/30"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">
+                <p className="truncate text-sm font-medium text-foreground">
                   {p.name}
                 </p>
                 {p.description && (
-                  <p className="truncate text-xs text-white/60">
+                  <p className="truncate text-xs text-muted-foreground">
                     {p.description}
                   </p>
                 )}
               </div>
-              <Badge variant="outline" className="shrink-0 text-xs text-white/60">
+              <Badge variant="outline" className="shrink-0 text-xs text-muted-foreground">
                 Público
               </Badge>
             </li>

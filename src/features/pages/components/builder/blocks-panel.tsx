@@ -156,7 +156,7 @@ function CategoryChip({
       className={cn(
         "text-[10px] px-2 py-1 rounded-full border transition-colors whitespace-nowrap",
         active
-          ? "bg-indigo-500 text-white border-indigo-500"
+          ? "bg-foreground text-background border-foreground"
           : "bg-background text-muted-foreground border-border hover:bg-accent",
       )}
     >
@@ -176,7 +176,7 @@ function BlockCard({
   return (
     <button
       onClick={onClick}
-      className="text-left rounded-lg border-2 hover:border-indigo-500 transition-all overflow-hidden bg-card group"
+      className="text-left rounded-lg border-2 hover:border-primary transition-all overflow-hidden bg-card group"
     >
       <BlockPreview block={block} />
       <div className="px-2.5 py-1.5">

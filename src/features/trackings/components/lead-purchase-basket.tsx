@@ -44,11 +44,11 @@ function daysSince(iso: string): number {
 }
 
 function colorClasses(days: number | null, thresholds: Thresholds) {
-  if (days === null) return "text-zinc-400 dark:text-zinc-500";
-  if (days <= thresholds.recentDays) return "text-emerald-500";
-  if (days <= thresholds.mediumDays) return "text-yellow-500";
-  if (days <= thresholds.longDays) return "text-orange-500";
-  return "text-red-500";
+  if (days === null) return "text-muted-foreground";
+  if (days <= thresholds.recentDays) return "text-success";
+  if (days <= thresholds.mediumDays) return "text-temp-warm";
+  if (days <= thresholds.longDays) return "text-temp-hot";
+  return "text-destructive";
 }
 
 function sourceLabel(source: PurchaseInfo["source"]): string {

@@ -51,10 +51,10 @@ export function StartHereSpot({
       <div aria-hidden className={cn("pointer-events-none absolute -inset-[2px] z-20 overflow-hidden", radiusClassName)} style={RING_MASK}>
         <div
           className="absolute left-1/2 top-1/2 aspect-square w-[250%] -translate-x-1/2 -translate-y-1/2 animate-[spin_3s_linear_infinite]"
-          style={{ background: "conic-gradient(#2563eb, #60a5fa, #a78bfa, #2563eb)" }}
+          style={{ background: "conic-gradient(var(--chart-3), var(--chart-1), var(--info), var(--chart-3))" }}
         />
       </div>
-      <div aria-hidden className={cn("pointer-events-none absolute -inset-[2px] z-10 animate-ping opacity-30 ring-2 ring-blue-500", radiusClassName)} style={{ animationDuration: "2s" }} />
+      <div aria-hidden className={cn("pointer-events-none absolute -inset-[2px] z-10 animate-ping opacity-30 ring-2 ring-info", radiusClassName)} style={{ animationDuration: "2s" }} />
       <div
         className={cn(
           "pointer-events-none absolute z-30 flex items-center gap-1.5 animate-bounce",
@@ -63,7 +63,7 @@ export function StartHereSpot({
         )}
         style={{ animationDuration: "1.4s" }}
       >
-        <span className="whitespace-nowrap rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-blue-600/40">
+        <span className="whitespace-nowrap rounded-lg bg-info px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-info/40">
           Clique aqui
         </span>
         <svg
@@ -74,8 +74,8 @@ export function StartHereSpot({
             coachPlacement === "below" && "-scale-y-100",
           )}
         >
-          <path d="M40 6 C 30 10, 22 20, 14 34" stroke="#60a5fa" strokeWidth="3.5" fill="none" strokeLinecap="round" />
-          <path d="M8 30 L14 38 L22 32" stroke="#60a5fa" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M40 6 C 30 10, 22 20, 14 34" stroke="var(--info)" strokeWidth="3.5" fill="none" strokeLinecap="round" />
+          <path d="M8 30 L14 38 L22 32" stroke="var(--info)" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
     </div>

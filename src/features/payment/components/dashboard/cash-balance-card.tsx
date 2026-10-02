@@ -30,7 +30,7 @@ export function CashBalanceCard() {
   return (
     <Card className="gap-0 py-0">
       <CardContent className="p-4 sm:p-5">
-        <div className="flex items-center gap-2 text-sky-500">
+        <div className="flex items-center gap-2 text-info">
           <Wallet className="size-4" />
           <span className="text-xs font-semibold uppercase tracking-wide">
             Valor atual no caixa
@@ -76,7 +76,7 @@ export function CashBalanceCard() {
                   </div>
                   <span
                     className={`shrink-0 text-sm font-semibold tabular-nums ${
-                      account.computedBalance < 0 ? "text-red-400" : ""
+                      account.computedBalance < 0 ? "text-destructive" : ""
                     }`}
                   >
                     {formatCurrency(account.computedBalance)}

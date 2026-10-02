@@ -57,8 +57,8 @@ export function CardOrganogram({ nick }: CardOrganogramProps) {
     >
       {isLoading ? (
         <div className="space-y-2">
-          <div className="h-16 animate-pulse rounded-xl bg-white/5" />
-          <div className="h-16 animate-pulse rounded-xl bg-white/5" />
+          <div className="h-16 animate-pulse rounded-xl bg-muted/50" />
+          <div className="h-16 animate-pulse rounded-xl bg-muted/50" />
         </div>
       ) : (
         <ul className="space-y-2">
@@ -79,14 +79,14 @@ function OrgNode({ node, depth }: { node: TreeNode; depth: number }) {
   return (
     <li>
       <div
-        className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/5 p-2"
+        className="flex items-center gap-3 rounded-xl border border-border bg-muted/50 p-2"
         style={{ marginLeft: depth * 16 }}
       >
         {hasChildren ? (
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
-            className="flex size-6 shrink-0 items-center justify-center rounded text-white/60 hover:bg-white/10"
+            className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted"
           >
             {open ? (
               <ChevronDown className="size-3" />
@@ -98,7 +98,7 @@ function OrgNode({ node, depth }: { node: TreeNode; depth: number }) {
           <span className="size-6 shrink-0" />
         )}
 
-        <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-white/10">
+        <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-muted">
           {node.user?.image ? (
             <Image
               src={node.user.image}
@@ -107,7 +107,7 @@ function OrgNode({ node, depth }: { node: TreeNode; depth: number }) {
               className="object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-xs text-white/60">
+            <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
               {node.isOpenPosition
                 ? "?"
                 : node.user?.displayName?.[0] ?? "•"}
@@ -122,14 +122,14 @@ function OrgNode({ node, depth }: { node: TreeNode; depth: number }) {
           }
           className="min-w-0 flex-1 text-left"
         >
-          <p className="truncate text-sm text-white">
+          <p className="truncate text-sm text-foreground">
             {node.isOpenPosition ? (
-              <span className="text-orange-300">Vaga aberta</span>
+              <span className="text-info">Vaga aberta</span>
             ) : (
               node.user?.displayName ?? "Aguardando confirmação"
             )}
           </p>
-          <p className="truncate text-xs text-white/60">
+          <p className="truncate text-xs text-muted-foreground">
             {node.jobTitle.title}
             {node.customLabel ? ` · ${node.customLabel}` : ""}
             {node.department ? ` · ${node.department}` : ""}
@@ -139,7 +139,7 @@ function OrgNode({ node, depth }: { node: TreeNode; depth: number }) {
         {node.isOpenPosition && (
           <Badge
             variant="outline"
-            className="shrink-0 border-orange-500/30 text-[10px] text-orange-300"
+            className="shrink-0 border-info/30 text-[10px] text-info"
           >
             Aberta
           </Badge>

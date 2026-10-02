@@ -64,6 +64,7 @@ import {
   useSetPageAsHome,
 } from "../../hooks/use-nasa-page-subpages";
 import { useDeletePage } from "../../hooks/use-pages";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 export function PagesPanel() {
   const router = useRouter();
@@ -90,9 +91,9 @@ export function PagesPanel() {
   if (isLoading) {
     return (
       <PanelWrapper>
-        <p className="text-xs text-muted-foreground text-center px-3 py-8">
-          Carregando…
-        </p>
+        <div className="flex justify-center px-3 py-8">
+          <OrbitaSpinner className="size-6" />
+        </div>
       </PanelWrapper>
     );
   }
@@ -100,12 +101,12 @@ export function PagesPanel() {
   if (isError || !data) {
     return (
       <PanelWrapper>
-        <div className="mx-3 mt-3 mb-2 rounded-lg border-2 border-dashed border-amber-300 bg-amber-50 p-3 text-center">
-          <FileText className="size-5 mx-auto text-amber-700 mb-1" />
-          <p className="text-[11px] text-amber-900 font-medium">
+        <div className="mx-3 mt-3 mb-2 rounded-lg border-2 border-dashed border-warning/30 bg-warning/15 p-3 text-center">
+          <FileText className="size-5 mx-auto text-warning mb-1" />
+          <p className="text-[11px] text-foreground font-medium">
             Esse painel só está disponível na página principal do site.
           </p>
-          <p className="text-[10px] text-amber-800/80 mt-1.5 leading-relaxed">
+          <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
             Você está editando uma subpage. Volte pro site principal pra
             criar / reordenar / excluir páginas.
           </p>
@@ -144,17 +145,17 @@ export function PagesPanel() {
       <div className="px-2 mb-1.5">
         <div
           className={cn(
-            "flex items-center gap-2 px-2 py-2 rounded-md text-xs bg-indigo-50 ring-1 ring-indigo-200 cursor-pointer hover:bg-indigo-100/80",
+            "flex items-center gap-2 px-2 py-2 rounded-md text-xs bg-info/10 ring-1 ring-info/30 cursor-pointer hover:bg-info/15",
           )}
           onClick={() => router.push(`/pages/${pageId}`)}
           title="Editar página principal"
         >
-          <Star className="size-3.5 text-amber-500 fill-amber-400 shrink-0" />
-          <Home className="size-3.5 shrink-0 text-indigo-700" />
-          <span className="font-medium text-indigo-900 flex-1 truncate">
+          <Star className="size-3.5 text-warning fill-warning shrink-0" />
+          <Home className="size-3.5 shrink-0 text-info" />
+          <span className="font-medium text-foreground flex-1 truncate">
             Página principal
           </span>
-          <span className="text-[10px] text-indigo-600/80">/</span>
+          <span className="text-[10px] text-info/80">/</span>
         </div>
       </div>
 
@@ -258,7 +259,7 @@ function SubpageRow(props: {
         <div className="text-[10px] text-muted-foreground/70 truncate font-mono">
           /{props.slug}
           {props.status === "DRAFT" && (
-            <span className="ml-1 text-amber-600">· rascunho</span>
+            <span className="ml-1 text-warning">· rascunho</span>
           )}
         </div>
       </div>

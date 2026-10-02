@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import {
   CheckCircle2,
-  Loader2,
   MessageCircle,
   RotateCcw,
   SearchCheck,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -77,7 +77,7 @@ export function PhoneVerification({
 
   if (status === "verified") {
     return (
-      <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-300">
+      <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-medium text-success">
         <CheckCircle2 className="size-3.5" />
         WhatsApp verificado
       </p>
@@ -195,7 +195,7 @@ export function PhoneVerification({
             className="border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
           >
             {start.isPending || checkNumber.isPending ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" />
+              <OrbitaSpinner className="mr-1.5 size-4 " />
             ) : !enabled ? (
               <SearchCheck className="mr-1.5 size-4" />
             ) : (
@@ -233,10 +233,9 @@ export function PhoneVerification({
             size="sm"
             onClick={handleConfirm}
             disabled={code.length !== 6 || confirm.isPending}
-            className="bg-violet-600 hover:bg-violet-500"
           >
             {confirm.isPending ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" />
+              <OrbitaSpinner className="mr-1.5 size-4 " />
             ) : null}
             Confirmar
           </Button>

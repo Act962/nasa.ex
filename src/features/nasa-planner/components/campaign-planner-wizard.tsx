@@ -291,7 +291,7 @@ export function CampaignPlannerWizard({ open, onOpenChange, plannerId, plannerCl
       <DialogContent className="w-[95vw] max-w-[60rem] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <RocketIcon className="size-5 text-violet-600" />
+            <RocketIcon className="size-5 text-info" />
             Planejar Campanha
           </DialogTitle>
         </DialogHeader>
@@ -306,12 +306,12 @@ export function CampaignPlannerWizard({ open, onOpenChange, plannerId, plannerCl
               <div key={i} className="flex items-center min-w-0 flex-1">
                 <div className={cn(
                   "flex items-center gap-1 text-xs font-medium px-1.5 py-1 rounded-full transition-colors shrink-0",
-                  isActive ? "bg-violet-600 text-white" : isDone ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" : "text-muted-foreground"
+                  isActive ? "bg-foreground text-background" : isDone ? "bg-info/15 text-info" : "text-muted-foreground"
                 )}>
                   <Icon className="size-3 shrink-0" />
                   <span className="hidden sm:block truncate max-w-[4rem]">{s.label}</span>
                 </div>
-                {i < STEPS.length - 1 && <div className={cn("h-px flex-1 mx-0.5 transition-colors min-w-[4px]", isDone ? "bg-violet-300 dark:bg-violet-700" : "bg-border")} />}
+                {i < STEPS.length - 1 && <div className={cn("h-px flex-1 mx-0.5 transition-colors min-w-[4px]", isDone ? "bg-info/40" : "bg-border")} />}
               </div>
             );
           })}
@@ -424,8 +424,8 @@ export function CampaignPlannerWizard({ open, onOpenChange, plannerId, plannerCl
           {/* Step 1 — Plano */}
           {step === 1 && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded-lg">
-                <StarIcon className="size-4 fill-amber-500 text-amber-500" />
+              <div className="flex items-center gap-2 text-sm text-warning bg-warning/15 px-3 py-2 rounded-lg">
+                <StarIcon className="size-4 fill-warning text-warning" />
                 Esta ação consome <strong>1 STAR</strong>
               </div>
 
@@ -454,7 +454,7 @@ export function CampaignPlannerWizard({ open, onOpenChange, plannerId, plannerCl
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="gap-1.5 h-7 text-xs text-violet-600 border-violet-200 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+                    className="gap-1.5 h-7 text-xs text-info border-info/30 hover:bg-info/15"
                     disabled={!campaignType || isGeneratingBrief}
                     onClick={handleGenerateBrief}
                   >
@@ -533,7 +533,7 @@ export function CampaignPlannerWizard({ open, onOpenChange, plannerId, plannerCl
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="shrink-0 gap-1.5 text-xs text-[#4285F4] border-[#4285F4]/30 hover:bg-[#4285F4]/10"
+                      className="shrink-0 gap-1.5 text-xs text-info border-info/30 hover:bg-info/10"
                       onClick={() => {
                         const start = new Date(newEvent.scheduledAt);
                         const end = new Date(start.getTime() + newEvent.durationMinutes * 60000);
@@ -549,7 +549,7 @@ export function CampaignPlannerWizard({ open, onOpenChange, plannerId, plannerCl
                 </div>
                 {!hasGoogleCalendar && (
                   <p className="text-xs text-muted-foreground">
-                    <a href="/settings/integrations" target="_blank" className="underline text-[#4285F4]">Conecte o Google Calendar</a> para criar eventos diretamente.
+                    <a href="/settings/integrations" target="_blank" className="underline text-info">Conecte o Google Calendar</a> para criar eventos diretamente.
                   </p>
                 )}
               </div>
@@ -599,7 +599,7 @@ export function CampaignPlannerWizard({ open, onOpenChange, plannerId, plannerCl
           {step === 3 && (
             <div className="space-y-4">
               {selectedProject && (
-                <div className="flex items-center gap-2 text-xs text-violet-700 bg-violet-50 dark:bg-violet-950/20 dark:text-violet-300 px-3 py-2 rounded-lg">
+                <div className="flex items-center gap-2 text-xs text-info bg-info/15 px-3 py-2 rounded-lg">
                   <div className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: (selectedProject as any).color ?? "#7c3aed" }} />
                   Materiais pré-carregados do projeto <strong>{(selectedProject as any).name}</strong>. Edite ou adicione mais abaixo.
                 </div>
@@ -759,7 +759,7 @@ export function CampaignPlannerWizard({ open, onOpenChange, plannerId, plannerCl
               )}
             </Button>
           ) : (
-            <Button onClick={handleFinish} disabled={createEvent.isPending || createTask.isPending || createAsset.isPending} className="gap-1 bg-violet-600 hover:bg-violet-700">
+            <Button onClick={handleFinish} disabled={createEvent.isPending || createTask.isPending || createAsset.isPending} className="gap-1">
               <CheckCircleIcon className="size-4" />
               Concluir
             </Button>

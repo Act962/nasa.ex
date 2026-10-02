@@ -11,45 +11,30 @@ export default async function AdminPatternsPage() {
     <ToastProvider>
       <div className="space-y-6">
         <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <LayoutTemplate className="w-5 h-5 text-violet-400" /> Padrões ÓRBITA
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <LayoutTemplate className="w-5 h-5 text-info" /> Padrões ÓRBITA
           </h1>
-          <p className="text-sm text-zinc-400 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Gerencie os modelos pré-configurados disponíveis para as
             organizações
           </p>
         </div>
 
         <Tabs defaultValue="tracking" className="space-y-6">
-          <TabsList className="bg-zinc-900 border border-zinc-800">
-            <TabsTrigger
-              value="tracking"
-              className="data-[state=active]:bg-violet-600"
-            >
+          <TabsList>
+            <TabsTrigger value="tracking">
               Tracking
             </TabsTrigger>
-            <TabsTrigger
-              value="workspace"
-              className="data-[state=active]:bg-violet-600"
-            >
+            <TabsTrigger value="workspace">
               Workspace
             </TabsTrigger>
-            <TabsTrigger
-              value="forge-proposal"
-              className="data-[state=active]:bg-violet-600"
-            >
+            <TabsTrigger value="forge-proposal">
               Proposta
             </TabsTrigger>
-            <TabsTrigger
-              value="forge-contract"
-              className="data-[state=active]:bg-violet-600"
-            >
+            <TabsTrigger value="forge-contract">
               Contrato
             </TabsTrigger>
-            <TabsTrigger
-              value="form"
-              className="data-[state=active]:bg-violet-600"
-            >
+            <TabsTrigger value="form">
               Formulário
             </TabsTrigger>
           </TabsList>

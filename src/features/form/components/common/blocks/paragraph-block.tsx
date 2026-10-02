@@ -72,7 +72,7 @@ export const ParagraphBlock: ObjectBlockType = {
 
   blockBtnElement: {
     icon: TextIcon,
-    label: "Paragraph",
+    label: "Parágrafo",
   },
   canvasComponent: ParagraphCanvasFormComponent,
   formComponent: ParagraphCanvasFormComponent,

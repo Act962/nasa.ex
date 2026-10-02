@@ -27,14 +27,14 @@ const TYPE_OPTIONS: {
     label: "Receita",
     icon: ArrowDownLeft,
     activeClass:
-      "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+      "border-success bg-success/10 text-success dark:text-success",
   },
   {
     value: "PAYABLE",
     label: "Despesa",
     icon: ArrowUpRight,
     activeClass:
-      "border-red-500 bg-red-500/10 text-red-600 dark:text-red-400",
+      "border-destructive bg-destructive/10 text-destructive dark:text-destructive",
   },
 ];
 

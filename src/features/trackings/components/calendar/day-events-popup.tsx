@@ -27,11 +27,11 @@ interface Props {
 }
 
 const statusColors: Record<string, string> = {
-  PENDING: "bg-yellow-400",
-  CONFIRMED: "bg-green-500",
-  CANCELLED: "bg-red-400",
-  NO_SHOW: "bg-gray-400",
-  DONE: "bg-blue-500",
+  PENDING: "bg-warning",
+  CONFIRMED: "bg-success",
+  CANCELLED: "bg-destructive",
+  NO_SHOW: "bg-knob",
+  DONE: "bg-info",
 };
 
 export function DayEventsPopup({

@@ -37,8 +37,7 @@ import {
 } from "@/components/ui/table";
 import {
   Plus, FileCheck2, Pencil, Trash2, Users,
-  BookText, Calendar, AlignLeft,
-  Eye, Share2, Copy, MessageCircle, Mail, CheckCircle2, Clock, Sparkles,
+  BookText, Calendar, AlignLeft, Share2, Sparkles,
 } from "lucide-react";
 import {
   Popover,
@@ -50,17 +49,20 @@ import { toast } from "sonner";
 import { ContractForm } from "./contract-form";
 import { TemplateModal } from "./template-modal";
 import { PatternsSection } from "@/features/admin/components/patterns-section";
-
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  PENDENTE_ASSINATURA: { label: "Pendente Assinatura", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-  ATIVO:               { label: "Ativo",               color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  ENCERRADO:           { label: "Encerrado",           color: "bg-gray-100 text-gray-600 border-gray-200" },
-  CANCELADO:           { label: "Cancelado",           color: "bg-red-100 text-red-600 border-red-200" },
-};
-
-function fmt(n: number | string) {
-  return Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
+import { OrbitaSpinner } from "@/components/orbita-spinner";
+import { ContractCardList } from "./contract-card-list";
+import {
+  CONTRACT_STATUS_CONFIG,
+  formatContractNumber,
+  formatCurrency,
+  getContractStatus,
+} from "./contract-status";
+import {
+  SignerLinksPanel,
+  hasOnlyOrphanSigners,
+  toSignerRows,
+  type SignerRow,
+} from "./signer-links-panel";
 
 interface Template {
   id: string;
@@ -72,22 +74,8 @@ interface Template {
 
 // ─── Per-signer sharing popover ───────────────────────────────────────────────
 
-interface SignerRow {
-  name: string;
-  email: string;
-  token: string;
-  signed_at: string | null;
-}
-
 function ShareSignersPopover({ signers, contractTitle }: { signers: SignerRow[]; contractTitle: string }) {
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const validSigners = signers.filter((s) => !!s.token);
-  const orphanCount = signers.length - validSigners.length;
-  const allOrphans = signers.length > 0 && validSigners.length === 0;
-
-  const handleCopy = (url: string) => {
-    navigator.clipboard.writeText(url).then(() => toast.success("Link copiado!"));
-  };
+  const isAllOrphans = hasOnlyOrphanSigners(signers);
 
   return (
     <Popover>
@@ -96,11 +84,11 @@ function ShareSignersPopover({ signers, contractTitle }: { signers: SignerRow[];
           size="icon"
           variant="ghost"
           className="size-7"
-          title={allOrphans ? "Re-salve o contrato para gerar links" : "Visualizar / Compartilhar"}
-          disabled={allOrphans}
-          onClick={(e) => {
-            if (allOrphans) {
-              e.preventDefault();
+          title={isAllOrphans ? "Re-salve o contrato para gerar links" : "Visualizar / Compartilhar"}
+          disabled={isAllOrphans}
+          onClick={(event) => {
+            if (isAllOrphans) {
+              event.preventDefault();
               toast.info("Re-salve o contrato para gerar links de assinatura");
             }
           }}
@@ -109,79 +97,7 @@ function ShareSignersPopover({ signers, contractTitle }: { signers: SignerRow[];
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0 overflow-hidden shadow-xl border-border/60">
-        <div className="px-4 py-3 border-b bg-muted/30">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Links de assinatura
-          </p>
-          <p className="text-sm font-medium truncate mt-0.5">{contractTitle}</p>
-        </div>
-        {orphanCount > 0 && (
-          <div className="mx-2 mt-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700/50 px-3 py-2 text-[11px] text-amber-800 dark:text-amber-200">
-            {orphanCount} assinante{orphanCount > 1 ? "s" : ""} sem link válido — re-salve o contrato para gerar.
-          </div>
-        )}
-        <div className="p-2 space-y-1">
-          {validSigners.map((s, idx) => {
-            const url = `${origin}/contrato/${s.token}`;
-            const waText = encodeURIComponent(`Olá ${s.name}, segue o link para assinar o contrato "${contractTitle}":\n${url}`);
-            const mailSubject = encodeURIComponent(`Contrato para assinatura: ${contractTitle}`);
-            const mailBody = encodeURIComponent(`Olá ${s.name},\n\nSegue o link para assinatura:\n\n${url}\n\nAtenciosamente.`);
-
-            return (
-              <div key={s.token ?? idx} className="rounded-lg border border-border/60 p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  {s.signed_at
-                    ? <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
-                    : <Clock className="size-3.5 text-muted-foreground shrink-0" />}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold truncate">{s.name}</p>
-                    {s.signed_at
-                      ? <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
-                          Assinado em {new Date(s.signed_at).toLocaleDateString("pt-BR")}
-                        </p>
-                      : <p className="text-[10px] text-muted-foreground">Aguardando assinatura</p>}
-                  </div>
-                  {/* Open in new tab */}
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Abrir contrato"
-                    className="size-6 rounded flex items-center justify-center hover:bg-muted transition-colors shrink-0"
-                  >
-                    <Eye className="size-3.5 text-muted-foreground" />
-                  </a>
-                </div>
-
-                {/* Action buttons */}
-                {!s.signed_at && (
-                  <div className="flex gap-1.5">
-                    <a
-                      href={`https://wa.me/?text=${waText}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[11px] font-medium hover:bg-emerald-500/20 transition-colors"
-                    >
-                      <MessageCircle className="size-3" /> WhatsApp
-                    </a>
-                    <a
-                      href={`mailto:${s.email}?subject=${mailSubject}&body=${mailBody}`}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 text-[11px] font-medium hover:bg-blue-500/20 transition-colors"
-                    >
-                      <Mail className="size-3" /> E-mail
-                    </a>
-                    <button
-                      onClick={() => handleCopy(url)}
-                      className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-muted border border-border text-muted-foreground text-[11px] font-medium hover:bg-muted/80 transition-colors"
-                    >
-                      <Copy className="size-3" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <SignerLinksPanel signers={signers} contractTitle={contractTitle} />
       </PopoverContent>
     </Popover>
   );
@@ -218,7 +134,7 @@ function TemplateManager({ onClose }: { onClose: () => void }) {
         </p>
         <Button
           size="sm"
-          className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-1.5 shrink-0"
+          className="gap-1.5 shrink-0"
           onClick={() => { setEditingTemplate(null); setTemplateModal(true); }}
         >
           <Plus className="size-3.5" /> Novo Padrão
@@ -354,29 +270,48 @@ export function ContractsTab() {
     }
   };
 
+  const handleCreate = () => {
+    setEditingId(null);
+    setFormOpen(true);
+  };
+
+  const handleEdit = (contractId: string) => {
+    setEditingId(contractId);
+    setFormOpen(true);
+  };
+
   const filters = ["ALL", "PENDENTE_ASSINATURA", "ATIVO", "ENCERRADO", "CANCELADO"];
   const filterLabels: Record<string, string> = {
     ALL: "Todos",
-    ...Object.fromEntries(Object.entries(STATUS_CONFIG).map(([k, v]) => [k, v.label])),
+    ...Object.fromEntries(
+      Object.entries(CONTRACT_STATUS_CONFIG).map(([statusKey, statusConfig]) => [statusKey, statusConfig.label]),
+    ),
   };
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-1.5">
-          {filters.map((f) => (
+      <Button
+        className="h-11 w-full gap-1.5 rounded-full md:hidden"
+        onClick={handleCreate}
+      >
+        <Plus className="size-4" />
+        Novo contrato
+      </Button>
+
+      <div className="flex items-center gap-2 md:flex-wrap">
+        <div className="scroll-hidden-x flex min-w-0 flex-1 gap-1.5 overflow-x-auto md:flex-none md:flex-wrap md:overflow-visible">
+          {filters.map((filterKey) => (
             <button
-              key={f}
-              onClick={() => setStatusFilter(f)}
+              key={filterKey}
+              onClick={() => setStatusFilter(filterKey)}
               className={cn(
-                "px-3 py-1 rounded-full text-xs font-medium border transition-all",
-                statusFilter === f
-                  ? "bg-[#7C3AED] text-white border-[#7C3AED]"
-                  : "border-border text-muted-foreground hover:border-[#7C3AED]/50",
+                "shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium border transition-all max-md:h-9 max-md:px-4",
+                statusFilter === filterKey
+                  ? "bg-info text-white border-info"
+                  : "border-border text-muted-foreground hover:border-info/50",
               )}
             >
-              {filterLabels[f]}
+              {filterLabels[filterKey]}
             </button>
           ))}
         </div>
@@ -384,15 +319,15 @@ export function ContractsTab() {
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 border-[#7C3AED]/40 text-[#7C3AED] hover:bg-[#7C3AED]/5"
+            className="gap-1.5 border-info/40 text-info hover:bg-info/5 max-md:h-9 max-md:rounded-full"
             onClick={() => setTemplatesOpen(true)}
           >
             <BookText className="size-3.5" />
             Padrões
           </Button>
           <Button
-            className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-1.5"
-            onClick={() => { setEditingId(null); setFormOpen(true); }}
+            className="gap-1.5 max-md:hidden"
+            onClick={handleCreate}
           >
             <Plus className="size-4" />
             Novo Contrato
@@ -402,17 +337,34 @@ export function ContractsTab() {
 
       {/* List */}
       {isLoading ? (
-        <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+        <>
+          <div className="flex justify-center py-12 md:hidden">
+            <OrbitaSpinner size={32} />
+          </div>
+          <div className="space-y-2 max-md:hidden">
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
+        </>
       ) : !data?.contracts.length ? (
         <div className="flex flex-col items-center py-16 gap-3 text-center">
           <FileCheck2 className="size-10 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Nenhum contrato encontrado.</p>
-          <Button variant="outline" onClick={() => { setEditingId(null); setFormOpen(true); }}>
+          <Button variant="outline" className="rounded-full" onClick={handleCreate}>
             <Plus className="size-4 mr-1.5" /> Criar contrato
           </Button>
         </div>
       ) : (
-        <div className="rounded-lg border overflow-x-auto">
+        <>
+        <div className="md:hidden">
+          <ContractCardList
+            contracts={data.contracts}
+            togglingTemplateId={templateToggling}
+            onEdit={handleEdit}
+            onDelete={setDeleteId}
+            onToggleTemplate={handleTemplateToggle}
+          />
+        </div>
+        <div className="rounded-lg border overflow-x-auto max-md:hidden">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40">
@@ -428,12 +380,12 @@ export function ContractsTab() {
             </TableHeader>
             <TableBody>
               {data.contracts.map((c) => {
-                const st = STATUS_CONFIG[c.status] ?? { label: c.status, color: "bg-gray-100 text-gray-600 border-gray-200" };
-                const signers: { name: string; signed_at: string | null }[] = Array.isArray(c.signers) ? c.signers : [];
-                const signedCount = signers.filter((s) => s.signed_at).length;
+                const st = getContractStatus(c.status);
+                const signers = toSignerRows(c.signers);
+                const signedCount = signers.filter((signer) => signer.signed_at).length;
                 return (
                   <TableRow key={c.id}>
-                    <TableCell className="font-mono text-xs font-bold">#{String(c.number).padStart(4, "0")}</TableCell>
+                    <TableCell className="font-mono text-xs font-bold">{formatContractNumber(c.number)}</TableCell>
                     <TableCell className="text-xs max-w-[180px] truncate">{c.proposal?.title ?? "—"}</TableCell>
                     <TableCell className="text-xs hidden sm:table-cell whitespace-nowrap">
                       {new Date(c.startDate).toLocaleDateString("pt-BR")}
@@ -441,7 +393,7 @@ export function ContractsTab() {
                     <TableCell className="text-xs hidden sm:table-cell whitespace-nowrap">
                       {new Date(c.endDate).toLocaleDateString("pt-BR")}
                     </TableCell>
-                    <TableCell className="text-right text-sm font-semibold whitespace-nowrap">{fmt(c.value)}</TableCell>
+                    <TableCell className="text-right text-sm font-semibold whitespace-nowrap">{formatCurrency(c.value)}</TableCell>
                     <TableCell className="hidden md:table-cell">
                       <div className="flex items-center gap-1 text-xs">
                         <Users className="size-3 text-muted-foreground" />
@@ -455,8 +407,8 @@ export function ContractsTab() {
                       <div className="flex items-center justify-end gap-1">
                         {/* Share / view per-signer links */}
                         <ShareSignersPopover
-                          signers={signers as SignerRow[]}
-                          contractTitle={c.proposal?.title ?? `Contrato #${String(c.number).padStart(4, "0")}`}
+                          signers={signers}
+                          contractTitle={c.proposal?.title ?? `Contrato ${formatContractNumber(c.number)}`}
                         />
                         <Button
                           size="icon" variant="ghost" className="size-7"
@@ -464,11 +416,11 @@ export function ContractsTab() {
                           disabled={templateToggling === c.id}
                           title={c.isTemplate ? "Desmarcar como padrão" : "Marcar como padrão"}
                         >
-                          <Sparkles className={cn("size-3.5", c.isTemplate && "text-[#7C3AED]")} />
+                          <Sparkles className={cn("size-3.5", c.isTemplate && "text-info")} />
                         </Button>
                         <Button
                           size="icon" variant="ghost" className="size-7"
-                          onClick={() => { setEditingId(c.id); setFormOpen(true); }}
+                          onClick={() => handleEdit(c.id)}
                           title="Editar"
                         >
                           <Pencil className="size-3.5" />
@@ -488,6 +440,7 @@ export function ContractsTab() {
             </TableBody>
           </Table>
         </div>
+        </>
       )}
 
       {/* Contract form */}
@@ -504,7 +457,7 @@ export function ContractsTab() {
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
-              <BookText className="size-4 text-[#7C3AED]" />
+              <BookText className="size-4 text-info" />
               Padrões de Contrato
             </SheetTitle>
           </SheetHeader>

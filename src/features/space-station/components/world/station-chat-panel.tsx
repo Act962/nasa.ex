@@ -15,7 +15,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, MessageCircle, Send, X } from "lucide-react";
+import { MessageCircle, Send, X } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -115,7 +116,7 @@ export function StationChatPanel({ stationId, open, onClose }: Props) {
         >
           {isLoading && (
             <div className="flex items-center justify-center py-8 text-slate-400 text-xs gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <OrbitaSpinner className="h-4 w-4 " />
               Carregando mensagens…
             </div>
           )}

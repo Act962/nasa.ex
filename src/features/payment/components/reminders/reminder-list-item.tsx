@@ -30,10 +30,10 @@ export interface ReminderListItemData {
 }
 
 const STATUS_BADGE_CLASSES: Record<PaymentReminderStatusValue, string> = {
-  SCHEDULED: "border-sky-500/40 text-sky-600 dark:text-sky-400",
-  SENT: "border-emerald-500/40 text-emerald-600 dark:text-emerald-400",
-  PARTIAL: "border-amber-500/40 text-amber-600 dark:text-amber-400",
-  FAILED: "border-red-500/40 text-red-600 dark:text-red-400",
+  SCHEDULED: "border-info/40 text-info dark:text-info",
+  SENT: "border-success/40 text-success dark:text-success",
+  PARTIAL: "border-warning/40 text-warning dark:text-warning",
+  FAILED: "border-destructive/40 text-destructive dark:text-destructive",
   SKIPPED: "border-muted-foreground/30 text-muted-foreground",
   CANCELLED: "border-muted-foreground/30 text-muted-foreground",
 };
@@ -136,8 +136,8 @@ export function ReminderListItem({ reminder }: { reminder: ReminderListItemData 
               {" · "}
               <span
                 className={cn(
-                  delivery.status === "SENT" && "text-emerald-600 dark:text-emerald-400",
-                  delivery.status === "FAILED" && "text-red-600 dark:text-red-400",
+                  delivery.status === "SENT" && "text-success dark:text-success",
+                  delivery.status === "FAILED" && "text-destructive dark:text-destructive",
                 )}
               >
                 {delivery.status === "SENT" ? "enviado" : delivery.status === "FAILED" ? "falhou" : "pulado"}

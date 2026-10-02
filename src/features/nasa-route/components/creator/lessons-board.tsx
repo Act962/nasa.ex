@@ -470,7 +470,7 @@ function LessonOverlayCard({
 }) {
   const thumbUrl = useConstructUrl(lesson.thumbnailKey || "");
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-violet-400 bg-card px-5 py-3 shadow-2xl ring-2 ring-violet-400/30">
+    <div className="flex items-center gap-3 rounded-xl border border-info bg-card px-5 py-3 shadow-2xl ring-2 ring-info/30">
       <GripVertical className="size-4 text-muted-foreground/60" />
       <div className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
         {index + 1}
@@ -498,7 +498,7 @@ function LessonOverlayCard({
 
 function ModuleOverlayCard({ group }: { group: Group }) {
   return (
-    <div className="rounded-2xl border border-violet-400 bg-card px-5 py-3 shadow-2xl ring-2 ring-violet-400/30">
+    <div className="rounded-2xl border border-info bg-card px-5 py-3 shadow-2xl ring-2 ring-info/30">
       <div className="flex items-center gap-2">
         <GripVertical className="size-4 text-muted-foreground/60" />
         <div className="min-w-0">
@@ -536,7 +536,7 @@ function OrphanGroup({
       ref={setNodeRef}
       value={NO_MODULE}
       className={`overflow-hidden rounded-2xl border border-border bg-card transition-colors ${
-        isOver ? "border-violet-400 ring-2 ring-violet-400/30" : ""
+        isOver ? "border-info ring-2 ring-info/30" : ""
       }`}
     >
       <AccordionTrigger className="px-5 py-3 hover:no-underline">
@@ -604,7 +604,7 @@ function SortableModuleGroup({
       value={moduleId}
       style={style}
       className={`overflow-hidden rounded-2xl border border-border bg-card transition-colors ${
-        isOver ? "border-violet-400 ring-2 ring-violet-400/30" : ""
+        isOver ? "border-info ring-2 ring-info/30" : ""
       }`}
     >
       <div ref={setDropRef}>
@@ -770,7 +770,7 @@ function SortableLessonRow({
         <p className="truncate text-sm font-medium">{lesson.title}</p>
         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
           {lesson.isFreePreview ? (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 font-semibold uppercase text-[10px] tracking-wide text-emerald-700 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-success/15 px-1.5 py-0.5 font-semibold uppercase text-[10px] tracking-wide text-success">
               <Play className="size-2.5" fill="currentColor" />
               Grátis
             </span>

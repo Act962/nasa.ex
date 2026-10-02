@@ -250,6 +250,8 @@ model Organization {
   /// Botão "pausar tudo" do ASTRO COMMANDER (spec 0028, RF-7). Setado, nenhum
   /// comando da org executa — nem por agenda, nem por evento.
   astroCommanderPausedAt DateTime? @map("astro_commander_paused_at")
+  /// IA do ASTRO (spec 0053): PLATFORM = modelo ÓRBITA; OWN = chave da org nos Satélites; null = ainda não escolheu.
+  astroAiMode            AstroAiMode? @map("astro_ai_mode")
   // Anti-spam de notificações pós-débito (1 dispatch/dia/severidade).
   starsLastAlertAt       DateTime? @map("stars_last_alert_at")
   starsAlertConfig       Json      @default("{}") @map("stars_alert_config")
@@ -327,6 +329,7 @@ model Organization {
   plan                   Plan?                      @relation(fields: [planId], references: [id], onDelete: SetNull)
   starTransactions       StarTransaction[]
   usageEvents            UsageEvent[]
+  aiCreditEntries        AiCreditEntry[]
   workspaceIntegrations  WorkspaceIntegration[]
   memberStarBudgets      MemberStarBudget[]
   nboxFolders            NBoxFolder[]
@@ -753,6 +756,11 @@ enum AiProvider {
   OPENAI
   ANTHROPIC
   GOOGLE
+}
+
+enum AstroAiMode {
+  PLATFORM
+  OWN
 }
 
 // Formato de renderização de um menu interativo no WhatsApp. BUTTON = botões
@@ -4120,6 +4128,32 @@ enum UsageEventKind {
   EMAIL
   REALTIME
   OTHER
+}
+
+enum AiCreditEntryKind {
+  TOPUP
+  BALANCE_SNAPSHOT
+  /// Plano sem saldo (ex.: Gemini nivel gratuito): limita por pedidos, nao por credito.
+  FREE_TIER
+}
+
+/// Lancamento de credito de IA (spec 0055): recarga ou saldo informado do painel
+/// do provedor. organizationId nulo = conta da plataforma (chaves do .env).
+model AiCreditEntry {
+  id             String            @id @default(cuid())
+  organizationId String?           @map("organization_id")
+  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// "openai" | "google" | "anthropic" — mesma chave de usage_event.provider.
+  provider       String
+  kind           AiCreditEntryKind
+  amountUsd      Decimal           @map("amount_usd") @db.Decimal(12, 2)
+  effectiveAt    DateTime          @default(now()) @map("effective_at")
+  note           String?
+  createdById    String            @map("created_by_id")
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  @@index([organizationId, provider, effectiveAt])
+  @@map("ai_credit_entry")
 }
 
 /// Registro de custo por evento — responde "quanto custa atender esta organizacao".
@@ -7947,6 +7981,10 @@ model RouterPaymentSettings {
   /// Cambio USD->BRL. Sai do codigo porque e o numero que de fato varia e o
   /// financeiro precisa ajustar sem deploy (D-5 da spec 0021).
   usdToBrlRate Decimal  @default(5.5) @map("usd_to_brl_rate") @db.Decimal(10, 4)
+  /// Margem sobre o custo do modelo escolhido pelo usuario na chave da plataforma (spec 0055, RF-12).
+  astroModelMarkupPercent Int      @default(50) @map("astro_model_markup_percent")
+  /// Modelos que o usuario pode escolher na chave da plataforma; vazio = todos do catalogo.
+  astroPlatformModelIds   String[] @default([]) @map("astro_platform_model_ids")
   updatedAt    DateTime @updatedAt @map("updated_at")
   updatedById  String?  @map("updated_by_id")
 

@@ -75,9 +75,9 @@ export function InChatActiveBanner({
     if (data.source === "auto") {
       return {
         wrapper:
-          "border-b bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200",
+          "border-b bg-warning/10 dark:bg-warning/15 text-warning",
         button:
-          "text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/50",
+          "text-warning hover:bg-warning/15 dark:hover:bg-warning/50",
         Icon: AlertTriangleIcon,
         title: "Modo In-Chat ativo (automático):",
         body: `WhatsApp ${data.phoneNumber ?? ""} fora do ar. Leads acessam a conversa via página pública.`,
@@ -86,9 +86,9 @@ export function InChatActiveBanner({
     if (data.source === "both") {
       return {
         wrapper:
-          "border-b bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200",
+          "border-b bg-destructive/10 dark:bg-destructive/15 text-destructive",
         button:
-          "text-rose-900 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-900/50",
+          "text-destructive hover:bg-destructive/15 dark:hover:bg-destructive/50",
         Icon: AlertTriangleIcon,
         title: "WhatsApp banido + In-Chat manual ON:",
         body: `${data.phoneNumber ?? "Instância"} fora do ar e canal manual ativo. Todas as mensagens saindo pelo In-Chat.`,
@@ -97,9 +97,9 @@ export function InChatActiveBanner({
     // manual
     return {
       wrapper:
-        "border-b bg-violet-50 dark:bg-violet-950/40 text-violet-900 dark:text-violet-200",
+        "border-b bg-info/10 dark:bg-info/15 text-info",
       button:
-        "text-violet-900 dark:text-violet-200 hover:bg-violet-100 dark:hover:bg-violet-900/50",
+        "text-info hover:bg-info/15 dark:hover:bg-info/50",
       Icon: RadioIcon,
       title: "In-Chat manual ativo:",
       body: `Lead pode responder pelo WhatsApp${data.manualSetBy ? ` ou pela página pública. Ativado por ${data.manualSetBy.name}.` : " ou pela página pública."}`,

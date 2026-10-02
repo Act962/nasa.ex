@@ -1,5 +1,6 @@
 "use client";
 
+import { CHART_PALETTE } from "@/lib/chart-palette";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -30,18 +31,7 @@ interface OriginPanelProps {
   endDate?: string;
 }
 
-const PIE_COLORS = [
-  "#10b981",
-  "#3b82f6",
-  "#f59e0b",
-  "#8b5cf6",
-  "#ef4444",
-  "#06b6d4",
-  "#a855f7",
-  "#84cc16",
-  "#ec4899",
-  "#64748b",
-];
+const PIE_COLORS = CHART_PALETTE;
 
 export function OriginPanel({
   organizationIds,

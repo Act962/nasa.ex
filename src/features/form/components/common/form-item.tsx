@@ -42,7 +42,7 @@ export const FormItem = (props: PropsType) => {
       <div
         className="w-full relative flex 
       items-center justify-center
-      overflow-hidden h-[150px] rounded-t-xl border border-gray-300
+      overflow-hidden h-[150px] rounded-t-xl border border-line
       bg-linear-to-b from-primary/10 to-primary/10
       "
       >
@@ -56,7 +56,7 @@ export const FormItem = (props: PropsType) => {
         >
           <h5
             className="text-sm font-medium mb-1 text-center
-          text-gray-400 truncate block w-[200px]
+          text-muted-foreground truncate block w-[200px]
           "
           >
             {name}
@@ -93,10 +93,10 @@ export const FormItem = (props: PropsType) => {
             )}
             {name}
           </span>
-          <EllipsisIcon className="text-gray-700 size-4" />
+          <EllipsisIcon className="text-foreground size-4" />
         </div>
         <div
-          className="flex w-full border-t border-gray-300
+          className="flex w-full border-t border-line
         items-center justify-between py-1
         "
         >

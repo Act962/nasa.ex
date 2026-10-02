@@ -18,6 +18,7 @@ import { Personalization } from "@/features/tracking-settings/components/persona
 import { Interactions } from "@/features/tracking-settings/components/interactions";
 import { TimeOfStatus } from "@/features/tracking-settings/components/time-of-status";
 import { LeadsSettings } from "@/features/tracking-settings/components/leads-settings";
+import { AppReportButton } from "@/features/insights/components/app-report-button";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
@@ -132,6 +133,9 @@ export default async function Page({
   return (
     <ToastProvider>
       <div className="w-full">
+        <div className="flex justify-end px-4 pt-3 sm:px-6">
+          <AppReportButton appModule="tracking" />
+        </div>
         <SettingsTabs tabs={tabs} defaultTab={tab || "general"} />
       </div>
     </ToastProvider>

@@ -36,7 +36,7 @@ export function SpaceCard({
   return (
     <section
       className={cn(
-        "rounded-2xl border border-white/10 bg-slate-900/50 p-5 shadow-sm backdrop-blur-sm",
+        "rounded-2xl border border-border bg-card p-5 shadow-sm backdrop-blur-sm",
         className,
       )}
     >
@@ -44,10 +44,10 @@ export function SpaceCard({
         <header className="mb-4 flex items-start justify-between gap-4">
           <div>
             {title && (
-              <h2 className="text-base font-semibold text-white">{title}</h2>
+              <h2 className="text-base font-semibold text-foreground">{title}</h2>
             )}
             {subtitle && (
-              <p className="text-xs text-white/60">{subtitle}</p>
+              <p className="text-xs text-muted-foreground">{subtitle}</p>
             )}
           </div>
           {action && <div className="shrink-0">{action}</div>}
@@ -55,8 +55,8 @@ export function SpaceCard({
       )}
 
       {isEmpty ? (
-        <div className="rounded-xl border border-dashed border-white/10 p-6 text-center">
-          <p className="text-sm text-white/50">
+        <div className="rounded-xl border border-dashed border-border p-6 text-center">
+          <p className="text-sm text-muted-foreground">
             {empty ?? "Nada por aqui ainda."}
           </p>
           {emptyAction && <div className="mt-3 flex justify-center">{emptyAction}</div>}

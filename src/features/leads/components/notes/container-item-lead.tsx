@@ -186,7 +186,7 @@ function CardDetails({
             >
               <SafeContent
                 content={parseDescription(description)}
-                className="block text-sm max-w-none min-h-[125px] focus:outline-none p-4 prose dark:prose-invert marker:text-gray-500 prose-p:my-0 prose-hr:border-gray-400/20"
+                className="block text-sm max-w-none min-h-[125px] focus:outline-none p-4 prose dark:prose-invert marker:text-muted-foreground prose-p:my-0 prose-hr:border-line/20"
               />
             </span>
           )}
