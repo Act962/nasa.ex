@@ -40,15 +40,15 @@ import {
 import { useLeadDetailsStore } from "./use-lead-details-store";
 
 // Lateral "Detalhes do Lead" da conversa: aberta mostra o perfil e a grade de
-// itens; recolhida vira um trilho de ícones. A escolha fica no navegador.
+// itens; recolhida (o padrão) vira um trilho de ícones. A escolha fica no navegador.
 
 const COLLAPSED_STORAGE_KEY = "tracking-chat:lead-sidebar-collapsed";
 
 function readCollapsed(): boolean {
   try {
-    return window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === "1";
+    return window.localStorage.getItem(COLLAPSED_STORAGE_KEY) !== "0";
   } catch {
-    return false;
+    return true;
   }
 }
 
