@@ -42,7 +42,7 @@ export function AstroActionResultCard({
           <FileText className="h-3.5 w-3.5 text-info" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-white">{payload.title}</p>
+          <p className="text-sm font-semibold text-foreground">{payload.title}</p>
           <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
             {payload.description}
           </p>

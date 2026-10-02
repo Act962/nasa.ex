@@ -61,7 +61,7 @@ export function AstroWidgetEmptyState({
 
   return (
     <div className="flex min-h-full flex-col justify-end px-4 pb-4 pt-6">
-      <h2 className="mb-5 text-[1.7rem] font-semibold leading-tight tracking-tight text-white">
+      <h2 className="mb-5 text-[1.7rem] font-semibold leading-tight tracking-tight text-foreground">
         O que você quer saber?
       </h2>
       <div className="space-y-1">
@@ -71,7 +71,7 @@ export function AstroWidgetEmptyState({
             type="button"
             disabled={disabled}
             onClick={() => onSelect(label)}
-            className="flex w-full items-center gap-3 rounded-xl px-1 py-2 text-left text-sm text-white/75 transition hover:bg-white/[0.04] hover:text-white disabled:opacity-50"
+            className="flex w-full items-center gap-3 rounded-xl px-1 py-2 text-left text-sm text-foreground/75 transition hover:bg-foreground/[0.04] hover:text-foreground disabled:opacity-50"
           >
             <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-info/10 text-info">
               <SuggestionIcon className="size-5" />
@@ -81,7 +81,7 @@ export function AstroWidgetEmptyState({
         ))}
       </div>
       {isOnFinance && !isOnAccounting && (
-        <p className="mt-4 text-xs leading-relaxed text-white/35">
+        <p className="mt-4 text-xs leading-relaxed text-foreground/35">
           Anexe um boleto ou uma nota fiscal pelo clipe e peça pra lançar. Nada é gravado sem a
           sua confirmação.
         </p>

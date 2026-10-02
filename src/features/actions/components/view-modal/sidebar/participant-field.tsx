@@ -109,7 +109,7 @@ export function ParticipantsField({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 w-full text-xs gap-1.5 bg-background"
+              className="h-7 w-full gap-1.5 border-input text-xs"
             >
               <UserPlusIcon className="size-3.5" />
               Atribuir responsável

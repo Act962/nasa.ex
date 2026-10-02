@@ -150,8 +150,8 @@ export function AstroWidgetHome({ pathname }: { pathname: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="space-y-1 px-4 pb-3 pt-4">
-        <p className="text-[15px] font-semibold text-white">{greeting}</p>
-        <p className="text-[12px] text-white/45">
+        <p className="text-[15px] font-semibold text-foreground">{greeting}</p>
+        <p className="text-[12px] text-foreground/45">
           {alertGroups.length > 0
             ? `Tenho ${alertGroups.length} ${alertGroups.length === 1 ? "aviso" : "avisos"} pra você.`
             : "Tudo em dia por aqui. Me chama se precisar."}
@@ -162,7 +162,7 @@ export function AstroWidgetHome({ pathname }: { pathname: string }) {
 
       <section className="space-y-2 px-3 py-3">
         <div className="flex items-center justify-between px-1">
-          <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/40">
+          <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">
             <BellRing className="size-3.5" />
             Avisos agora
           </h3>
@@ -170,7 +170,7 @@ export function AstroWidgetHome({ pathname }: { pathname: string }) {
             <button
               type="button"
               onClick={() => markAllRead()}
-              className="flex items-center gap-1 text-[11px] text-white/40 transition hover:text-white/70"
+              className="flex items-center gap-1 text-[11px] text-foreground/40 transition hover:text-foreground/70"
             >
               <CheckCheck className="size-3" />
               Marcar tudo como lido
@@ -179,14 +179,14 @@ export function AstroWidgetHome({ pathname }: { pathname: string }) {
         </div>
 
         {alertGroups.length === 0 ? (
-          <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-4 text-center text-[12px] text-white/40">
+          <p className="rounded-xl border border-foreground/[0.06] bg-foreground/[0.02] px-3 py-4 text-center text-[12px] text-foreground/40">
             Nenhum aviso novo. Quando algo importante acontecer, eu te aviso aqui.
           </p>
         ) : (
           alertGroups.map(({ latest: notification, notificationIds }) => (
             <article
               key={notification.id}
-              className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3"
+              className="rounded-xl border border-foreground/[0.08] bg-foreground/[0.03] p-3"
             >
               <div className="flex items-start gap-2">
                 <span
@@ -196,15 +196,15 @@ export function AstroWidgetHome({ pathname }: { pathname: string }) {
                   )}
                 />
                 <div className="min-w-0">
-                  <p className="text-[12.5px] font-semibold text-white">
+                  <p className="text-[12.5px] font-semibold text-foreground">
                     {notification.astro.headline}
                     {notificationIds.length > 1 && (
-                      <span className="ml-1.5 rounded-full bg-white/10 px-1.5 py-px text-[10px] font-medium text-white/60">
+                      <span className="ml-1.5 rounded-full bg-foreground/10 px-1.5 py-px text-[10px] font-medium text-foreground/60">
                         {notificationIds.length}×
                       </span>
                     )}
                   </p>
-                  <p className="mt-0.5 text-[12px] leading-relaxed text-white/70">
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-foreground/70">
                     {notification.astro.speech}
                   </p>
                 </div>
@@ -220,7 +220,7 @@ export function AstroWidgetHome({ pathname }: { pathname: string }) {
                       "rounded-full px-2.5 py-1 text-[11px] transition",
                       action.kind === "prompt"
                         ? "bg-info/20 text-info hover:bg-info/30"
-                        : "bg-white/[0.07] text-white/70 hover:bg-white/[0.12]",
+                        : "bg-foreground/[0.07] text-foreground/70 hover:bg-foreground/[0.12]",
                     )}
                   >
                     {action.label}
@@ -229,7 +229,7 @@ export function AstroWidgetHome({ pathname }: { pathname: string }) {
                 <button
                   type="button"
                   onClick={() => markGroupRead(notificationIds)}
-                  className="rounded-full px-2.5 py-1 text-[11px] text-white/35 transition hover:text-white/60"
+                  className="rounded-full px-2.5 py-1 text-[11px] text-foreground/35 transition hover:text-foreground/60"
                 >
                   Dispensar
                 </button>
@@ -240,7 +240,7 @@ export function AstroWidgetHome({ pathname }: { pathname: string }) {
       </section>
 
       <section className="space-y-1.5 px-3 pb-3">
-        <h3 className="flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-white/40">
+        <h3 className="flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">
           <Sparkles className="size-3.5" />
           Atalhos
         </h3>
@@ -249,10 +249,10 @@ export function AstroWidgetHome({ pathname }: { pathname: string }) {
             key={prompt}
             type="button"
             onClick={() => openWidget({ text: prompt, fromVoice: false })}
-            className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-left text-[12.5px] text-white/75 transition hover:bg-white/[0.06]"
+            className="flex w-full items-center justify-between gap-2 rounded-xl border border-foreground/[0.06] bg-foreground/[0.02] px-3 py-2.5 text-left text-[12.5px] text-foreground/75 transition hover:bg-foreground/[0.06]"
           >
             {prompt}
-            <ArrowRight className="size-3.5 shrink-0 text-white/30" />
+            <ArrowRight className="size-3.5 shrink-0 text-foreground/30" />
           </button>
         ))}
       </section>

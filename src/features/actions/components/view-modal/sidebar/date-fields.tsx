@@ -21,7 +21,7 @@ export function DateFields({
           value={startDate}
           onChange={onStartDateChange}
           placeholder="Sem data"
-          className="h-8 text-xs bg-background"
+          className="h-8 border-input text-xs"
         />
       </SidebarField>
       <SidebarField label="Data de entrega">
@@ -29,7 +29,7 @@ export function DateFields({
           value={dueDate}
           onChange={onDueDateChange}
           placeholder="Sem data"
-          className="h-8 text-xs bg-background"
+          className="h-8 border-input text-xs"
         />
       </SidebarField>
     </>

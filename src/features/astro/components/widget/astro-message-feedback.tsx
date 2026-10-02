@@ -51,7 +51,7 @@ export function AstroMessageFeedback({
 
   if (sentRating) {
     return (
-      <p className="flex items-center gap-1 px-1 pt-1 text-[11px] text-white/35">
+      <p className="flex items-center gap-1 px-1 pt-1 text-[11px] text-foreground/35">
         <Check className="size-3" />
         {sentRating === "UP" ? "Você marcou como útil" : "Você marcou como errado"}
       </p>
@@ -84,7 +84,7 @@ export function AstroMessageFeedback({
             type="button"
             aria-label="Resposta útil"
             onClick={() => send("UP")}
-            className="grid size-6 place-items-center rounded-md text-white/35 transition hover:bg-white/[0.06] hover:text-white"
+            className="grid size-6 place-items-center rounded-md text-foreground/35 transition hover:bg-foreground/[0.06] hover:text-foreground"
           >
             <ThumbsUp className="size-3" />
           </button>
@@ -92,7 +92,7 @@ export function AstroMessageFeedback({
             type="button"
             aria-label="Resposta errada"
             onClick={() => setIsCorrecting(true)}
-            className="grid size-6 place-items-center rounded-md text-white/35 transition hover:bg-white/[0.06] hover:text-white"
+            className="grid size-6 place-items-center rounded-md text-foreground/35 transition hover:bg-foreground/[0.06] hover:text-foreground"
           >
             <ThumbsDown className="size-3" />
           </button>

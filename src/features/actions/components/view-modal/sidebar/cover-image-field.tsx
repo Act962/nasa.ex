@@ -88,7 +88,7 @@ export function CoverImageField({ coverImage, onUpdate, disabled }: Props) {
         <Button
           variant="outline"
           size="sm"
-          className="h-7 text-xs gap-1.5 border-dashed w-full"
+          className="h-7 w-full gap-1.5 border-dashed border-input text-xs"
           onClick={() => setEditing(true)}
           disabled={disabled}
         >

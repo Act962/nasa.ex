@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeftIcon,
   ChevronLeft,
-  ChevronRight,
   LayoutGridIcon,
 } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
@@ -106,14 +105,13 @@ function TriggerTile({
     <button
       type="button"
       onClick={onOpen}
-      className="relative flex h-24 flex-col justify-between rounded-xl border border-info/70 bg-gradient-to-br from-info/50 to-info/30 p-3 text-left text-foreground shadow-[0_0_0_1px_rgba(14,165,233,.15)] transition-colors hover:border-info"
+      className="relative flex flex-col gap-2 rounded-xl border border-info/70 bg-gradient-to-br from-info/50 to-info/30 p-3 text-left text-foreground shadow-[0_0_0_1px_rgba(14,165,233,.15)] outline-none transition-all hover:border-info hover:from-info/60 hover:to-info/40 focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.97]"
     >
       <TriggerIcon
         className={cn("size-7", isActive ? "text-info" : "text-foreground")}
         isSpinning={isActive}
       />
-      <span className="pr-4 text-xs leading-tight">Gatilho do lead</span>
-      <ChevronRight className="absolute top-1/2 right-2 size-4 -translate-y-1/2 text-info" />
+      <span className="text-xs leading-tight [overflow-wrap:anywhere]">Gatilho do lead</span>
     </button>
   );
 }
@@ -133,12 +131,11 @@ function ItemTile({
     <button
       type="button"
       onClick={onOpen}
-      className="relative flex h-24 flex-col justify-between rounded-xl border border-line bg-card p-3 text-left text-foreground transition-colors hover:border-line"
+      className="group relative flex flex-col gap-2 rounded-xl border border-line bg-card p-3 text-left text-foreground outline-none transition-all hover:border-input hover:bg-accent/60 focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.97]"
     >
       <CountBadge count={count} />
-      <item.icon className="size-7 text-muted-foreground" />
-      <span className="pr-4 text-xs leading-tight">{item.label}</span>
-      <ChevronRight className="absolute top-1/2 right-2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <item.icon className="size-7 text-muted-foreground transition-colors group-hover:text-foreground" />
+      <span className="text-xs leading-tight [overflow-wrap:anywhere]">{item.label}</span>
     </button>
   );
 }
@@ -225,7 +222,7 @@ export function LeadSidebar({
 
   const renderDetails = (onBack: () => void) => (
     <div className="flex h-full flex-col overflow-y-auto">
-      <div className="flex items-center gap-2 px-3 py-3">
+      <div className="flex items-center gap-2 border-b px-3 py-3">
         <Button
           size="icon"
           variant="ghost"
@@ -235,7 +232,7 @@ export function LeadSidebar({
         >
           <ArrowLeftIcon className="size-5" />
         </Button>
-        <h2 className="min-w-0 flex-1 truncate text-base font-semibold whitespace-nowrap">
+        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold whitespace-nowrap">
           Detalhes do Lead
         </h2>
         {lead && <LeadAuditButton leadId={lead.id} />}
@@ -248,11 +245,11 @@ export function LeadSidebar({
         <>
           <LeadSidebarProfile lead={lead} />
           {lead.metrics && <LeadSidebarOverview metrics={lead.metrics} />}
-          <section className="flex flex-col gap-3 p-4 pb-20">
+          <section className="@container flex flex-col gap-3 p-4 pb-20">
             <h3 className="flex items-center gap-3 text-sm font-light tracking-wide">
               <LayoutGridIcon className="size-5 fill-current" /> Módulos do Lead
             </h3>
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5 @[17.5rem]:grid-cols-3">
               {LEAD_SIDEBAR_ITEMS.map((item) => (
                 <ItemTile
                   key={item.id}

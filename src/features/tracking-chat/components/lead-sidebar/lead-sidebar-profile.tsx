@@ -17,6 +17,7 @@ import { LeadAddressFields, type LeadAddress } from "@/features/leads/components
 import { HeatRing } from "@/features/leads/components/lead-audit/heat-ring";
 import { computeLeadHeat } from "@/features/leads/components/lead-audit/lead-heat";
 import type { LeadMetricsView } from "@/features/leads/components/lead-audit/metric-format";
+import { LeadSidebarDeal } from "./lead-sidebar-deal";
 
 export interface LeadSidebarProfileLead extends LeadAddress {
   id: string;
@@ -25,13 +26,14 @@ export interface LeadSidebarProfileLead extends LeadAddress {
   profile: string | null;
   email: string | null;
   phone: string | null;
+  amount: number;
   description: string | null;
   trackingId: string;
   updatedAt: Date | string;
   createdAt: Date | string;
   responsible: { id: string; name: string } | null;
   tracking: { name: string };
-  status: { name: string };
+  status: { id: string; name: string; color: string | null };
   statusFlow: string;
   lastInboundAt: Date | string | null;
   lastOutboundAt: Date | string | null;
@@ -85,7 +87,7 @@ function ProfileIconButton({
         aria-label={title}
         onClick={onClick}
         className={cn(
-          "flex h-10 w-full items-center justify-center rounded-xl border border-line bg-card text-muted-foreground transition-colors hover:border-line hover:text-foreground",
+          "flex h-10 w-full items-center justify-center rounded-xl border border-line bg-card text-muted-foreground outline-none transition-colors hover:border-input hover:bg-accent/60 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50",
           isActive && "bg-info/20 text-info ring-1 ring-info/50",
         )}
       >
@@ -147,27 +149,29 @@ export function LeadSidebarProfile({ lead }: { lead: LeadSidebarProfileLead }) {
 
   return (
     <div className="flex flex-col">
-      <div className="flex flex-col gap-4 px-4 pb-4">
+      <div className="flex flex-col gap-4 p-4">
         <div className="flex items-center gap-4">
-          <HeatRing heat={heat} size={96}>
+          <HeatRing heat={heat} size={72}>
             <Avatar className="size-full border border-muted">
               <AvatarImage src={avatarUrl} />
-              <AvatarFallback className="bg-primary/5 text-2xl font-bold">
+              <AvatarFallback className="bg-primary/5 text-xl font-bold">
                 {lead.name.trim().slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
           </HeatRing>
-          <div className="flex min-w-0 flex-col gap-1">
-            <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <div className="flex min-w-0 items-start gap-1">
+              <h2 className="line-clamp-2 min-w-0 flex-1 text-[17px] leading-tight font-bold break-words" title={lead.name}>
+                {lead.name || "Sem nome"}
+              </h2>
               <button
                 type="button"
                 title={lead.nickname ? `Apelido: ${lead.nickname}` : "Adicionar apelido"}
                 onClick={() => setIsEditingNickname(true)}
-                className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                className="grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
               >
-                <UserRoundIcon className="size-5" />
+                <UserRoundIcon className="size-4" />
               </button>
-              <h2 className="line-clamp-2 text-lg leading-tight font-bold">{lead.name || "Sem nome"}</h2>
             </div>
             {isEditingNickname && (
               <Input
@@ -181,18 +185,32 @@ export function LeadSidebarProfile({ lead }: { lead: LeadSidebarProfileLead }) {
                 onKeyDown={(event) => event.key === "Enter" && saveNickname()}
               />
             )}
-            <p className="truncate text-sm text-muted-foreground">
-              {lead.tracking.name} <span className="px-1 opacity-50">|</span> {lead.status.name}
-            </p>
-            <span className={cn("flex items-center gap-1.5 text-sm font-medium", STATUS_FLOW_COLORS[lead.statusFlow])}>
-              <Circle className="size-2.5 fill-current" />
-              {STATUS_FLOW_LABELS[lead.statusFlow] ?? lead.statusFlow}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              Última interação: {lastInteractionOf(lead).toLocaleDateString("pt-BR")}
-            </span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full bg-current/10 px-2 py-0.5 text-xs font-medium",
+                  STATUS_FLOW_COLORS[lead.statusFlow],
+                )}
+              >
+                <Circle className="size-2 fill-current" />
+                {STATUS_FLOW_LABELS[lead.statusFlow] ?? lead.statusFlow}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Última interação: {lastInteractionOf(lead).toLocaleDateString("pt-BR")}
+              </span>
+            </div>
           </div>
         </div>
+        <LeadSidebarDeal
+          key={`${lead.id}:${lead.trackingId}:${lead.status.id}`}
+          leadId={lead.id}
+          trackingId={lead.trackingId}
+          trackingName={lead.tracking.name}
+          statusId={lead.status.id}
+          statusName={lead.status.name}
+          statusColor={lead.status.color}
+          amount={lead.amount}
+        />
         <div className="grid grid-cols-6 gap-1.5">
           {CONTACT_BUTTONS.map(renderFieldButton)}
           <ProfileIconButton

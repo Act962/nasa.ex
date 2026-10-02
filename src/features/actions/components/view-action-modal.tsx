@@ -248,7 +248,7 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTitle className="sr-only ">Visualizar e editar ação</DialogTitle>
       <DialogContent
-        className="bg-muted flex h-[100dvh] max-w-none flex-col gap-0 overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[90vh] sm:max-w-[90%] sm:rounded-lg"
+        className="flex h-[100dvh] max-w-none flex-col gap-0 overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[90vh] sm:max-w-[90%] sm:rounded-lg"
         showCloseButton={false}
       >
         <ActionHeader

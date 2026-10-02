@@ -111,7 +111,7 @@ function TableRow({
           >
             <Link
               href={href}
-              className="block px-3 py-2 hover:text-white focus:outline-none focus-visible:bg-card/60"
+              className="block px-3 py-2 hover:text-foreground focus:outline-none focus-visible:bg-card/60"
             >
               {formatCell(row[c.key], c.type)}
             </Link>

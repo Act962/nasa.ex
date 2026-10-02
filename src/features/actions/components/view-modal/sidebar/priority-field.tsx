@@ -40,7 +40,7 @@ export function PriorityField({ value, onValueChange, disabled }: PriorityFieldP
         onValueChange={onValueChange}
         disabled={disabled}
       >
-        <SelectTrigger className="h-8 text-xs bg-background w-full">
+        <SelectTrigger className="h-8 w-full bg-card text-xs dark:bg-card">
           <SelectValue>
             <div className="flex items-center gap-2">
               <div

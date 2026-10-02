@@ -242,7 +242,7 @@ export function ChatBody({
         className="relative max-h-[420px] min-h-[220px] overflow-y-auto rounded-md border border-border/60 bg-muted/30 flex flex-col"
       >
         {isFetchingNextPage && (
-          <div className="sticky top-0 z-20 flex items-center justify-center py-1 bg-background/80 backdrop-blur">
+          <div className="sticky top-0 z-20 flex items-center justify-center py-1 bg-card/80 backdrop-blur">
             <Spinner className="size-3" />
           </div>
         )}

@@ -30,18 +30,18 @@ export function AstroPrivacyConsentCard() {
   return (
     <section
       aria-label="Controle sua privacidade"
-      className="mx-3 my-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)]"
+      className="mx-3 my-3 rounded-2xl border border-foreground/10 bg-foreground/[0.04] p-4 text-foreground shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)]"
     >
       <header className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-bold text-info">Controle sua privacidade</h3>
         <span className="text-xs font-medium text-info/80">Órbita</span>
       </header>
 
-      <p className="mt-2 text-[13px] text-white/80">
+      <p className="mt-2 text-[13px] text-foreground/80">
         Nosso site usa cookies para melhorar a navegação.
       </p>
 
-      <p className="mt-2 rounded-lg border border-white/15 p-2.5 text-xs italic leading-relaxed text-white/60">
+      <p className="mt-2 rounded-lg border border-foreground/15 p-2.5 text-xs italic leading-relaxed text-foreground/60">
         Usamos cookies para manter sua sessão, medir o uso da plataforma e lembrar suas
         preferências. Você escolhe o que fica ligado além do essencial.
       </p>
@@ -65,19 +65,19 @@ export function AstroPrivacyConsentCard() {
       </p>
 
       {isShowingOptions && (
-        <ul className="mt-3 space-y-2 rounded-lg border border-white/10 p-2.5">
+        <ul className="mt-3 space-y-2 rounded-lg border border-foreground/10 p-2.5">
           <li className="flex items-center justify-between gap-3 text-xs">
             <div>
-              <p className="font-medium text-white/90">Necessários</p>
-              <p className="text-white/50">Login e segurança. Sempre ativos.</p>
+              <p className="font-medium text-foreground/90">Necessários</p>
+              <p className="text-foreground/50">Login e segurança. Sempre ativos.</p>
             </div>
             <Switch checked disabled aria-label="Cookies necessários" />
           </li>
           {PRIVACY_CONSENT_CATEGORIES.map((category) => (
             <li key={category.id} className="flex items-center justify-between gap-3 text-xs">
               <div>
-                <p className="font-medium text-white/90">{category.label}</p>
-                <p className="text-white/50">{category.description}</p>
+                <p className="font-medium text-foreground/90">{category.label}</p>
+                <p className="text-foreground/50">{category.description}</p>
               </div>
               <Switch
                 checked={draftPreferences[category.id]}
@@ -94,7 +94,7 @@ export function AstroPrivacyConsentCard() {
           <button
             type="button"
             onClick={() => savePreferences(draftPreferences)}
-            className="text-xs font-semibold text-white/80 underline underline-offset-2 hover:text-white"
+            className="text-xs font-semibold text-foreground/80 underline underline-offset-2 hover:text-foreground"
           >
             Salvar escolhas
           </button>
@@ -102,7 +102,7 @@ export function AstroPrivacyConsentCard() {
           <button
             type="button"
             onClick={() => setIsShowingOptions(true)}
-            className="text-xs font-semibold text-white/80 underline underline-offset-2 hover:text-white"
+            className="text-xs font-semibold text-foreground/80 underline underline-offset-2 hover:text-foreground"
           >
             Minhas opções
           </button>
@@ -111,7 +111,7 @@ export function AstroPrivacyConsentCard() {
           <button
             type="button"
             onClick={rejectAll}
-            className="rounded-full border border-white/30 px-4 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+            className="rounded-full border border-foreground/30 px-4 py-1.5 text-xs font-semibold text-foreground hover:bg-foreground/10"
           >
             Rejeitar
           </button>

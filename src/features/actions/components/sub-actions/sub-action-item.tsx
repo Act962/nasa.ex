@@ -285,7 +285,7 @@ export function SubActionItem({
               value={sub.finishDate ? new Date(sub.finishDate) : undefined}
               onChange={handleFinishDateChange}
               placeholder="Sem data"
-              className="h-8 text-xs bg-background"
+              className="h-8 border-input text-xs"
               fromDate={fromDate}
               toDate={toDate}
             />
@@ -326,7 +326,7 @@ export function SubActionItem({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-6 w-full text-xs gap-1 bg-background"
+                    className="h-6 w-full gap-1 border-input text-xs"
                   >
                     <UserPlusIcon className="size-3" />
                     Atribuir responsável

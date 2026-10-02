@@ -68,7 +68,7 @@ export function SendFile({
   return (
     <form
       onSubmit={handleSend}
-      className="absolute inset-0 z-50 flex flex-col bg-background border rounded-md p-4 gap-6"
+      className="absolute inset-0 z-50 flex flex-col bg-card border rounded-md p-4 gap-6"
     >
       <div className="flex justify-between items-center">
         <Button type="button" variant="ghost" size="icon" onClick={handleCancel}>

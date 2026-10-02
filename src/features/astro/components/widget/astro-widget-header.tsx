@@ -40,15 +40,15 @@ export function AstroWidgetHeader({
         <AstroMark />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-white">Astro</p>
-        <p className="truncate text-[11px] text-white/40">{describeScreen(pathname, paymentTab)}</p>
+        <p className="text-sm font-semibold text-foreground">Astro</p>
+        <p className="truncate text-[11px] text-foreground/40">{describeScreen(pathname, paymentTab)}</p>
       </div>
 
       {canStartNewConversation && (
         <button
           type="button"
           onClick={onNewConversation}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] text-white/70 transition hover:bg-white/[0.1] hover:text-white"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-foreground/[0.06] px-2.5 py-1 text-[11px] text-foreground/70 transition hover:bg-foreground/[0.1] hover:text-foreground"
         >
           <Plus className="size-3" />
           Nova conversa
@@ -62,7 +62,7 @@ export function AstroWidgetHeader({
         onClick={onClose}
         aria-label="Abrir o App ASTRO"
         title="Configurações do ASTRO"
-        className="grid size-8 shrink-0 place-items-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white"
+        className="grid size-8 shrink-0 place-items-center rounded-full text-foreground/45 transition hover:bg-foreground/[0.06] hover:text-foreground"
       >
         <Settings className="size-4" />
       </Link>
@@ -71,7 +71,7 @@ export function AstroWidgetHeader({
         onClick={() => setVoiceMenuOpen((isMenuOpen) => !isMenuOpen)}
         aria-label="Opções de voz"
         aria-expanded={voiceMenuOpen}
-        className="grid size-8 shrink-0 place-items-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white"
+        className="grid size-8 shrink-0 place-items-center rounded-full text-foreground/45 transition hover:bg-foreground/[0.06] hover:text-foreground"
       >
         <MoreHorizontal className="size-4" />
       </button>
@@ -79,7 +79,7 @@ export function AstroWidgetHeader({
         type="button"
         onClick={onClose}
         aria-label="Fechar o chat"
-        className="grid size-8 shrink-0 place-items-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white"
+        className="grid size-8 shrink-0 place-items-center rounded-full text-foreground/45 transition hover:bg-foreground/[0.06] hover:text-foreground"
       >
         <X className="size-4" />
       </button>

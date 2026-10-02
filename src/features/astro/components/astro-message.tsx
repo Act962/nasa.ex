@@ -129,7 +129,7 @@ export function AstroMessage({
               className={cn(
                 "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm",
                 isUser
-                  ? "bg-transparent text-white"
+                  ? "bg-transparent text-foreground"
                   : "bg-info/10 text-info",
               )}
             >

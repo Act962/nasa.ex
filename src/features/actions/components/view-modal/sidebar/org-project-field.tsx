@@ -37,7 +37,7 @@ export function OrgProjectField({
         onValueChange={(v) => onValueChange(v === "none" ? null : v)}
         disabled={disabled}
       >
-        <SelectTrigger className="h-8 text-xs bg-background w-full">
+        <SelectTrigger className="h-8 w-full bg-card text-xs dark:bg-card">
           <SelectValue placeholder="Sem projeto">
             {current ? (
               <div className="flex items-center gap-2">
