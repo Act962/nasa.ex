@@ -14,17 +14,17 @@ export function CardStars({ starsReceived }: CardStarsProps) {
       title="STARs recebidas"
       subtitle="Reconhecimento da comunidade"
     >
-      <div className="flex flex-col items-center gap-4 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-6 text-center">
-        <div className="flex size-16 items-center justify-center rounded-full bg-gradient-to-br from-yellow-500 to-orange-500">
-          <Star className="size-8 fill-white text-white" />
+      <div className="flex flex-col items-center gap-4 rounded-xl border border-warning/30 bg-warning/10 p-6 text-center">
+        <div className="flex size-16 items-center justify-center rounded-full bg-warning">
+          <Star className="size-8 fill-primary-foreground text-primary-foreground" />
         </div>
         <div>
-          <p className="text-3xl font-bold text-white">
+          <p className="text-3xl font-bold text-foreground">
             {starsReceived.toLocaleString("pt-BR")}
           </p>
-          <p className="text-xs text-white/60">STARs recebidas</p>
+          <p className="text-xs text-muted-foreground">STARs recebidas</p>
         </div>
-        <Button className="bg-yellow-500 text-slate-950 hover:bg-yellow-400">
+        <Button className="bg-warning text-primary-foreground hover:bg-warning/90">
           <Sparkles className="mr-1 size-4" />
           Enviar STAR
         </Button>

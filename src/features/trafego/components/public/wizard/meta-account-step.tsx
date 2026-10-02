@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { AtSign, CheckCircle2, Loader2, SearchCheck } from "lucide-react";
+import { AtSign, CheckCircle2, SearchCheck } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import { useLookupTrafegoSocialProfile } from "@/features/trafego/hooks/use-trafego-verification";
 import {
@@ -70,7 +71,7 @@ export function MetaAccountStep({
       )}
     >
       <div>
-        <div className="inline-flex w-full rounded-xl border border-white/10 bg-white/[0.03] p-1 sm:w-auto">
+        <div className="inline-flex w-full rounded-full bg-panel p-1 sm:w-auto">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -80,9 +81,9 @@ export function MetaAccountStep({
                 onProfile(null);
               }}
               className={cn(
-                "flex-1 rounded-lg px-6 py-2 text-sm font-medium transition sm:flex-none",
+                "flex-1 rounded-full px-6 py-2 text-sm font-medium transition sm:flex-none",
                 network === tab.id
-                  ? "bg-violet-600 text-white"
+                  ? "bg-foreground text-background"
                   : "text-white/50 hover:text-white/80",
               )}
             >
@@ -110,7 +111,7 @@ export function MetaAccountStep({
                 }
               }}
               placeholder="suaempresa"
-              className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2.5 pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-violet-400/60"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2.5 pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-info/60"
             />
           </div>
 
@@ -122,7 +123,7 @@ export function MetaAccountStep({
               className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/[0.09] disabled:opacity-40"
             >
               {lookup.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
+                <OrbitaSpinner className="size-4 " />
               ) : (
                 <SearchCheck className="size-4" />
               )}
@@ -131,13 +132,13 @@ export function MetaAccountStep({
           )}
         </div>
 
-        {error && <p className="mt-2 text-xs text-rose-300">{error}</p>}
+        {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
 
         {profile?.found && (
-          <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-400/25 bg-emerald-500/[0.08] p-4">
-            <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-400" />
+          <div className="mt-4 flex items-start gap-3 rounded-xl border border-success/30 bg-success/15 p-4">
+            <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-emerald-200">Conta encontrada!</p>
+              <p className="text-sm font-semibold text-success">Conta encontrada!</p>
               <p className="mt-1 truncate text-xs text-white/70">
                 @{profile.username ?? profile.handle}
               </p>
@@ -154,7 +155,7 @@ export function MetaAccountStep({
         )}
 
         {profile && !profile.found && (
-          <div className="mt-4 rounded-xl border border-amber-400/25 bg-amber-500/[0.08] p-4 text-xs leading-relaxed text-amber-100">
+          <div className="mt-4 rounded-xl border border-warning/30 bg-warning/15 p-4 text-xs leading-relaxed text-foreground/85">
             Não encontramos <strong>@{profile.handle}</strong>. Confira o nome de
             usuário — ou siga assim mesmo: nossa equipe confere a conta na análise,
             antes de qualquer anúncio ir ao ar.

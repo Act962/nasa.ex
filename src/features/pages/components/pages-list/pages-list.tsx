@@ -1,92 +1,97 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { orpc, client } from "@/lib/orpc";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Plus,
-  Globe,
-  Pencil,
-  ExternalLink,
-  Sparkles,
-  LayoutTemplate,
-  Trash2,
-  Loader2,
-  BarChart3,
-} from "lucide-react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { usePages, usePagesCost } from "../../hooks/use-pages";
-import { CreatePageWizard } from "../wizard/create-page-wizard";
-import { INTENT_LABELS } from "../../constants";
+import { LayoutTemplate, Plus, Search, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
+import { cn } from "@/lib/utils";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { usePages, usePagesCost } from "../../hooks/use-pages";
+import { usePagesOrbitDock } from "../../hooks/use-pages-orbit-dock";
+import { CreatePageWizard } from "../wizard/create-page-wizard";
+import { PageSiteCard, type DeletePageTarget } from "./page-site-card";
+import { DeletePageDialog } from "./delete-page-dialog";
+import { PagesKpis } from "./pages-kpis";
+
+type StatusFilter = "all" | "published" | "draft";
+
+const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
+  { id: "all", label: "Todos" },
+  { id: "published", label: "Publicados" },
+  { id: "draft", label: "Rascunhos" },
+];
 
 export function PagesList() {
-  const [wizardOpen, setWizardOpen] = useState(false);
-  // Page selecionada pra exclusão. null = dialog fechado.
-  const [deleteTarget, setDeleteTarget] = useState<{
-    id: string;
-    title: string;
-    isPublished: boolean;
-  } | null>(null);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<DeletePageTarget | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const { data, isLoading } = usePages();
   const { data: cost } = usePagesCost();
-  const qc = useQueryClient();
 
-  const { mutate: deletePage, isPending: isDeleting } = useMutation({
-    mutationFn: (id: string) => client.pages.deletePage({ id }),
-    onSuccess: () => {
-      toast.success("Rascunho apagado");
-      qc.invalidateQueries({ queryKey: orpc.pages.listPages.queryKey() });
-      setDeleteTarget(null);
-    },
-    onError: (e: Error) => {
-      toast.error(e.message ?? "Erro ao apagar");
-    },
-  });
+  usePagesOrbitDock({ activeSection: "sites", onCreateSite: () => setIsWizardOpen(true) });
+
+  const sites = useMemo(() => data?.pages ?? [], [data?.pages]);
+  const publishedCount = sites.filter((site) => site.status === "PUBLISHED").length;
+  const filterCounts: Record<StatusFilter, number> = {
+    all: sites.length,
+    published: publishedCount,
+    draft: sites.length - publishedCount,
+  };
+
+  const visibleSites = useMemo(() => {
+    const normalizedTerm = searchTerm.trim().toLowerCase();
+    return sites.filter((site) => {
+      const isPublished = site.status === "PUBLISHED";
+      if (statusFilter === "published" && !isPublished) return false;
+      if (statusFilter === "draft" && isPublished) return false;
+      if (!normalizedTerm) return true;
+      return [site.title, site.slug, site.customDomain ?? ""].some((text) =>
+        text.toLowerCase().includes(normalizedTerm),
+      );
+    });
+  }, [sites, searchTerm, statusFilter]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <Sparkles className="size-6 text-indigo-500" />
-            ÓRBITA Pages
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Construa sites e landing pages integradas ao ecossistema ÓRBITA.
-          </p>
+    <div className="flex flex-col gap-4 md:gap-6">
+      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-info/15 md:size-11">
+            <Sparkles className="size-5 text-info" />
+          </div>
+          <div className="min-w-0 flex-1">
+            {/* Celular: o título é a seção atual (o menu de baixo troca de seção); computador: o nome do app. */}
+            <h1 className="truncate text-xl leading-tight font-bold tracking-tight md:hidden">Sites</h1>
+            <h1 className="truncate text-2xl leading-tight font-semibold max-md:hidden">ÓRBITA Pages</h1>
+            <p className="line-clamp-2 text-xs text-muted-foreground md:text-sm">
+              Sites e landing pages ligados ao seu funil na ÓRBITA.
+            </p>
+          </div>
+          <Button
+            asChild
+            size="icon"
+            variant="ghost"
+            className="size-10 shrink-0 rounded-full bg-knob md:hidden"
+            aria-label="Templates"
+            title="Templates"
+          >
+            <Link href="/pages/templates">
+              <LayoutTemplate className="size-4" />
+            </Link>
+          </Button>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          {cost ? (
-            <Badge variant="outline" className="text-xs gap-1 py-1">
-              <span className="text-yellow-500">★</span>
-              {cost.stars.toLocaleString("pt-BR")} / site
-            </Badge>
-          ) : null}
-          <Button asChild variant="outline" size="sm" className="gap-2 sm:size-default">
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" className="gap-2 rounded-full max-md:hidden">
             <Link href="/pages/templates">
               <LayoutTemplate className="size-4" />
               Templates
             </Link>
           </Button>
           <Button
-            onClick={() => setWizardOpen(true)}
-            size="sm"
-            className="gap-2 sm:size-default"
+            onClick={() => setIsWizardOpen(true)}
+            className="h-11 gap-2 rounded-full max-md:w-full md:h-9"
             data-guide={GUIDE_ANCHORS.pagesNewButton.id}
           >
             <Plus className="size-4" />
@@ -96,167 +101,83 @@ export function PagesList() {
       </header>
 
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">Carregando…</div>
-      ) : !data?.pages?.length ? (
-        <Card>
-          <CardContent className="py-10 flex flex-col items-center gap-3 text-center">
-            <Sparkles className="size-8 text-muted-foreground" />
-            <p className="font-medium">Nenhum site ainda</p>
-            <p className="text-sm text-muted-foreground max-w-md">
-              Crie seu primeiro site ÓRBITA Pages por {cost?.stars ?? 2000} Stars. Você pode ter
-              quantos sites quiser por organização.
-            </p>
-            <Button onClick={() => setWizardOpen(true)} className="mt-2 gap-2">
-              <Plus className="size-4" />
-              Começar
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-          data-guide={GUIDE_ANCHORS.pagesList.id}
-        >
-          {data.pages.map((p) => (
-            <Card key={p.id} className="flex flex-col">
-              <CardContent className="p-5 flex-1 flex flex-col gap-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="font-semibold truncate">{p.title}</h3>
-                    <p className="text-xs text-muted-foreground truncate">/{p.slug}</p>
-                  </div>
-                  <Badge variant={p.status === "PUBLISHED" ? "default" : "secondary"}>
-                    {p.status === "PUBLISHED" ? "Publicado" : "Rascunho"}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">
-                  {p.description ?? INTENT_LABELS[p.intent]}
-                </p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>
-                    {p.layerCount === 2 ? "2 camadas (parallax)" : "1 camada"}
-                  </span>
-                  {p.customDomain ? (
-                    <span className="flex items-center gap-1">
-                      <Globe className="size-3" />
-                      {p.customDomain}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="flex items-center gap-2 flex-wrap mt-auto pt-3 border-t">
-                  <Button asChild size="sm" variant="outline" className="gap-1">
-                    <Link href={`/pages/${p.id}`}>
-                      <Pencil className="size-3.5" />
-                      Editar
-                    </Link>
-                  </Button>
-                  {p.status === "PUBLISHED" && (
-                    <Button asChild size="sm" variant="ghost" className="gap-1">
-                      <a href={`/s/${p.slug}`} target="_blank" rel="noreferrer">
-                        <ExternalLink className="size-3.5" />
-                        Ver
-                      </a>
-                    </Button>
-                  )}
-                  <Button asChild size="sm" variant="ghost" className="gap-1" title="Analytics">
-                    <Link href={`/pages/${p.id}/analytics`}>
-                      <BarChart3 className="size-3.5" />
-                    </Link>
-                  </Button>
-                  {/* Botão de excluir — disponível pra rascunho OU
-                      publicado. Confirmação extra pra publicado
-                      no dialog (texto + tag). */}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="gap-1 ml-auto text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() =>
-                      setDeleteTarget({
-                        id: p.id,
-                        title: p.title,
-                        isPublished: p.status === "PUBLISHED",
-                      })
-                    }
-                    title="Apagar"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="flex justify-center py-16">
+          <OrbitaSpinner className="size-8" />
         </div>
+      ) : !sites.length ? (
+        <div className="flex flex-col items-center gap-3 rounded-[22px] border border-dashed border-line px-6 py-10 text-center">
+          <div className="grid size-12 place-items-center rounded-full bg-muted">
+            <Sparkles className="size-5 text-muted-foreground" />
+          </div>
+          <p className="font-medium">Nenhum site ainda</p>
+          <p className="max-w-md text-sm text-muted-foreground">
+            Crie seu primeiro site por {(cost?.stars ?? 2000).toLocaleString("pt-BR")} Stars. Você pode ter quantos
+            sites quiser na empresa.
+          </p>
+          <Button onClick={() => setIsWizardOpen(true)} className="mt-1 h-11 gap-2 rounded-full">
+            <Plus className="size-4" />
+            Começar
+          </Button>
+        </div>
+      ) : (
+        <>
+          <PagesKpis
+            siteCount={sites.length}
+            publishedCount={publishedCount}
+            draftCount={sites.length - publishedCount}
+            starsPerSite={cost?.stars ?? null}
+          />
+
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full md:max-w-sm">
+              <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Buscar site"
+                aria-label="Buscar site"
+                className="h-11 rounded-full pl-10"
+              />
+            </div>
+            <div className="scroll-hidden-x -mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
+              {STATUS_FILTERS.map((filter) => (
+                <button
+                  key={filter.id}
+                  type="button"
+                  onClick={() => setStatusFilter(filter.id)}
+                  className={cn(
+                    "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm transition-colors",
+                    statusFilter === filter.id
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-line bg-card text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {filter.label}
+                  <span className="text-xs opacity-70">{filterCounts[filter.id]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {visibleSites.length === 0 ? (
+            <p className="rounded-[22px] border border-dashed border-line px-6 py-10 text-center text-sm text-muted-foreground">
+              Nenhum site encontrado com esse filtro.
+            </p>
+          ) : (
+            <div
+              className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5 xl:grid-cols-4"
+              data-guide={GUIDE_ANCHORS.pagesList.id}
+            >
+              {visibleSites.map((site) => (
+                <PageSiteCard key={site.id} site={site} onDeleteRequest={setDeleteTarget} />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      <CreatePageWizard open={wizardOpen} onOpenChange={setWizardOpen} />
-
-      {/* Dialog de confirmação de exclusão.
-          Pra page publicada, alerta mais forte (cor + texto explícito).
-          Logactivity é registrada server-side em delete-page.ts. */}
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && !isDeleting && setDeleteTarget(null)}
-      >
-        <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {deleteTarget?.isPublished
-                ? "Apagar page publicada?"
-                : "Apagar rascunho?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteTarget?.isPublished ? (
-                <>
-                  Você vai apagar <strong>"{deleteTarget?.title}"</strong>{" "}
-                  permanentemente.{" "}
-                  <strong className="text-destructive">
-                    Esta página está publicada
-                  </strong>{" "}
-                  — o link público vai parar de funcionar imediatamente.
-                  Visitantes vão receber 404.
-                </>
-              ) : (
-                <>
-                  Você vai apagar o rascunho{" "}
-                  <strong>"{deleteTarget?.title}"</strong> permanentemente.
-                  Como ele nunca foi publicado, nada além das suas
-                  edições será perdido.
-                </>
-              )}
-              <br />
-              <br />
-              <span className="text-xs">
-                Esta ação é irreversível e fica registrada em Insights →
-                Atividade.
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteTarget) deletePage(deleteTarget.id);
-              }}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="size-3.5 mr-2 animate-spin" />
-                  Apagando…
-                </>
-              ) : (
-                <>
-                  <Trash2 className="size-3.5 mr-2" />
-                  Apagar definitivamente
-                </>
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CreatePageWizard open={isWizardOpen} onOpenChange={setIsWizardOpen} />
+      <DeletePageDialog target={deleteTarget} onClose={() => setDeleteTarget(null)} />
     </div>
   );
 }

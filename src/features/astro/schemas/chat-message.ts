@@ -74,6 +74,12 @@ export const astroChatRequestSchema = z.object({
   sessionId: z.string().optional(),
   context: astroRouteContextSchema.optional(),
   pinnedAgentKey: z.string().optional(), // embed: força um sub-agente
+  /** Modelo escolhido no "Uso do ASTRO" (spec 0055, RF-11); o servidor só aceita os da chave própria. */
+  preferredModelId: z.string().max(80).optional(),
+  /** IAs ligadas, em ordem de prioridade (spec 0055, RF-15). */
+  providerOrder: z.array(z.enum(["openai", "google", "anthropic"])).max(3).optional(),
+  /** Modelos de texto desligados (spec 0055, RF-16). */
+  disabledModelIds: z.array(z.string().max(80)).max(40).optional(),
 });
 
 export type AstroChatRequest = z.infer<typeof astroChatRequestSchema>;

@@ -223,7 +223,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
+      <div className="flex items-center justify-between px-6 py-3 shrink-0">
         <p className="text-sm text-muted-foreground">{posts.length} posts no total</p>
         <Button
           size="sm"
@@ -251,7 +251,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                   {colPosts.map((post: any) => (
                     <Card
                       key={post.id}
-                      className="cursor-pointer hover:shadow-sm transition-all border hover:border-violet-300 dark:hover:border-violet-700"
+                      className="cursor-pointer hover:shadow-sm transition-all border hover:border-info/40"
                       onClick={() => setSelectedPostId(post.id)}
                     >
                       <CardContent className="p-3 space-y-2">
@@ -312,12 +312,12 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                             <DropdownMenuContent align="end">
                               {post.type !== "REEL" && (
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setImageEditorPostId(post.id); }}>
-                                  <ImagePlusIcon className="size-3.5 mr-2 text-pink-500" />Editar Imagem
+                                  <ImagePlusIcon className="size-3.5 mr-2 text-info" />Editar Imagem
                                 </DropdownMenuItem>
                               )}
                               {(post.type === "REEL" || !!(post as any).videoKey) && (
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setVideoEditorPostId(post.id); }}>
-                                  <VideoIcon className="size-3.5 mr-2 text-violet-500" />Editar Vídeo
+                                  <VideoIcon className="size-3.5 mr-2 text-info" />Editar Vídeo
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleGenerate(post.id); }}>
@@ -335,7 +335,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                               )}
                               {post.status !== "PUBLISHED" && (
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); publishPost.mutate({ postId: post.id }); }}>
-                                  <SendIcon className="size-3.5 mr-2 text-violet-500" />Publicar Agora
+                                  <SendIcon className="size-3.5 mr-2 text-info" />Publicar Agora
                                 </DropdownMenuItem>
                               )}
                               {post.thumbnail && (
@@ -375,13 +375,13 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                         <div className="flex flex-wrap gap-1">
                           {post.type && <Badge variant="outline" className="text-xs px-1.5 py-0">{POST_TYPE_LABELS[post.type] ?? post.type}</Badge>}
                           {(post as any).isAd && (
-                            <Badge className="text-xs px-1.5 py-0 bg-orange-500 hover:bg-orange-500 text-white gap-1">
+                            <Badge className="text-xs px-1.5 py-0 bg-warning/15 hover:bg-warning/15 text-warning border-warning/30 gap-1">
                               <MegaphoneIcon className="size-2.5" />Anúncio
                             </Badge>
                           )}
                           {(post.targetNetworks ?? []).map((net: string) => (
                             <Badge key={net} variant="secondary" className="text-xs px-1.5 py-0 gap-1">
-                              <span className={`size-1.5 rounded-full shrink-0 ${isConnected(net) ? "bg-emerald-500" : "bg-zinc-400"}`} />
+                              <span className={`size-1.5 rounded-full shrink-0 ${isConnected(net) ? "bg-success" : "bg-muted-foreground"}`} />
                               {POST_NETWORKS[net] ?? net}
                             </Badge>
                           ))}
@@ -393,7 +393,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                                 src={(organizations ?? []).find((o: any) => o.name === post.clientOrgName)?.logo ?? ""}
                                 alt={post.clientOrgName}
                               />
-                              <AvatarFallback className="text-[8px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300">
+                              <AvatarFallback className="text-[8px] font-bold bg-info/15 text-info">
                                 {post.clientOrgName.trim()[0].toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
@@ -401,7 +401,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                           {post.orgProject?.name?.trim() && (
                             <Avatar className="size-5 shrink-0 ring-1 ring-background" title={post.orgProject.name}>
                               <AvatarImage src={post.orgProject.avatar ?? ""} alt={post.orgProject.name} />
-                              <AvatarFallback className="text-[8px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                              <AvatarFallback className="text-[8px] font-bold bg-info/15 text-info">
                                 {post.orgProject.name.trim()[0].toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
@@ -426,7 +426,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                         {(() => {
                           if (post.status === "PUBLISHED" && post.publishedAt) {
                             return (
-                              <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                              <p className="text-xs text-success flex items-center gap-1">
                                 <CalendarCheckIcon className="size-3" />
                                 Publicado {format(new Date(post.publishedAt), "dd/MM HH:mm")}
                               </p>
@@ -434,7 +434,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                           }
                           if (post.scheduledAt) {
                             return (
-                              <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                              <p className="text-xs text-info flex items-center gap-1">
                                 <ClockIcon className="size-3" />
                                 {format(new Date(post.scheduledAt), "dd/MM HH:mm")}
                               </p>
@@ -465,7 +465,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
       {/* Post Detail */}
       <Dialog open={!!selectedPost} onOpenChange={(o) => !o && setSelectedPostId(null)}>
         <DialogContent className="max-w-lg max-h-[95vh] sm:max-h-[80vh] flex flex-col p-0 gap-0">
-          <DialogHeader className="px-6 pt-5 pb-3 shrink-0 border-b">
+          <DialogHeader className="px-6 pt-5 pb-3 shrink-0">
             <DialogTitle className="line-clamp-1">{selectedPost?.title}</DialogTitle>
           </DialogHeader>
           {selectedPost && (
@@ -563,7 +563,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
               {/* Post para anúncio */}
               <div className="flex items-center justify-between rounded-lg border px-4 py-3">
                 <Label className="flex items-center gap-1.5 cursor-pointer">
-                  <MegaphoneIcon className="size-3.5 text-orange-500" />
+                  <MegaphoneIcon className="size-3.5 text-warning" />
                   Post para anúncio
                 </Label>
                 <Switch
@@ -612,7 +612,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
               {selectedPost.hashtags?.length > 0 && (
                 <div>
                   <Label className="text-xs text-muted-foreground">Hashtags</Label>
-                  <p className="text-sm text-violet-600 dark:text-violet-400 mt-1">
+                  <p className="text-sm text-info mt-1">
                     {Array.isArray(selectedPost.hashtags) ? selectedPost.hashtags.join(" ") : selectedPost.hashtags}
                   </p>
                 </div>
@@ -833,7 +833,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
             <div className="flex items-center justify-between rounded-lg border px-4 py-3">
               <div className="space-y-0.5">
                 <Label className="flex items-center gap-1.5 cursor-pointer">
-                  <MegaphoneIcon className="size-3.5 text-orange-500" />
+                  <MegaphoneIcon className="size-3.5 text-warning" />
                   Post para anúncio
                 </Label>
                 <p className="text-xs text-muted-foreground">Marque se este post será usado como campanha de anúncios pagos.</p>

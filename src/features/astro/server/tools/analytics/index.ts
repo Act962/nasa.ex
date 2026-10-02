@@ -2051,7 +2051,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
     // próprio LLM filtra na resposta).
     get_space_help_features: tool({
       description:
-        "Busca tutoriais por funcionalidade no SPACE HELP. Cada feature tem vídeo do YouTube (`youtubeUrl`), steps com screenshots, e link interno `/space-help/{categorySlug}/{featureSlug}`. RETORNA payload `astro_videos` — o cliente renderiza cards com thumbnail automaticamente, NÃO precisa repetir a lista em texto. Use SEMPRE quando user pedir 'como faço X', 'como uso Y', 'me ensina a Z', 'video de W', 'tutorial de K'. Busca FUZZY — tenta com a query do user direto, palavras parciais funcionam.",
+        "Busca tutoriais por funcionalidade no SPACE HELP. Cada feature tem vídeo do YouTube (`youtubeUrl`), steps com screenshots, e link interno `/space-help/{categorySlug}/{featureSlug}`. RETORNA payload `astro_videos` — o cliente renderiza cards com thumbnail automaticamente, NÃO precisa repetir a lista em texto. Se existir guia na tela para o assunto (tool `start_guide`), chame `start_guide` em vez desta — o guia mostra o caminho na tela real. Use esta para 'video de W', 'tutorial de K' ou 'como faço X' quando não houver guia. Pedido com erro de digitação ('riar formulario'): interprete a intenção antes de buscar. Busca FUZZY — tenta com a query do user direto, palavras parciais funcionam.",
       inputSchema: z.object({
         search: z
           .string()

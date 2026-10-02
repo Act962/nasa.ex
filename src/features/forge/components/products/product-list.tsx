@@ -17,8 +17,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Package, Pencil, Trash2, Plus } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { ProductImage } from "./product-image";
-import { Product } from "./product-modal";
+import { ProductCardList } from "./product-card-list";
+import type { Product } from "./product-modal";
 
 interface ProductListProps {
   isLoading: boolean;
@@ -37,11 +39,16 @@ export function ProductList({
 }: ProductListProps) {
   if (isLoading) {
     return (
-      <div className="space-y-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
-        ))}
-      </div>
+      <>
+        <div className="flex justify-center py-12 md:hidden">
+          <OrbitaSpinner size={32} />
+        </div>
+        <div className="space-y-2 max-md:hidden">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      </>
     );
   }
 
@@ -50,7 +57,7 @@ export function ProductList({
       <div className="flex flex-col items-center py-16 gap-3 text-center">
         <Package className="size-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">Nenhum produto cadastrado.</p>
-        <Button variant="outline" onClick={onAdd}>
+        <Button variant="outline" className="rounded-full" onClick={onAdd}>
           <Plus className="size-4 mr-1.5" /> Adicionar produto
         </Button>
       </div>
@@ -58,7 +65,11 @@ export function ProductList({
   }
 
   return (
-    <div className="rounded-lg border overflow-x-auto">
+    <>
+    <div className="md:hidden">
+      <ProductCardList products={products} onEdit={onEdit} onDelete={onDelete} />
+    </div>
+    <div className="rounded-lg border overflow-x-auto max-md:hidden">
       <TooltipProvider delayDuration={300}>
         <Table>
           <TableHeader>
@@ -147,5 +158,6 @@ export function ProductList({
         </Table>
       </TooltipProvider>
     </div>
+    </>
   );
 }

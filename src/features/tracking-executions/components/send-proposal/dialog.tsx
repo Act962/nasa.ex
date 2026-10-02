@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { SendAppActionBaseDialog } from "../send-app-actions/base-dialog";
 import { ResourceSelect } from "../send-app-actions/resource-select";
 import { orpc } from "@/lib/orpc";
@@ -114,7 +114,7 @@ export function SendProposalDialog({
         <div className="max-h-40 overflow-y-auto rounded-md border p-2 space-y-1.5">
           {productsQuery.isLoading ? (
             <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-              <Loader2 className="size-3.5 animate-spin" />
+              <OrbitaSpinner className="size-3.5 " />
               Carregando produtos…
             </div>
           ) : !products?.length ? (

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowDown, ArrowUp, MessageCircle, Loader2 } from "lucide-react";
+import { ArrowDown, ArrowUp, MessageCircle } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -90,7 +91,7 @@ export function StarHistoryScreen({ starFriends }: { starFriends: PortalStarFrie
             <span
               className={cn(
                 "flex size-8 shrink-0 items-center justify-center rounded-full",
-                isCredit ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15" : "bg-red-50 text-red-600 dark:bg-red-500/15",
+                isCredit ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
               )}
             >
               {isCredit ? <ArrowUp className="size-4" /> : <ArrowDown className="size-4" />}
@@ -101,7 +102,7 @@ export function StarHistoryScreen({ starFriends }: { starFriends: PortalStarFrie
                 {LEDGER_TYPE_LABELS[entry.type] ?? entry.type} · {format(new Date(entry.createdAt), "dd/MM/yyyy")}
               </p>
             </div>
-            <span className={cn("text-sm font-bold", isCredit ? "text-emerald-600" : "text-red-500")}>
+            <span className={cn("text-sm font-bold", isCredit ? "text-success" : "text-destructive")}>
               {isCredit ? "+" : ""}
               {entry.stars} ⭐
             </span>
@@ -136,7 +137,7 @@ export function RedemptionsScreen({ starFriends }: { starFriends: PortalStarFrie
 export function CustomerOrdersScreen({ token }: { token: string }) {
   const customerOrders = useCatalogOrderCustomerOrders(token);
   if (customerOrders.isLoading) {
-    return <Loader2 className="mx-auto my-10 size-5 animate-spin text-muted-foreground" />;
+    return <OrbitaSpinner className="mx-auto my-10 size-5 text-muted-foreground" />;
   }
   return (
     <div className="flex flex-col gap-2">

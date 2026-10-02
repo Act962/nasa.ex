@@ -169,7 +169,7 @@ export function ReconciliationTab() {
         <Button
           onClick={() => fileInput.current?.click()}
           disabled={isBusy}
-          className="h-9 gap-1.5 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90"
+          className="h-9 gap-1.5 bg-info text-white hover:bg-info/90"
         >
           <Upload className="size-4" />
           {importButtonLabel}
@@ -193,7 +193,7 @@ export function ReconciliationTab() {
           <Card className="gap-0 py-0">
             <CardContent className="p-3">
               <p className="text-xs text-muted-foreground">Entradas</p>
-              <p className="text-lg font-black text-green-400">
+              <p className="text-lg font-black text-success">
                 {formatCurrency(totals.creditCents)}
               </p>
             </CardContent>
@@ -201,7 +201,7 @@ export function ReconciliationTab() {
           <Card className="gap-0 py-0">
             <CardContent className="p-3">
               <p className="text-xs text-muted-foreground">Saídas</p>
-              <p className="text-lg font-black text-red-400">
+              <p className="text-lg font-black text-destructive">
                 {formatCurrency(totals.debitCents)}
               </p>
             </CardContent>
@@ -289,7 +289,7 @@ function EmptyState({ hasAccount, status }: { hasAccount: boolean; status: Statu
           </p>
         </div>
         <div className="flex items-start gap-2 rounded-lg border border-border/50 bg-muted/30 p-3">
-          <Info className="mt-0.5 size-4 shrink-0 text-blue-400" />
+          <Info className="mt-0.5 size-4 shrink-0 text-info" />
           <div className="space-y-1 text-xs text-muted-foreground">
             <p className="font-medium text-foreground">Como exportar no Nubank PJ</p>
             <p>

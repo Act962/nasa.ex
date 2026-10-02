@@ -104,11 +104,11 @@ export function WorkflowIssuesPanel({ workflowId }: { workflowId: string }) {
         onClick={() => setOpen(true)}
       >
         {totalCount === 0 ? (
-          <ShieldCheckIcon className="size-3.5 text-emerald-600" />
+          <ShieldCheckIcon className="size-3.5 text-success" />
         ) : errors.length > 0 ? (
           <AlertCircleIcon className="size-3.5 text-destructive" />
         ) : (
-          <AlertTriangleIcon className="size-3.5 text-yellow-600" />
+          <AlertTriangleIcon className="size-3.5 text-warning" />
         )}
         Problemas
         {totalCount > 0 && (
@@ -137,7 +137,7 @@ export function WorkflowIssuesPanel({ workflowId }: { workflowId: string }) {
                 </Badge>
               )}
               {failedRuns.length > 0 && (
-                <Badge variant="destructive" className="bg-red-700">
+                <Badge variant="destructive">
                   {failedRuns.length} run
                   {failedRuns.length === 1 ? "" : "s"} falhou
                 </Badge>
@@ -152,7 +152,7 @@ export function WorkflowIssuesPanel({ workflowId }: { workflowId: string }) {
 
           <div className="px-4 pb-4 space-y-4">
             {totalCount === 0 && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-center text-sm text-emerald-700 dark:text-emerald-300">
+              <div className="rounded-lg border border-success/30 bg-success/10 p-4 text-center text-sm text-success">
                 <ShieldCheckIcon className="size-6 mx-auto mb-1" />
                 Tudo certo — nenhum problema estrutural detectado.
               </div>
@@ -263,7 +263,7 @@ function IssueGroup({
       <div
         className={cn(
           "text-xs uppercase tracking-wide font-semibold",
-          tone === "error" ? "text-destructive" : "text-yellow-700 dark:text-yellow-400",
+          tone === "error" ? "text-destructive" : "text-warning",
         )}
       >
         {title}
@@ -278,7 +278,7 @@ function IssueGroup({
             "w-full text-left rounded-md border p-3 transition-colors",
             tone === "error"
               ? "border-destructive/40 hover:bg-destructive/5"
-              : "border-yellow-300/60 hover:bg-yellow-50 dark:hover:bg-yellow-950/20",
+              : "border-warning/60 hover:bg-warning/10",
             !issue.nodeId && "opacity-80 cursor-default",
           )}
         >

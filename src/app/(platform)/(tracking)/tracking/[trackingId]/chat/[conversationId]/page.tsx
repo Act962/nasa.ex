@@ -49,7 +49,7 @@ export default function Page() {
           "absolute inset-0 pointer-events-none",
           "bg-[url('/chat-bg/mobile.jpg')] md:bg-[url('/chat-bg/desktop.jpg')]",
           "bg-cover bg-center bg-fixed",
-          "bg-[#dbe9f7] dark:bg-zinc-900",
+          "bg-panel",
         )}
       />
       {/* Layer 2: overlay translúcida que dilui o pattern.

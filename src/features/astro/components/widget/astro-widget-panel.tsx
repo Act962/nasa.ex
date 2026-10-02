@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import type { UIMessage } from "ai";
-import { Loader2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { AstroEmbedScope } from "@/features/astro/components/astro-provider";
 import {
   readStoredWidgetSessionId,
@@ -68,7 +68,7 @@ export function AstroWidgetPanel() {
       aria-label="Chat com o Astro"
       hidden={!isOpen}
       className={cn(
-        "fixed z-[9050] flex flex-col overflow-hidden border border-white/10 bg-[#0d0d12] text-white shadow-[0_30px_70px_-20px_rgba(0,0,0,0.6)]",
+        "fixed z-[9050] flex flex-col overflow-hidden border border-white/10 bg-card text-white shadow-[0_30px_70px_-20px_rgba(0,0,0,0.6)]",
         panelRect
           ? "rounded-[22px]"
           : "inset-x-0 bottom-0 h-[85dvh] rounded-t-[22px] sm:inset-x-auto sm:bottom-20 sm:right-5 sm:h-[min(620px,calc(100dvh-7rem))] sm:w-[400px] sm:rounded-[22px]",
@@ -101,7 +101,7 @@ function AstroWidgetSession() {
   if (storedSessionId && storedSession.isLoading) {
     return (
       <div className="grid flex-1 place-items-center text-white/40" role="status" aria-label="Carregando conversa">
-        <Loader2 className="size-5 animate-spin" />
+        <OrbitaSpinner className="size-5 " />
       </div>
     );
   }

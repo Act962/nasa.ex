@@ -14,10 +14,10 @@ export function BuilderBlockProperties() {
     FormBlocks[selectedBlockLayout.blockType]?.propertiesComponent;
 
   return (
-    <div className="relative w-[320px]">
-      <div className="fixed right w-[320px] bg-background border-l shadow-sm h-screen pb-36 mt-0 scrollbar overflow-auto">
+    <div className="relative w-[clamp(300px,28vw,440px)]">
+      <div className="fixed right w-[clamp(300px,28vw,440px)] bg-background border-l shadow-sm h-screen pb-36 mt-0 scrollbar overflow-auto">
         <div className="flex flex-col w-full items-center h-auto min-h-full">
-          <div className="w-full flex flex-row justify-between items-center dark:bg-accent pb-2 pt-3 sticky border-b border top-0 gap-2 px-2">
+          <div className="w-full flex flex-row justify-between items-center dark:bg-accent pb-2 pt-3 sticky top-0 gap-2 px-2">
             <BuilderSaveStatus />
             <div className="flex items-center gap-2">
               <SaveFormBtn />

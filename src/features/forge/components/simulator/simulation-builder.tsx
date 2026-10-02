@@ -549,7 +549,7 @@ export function SimulationBuilder({
             variant="outline"
             onClick={handleSave}
             disabled={saving}
-            className="border-[#7C3AED] text-[#7C3AED]"
+            className="border-info text-info"
           >
             Salvar
           </Button>
@@ -557,7 +557,6 @@ export function SimulationBuilder({
             size="sm"
             onClick={handleConvert}
             disabled={saving || convertMutation.isPending}
-            className="bg-[#7C3AED] hover:bg-[#6D28D9]"
           >
             Gerar proposta
           </Button>
@@ -571,7 +570,7 @@ export function SimulationBuilder({
             type="button"
             onClick={() => setMode(option)}
             className={`rounded-md px-4 py-1.5 text-sm font-medium ${
-              mode === option ? "bg-[#7C3AED] text-white" : "text-muted-foreground"
+              mode === option ? "bg-info text-white" : "text-muted-foreground"
             }`}
           >
             {option === "COMERCIAL" ? "Comercial" : "Licitação"}
@@ -600,7 +599,7 @@ export function SimulationBuilder({
               max={20000}
               step={100}
               hint={
-                <p className="text-sm font-semibold text-[#7C3AED]">
+                <p className="text-sm font-semibold text-info">
                   {formatBrl(commercialResult.clientPriceBrl + feeMonthly)}{" "}
                   <span className="text-xs font-normal text-muted-foreground">/ mês ao cliente</span>
                   {feeOneTime > 0 ? (
@@ -746,7 +745,7 @@ export function SimulationBuilder({
               </Field>
 
               <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
-                <div className="mb-1 flex items-center gap-1.5 font-medium text-[#7C3AED]">
+                <div className="mb-1 flex items-center gap-1.5 font-medium text-info">
                   <Sparkles className="size-4" /> Estimativa de IA
                 </div>
                 Plano {modelRec.tierLabel} · ≈{" "}
@@ -765,7 +764,7 @@ export function SimulationBuilder({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="text-[#7C3AED]"
+                  className="text-info"
                   onClick={() => applyInfraRecommendation(userCount)}
                 >
                   <Wand2 className="mr-1 size-4" /> Sugerir pelo uso
@@ -796,7 +795,7 @@ export function SimulationBuilder({
                   <Label className="text-xs text-muted-foreground">Outros custos (mão de obra, serviços)</Label>
                   <button
                     type="button"
-                    className="text-xs font-medium text-[#7C3AED]"
+                    className="text-xs font-medium text-info"
                     onClick={() => setCustomCostOpen(true)}
                   >
                     + Novo custo (salva na org)
@@ -906,7 +905,7 @@ export function SimulationBuilder({
               {aiEnabled && (
                 <button
                   type="button"
-                  className="text-xs font-medium text-[#7C3AED]"
+                  className="text-xs font-medium text-info"
                   onClick={() => setAdvanced(!advanced)}
                 >
                   {advanced ? "Ocultar ajustes de IA" : "Ajustes avançados de IA (modelo e tokens)"}
@@ -917,7 +916,7 @@ export function SimulationBuilder({
                   <div className="flex justify-end">
                     <button
                       type="button"
-                      className="text-xs font-medium text-[#7C3AED]"
+                      className="text-xs font-medium text-info"
                       onClick={() => setCustomCostOpen(true)}
                     >
                       + Novo custo (salva na org)
@@ -1210,7 +1209,7 @@ function BidInputs(props: {
       <div className="flex items-center justify-between">
         <Label className="text-sm font-medium">Itens / subitens</Label>
         <div className="flex items-center gap-3">
-          <button type="button" className="text-xs font-medium text-[#7C3AED]" onClick={onNewCost}>
+          <button type="button" className="text-xs font-medium text-info" onClick={onNewCost}>
             + Novo custo (salva na org)
           </button>
           <Button

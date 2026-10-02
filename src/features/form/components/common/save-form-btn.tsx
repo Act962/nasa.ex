@@ -1,6 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { LoaderIcon, SaveIcon } from "lucide-react";
+import { SaveIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { toast } from "sonner";
 import { useMutationUpdateForm } from "@/features/form/hooks/use-form";
@@ -133,7 +134,7 @@ export function SaveFormBtn() {
       onClick={saveFormData}
     >
       {mutation.isPending ? (
-        <LoaderIcon className="w-4 h-4 animate-spin" />
+        <OrbitaSpinner className="w-4 h-4 " />
       ) : (
         <SaveIcon />
       )}

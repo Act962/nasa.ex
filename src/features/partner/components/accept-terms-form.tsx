@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { client as orpc } from "@/lib/orpc";
-import { Loader2, ScrollText } from "lucide-react";
+import { ScrollText } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 
 export function AcceptTermsForm({
@@ -33,14 +34,14 @@ export function AcceptTermsForm({
 
   return (
     <div className="space-y-4">
-      <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg bg-zinc-800/40 hover:bg-zinc-800/60 transition-colors">
+      <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors">
         <input
           type="checkbox"
           checked={agreed}
           onChange={(e) => setAgreed(e.target.checked)}
-          className="mt-1 w-4 h-4 accent-amber-500 cursor-pointer"
+          className="mt-1 w-4 h-4 accent-warning cursor-pointer"
         />
-        <span className="text-sm text-zinc-200">
+        <span className="text-sm text-foreground">
           Li e concordo com as <strong>Regras do Programa ÓRBITA Partner</strong>,
           a <strong>Política de Privacidade</strong> e estou ciente das minhas
           responsabilidades sob a <strong>LGPD</strong>, incluindo
@@ -53,11 +54,11 @@ export function AcceptTermsForm({
       <button
         onClick={onAccept}
         disabled={!agreed || isPending}
-        className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+        className="w-full bg-primary hover:bg-primary/90 disabled:bg-knob disabled:cursor-not-allowed text-primary-foreground text-sm font-semibold px-4 py-3 rounded-full transition-colors flex items-center justify-center gap-2"
       >
         {isPending ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" /> Registrando aceite...
+            <OrbitaSpinner className="w-4 h-4 " /> Registrando aceite...
           </>
         ) : (
           <>

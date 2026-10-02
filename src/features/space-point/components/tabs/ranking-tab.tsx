@@ -214,7 +214,7 @@ function PodiumCard({
       )}
       <button
         onClick={() => onStats(entry)}
-        className="mt-0.5 flex items-center gap-1 text-[10px] text-[#a78bfa] hover:text-white bg-[#7a1fe7]/20 hover:bg-[#7a1fe7]/40 px-2 py-0.5 rounded-lg transition-all"
+        className="mt-0.5 flex items-center gap-1 text-[10px] text-info hover:text-white bg-info/20 hover:bg-info/40 px-2 py-0.5 rounded-lg transition-all"
       >
         <BarChart2 className="size-3" /> Ver stats
       </button>
@@ -237,8 +237,8 @@ function RankRow({
       className={cn(
         "flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all border",
         isMe
-          ? "bg-[#7a1fe7]/20 border-[#7a1fe7]/40"
-          : "hover:bg-white/5 border-transparent",
+          ? "bg-info/20 border-info/40"
+          : "hover:bg-muted border-transparent",
       )}
     >
       <div className="w-6 text-center shrink-0">
@@ -246,7 +246,7 @@ function RankRow({
           {entry.rank}
         </span>
       </div>
-      <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-[#7a1fe7]/30">
+      <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-info/30">
         {entry.image ? (
           <Image
             src={entry.image}
@@ -255,7 +255,7 @@ function RankRow({
             className="object-cover"
           />
         ) : (
-          <div className="w-full h-full bg-linear-to-br from-[#7a1fe7] to-[#4c1d95] flex items-center justify-center text-white text-[10px] font-bold">
+          <div className="w-full h-full bg-info flex items-center justify-center text-background text-[10px] font-bold">
             {entry.name
               .split(" ")
               .map((w) => w[0])
@@ -269,12 +269,12 @@ function RankRow({
         <p
           className={cn(
             "text-sm font-semibold truncate",
-            isMe && "text-[#a78bfa]",
+            isMe && "text-info",
           )}
         >
           {entry.name}
           {isMe && (
-            <span className="ml-1 text-[9px] text-[#7a1fe7] bg-[#7a1fe7]/15 px-1.5 py-0.5 rounded-full font-bold">
+            <span className="ml-1 text-[9px] text-info bg-info/15 px-1.5 py-0.5 rounded-full font-bold">
               VOCÊ
             </span>
           )}
@@ -299,12 +299,12 @@ function RankRow({
           </p>
         )}
       </div>
-      <span className="text-xs font-bold tabular-nums text-[#a78bfa] shrink-0">
+      <span className="text-xs font-bold tabular-nums text-info shrink-0">
         {entry.points.toLocaleString("pt-BR")} pts
       </span>
       <button
         onClick={() => onStats(entry)}
-        className="shrink-0 h-7 w-7 flex items-center justify-center rounded-lg bg-[#7a1fe7]/15 hover:bg-[#7a1fe7]/35 transition-all text-[#a78bfa]"
+        className="shrink-0 h-7 w-7 flex items-center justify-center rounded-lg bg-info/15 hover:bg-info/35 transition-all text-info"
         title="Ver estatísticas"
       >
         <BarChart2 className="size-3.5" />
@@ -331,14 +331,14 @@ function DateRangePicker({
           type="date"
           value={start}
           onChange={(e) => onChange(e.target.value, end)}
-          className="text-xs bg-white/5 border border-[#7a1fe7]/30 rounded-lg px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-[#7a1fe7] scheme-dark"
+          className="text-xs bg-panel border border-info/30 rounded-lg px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-info"
         />
         <span className="text-xs text-muted-foreground">até</span>
         <input
           type="date"
           value={end}
           onChange={(e) => onChange(start, e.target.value)}
-          className="text-xs bg-white/5 border border-[#7a1fe7]/30 rounded-lg px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-[#7a1fe7] scheme-dark"
+          className="text-xs bg-panel border border-info/30 rounded-lg px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-info"
         />
       </div>
     </div>
@@ -379,15 +379,15 @@ export function RankingTab({ myUserId }: { myUserId?: string }) {
 
       {/* ── Period selector ── */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 bg-white/5 rounded-xl p-1">
+        <div className="flex gap-1 bg-panel rounded-full p-1">
           {PERIODS.map((p) => (
             <button
               key={p.key}
               onClick={() => setPeriod(p.key)}
               className={cn(
-                "py-1.5 px-3 rounded-lg text-xs font-semibold transition-all whitespace-nowrap",
+                "py-1.5 px-3 rounded-full text-xs font-semibold transition-all whitespace-nowrap",
                 period === p.key
-                  ? "bg-[#7a1fe7] text-white shadow-sm"
+                  ? "bg-foreground text-background shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -414,7 +414,7 @@ export function RankingTab({ myUserId }: { myUserId?: string }) {
           {[130, 160, 130].map((h, i) => (
             <div
               key={i}
-              className="rounded-2xl bg-white/5 animate-pulse"
+              className="rounded-2xl bg-panel animate-pulse"
               style={{ width: h, height: h + 100 }}
             />
           ))}
@@ -423,7 +423,7 @@ export function RankingTab({ myUserId }: { myUserId?: string }) {
         <div className="flex gap-5">
           {/* ── Left: Podium ── */}
           <div className="shrink-0" style={{ width: "48%" }}>
-            <div className="relative rounded-2xl overflow-hidden bg-linear-to-b from-[#0d0030] to-[#050510] border border-[#7a1fe7]/20 px-2 pt-4 pb-3 min-h-[300px] flex flex-col justify-end">
+            <div className="relative rounded-2xl overflow-hidden bg-linear-to-b from-[#0d0030] to-[#050510] border border-info/20 px-2 pt-4 pb-3 min-h-[300px] flex flex-col justify-end">
               {/* Stars */}
               {Array.from({ length: 28 }, (_, i) => (
                 <div
@@ -485,7 +485,7 @@ export function RankingTab({ myUserId }: { myUserId?: string }) {
                 />
               ))}
               {rest.length > 0 && (
-                <div className="border-t border-white/5 my-1" />
+                <div className="border-t border-line my-1" />
               )}
               {rest.map((entry) => (
                 <RankRow

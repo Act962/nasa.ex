@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, Loader2, Sparkles } from "lucide-react";
+import { Copy, Sparkles } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -42,21 +43,21 @@ const APP_TYPE_LABELS: Record<AppType, string> = {
 // ─── Thumbnails por tipo ───────────────────────────────────────────────────────
 
 function TrackingThumbnail({ color }: { color?: string }) {
-  const accent = color || "#6366f1";
-  const stages = ["#6366f1", "#f59e0b", "#3b82f6", "#10b981", "#ef4444"];
+  const accent = color || "var(--info)";
+  const stages = ["var(--info)", "var(--warning)", "var(--chart-2)", "var(--success)", "var(--destructive)"];
   return (
     <div className="w-full h-full flex flex-col justify-center items-center gap-2 px-3">
       <div className="flex items-center gap-1 w-full">
         {stages.map((c, i) => (
           <div key={i} className="flex-1 flex flex-col items-center gap-1">
             <div className="w-full h-[6px] rounded-full" style={{ backgroundColor: c, opacity: 0.9 }} />
-            <div className="w-4/5 h-[28px] rounded border bg-background/60 border-white/10 shadow-sm" />
+            <div className="w-4/5 h-[28px] rounded border bg-background/60 border-foreground/10 shadow-sm" />
           </div>
         ))}
       </div>
       <div className="flex items-center gap-1.5 w-full px-1">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-[6px] rounded-full flex-1 bg-white/20" />
+          <div key={i} className="h-[6px] rounded-full flex-1 bg-foreground/20" />
         ))}
       </div>
     </div>
@@ -65,9 +66,9 @@ function TrackingThumbnail({ color }: { color?: string }) {
 
 function WorkspaceThumbnail({ color }: { color?: string }) {
   const cols = [
-    { c: "#6b7280", items: 2 },
-    { c: "#f59e0b", items: 3 },
-    { c: "#10b981", items: 1 },
+    { c: "var(--muted-foreground)", items: 2 },
+    { c: "var(--warning)", items: 3 },
+    { c: "var(--success)", items: 1 },
   ];
   return (
     <div className="w-full h-full flex items-end justify-center gap-1.5 px-3 pb-2 pt-3">
@@ -75,7 +76,7 @@ function WorkspaceThumbnail({ color }: { color?: string }) {
         <div key={i} className="flex-1 flex flex-col gap-1">
           <div className="w-full h-[4px] rounded-full mb-1" style={{ backgroundColor: col.c }} />
           {Array.from({ length: col.items }).map((_, j) => (
-            <div key={j} className="w-full rounded bg-white/15 border border-white/10" style={{ height: 22 + j * 4 }} />
+            <div key={j} className="w-full rounded bg-foreground/15 border border-foreground/10" style={{ height: 22 + j * 4 }} />
           ))}
         </div>
       ))}
@@ -86,17 +87,17 @@ function WorkspaceThumbnail({ color }: { color?: string }) {
 function ForgeThumbnail({ isContract }: { isContract?: boolean }) {
   return (
     <div className="w-full h-full flex items-center justify-center">
-      <div className="w-28 bg-white/10 border border-white/20 rounded-lg px-3 py-2 flex flex-col gap-1.5 shadow-sm">
-        <div className="w-3/4 h-[5px] rounded bg-violet-400/80" />
-        <div className="w-full h-[4px] rounded bg-white/30" />
-        <div className="w-5/6 h-[4px] rounded bg-white/20" />
-        <div className="w-4/6 h-[4px] rounded bg-white/20" />
+      <div className="w-28 bg-foreground/10 border border-foreground/20 rounded-lg px-3 py-2 flex flex-col gap-1.5 shadow-sm">
+        <div className="w-3/4 h-[5px] rounded bg-info/80" />
+        <div className="w-full h-[4px] rounded bg-foreground/30" />
+        <div className="w-5/6 h-[4px] rounded bg-foreground/20" />
+        <div className="w-4/6 h-[4px] rounded bg-foreground/20" />
         {isContract && (
           <>
-            <div className="border-t border-white/15 my-0.5" />
+            <div className="border-t border-foreground/15 my-0.5" />
             <div className="flex gap-2">
-              <div className="flex-1 h-[4px] rounded bg-white/30" />
-              <div className="flex-1 h-[4px] rounded bg-white/30" />
+              <div className="flex-1 h-[4px] rounded bg-foreground/30" />
+              <div className="flex-1 h-[4px] rounded bg-foreground/30" />
             </div>
           </>
         )}
@@ -128,11 +129,10 @@ function PatternCard({
 }) {
   const label = t.name || t.title || "Sem nome";
   return (
-    <div className="w-full flex flex-col rounded-xl border-2 border-violet-500/40 overflow-hidden hover:border-violet-500/70 transition-colors">
+    <div className="w-full flex flex-col rounded-xl border-2 border-info/40 overflow-hidden hover:border-info/70 transition-colors">
       {/* Thumbnail */}
       <div
-        className="relative h-[110px] flex items-center justify-center"
-        style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.10) 100%)" }}
+        className="relative h-[110px] flex items-center justify-center bg-info/10"
       >
         {t.color && (
           <div className="absolute top-2 left-2 w-2.5 h-2.5 rounded-full" style={{ backgroundColor: t.color }} />
@@ -141,7 +141,7 @@ function PatternCard({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-t border-violet-500/20">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-t border-info/20">
         <div className="min-w-0">
           <p className="text-xs font-semibold truncate">{label}</p>
           {t.description && (
@@ -151,9 +151,9 @@ function PatternCard({
         <button
           onClick={() => onUse(t)}
           disabled={duplicating === t.id}
-          className="shrink-0 flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-500 border border-violet-400 rounded px-2 py-0.5 bg-background/60 disabled:opacity-50"
+          className="shrink-0 flex items-center gap-1 text-xs font-semibold text-info hover:text-info/80 border border-info rounded px-2 py-0.5 bg-background/60 disabled:opacity-50"
         >
-          {duplicating === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Copy className="w-3 h-3" />}
+          {duplicating === t.id ? <OrbitaSpinner className="w-3 h-3 " /> : <Copy className="w-3 h-3" />}
           Usar
         </button>
       </div>
@@ -211,10 +211,10 @@ export function PatternsSection({ appType, redirectPath }: PatternsSectionProps)
 
   return (
     <>
-      <div className="mt-8 border-2 border-violet-500/50 rounded-xl p-5">
+      <div className="mt-8 border-2 border-info/50 rounded-xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="w-4 h-4 text-violet-500" />
-          <h3 className="text-sm font-semibold text-violet-400 uppercase tracking-wide">
+          <Sparkles className="w-4 h-4 text-info" />
+          <h3 className="text-sm font-semibold text-info uppercase tracking-wide">
             Padrões ÓRBITA disponíveis
           </h3>
         </div>

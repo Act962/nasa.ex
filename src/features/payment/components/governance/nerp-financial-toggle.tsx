@@ -14,7 +14,8 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Loader2, Link2 } from "lucide-react";
+import { Link2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -52,7 +53,7 @@ export function NerpFinancialToggle() {
   return (
     <Card className="p-4 border-dashed">
       <div className="flex items-start gap-3">
-        <div className="size-9 rounded-md bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+        <div className="size-9 rounded-md bg-info/10 text-info flex items-center justify-center shrink-0">
           <Link2 className="size-4" />
         </div>
         <div className="flex-1 space-y-1">
@@ -76,7 +77,7 @@ export function NerpFinancialToggle() {
           )}
           {updateMut.isPending && (
             <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-              <Loader2 className="size-3 animate-spin" /> Salvando…
+              <OrbitaSpinner className="size-3 " /> Salvando…
             </p>
           )}
         </div>

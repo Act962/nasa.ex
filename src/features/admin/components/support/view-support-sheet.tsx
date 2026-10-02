@@ -21,8 +21,8 @@ import {
   Calendar,
   AppWindow,
   ChevronDown,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { statusMap } from "./types";
 import { ImagePreview } from "./image-preview";
@@ -94,7 +94,7 @@ export function ViewSupportSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="dark text-foreground flex flex-col sm:max-w-md w-full p-0 gap-0">
-        <SheetHeader className="px-6 py-4 border-b border-border bg-muted/40">
+        <SheetHeader className="px-6 py-4 bg-muted/40">
           <div className="flex items-center justify-between gap-4 pr-6">
             <SheetTitle className="text-lg">Detalhes da Solicitação</SheetTitle>
             <DropdownMenu>
@@ -104,7 +104,7 @@ export function ViewSupportSheet({
                   className={`${statusInfo.colorClass} cursor-pointer flex items-center gap-1.5 transition-opacity hover:opacity-80`}
                 >
                   {updateStatus.isPending && (
-                    <Loader2 className="size-3 animate-spin" />
+                    <OrbitaSpinner className="size-3 " />
                   )}
                   {statusInfo.label}
                   <ChevronDown className="size-3 opacity-50" />

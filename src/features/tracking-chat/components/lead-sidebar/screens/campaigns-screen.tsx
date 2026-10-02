@@ -30,9 +30,9 @@ function ActivateOfficialNumber({ trackingId, hasAnyInstance }: { trackingId: st
   const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+    <div className="flex flex-col gap-3 rounded-2xl border border-warning/30 bg-warning/5 p-4">
       <div className="flex items-center gap-2">
-        <ShieldCheckIcon className="size-5 text-amber-500" />
+        <ShieldCheckIcon className="size-5 text-warning" />
         <p className="text-sm font-semibold">Ative um número da API Oficial do WhatsApp</p>
       </div>
       <p className="text-xs text-muted-foreground">
@@ -40,7 +40,7 @@ function ActivateOfficialNumber({ trackingId, hasAnyInstance }: { trackingId: st
         conecta à Meta e cadastra o cartão — a gente guia cada passo.
       </p>
       {hasAnyInstance && (
-        <p className="text-xs text-amber-700 dark:text-amber-400">
+        <p className="text-xs text-warning dark:text-warning">
           Este tracking usa um número que não é da API Oficial. Conectar pela Meta troca o número dele para a API Oficial.
         </p>
       )}

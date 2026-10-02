@@ -8,10 +8,10 @@ import {
   CheckCircle2,
   ExternalLink,
   Flag,
-  Loader2,
   ShieldAlert,
   XCircle,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -100,7 +100,7 @@ export function DisputesPage() {
         <TabsContent value={status} className="space-y-3 mt-4">
           {query.isLoading && (
             <div className="flex items-center justify-center p-8">
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              <OrbitaSpinner className="size-5 text-muted-foreground" />
             </div>
           )}
           {!query.isLoading && (!data || data.claims.length === 0) && (
@@ -160,7 +160,7 @@ function DisputeCard({ claim }: { claim: DisputeRow }) {
                 </Badge>
               )}
               {claim.action.organization?.isVerified && (
-                <Badge className="bg-blue-500 text-[10px]">Org verificada</Badge>
+                <Badge className="bg-info/15 text-info border-info/30 text-[10px]">Org verificada</Badge>
               )}
             </CardDescription>
           </div>
@@ -177,8 +177,8 @@ function DisputeCard({ claim }: { claim: DisputeRow }) {
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Reivindicação */}
-        <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm">
-          <div className="font-semibold text-xs uppercase tracking-wider text-amber-700 dark:text-amber-300 mb-1">
+        <div className="rounded-md border border-warning/30 bg-warning/15 p-3 text-sm">
+          <div className="font-semibold text-xs uppercase tracking-wider text-warning mb-1">
             Reivindicação
           </div>
           <div className="text-sm">
@@ -194,8 +194,8 @@ function DisputeCard({ claim }: { claim: DisputeRow }) {
 
         {/* Resposta do criador */}
         {claim.creatorResponse && (
-          <div className="rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-3 text-sm">
-            <div className="font-semibold text-xs uppercase tracking-wider text-blue-700 dark:text-blue-300 mb-1">
+          <div className="rounded-md border border-info/30 bg-info/15 p-3 text-sm">
+            <div className="font-semibold text-xs uppercase tracking-wider text-info mb-1">
               Resposta do criador ({claim.action.creator?.name})
             </div>
             <div className="text-sm whitespace-pre-wrap leading-relaxed">
@@ -300,7 +300,7 @@ function ResolveActions({ claim }: { claim: DisputeRow }) {
               disabled={mutation.isPending}
             >
               {mutation.isPending && (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                <OrbitaSpinner className="mr-1.5 size-3.5 " />
               )}
               Confirmar
             </Button>

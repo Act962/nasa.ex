@@ -107,10 +107,10 @@ export function IncomingSharesPanel({ className }: Props) {
   return (
     <div className={cn("border rounded-xl bg-card shadow-sm overflow-hidden", className)}>
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b bg-amber-500/5">
-        <InboxIcon className="size-4 text-amber-500 shrink-0" />
+      <div className="flex items-center gap-2 px-4 py-3 border-b bg-warning/5">
+        <InboxIcon className="size-4 text-warning shrink-0" />
         <span className="text-sm font-semibold">Cards recebidos</span>
-        <Badge className="h-4 px-1.5 text-[10px] bg-amber-500/20 text-amber-600 border-amber-300 ml-auto">
+        <Badge className="h-4 px-1.5 text-[10px] bg-warning/20 text-warning border-warning/30 ml-auto">
           {shares.length} pendente{shares.length !== 1 ? "s" : ""}
         </Badge>
       </div>
@@ -131,7 +131,7 @@ export function IncomingSharesPanel({ className }: Props) {
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold truncate">
-                    <span className="text-violet-600">{share.sourceOrg?.name}</span>
+                    <span className="text-info">{share.sourceOrg?.name}</span>
                     <span className="text-muted-foreground font-normal"> enviou um card</span>
                   </p>
                   <p className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -158,7 +158,7 @@ export function IncomingSharesPanel({ className }: Props) {
                   <PopoverTrigger asChild>
                     <Button
                       size="sm"
-                      className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
+                      className="h-7 text-xs gap-1 bg-success hover:bg-success"
                     >
                       <CheckIcon className="size-3" />
                       Aprovar

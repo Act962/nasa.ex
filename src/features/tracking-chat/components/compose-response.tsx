@@ -105,7 +105,7 @@ export function ComposeResponse({
           <div className="max-h-80 overflow-y-auto">
             {error ? (
               <div>
-                <p className="text-red-500">Erro ao gerar resumo</p>
+                <p className="text-destructive">Erro ao gerar resumo</p>
                 <Button
                   type="button"
                   size="sm"

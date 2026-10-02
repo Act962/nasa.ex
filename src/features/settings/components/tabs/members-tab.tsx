@@ -1,7 +1,12 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -10,30 +15,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useMemberModal } from "@/hooks/use-member";
 import { useOrgRole } from "@/hooks/use-org-role";
-import { Plus, Crown, Users2 } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { orpc, client as orpcClient } from "@/lib/orpc";
+import { orpc } from "@/lib/orpc";
 import { authClient } from "@/lib/auth-client";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import {
-  POSITIONS,
-  POSITION_GROUP_LABELS,
-  getPosition,
-  getPositionLabel,
-  type PositionOption,
-} from "@/features/company/constants";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { MemberCargoSelect } from "./members/member-cargo-select";
+import { TeamHierarchy } from "./members/team-hierarchy";
+import {
+  formatJoinedAt,
+  toMemberInitial,
+  type OrgMemberRow,
+} from "./members/member-types";
+
+const SEARCH_VISIBLE_FROM_COUNT = 6;
 
 interface FallbackMember {
   id: string;
@@ -57,6 +53,7 @@ export function MembersTab({ members: ssrMembers }: MemberTabsProps) {
   const { onOpen } = useMemberModal();
   const { canManage } = useOrgRole();
   const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { data: detailed, isLoading } = useQuery({
     ...orpc.orgs.listMembersDetailed.queryOptions(),
@@ -70,73 +67,144 @@ export function MembersTab({ members: ssrMembers }: MemberTabsProps) {
   });
   const currentUserId = session?.data?.user?.id;
 
-  const members = useMemo(() => {
+  const members = useMemo<OrgMemberRow[]>(() => {
     if (detailed?.members) {
-      return detailed.members.map((m) => ({
-        id: m.id,
-        role: m.role,
-        cargo: m.cargo ?? null,
-        createdAt: m.createdAt,
-        userId: m.userId,
+      return detailed.members.map((member) => ({
+        id: member.id,
+        role: member.role,
+        cargo: member.cargo ?? null,
+        createdAt: member.createdAt,
+        userId: member.userId,
         user: {
-          id: m.user.id,
-          name: m.user.name,
-          email: m.user.email,
-          image: m.user.image ?? null,
+          id: member.user.id,
+          name: member.user.name,
+          email: member.user.email,
+          image: member.user.image ?? null,
         },
       }));
     }
-    return ssrMembers.map((m) => ({
-      id: m.id,
-      role: m.role,
-      cargo: null as string | null,
-      createdAt: m.createdAt,
-      userId: m.userId,
+    return ssrMembers.map((member) => ({
+      id: member.id,
+      role: member.role,
+      cargo: null,
+      createdAt: member.createdAt,
+      userId: member.userId,
       user: {
-        id: m.user.id,
-        name: m.user.name,
-        email: m.user.email,
-        image: m.user.image ?? null,
+        id: member.user.id,
+        name: member.user.name,
+        email: member.user.email,
+        image: member.user.image ?? null,
       },
     }));
   }, [detailed, ssrMembers]);
 
+  const filteredMembers = useMemo(() => {
+    const normalizedTerm = searchTerm.trim().toLowerCase();
+    if (!normalizedTerm) return members;
+    return members.filter(
+      (member) =>
+        member.user.name?.toLowerCase().includes(normalizedTerm) ||
+        member.user.email?.toLowerCase().includes(normalizedTerm),
+    );
+  }, [members, searchTerm]);
+
+  const invalidateMemberQueries = () => {
+    queryClient.invalidateQueries({ queryKey: orpc.orgs.listMembersDetailed.key() });
+    queryClient.invalidateQueries({ queryKey: orpc.spaceHelp.getSetupProgress.key() });
+  };
+
   return (
-    <div className="space-y-8">
-      <div className="w-full flex items-center justify-between">
-        <div>
+    <div className="space-y-6">
+      <div className="flex w-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="max-md:hidden">
           <h2 className="text-2xl font-bold text-foreground">Membros</h2>
-          <p className="text-sm text-foreground/50">
-            Gerencie membros da sua organização e configure cargos hierárquicos.
+          <p className="text-sm text-muted-foreground">
+            Pessoas da sua empresa e o cargo de cada uma.
           </p>
         </div>
 
         {canManage && (
-          <Button onClick={() => onOpen()} data-guide={GUIDE_ANCHORS.memberAddButton.id}>
-            <Plus className="size-4" /> Adicionar Membro
+          <Button
+            onClick={() => onOpen()}
+            data-guide={GUIDE_ANCHORS.memberAddButton.id}
+            className="h-11 w-full rounded-full md:h-9 md:w-auto"
+          >
+            <Plus className="size-4" /> Adicionar membro
           </Button>
         )}
       </div>
 
-      <div className="text-muted-foreground text-xs flex items-center gap-3">
-        <span>{members.length} membros</span>
-        {isLoading && <span className="animate-pulse">carregando cargos…</span>}
+      {members.length >= SEARCH_VISIBLE_FROM_COUNT && (
+        <div className="relative w-full md:max-w-sm">
+          <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="h-11 rounded-full border-line bg-card pl-10"
+            placeholder="Buscar por nome ou e-mail"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <span>{filteredMembers.length} membros</span>
+        {isLoading && (
+          <span className="flex items-center gap-1.5">
+            <OrbitaSpinner className="size-3.5" /> carregando cargos…
+          </span>
+        )}
       </div>
 
-      <div>
+      <div className="flex flex-col gap-2 md:hidden">
+        {filteredMembers.map((member) => (
+          <div key={member.id} className="space-y-3 rounded-[20px] border border-line bg-card p-3">
+            <div className="flex items-center gap-3">
+              <Avatar className="size-11">
+                <AvatarImage src={member.user.image || ""} alt={member.user.name} />
+                <AvatarFallback>{toMemberInitial(member.user.name)}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{member.user.name}</p>
+                <p className="truncate text-xs text-muted-foreground">{member.user.email}</p>
+                <p className="text-xs text-muted-foreground">
+                  Entrou em {formatJoinedAt(member.createdAt)}
+                </p>
+              </div>
+              <Badge variant="outline" className="shrink-0 rounded-full capitalize">
+                {member.role}
+              </Badge>
+            </div>
+            <MemberCargoSelect
+              memberId={member.id}
+              cargo={member.cargo}
+              canManage={canManage}
+              isSelf={member.userId === currentUserId}
+              onUpdated={invalidateMemberQueries}
+              triggerClassName="w-full"
+            />
+          </div>
+        ))}
+        {filteredMembers.length === 0 && (
+          <p className="rounded-[20px] border border-dashed border-line p-4 text-center text-sm text-muted-foreground">
+            Nenhum membro encontrado.
+          </p>
+        )}
+      </div>
+
+      <div className="max-md:hidden">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="text-left"></TableHead>
               <TableHead className="text-left">Nome</TableHead>
-              <TableHead className="text-left">Email</TableHead>
+              <TableHead className="text-left">E-mail</TableHead>
               <TableHead className="text-left">Permissão</TableHead>
               <TableHead className="text-left">Cargo</TableHead>
               <TableHead className="text-left">Entrou em</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {members.map((member) => (
+            {filteredMembers.map((member) => (
               <TableRow key={member.id}>
                 <TableCell className="text-left">
                   <Avatar>
@@ -145,9 +213,7 @@ export function MembersTab({ members: ssrMembers }: MemberTabsProps) {
                       alt={member.user.name}
                       className="size-8 rounded-full"
                     />
-                    <AvatarFallback>
-                      {member.user.name?.split(" ")[0]?.[0] ?? "?"}
-                    </AvatarFallback>
+                    <AvatarFallback>{toMemberInitial(member.user.name)}</AvatarFallback>
                   </Avatar>
                 </TableCell>
                 <TableCell className="text-left">{member.user.name}</TableCell>
@@ -155,29 +221,21 @@ export function MembersTab({ members: ssrMembers }: MemberTabsProps) {
                   {member.user.email}
                 </TableCell>
                 <TableCell className="text-left">
-                  <Badge variant="outline" className="capitalize">
+                  <Badge variant="outline" className="rounded-full capitalize">
                     {member.role}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-left">
-                  <CargoCell
+                  <MemberCargoSelect
                     memberId={member.id}
-                    memberUserId={member.userId}
                     cargo={member.cargo}
                     canManage={canManage}
                     isSelf={member.userId === currentUserId}
-                    onUpdated={() => {
-                      queryClient.invalidateQueries({
-                        queryKey: orpc.orgs.listMembersDetailed.key(),
-                      });
-                      queryClient.invalidateQueries({
-                        queryKey: orpc.spaceHelp.getSetupProgress.key(),
-                      });
-                    }}
+                    onUpdated={invalidateMemberQueries}
                   />
                 </TableCell>
-                <TableCell className="text-left text-muted-foreground text-xs">
-                  {new Date(member.createdAt).toLocaleDateString()}
+                <TableCell className="text-left text-xs text-muted-foreground">
+                  {formatJoinedAt(member.createdAt)}
                 </TableCell>
               </TableRow>
             ))}
@@ -185,206 +243,7 @@ export function MembersTab({ members: ssrMembers }: MemberTabsProps) {
         </Table>
       </div>
 
-      {/* ─── Hierarquia visual da equipe ──────────────────── */}
       <TeamHierarchy members={members} />
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════════
-// CargoCell — célula editável com Select de cargos hierárquicos
-// ════════════════════════════════════════════════════════════════════════
-function CargoCell({
-  memberId,
-  memberUserId,
-  cargo,
-  canManage,
-  isSelf,
-  onUpdated,
-}: {
-  memberId: string;
-  memberUserId: string;
-  cargo: string | null;
-  canManage: boolean;
-  isSelf: boolean;
-  onUpdated: () => void;
-}) {
-  const canEdit = canManage || isSelf;
-  const [isSaving, setIsSaving] = useState(false);
-  const label = getPositionLabel(cargo);
-
-  if (!canEdit) {
-    return (
-      <span className="text-sm text-muted-foreground">
-        {label ?? <em className="opacity-60">não definido</em>}
-      </span>
-    );
-  }
-
-  const onChange = async (value: string) => {
-    const next = value === "__clear__" ? null : value;
-    setIsSaving(true);
-    try {
-      await orpcClient.orgs.updateMemberCargo({
-        memberId,
-        cargo: next,
-      });
-      onUpdated();
-      toast.success("Cargo atualizado");
-    } catch (err: any) {
-      toast.error(err?.message ?? "Falha ao atualizar cargo");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <Select value={cargo ?? ""} onValueChange={onChange} disabled={isSaving}>
-      <SelectTrigger className="h-8 w-[200px] text-xs">
-        <SelectValue placeholder="Definir cargo…" />
-      </SelectTrigger>
-      <SelectContent>
-        {(["n1", "n2", "n3", "gestao", "operacional", "entrada"] as const).map((group) => {
-          const items = POSITIONS.filter((p) => p.group === group);
-          if (items.length === 0) return null;
-          return (
-            <div key={group} className="py-1">
-              <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                {POSITION_GROUP_LABELS[group]}
-              </div>
-              {items.map((p) => (
-                <SelectItem key={p.slug} value={p.slug} className="text-xs">
-                  <span className="text-muted-foreground mr-1">N{p.level}</span>
-                  {p.label}
-                </SelectItem>
-              ))}
-            </div>
-          );
-        })}
-        <div className="border-t my-1" />
-        <SelectItem value="__clear__" className="text-xs text-muted-foreground">
-          Limpar cargo
-        </SelectItem>
-      </SelectContent>
-    </Select>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════════
-// TeamHierarchy — visualização agrupada por nível hierárquico
-// ════════════════════════════════════════════════════════════════════════
-interface HierarchyMember {
-  id: string;
-  role: string;
-  cargo: string | null;
-  userId: string;
-  user: { id: string; name: string; email: string; image?: string | null };
-}
-
-function TeamHierarchy({ members }: { members: HierarchyMember[] }) {
-  const grouped = useMemo(() => {
-    const buckets = new Map<
-      number,
-      { position: PositionOption; members: HierarchyMember[] }
-    >();
-    const unassigned: HierarchyMember[] = [];
-
-    for (const m of members) {
-      const pos = getPosition(m.cargo);
-      if (!pos) {
-        unassigned.push(m);
-        continue;
-      }
-      const existing = buckets.get(pos.level);
-      if (existing) {
-        existing.members.push(m);
-      } else {
-        buckets.set(pos.level, { position: pos, members: [m] });
-      }
-    }
-
-    return {
-      levels: Array.from(buckets.entries())
-        .sort((a, b) => a[0] - b[0])
-        .map(([, value]) => value),
-      unassigned,
-    };
-  }, [members]);
-
-  if (grouped.levels.length === 0 && grouped.unassigned.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="space-y-4 pt-6 border-t">
-      <div className="flex items-center gap-2">
-        <Users2 className="size-4 text-violet-500" />
-        <h3 className="text-lg font-semibold">Hierarquia da equipe</h3>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Ordenado do topo (N1) à base (N10) com base no cargo configurado.
-      </p>
-
-      <div className="space-y-3">
-        {grouped.levels.map(({ position, members: lvlMembers }) => (
-          <div
-            key={position.level}
-            className="rounded-xl border border-border/60 bg-card/50 p-4"
-          >
-            <div className="flex items-center gap-2 mb-3">
-              {position.level === 1 && (
-                <Crown className="size-3.5 text-amber-500" />
-              )}
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Nível {position.level} · {position.label}
-              </span>
-              <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
-                {lvlMembers.length}
-              </Badge>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {lvlMembers.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex items-center gap-2 rounded-full bg-background border border-border/60 px-2 py-1"
-                >
-                  <Avatar className="size-6">
-                    <AvatarImage src={m.user.image || ""} />
-                    <AvatarFallback className="text-[10px]">
-                      {m.user.name?.[0] ?? "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-xs font-medium">{m.user.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-
-        {grouped.unassigned.length > 0 && (
-          <div className="rounded-xl border border-dashed border-border/60 p-4">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-              Sem cargo definido · {grouped.unassigned.length}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {grouped.unassigned.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex items-center gap-2 rounded-full bg-muted/40 border border-border/60 px-2 py-1"
-                >
-                  <Avatar className="size-6">
-                    <AvatarImage src={m.user.image || ""} />
-                    <AvatarFallback className="text-[10px]">
-                      {m.user.name?.[0] ?? "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-xs">{m.user.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

@@ -55,14 +55,14 @@ export function AppCostManager({ apps }: { apps: AppRow[] }) {
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-zinc-800">
-            <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">App</th>
-            <th className="text-center px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Custo Mensal (⭐)</th>
-            <th className="text-center px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Setup (⭐)</th>
-            <th className="text-center px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Preço (R$)</th>
+          <tr className="border-b border-border">
+            <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">App</th>
+            <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Custo Mensal (⭐)</th>
+            <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Setup (⭐)</th>
+            <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Preço (R$)</th>
             <th className="px-4 py-3"></th>
           </tr>
         </thead>
@@ -71,10 +71,10 @@ export function AppCostManager({ apps }: { apps: AppRow[] }) {
             const isEditing = editing === app.slug;
             const v = vals[app.slug];
             return (
-              <tr key={app.slug} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
+              <tr key={app.slug} className="border-b border-border hover:bg-accent">
                 <td className="px-4 py-3">
-                  <p className="text-sm font-medium text-white">{app.label}</p>
-                  <p className="text-xs text-zinc-600 font-mono">{app.slug}</p>
+                  <p className="text-sm font-medium text-foreground">{app.label}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{app.slug}</p>
                 </td>
 
                 {isEditing ? (
@@ -84,7 +84,7 @@ export function AppCostManager({ apps }: { apps: AppRow[] }) {
                         type="number" min="0"
                         value={v?.monthly ?? ""}
                         onChange={(e) => setVals((s) => ({ ...s, [app.slug]: { ...s[app.slug], monthly: e.target.value } }))}
-                        className="w-20 text-center px-2 py-1 bg-zinc-800 border border-zinc-600 rounded text-sm text-white focus:outline-none focus:border-violet-500"
+                        className="w-20 text-center px-2 py-1 bg-panel border border-knob rounded text-sm text-foreground focus:outline-none focus:border-ring"
                       />
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -92,7 +92,7 @@ export function AppCostManager({ apps }: { apps: AppRow[] }) {
                         type="number" min="0"
                         value={v?.setup ?? ""}
                         onChange={(e) => setVals((s) => ({ ...s, [app.slug]: { ...s[app.slug], setup: e.target.value } }))}
-                        className="w-20 text-center px-2 py-1 bg-zinc-800 border border-zinc-600 rounded text-sm text-white focus:outline-none focus:border-violet-500"
+                        className="w-20 text-center px-2 py-1 bg-panel border border-knob rounded text-sm text-foreground focus:outline-none focus:border-ring"
                       />
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -101,7 +101,7 @@ export function AppCostManager({ apps }: { apps: AppRow[] }) {
                         value={v?.brl ?? ""}
                         onChange={(e) => setVals((s) => ({ ...s, [app.slug]: { ...s[app.slug], brl: e.target.value } }))}
                         placeholder="0.00"
-                        className="w-24 text-center px-2 py-1 bg-zinc-800 border border-zinc-600 rounded text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"
+                        className="w-24 text-center px-2 py-1 bg-panel border border-knob rounded text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring"
                       />
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -109,13 +109,13 @@ export function AppCostManager({ apps }: { apps: AppRow[] }) {
                         <button
                           onClick={() => saveEdit(app.slug)}
                           disabled={mut.isPending}
-                          className="p-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded transition-colors"
+                          className="p-1.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground rounded transition-colors"
                         >
                           <Check className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => setEditing(null)}
-                          className="p-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded transition-colors"
+                          className="p-1.5 bg-muted hover:bg-knob text-foreground rounded transition-colors"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -124,19 +124,19 @@ export function AppCostManager({ apps }: { apps: AppRow[] }) {
                   </>
                 ) : (
                   <>
-                    <td className="px-4 py-3 text-center text-sm text-zinc-300">
-                      {app.cost ? app.cost.monthlyCost.toLocaleString("pt-BR") : <span className="text-zinc-600">—</span>}
+                    <td className="px-4 py-3 text-center text-sm text-foreground">
+                      {app.cost ? app.cost.monthlyCost.toLocaleString("pt-BR") : <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-center text-sm text-zinc-300">
-                      {app.cost ? app.cost.setupCost.toLocaleString("pt-BR") : <span className="text-zinc-600">—</span>}
+                    <td className="px-4 py-3 text-center text-sm text-foreground">
+                      {app.cost ? app.cost.setupCost.toLocaleString("pt-BR") : <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-center text-sm text-zinc-300">
-                      {app.cost?.priceBrl ? `R$ ${app.cost.priceBrl}` : <span className="text-zinc-600">—</span>}
+                    <td className="px-4 py-3 text-center text-sm text-foreground">
+                      {app.cost?.priceBrl ? `R$ ${app.cost.priceBrl}` : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => startEdit(app)}
-                        className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-700 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>

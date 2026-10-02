@@ -6,10 +6,10 @@ import {
   BadgeCheck,
   CheckCircle2,
   ExternalLink,
-  Loader2,
   QrCode,
   TriangleAlert,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import {
@@ -31,7 +31,7 @@ export function LeadTrafegoTab({ leadId }: { leadId: string }) {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" />
+        <OrbitaSpinner className="size-4" />
         Carregando…
       </div>
     );
@@ -59,12 +59,12 @@ export function LeadTrafegoTab({ leadId }: { leadId: string }) {
               return (
                 <div
                   key={pending.id}
-                  className="rounded-lg border border-amber-400/40 bg-amber-500/[0.07] p-3.5"
+                  className="rounded-[18px] border border-warning/30 bg-warning/15 p-3.5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="flex items-center gap-2 text-sm font-semibold">
-                        <QrCode className="size-4 shrink-0 text-amber-500" />
+                        <QrCode className="size-4 shrink-0 text-warning" />
                         {formatBrlFromCents(pending.amountBrlCents)}
                         <span className="font-mono text-xs font-normal text-muted-foreground">
                           {pending.pixReference ?? "sem referência"}
@@ -79,7 +79,7 @@ export function LeadTrafegoTab({ leadId }: { leadId: string }) {
                           minute: "2-digit",
                         })}
                         {isExpired && (
-                          <span className="ml-1.5 text-amber-600">
+                          <span className="ml-1.5 text-warning">
                             · vencida, mas ainda confirmável
                           </span>
                         )}
@@ -107,7 +107,7 @@ export function LeadTrafegoTab({ leadId }: { leadId: string }) {
           <h3 className="text-sm font-semibold">Pedidos</h3>
           <div className="mt-2 space-y-2">
             {data.orders.map((order) => (
-              <div key={order.id} className="rounded-lg border p-3.5">
+              <div key={order.id} className="rounded-[18px] border p-3.5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="flex items-center gap-2 text-sm font-semibold">
@@ -124,8 +124,8 @@ export function LeadTrafegoTab({ leadId }: { leadId: string }) {
                     </p>
 
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                      <Badge
-                        ok={Boolean(order.phoneVerifiedAt)}
+                      <CheckBadge
+                        isOk={Boolean(order.phoneVerifiedAt)}
                         label={
                           order.phoneVerifiedAt
                             ? "WhatsApp verificado"
@@ -133,10 +133,10 @@ export function LeadTrafegoTab({ leadId }: { leadId: string }) {
                         }
                       />
                       {order.socialHandle && (
-                        <Badge ok label={`Conta: ${order.socialHandle}`} />
+                        <CheckBadge isOk label={`Conta: ${order.socialHandle}`} />
                       )}
                       {order.officialNumber && (
-                        <Badge ok label={`API: ${order.officialNumber}`} />
+                        <CheckBadge isOk label={`Número oficial: ${order.officialNumber}`} />
                       )}
                     </div>
                   </div>
@@ -172,16 +172,16 @@ export function LeadTrafegoTab({ leadId }: { leadId: string }) {
   );
 }
 
-function Badge({ ok, label }: { ok: boolean; label: string }) {
+function CheckBadge({ isOk, label }: { isOk: boolean; label: string }) {
   return (
     <span
       className={
-        ok
-          ? "inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-600"
+        isOk
+          ? "inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-success"
           : "inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground"
       }
     >
-      {ok ? <CheckCircle2 className="size-3" /> : <BadgeCheck className="size-3" />}
+      {isOk ? <CheckCircle2 className="size-3" /> : <BadgeCheck className="size-3" />}
       {label}
     </span>
   );

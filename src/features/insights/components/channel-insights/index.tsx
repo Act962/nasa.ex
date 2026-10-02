@@ -68,8 +68,8 @@ interface ChannelDef {
 const CHANNELS: ChannelDef[] = [
   {
     id: "meta", label: "Meta Ads", icon: MetaIcon,
-    color: "text-[#0082FB]", bg: "bg-[#0082FB]/10",
-    activeBg: "bg-[#0082FB]", activeBorder: "border-[#0082FB]",
+    color: "text-brand-facebook", bg: "bg-brand-facebook/10",
+    activeBg: "bg-brand-facebook", activeBorder: "border-brand-facebook",
     available: true, integrationKey: "META",
     slug: "facebook-messenger", iconUrl: "https://logo.clearbit.com/meta.com",
   },
@@ -219,7 +219,7 @@ export function ChannelInsights() {
                 <span className={cn(isActive ? "text-white" : "")}>{ch.label}</span>
                 {/* Connected indicator */}
                 {isConnected && !isActive && (
-                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-background" />
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-success border-2 border-background" />
                 )}
                 {!ch.available && (
                   <Badge variant="outline" className={cn(

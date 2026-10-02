@@ -27,13 +27,13 @@ export function FileTypeIcon({
   className?: string;
 }) {
   const iconClassName = cn("shrink-0", className);
-  if (type === "IMAGE") return <ImageIcon className={cn(iconClassName, "text-pink-500")} />;
-  if (type === "LINK") return <Link2Icon className={cn(iconClassName, "text-blue-500")} />;
-  if (type === "CONTRACT") return <FilePenIcon className={cn(iconClassName, "text-emerald-600")} />;
-  if (type === "PROPOSAL") return <FileContractIcon className={cn(iconClassName, "text-purple-600")} />;
-  if (mimeType?.includes("pdf")) return <FileTextIcon className={cn(iconClassName, "text-red-500")} />;
+  if (type === "IMAGE") return <ImageIcon className={cn(iconClassName, "text-temp-hot")} />;
+  if (type === "LINK") return <Link2Icon className={cn(iconClassName, "text-info")} />;
+  if (type === "CONTRACT") return <FilePenIcon className={cn(iconClassName, "text-success")} />;
+  if (type === "PROPOSAL") return <FileContractIcon className={cn(iconClassName, "text-chart-4")} />;
+  if (mimeType?.includes("pdf")) return <FileTextIcon className={cn(iconClassName, "text-destructive")} />;
   if (mimeType?.includes("spreadsheet") || mimeType?.includes("excel") || mimeType?.includes("csv")) {
-    return <FileSpreadsheetIcon className={cn(iconClassName, "text-green-600")} />;
+    return <FileSpreadsheetIcon className={cn(iconClassName, "text-success")} />;
   }
-  return <FileIcon className={cn(iconClassName, "text-slate-400")} />;
+  return <FileIcon className={cn(iconClassName, "text-muted-foreground")} />;
 }

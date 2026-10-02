@@ -30,9 +30,9 @@ export function buildHighlightedHTML(text: string): string {
   // Highlight /variables (purple) and #apps (blue)
   return escaped.replace(/(\/[\w_ÀÀ-ÿ.]+|#[\w-]+)/g, (match) => {
     if (match.startsWith("/")) {
-      return `<mark class="bg-transparent text-purple-400 font-medium">${match}</mark>`;
+      return `<mark class="bg-transparent text-info font-medium">${match}</mark>`;
     }
-    return `<mark class="bg-transparent text-blue-400 font-medium">${match}</mark>`;
+    return `<mark class="bg-transparent text-info font-medium">${match}</mark>`;
   });
 }
 

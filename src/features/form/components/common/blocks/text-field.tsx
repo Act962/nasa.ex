@@ -67,7 +67,7 @@ export const TextFieldBlock: ObjectBlockType = {
   }),
   blockBtnElement: {
     icon: TextCursorInput,
-    label: "Campo de texto",
+    label: "Texto curto",
   },
   canvasComponent: TextFieldCanvasComponent,
   formComponent: TextFieldFormComponent,
@@ -98,7 +98,7 @@ function TextFieldCanvasComponent({
         <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug"
         style={{ color: textColor || undefined }}>
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       <textarea
@@ -185,10 +185,10 @@ function TextFieldFormComponent({
     <div className="flex flex-col gap-2 w-full">
       {label?.trim() && (
         <Label className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${
-          isError || isSubmitError ? "text-red-500" : ""
+          isError || isSubmitError ? "text-destructive" : ""
         }`}>
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       <AutoGrowTextarea
@@ -203,7 +203,7 @@ function TextFieldFormComponent({
           if (handleBlur) handleBlur(block.id, { value: v });
         }}
         placeholder={placeHolder}
-        className={`min-h-10 ${isError || isSubmitError ? "border-red-500!" : ""}`}
+        className={`min-h-10 ${isError || isSubmitError ? "border-destructive!" : ""}`}
       />
       {helperText && (
         <p
@@ -217,14 +217,14 @@ function TextFieldFormComponent({
       )}
 
       {isError || isSubmitError ? (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
           {required && value.trim().length === 0
             ? `This field is required.`
             : ""}
         </p>
       ) : (
         errorMessage && (
-          <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage}</p>
+          <p className="text-destructive text-[0.8rem] break-words whitespace-normal">{errorMessage}</p>
         )
       )}
     </div>

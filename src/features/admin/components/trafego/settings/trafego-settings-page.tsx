@@ -9,12 +9,12 @@ import {
   CreditCard,
   KanbanSquare,
   Landmark,
-  Loader2,
   Save,
   Tag,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -192,7 +192,7 @@ export function TrafegoSettingsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" />
+        <OrbitaSpinner className="size-4 " />
         Carregando ajustes…
       </div>
     );
@@ -300,7 +300,7 @@ export function TrafegoSettingsPage() {
               disabled={updateSettings.isPending}
             >
               {updateSettings.isPending ? (
-                <Loader2 className="mr-1.5 size-4 animate-spin" />
+                <OrbitaSpinner className="mr-1.5 size-4 " />
               ) : (
                 <Save className="mr-1.5 size-4" />
               )}
@@ -341,8 +341,8 @@ function StatusDot({
       }
       className={cn(
         "size-1.5 shrink-0 rounded-full",
-        status === "ok" && "bg-emerald-500",
-        status === "warn" && "bg-amber-500",
+        status === "ok" && "bg-success",
+        status === "warn" && "bg-warning",
         status === "off" && "bg-muted-foreground/40",
       )}
     />

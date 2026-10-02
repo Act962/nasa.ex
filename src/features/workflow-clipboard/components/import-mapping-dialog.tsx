@@ -22,7 +22,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQueryTrackings } from "@/features/trackings/hooks/use-trackings";
-import { AlertTriangle, CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Sparkles } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -257,11 +258,11 @@ export function WorkflowImportMappingDialog({
           </div>
         ) : previewMut.isPending ? (
           <div className="py-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
             Calculando sugestões de mapeamento…
           </div>
         ) : refsRows.length === 0 ? (
-          <div className="py-6 text-center text-sm text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-2">
+          <div className="py-6 text-center text-sm text-success flex items-center justify-center gap-2">
             <CheckCircle2 className="size-4" />
             Sem refs externas — pode importar direto.
           </div>
@@ -272,11 +273,11 @@ export function WorkflowImportMappingDialog({
               <Badge variant="secondary">
                 {summary.reuse} reutilizar
               </Badge>
-              <Badge className="bg-violet-500/15 text-violet-700 border-violet-500/40 dark:text-violet-300">
+              <Badge className="bg-info/15 text-info border-info/40">
                 {summary.create} criar
               </Badge>
               {summary.skip > 0 && (
-                <Badge className="bg-amber-500/15 text-amber-700 border-amber-500/40 dark:text-amber-300">
+                <Badge className="bg-warning/15 text-warning border-warning/40">
                   {summary.skip} pular
                 </Badge>
               )}
@@ -308,7 +309,7 @@ export function WorkflowImportMappingDialog({
                           </p>
                         </div>
                         {row.autoMatch && row.autoMatch.score >= 0.7 && (
-                          <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-500/40 dark:text-emerald-300 gap-1">
+                          <Badge className="bg-success/15 text-success border-success/40 gap-1">
                             <Sparkles className="size-3" /> auto
                           </Badge>
                         )}
@@ -392,8 +393,8 @@ export function WorkflowImportMappingDialog({
         )}
 
         {summary.skip > 0 && (
-          <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs">
-            <AlertTriangle className="size-3.5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-2.5 text-xs">
+            <AlertTriangle className="size-3.5 text-warning shrink-0 mt-0.5" />
             <p>
               {summary.skip} referência(s) marcadas como "pular". Os nodes
               correspondentes vão ficar com placeholders não resolvidos — o
@@ -419,7 +420,7 @@ export function WorkflowImportMappingDialog({
             }
           >
             {importMut.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
+              <OrbitaSpinner className="size-4 " />
             ) : isAppendMode ? (
               `Colar ${blueprint.nodes.length} nó(s)`
             ) : (

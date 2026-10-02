@@ -38,6 +38,7 @@ import {
 } from "../../types";
 import { fetchTiledMeta } from "../../utils/tiled-loader";
 import { toast } from "sonner";
+import { AppReportButton } from "@/features/insights/components/app-report-button";
 
 interface Props {
   stationId: string;
@@ -525,6 +526,7 @@ export function WorldSettingsPanel({
             <h2 className="text-white font-semibold text-sm">
               Configurar Mundo
             </h2>
+            <AppReportButton appModule="space-station" variant="secondary" className="ml-2 h-7" />
           </div>
           <button
             onClick={requestClose}

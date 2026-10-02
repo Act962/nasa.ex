@@ -8,7 +8,8 @@ import { z } from "zod";
 import { authClient } from "@/lib/auth-client";
 import { client as orpcClient } from "@/lib/orpc";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2, Lock, Mail, Rocket, User } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, Rocket, User } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 const schema = z
   .object({
@@ -134,37 +135,37 @@ export function RedeemForm({
     <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
       {/* E-mail trancado */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-white/70">E-mail</label>
+        <label className="text-xs font-medium text-foreground/80">E-mail</label>
         <div className="relative">
-          <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/30" />
+          <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={email}
             readOnly
             disabled
-            className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-9 py-2.5 text-sm text-white/80"
+            className="w-full rounded-full border border-line bg-muted px-9 py-2.5 text-sm text-muted-foreground"
           />
         </div>
-        <p className="text-[11px] text-white/40">
+        <p className="text-[11px] text-muted-foreground">
           Vinculado ao pagamento. Não é editável.
         </p>
       </div>
 
       {/* Nome */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-white/70">
+        <label className="text-xs font-medium text-foreground/80">
           Nome completo
         </label>
         <div className="relative">
-          <User className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/30" />
+          <User className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             {...register("name")}
             disabled={isLoading || sameAccountAlreadyLogged}
             placeholder="João Silva"
-            className="w-full rounded-lg border border-white/10 bg-white/[0.06] px-9 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-500/60"
+            className="w-full rounded-full border border-line bg-card px-9 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-ring"
           />
         </div>
         {errors.name && (
-          <p className="text-[11px] text-rose-400">{errors.name.message}</p>
+          <p className="text-[11px] text-destructive">{errors.name.message}</p>
         )}
       </div>
 
@@ -172,20 +173,20 @@ export function RedeemForm({
       {!sameAccountAlreadyLogged && (
         <>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-white/70">Senha</label>
+            <label className="text-xs font-medium text-foreground/80">Senha</label>
             <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/30" />
+              <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 {...register("password")}
                 type={showPass ? "text" : "password"}
                 disabled={isLoading}
                 placeholder="Mínimo 8 caracteres"
-                className="w-full rounded-lg border border-white/10 bg-white/[0.06] px-9 py-2.5 pr-10 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-500/60"
+                className="w-full rounded-full border border-line bg-card px-9 py-2.5 pr-10 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-ring"
               />
               <button
                 type="button"
                 onClick={() => setShowPass((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-white/40 hover:text-white"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
               >
                 {showPass ? (
                   <EyeOff className="size-4" />
@@ -195,29 +196,29 @@ export function RedeemForm({
               </button>
             </div>
             {errors.password && (
-              <p className="text-[11px] text-rose-400">
+              <p className="text-[11px] text-destructive">
                 {errors.password.message}
               </p>
             )}
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-white/70">
+            <label className="text-xs font-medium text-foreground/80">
               Confirmar senha
             </label>
             <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/30" />
+              <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 {...register("confirmPassword")}
                 type={showConfirm ? "text" : "password"}
                 disabled={isLoading}
                 placeholder="Repita a senha"
-                className="w-full rounded-lg border border-white/10 bg-white/[0.06] px-9 py-2.5 pr-10 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-500/60"
+                className="w-full rounded-full border border-line bg-card px-9 py-2.5 pr-10 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-ring"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirm((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-white/40 hover:text-white"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
               >
                 {showConfirm ? (
                   <EyeOff className="size-4" />
@@ -227,7 +228,7 @@ export function RedeemForm({
               </button>
             </div>
             {errors.confirmPassword && (
-              <p className="text-[11px] text-rose-400">
+              <p className="text-[11px] text-destructive">
                 {errors.confirmPassword.message}
               </p>
             )}
@@ -238,11 +239,11 @@ export function RedeemForm({
       <button
         type="submit"
         disabled={isLoading}
-        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-violet-600/30 hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-lg hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isLoading ? (
           <>
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
             {statusText ?? "Processando…"}
           </>
         ) : (
@@ -256,9 +257,9 @@ export function RedeemForm({
       </button>
 
       {/* Link explícito pra companhia (debug) */}
-      <p className="text-center text-[11px] text-white/40">
+      <p className="text-center text-[11px] text-muted-foreground">
         Você caiu direto no player de{" "}
-        <strong className="text-white/60">/{companySlug}/{courseSlug}</strong>{" "}
+        <strong className="text-muted-foreground">/{companySlug}/{courseSlug}</strong>{" "}
         após o cadastro.
       </p>
     </form>

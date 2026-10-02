@@ -4,6 +4,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import prisma from "@/lib/prisma";
 import { IntegrationPlatform } from "@/generated/prisma/enums";
+import { readIntegrationApiKey } from "@/features/integrations/lib/integration-api-key";
 
 // ─── Date/Time Helpers ────────────────────────────────────────────────────────
 
@@ -191,7 +192,7 @@ export async function generateWithAI(
   // Anthropic first
   const anthropicInt = integrationMap.get(IntegrationPlatform.ANTHROPIC);
   if (anthropicInt) {
-    const apiKey = (anthropicInt.config as Record<string, string>)?.apiKey;
+    const apiKey = readIntegrationApiKey(anthropicInt.config as Record<string, unknown> | null);
     if (apiKey) {
       try {
         const anthropic = createAnthropic({ apiKey });
@@ -208,7 +209,7 @@ export async function generateWithAI(
   // OpenAI
   const openaiInt = integrationMap.get(IntegrationPlatform.OPENAI);
   if (openaiInt) {
-    const apiKey = (openaiInt.config as Record<string, string>)?.apiKey;
+    const apiKey = readIntegrationApiKey(openaiInt.config as Record<string, unknown> | null);
     if (apiKey) {
       try {
         const openai = createOpenAI({ apiKey });
@@ -225,7 +226,7 @@ export async function generateWithAI(
   // Gemini
   const geminiInt = integrationMap.get(IntegrationPlatform.GEMINI);
   if (geminiInt) {
-    const apiKey = (geminiInt.config as Record<string, string>)?.apiKey;
+    const apiKey = readIntegrationApiKey(geminiInt.config as Record<string, unknown> | null);
     if (apiKey) {
       try {
         const google = createGoogleGenerativeAI({ apiKey });

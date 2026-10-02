@@ -121,7 +121,7 @@ export function CourseShareMenu({
 
         <DropdownMenuItem onClick={handleCopy}>
           {copied ? (
-            <Check className="size-4 text-emerald-500" />
+            <Check className="size-4 text-success" />
           ) : (
             <Copy className="size-4" />
           )}

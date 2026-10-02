@@ -80,7 +80,7 @@ export function CreditsTable({ monthOptions }: { monthOptions: string[] }) {
           <p className="text-sm text-muted-foreground">Não foi possível carregar os créditos agora.</p>
         ) : credits.length === 0 ? (
           <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
-            <FileStack className="size-5 text-violet-500" />
+            <FileStack className="size-5 text-info" />
             <p>
               Nenhum crédito por aqui ainda. Anexe o XML (ou o PDF lido pelo ASTRO) das notas de compra nos lançamentos
               de Despesa — o crédito de CBS/IBS aparece sozinho.
@@ -126,7 +126,7 @@ export function CreditsTable({ monthOptions }: { monthOptions: string[] }) {
                     </td>
                     <td className="py-2 pl-3 text-xs">
                       {credit.entryId ? (
-                        <a href={PAYABLES_TAB_HREF} className="text-[#1E90FF] hover:underline">
+                        <a href={PAYABLES_TAB_HREF} className="text-info hover:underline">
                           {credit.entryDescription ?? "Ver despesa"}
                         </a>
                       ) : (

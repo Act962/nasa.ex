@@ -323,14 +323,14 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
       )}
 
       <label
-        className="flex items-start gap-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 cursor-pointer hover:bg-amber-500/10 transition-colors"
+        className="flex items-start gap-3 rounded-md border border-warning/30 bg-warning/5 p-3 cursor-pointer hover:bg-warning/10 transition-colors"
         title="Marca esse lançamento como exigindo aprovação manual antes de virar PENDENTE no fluxo de pagamento"
       >
         <input
           type="checkbox"
           checked={requiresApproval}
           onChange={(e) => setRequiresApproval(e.target.checked)}
-          className="mt-0.5 size-4 accent-amber-500"
+          className="mt-0.5 size-4 accent-warning"
         />
         <div className="space-y-0.5">
           <p className="text-xs font-medium">Exigir aprovação manual</p>
@@ -347,7 +347,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
         <Button
           type="submit"
           disabled={isLoading}
-          className="flex-1 bg-[#1E90FF] hover:bg-[#1E90FF]/90 text-white"
+          className="flex-1 bg-info hover:bg-info/90 text-white"
           data-guide={GUIDE_ANCHORS.paymentEntrySave.id}
         >
           {isLoading ? "Salvando..." : "Salvar"}

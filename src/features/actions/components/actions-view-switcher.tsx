@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CalendarDaysIcon,
   Columns3Icon,
+  FolderKanbanIcon,
   ListIcon,
   Maximize2Icon,
   Minimize2Icon,
@@ -20,10 +21,11 @@ import { DataTable } from "./data-table";
 import { FiltersBar } from "./filters-bar";
 import { FiltersSheet } from "./filters-sheet";
 import { cn } from "@/lib/utils";
-import { CreateActionWithAi } from "./ai-button";
+import Link from "next/link";
 import { useTour } from "@/features/tour/context";
 import { WorkspaceCalendarModal } from "@/features/workspace/components/workspace-calendar-modal";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
 
 interface Props {
   workspaceId: string;
@@ -44,8 +46,9 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
   const [skipNextOpenChange, setSkipNextOpenChange] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  // Kanban é a visão padrão do projeto; a lista fica a um toque.
   const [view, setView] = useQueryState("action-view", {
-    defaultValue: "list",
+    defaultValue: "kanban",
   });
   const [createParam, setCreateParam] = useQueryState("create");
   const [seedTitle, setSeedTitle] = useQueryState("seedTitle");
@@ -56,6 +59,18 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
   // Modal abre se o usuário clicou no botão OU se chegou com ?create=event-public
   const open = localOpen || presetPublic;
   const setOpen = setLocalOpen;
+
+  // No celular as visões saem das abas e vão para o dock em órbita.
+  useRegisterOrbitDock({
+    leftItems: [
+      { label: "Lista", icon: <ListIcon />, onSelect: () => setView("list"), isActive: view === "list" },
+      { label: "Kanban", icon: <Columns3Icon />, onSelect: () => setView("kanban"), isActive: (view || "kanban") === "kanban" },
+    ],
+    rightItems: [
+      { label: "Calendário", icon: <CalendarDaysIcon />, onSelect: () => setCalendarOpen(true), isActive: calendarOpen },
+      { label: "Nova ação", icon: <PlusIcon />, onSelect: () => setLocalOpen(true) },
+    ],
+  });
 
   // Fluxo do calendário público: o `OnboardingWizard` dispara `startTour`
   // 600ms depois de finalizar — esse tour cobre a tela e esconde a modal de
@@ -118,7 +133,7 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
           "flex-1 w-full h-full",
           isMaximized && "fixed inset-0 z-[60] bg-background",
         )}
-        value={view || "list"}
+        value={view || "kanban"}
         onValueChange={(next) => {
           // "calendar" não é uma view real — é um shortcut pra abrir o
           // `WorkspaceCalendarModal`. Não atualizamos `view` (o tab fica
@@ -132,8 +147,8 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
       >
         <div className="h-full flex flex-col">
           {/* Top bar: views + new button */}
-          <div className="sticky top-0 z-50 bg-background flex flex-col gap-y-2 lg:flex-row justify-between items-center py-2 px-4 border-b">
-            <TabsList className="w-full lg:w-auto">
+          <div className="sticky top-0 z-50 bg-background flex flex-col gap-y-2 lg:flex-row justify-between items-center py-2 px-4">
+            <TabsList className="hidden w-full lg:inline-flex lg:w-auto">
               <TabsTrigger value="list" className="h-8 w-full lg:w-auto">
                 <ListIcon className="size-4" />
                 Lista
@@ -150,7 +165,7 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
           </div>
 
           {/* Filters bar */}
-          <div className="px-4 py-2 border-b bg-background/80 flex items-center justify-between gap-2 flex-wrap">
+          <div className="px-4 py-2 bg-background/80 flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               <div className="hidden sm:flex">
                 <FiltersBar workspaceId={workspaceId} />
@@ -175,7 +190,12 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
                   <Maximize2Icon className="size-4" />
                 )}
               </Button>
-              <CreateActionWithAi workspaceId={workspaceId} />
+              <Button asChild variant="outline" size="sm" className="flex-1 lg:w-auto">
+                <Link href="/workspaces">
+                  <FolderKanbanIcon className="size-4 text-info" />
+                  Projetos
+                </Link>
+              </Button>
               <Button
                 size="sm"
                 className="flex-1 lg:w-auto"
@@ -195,11 +215,11 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
           </div> */}
 
           <div className="flex-1 overflow-auto">
-            <div className={cn("h-full", view !== "list" && "hidden")}>
+            <div className={cn("h-full", (view || "kanban") !== "list" && "hidden")}>
               <DataTable workspaceId={workspaceId} />
             </div>
 
-            <div className={cn("h-full", view !== "kanban" && "hidden")}>
+            <div className={cn("h-full", (view || "kanban") !== "kanban" && "hidden")}>
               <DataKanban workspaceId={workspaceId} />
             </div>
           </div>

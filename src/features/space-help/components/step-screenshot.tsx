@@ -36,7 +36,7 @@ export function StepScreenshot({
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt={alt} className="block w-full h-auto" />
       ) : (
-        <div className="flex aspect-video items-center justify-center bg-gradient-to-br from-violet-500/10 to-violet-700/20 text-muted-foreground">
+        <div className="flex aspect-video items-center justify-center bg-gradient-to-br from-info/10 to-info/20 text-muted-foreground">
           <div className="text-center px-6">
             <div className="text-5xl mb-2">🖼️</div>
             <p className="text-sm font-medium">Print da funcionalidade</p>
@@ -138,7 +138,7 @@ export function StepScreenshot({
                 key={i}
                 className={cn(
                   "absolute px-2 py-0.5 rounded-md text-white text-[11px] font-medium shadow-md whitespace-nowrap",
-                  isRocket ? "bg-red-600" : "bg-violet-600",
+                  isRocket ? "bg-destructive" : "bg-info",
                 )}
                 style={{
                   left: `${a.x * 100}%`,

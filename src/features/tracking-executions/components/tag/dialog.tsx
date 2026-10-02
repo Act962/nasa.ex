@@ -94,8 +94,8 @@ function PlaceholderWarning({
 
   const onlyPlaceholders = orphanIds.every((id) => isPlaceholderTagId(id));
   return (
-    <div className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs space-y-1.5">
-      <div className="flex items-center gap-1.5 font-medium text-amber-700 dark:text-amber-300">
+    <div className="mt-2 rounded-md border border-warning/40 bg-warning/10 p-2.5 text-xs space-y-1.5">
+      <div className="flex items-center gap-1.5 font-medium text-warning">
         <AlertTriangle className="size-3.5" />
         {onlyPlaceholders
           ? `${orphanIds.length} placeholder(s) não resolvido(s)`
@@ -216,10 +216,10 @@ export const TagDialog = ({
                                     className={cn(
                                       "font-normal gap-1 pr-1",
                                       isPlaceholder &&
-                                        "bg-amber-500/15 text-amber-700 border border-amber-500/40 dark:text-amber-300",
+                                        "bg-warning/15 text-warning border border-warning/40",
                                       isOrphan &&
                                         !isPlaceholder &&
-                                        "bg-red-500/15 text-red-700 border border-red-500/40 dark:text-red-300",
+                                        "bg-destructive/15 text-destructive border border-destructive/40",
                                     )}
                                     style={
                                       tag && !isOrphan
@@ -341,7 +341,7 @@ export const TagDialog = ({
                                           {tag.name}
                                         </span>
                                         {isArchived && (
-                                          <span className="ml-auto text-[10px] text-amber-600 font-medium">
+                                          <span className="ml-auto text-[10px] text-warning font-medium">
                                             arquivada
                                           </span>
                                         )}

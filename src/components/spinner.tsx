@@ -1,8 +1,7 @@
-import { Loader2 } from "lucide-react";
-
 import { cva, type VariantProps } from "class-variance-authority";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
-const spinnerVariants = cva(`text-muted-foreground animate-spin`, {
+const spinnerVariants = cva("", {
   variants: {
     size: {
       default: "size-4",
@@ -16,8 +15,8 @@ const spinnerVariants = cva(`text-muted-foreground animate-spin`, {
   },
 });
 
-interface SpinnerProps extends VariantProps<typeof spinnerVariants> {}
+type SpinnerProps = VariantProps<typeof spinnerVariants>;
 
 export function Spinner({ size }: SpinnerProps = {}) {
-  return <Loader2 className={spinnerVariants({ size })}></Loader2>;
+  return <OrbitaSpinner className={spinnerVariants({ size })} />;
 }

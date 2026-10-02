@@ -41,8 +41,8 @@ export function DraggableElementButton({
       onClick={onClick}
       title={`Clique pra adicionar · arraste pra escolher posição em Camadas`}
       className={cn(
-        "flex items-center gap-3 px-2 py-2 rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left",
-        isDragging && "opacity-50 ring-2 ring-indigo-300",
+        "flex min-h-9 items-center gap-3 rounded-full px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left",
+        isDragging && "opacity-50 ring-2 ring-info/40",
       )}
     >
       <Icon className="size-4 shrink-0 text-muted-foreground" />

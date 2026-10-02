@@ -13,16 +13,20 @@ import { defaultBackgroundColor } from "@/features/form/constants";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { FormBlocks } from "@/features/form/lib/form-blocks";
 
-export function PreviewDialog() {
-  const { blockLayouts } = useBuilderStore();
+/** Prévia do formulário. Sem `open`, abre pelo próprio botão; com `open`, quem chama controla (ex.: dock do celular). */
+export function PreviewDialog({ open, onOpenChange }: { open?: boolean; onOpenChange?: (open: boolean) => void } = {}) {
+  const { blockLayouts, formData } = useBuilderStore();
+  const isControlled = open !== undefined;
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Eye />
-          Preview
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">
+            <Eye />
+            Prévia
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent
         className="flex flex-col grow
        max-h-svh h-full p-0 gap-0 w-screen
@@ -32,7 +36,7 @@ export function PreviewDialog() {
           className="pt-4 px-4 
         pb-4 shadow-sm bg-background"
         >
-          <DialogTitle>Preview Mode</DialogTitle>
+          <DialogTitle>Prévia</DialogTitle>
         </DialogHeader>
         <div
           className="
@@ -40,7 +44,7 @@ export function PreviewDialog() {
                 scrollbar transition-all duration-300
               "
           style={{
-            backgroundColor: defaultBackgroundColor,
+            backgroundColor: formData?.settings?.backgroundColor || defaultBackgroundColor,
           }}
         >
           <div
@@ -49,17 +53,11 @@ export function PreviewDialog() {
           >
             <div
               className="w-full relative
-                    bg-transparent px-2flex flex-col
-                    items-center justify-start pt-1
+                    bg-transparent px-3 pt-4 flex flex-col
+                    items-center justify-start
                     pb-14
                     "
             >
-              <div
-                className="w-full mb-3
-             bg-accent/10 bg-[url(/images/form-bg.jpg)] bg-center bg-cover border shadow-sm h-[135px] max-w-[768px]
-          rounded-md px-1"
-              />
-
               {blockLayouts.length > 0 && (
                 <div className="flex flex-col w-full gap-4">
                   {blockLayouts.map((block) => {

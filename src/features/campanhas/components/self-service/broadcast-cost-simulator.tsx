@@ -82,13 +82,13 @@ export function BroadcastCostSimulator({ currentLimitTier }: { currentLimitTier?
             key={category}
             className={cn(
               "rounded-lg border p-3 transition-all",
-              category === "UTILITY" && "border-emerald-500/50 bg-emerald-500/5 shadow-sm",
+              category === "UTILITY" && "border-success/50 bg-success/5 shadow-sm",
             )}
           >
             <div className="mb-2 flex items-center justify-between">
               <p className="text-sm font-medium">{TEMPLATE_CATEGORY_LABELS[category]}</p>
               {category === "UTILITY" && (
-                <span className="flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-medium text-white">
+                <span className="flex items-center gap-1 rounded-full bg-success px-2 py-0.5 text-[10px] font-medium text-white">
                   <Sparkles className="size-3" /> Recomendado
                 </span>
               )}
@@ -114,7 +114,7 @@ export function BroadcastCostSimulator({ currentLimitTier }: { currentLimitTier?
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
         {savings > 0 && (
-          <p className="text-emerald-700 dark:text-emerald-400">
+          <p className="text-success dark:text-success">
             Usando Utilidade você economiza <strong>{formatBrlCents(savings)}</strong> nesta campanha.
           </p>
         )}

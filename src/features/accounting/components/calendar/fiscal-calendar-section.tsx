@@ -76,10 +76,10 @@ export function FiscalCalendarSection({ onNavigate }: { onNavigate?: (section: s
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="flex items-start gap-2 text-sm text-muted-foreground">
-          <MessageCircle className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+          <MessageCircle className="mt-0.5 size-4 shrink-0 text-success" />
           <span>
             Os avisos chegam por WhatsApp 5, 2 e 0 dias antes (configure os telefones no{" "}
-            <button type="button" className="text-violet-600 hover:underline dark:text-violet-300" onClick={() => onNavigate?.("profile")}>
+            <button type="button" className="text-info hover:underline dark:text-info" onClick={() => onNavigate?.("profile")}>
               Perfil fiscal
             </button>
             ).
@@ -95,7 +95,7 @@ export function FiscalCalendarSection({ onNavigate }: { onNavigate?: (section: s
               onClick={() => setFilter(option.id)}
               className={cn(
                 "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                filter === option.id ? "bg-violet-500/10 text-violet-700 dark:text-violet-200" : "text-muted-foreground hover:text-foreground",
+                filter === option.id ? "bg-info/10 text-info dark:text-info" : "text-muted-foreground hover:text-foreground",
               )}
             >
               {option.label}
@@ -166,8 +166,8 @@ export function FiscalCalendarSection({ onNavigate }: { onNavigate?: (section: s
                           {isOpen && (
                             <span
                               className={cn(
-                                daysUntil < 0 && "text-red-600 dark:text-red-400",
-                                daysUntil >= 0 && daysUntil <= 5 && "text-amber-600 dark:text-amber-400",
+                                daysUntil < 0 && "text-destructive dark:text-destructive",
+                                daysUntil >= 0 && daysUntil <= 5 && "text-warning dark:text-warning",
                               )}
                             >
                               · {describeDaysUntil(daysUntil)}
@@ -181,7 +181,7 @@ export function FiscalCalendarSection({ onNavigate }: { onNavigate?: (section: s
                               href={obligation.officialUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-[#1E90FF] hover:underline"
+                              className="inline-flex items-center gap-1 text-xs text-info hover:underline"
                             >
                               <ExternalLink className="size-3" />
                               Site oficial

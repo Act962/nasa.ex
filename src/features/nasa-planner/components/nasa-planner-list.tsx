@@ -132,9 +132,9 @@ export function NasaPlannerListPage() {
   return (
     <div className="flex flex-col h-full overflow-auto">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-5 border-b">
+      <div className="flex items-center justify-between px-6 py-5">
         <div className="flex items-center gap-3">
-          <div className="size-9 rounded-xl bg-gradient-to-br from-violet-600 to-pink-500 flex items-center justify-center">
+          <div className="size-9 rounded-xl bg-info flex items-center justify-center">
             <BrainCircuitIcon className="size-5 text-white" />
           </div>
           <div>
@@ -186,12 +186,12 @@ export function NasaPlannerListPage() {
             {planners.map((planner: any) => (
               <Card
                 key={planner.id}
-                className="group cursor-pointer hover:shadow-md transition-all border hover:border-violet-300 dark:hover:border-violet-700"
+                className="group cursor-pointer hover:shadow-md transition-all border hover:border-info/40"
                 onClick={() => router.push(`/nasa-planner/${planner.id}`)}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
-                    <div className="size-10 rounded-xl bg-gradient-to-br from-violet-600 to-pink-500 flex items-center justify-center shrink-0">
+                    <div className="size-10 rounded-xl bg-info flex items-center justify-center shrink-0">
                       <BrainCircuitIcon className="size-5 text-white" />
                     </div>
                     <Button
@@ -258,7 +258,7 @@ export function NasaPlannerListPage() {
                     </span>
                   </div>
                   <div className="mt-3 flex justify-end">
-                    <span className="text-xs text-violet-600 flex items-center gap-0.5">
+                    <span className="text-xs text-info flex items-center gap-0.5">
                       Abrir <ChevronRightIcon className="size-3" />
                     </span>
                   </div>

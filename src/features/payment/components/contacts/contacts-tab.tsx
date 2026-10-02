@@ -35,8 +35,8 @@ import {
   Zap,
   CheckCircle2,
   XCircle,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -192,8 +192,8 @@ function ImportCombobox({
                       className={cn(
                         "mt-0.5 size-5 rounded flex items-center justify-center shrink-0 text-[10px] font-bold",
                         c.source === "forge"
-                          ? "bg-purple-500/20 text-purple-400"
-                          : "bg-blue-500/20 text-blue-400",
+                          ? "bg-info/20 text-info"
+                          : "bg-info/20 text-info",
                       )}
                     >
                       {c.source === "forge" ? "F" : "T"}
@@ -298,19 +298,19 @@ function DocumentInput({
         className={cn(
           "pr-8",
           status === "valid" &&
-            "border-green-500 focus-visible:ring-green-500/30",
+            "border-success focus-visible:ring-success/30",
           status === "invalid" &&
-            "border-red-500 focus-visible:ring-red-500/30",
+            "border-destructive focus-visible:ring-destructive/30",
         )}
       />
       <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
         {status === "loading" && (
-          <Loader2 className="size-4 text-muted-foreground animate-spin" />
+          <OrbitaSpinner className="size-4 text-muted-foreground " />
         )}
         {status === "valid" && (
-          <CheckCircle2 className="size-4 text-green-500" />
+          <CheckCircle2 className="size-4 text-success" />
         )}
-        {status === "invalid" && <XCircle className="size-4 text-red-500" />}
+        {status === "invalid" && <XCircle className="size-4 text-destructive" />}
       </div>
     </div>
   );
@@ -506,7 +506,7 @@ export function ContactsTab() {
               resetForm();
               setShowForm(true);
             }}
-            className="h-9 w-full gap-1.5 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90 sm:w-auto"
+            className="h-9 w-full gap-1.5 bg-info text-white hover:bg-info/90 sm:w-auto"
           >
             <Plus className="size-4" /> Novo Contato
           </Button>
@@ -516,7 +516,7 @@ export function ContactsTab() {
       {/* Importar de Leads/Forge */}
       <div className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2">
         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <Zap className="size-3.5 text-blue-400" />
+          <Zap className="size-3.5 text-info" />
           Importar de Tracking ou Forge
         </div>
         <ImportCombobox onSelect={openFormWithData} />
@@ -608,7 +608,7 @@ export function ContactsTab() {
                           onClick={() =>
                             setDeleteTarget({ id: c.id, name: c.name })
                           }
-                          className="gap-2 text-red-400"
+                          className="gap-2 text-destructive"
                         >
                           <Trash2 className="size-4" /> Remover
                         </DropdownMenuItem>
@@ -682,7 +682,7 @@ export function ContactsTab() {
                         className={cn(
                           "px-2 py-0.5 rounded-[5px] transition-colors",
                           docType === type
-                            ? "bg-[#1E90FF] text-white"
+                            ? "bg-info text-white"
                             : "text-muted-foreground hover:text-foreground",
                         )}
                       >
@@ -744,7 +744,7 @@ export function ContactsTab() {
               <Button
                 type="submit"
                 disabled={createContact.isPending || updateContact.isPending}
-                className="flex-1 bg-[#1E90FF] hover:bg-[#1E90FF]/90 text-white"
+                className="flex-1 bg-info hover:bg-info/90 text-white"
               >
                 {createContact.isPending || updateContact.isPending
                   ? "Salvando..."

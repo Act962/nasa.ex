@@ -9,7 +9,8 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Search, FileSignature, Loader2, ExternalLink } from "lucide-react";
+import { Search, FileSignature, ExternalLink } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { usePaymentContracts } from "../../hooks/use-payment-contracts";
 import {
@@ -40,19 +41,19 @@ const STATUS_STYLE: Record<
 > = {
   ATIVO: {
     label: "Ativo",
-    className: "text-emerald-500 border-emerald-500/30 bg-emerald-500/10",
+    className: "text-success border-success/30 bg-success/10",
   },
   PENDENTE_ASSINATURA: {
     label: "Pendente",
-    className: "text-amber-500 border-amber-500/30 bg-amber-500/10",
+    className: "text-warning border-warning/30 bg-warning/10",
   },
   ENCERRADO: {
     label: "Encerrado",
-    className: "text-blue-500 border-blue-500/30 bg-blue-500/10",
+    className: "text-info border-info/30 bg-info/10",
   },
   CANCELADO: {
     label: "Cancelado",
-    className: "text-red-500 border-red-500/30 bg-red-500/10",
+    className: "text-destructive border-destructive/30 bg-destructive/10",
   },
 };
 
@@ -87,7 +88,7 @@ export function ContractsTab() {
           <p className="text-xs text-muted-foreground">
             {total} {total === 1 ? "contrato ativo" : "contratos ativos"}
           </p>
-          <p className="text-2xl font-black text-emerald-500">
+          <p className="text-2xl font-black text-success">
             R$ {totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
           </p>
         </div>
@@ -131,7 +132,7 @@ export function ContractsTab() {
             {isLoading ? (
               <tr>
                 <td colSpan={6} className="py-12 text-center text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin inline mr-2" />
+                  <OrbitaSpinner className="size-4 inline mr-2" />
                   Carregando…
                 </td>
               </tr>
@@ -149,7 +150,7 @@ export function ContractsTab() {
                 >
                   <td className="px-4 py-3">
                     <p className="font-medium flex items-center gap-1.5">
-                      <FileSignature className="size-3.5 text-[#1E90FF]" />
+                      <FileSignature className="size-3.5 text-info" />
                       #{contract.number}
                       {contract.proposalTitle && (
                         <span className="text-xs text-muted-foreground">
@@ -170,7 +171,7 @@ export function ContractsTab() {
                     {new Date(contract.startDate).toLocaleDateString("pt-BR")} –{" "}
                     {new Date(contract.endDate).toLocaleDateString("pt-BR")}
                   </td>
-                  <td className="px-4 py-3 text-right font-semibold text-emerald-500 tabular-nums">
+                  <td className="px-4 py-3 text-right font-semibold text-success tabular-nums">
                     R${" "}
                     {Number.parseFloat(contract.value).toLocaleString("pt-BR", {
                       minimumFractionDigits: 2,

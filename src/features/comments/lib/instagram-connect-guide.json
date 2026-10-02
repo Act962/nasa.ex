@@ -48,7 +48,7 @@
       "isLinkHighlighted": true,
       "choice": {
         "yesLabel": "Já tenho",
-        "noLabel": "Não, vou criar",
+        "noLabel": "Prosseguir",
         "skipToSlug": "id-conta"
       }
     },

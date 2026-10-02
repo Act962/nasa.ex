@@ -57,6 +57,12 @@ export const CATALOG_DEFAULTS: Record<string, CatalogDefault> = {
     maxCharge: 100,
     displayName: "ASTRO no WhatsApp — transcrição de áudio",
   },
+  astro_voice_minute: {
+    unit: "minute",
+    minCharge: 1,
+    maxCharge: 50,
+    displayName: "ASTRO — conversa por voz (por minuto)",
+  },
   planner_transcription: {
     unit: "minute",
     minCharge: 1,
@@ -90,6 +96,8 @@ export const ACTIONS_WITHOUT_PRICE = [
   // ASTRO COMMANDER (spec 0028): a taxa por execução espera a decisão de
   // preço do plano. Até lá, só os tokens são cobrados.
   "astro_command_run",
+  // ASTRO por voz (spec 0054): preço por minuto espera a medição do custo real.
+  "astro_voice_minute",
   "check_payment_query",
   "form_publish",
   "linnker_page_create",

@@ -115,7 +115,11 @@ export type AppModule =
   | "space-points"
   | "stars"
   | "space-station"
-  | "nasa-route";
+  | "nasa-route"
+  | "campanhas"
+  | "trafego"
+  | "nerp"
+  | "star-friends";
 
 export const ALL_MODULES: AppModule[] = [
   "tracking",
@@ -133,4 +137,8 @@ export const ALL_MODULES: AppModule[] = [
   "stars",
   "space-station",
   "nasa-route",
+  "campanhas",
+  "trafego",
+  "nerp",
+  "star-friends",
 ];

@@ -7,8 +7,6 @@ import {
   FileIcon,
   FileSignatureIcon,
   FileTextIcon,
-  GlobeIcon,
-  LayoutListIcon,
   ImageIcon,
   MapPinIcon,
   MicIcon,
@@ -26,16 +24,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   useMutationAudioMessage,
   useMutationContactMessage,
   useMutationLocationMessage,
@@ -48,7 +36,9 @@ import { useMessageStore } from "../context/use-message";
 import { useEffect, useRef, useState } from "react";
 
 import { Spinner } from "@/components/ui/spinner";
-import { Uploader } from "@/components/file-uploader/uploader";
+import { ComposerAttachSheet, type ComposerAttachItem } from "./composer-attach-sheet";
+import { CameraCaptureButton } from "./camera-capture-button";
+import { QuickWorkflowDialog } from "@/features/workflows/components/quick-builder/quick-workflow-dialog";
 import { SendAudio } from "./send-audio";
 import { MarkedMessage } from "../types";
 import {
@@ -64,11 +54,8 @@ import { ScriptsPanel } from "./scripts-panel";
 import { AgendaPanel } from "./agenda-panel";
 import { FormsPanel } from "./forms-panel";
 import { NBoxPanel } from "./nbox-panel";
-import { ButtonsPanel } from "./buttons-panel";
-import { ReminderPanel } from "./reminder-panel";
 import { SendLocationDialog } from "./send-location-dialog";
 import { ContactsPanel } from "./contacts-panel";
-import { WebSearchDialog } from "./web-search-dialog";
 // "Forge" e "Orçamento" foram MESCLADOS num único painel "Propostas e
 // Orçamentos" — o painel velho `BudgetPanel` ainda existe como código
 // legado (poderá ser deletado em iteração futura), mas o footer usa só
@@ -114,7 +101,6 @@ export function Footer({
   const instance = useQueryInstances(trackingId);
   const route = useRouter();
   const { data: session } = authClient.useSession();
-  const { data: activeOrg } = authClient.useActiveOrganization();
 
   // ── Provider + janela de 24h (Fase 9) ──────────────────────────────
   // Templates HSM e o gating de janela só valem pra trackings META_CLOUD.
@@ -152,8 +138,7 @@ export function Footer({
   const [showAgenda, setShowAgenda] = useState(false);
   const [showForms, setShowForms] = useState(false);
   const [showNBox, setShowNBox] = useState(false);
-  const [showButtons, setShowButtons] = useState(false);
-  const [showReminder, setShowReminder] = useState(false);
+  const [isLeadTriggersOpen, setIsLeadTriggersOpen] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showStarFriends, setShowStarFriends] = useState(false);
   const starFriendsPermissions = useStarFriendsPermissions();
@@ -170,7 +155,6 @@ export function Footer({
     confidence: "high" | "medium" | "low";
   } | null>(null);
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
-  const [webSearchOpen, setWebSearchOpen] = useState(false);
   const extractBudget = useExtractBudget();
   const [pendingLocation, setPendingLocation] = useState<{
     latitude: number;
@@ -416,6 +400,53 @@ export function Footer({
     }
   };
 
+  type ComposerPanel = "nbox" | "forms" | "agenda" | "scripts" | "contact" | "budget";
+  const panelSetters: Record<ComposerPanel, (isOpen: boolean) => void> = {
+    nbox: setShowNBox,
+    forms: setShowForms,
+    agenda: setShowAgenda,
+    scripts: setShowScripts,
+    contact: setShowContact,
+    budget: setShowBudget,
+  };
+  // Um painel por vez acima da caixa de mensagem.
+  const showOnlyPanel = (panel: ComposerPanel) => {
+    for (const [panelName, setPanelOpen] of Object.entries(panelSetters)) {
+      setPanelOpen(panelName === panel);
+    }
+  };
+
+  const attachItems: ComposerAttachItem[] = [
+    {
+      key: "photos",
+      label: "Fotos",
+      icon: <ImageIcon />,
+      iconClassName: "text-info",
+      upload: { fileTypeAccepted: "image", onUpload: (file) => handleFileChange(file, "image") },
+    },
+    {
+      key: "document",
+      label: "Documento",
+      icon: <FileIcon />,
+      iconClassName: "text-info",
+      upload: { fileTypeAccepted: "outros", onUpload: (file, name) => handleFileChange(file, "pdf", name) },
+    },
+    { key: "location", label: "Localização", icon: <MapPinIcon />, iconClassName: "text-success", onSelect: handleSendLocation },
+    { key: "contact", label: "Contato", icon: <UserPlusIcon />, iconClassName: "text-muted-foreground", onSelect: () => showOnlyPanel("contact") },
+    { key: "forms", label: "Formulários", icon: <FileTextIcon />, iconClassName: "text-chart-3", onSelect: () => showOnlyPanel("forms") },
+    { key: "agenda", label: "Agenda", icon: <CalendarIcon />, iconClassName: "text-destructive", onSelect: () => showOnlyPanel("agenda") },
+    { key: "scripts", label: "Scripts", icon: <ScrollTextIcon />, iconClassName: "text-warning", onSelect: () => showOnlyPanel("scripts") },
+    { key: "budget", label: "Propostas", icon: <FileSignatureIcon />, iconClassName: "text-success", onSelect: () => showOnlyPanel("budget") },
+    { key: "nbox", label: "N-Box", icon: <ArchiveIcon />, iconClassName: "text-temp-hot", onSelect: () => showOnlyPanel("nbox") },
+    { key: "lead-triggers", label: "Gatilhos do lead", icon: <BellIcon />, iconClassName: "text-warning", onSelect: () => setIsLeadTriggersOpen(true) },
+    ...(starFriendsPermissions.canRedeemAndCredit
+      ? [{ key: "star-friends", label: "Star Friends", icon: <SparklesIcon />, iconClassName: "text-warning", onSelect: () => setShowStarFriends(true) }]
+      : []),
+    ...(isMeta
+      ? [{ key: "template", label: "Template", icon: <FileBadgeIcon />, iconClassName: "text-info", onSelect: () => setShowTemplatePicker(true) }]
+      : []),
+  ];
+
   return (
     <>
       <form
@@ -441,8 +472,8 @@ export function Footer({
             Texto livre é bloqueado abaixo; aqui oferecemos o caminho válido
             (template aprovado). */}
         {outsideWindow && (
-          <div className="w-full flex items-center justify-between gap-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 px-3 py-2">
-            <p className="text-xs text-amber-800 dark:text-amber-200">
+          <div className="w-full flex items-center justify-between gap-3 rounded-xl bg-warning/10 dark:bg-warning/15 border border-warning/30 dark:border-warning/40 px-3 py-2">
+            <p className="text-xs text-warning">
               Fora da janela de 24h da Meta. Envie um template aprovado pra
               reabrir a conversa.
             </p>
@@ -458,14 +489,6 @@ export function Footer({
         )}
 
         <div className="w-full h-full flex items-center gap-2 lg:gap-4 relative">
-          {showButtons && (
-            <ButtonsPanel
-              onClose={() => setShowButtons(false)}
-              conversationId={conversationId}
-              trackingId={trackingId}
-              lead={lead}
-            />
-          )}
           {showNBox && (
             <NBoxPanel
               onClose={() => setShowNBox(false)}
@@ -551,305 +574,23 @@ export function Footer({
               initialAttach={budgetInitialAttach}
             />
           )}
-          {showReminder && (
-            <ReminderPanel
-              onClose={() => setShowReminder(false)}
-              conversationId={conversationId}
-              leadId={lead.id}
-              trackingId={trackingId}
-              lead={lead}
-              phone={lead.phone}
-            />
-          )}
           {!showAudioRecorder ? (
             <InputGroup
               className={cn(
-                "border-0 has-[[data-slot=input-group-control]:focus-visible]:border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 bg-white dark:bg-zinc-800 rounded-full px-2 shadow-md",
-                message.includes("\n") || message.length > 60
-                  ? "items-end pb-1.5"
-                  : "items-center",
+                "h-auto flex-col items-stretch gap-0 rounded-[28px] border-0 bg-card/75 px-2 pt-1 pb-2 shadow-md backdrop-blur-md dark:bg-card/75",
+                "has-[[data-slot=input-group-control]:focus-visible]:border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0",
               )}
             >
-              {!isDisabled ? (
-                <>
-                  <InputGroupAddon className="gap-0.5 pl-1.5">
-                    <Popover open={open} onOpenChange={setOpen}>
-                      <PopoverTrigger asChild>
-                        <ComposerActionButton label="Anexar">
-                          <PlusIcon />
-                        </ComposerActionButton>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-fit h-fit p-0">
-                        <div
-                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                          onClick={() => {
-                            setShowButtons((v) => !v);
-                            setShowNBox(false);
-                            setShowForms(false);
-                            setShowAgenda(false);
-                            setShowScripts(false);
-                            setShowReminder(false);
-                            setShowContact(false);
-                            setOpen(false);
-                          }}
-                        >
-                          <LayoutListIcon className="size-4" />
-                          <p className="text-sm">Botões</p>
-                        </div>
-                        <div
-                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                          onClick={() => {
-                            setShowNBox((v) => !v);
-                            setShowButtons(false);
-                            setShowForms(false);
-                            setShowAgenda(false);
-                            setShowScripts(false);
-                            setShowReminder(false);
-                            setShowContact(false);
-                            setOpen(false);
-                          }}
-                        >
-                          <ArchiveIcon className="size-4" />
-                          <p className="text-sm">N-Box</p>
-                        </div>
-                        <div
-                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                          onClick={() => {
-                            setShowForms((v) => !v);
-                            setShowNBox(false);
-                            setShowButtons(false);
-                            setShowAgenda(false);
-                            setShowScripts(false);
-                            setShowReminder(false);
-                            setShowContact(false);
-                            setOpen(false);
-                          }}
-                        >
-                          <FileTextIcon className="size-4" />
-                          <p className="text-sm">Formulários</p>
-                        </div>
-                        <div
-                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                          onClick={() => {
-                            setShowAgenda((v) => !v);
-                            setShowScripts(false);
-                            setShowForms(false);
-                            setShowNBox(false);
-                            setShowButtons(false);
-                            setShowReminder(false);
-                            setShowContact(false);
-                            setOpen(false);
-                          }}
-                        >
-                          <CalendarIcon className="size-4" />
-                          <p className="text-sm">Agenda</p>
-                        </div>
-                        <div
-                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                          onClick={() => {
-                            setShowScripts((v) => !v);
-                            setShowAgenda(false);
-                            setShowForms(false);
-                            setShowNBox(false);
-                            setShowButtons(false);
-                            setShowReminder(false);
-                            setShowContact(false);
-                            setOpen(false);
-                          }}
-                        >
-                          <ScrollTextIcon className="size-4" />
-                          <p className="text-sm">Scripts</p>
-                        </div>
-                        {/* "Forge" mesclado em "Propostas e Orçamentos" —
-                            item de menu removido. */}
-                        <div
-                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                          onClick={() => {
-                            setShowBudget((v) => !v);
-                            setShowReminder(false);
-                            setShowScripts(false);
-                            setShowAgenda(false);
-                            setShowForms(false);
-                            setShowNBox(false);
-                            setShowButtons(false);
-                            setShowContact(false);
-                            setOpen(false);
-                          }}
-                        >
-                          <FileSignatureIcon className="size-4 text-emerald-500" />
-                          <p className="text-sm">Propostas e Orçamentos</p>
-                        </div>
-                        <div
-                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                          onClick={() => {
-                            setShowReminder((v) => !v);
-                            setShowBudget(false);
-                            setShowScripts(false);
-                            setShowAgenda(false);
-                            setShowForms(false);
-                            setShowNBox(false);
-                            setShowButtons(false);
-                            setOpen(false);
-                          }}
-                        >
-                          <BellIcon className="size-4" />
-                          <p className="text-sm">Lembrete</p>
-                        </div>
-                        <div
-                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                          onClick={handleSendLocation}
-                        >
-                          <MapPinIcon className="size-4" />
-                          <p className="text-sm">Localização</p>
-                        </div>
-                        <div
-                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                          onClick={() => {
-                            setWebSearchOpen(true);
-                            setShowReminder(false);
-                            setShowScripts(false);
-                            setShowAgenda(false);
-                            setShowForms(false);
-                            setShowNBox(false);
-                            setShowButtons(false);
-                            setShowContact(false);
-                            setShowBudget(false);
-                            setOpen(false);
-                          }}
-                        >
-                          <GlobeIcon className="size-4" />
-                          <p className="text-sm">Pesquisar na Web</p>
-                        </div>
-                        <div
-                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                          onClick={() => {
-                            setShowContact((v) => !v);
-                            setShowReminder(false);
-                            setShowScripts(false);
-                            setShowAgenda(false);
-                            setShowForms(false);
-                            setShowNBox(false);
-                            setShowButtons(false);
-                            setOpen(false);
-                          }}
-                        >
-                          <UserPlusIcon className="size-4" />
-                          <p className="text-sm">Contato</p>
-                        </div>
-                        {starFriendsPermissions.canRedeemAndCredit && (
-                          <div
-                            className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                            onClick={() => {
-                              setShowStarFriends(true);
-                              setOpen(false);
-                            }}
-                          >
-                            <SparklesIcon className="size-4 text-amber-500" />
-                            <p className="text-sm">STAR FRIENDS</p>
-                          </div>
-                        )}
-                        {isMeta && (
-                          <div
-                            className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                            onClick={() => {
-                              setShowTemplatePicker(true);
-                              setOpen(false);
-                            }}
-                          >
-                            <FileBadgeIcon className="size-4" />
-                            <p className="text-sm">Template</p>
-                          </div>
-                        )}
-                        <div className="relative w-full h-full cursor-pointer overflow-hidden">
-                          <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4">
-                            <FileIcon className="size-4" />
-                            <p className="text-sm">Arquivo</p>
-                            <div className="absolute top-0 left-0 w-full h-full opacity-0">
-                              {isLoading ? (
-                                <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                                  <Spinner className="size-3" />
-                                </div>
-                              ) : (
-                                <Uploader
-                                  onUpload={(file, name) =>
-                                    handleFileChange(file, "pdf", name)
-                                  }
-                                  onUploadStart={() => setIsLoading(true)}
-                                  value={selectedImage}
-                                  fileTypeAccepted="outros"
-                                />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="relative w-full h-full cursor-pointer overflow-hidden">
-                          <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
-                            <ImageIcon className="size-4" />
-                            <p className="text-sm">Imagem</p>
-                            <div className="absolute top-0 left-0 w-full h-full opacity-0">
-                              {isLoading ? (
-                                <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                                  <Spinner className="size-3" />
-                                </div>
-                              ) : (
-                                <Uploader
-                                  onUpload={(file) =>
-                                    handleFileChange(file, "image")
-                                  }
-                                  onUploadStart={() => setIsLoading(true)}
-                                  value={selectedImage}
-                                  fileTypeAccepted="image"
-                                />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    {/* Stickers usam `UserSticker` (org-scoped, R2) e enviam
-                        via uazapi com type:"sticker". O trigger precisa ser um
-                        <button> real — `PopoverTrigger asChild` exige elemento
-                        que aceite ref. */}
-                    <EmojiStickerPicker
-                      trigger={
-                        <ComposerActionButton label="Emojis e figurinhas">
-                          <StickerIcon />
-                        </ComposerActionButton>
-                      }
-                      onEmoji={(emoji) => setMessage((prev) => prev + emoji)}
-                      onSticker={({ url, mimetype }) => {
-                        if (!instance.instance) {
-                          toast.error("Instância não encontrada");
-                          return;
-                        }
-                        if (!lead.phone) {
-                          toast.error("Lead sem telefone");
-                          return;
-                        }
-                        mutationSticker.mutate({
-                          conversationId,
-                          leadPhone: lead.phone,
-                          mediaUrl: url,
-                          mimetype,
-                          quotedMessageId: messageSelected?.messageId,
-                          id: messageSelected?.id,
-                        });
-                        closeMessageSelected();
-                      }}
-                    />
-                  </InputGroupAddon>
-                </>
-              ) : (
-                <>
+              {isDisabled && (
+                <div className="px-2 pt-2">
                   <Button
                     type="button"
-                    onClick={() =>
-                      route.push(`/tracking/${trackingId}/settings`)
-                    }
+                    size="sm"
+                    onClick={() => route.push(`/tracking/${trackingId}/settings`)}
                   >
                     Conectar instância
                   </Button>
-                </>
+                </div>
               )}
 
               <InputGroupTextarea
@@ -863,10 +604,10 @@ export function Footer({
                       ? ""
                       : isDisabled
                         ? "Responder pela página do pedido"
-                        : "Digite sua mensagem"
+                        : "Mensagem"
                 }
                 disabled={isTextDisabled || outsideWindow}
-                className="resize-none min-h-0 py-2.5 text-sm max-h-50"
+                className="min-h-12 max-h-50 resize-none px-3 py-3 text-base"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
@@ -878,49 +619,81 @@ export function Footer({
                 }}
               />
 
-              {/* <InputGroupAddon align="inline-end">
-                <ComposeResponse
-                  conversationId={conversationId}
-                  onResponse={(text) => setMessage(text)}
-                />
-              </InputGroupAddon> */}
-
-              <InputGroupAddon align="inline-end">
+              <InputGroupAddon align="block-end" className="justify-between gap-1 px-1 pb-0">
                 <TrackingChatCopilot
                   conversationId={conversationId}
                   leadId={lead.id}
                   trackingId={trackingId}
                   onApplyDraft={(text) => setMessage(text)}
                 />
-              </InputGroupAddon>
 
-              <InputGroupAddon align="inline-end">
-                {message.trim().length > 0 ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="submit"
-                        size="icon"
-                        aria-label="Enviar mensagem"
-                        className="rounded-full transition-transform duration-150 hover:scale-105 active:scale-95"
-                        disabled={isTextDisabled || outsideWindow}
-                      >
-                        <SendIcon className="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" sideOffset={8}>
-                      Enviar mensagem
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <ComposerActionButton
-                    label="Gravar áudio"
-                    disabled={isDisabled || outsideWindow}
-                    onClick={() => setShowAudioRecorder(true)}
-                  >
-                    <MicIcon />
-                  </ComposerActionButton>
-                )}
+                <div className="flex items-center gap-0.5">
+                  {!isDisabled && (
+                    <>
+                      <ComposerActionButton label="Anexar" onClick={() => setOpen(true)}>
+                        <PlusIcon />
+                      </ComposerActionButton>
+                      {/* Stickers usam `UserSticker` (org-scoped, R2) e enviam
+                          via uazapi com type:"sticker". O trigger precisa ser um
+                          <button> real — `PopoverTrigger asChild` exige elemento
+                          que aceite ref. */}
+                      <EmojiStickerPicker
+                        trigger={
+                          <ComposerActionButton label="Emojis e figurinhas">
+                            <StickerIcon />
+                          </ComposerActionButton>
+                        }
+                        onEmoji={(emoji) => setMessage((prev) => prev + emoji)}
+                        onSticker={({ url, mimetype }) => {
+                          if (!instance.instance) {
+                            toast.error("Instância não encontrada");
+                            return;
+                          }
+                          if (!lead.phone) {
+                            toast.error("Lead sem telefone");
+                            return;
+                          }
+                          mutationSticker.mutate({
+                            conversationId,
+                            leadPhone: lead.phone,
+                            mediaUrl: url,
+                            mimetype,
+                            quotedMessageId: messageSelected?.messageId,
+                            id: messageSelected?.id,
+                          });
+                          closeMessageSelected();
+                        }}
+                      />
+                      <CameraCaptureButton
+                        isUploading={isLoading}
+                        onUploadStart={() => setIsLoading(true)}
+                        onUploadEnd={() => setIsLoading(false)}
+                        onCaptured={(fileKey) => handleFileChange(fileKey, "image")}
+                      />
+                    </>
+                  )}
+
+                  {message.trim().length > 0 ? (
+                    <Button
+                      type="submit"
+                      size="icon"
+                      aria-label="Enviar mensagem"
+                      className="size-10 rounded-full transition-transform duration-150 hover:scale-105 active:scale-95"
+                      disabled={isTextDisabled || outsideWindow}
+                    >
+                      <SendIcon className="size-4" />
+                    </Button>
+                  ) : (
+                    <ComposerActionButton
+                      label="Gravar áudio"
+                      className="size-10 bg-muted text-foreground"
+                      disabled={isDisabled || outsideWindow}
+                      onClick={() => setShowAudioRecorder(true)}
+                    >
+                      <MicIcon />
+                    </ComposerActionButton>
+                  )}
+                </div>
               </InputGroupAddon>
             </InputGroup>
           ) : (
@@ -945,22 +718,20 @@ export function Footer({
         onConfirm={handleConfirmSendLocation}
         isSending={mutationLocation.isPending}
       />
-      {activeOrg?.id && (
-        <WebSearchDialog
-          open={webSearchOpen}
-          onOpenChange={setWebSearchOpen}
-          organizationId={activeOrg.id}
-          onUseResult={(text, mode) => {
-            if (mode === "replace") {
-              setMessage(text);
-            } else {
-              setMessage((prev) => (prev ? prev + "\n\n" + text : text));
-            }
-            // Foca o input pra operador editar antes de enviar
-            requestAnimationFrame(() => inputRef.current?.focus());
-          }}
-        />
-      )}
+      <ComposerAttachSheet
+        open={open}
+        onOpenChange={setOpen}
+        items={attachItems}
+        isUploading={isLoading}
+        onUploadStart={() => setIsLoading(true)}
+      />
+      <QuickWorkflowDialog
+        isOpen={isLeadTriggersOpen}
+        onOpenChange={setIsLeadTriggersOpen}
+        trackingId={trackingId}
+        leadId={lead.id}
+        leadName={lead.name}
+      />
       <StarFriendsRedeemDialog
         leadId={lead.id}
         open={showStarFriends}

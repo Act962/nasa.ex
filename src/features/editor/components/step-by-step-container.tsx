@@ -212,14 +212,14 @@ export function StepByStepContainer({ workflowId }: { workflowId: string }) {
         </Button>
       ) : (
         // Controles ativos
-        <div className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg px-2 py-1">
-          <Badge variant="default" className="bg-blue-500 text-[10px]">
+        <div className="flex items-center gap-1.5 bg-info/10 border border-info/30 rounded-lg px-2 py-1">
+          <Badge variant="default" className="bg-info text-[10px]">
             STEP MODE
           </Badge>
-          <span className="text-[11px] text-blue-700 dark:text-blue-300 tabular-nums">
+          <span className="text-[11px] text-info tabular-nums">
             ✓{stats.passed} ⚠{stats.warning} ✗{stats.failed}
           </span>
-          <div className="w-px h-4 bg-blue-300 mx-1" />
+          <div className="w-px h-4 bg-info/20 mx-1" />
           <Button
             variant="ghost"
             size="icon-xs"
@@ -474,11 +474,11 @@ function NodePopoverBody({
 
       {/* Warnings */}
       {warnings.length > 0 && (
-        <div className="rounded-md border border-amber-300/40 bg-amber-50 dark:bg-amber-950/30 p-2 space-y-1">
-          <p className="text-[10px] uppercase tracking-wide font-semibold text-amber-700 dark:text-amber-400">
+        <div className="rounded-md border border-warning/40 bg-warning/10 p-2 space-y-1">
+          <p className="text-[10px] uppercase tracking-wide font-semibold text-warning">
             Avisos
           </p>
-          <ul className="text-[11px] space-y-0.5 list-disc list-inside text-amber-700 dark:text-amber-400">
+          <ul className="text-[11px] space-y-0.5 list-disc list-inside text-warning">
             {warnings.map((w, i) => (
               <li key={i}>{w}</li>
             ))}
@@ -520,7 +520,7 @@ function NodePopoverBody({
             isLoading || (needsBranchChoice && !branchChoice)
           }
           className={cn(
-            errors.length > 0 && "bg-amber-500 hover:bg-amber-600",
+            errors.length > 0 && "bg-warning hover:bg-warning/90",
           )}
         >
           <PlayIcon className="size-3.5" />

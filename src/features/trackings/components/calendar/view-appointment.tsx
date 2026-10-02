@@ -39,6 +39,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Calendar } from "@/features/agenda/components/external-link/calendar";
 import {
   getLocalTimeZone,
@@ -74,6 +81,7 @@ import {
   MonitorSmartphone,
   CalendarPlus,
   LinkIcon,
+  EllipsisIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -88,11 +96,11 @@ const statusMap: Record<string, string> = {
 };
 
 const statusColorMap: Record<string, string> = {
-  PENDING: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  CONFIRMED: "bg-green-100  text-green-800  border-green-200",
-  CANCELLED: "bg-red-100    text-red-800    border-red-200",
-  NO_SHOW: "bg-red-100    text-red-800    border-red-200",
-  DONE: "bg-blue-100   text-blue-800   border-blue-200",
+  PENDING: "bg-warning/15 text-warning border-warning/30",
+  CONFIRMED: "bg-success/15 text-success border-success/30",
+  CANCELLED: "bg-destructive/15 text-destructive border-destructive/30",
+  NO_SHOW: "bg-destructive/15 text-destructive border-destructive/30",
+  DONE: "bg-info/15 text-info border-info/30",
 };
 
 const temperatureMap: Record<string, string> = {
@@ -103,10 +111,10 @@ const temperatureMap: Record<string, string> = {
 };
 
 const temperatureColorMap: Record<string, string> = {
-  COLD: "text-blue-500",
-  WARM: "text-yellow-500",
-  HOT: "text-orange-500",
-  VERY_HOT: "text-red-500",
+  COLD: "text-temp-cold",
+  WARM: "text-temp-warm",
+  HOT: "text-temp-hot",
+  VERY_HOT: "text-temp-very-hot",
 };
 
 /* ─────────────────────────────────────────────── */
@@ -283,61 +291,84 @@ export const ViewAppointment = ({
                 </div>
               </div>
 
-              {/* ── Action buttons ── */}
-              {(!isCancelled || canDeleteAppointment) && (
-                <div className="flex flex-wrap gap-2 mt-4 mb-2 px-1">
-                  {!isCancelled && (
+              {/* ── Ações: as duas principais à vista, o resto no menu ⋯ ── */}
+              <div className="mt-4 mb-2 flex items-center gap-2 px-1">
+                {!isCancelled && !isDone && (
+                  <Button className="h-10 flex-1 gap-1.5 rounded-full" onClick={() => setCompleteOpen(true)}>
+                    <CheckIcon className="size-4" />
+                    Concluir
+                  </Button>
+                )}
+                {!isCancelled && (
+                  <Button
+                    variant="outline"
+                    className="h-10 flex-1 gap-1.5 rounded-full"
+                    onClick={() => setRescheduleOpen(true)}
+                    disabled={isDone}
+                  >
+                    <PencilIcon className="size-4" />
+                    Reagendar
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button
-                      size="sm"
                       variant="outline"
-                      className="flex-1 gap-1.5"
-                      onClick={() => setRescheduleOpen(true)}
-                      disabled={isDone}
+                      size="icon"
+                      className={cn("size-10 shrink-0 rounded-full", isCancelled && "ml-auto")}
+                      aria-label="Mais ações"
                     >
-                      <PencilIcon className="size-3.5" />
-                      Reagendar
+                      <EllipsisIcon className="size-4" />
                     </Button>
-                  )}
-                  {!isCancelled && !isDone && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 gap-1.5"
-                      onClick={() => setCompleteOpen(true)}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuItem
+                      disabled={isCancelled || isDone || syncToGoogle.isPending}
+                      onSelect={() => syncToGoogle.mutate({ appointmentId: appointment.id })}
                     >
-                      <CheckIcon className="size-3.5" />
-                      Concluir
-                    </Button>
-                  )}
-                  {!isCancelled && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 gap-1.5"
-                      onClick={() => setCancelOpen(true)}
-                      disabled={isDone}
+                      <CalendarPlus className="size-4" />
+                      <span className="flex flex-col">
+                        {syncToGoogle.isPending ? "Sincronizando…" : "Enviar para o Google Agenda"}
+                        <span className="text-[11px] text-muted-foreground">Também manda o convite ao cliente</span>
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        const url = `${process.env.NEXT_PUBLIC_BASE_URL ?? window.location.origin}/agenda/appointment/${appointment.id}`;
+                        navigator.clipboard.writeText(url);
+                        toast.success("Link copiado", {
+                          description: "Mande para o cliente — ele pode reagendar ou cancelar por lá.",
+                        });
+                      }}
                     >
-                      <XCircleIcon className="size-3.5" />
-                      Cancelar
-                    </Button>
-                  )}
-                  {canDeleteAppointment && (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="flex-1 gap-1.5"
-                      onClick={() => setDeleteOpen(true)}
-                    >
-                      <Trash2Icon className="size-3.5" />
-                      Deletar
-                    </Button>
-                  )}
-                </div>
-              )}
+                      <LinkIcon className="size-4" />
+                      <span className="flex flex-col">
+                        Copiar link para o cliente
+                        <span className="text-[11px] text-muted-foreground">Ele reagenda ou cancela sozinho</span>
+                      </span>
+                    </DropdownMenuItem>
+                    {!isCancelled && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem disabled={isDone} onSelect={() => setCancelOpen(true)}>
+                          <XCircleIcon className="size-4" />
+                          Cancelar agendamento
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {canDeleteAppointment && (
+                      <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
+                        <Trash2Icon className="size-4" />
+                        Excluir
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
               {/* ── Tipo de reunião ── */}
-              <div className="px-1 mt-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              <div className="mt-3 px-1">
+                <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                   Tipo de reunião
                 </p>
                 {(() => {
@@ -345,80 +376,40 @@ export const ViewAppointment = ({
                     ((appointment as unknown as { meetingType?: "ONLINE" | "IN_PERSON" })
                       .meetingType ?? "ONLINE") as "ONLINE" | "IN_PERSON";
                   const isPending = setMeetingType.isPending;
+                  const isLocked = isPending || isCancelled || isDone;
                   const handleSet = (value: "ONLINE" | "IN_PERSON") => {
-                    if (value === currentType || isPending) return;
+                    if (value === currentType || isLocked) return;
                     setMeetingType.mutate({
                       appointmentId: appointment.id,
                       meetingType: value,
                     });
                   };
+                  const options = [
+                    { value: "ONLINE" as const, label: "On-line", icon: MonitorSmartphone },
+                    { value: "IN_PERSON" as const, label: "Presencial", icon: PersonStanding },
+                  ];
                   return (
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant={currentType === "ONLINE" ? "default" : "outline"}
-                        size="sm"
-                        className="gap-1.5"
-                        disabled={isPending || isCancelled || isDone}
-                        onClick={() => handleSet("ONLINE")}
-                      >
-                        <MonitorSmartphone className="size-4" />
-                        On-line
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={currentType === "IN_PERSON" ? "default" : "outline"}
-                        size="sm"
-                        className="gap-1.5"
-                        disabled={isPending || isCancelled || isDone}
-                        onClick={() => handleSet("IN_PERSON")}
-                      >
-                        <PersonStanding className="size-4" />
-                        Presencial
-                      </Button>
+                    <div className="grid grid-cols-2 gap-1 rounded-full bg-muted p-1">
+                      {options.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          disabled={isLocked}
+                          onClick={() => handleSet(option.value)}
+                          className={cn(
+                            "flex h-9 items-center justify-center gap-1.5 rounded-full text-sm font-medium transition-colors disabled:opacity-60",
+                            currentType === option.value
+                              ? "bg-foreground text-background"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          <option.icon className="size-4" />
+                          {option.label}
+                        </button>
+                      ))}
                     </div>
                   );
                 })()}
-              </div>
-
-              {/* ── Sincronização Google Calendar ── */}
-              <div className="px-1 mt-3 flex flex-col gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full gap-1.5"
-                  disabled={
-                    isCancelled || isDone || syncToGoogle.isPending
-                  }
-                  onClick={() =>
-                    syncToGoogle.mutate({ appointmentId: appointment.id })
-                  }
-                >
-                  <CalendarPlus className="size-4" />
-                  {syncToGoogle.isPending
-                    ? "Sincronizando..."
-                    : "Sincronizar com meu Google Calendar e enviar convite para o lead"}
-                </Button>
-
-                {/* Link público — usado pelo lead pra cancelar/reagendar */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full gap-1.5"
-                  onClick={() => {
-                    const url = `${process.env.NEXT_PUBLIC_BASE_URL ?? window.location.origin}/agenda/appointment/${appointment.id}`;
-                    navigator.clipboard.writeText(url);
-                    toast.success("Link público copiado", {
-                      description:
-                        "Mande pro lead — ele pode reagendar ou cancelar por aí.",
-                    });
-                  }}
-                >
-                  <LinkIcon className="size-4" />
-                  Copiar link público (reagendar / cancelar)
-                </Button>
               </div>
 
               <Separator className="my-4" />
@@ -429,7 +420,7 @@ export const ViewAppointment = ({
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Informações do Cliente
                   </p>
-                  <div className="bg-muted/30 p-4 rounded-lg border space-y-3">
+                  <div className="space-y-3 rounded-[20px] border bg-muted/30 p-4">
                     <div className="flex items-center gap-2">
                       <User className="size-4 text-muted-foreground" />
                       <span className="font-medium text-sm">
@@ -529,7 +520,7 @@ export const ViewAppointment = ({
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                       <FileText className="size-3.5" /> Notas
                     </p>
-                    <div className="bg-yellow-500/5 p-3 rounded-lg border border-yellow-500/20">
+                    <div className="bg-warning/5 p-3 rounded-lg border border-warning/20">
                       <p className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
                         {appointment.notes}
                       </p>

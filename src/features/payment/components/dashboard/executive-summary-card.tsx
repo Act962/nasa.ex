@@ -106,8 +106,8 @@ function MetricItem({ metric }: { metric: ExecutiveMetric }) {
                 isPositive === null
                   ? "text-muted-foreground"
                   : isPositive
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-red-600 dark:text-red-400",
+                    ? "text-success dark:text-success"
+                    : "text-destructive dark:text-destructive",
               )}
             />
             <span
@@ -116,8 +116,8 @@ function MetricItem({ metric }: { metric: ExecutiveMetric }) {
                 isPositive === null
                   ? "text-muted-foreground"
                   : isPositive
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-red-600 dark:text-red-400",
+                    ? "text-success dark:text-success"
+                    : "text-destructive dark:text-destructive",
               )}
             >
               {variation.direction === "flat"

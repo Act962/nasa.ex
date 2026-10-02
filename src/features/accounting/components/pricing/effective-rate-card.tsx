@@ -52,7 +52,7 @@ export function EffectiveRateCard() {
                 aria-pressed={isSelected}
                 className={cn(
                   "rounded-xl border p-4 text-left transition-colors",
-                  isSelected ? "border-violet-500 bg-violet-500/5" : "hover:bg-muted/50",
+                  isSelected ? "border-info bg-info/5" : "hover:bg-muted/50",
                 )}
               >
                 <p className="text-sm text-muted-foreground">{KIND_LABELS[kind]}</p>
@@ -60,7 +60,7 @@ export function EffectiveRateCard() {
                   <Skeleton className="mt-1 h-8 w-24" />
                 ) : rateQuery.data ? (
                   <>
-                    <p className="text-3xl font-bold tabular-nums text-violet-600 dark:text-violet-400">
+                    <p className="text-3xl font-bold tabular-nums text-info dark:text-info">
                       {formatBps(rateQuery.data.rateBps)}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">

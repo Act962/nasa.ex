@@ -2,9 +2,17 @@
 
 import { useRef, useState } from "react";
 import {
-  ImageIcon, VideoIcon, UploadIcon, Loader2Icon,
-  MicIcon, ClipboardCopyIcon, CheckIcon, Trash2Icon, FileVideoIcon, LayersIcon,
+  ImageIcon,
+  VideoIcon,
+  UploadIcon,
+  MicIcon,
+  ClipboardCopyIcon,
+  CheckIcon,
+  Trash2Icon,
+  FileVideoIcon,
+  LayersIcon,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -222,7 +230,7 @@ export function PostMediaUploader({
                 >
                   {removeSlide.isPending &&
                   removeSlide.variables?.slideId === slide.id
-                    ? <Loader2Icon className="size-3 animate-spin" />
+                    ? <OrbitaSpinner className="size-3 " />
                     : <Trash2Icon className="size-3" />}
                 </button>
               </div>
@@ -249,7 +257,7 @@ export function PostMediaUploader({
           className="w-full border-2 border-dashed rounded-lg p-5 flex flex-col items-center gap-2 text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
         >
           {uploading
-            ? <Loader2Icon className="size-5 animate-spin" />
+            ? <OrbitaSpinner className="size-5 " />
             : <UploadIcon className="size-5" />}
           <span className="text-sm font-medium">
             {uploading
@@ -294,7 +302,7 @@ export function PostMediaUploader({
                 onClick={handleRemoveImage}
                 disabled={removeMedia.isPending}
               >
-                {removeMedia.isPending ? <Loader2Icon className="size-3.5 animate-spin" /> : <Trash2Icon className="size-3.5" />}
+                {removeMedia.isPending ? <OrbitaSpinner className="size-3.5 " /> : <Trash2Icon className="size-3.5" />}
                 Excluir
               </Button>
             </div>
@@ -314,7 +322,7 @@ export function PostMediaUploader({
                   onClick={handleRemoveVideo}
                   disabled={removeMedia.isPending}
                 >
-                  {removeMedia.isPending ? <Loader2Icon className="size-3.5 animate-spin" /> : <Trash2Icon className="size-3.5" />}
+                  {removeMedia.isPending ? <OrbitaSpinner className="size-3.5 " /> : <Trash2Icon className="size-3.5" />}
                   Excluir
                 </Button>
               </div>
@@ -331,7 +339,7 @@ export function PostMediaUploader({
                     onClick={handleTranscribe}
                     disabled={transcribeVideo.isPending}
                   >
-                    {transcribeVideo.isPending ? <Loader2Icon className="size-3 animate-spin" /> : <MicIcon className="size-3" />}
+                    {transcribeVideo.isPending ? <OrbitaSpinner className="size-3 " /> : <MicIcon className="size-3" />}
                     {transcribeVideo.isPending ? "Transcrevendo..." : "Transcrever vídeo"}
                   </Button>
                 </div>
@@ -343,7 +351,7 @@ export function PostMediaUploader({
                       onClick={handleCopy}
                       className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      {copied ? <CheckIcon className="size-3.5 text-green-500" /> : <ClipboardCopyIcon className="size-3.5" />}
+                      {copied ? <CheckIcon className="size-3.5 text-success" /> : <ClipboardCopyIcon className="size-3.5" />}
                     </button>
                   </div>
                 )}
@@ -388,7 +396,7 @@ export function PostMediaUploader({
             onClick={() => imageInputRef.current?.click()}
             className="w-full border-2 border-dashed rounded-lg p-5 flex flex-col items-center gap-2 text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
           >
-            {uploading ? <Loader2Icon className="size-5 animate-spin" /> : <UploadIcon className="size-5" />}
+            {uploading ? <OrbitaSpinner className="size-5 " /> : <UploadIcon className="size-5" />}
             <span className="text-sm font-medium">{uploading ? "Enviando..." : "Clique para selecionar imagem"}</span>
             <span className="text-xs">PNG, JPG, WEBP até 20 MB</span>
           </button>
@@ -408,7 +416,7 @@ export function PostMediaUploader({
             onClick={() => videoInputRef.current?.click()}
             className="w-full border-2 border-dashed rounded-lg p-5 flex flex-col items-center gap-2 text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
           >
-            {uploading ? <Loader2Icon className="size-5 animate-spin" /> : <VideoIcon className="size-5" />}
+            {uploading ? <OrbitaSpinner className="size-5 " /> : <VideoIcon className="size-5" />}
             <span className="text-sm font-medium">{uploading ? "Enviando..." : "Clique para selecionar vídeo"}</span>
             <span className="text-xs">MP4, MOV, WEBM até 500 MB</span>
           </button>

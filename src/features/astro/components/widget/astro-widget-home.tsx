@@ -28,16 +28,16 @@ import { openCreateCommand } from "@/features/astro-commander/lib/open-create-co
  * atalhos e "Criar comando" depois.
  */
 
-const PRIORITY_ORDER: Record<AstroVoicePriority, number> = {
+export const PRIORITY_ORDER: Record<AstroVoicePriority, number> = {
   urgent: 0,
   important: 1,
   info: 2,
 };
 
-const PRIORITY_DOT: Record<AstroVoicePriority, string> = {
-  urgent: "bg-rose-500",
-  important: "bg-amber-400",
-  info: "bg-sky-400",
+export const PRIORITY_DOT: Record<AstroVoicePriority, string> = {
+  urgent: "bg-destructive",
+  important: "bg-warning",
+  info: "bg-info",
 };
 
 /** Atalhos da tela atual — o pedido vai pronto para a Conversa. */
@@ -84,10 +84,10 @@ function quickActionsFor(pathname: string, paymentTab: string | null): string[] 
   ];
 }
 
-type WidgetNotification = ReturnType<typeof useNotifications>["notifications"][number];
+export type WidgetNotification = ReturnType<typeof useNotifications>["notifications"][number];
 
 /** Agrupa avisos de fala idêntica, mantendo o mais recente como vitrine. */
-function groupIdenticalAlerts(
+export function groupIdenticalAlerts(
   notifications: WidgetNotification[],
 ): Array<{ latest: WidgetNotification; notificationIds: string[] }> {
   const groups = new Map<string, { latest: WidgetNotification; notificationIds: string[] }>();
@@ -219,7 +219,7 @@ export function AstroWidgetHome({ pathname }: { pathname: string }) {
                     className={cn(
                       "rounded-full px-2.5 py-1 text-[11px] transition",
                       action.kind === "prompt"
-                        ? "bg-violet-500/20 text-violet-200 hover:bg-violet-500/30"
+                        ? "bg-info/20 text-info hover:bg-info/30"
                         : "bg-white/[0.07] text-white/70 hover:bg-white/[0.12]",
                     )}
                   >
@@ -261,7 +261,7 @@ export function AstroWidgetHome({ pathname }: { pathname: string }) {
         <button
           type="button"
           onClick={() => openCreateCommand({ examples: COMMAND_EXAMPLES })}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-3 py-2.5 text-[13px] font-medium text-white transition hover:bg-violet-500"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-info px-3 py-2.5 text-[13px] font-medium text-white transition hover:bg-info"
         >
           <Wand2 className="size-4" />
           Criar comando

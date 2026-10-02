@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { useConfirmTrafegoPix } from "@/features/trafego/hooks/use-trafego-ops";
 
@@ -51,12 +53,18 @@ export function ConfirmPixDialog({
   const receivedBrlCents = Math.round(
     Number(receivedBrl.replace(/\./g, "").replace(",", ".")) * 100,
   );
-  const isValidAmount = Number.isFinite(receivedBrlCents) && receivedBrlCents > 0;
-  const hasMismatch = isValidAmount && receivedBrlCents !== pending.amountBrlCents;
+  const isValidAmount =
+    Number.isFinite(receivedBrlCents) && receivedBrlCents > 0;
+  const hasMismatch =
+    isValidAmount && receivedBrlCents !== pending.amountBrlCents;
 
   function handleConfirm() {
     confirmPix.mutate(
-      { pendingId: pending.id, receivedBrlCents, note: note.trim() || undefined },
+      {
+        pendingId: pending.id,
+        receivedBrlCents,
+        note: note.trim() || undefined,
+      },
       {
         onSuccess: (result) => {
           if (result.alreadyPaid) {
@@ -73,17 +81,27 @@ export function ConfirmPixDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Confirmar PIX</DialogTitle>
+      <DialogContent
+        className={cn(
+          "flex max-h-[92dvh] flex-col gap-0 overflow-hidden rounded-[24px] p-0 sm:max-w-md",
+          "max-sm:top-auto max-sm:bottom-0 max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-b-none max-sm:rounded-t-[26px] max-sm:border-x-0 max-sm:border-b-0",
+          "max-sm:data-[state=open]:zoom-in-100 max-sm:data-[state=closed]:zoom-out-100 max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=closed]:slide-out-to-bottom",
+        )}
+      >
+        <div
+          aria-hidden
+          className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-muted sm:hidden"
+        />
+        <DialogHeader className="shrink-0 px-4 pt-3 pb-3 text-left sm:px-6 sm:pt-5">
+          <DialogTitle className="pr-10">Confirmar PIX</DialogTitle>
           <DialogDescription>
-            Confira o comprovante na conversa antes de confirmar. O cliente recebe o
-            link de acesso na hora.
+            Confira o comprovante na conversa antes de confirmar. O cliente
+            recebe o link de acesso na hora.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="rounded-lg border p-3 text-sm">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4 sm:px-6">
+          <div className="rounded-[18px] border p-3 text-sm">
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-muted-foreground">Referência</span>
               <span className="font-mono font-semibold">
@@ -113,10 +131,10 @@ export function ConfirmPixDialog({
               className="mt-1"
             />
             {hasMismatch && (
-              <p className="mt-1.5 flex items-start gap-1.5 text-xs text-amber-600">
+              <p className="mt-1.5 flex items-start gap-1.5 text-xs text-warning">
                 <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-                Diferente do pedido. Vamos marcar como divergência para a equipe conferir
-                antes de definir a verba.
+                Diferente do pedido. Vamos marcar como divergência para a equipe
+                conferir antes de definir a verba.
               </p>
             )}
           </div>
@@ -133,12 +151,22 @@ export function ConfirmPixDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="shrink-0 flex-col gap-2 border-t border-line bg-popover px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:px-6 sm:py-4">
+          <Button
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            className="hidden rounded-full sm:inline-flex"
+          >
             Cancelar
           </Button>
-          <Button onClick={handleConfirm} disabled={!isValidAmount || confirmPix.isPending}>
-            {confirmPix.isPending && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+          <Button
+            onClick={handleConfirm}
+            disabled={!isValidAmount || confirmPix.isPending}
+            className="h-12 w-full rounded-full text-base sm:h-9 sm:w-auto sm:text-sm"
+          >
+            {confirmPix.isPending && (
+              <OrbitaSpinner className="mr-1.5 size-4" />
+            )}
             Confirmar recebimento
           </Button>
         </DialogFooter>

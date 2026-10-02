@@ -17,8 +17,8 @@ import { ReportToolbar } from "./report-toolbar";
 
 function resultClass(value: number) {
   return value >= 0
-    ? "text-emerald-600 dark:text-emerald-400"
-    : "text-red-600 dark:text-red-400";
+    ? "text-success dark:text-success"
+    : "text-destructive dark:text-destructive";
 }
 
 function TotalCard({
@@ -71,12 +71,12 @@ export function DroTab() {
             <TotalCard
               label="Receita"
               value={formatCurrency(data.totals.revenue)}
-              className="text-emerald-600 dark:text-emerald-400"
+              className="text-success dark:text-success"
             />
             <TotalCard
               label="Despesa"
               value={formatCurrency(data.totals.expenses)}
-              className="text-red-600 dark:text-red-400"
+              className="text-destructive dark:text-destructive"
             />
             <TotalCard
               label="Resultado"
@@ -114,13 +114,13 @@ export function DroTab() {
                     <div className="mt-2 grid grid-cols-3 gap-2 border-t pt-2 text-xs">
                       <div>
                         <p className="text-muted-foreground">Receita</p>
-                        <p className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                        <p className="font-semibold tabular-nums text-success dark:text-success">
                           {formatCurrency(row.revenue)}
                         </p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Despesa</p>
-                        <p className="font-semibold tabular-nums text-red-600 dark:text-red-400">
+                        <p className="font-semibold tabular-nums text-destructive dark:text-destructive">
                           {formatCurrency(row.expenses)}
                         </p>
                       </div>
@@ -172,10 +172,10 @@ export function DroTab() {
                           <td className="px-4 py-3 font-medium">
                             {row.costCenterName}
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                          <td className="px-4 py-3 text-right tabular-nums text-success dark:text-success">
                             {formatCurrency(row.revenue)}
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-red-600 dark:text-red-400">
+                          <td className="px-4 py-3 text-right tabular-nums text-destructive dark:text-destructive">
                             {formatCurrency(row.expenses)}
                           </td>
                           <td

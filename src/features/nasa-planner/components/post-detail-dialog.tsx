@@ -42,6 +42,7 @@ import { PostPreview } from "./post-preview";
 import { PublishTargetPicker } from "./publish-target-picker";
 import type { MenuAction } from "./posts-calendar/types";
 import { useNetworkConnectionStatus } from "../hooks/use-network-status";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 const POST_TYPE_LABELS: Record<string, string> = {
   STATIC: "Imagem", CAROUSEL: "Carrossel", REEL: "Reel", STORY: "Story",
@@ -148,7 +149,7 @@ export function PostDetailDialog({ post, plannerId, open, onOpenChange, initialA
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-lg max-h-[95vh] sm:max-h-[80vh] flex flex-col p-0 gap-0">
-          <DialogHeader className="px-6 pt-5 pb-3 shrink-0 border-b">
+          <DialogHeader className="px-6 pt-5 pb-3 shrink-0">
             <div className="flex items-center justify-between gap-2 pr-8">
               <DialogTitle className="line-clamp-1 flex-1">{post?.title}</DialogTitle>
               {post && (
@@ -161,12 +162,12 @@ export function PostDetailDialog({ post, plannerId, open, onOpenChange, initialA
                   <DropdownMenuContent align="end">
                     {post.type !== "REEL" && (
                       <DropdownMenuItem onClick={() => setImageEditorPostId(post.id)}>
-                        <ImagePlusIcon className="size-3.5 mr-2 text-pink-500" />Editar Imagem
+                        <ImagePlusIcon className="size-3.5 mr-2 text-info" />Editar Imagem
                       </DropdownMenuItem>
                     )}
                     {(post.type === "REEL" || !!post.videoKey) && (
                       <DropdownMenuItem onClick={() => setVideoEditorPostId(post.id)}>
-                        <VideoIcon className="size-3.5 mr-2 text-violet-500" />Editar Vídeo
+                        <VideoIcon className="size-3.5 mr-2 text-info" />Editar Vídeo
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem onClick={() => generatePost.mutateAsync({ postId: post.id, userPrompt: "" })}>
@@ -184,7 +185,7 @@ export function PostDetailDialog({ post, plannerId, open, onOpenChange, initialA
                     )}
                     {post.status !== "PUBLISHED" && (
                       <DropdownMenuItem onClick={() => publishPost.mutate({ postId: post.id })}>
-                        <SendIcon className="size-3.5 mr-2 text-violet-500" />Publicar Agora
+                        <SendIcon className="size-3.5 mr-2 text-info" />Publicar Agora
                       </DropdownMenuItem>
                     )}
                     {post.thumbnail && (
@@ -281,12 +282,12 @@ export function PostDetailDialog({ post, plannerId, open, onOpenChange, initialA
                 {post.type && <Badge variant="outline">{POST_TYPE_LABELS[post.type] ?? post.type}</Badge>}
                 {(post.targetNetworks ?? []).map((net: string) => (
                   <Badge key={net} variant="secondary" className="gap-1">
-                    <span className={`size-1.5 rounded-full shrink-0 ${isConnected(net) ? "bg-emerald-500" : "bg-zinc-400"}`} />
+                    <span className={`size-1.5 rounded-full shrink-0 ${isConnected(net) ? "bg-success" : "bg-muted-foreground"}`} />
                     {POST_NETWORKS[net] ?? net}
                   </Badge>
                 ))}
                 {post.isAd && (
-                  <Badge className="bg-orange-500 hover:bg-orange-500 text-white gap-1">
+                  <Badge className="bg-warning/15 hover:bg-warning/15 text-warning border-warning/30 gap-1">
                     <MegaphoneIcon className="size-2.5" />Anúncio
                   </Badge>
                 )}
@@ -318,7 +319,7 @@ export function PostDetailDialog({ post, plannerId, open, onOpenChange, initialA
                       onClick={() => syncMetrics.mutate({ postId: post.id })}
                       disabled={syncMetrics.isPending}
                     >
-                      <RefreshCwIcon className={`size-3 ${syncMetrics.isPending ? "animate-spin" : ""}`} />
+                      {syncMetrics.isPending ? <OrbitaSpinner className="size-3" /> : <RefreshCwIcon className="size-3" />}
                       Sincronizar
                     </Button>
                   </div>
@@ -362,7 +363,7 @@ export function PostDetailDialog({ post, plannerId, open, onOpenChange, initialA
               {post.hashtags?.length > 0 && (
                 <div>
                   <Label className="text-xs text-muted-foreground">Hashtags</Label>
-                  <p className="text-sm text-violet-600 dark:text-violet-400 mt-1">
+                  <p className="text-sm text-info mt-1">
                     {Array.isArray(post.hashtags) ? post.hashtags.join(" ") : post.hashtags}
                   </p>
                 </div>

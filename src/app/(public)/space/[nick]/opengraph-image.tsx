@@ -57,7 +57,7 @@ export default async function SpaceOgImage({ params }: Props) {
           justifyContent: "space-between",
           padding: "64px",
           background:
-            "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #7c2d12 100%)",
+            "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #2547ae 100%)",
           color: "#fff",
           fontFamily: "system-ui",
         }}
@@ -68,7 +68,7 @@ export default async function SpaceOgImage({ params }: Props) {
             alignItems: "center",
             gap: 16,
             fontSize: 28,
-            color: "#fdba74",
+            color: "#30aff8",
           }}
         >
           <span style={{ fontWeight: 700 }}>ÓRBITA</span>
@@ -86,7 +86,7 @@ export default async function SpaceOgImage({ params }: Props) {
               alignItems: "center",
               justifyContent: "center",
               overflow: "hidden",
-              border: "2px solid rgba(253,186,116,0.3)",
+              border: "2px solid rgba(48,175,248,0.3)",
             }}
           >
             {logo ? (

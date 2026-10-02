@@ -62,7 +62,7 @@ export function AddToPlannerButton({ context, suggestedTitle, variant = "outline
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CalendarPlusIcon className="size-4 text-violet-500" />
+              <CalendarPlusIcon className="size-4 text-info" />
               Adicionar ao Planner
             </DialogTitle>
           </DialogHeader>

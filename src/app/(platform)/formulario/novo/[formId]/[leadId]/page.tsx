@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useMutation } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Link2 } from "lucide-react";
+import { Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -167,14 +167,6 @@ function NovaRespostaContent() {
       {/* Cabeçalho com contexto do lead */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-[920px] mx-auto px-4 py-3 flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.back()}
-            className="shrink-0"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -184,7 +176,7 @@ function NovaRespostaContent() {
                   • {tracking.name}
                 </span>
               )}
-              <span className="text-[10px] uppercase font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">
+              <span className="text-[10px] uppercase font-semibold text-warning dark:text-warning bg-warning/10 px-2 py-0.5 rounded">
                 Novo preenchimento
               </span>
             </div>

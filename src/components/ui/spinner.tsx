@@ -1,16 +1,9 @@
-import { Loader2Icon } from "lucide-react"
+import type { ComponentProps } from "react"
+import { OrbitaSpinner } from "@/components/orbita-spinner"
 
-import { cn } from "@/lib/utils"
-
-function Spinner({ className, ...props }: React.ComponentProps<"svg">) {
-  return (
-    <Loader2Icon
-      role="status"
-      aria-label="Loading"
-      className={cn("size-4 animate-spin", className)}
-      {...props}
-    />
-  )
+/** Loading padrão do design system: a marca da ÓRBITA girando. */
+function Spinner(props: ComponentProps<typeof OrbitaSpinner>) {
+  return <OrbitaSpinner {...props} />
 }
 
 export { Spinner }

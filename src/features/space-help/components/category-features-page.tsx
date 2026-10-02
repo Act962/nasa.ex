@@ -61,10 +61,10 @@ export function CategoryFeaturesPage({ categorySlug }: { categorySlug: string })
             <li key={f.id}>
               <Link
                 href={`/space-help/${category.slug}/${f.slug}`}
-                className="flex items-start gap-4 rounded-xl border border-border bg-card p-4 hover:border-violet-500/50 transition group"
+                className="flex items-start gap-4 rounded-xl border border-border bg-card p-4 hover:border-info/50 transition group"
               >
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold leading-tight group-hover:text-violet-700 dark:group-hover:text-violet-300 transition">
+                  <h3 className="font-semibold leading-tight group-hover:text-info transition">
                     {f.title}
                   </h3>
                   {f.summary && (
@@ -74,7 +74,7 @@ export function CategoryFeaturesPage({ categorySlug }: { categorySlug: string })
                   )}
                 </div>
                 {f.youtubeUrl && (
-                  <Youtube className="size-4 shrink-0 text-red-500 mt-1" />
+                  <Youtube className="size-4 shrink-0 text-destructive mt-1" />
                 )}
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground mt-1 transition group-hover:translate-x-0.5" />
               </Link>

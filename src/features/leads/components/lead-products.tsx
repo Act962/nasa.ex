@@ -12,11 +12,11 @@ import {
   CalendarIcon,
   FileSignature,
   ImageIcon,
-  Loader2,
   ReceiptIcon,
   ShoppingBasket,
   WalletIcon,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useLeadProducts } from "../hooks/use-lead-products";
 
 type PurchaseItem = {
@@ -45,42 +45,42 @@ const CATALOG_STATUS_STYLE: Record<
 > = {
   RECEIVED: {
     label: "Recebido",
-    className: "text-slate-500 border-slate-500/30 bg-slate-500/10",
+    className: "text-muted-foreground border-line/30 bg-knob/10",
   },
   NEGOTIATING: {
     label: "Em negociação",
-    className: "text-sky-500 border-sky-500/30 bg-sky-500/10",
+    className: "text-info border-info/30 bg-info/10",
   },
   AWAITING_PAYMENT: {
     label: "Aguardando pagamento",
-    className: "text-amber-500 border-amber-500/30 bg-amber-500/10",
+    className: "text-warning border-warning/30 bg-warning/10",
   },
   PAID: {
     label: "Pago",
-    className: "text-emerald-500 border-emerald-500/30 bg-emerald-500/10",
+    className: "text-success border-success/30 bg-success/10",
   },
   IN_LOGISTICS: {
     label: "Em logística",
-    className: "text-violet-500 border-violet-500/30 bg-violet-500/10",
+    className: "text-info border-info/30 bg-info/10",
   },
   DELIVERED: {
     label: "Entregue",
-    className: "text-emerald-600 border-emerald-600/30 bg-emerald-600/10",
+    className: "text-success border-success/30 bg-success/10",
   },
   CANCELED: {
     label: "Cancelado",
-    className: "text-red-500 border-red-500/30 bg-red-500/10",
+    className: "text-destructive border-destructive/30 bg-destructive/10",
   },
 };
 
 const FORGE_PAID_STYLE = {
   label: "Paga",
-  className: "text-emerald-500 border-emerald-500/30 bg-emerald-500/10",
+  className: "text-success border-success/30 bg-success/10",
 };
 
 const FORGE_ACTIVE_CONTRACT_STYLE = {
   label: "Contrato ativo",
-  className: "text-emerald-500 border-emerald-500/30 bg-emerald-500/10",
+  className: "text-success border-success/30 bg-success/10",
 };
 
 const FORGE_PROPOSAL_STATUS_LABEL: Record<ForgeProposalStatus, string> = {
@@ -178,7 +178,7 @@ export function LeadProducts({ leadId, starFriendsSlot }: LeadProductsProps) {
           icon={<WalletIcon className="size-4" />}
           label="Total gasto"
           value={formatCurrency(totals?.totalSpent ?? 0)}
-          valueClassName="text-emerald-500"
+          valueClassName="text-success"
         />
         <SummaryCard
           icon={<CalendarIcon className="size-4" />}
@@ -191,7 +191,7 @@ export function LeadProducts({ leadId, starFriendsSlot }: LeadProductsProps) {
 
       {isLoading ? (
         <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" /> Carregando…
+          <OrbitaSpinner className="size-4 " /> Carregando…
         </div>
       ) : purchases.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-border/40 py-10 text-center text-xs text-muted-foreground">
@@ -249,8 +249,8 @@ function PurchaseCard({ purchase }: { purchase: Purchase }) {
               className={cn(
                 "gap-1",
                 isCatalog
-                  ? "text-emerald-500 border-emerald-500/30"
-                  : "text-[#1E90FF] border-[#1E90FF]/30",
+                  ? "text-success border-success/30"
+                  : "text-info border-info/30",
               )}
             >
               {isCatalog ? (
@@ -269,7 +269,7 @@ function PurchaseCard({ purchase }: { purchase: Purchase }) {
             {formatDate(purchase.date)}
           </p>
         </div>
-        <p className="shrink-0 text-sm font-semibold tabular-nums text-emerald-500">
+        <p className="shrink-0 text-sm font-semibold tabular-nums text-success">
           {formatCurrency(purchase.total)}
         </p>
       </div>

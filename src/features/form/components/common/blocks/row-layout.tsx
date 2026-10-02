@@ -456,15 +456,18 @@ function RowLayoutCanvasComponent({
         ref={droppable.setNodeRef}
         className={cn(
           `w-full! bg-accent-foreground/10 relative border shadow-sm min-h-[120px] max-w-[768px] rounded-md p-0!`,
-          blockInstance.isLocked && "rounded-t-none!",
+          // Celular: sem o cartão do grupo — os campos vão até perto da borda do formulário.
+          "max-md:min-h-0 max-md:border-0 max-md:bg-transparent max-md:shadow-none",
+          isSelected && "max-md:rounded-[20px]! max-md:ring-2 max-md:ring-info/50",
+          blockInstance.isLocked && "rounded-t-none! max-md:rounded-[20px]!",
         )}
         onClick={() => {
           handleSelectedLayout(blockInstance);
         }}
       >
-        <CardContent className="px-2 pb-2">
+        <CardContent className="px-2 pb-2 max-md:px-0 max-md:pb-0">
           {isSelected && (
-            <div className="w-[5px] absolute left-0 top-0 rounded-l-md h-full bg-primary" />
+            <div className="w-[5px] absolute left-0 top-0 rounded-l-md h-full bg-primary max-md:hidden" />
           )}
           {!blockInstance.isLocked && (
             <div
@@ -505,7 +508,7 @@ function RowLayoutCanvasComponent({
               >
                 <div
                   className={cn(
-                    "flex w-full flex-row flex-wrap items-stretch gap-3 py-4 px-3",
+                    "flex w-full flex-row flex-wrap items-stretch gap-3 py-4 px-3 max-md:gap-2 max-md:px-0 max-md:py-1",
                     getRowAlignClass(getRowAlign(blockInstance)),
                   )}
                   style={getPrimaryColorStyle(settings?.primaryColor)}
@@ -586,20 +589,18 @@ function RowLayoutFormComponent({
 
   return (
     <div className="max-w-full">
-      {blockInstance.isLocked && <Border />}
-
       {/* Grupo (RowLayout) no form público: SEM contorno/fundo/sombra própria.
           O contorno único do formulário fica no container externo (no
           form-submit-component). Manter o Card transparente evita
           "card-dentro-de-card" visual. */}
       <div
-        className={cn("w-full relative min-h-[120px] max-w-[768px]")}
+        className={cn("w-full relative max-w-[768px]")}
         style={{ color: textColor || undefined }}
       >
-        <div className="px-2 pb-2 py-4">
+        <div>
           <div
             className={cn(
-              "flex w-full flex-row flex-wrap items-stretch gap-3 px-3",
+              "flex w-full flex-row flex-wrap items-stretch gap-3",
               getRowAlignClass(getRowAlign(blockInstance)),
             )}
             style={getPrimaryColorStyle(settings?.primaryColor)}
@@ -968,7 +969,8 @@ function SortableChildCanvas({
             title="Arrastar para reordenar"
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "absolute left-0 top-0 bottom-0 w-7 flex flex-col items-center justify-center",
+              // No celular reordena pelas setas ↑/↓; a alça de arrastar só ocupa espaço.
+              "absolute left-0 top-0 bottom-0 w-7 flex flex-col items-center justify-center max-md:hidden",
               "rounded-l-md cursor-grab active:cursor-grabbing select-none touch-none",
               "bg-foreground/4 hover:bg-primary/15 transition-colors",
               "opacity-60 group-hover/child:opacity-100",
@@ -983,7 +985,7 @@ function SortableChildCanvas({
           </div>
         )}
 
-        <div className={cn("p-3", !isLocked && "pl-10")}>
+        <div className={cn("p-3", !isLocked && "pl-10 max-md:pl-3")}>
           <ChildCanvasComponentWrapper
             blockInstance={child}
             settings={settings}
@@ -1121,6 +1123,6 @@ function PlaceHolder({ textColor }: { textColor: string | undefined }) {
 
 function Border() {
   return (
-    <div className="w-full rounded-t-md min-h-[8px] bg-accent-foreground/10" />
+    <div className="w-full rounded-t-md min-h-[8px] bg-accent-foreground/10 max-md:hidden" />
   );
 }

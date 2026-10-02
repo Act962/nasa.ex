@@ -22,10 +22,10 @@ interface OrgMember {
 }
 
 const ROLE_META: Record<string, { label: string; color: string; bg: string }> = {
-  owner:     { label: "Master",    color: "text-violet-400", bg: "bg-violet-500/10" },
-  admin:     { label: "Adm",       color: "text-blue-400",   bg: "bg-blue-500/10"   },
-  member:    { label: "Single",    color: "text-zinc-400",   bg: "bg-zinc-700/50"   },
-  moderador: { label: "Moderador", color: "text-orange-400", bg: "bg-orange-500/10" },
+  owner:     { label: "Master",    color: "text-info", bg: "bg-info/10" },
+  admin:     { label: "Adm",       color: "text-foreground", bg: "bg-knob" },
+  member:    { label: "Single",    color: "text-muted-foreground", bg: "bg-muted" },
+  moderador: { label: "Moderador", color: "text-warning", bg: "bg-warning/10" },
 };
 
 function initials(name: string) {
@@ -77,26 +77,26 @@ export function OrgActivityLog({ orgId, members }: { orgId: string; members: Org
   const appsInLogs = Array.from(new Set(logs.map((l) => l.appSlug)));
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
+    <div className="bg-card border border-border rounded-xl p-5 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-          <Clock className="w-4 h-4 text-zinc-400" />
+        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Clock className="w-4 h-4 text-muted-foreground" />
           Todas as Atividades
           {!loading && (
-            <span className="text-xs font-normal text-zinc-500">({total} registros)</span>
+            <span className="text-xs font-normal text-muted-foreground">({total} registros)</span>
           )}
         </h2>
 
         {/* Filters */}
         <div className="flex items-center gap-2 flex-wrap">
-          <Filter className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+          <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
 
           {/* Member filter */}
           <select
             value={filterUser}
             onChange={(e) => setFilterUser(e.target.value)}
-            className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-violet-500/60"
+            className="bg-muted border border-line text-foreground text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-ring"
           >
             <option value="all">Todos os membros</option>
             {members.map((m) => (
@@ -110,7 +110,7 @@ export function OrgActivityLog({ orgId, members }: { orgId: string; members: Org
           <select
             value={filterApp}
             onChange={(e) => setFilterApp(e.target.value)}
-            className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-violet-500/60"
+            className="bg-muted border border-line text-foreground text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-ring"
           >
             <option value="all">Todos os apps</option>
             {appsInLogs.map((slug) => (
@@ -123,20 +123,20 @@ export function OrgActivityLog({ orgId, members }: { orgId: string; members: Org
       </div>
 
       {/* Log list */}
-      <div className="rounded-xl border border-zinc-800 overflow-hidden divide-y divide-zinc-800">
+      <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
-              <div className="w-7 h-7 rounded-full bg-zinc-800 shrink-0" />
+              <div className="w-7 h-7 rounded-full bg-muted shrink-0" />
               <div className="flex-1 space-y-1.5">
-                <div className="h-3 w-48 bg-zinc-800 rounded" />
-                <div className="h-2.5 w-32 bg-zinc-800 rounded" />
+                <div className="h-3 w-48 bg-muted rounded" />
+                <div className="h-2.5 w-32 bg-muted rounded" />
               </div>
-              <div className="h-2.5 w-28 bg-zinc-800 rounded shrink-0" />
+              <div className="h-2.5 w-28 bg-muted rounded shrink-0" />
             </div>
           ))
         ) : logs.length === 0 ? (
-          <div className="py-12 text-center text-sm text-zinc-500">
+          <div className="py-12 text-center text-sm text-muted-foreground">
             Nenhuma atividade encontrada.
           </div>
         ) : (
@@ -152,19 +152,19 @@ export function OrgActivityLog({ orgId, members }: { orgId: string; members: Org
               return (
                 <div
                   key={log.id}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-800/40 transition-colors min-w-0"
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors min-w-0"
                 >
                   {/* Avatar */}
-                  <div className="w-7 h-7 rounded-full bg-zinc-700 shrink-0 flex items-center justify-center overflow-hidden">
+                  <div className="w-7 h-7 rounded-full bg-knob shrink-0 flex items-center justify-center overflow-hidden">
                     {avatar
                       ? /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={avatar} alt={log.userName} className="w-full h-full object-cover" />
-                      : <span className="text-[10px] font-bold text-zinc-300">{initWord}</span>
+                      : <span className="text-[10px] font-bold text-foreground">{initWord}</span>
                     }
                   </div>
 
                   {/* Name */}
-                  <span className="text-xs font-semibold text-white shrink-0 max-w-[100px] truncate">
+                  <span className="text-xs font-semibold text-foreground shrink-0 max-w-[100px] truncate">
                     {log.userName}
                   </span>
 
@@ -173,22 +173,22 @@ export function OrgActivityLog({ orgId, members }: { orgId: string; members: Org
                     {roleMeta.label}
                   </span>
 
-                  <span className="text-zinc-700 shrink-0">·</span>
+                  <span className="text-muted-foreground/70 shrink-0">·</span>
 
                   {/* App */}
-                  <span className="text-[11px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 shrink-0 whitespace-nowrap">
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-muted text-muted-foreground shrink-0 whitespace-nowrap">
                     {appLabel}
                   </span>
 
-                  <span className="text-zinc-700 shrink-0">·</span>
+                  <span className="text-muted-foreground/70 shrink-0">·</span>
 
                   {/* Action */}
-                  <span className="text-xs text-zinc-300 flex-1 truncate">
+                  <span className="text-xs text-foreground flex-1 truncate">
                     {log.actionLabel}
                   </span>
 
                   {/* Date */}
-                  <span className="text-[11px] text-zinc-500 whitespace-nowrap shrink-0 ml-auto pl-2">
+                  <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0 ml-auto pl-2">
                     {formatDate(log.createdAt)}
                   </span>
                 </div>
@@ -199,7 +199,7 @@ export function OrgActivityLog({ orgId, members }: { orgId: string; members: Org
               <div className="py-3 text-center">
                 <button
                   onClick={handleLoadMore}
-                  className="flex items-center gap-1.5 mx-auto text-xs text-zinc-400 hover:text-white transition-colors"
+                  className="flex items-center gap-1.5 mx-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <ChevronDown className="w-3.5 h-3.5" />
                   Carregar mais ({total - limit} restantes)

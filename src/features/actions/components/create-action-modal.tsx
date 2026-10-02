@@ -305,19 +305,19 @@ export const CreateActionModal = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="LOW">
-                          <div className="size-2 rounded-full bg-emerald-500 mr-2" />
+                          <div className="size-2 rounded-full bg-success mr-2" />
                           Baixa
                         </SelectItem>
                         <SelectItem value="MEDIUM">
-                          <div className="size-2 rounded-full bg-yellow-500 mr-2" />
+                          <div className="size-2 rounded-full bg-warning mr-2" />
                           Média
                         </SelectItem>
                         <SelectItem value="HIGH">
-                          <div className="size-2 rounded-full bg-orange-500 mr-2" />
+                          <div className="size-2 rounded-full bg-warning mr-2" />
                           Alta
                         </SelectItem>
                         <SelectItem value="URGENT">
-                          <div className="size-2 rounded-full bg-red-600 mr-2" />
+                          <div className="size-2 rounded-full bg-destructive mr-2" />
                           Urgente
                         </SelectItem>
                       </SelectContent>
@@ -527,7 +527,7 @@ export const CreateActionModal = ({
             </div>
           </FieldGroup>
 
-          <DialogFooter className="mt-4 shrink-0 border-t pt-4">
+          <DialogFooter className="mt-4 shrink-0 pt-4">
             <Button
               type="button"
               variant="ghost"

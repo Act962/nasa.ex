@@ -14,6 +14,7 @@ import {
   toSalvyOrpcError,
 } from "@/features/campanhas/server/lib/salvy-numbers";
 import { loadMetaNumberPanel } from "@/features/campanhas/server/lib/meta-number-panel";
+import { notifyTeamAboutNumberPurchase } from "@/features/campanhas/server/lib/notify-number-purchase";
 
 const CODE_LOOKBACK_MS = 30 * 60_000;
 
@@ -108,3 +109,15 @@ export const numberPanel = base
   .use(requireOrgMiddleware)
   .input(z.object({ trackingId: z.string().min(1) }))
   .handler(async ({ input, context }) => loadMetaNumberPanel(input.trackingId, context.org.id));
+
+/** "Comprar número" no assistente: avisa a equipe do novo lead (o cliente fala com o comercial pelo WhatsApp dele). */
+export const notifyNumberPurchaseInterest = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .handler(async ({ context }) =>
+    notifyTeamAboutNumberPurchase({
+      organizationName: context.org.name,
+      userName: context.user.name,
+      userEmail: context.user.email,
+    }),
+  );

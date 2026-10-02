@@ -47,7 +47,6 @@ export function PriceCatalogManager() {
             setEditing(null);
             setModalOpen(true);
           }}
-          className="bg-[#7C3AED] hover:bg-[#6D28D9]"
         >
           <Plus className="mr-1 size-4" /> Novo item
         </Button>
@@ -86,7 +85,7 @@ export function PriceCatalogManager() {
                           target="_blank"
                           rel="noreferrer"
                           title="Ver fonte do preço"
-                          className="text-muted-foreground hover:text-[#7C3AED]"
+                          className="text-muted-foreground hover:text-info"
                         >
                           <ExternalLink className="size-3.5" />
                         </a>

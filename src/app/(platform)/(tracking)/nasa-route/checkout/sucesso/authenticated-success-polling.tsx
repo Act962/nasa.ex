@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { client as orpcClient } from "@/lib/orpc";
-import { AlertCircle, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import posthog from "posthog-js";
 
 const POLL_INTERVAL_MS = 2000;
@@ -108,7 +109,7 @@ export function AuthenticatedSuccessPolling({ pendingId }: Props) {
   if (state.kind === "missing-token") {
     return (
       <Banner
-        icon={<AlertCircle className="size-12 text-rose-400" />}
+        icon={<AlertCircle className="size-12 text-destructive" />}
         title="Token ausente"
         subtitle="Não conseguimos identificar a sua compra."
       />
@@ -118,7 +119,7 @@ export function AuthenticatedSuccessPolling({ pendingId }: Props) {
   if (state.kind === "not-found") {
     return (
       <Banner
-        icon={<XCircle className="size-12 text-rose-400" />}
+        icon={<XCircle className="size-12 text-destructive" />}
         title="Compra não encontrada"
         subtitle="Aguarde alguns instantes — pode levar alguns segundos pro Stripe sincronizar."
       />
@@ -128,7 +129,7 @@ export function AuthenticatedSuccessPolling({ pendingId }: Props) {
   if (state.kind === "expired") {
     return (
       <Banner
-        icon={<AlertCircle className="size-12 text-amber-400" />}
+        icon={<AlertCircle className="size-12 text-warning" />}
         title="Compra expirou"
         subtitle="Contate o suporte para reabertura."
       />
@@ -138,7 +139,7 @@ export function AuthenticatedSuccessPolling({ pendingId }: Props) {
   if (state.kind === "error") {
     return (
       <Banner
-        icon={<XCircle className="size-12 text-rose-400" />}
+        icon={<XCircle className="size-12 text-destructive" />}
         title="Erro inesperado"
         subtitle={state.message}
       />
@@ -148,7 +149,7 @@ export function AuthenticatedSuccessPolling({ pendingId }: Props) {
   if (state.kind === "still-pending") {
     return (
       <Banner
-        icon={<Loader2 className="size-12 animate-spin text-violet-400" />}
+        icon={<OrbitaSpinner className="size-12 text-info" />}
         title="Pagamento ainda processando"
         subtitle="O Stripe está demorando para confirmar. Atualize esta página em alguns instantes — sua matrícula será liberada automaticamente."
       />
@@ -157,8 +158,8 @@ export function AuthenticatedSuccessPolling({ pendingId }: Props) {
 
   if (state.kind === "paid") {
     return (
-      <div className="rounded-3xl border border-emerald-400/20 bg-emerald-500/[0.04] p-8 text-center">
-        <CheckCircle2 className="mx-auto size-14 text-emerald-400" />
+      <div className="rounded-3xl border border-success/30 bg-success/10 p-8 text-center">
+        <CheckCircle2 className="mx-auto size-14 text-success" />
         <h1 className="mt-4 text-2xl font-bold">Compra confirmada! 🎉</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Você comprou <strong>{state.courseTitle}</strong>. Redirecionando pro
@@ -169,8 +170,8 @@ export function AuthenticatedSuccessPolling({ pendingId }: Props) {
   }
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center">
-      <Loader2 className="mx-auto size-12 animate-spin text-violet-400" />
+    <div className="rounded-3xl border border-line bg-card p-8 text-center">
+      <OrbitaSpinner className="mx-auto size-12 text-info" />
       <h1 className="mt-4 text-xl font-bold">Confirmando seu pagamento…</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         Estamos esperando o Stripe confirmar. Não feche esta aba.
@@ -192,7 +193,7 @@ function Banner({
   subtitle: string;
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center">
+    <div className="rounded-3xl border border-line bg-card p-8 text-center">
       <div className="inline-flex">{icon}</div>
       <h1 className="mt-4 text-2xl font-bold">{title}</h1>
       <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>

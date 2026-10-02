@@ -21,8 +21,8 @@ export default async function PermissionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-white">Matriz de Permissões</h1>
-        <p className="text-sm text-zinc-400 mt-1">Configure permissões por empresa, função e aplicativo</p>
+        <h1 className="text-xl font-bold text-foreground">Matriz de Permissões</h1>
+        <p className="text-sm text-muted-foreground mt-1">Configure permissões por empresa, função e aplicativo</p>
       </div>
 
       <PermissionsMatrix orgs={orgs} allApps={ALL_APPS} roles={ROLES} />

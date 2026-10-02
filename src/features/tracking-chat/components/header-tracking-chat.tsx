@@ -13,7 +13,6 @@ import {
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import {
   ArchiveIcon,
-  ArrowLeftIcon,
   BotIcon,
   CheckIcon,
   ChevronRightIcon,
@@ -24,6 +23,7 @@ import {
   SparklesIcon,
   VideoIcon,
   XIcon,
+  ArrowLeftIcon,
 } from "lucide-react";
 import { dialPhone } from "../utils/dial-phone";
 import Link from "next/link";
@@ -39,6 +39,9 @@ import { InChatStatusBadge } from "./in-chat-status-badge";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
+import { HeatRing } from "@/features/leads/components/lead-audit/heat-ring";
+import { useLeadDetailsStore } from "./lead-sidebar/use-lead-details-store";
+import type { HeatLevel } from "@/features/leads/components/lead-audit/lead-heat";
 import { SeiLeadProcessDialog } from "@/features/sei/components/lead-process-dialog";
 
 interface HeaderProps {
@@ -56,6 +59,8 @@ interface HeaderProps {
   trackingName?: string | null;
   /** Nome do status atual do lead (ex: "Aguardando Análise"). */
   statusName?: string | null;
+  /** Temperatura do lead para o anel da foto (mesmo da lista de conversas). */
+  heat?: { score: number; level: HeatLevel } | null;
 }
 
 function ChannelBadge({ channel }: { channel: MessageChannel }) {
@@ -63,7 +68,7 @@ function ChannelBadge({ channel }: { channel: MessageChannel }) {
     return (
       <span
         title="Instagram DM"
-        className="flex items-center justify-center size-6 rounded-full bg-linear-to-tr from-yellow-400 via-pink-500 to-purple-600 text-white shrink-0"
+        className="flex items-center justify-center size-6 rounded-full bg-linear-to-tr from-warning via-info to-info text-white shrink-0"
       >
         <InstagramIcon className="size-3.5" />
       </span>
@@ -73,7 +78,7 @@ function ChannelBadge({ channel }: { channel: MessageChannel }) {
     return (
       <span
         title="Facebook Messenger"
-        className="flex items-center justify-center size-6 rounded-full bg-[#0082FB] text-white shrink-0"
+        className="flex items-center justify-center size-6 rounded-full bg-brand-messenger text-white shrink-0"
       >
         <FacebookIcon className="size-3.5" />
       </span>
@@ -94,6 +99,7 @@ export function Header({
   channel,
   trackingName,
   statusName,
+  heat,
 }: HeaderProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -108,6 +114,7 @@ export function Header({
   const [seiOpen, setSeiOpen] = useState(false);
 
   const backHref = withSearchParams(`/tracking-chat`, searchParams);
+  const openLeadDetails = useLeadDetailsStore((state) => state.requestOpen);
 
   const onCloseChat = () => {
     router.push(backHref);
@@ -189,32 +196,40 @@ export function Header({
     // Header com fundo opaco do tema (bg-background) — independente de
     // qualquer customização do chat por baixo, garante contraste correto
     // do texto em Claro/Escuro. text-foreground força a cor seguir o tema.
-    <div className="bg-background text-foreground w-full flex border-b sm:px-4 py-3 px-4 lg:px-6 justify-between items-center shadow-sm">
-      <div className="flex gap-3 items-center">
-        <Button variant="ghost" size="sm" className="lg:hidden block">
-          <Link href={backHref}>
-            <ArrowLeftIcon className="size-4" />
+    <div className="bg-background text-foreground w-full flex sm:px-4 py-3 px-4 lg:px-6 justify-between items-center">
+      <div className="flex gap-2 items-center min-w-0">
+        <Button variant="ghost" size="icon" asChild className="shrink-0 lg:hidden">
+          <Link href={backHref} aria-label="Voltar para as conversas">
+            <ArrowLeftIcon className="size-5" />
           </Link>
         </Button>
-        <div className="relative">
-          <Avatar>
-            <AvatarImage src={profileUrl} />
-            <AvatarFallback>{name.slice(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
+        <button
+          type="button"
+          onClick={openLeadDetails}
+          aria-label="Abrir detalhes do lead"
+          className="relative shrink-0 rounded-full"
+        >
+          <HeatRing size={44} variant="color" heat={heat ?? null}>
+            <Avatar className="size-full">
+              <AvatarImage src={profileUrl} />
+              <AvatarFallback>{name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+          </HeatRing>
           {channel && channel !== MessageChannel.WHATSAPP && (
             <span className="absolute -bottom-1 -right-1">
               <ChannelBadge channel={channel} />
             </span>
           )}
-        </div>
+        </button>
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            <Link
-              href={`/contatos/${leadId}`}
-              className="text-foreground hover:underline underline-offset-3 truncate font-medium"
+            <button
+              type="button"
+              onClick={openLeadDetails}
+              className="text-foreground hover:underline underline-offset-3 truncate font-medium text-left"
             >
               {name || "Sem nome"}
-            </Link>
+            </button>
             <InChatStatusBadge trackingId={trackingId} />
           </div>
           {/* Breadcrumb tracking > status — substitui o telefone que
@@ -328,7 +343,7 @@ export function Header({
             <DropdownMenuItem
               onClick={handleArchiveLead}
               disabled={setArchived.isPending}
-              className="text-amber-600 focus:text-amber-700"
+              className="text-warning focus:text-warning"
             >
               <ArchiveIcon className="size-4" />
               Arquivar contato

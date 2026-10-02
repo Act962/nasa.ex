@@ -193,7 +193,7 @@ function TransactionCard({
   dragging?: boolean;
 }) {
   const isCredit = transaction.direction === "CREDIT";
-  const color = isCredit ? "text-green-400" : "text-red-400";
+  const color = isCredit ? "text-success" : "text-destructive";
   const Icon = isCredit ? ArrowDownCircle : ArrowUpCircle;
   return (
     <div
@@ -209,7 +209,7 @@ function TransactionCard({
               {formatCurrency(transaction.amountCents)}
             </p>
             {transaction.reviewedAt && (
-              <CheckCircle2 className="size-3.5 text-emerald-500" aria-label="Conferido" />
+              <CheckCircle2 className="size-3.5 text-success" aria-label="Conferido" />
             )}
             {transaction.comprovanteAttachmentId && (
               <FileText className="size-3.5 text-muted-foreground" aria-label="Tem comprovante" />
@@ -220,7 +220,7 @@ function TransactionCard({
             {transaction.counterpartyName ? ` · ${transaction.counterpartyName}` : ""}
           </p>
           {transaction.status === "PENDING" && transaction.suggestion && (
-            <p className="mt-1 flex items-center gap-1 truncate text-[11px] text-blue-400">
+            <p className="mt-1 flex items-center gap-1 truncate text-[11px] text-info">
               <Sparkles className="size-3 shrink-0" />
               {transaction.suggestion.entry.description}
             </p>

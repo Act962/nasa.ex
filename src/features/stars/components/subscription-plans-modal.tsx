@@ -130,9 +130,9 @@ export function SubscriptionPlansModal({
                       className={cn(
                         "group relative flex flex-col rounded-2xl border p-5 transition-all duration-300",
                         isCurrent
-                          ? "border-emerald-500/30 bg-emerald-500/5 shadow-[0_0_20px_rgba(16,185,129,0.05)]"
+                          ? "border-success/30 bg-success/5 shadow-lg shadow-success/5"
                           : plan.highlighted
-                            ? "border-primary/40 bg-primary/5 hover:border-primary/60 shadow-[0_0_25px_rgba(var(--primary),0.05)]"
+                            ? "border-primary/40 bg-primary/5 hover:border-primary/60 shadow-lg"
                             : "border-border/60 bg-muted/5 hover:border-primary/30 hover:bg-muted/10",
                       )}
                     >
@@ -146,7 +146,7 @@ export function SubscriptionPlansModal({
 
                       {isCurrent && (
                         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                          <span className="bg-emerald-600 text-white text-[10px] font-black px-3 py-0.5 rounded-full uppercase tracking-wider shadow-lg">
+                          <span className="bg-success text-background text-[10px] font-black px-3 py-0.5 rounded-full uppercase tracking-wider shadow-lg">
                             Atual
                           </span>
                         </div>
@@ -173,7 +173,7 @@ export function SubscriptionPlansModal({
                           )}
                         </div>
                         <div className="mt-2 flex items-center gap-1.5 p-1.5 rounded-lg bg-primary/5 border border-primary/10">
-                          <Star className="size-3 text-yellow-500 fill-yellow-500" />
+                          <Star className="size-3 text-warning fill-warning" />
                           <span className="text-[11px] font-bold text-primary">
                             {plan.monthlyStars.toLocaleString("pt-BR")} Stars
                           </span>
@@ -186,7 +186,7 @@ export function SubscriptionPlansModal({
                             key={i}
                             className="flex items-start gap-2 text-[10px] text-muted-foreground leading-tight"
                           >
-                            <CheckCircle2 className="size-3 text-emerald-500 shrink-0 mt-0.5" />
+                            <CheckCircle2 className="size-3 text-success shrink-0 mt-0.5" />
                             <span>{benefit}</span>
                           </li>
                         ))}
@@ -200,7 +200,7 @@ export function SubscriptionPlansModal({
                         className={cn(
                           "w-full h-9 rounded-xl font-bold text-xs gap-2 transition-all",
                           isCurrent
-                            ? "bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 cursor-not-allowed hover:bg-emerald-600/20"
+                            ? "bg-success/20 text-success border border-success/20 cursor-not-allowed hover:bg-success/20"
                             : plan.highlighted
                               ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
                               : "bg-muted/30 hover:bg-muted/50 text-foreground border border-border",

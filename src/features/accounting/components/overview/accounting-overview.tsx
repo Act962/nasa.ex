@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, CalendarClock, FileStack, Loader2, Receipt, ShieldCheck, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarClock, FileStack, Receipt, ShieldCheck, Sparkles } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,9 +26,9 @@ interface AccountingOverviewProps {
 }
 
 function scoreTone(scorePercent: number) {
-  if (scorePercent >= 85) return { stroke: "stroke-emerald-500", text: "text-emerald-600 dark:text-emerald-400", label: "Em dia" };
-  if (scorePercent >= 60) return { stroke: "stroke-amber-500", text: "text-amber-600 dark:text-amber-400", label: "Atenção" };
-  return { stroke: "stroke-red-500", text: "text-red-600 dark:text-red-400", label: "Risco" };
+  if (scorePercent >= 85) return { stroke: "stroke-success", text: "text-success dark:text-success", label: "Em dia" };
+  if (scorePercent >= 60) return { stroke: "stroke-warning", text: "text-warning dark:text-warning", label: "Atenção" };
+  return { stroke: "stroke-destructive", text: "text-destructive dark:text-destructive", label: "Risco" };
 }
 
 function ScoreGauge({ scorePercent }: { scorePercent: number }) {
@@ -110,11 +111,11 @@ export function AccountingOverview({ onNavigate }: AccountingOverviewProps) {
   return (
     <div className="space-y-4">
       {!overview.isOnboarded && (
-        <Card className="border-violet-500/30 bg-violet-500/5 py-0">
+        <Card className="border-info/30 bg-info/5 py-0">
           <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-2">
               <p className="flex items-center gap-2 font-semibold">
-                <Sparkles className="size-4 text-violet-600" />
+                <Sparkles className="size-4 text-info" />
                 Bem-vindo à aba Contábil
               </p>
               <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
@@ -123,7 +124,7 @@ export function AccountingOverview({ onNavigate }: AccountingOverviewProps) {
                 <li>Faz a contabilidade (balancete e balanço) sozinha e explica cada termo em linguagem simples.</li>
               </ul>
             </div>
-            <Button className="shrink-0 gap-1.5 bg-violet-600 text-white hover:bg-violet-700" onClick={() => navigate("profile")}>
+            <Button className="shrink-0 gap-1.5 bg-info text-white hover:bg-info" onClick={() => navigate("profile")}>
               Configurar perfil fiscal
               <ArrowRight className="size-4" />
             </Button>
@@ -135,7 +136,7 @@ export function AccountingOverview({ onNavigate }: AccountingOverviewProps) {
         Regime atual:
         <span className="font-medium text-foreground">{REGIME_LABELS[overview.regime]}</span>
         <FiscalTermHint termId={REGIME_TERM_IDS[overview.regime]} />
-        <button type="button" className="ml-1 text-xs text-violet-600 hover:underline dark:text-violet-300" onClick={() => navigate("profile")}>
+        <button type="button" className="ml-1 text-xs text-info hover:underline dark:text-info" onClick={() => navigate("profile")}>
           alterar
         </button>
       </div>
@@ -144,7 +145,7 @@ export function AccountingOverview({ onNavigate }: AccountingOverviewProps) {
         <button
           type="button"
           onClick={() => navigate("credits")}
-          className="flex w-full items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-3 text-left text-sm text-amber-900 transition-colors hover:bg-amber-500/15 dark:text-amber-200"
+          className="flex w-full items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/10 px-3.5 py-3 text-left text-sm text-warning transition-colors hover:bg-warning/15 dark:text-warning"
         >
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <span className="flex-1">
@@ -161,7 +162,7 @@ export function AccountingOverview({ onNavigate }: AccountingOverviewProps) {
         <Card className="gap-3">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm">
-              <ShieldCheck className="size-4 text-violet-600" />
+              <ShieldCheck className="size-4 text-info" />
               Score de regularidade
               <FiscalTermHint termId="score-regularidade" />
             </CardTitle>
@@ -171,12 +172,12 @@ export function AccountingOverview({ onNavigate }: AccountingOverviewProps) {
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
                 {overview.pendingItemsCount} {overview.pendingItemsCount === 1 ? "pendência" : "pendências"} ·{" "}
-                <span className={cn(overview.blockingCount > 0 && "font-medium text-red-600 dark:text-red-400")}>
+                <span className={cn(overview.blockingCount > 0 && "font-medium text-destructive dark:text-destructive")}>
                   {overview.blockingCount} {overview.blockingCount === 1 ? "impedimento" : "impedimentos"}
                 </span>
               </p>
               {overview.overdueObligationsCount > 0 && (
-                <p className="text-xs text-red-600 dark:text-red-400">
+                <p className="text-xs text-destructive dark:text-destructive">
                   {overview.overdueObligationsCount} {overview.overdueObligationsCount === 1 ? "obrigação atrasada" : "obrigações atrasadas"}
                 </p>
               )}
@@ -191,7 +192,7 @@ export function AccountingOverview({ onNavigate }: AccountingOverviewProps) {
         <Card className="gap-3">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm">
-              <Receipt className="size-4 text-violet-600" />
+              <Receipt className="size-4 text-info" />
               Guia de {lastMonthLabel}
               <FiscalTermHint termId="competencia" />
             </CardTitle>
@@ -204,11 +205,11 @@ export function AccountingOverview({ onNavigate }: AccountingOverviewProps) {
                 </p>
                 <Button
                   size="sm"
-                  className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700"
+                  className="gap-1.5 bg-info text-white hover:bg-info"
                   disabled={runAssessment.isPending}
                   onClick={handleRunLastMonth}
                 >
-                  {runAssessment.isPending && <Loader2 className="size-3.5 animate-spin" />}
+                  {runAssessment.isPending && <OrbitaSpinner className="size-3.5 " />}
                   Apurar agora
                 </Button>
               </>
@@ -237,7 +238,7 @@ export function AccountingOverview({ onNavigate }: AccountingOverviewProps) {
         <Card className="gap-3">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm">
-              <FileStack className="size-4 text-violet-600" />
+              <FileStack className="size-4 text-info" />
               Créditos de IBS/CBS
               <FiscalTermHint termId="credito-nao-cumulativo" />
             </CardTitle>
@@ -258,7 +259,7 @@ export function AccountingOverview({ onNavigate }: AccountingOverviewProps) {
         <Card className="gap-3 md:col-span-2 xl:col-span-3">
           <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm">
-              <CalendarClock className="size-4 text-violet-600" />
+              <CalendarClock className="size-4 text-info" />
               Próximas obrigações
               <FiscalTermHint termId="obrigacao-acessoria" />
             </CardTitle>
@@ -287,8 +288,8 @@ export function AccountingOverview({ onNavigate }: AccountingOverviewProps) {
                         <span
                           className={cn(
                             "text-muted-foreground",
-                            daysUntil < 0 && "text-red-600 dark:text-red-400",
-                            daysUntil >= 0 && daysUntil <= 2 && "text-amber-600 dark:text-amber-400",
+                            daysUntil < 0 && "text-destructive dark:text-destructive",
+                            daysUntil >= 0 && daysUntil <= 2 && "text-warning dark:text-warning",
                           )}
                         >
                           {describeDaysUntil(daysUntil)}

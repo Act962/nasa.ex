@@ -28,7 +28,7 @@ export function AstroCommandButton({
       size={compact ? "icon" : "sm"}
       onClick={() => openCreateCommand({ examples: [...examples] })}
       className={cn(
-        "gap-2 border-violet-500/40 hover:border-violet-500/70 hover:bg-violet-500/10",
+        "gap-2 border-info/40 hover:border-info/70 hover:bg-info/10",
         className,
       )}
       aria-label={compact ? label : undefined}

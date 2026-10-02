@@ -15,18 +15,18 @@ interface ConversationChannelBadgeProps {
 }
 
 function ChannelGlyph({ channel, leadSource }: ConversationChannelBadgeProps) {
-  if (channel === "INSTAGRAM") return <InstagramIcon className="size-full text-pink-500" />;
-  if (channel === "FACEBOOK") return <FacebookIcon className="size-full text-blue-600" />;
+  if (channel === "INSTAGRAM") return <InstagramIcon className="size-full text-brand-instagram" />;
+  if (channel === "FACEBOOK") return <FacebookIcon className="size-full text-brand-facebook" />;
   if (leadSource === "ASTRO_CHAT") {
     return (
-      <span className="flex size-full items-center justify-center rounded-full bg-violet-600 p-[1px]">
+      <span className="flex size-full items-center justify-center rounded-full bg-info p-[1px]">
         <AstroMark className="size-full" />
       </span>
     );
   }
-  if (leadSource === "IN_CHAT") return <GlobeIcon className="size-full text-violet-500" />;
-  if (leadSource === "GMAIL") return <MailIcon className="size-full text-red-500" />;
-  return <WhatsappIcon className="size-full text-green-500" />;
+  if (leadSource === "IN_CHAT") return <GlobeIcon className="size-full text-info" />;
+  if (leadSource === "GMAIL") return <MailIcon className="size-full text-destructive" />;
+  return <WhatsappIcon className="size-full text-brand-whatsapp" />;
 }
 
 export function ConversationChannelBadge({ channel, leadSource, className }: ConversationChannelBadgeProps) {

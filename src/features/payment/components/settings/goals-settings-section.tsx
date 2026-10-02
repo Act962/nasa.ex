@@ -138,7 +138,7 @@ export function GoalsSettingsSection() {
   return (
     <div className="space-y-4">
       <h3 className="flex items-center gap-2 text-sm font-semibold">
-        <Target className="size-4 text-emerald-400" /> Metas e reserva de caixa
+        <Target className="size-4 text-success" /> Metas e reserva de caixa
       </h3>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -190,7 +190,7 @@ export function GoalsSettingsSection() {
       <Button
         onClick={handleSaveDefaults}
         disabled={updateConfig.isPending}
-        className="w-full bg-[#1E90FF] text-white"
+        className="w-full bg-info text-white"
       >
         {updateConfig.isPending ? "Salvando..." : "Salvar metas"}
       </Button>

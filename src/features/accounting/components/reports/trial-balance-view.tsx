@@ -132,7 +132,7 @@ export function TrialBalanceView({ period, onOpenLedger, onRequestReprocess }: T
               >
                 <TableCell style={{ paddingLeft: 8 + accountDepth(row.code) * INDENT_PER_LEVEL_PX }} className="whitespace-normal">
                   <span className="mr-2 font-mono text-muted-foreground">{row.code}</span>
-                  <span className={cn(row.isAnalytical && "text-[#1E90FF] hover:underline")}>{row.name}</span>
+                  <span className={cn(row.isAnalytical && "text-info hover:underline")}>{row.name}</span>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{formatCell(row.openingCents)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatCell(row.debitCents)}</TableCell>
@@ -155,12 +155,12 @@ export function TrialBalanceView({ period, onOpenLedger, onRequestReprocess }: T
       </div>
 
       {isBalanced ? (
-        <Badge variant="outline" className="gap-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+        <Badge variant="outline" className="gap-1 border-success/40 bg-success/10 text-success dark:text-success">
           <CheckCircle2 className="size-3.5" />
           Débitos = Créditos ✓
         </Badge>
       ) : (
-        <p className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+        <p className="flex gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning dark:text-warning">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
           Débitos e créditos não bateram neste período (diferença de {formatCentsBrl(Math.abs(totalDebitCents - totalCreditCents))}).
           Reprocesse a contabilidade; se continuar, fale com o suporte.

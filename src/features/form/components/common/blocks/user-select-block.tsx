@@ -114,7 +114,7 @@ function CanvasView({
       {label?.trim() && (
         <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug">
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
           <span className="text-xs text-muted-foreground ml-2">({btnLabel})</span>
         </Label>
       )}
@@ -228,10 +228,10 @@ function FormView({
     <div className="flex flex-col gap-2 w-full">
       {label?.trim() && (
         <Label
-          className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}
+          className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-destructive" : ""}`}
         >
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       <Select
@@ -245,7 +245,7 @@ function FormView({
         }}
         disabled={isLoading}
       >
-        <SelectTrigger className={isError || isSubmitError ? "border-red-500!" : ""}>
+        <SelectTrigger className={isError || isSubmitError ? "border-destructive!" : ""}>
           <SelectValue placeholder={multiple ? "Adicione usuários" : "Selecione um usuário"} />
         </SelectTrigger>
         <SelectContent>
@@ -283,7 +283,7 @@ function FormView({
       )}
       {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
       {(isError || isSubmitError) && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage || "Selecione ao menos um usuário."}</p>
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">{errorMessage || "Selecione ao menos um usuário."}</p>
       )}
     </div>
   );

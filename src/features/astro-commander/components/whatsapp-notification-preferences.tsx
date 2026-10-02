@@ -16,7 +16,7 @@ export function WhatsAppNotificationPreferences() {
   if (!organizationId) return null;
 
   return (
-    <section className="space-y-4 border-t pt-8">
+    <section className="space-y-4 pt-8">
       <div>
         <h3 className="text-sm font-medium">O que o ASTRO te manda no WhatsApp</h3>
         <p className="mt-1 text-sm text-muted-foreground">

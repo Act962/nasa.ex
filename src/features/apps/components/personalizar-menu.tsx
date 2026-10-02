@@ -57,8 +57,8 @@ export function WorkspaceToggles() {
               className={cn(
                 "flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border transition-colors shrink-0",
                 visible
-                  ? "bg-violet-500/10 text-violet-400 border-violet-500/30 hover:bg-violet-500/20"
-                  : "bg-muted text-muted-foreground border-border hover:border-violet-500/30 hover:text-violet-400",
+                  ? "bg-info/10 text-info border-info/30 hover:bg-info/20"
+                  : "bg-muted text-muted-foreground border-border hover:border-info/30 hover:text-info",
               )}
             >
               <PanelLeft className="size-2.5" />
@@ -100,8 +100,8 @@ function HomeAppToggle({
       className={cn(
         "flex w-full items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors",
         isPrimary
-          ? "border-amber-500/40 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 dark:text-amber-400"
-          : "border-border text-muted-foreground hover:border-amber-500/30 hover:text-amber-600 dark:hover:text-amber-400",
+          ? "border-warning/40 bg-warning/10 text-warning hover:bg-warning/20"
+          : "border-border text-muted-foreground hover:border-warning/30 hover:text-warning",
       )}
     >
       <Star className={cn("size-3", isPrimary && "fill-current")} />

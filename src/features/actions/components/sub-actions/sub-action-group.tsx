@@ -124,7 +124,7 @@ export function SubActionGroup({
           </button>
           <button
             onClick={toggleOpen}
-            className="size-5 inline-flex items-center justify-center rounded hover:bg-muted shrink-0"
+            className="size-5 inline-flex items-center justify-center rounded-full hover:bg-muted shrink-0"
           >
             {open ? (
               <ChevronDownIcon className="size-3.5 text-muted-foreground" />
@@ -133,9 +133,9 @@ export function SubActionGroup({
             )}
           </button>
           {open ? (
-            <FolderOpenIcon className="size-3.5 text-amber-500 shrink-0" />
+            <FolderOpenIcon className="size-3.5 text-warning shrink-0" />
           ) : (
-            <FolderIcon className="size-3.5 text-amber-500 shrink-0" />
+            <FolderIcon className="size-3.5 text-warning shrink-0" />
           )}
 
           {editing ? (

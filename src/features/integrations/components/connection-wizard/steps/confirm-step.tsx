@@ -1,7 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { client } from "@/lib/orpc";
 import { useConnectionWizardStore } from "@/features/integrations/store/connection-wizard-store";
@@ -87,10 +88,10 @@ export function ConfirmStep() {
         <Button
           onClick={handleFinalize}
           disabled={isFinalizing}
-          className="flex-1 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+          className="flex-1 gap-2 bg-success hover:bg-success/90 text-primary-foreground"
         >
           {isFinalizing ? (
-            <><Loader2 className="size-4 animate-spin" /> Conectando…</>
+            <><OrbitaSpinner className="size-4 " /> Conectando…</>
           ) : (
             <><CheckCircle2 className="size-4" /> Conectar agora</>
           )}

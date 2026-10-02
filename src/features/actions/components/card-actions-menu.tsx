@@ -195,7 +195,7 @@ export function CardActionsMenu({
           {/* Add to Planner */}
           <DropdownMenuItem
             onClick={() => setPlannerOpen(true)}
-            className="gap-2 cursor-pointer text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
+            className="gap-2 cursor-pointer text-info focus:text-info focus:bg-info/10 dark:focus:bg-info/30"
           >
             <CalendarPlusIcon className="size-3.5" />
             Criar com Planner
@@ -218,7 +218,7 @@ export function CardActionsMenu({
           {/* Share with another company */}
           <DropdownMenuItem
             onClick={() => setShareOpen(true)}
-            className="gap-2 text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30 cursor-pointer"
+            className="gap-2 text-info focus:text-info focus:bg-info/10 dark:focus:bg-info/30 cursor-pointer"
           >
             <Building2Icon className="size-3.5" />
             Compartilhar com empresa
@@ -233,7 +233,7 @@ export function CardActionsMenu({
             <StarIcon
               className={cn(
                 "size-3.5 transition-transform",
-                isFavoritedByMe && "fill-yellow-400 text-yellow-400 scale-110",
+                isFavoritedByMe && "fill-warning text-warning scale-110",
               )}
             />
             {isFavoritedByMe
@@ -251,7 +251,7 @@ export function CardActionsMenu({
               {isFavorited ? (
                 <PinOffIcon className="size-3.5" />
               ) : (
-                <PinIcon className="size-3.5 text-violet-600" />
+                <PinIcon className="size-3.5 text-info" />
               )}
               {isFavorited ? "Desfixar de todos" : "Fixar para todos"}
             </DropdownMenuItem>

@@ -24,8 +24,8 @@ import {
   XCircle,
   Clock,
   SkipForward,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useDunningExecutionsByEntry } from "../../hooks/use-payment-dunning";
 
 const CHANNEL_ICONS = {
@@ -35,10 +35,10 @@ const CHANNEL_ICONS = {
 } as const;
 
 const STATUS_META = {
-  PENDING: { label: "Agendado",  Icon: Clock,         color: "text-amber-600 bg-amber-500/10 border-amber-500/30" },
-  SENT:    { label: "Enviado",   Icon: CheckCircle2,  color: "text-green-600 bg-green-500/10 border-green-500/30" },
-  FAILED:  { label: "Falhou",    Icon: XCircle,       color: "text-red-600 bg-red-500/10 border-red-500/30" },
-  SKIPPED: { label: "Ignorado",  Icon: SkipForward,   color: "text-slate-500 bg-slate-500/10 border-slate-500/30" },
+  PENDING: { label: "Agendado",  Icon: Clock,         color: "text-warning bg-warning/10 border-warning/30" },
+  SENT:    { label: "Enviado",   Icon: CheckCircle2,  color: "text-success bg-success/10 border-success/30" },
+  FAILED:  { label: "Falhou",    Icon: XCircle,       color: "text-destructive bg-destructive/10 border-destructive/30" },
+  SKIPPED: { label: "Ignorado",  Icon: SkipForward,   color: "text-muted-foreground bg-knob/10 border-line/30" },
 } as const;
 
 interface Props {
@@ -56,7 +56,7 @@ export function DunningHistoryDrawer({ entryId, entryName, onClose }: Props) {
         side="right"
         className="w-full sm:max-w-md overflow-y-auto p-0"
       >
-        <SheetHeader className="px-6 pt-6 pb-4 border-b sticky top-0 bg-background z-10">
+        <SheetHeader className="px-6 pt-6 pb-4 sticky top-0 bg-background z-10">
           <SheetTitle>Histórico de cobrança</SheetTitle>
           {entryName && (
             <p className="text-xs text-muted-foreground">{entryName}</p>
@@ -66,7 +66,7 @@ export function DunningHistoryDrawer({ entryId, entryName, onClose }: Props) {
         <div className="px-6 py-6 space-y-3">
           {isLoading ? (
             <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin mr-2" /> Carregando…
+              <OrbitaSpinner className="size-4 mr-2" /> Carregando…
             </div>
           ) : !data?.executions?.length ? (
             <Card className="p-8 text-center">
@@ -114,7 +114,7 @@ export function DunningHistoryDrawer({ entryId, entryName, onClose }: Props) {
                         </p>
                       )}
                       {exec.errorMessage && (
-                        <p className="text-[11px] text-red-500">
+                        <p className="text-[11px] text-destructive">
                           {exec.errorMessage}
                         </p>
                       )}

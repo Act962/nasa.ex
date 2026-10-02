@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Check, PackageCheck, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -41,11 +43,13 @@ export function RedemptionActions({
     );
   };
 
+  const actionButtonClass = "h-11 w-full rounded-full sm:h-9 sm:w-auto";
+
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+    <div className={cn("flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center", className)}>
       {(canActOnPending || canCancel) && (
         <Input
-          className="max-w-sm"
+          className="h-11 w-full rounded-full sm:h-9 sm:max-w-sm"
           placeholder="Motivo (obrigatório para recusar/cancelar)"
           value={reason}
           onChange={(event) => setReason(event.target.value)}
@@ -53,22 +57,34 @@ export function RedemptionActions({
       )}
       {canActOnPending && (
         <>
-          <Button size="sm" disabled={decide.isPending} onClick={() => handleDecision("APPROVE")}>
+          <Button className={actionButtonClass} disabled={decide.isPending} onClick={() => handleDecision("APPROVE")}>
+            {decide.isPending ? <OrbitaSpinner className="size-4" /> : <Check className="size-4" />}
             Aprovar
           </Button>
-          <Button size="sm" variant="outline" disabled={decide.isPending} onClick={() => handleDecision("REJECT")}>
-            Recusar
+          <Button
+            variant="outline"
+            className={actionButtonClass}
+            disabled={decide.isPending}
+            onClick={() => handleDecision("REJECT")}
+          >
+            <X className="size-4" /> Recusar
           </Button>
         </>
       )}
       {canDeliver && (
-        <Button size="sm" disabled={decide.isPending} onClick={() => handleDecision("DELIVER")}>
+        <Button className={actionButtonClass} disabled={decide.isPending} onClick={() => handleDecision("DELIVER")}>
+          {decide.isPending ? <OrbitaSpinner className="size-4" /> : <PackageCheck className="size-4" />}
           Marcar como entregue
         </Button>
       )}
       {canCancel && (
-        <Button size="sm" variant="outline" disabled={decide.isPending} onClick={() => handleDecision("CANCEL")}>
-          Cancelar e estornar
+        <Button
+          variant="outline"
+          className={actionButtonClass}
+          disabled={decide.isPending}
+          onClick={() => handleDecision("CANCEL")}
+        >
+          <Undo2 className="size-4" /> Cancelar e estornar
         </Button>
       )}
     </div>

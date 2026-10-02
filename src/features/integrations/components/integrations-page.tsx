@@ -42,7 +42,6 @@ import {
   Key,
   Landmark,
   Link2Off,
-  Loader2,
   Lock,
   Plug,
   RefreshCw,
@@ -50,6 +49,7 @@ import {
   Sparkles,
   ToggleRight,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import {
   Accordion,
@@ -93,18 +93,18 @@ export const GC_VISUAL_STEPS = [
   {
     step: 1,
     icon: Globe,
-    color: "from-blue-500 to-blue-600",
+    color: "from-info to-info/80",
     title: "Criar projeto no Cloud Console",
     description: 'Acesse console.cloud.google.com → clique em "Selecionar projeto" → "Novo projeto"',
     mockup: (
-      <div className="mt-2 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-2 text-[10px] space-y-1">
-        <div className="flex items-center gap-1.5 bg-[#1a73e8] text-white rounded px-2 py-0.5 w-fit font-medium">
+      <div className="mt-2 rounded-md border border-info/30 bg-info/10 p-2 text-[10px] space-y-1">
+        <div className="flex items-center gap-1.5 bg-info text-background rounded px-2 py-0.5 w-fit font-medium">
           <span className="text-[9px]">≡</span> Google Cloud
         </div>
-        <div className="flex gap-1 items-center text-blue-700 dark:text-blue-300">
-          <span className="bg-blue-100 dark:bg-blue-900 px-1.5 py-0.5 rounded border border-blue-300 dark:border-blue-700">Selecionar projeto ▾</span>
+        <div className="flex gap-1 items-center text-info">
+          <span className="bg-info/15 px-1.5 py-0.5 rounded border border-info/30">Selecionar projeto ▾</span>
           <span className="text-muted-foreground">→</span>
-          <span className="bg-white dark:bg-blue-900 px-1.5 py-0.5 rounded border border-blue-300 dark:border-blue-700">+ Novo projeto</span>
+          <span className="bg-card px-1.5 py-0.5 rounded border border-info/30">+ Novo projeto</span>
         </div>
       </div>
     ),
@@ -112,14 +112,14 @@ export const GC_VISUAL_STEPS = [
   {
     step: 2,
     icon: ToggleRight,
-    color: "from-green-500 to-green-600",
+    color: "from-success to-success/80",
     title: "Ativar a Google Calendar API",
     description: 'APIs e Serviços → Biblioteca → pesquise "Google Calendar API" → Ativar',
     mockup: (
-      <div className="mt-2 rounded-md border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/40 p-2 text-[10px] space-y-1">
-        <div className="text-green-700 dark:text-green-300 font-medium">Google Calendar API</div>
+      <div className="mt-2 rounded-md border border-success/30 bg-success/10 p-2 text-[10px] space-y-1">
+        <div className="text-success font-medium">Google Calendar API</div>
         <div className="flex items-center gap-2">
-          <div className="bg-[#1a73e8] text-white rounded px-2 py-0.5 font-medium">ATIVAR</div>
+          <div className="bg-info text-background rounded px-2 py-0.5 font-medium">ATIVAR</div>
           <span className="text-muted-foreground">← clique aqui</span>
         </div>
       </div>
@@ -128,14 +128,14 @@ export const GC_VISUAL_STEPS = [
   {
     step: 3,
     icon: Key,
-    color: "from-violet-500 to-violet-600",
+    color: "from-info to-info/80",
     title: "Criar ID do cliente OAuth 2.0",
     description: 'Credenciais → + Criar credenciais → ID do cliente OAuth → tipo "Aplicativo da Web"',
     mockup: (
-      <div className="mt-2 rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/40 p-2 text-[10px] space-y-1">
-        <div className="text-violet-700 dark:text-violet-300">Tipo de aplicativo:</div>
+      <div className="mt-2 rounded-md border border-info/30 bg-info/10 p-2 text-[10px] space-y-1">
+        <div className="text-info">Tipo de aplicativo:</div>
         <div className="flex gap-1">
-          <span className="bg-violet-100 dark:bg-violet-900 px-1.5 py-0.5 rounded border-2 border-violet-400 text-violet-700 dark:text-violet-300 font-medium">● Aplicativo da Web</span>
+          <span className="bg-info/15 px-1.5 py-0.5 rounded border-2 border-info/30 text-info font-medium">● Aplicativo da Web</span>
         </div>
         <div className="text-muted-foreground">URIs: http://localhost</div>
       </div>
@@ -144,16 +144,16 @@ export const GC_VISUAL_STEPS = [
   {
     step: 4,
     icon: RefreshCw,
-    color: "from-orange-500 to-orange-600",
+    color: "from-warning to-warning/80",
     title: "Gerar Refresh Token via OAuth Playground",
     description: 'Acesse developers.google.com/oauthplayground → insira seu Client ID/Secret → escopo calendar.events',
     mockup: (
-      <div className="mt-2 rounded-md border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/40 p-2 text-[10px] space-y-1">
-        <div className="text-orange-700 dark:text-orange-300 font-medium">OAuth 2.0 Playground</div>
-        <div className="bg-white dark:bg-orange-950 border border-orange-200 dark:border-orange-700 rounded px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+      <div className="mt-2 rounded-md border border-warning/30 bg-warning/10 p-2 text-[10px] space-y-1">
+        <div className="text-warning font-medium">OAuth 2.0 Playground</div>
+        <div className="bg-card border border-warning/30 rounded px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
           https://www.googleapis.com/auth/calendar.events
         </div>
-        <div className="bg-[#1a73e8] text-white rounded px-2 py-0.5 w-fit">Exchange tokens →</div>
+        <div className="bg-info text-background rounded px-2 py-0.5 w-fit">Exchange tokens →</div>
       </div>
     ),
   },
@@ -211,9 +211,10 @@ const AnthropicIcon = ({ className }: { className?: string }) => (
     <path d="M13.827 3.52h3.603L24 20h-3.603l-6.57-16.48zm-7.258 0h3.767L16.906 20h-3.674L9.122 8.32 6.819 14.8H9.9L11.07 18H3.753l-.803 2H0L6.569 3.52z" />
   </svg>
 );
+// Estrela de 4 pontas do Gemini; segue a cor do texto (branca no céu da Início).
 const GeminiIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S18.624 0 12 0zm-.5 18.5l-5-5 1.41-1.41L11.5 15.67l8.09-8.09L21 9l-9.5 9.5z" />
+  <svg className={className} viewBox="8 8 112 112" fill="currentColor">
+    <path d="M63.892 8C62.08 38.04 38.04 62.08 8 63.892V64.108C38.04 65.92 62.08 89.96 63.892 120H64.108C65.92 89.96 89.96 65.92 120 64.108V63.892C89.96 62.08 65.92 38.04 64.108 8H63.892Z" />
   </svg>
 );
 const KommoIcon = ({ className }: { className?: string }) => (
@@ -250,7 +251,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
     platform: "WHATSAPP",
     label: "WhatsApp",
     description: "Receba e responda mensagens de clientes. Leads gerados automaticamente a partir das conversas via UAZAPI.",
-    color: "text-[#25D366]", bgColor: "bg-[#25D366]/10", borderColor: "border-[#25D366]/30",
+    color: "text-brand-whatsapp", bgColor: "bg-brand-whatsapp/10", borderColor: "border-brand-whatsapp/30",
     icon: WhatsAppIcon, fields: [], steps: [],
     docsUrl: "/settings/integration", docsLabel: "Configurar instância WhatsApp", category: "messaging",
   },
@@ -258,7 +259,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
     platform: IntegrationPlatform.INSTAGRAM,
     label: "Instagram DM",
     description: "Centralize mensagens diretas do Instagram no chat do ÓRBITA. Identifique leads por origem automaticamente.",
-    color: "text-[#E1306C]", bgColor: "bg-gradient-to-br from-[#833AB4]/10 via-[#FD1D1D]/10 to-[#F77737]/10", borderColor: "border-[#E1306C]/30",
+    color: "text-brand-instagram", bgColor: "bg-gradient-to-br from-[#833AB4]/10 via-[#FD1D1D]/10 to-[#F77737]/10", borderColor: "border-brand-instagram/30",
     icon: InstagramIcon,
     docsUrl: "https://developers.facebook.com/docs/instagram-api/getting-started", docsLabel: "Meta for Developers",
     category: "messaging",
@@ -426,7 +427,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
     platform: IntegrationPlatform.ANTHROPIC,
     label: "Anthropic (Claude)",
     description: "Integre Claude ao ÓRBITA para análise de leads, automações e leitura de documentos financeiros. Mais caro por leitura que OpenAI e Gemini.", 
-    color: "text-[#D97757]", bgColor: "bg-[#D97757]/10", borderColor: "border-[#D97757]/30",
+    color: "text-brand-claude", bgColor: "bg-brand-claude/10", borderColor: "border-brand-claude/30",
     icon: AnthropicIcon,
     docsUrl: "https://console.anthropic.com/settings/keys", docsLabel: "Anthropic Console",
     category: "ai",
@@ -619,7 +620,7 @@ function IntegrationCard({
     )}>
       {isConnected && (
         <div className="absolute top-4 right-4">
-          <Badge variant="outline" className="border-green-500/40 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 gap-1 text-[11px]">
+          <Badge variant="outline" className="border-success/30 text-success bg-success/10 gap-1 text-[11px]">
             <CheckCircle2 className="size-3" /> Conectado
           </Badge>
         </div>
@@ -631,7 +632,7 @@ function IntegrationCard({
       <p className="text-xs text-muted-foreground leading-relaxed mb-4 flex-1">{def.description}</p>
       <div className="flex gap-2 mt-auto">
         {isSingle ? (
-          <Button size="sm" variant="outline" className="w-full gap-1.5 text-xs text-slate-400 cursor-not-allowed" disabled>
+          <Button size="sm" variant="outline" className="w-full gap-1.5 text-xs text-muted-foreground cursor-not-allowed" disabled>
             <Lock className="size-3.5" /> Sem permissão
           </Button>
         ) : def.platform === "WHATSAPP" ? (
@@ -670,6 +671,12 @@ export function ConfigDialog({
     def.fields.forEach((f) => { init[f.key] = existing[f.key] ?? ""; });
     return init;
   });
+  // A chave salva nunca volta ao navegador: o campo fica vazio e mostra só os 4 últimos dígitos.
+  const savedKeyLast4 = existing.apiKeyLast4 || (String(existing.apiKeyConfigured) === "true" ? "····" : "");
+  const placeholderFor = (field: PlatformDef["fields"][number]) =>
+    field.key === "apiKey" && savedKeyLast4
+      ? `Chave salva ••••${savedKeyLast4} — deixe em branco para manter`
+      : field.placeholder;
   const [astroOpen, setAstroOpen] = useState(false);
   const [astroGuide, setAstroGuide] = useState<string | null>(null);
   const [astroLoading, setAstroLoading] = useState(false);
@@ -681,7 +688,7 @@ export function ConfigDialog({
   const providerLabel = oauthProvider === "meta" ? "Facebook" : "Google";
   const oauthBtnClass =
     oauthProvider === "meta"
-      ? "bg-[#1877F2] hover:bg-[#166FE5]"
+      ? "bg-brand-facebook hover:bg-brand-facebook/90"
       : "bg-[#4285F4] hover:bg-[#357AE8]";
 
   function handleOAuthClick() {
@@ -734,7 +741,7 @@ export function ConfigDialog({
                 <button
                   type="button"
                   onClick={() => { setAstroOpen((v) => !v); if (!astroGuide && !astroOpen) handleGenerateGuide(); }}
-                  className="flex items-center gap-1.5 text-[11px] font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
+                  className="flex items-center gap-1.5 text-[11px] font-semibold text-info hover:text-info/80 transition-colors"
                 >
                   <Sparkles className="size-3.5" />
                   Gerar com Astro
@@ -750,7 +757,7 @@ export function ConfigDialog({
                   const StepIcon = s.icon;
                   return (
                     <div key={s.step} className="flex gap-3">
-                      <div className={cn("shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br flex items-center justify-center text-white shadow-sm mt-0.5", s.color)}>
+                      <div className={cn("shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br flex items-center justify-center text-background shadow-sm mt-0.5", s.color)}>
                         <StepIcon className="size-3.5" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -785,10 +792,10 @@ export function ConfigDialog({
 
             {/* Astro-generated guide */}
             {def.visualGuide && astroOpen && (
-              <div className="border-t border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 px-4 py-3">
+              <div className="border-t border-info/30 bg-info/5 px-4 py-3">
                 {astroLoading ? (
-                  <div className="flex items-center gap-2 text-xs text-violet-600 dark:text-violet-400">
-                    <Loader2 className="size-3.5 animate-spin" /> Astro está gerando o guia...
+                  <div className="flex items-center gap-2 text-xs text-info">
+                    <OrbitaSpinner className="size-3.5 " /> Astro está gerando o guia...
                   </div>
                 ) : astroGuide ? (
                   <div className="text-xs text-foreground whitespace-pre-wrap leading-relaxed">{astroGuide}</div>
@@ -823,7 +830,7 @@ export function ConfigDialog({
                       {def.fields.map((field) => (
                         <div key={field.key} className="space-y-1.5">
                           <Label htmlFor={field.key} className="text-sm font-medium">{field.label}</Label>
-                          <Input id={field.key} type={field.type ?? "text"} placeholder={field.placeholder}
+                          <Input id={field.key} type={field.type ?? "text"} placeholder={placeholderFor(field)}
                             value={values[field.key] ?? ""}
                             onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
                             autoComplete="off" />
@@ -837,7 +844,7 @@ export function ConfigDialog({
                         size="sm"
                         className="w-full gap-1.5"
                       >
-                        {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+                        {isSaving ? <OrbitaSpinner className="size-3.5 " /> : <CheckCircle2 className="size-3.5" />}
                         Salvar tokens manuais
                       </Button>
                     </div>
@@ -846,7 +853,7 @@ export function ConfigDialog({
               </Accordion>
             )}
             <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border text-xs text-muted-foreground">
-              <ShieldCheck className="size-4 shrink-0 text-green-500 mt-0.5" />
+              <ShieldCheck className="size-4 shrink-0 text-success mt-0.5" />
               <span>Credenciais armazenadas com segurança. O ÓRBITA nunca compartilha seus tokens com terceiros.</span>
             </div>
             <Button variant="outline" onClick={onClose} className="w-full" disabled={isSaving}>
@@ -860,7 +867,7 @@ export function ConfigDialog({
                 {def.fields.map((field) => (
                   <div key={field.key} className="space-y-1.5">
                     <Label htmlFor={field.key} className="text-sm font-medium">{field.label}</Label>
-                    <Input id={field.key} type={field.type ?? "text"} placeholder={field.placeholder}
+                    <Input id={field.key} type={field.type ?? "text"} placeholder={placeholderFor(field)}
                       value={values[field.key] ?? ""}
                       onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
                       autoComplete="off" />
@@ -869,14 +876,14 @@ export function ConfigDialog({
                 ))}
               </div>
             ) : (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300">
-                <CheckCircle2 className="size-4 shrink-0 mt-0.5 text-emerald-500" />
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-success/10 border border-success/30 text-xs text-success">
+                <CheckCircle2 className="size-4 shrink-0 mt-0.5 text-success" />
                 <span>Nenhuma credencial necessária. Clique em <strong>Ativar integração</strong> para conectar.</span>
               </div>
             )}
 
             <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border text-xs text-muted-foreground">
-              <ShieldCheck className="size-4 shrink-0 text-green-500 mt-0.5" />
+              <ShieldCheck className="size-4 shrink-0 text-success mt-0.5" />
               <span>Credenciais armazenadas com segurança. O ÓRBITA nunca compartilha seus tokens com terceiros.</span>
             </div>
 
@@ -887,7 +894,7 @@ export function ConfigDialog({
                 disabled={isSaving || (def.fields.length > 0 && !Object.values(values).some(v => v.trim()))}
                 className="flex-1 gap-1.5"
               >
-                {isSaving ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                {isSaving ? <OrbitaSpinner className="size-4 " /> : <CheckCircle2 className="size-4" />}
                 {def.fields.length === 0 ? "Ativar integração" : "Salvar integração"}
               </Button>
             </div>
@@ -934,7 +941,7 @@ export function IntegrationsPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Integrações</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Satélites</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Conecte suas ferramentas ao ÓRBITA para centralizar dados, mensagens e leads em um único lugar.
         </p>
@@ -943,7 +950,7 @@ export function IntegrationsPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Integrações disponíveis", value: PLATFORM_DEFS.length },
+          { label: "Satélites disponíveis", value: PLATFORM_DEFS.length },
           { label: "Conectadas", value: isLoading ? "—" : connectedMap.size + 1 },
           { label: "Fontes de lead rastreadas", value: isLoading ? "—" : connectedMap.size + 2 },
         ].map(({ label, value }) => (
@@ -984,14 +991,14 @@ export function IntegrationsPage() {
       <div className="rounded-2xl border bg-card p-5">
         <h2 className="font-semibold text-sm mb-1">🎯 Rastreamento automático de origem de leads</h2>
         <p className="text-xs text-muted-foreground mb-4">
-          Com as integrações ativas, o ÓRBITA identifica automaticamente de qual plataforma cada lead veio.
+          Com os satélites ativos, o ÓRBITA identifica automaticamente de qual plataforma cada lead veio.
           O ícone da fonte aparece no card do lead, no chat e nos Insights.
         </p>
         <div className="flex flex-wrap gap-2">
           {[
-            { icon: WhatsAppIcon, label: "WhatsApp", color: "text-[#25D366]", bg: "bg-[#25D366]/10" },
+            { icon: WhatsAppIcon, label: "WhatsApp", color: "text-brand-whatsapp", bg: "bg-brand-whatsapp/10" },
             { icon: MetaIcon, label: "Meta Ads", color: "text-[#0082FB]", bg: "bg-[#0082FB]/10" },
-            { icon: InstagramIcon, label: "Instagram", color: "text-[#E1306C]", bg: "bg-[#E1306C]/10" },
+            { icon: InstagramIcon, label: "Instagram", color: "text-brand-instagram", bg: "bg-brand-instagram/10" },
             { icon: TikTokIcon, label: "TikTok", color: "text-foreground", bg: "bg-muted" },
             { icon: LinkedInIcon, label: "LinkedIn", color: "text-[#0A66C2]", bg: "bg-[#0A66C2]/10" },
             { icon: GmailIcon, label: "Gmail", color: "text-[#EA4335]", bg: "bg-[#EA4335]/10" },

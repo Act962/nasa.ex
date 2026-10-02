@@ -41,19 +41,19 @@ const BUCKET_META: Record<
     title: "Total Actions",
     description: "Suas ações ativas (não concluídas).",
     Icon: ListChecksIcon,
-    tone: "text-violet-600 dark:text-violet-400",
+    tone: "text-info dark:text-info",
   },
   delayed: {
     title: "Ações Atrasadas",
     description: "Ações com data de vencimento já passada.",
     Icon: AlertCircleIcon,
-    tone: "text-red-600 dark:text-red-400",
+    tone: "text-destructive dark:text-destructive",
   },
   completed: {
     title: "Ações Concluídas (7 dias)",
     description: "Ações que você fechou nos últimos 7 dias.",
     Icon: CheckCircle2Icon,
-    tone: "text-emerald-600 dark:text-emerald-400",
+    tone: "text-success dark:text-success",
   },
 };
 
@@ -77,7 +77,7 @@ export function AnalyticsDetailsModal({ bucket, onClose }: Props) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="flex h-[85dvh] w-[95vw] max-w-3xl flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="border-b px-5 py-4">
+        <DialogHeader className="px-5 py-4">
           <DialogTitle className="flex items-center gap-2">
             {meta && <meta.Icon className={cn("size-5", meta.tone)} />}
             {meta?.title ?? ""}
@@ -204,7 +204,7 @@ function ActionRow({ action, onSelect }: ActionRowProps) {
         <span
           className={cn(
             "flex items-center gap-1",
-            action.isOverdue && "font-semibold text-red-600 dark:text-red-400",
+            action.isOverdue && "font-semibold text-destructive dark:text-destructive",
           )}
         >
           <ClockIcon className="size-3" />
@@ -245,7 +245,7 @@ function ActionRow({ action, onSelect }: ActionRowProps) {
                       className={cn(
                         "size-5 border",
                         isCreator
-                          ? "border-2 border-white shadow ring-1 ring-violet-500"
+                          ? "border-2 border-white shadow ring-1 ring-info"
                           : "border-background",
                       )}
                     >

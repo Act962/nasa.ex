@@ -163,7 +163,7 @@ export function AddSectionInsightButton({
           </div>
         </ScrollArea>
 
-        <div className="border-t px-6 py-4 shrink-0">
+        <div className="px-6 py-4 shrink-0">
           <Button
             variant="outline"
             className="w-full gap-1.5"

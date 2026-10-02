@@ -121,7 +121,7 @@ export default function JoinPage() {
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <div className="flex items-center gap-2 text-emerald-500">
+            <div className="flex items-center gap-2 text-success">
               <CheckIcon className="size-5" />
               <CardTitle>Você entrou em {data.organization.name}</CardTitle>
             </div>

@@ -20,8 +20,8 @@ export function StarFriendsRedeemDialog({
 }: StarFriendsRedeemDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-lg max-sm:top-auto max-sm:bottom-0 max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-b-none max-sm:rounded-t-[26px] max-sm:px-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <DialogHeader className="text-left">
           <DialogTitle>Resgatar STAR FRIENDS</DialogTitle>
         </DialogHeader>
         {open && (

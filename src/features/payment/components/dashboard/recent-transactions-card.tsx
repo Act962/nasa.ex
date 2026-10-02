@@ -16,7 +16,7 @@ export function RecentTransactionsCard({
 }) {
   return (
     <Card className="flex h-full flex-col gap-0 py-0">
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 border-b p-4 sm:p-5">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 p-4 sm:p-5">
         <CardTitle className="min-w-0 truncate text-base font-semibold">
           Últimas Transações
         </CardTitle>
@@ -40,8 +40,8 @@ export function RecentTransactionsCard({
                     className={cn(
                       "flex size-8 shrink-0 items-center justify-center rounded-full",
                       isInflow
-                        ? "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400"
-                        : "bg-red-500/10 text-red-600 dark:bg-red-500/15 dark:text-red-400",
+                        ? "bg-success/10 text-success dark:bg-success/15 dark:text-success"
+                        : "bg-destructive/10 text-destructive dark:bg-destructive/15 dark:text-destructive",
                     )}
                   >
                     {isInflow ? (
@@ -66,8 +66,8 @@ export function RecentTransactionsCard({
                       className={cn(
                         "text-sm font-semibold tabular-nums",
                         isInflow
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : "text-red-600 dark:text-red-400",
+                          ? "text-success dark:text-success"
+                          : "text-destructive dark:text-destructive",
                       )}
                     >
                       {isInflow ? "+ " : "- "}
@@ -87,7 +87,7 @@ export function RecentTransactionsCard({
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
+            className="w-full justify-center gap-1.5 text-xs text-info hover:text-info dark:text-info"
             onClick={onSeeAll}
           >
             Ver todas as transações

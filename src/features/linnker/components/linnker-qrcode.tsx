@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Copy, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import type { LinnkerPage } from "../types";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 interface Props {
   page: LinnkerPage;
@@ -62,8 +63,9 @@ export function LinnkerQRCode({ page }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col items-center gap-6 p-6 border rounded-xl bg-muted/20">
-        <div className="p-4 bg-white rounded-xl shadow-sm flex items-center justify-center" style={{ minWidth: 240, minHeight: 240 }}>
+      <div className="flex flex-col items-center gap-5 rounded-[22px] border border-line bg-muted/20 p-4 sm:gap-6 sm:p-6">
+        {/* Fundo branco de propósito: o QR precisa de contraste para ser lido pela câmera. */}
+        <div className="flex size-[252px] items-center justify-center rounded-[20px] bg-white p-4 shadow-sm">
           {error ? (
             <p className="text-xs text-destructive text-center px-4">{error}</p>
           ) : svg ? (
@@ -72,34 +74,36 @@ export function LinnkerQRCode({ page }: Props) {
               dangerouslySetInnerHTML={{ __html: svg }}
             />
           ) : (
-            <div className="size-[220px] animate-pulse bg-muted rounded" />
+            <OrbitaSpinner className="size-8" />
           )}
         </div>
 
-        <div className="text-center">
+        <div className="min-w-0 text-center">
           <p className="font-semibold">{page.title}</p>
           <p className="text-sm text-muted-foreground break-all">{publicUrl}</p>
         </div>
 
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={copyUrl}>
-            <Copy className="size-4 mr-2" /> Copiar link
+        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+          <Button variant="outline" className="h-11 rounded-full sm:h-9" onClick={copyUrl}>
+            <Copy className="size-4" /> Copiar link
           </Button>
-          <Button onClick={download} disabled={!svg}>
-            <Download className="size-4 mr-2" /> Baixar QR Code
+          <Button className="h-12 rounded-full sm:h-9" onClick={download} disabled={!svg}>
+            <Download className="size-4" /> Baixar QR Code
           </Button>
         </div>
       </div>
 
-      <div className="border rounded-xl p-4 bg-muted/30">
+      <div className="rounded-[20px] border border-line bg-muted/30 p-4">
         <div className="flex items-start gap-3">
-          <QrCode className="size-5 text-primary mt-0.5 shrink-0" />
+          <div className="grid size-9 shrink-0 place-items-center rounded-full bg-info/15">
+            <QrCode className="size-4 text-info" />
+          </div>
           <div>
             <p className="font-medium text-sm">Captura automática de leads</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Quando alguém escaneia este QR Code e abre sua página Linnker, os dados
-              são capturados automaticamente. Se a pessoa preencher nome, e-mail ou
-              telefone em qualquer formulário vinculado, um lead é criado no seu Tracking.
+              Quem escaneia este QR Code abre sua página e a visita fica registrada. Se a
+              pessoa preencher nome, e-mail ou telefone num formulário ligado à página, o
+              lead entra direto no seu Tracking.
             </p>
           </div>
         </div>

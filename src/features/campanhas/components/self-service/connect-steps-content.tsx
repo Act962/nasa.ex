@@ -49,7 +49,7 @@ export function buildCardChecklist(params: { paymentMethodsUrl: string }): Check
               </p>
               <InstructionChecklist instruction={step.instruction} />
               {step.tip && (
-                <p className="rounded-md bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">{step.tip}</p>
+                <p className="rounded-md bg-warning/10 p-2 text-xs text-warning dark:text-warning">{step.tip}</p>
               )}
               <GuideShot step={step} imageBasePath={WHATSAPP_GUIDE.imageBasePath} />
             </li>

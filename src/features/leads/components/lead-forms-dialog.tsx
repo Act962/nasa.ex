@@ -266,7 +266,7 @@ export function LeadFormsDialog({
                 className={cn(
                   "rounded px-2.5 py-1 text-xs font-medium transition-colors",
                   viewMode === "forms"
-                    ? "bg-violet-600 text-white"
+                    ? "bg-info text-white"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -278,7 +278,7 @@ export function LeadFormsDialog({
                 className={cn(
                   "rounded px-2.5 py-1 text-xs font-medium transition-colors",
                   viewMode === "responses"
-                    ? "bg-violet-600 text-white"
+                    ? "bg-info text-white"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -402,8 +402,8 @@ function ResponsesList({
             }}
             className={cn(
               "flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-border bg-card p-3 text-left transition-all",
-              "hover:border-violet-400 hover:shadow-sm",
-              "outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60",
+              "hover:border-info hover:shadow-sm",
+              "outline-none focus-visible:ring-2 focus-visible:ring-info/60",
             )}
           >
             <span
@@ -420,7 +420,7 @@ function ResponsesList({
             <span className="min-w-0 flex-1 truncate text-sm font-medium">
               {row.form.name}
               {row.label ? (
-                <span className="ml-1.5 text-violet-600 dark:text-violet-300">
+                <span className="ml-1.5 text-info">
                   · {row.label}
                 </span>
               ) : null}
@@ -443,7 +443,7 @@ function ResponsesList({
                   onOpenAction(row.action!.id);
                 }}
                 title={`Ver formulários da tarefa: ${row.action.title}`}
-                className="inline-flex max-w-[240px] items-center gap-1 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white transition-opacity hover:opacity-85"
+                className="inline-flex max-w-[240px] items-center gap-1 rounded-full bg-info px-2 py-0.5 text-[10px] font-medium text-white transition-opacity hover:opacity-85"
               >
                 <ClipboardListIcon className="size-3 shrink-0" />
                 <span className="truncate">{row.action.title}</span>
@@ -527,14 +527,14 @@ function FormCard({
       }}
       className={cn(
         "group flex cursor-pointer flex-col gap-2 rounded-xl border border-border bg-card p-3 transition-all text-left",
-        "hover:border-violet-400 hover:shadow-md hover:-translate-y-0.5",
-        "outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60",
+        "hover:border-info hover:shadow-md hover:-translate-y-0.5",
+        "outline-none focus-visible:ring-2 focus-visible:ring-info/60",
       )}
     >
       {/* Label da última resposta (campo "Usar como título") — se existe */}
       {latest?.label && (
         <div className="flex justify-start">
-          <div className="w-fit max-w-full rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-medium text-violet-900 dark:border-violet-800/40 dark:bg-violet-900/20 dark:text-violet-200">
+          <div className="w-fit max-w-full rounded-md border border-info/30 bg-info/10 px-2 py-1 text-xs font-medium text-info dark:border-info/40 dark:bg-info/20 dark:text-info">
             <span className="line-clamp-1">{latest.label}</span>
           </div>
         </div>
@@ -600,7 +600,7 @@ function FormCard({
         <button
           type="button"
           onClick={handleNewFill}
-          className="inline-flex items-center gap-1.5 rounded-md border border-violet-300 text-violet-700 dark:border-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/40 px-2.5 py-1 text-[11px] font-medium justify-center transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-md border border-info/30 text-info dark:border-info/40 dark:text-info hover:bg-info/10 dark:hover:bg-info/40 px-2.5 py-1 text-[11px] font-medium justify-center transition-colors"
           title="Iniciar novo preenchimento (sem mexer nas respostas existentes)"
         >
           <PencilLine className="size-3" />

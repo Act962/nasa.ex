@@ -26,7 +26,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowDown, ArrowUp, Loader2, Play } from "lucide-react";
+import { ArrowDown, ArrowUp, Play } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   useSalesGoalRankingSettings,
   useUpdateSalesGoalRankingSettings,
@@ -40,6 +41,8 @@ import {
   playSalesGoalSound,
   type SalesGoalSoundCategory,
 } from "../lib/sales-goal-sound-presets";
+import { AppReportButton } from "@/features/insights/components/app-report-button";
+import { CHART_PALETTE } from "@/lib/chart-palette";
 
 const PERIOD_OPTIONS: { value: SalesGoalPeriodType; label: string }[] = [
   { value: "DAILY", label: "Diário" },
@@ -155,7 +158,7 @@ function TeamsTab({ periodType }: { periodType: SalesGoalPeriodType }) {
   const updateBranch = useUpdateSalesGoalBranch();
   const branches = query.data?.branches ?? [];
 
-  if (query.isLoading) return <Loader2 className="size-5 animate-spin text-muted-foreground" />;
+  if (query.isLoading) return <OrbitaSpinner className="size-5 text-muted-foreground" />;
   if (branches.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -224,7 +227,7 @@ function EvolutionTab() {
     Vendido: point.achievedTotal,
   }));
 
-  if (query.isLoading) return <Loader2 className="size-5 animate-spin text-muted-foreground" />;
+  if (query.isLoading) return <OrbitaSpinner className="size-5 text-muted-foreground" />;
   if (points.length === 0) {
     return <p className="text-sm text-muted-foreground">Sem histórico suficiente ainda.</p>;
   }
@@ -233,13 +236,13 @@ function EvolutionTab() {
     <div className="h-64">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={points}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
           <XAxis dataKey="name" tick={{ fontSize: 11 }} />
           <YAxis tick={{ fontSize: 11 }} tickFormatter={(value) => formatBrl(value)} width={90} />
           <Tooltip formatter={(value: number) => formatBrl(value)} />
           <Legend />
-          <Line type="monotone" dataKey="Meta" stroke="#7a1fe7" strokeWidth={2} />
-          <Line type="monotone" dataKey="Vendido" stroke="#10b981" strokeWidth={2} />
+          <Line type="monotone" dataKey="Meta" stroke={CHART_PALETTE[0]} strokeWidth={2} />
+          <Line type="monotone" dataKey="Vendido" stroke="var(--success)" strokeWidth={2} />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -322,11 +325,12 @@ export function SalesGoalSettingsSheet({
           <SheetDescription>
             Equipes, período, sons, premiações, evolução, aparência e integrações.
           </SheetDescription>
+          <AppReportButton appModule="nerp" className="w-fit" />
         </SheetHeader>
 
         <div className="px-4 pb-4">
           {!draft ? (
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <OrbitaSpinner className="size-5 text-muted-foreground" />
           ) : (
             <Tabs defaultValue="teams">
               <TabsList className="w-full h-auto flex-wrap justify-start gap-1">
@@ -437,7 +441,7 @@ export function SalesGoalSettingsSheet({
                       key={theme.value}
                       onClick={() => setDraft({ ...draft, theme: theme.value })}
                       className={`rounded-lg border-2 p-3 text-left transition-all ${
-                        draft.theme === theme.value ? "border-[#7a1fe7]" : "border-transparent"
+                        draft.theme === theme.value ? "border-primary" : "border-transparent"
                       }`}
                     >
                       <div
@@ -473,7 +477,7 @@ export function SalesGoalSettingsSheet({
 
         <SheetFooter>
           <Button onClick={handleSave} disabled={!draft || updateSettings.isPending}>
-            {updateSettings.isPending && <Loader2 className="size-4 animate-spin mr-1" />}
+            {updateSettings.isPending && <OrbitaSpinner className="size-4 mr-1" />}
             Salvar alterações
           </Button>
         </SheetFooter>

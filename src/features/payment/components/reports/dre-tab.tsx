@@ -38,8 +38,8 @@ function GroupSection({
           className={cn(
             "shrink-0 text-sm font-bold tabular-nums",
             sign === "+"
-              ? "text-emerald-600 dark:text-emerald-400"
-              : "text-red-600 dark:text-red-400",
+              ? "text-success dark:text-success"
+              : "text-destructive dark:text-destructive",
           )}
         >
           {formatCurrency(total)}
@@ -109,8 +109,8 @@ function ResultRow({
           "shrink-0 font-bold tabular-nums",
           emphasis ? "text-lg" : "text-sm",
           value >= 0
-            ? "text-emerald-600 dark:text-emerald-400"
-            : "text-red-600 dark:text-red-400",
+            ? "text-success dark:text-success"
+            : "text-destructive dark:text-destructive",
         )}
       >
         {formatCurrency(value)}

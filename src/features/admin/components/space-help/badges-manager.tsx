@@ -8,11 +8,11 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Loader2,
   Award,
   CheckCircle2,
   XCircle,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { slugify } from "./slug-utils";
 
 interface FormState {
@@ -130,31 +130,31 @@ export function BadgesManager() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <Award className="w-5 h-5 text-amber-400" /> Selos
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <Award className="w-5 h-5 text-warning" /> Selos
           </h1>
-          <p className="text-sm text-zinc-400 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Conquistas que os usuários ganham ao concluir trilhas.
           </p>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-3.5 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium px-3.5 py-2 rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" /> Novo selo
         </button>
       </div>
 
       {isLoading ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center text-sm text-zinc-500">
-          <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Carregando…
+        <div className="bg-card border border-border rounded-xl p-8 text-center text-sm text-muted-foreground">
+          <OrbitaSpinner className="w-5 h-5 mx-auto mb-2" /> Carregando…
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {data?.badges.map((b: any) => (
             <div
               key={b.id}
-              className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors"
+              className="bg-card border border-border rounded-xl p-5 hover:border-muted-foreground/40 transition-colors"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -170,14 +170,14 @@ export function BadgesManager() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-semibold text-white truncate">{b.name}</h3>
-                    <p className="text-[11px] text-zinc-500 font-mono truncate">{b.slug}</p>
+                    <h3 className="text-sm font-semibold text-foreground truncate">{b.name}</h3>
+                    <p className="text-[11px] text-muted-foreground font-mono truncate">{b.slug}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => openEdit(b)}
-                    className="p-1.5 text-zinc-500 hover:text-violet-300 hover:bg-zinc-800 rounded transition-colors"
+                    className="p-1.5 text-muted-foreground hover:text-info hover:bg-muted rounded transition-colors"
                     title="Editar"
                   >
                     <Pencil className="w-4 h-4" />
@@ -185,11 +185,11 @@ export function BadgesManager() {
                   <button
                     onClick={() => handleDelete(b.id, b.name, b._count.tracks, b._count.awarded)}
                     disabled={deletingId === b.id}
-                    className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded transition-colors disabled:opacity-50"
+                    className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-muted rounded transition-colors disabled:opacity-50"
                     title="Remover"
                   >
                     {deletingId === b.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <OrbitaSpinner className="w-4 h-4 " />
                     ) : (
                       <Trash2 className="w-4 h-4" />
                     )}
@@ -198,21 +198,21 @@ export function BadgesManager() {
               </div>
 
               {b.description && (
-                <p className="text-xs text-zinc-400 mt-3 line-clamp-2">{b.description}</p>
+                <p className="text-xs text-muted-foreground mt-3 line-clamp-2">{b.description}</p>
               )}
 
-              <div className="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-between text-[11px]">
-                <div className="flex items-center gap-3 text-zinc-500">
+              <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-[11px]">
+                <div className="flex items-center gap-3 text-muted-foreground">
                   <span>{b._count.tracks} trilha(s)</span>
                   <span>·</span>
                   <span>{b._count.awarded} concedido(s)</span>
                 </div>
                 {b.isActive ? (
-                  <span className="flex items-center gap-1 text-emerald-400">
+                  <span className="flex items-center gap-1 text-success">
                     <CheckCircle2 className="w-3 h-3" /> Ativo
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-zinc-500">
+                  <span className="flex items-center gap-1 text-muted-foreground">
                     <XCircle className="w-3 h-3" /> Inativo
                   </span>
                 )}
@@ -220,9 +220,9 @@ export function BadgesManager() {
             </div>
           ))}
           {data?.badges.length === 0 && (
-            <div className="col-span-full bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
-              <Award className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
-              <p className="text-sm text-zinc-500">
+            <div className="col-span-full bg-card border border-border rounded-xl p-12 text-center">
+              <Award className="w-10 h-10 text-muted-foreground/70 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">
                 Nenhum selo cadastrado. Crie o primeiro para premiar trilhas concluídas.
               </p>
             </div>
@@ -263,94 +263,94 @@ function FormDialog({
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
       <form
         onSubmit={onSubmit}
-        className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+        className="bg-card border border-border rounded-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto"
       >
-        <h3 className="text-base font-semibold text-white">{title}</h3>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Nome *</label>
+          <label className="text-xs font-medium text-muted-foreground">Nome *</label>
           <input
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="Mestre do Tracking"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60"
+            className="w-full bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/30"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Slug (URL)</label>
+          <label className="text-xs font-medium text-muted-foreground">Slug (URL)</label>
           <input
             value={form.slug}
             onChange={(e) => setForm({ ...form, slug: e.target.value })}
             placeholder={slugify(form.name) || "mestre-tracking"}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60 font-mono"
+            className="w-full bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/30 font-mono"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Descrição</label>
+          <label className="text-xs font-medium text-muted-foreground">Descrição</label>
           <textarea
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="Conquistado ao concluir todas as aulas da trilha de Tracking"
             rows={2}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60 resize-none"
+            className="w-full bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/30 resize-none"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">URL do ícone</label>
+          <label className="text-xs font-medium text-muted-foreground">URL do ícone</label>
           <input
             value={form.iconUrl}
             onChange={(e) => setForm({ ...form, iconUrl: e.target.value })}
             placeholder="https://cdn.../icon.svg"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60"
+            className="w-full bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/30"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Cor (hex)</label>
+          <label className="text-xs font-medium text-muted-foreground">Cor (hex)</label>
           <div className="flex items-center gap-2">
             <input
               type="color"
               value={form.color}
               onChange={(e) => setForm({ ...form, color: e.target.value })}
-              className="w-12 h-10 bg-zinc-800 border border-zinc-700 rounded-lg cursor-pointer"
+              className="w-12 h-10 bg-muted border border-line rounded-lg cursor-pointer"
             />
             <input
               value={form.color}
               onChange={(e) => setForm({ ...form, color: e.target.value })}
               placeholder="#a78bfa"
-              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60 font-mono"
+              className="flex-1 bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/30 font-mono"
             />
           </div>
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
           <input
             type="checkbox"
             checked={form.isActive}
             onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-            className="w-4 h-4 rounded bg-zinc-800 border-zinc-700 text-violet-600 focus:ring-violet-500/30"
+            className="w-4 h-4 rounded bg-muted border-line text-info focus:ring-ring/30"
           />
           Selo ativo (pode ser concedido)
         </label>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
           <button
             type="button"
             onClick={onClose}
             disabled={isPending}
-            className="px-3.5 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+            className="px-3.5 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={isPending}
-            className="px-3.5 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
+            className="px-3.5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
           >
-            {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isPending && <OrbitaSpinner className="w-4 h-4 " />}
             Salvar
           </button>
         </div>

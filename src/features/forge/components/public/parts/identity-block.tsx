@@ -30,8 +30,8 @@ function Avatar({
 
   const fallbackCls =
     variant === "dark"
-      ? "bg-slate-800 text-slate-200 border-slate-700"
-      : "bg-gray-100 text-gray-700 border-gray-200";
+      ? "bg-card text-foreground border-line"
+      : "bg-muted text-foreground border-line";
 
   if (url) {
     return (
@@ -67,14 +67,14 @@ export function IdentityBlock({
 
   const labelCls =
     variant === "dark"
-      ? "text-slate-500 text-xs uppercase tracking-widest"
-      : "text-gray-400 text-xs uppercase tracking-widest";
+      ? "text-muted-foreground text-xs uppercase tracking-widest"
+      : "text-muted-foreground text-xs uppercase tracking-widest";
   const nameCls =
-    variant === "dark" ? "text-white font-semibold" : "text-gray-900 font-semibold";
+    variant === "dark" ? "text-white font-semibold" : "text-foreground font-semibold";
   const cardCls =
     variant === "dark"
-      ? "bg-slate-900/60 border border-slate-800"
-      : "bg-white border border-gray-200";
+      ? "bg-card/60 border border-line"
+      : "bg-white border border-line";
 
   return (
     <div className="max-w-3xl mx-auto px-8 pb-8 forge-avoid-break">

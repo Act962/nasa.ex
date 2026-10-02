@@ -34,6 +34,7 @@ import {
   type PageTemplate,
 } from "../../lib/page-templates";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { DIALOG_AS_MOBILE_BOTTOM_SHEET_CLASSES } from "../../lib/mobile-sheet-classes";
 import { emitTourResult } from "@/features/tour/store";
 import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
@@ -87,8 +88,8 @@ function PaletteStep({
             <Card
               key={idx}
               className={cn(
-                "cursor-pointer transition-all hover:border-indigo-500",
-                active && "border-indigo-500 ring-1 ring-indigo-500",
+                "cursor-pointer transition-all hover:border-primary",
+                active && "border-primary ring-1 ring-primary",
               )}
               onClick={() => onChange(p)}
             >
@@ -106,21 +107,21 @@ function PaletteStep({
                   <Palette className="size-4" />
                   Paleta {idx + 1}
                 </div>
-                {active && <Check className="size-4 ml-auto text-indigo-500" />}
+                {active && <Check className="size-4 ml-auto text-info" />}
               </CardContent>
             </Card>
           );
         })}
       </div>
 
-      <div className="border rounded-lg p-4 flex flex-col gap-3">
+      <div className="border rounded-[18px] p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium flex items-center gap-2">
-            <Palette className="size-4 text-indigo-500" />
+            <Palette className="size-4 text-info" />
             Paleta personalizada
           </p>
           {isCustom && (
-            <span className="text-xs text-indigo-500 font-medium">Ativa</span>
+            <span className="text-xs text-info font-medium">Ativa</span>
           )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -240,7 +241,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
     },
     onSuccess: (res) => {
       const msg = selectedTemplate
-        ? `Site criado com modelo "${selectedTemplate.name}" — 2.000 ★`
+        ? `Site criado com modelo "${selectedTemplate.name}" — 2.000 Stars`
         : "Site criado — 2.000 Stars debitadas";
       toast.success(msg);
       qc.invalidateQueries({ queryKey: orpc.pages.listPages.queryKey() });
@@ -274,12 +275,15 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
           Width: 80vw em telas grandes, full em mobile. max-h: 92vh
           deixa confortável em qualquer tela. */}
       <DialogContent
-        className="p-0 gap-0 flex flex-col w-[calc(100vw-2rem)] sm:w-[80vw] max-w-[80vw] max-h-[92vh]"
+        className={cn(
+          "flex max-h-[92dvh] flex-col gap-0 p-0 sm:w-[80vw] sm:max-w-[80vw]",
+          DIALOG_AS_MOBILE_BOTTOM_SHEET_CLASSES,
+        )}
         data-guide={GUIDE_ANCHORS.pagesWizard.id}
       >
-        <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
+        <DialogHeader className="px-5 pt-6 pb-3 shrink-0 sm:px-6">
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="size-5 text-indigo-500" />
+            <Sparkles className="size-5 text-info" />
             Novo site ÓRBITA Pages
           </DialogTitle>
           <DialogDescription>
@@ -287,13 +291,13 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-2">
-        <div className="min-h-[320px]">
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-2 sm:px-6">
+        <div className="sm:min-h-[320px]">
           {step === "template" && (
             <div className="flex flex-col gap-3">
               {/* Status do template selecionado (banner topo) */}
               {selectedTemplate && (
-                <div className="flex items-center justify-between rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-xs">
+                <div className="flex items-center justify-between gap-2 rounded-[18px] border border-info/30 bg-info/15 px-3 py-2 text-xs">
                   <span>
                     <strong>Modelo selecionado:</strong>{" "}
                     {selectedTemplate.name}{" "}
@@ -303,7 +307,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
                   </span>
                   <button
                     onClick={() => setSelectedTemplate(null)}
-                    className="text-violet-300 hover:text-violet-200 underline-offset-2 hover:underline"
+                    className="text-info hover:text-info/80 underline-offset-2 hover:underline"
                   >
                     Remover
                   </button>
@@ -339,8 +343,8 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
                 <Card
                   key={i}
                   className={cn(
-                    "cursor-pointer transition-all hover:border-indigo-500",
-                    intent === i && "border-indigo-500 ring-1 ring-indigo-500",
+                    "cursor-pointer transition-all hover:border-primary",
+                    intent === i && "border-primary ring-1 ring-primary",
                   )}
                   onClick={() => setIntent(i)}
                 >
@@ -359,13 +363,13 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Card
                 className={cn(
-                  "cursor-pointer transition-all hover:border-indigo-500",
-                  layerCount === 1 && "border-indigo-500 ring-1 ring-indigo-500",
+                  "cursor-pointer transition-all hover:border-primary",
+                  layerCount === 1 && "border-primary ring-1 ring-primary",
                 )}
                 onClick={() => setLayerCount(1)}
               >
                 <CardContent className="p-4 flex flex-col gap-3">
-                  <Layers className="size-8 text-indigo-500" />
+                  <Layers className="size-8 text-info" />
                   <p className="font-semibold">1 camada (estático)</p>
                   <p className="text-xs text-muted-foreground">
                     Rolagem normal. Ideal para sites institucionais com conteúdo
@@ -375,13 +379,13 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
               </Card>
               <Card
                 className={cn(
-                  "cursor-pointer transition-all hover:border-indigo-500",
-                  layerCount === 2 && "border-indigo-500 ring-1 ring-indigo-500",
+                  "cursor-pointer transition-all hover:border-primary",
+                  layerCount === 2 && "border-primary ring-1 ring-primary",
                 )}
                 onClick={() => setLayerCount(2)}
               >
                 <CardContent className="p-4 flex flex-col gap-3">
-                  <Layers2 className="size-8 text-indigo-500" />
+                  <Layers2 className="size-8 text-info" />
                   <p className="font-semibold">2 camadas (parallax)</p>
                   <p className="text-xs text-muted-foreground">
                     Uma camada ao fundo e outra na frente com efeito de slide ao
@@ -407,7 +411,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
                 />
               </div>
               <div>
-                <Label>Slug (URL)</Label>
+                <Label>Endereço do site</Label>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">/s/</span>
                   <Input
@@ -451,22 +455,22 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
               </Card>
               <Card
                 className={cn(
-                  canAfford ? "border-indigo-500" : "border-destructive",
+                  canAfford ? "border-primary" : "border-destructive",
                 )}
               >
                 <CardContent className="p-4 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold">
-                      Custo: {STARS_COST.toLocaleString("pt-BR")} ★
+                      Custo: {STARS_COST.toLocaleString("pt-BR")} Stars
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Saldo atual:{" "}
-                      {(cost?.balance ?? 0).toLocaleString("pt-BR")} ★ · Após:{" "}
-                      {((cost?.balance ?? 0) - STARS_COST).toLocaleString("pt-BR")} ★
+                      {(cost?.balance ?? 0).toLocaleString("pt-BR")} · Depois:{" "}
+                      {((cost?.balance ?? 0) - STARS_COST).toLocaleString("pt-BR")} Stars
                     </p>
                   </div>
                   {!canAfford && (
-                    <Button asChild variant="outline" size="sm">
+                    <Button asChild variant="outline" size="sm" className="shrink-0 rounded-full">
                       <a href="/stars">Comprar Stars</a>
                     </Button>
                   )}
@@ -477,12 +481,13 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
         </div>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t gap-2 sm:gap-2 shrink-0">
+        <DialogFooter className="flex-row gap-2 px-5 py-4 shrink-0 sm:gap-2 sm:px-6">
           {stepIndex > 0 && (
             <Button
               variant="ghost"
               onClick={() => setStep(STEPS[stepIndex - 1])}
               disabled={isPending}
+              className="h-12 rounded-full sm:h-9"
             >
               Voltar
             </Button>
@@ -491,6 +496,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
             <Button
               onClick={() => setStep(STEPS[stepIndex + 1])}
               disabled={!canAdvance}
+              className="h-12 flex-1 rounded-full sm:h-9 sm:flex-none"
             >
               Avançar
             </Button>
@@ -498,10 +504,10 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
             <Button
               onClick={() => mutate()}
               disabled={!canAfford || isPending}
-              className="gap-1"
+              className="h-12 flex-1 gap-1 rounded-full sm:h-9 sm:flex-none"
             >
               <Sparkles className="size-4" />
-              Criar ({STARS_COST.toLocaleString("pt-BR")} ★)
+              Criar ({STARS_COST.toLocaleString("pt-BR")} Stars)
             </Button>
           )}
         </DialogFooter>

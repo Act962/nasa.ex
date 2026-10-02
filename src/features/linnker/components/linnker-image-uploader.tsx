@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Loader2, Upload, X, ImageIcon } from "lucide-react";
+import { Upload, X, ImageIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -29,8 +30,8 @@ export function LinnkerImageUploader({
 
   const heights: Record<string, string> = {
     square: "h-24 w-24 rounded-full",
-    banner: "h-28 w-full rounded-xl",
-    wide: "h-20 w-full rounded-xl",
+    banner: "h-28 w-full rounded-[18px]",
+    wide: "h-20 w-full rounded-[18px]",
   };
 
   const handleFile = async (file: File) => {
@@ -113,7 +114,7 @@ export function LinnkerImageUploader({
 
         {uploading && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
-            <Loader2 className="size-5 text-white animate-spin" />
+            <OrbitaSpinner className="size-5 text-white " />
           </div>
         )}
 

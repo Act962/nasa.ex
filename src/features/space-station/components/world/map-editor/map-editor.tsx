@@ -7,12 +7,30 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  X, Move, Compass, SquareDashed, Lamp, Settings as Cog, Trash2,
-  DoorClosed, Save, RotateCcw, Undo2, PenLine, Share2,
-  ChevronLeft, ChevronRight, GripHorizontal,
-  PanelLeft, PanelBottom, Maximize2, Image as ImageIcon,
-  Loader2, Check, AlertCircle,
+  X,
+  Move,
+  Compass,
+  SquareDashed,
+  Lamp,
+  Settings as Cog,
+  Trash2,
+  DoorClosed,
+  Save,
+  RotateCcw,
+  Undo2,
+  PenLine,
+  Share2,
+  ChevronLeft,
+  ChevronRight,
+  GripHorizontal,
+  PanelLeft,
+  PanelBottom,
+  Maximize2,
+  Image as ImageIcon,
+  Check,
+  AlertCircle,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { ObjectLibrary } from "./object-library";
 import { AreaEditor } from "./area-editor";
 import { RoomConfig } from "./room-config";
@@ -1201,7 +1219,7 @@ function SaveStatus({
   if (saving) {
     return (
       <span className="text-[11px] flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-500/15 border border-indigo-500/30 text-indigo-300">
-        <Loader2 className="h-3 w-3 animate-spin" />
+        <OrbitaSpinner className="h-3 w-3 " />
         Salvando...
       </span>
     );

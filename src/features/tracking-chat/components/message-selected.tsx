@@ -31,9 +31,9 @@ export function MessageSelected({
     if (element) {
       window.dispatchEvent(new CustomEvent("manual-scroll-started"));
       element.scrollIntoView({ behavior: "smooth", block: "center" });
-      element.classList.add("bg-green-500/20");
+      element.classList.add("bg-success/20");
       setTimeout(() => {
-        element.classList.remove("bg-green-500/20");
+        element.classList.remove("bg-success/20");
       }, 2000);
     }
   };
@@ -41,11 +41,11 @@ export function MessageSelected({
   return (
     <div
       onClick={handleScrollToMessage}
-      className="w-full bg-accent h-fit flex items-center justify-between px-4 rounded-md border-l-4 border-l-green-400 shadow-sm cursor-pointer hover:bg-accent/80 transition-colors"
+      className="w-full bg-accent h-fit flex items-center justify-between px-4 rounded-md border-l-4 border-l-success shadow-sm cursor-pointer hover:bg-accent/80 transition-colors"
     >
       <div className="flex-1 flex flex-row items-center gap-3 min-w-0 ">
         <div className="flex-1 flex flex-col min-w-0 py-4">
-          <div className="text-sm font-semibold text-green-400">
+          <div className="text-sm font-semibold text-success">
             {senderName}
           </div>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">

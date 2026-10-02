@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "../../../middlewares/auth";
 import { requireOrgMiddleware } from "../../../middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { resolveInsightsOrganizationIds } from "../resolve-insights-organizations";
 
 /**
  * Dashboard de origem do lead — fonte única para os 3 cards do painel:
@@ -28,10 +29,11 @@ export const getLeadOrigin = base
   )
   .handler(async ({ input, context }) => {
     const { org } = context;
-    const orgIds =
-      input.organizationIds && input.organizationIds.length > 0
-        ? input.organizationIds
-        : [org.id];
+    const orgIds = await resolveInsightsOrganizationIds({
+      userId: context.user.id,
+      activeOrganizationId: org.id,
+      requestedOrganizationIds: input.organizationIds,
+    });
 
     const dateFilter =
       input.startDate || input.endDate

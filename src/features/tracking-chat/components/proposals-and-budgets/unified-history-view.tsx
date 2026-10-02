@@ -40,27 +40,27 @@ const STATUS_META: Record<
 > = {
   PENDING: {
     label: "Pendente",
-    className: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+    className: "bg-warning/10 text-warning border-warning/20",
     Icon: ClockIcon,
   },
   PARTIAL: {
     label: "Parcial",
-    className: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+    className: "bg-info/10 text-info border-info/20",
     Icon: ClockIcon,
   },
   PAID: {
     label: "Pago",
-    className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+    className: "bg-success/10 text-success border-success/20",
     Icon: CheckCircleIcon,
   },
   OVERDUE: {
     label: "Vencido",
-    className: "bg-red-500/10 text-red-600 border-red-500/20",
+    className: "bg-destructive/10 text-destructive border-destructive/20",
     Icon: AlertCircleIcon,
   },
   CANCELLED: {
     label: "Cancelado",
-    className: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20",
+    className: "bg-knob/10 text-muted-foreground border-line/20",
     Icon: XIcon,
   },
 };
@@ -72,21 +72,21 @@ const FORGE_STATUS_META: Record<
   RASCUNHO: { label: "Rascunho", className: "bg-muted text-muted-foreground" },
   ENVIADA: {
     label: "Enviada",
-    className: "bg-blue-500/15 text-blue-600",
+    className: "bg-info/15 text-info",
   },
   ACEITA: {
     label: "Aceita",
-    className: "bg-emerald-500/15 text-emerald-600",
+    className: "bg-success/15 text-success",
   },
   RECUSADA: {
     label: "Recusada",
-    className: "bg-red-500/15 text-red-600",
+    className: "bg-destructive/15 text-destructive",
   },
   EXPIRADA: {
     label: "Expirada",
-    className: "bg-yellow-500/15 text-yellow-600",
+    className: "bg-warning/15 text-warning",
   },
-  PAGA: { label: "Paga", className: "bg-emerald-500/15 text-emerald-600" },
+  PAGA: { label: "Paga", className: "bg-success/15 text-success" },
 };
 
 /** Item unificado pra renderização ordenada cronologicamente. */
@@ -408,7 +408,7 @@ function BudgetCard({
       </div>
 
       {item.data.paidAmount > 0 && !isPaid && (
-        <p className="mt-1 text-[10px] text-blue-600 dark:text-blue-400">
+        <p className="mt-1 text-[10px] text-info dark:text-info">
           Já pago: {formatCurrency(item.data.paidAmount)} · Restante:{" "}
           <strong>{formatCurrency(remaining)}</strong>
         </p>
@@ -432,7 +432,7 @@ function BudgetCard({
             <Button
               size="sm"
               variant="outline"
-              className="h-7 gap-1 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
+              className="h-7 gap-1 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive"
               disabled={isPending}
               onClick={onDelete}
             >
@@ -474,7 +474,7 @@ function ProposalCard({
           <div className="flex items-center gap-1.5">
             <Badge
               variant="outline"
-              className="shrink-0 gap-1 px-1.5 py-0 text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20"
+              className="shrink-0 gap-1 px-1.5 py-0 text-[10px] bg-info/10 text-info border-info/20"
             >
               <FileTextIcon className="size-2.5" />
               Proposta
@@ -544,7 +544,7 @@ function ProposalCard({
         <Button
           size="sm"
           variant="outline"
-          className="h-7 gap-1 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
+          className="h-7 gap-1 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive"
           onClick={onDelete}
           disabled={isPending}
         >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { LeadInfo } from "./lead-info";
 import { LeadFull } from "@/types/lead";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
 import {
   ClipboardListIcon,
   EditIcon,
@@ -17,6 +19,7 @@ import {
   RouteIcon,
   ShoppingBasket,
   StickyNoteIcon,
+  UserRoundIcon,
 } from "lucide-react";
 import { LeadContracts } from "./lead-contracts";
 import { LeadTrafegoTab } from "@/features/trafego/components/ops/lead-trafego-tab";
@@ -35,6 +38,9 @@ import { useCheckPermission } from "@/hooks/use-check-permission";
 import { leadProductsQueryKey } from "../hooks/use-lead-products";
 import { pusherClient } from "@/lib/pusher";
 import { orpc } from "@/lib/orpc";
+import { cn } from "@/lib/utils";
+
+const DOCK_TAB_VALUES = ["observations", "journey", "files", "forms"];
 
 interface LeadDatailsProps {
   initialData: LeadFull;
@@ -145,30 +151,75 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
     },
   ];
   const tabs = allTabs.filter((tab) => tab.value !== "products" || canViewProducts);
+  const [activeTab, setActiveTab] = useState(
+    tabFromUrl && tabs.some((tab) => tab.value === tabFromUrl) ? tabFromUrl : tabs[0].value,
+  );
+
+  // No celular, as quatro abas principais vão para o dock em órbita e saem da lista de cima.
+  const toDockItem = (tabValue: string) => {
+    const tab = allTabs.find((candidate) => candidate.value === tabValue)!;
+    const TabIcon = tab.icon;
+    return {
+      label: tab.name,
+      icon: <TabIcon />,
+      isActive: activeTab === tab.value,
+      onSelect: () => setActiveTab(tab.value),
+    };
+  };
+  useRegisterOrbitDock({
+    leftItems: [toDockItem("observations"), toDockItem("journey")],
+    rightItems: [toDockItem("files"), toDockItem("forms")],
+  });
+
+  const leadInitial = (initialData.lead.name || "?").trim().charAt(0).toUpperCase();
 
   return (
-    <div className="flex-1 flex flex-col">
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button className="sm:hidden m-4">Lead Info</Button>
-        </SheetTrigger>
-        <SheetContent side="left">
-          <LeadInfo initialData={initialData} className="w-full" />
-        </SheetContent>
-      </Sheet>
+    <div className="flex min-w-0 flex-1 flex-col">
+      {/* Celular: cabeçalho do lead; os dados completos abrem num sheet. */}
+      <header className="flex items-center gap-3 px-3 py-3 sm:hidden">
+        <SidebarTrigger className="shrink-0" />
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-knob text-sm font-semibold">
+          {leadInitial}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">
+            {initialData.lead.name || "Sem nome"}
+          </p>
+          {initialData.lead.phone && (
+            <p className="truncate text-xs text-muted-foreground">
+              {initialData.lead.phone}
+            </p>
+          )}
+        </div>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="shrink-0">
+              <UserRoundIcon className="size-4" />
+              Dados
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="overflow-y-auto">
+            <LeadInfo initialData={initialData} className="w-full" />
+          </SheetContent>
+        </Sheet>
+      </header>
 
-      <aside className="flex-1 px-8 overflow-hidden">
+      <aside className="min-w-0 flex-1 overflow-hidden px-3 sm:px-8">
         <Tabs
-          defaultValue={
-            tabFromUrl && tabs.some((t) => t.value === tabFromUrl)
-              ? tabFromUrl
-              : tabs[0].value
-          }
-          className="flex flex-col h-full gap-4 w-full mt-8 pb-8"
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="mt-3 flex h-full w-full flex-col gap-4 pb-8 sm:mt-8"
         >
-          <TabsList className="p-0 w-full bg-muted/20 shrink-0">
+          <TabsList className="w-full shrink-0 justify-start gap-1 overflow-x-auto bg-muted/20 p-0 [scrollbar-width:none] sm:justify-center">
             {tabs.map(({ icon: Icon, name, value }) => (
-              <TabsTrigger key={value} value={value} className="w-full">
+              <TabsTrigger
+                key={value}
+                value={value}
+                className={cn(
+                  "shrink-0 px-3 sm:w-full sm:shrink",
+                  DOCK_TAB_VALUES.includes(value) && "max-lg:hidden",
+                )}
+              >
                 <Icon className="size-4" />
                 {name}
               </TabsTrigger>
@@ -179,7 +230,7 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
             <TabsContent
               key={tab.value}
               value={tab.value}
-              className="flex-1 overflow-hidden"
+              className="min-w-0 flex-1 overflow-y-auto sm:overflow-hidden"
             >
               {tab.content}
             </TabsContent>

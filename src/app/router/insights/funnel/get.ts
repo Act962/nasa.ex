@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "../../../middlewares/auth";
 import { requireOrgMiddleware } from "../../../middlewares/org";
 import { z } from "zod";
 import { computeFunnel } from "@/features/insights/lib/metrics/funnel";
+import { resolveInsightsOrganizationIds } from "../resolve-insights-organizations";
 
 /**
  * Funil visual de leads por etapa do tracking. Retorna lista ordenada por
@@ -30,10 +31,11 @@ export const getFunnel = base
   )
   .handler(async ({ input, context, errors }) => {
     const { org } = context;
-    const organizationIds =
-      input.organizationIds && input.organizationIds.length > 0
-        ? input.organizationIds
-        : [org.id];
+    const organizationIds = await resolveInsightsOrganizationIds({
+      userId: context.user.id,
+      activeOrganizationId: org.id,
+      requestedOrganizationIds: input.organizationIds,
+    });
 
     const result = await computeFunnel({
       organizationIds,

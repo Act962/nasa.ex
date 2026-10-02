@@ -65,25 +65,25 @@ export function CompanyInfoBlock({
 
   const titleCls =
     variant === "dark"
-      ? "text-slate-400 text-xs font-semibold uppercase tracking-widest"
-      : "text-gray-500 text-xs font-semibold uppercase tracking-widest";
+      ? "text-muted-foreground text-xs font-semibold uppercase tracking-widest"
+      : "text-muted-foreground text-xs font-semibold uppercase tracking-widest";
   const cardCls =
     variant === "dark"
-      ? "bg-slate-900/60 border border-slate-800"
-      : "bg-white border border-gray-200";
+      ? "bg-card/60 border border-line"
+      : "bg-white border border-line";
   const labelCls =
-    variant === "dark" ? "text-slate-500 text-[11px]" : "text-gray-400 text-[11px]";
+    variant === "dark" ? "text-muted-foreground text-[11px]" : "text-muted-foreground text-[11px]";
   const valueCls =
-    variant === "dark" ? "text-slate-200 text-sm" : "text-gray-800 text-sm";
+    variant === "dark" ? "text-foreground text-sm" : "text-foreground text-sm";
   const linkCls =
     variant === "dark"
       ? "text-[#a78bfa] hover:underline text-sm"
-      : "text-blue-600 hover:underline text-sm";
+      : "text-info hover:underline text-sm";
   const bioCls =
     variant === "dark"
-      ? "text-slate-300 text-sm leading-relaxed"
-      : "text-gray-600 text-sm leading-relaxed";
-  const iconCls = variant === "dark" ? "text-slate-500" : "text-gray-400";
+      ? "text-muted-foreground text-sm leading-relaxed"
+      : "text-muted-foreground text-sm leading-relaxed";
+  const iconCls = variant === "dark" ? "text-muted-foreground" : "text-muted-foreground";
 
   return (
     <div className="max-w-3xl mx-auto px-8 pb-8 forge-avoid-break">

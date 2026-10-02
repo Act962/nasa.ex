@@ -153,7 +153,7 @@ export function SpaceShell({ nick, initialSpace }: SpaceShellProps) {
   const ctx = { nick, org, station, counts, viewer };
 
   return (
-    <div className="min-h-screen bg-slate-950 pb-20 text-white">
+    <div className="dark min-h-screen bg-background pb-20 text-foreground">
       <div className="mx-auto max-w-6xl space-y-5 px-4 pt-8 md:px-6">
         {/* Cards FIXOS no topo (não-arrastáveis) */}
         <div className="grid gap-5">{renderCard("header", ctx)}</div>
@@ -235,7 +235,7 @@ function SortableCard({
       <button
         type="button"
         aria-label="Arrastar pra reordenar"
-        className="absolute -left-7 top-3 hidden cursor-grab rounded-md p-1 text-white/40 transition hover:bg-white/10 hover:text-white active:cursor-grabbing group-hover:flex md:flex"
+        className="absolute -left-7 top-3 hidden cursor-grab rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground active:cursor-grabbing group-hover:flex md:flex"
         {...attributes}
         {...listeners}
       >

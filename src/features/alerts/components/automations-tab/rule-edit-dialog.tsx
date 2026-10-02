@@ -278,7 +278,7 @@ export function RuleEditDialog({
                 onChange={(e) =>
                   setSeverity(e.target.value as "info" | "warning" | "critical")
                 }
-                className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs"
+                className="mt-1 w-full rounded-md border border-line bg-card px-2 py-1.5 text-xs"
               >
                 {(["info", "warning", "critical"] as const).map((s) => (
                   <option key={s} value={s}>
@@ -296,7 +296,7 @@ export function RuleEditDialog({
                 id="rule-audience"
                 value={audienceKind}
                 onChange={(e) => setAudienceKind(e.target.value)}
-                className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs"
+                className="mt-1 w-full rounded-md border border-line bg-card px-2 py-1.5 text-xs"
               >
                 {eventDef.audienceOptions.map((k) => (
                   <option key={k} value={k}>
@@ -309,7 +309,7 @@ export function RuleEditDialog({
 
           <div>
             <Label className="text-xs">Parâmetros</Label>
-            <div className="mt-1.5 rounded-md border border-zinc-800 bg-zinc-950/40 p-3">
+            <div className="mt-1.5 rounded-md border border-line bg-background/40 p-3">
               <ParamForm
                 fields={fields}
                 values={paramValues}
@@ -337,7 +337,7 @@ export function RuleEditDialog({
           )}
 
           {error && (
-            <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1.5 text-[11px] text-rose-300">
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-[11px] text-destructive">
               {error}
             </div>
           )}

@@ -45,7 +45,7 @@ export interface MetricDisplay {
 export type MetricTrend = "up" | "down";
 
 const INTEREST_LABELS = { LOW: "Baixo", MEDIUM: "Médio", HIGH: "Alto" } as const;
-const INTEREST_COLORS = { LOW: "text-red-400", MEDIUM: "text-amber-400", HIGH: "text-emerald-400" } as const;
+const INTEREST_COLORS = { LOW: "text-destructive", MEDIUM: "text-warning", HIGH: "text-success" } as const;
 
 /** Potencial de compra em cor: 0% vermelho (matiz 0) até 100% verde (matiz 120). */
 export function potentialColor(potential: number): string {
@@ -68,9 +68,9 @@ function formatPercent(value: number | null): string {
 /** Verde bom, âmbar médio, vermelho ruim — em métricas onde maior é melhor. */
 function goodScoreColor(value: number | null): string {
   if (value === null) return "";
-  if (value >= 70) return "text-emerald-400";
-  if (value >= 40) return "text-amber-400";
-  return "text-red-400";
+  if (value >= 70) return "text-success";
+  if (value >= 40) return "text-warning";
+  return "text-destructive";
 }
 
 function goodScoreTrend(value: number | null): MetricTrend | undefined {
@@ -90,26 +90,26 @@ const INTEREST_TRENDS = { LOW: "down", MEDIUM: undefined, HIGH: "up" } as const;
 
 /** Métricas em que menor é melhor (perda). */
 function lowIsGoodColor(value: number): string {
-  if (value <= 10) return "text-emerald-400";
-  if (value <= 30) return "text-amber-400";
-  return "text-red-400";
+  if (value <= 10) return "text-success";
+  if (value <= 30) return "text-warning";
+  return "text-destructive";
 }
 
 export function behaviorMetrics(metrics: LeadMetricsView): MetricDisplay[] {
   return [
     { id: "potential", label: "Potencial", description: "Potencial de compra (0 a 100%)", value: `${metrics.purchasePotential}%`, icon: BarChart3Icon, iconClassName: goodScoreColor(metrics.purchasePotential), valueClassName: goodScoreColor(metrics.purchasePotential), trend: goodScoreTrend(metrics.purchasePotential) },
-    { id: "interest", label: "Interesse", description: "Nível de interesse do lead", value: INTEREST_LABELS[metrics.interestLevel], icon: FlameIcon, iconClassName: "text-orange-400", valueClassName: INTEREST_COLORS[metrics.interestLevel], trend: INTEREST_TRENDS[metrics.interestLevel] },
-    { id: "purchases", label: "Compras", description: "Propostas pagas ou negócios ganhos", value: String(metrics.purchasesCount), icon: ShoppingCartIcon, iconClassName: "text-amber-400" },
-    { id: "interactions", label: "Interações", description: "Mensagens nos últimos 30 dias", value: `${metrics.interactionsPerMonth}/mês`, icon: MessageSquareIcon, iconClassName: "text-sky-400" },
+    { id: "interest", label: "Interesse", description: "Nível de interesse do lead", value: INTEREST_LABELS[metrics.interestLevel], icon: FlameIcon, iconClassName: "text-warning", valueClassName: INTEREST_COLORS[metrics.interestLevel], trend: INTEREST_TRENDS[metrics.interestLevel] },
+    { id: "purchases", label: "Compras", description: "Propostas pagas ou negócios ganhos", value: String(metrics.purchasesCount), icon: ShoppingCartIcon, iconClassName: "text-warning" },
+    { id: "interactions", label: "Interações", description: "Mensagens nos últimos 30 dias", value: `${metrics.interactionsPerMonth}/mês`, icon: MessageSquareIcon, iconClassName: "text-info" },
     { id: "attendance", label: "Atendimento", description: "Tempo médio de atendimento (mm:ss)", value: formatDuration(metrics.avgAttendanceSeconds), icon: ClockIcon, iconClassName: "text-muted-foreground" },
-    { id: "loss", label: "Perda", description: "Mensagens do lead sem resposta em 24 h", value: `${metrics.interactionLossRate}%`, icon: BanIcon, iconClassName: "text-red-400", valueClassName: lowIsGoodColor(metrics.interactionLossRate), trend: lowIsGoodTrend(metrics.interactionLossRate) },
+    { id: "loss", label: "Perda", description: "Mensagens do lead sem resposta em 24 h", value: `${metrics.interactionLossRate}%`, icon: BanIcon, iconClassName: "text-destructive", valueClassName: lowIsGoodColor(metrics.interactionLossRate), trend: lowIsGoodTrend(metrics.interactionLossRate) },
   ];
 }
 
 export function serviceMetrics(metrics: LeadMetricsView): MetricDisplay[] {
   return [
-    { id: "response", label: "Resposta", description: "Tempo médio da primeira resposta (mm:ss)", value: formatDuration(metrics.avgResponseSeconds), icon: ZapIcon, iconClassName: "text-amber-400" },
-    { id: "quality", label: "Qualidade", description: "Respostas dentro do SLA da etapa", value: formatPercent(metrics.qualityScore), icon: ShieldCheckIcon, iconClassName: "text-emerald-400", valueClassName: goodScoreColor(metrics.qualityScore), trend: goodScoreTrend(metrics.qualityScore) },
-    { id: "resolution", label: "Resolução", description: "Atendimentos encerrados com sucesso", value: formatPercent(metrics.resolutionRate), icon: TargetIcon, iconClassName: "text-emerald-400", valueClassName: goodScoreColor(metrics.resolutionRate), trend: goodScoreTrend(metrics.resolutionRate) },
+    { id: "response", label: "Resposta", description: "Tempo médio da primeira resposta (mm:ss)", value: formatDuration(metrics.avgResponseSeconds), icon: ZapIcon, iconClassName: "text-warning" },
+    { id: "quality", label: "Qualidade", description: "Respostas dentro do SLA da etapa", value: formatPercent(metrics.qualityScore), icon: ShieldCheckIcon, iconClassName: "text-success", valueClassName: goodScoreColor(metrics.qualityScore), trend: goodScoreTrend(metrics.qualityScore) },
+    { id: "resolution", label: "Resolução", description: "Atendimentos encerrados com sucesso", value: formatPercent(metrics.resolutionRate), icon: TargetIcon, iconClassName: "text-success", valueClassName: goodScoreColor(metrics.resolutionRate), trend: goodScoreTrend(metrics.resolutionRate) },
   ];
 }

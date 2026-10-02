@@ -92,8 +92,8 @@ export function AccountsTab() {
           <p
             className={`text-2xl font-black tabular-nums ${
               totalComputed >= 0
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-red-600 dark:text-red-400"
+                ? "text-success dark:text-success"
+                : "text-destructive dark:text-destructive"
             }`}
           >
             {formatCurrency(totalComputed)}
@@ -104,7 +104,7 @@ export function AccountsTab() {
         </div>
         <Button
           onClick={() => setShowForm(true)}
-          className="h-9 w-full gap-1.5 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90 sm:w-auto"
+          className="h-9 w-full gap-1.5 bg-info text-white hover:bg-info/90 sm:w-auto"
         >
           <Plus className="size-4" />
           Nova conta
@@ -137,8 +137,8 @@ export function AccountsTab() {
                 <span
                   className={`text-sm font-semibold tabular-nums ${
                     account.computedBalance >= 0
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-red-600 dark:text-red-400"
+                      ? "text-success dark:text-success"
+                      : "text-destructive dark:text-destructive"
                   }`}
                 >
                   {formatCurrency(account.computedBalance)}
@@ -146,7 +146,7 @@ export function AccountsTab() {
                 {account.isDefault && (
                   <Badge
                     variant="outline"
-                    className="ml-2 hidden border-blue-400/30 text-xs text-blue-400 sm:inline-flex"
+                    className="ml-2 hidden border-info/30 text-xs text-info sm:inline-flex"
                   >
                     Padrão
                   </Badge>
@@ -177,7 +177,7 @@ export function AccountsTab() {
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => removeAccount.mutate({ id: account.id })}
-                    className="gap-2 text-red-500"
+                    className="gap-2 text-destructive"
                   >
                     <Trash2 className="size-3.5" /> Remover
                   </DropdownMenuItem>
@@ -269,7 +269,7 @@ export function AccountsTab() {
               <Button
                 type="submit"
                 disabled={createAccount.isPending}
-                className="flex-1 bg-[#1E90FF] text-white"
+                className="flex-1 bg-info text-white"
               >
                 {createAccount.isPending ? "..." : "Criar"}
               </Button>

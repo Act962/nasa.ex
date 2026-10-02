@@ -7,12 +7,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
 import {
-  Loader2,
   Send,
   Image as ImageIcon,
   CheckCircle2,
   X,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -221,7 +221,7 @@ export function SupportForm() {
           >
             {isSubmitting || createTicket.isPending ? (
               <>
-                <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                <OrbitaSpinner className="mr-3 h-6 w-6 " />
                 Enviando Sugestão...
               </>
             ) : (

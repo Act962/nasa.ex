@@ -53,7 +53,7 @@ export function VideoMessageBox({ mediaUrl, fileName }: VideoMessageBoxProps) {
   }
 
   return (
-    <div className="relative w-72 max-w-full overflow-hidden rounded-lg bg-black">
+    <div className="relative w-72 max-w-full overflow-hidden rounded-[11px] bg-black">
       <video
         ref={videoRef}
         src={resolvedUrl}

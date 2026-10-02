@@ -68,7 +68,7 @@ export const SliderBlock: ObjectBlockType = {
       unit: "",
     } satisfies AttributesType,
   }),
-  blockBtnElement: { icon: SlidersHorizontal, label: "Slider" },
+  blockBtnElement: { icon: SlidersHorizontal, label: "Escala (slider)" },
   canvasComponent: CanvasView,
   formComponent: FormView,
   propertiesComponent: PropertiesView,
@@ -83,7 +83,7 @@ function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
       {label?.trim() && (
         <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug">
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
           <span className="text-xs text-muted-foreground ml-2">
             {min}–{max} {unit}
           </span>
@@ -139,7 +139,7 @@ function FormView({
           {label?.trim() ? (
             <>
               {label}
-              {required && <span className="text-red-500"> *</span>}
+              {required && <span className="text-destructive"> *</span>}
             </>
           ) : (
             ""

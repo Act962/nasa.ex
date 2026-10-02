@@ -62,12 +62,12 @@ export function ChannelStep({
             className={cn(
               "relative flex flex-col rounded-2xl border p-4 text-left transition sm:p-5",
               isSelected
-                ? "border-violet-400 bg-violet-500/[0.09] shadow-[0_0_0_1px_rgba(167,139,250,0.3)]"
+                ? "border-info bg-info/10 ring-1 ring-info/30"
                 : "border-white/[0.08] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]",
             )}
           >
             {isSelected && (
-              <span className="absolute right-3 top-3 flex size-5 items-center justify-center rounded-full bg-violet-500">
+              <span className="absolute right-3 top-3 flex size-5 items-center justify-center rounded-full bg-info">
                 <Check className="size-3 text-white" />
               </span>
             )}
@@ -84,7 +84,7 @@ export function ChannelStep({
             <span className="mt-4 block text-[0.95rem] font-semibold leading-tight text-white">
               {channel.title}
             </span>
-            <span className="mt-0.5 block text-xs font-medium text-violet-300/80">
+            <span className="mt-0.5 block text-xs font-medium text-info/80">
               {channel.subtitle}
             </span>
             <span className="mt-2 block text-xs leading-relaxed text-white/45">

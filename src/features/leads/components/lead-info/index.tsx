@@ -9,7 +9,7 @@ import { useConstructUrl } from "@/hooks/use-construct-url";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { LeadFull } from "@/types/lead";
-import { ChevronLeft, Circle, ClipboardClockIcon, Mail } from "lucide-react";
+import { Circle, ClipboardClockIcon, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ActionButton } from "./action-button";
@@ -146,14 +146,6 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
       >
         {/* Navigation Header - Fixed */}
         <div className="p-4 flex items-center gap-3 shrink-0">
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            className="rounded-full h-8 w-8 hover:bg-muted"
-            onClick={() => router.back()}
-          >
-            <ChevronLeft className="size-5" />
-          </Button>
           <h2 className="text-sm font-semibold tracking-tight">
             Detalhes do Lead
           </h2>
@@ -247,7 +239,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
             </div>
 
             <div className="flex items-center gap-2 py-1">
-              <Circle className="fill-emerald-500 text-emerald-500 size-2" />
+              <Circle className="fill-success text-success size-2" />
               <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-tight">
                 Atividade: {new Date(lead.updatedAt).toLocaleDateString()}
               </span>

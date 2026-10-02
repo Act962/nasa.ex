@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,7 +40,7 @@ export default function NerpOrgPage() {
           disabled={query.isFetching}
         >
           {query.isFetching ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <OrbitaSpinner className="size-3.5 " />
           ) : (
             <RefreshCw className="size-3.5" />
           )}
@@ -58,7 +59,7 @@ export default function NerpOrgPage() {
           <CardContent>
             {query.isLoading && (
               <div className="py-12 text-center text-muted-foreground">
-                <Loader2 className="size-4 animate-spin inline mr-2" />
+                <OrbitaSpinner className="size-4 inline mr-2" />
                 Buscando dados…
               </div>
             )}

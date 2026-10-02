@@ -38,9 +38,9 @@ export function VariableDropdown({ search, onSelect }: VariableDropdownProps) {
         sideOffset={0}
         onCloseAutoFocus={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        className="w-72 bg-zinc-900 border-zinc-700/60 p-0 shadow-2xl max-h-64 overflow-y-auto"
+        className="w-72 bg-card border-line/60 p-0 shadow-2xl max-h-64 overflow-y-auto"
       >
-        <DropdownMenuLabel className="px-3 py-2 border-b border-zinc-800 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+        <DropdownMenuLabel className="px-3 py-2 border-b border-line text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
           Variáveis
         </DropdownMenuLabel>
 
@@ -48,7 +48,7 @@ export function VariableDropdown({ search, onSelect }: VariableDropdownProps) {
           <DropdownMenuGroup key={cat.label}>
             <div className="px-3 py-1.5 flex items-center gap-1.5 opacity-80 pointer-events-none">
               <span className="text-xs">{cat.emoji}</span>
-              <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                 {cat.label}
               </span>
             </div>
@@ -56,13 +56,13 @@ export function VariableDropdown({ search, onSelect }: VariableDropdownProps) {
               <DropdownMenuItem
                 key={item.value}
                 onClick={() => onSelect(item.value)}
-                className="w-full flex-col items-start px-4 py-2 cursor-pointer focus:bg-zinc-800 transition-colors"
+                className="w-full flex-col items-start px-4 py-2 cursor-pointer focus:bg-card transition-colors"
               >
-                <span className="block text-sm text-purple-300 font-mono">
+                <span className="block text-sm text-info font-mono">
                   {item.label}
                 </span>
                 {item.description && (
-                  <span className="block text-[10px] text-zinc-600 mt-0.5 whitespace-normal leading-tight">
+                  <span className="block text-[10px] text-muted-foreground mt-0.5 whitespace-normal leading-tight">
                     {item.description}
                   </span>
                 )}
@@ -72,7 +72,7 @@ export function VariableDropdown({ search, onSelect }: VariableDropdownProps) {
         ))}
 
         {filtered.length === 0 && (
-          <p className="px-4 py-3 text-sm text-zinc-600 outline-none">
+          <p className="px-4 py-3 text-sm text-muted-foreground outline-none">
             Nenhuma variável encontrada.
           </p>
         )}

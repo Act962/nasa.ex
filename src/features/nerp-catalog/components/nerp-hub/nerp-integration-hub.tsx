@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Boxes,
   CheckCircle2,
-  Loader2,
   Megaphone,
   Plug,
   Power,
@@ -17,6 +16,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -178,7 +178,7 @@ export function NerpIntegrationHub() {
             </p>
           )}
           {isConnected && !data?.connection.hasOrderScope && (
-            <p className="text-sm text-amber-600">
+            <p className="text-sm text-warning">
               A conexão atual não autoriza o envio de pedidos do Catálogo online. Clique em
               &quot;Reconectar&quot; e aprove o novo acesso no NERP.
             </p>
@@ -192,7 +192,7 @@ export function NerpIntegrationHub() {
             {isConnected && canDisconnect && (
               <Button variant="outline" onClick={handleDisconnect} disabled={disconnect.isPending}>
                 {disconnect.isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <OrbitaSpinner className="size-4 " />
                 ) : (
                   <Power className="size-4" />
                 )}

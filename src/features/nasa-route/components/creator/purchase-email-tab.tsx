@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
-import { Loader2, Mail, Save, Send } from "lucide-react";
+import { Mail, Save, Send } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -164,7 +165,7 @@ export function PurchaseEmailTab({ courseId, initial }: PurchaseEmailTabProps) {
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Mail className="size-4 text-violet-600" />
+              <Mail className="size-4 text-info" />
               <h3 className="text-sm font-semibold">
                 Personalizar e-mail de boas-vindas
               </h3>
@@ -221,7 +222,7 @@ export function PurchaseEmailTab({ courseId, initial }: PurchaseEmailTabProps) {
                 type="button"
                 onClick={() => insertVariable(v.key)}
                 disabled={!enabled}
-                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] font-mono hover:border-violet-500 hover:text-violet-600 disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] font-mono hover:border-info hover:text-info disabled:opacity-50"
                 title={v.label}
               >
                 {`{{${v.key}}}`}
@@ -239,7 +240,7 @@ export function PurchaseEmailTab({ courseId, initial }: PurchaseEmailTabProps) {
           className="gap-1.5"
         >
           {sendTest.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
           ) : (
             <Send className="size-4" />
           )}
@@ -250,7 +251,7 @@ export function PurchaseEmailTab({ courseId, initial }: PurchaseEmailTabProps) {
           disabled={upsert.isPending}
           className="gap-1.5"
         >
-          {upsert.isPending && <Loader2 className="size-4 animate-spin" />}
+          {upsert.isPending && <OrbitaSpinner className="size-4 " />}
           <Save className="size-4" />
           Salvar
         </Button>

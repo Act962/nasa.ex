@@ -53,7 +53,7 @@ export default async function Page({
     return (
       <Shell>
         <Banner
-          icon={<AlertCircle className="size-12 text-rose-400" />}
+          icon={<AlertCircle className="size-12 text-destructive" />}
           title="Link inválido"
           subtitle="Este link de resgate não existe ou foi reescrito. Verifique se você abriu o e-mail mais recente que recebeu."
         />
@@ -69,13 +69,13 @@ export default async function Page({
     return (
       <Shell>
         <Banner
-          icon={<CheckCircle2 className="size-12 text-emerald-400" />}
+          icon={<CheckCircle2 className="size-12 text-success" />}
           title="Compra já resgatada"
           subtitle={`O acesso ao curso "${pending.course.title}" já foi liberado para esta conta. Faça login para acessar.`}
           cta={
             <Link
               href="/sign-in"
-              className="inline-flex items-center justify-center rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-500"
+              className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
               Fazer login
             </Link>
@@ -89,13 +89,13 @@ export default async function Page({
     return (
       <Shell>
         <Banner
-          icon={<Clock className="size-12 text-amber-400" />}
+          icon={<Clock className="size-12 text-warning" />}
           title="Link expirado"
           subtitle={`Este link expirou. Entre em contato com o suporte da plataforma informando o e-mail ${pending.email} para reenviarmos o acesso.`}
           cta={
             <a
               href={`mailto:suporte@nasaagents.com?subject=Resgate%20expirado%20-%20${encodeURIComponent(pending.email)}`}
-              className="inline-flex items-center justify-center rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-500"
+              className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
               <Mail className="mr-2 size-4" />
               Falar com suporte
@@ -110,7 +110,7 @@ export default async function Page({
     return (
       <Shell>
         <Banner
-          icon={<Clock className="size-12 text-amber-400" />}
+          icon={<Clock className="size-12 text-warning" />}
           title="Pagamento ainda processando"
           subtitle="Aguardando confirmação do Stripe. Recarregue esta página em alguns instantes."
         />
@@ -122,7 +122,7 @@ export default async function Page({
     return (
       <Shell>
         <Banner
-          icon={<AlertCircle className="size-12 text-rose-400" />}
+          icon={<AlertCircle className="size-12 text-destructive" />}
           title="Compra indisponível"
           subtitle="Esta compra não está em um estado válido para resgate. Contate o suporte."
         />
@@ -144,21 +144,21 @@ export default async function Page({
 
   return (
     <Shell>
-      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 md:p-8">
+      <div className="rounded-3xl border border-line bg-card p-6 md:p-8">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+          <div className="inline-flex items-center justify-center rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success">
             ✓ Pagamento confirmado
           </div>
-          <h1 className="mt-3 text-2xl font-bold text-white md:text-3xl">
+          <h1 className="mt-3 text-2xl font-bold text-foreground md:text-3xl">
             Última etapa: criar sua conta
           </h1>
-          <p className="mt-2 text-sm text-white/60">
+          <p className="mt-2 text-sm text-muted-foreground">
             Você comprou{" "}
-            <strong className="text-white">{pending.course.title}</strong>
+            <strong className="text-foreground">{pending.course.title}</strong>
             {pending.plan?.name && (
               <>
                 {" — "}
-                <span className="text-white/80">{pending.plan.name}</span>
+                <span className="text-foreground">{pending.plan.name}</span>
               </>
             )}
             . Crie uma senha para acessar.
@@ -166,7 +166,7 @@ export default async function Page({
         </div>
 
         {wrongAccount && (
-          <div className="mt-5 rounded-lg border border-amber-400/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <div className="mt-5 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
             <strong>Atenção:</strong> você está logado como{" "}
             <code>{sessionEmail}</code>, mas esta compra é para{" "}
             <code>{pending.email}</code>. Saia da conta atual antes de
@@ -185,7 +185,7 @@ export default async function Page({
         />
 
         {expiresAt && (
-          <p className="mt-4 text-center text-[11px] text-white/40">
+          <p className="mt-4 text-center text-[11px] text-muted-foreground">
             Link válido até <strong>{expiresAt}</strong>.
           </p>
         )}
@@ -196,7 +196,7 @@ export default async function Page({
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 px-4 py-12">
+    <div className="min-h-screen bg-background px-4 py-12">
       <div className="mx-auto max-w-md">{children}</div>
     </div>
   );
@@ -214,10 +214,10 @@ function Banner({
   cta?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center">
+    <div className="rounded-3xl border border-line bg-card p-8 text-center">
       <div className="inline-flex">{icon}</div>
-      <h1 className="mt-4 text-2xl font-bold text-white">{title}</h1>
-      <p className="mt-2 text-sm text-white/60">{subtitle}</p>
+      <h1 className="mt-4 text-2xl font-bold text-foreground">{title}</h1>
+      <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
       {cta && <div className="mt-6">{cta}</div>}
     </div>
   );

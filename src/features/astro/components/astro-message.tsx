@@ -13,6 +13,8 @@ import { isAstroVideosPayload } from "@/features/astro/lib/astro-video";
 import { AstroVideoCardList } from "@/features/astro/components/astro-video-card";
 import { isAstroGuidePayload } from "@/features/astro/lib/astro-guide";
 import { AstroGuideCard } from "@/features/astro/components/astro-guide-card";
+import { isAstroChooseAiPayload } from "@/features/astro/lib/astro-choose-ai";
+import { AstroChooseAiCard } from "@/features/astro/components/astro-choose-ai-card";
 import { isAstroChartPayload } from "@/features/astro/lib/astro-chart";
 import { AstroChartCard } from "@/features/astro/components/astro-chart-card";
 import { isAstroTagSuggestionsPayload } from "@/features/astro/lib/astro-tag-suggestions";
@@ -55,8 +57,11 @@ export function AstroMessage({
   busy,
   sessionId,
   isLatest = true,
+  isCompact = false,
 }: {
   message: UIMessage;
+  /** Conversa da Início: menos respiro entre balões e o joinha não reserva altura até o hover. */
+  isCompact?: boolean;
   /** Só o seletor da última mensagem responde; os antigos ficam de leitura. */
   isLatest?: boolean;
   /** Sessão do chat — vai junto do joinha, para achar a conversa depois. */
@@ -108,7 +113,8 @@ export function AstroMessage({
   return (
     <div
       className={cn(
-        "group/message flex w-full flex-col gap-2 px-3 py-2",
+        "group/message flex w-full flex-col",
+        isCompact ? "gap-1 px-1 py-0.5" : "gap-2 px-3 py-2",
         isUser ? "items-end" : "items-start",
       )}
     >
@@ -124,7 +130,7 @@ export function AstroMessage({
                 "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm",
                 isUser
                   ? "bg-transparent text-white"
-                  : "bg-blue-500/10 text-blue-300",
+                  : "bg-info/10 text-info",
               )}
             >
               {isUser ? parsePickedAnswer(part.text).label : part.text}
@@ -169,6 +175,17 @@ export function AstroMessage({
                 className="w-full max-w-[95%] sm:max-w-[85%]"
               >
                 <AstroVideoCardList payload={output} />
+              </div>
+            );
+          }
+          if (isAstroChooseAiPayload(output)) {
+            return (
+              <div key={idx} className="self-stretch w-full max-w-[95%] sm:max-w-[85%]">
+                <AstroChooseAiCard
+                  payload={output}
+                  onRespond={isLatest ? onRespond : undefined}
+                  busy={busy}
+                />
               </div>
             );
           }
@@ -301,11 +318,20 @@ export function AstroMessage({
 
       {/* Joinha da resposta (spec 0028, RF-15): só no que o ASTRO escreveu. */}
       {!isUser && answerText.length > 0 && (
-        <AstroMessageFeedback
-          sessionId={sessionId}
-          messageId={message.id}
-          answerExcerpt={answerText}
-        />
+        <div
+          className={cn(
+            isCompact &&
+              "grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 group-hover/message:grid-rows-[1fr] focus-within:grid-rows-[1fr]",
+          )}
+        >
+          <div className={cn(isCompact && "overflow-hidden")}>
+            <AstroMessageFeedback
+              sessionId={sessionId}
+              messageId={message.id}
+              answerExcerpt={answerText}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

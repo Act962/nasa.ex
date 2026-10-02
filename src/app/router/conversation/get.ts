@@ -30,6 +30,8 @@ export const getConversation = base
           lead: {
             include: {
               status: { select: { id: true, name: true } },
+              // Anel de temperatura na foto do cabeçalho, igual ao da lista (spec 0035, RF-10).
+              metrics: true,
             },
           },
           tracking: {

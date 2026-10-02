@@ -51,7 +51,7 @@ export function ImageViewerDialog({
               <span className="font-semibold text-sm text-white">
                 {senderName}
               </span>
-              <span className="text-xs text-zinc-400">{dateStr}</span>
+              <span className="text-xs text-muted-foreground">{dateStr}</span>
             </div>
           </div>
 

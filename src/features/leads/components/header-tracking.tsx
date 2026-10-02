@@ -16,10 +16,16 @@ interface HeaderTrackingProps {
    * Liga o "Criar comando" do ASTRO com exemplos da área (spec 0029, RF-12).
    * Ausente = sem botão, para não mudar as telas que não pediram.
    */
-  astroCommand?: { examples: readonly string[] };
+  astroCommand?: { examples: readonly string[]; isHiddenOnMobile?: boolean };
+  /** A página já mostra o próprio título: a barra de cima fica sem nome. */
+  isTitleHidden?: boolean;
 }
 
-export function HeaderTracking({ title, astroCommand }: HeaderTrackingProps) {
+export function HeaderTracking({
+  title,
+  astroCommand,
+  isTitleHidden = false,
+}: HeaderTrackingProps) {
   return (
     <header
       className={[
@@ -29,7 +35,6 @@ export function HeaderTracking({ title, astroCommand }: HeaderTrackingProps) {
         "sticky top-0 z-40",
         // visual
         "bg-background/90 backdrop-blur-md",
-        "border-b border-border/50",
         // sidebar collapse transition
         "transition-[width,height] ease-linear",
         "group-has-data-[collapsible=icon]/sidebar-wrapper:h-12",
@@ -38,23 +43,27 @@ export function HeaderTracking({ title, astroCommand }: HeaderTrackingProps) {
       {/* ── Left: sidebar trigger + page title + spacehome button ── */}
       <div className="flex items-center gap-2 px-4 flex-1 min-w-0">
         <SidebarTrigger className="-ml-1" />
-        <Separator
-          orientation="vertical"
-          className="mr-1 data-[orientation=vertical]:h-4 opacity-50"
-        />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbPage className="font-medium text-sm">
-                {title || "Tracking"}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-        <Separator
-          orientation="vertical"
-          className="ml-1 data-[orientation=vertical]:h-4 opacity-50"
-        />
+        {!isTitleHidden && (
+          <>
+            <Separator
+              orientation="vertical"
+              className="mr-1 data-[orientation=vertical]:h-4 opacity-50"
+            />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbPage className="font-medium text-sm">
+                    {title || "Tracking"}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <Separator
+              orientation="vertical"
+              className="ml-1 data-[orientation=vertical]:h-4 opacity-50"
+            />
+          </>
+        )}
         {/* <LinkSpacehomeButton /> */}
       </div>
 
@@ -66,11 +75,13 @@ export function HeaderTracking({ title, astroCommand }: HeaderTrackingProps) {
               examples={astroCommand.examples}
               className="hidden sm:inline-flex"
             />
-            <AstroCommandButton
-              examples={astroCommand.examples}
-              compact
-              className="sm:hidden"
-            />
+            {!astroCommand.isHiddenOnMobile && (
+              <AstroCommandButton
+                examples={astroCommand.examples}
+                compact
+                className="sm:hidden"
+              />
+            )}
           </>
         )}
         <div data-tour="space-points">

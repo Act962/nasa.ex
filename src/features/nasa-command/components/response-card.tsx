@@ -97,19 +97,19 @@ export function ResponseCard({
   const isConfirmationNeeded = result.type === "confirmation_needed";
 
   const iconEl = isError ? (
-    <div className="w-9 h-9 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center shrink-0">
-      <X className="w-4 h-4 text-red-400" />
+    <div className="w-9 h-9 rounded-full bg-destructive/20 border border-destructive/30 flex items-center justify-center shrink-0">
+      <X className="w-4 h-4 text-destructive" />
     </div>
   ) : isNeedsInput ? (
-    <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
-      <Sparkles className="w-4 h-4 text-amber-400" />
+    <div className="w-9 h-9 rounded-full bg-warning/20 border border-warning/30 flex items-center justify-center shrink-0">
+      <Sparkles className="w-4 h-4 text-warning" />
     </div>
   ) : isConfirmationNeeded ? (
-    <div className="w-9 h-9 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center shrink-0">
-      <Users className="w-4 h-4 text-violet-400" />
+    <div className="w-9 h-9 rounded-full bg-info/20 border border-info/30 flex items-center justify-center shrink-0">
+      <Users className="w-4 h-4 text-info" />
     </div>
   ) : (
-    <div className="w-9 h-9 rounded-full bg-linear-to-br from-violet-600 to-purple-800 flex items-center justify-center shrink-0 shadow-lg shadow-violet-900/40">
+    <div className="w-9 h-9 rounded-full bg-linear-to-br from-info to-info flex items-center justify-center shrink-0 shadow-lg shadow-info/40">
       <Sparkles className="w-4 h-4 text-white" />
     </div>
   );
@@ -117,31 +117,31 @@ export function ResponseCard({
   return (
     <div className="flex items-start gap-3 py-2">
       {iconEl}
-      <div className="flex-1 min-w-0 bg-zinc-900/80 border border-zinc-700/60 rounded-2xl overflow-hidden">
+      <div className="flex-1 min-w-0 bg-card/80 border border-line/60 rounded-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-zinc-800/60">
+        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-line/60">
           <div className="flex items-center gap-2 flex-wrap">
             {isNeedsInput ? (
-              <span className="text-amber-400 text-sm">⚠️</span>
+              <span className="text-warning text-sm">⚠️</span>
             ) : isError ? (
-              <span className="text-red-400 text-sm">✗</span>
+              <span className="text-destructive text-sm">✗</span>
             ) : isConfirmationNeeded ? (
-              <span className="text-violet-400 text-sm">?</span>
+              <span className="text-info text-sm">?</span>
             ) : (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
             )}
             <span className="text-sm font-semibold text-white">
               {result.title}
             </span>
             {(result.starsSpent ?? 0) > 0 && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/30">
                 −{result.starsSpent} ⭐
               </span>
             )}
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-600 hover:text-zinc-300 transition-colors shrink-0"
+            className="text-muted-foreground hover:text-muted-foreground transition-colors shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -149,7 +149,7 @@ export function ResponseCard({
 
         {/* Body */}
         <div className="px-5 py-4">
-          <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-line">
+          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
             {result.description}
           </p>
 
@@ -160,19 +160,19 @@ export function ResponseCard({
                 <div key={i} className="flex items-center gap-1.5 group">
                   <a
                     href={link.url}
-                    className="flex items-center justify-between gap-2 flex-1 min-w-0 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/50 hover:border-zinc-600 rounded-lg px-3 py-2 transition-all"
+                    className="flex items-center justify-between gap-2 flex-1 min-w-0 bg-card/60 hover:bg-card border border-line/50 hover:border-line rounded-lg px-3 py-2 transition-all"
                   >
-                    <span className="text-xs text-zinc-300 group-hover:text-white truncate">
+                    <span className="text-xs text-muted-foreground group-hover:text-white truncate">
                       {link.label}
                     </span>
-                    <ExternalLink className="w-3 h-3 text-zinc-600 group-hover:text-violet-400 shrink-0 transition-colors" />
+                    <ExternalLink className="w-3 h-3 text-muted-foreground group-hover:text-info shrink-0 transition-colors" />
                   </a>
                   {link.explorerCmd && onExplorerCmd && (
                     <button
                       type="button"
                       title="Editar no Explorer"
                       onClick={() => onExplorerCmd(link.explorerCmd!)}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-800/60 hover:bg-violet-600/30 border border-zinc-700/50 hover:border-violet-500/60 text-zinc-500 hover:text-violet-400 transition-all shrink-0"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-card/60 hover:bg-info/30 border border-line/50 hover:border-info/60 text-muted-foreground hover:text-info transition-all shrink-0"
                     >
                       <PencilLine className="w-3 h-3" />
                     </button>
@@ -201,7 +201,7 @@ export function ResponseCard({
                       : undefined;
                   return (
                     <div key={field.key}>
-                      <label className="block text-xs text-zinc-400 mb-1.5 font-medium">
+                      <label className="block text-xs text-muted-foreground mb-1.5 font-medium">
                         {field.label}
                       </label>
                       {isDatetime ? (
@@ -245,7 +245,7 @@ export function ResponseCard({
                 })}
                 <button
                   onClick={handleContinue}
-                  className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors mt-1"
+                  className="flex items-center gap-2 bg-info hover:bg-info text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors mt-1"
                 >
                   Continuar →
                 </button>
@@ -261,7 +261,7 @@ export function ResponseCard({
                   <button
                     key={opt.key}
                     onClick={() => handleConfirmOption(opt.key)}
-                    className="flex items-center gap-1.5 bg-transparent border border-violet-500/60 text-violet-300 hover:bg-violet-500/10 hover:border-violet-400 text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 bg-transparent border border-info/60 text-info hover:bg-info/10 hover:border-info text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
                   >
                     {opt.label}
                   </button>
@@ -272,20 +272,20 @@ export function ResponseCard({
           {/* post_generated: show formatted content */}
           {isPostGenerated && result.content && (
             <div className="mt-4">
-              <pre className="bg-zinc-800/80 border border-zinc-700/60 rounded-xl px-4 py-3 text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed font-mono overflow-auto max-h-64">
+              <pre className="bg-card/80 border border-line/60 rounded-xl px-4 py-3 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed font-mono overflow-auto max-h-64">
                 {result.content}
               </pre>
               <div className="flex items-center gap-2 mt-3">
                 <button
                   onClick={handleCopyContent}
-                  className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold px-3 py-2 rounded-lg transition-colors border border-zinc-700/50"
+                  className="flex items-center gap-1.5 bg-card hover:bg-knob text-muted-foreground text-xs font-semibold px-3 py-2 rounded-lg transition-colors border border-line/50"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   {contentCopied ? "Copiado!" : "Copiar"}
                 </button>
                 <button
                   onClick={handleDownload}
-                  className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold px-3 py-2 rounded-lg transition-colors border border-zinc-700/50"
+                  className="flex items-center gap-1.5 bg-card hover:bg-knob text-muted-foreground text-xs font-semibold px-3 py-2 rounded-lg transition-colors border border-line/50"
                 >
                   <FileText className="w-3.5 h-3.5" />
                   Baixar .txt
@@ -300,14 +300,14 @@ export function ResponseCard({
           <div className="flex items-center gap-2 px-5 pb-4">
             <a
               href={result.url}
-              className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 bg-info hover:bg-info text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               Abrir no {result.appName}
             </a>
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold px-4 py-2 rounded-lg transition-colors border border-zinc-700/50"
+              className="flex items-center gap-1.5 bg-card hover:bg-knob text-muted-foreground text-xs font-semibold px-4 py-2 rounded-lg transition-colors border border-line/50"
             >
               <Copy className="w-3.5 h-3.5" />
               {copied ? "Copiado!" : "Copiar link"}

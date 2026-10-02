@@ -64,7 +64,7 @@ export function EmojiStickerPicker({
             className={cn(
               "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors",
               mode === "emoji"
-                ? "text-foreground border-b-2 border-violet-500"
+                ? "text-foreground border-b-2 border-info"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -77,7 +77,7 @@ export function EmojiStickerPicker({
             className={cn(
               "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors",
               mode === "sticker"
-                ? "text-foreground border-b-2 border-violet-500"
+                ? "text-foreground border-b-2 border-info"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -231,7 +231,7 @@ function StickerCell({
         type="button"
         onClick={onClick}
         title={sticker.label ?? "Enviar figurinha"}
-        className="w-full aspect-square rounded-md border border-transparent hover:border-violet-500/50 hover:bg-accent transition flex items-center justify-center overflow-hidden p-1"
+        className="w-full aspect-square rounded-md border border-transparent hover:border-info/50 hover:bg-accent transition flex items-center justify-center overflow-hidden p-1"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img

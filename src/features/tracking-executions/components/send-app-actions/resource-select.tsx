@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 /**
  * Select genérico de recurso (formulário, agenda, produto, etc) usado
@@ -63,7 +63,7 @@ export function ResourceSelect<TItem>({
       <SelectTrigger className="w-full">
         {isLoading ? (
           <span className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" /> Carregando…
+            <OrbitaSpinner className="size-3.5 " /> Carregando…
           </span>
         ) : (
           <SelectValue placeholder={placeholder} />
@@ -71,7 +71,7 @@ export function ResourceSelect<TItem>({
       </SelectTrigger>
       <SelectContent>
         {isError && (
-          <div className="px-2 py-1.5 text-xs text-red-500">
+          <div className="px-2 py-1.5 text-xs text-destructive">
             Erro ao carregar — tente novamente.
           </div>
         )}

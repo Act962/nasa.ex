@@ -4,6 +4,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import prisma from "@/lib/prisma";
 import { IntegrationPlatform } from "@/generated/prisma/enums";
+import { readIntegrationApiKey } from "@/features/integrations/lib/integration-api-key";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ export async function parseCommandIntent(
   // ── Try Anthropic first ──
   const anthropicIntegration = integrationMap.get(IntegrationPlatform.ANTHROPIC);
   if (anthropicIntegration) {
-    const apiKey = (anthropicIntegration.config as Record<string, string>)?.apiKey;
+    const apiKey = readIntegrationApiKey(anthropicIntegration.config as Record<string, unknown> | null);
     if (apiKey) {
       try {
         const anthropic = createAnthropic({ apiKey });
@@ -112,7 +113,7 @@ export async function parseCommandIntent(
       } catch {
         // Try fallback model
         try {
-          const apiKey2 = (anthropicIntegration.config as Record<string, string>)?.apiKey;
+          const apiKey2 = readIntegrationApiKey(anthropicIntegration.config as Record<string, unknown> | null);
           if (apiKey2) {
             const anthropic2 = createAnthropic({ apiKey: apiKey2 });
             const { text: text2 } = await generateText({
@@ -133,7 +134,7 @@ export async function parseCommandIntent(
   // ── Try OpenAI ──
   const openaiIntegration = integrationMap.get(IntegrationPlatform.OPENAI);
   if (openaiIntegration) {
-    const apiKey = (openaiIntegration.config as Record<string, string>)?.apiKey;
+    const apiKey = readIntegrationApiKey(openaiIntegration.config as Record<string, unknown> | null);
     if (apiKey) {
       try {
         const openai = createOpenAI({ apiKey });
@@ -153,7 +154,7 @@ export async function parseCommandIntent(
   // ── Try Gemini ──
   const geminiIntegration = integrationMap.get(IntegrationPlatform.GEMINI);
   if (geminiIntegration) {
-    const apiKey = (geminiIntegration.config as Record<string, string>)?.apiKey;
+    const apiKey = readIntegrationApiKey(geminiIntegration.config as Record<string, unknown> | null);
     if (apiKey) {
       try {
         const google = createGoogleGenerativeAI({ apiKey });

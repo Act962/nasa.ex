@@ -13,7 +13,7 @@ export const TEMPLATE_LIST = [
     id: "standard" as const,
     name: "Proposta ÓRBITA",
     desc: "Modelo único, legível e otimizado para conversão.",
-    preview: "bg-gradient-to-br from-slate-950 via-slate-900 to-violet-950",
+    preview: "bg-gradient-to-br from-background via-card to-info",
   },
 ];
 
@@ -113,12 +113,12 @@ export function calcTotals(proposal: TemplateProposal) {
 function ProductImage({ product }: { product: TemplateProduct["product"] }) {
   if (!product.imageUrl)
     return (
-      <div className="aspect-[4/3] bg-slate-100 grid place-items-center text-slate-400">
+      <div className="aspect-[4/3] bg-muted grid place-items-center text-muted-foreground">
         <FileText className="size-8" />
       </div>
     );
   return (
-    <div className="aspect-[4/3] bg-slate-100 overflow-hidden">
+    <div className="aspect-[4/3] bg-muted overflow-hidden">
       <img
         src={constructUrl(product.imageUrl)}
         alt={product.name}
@@ -145,19 +145,19 @@ export function TemplateModern({
   const hasPayment = Boolean(proposal.paymentLink) && !isExpired && !isPaid;
 
   return (
-    <main className="min-h-screen bg-slate-100 text-slate-950 selection:bg-violet-200">
+    <main className="min-h-screen bg-muted text-foreground selection:bg-info/20">
       {isExpired ? (
-        <div className="bg-amber-100 px-4 py-3 text-center text-base font-semibold text-amber-950">
+        <div className="bg-warning/15 px-4 py-3 text-center text-base font-semibold text-warning">
           Esta proposta expirou.
         </div>
       ) : null}
       {isPaid ? (
-        <div className="bg-emerald-600 px-4 py-3 text-center text-base font-semibold text-white">
+        <div className="bg-success px-4 py-3 text-center text-base font-semibold text-white">
           <CheckCircle2 className="mr-2 inline size-5" />
           Pagamento confirmado. Obrigado!
         </div>
       ) : null}
-      <section className="bg-slate-950 text-white">
+      <section className="bg-background text-white">
         <div className="mx-auto max-w-6xl px-5 py-7 sm:px-8 sm:py-10 lg:px-12">
           <div className="flex items-center justify-between gap-5 border-b border-white/15 pb-6">
             <div className="min-w-0">
@@ -173,19 +173,19 @@ export function TemplateModern({
                 </p>
               )}
             </div>
-            <p className="shrink-0 text-sm font-medium text-slate-300">
+            <p className="shrink-0 text-sm font-medium text-muted-foreground">
               Proposta #{String(proposal.number).padStart(4, "0")}
             </p>
           </div>
           <div className="max-w-4xl py-12 sm:py-16">
-            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-violet-300">
+            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-info">
               Proposta comercial
             </p>
             <h1 className="text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
               {proposal.title}
             </h1>
             {proposal.client ? (
-              <p className="mt-6 text-lg text-slate-300 sm:text-xl">
+              <p className="mt-6 text-lg text-muted-foreground sm:text-xl">
                 Preparada para{" "}
                 <span className="font-semibold text-white">
                   {proposal.client.name}
@@ -193,7 +193,7 @@ export function TemplateModern({
               </p>
             ) : null}
             {proposal.validUntil ? (
-              <p className="mt-3 text-base text-slate-400">
+              <p className="mt-3 text-base text-muted-foreground">
                 Válida até{" "}
                 {new Date(proposal.validUntil).toLocaleDateString("pt-BR")}
               </p>
@@ -215,15 +215,15 @@ export function TemplateModern({
             <section className="space-y-6">
               <div>
                 <h2 className="text-2xl font-bold tracking-tight">Investimento mensal (recorrente)</h2>
-                <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
+                <div className="mt-4 divide-y divide-line rounded-2xl border border-line bg-white">
                   {proposal.breakdown.recurring.map((line) => (
                     <div key={line.label} className="flex items-center justify-between gap-4 p-4">
-                      <span className="text-base text-slate-700">{line.label}</span>
+                      <span className="text-base text-foreground">{line.label}</span>
                       <span className="font-semibold tabular-nums">{fmt(line.monthly)}/mês</span>
                     </div>
                   ))}
-                  <div className="flex items-center justify-between gap-4 bg-slate-50 p-4">
-                    <span className="text-sm font-semibold uppercase tracking-wide text-slate-500">Total mensal</span>
+                  <div className="flex items-center justify-between gap-4 bg-muted p-4">
+                    <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Total mensal</span>
                     <span className="text-xl font-bold tabular-nums">{fmt(proposal.breakdown.monthlyTotal)}/mês</span>
                   </div>
                 </div>
@@ -231,28 +231,28 @@ export function TemplateModern({
               {proposal.breakdown.oneTime.length > 0 ? (
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight">Cobranças únicas</h2>
-                  <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
+                  <div className="mt-4 divide-y divide-line rounded-2xl border border-line bg-white">
                     {proposal.breakdown.oneTime.map((line) => (
                       <div key={line.label} className="flex items-center justify-between gap-4 p-4">
-                        <span className="text-base text-slate-700">{line.label}</span>
+                        <span className="text-base text-foreground">{line.label}</span>
                         <span className="font-semibold tabular-nums">{fmt(line.amount)}</span>
                       </div>
                     ))}
-                    <div className="flex items-center justify-between gap-4 bg-slate-50 p-4">
-                      <span className="text-sm font-semibold uppercase tracking-wide text-slate-500">Total único</span>
+                    <div className="flex items-center justify-between gap-4 bg-muted p-4">
+                      <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Total único</span>
                       <span className="text-xl font-bold tabular-nums">{fmt(proposal.breakdown.oneTimeTotal)}</span>
                     </div>
                   </div>
                 </div>
               ) : null}
-              <div className="flex flex-wrap items-baseline justify-between gap-3 rounded-2xl border-2 border-violet-300 bg-violet-50 p-5">
+              <div className="flex flex-wrap items-baseline justify-between gap-3 rounded-2xl border-2 border-info/30 bg-info/10 p-5">
                 <div>
-                  <p className="text-sm font-semibold text-violet-800">Valor total do contrato</p>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm font-semibold text-info">Valor total do contrato</p>
+                  <p className="text-sm text-muted-foreground">
                     Vigência {proposal.breakdown.validityLabel} · {proposal.breakdown.termMonths} × mensal + cobranças únicas
                   </p>
                 </div>
-                <span className="text-3xl font-black tabular-nums text-violet-800">
+                <span className="text-3xl font-black tabular-nums text-info">
                   {fmt(proposal.breakdown.contractTotal)}
                 </span>
               </div>
@@ -270,7 +270,7 @@ export function TemplateModern({
                   return (
                     <article
                       key={item.id}
-                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+                      className="overflow-hidden rounded-2xl border border-line bg-white shadow-sm"
                     >
                       <ProductImage product={item.product} />
                       <div className="p-5">
@@ -278,12 +278,12 @@ export function TemplateModern({
                           {item.product.name}
                         </h3>
                         {(item.description ?? item.product.description) ? (
-                          <p className="mt-2 text-base leading-6 text-slate-600">
+                          <p className="mt-2 text-base leading-6 text-muted-foreground">
                             {item.description ?? item.product.description}
                           </p>
                         ) : null}
-                        <div className="mt-5 flex items-end justify-between gap-4 border-t border-slate-100 pt-4">
-                          <span className="text-sm text-slate-500">
+                        <div className="mt-5 flex items-end justify-between gap-4 border-t border-line pt-4">
+                          <span className="text-sm text-muted-foreground">
                             {Number(item.quantity).toLocaleString("pt-BR")}{" "}
                             {item.product.unit}
                           </span>
@@ -311,41 +311,41 @@ export function TemplateModern({
           />
         </div>
         <aside className="self-start lg:sticky lg:top-6">
-          <div className="rounded-2xl bg-white p-6 shadow-lg ring-1 ring-slate-200">
-            <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+          <div className="rounded-2xl bg-white p-6 shadow-lg ring-1 ring-line">
+            <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Investimento
             </p>
             {proposal.breakdown ? (
               <div className="mt-5 space-y-3 text-base tabular-nums">
-                <div className="flex justify-between gap-4 text-slate-600">
+                <div className="flex justify-between gap-4 text-muted-foreground">
                   <span>Mensal</span>
                   <span>{fmt(proposal.breakdown.monthlyTotal)}/mês</span>
                 </div>
                 {proposal.breakdown.oneTimeTotal > 0 ? (
-                  <div className="flex justify-between gap-4 text-slate-600">
+                  <div className="flex justify-between gap-4 text-muted-foreground">
                     <span>Cobrança única</span>
                     <span>{fmt(proposal.breakdown.oneTimeTotal)}</span>
                   </div>
                 ) : null}
-                <div className="flex justify-between gap-4 border-t border-slate-200 pt-4 text-2xl font-bold">
+                <div className="flex justify-between gap-4 border-t border-line pt-4 text-2xl font-bold">
                   <span>Total do contrato</span>
                   <span>{fmt(proposal.breakdown.contractTotal)}</span>
                 </div>
-                <p className="text-sm text-slate-500">Vigência {proposal.breakdown.validityLabel}</p>
+                <p className="text-sm text-muted-foreground">Vigência {proposal.breakdown.validityLabel}</p>
               </div>
             ) : (
               <div className="mt-5 space-y-3 text-base">
-                <div className="flex justify-between gap-4 text-slate-600">
+                <div className="flex justify-between gap-4 text-muted-foreground">
                   <span>Subtotal</span>
                   <span>{fmt(subtotal)}</span>
                 </div>
                 {discountAmount > 0 ? (
-                  <div className="flex justify-between gap-4 text-emerald-700">
+                  <div className="flex justify-between gap-4 text-success">
                     <span>Desconto</span>
                     <span>− {fmt(discountAmount)}</span>
                   </div>
                 ) : null}
-                <div className="flex justify-between gap-4 border-t border-slate-200 pt-4 text-2xl font-bold">
+                <div className="flex justify-between gap-4 border-t border-line pt-4 text-2xl font-bold">
                   <span>Total</span>
                   <span>{fmt(total)}</span>
                 </div>
@@ -356,20 +356,20 @@ export function TemplateModern({
                 href={proposal.paymentLink!}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="forge-no-print mt-6 flex min-h-14 items-center justify-center gap-2 rounded-xl bg-violet-700 px-5 text-base font-bold text-white transition-colors hover:bg-violet-800"
+                className="forge-no-print mt-6 flex min-h-14 items-center justify-center gap-2 rounded-xl bg-info px-5 text-base font-bold text-white transition-colors hover:bg-info"
               >
                 <CreditCard className="size-5" />
                 Pagar com segurança
               </a>
             ) : null}
             {!hasPayment && !isPaid && !isExpired ? (
-              <p className="mt-6 rounded-xl bg-slate-100 p-4 text-sm leading-5 text-slate-600">
+              <p className="mt-6 rounded-xl bg-muted p-4 text-sm leading-5 text-muted-foreground">
                 A forma de pagamento será combinada com a empresa responsável.
               </p>
             ) : null}
             <button
               onClick={() => window.print()}
-              className="forge-pdf-btn mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              className="forge-pdf-btn mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-muted-foreground hover:bg-muted"
             >
               <Download className="size-4" />
               Salvar como PDF
@@ -377,7 +377,7 @@ export function TemplateModern({
           </div>
         </aside>
       </div>
-      <footer className="border-t border-slate-200 px-5 py-8 text-center">
+      <footer className="border-t border-line px-5 py-8 text-center">
         <NasaPoweredBy variant="light" />
       </footer>
     </main>

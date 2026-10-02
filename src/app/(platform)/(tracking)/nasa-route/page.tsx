@@ -1,10 +1,13 @@
-import { SidebarInset } from "@/components/ui/sidebar";
+import { Suspense } from "react";
 import { NasaRouteHome } from "@/features/nasa-route/components/student/nasa-route-home";
+import { NasaRouteShell } from "@/features/nasa-route/components/shared/nasa-route-shell";
 
 export default function NasaRoutePage() {
   return (
-    <SidebarInset className="overflow-x-hidden">
-      <NasaRouteHome />
-    </SidebarInset>
+    <NasaRouteShell>
+      <Suspense>
+        <NasaRouteHome />
+      </Suspense>
+    </NasaRouteShell>
   );
 }

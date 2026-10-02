@@ -45,7 +45,7 @@ export function AccessRequestsTab() {
               onClick={() => setFilter(s)}
               className={`text-xs px-2.5 py-1 rounded transition-colors ${
                 filter === s
-                  ? "bg-violet-500/10 text-violet-600 dark:text-violet-400"
+                  ? "bg-info/10 text-info"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -102,7 +102,7 @@ export function AccessRequestsTab() {
                   </Button>
                   <Button
                     size="sm"
-                    className="h-8 bg-violet-600 hover:bg-violet-700"
+                    className="h-8"
                     disabled={mutation.isPending}
                     onClick={() => mutation.mutate({ requestId: req.id, action: "approve" })}
                   >
@@ -113,8 +113,8 @@ export function AccessRequestsTab() {
                 <span
                   className={`text-[11px] font-medium px-2 py-0.5 rounded-full border shrink-0 ${
                     req.status === "APPROVED"
-                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                      : "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                      ? "bg-success/15 text-success border-success/30"
+                      : "bg-destructive/15 text-destructive border-destructive/30"
                   }`}
                 >
                   {req.status === "APPROVED" ? "Aprovado" : "Recusado"}

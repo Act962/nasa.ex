@@ -21,42 +21,42 @@ export const ACTION_TYPE_CONFIG: Record<
   "action.created": {
     label: "Criou a ação",
     icon: PlusIcon,
-    color: "text-green-500",
+    color: "text-success",
   },
   "action.updated": {
     label: "Atualizou a ação",
     icon: Settings2Icon,
-    color: "text-blue-500",
+    color: "text-info",
   },
   "action.moved": {
     label: "Moveu a ação",
     icon: ArrowRightIcon,
-    color: "text-violet-500",
+    color: "text-info",
   },
   "action.archived": {
     label: "Arquivou a ação",
     icon: ArchiveIcon,
-    color: "text-amber-500",
+    color: "text-warning",
   },
   "action.unarchived": {
     label: "Restaurou a ação",
     icon: RefreshCcwIcon,
-    color: "text-emerald-500",
+    color: "text-success",
   },
   "action.done_changed": {
     label: "Alterou status",
     icon: CheckCircle2Icon,
-    color: "text-indigo-500",
+    color: "text-info",
   },
   "action.checklist_added": {
     label: "Adicionou item no checklist",
     icon: ListChecksIcon,
-    color: "text-teal-500",
+    color: "text-success",
   },
   "action.checklist_updated": {
     label: "Editou item do checklist",
     icon: Edit3Icon,
-    color: "text-cyan-500",
+    color: "text-info",
   },
 };
 export const FIELD_LABELS: Record<string, string> = {

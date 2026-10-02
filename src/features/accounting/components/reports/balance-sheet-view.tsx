@@ -107,7 +107,7 @@ export function BalanceSheetView({ at }: { at: string }) {
       <div
         className={cn(
           "flex flex-col gap-1 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between",
-          isProfit ? "border-emerald-500/30 bg-emerald-500/5" : "border-rose-500/30 bg-rose-500/5",
+          isProfit ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5",
         )}
       >
         <div>
@@ -116,19 +116,19 @@ export function BalanceSheetView({ at }: { at: string }) {
             Receitas menos custos e despesas ainda não distribuídos — já incluído no patrimônio líquido acima.
           </p>
         </div>
-        <p className={cn("text-lg font-bold tabular-nums", isProfit ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300")}>
+        <p className={cn("text-lg font-bold tabular-nums", isProfit ? "text-success dark:text-success" : "text-destructive dark:text-destructive")}>
           {isProfit ? "Lucro de " : "Prejuízo de "}
           {formatCentsBrl(Math.abs(periodResultCents))}
         </p>
       </div>
 
       {isBalanced ? (
-        <Badge variant="outline" className="gap-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+        <Badge variant="outline" className="gap-1 border-success/40 bg-success/10 text-success dark:text-success">
           <CheckCircle2 className="size-3.5" />
           Ativo = Passivo + PL ✓ balanço fechado
         </Badge>
       ) : (
-        <p className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+        <p className="flex gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning dark:text-warning">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
           O balanço não fechou (Ativo {formatCentsBrl(assets.totalCents)} × Passivo + PL{" "}
           {formatCentsBrl(liabilities.totalCents + equity.totalCents)}). Reprocesse a contabilidade; se continuar, fale com o suporte.

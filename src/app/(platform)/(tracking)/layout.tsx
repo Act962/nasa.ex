@@ -8,6 +8,7 @@ import { EmptyOrganization } from "../../../features/leads/components/empty-orga
 import { cookies } from "next/headers";
 import { PlatformProviders } from "@/features/astro/components/platform-providers";
 import { UploadManagerDock } from "@/features/nasa-route/components/upload-manager-dock";
+import { OrbitDockHost } from "@/components/orbit-dock/orbit-dock-host";
 
 export default async function RouteLayout({
   children,
@@ -45,6 +46,7 @@ export default async function RouteLayout({
         )}
 
         <UploadManagerDock />
+        {org && <OrbitDockHost />}
       </SidebarProvider>
     </PlatformProviders>
   );

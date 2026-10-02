@@ -27,8 +27,8 @@ export function LightRunBorder({ tone, children, className, innerClassName }: Li
       className={cn(
         "relative isolate overflow-hidden rounded-2xl p-[1.5px] transition-colors duration-500",
         (tone === "idle" || tone === "run") && "bg-border",
-        tone === "error" && "bg-red-500/80 shadow-[0_0_18px_-4px_rgba(239,68,68,0.6)]",
-        tone === "active" && "bg-emerald-500/50 shadow-[0_0_22px_-6px_rgba(16,185,129,0.7)]",
+        tone === "error" && "bg-destructive/80 shadow-[0_0_18px_-4px_rgba(239,68,68,0.6)]",
+        tone === "active" && "bg-success/50 shadow-[0_0_22px_-6px_rgba(16,185,129,0.7)]",
         className,
       )}
     >

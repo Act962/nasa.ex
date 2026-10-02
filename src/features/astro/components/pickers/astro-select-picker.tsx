@@ -22,7 +22,7 @@ export function AstroSelectPicker({
           type="button"
           disabled={disabled}
           onClick={() => onPick(option.answer)}
-          className="rounded-lg bg-violet-500/15 px-3.5 py-2 text-sm font-medium text-violet-100 transition-colors hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-info/15 px-3.5 py-2 text-sm font-medium text-info transition-colors hover:bg-info/25 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {option.label}
         </button>

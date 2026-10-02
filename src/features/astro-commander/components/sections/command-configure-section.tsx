@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, RotateCcw, Settings2, SlidersHorizontal } from "lucide-react";
+import { RotateCcw, Settings2, SlidersHorizontal } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -109,7 +110,7 @@ export function CommandConfigureSection({ command }: { command: CommandDetailDat
             </TabsTrigger>
           </TabsList>
           <Button onClick={handleSave} disabled={update.isPending} className="h-10 rounded-xl">
-            {update.isPending && <Loader2 className="size-4 animate-spin" />}
+            {update.isPending && <OrbitaSpinner className="size-4 " />}
             Salvar
           </Button>
         </div>

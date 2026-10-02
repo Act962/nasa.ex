@@ -43,8 +43,8 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Empresas</h1>
-          <p className="text-sm text-zinc-400 mt-1">{total.toLocaleString("pt-BR")} organização(ões)</p>
+          <h1 className="text-xl font-bold text-foreground">Empresas</h1>
+          <p className="text-sm text-muted-foreground mt-1">{total.toLocaleString("pt-BR")} organização(ões)</p>
         </div>
       </div>
 
@@ -54,30 +54,30 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
           name="search"
           defaultValue={search}
           placeholder="Buscar por nome ou slug..."
-          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500/60 w-72"
+          className="bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring w-72"
         />
         <select
           name="planId"
           defaultValue={planId}
-          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/60"
+          className="bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring"
         >
           <option value="">Todos os planos</option>
           {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <button
           type="submit"
-          className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
         >
           Filtrar
         </button>
       </form>
 
       {/* Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-800 text-zinc-500 text-xs uppercase tracking-wider">
+              <tr className="border-b border-border text-muted-foreground text-xs uppercase tracking-wider">
                 <th className="text-left px-5 py-3">Empresa</th>
                 <th className="text-left px-5 py-3">Plano</th>
                 <th className="text-right px-5 py-3"><Star className="w-3 h-3 inline mr-1" />Stars</th>
@@ -86,41 +86,41 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
                 <th className="px-5 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody className="divide-y divide-border">
               {orgs.map((org) => (
-                <tr key={org.id} className="hover:bg-zinc-800/50 transition-colors">
+                <tr key={org.id} className="hover:bg-muted/50 transition-colors">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-zinc-700 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-knob flex items-center justify-center shrink-0">
                         {org.logo
                           ? <img src={org.logo} alt={org.name} className="w-8 h-8 rounded-lg object-cover" />
-                          : <Building2 className="w-4 h-4 text-zinc-400" />
+                          : <Building2 className="w-4 h-4 text-muted-foreground" />
                         }
                       </div>
                       <div>
-                        <p className="font-medium text-white">{org.name}</p>
-                        <p className="text-[11px] text-zinc-500">{org.slug}</p>
+                        <p className="font-medium text-foreground">{org.name}</p>
+                        <p className="text-[11px] text-muted-foreground">{org.slug}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-5 py-4">
-                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${org.plan ? "bg-violet-500/20 text-violet-300" : "bg-zinc-700 text-zinc-400"}`}>
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${org.plan ? "bg-info/20 text-info" : "bg-knob text-muted-foreground"}`}>
                       {org.plan?.name ?? "Sem plano"}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-right font-semibold text-yellow-400">
+                  <td className="px-5 py-4 text-right font-semibold text-warning">
                     {org.starsBalance.toLocaleString("pt-BR")}
                   </td>
-                  <td className="px-5 py-4 text-right text-zinc-300">
+                  <td className="px-5 py-4 text-right text-foreground">
                     {org._count.members}
                   </td>
-                  <td className="px-5 py-4 text-right text-zinc-500 text-xs">
+                  <td className="px-5 py-4 text-right text-muted-foreground text-xs">
                     {new Date(org.createdAt).toLocaleDateString("pt-BR")}
                   </td>
                   <td className="px-5 py-4 text-right">
                     <Link
                       href={`/admin/companies/${org.id}`}
-                      className="inline-flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 transition-colors"
+                      className="inline-flex items-center gap-1 text-xs text-info hover:text-info/80 transition-colors"
                     >
                       Detalhes <ChevronRight className="w-3 h-3" />
                     </Link>
@@ -133,18 +133,18 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="px-5 py-4 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-400">
+          <div className="px-5 py-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
             <span>Página {page} de {totalPages}</span>
             <div className="flex gap-2">
               {page > 1 && (
                 <Link href={`?search=${search}&planId=${planId}&page=${page - 1}`}
-                  className="px-3 py-1.5 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors">
+                  className="px-3 py-1.5 bg-muted rounded-lg hover:bg-knob transition-colors">
                   ← Anterior
                 </Link>
               )}
               {page < totalPages && (
                 <Link href={`?search=${search}&planId=${planId}&page=${page + 1}`}
-                  className="px-3 py-1.5 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors">
+                  className="px-3 py-1.5 bg-muted rounded-lg hover:bg-knob transition-colors">
                   Próxima →
                 </Link>
               )}

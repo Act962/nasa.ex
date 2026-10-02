@@ -81,7 +81,7 @@ export function InlineEditProvider({
         />
         <button
           onClick={() => setEditing(true)}
-          className="fixed bottom-5 right-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-4 py-3 shadow-lg flex items-center gap-2 text-sm font-medium z-50"
+          className="fixed bottom-5 right-5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-4 py-3 shadow-lg flex items-center gap-2 text-sm font-medium z-50"
         >
           <Pencil className="size-4" />
           Modo edição

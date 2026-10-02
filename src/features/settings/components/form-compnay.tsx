@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { SettingsStickySave } from "./settings-sticky-save";
 import {
   FieldGroup,
   Field,
@@ -194,7 +195,7 @@ export function FormCompany({ company }: Props) {
   return (
     <form onSubmit={form.handleSubmit(onSubmit)}>
       {isSingle && (
-        <div className="flex items-center gap-2 mb-4 px-3 py-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm">
+        <div className="mb-4 flex items-center gap-2 rounded-[18px] border border-warning/30 bg-warning/15 px-3 py-2.5 text-sm text-warning">
           <Lock className="size-4 shrink-0" />
           <span>Apenas o Master ou Adm podem editar os dados da empresa.</span>
         </div>
@@ -231,7 +232,7 @@ export function FormCompany({ company }: Props) {
 
         <Field>
           <FieldLabel className="flex items-center gap-1.5">
-            <Briefcase className="size-3.5 text-violet-500" />
+            <Briefcase className="size-3.5 text-info" />
             Tipo da empresa
           </FieldLabel>
           <Controller
@@ -290,7 +291,7 @@ export function FormCompany({ company }: Props) {
 
         <Field>
           <FieldLabel className="flex items-center gap-1.5">
-            <FileBadge className="size-3.5 text-violet-500" />
+            <FileBadge className="size-3.5 text-info" />
             CNPJ
           </FieldLabel>
           <Input
@@ -311,7 +312,7 @@ export function FormCompany({ company }: Props) {
 
         <Field>
           <FieldLabel className="flex items-center gap-1.5">
-            <Mail className="size-3.5 text-violet-500" />
+            <Mail className="size-3.5 text-info" />
             E-mail institucional
           </FieldLabel>
           <Input
@@ -333,7 +334,7 @@ export function FormCompany({ company }: Props) {
 
         <Field>
           <FieldLabel className="flex items-center gap-1.5">
-            <Phone className="size-3.5 text-violet-500" />
+            <Phone className="size-3.5 text-info" />
             Telefone / WhatsApp de contato
           </FieldLabel>
           <Input
@@ -352,10 +353,10 @@ export function FormCompany({ company }: Props) {
         {/* Company code for cross-company card sharing */}
         <Field>
           <FieldLabel className="flex items-center gap-1.5">
-            <Building2Icon className="size-3.5 text-violet-500" />
+            <Building2Icon className="size-3.5 text-info" />
             Código da empresa
           </FieldLabel>
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/5 border border-violet-200 dark:border-violet-800 min-h-[52px]">
+          <div className="flex min-h-[52px] items-center gap-2 rounded-full border border-info/30 bg-info/5 py-1.5 pr-1.5 pl-4">
             {isLoadingCode ? (
               <div className="flex-1 flex items-center justify-center">
                 <span className="text-xs text-muted-foreground animate-pulse">
@@ -364,15 +365,16 @@ export function FormCompany({ company }: Props) {
               </div>
             ) : (
               <>
-                <code className="font-mono font-bold text-xl tracking-[0.35em] text-violet-600 dark:text-violet-400 flex-1 text-center select-all">
+                <code className="font-mono font-bold text-xl tracking-[0.35em] text-info flex-1 text-center select-all">
                   {codeData?.companyCode ?? "—"}
                 </code>
                 {codeData?.companyCode && (
                   <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-violet-600 hover:text-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/30"
+                    size="icon"
+                    aria-label="Copiar código"
+                    className="size-9 rounded-full text-info hover:bg-info/15 hover:text-info"
                     onClick={() => {
                       navigator.clipboard.writeText(codeData.companyCode!);
                       toast.success("Código copiado!");
@@ -392,9 +394,9 @@ export function FormCompany({ company }: Props) {
 
         <FieldSeparator />
         {!isSingle && (
-          <Field orientation="horizontal">
+          <SettingsStickySave>
             <Button type="submit">Salvar</Button>
-          </Field>
+          </SettingsStickySave>
         )}
       </FieldGroup>
     </form>

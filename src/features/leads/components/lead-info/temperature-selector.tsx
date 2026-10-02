@@ -29,30 +29,30 @@ const OPTIONS: TempOption[] = [
   {
     value: "COLD",
     label: "Frio",
-    bg: "bg-[#3498db]",
+    bg: "bg-temp-cold",
     text: "text-white",
-    hint: "text-[#3498db]",
+    hint: "text-temp-cold",
   },
   {
     value: "WARM",
     label: "Quente",
-    bg: "bg-[#f1c40f]",
+    bg: "bg-temp-warm",
     text: "text-black",
-    hint: "text-[#f1c40f]",
+    hint: "text-temp-warm",
   },
   {
     value: "HOT",
     label: "Muito quente",
-    bg: "bg-[#e67e22]",
+    bg: "bg-temp-hot",
     text: "text-white",
-    hint: "text-[#e67e22]",
+    hint: "text-temp-hot",
   },
   {
     value: "VERY_HOT",
     label: "Quentíssimo",
-    bg: "bg-[#e74c3c]",
+    bg: "bg-temp-very-hot",
     text: "text-white",
-    hint: "text-[#e74c3c]",
+    hint: "text-temp-very-hot",
   },
 ];
 

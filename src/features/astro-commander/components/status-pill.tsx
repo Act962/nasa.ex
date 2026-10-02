@@ -8,8 +8,8 @@ import type { AstroCommandStatus } from "@/generated/prisma/enums";
  * lista longa, badge sólido compete com o nome do comando.
  */
 const TONES: Record<AstroCommandStatus, string> = {
-  ACTIVE: "border-emerald-500/40 text-emerald-600 dark:text-emerald-400",
-  PAUSED: "border-amber-500/40 text-amber-600 dark:text-amber-400",
+  ACTIVE: "border-success/30 text-success",
+  PAUSED: "border-warning/30 text-warning",
   DRAFT: "border-muted-foreground/30 text-muted-foreground",
   ARCHIVED: "border-muted-foreground/20 text-muted-foreground",
 };

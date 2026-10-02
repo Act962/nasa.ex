@@ -5,7 +5,24 @@ import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { useOrgRole } from "@/hooks/use-org-role";
 import { cn } from "@/lib/utils";
-import { XIcon } from "lucide-react";
+import { GripVerticalIcon, XIcon } from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -23,7 +40,9 @@ import {
   getDefaultVisibleKeys,
   resolveDataPath,
   formatMetricValue,
+  toRankingItems,
   type MetricDef,
+  type MetricFormat,
 } from "@/features/insights/lib/insights-metric-catalog";
 import type { InsightBlock } from "@/features/insights/lib/app-metrics";
 import {
@@ -32,6 +51,10 @@ import {
   type LeadMetricKey,
 } from "./leads-by-metric-dialog";
 import { AddSectionInsightButton } from "./add-section-insight-button";
+import { AppChart } from "./app-chart";
+import { KpiCardShell } from "./kpi-card-shell";
+import { KpiCardStyleMenu } from "./kpi-card-style-menu";
+import type { KpiCardStyle } from "@/features/insights/lib/kpi-card-style";
 
 // ─── Mapas de leadMetric pra cada (appModule, key) ──────────────────────────
 // Quando preenchido, o card vira clicável e abre o popup de leads.
@@ -82,6 +105,9 @@ interface KpiCardProps {
    * pro KPI `topFastestCreator`).
    */
   children?: React.ReactNode;
+  cardStyle?: KpiCardStyle;
+  onStyleChange?: (cardStyle: KpiCardStyle) => void;
+  onApplyStyleToAll?: (patch: KpiCardStyle) => void;
 }
 
 function KpiCard({
@@ -97,6 +123,9 @@ function KpiCard({
   onHide,
   canEdit,
   children,
+  cardStyle,
+  onStyleChange,
+  onApplyStyleToAll,
 }: KpiCardProps) {
   const [popupOpen, setPopupOpen] = useState(false);
   const clickable = !!leadMetric;
@@ -113,7 +142,8 @@ function KpiCard({
                 onHide();
               }}
               aria-label={`Ocultar ${label}`}
-              className="absolute top-1.5 right-1.5 size-6 rounded-md flex items-center justify-center text-muted-foreground bg-background/80 backdrop-blur-sm border opacity-0 group-hover:opacity-100 hover:text-foreground hover:bg-muted transition-opacity"
+              onPointerDown={(e) => e.stopPropagation()}
+              className="size-6 rounded-md flex items-center justify-center text-muted-foreground bg-background/80 backdrop-blur-sm border opacity-0 group-hover:opacity-100 hover:text-foreground hover:bg-muted transition-opacity"
             >
               <XIcon className="size-3.5" />
             </button>
@@ -123,41 +153,43 @@ function KpiCard({
       </TooltipProvider>
     ) : null;
 
+  const styleMenu =
+    canEdit && onStyleChange && onApplyStyleToAll ? (
+      <KpiCardStyleMenu label={label} cardStyle={cardStyle} onChange={onStyleChange} onApplyToAll={onApplyStyleToAll} />
+    ) : null;
+
   const card = (
-    <div
-      className={cn(
-        "group relative rounded-xl border bg-card p-4 flex flex-col gap-3 text-left w-full",
-        clickable && "cursor-pointer hover:border-foreground/30 hover:shadow-sm transition-all",
-      )}
+    <KpiCardShell
+      label={label}
+      value={value}
+      sub={sub}
+      icon={Icon}
+      iconColor={color}
+      iconBg={bg}
+      badge={badge ? <Badge variant={badgeVariant ?? "secondary"} className="text-[10px]">{badge}</Badge> : undefined}
+      cardStyle={cardStyle}
+      actions={styleMenu || hideButton ? <>{styleMenu}{hideButton}</> : undefined}
+      className={cn(clickable && "cursor-pointer hover:border-foreground/30 hover:shadow-sm transition-all")}
     >
-      {hideButton}
-      <div className="flex items-center justify-between">
-        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", bg)}>
-          <Icon className={cn("size-4", color)} />
-        </div>
-        {badge && <Badge variant={badgeVariant ?? "secondary"} className="text-[10px]">{badge}</Badge>}
-      </div>
-      <div>
-        {children ? (
-          children
-        ) : (
-          <>
-            <p className="text-2xl font-bold leading-tight">{value}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-            {sub && <p className="text-[11px] text-muted-foreground/80 mt-1">{sub}</p>}
-          </>
-        )}
-      </div>
-    </div>
+      {children}
+    </KpiCardShell>
   );
 
   if (!clickable) return card;
 
   return (
     <>
-      <button type="button" onClick={() => setPopupOpen(true)} className="text-left">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setPopupOpen(true)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") setPopupOpen(true);
+        }}
+        className="h-full w-full text-left"
+      >
         {card}
-      </button>
+      </div>
       <LeadsByMetricDialog
         open={popupOpen}
         onOpenChange={setPopupOpen}
@@ -199,14 +231,7 @@ function SectionHeader({
 
 function TopFastestCreatorContent({ value }: { value: unknown }) {
   if (!value || typeof value !== "object") {
-    return (
-      <>
-        <p className="text-sm text-muted-foreground">Sem dados suficientes</p>
-        <p className="text-xs text-muted-foreground/80 mt-0.5">
-          Criador mais rápido
-        </p>
-      </>
-    );
+    return <p className="text-sm text-muted-foreground">Sem dados suficientes</p>;
   }
   const v = value as { id: string; name: string; avgHours: number; count: number };
   const initial = v.name?.[0]?.toUpperCase() ?? "?";
@@ -237,7 +262,7 @@ function RankingListContent({
   emptyLabel,
 }: {
   value: unknown;
-  format: "duration" | "percent";
+  format: Exclude<MetricFormat, "ranking">;
   labelKey: string; // ex: "name" ou "statusId"
   metricKey: string; // ex: "avgHours" ou "rate"
   metricFormatter?: (n: number) => string;
@@ -272,6 +297,11 @@ function RankingListContent({
       })}
     </div>
   );
+}
+
+/** Âncora da seção de cada App — as pílulas do seletor rolam até ela. */
+export function appSectionElementId(appModule: AppModule): string {
+  return `insights-app-${appModule}`;
 }
 
 // ─── DynamicSection ─────────────────────────────────────────────────────────
@@ -314,25 +344,60 @@ export function DynamicSection({ appModule, data }: DynamicSectionProps) {
       .filter((m): m is MetricDef => !!m);
   }, [visibleKeys, appModule]);
 
-  const handleHide = (key: string) => {
-    const nextKeys = visibleKeys.filter((k) => k !== key);
+  const cardStyles = prefsBlock?.cardStyles ?? {};
+
+  const persistSectionPrefs = (patch: { visibleKeys?: string[]; cardStyles?: Record<string, KpiCardStyle> }) => {
     if (prefsBlock) {
-      updateBlock(prefsBlock.id, { visibleKeys: nextKeys });
-    } else {
-      addBlock({
-        id: `section-prefs-${appModule}-${Date.now()}`,
-        type: "section-prefs",
-        order: blocks.length,
-        appModule,
-        visibleKeys: nextKeys,
-      });
+      updateBlock(prefsBlock.id, patch);
+      return;
     }
+    addBlock({
+      id: `section-prefs-${appModule}-${crypto.randomUUID()}`,
+      type: "section-prefs",
+      order: blocks.length,
+      appModule,
+      visibleKeys,
+      ...patch,
+    });
+  };
+
+  const persistVisibleKeys = (nextKeys: string[]) => persistSectionPrefs({ visibleKeys: nextKeys });
+  const persistCardStyles = (nextCardStyles: Record<string, KpiCardStyle>) => persistSectionPrefs({ cardStyles: nextCardStyles });
+
+  const handleStyleChange = (metricKey: string, cardStyle: KpiCardStyle) => {
+    persistCardStyles({ ...cardStyles, [metricKey]: cardStyle });
+  };
+
+  const handleApplyStyleToAll = (patch: KpiCardStyle) => {
+    const nextCardStyles = Object.fromEntries(
+      visibleKeys.map((visibleKey) => [visibleKey, { ...cardStyles[visibleKey], ...patch }]),
+    );
+    persistCardStyles({ ...cardStyles, ...nextCardStyles });
+  };
+
+  const handleHide = (metricKey: string) => {
+    persistVisibleKeys(visibleKeys.filter((visibleKey) => visibleKey !== metricKey));
+  };
+
+  // Arrastar só começa depois de 6px: um clique simples continua abrindo o detalhe do cartão.
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const orderedKeys = visibleMetrics.map((metric) => metric.key);
+    const fromIndex = orderedKeys.indexOf(String(active.id));
+    const toIndex = orderedKeys.indexOf(String(over.id));
+    if (fromIndex < 0 || toIndex < 0) return;
+    persistVisibleKeys(arrayMove(orderedKeys, fromIndex, toIndex));
   };
 
   if (visibleMetrics.length === 0) {
     // Mostra header com botão de adicionar mesmo sem KPIs visíveis
     return (
-      <div className="space-y-3">
+      <div id={appSectionElementId(appModule)} className="scroll-mt-20 space-y-3">
         <SectionHeader appModule={appModule} />
         <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center">
           <p className="text-sm font-medium">Nenhum indicador selecionado</p>
@@ -347,9 +412,11 @@ export function DynamicSection({ appModule, data }: DynamicSectionProps) {
   }
 
   return (
-    <div className="space-y-3">
+    <div id={appSectionElementId(appModule)} className="scroll-mt-20 space-y-3">
       <SectionHeader appModule={appModule} />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={visibleMetrics.map((metric) => metric.key)} strategy={rectSortingStrategy}>
+      <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {visibleMetrics.map((metric) => {
           const rawValue = resolveDataPath(data, metric.dataPath);
           const leadMetric =
@@ -357,7 +424,17 @@ export function DynamicSection({ appModule, data }: DynamicSectionProps) {
 
           // Conteúdo customizado pra KPIs especiais (ranking, etc.)
           let customChildren: React.ReactNode | undefined;
-          if (metric.key === "topFastestCreator" && appModule === "workspace") {
+          if (metric.format === "ranking" && metric.ranking) {
+            customChildren = (
+              <RankingListContent
+                value={toRankingItems(rawValue)}
+                format={metric.ranking.valueFormat}
+                labelKey={metric.ranking.labelKey}
+                metricKey={metric.ranking.valueKey}
+                emptyLabel="Sem dados no período"
+              />
+            );
+          } else if (metric.key === "topFastestCreator" && appModule === "workspace") {
             customChildren = <TopFastestCreatorContent value={rawValue} />;
           } else if (
             appModule === "tracking" &&
@@ -401,8 +478,8 @@ export function DynamicSection({ appModule, data }: DynamicSectionProps) {
           }
 
           return (
+            <SortableKpiItem key={metric.key} metricKey={metric.key} isDraggable={canEdit}>
             <KpiCard
-              key={metric.key}
               label={metric.label}
               value={formatMetricValue(rawValue, metric.format)}
               icon={metric.icon}
@@ -412,12 +489,52 @@ export function DynamicSection({ appModule, data }: DynamicSectionProps) {
               leadMetric={leadMetric}
               onHide={() => handleHide(metric.key)}
               canEdit={canEdit}
+              cardStyle={cardStyles[metric.key]}
+              onStyleChange={(cardStyle) => handleStyleChange(metric.key, cardStyle)}
+              onApplyStyleToAll={handleApplyStyleToAll}
             >
               {customChildren}
             </KpiCard>
+            </SortableKpiItem>
           );
         })}
       </div>
+      </SortableContext>
+      </DndContext>
+      <AppChart appModule={appModule} />
+    </div>
+  );
+}
+
+/** Cartão arrastável: a ordem vira a ordem de `visibleKeys` da seção (salva no layout da empresa). */
+function SortableKpiItem({
+  metricKey,
+  isDraggable,
+  children,
+}: {
+  metricKey: string;
+  isDraggable: boolean;
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: metricKey,
+    disabled: !isDraggable,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn("group/sortable relative h-full", isDragging && "z-10 opacity-80")}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+      {isDraggable && (
+        <GripVerticalIcon
+          aria-hidden
+          className="pointer-events-none absolute bottom-2 right-2 size-3.5 text-muted-foreground/0 transition-colors group-hover/sortable:text-muted-foreground/60"
+        />
+      )}
     </div>
   );
 }
@@ -434,6 +551,8 @@ const TRACKING_PERF_KEYS = new Set([
 interface TrackingDynamicSectionProps {
   /** Mesma estrutura de DashboardSummary que vem do tracking-dashboard. */
   summary: object | undefined;
+  /** Indicadores extras do Tracking vindos de `getAppsInsights` (conversão, valores, origem, perdas). */
+  extras?: object;
 }
 
 /**
@@ -441,7 +560,7 @@ interface TrackingDynamicSectionProps {
  * sob demanda apenas quando o usuário tem pelo menos 1 KPI de
  * performance ativado.
  */
-export function TrackingDynamicSection({ summary }: TrackingDynamicSectionProps) {
+export function TrackingDynamicSection({ summary, extras }: TrackingDynamicSectionProps) {
   const { blocks } = useOrgLayout();
   const { organizationIds, dateRange, trackingId } = useDashboardStore();
   const { isSingle } = useOrgRole();
@@ -470,8 +589,8 @@ export function TrackingDynamicSection({ summary }: TrackingDynamicSectionProps)
   });
 
   const data = useMemo(
-    () => ({ summary, trackingPerformance: perf }),
-    [summary, perf],
+    () => ({ summary, trackingPerformance: perf, tracking: extras }),
+    [summary, perf, extras],
   );
 
   return <DynamicSection appModule="tracking" data={data} />;
@@ -550,6 +669,8 @@ export function SpaceStationSection({ data }: { data: SpaceStationData & Record<
     publicStations: data.publicStations,
     starsSent: data.starsSentInPeriod,
     starsReceived: data.starsReceivedInPeriod,
+    pendingAccessRequests: data.pendingAccessRequests,
+    approvedAccessRequests: data.approvedAccessRequests,
   };
   return <DynamicSection appModule="space-station" data={{ spaceStation: mapped }} />;
 }
@@ -566,6 +687,30 @@ export function NasaRouteSection({ data }: { data: NasaRouteData & Record<string
     certificates: data.certificatesIssued,
     completionRate: data.completionRate,
     avgTimeToCertificate: data.avgTimeToCertificate,
+    topCourses: data.topCourses,
+    completedLessons: data.completedLessons,
+    freeEnrollments: data.freeEnrollments,
+    revenueBrl: data.revenueBrl,
   };
   return <DynamicSection appModule="nasa-route" data={{ nasaRoute: mapped }} />;
+}
+
+interface CampanhasData { totalCampaigns: number; sentCampaigns: number; totalRecipients: number; sentCount: number; deliveredCount: number; readCount: number; failedCount: number; deliveryRate: number; readRate: number; }
+export function CampanhasSection({ data }: { data: CampanhasData & Record<string, unknown> }) {
+  return <DynamicSection appModule="campanhas" data={{ campanhas: data }} />;
+}
+
+interface TrafegoData { totalOrders: number; activeOrders: number; adBudget: number; serviceFees: number; revenue: number; }
+export function TrafegoSection({ data }: { data: TrafegoData & Record<string, unknown> }) {
+  return <DynamicSection appModule="trafego" data={{ trafego: data }} />;
+}
+
+interface NerpData { totalOrders: number; paidOrders: number; canceledOrders: number; paidRevenue: number; avgTicket: number; conversionRate: number; }
+export function NerpSection({ data }: { data: NerpData & Record<string, unknown> }) {
+  return <DynamicSection appModule="nerp" data={{ nerp: data }} />;
+}
+
+interface StarFriendsData { totalMembers: number; newMembers: number; starsEarned: number; starsRedeemed: number; starsExpired: number; redemptions: number; }
+export function StarFriendsSection({ data }: { data: StarFriendsData & Record<string, unknown> }) {
+  return <DynamicSection appModule="star-friends" data={{ starFriends: data }} />;
 }

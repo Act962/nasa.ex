@@ -55,7 +55,7 @@ export function VideoClipCard({ clip, onRemove }: Props) {
 
       <button
         onClick={() => onRemove(clip.id)}
-        className="size-7 flex items-center justify-center rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-colors"
+        className="size-7 flex items-center justify-center rounded-lg hover:bg-destructive/15 text-destructive transition-colors"
       >
         <Trash2Icon className="size-3.5" />
       </button>

@@ -22,7 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   useApprovePaymentRequest,
   useRejectPaymentRequest,
@@ -182,10 +183,10 @@ export function ApprovalReviewModal({ request, onClose }: Props) {
             variant="outline"
             onClick={handleReject}
             disabled={submitting}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
           >
             {rejectMut.isPending ? (
-              <Loader2 className="size-4 animate-spin mr-2" />
+              <OrbitaSpinner className="size-4 mr-2" />
             ) : (
               <XCircle className="size-4 mr-2" />
             )}
@@ -194,10 +195,10 @@ export function ApprovalReviewModal({ request, onClose }: Props) {
           <Button
             onClick={handleApprove}
             disabled={submitting}
-            className="bg-green-600 hover:bg-green-700"
+            className="bg-success hover:bg-success"
           >
             {approveMut.isPending ? (
-              <Loader2 className="size-4 animate-spin mr-2" />
+              <OrbitaSpinner className="size-4 mr-2" />
             ) : (
               <CheckCircle2 className="size-4 mr-2" />
             )}

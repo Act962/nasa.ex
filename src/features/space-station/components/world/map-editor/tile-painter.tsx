@@ -2,10 +2,24 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
-  Paintbrush, Eraser, PaintBucket, Undo2, Redo2,
-  LayoutGrid, Pencil, Square, SquareDashed,
-  BookOpen, User, Users, Lock, Globe2, Loader2, Trash2, Hand,
+  Paintbrush,
+  Eraser,
+  PaintBucket,
+  Undo2,
+  Redo2,
+  LayoutGrid,
+  Pencil,
+  Square,
+  SquareDashed,
+  BookOpen,
+  User,
+  Users,
+  Lock,
+  Globe2,
+  Trash2,
+  Hand,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import type { TileLayer, TileCell, TileTextureKey, PlacedMapObject, WorldMapData } from "../../../types";
 import { TILE_PRESETS, drawTilePreviewCanvas } from "./tile-textures";
 import {
@@ -308,7 +322,7 @@ export function TilePainter({
 
               {myTemplatesQ.isLoading && (
                 <div className="flex items-center justify-center py-6 text-muted-foreground text-[11px] gap-1">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando…
+                  <OrbitaSpinner className="h-3.5 w-3.5 " /> Carregando…
                 </div>
               )}
 
@@ -370,7 +384,7 @@ export function TilePainter({
 
               {commTemplatesQ.isLoading && (
                 <div className="flex items-center justify-center py-6 text-muted-foreground text-[11px] gap-1">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando…
+                  <OrbitaSpinner className="h-3.5 w-3.5 " /> Carregando…
                 </div>
               )}
 
@@ -603,7 +617,7 @@ function RemoteTemplateCard({
           className="absolute top-1 right-1 z-10 p-1 rounded-md bg-slate-950/80 backdrop-blur-sm border border-red-900/60 text-red-400 hover:text-white hover:bg-red-600 hover:border-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {deleting ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
+            <OrbitaSpinner className="h-3 w-3 " />
           ) : (
             <Trash2 className="h-3 w-3" />
           )}
@@ -647,7 +661,7 @@ function RemoteTemplateCard({
           disabled={applying}
           className="mt-1 w-full text-[10px] text-indigo-400 hover:text-white hover:bg-indigo-600 border border-indigo-800 hover:border-indigo-500 disabled:opacity-40 px-2 py-0.5 rounded transition-colors flex items-center justify-center gap-1"
         >
-          {applying && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+          {applying && <OrbitaSpinner className="h-2.5 w-2.5 " />}
           {applying ? "Aplicando…" : "Aplicar ambiente"}
         </button>
       </div>

@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import {
   Check,
   Copy,
-  Loader2,
   MessageCircle,
   QrCode,
   Timer,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import Link from "next/link";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { useTrafegoPendingPurchase } from "@/features/trafego/hooks/use-trafego-purchase";
@@ -62,9 +62,9 @@ export function PixInstructions({
 
   if (isConfirmed) {
     return (
-      <div className="rounded-3xl border border-emerald-400/25 bg-emerald-500/[0.07] p-7 text-center">
-        <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-emerald-500/20">
-          <Check className="size-6 text-emerald-300" />
+      <div className="rounded-3xl border border-success/30 bg-success/15 p-7 text-center">
+        <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-success/20">
+          <Check className="size-6 text-success" />
         </span>
         <h2 className="mt-4 text-xl font-bold text-white">
           Pagamento confirmado!
@@ -84,7 +84,7 @@ export function PixInstructions({
                 ? `/trafego/ativar/${data.signupToken}`
                 : `/trafego/sucesso?token=${pendingId}`
           }
-          className="mt-6 inline-flex rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-violet-500"
+          className="mt-6 inline-flex rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
         >
           Acessar meu painel
         </Link>
@@ -99,8 +99,8 @@ export function PixInstructions({
   return (
     <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5 sm:p-7">
       <div className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15">
-          <QrCode className="size-5 text-violet-300" />
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-info/15">
+          <QrCode className="size-5 text-info" />
         </span>
         <div>
           <h2 className="text-lg font-bold text-white sm:text-xl">
@@ -139,7 +139,7 @@ export function PixInstructions({
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-2 text-xs font-medium text-white transition hover:bg-white/[0.1]"
           >
             {copied ? (
-              <Check className="size-3.5 text-emerald-300" />
+              <Check className="size-3.5 text-success" />
             ) : (
               <Copy className="size-3.5" />
             )}
@@ -162,9 +162,9 @@ export function PixInstructions({
         </dl>
       </div>
 
-      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-400/20 bg-amber-500/[0.07] p-3.5">
-        <Timer className="mt-0.5 size-4 shrink-0 text-amber-300" />
-        <p className="text-xs leading-relaxed text-amber-100">
+      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/15 p-3.5">
+        <Timer className="mt-0.5 size-4 shrink-0 text-warning" />
+        <p className="text-xs leading-relaxed text-foreground/85">
           {charge.autoConfirms ? (
             <>Esta cobrança vale até </>
           ) : (
@@ -190,7 +190,7 @@ export function PixInstructions({
           href={whatsappHref}
           target="_blank"
           rel="noreferrer"
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-5 py-3.5 text-sm font-semibold text-white transition hover:brightness-110"
+          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-whatsapp px-5 py-3.5 text-sm font-semibold text-white transition hover:brightness-110"
         >
           <MessageCircle className="size-4" />
           Já paguei — enviar comprovante
@@ -198,7 +198,7 @@ export function PixInstructions({
       )}
 
       <p className="mt-4 flex items-center justify-center gap-2 text-xs text-white/35">
-        <Loader2 className="size-3.5 animate-spin" />
+        <OrbitaSpinner className="size-3.5 " />
         {charge.autoConfirms
           ? "Esperando o pagamento cair — esta tela troca sozinha."
           : "Esta tela troca sozinha assim que confirmarmos o pagamento."}

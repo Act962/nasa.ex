@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,16 +14,13 @@ import {
   Layers,
   Globe,
   Check,
-  Loader2,
   AlertCircle,
-  MoreVertical,
-  Plus,
-  Settings2,
+  MoreHorizontal,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { usePagesBuilderStore } from "../../context/pages-builder-store";
 import { useState } from "react";
 import { PublishDialog } from "../publish-dialog/publish-dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,8 +28,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { BuilderSidebarPanel } from "./builder-sidebar";
-import { PropertiesPanelContent } from "../properties-panel/properties-panel";
 import type { SaveStatus } from "./builder";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
@@ -68,12 +62,7 @@ export function BuilderTopbar({
   const canRedo = usePagesBuilderStore((s) => s.canRedo());
   const activeLayer = usePagesBuilderStore((s) => s.activeLayer);
   const setActiveLayer = usePagesBuilderStore((s) => s.setActiveLayer);
-  const selectedCount = usePagesBuilderStore((s) => s.selected.length);
   const [publishOpen, setPublishOpen] = useState(false);
-  // Drawers mobile — esquerda (elementos) e direita (propriedades).
-  // Em md+ ficam fechados sempre (paineis aside já visíveis).
-  const [leftSheetOpen, setLeftSheetOpen] = useState(false);
-  const [rightSheetOpen, setRightSheetOpen] = useState(false);
 
   // Antes de navegar pra outra rota (Voltar, Prévia, Ver publicado),
   // flush autosave pra garantir que o user vê as últimas mudanças.
@@ -95,35 +84,30 @@ export function BuilderTopbar({
 
   return (
     <>
-      <header className="h-14 border-b bg-card px-2 sm:px-3 flex items-center gap-1 sm:gap-2 shrink-0">
-        {/* MOBILE: botão "+" abre drawer de Elementos/Blocos/Página. */}
+      <header className="flex h-14 shrink-0 items-center gap-1.5 bg-card px-3 sm:gap-2">
+        {/* No celular: voltar redondo; Elementos, Camadas, Editar e Ajustes ficam no menu de baixo. */}
         <Button
           size="icon"
           variant="ghost"
-          className="md:hidden shrink-0"
-          onClick={() => setLeftSheetOpen(true)}
-          title="Adicionar elementos"
+          className="size-9 shrink-0 rounded-full bg-knob md:hidden"
+          onClick={() => navigateAfterSave("/pages")}
+          aria-label="Voltar para os sites"
         >
-          <Plus className="size-5" />
+          <ArrowLeft className="size-4" />
         </Button>
-
         <Button
           size="sm"
           variant="ghost"
-          className="gap-1 shrink-0"
+          className="shrink-0 gap-1 rounded-full max-md:hidden"
           onClick={() => navigateAfterSave("/pages")}
         >
           <ArrowLeft className="size-4" />
-          <span className="hidden sm:inline">Voltar</span>
+          Voltar
         </Button>
-        <div className="hidden sm:block h-5 w-px bg-border mx-1" />
-        <div className="min-w-0 flex flex-col">
-          <span className="text-sm font-semibold truncate max-w-[120px] sm:max-w-[220px]">
-            {page.title}
-          </span>
-          <span className="text-[10px] text-muted-foreground truncate max-w-[120px] sm:max-w-[220px]">
-            /{page.slug}
-          </span>
+        <div className="mx-1 h-5 w-px bg-border max-md:hidden" />
+        <div className="flex min-w-0 flex-1 flex-col md:flex-none">
+          <span className="truncate text-sm font-semibold md:max-w-[220px]">{page.title}</span>
+          <span className="truncate text-[11px] text-muted-foreground md:max-w-[220px]">/{page.slug}</span>
         </div>
         <div className="hidden md:block h-5 w-px bg-border mx-1" />
         <Button
@@ -150,11 +134,11 @@ export function BuilderTopbar({
         {page.layerCount === 2 && (
           <>
             <div className="hidden md:block h-5 w-px bg-border mx-1" />
-            <div className="hidden md:flex items-center rounded-md border p-0.5">
+            <div className="hidden md:flex items-center rounded-full bg-muted p-0.5">
               <Button
                 size="sm"
                 variant={activeLayer === "back" ? "default" : "ghost"}
-                className="h-7 gap-1 text-xs"
+                className="h-7 gap-1 rounded-full text-xs"
                 onClick={() => setActiveLayer("back")}
               >
                 <Layers className="size-3" />
@@ -163,7 +147,7 @@ export function BuilderTopbar({
               <Button
                 size="sm"
                 variant={activeLayer === "front" ? "default" : "ghost"}
-                className="h-7 gap-1 text-xs"
+                className="h-7 gap-1 rounded-full text-xs"
                 onClick={() => setActiveLayer("front")}
               >
                 <Layers className="size-3" />
@@ -173,25 +157,25 @@ export function BuilderTopbar({
           </>
         )}
 
-        <div className="flex-1 min-w-0" />
+        <div className="min-w-0 flex-1 max-md:hidden" />
 
         {/* Autosave — texto só ≥md. Em mobile, só ícone (compacto). */}
         <div className="flex items-center gap-1.5 text-xs shrink-0">
           {saveStatus === "saving" && (
             <>
-              <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+              <OrbitaSpinner className="size-3.5 text-muted-foreground" />
               <span className="hidden md:inline text-muted-foreground">Salvando…</span>
             </>
           )}
           {saveStatus === "saved" && (
             <>
-              <Check className="size-3.5 text-emerald-600" />
-              <span className="hidden md:inline text-emerald-700">Salvo</span>
+              <Check className="size-3.5 text-success" />
+              <span className="hidden md:inline text-success">Salvo</span>
             </>
           )}
           {saveStatus === "dirty" && (
             <>
-              <span className="size-1.5 rounded-full bg-amber-500" />
+              <span className="size-1.5 rounded-full bg-warning" />
               <span className="hidden md:inline text-muted-foreground">Mudanças pendentes…</span>
             </>
           )}
@@ -205,7 +189,7 @@ export function BuilderTopbar({
 
         <Badge
           variant={page.status === "PUBLISHED" ? "default" : "secondary"}
-          className="ml-1 hidden sm:inline-flex shrink-0"
+          className="ml-1 hidden shrink-0 rounded-full md:inline-flex"
         >
           <Save className="size-3 mr-1" />
           {page.status === "PUBLISHED" ? "Publicado" : "Rascunho"}
@@ -215,7 +199,7 @@ export function BuilderTopbar({
         <Button
           size="sm"
           variant="outline"
-          className="gap-1 hidden md:inline-flex shrink-0"
+          className="hidden shrink-0 gap-1 rounded-full md:inline-flex"
           onClick={() =>
             navigateAfterSave(`/pages/${page.id}/preview`, { newTab: true })
           }
@@ -228,7 +212,7 @@ export function BuilderTopbar({
           <Button
             size="sm"
             variant="outline"
-            className="gap-1 hidden md:inline-flex shrink-0"
+            className="hidden shrink-0 gap-1 rounded-full md:inline-flex"
             onClick={() =>
               navigateAfterSave(`/s/${page.slug}`, { newTab: true })
             }
@@ -241,34 +225,37 @@ export function BuilderTopbar({
         <Button
           size="sm"
           variant="outline"
-          className="gap-1 hidden md:inline-flex shrink-0"
+          className="hidden shrink-0 gap-1 rounded-full md:inline-flex"
           onClick={() => setPublishOpen(true)}
         >
           <Globe className="size-3.5" />
           Domínio
         </Button>
 
-        {/* MOBILE: kebab com todas as ações secundárias */}
+        <Button
+          size="icon"
+          variant="ghost"
+          disabled={!canUndo}
+          onClick={undo}
+          className="size-9 shrink-0 rounded-full bg-knob md:hidden"
+          aria-label="Desfazer"
+        >
+          <Undo2 className="size-4" />
+        </Button>
+
+        {/* Celular: ações secundárias no "⋯". */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               size="icon"
               variant="ghost"
-              className="md:hidden shrink-0"
-              title="Mais ações"
+              className="size-9 shrink-0 rounded-full bg-knob md:hidden"
+              aria-label="Mais ações"
             >
-              <MoreVertical className="size-4" />
+              <MoreHorizontal className="size-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem
-              onSelect={() => undo()}
-              disabled={!canUndo}
-              className="gap-2"
-            >
-              <Undo2 className="size-4" />
-              Desfazer
-            </DropdownMenuItem>
+          <DropdownMenuContent align="end" className="min-w-52">
             <DropdownMenuItem
               onSelect={() => redo()}
               disabled={!canRedo}
@@ -277,6 +264,18 @@ export function BuilderTopbar({
               <Redo2 className="size-4" />
               Refazer
             </DropdownMenuItem>
+            {page.layerCount === 2 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={() => setActiveLayer(activeLayer === "back" ? "front" : "back")}
+                  className="gap-2"
+                >
+                  <Layers className="size-4" />
+                  {activeLayer === "back" ? "Editar camada da frente" : "Editar camada de trás"}
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={() =>
@@ -308,25 +307,9 @@ export function BuilderTopbar({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* MOBILE: botão "⚙" abre drawer de propriedades (só faz
-            sentido se algo está selecionado). */}
-        <Button
-          size="icon"
-          variant="ghost"
-          className="md:hidden shrink-0 relative"
-          onClick={() => setRightSheetOpen(true)}
-          title="Propriedades"
-          disabled={selectedCount === 0}
-        >
-          <Settings2 className="size-5" />
-          {selectedCount > 0 && (
-            <span className="absolute top-1 right-1 size-2 rounded-full bg-indigo-500" />
-          )}
-        </Button>
-
         <Button
           size="sm"
-          className="gap-1 shrink-0"
+          className="h-9 shrink-0 gap-1 rounded-full px-3.5"
           onClick={onPublish}
           disabled={publishing}
           data-guide={GUIDE_ANCHORS.pagesPublishButton.id}
@@ -341,44 +324,6 @@ export function BuilderTopbar({
       </header>
       <PublishDialog open={publishOpen} onOpenChange={setPublishOpen} pageId={page.id} />
 
-      {/* Drawer ESQUERDO mobile — Elementos / Blocos / Página.
-          Mesmo conteúdo do BuilderSidebar desktop, sem o <aside>
-          wrapper (renderiza como <div> dentro do SheetContent). */}
-      <Sheet open={leftSheetOpen} onOpenChange={setLeftSheetOpen}>
-        <SheetContent
-          side="left"
-          className="p-0 w-[90vw] sm:w-[340px] flex flex-col gap-0"
-        >
-          <SheetHeader className="px-4 pt-4 pb-2 shrink-0 border-b">
-            <SheetTitle className="text-sm">Adicionar elementos</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <BuilderSidebarPanel />
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      {/* Drawer DIREITO mobile — Propriedades do elemento selecionado.
-          Reusa exatamente o PropertiesPanelContent. */}
-      <Sheet open={rightSheetOpen} onOpenChange={setRightSheetOpen}>
-        <SheetContent
-          side="right"
-          className="p-0 w-[90vw] sm:w-[340px] flex flex-col gap-0 overflow-hidden"
-        >
-          <SheetHeader className="px-4 pt-4 pb-2 shrink-0 border-b">
-            <SheetTitle className="text-sm">Propriedades</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            {selectedCount > 0 ? (
-              <PropertiesPanelContent />
-            ) : (
-              <p className="p-4 text-xs text-muted-foreground text-center">
-                Selecione um bloco no canvas pra editar.
-              </p>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
     </>
   );
 }

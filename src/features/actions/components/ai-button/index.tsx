@@ -118,28 +118,28 @@ export function CreateActionWithAi({
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button variant="outline" className="flex-1 lg:w-auto" size="sm">
-          <Sparkles className="size-4 mr-2 text-purple-500 group-hover:animate-pulse" />
-          <span className="bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-semibold">
+          <Sparkles className="size-4 mr-2 text-info group-hover:animate-pulse" />
+          <span className="bg-linear-to-r from-info to-info bg-clip-text text-transparent font-semibold">
             Criar com IA
           </span>
-          <div className="absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-purple-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-info to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         </Button>
       </SheetTrigger>
 
       <SheetContent
         side="right"
-        className="sm:max-w-md border-l border-zinc-800 px-0 flex flex-col h-full gap-0 bg-zinc-950"
+        className="sm:max-w-md border-l border-line px-0 flex flex-col h-full gap-0 bg-background"
       >
-        <SheetHeader className="space-y-4 mb-6 px-4 pt-4 border-b border-zinc-900 pb-6">
+        <SheetHeader className="space-y-4 mb-6 px-4 pt-4 pb-6">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-purple-500/10">
-              <Sparkles className="size-5 text-purple-500" />
+            <div className="p-2 rounded-lg bg-info/10">
+              <Sparkles className="size-5 text-info" />
             </div>
-            <SheetTitle className="text-2xl font-bold tracking-tight text-zinc-100">
+            <SheetTitle className="text-2xl font-bold tracking-tight text-foreground">
               Gerador de Ações
             </SheetTitle>
           </div>
-          <SheetDescription className="text-sm text-zinc-400">
+          <SheetDescription className="text-sm text-muted-foreground">
             Descreva suas tarefas e o ASTRO as organizará para você nos fluxos
             corretos em segundos.
           </SheetDescription>
@@ -151,7 +151,7 @@ export function CreateActionWithAi({
             {messages.length === 0 && (
               <div className="space-y-6 pt-2">
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 uppercase tracking-widest ml-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-widest ml-1">
                     <Lightbulb className="size-3.5" />
                     Sugestões de início
                   </div>
@@ -159,19 +159,19 @@ export function CreateActionWithAi({
                     {SUGGESTED_PROMPTS.map((item, idx) => (
                       <Card
                         key={idx}
-                        className="cursor-pointer bg-zinc-900/40 hover:bg-zinc-900 transition-all border-zinc-800 hover:border-purple-500/30 group"
+                        className="cursor-pointer bg-card/40 hover:bg-card transition-all border-line hover:border-info/30 group"
                         onClick={() => setPrompt(item.text)}
                       >
                         <CardContent className="p-3 flex items-start gap-3">
                           <div
                             className={cn(
-                              "p-1.5 rounded-md bg-zinc-950 border border-zinc-800 shadow-sm transition-colors",
+                              "p-1.5 rounded-md bg-background border border-line shadow-sm transition-colors",
                               item.color,
                             )}
                           >
                             <item.icon className="size-3.5" />
                           </div>
-                          <p className="text-xs text-zinc-400 group-hover:text-zinc-200 transition-colors leading-relaxed">
+                          <p className="text-xs text-muted-foreground group-hover:text-foreground transition-colors leading-relaxed">
                             {item.text}
                           </p>
                         </CardContent>
@@ -204,8 +204,8 @@ export function CreateActionWithAi({
                       className={cn(
                         "px-4 py-2 rounded-2xl max-w-[90%] shadow-sm",
                         message.role === "user"
-                          ? "bg-purple-600 text-white rounded-tr-none"
-                          : "bg-zinc-900 text-zinc-200 border border-zinc-800 rounded-tl-none",
+                          ? "bg-info text-white rounded-tr-none"
+                          : "bg-card text-foreground border border-line rounded-tl-none",
                       )}
                     >
                       {message.parts.map((part, partIdx) => {
@@ -226,9 +226,9 @@ export function CreateActionWithAi({
                             <MessageActions key={partIdx}>
                               <MessageAction
                                 tooltip={`Processando: ${part.type.replace("tool-", "")}`}
-                                className="flex items-center gap-2 text-[10px] text-zinc-500 font-mono italic my-1 opacity-70 h-auto py-0.5 px-1 w-full justify-start"
+                                className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono italic my-1 opacity-70 h-auto py-0.5 px-1 w-full justify-start"
                               >
-                                <Zap className="size-3 text-purple-500" />
+                                <Zap className="size-3 text-info" />
                                 <span>
                                   Processando: {part.type.replace("tool-", "")}
                                   ...
@@ -249,7 +249,7 @@ export function CreateActionWithAi({
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-zinc-900 bg-zinc-950/80 backdrop-blur-md">
+        <div className="p-4 border-t border-line bg-background/80 backdrop-blur-md">
           {error && (
             <div className={"py-2"}>
               {" "}
@@ -257,7 +257,7 @@ export function CreateActionWithAi({
                 Algo deu errado na sua solicitação. Por favor, relate ao suporte
                 ou tente novamente{" "}
                 <span
-                  className="underline text-blue-400 cursor-pointer"
+                  className="underline text-info cursor-pointer"
                   onClick={() => [clearError(), stop()]}
                 >
                   Concluir
@@ -265,8 +265,8 @@ export function CreateActionWithAi({
               </span>{" "}
             </div>
           )}
-          <InputGroup className="border-zinc-800 rounded-2xl flex-col h-auto">
-            <InputGroupAddon align="block-start" className="border-zinc-800/50">
+          <InputGroup className="border-line rounded-2xl flex-col h-auto">
+            <InputGroupAddon align="block-start" className="border-line/50">
               <ContextSelector
                 workspaces={workspaces}
                 columns={columns}
@@ -282,7 +282,7 @@ export function CreateActionWithAi({
             <div className="flex w-full items-end">
               <InputGroupTextarea
                 placeholder="Pergunte ao ASTRO..."
-                className="min-h-[44px] max-h-[160px] text-sm text-zinc-100 placeholder:text-zinc-600"
+                className="min-h-[44px] max-h-[160px] text-sm text-foreground placeholder:text-muted-foreground"
                 value={prompt}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -298,8 +298,8 @@ export function CreateActionWithAi({
                     size="icon-sm"
                     className={cn(
                       "rounded-xl transition-all shadow-lg shrink-0",
-                      "bg-purple-600 hover:bg-purple-500 text-white",
-                      "disabled:opacity-20 disabled:scale-95 disabled:bg-zinc-800",
+                      "bg-info hover:bg-info text-white",
+                      "disabled:opacity-20 disabled:scale-95 disabled:bg-card",
                     )}
                     onClick={stop}
                   >
@@ -311,8 +311,8 @@ export function CreateActionWithAi({
                     size="icon-sm"
                     className={cn(
                       "rounded-xl transition-all shadow-lg shrink-0",
-                      "bg-purple-600 hover:bg-purple-500 text-white",
-                      "disabled:opacity-20 disabled:scale-95 disabled:bg-zinc-800",
+                      "bg-info hover:bg-info text-white",
+                      "disabled:opacity-20 disabled:scale-95 disabled:bg-card",
                     )}
                     onClick={handleGenerate}
                   >

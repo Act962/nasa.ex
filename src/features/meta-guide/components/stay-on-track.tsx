@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, Compass } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Compass } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { GuideTermsText } from "./guide-terms-text";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const META_WINDOW_NAME = "orbita-meta";
 
@@ -42,38 +44,58 @@ export function useReturnNudge(isArmed: boolean) {
 }
 
 const OFF_TRACK_HINTS = [
-  "Confira se está no app e no portfólio certos — o botão azul já abre direto neles.",
+  "Confira se está na conexão e no portfólio certos — o botão azul já abre direto neles.",
   "Não clique em botões que o passo não mostra (ex.: Anular tokens, Remover, Excluir, outra conta).",
   "Voltou uma tela sem querer? Use o botão Voltar aqui na ÓRBITA, não o da Meta.",
   "Apareceu um aviso ou pergunta da Meta que não está no print? Não confirme: clique em Pedir ajuda à equipe.",
 ];
 
-/** Aviso fixo do guia: seguir o passo da ÓRBITA, não o instinto na tela da Meta. */
-export function StayOnTrack() {
-  const [isOpen, setIsOpen] = useState(false);
+const STAY_ON_TRACK_SEEN_KEY = "meta-guide:stay-on-track-seen";
+
+export function hasSeenStayOnTrack(): boolean {
+  try {
+    return window.localStorage.getItem(STAY_ON_TRACK_SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markStayOnTrackSeen() {
+  try {
+    window.localStorage.setItem(STAY_ON_TRACK_SEEN_KEY, "1");
+  } catch {
+    // Sem armazenamento (aba anônima): o aviso só volta a aparecer numa próxima visita.
+  }
+}
+
+/** Aviso do guia em popup, uma vez só: seguir o passo da ÓRBITA, não o instinto na tela da Meta. */
+export function StayOnTrackDialog({ open, onConfirm }: { open: boolean; onConfirm: () => void }) {
   return (
-    <div className="shrink-0 rounded-md border border-sky-500/30 bg-sky-500/5 px-3 py-2 text-xs text-sky-900 dark:text-sky-200">
-      <div className="flex items-center justify-between gap-2">
-        <p className="flex items-center gap-2">
-          <Compass className="size-3.5 shrink-0" />
-          Na Meta, faça só o que este passo mostra — outros botões podem desfazer o que já foi feito.
-        </p>
-        <button
-          type="button"
-          onClick={() => setIsOpen((current) => !current)}
-          className="flex shrink-0 items-center gap-1 font-medium underline-offset-2 hover:underline"
-        >
-          Minha tela está diferente
-          <ChevronDown className={cn("size-3.5 transition-transform", isOpen && "rotate-180")} />
-        </button>
-      </div>
-      {isOpen && (
-        <ul className="animate-in fade-in slide-in-from-top-1 mt-2 list-disc space-y-1 pl-5">
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onConfirm()}>
+      <DialogContent className="max-w-[calc(100vw-2rem)] gap-6 px-6 pt-7 pb-6 sm:max-w-md" showCloseButton={false}>
+        <DialogHeader className="items-center gap-3 text-center">
+          <span className="grid size-14 place-items-center rounded-full bg-info/15 text-info">
+            <Compass className="size-7" />
+          </span>
+          <DialogTitle className="text-lg">Faça só o que cada passo mostra</DialogTitle>
+          <DialogDescription className="text-[15px] leading-relaxed text-muted-foreground">
+            Outros botões da Meta podem desfazer o que já foi feito. Se a sua tela estiver diferente do print:
+          </DialogDescription>
+        </DialogHeader>
+        <ul className="space-y-2">
           {OFF_TRACK_HINTS.map((hint) => (
-            <li key={hint}>{hint}</li>
+            <li key={hint} className="flex items-start gap-2 rounded-[14px] bg-muted/60 p-2.5 text-sm">
+              <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-info" />
+              <span>
+                <GuideTermsText text={hint} />
+              </span>
+            </li>
           ))}
         </ul>
-      )}
-    </div>
+        <Button className="h-12 w-full rounded-full text-[15px]" onClick={onConfirm}>
+          Entendi
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 }

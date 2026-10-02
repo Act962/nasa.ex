@@ -13,11 +13,11 @@ export function HeroPhone() {
     <div className="relative mx-auto w-full max-w-[300px]">
       <div
         aria-hidden
-        className="absolute -inset-8 rounded-full bg-violet-600/20 blur-3xl"
+        className="absolute -inset-8 rounded-full bg-info/20 blur-3xl"
       />
 
-      <div className="relative rounded-[2.5rem] border border-white/15 bg-black/70 p-2.5 shadow-2xl shadow-violet-950/50">
-        <div className="overflow-hidden rounded-[2rem] bg-gradient-to-b from-[#141419] to-[#0c0c11]">
+      <div className="relative rounded-[2.5rem] border border-white/15 bg-black/70 p-2.5 shadow-2xl shadow-black/50">
+        <div className="overflow-hidden rounded-[2rem] bg-gradient-to-b from-card to-background">
           <div className="mx-auto mt-2.5 h-4 w-24 rounded-full bg-black" />
 
           <div className="px-5 pb-7 pt-5">
@@ -33,7 +33,7 @@ export function HeroPhone() {
             <p className="mt-5 text-xs text-white/45">Vendas</p>
             <div className="flex items-end gap-2">
               <span className="text-3xl font-bold tracking-tight text-white">+237</span>
-              <span className="mb-1 inline-flex items-center gap-0.5 text-sm font-semibold text-emerald-400">
+              <span className="mb-1 inline-flex items-center gap-0.5 text-sm font-semibold text-success">
                 <ArrowUpRight className="size-3.5" />
                 48%
               </span>
@@ -46,23 +46,23 @@ export function HeroPhone() {
                   style={{ height: `${height}%` }}
                   className={
                     index === BARS.length - 1
-                      ? "flex-1 rounded-t bg-violet-500"
-                      : "flex-1 rounded-t bg-violet-500/30"
+                      ? "flex-1 rounded-t bg-info"
+                      : "flex-1 rounded-t bg-info/30"
                   }
                 />
               ))}
             </div>
 
             <div className="mt-5 h-1 w-full rounded-full bg-white/[0.06]">
-              <div className="h-1 w-3/5 rounded-full bg-violet-500/60" />
+              <div className="h-1 w-3/5 rounded-full bg-info/60" />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="absolute -bottom-4 -left-4 flex items-center gap-2 rounded-xl border border-white/10 bg-[#16161c] px-3 py-2.5 shadow-xl sm:-left-8">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/20">
-          <Sparkles className="size-4 text-violet-300" />
+      <div className="absolute -bottom-4 -left-4 flex items-center gap-2 rounded-xl border border-white/10 bg-card px-3 py-2.5 shadow-xl sm:-left-8">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-info/20">
+          <Sparkles className="size-4 text-info" />
         </span>
         <span className="text-[11px] leading-tight">
           <strong className="block font-semibold text-white">Mais resultados</strong>

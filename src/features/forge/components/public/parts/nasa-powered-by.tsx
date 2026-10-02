@@ -7,13 +7,13 @@ type Variant = "dark" | "light";
 export function NasaPoweredBy({ variant = "dark" }: { variant?: Variant }) {
   const logoSrc = variant === "dark" ? "/orbita-logo-dark.svg" : "/orbita-logo.svg";
   const textCls =
-    variant === "dark" ? "text-slate-500" : "text-gray-500";
+    variant === "dark" ? "text-muted-foreground" : "text-muted-foreground";
   const linkCls =
     variant === "dark"
       ? "text-[#a78bfa] hover:underline font-semibold"
-      : "text-blue-600 hover:underline font-semibold";
+      : "text-info hover:underline font-semibold";
   const borderCls =
-    variant === "dark" ? "border-slate-800" : "border-gray-200";
+    variant === "dark" ? "border-line" : "border-line";
 
   return (
     <div

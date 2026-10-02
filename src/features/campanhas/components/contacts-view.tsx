@@ -37,17 +37,17 @@ import type { LeadMetricsFilter } from "../schema/broadcast-schemas";
 type Temperature = "COLD" | "WARM" | "HOT" | "VERY_HOT";
 
 const TEMPERATURES: Array<{ value: Temperature; label: string; dot: string }> = [
-  { value: "COLD", label: "Frio", dot: "bg-sky-500" },
-  { value: "WARM", label: "Morno", dot: "bg-amber-500" },
-  { value: "HOT", label: "Quente", dot: "bg-orange-500" },
-  { value: "VERY_HOT", label: "Muito quente", dot: "bg-red-500" },
+  { value: "COLD", label: "Frio", dot: "bg-info" },
+  { value: "WARM", label: "Morno", dot: "bg-warning" },
+  { value: "HOT", label: "Quente", dot: "bg-warning" },
+  { value: "VERY_HOT", label: "Muito quente", dot: "bg-destructive" },
 ];
 
 const TEMP_DOT: Record<string, string> = {
-  COLD: "bg-sky-500",
-  WARM: "bg-amber-500",
-  HOT: "bg-orange-500",
-  VERY_HOT: "bg-red-500",
+  COLD: "bg-info",
+  WARM: "bg-warning",
+  HOT: "bg-warning",
+  VERY_HOT: "bg-destructive",
 };
 const TEMP_LABEL: Record<string, string> = {
   COLD: "Frio",

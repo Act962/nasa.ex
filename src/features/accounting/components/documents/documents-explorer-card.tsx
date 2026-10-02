@@ -19,7 +19,7 @@ export function DocumentsExplorerCard({ onUpload }: { onUpload: () => void }) {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
-          <FolderLock className="size-4 text-violet-500" /> Pasta no N-Box
+          <FolderLock className="size-4 text-info" /> Pasta no N-Box
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           Os arquivos ficam em “Documentos da empresa”, uma pasta restrita do N-Box separada por assunto. Só quem

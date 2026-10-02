@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { usePagesBuilderStore } from "../../context/pages-builder-store";
 import { usePage, useUpdatePageSlug } from "../../hooks/use-pages";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -54,8 +55,8 @@ export function UrlSlugEditor() {
 
   if (!pageId || isLoading || !page) {
     return (
-      <div className="py-2 px-3 text-xs text-muted-foreground">
-        Carregando configurações…
+      <div className="flex justify-center px-3 py-4">
+        <OrbitaSpinner className="size-5" />
       </div>
     );
   }
@@ -101,7 +102,7 @@ export function UrlSlugEditor() {
   };
 
   return (
-    <div className="py-3 px-3 border-b">
+    <div className="py-3 px-3">
       <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-2">
         URL da página
       </p>
@@ -124,7 +125,7 @@ export function UrlSlugEditor() {
             className="shrink-0 p-1 rounded hover:bg-background text-muted-foreground hover:text-foreground"
           >
             {copied ? (
-              <Check className="size-3.5 text-emerald-600" />
+              <Check className="size-3.5 text-success" />
             ) : (
               <Copy className="size-3.5" />
             )}
@@ -169,7 +170,7 @@ export function UrlSlugEditor() {
       {draft !== titleSlug && titleSlug && (
         <button
           onClick={() => setDraft(titleSlug)}
-          className="text-[10px] text-indigo-600 hover:underline mt-1 flex items-center gap-1"
+          className="text-[10px] text-info hover:underline mt-1 flex items-center gap-1"
         >
           <RotateCcw className="size-3" /> Usar slug do título: {titleSlug}
         </button>
@@ -177,7 +178,7 @@ export function UrlSlugEditor() {
 
       {/* Aviso quando dirty */}
       {isDirty && isValid && (
-        <p className="text-[10px] text-amber-700 mt-2 leading-snug">
+        <p className="text-[10px] text-warning mt-2 leading-snug">
           ⚠️ Salvar muda a URL pública — links antigos vão deixar de
           funcionar.
         </p>

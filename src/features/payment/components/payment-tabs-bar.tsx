@@ -53,13 +53,13 @@ export function PaymentTabsBar({
               aria-selected={isActive}
               onClick={() => onSelect(tab.value)}
               className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors",
+                "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-2 text-[13px] font-medium transition-colors",
                 isActive
-                  ? "border-[#1E90FF]/35 bg-[#1E90FF]/12 text-[#cfe6ff]"
+                  ? "border-info/35 bg-info/12 text-info"
                   : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
               )}
             >
-              <Icon className={cn("size-[15px] shrink-0", isActive && "text-[#1E90FF]")} />
+              <Icon className={cn("size-[15px] shrink-0", isActive && "text-info")} />
               {tab.label}
               {tab.hasChildren && (
                 <ChevronDown className="size-3 shrink-0 opacity-55" />
@@ -78,7 +78,7 @@ export function PaymentTabsBar({
         <Settings className="size-[15px]" />
         <span className="hidden lg:inline">Configurações</span>
         {settingsBadge > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 grid h-[17px] min-w-[17px] place-items-center rounded-full border-2 border-background bg-amber-500 px-1 text-[10px] font-bold text-amber-950">
+          <span className="absolute -right-1.5 -top-1.5 grid h-[17px] min-w-[17px] place-items-center rounded-full border-2 border-background bg-warning px-1 text-[10px] font-bold text-black/85">
             {settingsBadge > 99 ? "99+" : settingsBadge}
           </span>
         )}
@@ -98,7 +98,7 @@ export function PaymentSubTabs({
   onSelect: (value: string) => void;
 }) {
   return (
-    <div className="inline-flex w-fit gap-0.5 rounded-lg border border-border/60 bg-muted/40 p-0.5">
+    <div className="inline-flex w-fit gap-0.5 rounded-full bg-muted/60 p-1">
       {views.map((view) => {
         const Icon = view.icon;
         const isActive = activeView === view.value;
@@ -108,13 +108,13 @@ export function PaymentSubTabs({
             type="button"
             onClick={() => onSelect(view.value)}
             className={cn(
-              "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-[12.5px] font-medium transition-colors",
+              "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-colors",
               isActive
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <Icon className={cn("size-[13px]", isActive && "text-[#1E90FF]")} />
+            <Icon className={cn("size-[13px]", isActive && "text-info")} />
             {view.label}
           </button>
         );

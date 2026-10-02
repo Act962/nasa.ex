@@ -3,7 +3,8 @@
 import { renderWhatsappMarks } from "@/features/tracking-chat/utils/whatsapp-marks";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { format } from "date-fns";
-import { Loader2, Send } from "lucide-react";
+import { Send } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,7 +51,7 @@ export function OrderChat({
       <div className="flex-1 space-y-2 overflow-y-auto p-4">
         {messagesQuery.isLoading && (
           <div className="flex justify-center py-8">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <OrbitaSpinner className="size-5 text-muted-foreground" />
           </div>
         )}
         {messages.map((message) => {
@@ -93,7 +94,7 @@ export function OrderChat({
           className="min-h-10 resize-none"
         />
         <Button type="submit" size="icon" disabled={sendMessage.isPending || !draft.trim()}>
-          {sendMessage.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+          {sendMessage.isPending ? <OrbitaSpinner className="size-4 " /> : <Send className="size-4" />}
         </Button>
       </form>
     </div>

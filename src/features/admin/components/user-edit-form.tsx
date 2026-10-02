@@ -44,25 +44,25 @@ export function UserEditForm({ user, isSelf }: { user: User; isSelf: boolean }) 
   });
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-5">
-      <h2 className="text-sm font-semibold text-white">Editar usuário</h2>
+    <div className="bg-card border border-border rounded-xl p-5 space-y-5">
+      <h2 className="text-sm font-semibold text-foreground">Editar usuário</h2>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs text-zinc-400 mb-1.5">Nome</label>
+          <label className="block text-xs text-muted-foreground mb-1.5">Nome</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500"
+            className="w-full px-3 py-2 bg-muted border border-line rounded-lg text-sm text-foreground focus:outline-none focus:border-ring"
           />
         </div>
         <div>
-          <label className="block text-xs text-zinc-400 mb-1.5">Apelido</label>
+          <label className="block text-xs text-muted-foreground mb-1.5">Apelido</label>
           <input
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
             placeholder="Opcional"
-            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"
+            className="w-full px-3 py-2 bg-muted border border-line rounded-lg text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-ring"
           />
         </div>
       </div>
@@ -71,32 +71,32 @@ export function UserEditForm({ user, isSelf }: { user: User; isSelf: boolean }) 
         <button
           onClick={() => updateMut.mutate({ name, nickname: nickname || null })}
           disabled={updateMut.isPending}
-          className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm rounded-lg transition-colors"
         >
           {updateMut.isPending ? "Salvando..." : saved ? "Salvo ✓" : "Salvar"}
         </button>
         {updateMut.isError && (
-          <p className="text-xs text-red-400">Erro ao salvar.</p>
+          <p className="text-xs text-destructive">Erro ao salvar.</p>
         )}
       </div>
 
-      <div className="border-t border-zinc-800 pt-4 flex items-center justify-between">
+      <div className="border-t border-border pt-4 flex items-center justify-between">
         {/* Admin toggle */}
         <div className="flex items-center gap-3">
-          <ShieldCheck className={`w-4 h-4 ${user.isSystemAdmin ? "text-violet-400" : "text-zinc-600"}`} />
+          <ShieldCheck className={`w-4 h-4 ${user.isSystemAdmin ? "text-info" : "text-muted-foreground/70"}`} />
           <div>
-            <p className="text-sm text-white">Moderador do sistema</p>
-            <p className="text-xs text-zinc-500">Acesso total ao painel admin</p>
+            <p className="text-sm text-foreground">Moderador do sistema</p>
+            <p className="text-xs text-muted-foreground">Acesso total ao painel admin</p>
           </div>
           <button
             onClick={() => adminMut.mutate(!user.isSystemAdmin)}
             disabled={adminMut.isPending || isSelf}
             title={isSelf ? "Você não pode alterar o seu próprio status" : undefined}
             className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-40 ${
-              user.isSystemAdmin ? "bg-violet-600" : "bg-zinc-700"
+              user.isSystemAdmin ? "bg-primary" : "bg-knob"
             }`}
           >
-            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-background transition-transform ${
               user.isSystemAdmin ? "translate-x-4.5" : "translate-x-0.5"
             }`} />
           </button>
@@ -108,23 +108,23 @@ export function UserEditForm({ user, isSelf }: { user: User; isSelf: boolean }) 
             {!showDelete ? (
               <button
                 onClick={() => setShowDelete(true)}
-                className="flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 text-xs text-destructive hover:text-destructive/80 hover:bg-destructive/10 rounded-lg transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" /> Excluir usuário
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                <p className="text-xs text-red-400">Confirmar exclusão?</p>
+                <p className="text-xs text-destructive">Confirmar exclusão?</p>
                 <button
                   onClick={() => deleteMut.mutate()}
                   disabled={deleteMut.isPending}
-                  className="px-3 py-1 text-xs bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg transition-colors"
+                  className="px-3 py-1 text-xs bg-destructive/15 text-destructive hover:bg-destructive/25 disabled:opacity-50 rounded-lg transition-colors"
                 >
                   {deleteMut.isPending ? "..." : "Sim, excluir"}
                 </button>
                 <button
                   onClick={() => setShowDelete(false)}
-                  className="px-3 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-lg transition-colors"
+                  className="px-3 py-1 text-xs bg-knob hover:bg-knob text-foreground rounded-lg transition-colors"
                 >
                   Cancelar
                 </button>

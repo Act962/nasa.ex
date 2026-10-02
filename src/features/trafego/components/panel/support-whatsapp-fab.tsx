@@ -5,8 +5,8 @@ import { useTrafegoPublicConfig } from "@/features/trafego/hooks/use-trafego-pla
 
 /**
  * Atalho fixo para o WhatsApp da equipe, com o código do pedido já na
- * mensagem. Fica acima do orb do Astro (que ocupa o canto inferior direito
- * no layout da plataforma) para os dois não se sobreporem.
+ * mensagem. No computador fica acima do orb do Astro; abaixo de lg vira uma
+ * bolinha acima do menu de baixo (150px) para não cobrir os itens dele.
  */
 export function SupportWhatsappFab({ orderCode }: { orderCode: string }) {
   const { data: config } = useTrafegoPublicConfig();
@@ -23,10 +23,10 @@ export function SupportWhatsappFab({ orderCode }: { orderCode: string }) {
       target="_blank"
       rel="noreferrer"
       aria-label="Falar com a equipe no WhatsApp"
-      className="fixed bottom-24 right-5 z-40 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:brightness-110 md:right-6"
+      className="fixed right-4 bottom-[calc(10rem+env(safe-area-inset-bottom))] z-40 inline-flex size-12 items-center justify-center gap-2 rounded-full bg-brand-whatsapp text-sm font-semibold text-white shadow-lg transition hover:brightness-110 lg:right-6 lg:bottom-24 lg:size-auto lg:px-4 lg:py-3"
     >
       <MessageCircle className="size-5" />
-      <span className="hidden sm:inline">Falar com a equipe</span>
+      <span className="max-lg:sr-only">Falar com a equipe</span>
     </a>
   );
 }

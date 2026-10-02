@@ -163,7 +163,7 @@ export function NBoxExplorer({ rootFolderId, readOnly = false, resolveHref, onUp
                   {folder.isRestricted ? (
                     <FolderLockIcon className="size-4 shrink-0" style={{ color: folder.color ?? undefined }} />
                   ) : (
-                    <FolderIcon className="size-4 shrink-0 text-yellow-500" />
+                    <FolderIcon className="size-4 shrink-0 text-warning" />
                   )}
                   <span className="truncate">{folder.name}</span>
                 </button>

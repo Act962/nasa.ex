@@ -20,6 +20,34 @@
       "autoPort": false
     },
     {
+      "name": "Órbita produção local :3002",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "exec",
+        "next",
+        "start",
+        "--port",
+        "3002"
+      ],
+      "port": 3002,
+      "autoPort": false
+    },
+    {
+      "name": "Órbita produção local :3002 (main)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "/Users/weydsonlima/nasaex-wey-main",
+        "exec",
+        "next",
+        "start",
+        "--port",
+        "3002"
+      ],
+      "port": 3002,
+      "autoPort": false
+    },
+    {
       "name": "NERP teste Órbita :3001",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [

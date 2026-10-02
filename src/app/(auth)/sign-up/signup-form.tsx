@@ -1,17 +1,18 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Eye,
   EyeOff,
-  Loader2,
   Rocket,
   User,
   Mail,
   Lock,
   Building2,
 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
+import { useForm, type UseFormRegisterReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useTransition, useEffect } from "react";
@@ -43,7 +44,9 @@ const signUpSchema = z
 
 type SignUpData = z.infer<typeof signUpSchema>;
 
-// ── Styled field wrapper ──────────────────────────────────────────────────────
+const FIELD_INPUT_CLASS =
+  "h-11 w-full rounded-full border border-line bg-foreground/5 pl-10 text-sm text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus:border-ring focus:ring-[3px] focus:ring-ring/40 disabled:opacity-60 aria-invalid:border-destructive";
+
 function AuthField({
   label,
   icon: Icon,
@@ -62,90 +65,34 @@ function AuthField({
   placeholder: string;
   error?: string;
   disabled?: boolean;
-  register: any;
+  register: UseFormRegisterReturn;
   rightElement?: React.ReactNode;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <label
-        htmlFor={id}
-        style={{
-          color: "rgba(255,255,255,0.7)",
-          fontSize: 13,
-          fontWeight: 500,
-        }}
-      >
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-[13px] font-medium text-foreground/80">
         {label}
       </label>
-      <div style={{ position: "relative" }}>
-        <Icon
-          style={{
-            position: "absolute",
-            left: 12,
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: 15,
-            height: 15,
-            color: "rgba(255,255,255,0.3)",
-          }}
-        />
+      <div className="relative">
+        <Icon className="pointer-events-none absolute top-1/2 left-3.5 size-[15px] -translate-y-1/2 text-muted-foreground" />
         <input
           id={id}
           type={type}
           placeholder={placeholder}
           disabled={disabled}
+          aria-invalid={Boolean(error)}
           {...register}
-          style={{
-            width: "100%",
-            background: "rgba(255,255,255,0.06)",
-            border: error
-              ? "1.5px solid rgba(239,68,68,0.6)"
-              : "1.5px solid rgba(255,255,255,0.1)",
-            borderRadius: 10,
-            padding: "10px 12px 10px 36px",
-            paddingRight: rightElement ? 40 : 12,
-            color: "white",
-            fontSize: 14,
-            outline: "none",
-            transition: "border-color 0.2s, box-shadow 0.2s",
-            boxSizing: "border-box",
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = "rgba(124,58,237,0.7)";
-            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(124,58,237,0.12)";
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = error
-              ? "rgba(239,68,68,0.6)"
-              : "rgba(255,255,255,0.1)";
-            e.currentTarget.style.boxShadow = "none";
-          }}
+          className={cn(FIELD_INPUT_CLASS, rightElement ? "pr-10" : "pr-4")}
         />
         {rightElement && (
-          <div
-            style={{
-              position: "absolute",
-              right: 4,
-              top: "50%",
-              transform: "translateY(-50%)",
-            }}
-          >
-            {rightElement}
-          </div>
+          <div className="absolute top-1/2 right-1 -translate-y-1/2">{rightElement}</div>
         )}
       </div>
-      {error && (
-        <p
-          style={{ color: "rgba(239,68,68,0.85)", fontSize: 12, marginTop: -2 }}
-        >
-          {error}
-        </p>
-      )}
+      {error && <p className="-mt-0.5 text-xs text-destructive">{error}</p>}
     </div>
   );
 }
 
-// ── EyeToggle ─────────────────────────────────────────────────────────────────
 function EyeToggle({
   show,
   onToggle,
@@ -158,16 +105,9 @@ function EyeToggle({
     <button
       type="button"
       onClick={onToggle}
-      style={{
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-        padding: "4px 6px",
-        color: "rgba(255,255,255,0.35)",
-        display: "flex",
-      }}
+      className="flex cursor-pointer rounded-full px-1.5 py-1 text-muted-foreground transition-colors hover:text-foreground"
     >
-      <Icon style={{ width: 15, height: 15 }} />
+      <Icon className="size-[15px]" />
     </button>
   );
 }
@@ -311,56 +251,23 @@ export function SignupForm() {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit(onSignUp)}
-      style={{ display: "flex", flexDirection: "column", gap: 18 }}
-    >
-      {/* Header */}
-      <div style={{ textAlign: "center", marginBottom: 4 }}>
-        <h1
-          style={{
-            fontSize: 24,
-            fontWeight: 800,
-            color: "white",
-            letterSpacing: "-0.5px",
-            marginBottom: 6,
-          }}
-        >
+    <form onSubmit={handleSubmit(onSignUp)} className="flex flex-col gap-[18px]">
+      <div className="mb-1 text-center">
+        <h1 className="mb-1.5 text-2xl font-extrabold tracking-tight text-foreground">
           Crie sua conta
         </h1>
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
+        <p className="text-[13px] text-muted-foreground">
           Junte-se a centenas de times que vendem mais com ÓRBITA
         </p>
       </div>
 
-      {/* Google button */}
-      <button
+      <Button
         type="button"
+        variant="outline"
         onClick={onGoogle}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 10,
-          width: "100%",
-          padding: "10px 16px",
-          borderRadius: 10,
-          cursor: "pointer",
-          background: "rgba(255,255,255,0.07)",
-          border: "1.5px solid rgba(255,255,255,0.12)",
-          color: "rgba(255,255,255,0.85)",
-          fontSize: 14,
-          fontWeight: 500,
-          transition: "background 0.2s",
-        }}
-        onMouseEnter={(e) =>
-          (e.currentTarget.style.background = "rgba(255,255,255,0.11)")
-        }
-        onMouseLeave={(e) =>
-          (e.currentTarget.style.background = "rgba(255,255,255,0.07)")
-        }
+        className="h-11 w-full gap-2.5 bg-foreground/5"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden>
           <path
             fill="#4285F4"
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -379,22 +286,14 @@ export function SignupForm() {
           />
         </svg>
         Continuar com Google
-      </button>
+      </Button>
 
-      {/* Divider */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div
-          style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }}
-        />
-        <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 12 }}>
-          ou preencha
-        </span>
-        <div
-          style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }}
-        />
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-line" />
+        <span className="text-xs text-muted-foreground">ou preencha</span>
+        <div className="h-px flex-1 bg-line" />
       </div>
 
-      {/* Fields */}
       <AuthField
         label="Nome completo"
         icon={User}
@@ -445,154 +344,56 @@ export function SignupForm() {
         }
       />
 
-      {/* Tipo de empresa */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <label
-          htmlFor="companyType"
-          style={{
-            color: "rgba(255,255,255,0.7)",
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-        >
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="companyType" className="text-[13px] font-medium text-foreground/80">
           Tipo da sua empresa
         </label>
-        <div style={{ position: "relative" }}>
-          <Building2
-            style={{
-              position: "absolute",
-              left: 12,
-              top: "50%",
-              transform: "translateY(-50%)",
-              width: 15,
-              height: 15,
-              color: "rgba(255,255,255,0.3)",
-              pointerEvents: "none",
-            }}
-          />
+        <div className="relative">
+          <Building2 className="pointer-events-none absolute top-1/2 left-3.5 size-[15px] -translate-y-1/2 text-muted-foreground" />
           <select
             id="companyType"
             disabled={isLoading}
             defaultValue=""
+            aria-invalid={Boolean(errors.companyType)}
             {...register("companyType")}
-            style={{
-              width: "100%",
-              background: "rgba(255,255,255,0.06)",
-              border: errors.companyType
-                ? "1.5px solid rgba(239,68,68,0.6)"
-                : "1.5px solid rgba(255,255,255,0.1)",
-              borderRadius: 10,
-              padding: "10px 12px 10px 36px",
-              color: "white",
-              fontSize: 14,
-              outline: "none",
-              appearance: "none",
-              boxSizing: "border-box",
-              cursor: "pointer",
-            }}
+            className={cn(FIELD_INPUT_CLASS, "cursor-pointer appearance-none pr-4")}
           >
-            <option value="" disabled style={{ background: "#0a0a0a" }}>
+            <option value="" disabled className="bg-popover">
               Selecione…
             </option>
-            {COMPANY_TYPES.map((t) => (
-              <option
-                key={t.slug}
-                value={t.slug}
-                style={{ background: "#0a0a0a" }}
-              >
-                {t.label}
+            {COMPANY_TYPES.map((companyType) => (
+              <option key={companyType.slug} value={companyType.slug} className="bg-popover">
+                {companyType.label}
               </option>
             ))}
           </select>
         </div>
         {errors.companyType && (
-          <p
-            style={{
-              color: "rgba(239,68,68,0.85)",
-              fontSize: 12,
-              marginTop: -2,
-            }}
-          >
-            {errors.companyType.message}
-          </p>
+          <p className="-mt-0.5 text-xs text-destructive">{errors.companyType.message}</p>
         )}
       </div>
 
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={isLoading}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          borderRadius: 12,
-          cursor: isLoading ? "not-allowed" : "pointer",
-          background: isLoading
-            ? "rgba(124,58,237,0.5)"
-            : "linear-gradient(135deg, #7c3aed, #a855f7)",
-          border: "none",
-          color: "white",
-          fontSize: 14,
-          fontWeight: 700,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          boxShadow: isLoading ? "none" : "0 4px 20px rgba(124,58,237,0.4)",
-          transition: "all 0.2s",
-          marginTop: 4,
-        }}
-        onMouseEnter={(e) => {
-          if (!isLoading) e.currentTarget.style.transform = "translateY(-1px)";
-          e.currentTarget.style.boxShadow = "0 6px 24px rgba(124,58,237,0.55)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "none";
-          e.currentTarget.style.boxShadow = isLoading
-            ? "none"
-            : "0 4px 20px rgba(124,58,237,0.4)";
-        }}
-      >
+      <Button type="submit" disabled={isLoading} className="mt-1 h-11 w-full font-bold">
         {isLoading ? (
           <>
-            <Loader2
-              style={{
-                width: 15,
-                height: 15,
-                animation: "spin 1s linear infinite",
-              }}
-            />{" "}
-            Criando conta...
+            <OrbitaSpinner className="size-[15px] " /> Criando conta...
           </>
         ) : (
           <>
-            <Rocket style={{ width: 15, height: 15 }} /> Criar minha conta
+            <Rocket className="size-[15px]" /> Criar minha conta
           </>
         )}
-      </button>
+      </Button>
 
-      {/* Login link */}
-      <p
-        style={{
-          textAlign: "center",
-          color: "rgba(255,255,255,0.4)",
-          fontSize: 13,
-        }}
-      >
+      <p className="text-center text-[13px] text-muted-foreground">
         Já tem uma conta?{" "}
         <a
           href={`/sign-in${callbackUrl ? `?callbackUrl=${callbackUrl}` : ""}`}
-          style={{ color: "#a78bfa", fontWeight: 600, textDecoration: "none" }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.textDecoration = "underline")
-          }
-          onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+          className="font-semibold text-info no-underline hover:underline"
         >
           Entrar
         </a>
       </p>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </form>
   );
 }

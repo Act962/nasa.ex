@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { instructionChecklist } from "../lib/guide-helpers";
+import { GuideTermsText } from "./guide-terms-text";
 
 const SHINE_STEP_SECONDS = 0.9;
 
@@ -17,9 +18,9 @@ export function InstructionChecklist({ instruction, className }: { instruction: 
     <ul className={cn("space-y-2.5", className)}>
       {items.map((item, index) => (
         <li key={`${index}-${item}`} className="flex items-start gap-2.5 text-sm leading-relaxed">
-          <CheckCircle2 className="guide-shine-icon mt-0.5 size-4 shrink-0 text-emerald-500" style={timing(index)} />
+          <CheckCircle2 className="guide-shine-icon mt-0.5 size-4 shrink-0 text-success" style={timing(index)} />
           <span className="guide-shine-text" style={timing(index)}>
-            {item}
+            <GuideTermsText text={item} />
           </span>
         </li>
       ))}

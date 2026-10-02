@@ -26,6 +26,8 @@ interface Props {
   activeLessonId: string | null;
   completedSet: Set<string>;
   onSelect: (lessonId: string) => void;
+  /** Dentro da gaveta do celular: sem moldura e sem altura máxima própria. */
+  isInSheet?: boolean;
 }
 
 export function LessonListSidebar({
@@ -34,43 +36,44 @@ export function LessonListSidebar({
   activeLessonId,
   completedSet,
   onSelect,
+  isInSheet = false,
 }: Props) {
   const groups = groupLessonsByModule(modules, lessons);
 
   return (
-    <aside className="rounded-2xl border border-border bg-card overflow-hidden">
-      <div className="border-b border-border px-4 py-3">
+    <aside className={cn("overflow-hidden", !isInSheet && "rounded-[20px] border border-line bg-card")}>
+      <div className={cn("py-3", isInSheet ? "px-1" : "px-4")}>
         <h2 className="text-sm font-semibold">Aulas</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {completedSet.size} de {lessons.length} concluídas
         </p>
       </div>
 
-      <div className="max-h-[70vh] overflow-y-auto">
-        {groups.map((group, gi) => (
+      <div className={cn(!isInSheet && "max-h-[70vh] overflow-y-auto")}>
+        {groups.map((group, groupIndex) => (
           <div key={group.id ?? "no-module"}>
             {group.title && (
-              <div className="border-b border-border bg-muted/30 px-4 py-2">
+              <div className="bg-muted/30 px-4 py-2">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Módulo {gi + 1}
+                  Módulo {groupIndex + 1}
                 </p>
                 <p className="text-xs font-medium">{group.title}</p>
               </div>
             )}
             <ul className="divide-y divide-border">
-              {group.lessons.map((l, i) => {
-                const completed = completedSet.has(l.id);
-                const active = activeLessonId === l.id;
-                const locked = l.includedInPlan === false;
+              {group.lessons.map((lesson, lessonIndex) => {
+                const completed = completedSet.has(lesson.id);
+                const active = activeLessonId === lesson.id;
+                const locked = lesson.includedInPlan === false;
                 return (
-                  <li key={l.id}>
+                  <li key={lesson.id}>
                     <button
                       type="button"
-                      onClick={() => onSelect(l.id)}
+                      onClick={() => onSelect(lesson.id)}
                       className={cn(
-                        "w-full flex items-start gap-3 px-4 py-3 text-left text-sm transition border-l-2 hover:bg-muted",
+                        "flex min-h-12 w-full items-start gap-3 border-l-2 px-4 py-3 text-left text-sm transition hover:bg-muted",
                         active
-                          ? "border-violet-600 bg-violet-500/5"
+                          ? "border-info bg-info/5"
                           : "border-transparent",
                         locked && "opacity-70",
                       )}
@@ -81,9 +84,9 @@ export function LessonListSidebar({
                           locked
                             ? "bg-muted text-muted-foreground"
                             : completed
-                              ? "bg-emerald-500 text-white"
+                              ? "bg-success text-white"
                               : active
-                                ? "bg-violet-600 text-white"
+                                ? "bg-info text-white"
                                 : "bg-muted text-muted-foreground",
                         )}
                       >
@@ -94,33 +97,33 @@ export function LessonListSidebar({
                         ) : active ? (
                           <Play className="size-3" />
                         ) : (
-                          i + 1
+                          lessonIndex + 1
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p
                           className={cn(
                             "font-medium leading-tight",
-                            active && "text-violet-700 dark:text-violet-300",
+                            active && "text-info",
                             locked && "text-muted-foreground",
                           )}
                         >
-                          {l.title}
+                          {lesson.title}
                         </p>
                         <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-                          {l.durationMin && (
+                          {lesson.durationMin && (
                             <span className="inline-flex items-center gap-0.5">
                               <Clock className="size-3" />
-                              {l.durationMin}min
+                              {lesson.durationMin}min
                             </span>
                           )}
                           {locked && (
-                            <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                            <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">
                               Não incluída
                             </span>
                           )}
-                          {!locked && l.isFreePreview && (
-                            <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                          {!locked && lesson.isFreePreview && (
+                            <span className="rounded-full bg-success/10 px-1.5 py-0.5 text-[10px] font-medium text-success">
                               Preview
                             </span>
                           )}
@@ -138,33 +141,38 @@ export function LessonListSidebar({
   );
 }
 
-function groupLessonsByModule(modules: ModuleInfo[], lessons: Lesson[]) {
-  const byModule = new Map<string | null, Lesson[]>();
-  for (const l of lessons) {
-    const arr = byModule.get(l.moduleId) ?? [];
-    arr.push(l);
-    byModule.set(l.moduleId, arr);
+/** Ordem em que o aluno vê as aulas: soltas primeiro, depois por módulo. */
+export function orderLessonsForPlayer<TLesson extends Lesson>(modules: ModuleInfo[], lessons: TLesson[]): TLesson[] {
+  return groupLessonsByModule(modules, lessons).flatMap((group) => group.lessons);
+}
+
+function groupLessonsByModule<TLesson extends Lesson>(modules: ModuleInfo[], lessons: TLesson[]) {
+  const lessonsByModule = new Map<string | null, TLesson[]>();
+  for (const lesson of lessons) {
+    const moduleLessons = lessonsByModule.get(lesson.moduleId) ?? [];
+    moduleLessons.push(lesson);
+    lessonsByModule.set(lesson.moduleId, moduleLessons);
   }
-  for (const arr of byModule.values()) {
-    arr.sort((a, b) => a.order - b.order);
+  for (const moduleLessons of lessonsByModule.values()) {
+    moduleLessons.sort((first, second) => first.order - second.order);
   }
 
   const groups: Array<{
     id: string | null;
     title: string | null;
     summary: string | null;
-    lessons: Lesson[];
+    lessons: TLesson[];
   }> = [];
 
-  const noModule = byModule.get(null) ?? [];
+  const noModule = lessonsByModule.get(null) ?? [];
   if (noModule.length > 0) {
     groups.push({ id: null, title: null, summary: null, lessons: noModule });
   }
 
-  for (const m of [...modules].sort((a, b) => a.order - b.order)) {
-    const ms = byModule.get(m.id) ?? [];
-    if (ms.length > 0) {
-      groups.push({ id: m.id, title: m.title, summary: m.summary, lessons: ms });
+  for (const courseModule of [...modules].sort((first, second) => first.order - second.order)) {
+    const moduleLessons = lessonsByModule.get(courseModule.id) ?? [];
+    if (moduleLessons.length > 0) {
+      groups.push({ id: courseModule.id, title: courseModule.title, summary: courseModule.summary, lessons: moduleLessons });
     }
   }
 

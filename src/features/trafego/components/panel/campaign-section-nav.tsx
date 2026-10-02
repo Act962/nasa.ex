@@ -27,6 +27,24 @@ interface SectionItem {
   needsAttention?: boolean;
 }
 
+export const CAMPAIGN_SECTION_LABEL: Record<CampaignSection, string> = {
+  materiais: "Materiais",
+  release: "Release",
+  acessos: "Acessos",
+  andamento: "Andamento",
+  desempenho: "Desempenho",
+  suporte: "Suporte",
+};
+
+export const CAMPAIGN_SECTION_SUBTITLE: Record<CampaignSection, string> = {
+  materiais: "Imagens, textos e destino do anúncio",
+  release: "Resumo da sua empresa para os anúncios",
+  acessos: "O que a equipe precisa para publicar",
+  andamento: "Em que fase a campanha está",
+  desempenho: "Resultados e verba usada",
+  suporte: "Converse com a nossa equipe",
+};
+
 export function CampaignSectionNav({
   completion,
   nextIncomplete,
@@ -37,35 +55,39 @@ export function CampaignSectionNav({
   const baseItems: SectionItem[] = [
     {
       value: "materiais",
-      label: "Materiais",
+      label: CAMPAIGN_SECTION_LABEL.materiais,
       icon: FolderOpen,
       done: completion.materiais,
     },
     {
       value: "release",
-      label: "Release",
+      label: CAMPAIGN_SECTION_LABEL.release,
       icon: FileText,
       done: completion.release,
     },
     {
       value: "acessos",
-      label: "Acessos",
+      label: CAMPAIGN_SECTION_LABEL.acessos,
       icon: KeyRound,
       done: completion.acessos,
     },
     {
       value: "andamento",
-      label: "Andamento",
+      label: CAMPAIGN_SECTION_LABEL.andamento,
       icon: Activity,
       done: completion.andamento,
     },
     {
       value: "desempenho",
-      label: "Desempenho",
+      label: CAMPAIGN_SECTION_LABEL.desempenho,
       icon: BarChart3,
       done: completion.desempenho,
     },
-    { value: "suporte", label: "Suporte", icon: Headphones },
+    {
+      value: "suporte",
+      label: CAMPAIGN_SECTION_LABEL.suporte,
+      icon: Headphones,
+    },
   ];
   const items = baseItems.map((item) => ({
     ...item,
@@ -73,8 +95,11 @@ export function CampaignSectionNav({
   }));
 
   return (
-    <nav aria-label="Etapas da campanha" className="mt-3">
-      <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl border bg-card p-1.5">
+    <nav
+      aria-label="Etapas da campanha"
+      className="scroll-hidden-x -mx-4 mt-3 px-4 md:mx-0 md:px-0"
+    >
+      <TabsList className="h-auto w-max justify-start gap-1 p-1">
         {items.map((item) => {
           const Icon = item.icon;
           return (
@@ -82,10 +107,10 @@ export function CampaignSectionNav({
               key={item.value}
               value={item.value}
               className={cn(
-                "relative min-h-10 shrink-0 gap-1.5 rounded-lg border border-transparent px-3 text-xs data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:shadow-sm",
-                item.done && "text-emerald-600 dark:text-emerald-400",
+                "relative min-h-9 flex-none shrink-0 gap-1.5 px-3 text-xs",
+                item.done && "text-success",
                 item.needsAttention &&
-                  "border-amber-400/70 bg-amber-500/[0.06] text-amber-700 motion-safe:animate-pulse dark:text-amber-300",
+                  "border-warning/30 bg-warning/15 text-warning motion-safe:animate-pulse",
               )}
             >
               {item.done ? (

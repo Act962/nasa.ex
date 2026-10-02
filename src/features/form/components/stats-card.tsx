@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useQueryFormInsights } from "../hooks/use-form";
 
 const StatsCards = () => {
@@ -15,78 +15,78 @@ const StatsCards = () => {
 
   return (
     <div
-      className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4"
+      className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4"
     >
-      <Card className="bg-accent/10">
-        <CardHeader className="pb-2">
+      <Card className="bg-accent/10 max-sm:gap-2 max-sm:py-4">
+        <CardHeader className="pb-2 max-sm:px-4 max-sm:pb-0">
           <CardDescription>Total Forms</CardDescription>
-          <CardTitle className="text-4xl">
+          <CardTitle className="text-2xl sm:text-4xl">
             {isLoading ? (
-              <Loader className="h-[36px] animate-spin" />
+              <OrbitaSpinner className="size-9" />
             ) : (
               data?.totalForms || 0
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-xs text-muted-foreground">
+        <CardContent className="max-sm:px-4">
+          <div className="text-xs text-muted-foreground max-sm:line-clamp-2 max-sm:text-[11px]">
             Total de forms criados nesta empresa
           </div>
         </CardContent>
       </Card>
 
       {/* {Responses} */}
-      <Card className="bg-accent/10">
-        <CardHeader className="pb-2">
+      <Card className="bg-accent/10 max-sm:gap-2 max-sm:py-4">
+        <CardHeader className="pb-2 max-sm:px-4 max-sm:pb-0">
           <CardDescription>Total de respostas</CardDescription>
-          <CardTitle className="text-4xl">
+          <CardTitle className="text-2xl sm:text-4xl">
             {isLoading ? (
-              <Loader className="h-[36px] animate-spin" />
+              <OrbitaSpinner className="size-9" />
             ) : (
               data?.totalResponses || 0
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-xs text-muted-foreground">
+        <CardContent className="max-sm:px-4">
+          <div className="text-xs text-muted-foreground max-sm:line-clamp-2 max-sm:text-[11px]">
             Total de respostas enviadas para os forms
           </div>
         </CardContent>
       </Card>
 
       {/* {Conversion Rate} */}
-      <Card className="bg-accent/10">
-        <CardHeader className="pb-2">
+      <Card className="bg-accent/10 max-sm:gap-2 max-sm:py-4">
+        <CardHeader className="pb-2 max-sm:px-4 max-sm:pb-0">
           <CardDescription>Taxa de conversão</CardDescription>
-          <CardTitle className="text-4xl">
+          <CardTitle className="text-2xl sm:text-4xl">
             {isLoading ? (
-              <Loader className="h-[36px] animate-spin" />
+              <OrbitaSpinner className="size-9" />
             ) : (
               <>{data?.conversionRate?.toFixed(1)}%</>
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-xs text-muted-foreground">
+        <CardContent className="max-sm:px-4">
+          <div className="text-xs text-muted-foreground max-sm:line-clamp-2 max-sm:text-[11px]">
             Percentual de visualizações que resultaram em respostas
           </div>
         </CardContent>
       </Card>
 
       {/* {Engagement Rate} */}
-      <Card className="bg-accent/10">
-        <CardHeader className="pb-2">
+      <Card className="bg-accent/10 max-sm:gap-2 max-sm:py-4">
+        <CardHeader className="pb-2 max-sm:px-4 max-sm:pb-0">
           <CardDescription>Taxa de engajamento</CardDescription>
-          <CardTitle className="text-4xl">
+          <CardTitle className="text-2xl sm:text-4xl">
             {isLoading ? (
-              <Loader className="h-[36px] animate-spin" />
+              <OrbitaSpinner className="size-9" />
             ) : (
               <>{data?.engagementRate?.toFixed(1)}%</>
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-xs text-muted-foreground">
+        <CardContent className="max-sm:px-4">
+          <div className="text-xs text-muted-foreground max-sm:line-clamp-2 max-sm:text-[11px]">
             Percentual de forms que receberam respostas
           </div>
         </CardContent>

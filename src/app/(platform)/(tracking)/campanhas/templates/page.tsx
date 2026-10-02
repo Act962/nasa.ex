@@ -1,5 +1,5 @@
 import { SidebarInset } from "@/components/ui/sidebar";
-import { HeaderTracking } from "@/features/leads/components/header-tracking";
+import { CampanhasTopBar } from "@/features/campanhas/components/campanhas-top-bar";
 import { CampanhasShell, CampanhasContent } from "@/features/campanhas/components/campanhas-shell";
 import { TemplatesList } from "@/features/campanhas/components/templates/templates-list";
 
@@ -14,7 +14,7 @@ export default async function CampanhasTemplatesPage({
 
   return (
     <SidebarInset className="min-h-full">
-      <HeaderTracking title="Campanhas" />
+      <CampanhasTopBar />
       <CampanhasShell>
         <CampanhasContent>
           <TemplatesList initialTrackingId={trackingId} />

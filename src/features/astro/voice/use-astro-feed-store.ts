@@ -36,14 +36,20 @@ interface AstroFeedStore {
   push: (item: Omit<AstroFeedItem, "createdAt">, ttlMs?: number) => void;
   remove: (id: string) => void;
   clear: () => void;
+  /** Balões escondidos pelo "×" até a próxima página; o andamento de comandos (atividade) continua aparecendo. */
+  isHidden: boolean;
+  hide: () => void;
+  setHidden: (isHidden: boolean) => void;
 }
 
 const expiryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 export const useAstroFeedStore = create<AstroFeedStore>()((set, get) => ({
   items: [],
+  isHidden: false,
 
   push: (item, ttlMs) => {
+    if (get().isHidden && item.kind !== "activity") return;
     // Aviso igual a um que já está na fila não entra de novo: três notificações
     // de Stars com a mesma fala viravam três balões idênticos.
     const duplicate = get().items.find(
@@ -88,4 +94,11 @@ export const useAstroFeedStore = create<AstroFeedStore>()((set, get) => ({
     expiryTimers.clear();
     set({ items: [] });
   },
+
+  hide: () => {
+    get().clear();
+    set({ isHidden: true });
+  },
+
+  setHidden: (isHidden) => set({ isHidden }),
 }));

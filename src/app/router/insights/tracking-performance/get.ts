@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { resolveInsightsOrganizationIds } from "../resolve-insights-organizations";
 
 /**
  * Métricas de performance de Tracking — alimentam KPIs específicos da
@@ -31,10 +32,11 @@ export const getTrackingPerformance = base
   )
   .handler(async ({ input, context }) => {
     const { org } = context;
-    const orgIds =
-      input.organizationIds && input.organizationIds.length > 0
-        ? input.organizationIds
-        : [org.id];
+    const orgIds = await resolveInsightsOrganizationIds({
+      userId: context.user.id,
+      activeOrganizationId: org.id,
+      requestedOrganizationIds: input.organizationIds,
+    });
 
     const dateRange =
       input.startDate && input.endDate

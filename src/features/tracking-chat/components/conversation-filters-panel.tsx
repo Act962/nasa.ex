@@ -39,6 +39,23 @@ export function ConversationFiltersPanel({
   trackingId,
   trigger,
 }: ConversationFiltersPanelProps) {
+  return (
+    <Popover modal={false}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={8}
+        collisionPadding={12}
+        className="w-64 p-2"
+      >
+        <ConversationFiltersContent trackingId={trackingId} />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Conteúdo dos filtros avançados, sem invólucro: popover no desktop, gaveta no celular. */
+export function ConversationFiltersContent({ trackingId }: { trackingId: string | null }) {
   const {
     sortBy,
     sortDirection,
@@ -51,58 +68,50 @@ export function ConversationFiltersPanel({
   } = useConversationFilters();
 
   return (
-    <Popover modal={false}>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent
-        align="start"
-        sideOffset={8}
-        collisionPadding={12}
-        className="w-64 p-2"
-      >
-        <div className="flex items-center justify-between px-1 pb-2">
-          <span className="text-xs font-medium text-muted-foreground">
-            Filtrar conversas
-          </span>
-          {activeCount > 0 && (
-            <button
-              type="button"
-              onClick={clearAll}
-              className="flex items-center gap-1 rounded-sm px-1 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <XIcon className="size-3" />
-              Limpar
-            </button>
-          )}
-        </div>
-
-        {/* `[&>button]:w-full` estica os controles do board, que nascem com
-            largura automática pra viver numa toolbar horizontal. */}
-        <div className="flex flex-col gap-1 [&>button]:w-full [&>div>button]:w-full">
-          <ParticipantsSwitcher trackingId={trackingId} />
-          <TemperatureFilter />
-          <StatusFlowFilter />
-          <Button
-            variant="outline"
-            size="sm"
-            aria-pressed={favoritesOnly}
-            onClick={() => setFavoritesOnly(!favoritesOnly)}
-            className={cn(
-              "w-full justify-start",
-              favoritesOnly && "border-primary bg-primary/10 text-primary",
-            )}
+    <>
+      <div className="flex items-center justify-between px-1 pb-2">
+        <span className="text-xs font-medium text-muted-foreground">
+          Filtrar conversas
+        </span>
+        {activeCount > 0 && (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="flex items-center gap-1 rounded-sm px-1 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
-            <StarIcon className={cn("size-4", favoritesOnly && "fill-current")} />
-            Favoritas
-          </Button>
-          <ConversationSorter
-            sortBy={sortBy}
-            sortDirection={sortDirection}
-            onSortByChange={setSortBy}
-            onSortDirectionChange={setSortDirection}
-            className="w-full justify-start"
-          />
-        </div>
-      </PopoverContent>
-    </Popover>
+            <XIcon className="size-3" />
+            Limpar
+          </button>
+        )}
+      </div>
+
+      {/* `[&>button]:w-full` estica os controles do board, que nascem com
+          largura automática pra viver numa toolbar horizontal. */}
+      <div className="flex flex-col gap-1 [&>button]:w-full [&>div>button]:w-full">
+        <ParticipantsSwitcher trackingId={trackingId} />
+        <TemperatureFilter />
+        <StatusFlowFilter />
+        <Button
+          variant="outline"
+          size="sm"
+          aria-pressed={favoritesOnly}
+          onClick={() => setFavoritesOnly(!favoritesOnly)}
+          className={cn(
+            "w-full justify-start",
+            favoritesOnly && "border-primary bg-primary/10 text-primary",
+          )}
+        >
+          <StarIcon className={cn("size-4", favoritesOnly && "fill-current")} />
+          Favoritas
+        </Button>
+        <ConversationSorter
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSortByChange={setSortBy}
+          onSortDirectionChange={setSortDirection}
+          className="w-full justify-start"
+        />
+      </div>
+    </>
   );
 }

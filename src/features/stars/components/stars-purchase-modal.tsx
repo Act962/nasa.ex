@@ -10,7 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Loader2, CreditCard, Zap, Ticket } from "lucide-react";
+import { CreditCard, Zap, Ticket } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { StarIcon } from "./star-icon";
 import { toast } from "sonner";
 import {
@@ -87,7 +88,7 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <div className="size-9 rounded-xl bg-yellow-100 dark:bg-yellow-900/40 flex items-center justify-center">
+            <div className="size-9 rounded-xl bg-warning/15 flex items-center justify-center">
               <StarIcon className="size-5" />
             </div>
             <div>
@@ -123,8 +124,8 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
                     className={cn(
                       "flex flex-col items-center justify-center gap-0.5 rounded-xl border-2 p-2 transition-all",
                       isSelected
-                        ? "border-[#7C3AED] bg-[#7C3AED]/5"
-                        : "border-border hover:border-[#7C3AED]/40 hover:bg-[#7C3AED]/5",
+                        ? "border-info bg-info/5"
+                        : "border-border hover:border-info/40 hover:bg-info/5",
                     )}
                   >
                     <span className="flex items-center gap-0.5 text-sm font-bold">
@@ -156,14 +157,14 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
               />
             </div>
             {belowMin && (
-              <p className="text-[11px] text-red-500">
+              <p className="text-[11px] text-destructive">
                 Mínimo de {minStars.toLocaleString("pt-BR")} ★ ({formatBrl(
                   (pricing?.minBrlCents ?? 500) / 100,
                 )}).
               </p>
             )}
             {aboveMax && (
-              <p className="text-[11px] text-red-500">
+              <p className="text-[11px] text-destructive">
                 Máximo de {maxStars.toLocaleString("pt-BR")} ★ por compra.
               </p>
             )}
@@ -180,9 +181,9 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
             </div>
           )}
 
-          <div className="flex items-start gap-2 rounded-xl bg-blue-50 border border-blue-100 p-3 dark:bg-blue-950/20 dark:border-blue-900/50">
-            <Zap className="size-3.5 text-blue-500 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+          <div className="flex items-start gap-2 rounded-xl bg-info/10 border border-info/30 p-3">
+            <Zap className="size-3.5 text-info shrink-0 mt-0.5" />
+            <p className="text-[11px] text-info leading-relaxed">
               As Stars são creditadas automaticamente após a confirmação do
               pagamento.
             </p>
@@ -196,11 +197,11 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
           <Button
             onClick={handleBuy}
             disabled={!canBuy}
-            className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-2"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
           >
             {isPending ? (
               <>
-                <Loader2 className="size-4 animate-spin" /> Abrindo checkout…
+                <OrbitaSpinner className="size-4 " /> Abrindo checkout…
               </>
             ) : (
               <>

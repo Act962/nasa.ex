@@ -23,216 +23,98 @@ const HIGHLIGHTS = [
   { icon: Shield, label: "Proteção", desc: "Seu acesso continua seguro" },
 ];
 
+const RESET_STATS = [
+  { value: "1 clique", label: "para recuperar" },
+  { value: "60 min", label: "expiração padrão" },
+  { value: "100%", label: "email protegido" },
+];
+
+function OrbitaWordmark({ isCompact }: { isCompact?: boolean }) {
+  return (
+    <Link href="/" className="flex items-center gap-2.5 no-underline">
+      <div
+        className={
+          isCompact
+            ? "flex size-[30px] items-center justify-center rounded-lg bg-info"
+            : "flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-info shadow-[0_0_16px_color-mix(in_oklch,var(--info)_45%,transparent)]"
+        }
+      >
+        <Image
+          src="/icon-astro.svg"
+          alt="ÓRBITA"
+          width={isCompact ? 18 : 20}
+          height={isCompact ? 18 : 20}
+          unoptimized
+        />
+      </div>
+      <span className={isCompact ? "text-[17px] font-extrabold text-foreground" : "text-lg font-extrabold tracking-tight text-foreground"}>
+        ÓRBITA<span className="text-info">.ex</span>
+      </span>
+    </Link>
+  );
+}
+
 export default function ResetPasswordPage() {
   return (
-    <div style={{ minHeight: "100svh", display: "flex" }}>
-      <div
-        style={{
-          display: "none",
-          width: "50%",
-          height: "100svh",
-          position: "sticky",
-          top: 0,
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-        className="lg:flex"
-      >
+    <div className="dark flex min-h-svh text-foreground">
+      <div className="sticky top-0 hidden h-svh w-1/2 flex-col overflow-hidden lg:flex">
         <div
+          className="pointer-events-none absolute inset-0 bg-size-[32px_32px] mask-[radial-gradient(ellipse_80%_80%_at_50%_50%,black_40%,transparent_100%)]"
           style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
             backgroundImage:
-              "radial-gradient(rgba(124,58,237,0.18) 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
-            maskImage:
-              "radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%)",
+              "radial-gradient(color-mix(in oklch, var(--info) 18%, transparent) 1px, transparent 1px)",
           }}
         />
 
         <div
+          className="pointer-events-none absolute top-1/2 left-1/2 size-[480px] -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%,-50%)",
-            width: 480,
-            height: 480,
-            borderRadius: "50%",
             background:
-              "radial-gradient(circle, rgba(124,58,237,0.14) 0%, transparent 70%)",
-            pointerEvents: "none",
+              "radial-gradient(circle, color-mix(in oklch, var(--info) 14%, transparent) 0%, transparent 70%)",
           }}
         />
 
-        <div
-          style={{
-            padding: "28px 36px",
-            flexShrink: 0,
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          <Link
-            href="/"
-            style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}
-          >
-            <div
-              style={{
-                width: 34,
-                height: 34,
-                background: "linear-gradient(135deg, #7c3aed, #a855f7)",
-                borderRadius: 9,
-                flexShrink: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 0 16px rgba(124,58,237,0.45)",
-              }}
-            >
-              <Image src="/icon-astro.svg" alt="ÓRBITA" width={20} height={20} unoptimized />
-            </div>
-            <span style={{ fontSize: 18, fontWeight: 800, color: "white", letterSpacing: "-0.4px" }}>
-              ÓRBITA<span style={{ color: "#a78bfa" }}>.ex</span>
-            </span>
-          </Link>
+        <div className="relative z-10 shrink-0 px-9 py-7">
+          <OrbitaWordmark />
         </div>
 
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "0 36px",
-            gap: 20,
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          <div
-            style={{
-              width: 130,
-              height: 130,
-              flexShrink: 0,
-              animation: "astroResetFloat 3.2s ease-in-out infinite",
-              filter: "drop-shadow(0 0 28px rgba(124,58,237,0.55))",
-            }}
-          >
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-5 px-9">
+          <div className="size-[130px] shrink-0 animate-[astroResetFloat_3.2s_ease-in-out_infinite] drop-shadow-[0_0_28px_color-mix(in_oklch,var(--info)_55%,transparent)]">
             <Image src="/icon-astro.svg" alt="ASTRO" width={130} height={130} unoptimized />
           </div>
 
-          <div style={{ textAlign: "center" }}>
-            <h1
-              style={{
-                fontSize: 26,
-                fontWeight: 900,
-                color: "white",
-                lineHeight: 1.2,
-                letterSpacing: "-0.6px",
-                margin: 0,
-              }}
-            >
-              Recuperar acesso é{" "}
-              <span
-                style={{
-                  background: "linear-gradient(90deg, #a78bfa, #7c3aed, #c084fc)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                rápido e seguro
-              </span>
+          <div className="text-center">
+            <h1 className="m-0 text-[26px] leading-tight font-black tracking-tight text-foreground">
+              Recuperar acesso é <span className="text-info">rápido e seguro</span>
             </h1>
-            <p
-              style={{
-                color: "rgba(255,255,255,0.45)",
-                fontSize: 13,
-                lineHeight: 1.5,
-                marginTop: 8,
-                marginBottom: 0,
-              }}
-            >
+            <p className="mt-2 mb-0 text-[13px] leading-normal text-muted-foreground">
               Envie o link para seu e-mail e redefina a senha em poucos cliques.
             </p>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 8,
-              width: "100%",
-            }}
-          >
+          <div className="grid w-full grid-cols-2 gap-2">
             {HIGHLIGHTS.map(({ icon: Icon, label, desc }) => (
               <div
                 key={label}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  backdropFilter: "blur(6px)",
-                }}
+                className="flex items-center gap-2.5 rounded-xl border border-line bg-foreground/5 px-3 py-2.5 backdrop-blur-sm"
               >
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 7,
-                    flexShrink: 0,
-                    background: "rgba(124,58,237,0.25)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Icon style={{ width: 13, height: 13, color: "#a78bfa" }} />
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-[7px] bg-info/25">
+                  <Icon className="size-[13px] text-info" />
                 </div>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ color: "white", fontSize: 12, fontWeight: 700, lineHeight: 1, margin: 0 }}>{label}</p>
-                  <p
-                    style={{
-                      color: "rgba(255,255,255,0.38)",
-                      fontSize: 10,
-                      marginTop: 2,
-                      lineHeight: 1.3,
-                      margin: "2px 0 0",
-                    }}
-                  >
-                    {desc}
-                  </p>
+                <div className="min-w-0">
+                  <p className="m-0 text-xs leading-none font-bold text-foreground">{label}</p>
+                  <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">{desc}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div
-          style={{
-            padding: "20px 36px 28px",
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-            display: "flex",
-            justifyContent: "space-around",
-            flexShrink: 0,
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          {[
-            { value: "1 clique", label: "para recuperar" },
-            { value: "60 min", label: "expiração padrão" },
-            { value: "100%", label: "email protegido" },
-          ].map(({ value, label }) => (
-            <div key={label} style={{ textAlign: "center" }}>
-              <p style={{ color: "white", fontSize: 18, fontWeight: 800, margin: 0, lineHeight: 1 }}>{value}</p>
-              <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, marginTop: 3 }}>{label}</p>
+        <div className="relative z-10 flex shrink-0 justify-around px-9 pt-5 pb-7">
+          {RESET_STATS.map(({ value, label }) => (
+            <div key={label} className="text-center">
+              <p className="m-0 text-lg leading-none font-extrabold text-foreground">{value}</p>
+              <p className="mt-[3px] text-[10px] text-muted-foreground">{label}</p>
             </div>
           ))}
         </div>
@@ -245,53 +127,18 @@ export default function ResetPasswordPage() {
         `}</style>
       </div>
 
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "40px 24px",
-          minHeight: "100svh",
-        }}
-      >
-        <Link
-          href="/"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            textDecoration: "none",
-            marginBottom: 28,
-          }}
-          className="lg:hidden"
-        >
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              background: "linear-gradient(135deg, #7c3aed, #a855f7)",
-              borderRadius: 8,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Image src="/icon-astro.svg" alt="ÓRBITA" width={18} height={18} unoptimized />
-          </div>
-          <span style={{ fontSize: 17, fontWeight: 800, color: "white" }}>
-            ÓRBITA<span style={{ color: "#a78bfa" }}>.ex</span>
-          </span>
-        </Link>
+      <div className="flex min-h-svh flex-1 flex-col items-center justify-center px-6 py-10">
+        <div className="mb-7 lg:hidden">
+          <OrbitaWordmark isCompact />
+        </div>
 
-        <div style={{ width: "100%", maxWidth: 460 }}>
+        <div className="w-full max-w-[460px]">
           <Suspense fallback={null}>
             <ResetPasswordForm />
           </Suspense>
         </div>
 
-        <p style={{ color: "rgba(255,255,255,0.18)", fontSize: 11, marginTop: 16, textAlign: "center" }}>
+        <p className="mt-4 text-center text-[11px] text-muted-foreground/60">
           Segurança em primeiro lugar. O link expira automaticamente.
         </p>
       </div>

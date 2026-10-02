@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronsUpDown, Loader2, X } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -113,7 +114,7 @@ export function SettingsCombobox({
 
             <span className="flex shrink-0 items-center gap-1">
               {isLoading && (
-                <Loader2 className="size-3.5 animate-spin opacity-50" />
+                <OrbitaSpinner className="size-3.5 opacity-50" />
               )}
               <ChevronsUpDown className="size-3.5 opacity-50" />
             </span>

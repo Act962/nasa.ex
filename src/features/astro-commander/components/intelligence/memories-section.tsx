@@ -188,7 +188,7 @@ function MemoryGroup({
           key={memory.id}
           className={cn(
             "flex items-start justify-between gap-3 rounded-xl border p-3",
-            memory.status === "SUGGESTED" && "border-amber-500/40 bg-amber-500/[0.04]",
+            memory.status === "SUGGESTED" && "border-warning/30 bg-warning/[0.06]",
             memory.status === "ARCHIVED" && "opacity-60",
           )}
         >

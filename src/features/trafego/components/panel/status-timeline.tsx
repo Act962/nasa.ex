@@ -32,7 +32,7 @@ export function StatusTimeline({
   return (
     <div className="space-y-6">
       {!isExceptionStatus && (
-        <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <ol className="scroll-hidden-x -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-2 px-4 sm:mx-0 sm:grid sm:grid-cols-2 sm:px-0 lg:grid-cols-4">
           {ORDER_TIMELINE_STEPS.map((step, index) => {
             const isDone = index < currentIndex;
             const isCurrent = index === currentIndex;
@@ -40,14 +40,14 @@ export function StatusTimeline({
               <li
                 key={step}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs",
+                  "flex min-h-9 shrink-0 snap-start items-center gap-2 rounded-full border px-3 py-2 text-xs",
                   isCurrent && "border-primary/40 bg-primary/5 font-medium",
                   isDone && "text-muted-foreground",
                   !isDone && !isCurrent && "text-muted-foreground/60",
                 )}
               >
                 {isDone ? (
-                  <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />
+                  <CheckCircle2 className="size-4 shrink-0 text-success" />
                 ) : isCurrent ? (
                   <CircleDot className="size-4 shrink-0 text-primary" />
                 ) : (

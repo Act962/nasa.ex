@@ -8,12 +8,12 @@ import {
   Link2,
   Plus,
   Trash2,
-  Loader2,
   Upload,
   Save,
   Pencil,
   X,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -130,7 +130,7 @@ export function PlanAttachmentsList({ open, onClose, courseId, plan }: Props) {
                   onClick={() => removeAtt.mutate({ id: att.id })}
                   disabled={removeAtt.isPending}
                 >
-                  <Trash2 className="size-4 text-rose-600" />
+                  <Trash2 className="size-4 text-destructive" />
                 </Button>
               </li>
             ))}
@@ -303,7 +303,7 @@ function AttachmentForm({ courseId, plan, initial, onClose }: FormProps) {
           onClick={() => setKind("pdf")}
           className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition ${
             kind === "pdf"
-              ? "border-violet-500 bg-violet-50 text-violet-900 dark:bg-violet-900/30 dark:text-violet-200"
+              ? "border-info bg-info/10 text-info"
               : "border-border bg-card text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -315,7 +315,7 @@ function AttachmentForm({ courseId, plan, initial, onClose }: FormProps) {
           onClick={() => setKind("link")}
           className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition ${
             kind === "link"
-              ? "border-violet-500 bg-violet-50 text-violet-900 dark:bg-violet-900/30 dark:text-violet-200"
+              ? "border-info bg-info/10 text-info"
               : "border-border bg-card text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -362,7 +362,7 @@ function AttachmentForm({ courseId, plan, initial, onClose }: FormProps) {
           <Label>Arquivo PDF *</Label>
           {fileKey ? (
             <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-3 text-sm">
-              <FileText className="size-4 text-emerald-600" />
+              <FileText className="size-4 text-success" />
               <span className="flex-1 truncate">
                 Arquivo carregado ({formatSize(fileSize)})
               </span>
@@ -385,7 +385,7 @@ function AttachmentForm({ courseId, plan, initial, onClose }: FormProps) {
             >
               {uploading ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" />
+                  <OrbitaSpinner className="size-4 " />
                   Enviando…
                 </>
               ) : (
@@ -418,7 +418,7 @@ function AttachmentForm({ courseId, plan, initial, onClose }: FormProps) {
           className="gap-1.5"
         >
           {upsert.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
           ) : (
             <Save className="size-4" />
           )}

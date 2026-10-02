@@ -4,7 +4,8 @@
 // de número Salvy e código SMS ao vivo.
 
 import { useState } from "react";
-import { Check, Loader2, ShoppingCart } from "lucide-react";
+import { Check, ShoppingCart } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,7 +20,7 @@ export const STEPS = [
 ] as const;
 
 export const OWN_NUMBER_CHECKLIST = [
-  "Não está em uso em outro WhatsApp (nem no app comum, nem no Business)",
+  "Está livre: não está ativo em nenhum WhatsApp agora",
   "Recebe SMS ou ligação para o código de verificação",
   "É um número da empresa, que vai continuar ativo",
 ];
@@ -28,24 +29,24 @@ export type NumberSource = "own" | "salvy";
 
 export function Stepper({ currentIndex }: { currentIndex: number }) {
   return (
-    <ol className="flex items-center gap-2">
+    <ol className="mt-1 flex w-full items-center gap-2 sm:mt-0">
       {STEPS.map((step, index) => {
         const isDone = index < currentIndex;
         const isCurrent = index === currentIndex;
         return (
-          <li key={step.id} className="flex flex-1 items-center gap-2">
+          <li key={step.id} className={cn("flex items-center gap-2", index < STEPS.length - 1 ? "flex-1" : "flex-none")}>
             <span
               className={cn(
                 "flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-medium transition-all duration-300",
-                isDone && "border-emerald-500 bg-emerald-500 text-white",
-                isCurrent && "scale-110 border-emerald-500 text-emerald-600",
+                isDone && "border-success bg-success text-white",
+                isCurrent && "scale-110 border-success text-success",
               )}
             >
               {isDone ? <Check className="size-4 animate-in zoom-in" /> : index + 1}
             </span>
             <span className={cn("hidden text-xs sm:inline", !isCurrent && "text-muted-foreground")}>{step.label}</span>
             {index < STEPS.length - 1 && (
-              <span className={cn("h-px flex-1 transition-colors duration-500", isDone ? "bg-emerald-500" : "bg-border")} />
+              <span className={cn("h-px flex-1 transition-colors duration-500", isDone ? "bg-success" : "bg-border")} />
             )}
           </li>
         );
@@ -59,7 +60,7 @@ export function SalvyPurchase({ trackingId, onBought }: { trackingId: string; on
   const buyNumber = useBuySalvyNumber();
   const [areaCode, setAreaCode] = useState<number | null>(null);
 
-  if (isLoading) return <Loader2 className="size-5 animate-spin text-muted-foreground" />;
+  if (isLoading) return <OrbitaSpinner className="size-5 text-muted-foreground" />;
   if (!offer?.isAvailable) {
     return (
       <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
@@ -101,7 +102,7 @@ export function SalvyPurchase({ trackingId, onBought }: { trackingId: string; on
           ))}
         </select>
         <Button onClick={buy} disabled={!areaCode || buyNumber.isPending}>
-          {buyNumber.isPending ? <Loader2 className="size-4 animate-spin" /> : <ShoppingCart className="size-4" />} Comprar número
+          {buyNumber.isPending ? <OrbitaSpinner className="size-4 " /> : <ShoppingCart className="size-4" />} Comprar número
         </Button>
       </div>
     </div>
@@ -113,7 +114,7 @@ export function LiveSmsCode({ numberId }: { numberId: string }) {
   if (!latestCode) {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" /> Esperando o SMS da Meta chegar no seu número…
+        <OrbitaSpinner className="size-4 " /> Esperando o SMS da Meta chegar no seu número…
       </p>
     );
   }

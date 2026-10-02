@@ -185,7 +185,7 @@ function S3ImageField({
             className={cn(
               "flex items-center gap-1 px-2.5 py-1 transition-colors",
               mode === "upload"
-                ? "bg-[#7C3AED] text-white"
+                ? "bg-info text-white"
                 : "text-muted-foreground hover:bg-muted",
             )}
           >
@@ -197,7 +197,7 @@ function S3ImageField({
             className={cn(
               "flex items-center gap-1 px-2.5 py-1 transition-colors",
               mode === "url"
-                ? "bg-[#7C3AED] text-white"
+                ? "bg-info text-white"
                 : "text-muted-foreground hover:bg-muted",
             )}
           >
@@ -274,7 +274,7 @@ function GatewayCard({
     <div
       className={cn(
         "border rounded-xl overflow-hidden transition-all",
-        isConfigured ? "border-[#7C3AED]/40 bg-[#7C3AED]/3" : "border-border",
+        isConfigured ? "border-info/40 bg-info/3" : "border-border",
       )}
     >
       <button
@@ -285,7 +285,7 @@ function GatewayCard({
         <span className="text-xl">{gateway.logo}</span>
         <span className="font-semibold text-sm flex-1">{gateway.label}</span>
         {isConfigured && (
-          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px] gap-1 mr-1">
+          <Badge className="bg-success/15 text-success border-success/30 text-[10px] gap-1 mr-1">
             <CheckCircle2 className="size-2.5" /> Configurado
           </Badge>
         )}
@@ -303,7 +303,7 @@ function GatewayCard({
               href={gateway.docUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block text-xs text-[#7C3AED] hover:underline mt-3"
+              className="inline-block text-xs text-info hover:underline mt-3"
             >
               📖 Ver documentação {gateway.label} →
             </a>
@@ -455,13 +455,13 @@ export function ForgeSettingsPanel() {
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit)}
-      className="space-y-6 px-4 pb-4"
+      className="min-w-0 space-y-6 px-4 pb-4"
     >
       {/* Comissões */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Percent className="size-4 text-[#7C3AED]" /> Comissões
+            <Percent className="size-4 text-info" /> Comissões
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -488,7 +488,7 @@ export function ForgeSettingsPanel() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <ImageIcon className="size-4 text-[#7C3AED]" /> Timbrado &
+            <ImageIcon className="size-4 text-info" /> Timbrado &
             Identidade Visual
           </CardTitle>
         </CardHeader>
@@ -540,7 +540,7 @@ export function ForgeSettingsPanel() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Palette className="size-4 text-[#7C3AED]" /> Aparência da Proposta
+            <Palette className="size-4 text-info" /> Aparência da Proposta
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -601,7 +601,7 @@ export function ForgeSettingsPanel() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <CreditCard className="size-4 text-[#7C3AED]" /> Gateways de
+            <CreditCard className="size-4 text-info" /> Gateways de
             Pagamento
           </CardTitle>
         </CardHeader>
@@ -627,7 +627,7 @@ export function ForgeSettingsPanel() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Shield className="size-4 text-[#7C3AED]" /> Segurança
+            <Shield className="size-4 text-info" /> Segurança
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -665,7 +665,7 @@ export function ForgeSettingsPanel() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Bell className="size-4 text-[#7C3AED]" /> Lembretes
+            <Bell className="size-4 text-info" /> Lembretes
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -689,7 +689,7 @@ export function ForgeSettingsPanel() {
       <Button
         type="submit"
         disabled={update.isPending}
-        className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+        className="w-full"
       >
         {update.isPending ? "Salvando..." : "Salvar Configurações"}
       </Button>

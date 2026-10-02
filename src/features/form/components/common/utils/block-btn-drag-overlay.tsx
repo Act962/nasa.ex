@@ -18,7 +18,7 @@ export function BlockBtnDragOverlay({
         cursor-grab
         bg-white!
         border
-        text-gray-600
+        text-muted-foreground
         ring-2 ring-primary/80
         `,
       )}
@@ -30,7 +30,7 @@ export function BlockBtnDragOverlay({
       />
       <h5
         className="text-[11.4px]
-          -mt-1 text-gray-600    "
+          -mt-1 text-muted-foreground    "
         style={{ fontWeight: 500 }}
       >
         {label}

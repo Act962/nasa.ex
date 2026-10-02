@@ -258,7 +258,6 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
             <Button
               type="submit"
               disabled={isPending}
-              className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
               data-guide={GUIDE_ANCHORS.forgeProductSave.id}
             >
               {isPending ? "Salvando..." : "Salvar Produto"}

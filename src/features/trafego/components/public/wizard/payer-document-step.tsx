@@ -38,10 +38,10 @@ export function PayerDocumentStep({
         placeholder="000.000.000-00"
         maxLength={18}
         aria-invalid={isInvalid}
-        className="mt-1.5 w-full rounded-xl border border-white/[0.09] bg-white/[0.03] px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-violet-400"
+        className="mt-1.5 w-full rounded-xl border border-white/[0.09] bg-white/[0.03] px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-info"
       />
       {isInvalid ? (
-        <p className="mt-1.5 flex items-center gap-1.5 text-xs text-rose-300">
+        <p className="mt-1.5 flex items-center gap-1.5 text-xs text-destructive">
           <AlertCircle className="size-3.5 shrink-0" />
           Confira os dígitos — esse documento não é válido.
         </p>

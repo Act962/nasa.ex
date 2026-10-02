@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Ban, Eye, Inbox, Loader2, RefreshCw } from "lucide-react";
+import { Ban, Eye, Inbox, RefreshCw } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,10 +46,10 @@ const STATUS_LABELS: Record<PaymentInboxStatus, string> = {
 
 const STATUS_BADGE_CLASSES: Record<PaymentInboxStatus, string> = {
   NEW: "border-border bg-muted text-muted-foreground",
-  PROPOSED: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  ACCEPTED: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  PROPOSED: "border-warning/30 bg-warning/10 text-warning dark:text-warning",
+  ACCEPTED: "border-success/30 bg-success/10 text-success dark:text-success",
   IGNORED: "border-border bg-muted text-muted-foreground",
-  FAILED: "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400",
+  FAILED: "border-destructive/30 bg-destructive/10 text-destructive dark:text-destructive",
 };
 
 interface ExtractionPreview {
@@ -126,7 +127,7 @@ export function InboxSection() {
               </p>
             )}
             {overview?.config.lastError && (
-              <p className="text-xs text-red-600 dark:text-red-400">{overview.config.lastError}</p>
+              <p className="text-xs text-destructive dark:text-destructive">{overview.config.lastError}</p>
             )}
           </div>
         </div>
@@ -149,7 +150,7 @@ export function InboxSection() {
             onClick={handleSync}
             disabled={!isEnabled || !hasGmailScope || syncNow.isPending}
           >
-            {syncNow.isPending ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            {syncNow.isPending ? <OrbitaSpinner className="size-4 " /> : <RefreshCw className="size-4" />}
             Sincronizar
           </Button>
         </div>
@@ -186,7 +187,7 @@ export function InboxSection() {
 
       {isItemsLoading ? (
         <div className="flex justify-center py-6">
-          <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          <OrbitaSpinner className="size-4 text-muted-foreground" />
         </div>
       ) : !itemsData || itemsData.items.length === 0 ? (
         <p className="py-6 text-center text-xs text-muted-foreground">Nenhum documento neste filtro.</p>
@@ -208,7 +209,7 @@ export function InboxSection() {
                     <p className="truncate text-xs text-muted-foreground">Lançamento: {item.entry.description}</p>
                   )}
                   {item.errorMessage && (
-                    <p className="truncate text-xs text-red-600 dark:text-red-400">{item.errorMessage}</p>
+                    <p className="truncate text-xs text-destructive dark:text-destructive">{item.errorMessage}</p>
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

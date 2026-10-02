@@ -25,17 +25,17 @@ export default async function PartnerTierHistoryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <History className="w-5 h-5 text-amber-400" />
+        <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <History className="w-5 h-5 text-muted-foreground" />
           Histórico de Níveis
         </h1>
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Linha do tempo das mudanças de nível no programa.
         </p>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-        <ul className="divide-y divide-zinc-800">
+      <div className="bg-card border border-line rounded-xl overflow-hidden">
+        <ul className="divide-y divide-line">
           {history.map((h) => {
             const isUp =
               h.reason === "auto_upgrade" || h.reason === "first_activation";
@@ -44,8 +44,8 @@ export default async function PartnerTierHistoryPage() {
                 <div
                   className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
                     isUp
-                      ? "bg-emerald-500/20 text-emerald-300"
-                      : "bg-amber-500/20 text-amber-300"
+                      ? "bg-success/15 text-success"
+                      : "bg-warning/15 text-warning"
                   }`}
                 >
                   {isUp ? (
@@ -55,22 +55,22 @@ export default async function PartnerTierHistoryPage() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm text-white font-medium">
+                  <div className="text-sm text-foreground font-medium">
                     {h.fromTier ?? "—"} → {h.toTier ?? "—"}
                   </div>
-                  <div className="text-xs text-zinc-500 mt-0.5">
+                  <div className="text-xs text-muted-foreground mt-0.5">
                     {REASON_LABEL[h.reason] ?? h.reason} ·{" "}
                     {h.activeReferrals} org(s) ativa(s) no momento
                   </div>
                 </div>
-                <div className="text-xs text-zinc-500">
+                <div className="text-xs text-muted-foreground">
                   {new Date(h.createdAt).toLocaleDateString("pt-BR")}
                 </div>
               </li>
             );
           })}
           {history.length === 0 && (
-            <li className="px-5 py-10 text-center text-zinc-500 text-sm">
+            <li className="px-5 py-10 text-center text-muted-foreground text-sm">
               Nenhuma mudança de nível registrada ainda.
             </li>
           )}

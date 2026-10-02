@@ -99,8 +99,8 @@ function DeltaCell({
     <span
       className={cn(
         "inline-flex items-center gap-1 text-xs font-medium",
-        positive && "text-emerald-600 dark:text-emerald-400",
-        negative && "text-red-600 dark:text-red-400",
+        positive && "text-success dark:text-success",
+        negative && "text-destructive dark:text-destructive",
         !positive && !negative && "text-muted-foreground",
       )}
     >

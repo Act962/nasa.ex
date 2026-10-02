@@ -33,8 +33,8 @@ export function BrandsMarquee() {
       </h2>
 
       <div className="relative mt-3 overflow-hidden">
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-zinc-950 to-transparent" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-zinc-950 to-transparent" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-background to-transparent" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-background to-transparent" />
 
         <ul className="trafego-marquee flex w-max items-center gap-8 sm:gap-10">
           {[...BRANDS, ...BRANDS].map((brand, index) => (

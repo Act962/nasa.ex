@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -116,7 +116,7 @@ export function NewAccountDialog({ open, onOpenChange, accounts }: NewAccountDia
               </p>
             )}
             {!codeError && parentCode && !parentAccount && (
-              <p className="text-xs text-amber-700 dark:text-amber-300">
+              <p className="text-xs text-warning dark:text-warning">
                 A conta {parentCode} ainda não existe: esta conta vai ficar no primeiro nível da árvore.
               </p>
             )}
@@ -157,8 +157,8 @@ export function NewAccountDialog({ open, onOpenChange, accounts }: NewAccountDia
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={!canSubmit} className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700">
-              {createAccount.isPending && <Loader2 className="size-4 animate-spin" />}
+            <Button type="submit" disabled={!canSubmit} className="gap-1.5 bg-info text-white hover:bg-info">
+              {createAccount.isPending && <OrbitaSpinner className="size-4 " />}
               Criar conta
             </Button>
           </DialogFooter>
@@ -233,8 +233,8 @@ function EditAccountForm({ account, onClose }: { account: ChartAccountRow; onClo
         <Button type="button" variant="ghost" onClick={onClose}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!canSubmit} className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700">
-          {updateAccount.isPending && <Loader2 className="size-4 animate-spin" />}
+        <Button type="submit" disabled={!canSubmit} className="gap-1.5 bg-info text-white hover:bg-info">
+          {updateAccount.isPending && <OrbitaSpinner className="size-4 " />}
           Salvar
         </Button>
       </DialogFooter>

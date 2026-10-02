@@ -26,13 +26,13 @@ interface Props {
 
 export function SubscriptionSection({ value, onChange }: Props) {
   return (
-    <div className="space-y-4 rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 dark:border-indigo-800/40 dark:bg-indigo-900/10">
-      <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200">
+    <div className="space-y-4 rounded-xl border border-info/30 bg-info/5 p-4">
+      <div className="flex items-center gap-2 text-info">
         <Repeat className="size-4" />
         <h3 className="text-sm font-semibold">Cobrança recorrente</h3>
       </div>
 
-      <p className="text-sm text-indigo-900/80 dark:text-indigo-200/80">
+      <p className="text-sm text-info/80">
         O aluno paga em STARS na primeira matrícula. A cada período, debitamos
         automaticamente o valor do plano. Se o saldo for insuficiente por 7
         cobranças seguidas, o acesso é encerrado.

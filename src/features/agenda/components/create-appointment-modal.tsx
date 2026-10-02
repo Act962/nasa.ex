@@ -93,6 +93,21 @@ const dayMap: DayOfWeek[] = [
   DayOfWeek.SATURDAY,
 ];
 
+/** Sem disponibilidade configurada: horários de 30 em 30 min para escolher com um toque. */
+function buildHalfHourTimes(fromHour: number, toHour: number): string[] {
+  const times: string[] = [];
+  for (let hour = fromHour; hour < toHour; hour++) {
+    times.push(`${String(hour).padStart(2, "0")}:00`, `${String(hour).padStart(2, "0")}:30`);
+  }
+  return times;
+}
+
+const MANUAL_TIME_PERIODS = [
+  { label: "Manhã", times: buildHalfHourTimes(7, 12) },
+  { label: "Tarde", times: buildHalfHourTimes(12, 18) },
+  { label: "Noite", times: buildHalfHourTimes(18, 22) },
+];
+
 export function CreateAppointmentModal({
   open,
   onClose,
@@ -117,6 +132,8 @@ export function CreateAppointmentModal({
   );
   const [selectedTime, setSelectedTime] = useState("");
   const [manualTime, setManualTime] = useState(""); // fallback when no slots
+  const [isCustomTimeOpen, setIsCustomTimeOpen] = useState(false);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
 
   const initialPhoneMasked = (() => {
     if (!initialPhone) return "";
@@ -145,6 +162,7 @@ export function CreateAppointmentModal({
     if (open) {
       setSelectedTime("");
       setManualTime("");
+      setShowMoreOptions(false);
       // Extract just the numeric digits from the phone for the masked input
       const rawPhone = initialPhone
         ? initialPhone.replace(/\D/g, "").replace(/^55/, "")
@@ -254,31 +272,47 @@ export function CreateAppointmentModal({
   const isSubmitting = createAdminAppointment.isPending;
   const canSubmit = !!selectedAgendaId && !!effectiveTime;
 
+  const selectedDateLabel = dayjs(
+    selectedDate.toDate(getLocalTimeZone()),
+  ).format("DD/MM/YYYY");
+
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-h-[92vh] sm:max-w-2xl overflow-y-auto p-0">
-        <DialogHeader className="px-6 pt-5 pb-4 border-b">
-          <DialogTitle className="flex items-center gap-2 text-base font-semibold">
-            <CalendarIcon className="size-4" />
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent
+        className={cn(
+          "flex max-h-[92dvh] flex-col gap-0 overflow-hidden rounded-[24px] p-0 sm:max-w-2xl",
+          "max-sm:top-auto max-sm:bottom-0 max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-b-none max-sm:rounded-t-[26px] max-sm:border-x-0 max-sm:border-b-0",
+          "max-sm:data-[state=open]:zoom-in-100 max-sm:data-[state=closed]:zoom-out-100 max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=closed]:slide-out-to-bottom",
+        )}
+      >
+        <div
+          aria-hidden
+          className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-muted sm:hidden"
+        />
+        <DialogHeader className="shrink-0 border-b border-line px-4 pt-3 pb-3 text-left sm:px-6 sm:pt-5 sm:pb-4">
+          <DialogTitle className="flex items-center gap-2 pr-10 text-base font-semibold">
+            <CalendarIcon className="size-4 text-info" />
             Novo compromisso
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <div className="px-4 tiny:px-6 py-4 tiny:py-5 space-y-4 tiny:space-y-6">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-4 sm:space-y-6 sm:px-6 sm:py-5">
             {/* ── Seção 1: Agenda + Data + Horário ─────────────────────────── */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Quando
               </p>
 
-              {/* Agenda selector */}
               {isLoadingAgendas ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Spinner className="size-4" /> Carregando agendas…
                 </div>
               ) : agendas.length === 0 ? (
-                <div className="flex items-center gap-2 p-3 rounded-lg border border-dashed text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 rounded-[18px] border border-dashed border-line p-3 text-sm text-muted-foreground">
                   <CalendarIcon className="size-4 shrink-0" />
                   Nenhuma agenda disponível. Crie uma agenda antes de agendar.
                 </div>
@@ -289,66 +323,63 @@ export function CreateAppointmentModal({
                   </FieldLabel>
                   <Select
                     value={selectedAgendaId}
-                    onValueChange={(v) => {
-                      setSelectedAgendaId(v);
+                    onValueChange={(agendaId) => {
+                      setSelectedAgendaId(agendaId);
                       setSelectedTime("");
                     }}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="h-11 w-full sm:h-9">
                       <SelectValue placeholder="Selecione uma agenda…" />
                     </SelectTrigger>
                     <SelectContent>
-                      {agendas.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {a.name}
+                      {agendas.map((agenda) => (
+                        <SelectItem key={agenda.id} value={agenda.id}>
+                          {agenda.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </Field>
               ) : (
-                /* Single agenda — show as read-only label */
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border text-sm">
-                  <CalendarIcon className="size-3.5 text-muted-foreground shrink-0" />
-                  <span className="font-medium">{agendas[0]?.name}</span>
-                  <span className="ml-auto text-xs text-muted-foreground">
+                <div className="flex min-w-0 items-center gap-2 rounded-[18px] border border-line bg-muted px-3 py-2.5 text-sm">
+                  <CalendarIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate font-medium">
+                    {agendas[0]?.name}
+                  </span>
+                  <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                     agenda selecionada
                   </span>
                 </div>
               )}
 
-              {/* Calendar + time slots side by side */}
-              <div className="border rounded-xl overflow-hidden">
+              <div className="overflow-hidden rounded-[18px] border border-line bg-card">
                 <div className="flex flex-col sm:flex-row">
-                  {/* Calendar */}
-                  <div className="p-2 tiny:p-4 sm:border-r flex flex-col items-start border-b sm:border-b-0">
-                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-3">
+                  <div className="flex flex-col border-b border-line p-3 sm:border-r sm:border-b-0 sm:p-4">
+                    <p className="mb-2 flex items-center gap-1 text-xs font-medium text-muted-foreground sm:mb-3">
                       <CalendarIcon className="size-3.5" /> Data
                     </p>
-                    <Calendar
-                      minValue={today(getLocalTimeZone())}
-                      isDateUnavailable={isDateUnavailable}
-                      value={selectedDate}
-                      onChange={(d) => {
-                        setSelectedDate(d as CalendarDate);
-                        setSelectedTime("");
-                      }}
-                    />
+                    <div className="flex w-full justify-center overflow-x-auto sm:justify-start">
+                      <Calendar
+                        minValue={today(getLocalTimeZone())}
+                        isDateUnavailable={isDateUnavailable}
+                        value={selectedDate}
+                        onChange={(date) => {
+                          setSelectedDate(date as CalendarDate);
+                          setSelectedTime("");
+                        }}
+                      />
+                    </div>
                   </div>
 
-                  {/* Time slots or manual time input */}
-                  <div className="flex-1 p-2 tiny:p-4 flex flex-col min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-3">
+                  <div className="flex min-w-0 flex-1 flex-col p-3 sm:p-4">
+                    <p className="mb-2 flex items-center gap-1 text-xs font-medium text-muted-foreground sm:mb-3">
                       <ClockIcon className="size-3.5" />
-                      {dayjs(selectedDate.toDate(getLocalTimeZone())).format(
-                        "DD/MM/YYYY",
-                      )}
+                      {selectedDateLabel}
                     </p>
 
                     {!selectedAgendaId ? (
-                      /* No agenda selected yet */
-                      <div className="flex-1 flex flex-col items-center justify-center py-8 text-center">
-                        <CalendarIcon className="size-8 text-muted-foreground/30 mb-2" />
+                      <div className="flex flex-1 flex-col items-center justify-center py-6 text-center sm:py-8">
+                        <CalendarIcon className="mb-2 size-8 text-muted-foreground/30" />
                         <p className="text-sm text-muted-foreground">
                           {agendas.length > 1
                             ? "Selecione uma agenda para ver os horários"
@@ -356,12 +387,11 @@ export function CreateAppointmentModal({
                         </p>
                       </div>
                     ) : isLoadingSlots ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                      <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
                         <Spinner className="size-4" /> Carregando horários…
                       </div>
                     ) : visibleSlots.length > 0 ? (
-                      /* Agenda time slots */
-                      <div className="flex flex-col gap-1.5 overflow-y-auto max-h-64 pr-1">
+                      <div className="flex flex-wrap content-start gap-2 sm:max-h-64 sm:overflow-y-auto sm:pr-1">
                         {visibleSlots.map((slot) => {
                           const isDisabled =
                             slot.isOccupied || slot.isBlocked || slot.isPast;
@@ -380,69 +410,95 @@ export function CreateAppointmentModal({
                               type="button"
                               disabled={isDisabled}
                               aria-disabled={isDisabled}
+                              aria-pressed={isSelected}
+                              title={statusLabel ?? undefined}
                               onClick={() => {
                                 if (isDisabled) return;
                                 setSelectedTime(slot.startTime);
                                 setManualTime("");
                               }}
                               className={cn(
-                                "flex items-center gap-2 tiny:gap-3 rounded-lg border text-sm font-medium py-2 tiny:py-2.5 px-2.5 tiny:px-3 transition-all text-left w-full",
+                                "inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium tabular-nums transition-colors",
                                 isSelected
                                   ? "border-primary bg-primary text-primary-foreground shadow-sm"
                                   : isDisabled
-                                    ? "border-dashed border-border bg-muted/40 text-muted-foreground cursor-not-allowed opacity-60"
-                                    : "border-border bg-card hover:border-primary hover:bg-primary/5 text-foreground",
+                                    ? "cursor-not-allowed border-dashed border-line bg-muted text-muted-foreground opacity-60"
+                                    : "border-line bg-card text-foreground hover:border-primary hover:bg-primary/5",
                               )}
                             >
-                              <ClockIcon
-                                className={cn(
-                                  "size-4 shrink-0",
-                                  isSelected
-                                    ? "text-primary-foreground"
-                                    : "text-muted-foreground",
-                                )}
-                              />
-                              <span
-                                className={cn(
-                                  "flex-1",
-                                  isDisabled && "line-through",
-                                )}
-                              >
+                              {isSelected && (
+                                <CheckIcon className="size-3.5 shrink-0" />
+                              )}
+                              <span className={cn(isDisabled && "line-through")}>
                                 {slot.startTime}
                               </span>
                               {statusLabel && (
-                                <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground shrink-0">
+                                <span className="text-[10px] font-semibold uppercase tracking-wide">
                                   {statusLabel}
                                 </span>
-                              )}
-                              {isSelected && (
-                                <CheckIcon className="size-4 shrink-0" />
                               )}
                             </button>
                           );
                         })}
                       </div>
                     ) : (
-                      /* No slots — manual time input */
                       <div className="space-y-3">
                         <p className="text-xs text-muted-foreground">
-                          Nenhum horário configurado para esta data. Informe o
-                          horário manualmente:
+                          Sem horários configurados para esta data — toque em um:
                         </p>
-                        <Input
-                          type="time"
-                          value={manualTime}
-                          onChange={(e) => {
-                            setManualTime(e.target.value);
-                            setSelectedTime("");
-                          }}
-                          className="w-36"
-                        />
+                        {MANUAL_TIME_PERIODS.map((period) => (
+                          <div key={period.label} className="space-y-1.5">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {period.label}
+                            </p>
+                            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+                              {period.times.map((time) => {
+                                const isChosen = manualTime === time;
+                                return (
+                                  <button
+                                    key={time}
+                                    type="button"
+                                    onClick={() => {
+                                      setManualTime(time);
+                                      setSelectedTime("");
+                                    }}
+                                    className={cn(
+                                      "h-9 rounded-full border text-sm font-medium tabular-nums transition-colors",
+                                      isChosen
+                                        ? "border-primary bg-primary text-primary-foreground"
+                                        : "border-line bg-card hover:border-primary hover:bg-primary/5",
+                                    )}
+                                  >
+                                    {time}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => setIsCustomTimeOpen((isOpen) => !isOpen)}
+                          className="text-xs font-medium text-info"
+                        >
+                          {isCustomTimeOpen ? "Fechar" : "Outro horário (ex.: 10:15)"}
+                        </button>
+                        {isCustomTimeOpen && (
+                          <Input
+                            type="time"
+                            value={manualTime}
+                            onChange={(event) => {
+                              setManualTime(event.target.value);
+                              setSelectedTime("");
+                            }}
+                            className="h-11 w-full sm:h-9 sm:w-36"
+                          />
+                        )}
                       </div>
                     )}
 
                     {effectiveTime && (
-                      <div className="mt-3 pt-3 border-t flex items-center gap-1.5 text-xs text-primary font-medium">
+                      <div className="mt-3 flex items-center gap-1.5 border-t border-line pt-3 text-xs font-medium text-primary">
                         <CheckIcon className="size-3.5" />
                         Horário selecionado: <strong>{effectiveTime}</strong>
                       </div>
@@ -453,34 +509,12 @@ export function CreateAppointmentModal({
             </div>
 
             {/* ── Seção 2: Dados do cliente ─────────────────────────────────── */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Dados do cliente
               </p>
 
-              {/* Título do compromisso */}
-              <Field className="gap-y-1.5">
-                <FieldLabel
-                  htmlFor="title"
-                  className="flex items-center gap-1.5"
-                >
-                  <TypeIcon className="size-3.5 text-muted-foreground" />
-                  Título do compromisso
-                </FieldLabel>
-                <Input
-                  id="title"
-                  placeholder="Ex.: Reunião de proposta"
-                  disabled={isSubmitting}
-                  {...form.register("title")}
-                />
-                <FieldDescription>
-                  Deixe em branco para usar o padrão “Agendamento: nome do
-                  cliente”.
-                </FieldDescription>
-              </Field>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Nome */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                 <Field className="gap-y-1.5">
                   <FieldLabel
                     htmlFor="name"
@@ -492,6 +526,8 @@ export function CreateAppointmentModal({
                   <Input
                     id="name"
                     placeholder="Nome completo"
+                    autoComplete="name"
+                    className="h-11 sm:h-9"
                     disabled={isSubmitting}
                     {...form.register("name")}
                   />
@@ -502,7 +538,6 @@ export function CreateAppointmentModal({
                   )}
                 </Field>
 
-                {/* Email */}
                 <Field className="gap-y-1.5">
                   <FieldLabel
                     htmlFor="email"
@@ -514,7 +549,10 @@ export function CreateAppointmentModal({
                   <Input
                     id="email"
                     type="email"
+                    inputMode="email"
+                    autoComplete="email"
                     placeholder="cliente@email.com"
+                    className="h-11 sm:h-9"
                     disabled={isSubmitting}
                     {...form.register("email")}
                   />
@@ -526,7 +564,6 @@ export function CreateAppointmentModal({
                 </Field>
               </div>
 
-              {/* Telefone */}
               <Field className="gap-y-1.5">
                 <FieldLabel
                   htmlFor="phone"
@@ -539,14 +576,15 @@ export function CreateAppointmentModal({
                   control={form.control}
                   name="phone"
                   render={({ field }) => (
-                    <InputGroup className="px-2">
+                    <InputGroup className="h-11 px-2 sm:h-9">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
                             disabled={isSubmitting}
                             type="button"
+                            aria-label="Selecionar país"
                             className={cn(
-                              "text-xs flex items-center hover:bg-accent transition-all px-1 rounded-sm py-1 gap-x-1",
+                              "flex h-8 shrink-0 items-center gap-x-1 rounded-full px-2 text-xs transition-colors hover:bg-accent sm:h-7",
                               countrySelected && "bg-accent",
                             )}
                           >
@@ -560,7 +598,7 @@ export function CreateAppointmentModal({
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
-                          align="end"
+                          align="start"
                           className="max-h-40 overflow-y-auto"
                         >
                           <DropdownMenuGroup>
@@ -568,7 +606,7 @@ export function CreateAppointmentModal({
                               <DropdownMenuItem
                                 key={country.code}
                                 onClick={() =>
-                                  form.setValue("code" as any, country.code)
+                                  form.setValue("code", country.code)
                                 }
                                 className="cursor-pointer"
                               >
@@ -585,11 +623,13 @@ export function CreateAppointmentModal({
                       </DropdownMenu>
                       <InputGroupInput
                         placeholder="(00) 0000-0000"
+                        inputMode="tel"
+                        autoComplete="tel-national"
                         className="pl-2"
                         disabled={isSubmitting}
                         {...field}
-                        onChange={(e) =>
-                          field.onChange(phoneMask(e.target.value))
+                        onChange={(event) =>
+                          field.onChange(phoneMask(event.target.value))
                         }
                       />
                     </InputGroup>
@@ -601,37 +641,78 @@ export function CreateAppointmentModal({
                 </FieldDescription>
               </Field>
 
-              {/* Observações */}
-              <Field className="gap-y-1.5">
-                <FieldLabel
-                  htmlFor="notes"
-                  className="flex items-center gap-1.5"
-                >
-                  <StickyNoteIcon className="size-3.5 text-muted-foreground" />
-                  Observações
-                </FieldLabel>
-                <Textarea
-                  id="notes"
-                  disabled={isSubmitting}
-                  placeholder="Observações sobre o compromisso…"
-                  rows={3}
-                  {...form.register("notes")}
+              {/* Opcionais: recolhidos no mobile para reduzir a rolagem */}
+              <button
+                type="button"
+                onClick={() => setShowMoreOptions((isShown) => !isShown)}
+                aria-expanded={showMoreOptions}
+                className="flex h-10 w-full items-center justify-between rounded-[18px] border border-line bg-muted px-3.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:hidden"
+              >
+                Mais opções
+                <ChevronDownIcon
+                  className={cn(
+                    "size-4 transition-transform",
+                    showMoreOptions && "rotate-180",
+                  )}
                 />
-              </Field>
+              </button>
+
+              <div
+                className={cn(
+                  "space-y-3 sm:space-y-4",
+                  !showMoreOptions && "max-sm:hidden",
+                )}
+              >
+                <Field className="gap-y-1.5">
+                  <FieldLabel
+                    htmlFor="title"
+                    className="flex items-center gap-1.5"
+                  >
+                    <TypeIcon className="size-3.5 text-muted-foreground" />
+                    Título do compromisso
+                  </FieldLabel>
+                  <Input
+                    id="title"
+                    placeholder="Ex.: Reunião de proposta"
+                    className="h-11 sm:h-9"
+                    disabled={isSubmitting}
+                    {...form.register("title")}
+                  />
+                  <FieldDescription>
+                    Deixe em branco para usar o padrão “Agendamento: nome do
+                    cliente”.
+                  </FieldDescription>
+                </Field>
+
+                <Field className="gap-y-1.5">
+                  <FieldLabel
+                    htmlFor="notes"
+                    className="flex items-center gap-1.5"
+                  >
+                    <StickyNoteIcon className="size-3.5 text-muted-foreground" />
+                    Observações
+                  </FieldLabel>
+                  <Textarea
+                    id="notes"
+                    disabled={isSubmitting}
+                    placeholder="Observações sobre o compromisso…"
+                    rows={3}
+                    {...form.register("notes")}
+                  />
+                </Field>
+              </div>
             </div>
           </div>
 
           {/* ── Footer ─────────────────────────────────────────────────────── */}
-          <DialogFooter className="px-4 tiny:px-6 py-3 tiny:py-4 border-t gap-2 flex-row">
-            {/* Summary pill */}
+          <DialogFooter className="shrink-0 flex-col gap-2 border-t border-line bg-popover px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:px-6 sm:py-4">
             {canSubmit && (
-              <span className="mr-auto text-xs text-muted-foreground hidden sm:flex items-center gap-1">
-                <CheckIcon className="size-3.5 text-primary" />
-                {dayjs(selectedDate.toDate(getLocalTimeZone())).format(
-                  "DD/MM/YYYY",
-                )}{" "}
-                às {effectiveTime}
-                {selectedAgenda && <> &mdash; {selectedAgenda.name}</>}
+              <span className="flex items-center justify-center gap-1 text-xs text-muted-foreground sm:mr-auto sm:justify-start">
+                <CheckIcon className="size-3.5 shrink-0 text-primary" />
+                <span className="truncate">
+                  {selectedDateLabel} às {effectiveTime}
+                  {selectedAgenda && <> &mdash; {selectedAgenda.name}</>}
+                </span>
               </span>
             )}
             <Button
@@ -639,14 +720,14 @@ export function CreateAppointmentModal({
               variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1 tiny:flex-none"
+              className="hidden rounded-full sm:inline-flex"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting || !canSubmit}
-              className="flex-1 tiny:flex-none tiny:min-w-40"
+              className="h-12 w-full rounded-full text-base sm:h-9 sm:w-auto sm:min-w-40 sm:text-sm"
             >
               {isSubmitting ? (
                 <>

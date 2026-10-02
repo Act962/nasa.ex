@@ -85,7 +85,7 @@ export function LeadSidebarOverview({ metrics }: { metrics: LeadMetricsView }) {
       </OverviewCard>
 
       <p className="flex items-start gap-1 px-1 text-[11px] leading-snug text-muted-foreground">
-        {metrics.source === "AI" && <SparklesIcon className="mt-0.5 size-3 shrink-0 text-violet-400" />}
+        {metrics.source === "AI" && <SparklesIcon className="mt-0.5 size-3 shrink-0 text-info" />}
         <span>
           {metrics.source === "AI"
             ? `Potencial e interesse estimados pelo ASTRO: ${metrics.aiRationale ?? ""}`

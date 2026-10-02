@@ -6,7 +6,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2, Lock, Mail, Rocket, User } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, Rocket, User } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { authClient } from "@/lib/auth-client";
 import { client as orpcClient } from "@/lib/orpc";
 
@@ -199,7 +200,7 @@ export function ActivateForm({
       >
         {isSubmitting ? (
           <>
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
             {statusText ?? "Ativando…"}
           </>
         ) : (

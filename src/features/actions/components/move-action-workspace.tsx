@@ -78,7 +78,7 @@ export function MoveActionWorkspaceDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FolderKanbanIcon className="size-5 text-violet-500" />
+            <FolderKanbanIcon className="size-5 text-info" />
             Mover para outro Workspace
           </DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">

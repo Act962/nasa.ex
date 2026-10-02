@@ -108,14 +108,14 @@ export function LessonFormVideoUploader({
   if (currentVideoFileKey && !activeUpload && !selectedFile) {
     return (
       <div className="space-y-3">
-        <div className="flex items-start gap-3 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm dark:border-emerald-800/40 dark:bg-emerald-900/20">
-          <CheckCircle2 className="mt-0.5 size-5 flex-shrink-0 text-emerald-600" />
+        <div className="flex items-start gap-3 rounded-lg border border-success/30 bg-success/10 p-3 text-sm">
+          <CheckCircle2 className="mt-0.5 size-5 flex-shrink-0 text-success" />
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-emerald-900 dark:text-emerald-200">
+            <p className="font-medium text-success">
               Vídeo hospedado no R2
             </p>
             {currentVideoFileSize && (
-              <p className="text-xs text-emerald-700 dark:text-emerald-300">
+              <p className="text-xs text-success">
                 {formatFileSize(currentVideoFileSize)}
               </p>
             )}
@@ -123,7 +123,7 @@ export function LessonFormVideoUploader({
               href={r2NasaRouteVideoUrl(currentVideoFileKey)}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-emerald-700 underline hover:text-emerald-800 dark:text-emerald-300"
+              className="text-xs text-success underline hover:opacity-80"
             >
               Abrir vídeo
             </a>
@@ -156,7 +156,7 @@ export function LessonFormVideoUploader({
     return (
       <div className="rounded-lg border bg-muted/30 p-3 text-sm">
         <div className="flex items-center gap-2">
-          <FileVideo className="size-4 text-violet-600" />
+          <FileVideo className="size-4 text-info" />
           <span className="flex-1 truncate font-medium">{activeUpload.filename}</span>
           <span className="text-xs text-muted-foreground">
             {progressPct}%
@@ -164,7 +164,7 @@ export function LessonFormVideoUploader({
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full bg-violet-500 transition-all"
+            className="h-full bg-info transition-all"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -189,7 +189,7 @@ export function LessonFormVideoUploader({
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/20 p-6 transition-colors hover:border-violet-400 hover:bg-violet-50/50 dark:hover:bg-violet-900/10"
+        className="flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/20 p-6 transition-colors hover:border-info hover:bg-info/5"
       >
         <Upload className="size-6 text-muted-foreground" />
         <span className="mt-2 text-sm font-medium">Selecionar vídeo</span>

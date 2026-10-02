@@ -6,7 +6,8 @@ import { client, orpc } from "@/lib/orpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Bot, Loader2, Send, Sparkles } from "lucide-react";
+import { Bot, Send, Sparkles } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useAstroMetaContext } from "@/features/astro/hooks/use-astro-meta-context";
 import { AstroActiveCampaignChip } from "./active-campaign-chip";
 import { AstroCampaignPicker } from "./campaign-picker";
@@ -256,7 +257,7 @@ export function AstroPromptBar({
             className="size-7 shrink-0"
           >
             {streaming ? (
-              <Loader2 className="size-3.5 animate-spin" />
+              <OrbitaSpinner className="size-3.5 " />
             ) : (
               <Send className="size-3.5" />
             )}

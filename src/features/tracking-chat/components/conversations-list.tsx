@@ -3,7 +3,11 @@
 import { authClient } from "@/lib/auth-client";
 import { LeadBox } from "./lead-box";
 import { WhatsAppChannelChooser } from "./whatsapp-channel-chooser";
-import { TrackingChatBottomTabs } from "./tracking-chat-bottom-tabs";
+import { ChatOrbitDock } from "./chat-orbit-dock";
+import { cn } from "@/lib/utils";
+import AddLeadSheet from "@/features/trackings/components/modal/add-lead-sheet";
+import { ChatMobileFiltersSheet } from "./chat-mobile-filters-sheet";
+import { ChatChannelsSheet } from "./chat-channels-sheet";
 import { ConversationFilters } from "./conversation-filters";
 import { useConversationFilters } from "../hooks/use-conversation-filters";
 import {
@@ -29,6 +33,7 @@ import {
   CircleDashedIcon,
   ClockIcon,
   ListFilterIcon,
+  PlusIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -79,6 +84,7 @@ import {
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { AppReportButton } from "@/features/insights/components/app-report-button";
 
 const LAST_TRACKING_STORAGE_KEY = "tracking-chat:last-tracking-id";
 
@@ -98,6 +104,12 @@ function saveLastTrackingId(trackingId: string): void {
   }
 }
 
+const SEARCH_COLLAPSE_OFFSET_PX = 24;
+const SEARCH_EXPAND_OFFSET_PX = 2;
+// Grid 0fr ↔ 1fr anima a altura real do conteúdo, então recolher e reaparecer têm o mesmo ritmo.
+const COLLAPSE_TRANSITION =
+  "grid transition-[grid-template-rows,opacity,transform,margin] duration-[380ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none";
+
 export function ConversationsList() {
   const { conversationId, trackingId } = useParams<{
     conversationId: string;
@@ -106,6 +118,11 @@ export function ConversationsList() {
   const searchParams = useSearchParams();
   const trackingIdFromQuery = searchParams.get("trackingId");
   const [open, setOpen] = useState(false);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [isChannelsSheetOpen, setIsChannelsSheetOpen] = useState(false);
+  const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
+  // No celular, a busca recolhe quando a lista desce e volta quando ela chega ao topo.
+  const [isSearchCollapsed, setIsSearchCollapsed] = useState(false);
   const { trackings, isLoadingTrackings } = useQueryTracking();
   const { data: activeOrganization } = authClient.useActiveOrganization();
   const [selectedTracking, setSelectedTracking] = useState<string>(
@@ -244,7 +261,12 @@ export function ConversationsList() {
 
   const handleScroll = () => {
     const el = scrollRef.current;
-    if (!el || !hasNextPage || isFetchingNextPage) return;
+    if (!el) return;
+    // Folga entre recolher e reabrir: a mudança de altura mexe no scroll e, sem ela, o cabeçalho piscaria.
+    setIsSearchCollapsed((wasCollapsed) =>
+      wasCollapsed ? el.scrollTop > SEARCH_EXPAND_OFFSET_PX : el.scrollTop > SEARCH_COLLAPSE_OFFSET_PX,
+    );
+    if (!hasNextPage || isFetchingNextPage) return;
 
     if (isNearBottom(el)) {
       fetchNextPage();
@@ -365,11 +387,11 @@ export function ConversationsList() {
       {!isLoadingTrackings && !isLoading && items.length === 0 && !hasAnyFilterActive && (isSelectedTrackingInOrg || trackings.length === 0) && (
         <WhatsAppChannelChooser trackingId={isSelectedTrackingInOrg ? selectedTracking : null} />
       )}
-      <aside className="pb-20 lg:pb-0 lg:flex w-full px-5 flex flex-col h-full overflow-hidden">
+      <aside className="lg:flex w-full px-5 flex flex-col h-full overflow-hidden">
         {/* ── Header DESKTOP (lg+): mantém UX original "Tracking Chat" ── */}
         <div className="hidden lg:flex justify-between mb-4 pt-4 shrink-0">
           <div className="flex items-center gap-2">
-            <SidebarTrigger className="size-4" />
+            <SidebarTrigger className="shrink-0" />
             <div className="min-w-0">
               <div className="text-lg leading-tight font-medium">Chat</div>
               {activeOrganization?.name && (
@@ -394,6 +416,7 @@ export function ConversationsList() {
             >
               <SettingsIcon className="size-4" />
             </Button>
+            <AppReportButton appModule="chat" variant="ghost" className="px-2" />
           </div>
         </div>
 
@@ -403,7 +426,7 @@ export function ConversationsList() {
             - Título grande "Conversas" em linha separada abaixo. */}
         <div className="lg:hidden flex justify-between items-center pt-4 mb-2 shrink-0">
           <div className="flex items-center gap-1">
-            <SidebarTrigger className="size-4" />
+            <SidebarTrigger className="shrink-0" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -463,22 +486,26 @@ export function ConversationsList() {
             >
               <PhoneIcon className="size-4" />
             </Button>
-            {!noInstance && !instanceDisconnected && !isLoadingTrackings && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="rounded-full"
-                onClick={() => setOpen(true)}
-                aria-label="Novo lead"
-              >
-                <UserRoundPlusIcon className="size-4" />
-              </Button>
-            )}
+            <Button
+              size="icon"
+              className="size-10 rounded-full bg-foreground text-background shadow-lg hover:bg-foreground/90"
+              onClick={() => setIsAddLeadOpen(true)}
+              aria-label="Novo lead"
+              data-guide={GUIDE_ANCHORS.chatNewLeadButton.id}
+            >
+              <PlusIcon className="size-5" />
+            </Button>
           </div>
         </div>
-        <h1 className="lg:hidden text-2xl font-bold tracking-tight shrink-0 mb-3">
-          Conversas
-        </h1>
+        <div
+          className={cn(
+            "lg:hidden shrink-0",
+            COLLAPSE_TRANSITION,
+            isSearchCollapsed ? "mb-0 grid-rows-[0fr] -translate-y-2 opacity-0" : "mb-3 grid-rows-[1fr] opacity-100",
+          )}
+        >
+          <h1 className="min-h-0 overflow-hidden text-2xl font-bold tracking-tight">Conversas</h1>
+        </div>
 
         <div className="flex-1 flex flex-col gap-2 min-h-0">
           <Select value={selectedTracking} onValueChange={handleTrackingChange}>
@@ -499,20 +526,30 @@ export function ConversationsList() {
             </SelectContent>
           </Select>
 
-          <SearchConversations
-            search={search}
-            onSearchChange={setSearch}
-            trackingId={selectedTracking || null}
-            onTrackingChange={(id: string | null) =>
-              handleTrackingChange(id ?? "")
-            }
-            statusId={selectedStatus}
-            onStatusChange={setSelectedStatus}
-          />
+          <div
+            className={cn(
+              "shrink-0 lg:grid-rows-[1fr] lg:translate-y-0 lg:opacity-100",
+              COLLAPSE_TRANSITION,
+              isSearchCollapsed ? "-mt-2 grid-rows-[0fr] -translate-y-2 opacity-0" : "grid-rows-[1fr] opacity-100",
+            )}
+            aria-hidden={isSearchCollapsed || undefined}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <SearchConversations
+                search={search}
+                onSearchChange={setSearch}
+                trackingId={selectedTracking || null}
+                onTrackingChange={(id: string | null) =>
+                  handleTrackingChange(id ?? "")
+                }
+                statusId={selectedStatus}
+                onStatusChange={setSelectedStatus}
+              />
+            </div>
+          </div>
           {/* DESKTOP (lg+): mantém row de channel circles + filter pills.
-              MOBILE (default): esses filtros vão pro bottom bar +
-              dropdown "..." do header — vide blocos `lg:hidden` acima
-              e `<TrackingChatBottomTabs>` abaixo. */}
+              MOBILE (default): esses filtros vão pro dock em órbita
+              (`<ChatOrbitDock>`) + dropdown "..." do header. */}
           <div className="hidden lg:block">
             <ConversationFilters
               trackingId={selectedTracking || null}
@@ -623,21 +660,34 @@ export function ConversationsList() {
             </div>
           )}
         </div>
-        {/* Bottom tab bar flutuante — APENAS MOBILE (`lg:hidden`).
-            Substitui channel circles + pills que em desktop ocupam o
-            espaço normal. 5 ações principais (Settings / Conversas /
-            Informações / Canal / Tags) sem comer espaço da lista. */}
-        <div className="lg:hidden">
-          <TrackingChatBottomTabs
-            trackingId={selectedTracking || null}
-            selectedChannel={selectedChannel}
-            onChannelChange={setSelectedChannel}
-            selectedTagIds={selectedTagIds}
-            onSelectedTagIdsChange={setSelectedTagIds}
-            settingsHref={pageSettings}
-          />
-        </div>
+        <ChatOrbitDock
+          trackingId={selectedTracking || null}
+          selectedChannel={selectedChannel}
+          activeFiltersCount={filtersActiveCount + selectedTagIds.length}
+          onOpenFilters={() => setIsMobileFiltersOpen(true)}
+          onOpenChannels={() => setIsChannelsSheetOpen(true)}
+        />
       </aside>
+      <ChatChannelsSheet
+        open={isChannelsSheetOpen}
+        onOpenChange={setIsChannelsSheetOpen}
+        trackingId={selectedTracking || null}
+        selectedChannel={selectedChannel}
+        onChannelChange={setSelectedChannel}
+      />
+      <ChatMobileFiltersSheet
+        open={isMobileFiltersOpen}
+        onOpenChange={setIsMobileFiltersOpen}
+        trackingId={selectedTracking || null}
+        selectedTagIds={selectedTagIds}
+        onSelectedTagIdsChange={setSelectedTagIds}
+      />
+      <AddLeadSheet
+        key={selectedTracking || "sem-tracking"}
+        open={isAddLeadOpen}
+        onOpenChange={setIsAddLeadOpen}
+        defaultTrackingId={selectedTracking || undefined}
+      />
       <CreateChatDialog
         trackingId={selectedTracking}
         isOpen={open}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Save, Check } from "lucide-react";
+import { Save, Check } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,11 +19,13 @@ import { Switch } from "@/components/ui/switch";
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useChartsSnapshot } from "@/features/insights/hooks/use-charts-snapshot";
 import { useOrgLayoutOptional } from "@/features/insights/context/org-layout-provider";
 import {
   getDefaultVisibleKeys,
 } from "@/features/insights/lib/insights-metric-catalog";
 import { ALL_MODULES, type AppModule } from "@/features/insights/types";
+import type { KpiCardStyle } from "@/features/insights/lib/kpi-card-style";
 import type { InsightBlock } from "@/features/insights/lib/app-metrics";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { emitTourResult } from "@/features/tour/store";
@@ -59,6 +62,8 @@ export function SaveReportModal({
   // sem layout custom, caímos no default do catálogo.
   const layout = useOrgLayoutOptional();
   const blocks = layout?.blocks ?? [];
+  const captureChartsSnapshot = useChartsSnapshot();
+  const [isCapturingCharts, setIsCapturingCharts] = useState(false);
 
   const { mutate, isPending } = useMutation({
     mutationFn: (vars: {
@@ -81,7 +86,7 @@ export function SaveReportModal({
     },
   });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       toast.error("Dê um nome ao relatório");
       return;
@@ -91,19 +96,39 @@ export function SaveReportModal({
     // defaultVisible do catálogo — assim o relatório sempre reproduz a
     // mesma combinação de KPIs que estava no dashboard no momento do save.
     const sectionPrefs: Record<string, string[]> = {};
+    const sectionCardStyles: Record<string, Record<string, KpiCardStyle>> = {};
     for (const appModule of ALL_MODULES) {
       const prefsBlock = blocks.find(
         (b): b is Extract<InsightBlock, { type: "section-prefs" }> =>
           b.type === "section-prefs" && b.appModule === appModule,
       );
+      if (prefsBlock?.cardStyles) sectionCardStyles[appModule] = prefsBlock.cardStyles;
       sectionPrefs[appModule] = prefsBlock
         ? prefsBlock.visibleKeys
         : getDefaultVisibleKeys(appModule as AppModule);
     }
 
+    // Gráfico Cruzado e gráficos de cada App, congelados como estão agora na tela.
+    setIsCapturingCharts(true);
+    let chartsSnapshot: Awaited<ReturnType<typeof captureChartsSnapshot>> | undefined;
+    try {
+      chartsSnapshot = await captureChartsSnapshot(
+        (modules.length > 0 ? modules : ALL_MODULES).filter((moduleId): moduleId is AppModule =>
+          ALL_MODULES.includes(moduleId as AppModule),
+        ),
+      );
+    } catch (captureError) {
+      console.warn("[insights] gráficos não entraram no relatório:", captureError);
+    } finally {
+      setIsCapturingCharts(false);
+    }
+
     const enrichedSnapshot = {
       ...(snapshot ?? {}),
       sectionPrefs,
+      sectionCardStyles,
+      crossChart: chartsSnapshot?.crossChart,
+      appCharts: chartsSnapshot?.appCharts ?? {},
     };
 
     mutate({
@@ -182,7 +207,7 @@ export function SaveReportModal({
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-emerald-600">
+            <div className="flex items-center gap-2 text-success">
               <Check className="size-5" />
               <span className="text-sm font-medium">Relatório salvo com sucesso!</span>
             </div>
@@ -215,13 +240,13 @@ export function SaveReportModal({
                 Cancelar
               </Button>
               <Button
-                onClick={handleSave}
-                disabled={isPending}
+                onClick={() => void handleSave()}
+                disabled={isPending || isCapturingCharts}
                 className="gap-2"
                 data-guide={GUIDE_ANCHORS.insightsReportSave.id}
               >
-                {isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
+                {isPending || isCapturingCharts ? (
+                  <OrbitaSpinner className="size-4 " />
                 ) : (
                   <Save className="size-4" />
                 )}

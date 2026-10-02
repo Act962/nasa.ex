@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import {
   useCommentsAutomation,
@@ -224,7 +225,7 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
   if (isLoading || !automation) {
     return (
       <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" />
+        <OrbitaSpinner className="size-4 " />
         Carregando automação...
       </div>
     );

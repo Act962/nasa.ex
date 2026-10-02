@@ -76,7 +76,7 @@ export function PostsCalendarPostCard({ post, selected, onSelect, onMenuAction }
           </div>
         )}
         {post.status === "PUBLISHED" && (post.metricsReach != null || post.metricsLikes != null) && (
-          <div className="text-[8px] text-emerald-300 font-semibold flex items-center gap-1.5">
+          <div className="text-[8px] text-success font-semibold flex items-center gap-1.5">
             {post.metricsReach != null && <span>👁 {post.metricsReach >= 1000 ? `${(post.metricsReach / 1000).toFixed(1)}K` : post.metricsReach}</span>}
             {post.metricsLikes != null && <span>❤ {post.metricsLikes >= 1000 ? `${(post.metricsLikes / 1000).toFixed(1)}K` : post.metricsLikes}</span>}
           </div>
@@ -86,7 +86,7 @@ export function PostsCalendarPostCard({ post, selected, onSelect, onMenuAction }
       {/* Network badge with connection status */}
       {network && (
         <div className="absolute left-1 top-1 bg-black/60 text-white text-[7px] font-bold px-1 rounded backdrop-blur-sm flex items-center gap-0.5">
-          <span className={`size-1.5 rounded-full shrink-0 ${isConnected(network) ? "bg-emerald-400" : "bg-zinc-500"}`} />
+          <span className={`size-1.5 rounded-full shrink-0 ${isConnected(network) ? "bg-success" : "bg-muted-foreground"}`} />
           {network}
         </div>
       )}
@@ -96,10 +96,10 @@ export function PostsCalendarPostCard({ post, selected, onSelect, onMenuAction }
         <div
           className={cn(
             "absolute right-1 top-1 size-2 rounded-full border border-white/40",
-            post.status === "PUBLISHED" ? "bg-green-400" :
-            post.status === "SCHEDULED" ? "bg-blue-400" :
-            post.status === "APPROVED"  ? "bg-yellow-400" :
-            "bg-gray-400",
+            post.status === "PUBLISHED" ? "bg-success" :
+            post.status === "SCHEDULED" ? "bg-info" :
+            post.status === "APPROVED"  ? "bg-warning" :
+            "bg-muted-foreground",
           )}
           title={post.status}
         />

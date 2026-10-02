@@ -75,13 +75,13 @@ interface RevokeTarget {
 function roleBadgeClass(role: Role): string {
   switch (role) {
     case "OWNER":
-      return "text-amber-400 border-amber-400/30 bg-amber-400/10";
+      return "text-warning border-warning/30 bg-warning/10";
     case "ADMIN":
-      return "text-purple-400 border-purple-400/30 bg-purple-400/10";
+      return "text-info border-info/30 bg-info/10";
     case "EDITOR":
-      return "text-blue-400 border-blue-400/30 bg-blue-400/10";
+      return "text-info border-info/30 bg-info/10";
     case "VIEWER":
-      return "text-zinc-400 border-zinc-400/30 bg-zinc-400/10";
+      return "text-muted-foreground border-line/30 bg-muted/10";
   }
 }
 
@@ -185,14 +185,14 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium">
-          <Shield className="size-4 text-[#1E90FF]" />
+          <Shield className="size-4 text-info" />
           Acesso Financeiro
         </div>
         {!readonly && (
           <Button
             size="sm"
             onClick={() => setShowDialog(true)}
-            className="gap-1.5 bg-[#1E90FF] hover:bg-[#1E90FF]/90 text-white"
+            className="gap-1.5 bg-info hover:bg-info/90 text-white"
           >
             <Plus className="size-3.5" /> Liberar Acesso
           </Button>
@@ -245,11 +245,11 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
                       <td className="px-4 py-3">
                         <p className="font-medium flex items-center gap-1.5">
                           {role === "OWNER" && (
-                            <Crown className="size-3.5 text-amber-400" />
+                            <Crown className="size-3.5 text-warning" />
                           )}
                           {record.user.name}
                           {record.hasWebauthn && (
-                            <Fingerprint className="size-3 text-emerald-400" />
+                            <Fingerprint className="size-3 text-success" />
                           )}
                         </p>
                         <p className="text-xs text-muted-foreground">{record.user.email}</p>
@@ -289,7 +289,7 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
                           className={
                             record.isAuthorized
                               ? roleBadgeClass(role)
-                              : "text-red-400 border-red-400/30 bg-red-400/10"
+                              : "text-destructive border-destructive/30 bg-destructive/10"
                           }
                         >
                           {record.isAuthorized ? "Autorizado" : "Revogado"}
@@ -338,7 +338,7 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem
-                              className="gap-2 text-xs text-red-400"
+                              className="gap-2 text-xs text-destructive"
                               onClick={() =>
                                 setRevokeTarget({
                                   userId: record.userId,
@@ -404,7 +404,7 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
                                                 )
                                               }
                                               className={
-                                                isDefault ? "" : "ring-1 ring-amber-400/50"
+                                                isDefault ? "" : "ring-1 ring-warning/50"
                                               }
                                             />
                                           </td>
@@ -443,7 +443,7 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
               {revokeTarget?.name} deixará de ver o módulo ÓRBITA Payment.
             </p>
             {revokeTarget?.isOrgOwner && (
-              <p className="text-xs text-amber-600 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 leading-relaxed">
+              <p className="text-xs text-warning bg-warning/10 border border-warning/30 rounded-lg p-3 leading-relaxed">
                 ⚠ <strong>Esta revogação não vai durar.</strong> {revokeTarget.name}{" "}
                 é owner da empresa, e o owner é reautorizado automaticamente ao
                 abrir o módulo — mantendo o nível de acesso atual. Para tirar o
@@ -550,7 +550,7 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
               <Button
                 type="submit"
                 disabled={grant.isPending}
-                className="flex-1 bg-[#1E90FF] hover:bg-[#1E90FF]/90 text-white"
+                className="flex-1 bg-info hover:bg-info/90 text-white"
               >
                 {grant.isPending ? "Liberando..." : "Liberar acesso"}
               </Button>

@@ -8,21 +8,21 @@ export const ACTION_CONFIG: Record<
   ACTIVE: {
     label: "Movimentação",
     icon: <Activity className="size-4" />,
-    className: "bg-blue-500/10 text-blue-500",
+    className: "bg-info/10 text-info",
   },
   WON: {
     label: "Lead Ganho",
     icon: <Trophy className="size-4" />,
-    className: "bg-emerald-500/10 text-emerald-500",
+    className: "bg-success/10 text-success",
   },
   LOST: {
     label: "Lead Perdido",
     icon: <XCircle className="size-4" />,
-    className: "bg-red-500/10 text-red-500",
+    className: "bg-destructive/10 text-destructive",
   },
   DELETED: {
     label: "Arquivado",
     icon: <Trash2 className="size-4" />,
-    className: "bg-zinc-500/10 text-zinc-500",
+    className: "bg-knob/10 text-muted-foreground",
   },
 };

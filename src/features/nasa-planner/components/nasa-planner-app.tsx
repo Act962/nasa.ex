@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeftIcon, BrainCircuitIcon, FileImageIcon,
-  LayoutGridIcon, CalendarIcon, AlertCircleIcon, RocketIcon,
+  LayoutGridIcon, CalendarIcon, AlertCircleIcon, RocketIcon, LayoutDashboardIcon,
 } from "lucide-react";
+import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/spinner";
@@ -17,13 +18,23 @@ import { CalendarTab } from "./tabs/calendar-tab";
 import { CampaignsTab } from "./tabs/campaigns-tab";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
-const TAB_TRIGGER_CLASS =
-  "rounded-none border-b-2 border-transparent data-[state=active]:border-violet-600 data-[state=active]:text-violet-600 data-[state=active]:bg-transparent px-3 py-2 text-sm";
+const TAB_TRIGGER_CLASS = "px-3 text-sm";
 
 export function NasaPlannerApp({ plannerId }: { plannerId: string }) {
   const router = useRouter();
   const { planner, isLoading } = useNasaPlanner(plannerId);
   const [activeTab, setActiveTab] = useState("dashboard");
+
+  useRegisterOrbitDock({
+    leftItems: [
+      { label: "Painel", icon: <LayoutDashboardIcon />, onSelect: () => setActiveTab("dashboard") },
+      { label: "Campanhas", icon: <RocketIcon />, onSelect: () => setActiveTab("campaigns") },
+    ],
+    rightItems: [
+      { label: "Posts", icon: <FileImageIcon />, onSelect: () => setActiveTab("posts") },
+      { label: "Calendário", icon: <CalendarIcon />, onSelect: () => setActiveTab("calendar") },
+    ],
+  });
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-full"><Spinner size="lg" /></div>;
@@ -34,7 +45,6 @@ export function NasaPlannerApp({ plannerId }: { plannerId: string }) {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <AlertCircleIcon className="size-10 text-muted-foreground" />
         <p className="text-muted-foreground">Planner não encontrado.</p>
-        <Button variant="outline" onClick={() => router.push("/nasa-planner")}>Voltar</Button>
       </div>
     );
   }
@@ -42,11 +52,11 @@ export function NasaPlannerApp({ plannerId }: { plannerId: string }) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b shrink-0">
+      <div className="flex items-center gap-3 px-6 py-4 shrink-0">
         <Button variant="ghost" size="icon" className="size-8" onClick={() => router.push("/nasa-planner")}>
           <ArrowLeftIcon className="size-4" />
         </Button>
-        <div className="size-8 rounded-lg bg-gradient-to-br from-violet-600 to-pink-500 flex items-center justify-center shrink-0">
+        <div className="size-8 rounded-lg bg-info flex items-center justify-center shrink-0">
           <BrainCircuitIcon className="size-4 text-white" />
         </div>
         <div className="min-w-0">
@@ -57,8 +67,8 @@ export function NasaPlannerApp({ plannerId }: { plannerId: string }) {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
-        <div className="border-b px-6 shrink-0">
-          <TabsList className="h-10 rounded-none bg-transparent p-0 gap-1">
+        <div className="px-6 pb-2 shrink-0 overflow-x-auto">
+          <TabsList>
             <TabsTrigger value="dashboard" className={TAB_TRIGGER_CLASS}>Dashboard</TabsTrigger>
             <TabsTrigger value="campaigns" className={TAB_TRIGGER_CLASS}>
               <RocketIcon className="size-3.5 mr-1.5" />Campanhas

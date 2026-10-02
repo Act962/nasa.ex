@@ -8,13 +8,13 @@ import {
   Copy,
   Instagram,
   KeyRound,
-  Loader2,
   PauseCircle,
   Plug,
   PlayCircle,
   RefreshCw,
   Unplug,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,7 +71,7 @@ export function ChannelConnectCard() {
     return (
       <Card>
         <CardContent className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
+          <OrbitaSpinner className="size-4 " />
           Carregando conexão...
         </CardContent>
       </Card>
@@ -160,7 +160,7 @@ export function ChannelConnectCard() {
                 }
               >
                 {reactivate.isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <OrbitaSpinner className="size-4 " />
                 ) : (
                   <PlayCircle className="size-4" />
                 )}
@@ -190,7 +190,7 @@ export function ChannelConnectCard() {
               }
             >
               {repair.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
+                <OrbitaSpinner className="size-4 " />
               ) : (
                 <RefreshCw className="size-4" />
               )}

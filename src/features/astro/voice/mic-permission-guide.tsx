@@ -16,67 +16,66 @@ export function MicPermissionGuide({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="pointer-events-auto fixed inset-0 z-[9100] flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}
+      className="pointer-events-auto fixed inset-0 z-[9100] flex items-center justify-center bg-black/65 p-4 backdrop-blur-[6px]"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-950 shadow-2xl p-5"
+        className="relative w-full max-w-md rounded-2xl border border-line bg-background shadow-2xl p-5"
         onClick={(event) => event.stopPropagation()}
       >
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-3 right-3 text-zinc-500 hover:text-zinc-200"
+          className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
           aria-label="Fechar"
         >
           <X className="size-4" />
         </button>
 
-        <h3 className="text-base font-semibold text-zinc-100">
+        <h3 className="text-base font-semibold text-foreground">
           Preciso de permissão de microfone
         </h3>
-        <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
+        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
           O Astro precisa ouvir você pra atender quando disser
-          <span className="text-violet-300 font-mono"> "ASTRO"</span>. O
+          <span className="text-info font-mono"> "ASTRO"</span>. O
           microfone foi bloqueado pra esse site no seu browser e eu não
           consigo resetar por motivo de segurança — você precisa liberar
           manualmente. É rápido.
         </p>
 
-        <ol className="mt-4 space-y-2 text-sm text-zinc-300">
+        <ol className="mt-4 space-y-2 text-sm text-muted-foreground">
           <li className="flex gap-2">
-            <span className="shrink-0 size-5 rounded-full bg-violet-600 text-white text-[11px] font-bold flex items-center justify-center">
+            <span className="shrink-0 size-5 rounded-full bg-info text-white text-[11px] font-bold flex items-center justify-center">
               1
             </span>
             <span>
               Click no ícone do <strong>cadeado 🔒</strong> (ou
-              "Não seguro") do lado esquerdo da URL <code className="text-violet-300 font-mono text-xs">{origin}</code>
+              "Não seguro") do lado esquerdo da URL <code className="text-info font-mono text-xs">{origin}</code>
             </span>
           </li>
           <li className="flex gap-2">
-            <span className="shrink-0 size-5 rounded-full bg-violet-600 text-white text-[11px] font-bold flex items-center justify-center">
+            <span className="shrink-0 size-5 rounded-full bg-info text-white text-[11px] font-bold flex items-center justify-center">
               2
             </span>
             <span>
               Encontre <strong>"Microfone"</strong> e mude pra{" "}
-              <span className="text-emerald-300">Permitir</span>
+              <span className="text-success">Permitir</span>
             </span>
           </li>
           <li className="flex gap-2">
-            <span className="shrink-0 size-5 rounded-full bg-violet-600 text-white text-[11px] font-bold flex items-center justify-center">
+            <span className="shrink-0 size-5 rounded-full bg-info text-white text-[11px] font-bold flex items-center justify-center">
               3
             </span>
             <span>
-              Recarregue a página (<kbd className="px-1 py-0.5 rounded bg-zinc-800 text-[10px]">⌘R</kbd>) e tente ativar a escuta de novo
+              Recarregue a página (<kbd className="px-1 py-0.5 rounded bg-card text-[10px]">⌘R</kbd>) e tente ativar a escuta de novo
             </span>
           </li>
         </ol>
 
         {isChromium && (
-          <p className="mt-4 text-xs text-zinc-500">
+          <p className="mt-4 text-xs text-muted-foreground">
             Atalho Chrome/Edge: cole na barra de endereço{" "}
-            <code className="text-violet-300 font-mono text-xs">
+            <code className="text-info font-mono text-xs">
               chrome://settings/content/microphone
             </code>{" "}
             e libere o site (não é clicável aqui por segurança).
@@ -87,7 +86,7 @@ export function MicPermissionGuide({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-3 py-1.5 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
+            className="rounded-md px-3 py-1.5 text-sm bg-card hover:bg-knob text-foreground"
           >
             Entendi
           </button>

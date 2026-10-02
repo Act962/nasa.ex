@@ -59,7 +59,7 @@ export function AgentsSection() {
   return (
     <div className="space-y-3" data-guide={GUIDE_ANCHORS.astroAgentsPanel.id}>
       {!canEdit && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
+        <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-xs text-warning">
           Você está em modo somente-leitura. Apenas Owner/Admin pode alterar
           configurações de agentes IA.
         </div>

@@ -383,7 +383,7 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
             <Button
               type="submit"
               disabled={updateEntry.isPending}
-              className="flex-1 bg-[#1E90FF] hover:bg-[#1E90FF]/90 text-white"
+              className="flex-1 bg-info hover:bg-info/90 text-white"
             >
               {updateEntry.isPending ? "Salvando..." : "Salvar"}
             </Button>

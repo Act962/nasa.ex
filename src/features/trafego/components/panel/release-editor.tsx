@@ -5,17 +5,16 @@ import {
   FileText,
   Globe,
   Instagram,
-  Loader2,
   Plus,
   Sparkles,
   Trash2,
   Upload,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -37,6 +36,7 @@ import {
   useTrafegoRelease,
 } from "@/features/trafego/hooks/use-trafego-release";
 import { TechnicalTerm } from "../technical-term";
+import { ReleaseListField, ReleaseTextField } from "./release-fields";
 
 const EMPTY_RELEASE: TrafegoReleaseContent = {
   about: "",
@@ -143,7 +143,7 @@ export function ReleaseEditor({ orderId }: { orderId: string }) {
         </p>
       </header>
 
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-[20px] border border-border bg-card p-4">
         <Label className="text-xs">Fontes</Label>
 
         {sources.length > 0 && (
@@ -151,9 +151,9 @@ export function ReleaseEditor({ orderId }: { orderId: string }) {
             {sources.map((source) => (
               <li
                 key={source.id}
-                className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/30 p-2.5"
+                className="flex items-center gap-2.5 rounded-[18px] border border-border/60 bg-muted/30 py-1.5 pr-1.5 pl-3"
               >
-                <span className="mt-0.5 text-muted-foreground">
+                <span className="text-muted-foreground">
                   {SOURCE_ICON[source.kind]}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -170,7 +170,7 @@ export function ReleaseEditor({ orderId }: { orderId: string }) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-7 shrink-0"
+                  className="size-9 shrink-0 rounded-full"
                   onClick={() =>
                     removeSource.mutate({ orderId, sourceId: source.id })
                   }
@@ -218,7 +218,7 @@ export function ReleaseEditor({ orderId }: { orderId: string }) {
                 disabled={isUploading}
               >
                 {isUploading ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <OrbitaSpinner className="size-4" />
                 ) : (
                   <Upload className="size-4" />
                 )}
@@ -257,7 +257,7 @@ export function ReleaseEditor({ orderId }: { orderId: string }) {
         </div>
 
         <Button
-          className="mt-3 w-full"
+          className="mt-3 h-11 w-full rounded-full"
           onClick={() => {
             setIsDirty(false);
             setIsGenerating(true);
@@ -274,7 +274,7 @@ export function ReleaseEditor({ orderId }: { orderId: string }) {
           disabled={!hasReadableSource || isGenerating}
         >
           {isGenerating ? (
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4" />
           ) : (
             <Sparkles className="size-4" />
           )}
@@ -294,46 +294,46 @@ export function ReleaseEditor({ orderId }: { orderId: string }) {
           isGenerating && "pointer-events-none opacity-60",
         )}
       >
-        <Field
+        <ReleaseTextField
           label="Sobre a empresa"
           value={draft.about}
           onChange={(next) => patch({ about: next })}
           rows={4}
         />
-        <ListField
+        <ReleaseListField
           label="Produtos e serviços"
           values={draft.products}
           onChange={(next) => patch({ products: next })}
         />
-        <ListField
+        <ReleaseListField
           label="Diferenciais"
           values={draft.differentials}
           onChange={(next) => patch({ differentials: next })}
         />
-        <Field
+        <ReleaseTextField
           label="Para quem vocês vendem"
           value={draft.audience}
           onChange={(next) => patch({ audience: next })}
           rows={3}
         />
-        <Field
+        <ReleaseTextField
           label="Tom de voz"
           value={draft.tone}
           onChange={(next) => patch({ tone: next })}
           rows={2}
         />
-        <ListField
+        <ReleaseListField
           label="Ofertas e condições"
           values={draft.offers}
           onChange={(next) => patch({ offers: next })}
         />
-        <ListField
+        <ReleaseListField
           label="O que não dizer no anúncio"
           values={draft.doNotSay}
           onChange={(next) => patch({ doNotSay: next })}
         />
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[11px] text-muted-foreground">
             {data?.savedAt
               ? "Release salvo — já está sendo usado nas sugestões."
@@ -353,69 +353,13 @@ export function ReleaseEditor({ orderId }: { orderId: string }) {
               )
             }
             disabled={save.isPending || !draft.about.trim()}
+            className="h-11 w-full shrink-0 rounded-full sm:h-9 sm:w-auto"
           >
-            {save.isPending && <Loader2 className="size-4 animate-spin" />}
+            {save.isPending && <OrbitaSpinner className="size-4" />}
             Salvar Release
           </Button>
         </div>
       </div>
     </section>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  rows,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  rows: number;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
-      <Textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        rows={rows}
-      />
-    </div>
-  );
-}
-
-/** Uma linha por item — mais simples de editar que chips e vira array direto. */
-function ListField({
-  label,
-  values,
-  onChange,
-}: {
-  label: string;
-  values: string[];
-  onChange: (values: string[]) => void;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs">
-        {label}
-        <span className="ml-1.5 font-normal text-muted-foreground">
-          um por linha
-        </span>
-      </Label>
-      <Textarea
-        value={values.join("\n")}
-        onChange={(event) =>
-          onChange(
-            event.target.value
-              .split("\n")
-              .map((line) => line.trim())
-              .filter(Boolean),
-          )
-        }
-        rows={Math.max(2, Math.min(values.length + 1, 8))}
-      />
-    </div>
   );
 }

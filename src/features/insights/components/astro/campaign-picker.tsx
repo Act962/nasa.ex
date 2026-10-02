@@ -82,7 +82,7 @@ export function AstroCampaignPicker({
                       variant="outline"
                       className={`text-[9px] py-0 px-1 ${
                         c.status === "ACTIVE"
-                          ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+                          ? "border-success/40 text-success dark:text-success"
                           : "border-muted text-muted-foreground"
                       }`}
                     >

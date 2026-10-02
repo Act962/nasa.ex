@@ -95,7 +95,7 @@ function MetaPreview({
       <div className="mx-auto mt-2 h-1.5 w-16 rounded-full bg-foreground/80" />
       <div className="mt-2 border-y bg-card">
         <div className="flex items-center gap-2.5 px-3 py-2.5">
-          <div className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-orange-400 text-xs font-bold text-white">
+          <div className="grid size-8 place-items-center rounded-full bg-info text-xs font-bold text-background">
             {brand.slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
@@ -210,9 +210,9 @@ function GooglePreview({
     <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-xl border bg-background shadow-xl">
       <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
         <div className="flex gap-1.5">
-          <span className="size-2.5 rounded-full bg-rose-400" />
-          <span className="size-2.5 rounded-full bg-amber-400" />
-          <span className="size-2.5 rounded-full bg-emerald-400" />
+          <span className="size-2.5 rounded-full bg-destructive" />
+          <span className="size-2.5 rounded-full bg-warning" />
+          <span className="size-2.5 rounded-full bg-success" />
         </div>
         <div className="mx-auto flex h-7 w-2/3 items-center gap-2 rounded-full border bg-background px-3 text-[10px] text-muted-foreground">
           <Search className="size-3" />
@@ -262,7 +262,7 @@ export function AdPreviewMockup(props: AdPreviewMockupProps) {
       aria-labelledby="ad-preview-title"
       className="rounded-2xl border bg-card"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-4 sm:px-5">
+      <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-4 sm:px-5">
         <div>
           <h3 id="ad-preview-title" className="text-sm font-semibold">
             Prévia do anúncio

@@ -27,17 +27,17 @@ export function CardIntegrations({ nick }: CardIntegrationsProps) {
     >
       {isLoading ? (
         <div className="flex flex-wrap gap-2">
-          <div className="h-10 w-28 animate-pulse rounded-xl bg-white/5" />
-          <div className="h-10 w-28 animate-pulse rounded-xl bg-white/5" />
+          <div className="h-10 w-28 animate-pulse rounded-xl bg-muted/50" />
+          <div className="h-10 w-28 animate-pulse rounded-xl bg-muted/50" />
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
           {integrations.map((it) => (
             <div
               key={it.id}
-              className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-xs text-white/80"
+              className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs text-foreground/80"
             >
-              <Plug className="size-3 text-orange-400" />
+              <Plug className="size-3 text-info" />
               {it.platform}
             </div>
           ))}

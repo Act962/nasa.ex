@@ -103,7 +103,7 @@ function SignatureUserCanvas({ blockInstance }: { blockInstance: FormBlockInstan
 
           {label}
 
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
 
         </Label>
 
@@ -200,17 +200,17 @@ function SignatureUserForm({
   return (
     <div className="flex flex-col gap-2 w-full">
       <Label
-        className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}
+        className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-destructive" : ""}`}
       >
         {label}
-        {required && <span className="text-red-500">*</span>}
+        {required && <span className="text-destructive">*</span>}
       </Label>
       {/* Quando há um responsável pré-cadastrado, exibe um aviso visual
           em todos os estados (assinado/não-assinado). Faz duplo papel:
           comunica o gate pra todos e ajuda quem NÃO é autorizado a
           entender por que o botão "Próximo" está travado. */}
       {hasAssigneeGate && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200 text-xs">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-warning/30 bg-warning/10 text-warning dark:text-warning text-xs">
           <Lock className="size-3.5 shrink-0" />
           <span>
             Apenas <strong>{assigneeName ?? "o responsável designado"}</strong>{" "}
@@ -223,7 +223,7 @@ function SignatureUserForm({
         // Já assinado (na sessão atual ou na anterior — vinda do prefill).
         // Exibe quem assinou (signerName) — pode ser o user logado ou outro
         // consultor que tinha assinado em uma versão anterior da resposta.
-        <div className="flex items-center justify-between border rounded-md p-3 bg-emerald-500/10">
+        <div className="flex items-center justify-between border rounded-md p-3 bg-success/10">
           <div className="text-sm">
             <p className="font-medium">{signerName ?? user?.name ?? "Assinado"}</p>
             <p className="text-xs text-muted-foreground">
@@ -264,7 +264,7 @@ function SignatureUserForm({
       )}
       {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
       {(isError || isSubmitError) && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage || "Assinatura obrigatória."}</p>
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">{errorMessage || "Assinatura obrigatória."}</p>
       )}
     </div>
   );
@@ -303,7 +303,7 @@ function SignatureClientCanvasView({ blockInstance }: { blockInstance: FormBlock
 
           {label}
 
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
 
         </Label>
 
@@ -502,14 +502,14 @@ function SignatureClientForm({
     // do `pointer-events: none` global.
     <div className="flex flex-col gap-2 w-full" data-allow-interaction>
       <Label
-        className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}
+        className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-destructive" : ""}`}
       >
         {label}
-        {required && <span className="text-red-500">*</span>}
+        {required && <span className="text-destructive">*</span>}
       </Label>
       <div
         className={`relative border-2 rounded-md bg-white ${
-          isError || isSubmitError ? "border-red-500!" : "border-foreground/20"
+          isError || isSubmitError ? "border-destructive!" : "border-foreground/20"
         }`}
         style={{ height: "150px" }}
       >
@@ -532,7 +532,7 @@ function SignatureClientForm({
           </span>
         )}
         {hasContent && (
-          <span className="absolute top-1.5 right-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 pointer-events-none">
+          <span className="absolute top-1.5 right-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-success/15 text-success border border-success/30 pointer-events-none">
             ✓ capturada
           </span>
         )}
@@ -550,7 +550,7 @@ function SignatureClientForm({
       </div>
       {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
       {(isError || isSubmitError) && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage || "Assinatura obrigatória."}</p>
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">{errorMessage || "Assinatura obrigatória."}</p>
       )}
     </div>
   );

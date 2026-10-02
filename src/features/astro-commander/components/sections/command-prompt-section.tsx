@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Info, Loader2, Pencil, Sparkles } from "lucide-react";
+import { Info, Pencil, Sparkles } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -95,7 +96,7 @@ export function CommandPromptSection({ command }: { command: CommandDetailData }
       </div>
 
       <div className="rounded-2xl border bg-card">
-        <div className="flex items-center justify-between gap-3 border-b px-6 py-4">
+        <div className="flex items-center justify-between gap-3 px-6 pt-5 pb-2">
           <div>
             <p className="font-medium">Configuração do prompt</p>
             <p className="text-sm text-muted-foreground">
@@ -165,7 +166,7 @@ export function CommandPromptSection({ command }: { command: CommandDetailData }
             disabled={update.isPending}
             className="h-11 rounded-xl"
           >
-            {update.isPending && <Loader2 className="size-4 animate-spin" />}
+            {update.isPending && <OrbitaSpinner className="size-4 " />}
             Salvar prompt
           </Button>
         </div>

@@ -11,7 +11,8 @@
  */
 
 import { useState } from "react";
-import { Image as ImageIcon, Loader2, Upload, Trash2 } from "lucide-react";
+import { Image as ImageIcon, Upload, Trash2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useUpdateWorld } from "../../../hooks/use-station";
 import type {
   StationWorldConfig,
@@ -251,7 +252,7 @@ export function ScenarioEditor({
             >
               <span className="inline-flex items-center justify-center gap-1.5">
                 {bgUploading ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <OrbitaSpinner className="h-3 w-3 " />
                 ) : (
                   <Upload className="h-3 w-3" />
                 )}

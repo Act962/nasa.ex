@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronDownIcon, Loader2Icon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -136,12 +137,12 @@ export function LeadTriggerCard({ leadId, trackingId, template, saved }: LeadTri
 
   const tone = isActive
     ? {
-        card: "bg-gradient-to-br from-emerald-700 to-emerald-900 text-white",
+        card: "bg-gradient-to-br from-success to-success text-white",
         surface: "bg-white/10 text-white hover:bg-white/20",
         muted: "text-white/70",
-        accent: "bg-lime-300 text-emerald-950",
+        accent: "bg-white text-success",
         chipIdle: "bg-white/10 text-white/70 hover:bg-white/20",
-        switch: "data-[state=checked]:bg-lime-300",
+        switch: "data-[state=checked]:bg-success",
       }
     : {
         card: "bg-card text-foreground",
@@ -174,7 +175,7 @@ export function LeadTriggerCard({ leadId, trackingId, template, saved }: LeadTri
           key={isActive ? "on" : "off"}
           className={cn(
             "size-4 shrink-0",
-            isActive ? "text-lime-300 animate-in fade-in zoom-in-50 duration-500" : "text-muted-foreground",
+            isActive ? "text-success animate-in fade-in zoom-in-50 duration-500" : "text-muted-foreground",
           )}
           isSpinning={isActive}
         />
@@ -302,7 +303,7 @@ export function LeadTriggerCard({ leadId, trackingId, template, saved }: LeadTri
         </div>
       )}
 
-      {saved?.lastError && <p className="text-[11px] text-red-400">Último erro: {saved.lastError}</p>}
+      {saved?.lastError && <p className="text-[11px] text-destructive">Último erro: {saved.lastError}</p>}
 
       {isDirty && (
         <button
@@ -311,7 +312,7 @@ export function LeadTriggerCard({ leadId, trackingId, template, saved }: LeadTri
           onClick={() => persist(isActive)}
           className={cn("flex h-8 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-60", tone.accent)}
         >
-          {saveTrigger.isPending && <Loader2Icon className="size-3.5 animate-spin" />}
+          {saveTrigger.isPending && <OrbitaSpinner className="size-3.5 " />}
           Salvar
         </button>
       )}

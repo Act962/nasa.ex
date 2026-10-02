@@ -64,7 +64,7 @@ export const CheckboxBlock: ObjectBlockType = {
       ],
     } satisfies AttributesType,
   }),
-  blockBtnElement: { icon: CheckSquare, label: "Checkbox" },
+  blockBtnElement: { icon: CheckSquare, label: "Caixas de seleção" },
   canvasComponent: CanvasView,
   formComponent: FormView,
   propertiesComponent: PropertiesView,
@@ -80,7 +80,7 @@ function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
       {label?.trim() && (
         <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug">
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
           {!multiple && (
             <span className="text-xs text-muted-foreground ml-1">(único)</span>
           )}
@@ -157,10 +157,10 @@ function FormView({
     <div className="flex flex-col gap-2 w-full">
       {label?.trim() && (
         <Label
-          className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}
+          className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-destructive" : ""}`}
         >
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       <div className="flex flex-col gap-2">
@@ -178,7 +178,7 @@ function FormView({
         <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>
       )}
       {(isError || isSubmitError) && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage || "Selecione ao menos uma opção."}</p>
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">{errorMessage || "Selecione ao menos uma opção."}</p>
       )}
     </div>
   );

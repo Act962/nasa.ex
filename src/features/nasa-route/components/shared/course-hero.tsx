@@ -46,7 +46,8 @@ export function CourseHero({ course, href, publicHref }: Props) {
       : null;
 
   return (
-    <div className="relative h-[58vh] min-h-[420px] w-full overflow-hidden">
+    <div className="px-4 md:px-0">
+    <div className="relative h-[340px] w-full overflow-hidden rounded-[24px] md:h-[58vh] md:min-h-[420px] md:rounded-none">
       <div className="absolute inset-0">
         {course.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -56,30 +57,30 @@ export function CourseHero({ course, href, publicHref }: Props) {
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="h-full w-full bg-gradient-to-br from-violet-700 via-indigo-700 to-fuchsia-700" />
+          <div className="h-full w-full bg-info" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent md:bg-gradient-to-r md:via-background/80" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background to-transparent" />
       </div>
 
-      <div className="relative flex h-full items-end pb-16 pl-4 md:items-center md:pb-0 md:pl-12 lg:pl-16">
-        <div className="max-w-2xl">
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-violet-300">
-            <span className="rounded-sm bg-violet-600/95 px-2 py-1 text-white">
+      <div className="relative flex h-full items-end px-4 pb-5 md:items-center md:px-0 md:pb-0 md:pl-12 lg:pl-16">
+        <div className="max-w-2xl min-w-0">
+          <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[10px] font-semibold tracking-wider text-info uppercase md:mb-3 md:gap-2 md:text-[11px]">
+            <span className="rounded-full bg-info/95 px-2 py-1 text-white">
               ÓRBITA Route
             </span>
             {course.format && (
-              <span className="rounded-sm bg-white/10 px-2 py-1 text-white backdrop-blur-sm">
+              <span className="rounded-full bg-foreground/10 px-2 py-1 text-foreground backdrop-blur-sm">
                 {COURSE_FORMAT_LABELS[course.format] ?? course.format}
               </span>
             )}
             {course.level && (
-              <span className="rounded-sm bg-white/10 px-2 py-1 text-white backdrop-blur-sm">
+              <span className="rounded-full bg-foreground/10 px-2 py-1 text-foreground backdrop-blur-sm">
                 {COURSE_LEVEL_LABELS[course.level] ?? course.level}
               </span>
             )}
             {eventDate && (
-              <span className="inline-flex items-center gap-1.5 rounded-sm bg-violet-600/95 px-2 py-1 text-white">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-info/95 px-2 py-1 text-white">
                 <CalendarDays className="size-3.5" />
                 <span>{eventDate.dateLine}</span>
                 {eventDate.timeLine && (
@@ -89,17 +90,17 @@ export function CourseHero({ course, href, publicHref }: Props) {
             )}
           </div>
 
-          <h1 className="text-4xl font-extrabold leading-[1.05] tracking-tight text-foreground drop-shadow-lg md:text-5xl lg:text-6xl">
+          <h2 className="line-clamp-2 text-2xl leading-[1.1] font-extrabold tracking-tight text-foreground drop-shadow-lg md:line-clamp-none md:text-5xl md:leading-[1.05] lg:text-6xl">
             {course.title}
-          </h1>
+          </h2>
 
           {course.subtitle && (
-            <p className="mt-4 line-clamp-3 max-w-xl text-base text-foreground/85 drop-shadow md:text-lg">
+            <p className="mt-2 line-clamp-2 max-w-xl text-sm text-foreground/85 drop-shadow md:mt-4 md:line-clamp-3 md:text-lg">
               {course.subtitle}
             </p>
           )}
 
-          <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-foreground/80">
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-foreground/80 md:mt-5 md:gap-4 md:text-sm">
             <PriceStarsDisplay
               priceBrlCents={course.displayPriceBrlCents ?? course.priceBrlCents}
               isFree={course.isFree}
@@ -112,21 +113,21 @@ export function CourseHero({ course, href, publicHref }: Props) {
               </span>
             )}
             {course.studentsCount && course.studentsCount > 0 ? (
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 max-md:hidden">
                 <Users className="size-4" />
                 {course.studentsCount} alunos
               </span>
             ) : null}
             {course.creatorOrg?.name && (
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 max-md:hidden">
                 <GraduationCap className="size-4" />
                 {course.creatorOrg.name}
               </span>
             )}
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild size="lg" className="gap-2">
+          <div className="mt-4 flex flex-wrap gap-3 md:mt-6">
+            <Button asChild size="lg" className="h-11 gap-2 rounded-full max-md:flex-1">
               <Link href={href}>
                 <Play className="size-5 fill-current" />
                 Ver curso
@@ -137,7 +138,7 @@ export function CourseHero({ course, href, publicHref }: Props) {
                 asChild
                 size="lg"
                 variant="secondary"
-                className="gap-2 bg-white/15 text-foreground backdrop-blur-sm hover:bg-white/25"
+                className="gap-2 bg-foreground/10 text-foreground backdrop-blur-sm hover:bg-foreground/15 max-md:hidden"
               >
                 <Link href={publicHref}>
                   <Info className="size-5" />
@@ -148,6 +149,7 @@ export function CourseHero({ course, href, publicHref }: Props) {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }

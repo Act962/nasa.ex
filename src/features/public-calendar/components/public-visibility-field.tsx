@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Globe, Copy, ExternalLink, Check, Loader2 } from "lucide-react";
+import { Globe, Copy, ExternalLink, Check } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -322,7 +323,7 @@ export function PublicVisibilityField({
                 placeholder="Endereço ou link do Google Maps"
               />
               {resolveMaps.isPending && (
-                <Loader2 className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 size-3 animate-spin text-muted-foreground" />
+                <OrbitaSpinner className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
               )}
             </div>
             <p className="text-[10px] text-muted-foreground leading-tight">

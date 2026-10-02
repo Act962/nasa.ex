@@ -12,11 +12,11 @@ const NOTICE_VISIBLE_MS = 4500;
 const NOTICE_GAP_MS = 600;
 
 const NOTICE_ICONS: Record<string, { emoji: string; className: string }> = {
-  payment_confirmed: { emoji: "✓", className: "bg-emerald-500/15 text-emerald-500" },
-  star_earned: { emoji: "⭐", className: "bg-gradient-to-br from-blue-700 to-blue-400 text-white" },
-  sent_to_separation: { emoji: "📦", className: "bg-blue-500/15 text-blue-400" },
-  out_for_delivery: { emoji: "🛵", className: "bg-amber-500/15 text-amber-500" },
-  ready_for_pickup: { emoji: "🛍️", className: "bg-emerald-500/15 text-emerald-500" },
+  payment_confirmed: { emoji: "✓", className: "bg-success/15 text-success" },
+  star_earned: { emoji: "⭐", className: "bg-gradient-to-br from-chart-4 to-chart-2 text-white" },
+  sent_to_separation: { emoji: "📦", className: "bg-info/15 text-info" },
+  out_for_delivery: { emoji: "🛵", className: "bg-warning/15 text-warning" },
+  ready_for_pickup: { emoji: "🛍️", className: "bg-success/15 text-success" },
 };
 
 const STAR_BURST = [
@@ -106,7 +106,7 @@ export function OrderNoticeToaster({ token }: { token: string }) {
           STAR_BURST.map((particle) => (
             <span
               key={`${particle.left}-${particle.top}`}
-              className="notice-star pointer-events-none absolute text-base text-blue-400"
+              className="notice-star pointer-events-none absolute text-base text-info"
               style={{ left: particle.left, top: particle.top, "--burst-x": particle.x, "--burst-y": particle.y } as CSSProperties}
             >
               {particle.glyph}

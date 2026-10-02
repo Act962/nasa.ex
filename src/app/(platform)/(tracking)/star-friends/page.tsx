@@ -5,8 +5,8 @@ import { StarFriendsPage } from "@/features/star-friends/components/star-friends
 export default function Page() {
   return (
     <SidebarInset className="min-h-full">
-      <HeaderTracking />
-      <div className="px-4 pb-8 pt-2">
+      <HeaderTracking title="STAR FRIENDS" isTitleHidden />
+      <div className="px-4 pt-2 pb-8 md:px-6">
         <StarFriendsPage />
       </div>
     </SidebarInset>

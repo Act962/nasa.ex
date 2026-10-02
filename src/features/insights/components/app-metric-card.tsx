@@ -73,9 +73,9 @@ export function AppMetricCard({
 
   const trendClass =
     data?.trend === "up"
-      ? "text-emerald-600"
+      ? "text-success"
       : data?.trend === "down"
-        ? "text-red-600"
+        ? "text-destructive"
         : "text-muted-foreground";
 
   return (

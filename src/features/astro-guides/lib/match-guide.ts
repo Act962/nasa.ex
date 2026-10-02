@@ -13,12 +13,54 @@ const ASKS_HOW_TO = new RegExp(
     "|\\bguia (pra|para|de)\\b",
 );
 
+// Palavras que decidem o guia: com uma letra faltando, sobrando ou trocada ("riar", "formulaio")
+// o pedido ainda é reconhecido, em vez de cair numa busca que não acha nada.
+const TYPO_TOLERANT_WORDS = [
+  "como", "criar", "crio", "crie", "fazer", "faco", "montar", "cadastrar", "adicionar", "publicar",
+  "conectar", "enviar", "agendar", "configurar", "formulario", "formularios", "proposta", "propostas",
+  "tracking", "agenda", "campanha", "campanhas", "produto", "produtos", "contato", "contatos",
+  "whatsapp", "relatorio", "tarefa", "tarefas", "pagina", "pasta",
+];
+const MIN_TYPO_WORD_LENGTH = 4;
+
+function isOneEditAway(word: string, target: string): boolean {
+  if (Math.abs(word.length - target.length) > 1) return false;
+  let wordIndex = 0;
+  let targetIndex = 0;
+  let edits = 0;
+  while (wordIndex < word.length && targetIndex < target.length) {
+    if (word[wordIndex] === target[targetIndex]) {
+      wordIndex++;
+      targetIndex++;
+      continue;
+    }
+    if (++edits > 1) return false;
+    if (word.length > target.length) wordIndex++;
+    else if (word.length < target.length) targetIndex++;
+    else {
+      wordIndex++;
+      targetIndex++;
+    }
+  }
+  return edits + (word.length - wordIndex) + (target.length - targetIndex) <= 1;
+}
+
+function correctTypo(word: string): string {
+  if (word.length < MIN_TYPO_WORD_LENGTH || TYPO_TOLERANT_WORDS.includes(word)) return word;
+  return TYPO_TOLERANT_WORDS.find((target) => isOneEditAway(word, target)) ?? word;
+}
+
 function normalizeRequest(text: string): string {
   return text
     .trim()
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(correctTypo)
+    .join(" ");
 }
 
 export function matchGuideRequest(text: string): GuideDef | null {

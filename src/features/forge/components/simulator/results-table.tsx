@@ -17,9 +17,9 @@ import type {
 } from "@/features/forge/lib/cost-simulator";
 
 const flagBadge: Record<ExequibilidadeFlag, { label: string; className: string }> = {
-  OK: { label: "OK", className: "bg-emerald-100 text-emerald-700" },
-  EXCESSIVO: { label: "Excessivo", className: "bg-red-100 text-red-700" },
-  INEXEQUIVEL: { label: "Inexequível", className: "bg-amber-100 text-amber-700" },
+  OK: { label: "OK", className: "bg-success/15 text-success" },
+  EXCESSIVO: { label: "Excessivo", className: "bg-destructive/15 text-destructive" },
+  INEXEQUIVEL: { label: "Inexequível", className: "bg-warning/15 text-warning" },
 };
 
 type FeeLine = { label: string; amount: number };
@@ -89,7 +89,7 @@ export function CommercialResultsTable({
         </div>
       )}
 
-      <div className="rounded-lg border-2 border-[#7C3AED]/30 bg-[#7C3AED]/5 p-4 space-y-1.5">
+      <div className="rounded-lg border-2 border-info/30 bg-info/5 p-4 space-y-1.5">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Uso recorrente (IA + WhatsApp + infra)</span>
           <span className="font-medium">{formatBrl(result.clientPriceBrl)}/mês</span>
@@ -108,7 +108,7 @@ export function CommercialResultsTable({
         )}
         <div className="flex items-end justify-between border-t pt-2">
           <span className="text-xs uppercase tracking-wide text-muted-foreground">Total mensal ao cliente</span>
-          <span className="text-2xl font-black text-[#7C3AED]">{formatBrl(monthlyTotal)}</span>
+          <span className="text-2xl font-black text-info">{formatBrl(monthlyTotal)}</span>
         </div>
         <p className="text-right text-xs text-muted-foreground">
           {formatBrl(result.perUserClientPriceBrl)} por usuário
@@ -125,7 +125,7 @@ export function CommercialResultsTable({
             <span className="font-semibold">{formatBrl(round2(oneTime * (taxRate / 100)))}</span>
           </div>
         )}
-        <div className="mt-1 flex items-end justify-between border-t border-[#7C3AED]/30 pt-2">
+        <div className="mt-1 flex items-end justify-between border-t border-info/30 pt-2">
           <span className="text-xs font-medium text-muted-foreground">
             Valor total da proposta · vigência {validityLabel || `${termMonths} mês(es)`}
           </span>
@@ -196,8 +196,8 @@ export function BidResultsTable({
         <div
           className={`rounded-lg border p-3 text-sm ${
             result.withinCeiling
-              ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-              : "border-red-300 bg-red-50 text-red-800"
+              ? "border-success/30 bg-success/10 text-success"
+              : "border-destructive/30 bg-destructive/10 text-destructive"
           }`}
         >
           {result.withinCeiling

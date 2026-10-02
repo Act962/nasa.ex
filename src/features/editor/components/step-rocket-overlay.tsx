@@ -31,16 +31,16 @@ export function StepRocketOverlay({
         aria-label="Avançar este passo"
         className={cn(
           "absolute -top-3 -right-3 z-30",
-          "size-6 rounded-full bg-blue-500 text-white",
+          "size-6 rounded-full bg-info text-white",
           "flex items-center justify-center shadow-lg",
-          "ring-4 ring-blue-300/40",
+          "ring-4 ring-info/40",
           "animate-pulse hover:scale-110 transition-transform cursor-pointer",
         )}
       >
         <RocketIcon className="size-3.5" />
         {/* CSS ring expanding outwards pra dar sensação de "pronto" */}
         <span
-          className="absolute inset-0 rounded-full border-2 border-blue-400 animate-ping"
+          className="absolute inset-0 rounded-full border-2 border-info animate-ping"
           aria-hidden
         />
       </button>
@@ -52,7 +52,7 @@ export function StepRocketOverlay({
       <div
         className={cn(
           "absolute -top-2 -right-2 z-20",
-          "size-5 rounded-full bg-emerald-500 text-white",
+          "size-5 rounded-full bg-success text-white",
           "flex items-center justify-center shadow-md",
         )}
         title="Passou"
@@ -67,7 +67,7 @@ export function StepRocketOverlay({
       <div
         className={cn(
           "absolute -top-2 -right-2 z-20",
-          "size-5 rounded-full bg-red-500 text-white",
+          "size-5 rounded-full bg-destructive text-white",
           "flex items-center justify-center shadow-md",
           "animate-pulse",
         )}
@@ -83,7 +83,7 @@ export function StepRocketOverlay({
       <div
         className={cn(
           "absolute -top-2 -right-2 z-20",
-          "size-5 rounded-full bg-amber-500 text-white",
+          "size-5 rounded-full bg-warning text-white",
           "flex items-center justify-center shadow-md",
         )}
         title="Passou com avisos"

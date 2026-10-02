@@ -28,10 +28,10 @@ function isLightUrl(href: string | null) {
 }
 
 const ROLE_META: Record<string, { label: string; color: string; bg: string }> = {
-  owner: { label: "Master", color: "text-violet-700", bg: "bg-violet-100" },
-  admin: { label: "Adm", color: "text-blue-700", bg: "bg-blue-100" },
-  member: { label: "Single", color: "text-slate-700", bg: "bg-slate-100" },
-  moderador: { label: "Moderador", color: "text-orange-700", bg: "bg-orange-100" },
+  owner: { label: "Master", color: "text-info", bg: "bg-info/15" },
+  admin: { label: "Adm", color: "text-info", bg: "bg-info/15" },
+  member: { label: "Single", color: "text-foreground", bg: "bg-muted" },
+  moderador: { label: "Moderador", color: "text-warning", bg: "bg-warning/15" },
 };
 
 function initials(name: string) {
@@ -231,7 +231,7 @@ export function ActivityTable({
                             asChild
                             size="sm"
                             variant="ghost"
-                            className="h-7 px-2 text-[11px] gap-1 text-violet-600 hover:text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+                            className="h-7 px-2 text-[11px] gap-1 text-info hover:text-info hover:bg-info/10 dark:hover:bg-info/30"
                           >
                             <Link href={url!}>
                               <ExternalLink className="size-3" /> Abrir

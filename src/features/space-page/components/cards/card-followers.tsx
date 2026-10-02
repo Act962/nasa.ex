@@ -30,7 +30,7 @@ export function CardFollowers({ nick }: CardFollowersProps) {
           {Array.from({ length: 10 }).map((_, i) => (
             <div
               key={i}
-              className="size-10 animate-pulse rounded-full bg-white/5"
+              className="size-10 animate-pulse rounded-full bg-muted/50"
             />
           ))}
         </div>
@@ -39,7 +39,7 @@ export function CardFollowers({ nick }: CardFollowersProps) {
           {followers.map((f) => (
             <div
               key={f.id}
-              className="relative size-10 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10"
+              className="relative size-10 overflow-hidden rounded-full bg-muted ring-1 ring-border"
               title={f.user.name ?? ""}
             >
               {f.user.image ? (
@@ -50,7 +50,7 @@ export function CardFollowers({ nick }: CardFollowersProps) {
                   className="object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs text-white/60">
+                <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
                   {f.user.name?.[0] ?? "?"}
                 </div>
               )}

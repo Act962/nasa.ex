@@ -91,7 +91,7 @@ export function ModalDeleteConsultor({
           </Field>
 
           {isWrong && (
-            <p className="text-xs text-red-500">
+            <p className="text-xs text-destructive">
               O nome digitado não corresponde.
             </p>
           )}

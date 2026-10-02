@@ -79,9 +79,9 @@ export function SessionHeader({
   };
 
   return (
-    <div className="sticky top-0 z-20 -mx-3 sm:-mx-4 mb-2 px-3 sm:px-4 py-2 border-b border-zinc-800/60 bg-[#050510]/85 backdrop-blur">
+    <div className="sticky top-0 z-20 -mx-3 sm:-mx-4 mb-2 px-3 sm:px-4 py-2 bg-background/85 backdrop-blur">
       <div className="max-w-3xl mx-auto flex items-center gap-2">
-        <Sparkles className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+        <Sparkles className="w-3.5 h-3.5 text-info shrink-0" />
 
         {editing ? (
           <>
@@ -95,19 +95,19 @@ export function SessionHeader({
               }}
               maxLength={120}
               placeholder="Nome da sessão"
-              className="flex-1 bg-transparent text-xs text-zinc-100 outline-none border-b border-violet-500/40 focus:border-violet-400/80 px-0.5 py-0.5"
+              className="flex-1 bg-transparent text-xs text-foreground outline-none border-b border-info/40 focus:border-info/80 px-0.5 py-0.5"
             />
             <button
               onClick={commit}
               disabled={renameMut.isPending}
-              className="text-emerald-400 hover:text-emerald-300 disabled:opacity-50 p-1"
+              className="text-success hover:text-success disabled:opacity-50 p-1"
               aria-label="Salvar nome"
             >
               <Check className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={cancel}
-              className="text-zinc-500 hover:text-zinc-300 p-1"
+              className="text-muted-foreground hover:text-muted-foreground p-1"
               aria-label="Cancelar"
             >
               <X className="w-3.5 h-3.5" />
@@ -115,12 +115,12 @@ export function SessionHeader({
           </>
         ) : (
           <>
-            <span className="flex-1 text-xs text-zinc-300 truncate">
+            <span className="flex-1 text-xs text-muted-foreground truncate">
               {title || "Conversa sem título"}
             </span>
             <button
               onClick={() => setEditing(true)}
-              className="text-zinc-500 hover:text-violet-300 transition-colors p-1"
+              className="text-muted-foreground hover:text-info transition-colors p-1"
               aria-label="Renomear sessão"
               title="Renomear sessão"
             >
@@ -129,7 +129,7 @@ export function SessionHeader({
             {onNewSession && (
               <button
                 onClick={onNewSession}
-                className="flex items-center gap-1 text-[11px] font-semibold text-violet-300 hover:text-violet-100 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/30 rounded-md px-2 py-0.5 transition-all"
+                className="flex items-center gap-1 text-[11px] font-semibold text-info hover:text-info bg-info/10 hover:bg-info/20 border border-info/30 rounded-md px-2 py-0.5 transition-all"
                 title="Iniciar nova sessão"
               >
                 <Plus className="w-3 h-3" />

@@ -4,13 +4,18 @@ import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { useUpsertStarFriendsProgram } from "../hooks/use-star-friends";
 
 const programSchema = z.object({
@@ -37,7 +42,11 @@ const DEFAULT_PROGRAM: ProgramValues = {
   rules: null,
 };
 
-export function ProgramSettingsForm({ program }: { program: ProgramValues | null }) {
+export function ProgramSettingsForm({
+  program,
+}: {
+  program: ProgramValues | null;
+}) {
   const upsert = useUpsertStarFriendsProgram();
   const form = useForm<ProgramValues>({
     resolver: zodResolver(programSchema),
@@ -48,11 +57,12 @@ export function ProgramSettingsForm({ program }: { program: ProgramValues | null
     form.reset(program ?? DEFAULT_PROGRAM);
   }, [program, form]);
 
-  const toNumberOrNull = (value: string) => (value === "" ? null : Number(value));
+  const toNumberOrNull = (value: string) =>
+    value === "" ? null : Number(value);
 
   return (
     <form
-      className="flex max-w-2xl flex-col gap-6"
+      className="flex w-full flex-col gap-4 rounded-[20px] border border-line bg-card p-4 md:max-w-2xl md:p-5"
       onSubmit={form.handleSubmit((values) =>
         upsert.mutate(values, {
           onSuccess: () => toast.success("Regras salvas"),
@@ -65,9 +75,21 @@ export function ProgramSettingsForm({ program }: { program: ProgramValues | null
           control={form.control}
           name="isActive"
           render={({ field }) => (
-            <Field orientation="horizontal">
-              <Switch id="program-active" checked={field.value} onCheckedChange={field.onChange} />
-              <FieldLabel htmlFor="program-active">Programa ativo (pausar não apaga o saldo de ninguém)</FieldLabel>
+            <Field
+              orientation="horizontal"
+              className="items-center justify-between gap-4 rounded-[18px] bg-muted p-3"
+            >
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <FieldLabel htmlFor="program-active">Programa ativo</FieldLabel>
+                <FieldDescription>
+                  Pausar não apaga o saldo de ninguém.
+                </FieldDescription>
+              </div>
+              <Switch
+                id="program-active"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
             </Field>
           )}
         />
@@ -76,7 +98,9 @@ export function ProgramSettingsForm({ program }: { program: ProgramValues | null
           name="name"
           render={({ field }) => (
             <Field>
-              <FieldLabel htmlFor="program-name">Nome exibido ao cliente</FieldLabel>
+              <FieldLabel htmlFor="program-name">
+                Nome exibido ao cliente
+              </FieldLabel>
               <Input id="program-name" {...field} />
             </Field>
           )}
@@ -86,7 +110,9 @@ export function ProgramSettingsForm({ program }: { program: ProgramValues | null
           name="starsPerPurchase"
           render={({ field }) => (
             <Field>
-              <FieldLabel htmlFor="program-stars">Stars por compra paga</FieldLabel>
+              <FieldLabel htmlFor="program-stars">
+                Stars por compra paga
+              </FieldLabel>
               <Input
                 id="program-stars"
                 type="number"
@@ -102,7 +128,9 @@ export function ProgramSettingsForm({ program }: { program: ProgramValues | null
           name="minPurchaseAmount"
           render={({ field }) => (
             <Field>
-              <FieldLabel htmlFor="program-min">Valor mínimo da compra (R$)</FieldLabel>
+              <FieldLabel htmlFor="program-min">
+                Valor mínimo da compra (R$)
+              </FieldLabel>
               <Input
                 id="program-min"
                 type="number"
@@ -111,7 +139,9 @@ export function ProgramSettingsForm({ program }: { program: ProgramValues | null
                 value={field.value}
                 onChange={(event) => field.onChange(Number(event.target.value))}
               />
-              <FieldDescription>Compras abaixo disso não geram star. 0 = qualquer valor.</FieldDescription>
+              <FieldDescription>
+                Compras abaixo disso não geram star. 0 = qualquer valor.
+              </FieldDescription>
             </Field>
           )}
         />
@@ -120,14 +150,18 @@ export function ProgramSettingsForm({ program }: { program: ProgramValues | null
           name="starsExpireDays"
           render={({ field }) => (
             <Field>
-              <FieldLabel htmlFor="program-expire">Validade das stars (dias)</FieldLabel>
+              <FieldLabel htmlFor="program-expire">
+                Validade das stars (dias)
+              </FieldLabel>
               <Input
                 id="program-expire"
                 type="number"
                 min={1}
                 placeholder="Em branco = não expiram"
                 value={field.value ?? ""}
-                onChange={(event) => field.onChange(toNumberOrNull(event.target.value))}
+                onChange={(event) =>
+                  field.onChange(toNumberOrNull(event.target.value))
+                }
               />
             </Field>
           )}
@@ -136,9 +170,23 @@ export function ProgramSettingsForm({ program }: { program: ProgramValues | null
           control={form.control}
           name="countCatalogOrders"
           render={({ field }) => (
-            <Field orientation="horizontal">
-              <Switch id="program-catalog" checked={field.value} onCheckedChange={field.onChange} />
-              <FieldLabel htmlFor="program-catalog">Pontuar pedidos pagos do Catálogo online</FieldLabel>
+            <Field
+              orientation="horizontal"
+              className="items-center justify-between gap-4 rounded-[18px] bg-muted p-3"
+            >
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <FieldLabel htmlFor="program-catalog">
+                  Catálogo online
+                </FieldLabel>
+                <FieldDescription>
+                  Pontuar pedidos pagos do Catálogo online.
+                </FieldDescription>
+              </div>
+              <Switch
+                id="program-catalog"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
             </Field>
           )}
         />
@@ -146,9 +194,23 @@ export function ProgramSettingsForm({ program }: { program: ProgramValues | null
           control={form.control}
           name="countForgeProposals"
           render={({ field }) => (
-            <Field orientation="horizontal">
-              <Switch id="program-forge" checked={field.value} onCheckedChange={field.onChange} />
-              <FieldLabel htmlFor="program-forge">Pontuar propostas do Forge marcadas como pagas</FieldLabel>
+            <Field
+              orientation="horizontal"
+              className="items-center justify-between gap-4 rounded-[18px] bg-muted p-3"
+            >
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <FieldLabel htmlFor="program-forge">
+                  Propostas do Forge
+                </FieldLabel>
+                <FieldDescription>
+                  Pontuar propostas do Forge marcadas como pagas.
+                </FieldDescription>
+              </div>
+              <Switch
+                id="program-forge"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
             </Field>
           )}
         />
@@ -157,7 +219,9 @@ export function ProgramSettingsForm({ program }: { program: ProgramValues | null
           name="rules"
           render={({ field }) => (
             <Field>
-              <FieldLabel htmlFor="program-rules">Regulamento (opcional)</FieldLabel>
+              <FieldLabel htmlFor="program-rules">
+                Regulamento (opcional)
+              </FieldLabel>
               <Textarea
                 id="program-rules"
                 rows={4}
@@ -168,8 +232,12 @@ export function ProgramSettingsForm({ program }: { program: ProgramValues | null
           )}
         />
       </FieldGroup>
-      <Button type="submit" className="w-fit" disabled={upsert.isPending}>
-        {upsert.isPending && <Loader2 className="size-4 animate-spin" />}
+      <Button
+        type="submit"
+        className="w-full rounded-full sm:w-fit"
+        disabled={upsert.isPending}
+      >
+        {upsert.isPending && <OrbitaSpinner className="size-4 " />}
         Salvar regras
       </Button>
     </form>

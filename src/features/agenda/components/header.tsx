@@ -8,7 +8,6 @@ import {
 } from "../hooks/use-agenda";
 import { Button } from "@/components/ui/button";
 import {
-  ArrowLeftIcon,
   ArrowUpRightIcon,
   LinkIcon,
   Tags,
@@ -22,6 +21,7 @@ import { toast } from "sonner";
 import { DeleteAgendaModal } from "./delete-agenda-modal";
 import Link from "next/link";
 import { CopyLinkWithUtm } from "@/components/ui/copy-link-with-utm";
+import { AppReportButton } from "@/features/insights/components/app-report-button";
 
 interface HeaderAgendaProps {
   agendaId: string;
@@ -68,17 +68,13 @@ export function HeaderAgenda({ agendaId }: HeaderAgendaProps) {
 
   return (
     <>
-      <div className="sticky top-0 h-16 flex items-center justify-between px-4 bg-background z-10 border-b border-border">
+      <div className="sticky top-0 h-16 flex items-center justify-between px-4 bg-background z-10">
         <div className="flex items-center gap-2">
-          <Button size="icon-sm" variant="ghost" asChild>
-            <Link href="/agendas">
-              <ArrowLeftIcon />
-            </Link>
-          </Button>
 
           {data.agenda.name}
         </div>
         <div className="flex items-center gap-2">
+          <AppReportButton appModule="spacetime" />
           <Switch
             checked={isActive}
             onCheckedChange={handleToggleActiveAgenda}

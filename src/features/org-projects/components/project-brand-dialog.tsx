@@ -18,7 +18,7 @@ export function ProjectBrandDialog({ open, onOpenChange, project }: Props) {
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <TagIcon className="size-4 text-violet-500" />
+            <TagIcon className="size-4 text-info" />
             Marca — {project.name}
           </DialogTitle>
         </DialogHeader>

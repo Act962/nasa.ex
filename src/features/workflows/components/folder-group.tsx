@@ -76,14 +76,14 @@ export function FolderGroup({
                 <FolderOpenIcon
                   className={cn(
                     "size-4",
-                    isVirtual ? "text-muted-foreground" : "text-amber-500",
+                    isVirtual ? "text-muted-foreground" : "text-warning",
                   )}
                 />
               ) : (
                 <FolderIcon
                   className={cn(
                     "size-4",
-                    isVirtual ? "text-muted-foreground" : "text-amber-500",
+                    isVirtual ? "text-muted-foreground" : "text-warning",
                   )}
                 />
               )}

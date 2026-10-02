@@ -70,7 +70,7 @@ export async function checkMcpAuthorization(
 export function unauthorizedMessage(reason: AuthorizationResult["reason"]): string {
   switch (reason) {
     case "mcp_disabled":
-      return "Astro Meta Ads ainda não foi habilitado nesta organização. Peça ao Master ou Moderador pra habilitar em Integrações → Meta → Astro + IA.";
+      return "Astro Meta Ads ainda não foi habilitado nesta organização. Peça ao Master ou Moderador pra habilitar em Satélites → Meta → Astro + IA.";
     case "no_grant":
     case "revoked":
       return "Você não é autorizado a realizar essa operação. Peça ao Master ou Moderador da organização pra liberar o uso do Astro Meta Ads.";

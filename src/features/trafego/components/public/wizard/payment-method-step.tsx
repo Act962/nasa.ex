@@ -64,19 +64,19 @@ export function PaymentMethodStep({
               className={cn(
                 "relative flex items-start gap-3 rounded-xl border px-4 py-3.5 text-left transition",
                 isSelected
-                  ? "border-violet-400 bg-violet-500/[0.09]"
+                  ? "border-info bg-info/10"
                   : "border-white/[0.09] bg-white/[0.02] hover:border-white/20",
               )}
             >
               {isSelected && (
-                <span className="absolute right-3 top-3 flex size-4 items-center justify-center rounded-full bg-violet-500">
+                <span className="absolute right-3 top-3 flex size-4 items-center justify-center rounded-full bg-info">
                   <Check className="size-2.5 text-white" />
                 </span>
               )}
               <option.icon
                 className={cn(
                   "mt-0.5 size-4 shrink-0",
-                  isSelected ? "text-violet-300" : "text-white/40",
+                  isSelected ? "text-info" : "text-white/40",
                 )}
               />
               <span className="min-w-0">

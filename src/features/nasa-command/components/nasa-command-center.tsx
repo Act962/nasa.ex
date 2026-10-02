@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   useMutation,
   useQuery,
@@ -10,30 +11,27 @@ import type { UIMessage } from "ai";
 import { isToolUIPart } from "ai";
 
 import { orpc, client } from "@/lib/orpc";
-import { HeaderTracking } from "@/features/leads/components/header-tracking";
 import { useAstroChat } from "@/features/astro/hooks/use-astro-chat";
+import { useHomeVoiceCall } from "../hooks/use-home-voice-call";
 import { useAstroAttachments } from "@/features/astro/hooks/use-astro-attachments";
 import { useAstro } from "@/features/astro/components/astro-provider";
 import {
   readStoredCommandSessionId,
   storeCommandSessionId,
 } from "@/features/astro/hooks/use-astro-widget-session";
-import { AstroMessage } from "@/features/astro/components/astro-message";
 import { useAutoNarrate } from "@/features/astro/voice/use-auto-narrate";
 import { useVoiceModeStore } from "@/features/astro/voice/use-voice-mode-store";
 import { useAstroOrbStore } from "@/features/astro/voice/use-astro-orb-store";
-import { SlashComposer } from "@/features/astro/composer/slash-composer";
-import { MessageSquare, SquareSlash } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 import type { DropdownType, ModelType } from "../types";
 import type { CommandInputHandle, CommandInputProps } from "./command-input";
-import { StarField } from "./star-field";
+import { SpaceScene } from "./space-scene";
+import { HomeHeader } from "./home-header";
+import { AstroPlusSheet } from "./astro-plus-sheet";
 import { WelcomeScreen } from "./welcome-screen";
-import { ThinkingDisplay } from "./thinking-display";
-import { CommandInput } from "./command-input";
-import { HistoryDropdown } from "./history-dropdown";
-import { SessionHeader } from "./session-header";
+import { ConversationStack } from "./conversation-stack";
+import { useHomeAlerts } from "./home-alerts-list";
 
 /**
  * `/home` — superfície de tela cheia do ASTRO.
@@ -60,13 +58,10 @@ export function NasaCommandCenter() {
   const [command, setCommand] = useState("");
   const [dropdown, setDropdown] = useState<DropdownType>(null);
   const [dropdownSearch, setDropdownSearch] = useState("");
-  // Modo de input: "chat" (texto livre + voz) ou "composer" (chips coloridos).
-  const [inputMode, setInputMode] = useState<"chat" | "composer">("chat");
   // `model` continua na UI (model-selector) mas no MVP não influencia o
   // backend — o orquestrador usa ASTRO_DEFAULT_MODEL. Override do usuário
   // fica para iteração futura.
   const [model, setModel] = useState<ModelType>("astro");
-  const bottomRef = useRef<HTMLDivElement>(null);
   const commandInputRef = useRef<CommandInputHandle>(null);
   const queryClient = useQueryClient();
   const { setSessionId } = useAstro();
@@ -90,6 +85,7 @@ export function NasaCommandCenter() {
     setMessages,
     clearError,
     sessionId,
+    ensureSession,
   } = useAstroChat({
     initialMessages: hydrated,
   });
@@ -109,11 +105,6 @@ export function NasaCommandCenter() {
       onSuccess: () => sessionsQuery.refetch(),
     }),
   );
-
-  // Auto-scroll quando mensagens mudam.
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   // Após o stream terminar, atualiza a lista de recents.
   useEffect(() => {
@@ -135,22 +126,20 @@ export function NasaCommandCenter() {
     [setMessages, setSessionId, clearError],
   );
 
-  // A conversa desta aba sobrevive ao refresh. Antes, atualizar a página
-  // abria um chat vazio e o usuário precisava caçar a conversa nos recentes
-  // — ela estava salva, mas parecia perdida.
+  // A Início abre nas boas-vindas; a última conversa fica a um toque ("Últimas conversas").
   // Lido na primeira renderização, antes de qualquer efeito: o efeito que
-  // grava roda com `sessionId` ainda nulo e apagaria o id a restaurar.
+  // grava roda com `sessionId` ainda nulo e apagaria o id guardado.
   const [storedSessionId] = useState(readStoredCommandSessionId);
-  const restoredRef = useRef(false);
+  const lastConversationId = storedSessionId ?? sessionsQuery.data?.sessions[0]?.id ?? null;
 
-  useEffect(() => {
-    if (restoredRef.current || sessionId || !storedSessionId) return;
-    restoredRef.current = true;
-    // Sessão apagada ou de outro usuário: começa vazio, sem quebrar a tela.
-    void handleSelectSession(storedSessionId).catch(() =>
-      storeCommandSessionId(null),
-    );
-  }, [sessionId, storedSessionId, handleSelectSession]);
+  const openLastConversation = useCallback(() => {
+    if (!lastConversationId) return;
+    // Sessão apagada ou de outro usuário: avisa e esquece o id, sem quebrar a tela.
+    void handleSelectSession(lastConversationId).catch(() => {
+      storeCommandSessionId(null);
+      toast.error("Não encontrei a última conversa. Veja o Histórico no +.");
+    });
+  }, [lastConversationId, handleSelectSession]);
 
   useEffect(() => {
     if (sessionId) storeCommandSessionId(sessionId);
@@ -232,9 +221,17 @@ export function NasaCommandCenter() {
     [submitCommand, setLastInputWasVoice],
   );
 
+  const homeVoiceCall = useHomeVoiceCall({
+    messages,
+    setMessages,
+    submitCommand,
+    ensureSession,
+    onFallbackToBrowserVoice: () => commandInputRef.current?.startListening(),
+  });
+
   // Auto-narração: quando o stream termina, narra a resposta do Astro
   // se o modo de output permitir (match + last input por voz, ou "audio").
-  useAutoNarrate({ messages, status });
+  useAutoNarrate({ messages, status, isPaused: homeVoiceCall.isActive });
 
   // ── Auto-continue do mic: conversa contínua ─────────────────────────
   // Quando user faz pedido por voz, Astro responde e narra. Assim que o
@@ -344,6 +341,8 @@ export function NasaCommandCenter() {
     return inflight.length ? inflight : ["Explorando…"];
   }, [messages, loading]);
 
+  const [isPlusSheetOpen, setIsPlusSheetOpen] = useState(false);
+  const { alertGroups } = useHomeAlerts();
   const commandInputProps: CommandInputProps = {
     command,
     setCommand,
@@ -360,6 +359,9 @@ export function NasaCommandCenter() {
     onAddFiles: (files: File[]) => void addFiles(files),
     onRemoveAttachment: removeAttachment,
     isUploadingAttachment,
+    onOpenPlus: () => setIsPlusSheetOpen(true),
+    plusBadgeCount: alertGroups.length,
+    voiceCall: homeVoiceCall.voiceCall,
   };
 
   const recentSessions = (sessionsQuery.data?.sessions ?? []).map((s) => ({
@@ -370,146 +372,48 @@ export function NasaCommandCenter() {
   }));
 
   return (
+    // A Início é um cenário espacial: sempre no tema escuro, nos dois modos.
     <div
-      className="h-full flex flex-col bg-[#050510] relative overflow-hidden"
+      data-home-space
+      className="dark h-full flex flex-col bg-background text-foreground relative overflow-hidden"
       style={{ cursor: "url('/cursors/rocket.svg') 6 4, auto" }}
     >
-      <StarField />
-      <HeaderTracking title="Home" />
+      <SpaceScene />
+      <HomeHeader />
 
       <div className="flex-1 overflow-y-auto relative z-10">
-        {!hasMessages ? (
-          <WelcomeScreen
-            onSelect={fillExample}
-            commandInputProps={commandInputProps}
-            recentSessions={recentSessions}
-            recentLoading={sessionsQuery.isLoading}
-            onSelectSession={handleSelectSession}
-            onDeleteSession={handleDeleteSession}
-            onAfterRenameSession={() => sessionsQuery.refetch()}
-            onNewSession={handleNewSession}
-          />
-        ) : (
-          <div className="max-w-3xl mx-auto px-3 sm:px-4 pt-4 pb-4 space-y-2">
-            <SessionHeader
-              sessionId={sessionId}
-              title={
-                recentSessions.find((s) => s.id === sessionId)?.title ?? null
-              }
-              onNewSession={handleNewSession}
-              onAfterRename={() => sessionsQuery.refetch()}
-            />
-            {(() => {
-              // Somatória cumulativa de tokens por mensagem assistant.
-              // Cada AstroMessage recebe o total da sessão até ele (não só
-              // os tokens da requisição que gerou aquela resposta).
-              let runningTotal = 0;
-              return messages.map((msg) => {
-                const msgTokens =
-                  (msg as { metadata?: { tokens?: number } }).metadata
-                    ?.tokens ?? 0;
-                if (msg.role === "assistant" && msgTokens > 0) {
-                  runningTotal += msgTokens;
-                }
-                return (
-                  <AstroMessage
-                    key={msg.id}
-                    message={msg}
-                    onRespond={(text) => void submitCommand(text)}
-                    busy={loading}
-                    cumulativeTokens={
-                      msg.role === "assistant" ? runningTotal : undefined
-                    }
-                  />
-                );
-              });
-            })()}
-            {loading && <ThinkingDisplay steps={thinkingSteps} />}
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-2 text-xs text-destructive">
-                {error.message ?? "Erro ao processar."}
-              </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-        )}
-      </div>
-
-      {hasMessages && (
-        <div className="border-t border-zinc-800/60 bg-[#050510]/90 backdrop-blur px-3 sm:px-4 py-3 shrink-0 relative z-10">
-          <div className="max-w-3xl mx-auto">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <ModeToggle mode={inputMode} onChange={setInputMode} />
-              {/* Histórico Astro Explorer acessível também durante a conversa
-                  — antes só aparecia no WelcomeScreen (sem mensagens), o que
-                  fazia o user perder acesso depois de mandar a 1ª mensagem. */}
-              <HistoryDropdown
-                sessions={recentSessions}
-                loading={sessionsQuery.isLoading}
-                onSelect={handleSelectSession}
-                onDelete={handleDeleteSession}
-                onAfterRename={() => sessionsQuery.refetch()}
-                onNewSession={handleNewSession}
-              />
-            </div>
-            {inputMode === "composer" ? (
-              <SlashComposer
+        <WelcomeScreen
+          isConversationActive={hasMessages}
+          onOpenLastConversation={!hasMessages && lastConversationId ? openLastConversation : undefined}
+          commandInputProps={commandInputProps}
+          commandInputRef={commandInputRef}
+          conversation={
+            hasMessages ? (
+              <ConversationStack
+                messages={messages}
                 loading={loading}
-                onSubmit={(prompt) => void submitCommand(prompt)}
+                thinkingSteps={thinkingSteps}
+                error={error}
+                sessionId={sessionId}
+                onRespond={(text) => void submitCommand(text)}
               />
-            ) : (
-              <CommandInput {...commandInputProps} ref={commandInputRef} />
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ModeToggle({
-  mode,
-  onChange,
-}: {
-  mode: "chat" | "composer";
-  onChange: (m: "chat" | "composer") => void;
-}) {
-  return (
-    <div
-      className="inline-flex rounded-lg border border-zinc-800 bg-zinc-900/60 p-0.5"
-      role="radiogroup"
-      aria-label="Modo de input"
-    >
-      <button
-        type="button"
-        role="radio"
-        aria-checked={mode === "chat"}
-        onClick={() => onChange("chat")}
-        title="Texto livre + voz"
-        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors ${
-          mode === "chat"
-            ? "bg-violet-600/30 text-violet-200 ring-1 ring-violet-500/50"
-            : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
-        }`}
-      >
-        <MessageSquare className="size-3" />
-        <span className="hidden sm:inline">Conversa</span>
-      </button>
-      <button
-        type="button"
-        role="radio"
-        aria-checked={mode === "composer"}
-        onClick={() => onChange("composer")}
-        title="Chips estruturados (/CRIAR /LEAD…)"
-        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors ${
-          mode === "composer"
-            ? "bg-violet-600/30 text-violet-200 ring-1 ring-violet-500/50"
-            : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
-        }`}
-      >
-        <SquareSlash className="size-3" />
-        <span className="hidden sm:inline">Comando</span>
-      </button>
+            ) : null
+          }
+        />
+      </div>
+      <AstroPlusSheet
+        open={isPlusSheetOpen}
+        onOpenChange={setIsPlusSheetOpen}
+        onSelectExample={fillExample}
+        onPrompt={(prompt) => void submitCommand(prompt)}
+        sessions={recentSessions}
+        sessionsLoading={sessionsQuery.isLoading}
+        onSelectSession={handleSelectSession}
+        onDeleteSession={handleDeleteSession}
+        onAfterRenameSession={() => sessionsQuery.refetch()}
+        onNewSession={handleNewSession}
+        onAddFiles={commandInputProps.onAddFiles}
+      />
     </div>
   );
 }

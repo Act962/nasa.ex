@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { Loader2, AlertTriangle, HardDrive, Sparkles } from "lucide-react";
+import { AlertTriangle, HardDrive, Sparkles } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   Dialog,
   DialogContent,
@@ -59,7 +60,7 @@ export function VideoUploadCostModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <HardDrive className="size-5 text-violet-600" />
+            <HardDrive className="size-5 text-info" />
             Hospedagem do vídeo
           </DialogTitle>
           <DialogDescription>
@@ -69,7 +70,7 @@ export function VideoUploadCostModal({
 
         {quoteQ.isLoading && (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <OrbitaSpinner className="size-6 text-muted-foreground" />
           </div>
         )}
 
@@ -99,15 +100,15 @@ export function VideoUploadCostModal({
               </div>
             </div>
 
-            <div className="flex items-baseline justify-between rounded-lg border border-violet-200 bg-violet-50 p-3 dark:border-violet-800/40 dark:bg-violet-900/20">
-              <div className="text-sm text-violet-900 dark:text-violet-200">
+            <div className="flex items-baseline justify-between rounded-lg border border-info/30 bg-info/10 p-3">
+              <div className="text-sm text-info">
                 Custo total
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-violet-700 dark:text-violet-300">
+                <span className="text-2xl font-bold text-info">
                   {quote.costStars.toLocaleString("pt-BR")}
                 </span>
-                <Sparkles className="size-4 text-violet-600" />
+                <Sparkles className="size-4 text-info" />
               </div>
             </div>
 
@@ -124,13 +125,13 @@ export function VideoUploadCostModal({
             </div>
 
             {!quote.hasSufficientBalance && (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-700/40 dark:bg-amber-900/20 dark:text-amber-200">
+              <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
                 <AlertTriangle className="mt-0.5 size-4 flex-shrink-0" />
                 <span>
                   Saldo insuficiente. Compre STARs em{" "}
                   <a
                     href="/settings/stars"
-                    className="font-medium underline hover:text-amber-700"
+                    className="font-medium underline hover:opacity-80"
                   >
                     Configurações → STARs
                   </a>{" "}
@@ -163,7 +164,7 @@ export function VideoUploadCostModal({
             className="gap-1.5"
           >
             {isConfirming ? (
-              <Loader2 className="size-4 animate-spin" />
+              <OrbitaSpinner className="size-4 " />
             ) : (
               <Sparkles className="size-4" />
             )}

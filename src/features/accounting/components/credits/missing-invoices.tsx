@@ -28,7 +28,7 @@ export function MissingInvoices() {
   const rateLabel = `${formatBps(missing.rateBps)}${missing.isEstimated ? " (estimada)" : ""}`;
 
   return (
-    <Card className="border-red-500/20">
+    <Card className="border-destructive/20">
       <CardHeader className="space-y-1">
         <CardTitle className="flex flex-wrap items-center gap-1.5 text-base">
           Crédito perdido: despesas pagas sem nota
@@ -39,7 +39,7 @@ export function MissingInvoices() {
             <>
               Valendo <strong>a partir de {missing.referenceYear}</strong>: com CBS + IBS de {rateLabel}, estas compras
               deixariam de gerar cerca de{" "}
-              <strong className="text-red-600 dark:text-red-400">
+              <strong className="text-destructive dark:text-destructive">
                 {formatCentsBrl(missing.totalEstimatedCreditCents)}
               </strong>{" "}
               de crédito. Hoje é só um alerta: comece a pedir a nota já.
@@ -47,7 +47,7 @@ export function MissingInvoices() {
           ) : (
             <>
               Com CBS + IBS de {rateLabel}, estas compras poderiam ter gerado cerca de{" "}
-              <strong className="text-red-600 dark:text-red-400">
+              <strong className="text-destructive dark:text-destructive">
                 {formatCentsBrl(missing.totalEstimatedCreditCents)}
               </strong>{" "}
               de crédito.
@@ -59,7 +59,7 @@ export function MissingInvoices() {
       <CardContent>
         {missing.items.length === 0 ? (
           <div className="flex items-center gap-2 rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
-            <PartyPopper className="size-4 text-emerald-500" />
+            <PartyPopper className="size-4 text-success" />
             Todas as despesas pagas nos últimos 3 meses têm nota ou recibo. Continue assim!
           </div>
         ) : (
@@ -86,7 +86,7 @@ export function MissingInvoices() {
                       </td>
                       <td className="px-3 py-2">{new Date(item.paidAt).toLocaleDateString("pt-BR")}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{formatCentsBrl(item.amountCents)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-red-600 dark:text-red-400">
+                      <td className="px-3 py-2 text-right tabular-nums text-destructive dark:text-destructive">
                         {formatCentsBrl(item.estimatedCreditCents)}
                       </td>
                       <td className="py-2 pl-3 text-right">

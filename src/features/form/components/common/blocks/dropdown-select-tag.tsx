@@ -9,7 +9,8 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { useTags } from "@/features/tags/hooks/use-tags";
-import { Check, Tag as TagIcon, Loader2 } from "lucide-react";
+import { Check, Tag as TagIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -44,7 +45,7 @@ export function TagDropdown({ children, tagId, onSelect }: TagDropdownProps) {
 
         {isLoadingTags ? (
           <div className="flex items-center justify-center py-4">
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            <OrbitaSpinner className="size-4 text-muted-foreground" />
           </div>
         ) : tags.length === 0 ? (
           <div className="py-3 px-2 text-center text-xs text-muted-foreground">

@@ -64,7 +64,7 @@ export function LegalPage({
                         key={bullet.slice(0, 40)}
                         className="flex gap-2 text-sm leading-relaxed text-white/60"
                       >
-                        <span className="mt-2 size-1 shrink-0 rounded-full bg-violet-400" />
+                        <span className="mt-2 size-1 shrink-0 rounded-full bg-info" />
                         {bullet}
                       </li>
                     ))}

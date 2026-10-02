@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Mail, ShoppingBag } from "lucide-react";
+import { Mail, ShoppingBag } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 interface PublicCheckoutModalProps {
   open: boolean;
@@ -167,7 +168,7 @@ export function PublicCheckoutModal({
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-1 size-4 animate-spin" />
+                  <OrbitaSpinner className="mr-1 size-4 " />
                   Indo pro Stripe…
                 </>
               ) : (

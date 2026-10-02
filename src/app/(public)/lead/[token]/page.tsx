@@ -335,7 +335,7 @@ function TimelineItem({
         {formLink && (
           <Link
             href={formLink}
-            className="inline-flex w-fit items-center gap-1 text-[11px] text-emerald-700 hover:text-emerald-800 hover:underline mt-0.5"
+            className="inline-flex w-fit items-center gap-1 text-[11px] text-success hover:text-success hover:underline mt-0.5"
           >
             <ExternalLink className="size-3" />
             Ver formulário
@@ -405,39 +405,39 @@ function iconForKind(kind: string): {
 } {
   switch (kind) {
     case "status_change":
-      return { Icon: GitBranch, color: "#3b82f6" };
+      return { Icon: GitBranch, color: "var(--info)" };
     case "tracking_change":
-      return { Icon: GitBranch, color: "#8b5cf6" };
+      return { Icon: GitBranch, color: "var(--info)" };
     case "responsible_change":
-      return { Icon: UserCog, color: "#0ea5e9" };
+      return { Icon: UserCog, color: "var(--info)" };
     case "form_submitted":
-      return { Icon: FileText, color: "#10b981" };
+      return { Icon: FileText, color: "var(--success)" };
     case "file_uploaded":
-      return { Icon: Inbox, color: "#0ea5e9" };
+      return { Icon: Inbox, color: "var(--info)" };
     case "tag_added":
-      return { Icon: TagIcon, color: "#f59e0b" };
+      return { Icon: TagIcon, color: "var(--warning)" };
     case "tag_removed":
-      return { Icon: TagIcon, color: "#94a3b8" };
+      return { Icon: TagIcon, color: "var(--muted-foreground)" };
     case "note":
-      return { Icon: MessageSquare, color: "#64748b" };
+      return { Icon: MessageSquare, color: "var(--muted-foreground)" };
     case "sla_breached":
-      return { Icon: Timer, color: "#ef4444" };
+      return { Icon: Timer, color: "var(--destructive)" };
     case "public_link_viewed":
-      return { Icon: CheckCircle2, color: "#10b981" };
+      return { Icon: CheckCircle2, color: "var(--success)" };
     case "won":
-      return { Icon: Trophy, color: "#10b981" };
+      return { Icon: Trophy, color: "var(--success)" };
     case "lost":
-      return { Icon: XCircle, color: "#ef4444" };
+      return { Icon: XCircle, color: "var(--destructive)" };
     case "deleted":
-      return { Icon: XCircle, color: "#94a3b8" };
+      return { Icon: XCircle, color: "var(--muted-foreground)" };
     case "active":
-      return { Icon: CheckCircle2, color: "#10b981" };
+      return { Icon: CheckCircle2, color: "var(--success)" };
     case "appointment":
-      return { Icon: Clock, color: "#8b5cf6" };
+      return { Icon: Clock, color: "var(--info)" };
     case "message":
-      return { Icon: MessageSquare, color: "#0ea5e9" };
+      return { Icon: MessageSquare, color: "var(--info)" };
     default:
-      return { Icon: CheckCircle2, color: "#10b981" };
+      return { Icon: CheckCircle2, color: "var(--success)" };
   }
 }
 
@@ -522,13 +522,13 @@ function AttachmentsCard({
               >
                 <div className="flex items-center gap-2">
                   {folder === "Chat" ? (
-                    <MessageSquare className="size-4 text-blue-600" />
+                    <MessageSquare className="size-4 text-info" />
                   ) : folder === "Formulários" ? (
-                    <FileText className="size-4 text-emerald-600" />
+                    <FileText className="size-4 text-success" />
                   ) : open ? (
-                    <FolderOpen className="size-4 text-amber-600" />
+                    <FolderOpen className="size-4 text-warning" />
                   ) : (
-                    <Folder className="size-4 text-amber-600" />
+                    <Folder className="size-4 text-warning" />
                   )}
                   <span className="text-sm font-medium">{folder}</span>
                   <span className="text-[11px] text-muted-foreground">
@@ -573,9 +573,9 @@ function AttachmentsCard({
                             className="flex items-center gap-1.5 text-xs font-medium text-foreground/80 hover:text-foreground py-1"
                           >
                             {subOpen ? (
-                              <FolderOpen className="size-3.5 text-emerald-600" />
+                              <FolderOpen className="size-3.5 text-success" />
                             ) : (
-                              <Folder className="size-3.5 text-emerald-600" />
+                              <Folder className="size-3.5 text-success" />
                             )}
                             <span>{subName}</span>
                             <span className="text-foreground/50 text-[10px]">
@@ -668,7 +668,7 @@ function PublicAttachmentTile({
           {formLink && (
             <Link
               href={formLink}
-              className="inline-flex items-center gap-1 ml-auto text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/90 text-white hover:bg-emerald-600"
+              className="inline-flex items-center gap-1 ml-auto text-[10px] px-1.5 py-0.5 rounded bg-success text-white hover:bg-success/90"
               title={`Ver formulário: ${item.context?.formName ?? ""}`}
             >
               Ver form

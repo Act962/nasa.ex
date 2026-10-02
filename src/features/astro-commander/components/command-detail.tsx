@@ -8,11 +8,11 @@ import {
   FlaskConical,
   LayoutDashboard,
   ListChecks,
-  Loader2,
   MessageSquareText,
   Settings2,
   Wrench,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -132,7 +132,7 @@ export function CommandDetail({ commandId }: { commandId: string }) {
             disabled={runNow.isPending}
           >
             {runNow.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
+              <OrbitaSpinner className="size-4 " />
             ) : (
               <FlaskConical className="size-4" />
             )}

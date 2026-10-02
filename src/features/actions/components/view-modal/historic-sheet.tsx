@@ -59,7 +59,7 @@ export function HistoricSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-md flex flex-col p-0 gap-0">
-        <SheetHeader className="p-6 border-b">
+        <SheetHeader className="p-6">
           <div className="flex items-center gap-2">
             <HistoryIcon className="size-5 text-muted-foreground" />
             <SheetTitle>Histórico da Ação</SheetTitle>

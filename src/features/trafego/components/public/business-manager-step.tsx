@@ -61,14 +61,14 @@ export function BusinessManagerStep({
               className={cn(
                 "flex items-start gap-3 rounded-xl border px-4 py-3 text-left transition",
                 isSelected
-                  ? "border-violet-400 bg-violet-500/10"
+                  ? "border-info bg-info/10"
                   : "border-white/10 bg-white/[0.03] hover:border-white/20",
               )}
             >
               <span
                 className={cn(
                   "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border",
-                  isSelected ? "border-violet-400 bg-violet-500" : "border-white/20",
+                  isSelected ? "border-info bg-info" : "border-white/20",
                 )}
               >
                 {isSelected && <Check className="size-2.5 text-white" />}
@@ -104,7 +104,7 @@ export function BusinessManagerStep({
       {isExplanationOpen && (
         <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] p-4">
           <div className="flex items-start gap-2.5">
-            <Building2 className="mt-0.5 size-4 shrink-0 text-violet-300" />
+            <Building2 className="mt-0.5 size-4 shrink-0 text-info" />
             <div className="space-y-2 text-xs leading-relaxed text-white/60">
               <p>
                 A <strong className="text-white/80">Business Manager</strong> é a
@@ -130,9 +130,9 @@ export function BusinessManagerStep({
       )}
 
       {willBeCharged && (
-        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-400/25 bg-amber-500/10 p-4">
-          <Info className="mt-0.5 size-4 shrink-0 text-amber-300" />
-          <div className="text-xs leading-relaxed text-amber-100">
+        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/15 p-4">
+          <Info className="mt-0.5 size-4 shrink-0 text-warning" />
+          <div className="text-xs leading-relaxed text-foreground/85">
             {setupBrlCents > 0 ? (
               <>
                 Como você ainda não tem conta de anúncios, há uma{" "}

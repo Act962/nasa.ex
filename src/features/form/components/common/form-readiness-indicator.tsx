@@ -47,10 +47,10 @@ export function FormReadinessIndicator() {
 
   const isReady = readiness.percent === 100;
   const color = isReady
-    ? "text-emerald-600 border-emerald-500/40 bg-emerald-500/10"
+    ? "text-success border-success/40 bg-success/10"
     : readiness.percent >= 60
-      ? "text-amber-600 border-amber-500/40 bg-amber-500/10"
-      : "text-red-600 border-red-500/40 bg-red-500/10";
+      ? "text-warning border-warning/40 bg-warning/10"
+      : "text-destructive border-destructive/40 bg-destructive/10";
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -93,7 +93,7 @@ export function FormReadinessIndicator() {
         </div>
 
         {isReady ? (
-          <div className="p-4 text-center text-sm text-emerald-700">
+          <div className="p-4 text-center text-sm text-success">
             <CheckCircle2 className="mx-auto mb-1 w-5 h-5" />
             Tudo certo! Você pode publicar o formulário.
           </div>
@@ -117,7 +117,7 @@ export function FormReadinessIndicator() {
                   }}
                   className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors"
                 >
-                  <AlertCircle className="w-4 h-4 mt-0.5 text-red-500 flex-shrink-0" />
+                  <AlertCircle className="w-4 h-4 mt-0.5 text-destructive flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">
                       {p.blockType === "__empty__" ? "Sem blocos" : p.blockType}

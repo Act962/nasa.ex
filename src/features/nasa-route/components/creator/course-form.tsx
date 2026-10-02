@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { Loader2, Save, Sparkles } from "lucide-react";
+import { Save, Sparkles } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +45,7 @@ import {
   parseBrlInputToCents,
 } from "@/features/nasa-route/lib/price-input";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { useHideOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
 import { emitTourResult } from "@/features/tour/store";
 import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
@@ -112,6 +114,7 @@ function toDatetimeLocalValue(d: Date): string {
 }
 
 export function CourseForm({ courseId, initial, onSaved }: Props) {
+  useHideOrbitDock();
   const router = useRouter();
   const queryClient = useQueryClient();
   const isEdit = !!courseId;
@@ -488,7 +491,7 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
         </div>
       </div>
 
-      <div className="space-y-2 rounded-md border p-4">
+      <div className="space-y-2 rounded-[18px] border border-line p-4">
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -561,33 +564,35 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
         </div>
       )}
 
-      <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm dark:border-violet-800/40 dark:bg-violet-900/20">
+      <div className="rounded-[18px] border border-info/30 bg-info/10 p-4 text-sm">
         <div className="flex items-start gap-2">
-          <Sparkles className="mt-0.5 size-4 text-violet-600" />
-          <p className="text-violet-900 dark:text-violet-200">
+          <Sparkles className="mt-0.5 size-4 text-info" />
+          <p className="text-info">
             Você recebe <strong>90% do valor pago</strong> — a plataforma retém
             10% como taxa. Ex.: produto de 500★ → você recebe 450★.
           </p>
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-2">
+      {/* Celular: ação fixa embaixo na largura toda (o menu de baixo some nesta tela). */}
+      <div className="sticky bottom-0 z-10 -mx-4 flex gap-2 bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur md:static md:mx-0 md:justify-end md:bg-transparent md:px-0 md:pt-2 md:pb-0 md:backdrop-blur-none">
         <Button
           type="button"
           variant="outline"
           onClick={() => router.back()}
           disabled={upsert.isPending}
+          className="max-md:hidden"
         >
           Cancelar
         </Button>
         <Button
           type="submit"
           disabled={upsert.isPending}
-          className="gap-1.5"
+          className="h-12 w-full gap-1.5 rounded-full text-base md:h-9 md:w-auto md:text-sm"
           data-guide={GUIDE_ANCHORS.routeCourseSubmit.id}
         >
           {upsert.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
           ) : (
             <Save className="size-4" />
           )}

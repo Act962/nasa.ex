@@ -21,8 +21,8 @@ import {
   ArrowRight,
   ChevronLeft,
   CreditCard,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import { CATEGORY_LABELS, CATEGORY_ICONS } from "@/types/integration";
 import { useMarketplace } from "@/features/integrations/context/marketplace-context";
@@ -55,7 +55,7 @@ function IntegrationLogo({ integration }: { integration: Integration }) {
 
   if (!isUrl) {
     return (
-      <div className="size-12 rounded-xl bg-gradient-to-br from-[#7C3AED]/10 to-[#a855f7]/10 border border-[#7C3AED]/20 flex items-center justify-center shrink-0 text-2xl">
+      <div className="size-12 rounded-xl bg-gradient-to-br from-info/10 to-info/10 border border-info/20 flex items-center justify-center shrink-0 text-2xl">
         {integration.icon}
       </div>
     );
@@ -65,7 +65,7 @@ function IntegrationLogo({ integration }: { integration: Integration }) {
     <div className="size-12 rounded-xl overflow-hidden flex items-center justify-center shrink-0 relative border border-border/50">
       <div
         className={cn(
-          "absolute inset-0 rounded-xl bg-gradient-to-br from-[#7C3AED]/10 to-[#a855f7]/10 flex items-center justify-center text-xl",
+          "absolute inset-0 rounded-xl bg-gradient-to-br from-info/10 to-info/10 flex items-center justify-center text-xl",
           imgLoaded && !imgFailed && "opacity-0",
         )}
       >
@@ -107,9 +107,9 @@ function ManualSteps({ step }: { step: 1 | 2 | 3 }) {
               className={cn(
                 "flex items-center gap-1.5 text-[11px] font-medium",
                 active
-                  ? "text-[#7C3AED]"
+                  ? "text-info"
                   : done
-                    ? "text-emerald-600"
+                    ? "text-success"
                     : "text-muted-foreground",
               )}
             >
@@ -117,9 +117,9 @@ function ManualSteps({ step }: { step: 1 | 2 | 3 }) {
                 className={cn(
                   "size-5 rounded-full flex items-center justify-center text-[10px] font-bold",
                   active
-                    ? "bg-[#7C3AED] text-white"
+                    ? "bg-primary text-primary-foreground"
                     : done
-                      ? "bg-emerald-500 text-white"
+                      ? "bg-success text-primary-foreground"
                       : "bg-muted text-muted-foreground",
                 )}
               >
@@ -224,10 +224,10 @@ function PaymentChoice({
             "w-full flex items-start gap-3 p-4 rounded-xl border-2 transition-all text-left",
             !hasEnough || !hasPlan || totalCost === 0
               ? "border-border/40 bg-muted/20 opacity-60 cursor-not-allowed"
-              : "border-yellow-300 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-950/20 dark:border-yellow-700 dark:hover:bg-yellow-950/30",
+              : "border-warning/30 bg-warning/10 hover:bg-warning/15",
           )}
         >
-          <div className="size-9 rounded-lg bg-yellow-100 dark:bg-yellow-900/40 flex items-center justify-center shrink-0">
+          <div className="size-9 rounded-lg bg-warning/15 flex items-center justify-center shrink-0">
             <StarIcon className="size-5" />
           </div>
           <div className="flex-1 min-w-0">
@@ -244,18 +244,18 @@ function PaymentChoice({
               </p>
             )}
             {!hasPlan && (
-              <p className="text-[11px] text-amber-600 font-medium mt-0.5">
+              <p className="text-[11px] text-warning font-medium mt-0.5">
                 ⚠ Você precisa ter um plano ativo para usar créditos
               </p>
             )}
             {hasPlan && !hasEnough && totalCost > 0 && (
-              <p className="text-[11px] text-red-500 font-medium mt-0.5">
+              <p className="text-[11px] text-destructive font-medium mt-0.5">
                 Saldo insuficiente — precisaria de {totalCost} ★
               </p>
             )}
           </div>
           {hasEnough && hasPlan && (
-            <CheckCircle2 className="size-4 text-emerald-500 shrink-0 mt-0.5" />
+            <CheckCircle2 className="size-4 text-success shrink-0 mt-0.5" />
           )}
         </button>
 
@@ -263,13 +263,13 @@ function PaymentChoice({
         <button
           onClick={handleCard}
           disabled={cardLoading}
-          className="w-full flex items-start gap-3 p-4 rounded-xl border-2 border-[#7C3AED]/30 bg-[#7C3AED]/5 hover:border-[#7C3AED] hover:bg-[#7C3AED]/10 transition-all text-left"
+          className="w-full flex items-start gap-3 p-4 rounded-xl border-2 border-info/30 bg-info/5 hover:border-info hover:bg-info/10 transition-all text-left"
         >
-          <div className="size-9 rounded-lg bg-[#7C3AED]/10 flex items-center justify-center shrink-0">
+          <div className="size-9 rounded-lg bg-info/10 flex items-center justify-center shrink-0">
             {cardLoading ? (
-              <Loader2 className="size-4 text-[#7C3AED] animate-spin" />
+              <OrbitaSpinner className="size-4 text-info " />
             ) : (
-              <CreditCard className="size-4 text-[#7C3AED]" />
+              <CreditCard className="size-4 text-info" />
             )}
           </div>
           <div className="flex-1 min-w-0">
@@ -398,7 +398,7 @@ export function InstallModal({
 
             {hasCredentials && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
-                <Zap className="size-3.5 text-[#7C3AED] shrink-0" />
+                <Zap className="size-3.5 text-info shrink-0" />
                 Processo simples em 2 etapas: habilitar + inserir credenciais
               </div>
             )}
@@ -414,9 +414,9 @@ export function InstallModal({
                   setMethod("ai");
                   setMode("payment");
                 }}
-                className="group flex flex-col items-center gap-3 p-4 rounded-xl border-2 border-[#7C3AED]/30 bg-[#7C3AED]/5 hover:border-[#7C3AED] hover:bg-[#7C3AED]/10 transition-all"
+                className="group flex flex-col items-center gap-3 p-4 rounded-xl border-2 border-info/30 bg-info/5 hover:border-info hover:bg-info/10 transition-all"
               >
-                <div className="size-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#a855f7] flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+                <div className="size-10 rounded-full bg-gradient-to-br from-info to-info/70 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
                   <Bot className="size-5 text-white" />
                 </div>
                 <div className="text-center">
@@ -425,7 +425,7 @@ export function InstallModal({
                     ASTRO guia você
                   </p>
                 </div>
-                <Badge className="bg-[#7C3AED] text-white text-[10px]">
+                <Badge className="bg-primary text-primary-foreground text-[10px]">
                   Recomendado
                 </Badge>
               </button>
@@ -455,7 +455,7 @@ export function InstallModal({
                 href={integration.connectUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-[#7C3AED] hover:underline"
+                className="flex items-center gap-1.5 text-xs text-info hover:underline"
               >
                 <ExternalLink className="size-3.5" /> Ver documentação oficial
               </a>
@@ -481,7 +481,7 @@ export function InstallModal({
 
             <div className="rounded-xl border bg-muted/30 p-4 space-y-2.5">
               <p className="text-xs font-semibold text-foreground flex items-center gap-2">
-                <span className="size-5 rounded-full bg-[#7C3AED] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                <span className="size-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold shrink-0">
                   1
                 </span>
                 Habilitar {integration.name} no ÓRBITA
@@ -493,9 +493,9 @@ export function InstallModal({
               </p>
             </div>
 
-            <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 dark:bg-amber-950/20 dark:border-amber-900/50 flex items-start gap-2">
-              <Zap className="size-4 text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+            <div className="rounded-xl bg-warning/10 border border-warning/30 p-3 flex items-start gap-2">
+              <Zap className="size-4 text-warning shrink-0 mt-0.5" />
+              <p className="text-xs text-warning leading-relaxed">
                 O ÓRBITA fornece o caminho. As credenciais (Token, API Key)
                 pertencem à <strong>sua conta</strong> na plataforma.
               </p>
@@ -514,11 +514,11 @@ export function InstallModal({
                 size="sm"
                 onClick={handleManualInstall}
                 disabled={loading}
-                className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-2"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="size-3.5 animate-spin" /> Habilitando...
+                    <OrbitaSpinner className="size-3.5 " /> Habilitando...
                   </>
                 ) : (
                   <>
@@ -535,9 +535,9 @@ export function InstallModal({
           <div className="space-y-4 py-1">
             <ManualSteps step={2} />
 
-            <div className="rounded-xl border bg-emerald-50 border-emerald-200 p-3 dark:bg-emerald-950/20 dark:border-emerald-900/50 flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-              <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+            <div className="rounded-xl border bg-success/10 border-success/30 p-3 flex items-center gap-2">
+              <CheckCircle2 className="size-4 text-success shrink-0" />
+              <p className="text-xs text-success font-medium">
                 {integration.name} habilitado! Agora insira suas credenciais.
               </p>
             </div>
@@ -563,7 +563,7 @@ export function InstallModal({
                 }}
                 className={cn(
                   credsSaved &&
-                    "bg-emerald-600 hover:bg-emerald-700 text-white gap-2",
+                    "bg-success hover:bg-success/90 text-primary-foreground gap-2",
                 )}
               >
                 {credsSaved ? (
@@ -581,11 +581,11 @@ export function InstallModal({
         {/* ── DONE ── */}
         {done && (
           <div className="py-6 flex flex-col items-center gap-4 text-center">
-            <div className="size-16 rounded-full bg-emerald-100 flex items-center justify-center">
-              <CheckCircle2 className="size-8 text-emerald-600" />
+            <div className="size-16 rounded-full bg-success/15 flex items-center justify-center">
+              <CheckCircle2 className="size-8 text-success" />
             </div>
             <div className="space-y-1">
-              <p className="font-semibold text-emerald-700">
+              <p className="font-semibold text-success">
                 {integration.name} habilitado!
               </p>
               <p className="text-sm text-muted-foreground">

@@ -30,8 +30,8 @@ export function WizardStepper({
             <span
               className={cn(
                 "flex size-[22px] shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition",
-                isCurrent && "bg-violet-500 text-white",
-                isDone && "bg-violet-500/20 text-violet-300",
+                isCurrent && "bg-info text-background",
+                isDone && "bg-info/20 text-info",
                 !isDone && !isCurrent && "bg-white/[0.07] text-white/35",
               )}
             >

@@ -1,7 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, Plus } from "lucide-react";
+import { Download, Plus } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 export function DashboardToolbar({
   onExport,
@@ -33,7 +34,7 @@ export function DashboardToolbar({
             disabled={isExporting}
           >
             {isExporting ? (
-              <Loader2 className="size-4 animate-spin" />
+              <OrbitaSpinner className="size-4 " />
             ) : (
               <Download className="size-4" />
             )}

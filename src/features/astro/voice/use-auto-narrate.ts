@@ -17,8 +17,10 @@ import { useVoiceModeStore, shouldSpeak } from "./use-voice-mode-store";
 export function useAutoNarrate(opts: {
   messages: UIMessage[];
   status: string; // "ready" | "streaming" | "submitted" | etc
+  /** Durante a chamada de voz em tempo real a própria chamada fala; narrar aqui duplicaria a voz. */
+  isPaused?: boolean;
 }) {
-  const { messages, status } = opts;
+  const { messages, status, isPaused = false } = opts;
   const outputMode = useVoiceModeStore((s) => s.outputMode);
   const lastInputWasVoice = useVoiceModeStore((s) => s.lastInputWasVoice);
   const setSpeaking = useVoiceModeStore((s) => s.setSpeaking);
@@ -29,6 +31,10 @@ export function useAutoNarrate(opts: {
 
   useEffect(() => {
     if (status !== "ready") return;
+    if (isPaused) {
+      lastNarratedIdRef.current = [...messages].reverse().find((m) => m.role === "assistant")?.id ?? lastNarratedIdRef.current;
+      return;
+    }
     if (!isTtsSupported()) return;
     if (!shouldSpeak(outputMode, lastInputWasVoice)) {
       // Reset pra próxima entrada começar zerada
@@ -61,6 +67,7 @@ export function useAutoNarrate(opts: {
   }, [
     messages,
     status,
+    isPaused,
     outputMode,
     lastInputWasVoice,
     setSpeaking,

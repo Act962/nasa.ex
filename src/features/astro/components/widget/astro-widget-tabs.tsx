@@ -25,7 +25,7 @@ export function AstroWidgetTabs({
     <div
       role="tablist"
       aria-label="Seções do Astro"
-      className="flex shrink-0 gap-1 border-b border-white/[0.07] px-3 py-2"
+      className="flex shrink-0 gap-1 px-3 py-2"
     >
       {tabs.map((tab) => {
         const isActive = view === tab.value;
@@ -45,7 +45,7 @@ export function AstroWidgetTabs({
           >
             {tab.label}
             {tab.value === "home" && homeBadge > 0 && (
-              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[9px] font-bold text-white">
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-white">
                 {homeBadge > 9 ? "9+" : homeBadge}
               </span>
             )}

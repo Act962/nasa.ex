@@ -1,4 +1,7 @@
-import { Check, CircleDashed } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { Check, ChevronDown, CircleDashed } from "lucide-react";
 import type { TrafegoOrderStatus } from "@/generated/prisma/enums";
 import {
   Card,
@@ -7,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { TechnicalTerm, type TechnicalTermKey } from "../technical-term";
 
 interface CampaignLaunchProgressProps {
@@ -59,6 +63,7 @@ export function CampaignLaunchProgress({
   hasDestination,
   hasRelease,
 }: CampaignLaunchProgressProps) {
+  const [isChecklistOpen, setIsChecklistOpen] = useState(false);
   const checkpoints: Array<{
     label: string;
     done: boolean;
@@ -103,11 +108,11 @@ export function CampaignLaunchProgress({
   const progressLength = (percentage / 100) * circumference;
 
   return (
-    <Card className="overflow-hidden py-0">
-      <div className="grid md:grid-cols-[190px_1fr]">
-        <div className="flex items-center justify-center border-b bg-muted/30 px-6 py-6 md:border-r md:border-b-0">
+    <Card className="gap-0 overflow-hidden rounded-[20px] py-0">
+      <div className="grid grid-cols-[auto_1fr] items-center md:grid-cols-[190px_1fr] md:items-stretch">
+        <div className="flex items-center justify-center py-4 pl-4 md:bg-muted/30 md:px-6 md:py-6">
           <div
-            className="relative size-36"
+            className="relative size-20 md:size-36"
             role="img"
             aria-label={`${completed} de ${total} etapas concluídas, ${percentage}%`}
           >
@@ -138,56 +143,80 @@ export function CampaignLaunchProgress({
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-2xl font-semibold tabular-nums leading-none">
+              <span className="text-lg font-semibold tabular-nums leading-none md:text-2xl">
                 {completed}/{total}
               </span>
-              <span className="mt-1 text-sm font-medium text-primary">
+              <span className="mt-1 text-xs font-medium text-primary md:text-sm">
                 {percentage}%
               </span>
             </div>
           </div>
         </div>
 
-        <div>
-          <CardHeader className="pb-4">
-            <CardTitle>Prontidão para lançamento</CardTitle>
+        <div className="min-w-0">
+          <CardHeader className="px-4 py-4 md:px-6 md:pb-4">
+            <CardTitle className="text-base">
+              Quanto falta para o anúncio ir ao ar
+            </CardTitle>
             <CardDescription>
               {remaining === 0
-                ? "Todos os marcos foram concluídos. A campanha está no ar."
+                ? "Todas as etapas foram concluídas. A campanha está no ar."
                 : `Faltam ${remaining} ${remaining === 1 ? "etapa" : "etapas"} para a campanha entrar no ar.`}
             </CardDescription>
+            <button
+              type="button"
+              onClick={() => setIsChecklistOpen((isOpen) => !isOpen)}
+              aria-expanded={isChecklistOpen}
+              className="mt-1 inline-flex h-9 w-fit items-center gap-1 rounded-full bg-muted px-3 text-xs font-medium md:hidden"
+            >
+              {isChecklistOpen ? "Esconder etapas" : "Ver etapas"}
+              <ChevronDown
+                className={cn(
+                  "size-3.5 transition",
+                  isChecklistOpen && "rotate-180",
+                )}
+              />
+            </button>
           </CardHeader>
-          <CardContent className="pb-6">
-            <ol className="grid gap-2 sm:grid-cols-2">
-              {checkpoints.map((checkpoint) => (
-                <li
-                  key={checkpoint.label}
-                  className="flex items-center gap-2 text-xs text-muted-foreground"
-                >
-                  {checkpoint.done ? (
-                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                      <Check className="size-3" aria-hidden="true" />
-                    </span>
-                  ) : (
-                    <CircleDashed
-                      className="size-5 shrink-0"
-                      aria-hidden="true"
-                    />
-                  )}
-                  <span
-                    className={checkpoint.done ? "text-foreground" : undefined}
-                  >
-                    {checkpoint.label}
-                    {checkpoint.term && (
-                      <TechnicalTerm term={checkpoint.term} />
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ol>
+          <CardContent className="hidden pb-6 md:block">
+            <ChecklistItems checkpoints={checkpoints} />
           </CardContent>
         </div>
       </div>
+      {isChecklistOpen && (
+        <div className="px-4 pb-4 md:hidden">
+          <ChecklistItems checkpoints={checkpoints} />
+        </div>
+      )}
     </Card>
+  );
+}
+
+function ChecklistItems({
+  checkpoints,
+}: {
+  checkpoints: Array<{ label: string; done: boolean; term?: TechnicalTermKey }>;
+}) {
+  return (
+    <ol className="grid gap-2 sm:grid-cols-2">
+      {checkpoints.map((checkpoint) => (
+        <li
+          key={checkpoint.label}
+          className="flex items-center gap-2 text-xs text-muted-foreground"
+        >
+          {checkpoint.done ? (
+            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <Check className="size-3" aria-hidden="true" />
+            </span>
+          ) : (
+            <CircleDashed className="size-5 shrink-0" aria-hidden="true" />
+          )}
+          <span className={checkpoint.done ? "text-foreground" : undefined}>
+            {checkpoint.label}
+            {checkpoint.term && <TechnicalTerm term={checkpoint.term} />}
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }

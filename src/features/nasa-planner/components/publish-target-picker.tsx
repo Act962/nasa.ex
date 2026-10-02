@@ -63,7 +63,7 @@ export function PublishTargetPicker({
           onClick={() => toggleNetwork("INSTAGRAM")}
           className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition ${
             wantsInstagram
-              ? "border-pink-500 bg-pink-50 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300"
+              ? "border-brand-instagram bg-brand-instagram/10 text-brand-instagram"
               : "border-border bg-background text-muted-foreground hover:bg-accent"
           } disabled:opacity-50`}
         >
@@ -76,7 +76,7 @@ export function PublishTargetPicker({
           onClick={() => toggleNetwork("FACEBOOK")}
           className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition ${
             wantsFacebook
-              ? "border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
+              ? "border-brand-facebook bg-brand-facebook/10 text-brand-facebook"
               : "border-border bg-background text-muted-foreground hover:bg-accent"
           } disabled:opacity-50`}
         >
@@ -100,9 +100,9 @@ export function PublishTargetPicker({
     return (
       <div className="space-y-3">
         {networkToggles}
-        <div className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-3 flex items-start gap-2">
-          <AlertCircleIcon className="size-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-          <div className="text-xs text-amber-800 dark:text-amber-300">
+        <div className="rounded-lg border border-warning/30 bg-warning/15 p-3 flex items-start gap-2">
+          <AlertCircleIcon className="size-4 text-warning mt-0.5 shrink-0" />
+          <div className="text-xs text-warning">
             Conecte uma conta Meta em <span className="font-semibold">Configurações → Integrações</span> para escolher onde publicar.
           </div>
         </div>
@@ -119,7 +119,7 @@ export function PublishTargetPicker({
       {wantsInstagram && (
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold flex items-center gap-1.5">
-            <InstagramIcon className="size-3.5 text-pink-500" />
+            <InstagramIcon className="size-3.5 text-brand-instagram" />
             Instagram
           </Label>
           {igAccounts.length === 0 ? (
@@ -156,7 +156,7 @@ export function PublishTargetPicker({
       {wantsFacebook && (
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold flex items-center gap-1.5">
-            <FacebookIcon className="size-3.5 text-blue-600" />
+            <FacebookIcon className="size-3.5 text-brand-facebook" />
             Facebook
           </Label>
           {pages.length === 0 ? (

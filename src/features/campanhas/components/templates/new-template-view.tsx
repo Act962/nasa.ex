@@ -62,8 +62,8 @@ export function NewTemplateView({ trackingId, presetId }: { trackingId?: string;
         <h1 className="mt-1 text-2xl font-semibold">Novo modelo</h1>
       </div>
       {preset && (
-        <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm">
-          <Sparkles className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+        <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/5 p-3 text-sm">
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-success" />
           <p>
             Modelo <strong>{preset.label}</strong> já preenchido. Mantenha o texto informativo: oferta, cupom ou
             &quot;renove&quot; fazem a Meta reclassificar como Marketing, que custa bem mais.

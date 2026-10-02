@@ -103,16 +103,16 @@ export function CallMessageBox({
         className={cn(
           "shrink-0 size-10 rounded-full flex items-center justify-center",
           isMissed
-            ? "bg-red-50 dark:bg-red-950/40"
-            : "bg-zinc-100 dark:bg-zinc-800",
+            ? "bg-destructive/10 dark:bg-destructive/15"
+            : "bg-muted dark:bg-card",
         )}
       >
         <Icon
           className={cn(
             "size-5",
             isMissed
-              ? "text-red-500"
-              : "text-zinc-700 dark:text-zinc-200",
+              ? "text-destructive"
+              : "text-foreground dark:text-foreground",
           )}
         />
       </div>
@@ -120,13 +120,13 @@ export function CallMessageBox({
         <span
           className={cn(
             "text-sm font-semibold leading-tight",
-            isMissed && "text-red-600 dark:text-red-400",
+            isMissed && "text-destructive",
           )}
         >
           {title}
         </span>
         {subtitle && (
-          <span className="text-xs text-zinc-500 dark:text-zinc-400 leading-tight mt-0.5">
+          <span className="text-xs text-muted-foreground dark:text-muted-foreground leading-tight mt-0.5">
             {subtitle}
           </span>
         )}

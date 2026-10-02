@@ -15,13 +15,13 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const STAGE_LABELS: Record<string, { label: string; icon: React.ReactNode }> = {
-  PAYMENT_CONFIRMED:  { label: "Pagamento confirmado",       icon: <CheckCircle2Icon className="size-4 text-green-500" /> },
-  FORMS_SENT:         { label: "Formulários enviados",        icon: <CheckCircle2Icon className="size-4 text-green-500" /> },
-  BRAND_FORM_DONE:    { label: "Marca preenchida",            icon: <CheckCircle2Icon className="size-4 text-green-500" /> },
-  ONBOARDING_DONE:    { label: "Onboarding concluído",        icon: <CheckCircle2Icon className="size-4 text-green-500" /> },
-  KICKOFF_SCHEDULED:  { label: "Kickoff agendado",            icon: <CheckCircle2Icon className="size-4 text-green-500" /> },
-  CAMPAIGN_CREATED:   { label: "Campanha criada",             icon: <CheckCircle2Icon className="size-4 text-green-500" /> },
-  ACTIVE:             { label: "Projeto ativo",               icon: <CheckCircle2Icon className="size-4 text-green-500" /> },
+  PAYMENT_CONFIRMED:  { label: "Pagamento confirmado",       icon: <CheckCircle2Icon className="size-4 text-success" /> },
+  FORMS_SENT:         { label: "Formulários enviados",        icon: <CheckCircle2Icon className="size-4 text-success" /> },
+  BRAND_FORM_DONE:    { label: "Marca preenchida",            icon: <CheckCircle2Icon className="size-4 text-success" /> },
+  ONBOARDING_DONE:    { label: "Onboarding concluído",        icon: <CheckCircle2Icon className="size-4 text-success" /> },
+  KICKOFF_SCHEDULED:  { label: "Kickoff agendado",            icon: <CheckCircle2Icon className="size-4 text-success" /> },
+  CAMPAIGN_CREATED:   { label: "Campanha criada",             icon: <CheckCircle2Icon className="size-4 text-success" /> },
+  ACTIVE:             { label: "Projeto ativo",               icon: <CheckCircle2Icon className="size-4 text-success" /> },
 };
 
 const STAGE_ORDER = [
@@ -88,7 +88,7 @@ export function ClientPortalPage({ clientCode }: { clientCode: string }) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b" style={{ borderColor: `${accentColor}30` }}>
+      <div>
         <div className="max-w-4xl mx-auto px-6 py-8">
           <div className="flex items-center gap-4">
             {portal.orgProject?.avatar ? (
@@ -111,9 +111,9 @@ export function ClientPortalPage({ clientCode }: { clientCode: string }) {
 
         {/* Formulários pendentes */}
         {(portal.stage === "FORMS_SENT" || portal.stage === "BRAND_FORM_DONE") && (
-          <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+          <Card className="border-warning/30 bg-warning/10">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base text-amber-700 dark:text-amber-400 flex items-center gap-2">
+              <CardTitle className="text-base text-warning flex items-center gap-2">
                 <ClipboardListIcon className="size-4" />Ação necessária
               </CardTitle>
             </CardHeader>
@@ -166,7 +166,7 @@ export function ClientPortalPage({ clientCode }: { clientCode: string }) {
                 return (
                   <div key={stage} className={`flex items-center gap-3 ${!done ? "opacity-40" : ""}`}>
                     {done ? (
-                      <CheckCircle2Icon className="size-4 shrink-0 text-green-500" />
+                      <CheckCircle2Icon className="size-4 shrink-0 text-success" />
                     ) : (
                       <ClockIcon className="size-4 shrink-0 text-muted-foreground" />
                     )}

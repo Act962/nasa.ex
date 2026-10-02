@@ -48,10 +48,10 @@ export const PRIORITY_META: Record<
   ActionPriority,
   { label: string; color: string }
 > = {
-  LOW: { label: "Baixa", color: "bg-emerald-500" },
-  MEDIUM: { label: "Média", color: "bg-yellow-500" },
-  HIGH: { label: "Alta", color: "bg-orange-500" },
-  URGENT: { label: "Urgente", color: "bg-red-600" },
+  LOW: { label: "Baixa", color: "bg-success" },
+  MEDIUM: { label: "Média", color: "bg-warning" },
+  HIGH: { label: "Alta", color: "bg-warning" },
+  URGENT: { label: "Urgente", color: "bg-destructive" },
 };
 
 interface Props {
@@ -240,7 +240,7 @@ export function WorkspaceCalendarFilters({
           <FilterSection
             title="Workspaces"
             icon={
-              <span className="size-3 rounded-full bg-violet-500" aria-hidden />
+              <span className="size-3 rounded-full bg-info" aria-hidden />
             }
             count={selectedWorkspaceIds.size}
             onClear={onClearWorkspaces}
@@ -365,7 +365,7 @@ export function WorkspaceCalendarFilters({
           {leads.length > 0 && (
             <FilterSection
               title="Leads"
-              icon={<UserIcon className="size-3 text-amber-500" />}
+              icon={<UserIcon className="size-3 text-warning" />}
               count={selectedLeadIds.size}
               onClear={onClearLeads}
             >

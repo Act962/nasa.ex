@@ -85,7 +85,7 @@ export function CompanyDocumentsSection({ onNavigate }: CompanyDocumentsSectionP
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <FileStack className="size-5 text-violet-500" /> Documentos da empresa
+            <FileStack className="size-5 text-info" /> Documentos da empresa
           </h2>
           <p className="text-sm text-muted-foreground">
             Certidões <FiscalTermHint termId="cnd" />, alvarás, contrato social e guias num lugar só. Mostramos o que

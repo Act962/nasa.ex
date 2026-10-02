@@ -3,7 +3,8 @@
 import { useCallback, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { toast } from "sonner";
-import { BookOpen, FileText, Loader2, Trash2, UploadCloud } from "lucide-react";
+import { BookOpen, FileText, Trash2, UploadCloud } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -133,8 +134,8 @@ export function EbookUploadSection({ value, onChange }: Props) {
   const hasFile = !!value.ebookFileKey;
 
   return (
-    <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-800/40 dark:bg-amber-900/10">
-      <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
+    <div className="space-y-4 rounded-xl border border-warning/30 bg-warning/5 p-4">
+      <div className="flex items-center gap-2 text-warning">
         <BookOpen className="size-4" />
         <h3 className="text-sm font-semibold">Arquivo do eBook</h3>
       </div>
@@ -145,8 +146,8 @@ export function EbookUploadSection({ value, onChange }: Props) {
           className={cn(
             "h-32 border-2 border-dashed transition-colors",
             isDragActive
-              ? "border-amber-500 bg-amber-100/40 dark:bg-amber-800/20"
-              : "border-amber-300/70 hover:border-amber-500",
+              ? "border-warning bg-warning/5"
+              : "border-warning/70 hover:border-warning",
             uploading && "opacity-60",
           )}
         >
@@ -154,18 +155,18 @@ export function EbookUploadSection({ value, onChange }: Props) {
             <input {...getInputProps()} />
             {uploading ? (
               <>
-                <Loader2 className="size-6 animate-spin text-amber-600" />
-                <p className="text-xs text-amber-900 dark:text-amber-200">
+                <OrbitaSpinner className="size-6 text-warning" />
+                <p className="text-xs text-warning">
                   Enviando… {progress}%
                 </p>
               </>
             ) : (
               <>
-                <UploadCloud className="size-6 text-amber-600" />
-                <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                <UploadCloud className="size-6 text-warning" />
+                <p className="text-sm font-medium text-warning">
                   Arraste o PDF/EPUB aqui ou clique pra escolher
                 </p>
-                <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
+                <p className="text-xs text-warning/80">
                   Limite 20 MB. Aceita .pdf e .epub.
                 </p>
               </>
@@ -173,9 +174,9 @@ export function EbookUploadSection({ value, onChange }: Props) {
           </CardContent>
         </Card>
       ) : (
-        <div className="flex items-center justify-between rounded-lg border border-amber-300 bg-white p-3 dark:border-amber-700 dark:bg-amber-950/50">
+        <div className="flex items-center justify-between rounded-lg border border-warning/30 bg-card p-3">
           <div className="flex items-center gap-3 text-sm">
-            <FileText className="size-5 text-amber-600" />
+            <FileText className="size-5 text-warning" />
             <div>
               <p className="font-medium">{value.ebookFileName}</p>
               <p className="text-xs text-muted-foreground">

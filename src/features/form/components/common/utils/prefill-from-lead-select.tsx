@@ -120,7 +120,7 @@ export function PrefillFromLeadSelect({
             nasce vazio em runtime, então avisamos aqui em vez de deixar o
             construtor descobrir no formulário publicado (CB-1/CB-2). */}
         {!isDisabled && current && !availableSources.includes(current) && (
-          <p className="text-[11px] leading-tight text-amber-600 dark:text-amber-500">
+          <p className="text-[11px] leading-tight text-warning dark:text-warning">
             O campo <strong>{SOURCE_LABEL[current]}</strong> não está sendo
             coletado na identificação — este vínculo será ignorado.
           </p>

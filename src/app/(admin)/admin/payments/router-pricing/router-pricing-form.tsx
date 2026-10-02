@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save } from "lucide-react";
+import { Save } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 export function RouterPricingForm() {
   const queryClient = useQueryClient();
@@ -49,8 +50,8 @@ export function RouterPricingForm() {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 text-zinc-400 flex items-center gap-2">
-        <Loader2 className="size-4 animate-spin" />
+      <div className="rounded-xl border border-border bg-card p-6 text-muted-foreground flex items-center gap-2">
+        <OrbitaSpinner className="size-4 " />
         Carregando…
       </div>
     );
@@ -65,10 +66,10 @@ export function RouterPricingForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 space-y-5"
+      className="rounded-xl border border-border bg-card p-6 space-y-5"
     >
       <div className="space-y-2">
-        <Label htmlFor="starPriceBrl" className="text-zinc-200">
+        <Label htmlFor="starPriceBrl" className="text-foreground">
           Valor de 1 ★ em BRL
         </Label>
         <Input
@@ -80,19 +81,19 @@ export function RouterPricingForm() {
           placeholder="0,1500"
           className="max-w-xs"
         />
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-muted-foreground">
           Aceita até 4 casas decimais. Ex.: <code>0.1500</code> = R$ 0,15.
         </p>
       </div>
 
-      <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4 text-sm text-zinc-300 space-y-1">
+      <div className="rounded-lg border border-border bg-background p-4 text-sm text-foreground space-y-1">
         <p>
           Curso de <strong>50 ★</strong> custaria{" "}
-          <strong className="text-violet-300">{previewBrl}</strong> no checkout
+          <strong className="text-info">{previewBrl}</strong> no checkout
           público.
         </p>
         {data?.updatedBy && data.updatedAt && (
-          <p className="text-xs text-zinc-500 mt-2">
+          <p className="text-xs text-muted-foreground mt-2">
             Última atualização:{" "}
             {new Date(data.updatedAt).toLocaleString("pt-BR")} por{" "}
             <strong>{data.updatedBy.name}</strong> ({data.updatedBy.email}).
@@ -103,11 +104,11 @@ export function RouterPricingForm() {
       <Button
         type="submit"
         disabled={updateMutation.isPending}
-        className="bg-violet-600 hover:bg-violet-500 text-white gap-2"
+        className="gap-2"
       >
         {updateMutation.isPending ? (
           <>
-            <Loader2 className="size-4 animate-spin" /> Salvando…
+            <OrbitaSpinner className="size-4 " /> Salvando…
           </>
         ) : (
           <>

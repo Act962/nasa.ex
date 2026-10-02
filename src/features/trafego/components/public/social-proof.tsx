@@ -70,7 +70,7 @@ export function SocialProofStats() {
           key={stat.label}
           className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center"
         >
-          <stat.icon className="mx-auto size-5 text-violet-300" />
+          <stat.icon className="mx-auto size-5 text-info" />
           <p className="mt-2.5 text-xl font-bold text-white sm:text-2xl">
             {stat.value}
           </p>
@@ -99,12 +99,12 @@ export function Testimonials() {
             key={testimonial.name + testimonial.quote.slice(0, 12)}
             className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-5"
           >
-            <Quote className="size-4 shrink-0 text-violet-300/70" />
+            <Quote className="size-4 shrink-0 text-info/70" />
             <blockquote className="mt-3 flex-1 text-sm leading-relaxed text-white/70">
               {testimonial.quote}
             </blockquote>
             <figcaption className="mt-4 flex items-center gap-3 border-t border-white/10 pt-4">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-xs font-semibold text-violet-200">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-info/20 text-xs font-semibold text-info">
                 {testimonial.initials}
               </span>
               <span className="min-w-0">

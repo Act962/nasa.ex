@@ -112,7 +112,7 @@ function AutomationsTabContent({ workspaceId }: { workspaceId: string }) {
                 <div
                   className={cn(
                     "size-2 shrink-0 rounded-full",
-                    wf.isActive ? "bg-emerald-500" : "bg-muted-foreground",
+                    wf.isActive ? "bg-success" : "bg-muted-foreground",
                   )}
                 />
                 <Link

@@ -3,7 +3,8 @@ import { useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Loader, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 import {
   Dialog,
@@ -98,7 +99,7 @@ export function CreateForm({
             data-guide={GUIDE_ANCHORS.formCreateButton.id}
           >
             <PlusIcon />
-            Criar formulário
+            Criar<span className="max-sm:hidden"> formulário</span>
           </Button>
         )}
       </DialogTrigger>
@@ -156,7 +157,7 @@ export function CreateForm({
                 data-guide={GUIDE_ANCHORS.formCreateSubmit.id}
                 className="px-5 flex place-self-end bg-primary!"
               >
-                {isLoading && <Loader className="w-4 h-4 animate-spin" />}
+                {isLoading && <OrbitaSpinner className="w-4 h-4 " />}
                 Criar
               </Button>
             </form>

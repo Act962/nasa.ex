@@ -91,20 +91,20 @@ export function TagList() {
         />
       </div>
 
-      <div className="flex items-center gap-2 border-b mb-3">
+      <div className="mb-3 flex w-fit items-center gap-1 rounded-full bg-panel p-1">
         <button
           type="button"
           onClick={() => setActiveTab("active")}
           className={cn(
-            "px-2 py-1.5 text-sm font-medium border-b-2 transition-colors",
+            "rounded-full px-3 py-1 text-sm font-medium transition-colors",
             activeTab === "active"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground",
+              ? "bg-foreground text-background"
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
           Ativas
           {tags.length > 0 && (
-            <span className="ml-1.5 text-[10px] text-muted-foreground">
+            <span className="ml-1.5 text-[10px] opacity-70">
               {tags.length}
             </span>
           )}
@@ -113,16 +113,16 @@ export function TagList() {
           type="button"
           onClick={() => setActiveTab("archived")}
           className={cn(
-            "px-2 py-1.5 text-sm font-medium border-b-2 transition-colors inline-flex items-center gap-1.5",
+            "rounded-full px-3 py-1 text-sm font-medium transition-colors inline-flex items-center gap-1.5",
             activeTab === "archived"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground",
+              ? "bg-foreground text-background"
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
           <ArchiveIcon className="size-3.5" />
           Arquivadas
           {archivedTags.length > 0 && (
-            <span className="text-[10px] text-amber-600">
+            <span className="text-[10px] text-warning">
               {archivedTags.length}
             </span>
           )}

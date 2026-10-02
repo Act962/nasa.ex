@@ -10,7 +10,8 @@ import {
   useBotConfig,
   useUpsertBotConfig,
 } from "@/features/astro-bot/hooks/use-astro-bot";
-import { AlertTriangle, MessageCircle, Loader2 } from "lucide-react";
+import { AlertTriangle, MessageCircle } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -77,7 +78,7 @@ export function BotConfigSection() {
   if (isLoading) {
     return (
       <Card className="p-6">
-        <Loader2 className="size-5 animate-spin" />
+        <OrbitaSpinner className="size-5 " />
       </Card>
     );
   }
@@ -89,7 +90,7 @@ export function BotConfigSection() {
   return (
     <Card className="p-6 space-y-5">
       <div className="flex items-center gap-3">
-        <MessageCircle className="size-5 text-violet-500" />
+        <MessageCircle className="size-5 text-info" />
         <div>
           <h3 className="font-semibold">Trackings habilitadas</h3>
           <p className="text-sm text-muted-foreground">
@@ -220,8 +221,8 @@ export function BotConfigSection() {
       </div>
 
       {isActive && enabledTrackingIds.length === 0 && (
-        <div className="flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm">
-          <AlertTriangle className="size-4 text-yellow-600 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm">
+          <AlertTriangle className="size-4 text-warning shrink-0 mt-0.5" />
           <p>
             Você marcou como ativo, mas nenhuma tracking foi selecionada. O
             Astro só responde nas trackings habilitadas.
@@ -232,7 +233,7 @@ export function BotConfigSection() {
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={upsert.isPending}>
           {upsert.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
           ) : (
             "Salvar configuração"
           )}

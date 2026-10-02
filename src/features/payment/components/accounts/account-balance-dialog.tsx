@@ -85,10 +85,10 @@ export function AccountBalanceDialog({ account, onClose }: AccountBalanceDialogP
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted-foreground">Baixas registradas</dt>
               <dd className="tabular-nums">
-                <span className="text-emerald-600 dark:text-emerald-400">
+                <span className="text-success dark:text-success">
                   +{formatCurrency(account.settledIn)}
                 </span>{" "}
-                <span className="text-red-600 dark:text-red-400">
+                <span className="text-destructive dark:text-destructive">
                   −{formatCurrency(account.settledOut)}
                 </span>
               </dd>
@@ -103,8 +103,8 @@ export function AccountBalanceDialog({ account, onClose }: AccountBalanceDialogP
                 <dd
                   className={`font-medium tabular-nums ${
                     difference > 0
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-red-600 dark:text-red-400"
+                      ? "text-success dark:text-success"
+                      : "text-destructive dark:text-destructive"
                   }`}
                 >
                   {difference > 0 ? "+" : "−"}
@@ -126,7 +126,7 @@ export function AccountBalanceDialog({ account, onClose }: AccountBalanceDialogP
             <Button
               type="submit"
               disabled={updateAccount.isPending}
-              className="flex-1 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90"
+              className="flex-1 bg-info text-white hover:bg-info/90"
             >
               {updateAccount.isPending ? "Salvando..." : "Salvar"}
             </Button>

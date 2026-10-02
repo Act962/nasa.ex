@@ -88,7 +88,7 @@ export function CreateEntryDialog({
             <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
               <p
                 className={`text-lg font-black tabular-nums ${
-                  isCredit ? "text-green-400" : "text-red-400"
+                  isCredit ? "text-success" : "text-destructive"
                 }`}
               >
                 {formatCurrency(transaction.amountCents)}
@@ -145,7 +145,7 @@ export function CreateEntryDialog({
               <Button
                 type="submit"
                 disabled={createEntry.isPending}
-                className="flex-1 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90"
+                className="flex-1 bg-info text-white hover:bg-info/90"
               >
                 {createEntry.isPending ? "Criando..." : "Criar"}
               </Button>

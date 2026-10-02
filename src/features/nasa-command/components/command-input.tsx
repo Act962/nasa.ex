@@ -1,11 +1,13 @@
 import React, {
+  useState,
   useRef,
   useEffect,
   useCallback,
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { Mic, MicOff, Plus, Send, Loader2 } from "lucide-react";
+import { ArrowUp, AudioLines, Mic, MicOff, Plus } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import { useVoiceInput } from "../hooks/use-voice-input";
 import { unlockAudio } from "@/features/astro/voice/tts";
@@ -16,7 +18,10 @@ import { PlusMenu } from "./plus-menu";
 import { DropdownType, ModelType } from "../types";
 import { buildHighlightedHTML } from "../utils";
 import type { PendingAstroAttachment } from "@/features/astro/hooks/use-astro-attachments";
-import { CommandAttachButton, CommandAttachmentList } from "./command-attachments";
+import { CommandAttachmentList } from "./command-attachments";
+import { VoiceCallPanel } from "@/features/astro/voice/realtime/voice-call-panel";
+import { AstroUsageMeter } from "./astro-usage-meter";
+import type { VoiceCallStatus } from "@/features/astro/voice/realtime/use-realtime-voice";
 import { useFileDrop } from "../hooks/use-file-drop";
 
 export interface CommandInputProps {
@@ -36,6 +41,19 @@ export interface CommandInputProps {
   onAddFiles?: (files: File[]) => void;
   onRemoveAttachment?: (localId: string) => void;
   isUploadingAttachment?: boolean;
+  /** Abre a aba do "+" (Biblioteca, Histórico, anexos). Sem ele, o "+" usa o menu antigo. */
+  onOpenPlus?: () => void;
+  plusBadgeCount?: number;
+  /** Conversa por voz em tempo real (spec 0054). Ausente, o botão usa o reconhecimento de voz do navegador. */
+  voiceCall?: {
+    isAvailable: boolean;
+    status: VoiceCallStatus;
+    elapsedSeconds: number;
+    isMuted: boolean;
+    onStart: () => void;
+    onEnd: () => void;
+    onToggleMute: () => void;
+  };
 }
 
 /**
@@ -69,8 +87,35 @@ export const CommandInput = forwardRef<
     onAddFiles,
     onRemoveAttachment,
     isUploadingAttachment,
+    onOpenPlus,
+    plusBadgeCount,
+    voiceCall,
   } = props;
-  const { voiceState, startListening } = useVoiceInput(onVoiceTranscript);
+  const isVoiceCallActive = Boolean(voiceCall && voiceCall.status !== "idle");
+  // Microfone dita no campo; o botão de voz conversa (envia e o ASTRO responde falando).
+  type ListeningMode = "dictation" | "conversation";
+  const listeningModeRef = useRef<ListeningMode>("conversation");
+  const [listeningMode, setListeningModeState] = useState<ListeningMode>("conversation");
+  const setListeningMode = useCallback((mode: ListeningMode) => {
+    listeningModeRef.current = mode;
+    setListeningModeState(mode);
+  }, []);
+  const commandRef = useRef(command);
+  useEffect(() => {
+    commandRef.current = command;
+  }, [command]);
+  const handleTranscript = useCallback(
+    (text: string) => {
+      if (listeningModeRef.current === "dictation") {
+        const current = commandRef.current;
+        setCommand(current ? `${current} ${text}` : text);
+        return;
+      }
+      onVoiceTranscript(text);
+    },
+    [onVoiceTranscript, setCommand],
+  );
+  const { voiceState, startListening } = useVoiceInput(handleTranscript);
   const { handlePaste, handleDrop, handleDragOver } = useFileDrop(onAddFiles);
 
   useImperativeHandle(
@@ -79,12 +124,13 @@ export const CommandInput = forwardRef<
       startListening: () => {
         // Só inicia se o browser suporta E não tá ouvindo já
         if (voiceState !== "unsupported" && voiceState !== "listening") {
+          setListeningMode("conversation");
           startListening();
         }
       },
       isListening: () => voiceState === "listening",
     }),
-    [voiceState, startListening],
+    [voiceState, startListening, setListeningMode],
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
@@ -183,189 +229,174 @@ export const CommandInput = forwardRef<
   };
 
   const highlightedHTML = buildHighlightedHTML(command);
+  const hasContent = Boolean(command.trim()) || attachments.length > 0;
+  const canSubmit = hasContent && !loading && !isUploadingAttachment;
+
+  const startDictation = () => {
+    setListeningMode("dictation");
+    unlockAudio();
+    startListening();
+  };
+  const startVoiceConversation = () => {
+    if (voiceCall) {
+      unlockAudio();
+      voiceCall.onStart();
+      return;
+    }
+    // iOS só libera áudio dentro do gesto: destrava aqui para o ASTRO poder responder falando.
+    setListeningMode("conversation");
+    unlockAudio();
+    startListening();
+  };
 
   return (
-    <div ref={wrapperRef} className="dark relative">
-      <style>{`
-        @keyframes explorerBorder {
-          0%   { background-position: 0% 50%; }
-          50%  { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .explorer-border {
-          background: linear-gradient(
-            270deg,
-            #7C3AED,
-            #9333ea,
-            #a855f7,
-            #EC4899,
-            rgba(255, 255, 255, 0.92),
-            #EC4899,
-            #a855f7,
-            #7C3AED
-          );
-          background-size: 600% 600%;
-          animation: explorerBorder 5s ease infinite;
-        }
-      `}</style>
-
-      {/* Animated gradient border + float effect */}
+    <div ref={wrapperRef} className="relative">
       <div
-        className="relative rounded-2xl explorer-border"
-        style={{ padding: 1 }}
+        data-home-composer
+        className="relative overflow-visible rounded-[28px] bg-card/75 shadow-lg backdrop-blur-md transition-all"
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
       >
-        <div
-          className="relative bg-zinc-900 rounded-[calc(1rem-1px)] overflow-visible transition-all"
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-        >
-          <CommandAttachmentList
-            attachments={attachments}
-            onRemoveAttachment={onRemoveAttachment}
+        <CommandAttachmentList
+          attachments={attachments}
+          onRemoveAttachment={onRemoveAttachment}
+        />
+        {isVoiceCallActive && voiceCall && (
+          <VoiceCallPanel
+            status={voiceCall.status}
+            elapsedSeconds={voiceCall.elapsedSeconds}
+            isMuted={voiceCall.isMuted}
+            onToggleMute={voiceCall.onToggleMute}
+            onEnd={voiceCall.onEnd}
           />
-          {/* Text area with highlight */}
-          <div className="relative w-full">
-            <div
-              ref={highlightRef}
-              aria-hidden="true"
-              className="absolute inset-0 px-4 pt-4 pb-3 font-sans text-sm leading-relaxed pointer-events-none overflow-hidden whitespace-pre-wrap wrap-break-word text-zinc-100"
-              style={{
-                fontSize: "0.875rem",
-                lineHeight: "1.625",
-                wordBreak: "break-word",
-              }}
-              dangerouslySetInnerHTML={{ __html: highlightedHTML + "\u200b" }}
-            />
-            <textarea
-              ref={textareaRef}
-              data-nasa-command
-              value={command}
-              onChange={handleTextChange}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              onScroll={syncScroll}
-              disabled={loading}
-              rows={1}
-              placeholder="Fala comandante, quais as ordens?"
-              className="relative w-full px-4 pt-4 pb-3 font-sans bg-transparent text-transparent caret-white resize-none outline-none text-sm leading-relaxed placeholder:text-zinc-600 placeholder:font-sans placeholder:text-xs min-h-[48px] max-h-[200px] overflow-y-auto selection:bg-purple-500/30 selection:text-transparent"
-              style={{
-                caretColor: "white",
-                fontSize: "0.875rem",
-                lineHeight: "1.625",
-                wordBreak: "break-word",
-              }}
-            />
-          </div>
+        )}
+        {/* Texto com destaque de variáveis por baixo do textarea transparente. */}
+        <div className={cn("relative w-full", isVoiceCallActive && "hidden")}>
+          <div
+            ref={highlightRef}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 overflow-hidden px-5 pt-4 pb-2 font-sans text-base leading-relaxed whitespace-pre-wrap wrap-break-word text-foreground"
+            style={{ wordBreak: "break-word" }}
+            dangerouslySetInnerHTML={{ __html: highlightedHTML + "\u200b" }}
+          />
+          <textarea
+            ref={textareaRef}
+            data-nasa-command
+            value={command}
+            onChange={handleTextChange}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            onScroll={syncScroll}
+            disabled={loading}
+            rows={1}
+            placeholder="Fala comandante, quais as ordens?"
+            className="relative max-h-[200px] min-h-[52px] w-full resize-none overflow-y-auto bg-transparent px-5 pt-4 pb-2 font-sans text-base leading-relaxed text-transparent caret-foreground outline-none selection:bg-info/30 selection:text-transparent placeholder:text-muted-foreground"
+            style={{ wordBreak: "break-word" }}
+          />
+        </div>
 
-          {/* Bottom toolbar */}
-          <div className="flex items-center justify-between px-3 py-2 border-t border-zinc-800/60">
-            <div className="flex items-center gap-2">
+        <div className={cn("flex items-center justify-between gap-2 px-3 pt-1 pb-3", isVoiceCallActive && "hidden")}>
+          <div className="flex min-w-0 items-center gap-2">
+            {onOpenPlus ? (
+              <button
+                type="button"
+                onClick={onOpenPlus}
+                aria-label="Mais opções"
+                className="relative grid size-10 shrink-0 place-items-center rounded-full bg-knob text-foreground transition-colors hover:bg-accent"
+              >
+                <Plus className="size-5" />
+                {Boolean(plusBadgeCount) && (
+                  <span className="absolute top-0.5 right-0.5 size-2.5 rounded-full bg-destructive ring-2 ring-card" />
+                )}
+              </button>
+            ) : (
               <div className="relative">
                 <button
-                  onClick={() =>
-                    setDropdown((d) => (d === "plus" ? null : "plus"))
-                  }
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/50 text-zinc-400 hover:text-white transition-colors"
+                  type="button"
+                  onClick={() => setDropdown((current) => (current === "plus" ? null : "plus"))}
+                  aria-label="Anexar"
+                  className="grid size-10 shrink-0 place-items-center rounded-full bg-knob text-foreground transition-colors hover:bg-accent"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="size-5" />
                 </button>
-                {dropdown === "plus" && (
-                  <PlusMenu onClose={() => setDropdown(null)} />
-                )}
+                {dropdown === "plus" && <PlusMenu onClose={() => setDropdown(null)} />}
               </div>
+            )}
+            <ModelSelector />
+          </div>
 
-              {/* ── Anexo (boleto, nota fiscal, comprovante) ── */}
-              {onAddFiles && (
-                <CommandAttachButton onAddFiles={onAddFiles} disabled={loading} />
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={startDictation}
+              disabled={loading || voiceState === "unsupported"}
+              aria-label={voiceState === "listening" ? "Parar de ouvir" : "Ditar"}
+              title={
+                voiceState === "unsupported"
+                  ? "Navegador não suporta reconhecimento de voz"
+                  : voiceState === "listening"
+                    ? "Ouvindo... clique para parar"
+                    : "Ditar no campo"
+              }
+              className={cn(
+                "grid size-10 place-items-center rounded-full transition-all disabled:opacity-40",
+                voiceState === "listening" && listeningMode === "dictation"
+                  ? "animate-pulse bg-destructive/20 text-destructive"
+                  : "bg-knob text-foreground hover:bg-accent",
               )}
+            >
+              {voiceState === "listening" && listeningMode === "dictation" ? (
+                <MicOff className="size-4" />
+              ) : (
+                <Mic className="size-4" />
+              )}
+            </button>
 
-              {/* ── Mic button ── */}
+            {hasContent ? (
               <button
                 type="button"
                 onClick={() => {
-                  // iOS Safari precisa que audio/speechSynthesis sejam
-                  // "destravados" dentro de um handler de gesto do user.
-                  // Sem isso, o TTS depois (que roda assíncrono) é mudo
-                  // no iPhone. Chamamos aqui pra aproveitar o token de
-                  // gesto do clique no mic.
-                  unlockAudio();
-                  startListening();
-                }}
-                disabled={loading || voiceState === "unsupported"}
-                title={
-                  voiceState === "unsupported"
-                    ? "Navegador não suporta reconhecimento de voz"
-                    : voiceState === "listening"
-                      ? "Ouvindo... clique para parar"
-                      : "Falar comando"
-                }
-                className={cn(
-                  "w-7 h-7 flex items-center justify-center rounded-lg border transition-all",
-                  voiceState === "listening"
-                    ? "bg-red-500/20 border-red-500/60 text-red-400 animate-pulse"
-                    : voiceState === "processing"
-                      ? "bg-violet-500/20 border-violet-500/60 text-violet-400"
-                      : voiceState === "unsupported"
-                        ? "bg-zinc-800 border-zinc-700/50 text-zinc-600 cursor-not-allowed opacity-40"
-                        : "bg-zinc-800 hover:bg-zinc-700 border-zinc-700/50 text-zinc-400 hover:text-white",
-                )}
-              >
-                {voiceState === "listening" ? (
-                  <MicOff className="w-3.5 h-3.5" />
-                ) : (
-                  <Mic className="w-3.5 h-3.5" />
-                )}
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <ModelSelector value={model} onChange={setModel} />
-              <button
-                onClick={() => {
-                  // Destrava audio no gesto do Send — se outputMode for
-                  // "audio" sempre, o TTS vai falar mesmo sem voz na
-                  // entrada, e iOS exige unlock prévio.
+                  // Destrava áudio no gesto do envio — com saída em áudio, o ASTRO fala mesmo sem entrada por voz.
                   unlockAudio();
                   onSubmit();
                 }}
-                disabled={
-                  (!command.trim() && attachments.length === 0) ||
-                  loading ||
-                  isUploadingAttachment
-                }
+                disabled={!canSubmit}
+                aria-label="Enviar"
+                className="grid size-11 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
+              >
+                {loading ? <OrbitaSpinner className="size-4 " /> : <ArrowUp className="size-5" />}
+              </button>
+            ) : voiceCall && !voiceCall.isAvailable ? null : (
+              <button
+                type="button"
+                onClick={startVoiceConversation}
+                disabled={loading || voiceState === "unsupported"}
+                aria-label="Conversar por voz"
+                title="Conversar por voz com o ASTRO"
                 className={cn(
-                  "w-8 h-8 flex items-center justify-center rounded-lg transition-all",
-                  (command.trim() || attachments.length > 0) &&
-                    !loading &&
-                    !isUploadingAttachment
-                    ? "bg-white text-black hover:bg-zinc-100"
-                    : "bg-zinc-800 text-zinc-600 cursor-not-allowed",
+                  "grid size-11 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105 active:scale-95 disabled:opacity-40",
+                  voiceState === "listening" && listeningMode === "conversation" && "animate-pulse",
                 )}
               >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-3.5 h-3.5" />
-                )}
+                <AudioLines className="size-5" />
               </button>
-            </div>
+            )}
           </div>
-
-          {/* Dropdowns */}
-          {dropdown === "variable" && (
-            <div className="absolute left-3 bottom-full mb-1 z-50">
-              <VariableDropdown
-                search={dropdownSearch}
-                onSelect={insertVariable}
-              />
-            </div>
-          )}
-          {dropdown === "app" && (
-            <div className="absolute left-3 bottom-full mb-1 z-50">
-              <AppDropdown search={dropdownSearch} onSelect={insertVariable} />
-            </div>
-          )}
         </div>
+
+        {dropdown === "variable" && (
+          <div className="absolute bottom-full left-3 z-50 mb-1">
+            <VariableDropdown search={dropdownSearch} onSelect={insertVariable} />
+          </div>
+        )}
+        {dropdown === "app" && (
+          <div className="absolute bottom-full left-3 z-50 mb-1">
+            <AppDropdown search={dropdownSearch} onSelect={insertVariable} />
+          </div>
+        )}
       </div>
+      <AstroUsageMeter className="absolute top-full left-0" />
     </div>
   );
 });
+CommandInput.displayName = "CommandInput";

@@ -63,7 +63,7 @@ export function CreateFile({
         <FieldGroup>
           <Field>
             <Label htmlFor="name-1">
-              Nome <span className="text-red-500">*</span>
+              Nome <span className="text-destructive">*</span>
             </Label>
             <Input
               id="name-1"

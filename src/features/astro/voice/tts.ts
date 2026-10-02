@@ -1,5 +1,7 @@
 "use client";
 
+import { useAstroModelPreference } from "@/features/astro/composer/use-astro-model-preference";
+
 /**
  * TTS (Text-to-Speech) — Astro fala de volta.
  *
@@ -99,7 +101,7 @@ const PIPER_HEALTH_TTL_MS = 30_000;
  * silenciosa: o fallback entrava sozinho e o usuário concluía que a voz do
  * produto é ruim, quando o motor bom é que estava fora do ar.
  */
-export type TtsEngine = "piper" | "browser" | null;
+export type TtsEngine = "openai" | "piper" | "browser" | null;
 let lastEngineUsed: TtsEngine = null;
 const engineListeners = new Set<(engine: TtsEngine) => void>();
 
@@ -292,14 +294,67 @@ function speakOne(text: string, opts: SpeakOptions): Promise<void> {
       },
     };
 
-    if (PIPER_ENABLED) {
-      void trySpeakViaPiper(text, wrappedOpts).then((handled) => {
-        if (!handled) speakViaWebSpeech(text, wrappedOpts);
+    const speakWithFallback = () => {
+      if (PIPER_ENABLED) {
+        void trySpeakViaPiper(text, wrappedOpts).then((handled) => {
+          if (!handled) speakViaWebSpeech(text, wrappedOpts);
+        });
+      } else {
+        speakViaWebSpeech(text, wrappedOpts);
+      }
+    };
+
+    // Voz econômica escolhida no "Uso do ASTRO": a OpenAI lê; se falhar, cai nos motores locais.
+    if (useAstroModelPreference.getState().voiceMode === "standard") {
+      void trySpeakViaOpenAi(text, wrappedOpts).then((handled) => {
+        if (!handled) speakWithFallback();
       });
     } else {
-      speakViaWebSpeech(text, wrappedOpts);
+      speakWithFallback();
     }
   });
+}
+
+// ─── OpenAI engine (voz econômica) ──────────────────────────────────────
+
+async function trySpeakViaOpenAi(text: string, opts: SpeakOptions): Promise<boolean> {
+  const spokenText = stripMarkdownForSpeech(text);
+  if (!spokenText.trim()) return false;
+  try {
+    const response = await fetch("/api/astro/voice/speech", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: spokenText.slice(0, 4000) }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!response.ok) return false;
+    setEngineUsed("openai");
+    const audioUrl = URL.createObjectURL(await response.blob());
+    if (currentPiperAudio) {
+      currentPiperAudio.pause();
+      currentPiperAudio.src = "";
+    }
+    // Mesmo elemento do Piper: `cancel()` e `pause()` continuam valendo.
+    const audio = new Audio(audioUrl);
+    audio.volume = opts.volume ?? 1.0;
+    currentPiperAudio = audio;
+    audio.addEventListener("play", () => opts.onStart?.(), { once: true });
+    audio.addEventListener("ended", () => {
+      URL.revokeObjectURL(audioUrl);
+      if (currentPiperAudio === audio) currentPiperAudio = null;
+      opts.onEnd?.();
+    });
+    audio.addEventListener("error", () => {
+      URL.revokeObjectURL(audioUrl);
+      if (currentPiperAudio === audio) currentPiperAudio = null;
+      opts.onError?.();
+    });
+    await audio.play();
+    return true;
+  } catch (speechError) {
+    console.warn("[tts] voz da OpenAI falhou, usando a voz local:", speechError);
+    return false;
+  }
 }
 
 // ─── Piper engine ───────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -316,7 +316,7 @@ export function CreatePlanDialog({
             disabled={!isValid || createPlan.isPending}
           >
             {createPlan.isPending && (
-              <Loader2 className="mr-1.5 size-4 animate-spin" />
+              <OrbitaSpinner className="mr-1.5 size-4 " />
             )}
             Criar plano
           </Button>

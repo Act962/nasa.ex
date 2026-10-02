@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { Loader2, Play, TriangleAlert } from "lucide-react";
+import { Play, TriangleAlert } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -103,7 +104,7 @@ export function ReformSimulator() {
           <FiscalTermHint termId="ibs" />
         </CardTitle>
         <Button size="sm" variant="outline" className="gap-1.5" disabled={!calculatorContext || isSimulating} onClick={() => void runSimulation()}>
-          {isSimulating ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+          {isSimulating ? <OrbitaSpinner className="size-3.5 " /> : <Play className="size-3.5" />}
           Simular de novo
         </Button>
       </CardHeader>
@@ -121,7 +122,7 @@ export function ReformSimulator() {
               <strong className="text-foreground">{REGIME_LABELS[calculatorContext.regime]}</strong>. Valores de um mês típico, sem créditos de
               compras.
             </p>
-            <p className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+            <p className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning dark:text-warning">
               <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
               Alíquotas de 2027 em diante são estimativas oficiais: o Senado ainda vai fixar as definitivas. Use para planejar, não para pagar.
             </p>
@@ -131,7 +132,7 @@ export function ReformSimulator() {
                 Ainda não há receitas lançadas no financeiro nos últimos 12 meses — lance suas vendas para ver a simulação com seus números.
               </p>
             ) : simulationError ? (
-              <p className="text-sm text-red-600 dark:text-red-400">{simulationError}</p>
+              <p className="text-sm text-destructive dark:text-destructive">{simulationError}</p>
             ) : !simulationRows ? (
               <Skeleton className="h-64 rounded-lg" />
             ) : (

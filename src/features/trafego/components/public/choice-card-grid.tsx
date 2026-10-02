@@ -44,12 +44,12 @@ export function ChoiceCardGrid<T extends string>({
             className={cn(
               "group relative flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border p-3 text-center transition sm:p-4",
               isSelected
-                ? "border-violet-400 bg-violet-500/10 shadow-[0_0_0_1px_rgba(167,139,250,0.35)]"
+                ? "border-info bg-info/10 ring-1 ring-info/35"
                 : "border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.05]",
             )}
           >
             {isSelected && (
-              <span className="absolute right-2 top-2 flex size-4 items-center justify-center rounded-full bg-violet-500">
+              <span className="absolute right-2 top-2 flex size-4 items-center justify-center rounded-full bg-info">
                 <Check className="size-2.5 text-white" />
               </span>
             )}
@@ -58,7 +58,7 @@ export function ChoiceCardGrid<T extends string>({
               className={cn(
                 "flex size-10 items-center justify-center rounded-xl transition sm:size-12",
                 isSelected
-                  ? "bg-violet-500/25 text-violet-100"
+                  ? "bg-info/25 text-foreground"
                   : "bg-white/[0.06] text-white/55 group-hover:text-white/80",
               )}
             >

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Bell, Check, CheckCheck, ExternalLink, Loader2 } from "lucide-react";
+import { Bell, Check, CheckCheck, ExternalLink } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ICON_MODE_BUTTON, ICON_MODE_LABEL } from "./icon-mode";
@@ -34,15 +35,15 @@ const TYPE_ICON: Record<string, string> = {
 };
 
 const TYPE_COLOR: Record<string, string> = {
-  AI_TOKEN_ALERT: "text-purple-400",
-  STARS_ALERT: "text-yellow-400",
-  PLAN_EXPIRY: "text-red-400",
-  ADMIN_MESSAGE: "text-violet-400",
-  NEW_LEAD: "text-emerald-400",
-  info: "text-blue-400",
-  warning: "text-yellow-400",
-  success: "text-green-400",
-  error: "text-red-400",
+  AI_TOKEN_ALERT: "text-info",
+  STARS_ALERT: "text-warning",
+  PLAN_EXPIRY: "text-destructive",
+  ADMIN_MESSAGE: "text-info",
+  NEW_LEAD: "text-success",
+  info: "text-info",
+  warning: "text-warning",
+  success: "text-success",
+  error: "text-destructive",
 };
 
 const TARGET_LABEL: Record<string, string> = {
@@ -52,9 +53,9 @@ const TARGET_LABEL: Record<string, string> = {
 };
 
 const TARGET_STYLE: Record<string, string> = {
-  all: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  org: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  user: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  all: "bg-info/15 text-info border-info/30",
+  org: "bg-warning/15 text-warning border-warning/30",
+  user: "bg-info/15 text-info border-info/30",
 };
 
 const SEVERITY_LABEL: Record<string, string> = {
@@ -64,15 +65,15 @@ const SEVERITY_LABEL: Record<string, string> = {
 };
 
 const SEVERITY_STYLE: Record<string, string> = {
-  info: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  warning: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  critical: "bg-red-500/10 text-red-400 border-red-500/30",
+  info: "bg-info/15 text-info border-info/30",
+  warning: "bg-warning/15 text-warning border-warning/30",
+  critical: "bg-destructive/15 text-destructive border-destructive/30",
 };
 
 const SEVERITY_ITEM_BORDER: Record<string, string> = {
   info: "",
-  warning: "border-l-2 border-l-amber-500/60",
-  critical: "border-l-2 border-l-red-500/70",
+  warning: "border-l-2 border-l-warning/60",
+  critical: "border-l-2 border-l-destructive/70",
 };
 
 function timeAgo(iso: string): string {
@@ -128,7 +129,7 @@ export function NotificationBell() {
                 )}
               />
               {unread > 0 && (
-                <span className="absolute -top-1 -right-1.5 min-w-3.5 h-3.5 px-0.5 bg-red-500 rounded-full text-[8px] font-bold text-white flex items-center justify-center leading-none pointer-events-none">
+                <span className="absolute -top-1 -right-1.5 min-w-3.5 h-3.5 px-0.5 bg-destructive rounded-full text-[8px] font-bold text-white flex items-center justify-center leading-none pointer-events-none">
                   {unread > 99 ? "99+" : unread}
                 </span>
               )}
@@ -137,7 +138,7 @@ export function NotificationBell() {
             <span className={ICON_MODE_LABEL}>Notificações</span>
 
             {isLoading && (
-              <Loader2 className="ml-auto size-3 animate-spin opacity-40 shrink-0 group-data-[collapsible=icon]:hidden" />
+              <OrbitaSpinner className="ml-auto size-3 opacity-40 shrink-0 group-data-[collapsible=icon]:hidden" />
             )}
           </SidebarMenuButton>
         </PopoverTrigger>
@@ -147,15 +148,15 @@ export function NotificationBell() {
         side="right"
         align="end"
         sideOffset={12}
-        className="w-80 p-0 bg-zinc-950 border-zinc-800 shadow-2xl rounded-xl overflow-hidden z-100"
+        className="w-80 p-0 bg-popover border-line shadow-2xl rounded-[20px] overflow-hidden z-100"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50">
-          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-            <Bell className="w-4 h-4 text-violet-400" />
+        <div className="flex items-center justify-between px-4 py-3 bg-panel">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Bell className="w-4 h-4 text-info" />
             Notificações
             {unread > 0 && (
-              <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+              <span className="bg-destructive text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
                 {unread}
               </span>
             )}
@@ -165,7 +166,7 @@ export function NotificationBell() {
               <button
                 onClick={() => markAllRead()}
                 disabled={isMarkingAllRead}
-                className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white transition-colors"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 title="Marcar todas como lidas"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
@@ -177,7 +178,7 @@ export function NotificationBell() {
                 setOpen(false);
                 router.push("/settings/notifications");
               }}
-              className="text-sm text-zinc-500 hover:text-violet-400 transition-colors"
+              className="text-sm text-muted-foreground hover:text-info transition-colors"
               title="Configurar notificações"
             >
               ⚙
@@ -189,8 +190,8 @@ export function NotificationBell() {
         <div className="max-h-70 overflow-y-auto">
           {notifications.length === 0 ? (
             <div className="py-12 text-center">
-              <Bell className="w-8 h-8 mx-auto mb-3 text-zinc-800" />
-              <p className="text-xs text-zinc-500">
+              <Bell className="w-8 h-8 mx-auto mb-3 text-muted-foreground/70" />
+              <p className="text-xs text-muted-foreground">
                 Nenhuma notificação por aqui
               </p>
             </div>
@@ -200,8 +201,8 @@ export function NotificationBell() {
                 key={n.id}
                 onClick={() => onNotifClick(n)}
                 className={cn(
-                  "flex gap-3 px-4 py-3 border-b border-zinc-800/50 cursor-pointer transition-all hover:bg-zinc-900",
-                  !n.isRead && "bg-zinc-900/40",
+                  "flex gap-3 px-4 py-3 border-b border-line cursor-pointer transition-all hover:bg-muted",
+                  !n.isRead && "bg-panel",
                   // severity opcional — só aparece pra warning/critical
                   SEVERITY_ITEM_BORDER[
                     (n as { severity?: string }).severity ?? ""
@@ -218,7 +219,7 @@ export function NotificationBell() {
                         className={cn(
                           "px-1.5 py-0.5 rounded-[4px] text-[9px] font-bold uppercase tracking-wider border",
                           TARGET_STYLE[n.targetType] ??
-                            "bg-zinc-800 text-zinc-400 border-zinc-700",
+                            "bg-muted text-muted-foreground border-line",
                         )}
                       >
                         {TARGET_LABEL[n.targetType] ?? n.targetType}
@@ -231,7 +232,7 @@ export function NotificationBell() {
                             "px-1.5 py-0.5 rounded-[4px] text-[9px] font-bold uppercase tracking-wider border",
                             SEVERITY_STYLE[
                               (n as { severity: string }).severity
-                            ] ?? "bg-zinc-800 text-zinc-400 border-zinc-700",
+                            ] ?? "bg-muted text-muted-foreground border-line",
                           )}
                         >
                           {SEVERITY_LABEL[
@@ -244,34 +245,34 @@ export function NotificationBell() {
                     <p
                       className={cn(
                         "text-xs font-semibold leading-tight",
-                        TYPE_COLOR[n.type] ?? "text-white",
-                        n.isRead && "text-zinc-400 font-medium",
+                        TYPE_COLOR[n.type] ?? "text-foreground",
+                        n.isRead && "text-muted-foreground font-medium",
                       )}
                     >
                       {n.title}
                     </p>
-                    <span className="text-[10px] text-zinc-600 shrink-0">
+                    <span className="text-[10px] text-muted-foreground/70 shrink-0">
                       {timeAgo(n.createdAt)}
                     </span>
                   </div>
                   <p
                     className={cn(
                       "text-xs mt-0.5 line-clamp-2",
-                      n.isRead ? "text-zinc-500" : "text-zinc-400",
+                      n.isRead ? "text-muted-foreground" : "text-muted-foreground",
                     )}
                   >
                     {n.body}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5">
                     {!n.isRead && (
-                      <span className="w-1.5 h-1.5 bg-violet-600 rounded-full" />
+                      <span className="w-1.5 h-1.5 bg-info rounded-full" />
                     )}
                     {n.actionUrl && (
-                      <span className="text-[10px] text-violet-400 flex items-center gap-0.5 font-medium">
+                      <span className="text-[10px] text-info flex items-center gap-0.5 font-medium">
                         <ExternalLink className="w-2.5 h-2.5" /> Ver →
                       </span>
                     )}
-                    {n.isRead && <Check className="w-3 h-3 text-zinc-800" />}
+                    {n.isRead && <Check className="w-3 h-3 text-muted-foreground/70" />}
                   </div>
                 </div>
               </div>
@@ -280,13 +281,13 @@ export function NotificationBell() {
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-2.5 border-t border-zinc-800 bg-zinc-900/30 text-center">
+        <div className="px-4 py-2.5 bg-panel text-center">
           <button
             onClick={() => {
               setOpen(false);
               router.push("/settings/notifications");
             }}
-            className="text-[11px] font-medium text-violet-400 hover:text-violet-300 transition-colors"
+            className="text-[11px] font-medium text-info hover:underline transition-colors"
           >
             Configurações de notificações →
           </button>

@@ -1,34 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Loader2,
-  Rocket,
-  ShieldCheck,
-} from "lucide-react";
+import { Activity, BarChart3, FolderOpen, MegaphoneIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
+import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { TrafegoOrderStatus } from "@/generated/prisma/enums";
 import {
   useActivateTrafegoOrder,
   useTrafegoOrder,
 } from "@/features/trafego/hooks/use-trafego-orders";
-import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
-import {
-  CAMPAIGN_TYPE_SHORT_LABEL,
-  OBJECTIVE_LABEL,
-  PLATFORM_SHORT_LABEL,
-} from "@/features/trafego/lib/catalog-labels";
 import {
   isOrderActivatable,
   isOrderEditable,
 } from "@/features/trafego/lib/order-status";
 import { usePanelPath } from "@/features/trafego/lib/base-path";
-import { OrderStatusBadge } from "./order-status-badge";
 import { StatusTimeline } from "./status-timeline";
 import { CreativesManager } from "./creatives-manager";
 import { CopiesManager } from "./copies-manager";
@@ -41,7 +28,8 @@ import { ReleaseEditor } from "./release-editor";
 import { AccessChecklist } from "./access-checklist";
 import { CampaignLaunchProgress } from "./campaign-launch-progress";
 import { AdPreviewMockup } from "./ad-preview-mockup";
-import { TechnicalTerm, type TechnicalTermKey } from "../technical-term";
+import { OrderDetailHeader } from "./order-detail-header";
+import { OrderStatusNotices } from "./order-status-notices";
 import {
   CampaignSectionNav,
   type CampaignSection,
@@ -89,10 +77,36 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
   const panelPath = usePanelPath();
   const activateOrder = useActivateTrafegoOrder();
 
+  useRegisterOrbitDock({
+    leftItems: [
+      { label: "Campanhas", href: panelPath, icon: <MegaphoneIcon /> },
+      {
+        label: "Materiais",
+        icon: <FolderOpen />,
+        onSelect: () => setTab("materiais"),
+        isActive: tab === "materiais",
+      },
+    ],
+    rightItems: [
+      {
+        label: "Andamento",
+        icon: <Activity />,
+        onSelect: () => setTab("andamento"),
+        isActive: tab === "andamento",
+      },
+      {
+        label: "Desempenho",
+        icon: <BarChart3 />,
+        onSelect: () => setTab("desempenho"),
+        isActive: tab === "desempenho",
+      },
+    ],
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center gap-2 py-20 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" />
+        <OrbitaSpinner className="size-4" />
         Carregando campanha…
       </div>
     );
@@ -100,21 +114,21 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
 
   if (!order) {
     return (
-      <div className="px-4 py-20 text-center text-sm text-muted-foreground">
-        Campanha não encontrada.
+      <div className="mx-auto max-w-md px-4 py-16">
+        <div className="rounded-[22px] border border-dashed px-6 py-10 text-center">
+          <div className="mx-auto grid size-12 place-items-center rounded-full bg-muted">
+            <MegaphoneIcon className="size-5 text-muted-foreground" />
+          </div>
+          <p className="mt-4 text-sm font-medium">Campanha não encontrada</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Volte para a lista e escolha outra campanha.
+          </p>
+        </div>
       </div>
     );
   }
 
   const readOnly = !isOrderEditable(order.status);
-  const campaignTypeTerm: TechnicalTermKey =
-    order.campaignType === "PROSPECCAO"
-      ? "prospecting"
-      : order.campaignType === "REMARKETING"
-        ? "remarketing"
-        : "campaign";
-  const objectiveTerm: TechnicalTermKey =
-    order.objective === "LEADS" ? "lead" : "optimization";
   const selectedCopies = order.copies.filter((copy) => copy.isSelected).length;
   const previewCopy = order.copies.find((copy) => copy.isSelected) ?? null;
   const previewCreative =
@@ -142,8 +156,8 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
   const pendingReasons = [
     order.creatives.length === 0 &&
       !order.materialsProfileLink &&
-      "envie pelo menos um criativo ou informe seu perfil",
-    selectedCopies === 0 && "selecione pelo menos uma copy",
+      "envie pelo menos uma imagem ou vídeo, ou informe seu perfil",
+    selectedCopies === 0 && "selecione pelo menos um texto do anúncio",
     !hasDestination && "informe o site de destino ou o WhatsApp",
   ].filter(Boolean) as string[];
 
@@ -155,7 +169,7 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
           toast.success(
             result.alreadyRequested
               ? "Esta campanha já estava com a equipe."
-              : "Campanha enviada! Nossa equipe assume a partir daqui 🚀",
+              : "Campanha enviada! Nossa equipe assume a partir daqui.",
           );
           setTab("andamento");
         },
@@ -165,46 +179,12 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 md:px-6">
-      <Link
-        href={panelPath}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Minhas campanhas
-      </Link>
-
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs text-muted-foreground">
-              {order.code}
-            </span>
-            <OrderStatusBadge status={order.status} />
-          </div>
-          <h1 className="mt-1.5 text-xl font-semibold">
-            {order.planNameSnapshot}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {PLATFORM_SHORT_LABEL[order.platform]}
-            <TechnicalTerm term="paidTraffic" /> ·{" "}
-            {CAMPAIGN_TYPE_SHORT_LABEL[order.campaignType]}
-            <TechnicalTerm term={campaignTypeTerm} /> ·{" "}
-            {OBJECTIVE_LABEL[order.objective]}
-            <TechnicalTerm term={objectiveTerm} /> · {order.durationDays} dias
-          </p>
-        </div>
-
-        <div className="text-right">
-          <p className="text-lg font-semibold tabular-nums">
-            {formatBrlFromCents(order.totalBrlCents)}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {formatBrlFromCents(order.adBudgetBrlCents)} de verba +{" "}
-            {formatBrlFromCents(order.serviceFeeBrlCents)} de serviço
-          </p>
-        </div>
-      </div>
+    <div className="mx-auto max-w-5xl px-4 pt-2 pb-6 max-lg:pb-40 md:px-6 md:pt-6">
+      <OrderDetailHeader
+        order={order}
+        activeSection={tab}
+        listHref={panelPath}
+      />
 
       <Tabs
         value={tab}
@@ -223,70 +203,13 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
           nextIncomplete={nextIncomplete}
         />
 
-        {isOrderActivatable(order.status) && (
-          <div className="mt-5 rounded-xl border bg-card p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium">
-                  {canActivate
-                    ? "Tudo pronto para a equipe assumir"
-                    : "Falta pouco para ativar"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {canActivate
-                    ? "Ao ativar, sua campanha entra na fila da nossa equipe."
-                    : `Para ativar: ${pendingReasons.join(", ")}.`}
-                </p>
-              </div>
-              <Button
-                type="button"
-                onClick={handleActivate}
-                disabled={!canActivate || activateOrder.isPending}
-              >
-                {activateOrder.isPending ? (
-                  <Loader2 className="mr-1.5 size-4 animate-spin" />
-                ) : (
-                  <Rocket className="mr-1.5 size-4" />
-                )}
-                Ativar campanha
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {order.status === "ACCOUNT_REVIEW" && (
-          <div className="mt-5 flex items-start gap-2 rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-sky-500" />
-            <div>
-              <p className="text-sm font-medium">
-                Estamos analisando sua conta de anúncios
-                <TechnicalTerm term="adAccount" />
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Se você já tem BM
-                <TechnicalTerm term="bm" />, adicione a Órbita como parceira —
-                enviamos o passo a passo por WhatsApp e e-mail. Enquanto isso,
-                suba os criativos
-                <TechnicalTerm term="creative" /> e a copy
-                <TechnicalTerm term="copy" />: quando a conta for liberada, é só
-                ativar.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {order.status === "REQUESTED" && (
-          <div className="mt-5 flex items-start gap-2 rounded-xl border border-violet-500/30 bg-violet-500/5 p-4">
-            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-violet-500" />
-            <div>
-              <p className="text-sm font-medium">Recebemos sua campanha</p>
-              <p className="text-xs text-muted-foreground">
-                Nossa equipe está revisando os materiais. Você é avisado por
-                aqui a cada mudança.
-              </p>
-            </div>
-          </div>
-        )}
+        <OrderStatusNotices
+          status={order.status}
+          canActivate={canActivate}
+          pendingReasons={pendingReasons}
+          isActivating={activateOrder.isPending}
+          onActivate={handleActivate}
+        />
 
         {/* Antes das abas: o cliente acabou de entrar e precisa saber o que fazer. */}
         <div className="mt-6">

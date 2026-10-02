@@ -85,7 +85,7 @@ export function TaxRateField({ taxRate, onTaxRateChange, source, onSourceChange,
           {isOutdated && (
             <button
               type="button"
-              className="text-[11px] text-[#7C3AED] underline-offset-2 hover:underline"
+              className="text-[11px] text-info underline-offset-2 hover:underline"
               onClick={() => onTaxRateChange(bpsToPercentText(profileRate.rateBps))}
             >
               Atualizar para a alíquota de hoje ({formatBps(profileRate.rateBps)})

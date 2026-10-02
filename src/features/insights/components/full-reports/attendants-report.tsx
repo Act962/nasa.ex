@@ -188,7 +188,7 @@ function Metric({
         {label}
       </div>
       <div
-        className={`text-sm font-semibold mt-0.5 ${highlight ? "text-emerald-600" : ""}`}
+        className={`text-sm font-semibold mt-0.5 ${highlight ? "text-success" : ""}`}
       >
         {value}
       </div>

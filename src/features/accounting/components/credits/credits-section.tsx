@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -85,7 +86,7 @@ export function CreditsSection({ onNavigate }: { onNavigate?: (section: string) 
             onClick={handleReprocess}
             disabled={reprocessCredits.isPending}
           >
-            {reprocessCredits.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            {reprocessCredits.isPending ? <OrbitaSpinner className="size-3.5 " /> : <RefreshCw className="size-3.5" />}
             Reprocessar notas
           </Button>
           {onNavigate && (

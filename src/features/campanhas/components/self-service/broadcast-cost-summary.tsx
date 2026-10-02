@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, CheckCircle2, CreditCard, Loader2, QrCode, TrendingUp } from "lucide-react";
+import { CalendarDays, CheckCircle2, CreditCard, QrCode, TrendingUp } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -120,7 +121,7 @@ export function BroadcastCostSummary({ broadcastId }: { broadcastId: string }) {
       </dl>
 
       {quote.category === "MARKETING" && quote.utilityAlternativeBrlCents < quote.metaCost.totalBrlCents && (
-        <p className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-3 text-sm">
+        <p className="rounded-lg border border-success/40 bg-success/5 p-3 text-sm">
           Com um modelo de <strong>Utilidade</strong>, a Meta cobraria cerca de{" "}
           <strong>{formatBrlCents(quote.utilityAlternativeBrlCents)}</strong>.
         </p>
@@ -129,7 +130,7 @@ export function BroadcastCostSummary({ broadcastId }: { broadcastId: string }) {
       <div
         className={cn(
           "space-y-2 rounded-lg border p-3 text-sm",
-          quote.batches.days > 1 && "border-amber-500/50 bg-amber-500/5",
+          quote.batches.days > 1 && "border-warning/50 bg-warning/5",
         )}
       >
         <p className="flex items-center gap-2 font-medium">
@@ -157,7 +158,7 @@ export function BroadcastCostSummary({ broadcastId }: { broadcastId: string }) {
       </div>
 
       {isPaid && (
-        <p className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <p className="flex items-center gap-2 text-sm text-success dark:text-success">
           <CheckCircle2 className="size-4" /> Taxa paga. Pode disparar.
         </p>
       )}
@@ -166,7 +167,7 @@ export function BroadcastCostSummary({ broadcastId }: { broadcastId: string }) {
         <div className="space-y-3 border-t pt-3">
           {pendingPayment ? (
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+              <OrbitaSpinner className="size-4 text-muted-foreground" />
               Aguardando a confirmação do pagamento…
               {pendingPayment.checkoutUrl && (
                 <Button variant="link" size="sm" asChild className="h-auto p-0">

@@ -56,7 +56,7 @@ export function EntryDetailsDialog({
   if (!entry) return null;
 
   const isReceivable = entry.type === "RECEIVABLE";
-  const color = isReceivable ? "text-green-400" : "text-red-400";
+  const color = isReceivable ? "text-success" : "text-destructive";
   const restante = entry.amount - entry.paidAmount;
 
   return (

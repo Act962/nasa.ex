@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { AlertTriangle, BadgeCheck, FileKey2, Loader2, Trash2 } from "lucide-react";
+import { AlertTriangle, BadgeCheck, FileKey2, Trash2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,7 +85,7 @@ export function CertificatePanel() {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
-          <FileKey2 className="size-4 text-violet-500" /> Certificado digital A1 <FiscalTermHint termId="certificado-digital" />
+          <FileKey2 className="size-4 text-info" /> Certificado digital A1 <FiscalTermHint termId="certificado-digital" />
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           Guarde aqui o arquivo .pfx e a senha. Nós lemos o titular e a validade e avisamos antes de vencer.
@@ -106,9 +107,9 @@ export function CertificatePanel() {
               return (
                 <li key={certificate.id} className="flex items-start gap-3 rounded-xl border p-3">
                   {isExpired || isExpiringSoon ? (
-                    <AlertTriangle className={cn("mt-0.5 size-5 shrink-0", isExpired ? "text-red-500" : "text-amber-500")} />
+                    <AlertTriangle className={cn("mt-0.5 size-5 shrink-0", isExpired ? "text-destructive" : "text-warning")} />
                   ) : (
-                    <BadgeCheck className="mt-0.5 size-5 shrink-0 text-emerald-500" />
+                    <BadgeCheck className="mt-0.5 size-5 shrink-0 text-success" />
                   )}
                   <div className="min-w-0 flex-1 text-sm">
                     <p className="font-medium">{certificate.subjectName ?? "Certificado A1"}</p>
@@ -118,8 +119,8 @@ export function CertificatePanel() {
                     <p
                       className={cn(
                         "text-xs",
-                        isExpired && "text-red-600 dark:text-red-400",
-                        isExpiringSoon && "text-amber-600 dark:text-amber-400",
+                        isExpired && "text-destructive dark:text-destructive",
+                        isExpiringSoon && "text-warning dark:text-warning",
                       )}
                     >
                       {isExpired
@@ -165,11 +166,11 @@ export function CertificatePanel() {
             />
           </div>
           <Button
-            className="bg-violet-600 text-white hover:bg-violet-700"
+            className="bg-info text-white hover:bg-info"
             disabled={!certificateFile || !password || uploadCertificate.isPending}
             onClick={upload}
           >
-            {uploadCertificate.isPending && <Loader2 className="size-3.5 animate-spin" />}
+            {uploadCertificate.isPending && <OrbitaSpinner className="size-3.5 " />}
             Guardar
           </Button>
         </div>

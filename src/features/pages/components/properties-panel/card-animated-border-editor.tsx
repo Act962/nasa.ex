@@ -77,7 +77,7 @@ export function CardAnimatedBorderEditor({ el, update }: Props) {
     <div className="mt-2 mb-2">
       <div className="flex items-center justify-between rounded-md border px-2 py-1.5 bg-muted/20">
         <div className="flex items-center gap-1.5 min-w-0">
-          <Sparkles className="size-3.5 text-indigo-500 shrink-0" />
+          <Sparkles className="size-3.5 text-info shrink-0" />
           <span className="text-[11px] font-medium truncate">
             Borda animada nos cards
           </span>
@@ -136,9 +136,9 @@ export function CardAnimatedBorderEditor({ el, update }: Props) {
                     update({ cardAnimatedBorderColors: [...preset.colors] })
                   }
                   className={cn(
-                    "border rounded-md p-0.5 hover:border-indigo-400 transition-colors text-left",
+                    "border rounded-md p-0.5 hover:border-primary/60 transition-colors text-left",
                     JSON.stringify(colors) === JSON.stringify(preset.colors) &&
-                      "border-indigo-500 ring-1 ring-indigo-300",
+                      "border-primary ring-1 ring-primary/30",
                   )}
                   title={preset.label}
                 >

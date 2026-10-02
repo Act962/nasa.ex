@@ -6,11 +6,11 @@ import {
   AlertTriangleIcon,
   ArrowDownIcon,
   ArrowUpIcon,
-  Loader2Icon,
   MinusIcon,
   SparklesIcon,
   TrendingUpIcon,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,21 +35,21 @@ function formatValue(
 
 const SEVERITY_STYLES = {
   good: {
-    border: "border-emerald-200 dark:border-emerald-900",
-    bg: "bg-emerald-50/60 dark:bg-emerald-950/20",
-    icon: "text-emerald-600",
+    border: "border-success/30 dark:border-success/40",
+    bg: "bg-success/10 dark:bg-success/15",
+    icon: "text-success",
     label: "Destaque",
   },
   warn: {
-    border: "border-amber-200 dark:border-amber-900",
-    bg: "bg-amber-50/60 dark:bg-amber-950/20",
-    icon: "text-amber-600",
+    border: "border-warning/30 dark:border-warning/40",
+    bg: "bg-warning/10 dark:bg-warning/15",
+    icon: "text-warning",
     label: "Atenção",
   },
   bad: {
-    border: "border-red-200 dark:border-red-900",
-    bg: "bg-red-50/60 dark:bg-red-950/20",
-    icon: "text-red-600",
+    border: "border-destructive/30 dark:border-destructive/40",
+    bg: "bg-destructive/10 dark:bg-destructive/15",
+    icon: "text-destructive",
     label: "Alerta",
   },
   neutral: {
@@ -141,9 +141,9 @@ function CrossTileCard({ tile }: { tile: Tile }) {
     );
   const trendColor =
     tile.trend === "up"
-      ? "text-emerald-600"
+      ? "text-success"
       : tile.trend === "down"
-        ? "text-red-600"
+        ? "text-destructive"
         : "text-muted-foreground";
 
   return (
@@ -220,7 +220,7 @@ function CrossTileCard({ tile }: { tile: Tile }) {
             }
           >
             {generate.isPending ? (
-              <Loader2Icon className="size-3 animate-spin" />
+              <OrbitaSpinner className="size-3 " />
             ) : (
               <SparklesIcon className="size-3" />
             )}
@@ -237,7 +237,7 @@ function CrossTileCard({ tile }: { tile: Tile }) {
           )}
         </div>
         {generate.isError && (
-          <p className="text-[10px] text-red-600">
+          <p className="text-[10px] text-destructive">
             Falha ao gerar análise. Tente novamente.
           </p>
         )}

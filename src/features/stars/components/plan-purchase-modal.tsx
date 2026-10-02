@@ -12,7 +12,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Loader2, Sparkles, Zap, Users } from "lucide-react";
+import { Sparkles, Zap, Users } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { StarIcon } from "./star-icon";
 import { toast } from "sonner";
 import { useCanManageBilling } from "@/features/billing/hooks/use-can-manage-billing";
@@ -96,17 +97,17 @@ export function PlanPurchaseModal({
         }
       }}
     >
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0a0a14] border-white/10">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-line">
         <DialogHeader className="pb-1">
           <div className="flex items-center gap-2">
-            <div className="size-9 rounded-xl bg-linear-to-br from-[#7C3AED] to-[#a855f7] flex items-center justify-center">
-              <Sparkles className="size-5 text-white" />
+            <div className="size-9 rounded-xl bg-info flex items-center justify-center">
+              <Sparkles className="size-5 text-background" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-white">
+              <DialogTitle className="text-base font-bold text-foreground">
                 Escolha seu plano
               </DialogTitle>
-              <p className="text-[11px] text-white/40 mt-0.5">
+              <p className="text-[11px] text-muted-foreground mt-0.5">
                 Stars são creditados mensalmente e usados para manter
                 integrações ativas
               </p>
@@ -120,12 +121,12 @@ export function PlanPurchaseModal({
               {[1, 2, 3].map((index) => (
                 <div
                   key={index}
-                  className="h-52 rounded-xl bg-white/5 animate-pulse"
+                  className="h-52 rounded-xl bg-panel animate-pulse"
                 />
               ))}
             </div>
           ) : plans.length === 0 ? (
-            <p className="text-center text-sm text-white/40 py-8">
+            <p className="text-center text-sm text-muted-foreground py-8">
               Nenhum plano disponível no momento.
             </p>
           ) : (
@@ -155,44 +156,44 @@ export function PlanPurchaseModal({
                     className={cn(
                       "relative flex flex-col rounded-xl border p-4 text-left transition-all",
                       isCurrent
-                        ? "border-emerald-600/50 bg-emerald-950/20 opacity-70 cursor-not-allowed"
+                        ? "border-success/50 bg-success/20 opacity-70 cursor-not-allowed"
                         : plan.highlighted
-                          ? "border-[#7C3AED]/40 bg-[#7C3AED]/5 hover:border-[#7C3AED]/70"
-                          : "border-white/10 bg-white/4 hover:border-white/20 hover:bg-white/8",
+                          ? "border-info/40 bg-info/5 hover:border-info/70"
+                          : "border-line bg-panel hover:border-border hover:bg-muted",
                       disabled && !isCurrent && "cursor-wait",
                     )}
                   >
                     {plan.highlighted && !isCurrent && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                        <span className="bg-[#7C3AED] text-white text-[10px] font-bold px-3 py-0.5 rounded-full whitespace-nowrap shadow-lg">
+                        <span className="bg-primary text-primary-foreground text-[10px] font-bold px-3 py-0.5 rounded-full whitespace-nowrap shadow-lg">
                           Mais popular
                         </span>
                       </div>
                     )}
                     {isCurrent && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                        <span className="bg-emerald-600 text-white text-[10px] font-bold px-3 py-0.5 rounded-full whitespace-nowrap">
+                        <span className="bg-success text-background text-[10px] font-bold px-3 py-0.5 rounded-full whitespace-nowrap">
                           Plano atual
                         </span>
                       </div>
                     )}
 
-                    <p className="text-sm font-bold text-white text-center mb-2 mt-1">
+                    <p className="text-sm font-bold text-foreground text-center mb-2 mt-1">
                       {plan.name}
                     </p>
 
                     <div className="text-center mb-2">
                       {isFree ? (
-                        <span className="text-xl font-extrabold text-emerald-400">
+                        <span className="text-xl font-extrabold text-success">
                           Grátis
                         </span>
                       ) : (
                         <>
-                          <span className="text-[10px] text-white/50">R$</span>
-                          <span className="text-2xl font-extrabold text-white mx-1 leading-none">
+                          <span className="text-[10px] text-muted-foreground">R$</span>
+                          <span className="text-2xl font-extrabold text-foreground mx-1 leading-none">
                             {plan.priceMonthly.toLocaleString("pt-BR")}
                           </span>
-                          <span className="text-[10px] text-white/40">
+                          <span className="text-[10px] text-muted-foreground">
                             {billingLabel}
                           </span>
                         </>
@@ -201,14 +202,14 @@ export function PlanPurchaseModal({
 
                     <div className="flex items-center justify-center gap-1 mb-1">
                       <StarIcon className="size-3 shrink-0" />
-                      <span className="text-[11px] font-bold text-[#a78bfa]">
+                      <span className="text-[11px] font-bold text-info">
                         {plan.monthlyStars.toLocaleString("pt-BR")} ★/mês
                       </span>
                     </div>
 
                     <div className="flex items-center justify-center gap-1 mb-3">
-                      <Users className="size-3 text-white/30 shrink-0" />
-                      <span className="text-[10px] text-white/40">
+                      <Users className="size-3 text-muted-foreground shrink-0" />
+                      <span className="text-[10px] text-muted-foreground">
                         {plan.maxUsers >= 999_999
                           ? "Ilimitados"
                           : `Até ${plan.maxUsers}`}{" "}
@@ -220,10 +221,10 @@ export function PlanPurchaseModal({
                       className={cn(
                         "w-full text-center text-[11px] font-bold py-1.5 rounded-lg mt-auto",
                         isCurrent
-                          ? "bg-emerald-700/40 text-emerald-300"
+                          ? "bg-success/40 text-success"
                           : plan.highlighted
-                            ? "bg-[#7C3AED]/80 text-white"
-                            : "bg-white/10 text-white",
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-knob text-foreground",
                       )}
                     >
                       {isCurrent ? (
@@ -232,7 +233,7 @@ export function PlanPurchaseModal({
                         "Apenas owner/admin"
                       ) : isRedirecting ? (
                         <>
-                          <Loader2 className="inline size-3 mr-1 animate-spin" />
+                          <OrbitaSpinner className="inline size-3 mr-1 " />
                           Redirecionando…
                         </>
                       ) : orgHasPlan ? (
@@ -252,7 +253,7 @@ export function PlanPurchaseModal({
               })}
             </div>
           )}
-          <p className="text-center text-[11px] text-white/25 pt-1">
+          <p className="text-center text-[11px] text-muted-foreground pt-1">
             🔒 Pagamento seguro via Stripe — cancele quando quiser, sem multas
           </p>
         </div>

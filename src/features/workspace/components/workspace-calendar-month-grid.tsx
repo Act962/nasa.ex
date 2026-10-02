@@ -280,7 +280,7 @@ function MiniCard({
         </div>
       ) : action.lead?.name ? (
         <div
-          className="absolute right-1.5 top-1.5 max-w-[42%] truncate rounded bg-amber-500/10 px-1 py-0.5 text-[6.4px] font-bold text-white backdrop-blur-sm"
+          className="absolute right-1.5 top-1.5 max-w-[42%] truncate rounded bg-warning/10 px-1 py-0.5 text-[6.4px] font-bold text-white backdrop-blur-sm"
           title={`Lead: ${action.lead.name}`}
         >
           👤 {action.lead.name}
@@ -547,7 +547,7 @@ export function WorkspaceCalendarMonthGrid({
                 isToday
                   ? "bg-primary/15 ring-1 ring-primary/40"
                   : isOutside
-                    ? "bg-violet-500/8"
+                    ? "bg-info/8"
                     : "bg-card/60",
               )}
               style={{ padding: `${CELL_PADDING}px` }}
@@ -596,8 +596,8 @@ export function WorkspaceCalendarMonthGrid({
                           className={cn(
                             "w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium leading-tight transition-opacity hover:opacity-80",
                             ev!.color === "amber"
-                              ? "bg-amber-400/20 text-amber-700 dark:text-amber-300"
-                              : "bg-indigo-400/20 text-indigo-700 dark:text-indigo-300",
+                              ? "bg-warning/20 text-warning dark:text-warning"
+                              : "bg-info/20 text-info dark:text-info",
                           )}
                         >
                           {ev!.label}
@@ -611,8 +611,8 @@ export function WorkspaceCalendarMonthGrid({
                         <div className={cn(
                           "mx-3 mb-2 rounded px-2 py-1.5 text-xs",
                           ev!.color === "amber"
-                            ? "bg-amber-400/15 text-amber-800 dark:text-amber-300"
-                            : "bg-indigo-400/15 text-indigo-800 dark:text-indigo-300",
+                            ? "bg-warning/15 text-warning dark:text-warning"
+                            : "bg-info/15 text-info dark:text-info",
                         )}>
                           <span className="font-semibold">Impacto: </span>{ev!.impact}
                         </div>

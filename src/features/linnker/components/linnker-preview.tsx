@@ -19,7 +19,7 @@ export function LinnkerPreview({ page }: Props) {
   const activeLinks = page.links.filter((l) => l.isActive);
 
   return (
-    <div className="w-full max-w-[280px] mx-auto bg-white dark:bg-zinc-900 rounded-[32px] border-2 border-border shadow-2xl overflow-hidden">
+    <div className="w-full max-w-[280px] mx-auto bg-card rounded-[32px] border-2 border-border shadow-2xl overflow-hidden">
       {/* Phone notch mock */}
       <div className="h-6 bg-black flex items-center justify-center">
         <div className="w-16 h-1.5 rounded-full bg-zinc-700" />

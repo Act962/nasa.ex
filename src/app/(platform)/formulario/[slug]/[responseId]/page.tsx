@@ -5,7 +5,8 @@ import dynamic from "next/dynamic";
 import { useMutation } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Link2, Lock } from "lucide-react";
+import Link from "next/link";
+import { ChevronLeftIcon, Link2, Lock, PencilIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -45,7 +46,7 @@ export default function Page() {
   const responseId = params.responseId;
   const router = useRouter();
 
-  const { response, canEdit, editBlockedReason, createdBy, isLoading, isError, error } =
+  const { response, canEdit, canEditForm, editBlockedReason, createdBy, isLoading, isError, error } =
     useQueryFormResponseById(responseId);
   const updateMutation = useMutationUpdateResponse();
 
@@ -172,15 +173,14 @@ export default function Page() {
       {/* ── Cabeçalho com contexto do lead ─────────────────────────── */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-[920px] mx-auto px-4 py-3 flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.back()}
-            className="shrink-0"
+          <button
+            type="button"
+            aria-label="Voltar"
+            onClick={() => (window.history.length > 1 ? router.back() : router.push("/form"))}
+            className="grid size-9 shrink-0 place-items-center rounded-full bg-knob transition-colors hover:bg-panel"
           >
-            <ArrowLeft className="size-4" />
-          </Button>
-
+            <ChevronLeftIcon className="size-4" />
+          </button>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-sm font-semibold truncate">
@@ -268,10 +268,10 @@ export default function Page() {
       {/* Sem permissão de edição: o conteúdo continua inteiramente visível,
           só os campos ficam desabilitados (spec 0005, RF-10). */}
       {!canEdit && !isLoading && (
-        <div className="border-b bg-amber-50 dark:bg-amber-950/30">
+        <div className="border-b bg-warning/10 dark:bg-warning/15">
           <div className="max-w-[920px] mx-auto px-4 py-2.5 flex items-start gap-2">
-            <Lock className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-500" />
-            <div className="text-xs text-amber-900 dark:text-amber-200">
+            <Lock className="size-4 shrink-0 mt-0.5 text-warning dark:text-warning" />
+            <div className="text-xs text-warning dark:text-warning">
               <span className="font-medium">Somente leitura.</span>{" "}
               {editBlockedReason ?? "Você não pode editar esta resposta."}
               {createdBy?.name && (
@@ -320,6 +320,17 @@ export default function Page() {
           />
         </FormLeadProvider>
       </main>
+
+      {canEditForm && (
+      <Link
+        href={`/form/builder/${response.form.id}`}
+        aria-label="Editar formulário"
+        title="Editar formulário"
+        className="fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 grid size-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform active:scale-95"
+      >
+        <PencilIcon className="size-5" />
+      </Link>
+      )}
     </div>
   );
 }

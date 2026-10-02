@@ -7,9 +7,9 @@ import { formatDocumentDate } from "./document-display";
 import type { CompanyDocumentRowView } from "./document-row-types";
 
 const WINDOWS = [
-  { maxDays: 30, label: "Próximos 30 dias", className: "border-red-500/40 bg-red-500/5" },
-  { maxDays: 60, label: "31 a 60 dias", className: "border-amber-500/40 bg-amber-500/5" },
-  { maxDays: 90, label: "61 a 90 dias", className: "border-violet-500/30 bg-violet-500/5" },
+  { maxDays: 30, label: "Próximos 30 dias", className: "border-destructive/40 bg-destructive/5" },
+  { maxDays: 60, label: "31 a 60 dias", className: "border-warning/40 bg-warning/5" },
+  { maxDays: 90, label: "61 a 90 dias", className: "border-info/30 bg-info/5" },
 ];
 
 export function ExpiryTimeline({ documents }: { documents: CompanyDocumentRowView[] }) {
@@ -27,7 +27,7 @@ export function ExpiryTimeline({ documents }: { documents: CompanyDocumentRowVie
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
-          <CalendarClock className="size-4 text-violet-500" /> Vencimentos nos próximos 90 dias
+          <CalendarClock className="size-4 text-info" /> Vencimentos nos próximos 90 dias
         </CardTitle>
       </CardHeader>
       <CardContent>

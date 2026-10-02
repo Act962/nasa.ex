@@ -38,7 +38,7 @@ export function FormBlockBox() {
     <div className="w-full">
       <div className="flex gap-2 py-4 text-sm">
         <Input
-          placeholder="Search Blocks"
+          placeholder="Buscar bloco"
           className=" shadow-sm"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -49,10 +49,10 @@ export function FormBlockBox() {
         {layoutBlocks?.length > 0 && (
           <div className="mb-2">
             <h5 className="text-[13px] font-medium">
-              Layouts
+              Estrutura
             </h5>
 
-            <div className="pt-1 grid grid-cols-3 gap-3">
+            <div className="pt-1 grid grid-cols-3 min-[1700px]:grid-cols-4 gap-3">
               {layoutBlocks?.map((block) => (
                 <BlockBtnElement
                   key={block.blockType}
@@ -73,10 +73,10 @@ export function FormBlockBox() {
         <Separator />
         <div>
           <h5 className="text-[13px] text-muted-foreground font-medium">
-            Fields
+            Campos
           </h5>
 
-          <div className="pt-1 grid grid-cols-3 gap-3">
+          <div className="pt-1 grid grid-cols-3 min-[1700px]:grid-cols-4 gap-3">
             {fieldBlocks?.map((block) => (
               <BlockBtnElement
                 key={block.blockType}

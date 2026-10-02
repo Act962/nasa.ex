@@ -39,7 +39,7 @@ export function CourseCompletionCelebration({
           <X className="size-4" />
         </button>
 
-        <div className="relative bg-gradient-to-br from-violet-600 via-fuchsia-600 to-amber-500 p-8 text-white text-center">
+        <div className="relative bg-gradient-to-br from-info to-warning p-8 text-white text-center">
           <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_30%_30%,#fff,transparent_50%),radial-gradient(circle_at_70%_70%,#fff,transparent_40%)]" />
           <div className="relative">
             <div className="mx-auto flex size-24 items-center justify-center rounded-full bg-white/20 ring-4 ring-white/30">
@@ -52,7 +52,7 @@ export function CourseCompletionCelebration({
 
         <div className="p-6 space-y-3">
           <div className="rounded-xl border border-border bg-muted/40 p-4 text-center">
-            <GraduationCap className="size-6 mx-auto text-violet-600" />
+            <GraduationCap className="size-6 mx-auto text-info" />
             <p className="mt-2 text-xs uppercase tracking-wider text-muted-foreground">
               Você acaba de concluir
             </p>
@@ -60,16 +60,16 @@ export function CourseCompletionCelebration({
           </div>
 
           {bonusSp > 0 && (
-            <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-800/40 dark:bg-violet-900/20">
+            <div className="rounded-xl border border-info/30 bg-info/10 p-4">
               <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-full bg-violet-600 text-white">
+                <div className="flex size-10 items-center justify-center rounded-full bg-info text-white">
                   <Sparkles className="size-5" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-violet-900 dark:text-violet-100">
+                  <p className="text-sm font-semibold text-info">
                     Bônus de conclusão
                   </p>
-                  <p className="text-xs text-violet-700 dark:text-violet-300">
+                  <p className="text-xs text-info">
                     +{bonusSp} Space Points pelo curso completo
                   </p>
                 </div>
@@ -78,8 +78,8 @@ export function CourseCompletionCelebration({
           )}
 
           {totalSp > 0 && (
-            <div className="rounded-xl border border-border bg-violet-500/5 p-4 text-center">
-              <Sparkles className="size-5 mx-auto text-violet-600" />
+            <div className="rounded-xl border border-border bg-info/5 p-4 text-center">
+              <Sparkles className="size-5 mx-auto text-info" />
               <p className="mt-1 text-3xl font-bold tabular-nums">+{totalSp}</p>
               <p className="text-[11px] uppercase text-muted-foreground tracking-wider">
                 Total de Space Points ganhos

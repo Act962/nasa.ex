@@ -40,7 +40,7 @@ export function CreditSummaryCards({ availableCbsCents, availableIbsCents, curre
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <p className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+            <p className="text-2xl font-bold tabular-nums text-success dark:text-success">
               {formatCentsBrl(availableCbsCents + availableIbsCents)}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -53,7 +53,7 @@ export function CreditSummaryCards({ availableCbsCents, availableIbsCents, curre
             <CardTitle className="text-sm font-medium text-muted-foreground">Esperando você pagar a compra</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <p className="text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-400">
+            <p className="text-2xl font-bold tabular-nums text-warning dark:text-warning">
               {formatCentsBrl(pendingTotalCents)}
             </p>
             <p className="text-xs text-muted-foreground">Vira disponível assim que a despesa for marcada como paga.</p>
@@ -66,7 +66,7 @@ export function CreditSummaryCards({ availableCbsCents, availableIbsCents, curre
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <p className="text-2xl font-bold tabular-nums text-violet-600 dark:text-violet-400">
+            <p className="text-2xl font-bold tabular-nums text-info dark:text-info">
               {formatCentsBrl(currentMonthSummary?.usedCents ?? 0)}
             </p>
             <p className="text-xs text-muted-foreground">Abatido do imposto das suas vendas na apuração do mês.</p>

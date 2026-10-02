@@ -32,19 +32,19 @@ export type { AppDef, AppStatus };
 export function StatusBadge({ status }: { status: AppStatus }) {
   if (status === "installed")
     return (
-      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 text-[11px] gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+      <Badge className="bg-success/15 text-success border-success/30 text-[11px] gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />
         Instalado
       </Badge>
     );
   if (status === "development")
     return (
-      <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-amber-200 dark:border-amber-800 text-[11px] gap-1">
+      <Badge className="bg-warning/15 text-warning border-warning/30 text-[11px] gap-1">
         🔧 Em construção
       </Badge>
     );
   return (
-    <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border-blue-200 dark:border-blue-800 text-[11px] gap-1">
+    <Badge className="bg-info/15 text-info border-info/30 text-[11px] gap-1">
       + Disponível
     </Badge>
   );
@@ -94,8 +94,8 @@ export function SidebarToggle({
       className={cn(
         "size-6 rounded-full flex items-center justify-center border transition-colors shrink-0",
         visible
-          ? "bg-violet-500/10 text-violet-500 border-violet-500/40 hover:bg-violet-500/20"
-          : "bg-emerald-500/10 text-emerald-600 border-emerald-500/40 hover:bg-emerald-500/20 dark:text-emerald-400",
+          ? "bg-info/15 text-info border-info/30 hover:bg-info/20"
+          : "bg-success/15 text-success border-success/30 hover:bg-success/20",
       )}
     >
       {visible ? (
@@ -129,14 +129,14 @@ export function AppCard({
     <div
       className={cn(
         "group relative flex flex-col rounded-2xl border bg-card transition-all duration-300 overflow-hidden cursor-pointer",
-        "hover:border-[#7C3AED]/60 hover:shadow-lg hover:shadow-[#7C3AED]/15 hover:-translate-y-1",
+        "hover:border-info/60 hover:shadow-lg hover:shadow-info/15 hover:-translate-y-1",
         // Sutil "vidro" — gradient interno + brilho de borda
-        "before:absolute before:inset-0 before:rounded-2xl before:bg-linear-to-br before:from-[#7C3AED]/[0.03] before:to-transparent before:pointer-events-none",
+        "before:absolute before:inset-0 before:rounded-2xl before:bg-linear-to-br before:from-info/[0.03] before:to-transparent before:pointer-events-none",
       )}
       onClick={() => onAction(app)}
     >
       {/* Glow violeta no hover (anel externo sutil) */}
-      <div className="absolute inset-0 rounded-2xl ring-1 ring-[#7C3AED]/0 group-hover:ring-[#7C3AED]/30 transition-all pointer-events-none" />
+      <div className="absolute inset-0 rounded-2xl ring-1 ring-info/0 group-hover:ring-info/30 transition-all pointer-events-none" />
 
       {/* Botão "+"/"-" flutuante no canto superior direito */}
       {sidebarItem && (
@@ -158,7 +158,7 @@ export function AppCard({
         <div
           className={cn(
             "w-14 h-14 rounded-2xl overflow-hidden shrink-0 shadow-md transition-transform duration-300",
-            "group-hover:scale-110 group-hover:shadow-[#7C3AED]/25",
+            "group-hover:scale-110 group-hover:shadow-info/25",
           )}
         >
           <Icon />
@@ -205,10 +205,9 @@ export function AppCard({
               onAction(app);
             }}
             className={cn(
-              "flex-1 h-7 rounded-md text-[11px] font-medium",
-              "bg-linear-to-r from-[#7C3AED] to-[#8B5CF6] text-white",
-              "hover:from-[#6D28D9] hover:to-[#7C3AED] transition-all",
-              "shadow-sm hover:shadow-md hover:shadow-[#7C3AED]/25",
+              "flex-1 h-7 rounded-full text-[11px] font-medium",
+              "bg-primary text-primary-foreground hover:bg-primary/90 transition-all",
+              "shadow-sm",
               "flex items-center justify-center gap-1",
             )}
           >
@@ -228,7 +227,7 @@ export function AppCard({
                   .then(() => toast.success("Link do app copiado", { description: url }))
                   .catch(() => toast.error("Não foi possível copiar o link"));
               }}
-              className="flex h-7 items-center gap-1 rounded-md border border-border/60 px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+              className="flex h-7 items-center gap-1 rounded-full border border-line px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
             >
               <LinkIcon className="size-3" /> Link
             </button>
@@ -239,7 +238,7 @@ export function AppCard({
             type="button"
             disabled
             className={cn(
-              "w-full h-7 rounded-md text-[11px] font-medium",
+              "w-full h-7 rounded-full text-[11px] font-medium",
               "bg-muted/50 text-muted-foreground border border-border/60",
               "flex items-center justify-center gap-1 cursor-default",
             )}
@@ -259,9 +258,9 @@ export function AppCard({
 
 function StatusDot({ status }: { status: AppStatus }) {
   const config = {
-    installed: { color: "bg-emerald-500", title: "Instalado" },
-    development: { color: "bg-amber-500", title: "Em construção" },
-    available: { color: "bg-blue-500", title: "Disponível" },
+    installed: { color: "bg-success", title: "Instalado" },
+    development: { color: "bg-warning", title: "Em construção" },
+    available: { color: "bg-info", title: "Disponível" },
   }[status];
   return (
     <div
@@ -297,7 +296,7 @@ export function ComingSoonModal({
             </div>
           </div>
           <DialogTitle className="text-xl font-black tracking-wide flex items-center justify-center gap-2">
-            <Rocket className="size-5 text-[#7C3AED]" />
+            <Rocket className="size-5 text-info" />
             {app.name} está chegando!
           </DialogTitle>
         </DialogHeader>
@@ -305,22 +304,22 @@ export function ComingSoonModal({
           {app.fullDesc}
         </p>
         <div className="flex items-center justify-center gap-2 mb-4">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-medium">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-warning/15 text-warning text-xs font-medium">
             <Package className="size-3" /> {app.category}
           </div>
           {app.status === "development" ? (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#7C3AED]/10 text-[#7C3AED] text-xs font-medium">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-info/15 text-info text-xs font-medium">
               🔧 Em construção
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-success/15 text-success text-xs font-medium">
               ✦ Em breve nesta tela
             </div>
           )}
         </div>
         <Button
           onClick={onClose}
-          className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+          className="w-full"
         >
           Entendido
         </Button>

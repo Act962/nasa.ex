@@ -3,10 +3,12 @@
 import { AstroBadge } from "@/features/astro/components/astro-badge";
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Download, Loader2, FileText, RefreshCw, Save } from "lucide-react";
+import { Sparkles, Download, FileText, RefreshCw, Save } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/lib/orpc";
 import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type { AppModule } from "./app-selector";
 import { SaveReportModal } from "./reports/save-report-modal";
 
@@ -259,6 +261,8 @@ export function InsightReport({
             : undefined,
       }),
     onSuccess: (data) => setReport(data.report),
+    onError: (generateError) =>
+      toast.error(generateError instanceof Error ? generateError.message : "Não foi possível gerar o relatório."),
   });
 
   const periodStr = formatPeriod(period.startDate, period.endDate);
@@ -291,8 +295,8 @@ export function InsightReport({
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b bg-muted/30">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center">
-            <FileText className="size-4 text-violet-600" />
+          <div className="w-8 h-8 rounded-lg bg-info/10 dark:bg-info/15 flex items-center justify-center">
+            <FileText className="size-4 text-info" />
           </div>
           <div>
             <h2 className="flex items-center gap-2 text-sm font-semibold">
@@ -325,7 +329,7 @@ export function InsightReport({
                 className="gap-1.5 text-xs"
               >
                 {isPdfLoading ? (
-                  <Loader2 className="size-3.5 animate-spin" />
+                  <OrbitaSpinner className="size-3.5 " />
                 ) : (
                   <Download className="size-3.5" />
                 )}
@@ -337,10 +341,10 @@ export function InsightReport({
             size="sm"
             onClick={() => generateReport()}
             disabled={isPending}
-            className="gap-1.5 text-xs bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white border-0"
+            className="gap-1.5 text-xs bg-linear-to-r from-info to-info hover:from-info hover:to-info text-white border-0"
           >
             {isPending ? (
-              <Loader2 className="size-3.5 animate-spin" />
+              <OrbitaSpinner className="size-3.5 " />
             ) : report ? (
               <RefreshCw className="size-3.5" />
             ) : (
@@ -355,8 +359,8 @@ export function InsightReport({
       <div className="px-5 py-4 min-h-[120px]">
         {!report && !isPending && (
           <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
-            <div className="w-10 h-10 rounded-full bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center">
-              <Sparkles className="size-5 text-violet-500" />
+            <div className="w-10 h-10 rounded-full bg-info/10 dark:bg-info/15 flex items-center justify-center">
+              <Sparkles className="size-5 text-info" />
             </div>
             <p className="text-sm text-muted-foreground max-w-sm">
               Clique em <strong>Gerar por IA</strong> para receber uma análise
@@ -368,7 +372,7 @@ export function InsightReport({
 
         {isPending && (
           <div className="flex items-center gap-3 py-8 justify-center">
-            <Loader2 className="size-5 text-violet-500 animate-spin" />
+            <OrbitaSpinner className="size-5 text-info " />
             <p className="text-sm text-muted-foreground">
               Analisando dados com IA...
             </p>

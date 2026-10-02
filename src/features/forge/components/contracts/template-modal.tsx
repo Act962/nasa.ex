@@ -144,7 +144,7 @@ export function TemplateModal({ open, onClose, template }: TemplateModalProps) {
                   <code
                     key={v.key}
                     title={v.label}
-                    className="bg-background border border-border px-1.5 py-0.5 rounded text-[10px] cursor-pointer hover:bg-[#7C3AED]/10 hover:text-[#7C3AED] transition-colors"
+                    className="bg-background border border-border px-1.5 py-0.5 rounded text-[10px] cursor-pointer hover:bg-info/10 hover:text-info transition-colors"
                     onClick={() => {
                       const el = document.querySelector<HTMLTextAreaElement>('textarea[name="content"]');
                       if (!el) return;
@@ -173,7 +173,7 @@ export function TemplateModal({ open, onClose, template }: TemplateModalProps) {
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isPending} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white">
+            <Button type="submit" disabled={isPending}>
               {isPending ? "Salvando..." : "Salvar Padrão"}
             </Button>
           </DialogFooter>

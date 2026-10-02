@@ -88,7 +88,7 @@ export function VideoUploader({ onUploaded, disabled }: Props) {
       <div
         className={cn(
           "relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-3 transition-colors cursor-pointer",
-          dragging ? "border-violet-500 bg-violet-50/50 dark:bg-violet-950/20" : "border-muted-foreground/25 hover:border-muted-foreground/50",
+          dragging ? "border-info bg-info/10" : "border-muted-foreground/25 hover:border-muted-foreground/50",
           disabled && "opacity-50 pointer-events-none",
         )}
         onClick={() => inputRef.current?.click()}
@@ -96,8 +96,8 @@ export function VideoUploader({ onUploaded, disabled }: Props) {
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
       >
-        <div className="size-12 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-          <VideoIcon className="size-6 text-violet-600" />
+        <div className="size-12 rounded-xl bg-info/15 flex items-center justify-center">
+          <VideoIcon className="size-6 text-info" />
         </div>
         <div className="text-center">
           <p className="text-sm font-medium">Arraste um vídeo ou clique para selecionar</p>

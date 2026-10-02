@@ -114,18 +114,17 @@ function MarketingEditorPlaceholder({ element }: { element: ElementBase }) {
   const activeCount = features.filter((f) => f.enabled).length;
   return (
     <div
-      className="w-full h-full rounded-xl border-2 border-dashed bg-gradient-to-br from-purple-50 to-indigo-50 flex flex-col p-3 overflow-hidden"
-      style={{ borderColor: "rgba(139, 92, 246, 0.4)" }}
+      className="w-full h-full rounded-xl border-2 border-dashed border-info/40 bg-info/10 flex flex-col p-3 overflow-hidden"
     >
       <div className="flex items-center gap-2 mb-2">
-        <div className="size-7 rounded-md bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center">
-          <Megaphone className="size-4 text-white" />
+        <div className="size-7 rounded-md bg-info flex items-center justify-center">
+          <Megaphone className="size-4 text-background" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-purple-900 leading-tight">
+          <p className="text-xs font-bold text-foreground leading-tight">
             Marketing toolkit
           </p>
-          <p className="text-[10px] text-purple-700/70 leading-tight">
+          <p className="text-[10px] text-muted-foreground leading-tight">
             {activeCount} de {features.length} táticas ativas — só visível no público
           </p>
         </div>
@@ -138,8 +137,8 @@ function MarketingEditorPlaceholder({ element }: { element: ElementBase }) {
               key={feature.key}
               className={`flex items-center gap-1 px-1.5 py-1 rounded text-[10px] border ${
                 feature.enabled
-                  ? "bg-white border-purple-200 text-purple-900"
-                  : "bg-purple-50/40 border-purple-100 text-purple-400 line-through opacity-60"
+                  ? "bg-card border-info/30 text-foreground"
+                  : "bg-info/5 border-info/15 text-muted-foreground line-through opacity-60"
               }`}
             >
               <Icon className="size-3 shrink-0" />

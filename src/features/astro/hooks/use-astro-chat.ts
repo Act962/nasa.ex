@@ -10,6 +10,7 @@ import {
   ASTRO_ATTACHMENT_PART_TYPE,
   type AstroAttachmentData,
 } from "@/features/astro/schemas/chat-message";
+import { useAstroModelPreference } from "@/features/astro/composer/use-astro-model-preference";
 
 interface UseAstroChatOpts {
   /** Em embeds, força um sub-agente (ex: "closer"). */
@@ -43,6 +44,17 @@ function defaultErrorHandler(err: Error) {
  * Reabrir sessão antiga: passar `initialMessages` + setar `sessionId` no
  * provider antes de montar.
  */
+/** Preferências do "Uso do ASTRO" lidas na hora do envio: trocar algo vale já para a próxima pergunta. */
+function buildModelPreferenceBody() {
+  const { preferredModelId, providerOrder, disabledModelIds } = useAstroModelPreference.getState();
+  const isPreferredModelEnabled = preferredModelId !== null && !disabledModelIds.includes(preferredModelId);
+  return {
+    preferredModelId: isPreferredModelEnabled ? preferredModelId : undefined,
+    providerOrder: providerOrder ?? undefined,
+    disabledModelIds: disabledModelIds.length > 0 ? disabledModelIds : undefined,
+  };
+}
+
 export function useAstroChat(opts: UseAstroChatOpts = {}) {
   const { sessionId, setSessionId, routeContext } = useAstro();
   const sessionIdRef = useRef<string | null>(sessionId);
@@ -59,6 +71,7 @@ export function useAstroChat(opts: UseAstroChatOpts = {}) {
             sessionId: sessionIdRef.current,
             context: routeContext,
             pinnedAgentKey: opts.pinnedAgentKey,
+            ...buildModelPreferenceBody(),
             ...extra,
           };
         },
@@ -131,6 +144,8 @@ export function useAstroChat(opts: UseAstroChatOpts = {}) {
     sendMessage,
     sendMessageWithAttachments,
     sessionId,
+    /** Garante a sessão no Histórico sem enviar mensagem (ex.: gravar as falas de uma chamada de voz). */
+    ensureSession,
   };
 }
 

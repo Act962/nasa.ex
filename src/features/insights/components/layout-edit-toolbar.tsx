@@ -1,6 +1,7 @@
 "use client";
 
-import { CheckIcon, Loader2Icon } from "lucide-react";
+import { CheckIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useOrgLayout } from "@/features/insights/context/org-layout-provider";
 import { cn } from "@/lib/utils";
 
@@ -36,13 +37,13 @@ function SaveIndicator({
       className={cn(
         "flex items-center gap-1 text-xs",
         status === "saving" && "text-muted-foreground",
-        status === "saved" && "text-emerald-600",
-        status === "error" && "text-red-600",
+        status === "saved" && "text-success",
+        status === "error" && "text-destructive",
       )}
     >
       {status === "saving" && (
         <>
-          <Loader2Icon className="size-3 animate-spin" />
+          <OrbitaSpinner className="size-3 " />
           <span>Salvando...</span>
         </>
       )}

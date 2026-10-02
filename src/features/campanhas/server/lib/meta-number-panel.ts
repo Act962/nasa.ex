@@ -36,13 +36,22 @@ export async function loadMetaNumberPanel(trackingId: string, organizationId: st
   });
   const now = new Date();
 
-  const [phoneResult, pricingResult] = await Promise.allSettled([
+  const [phoneResult, pricingResult, orbitaFeesResult] = await Promise.allSettled([
     getPhoneNumbers({ wabaId: credentials.wabaId, accessToken: credentials.accessToken }),
     getPricingAnalytics({
       wabaId: credentials.wabaId,
       accessToken: credentials.accessToken,
       startUnix: startOfMonthUnix(now),
       endUnix: Math.floor(now.getTime() / 1000),
+    }),
+    prisma.broadcastFeePayment.aggregate({
+      where: {
+        organizationId,
+        status: "PAID",
+        paidAt: { gte: new Date(now.getFullYear(), now.getMonth(), 1) },
+        broadcast: { trackingId },
+      },
+      _sum: { serviceFeeBrlCents: true },
     }),
   ]);
 
@@ -85,6 +94,11 @@ export async function loadMetaNumberPanel(trackingId: string, organizationId: st
       currency,
       total: spend.reduce((sum, item) => sum + item.cost, 0),
       byCategory: spend,
+    },
+    orbitaFees: {
+      isAvailable: orbitaFeesResult.status === "fulfilled",
+      totalBrl:
+        orbitaFeesResult.status === "fulfilled" ? (orbitaFeesResult.value._sum.serviceFeeBrlCents ?? 0) / 100 : 0,
     },
     links: {
       paymentMethods: metaPaymentMethodsUrl(refs),

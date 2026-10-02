@@ -41,7 +41,7 @@ export function OriginsInput({
         </Button>
       </div>
       {value.length === 0 ? (
-        <p className="text-xs text-amber-600">Sem domínio cadastrado, o widget não aparece em lugar nenhum.</p>
+        <p className="text-xs text-warning">Sem domínio cadastrado, o widget não aparece em lugar nenhum.</p>
       ) : (
         <ul className="flex flex-wrap gap-2">
           {value.map((origin) => (

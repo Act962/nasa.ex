@@ -52,10 +52,10 @@ export function TriggerMessageInput({ value, onChange, hasError, surfaceClassNam
         className={cn(
           "min-h-0 resize-none rounded-lg border-0 py-1.5 text-xs shadow-none focus-visible:ring-1",
           surfaceClassName,
-          hasError && "ring-1 ring-red-400",
+          hasError && "ring-1 ring-destructive",
         )}
       />
-      <p className={cn("text-[11px]", hasError ? "text-red-400" : hintClassName)}>
+      <p className={cn("text-[11px]", hasError ? "text-destructive" : hintClassName)}>
         {hasError ? "Inclua {nome} para o nome do lead. " : ""}Clique em &quot;/&quot; para adicionar variáveis.
       </p>
       {slashIndex !== null && (

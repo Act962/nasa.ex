@@ -9,9 +9,9 @@ import {
   MoreVertical,
   RefreshCw,
   Zap,
-  Loader2,
   InfoIcon,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -68,8 +68,8 @@ function NoPlanPopup({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col items-center text-center gap-3">
-          <div className="w-14 h-14 rounded-full bg-yellow-500/10 flex items-center justify-center">
-            <Lock className="w-6 h-6 text-yellow-500" />
+          <div className="w-14 h-14 rounded-full bg-warning/10 flex items-center justify-center">
+            <Lock className="w-6 h-6 text-warning" />
           </div>
           <div>
             <h3 className="text-base font-bold">Plano necessário</h3>
@@ -253,7 +253,7 @@ export function ChatSettings() {
       <div className="col-span-4 space-y-6">
         {instanceLoading ? (
           <div className="flex flex-col items-center justify-center py-20 space-y-4 rounded-3xl ">
-            <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+            <OrbitaSpinner className="h-8 w-8 text-primary/50" />
             <p className="text-muted-foreground animate-pulse">
               Carregando suas instâncias...
             </p>
@@ -305,7 +305,7 @@ export function ChatSettings() {
                             "text-[10px] px-1.5 h-4 font-bold uppercase",
                             instance.status ===
                               WhatsAppInstanceStatus.CONNECTED
-                              ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                              ? "bg-success/10 text-success border-success/20"
                               : "bg-muted text-muted-foreground",
                           )}
                         >

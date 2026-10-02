@@ -11,6 +11,7 @@ import { MySealsTab }  from "./tabs/my-seals-tab";
 import { MyRouteTab }  from "./tabs/my-route-tab";
 import { RankingTab }  from "./tabs/ranking-tab";
 import { SettingsTab } from "./tabs/settings-tab";
+import { AppReportButton } from "@/features/insights/components/app-report-button";
 
 type Tab = "seals" | "route" | "ranking" | "settings";
 
@@ -47,10 +48,10 @@ export function SpacePointModal({ open, onClose }: SpacePointModalProps) {
       />
 
       {/* Sheet */}
-      <div className="relative w-[95vw] sm:w-[70vw] max-h-[92vh] flex flex-col rounded-3xl bg-[#0d0d1a] border border-[#7a1fe7]/25 shadow-2xl overflow-hidden" style={{ zIndex: 10000 }}>
+      <div className="relative w-[95vw] sm:w-[70vw] max-h-[92vh] flex flex-col rounded-3xl bg-card border border-info/25 shadow-2xl overflow-hidden" style={{ zIndex: 10000 }}>
 
         {/* ── Header ── */}
-        <div className="relative flex items-center gap-3 px-5 py-4 border-b border-[#7a1fe7]/15 bg-gradient-to-r from-[#7a1fe7]/15 to-transparent shrink-0">
+        <div className="relative flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-info/15 to-transparent shrink-0">
           <Image
             src="/space-point/icon.svg"
             alt="Space Point"
@@ -59,9 +60,9 @@ export function SpacePointModal({ open, onClose }: SpacePointModalProps) {
             className="shrink-0"
           />
           <div className="flex-1 min-w-0">
-            <h2 className="text-base font-extrabold text-white tracking-tight">Space Point</h2>
+            <h2 className="text-base font-extrabold text-foreground tracking-tight">Space Point</h2>
             {!isLoading && sp && (
-              <p className="text-[11px] text-[#a78bfa]">
+              <p className="text-[11px] text-info">
                 {sp.totalPoints.toLocaleString("pt-BR")} pts &middot;{" "}
                 {sp.currentLevel ? `${sp.currentLevel.planetEmoji} ${sp.currentLevel.name}` : "Iniciante"}
               </p>
@@ -69,23 +70,23 @@ export function SpacePointModal({ open, onClose }: SpacePointModalProps) {
           </div>
           <button
             onClick={onClose}
-            className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-all text-white"
+            className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full bg-knob hover:bg-muted transition-all text-foreground"
           >
             <X className="size-4" />
           </button>
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex shrink-0 px-3 pt-3 gap-1 bg-[#0d0d1a]">
+        <div className="mx-3 mt-3 flex shrink-0 gap-1 rounded-full bg-panel p-1">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               className={cn(
-                "flex-1 flex flex-col items-center py-2 px-1 rounded-xl text-[10px] font-semibold transition-all gap-0.5",
+                "flex-1 flex flex-col items-center py-2 px-1 rounded-full text-[10px] font-semibold transition-all gap-0.5",
                 tab === t.key
-                  ? "bg-[#7a1fe7] text-white"
-                  : "text-muted-foreground hover:bg-[#7a1fe7]/15 hover:text-foreground",
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               <span className="text-base leading-none">{t.emoji}</span>
@@ -95,7 +96,7 @@ export function SpacePointModal({ open, onClose }: SpacePointModalProps) {
         </div>
 
         {/* ── Content ── */}
-        <div className="flex-1 overflow-y-auto px-4 pt-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#7a1fe7]/30">
+        <div className="flex-1 overflow-y-auto px-4 pt-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-info/30">
           {isLoading ? (
             <div className="flex flex-col gap-3 py-8">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -124,7 +125,12 @@ export function SpacePointModal({ open, onClose }: SpacePointModalProps) {
                 <RankingTab myUserId={session?.user.id} />
               )}
               {tab === "settings" && (
-                <SettingsTab />
+                <>
+                  <div className="flex justify-end px-1 pb-3">
+                    <AppReportButton appModule="space-points" variant="secondary" />
+                  </div>
+                  <SettingsTab />
+                </>
               )}
             </>
           )}

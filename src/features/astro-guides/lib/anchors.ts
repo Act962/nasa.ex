@@ -63,6 +63,10 @@ export const GUIDE_ANCHORS = {
     id: "chat.settings-button",
     description: "Engrenagem da lista de conversas (abre as configurações do funil)",
   },
+  chatNewLeadButton: {
+    id: "chat.new-lead-button",
+    description: "Botão \"+\" da lista de conversas no celular (abre o Novo Lead com o tracking atual)",
+  },
   settingsInstanceTab: {
     id: "tracking-settings.instance-tab",
     description: "Aba \"Integrações\" nas configurações do tracking",
@@ -481,7 +485,7 @@ export const GUIDE_ANCHORS = {
   },
   integrationsSearch: {
     id: "integrations.search",
-    description: "Busca do marketplace de integrações",
+    description: "Busca dos Satélites (marketplace de integrações)",
   },
   integrationsConnectButton: {
     id: "integrations.connect",

@@ -83,7 +83,7 @@ export function AnimatedBorderEditor({ el, update }: Props) {
       {/* Toggle principal */}
       <div className="flex items-center justify-between rounded-md border px-2 py-1.5 bg-muted/20">
         <div className="flex items-center gap-1.5 min-w-0">
-          <Sparkles className="size-3.5 text-indigo-500 shrink-0" />
+          <Sparkles className="size-3.5 text-info shrink-0" />
           <span className="text-[11px] font-medium truncate">
             Borda animada
           </span>
@@ -139,9 +139,9 @@ export function AnimatedBorderEditor({ el, update }: Props) {
                     update({ animatedBorderColors: [...preset.colors] })
                   }
                   className={cn(
-                    "border rounded-md p-1 hover:border-indigo-400 transition-colors text-left",
+                    "border rounded-md p-1 hover:border-primary/60 transition-colors text-left",
                     JSON.stringify(colors) === JSON.stringify(preset.colors) &&
-                      "border-indigo-500 ring-1 ring-indigo-300",
+                      "border-primary ring-1 ring-primary/30",
                   )}
                 >
                   <div

@@ -20,7 +20,7 @@ export function SpacePointWidget() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[#7a1fe7]/40 bg-[#7a1fe7]/8 hover:bg-[#7a1fe7]/15 transition-all focus-visible:outline-none group"
+        className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-info/40 bg-info/8 hover:bg-info/15 transition-all focus-visible:outline-none group"
         title="Space Point — programa de gamificação"
       >
         <Image
@@ -30,7 +30,7 @@ export function SpacePointWidget() {
           height={18}
           className="shrink-0 group-hover:scale-110 transition-transform"
         />
-        <span className="text-xs font-semibold tabular-nums text-[#7a1fe7]">
+        <span className="text-xs font-semibold tabular-nums text-info">
           {points.toLocaleString("pt-BR")}
         </span>
         {level && (

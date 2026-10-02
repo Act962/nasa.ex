@@ -10,7 +10,7 @@
  *    `stars.getUsageBreakdown` — agora retorna todos os apps, slice 0..10)
  *
  * Reusa Recharts já presente no projeto (mesma stack do
- * `customizable-chart.tsx`).
+ * `cross-insight-tiles.tsx`).
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -102,18 +102,18 @@ export function StarsConsumptionTile() {
       <CardContent className="space-y-4">
         {/* Alertas — exibidos antes dos gráficos pra chamar atenção. */}
         {suspendedAt && (
-          <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200/60 p-3 dark:bg-red-950/20 dark:border-red-900/40">
-            <ShieldAlert className="size-4 text-red-500 shrink-0 mt-0.5" />
-            <div className="text-xs text-red-700 dark:text-red-300">
+          <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/60 p-3 dark:bg-destructive/20 dark:border-destructive/40">
+            <ShieldAlert className="size-4 text-destructive shrink-0 mt-0.5" />
+            <div className="text-xs text-destructive dark:text-destructive">
               <strong>Conta suspensa.</strong> Recarregue para reativar as
               integrações pagas.
             </div>
           </div>
         )}
         {!suspendedAt && graceStartedAt && (
-          <div className="flex items-start gap-2 rounded-lg bg-orange-50 border border-orange-200/60 p-3 dark:bg-orange-950/20 dark:border-orange-900/40">
-            <AlertTriangle className="size-4 text-orange-500 shrink-0 mt-0.5" />
-            <div className="text-xs text-orange-700 dark:text-orange-300">
+          <div className="flex items-start gap-2 rounded-lg bg-warning/10 border border-warning/60 p-3 dark:bg-warning/20 dark:border-warning/40">
+            <AlertTriangle className="size-4 text-warning shrink-0 mt-0.5" />
+            <div className="text-xs text-warning dark:text-warning">
               <strong>Saldo zerou.</strong> Você está em período de carência —
               recarregue antes da suspensão.
             </div>
@@ -150,9 +150,9 @@ export function StarsConsumptionTile() {
               className={
                 "text-lg font-bold tabular-nums " +
                 (isCritical
-                  ? "text-red-500"
+                  ? "text-destructive"
                   : isLow
-                    ? "text-amber-500"
+                    ? "text-warning"
                     : "")
               }
             >

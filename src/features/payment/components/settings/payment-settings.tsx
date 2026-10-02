@@ -67,7 +67,7 @@ function CategoriesSection() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold flex items-center gap-2">
-          <Tag className="size-4 text-purple-400" /> Categorias
+          <Tag className="size-4 text-info" /> Categorias
         </h3>
         <Button size="sm" variant="ghost" onClick={() => setShowForm(true)} className="gap-1 text-xs h-7">
           <Plus className="size-3" /> Adicionar
@@ -82,7 +82,7 @@ function CategoriesSection() {
               <div key={c.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/40 bg-muted/30 text-xs">
                 <div className="w-2 h-2 rounded-full" style={{ background: c.color ?? "#1E90FF" }} />
                 {c.name}
-                <button onClick={() => remove.mutate({ id: c.id })} className="ml-0.5 text-muted-foreground hover:text-red-400 transition-colors">×</button>
+                <button onClick={() => remove.mutate({ id: c.id })} className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors">×</button>
               </div>
             ))}
           </div>
@@ -113,7 +113,7 @@ function CategoriesSection() {
             </div>
             <div className="flex gap-2 pt-1">
               <Button type="button" variant="ghost" onClick={() => setShowForm(false)} className="flex-1">Cancelar</Button>
-              <Button type="submit" disabled={create.isPending} className="flex-1 bg-[#1E90FF] text-white">{create.isPending ? "..." : "Criar"}</Button>
+              <Button type="submit" disabled={create.isPending} className="flex-1 bg-info text-white">{create.isPending ? "..." : "Criar"}</Button>
             </div>
           </form>
         </DialogContent>

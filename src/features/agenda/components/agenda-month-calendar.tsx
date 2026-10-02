@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/pt-br";
 import {
@@ -50,6 +50,7 @@ import { useRescheduleAppointment } from "../hooks/use-agenda";
 import { CreateAppointmentModal } from "@/features/agenda/components/create-appointment-modal";
 import { ViewAppointment } from "@/features/trackings/components/calendar/view-appointment";
 import { AgendaEventList } from "./agenda-event-list";
+import { AgendaMobileCalendar } from "./agenda-mobile-calendar";
 
 dayjs.locale("pt-br");
 
@@ -70,11 +71,11 @@ const PALETTE = [
 
 // Status colour rings (border-l accent)
 const STATUS_RING: Record<string, string> = {
-  PENDING: "ring-yellow-400/70",
-  CONFIRMED: "ring-emerald-400/70",
-  CANCELLED: "ring-red-400/70",
-  NO_SHOW: "ring-red-400/70",
-  DONE: "ring-blue-400/70",
+  PENDING: "ring-warning/70",
+  CONFIRMED: "ring-success/70",
+  CANCELLED: "ring-destructive/70",
+  NO_SHOW: "ring-destructive/70",
+  DONE: "ring-info/70",
 };
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -87,6 +88,55 @@ const PLUS_MORE_HEIGHT = 22;
 const EMPTY_ROW_HEIGHT = 56;
 const DAY_HEADER_OFFSET = 28; // espaço pro número do dia / botão "+"
 const HOLIDAY_LABEL_HEIGHT = 20; // espaço extra de UM badge de feriado/mobilization
+const DEFAULT_CREATE_HOUR = 9;
+const MOBILE_VIEW_STORAGE_KEY = "agenda:mobile-view";
+const DESKTOP_MEDIA_QUERY = "(min-width: 1024px)";
+
+type MobileView = "lista" | "calendario";
+
+const MOBILE_VIEW_OPTIONS: { value: MobileView; label: string }[] = [
+  { value: "lista", label: "Lista" },
+  { value: "calendario", label: "Calendário" },
+];
+
+const MOBILE_VIEW_CHANGE_EVENT = "agenda:mobile-view-change";
+// Fallback quando o localStorage está bloqueado: a escolha vale só nesta sessão.
+let sessionMobileView: MobileView = "lista";
+
+function readStoredMobileView(): MobileView {
+  try {
+    const storedView = window.localStorage.getItem(MOBILE_VIEW_STORAGE_KEY);
+    if (storedView === "calendario" || storedView === "lista") return storedView;
+  } catch {
+    // segue para o fallback da sessão
+  }
+  return sessionMobileView;
+}
+
+function storeMobileView(view: MobileView) {
+  sessionMobileView = view;
+  try {
+    window.localStorage.setItem(MOBILE_VIEW_STORAGE_KEY, view);
+  } catch {
+    // armazenamento bloqueado: fica só o fallback da sessão
+  }
+  window.dispatchEvent(new Event(MOBILE_VIEW_CHANGE_EVENT));
+}
+
+function subscribeMobileView(onChange: () => void) {
+  window.addEventListener(MOBILE_VIEW_CHANGE_EVENT, onChange);
+  return () => window.removeEventListener(MOBILE_VIEW_CHANGE_EVENT, onChange);
+}
+
+function subscribeDesktopMedia(onChange: () => void) {
+  const desktopMediaQuery = window.matchMedia(DESKTOP_MEDIA_QUERY);
+  desktopMediaQuery.addEventListener("change", onChange);
+  return () => desktopMediaQuery.removeEventListener("change", onChange);
+}
+
+const readIsDesktop = () => window.matchMedia(DESKTOP_MEDIA_QUERY).matches;
+const readServerMobileView = (): MobileView => "lista";
+const readServerIsDesktop = () => false;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -180,7 +230,7 @@ function MiniCard({
   const cover =
     appt.orgProject?.avatar && !coverFailed ? imgSrc(appt.orgProject.avatar) : null;
 
-  const ringClass = STATUS_RING[appt.status] ?? "ring-slate-300/60";
+  const ringClass = STATUS_RING[appt.status] ?? "ring-line/60";
   const isCancelled = appt.status === "CANCELLED";
   const isDone = appt.status === "DONE";
 
@@ -305,6 +355,17 @@ export function AgendaMonthCalendar({
   const [cursor, setCursor] = useState<Dayjs>(dayjs().startOf("month"));
   const [agendaId, setAgendaId] = useState<string>(defaultAgendaId ?? "all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const mobileView = useSyncExternalStore(
+    subscribeMobileView,
+    readStoredMobileView,
+    readServerMobileView,
+  );
+  // Evita buscar as ações de workspace no desktop, onde a visão mobile fica oculta.
+  const isDesktop = useSyncExternalStore(
+    subscribeDesktopMedia,
+    readIsDesktop,
+    readServerIsDesktop,
+  );
 
   // Filtro client-side por agenda (sem refetch — a fonte é o parent)
   const appointments = useMemo(() => {
@@ -497,8 +558,8 @@ export function AgendaMonthCalendar({
     [openAppointment],
   );
 
-  const handleCreateForDate = (d: Dayjs) => {
-    setCreateInitialDate(d.hour(9).minute(0).second(0).toDate());
+  const handleCreateForDate = (day: Dayjs, hour: number = DEFAULT_CREATE_HOUR) => {
+    setCreateInitialDate(day.hour(hour).minute(0).second(0).toDate());
     setCreateOpen(true);
   };
 
@@ -513,7 +574,18 @@ export function AgendaMonthCalendar({
       >
         <div className="flex h-full flex-col">
           {/* Toolbar */}
-          <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 pt-1 pb-3 sm:flex-row sm:items-center sm:justify-between lg:px-4 lg:py-3">
+            {/* Celular: a ação principal logo abaixo do título da página, na largura toda. */}
+            <Button
+              className="h-11 w-full rounded-full lg:hidden"
+              onClick={() => {
+                setCreateInitialDate(new Date());
+                setCreateOpen(true);
+              }}
+            >
+              <Plus className="size-4" />
+              Novo compromisso
+            </Button>
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold capitalize">
                 <span>{cursor.format("MMMM")}</span>
@@ -549,9 +621,33 @@ export function AgendaMonthCalendar({
               </div>
             </div>
 
+            <div
+              role="tablist"
+              aria-label="Modo de visualização"
+              className="grid h-9 grid-cols-2 rounded-full bg-muted p-1 lg:hidden"
+            >
+              {MOBILE_VIEW_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={mobileView === option.value}
+                  onClick={() => storeMobileView(option.value)}
+                  className={cn(
+                    "rounded-full text-xs font-semibold transition",
+                    mobileView === option.value
+                      ? "bg-foreground text-background shadow-sm"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
             <div className="flex items-center gap-2">
               <Select value={agendaId} onValueChange={setAgendaId}>
-                <SelectTrigger className="h-8 w-full min-w-[180px] sm:w-48 text-xs">
+                <SelectTrigger className="h-8 w-full sm:w-48 text-xs">
                   <div className="flex items-center gap-2 truncate">
                     <FilterIcon className="size-3 shrink-0" />
                     <SelectValue placeholder="Agenda" />
@@ -569,6 +665,7 @@ export function AgendaMonthCalendar({
 
               <Button
                 size="sm"
+                className="max-lg:hidden"
                 onClick={() => {
                   setCreateInitialDate(new Date());
                   setCreateOpen(true);
@@ -592,18 +689,31 @@ export function AgendaMonthCalendar({
             ))}
           </div>
 
-          {/* Mobile: lista de eventos do mês (padrão Workspace Calendário) */}
+          {/* Mobile: lista de eventos do mês ou calendário estilo Google Agenda */}
           <div className="flex min-h-0 flex-1 flex-col lg:hidden">
-            <AgendaEventList
-              appointments={
-                (appointments as AgendaAppointment[]).filter((a) =>
-                  dayjs(a.startsAt).isSame(cursor, "month"),
-                )
-              }
-              agendaColorMap={agendaColorMap}
-              selectedId={selectedId}
-              onSelect={handleSelect}
-            />
+            {mobileView === "calendario" && !isDesktop ? (
+              <AgendaMobileCalendar
+                cursor={cursor}
+                onCursorChange={setCursor}
+                appointments={appointments}
+                agendaColorMap={agendaColorMap}
+                selectedId={selectedId}
+                isLoading={isLoading}
+                onSelectAppointment={handleSelect}
+                onCreateForDate={handleCreateForDate}
+              />
+            ) : (
+              <AgendaEventList
+                appointments={
+                  (appointments as AgendaAppointment[]).filter((a) =>
+                    dayjs(a.startsAt).isSame(cursor, "month"),
+                  )
+                }
+                agendaColorMap={agendaColorMap}
+                selectedId={selectedId}
+                onSelect={handleSelect}
+              />
+            )}
           </div>
 
           {/* Desktop: grid mensal */}
@@ -636,7 +746,7 @@ export function AgendaMonthCalendar({
                     isToday
                       ? "bg-primary/15 ring-1 ring-primary/40"
                       : isOutside
-                        ? "bg-violet-500/8"
+                        ? "bg-info/8"
                         : "bg-card/60",
                   )}
                   style={{ padding: `${CELL_PADDING}px` }}
@@ -682,8 +792,8 @@ export function AgendaMonthCalendar({
                               className={cn(
                                 "w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium leading-tight transition-opacity hover:opacity-80",
                                 ev!.color === "amber"
-                                  ? "bg-amber-400/20 text-amber-700 dark:text-amber-300"
-                                  : "bg-indigo-400/20 text-indigo-700 dark:text-indigo-300",
+                                  ? "bg-warning/20 text-warning dark:text-warning"
+                                  : "bg-info/20 text-info dark:text-info",
                               )}
                             >
                               {ev!.label}

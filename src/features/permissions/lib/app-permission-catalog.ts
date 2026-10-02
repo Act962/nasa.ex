@@ -130,7 +130,7 @@ export const ALL_APPS: AppPermissionDefinition[] = [
   { key: "insights-layout",       label: "Insights · Layout",       icon: "🧩" },
   { key: "nasa-route",            label: "ÓRBITA Route",            icon: "🗺️" },
   // Infra
-  { key: "integrations",          label: "Integrações",             icon: "🔌" },
+  { key: "integrations",          label: "Satélites",               icon: "🛰️" },
   { key: "explorer",              label: "ÓRBITA Explorer",         icon: "🚀" },
   { key: "nbox",                  label: "NBox",                    icon: "📦" },
 ];

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Check, X, Loader2, Eye, EyeOff } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, X, Eye, EyeOff } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { WorldGameAsset, WorldAssetType } from "@/features/space-station/types";
@@ -135,7 +136,7 @@ export function WorldAssetsManager({ initialAssets }: Props) {
   return (
     <div className="space-y-6">
       {/* Tabs por tipo */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-1 flex-wrap bg-panel rounded-full p-1 w-fit max-w-full">
         {(Object.keys(ASSET_TYPE_META) as WorldAssetType[]).map((type) => {
           const meta = ASSET_TYPE_META[type];
           const count = assets.filter((a) => a.type === type).length;
@@ -146,16 +147,16 @@ export function WorldAssetsManager({ initialAssets }: Props) {
                 setActiveTab(type);
                 if (!showForm) setForm((f) => ({ ...f, type }));
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all ${
                 activeTab === type
-                  ? "border-violet-500 bg-violet-500/10 text-white"
-                  : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <span>{meta.emoji}</span>
               <span>{meta.label}</span>
               {count > 0 && (
-                <span className="text-xs bg-zinc-700 text-zinc-300 rounded-full px-1.5 py-0.5">{count}</span>
+                <span className="text-xs bg-knob/60 rounded-full px-1.5 py-0.5">{count}</span>
               )}
             </button>
           );
@@ -163,13 +164,13 @@ export function WorldAssetsManager({ initialAssets }: Props) {
       </div>
 
       {/* Descrição da aba ativa */}
-      <p className="text-sm text-zinc-400">{ASSET_TYPE_META[activeTab].description}</p>
+      <p className="text-sm text-muted-foreground">{ASSET_TYPE_META[activeTab].description}</p>
 
       {/* Botão adicionar */}
       {!showForm && (
         <Button
           onClick={() => { setForm({ ...EMPTY_FORM, type: activeTab }); setShowForm(true); }}
-          className="bg-violet-600 hover:bg-violet-700 text-white gap-2"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
         >
           <Plus className="h-4 w-4" />
           Adicionar {ASSET_TYPE_META[activeTab].label}
@@ -178,18 +179,18 @@ export function WorldAssetsManager({ initialAssets }: Props) {
 
       {/* Formulário */}
       {showForm && (
-        <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-5 space-y-4">
-          <p className="text-sm font-semibold text-white">
+        <div className="rounded-xl border border-info/30 bg-info/5 p-5 space-y-4">
+          <p className="text-sm font-semibold text-foreground">
             {editingId ? "Editar Asset" : `Novo ${ASSET_TYPE_META[activeTab].label}`}
           </p>
 
           <div className="grid grid-cols-1 gap-3">
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Tipo</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
               <select
                 value={form.type}
                 onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as WorldAssetType }))}
-                className="w-full rounded-lg bg-zinc-900 border border-zinc-700 text-white text-sm px-3 py-2 focus:outline-none focus:border-violet-500"
+                className="w-full rounded-lg bg-card border border-line text-foreground text-sm px-3 py-2 focus:outline-none focus:border-info"
               >
                 {(Object.keys(ASSET_TYPE_META) as WorldAssetType[]).map((t) => (
                   <option key={t} value={t}>{ASSET_TYPE_META[t].label}</option>
@@ -197,58 +198,58 @@ export function WorldAssetsManager({ initialAssets }: Props) {
               </select>
             </div>
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Nome</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Nome</label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="Ex: Mesa Gamer Pro"
-                className="bg-zinc-900 border-zinc-700 text-white"
+                className="bg-card border-line text-foreground"
               />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">URL da Imagem (sprite/ícone)</label>
+              <label className="text-xs text-muted-foreground mb-1 block">URL da Imagem (sprite/ícone)</label>
               <Input
                 value={form.imageUrl}
                 onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
                 placeholder="https://..."
-                className="bg-zinc-900 border-zinc-700 text-white"
+                className="bg-card border-line text-foreground"
               />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">URL do Preview (opcional)</label>
+              <label className="text-xs text-muted-foreground mb-1 block">URL do Preview (opcional)</label>
               <Input
                 value={form.previewUrl}
                 onChange={(e) => setForm((f) => ({ ...f, previewUrl: e.target.value }))}
                 placeholder="https://... (imagem de preview)"
-                className="bg-zinc-900 border-zinc-700 text-white"
+                className="bg-card border-line text-foreground"
               />
             </div>
           </div>
 
           {error && (
-            <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
+            <p className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">{error}</p>
           )}
 
           {/* Preview da imagem */}
           {(form.previewUrl || form.imageUrl) && (
             <div className="flex items-center gap-3">
-              <p className="text-xs text-zinc-500">Preview:</p>
+              <p className="text-xs text-muted-foreground">Preview:</p>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={form.previewUrl || form.imageUrl}
                 alt="preview"
-                className="w-16 h-16 rounded-lg object-cover border border-zinc-700"
+                className="w-16 h-16 rounded-lg object-cover border border-line"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
               />
             </div>
           )}
 
           <div className="flex gap-3">
-            <Button variant="ghost" onClick={cancelForm} className="text-zinc-400 hover:text-white gap-1">
+            <Button variant="ghost" onClick={cancelForm} className="text-muted-foreground hover:text-foreground gap-1">
               <X className="h-3.5 w-3.5" /> Cancelar
             </Button>
-            <Button onClick={handleSave} disabled={loading} className="bg-violet-600 hover:bg-violet-700 gap-1">
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+            <Button onClick={handleSave} disabled={loading} className="gap-1">
+              {loading ? <OrbitaSpinner className="h-3.5 w-3.5 " /> : <Check className="h-3.5 w-3.5" />}
               {editingId ? "Salvar alterações" : "Adicionar asset"}
             </Button>
           </div>
@@ -257,7 +258,7 @@ export function WorldAssetsManager({ initialAssets }: Props) {
 
       {/* Lista de assets */}
       {filtered.length === 0 ? (
-        <div className="text-center py-12 text-zinc-500">
+        <div className="text-center py-12 text-muted-foreground">
           <span className="text-4xl block mb-3">{ASSET_TYPE_META[activeTab].emoji}</span>
           <p className="text-sm">Nenhum asset de {ASSET_TYPE_META[activeTab].label.toLowerCase()} cadastrado</p>
           <p className="text-xs mt-1">Clique em "Adicionar" para começar</p>
@@ -268,11 +269,11 @@ export function WorldAssetsManager({ initialAssets }: Props) {
             <div
               key={asset.id}
               className={`rounded-xl border p-4 space-y-3 transition-all ${
-                asset.isActive ? "border-zinc-700 bg-zinc-900/50" : "border-zinc-800 bg-zinc-950/50 opacity-60"
+                asset.isActive ? "border-line bg-card/50" : "border-border bg-background/50 opacity-60"
               }`}
             >
               {/* Preview */}
-              <div className="w-full h-28 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
+              <div className="w-full h-28 rounded-lg bg-muted flex items-center justify-center overflow-hidden border border-line">
                 {(asset.previewUrl ?? asset.imageUrl) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -290,32 +291,32 @@ export function WorldAssetsManager({ initialAssets }: Props) {
               </div>
 
               <div>
-                <p className="text-sm font-medium text-white truncate">{asset.name}</p>
-                <p className="text-xs text-zinc-500 truncate">{asset.imageUrl}</p>
+                <p className="text-sm font-medium text-foreground truncate">{asset.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{asset.imageUrl}</p>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${asset.isActive ? "bg-green-500/10 text-green-400" : "bg-zinc-700 text-zinc-500"}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${asset.isActive ? "bg-success/10 text-success" : "bg-knob text-muted-foreground"}`}>
                   {asset.isActive ? "Ativo" : "Inativo"}
                 </span>
                 <div className="flex gap-1">
                   <button
                     onClick={() => handleToggle(asset)}
-                    className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all"
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-knob transition-all"
                     title={asset.isActive ? "Desativar" : "Ativar"}
                   >
                     {asset.isActive ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </button>
                   <button
                     onClick={() => startEdit(asset)}
-                    className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all"
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-knob transition-all"
                     title="Editar"
                   >
                     <Edit2 className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => handleDelete(asset.id)}
-                    className="p-1.5 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
                     title="Excluir"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

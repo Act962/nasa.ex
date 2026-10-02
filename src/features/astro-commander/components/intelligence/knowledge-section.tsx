@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { BookOpen, FileText, Loader2, Plus, Trash2 } from "lucide-react";
+import { BookOpen, FileText, Plus, Trash2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,7 +101,7 @@ export function KnowledgeSection() {
         </div>
       )}
 
-      <p className={`text-xs ${isOverLimit ? "text-amber-600" : "text-muted-foreground"}`}>
+      <p className={`text-xs ${isOverLimit ? "text-warning" : "text-muted-foreground"}`}>
         {formatChars(totalChars)} de {formatChars(limits.total)} usados.
         {isOverLimit
           ? " Acima do limite, os documentos mais antigos deixam de entrar no prompt."
@@ -256,7 +257,7 @@ function KnowledgeEditor({
               )
             }
           >
-            {saveDocument.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+            {saveDocument.isPending ? <OrbitaSpinner className="size-4 " /> : null}
             Salvar
           </Button>
         </DialogFooter>

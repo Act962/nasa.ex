@@ -112,7 +112,7 @@ export function SegmentsHeader() {
       value: data?.novos,
       hint: `Criados nos últimos ${rules?.novosDias ?? 30} dias e ainda no funil`,
       icon: Sparkles,
-      tone: "text-sky-500",
+      tone: "text-info",
       series: data?.series?.novos,
       trend: data?.trends?.novos,
     },
@@ -123,7 +123,7 @@ export function SegmentsHeader() {
       value: data?.campeoes,
       hint: "Leads marcados como ganhos",
       icon: Trophy,
-      tone: "text-amber-500",
+      tone: "text-warning",
       series: data?.series?.campeoes,
       trend: data?.trends?.campeoes,
     },
@@ -134,7 +134,7 @@ export function SegmentsHeader() {
       value: data?.leais,
       hint: `Conversa com ${rules?.leaisMensagens ?? 10} mensagens ou mais`,
       icon: HeartHandshake,
-      tone: "text-emerald-500",
+      tone: "text-success",
     },
     {
       key: "risco",
@@ -143,7 +143,7 @@ export function SegmentsHeader() {
       value: data?.emRisco,
       hint: `Sem mensagem recebida há mais de ${rules?.riscoDias ?? 7} dias`,
       icon: AlertTriangle,
-      tone: "text-rose-500",
+      tone: "text-destructive",
     },
   ];
 
@@ -159,7 +159,7 @@ export function SegmentsHeader() {
     .map((tag) => tag.name);
 
   return (
-    <div className="space-y-3 border-b px-4 py-3">
+    <div className="space-y-3 px-4 py-3">
       {/* Linha 1 — números. Linha 2 — filtros. Misturar as duas fazia o
           seletor de tracking cair sozinho numa terceira linha. */}
       <div className="flex flex-wrap items-stretch gap-2">
@@ -195,7 +195,7 @@ export function SegmentsHeader() {
                     <span
                       className={cn(
                         "flex items-center gap-0.5 text-xs font-medium",
-                        card.trend >= 0 ? "text-emerald-500" : "text-rose-500",
+                        card.trend >= 0 ? "text-success" : "text-destructive",
                       )}
                     >
                       {card.trend >= 0 ? (
@@ -246,7 +246,7 @@ export function SegmentsHeader() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="gap-2">
-              <Tag className="size-4 text-violet-500" />
+              <Tag className="size-4 text-info" />
               <span className="max-w-[10rem] truncate">
                 {selectedTagNames.length === 0
                   ? "Todas as tags"

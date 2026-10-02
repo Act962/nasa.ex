@@ -30,7 +30,7 @@ export function CommandAttachmentList({
           onRemove={
             onRemoveAttachment ? () => onRemoveAttachment(attachment.localId) : undefined
           }
-          className={attachment.error ? "border-rose-500/50 text-rose-300" : undefined}
+          className={attachment.error ? "border-destructive/50 text-destructive" : undefined}
         />
       ))}
     </div>
@@ -65,7 +65,7 @@ export function CommandAttachButton({
         onClick={() => fileInputRef.current?.click()}
         disabled={disabled}
         title="Anexar boleto, nota fiscal ou comprovante"
-        className="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/50 text-zinc-400 hover:text-white transition-colors disabled:opacity-40"
+        className="w-7 h-7 flex items-center justify-center rounded-lg bg-card hover:bg-knob border border-line/50 text-muted-foreground hover:text-white transition-colors disabled:opacity-40"
       >
         <Paperclip className="w-3.5 h-3.5" />
       </button>

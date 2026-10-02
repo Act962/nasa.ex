@@ -5,7 +5,7 @@ import { TrafegoOrdersList } from "@/features/trafego/components/panel/orders-li
 export default function TrafegoPanelPage() {
   return (
     <SidebarInset className="overflow-hidden">
-      <HeaderTracking title="trafeGO" />
+      <HeaderTracking title="trafeGO" isTitleHidden />
       <div className="flex-1 overflow-auto">
         <TrafegoOrdersList />
       </div>

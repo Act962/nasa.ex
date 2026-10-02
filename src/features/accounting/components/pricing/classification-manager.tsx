@@ -68,7 +68,7 @@ export function ClassificationManager() {
           </CardTitle>
           <p className="text-sm text-muted-foreground">Crie uma para cada tipo de item que você vende.</p>
         </div>
-        <Button size="sm" className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700" onClick={openCreate}>
+        <Button size="sm" className="gap-1.5 bg-info text-white hover:bg-info" onClick={openCreate}>
           <Plus className="size-3.5" />
           Nova classificação
         </Button>
@@ -84,7 +84,7 @@ export function ClassificationManager() {
           <p className="text-sm text-muted-foreground">Não foi possível carregar as classificações agora.</p>
         ) : classifications.length === 0 ? (
           <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
-            <Tags className="size-5 text-violet-500" />
+            <Tags className="size-5 text-info" />
             <p>
               Nenhuma classificação ainda. Comece pela principal coisa que você vende (ex.: “Consultoria” ou “Revenda
               de peças”) — dá para completar os códigos depois.
@@ -104,7 +104,7 @@ export function ClassificationManager() {
                       {classification.kind === "PRODUCT" ? "Produto" : "Serviço"}
                     </Badge>
                     {classification.reductionBps > 0 && (
-                      <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 font-normal text-emerald-700 dark:text-emerald-300">
+                      <Badge variant="outline" className="border-success/40 bg-success/10 font-normal text-success dark:text-success">
                         Redução {formatBps(classification.reductionBps, 0)}
                       </Badge>
                     )}
@@ -121,7 +121,7 @@ export function ClassificationManager() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 gap-1 text-red-600 hover:text-red-700"
+                    className="h-8 gap-1 text-destructive hover:text-destructive"
                     onClick={() => handleDelete(classification)}
                     disabled={deleteClassification.isPending}
                   >

@@ -26,7 +26,7 @@ export function ButtonHandle({
           className={`absolute flex items-center ${wrapperClassName} pointer-events-none`}
         >
           <div
-            className={`bg-gray-300 ${vertical ? "h-10 w-px" : "h-px w-7"}`}
+            className={`bg-knob ${vertical ? "h-10 w-px" : "h-px w-7"}`}
           />
           <div className="nodrag nopan pointer-events-auto">{children}</div>
         </div>

@@ -36,9 +36,9 @@ export function FeedbackSection() {
           {feedbacks.map((feedback) => (
             <div key={feedback.id} className="flex items-start gap-3 rounded-xl border p-3">
               {feedback.rating === "UP" ? (
-                <ThumbsUp className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+                <ThumbsUp className="mt-0.5 size-4 shrink-0 text-success" />
               ) : (
-                <ThumbsDown className="mt-0.5 size-4 shrink-0 text-rose-500" />
+                <ThumbsDown className="mt-0.5 size-4 shrink-0 text-destructive" />
               )}
               <div className="min-w-0 flex-1">
                 {feedback.correction && <p className="text-sm">{feedback.correction}</p>}

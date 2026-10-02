@@ -4,7 +4,8 @@ import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { orpc } from "@/lib/orpc";
 import { useConnectionWizardStore } from "@/features/integrations/store/connection-wizard-store";
 
@@ -79,7 +80,7 @@ export function SelectAccountsStep() {
   if (statusQuery.isLoading || !statusQuery.data) {
     return (
       <div className="flex flex-col items-center gap-3 py-10 text-center">
-        <Loader2 className="size-6 animate-spin text-[#7C3AED]" />
+        <OrbitaSpinner className="size-6 text-info" />
         <p className="text-sm text-muted-foreground">Buscando suas contas…</p>
       </div>
     );
@@ -87,12 +88,12 @@ export function SelectAccountsStep() {
 
   if (provider === "meta" && !pendingMeta) {
     return (
-      <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm dark:bg-amber-950/30 dark:border-amber-900/50">
-        <div className="flex items-center gap-2 font-medium text-amber-700 dark:text-amber-300">
+      <div className="space-y-3 rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm">
+        <div className="flex items-center gap-2 font-medium text-warning">
           <AlertCircle className="size-4" />
           Sessão expirada ou inválida
         </div>
-        <p className="text-amber-700 dark:text-amber-300">
+        <p className="text-warning">
           Vamos precisar reiniciar o processo. Volte ao início.
         </p>
         <Button variant="outline" size="sm" onClick={() => setStep("welcome")}>
@@ -104,8 +105,8 @@ export function SelectAccountsStep() {
 
   if (provider === "google" && !pendingGoogle) {
     return (
-      <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm dark:bg-amber-950/30 dark:border-amber-900/50">
-        <div className="flex items-center gap-2 font-medium text-amber-700 dark:text-amber-300">
+      <div className="space-y-3 rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm">
+        <div className="flex items-center gap-2 font-medium text-warning">
           <AlertCircle className="size-4" />
           Sessão expirada
         </div>
@@ -120,7 +121,7 @@ export function SelectAccountsStep() {
     <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
       {provider === "meta" && pendingMeta && (
         <>
-          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 p-3 text-sm">
+          <div className="rounded-lg bg-success/10 border border-success/30 p-3 text-sm">
             <span className="font-medium">Olá, {pendingMeta.fbUser.name}!</span>{" "}
             <span className="text-muted-foreground">Selecione o que conectar:</span>
           </div>
@@ -174,7 +175,7 @@ export function SelectAccountsStep() {
 
       {provider === "google" && pendingGoogle && (
         <>
-          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 p-3 text-sm">
+          <div className="rounded-lg bg-success/10 border border-success/30 p-3 text-sm">
             <span className="font-medium">Olá, {pendingGoogle.googleUser.name || pendingGoogle.googleUser.email}!</span>
           </div>
           {pendingGoogle.adsCustomers.length > 0 ? (

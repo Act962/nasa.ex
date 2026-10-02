@@ -1,5 +1,6 @@
 "use client";
 
+import { CHART_PALETTE } from "@/lib/chart-palette";
 import { useMemo } from "react";
 import {
   CartesianGrid,
@@ -13,20 +14,7 @@ import {
 } from "recharts";
 
 // Paleta de cores — uma por campanha (cicla se passar de 12)
-const COLORS = [
-  "#7C3AED", // violet
-  "#0891B2", // cyan
-  "#F59E0B", // amber
-  "#10B981", // emerald
-  "#EF4444", // red
-  "#3B82F6", // blue
-  "#EC4899", // pink
-  "#8B5CF6", // purple
-  "#14B8A6", // teal
-  "#F97316", // orange
-  "#84CC16", // lime
-  "#6366F1", // indigo
-];
+const COLORS = CHART_PALETTE;
 
 export type Point = {
   reportId: string;

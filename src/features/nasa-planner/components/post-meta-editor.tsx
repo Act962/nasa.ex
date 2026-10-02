@@ -184,7 +184,7 @@ export function PostMetaEditor({ post }: { post: PostMeta }) {
       {/* Post para anúncio */}
       <div className="flex items-center justify-between rounded-md border px-3 py-2">
         <Label className="text-xs flex items-center gap-1.5 cursor-pointer">
-          <MegaphoneIcon className="size-3 text-orange-500" />
+          <MegaphoneIcon className="size-3 text-warning" />
           Post para anúncio
         </Label>
         <Switch

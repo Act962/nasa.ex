@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   RocketIcon, BuildingIcon, CalendarIcon, ClockIcon, CheckSquareIcon,
-  ImageIcon, PlusIcon, Trash2Icon, ExternalLinkIcon, ArrowLeftIcon,
+  ImageIcon, PlusIcon, Trash2Icon, ExternalLinkIcon,
   BadgeCheckIcon, CopyIcon, CheckIcon, LayoutDashboardIcon, CalendarDaysIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -45,11 +45,11 @@ function buildGoogleCalendarUrl(title: string, scheduledAt: string, durationMinu
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  DRAFT:     { label: "Rascunho",  color: "bg-zinc-500" },
-  ACTIVE:    { label: "Ativo",     color: "bg-emerald-500" },
-  PAUSED:    { label: "Pausado",   color: "bg-amber-500" },
-  COMPLETED: { label: "Concluído", color: "bg-blue-500" },
-  ARCHIVED:  { label: "Arquivado", color: "bg-zinc-400" },
+  DRAFT:     { label: "Rascunho",  color: "bg-muted-foreground" },
+  ACTIVE:    { label: "Ativo",     color: "bg-success" },
+  PAUSED:    { label: "Pausado",   color: "bg-warning" },
+  COMPLETED: { label: "Concluído", color: "bg-info" },
+  ARCHIVED:  { label: "Arquivado", color: "bg-muted-foreground/50" },
 };
 
 const EVENT_TYPE_OPTS = [
@@ -187,11 +187,8 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   return (
     <div className="flex flex-col h-full overflow-auto">
       {/* Header */}
-      <div className="border-b px-6 py-4">
+      <div className="px-6 py-4">
         <div className="flex items-center gap-3 mb-4">
-          <Button variant="ghost" size="sm" onClick={() => router.back()} className="gap-1">
-            <ArrowLeftIcon className="size-4" /> Voltar
-          </Button>
         </div>
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
@@ -223,10 +220,10 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
           <div className="flex items-center gap-2 flex-wrap">
             {campaign.companyCode && (
               <div className="flex items-center gap-1.5 border rounded-lg px-3 py-1.5">
-                <BadgeCheckIcon className="size-3.5 text-violet-600" />
+                <BadgeCheckIcon className="size-3.5 text-info" />
                 <span className="text-sm font-mono font-medium">{campaign.companyCode}</span>
                 <Button variant="ghost" size="icon" className="size-5 ml-1" onClick={handleCopyCode}>
-                  {copied ? <CheckIcon className="size-3 text-emerald-500" /> : <CopyIcon className="size-3" />}
+                  {copied ? <CheckIcon className="size-3 text-success" /> : <CopyIcon className="size-3" />}
                 </Button>
               </div>
             )}
@@ -277,7 +274,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                           <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                             <span className="flex items-center gap-1"><ClockIcon className="size-3" />{new Date(ev.scheduledAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>
                             <span>{ev.durationMinutes}min</span>
-                            {ev.meetingLink && <a href={ev.meetingLink} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-violet-600 hover:underline" onClick={(e) => e.stopPropagation()}><ExternalLinkIcon className="size-3" />Link</a>}
+                            {ev.meetingLink && <a href={ev.meetingLink} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-info hover:underline" onClick={(e) => e.stopPropagation()}><ExternalLinkIcon className="size-3" />Link</a>}
                           </div>
                         </div>
                       </div>
@@ -345,7 +342,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                     <CardContent className="pb-3 px-4">
                       <p className="font-medium text-sm">{asset.name}</p>
                       {asset.url && (
-                        <a href={asset.url} target="_blank" rel="noreferrer" className="text-xs text-violet-600 hover:underline flex items-center gap-1 mt-1">
+                        <a href={asset.url} target="_blank" rel="noreferrer" className="text-xs text-info hover:underline flex items-center gap-1 mt-1">
                           <ExternalLinkIcon className="size-3" /> Abrir link
                         </a>
                       )}

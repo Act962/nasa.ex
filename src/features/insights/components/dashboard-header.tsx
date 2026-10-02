@@ -32,6 +32,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 interface DashboardHeaderProps {
   settings: DashboardSettings;
@@ -107,9 +108,7 @@ export function DashboardHeader({
         <ActionButton
           label="Atualizar"
           icon={
-            <RefreshCwIcon
-              className={cn("size-4", isLoading && "animate-spin")}
-            />
+            isLoading ? <OrbitaSpinner className="size-4" /> : <RefreshCwIcon className="size-4" />
           }
           onClick={onRefresh}
           disabled={isLoading}

@@ -538,13 +538,13 @@ function DashboardTab() {
       icon: CheckCircle2Icon,
       label: "Pagas",
       value: data?.proposalsPaid ?? 0,
-      color: "text-green-500",
+      color: "text-success",
     },
     {
       icon: ClockIcon,
       label: "Expiradas",
       value: data?.proposalsExpired ?? 0,
-      color: "text-yellow-500",
+      color: "text-warning",
     },
     {
       icon: TrendingUpIcon,
@@ -589,9 +589,9 @@ function DashboardTab() {
                 className={cn(
                   "ml-2 shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium",
                   p.status === "PAGA"
-                    ? "bg-green-500/20 text-green-600"
+                    ? "bg-success/20 text-success"
                     : p.status === "ENVIADA"
-                      ? "bg-blue-500/20 text-blue-600"
+                      ? "bg-info/20 text-info"
                       : "bg-muted text-muted-foreground",
                 )}
               >

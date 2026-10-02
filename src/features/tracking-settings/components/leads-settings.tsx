@@ -17,7 +17,8 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, ShoppingBasket } from "lucide-react";
+import { ShoppingBasket } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 interface Props {
   trackingId: string;
@@ -67,7 +68,7 @@ export function LeadsSettings({ trackingId }: Props) {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
-        <Loader2 className="size-4 animate-spin" /> Carregando…
+        <OrbitaSpinner className="size-4 " /> Carregando…
       </div>
     );
   }
@@ -76,7 +77,7 @@ export function LeadsSettings({ trackingId }: Props) {
     <div className="space-y-6 max-w-2xl">
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2">
-          <ShoppingBasket className="size-4 text-[#1E90FF]" /> Configuração de
+          <ShoppingBasket className="size-4 text-info" /> Configuração de
           Período de Compra
         </h3>
         <p className="text-xs text-muted-foreground mt-1">
@@ -102,7 +103,7 @@ export function LeadsSettings({ trackingId }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <Label className="text-xs flex items-center gap-1.5">
-              <span className="inline-block size-2.5 rounded-sm bg-emerald-500" />
+              <span className="inline-block size-2.5 rounded-sm bg-success" />
               Verde (recente, até)
             </Label>
             <Input
@@ -117,7 +118,7 @@ export function LeadsSettings({ trackingId }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs flex items-center gap-1.5">
-              <span className="inline-block size-2.5 rounded-sm bg-yellow-500" />
+              <span className="inline-block size-2.5 rounded-sm bg-temp-warm" />
               Amarelo (intermediário, até)
             </Label>
             <Input
@@ -132,7 +133,7 @@ export function LeadsSettings({ trackingId }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs flex items-center gap-1.5">
-              <span className="inline-block size-2.5 rounded-sm bg-orange-500" />
+              <span className="inline-block size-2.5 rounded-sm bg-temp-hot" />
               Laranja (longo, até)
             </Label>
             <Input
@@ -147,25 +148,25 @@ export function LeadsSettings({ trackingId }: Props) {
           </div>
         </div>
 
-        <div className="border-t pt-3 space-y-1 text-[11px] text-muted-foreground">
+        <div className="pt-3 space-y-1 text-[11px] text-muted-foreground">
           <p>
-            <span className="inline-block size-2 rounded-sm bg-emerald-500 mr-1.5" />
+            <span className="inline-block size-2 rounded-sm bg-success mr-1.5" />
             Verde: comprou nos últimos {recent} dias
           </p>
           <p>
-            <span className="inline-block size-2 rounded-sm bg-yellow-500 mr-1.5" />
+            <span className="inline-block size-2 rounded-sm bg-temp-warm mr-1.5" />
             Amarelo: entre {recent + 1} e {medium} dias
           </p>
           <p>
-            <span className="inline-block size-2 rounded-sm bg-orange-500 mr-1.5" />
+            <span className="inline-block size-2 rounded-sm bg-temp-hot mr-1.5" />
             Laranja: entre {medium + 1} e {long} dias
           </p>
           <p>
-            <span className="inline-block size-2 rounded-sm bg-red-500 mr-1.5" />
+            <span className="inline-block size-2 rounded-sm bg-destructive mr-1.5" />
             Vermelho: passou de {long} dias
           </p>
           <p>
-            <span className="inline-block size-2 rounded-sm bg-zinc-400 mr-1.5" />
+            <span className="inline-block size-2 rounded-sm bg-muted-foreground mr-1.5" />
             Cinza: ainda não comprou
           </p>
         </div>
@@ -177,7 +178,7 @@ export function LeadsSettings({ trackingId }: Props) {
           disabled={updateMutation.isPending || !showBasket ? false : false}
         >
           {updateMutation.isPending && (
-            <Loader2 className="size-4 animate-spin mr-2" />
+            <OrbitaSpinner className="size-4 mr-2" />
           )}
           Salvar configuração
         </Button>

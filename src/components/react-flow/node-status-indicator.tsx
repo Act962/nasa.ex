@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { LoaderCircle } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 import { cn } from "@/lib/utils";
 
@@ -21,13 +21,13 @@ export const SpinnerLoadingIndicator = ({
 }) => {
   return (
     <div className="relative">
-      <StatusBorder className="border-blue-700/40">{children}</StatusBorder>
+      <StatusBorder className="border-info/40">{children}</StatusBorder>
 
       <div className="bg-background/50 absolute inset-0 z-50 rounded-[9px] backdrop-blur-xs" />
       <div className="absolute inset-0 z-50">
-        <span className="absolute top-[calc(50%-1.25rem)] left-[calc(50%-1.25rem)] inline-block h-10 w-10 animate-ping rounded-full bg-blue-700/20" />
+        <span className="absolute top-[calc(50%-1.25rem)] left-[calc(50%-1.25rem)] inline-block h-10 w-10 animate-ping rounded-full bg-info/20" />
 
-        <LoaderCircle className="absolute top-[calc(50%-0.75rem)] left-[calc(50%-0.75rem)] size-6 animate-spin text-blue-700" />
+        <OrbitaSpinner className="absolute top-[calc(50%-0.75rem)] left-[calc(50%-0.75rem)] size-6 text-info" />
       </div>
     </div>
   );
@@ -66,7 +66,7 @@ export const BorderLoadingIndicator = ({
             className
           )}
         >
-          <div className="spinner rounded-full bg-[conic-gradient(from_0deg_at_50%_50%,rgba(42,67,233)_0deg,rgba(42,138,246,0)_360deg)]" />
+          <div className="spinner rounded-full bg-[conic-gradient(from_0deg_at_50%_50%,var(--info)_0deg,transparent_360deg)]" />
         </div>
       </div>
       {children}
@@ -116,7 +116,7 @@ export const NodeStatusIndicator = ({
       }
     case "success":
       return (
-        <StatusBorder className={cn("border-green-700/50", className)}>
+        <StatusBorder className={cn("border-success/50", className)}>
           {children}
         </StatusBorder>
       );
@@ -124,7 +124,7 @@ export const NodeStatusIndicator = ({
       return (
         <StatusBorder
           className={cn(
-            "border-red-500 animate-pulse [box-shadow:0_0_0_3px_rgba(239,68,68,0.25)]",
+            "border-destructive animate-pulse [box-shadow:0_0_0_3px_color-mix(in_oklch,var(--destructive)_25%,transparent)]",
             className,
           )}
         >

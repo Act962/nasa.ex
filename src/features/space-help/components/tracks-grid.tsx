@@ -47,12 +47,12 @@ export function TracksGrid() {
           <Link
             key={t.id}
             href={`/space-help/trilhas/${t.slug}`}
-            className="group relative flex flex-col rounded-2xl border border-border bg-card p-5 transition hover:border-violet-500/50 hover:shadow-lg overflow-hidden"
+            className="group relative flex flex-col rounded-2xl border border-border bg-card p-5 transition hover:border-info/50 hover:shadow-lg overflow-hidden"
           >
             <div
               className={cn(
                 "absolute -right-12 -top-12 size-44 rounded-full opacity-30 blur-3xl transition group-hover:opacity-60",
-                completed ? "bg-amber-400" : "bg-violet-500",
+                completed ? "bg-warning" : "bg-info",
               )}
             />
             <div className="relative flex items-center gap-2 mb-4">
@@ -66,7 +66,7 @@ export function TracksGrid() {
                 </span>
               )}
               {completed && (
-                <Badge className="bg-amber-500 text-white text-xs hover:bg-amber-500">
+                <Badge className="border-warning/30 bg-warning/15 text-warning text-xs hover:bg-warning/15">
                   Concluída
                 </Badge>
               )}
@@ -81,12 +81,12 @@ export function TracksGrid() {
 
             <div className="relative mt-4 flex flex-wrap items-center gap-3 text-xs">
               {t.rewardSpacePoints > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2 py-1 text-violet-700 dark:text-violet-300 font-medium">
+                <span className="inline-flex items-center gap-1 rounded-full bg-info/10 px-2 py-1 text-info font-medium">
                   <Sparkles className="size-3" /> {t.rewardSpacePoints} SP
                 </span>
               )}
               {t.rewardStars > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-1 text-amber-700 dark:text-amber-300 font-medium">
+                <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-1 text-warning font-medium">
                   <Star className="size-3" /> {t.rewardStars} Stars
                 </span>
               )}
@@ -114,7 +114,7 @@ export function TracksGrid() {
                 <div
                   className={cn(
                     "h-full rounded-full transition-all",
-                    completed ? "bg-amber-500" : "bg-violet-600",
+                    completed ? "bg-warning" : "bg-info",
                   )}
                   style={{ width: `${progressPct}%` }}
                 />
@@ -122,7 +122,7 @@ export function TracksGrid() {
             </div>
 
             {completed && (
-              <Trophy className="absolute right-4 top-4 size-5 text-amber-500" />
+              <Trophy className="absolute right-4 top-4 size-5 text-warning" />
             )}
           </Link>
         );

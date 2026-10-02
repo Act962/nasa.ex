@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { XIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import { useAstroFeedStore, type AstroFeedItem } from "./use-astro-feed-store";
 import { useAstroWidgetStore } from "./use-astro-widget-store";
@@ -15,9 +16,9 @@ import { useAstroWidgetStore } from "./use-astro-widget-store";
  */
 
 const PRIORITY_ACCENT: Record<AstroFeedItem["priority"], string> = {
-  urgent: "bg-rose-500",
-  important: "bg-amber-500",
-  info: "bg-sky-500",
+  urgent: "bg-destructive",
+  important: "bg-warning",
+  info: "bg-info",
 };
 
 /** Canto do balão que aponta para o orb — o único sem arredondar. */
@@ -41,6 +42,7 @@ export function AstroSpeechFeed({
 }) {
   const items = useAstroFeedStore((state) => state.items);
   const removeItem = useAstroFeedStore((state) => state.remove);
+  const hideBalloons = useAstroFeedStore((state) => state.hide);
   const openWidget = useAstroWidgetStore((state) => state.open);
   const setView = useAstroWidgetStore((state) => state.setView);
 
@@ -61,19 +63,19 @@ export function AstroSpeechFeed({
   const bubbleKey = voiceHint ? `voice-${voiceHint}` : current?.id;
 
   return (
+    <div key={bubbleKey} className="group/balloon pointer-events-auto relative animate-in fade-in-0 slide-in-from-bottom-2 zoom-in-95 duration-300 motion-reduce:animate-none">
     <button
-      key={bubbleKey}
       type="button"
       onClick={handleClick}
       aria-live="polite"
-      className={cn(POINTER_RADIUS[pointsTo], "pointer-events-auto animate-in fade-in-0 slide-in-from-bottom-2 zoom-in-95 duration-300 motion-reduce:animate-none max-w-[min(280px,calc(100vw-2.5rem))] bg-white px-3.5 py-2.5 text-left text-[#0b1220] shadow-[0_10px_26px_-8px_rgba(0,0,0,0.5)] transition-colors hover:bg-[#f5f8ff]")}
+      className={cn(POINTER_RADIUS[pointsTo], "max-w-[min(280px,calc(100vw-2.5rem))] bg-white px-3.5 py-2.5 pr-7 text-left text-foreground shadow-[0_10px_26px_-8px_rgba(0,0,0,0.5)] transition-colors hover:bg-panel")}
     >
       {voiceHint ? (
         <span className="text-[0.9rem] leading-snug">{voiceHint}</span>
       ) : current ? (
         <span className="flex items-start gap-2">
           {current.kind === "activity" ? (
-            <Loader2 className="mt-0.5 size-3.5 shrink-0 animate-spin text-violet-600" />
+            <OrbitaSpinner className="mt-0.5 size-3.5 shrink-0 text-info" />
           ) : (
             <span
               className={cn(
@@ -83,23 +85,22 @@ export function AstroSpeechFeed({
               )}
             />
           )}
-          <span className="min-w-0">
-            <span className="block text-[0.9rem] font-semibold leading-snug">
-              {current.headline}
-            </span>
-            {current.detail && (
-              <span className="mt-0.5 line-clamp-2 block text-[0.8rem] leading-snug text-[#475467]">
-                {current.detail}
-              </span>
-            )}
-            {items.length > 1 && (
-              <span className="mt-1 block text-[0.72rem] text-[#667085]">
-                +{items.length - 1} {items.length - 1 === 1 ? "aviso" : "avisos"} no Início
-              </span>
-            )}
-          </span>
+          {/* Só o título: o texto completo está no Início do widget, ao clicar. */}
+          <span className="min-w-0 text-[0.9rem] font-semibold leading-snug">{current.headline}</span>
         </span>
       ) : null}
     </button>
+    {current && !voiceHint && (
+      <button
+        type="button"
+        onClick={hideBalloons}
+        aria-label="Esconder avisos do Astro nesta página"
+        title="Esconder"
+        className="absolute top-1.5 right-1.5 grid size-5 place-items-center rounded-full text-muted-foreground/70 opacity-60 transition-opacity hover:bg-panel hover:text-foreground group-hover/balloon:opacity-100 focus-visible:opacity-100"
+      >
+        <XIcon className="size-3" />
+      </button>
+    )}
+    </div>
   );
 }

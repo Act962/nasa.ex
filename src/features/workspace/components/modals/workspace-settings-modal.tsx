@@ -25,6 +25,7 @@ import { LabelsTab } from "./tabs/labels-tab";
 import { AutomationsTab } from "./tabs/automations-tab";
 import { DangerZoneTab } from "./tabs/danger-zone-tab";
 import { TemplatesTab } from "./tabs/templates-tab";
+import { AppReportButton } from "@/features/insights/components/app-report-button";
 
 interface Props {
   workspaceId: string;
@@ -49,10 +50,11 @@ export function WorkspaceSettingsModal({
     <ToastProvider>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[90vw] w-[90vw] max-h-[90vh] h-[90vh] p-0 flex flex-col gap-0 overflow-hidden">
-          <DialogHeader className="px-3 sm:px-6 py-4 border-b shrink-0">
+          <DialogHeader className="flex-row items-center justify-between gap-2 px-3 py-4 pr-12 shrink-0 sm:px-6 sm:pr-14">
             <DialogTitle className="text-xl font-semibold">
               Configurações
             </DialogTitle>
+            <AppReportButton appModule="workspace" />
           </DialogHeader>
 
           <div className="flex-1 flex flex-col overflow-hidden">

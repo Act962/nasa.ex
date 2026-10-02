@@ -30,10 +30,10 @@ function PublicCalendarView({ code }: { code: string }) {
 
   if (error || !publicCalendar) return (
     <div className="text-center py-12">
-      <div className="size-16 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center mx-auto mb-4">
-        <CalendarIcon className="size-8 text-red-500" />
+      <div className="size-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+        <CalendarIcon className="size-8 text-destructive" />
       </div>
-      <h2 className="text-lg font-semibold text-red-600">Código inválido ou expirado</h2>
+      <h2 className="text-lg font-semibold text-destructive">Código inválido ou expirado</h2>
       <p className="text-muted-foreground text-sm mt-1">Verifique o código com sua agência e tente novamente.</p>
     </div>
   );
@@ -142,7 +142,7 @@ export default function PublicCalendarClientPage() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="size-16 rounded-2xl bg-gradient-to-br from-violet-600 to-pink-500 flex items-center justify-center mx-auto mb-4">
+          <div className="size-16 rounded-2xl bg-info flex items-center justify-center mx-auto mb-4">
             <RocketIcon className="size-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold">Calendário da Campanha</h1>

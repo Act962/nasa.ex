@@ -25,24 +25,24 @@ export default async function PartnerCommissionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-amber-400" />
+        <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-muted-foreground" />
           Comissões e Repasses
         </h1>
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Histórico de comissões geradas e payouts agendados.
         </p>
       </div>
 
-      <section className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-        <header className="px-5 py-3 border-b border-zinc-800 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">
+      <section className="bg-card border border-line rounded-xl overflow-hidden">
+        <header className="px-5 py-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground">
             Repasses (últimos 12)
           </h2>
         </header>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-800 text-zinc-500 text-xs uppercase tracking-wider">
+            <tr className="border-b border-line text-muted-foreground text-xs uppercase tracking-wider">
               <th className="text-left px-5 py-2">Ciclo</th>
               <th className="text-left px-5 py-2">Repasse em</th>
               <th className="text-right px-5 py-2">Bruto</th>
@@ -51,20 +51,20 @@ export default async function PartnerCommissionsPage() {
               <th className="text-right px-5 py-2">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800">
+          <tbody className="divide-y divide-line">
             {payouts.map((p) => (
-              <tr key={p.id} className="hover:bg-zinc-800/40">
-                <td className="px-5 py-2 text-white">{p.cycleYearMonth}</td>
-                <td className="px-5 py-2 text-zinc-400 text-xs">
+              <tr key={p.id} className="hover:bg-muted/40">
+                <td className="px-5 py-2 text-foreground">{p.cycleYearMonth}</td>
+                <td className="px-5 py-2 text-muted-foreground text-xs">
                   {new Date(p.scheduledFor).toLocaleDateString("pt-BR")}
                 </td>
-                <td className="px-5 py-2 text-right text-zinc-300">
+                <td className="px-5 py-2 text-right text-foreground">
                   R$ {fmt(Number(p.grossBrl))}
                 </td>
-                <td className="px-5 py-2 text-right text-rose-300">
+                <td className="px-5 py-2 text-right text-destructive">
                   -R$ {fmt(Number(p.advanceFeeBrl))}
                 </td>
-                <td className="px-5 py-2 text-right text-emerald-400 font-semibold">
+                <td className="px-5 py-2 text-right text-success font-semibold">
                   R$ {fmt(Number(p.netBrl))}
                 </td>
                 <td className="px-5 py-2 text-right text-xs">{p.status}</td>
@@ -74,7 +74,7 @@ export default async function PartnerCommissionsPage() {
               <tr>
                 <td
                   colSpan={6}
-                  className="px-5 py-8 text-center text-zinc-500 text-sm"
+                  className="px-5 py-8 text-center text-muted-foreground text-sm"
                 >
                   Sem repasses ainda. O primeiro será agendado no fechamento do
                   próximo ciclo.
@@ -85,15 +85,15 @@ export default async function PartnerCommissionsPage() {
         </table>
       </section>
 
-      <section className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-        <header className="px-5 py-3 border-b border-zinc-800 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">
+      <section className="bg-card border border-line rounded-xl overflow-hidden">
+        <header className="px-5 py-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground">
             Comissões (últimas 50)
           </h2>
         </header>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-800 text-zinc-500 text-xs uppercase tracking-wider">
+            <tr className="border-b border-line text-muted-foreground text-xs uppercase tracking-wider">
               <th className="text-left px-5 py-2">Data</th>
               <th className="text-left px-5 py-2">Org indicada</th>
               <th className="text-left px-5 py-2">Pacote</th>
@@ -104,29 +104,29 @@ export default async function PartnerCommissionsPage() {
               <th className="text-right px-5 py-2">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800">
+          <tbody className="divide-y divide-line">
             {commissions.map((c) => (
-              <tr key={c.id} className="hover:bg-zinc-800/40">
-                <td className="px-5 py-2 text-zinc-300 text-xs">
+              <tr key={c.id} className="hover:bg-muted/40">
+                <td className="px-5 py-2 text-foreground text-xs">
                   {new Date(c.createdAt).toLocaleDateString("pt-BR")}
                 </td>
-                <td className="px-5 py-2 text-white">{c.organization.name}</td>
+                <td className="px-5 py-2 text-foreground">{c.organization.name}</td>
                 <td
-                  className="px-5 py-2 text-zinc-400 text-xs"
+                  className="px-5 py-2 text-muted-foreground text-xs"
                   title={`R$ ${Number(c.unitPriceBrlSnapshot).toFixed(4)} por STAR no momento`}
                 >
                   {c.packageLabelSnapshot}
                 </td>
-                <td className="px-5 py-2 text-right text-yellow-400">
+                <td className="px-5 py-2 text-right text-warning">
                   {c.starsAmountSnapshot.toLocaleString("pt-BR")} ⭐
                 </td>
-                <td className="px-5 py-2 text-right text-zinc-300">
+                <td className="px-5 py-2 text-right text-foreground">
                   R$ {fmt(Number(c.basePaymentBrl))}
                 </td>
-                <td className="px-5 py-2 text-right text-zinc-400">
+                <td className="px-5 py-2 text-right text-muted-foreground">
                   {Number(c.ratePercent)}%
                 </td>
-                <td className="px-5 py-2 text-right text-emerald-400 font-semibold">
+                <td className="px-5 py-2 text-right text-success font-semibold">
                   R$ {fmt(Number(c.commissionBrl))}
                 </td>
                 <td className="px-5 py-2 text-right text-xs">{c.status}</td>
@@ -136,7 +136,7 @@ export default async function PartnerCommissionsPage() {
               <tr>
                 <td
                   colSpan={8}
-                  className="px-5 py-8 text-center text-zinc-500 text-sm"
+                  className="px-5 py-8 text-center text-muted-foreground text-sm"
                 >
                   Nenhuma comissão gerada ainda. Quando suas orgs indicadas
                   comprarem STARs, a comissão aparecerá aqui.

@@ -79,7 +79,7 @@ export function ActionTitle({
               disabled={isUpdating}
             >
               {action?.isDone ? (
-                <CircleCheckIcon className="size-5 text-emerald-500" />
+                <CircleCheckIcon className="size-5 text-success" />
               ) : (
                 <CircleDashedIcon className="size-5" />
               )}

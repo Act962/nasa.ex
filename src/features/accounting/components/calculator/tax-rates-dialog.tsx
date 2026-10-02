@@ -119,7 +119,7 @@ export function TaxRatesDialog({ open, onOpenChange }: TaxRatesDialogProps) {
                       <span className="block">{rate.legalSource}</span>
                       {rate.note && <span className="block text-muted-foreground">{rate.note}</span>}
                       {rate.needsVerification && (
-                        <Badge variant="outline" className="mt-1 gap-1 border-amber-500/40 text-amber-700 dark:text-amber-300">
+                        <Badge variant="outline" className="mt-1 gap-1 border-warning/40 text-warning dark:text-warning">
                           <TriangleAlert className="size-3" />
                           confirmar na fonte
                         </Badge>

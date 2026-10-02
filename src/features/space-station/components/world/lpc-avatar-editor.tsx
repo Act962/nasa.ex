@@ -12,9 +12,15 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import {
-  Upload, ExternalLink, CheckCircle2, Loader2,
-  RefreshCw, Trash2, Info, Sparkles,
+  Upload,
+  ExternalLink,
+  CheckCircle2,
+  RefreshCw,
+  Trash2,
+  Info,
+  Sparkles,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import Image from "next/image";
 import type { AvatarConfig } from "../../types";
 
@@ -405,7 +411,7 @@ export function LpcAvatarEditor({ avatarConfig, onChange, stationId, previewOnly
               `}
             >
               {uploadState === "uploading" ? (
-                <><Loader2 className="h-5 w-5 text-indigo-400 animate-spin" />
+                <><OrbitaSpinner className="h-5 w-5 text-indigo-400 " />
                   <span className="text-xs text-slate-400">Enviando...</span></>
               ) : uploadState === "done" ? (
                 <><CheckCircle2 className="h-5 w-5 text-emerald-400" />

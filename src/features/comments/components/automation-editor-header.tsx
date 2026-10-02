@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeftIcon, Loader2, SaveIcon, Trash2Icon } from "lucide-react";
+import { ArrowLeftIcon, SaveIcon, Trash2Icon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -52,7 +53,7 @@ export function AutomationEditorHeader({
   isTogglingActive: boolean;
 }) {
   return (
-    <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
+    <div className="flex h-12 shrink-0 items-center justify-between gap-2 bg-background px-4">
       <div className="flex min-w-0 items-center gap-2">
         <Button asChild size="sm" variant="ghost" className="gap-1.5">
           <Link href="/comments">
@@ -89,7 +90,7 @@ export function AutomationEditorHeader({
 
         <Button size="sm" onClick={onSave} disabled={isSaving}>
           {isSaving ? (
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
           ) : (
             <SaveIcon className="size-4" />
           )}
@@ -181,7 +182,7 @@ function DeleteAutomationButton({ automationId }: { automationId: string }) {
         onClick={() => setOpen(true)}
         aria-label="Excluir automação"
       >
-        <Trash2Icon className="size-4 text-red-500" />
+        <Trash2Icon className="size-4 text-destructive" />
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setOpen}>
@@ -214,7 +215,7 @@ function DeleteAutomationButton({ automationId }: { automationId: string }) {
                 )
               }
             >
-              {remove.isPending && <Loader2 className="size-4 animate-spin" />}
+              {remove.isPending && <OrbitaSpinner className="size-4 " />}
               Excluir
             </Button>
           </DialogFooter>

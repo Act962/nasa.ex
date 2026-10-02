@@ -51,8 +51,8 @@ export function IncomingSelectionBanner() {
       </div>
 
       {!isLoading && !hasOfficialNumber && (
-        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
-          <AlertTriangle className="size-4 shrink-0 text-amber-600" />
+        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-warning/30 bg-warning/10 p-3">
+          <AlertTriangle className="size-4 shrink-0 text-warning" />
           <p className="min-w-0 flex-1 text-sm">
             Disparo em massa precisa de um número do WhatsApp Oficial. Sua
             organização ainda não tem um conectado.

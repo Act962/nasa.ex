@@ -219,8 +219,8 @@ function CardShell({
     <div
       className={cn(
         "flex h-full flex-col gap-2 rounded-xl border border-border bg-card p-3 transition-all",
-        "hover:border-violet-400 hover:shadow-md",
-        highlighted && "border-violet-500 ring-1 ring-violet-500/50",
+        "hover:border-info hover:shadow-md",
+        highlighted && "border-info ring-1 ring-info/50",
       )}
     >
       {children}
@@ -282,13 +282,13 @@ function PautaCard({
 
       <div className="flex flex-wrap items-center gap-1.5">
         {isOrigin && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white">
+          <span className="inline-flex items-center gap-1 rounded-full bg-info px-2 py-0.5 text-[10px] font-medium text-white">
             <SparklesIcon className="size-3" />
             Gerou esta tarefa
           </span>
         )}
         {latest?.label && (
-          <span className="max-w-full truncate rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-900 dark:border-violet-800/40 dark:bg-violet-900/20 dark:text-violet-200">
+          <span className="max-w-full truncate rounded-md border border-info/30 bg-info/10 px-2 py-0.5 text-[10px] font-medium text-info dark:border-info/40 dark:bg-info/20 dark:text-info">
             {latest.label}
           </span>
         )}
@@ -298,7 +298,7 @@ function PautaCard({
           </span>
         )}
         {responses.some((response) => response.hasDivergentLead) && (
-          <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-medium text-white">
+          <span className="rounded-full bg-destructive px-2 py-0.5 text-[10px] font-medium text-white">
             Lead divergente
           </span>
         )}

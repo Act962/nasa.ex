@@ -140,8 +140,8 @@ function LayerDropZone({ index }: { index: number }) {
       className={cn(
         "h-1.5 -my-0.5 rounded-full transition-all",
         showHint && "h-2.5 my-0",
-        isOver && showHint && "bg-indigo-500/80 ring-2 ring-indigo-300",
-        showHint && !isOver && "bg-indigo-200/40",
+        isOver && showHint && "bg-info/80 ring-2 ring-info/40",
+        showHint && !isOver && "bg-info/20",
       )}
       aria-hidden={!showHint}
     />

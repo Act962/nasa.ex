@@ -6,7 +6,6 @@ import {
   Kanban,
   LayoutGrid,
   MessageSquareTextIcon,
-  Plug2,
   Users,
   FolderOpen,
   Map,
@@ -19,6 +18,7 @@ import {
   Sparkles,
   TrendingUp,
   Send,
+  Satellite,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type React from "react";
@@ -30,6 +30,8 @@ export interface SidebarNavItem {
   icon: LucideIcon | React.FC<{ className?: string }>;
   alwaysVisible: boolean;
   defaultVisible: boolean; // visível por padrão se não houver preferência salva
+  /** Prefixo que acende o item quando o link não é a raiz do app (ex.: o link abre o último projeto). */
+  activePrefix?: string;
 }
 
 export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
@@ -47,7 +49,9 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   {
     key: "workspaces",
     title: "Workspaces",
-    url: "/workspaces",
+    // Abre direto o último projeto aberto; a lista fica no botão "Projetos" do quadro.
+    url: "/workspaces/recente",
+    activePrefix: "/workspaces",
     icon: CircleCheckIcon,
     alwaysVisible: false,
     defaultVisible: true,
@@ -187,9 +191,9 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   // Instagram entram, e os apps apontam para cá quando falta conexão.
   {
     key: "integrations",
-    title: "Integrações",
+    title: "Satélites",
     url: "/integrations",
-    icon: Plug2,
+    icon: Satellite,
     alwaysVisible: true,
     defaultVisible: true,
   },

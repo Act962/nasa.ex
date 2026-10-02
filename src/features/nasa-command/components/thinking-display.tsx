@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Sparkles } from "lucide-react";
-import { RocketLoader } from "./rocket-loader";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 /**
  * Step de thinking — pode ser:
  *  - string: passo padrão ("Executando search_lead…")
- *  - { label, mode: "rocket" }: passo com foguete temático
- *    ("Explorando no universo NASA" + RocketLoader)
+ *  - { label, mode: "rocket" }: passo de exploração com o carregamento da ÓRBITA
+ *    ("Explorando no universo NASA" + carregamento da ÓRBITA)
  *
  * Modo "rocket" é usado quando o orchestrator delega pra um sub-agente
  * (route_to_*). Cada agente pode ter sua própria label amigável.
@@ -37,11 +37,11 @@ export function ThinkingDisplay({ steps }: { steps: ThinkingStep[] }) {
   // e sem fundo/borda da bolha — só tipografia.
   if (isRocketMode) {
     return (
-      <div className="flex items-center gap-2 py-2 px-1 text-xs text-zinc-400">
-        <RocketLoader size={20} />
+      <div className="flex items-center gap-2 py-1 px-1 text-xs text-muted-foreground">
+        <OrbitaSpinner className="size-5" />
         <span className="truncate">{visibleLabels.join(" · ")}</span>
         {visibleCount < steps.length && (
-          <span className="shrink-0 text-zinc-600">
+          <span className="shrink-0 text-muted-foreground">
             {visibleCount}/{steps.length}
           </span>
         )}
@@ -51,27 +51,27 @@ export function ThinkingDisplay({ steps }: { steps: ThinkingStep[] }) {
 
   return (
     <div className="flex items-start gap-3 py-2">
-      <div className="w-9 h-9 rounded-full bg-linear-to-br from-violet-600 to-purple-800 flex items-center justify-center shrink-0 shadow-lg shadow-violet-900/40">
+      <div className="w-9 h-9 rounded-full bg-linear-to-br from-info to-info flex items-center justify-center shrink-0 shadow-lg shadow-info/40">
         <Sparkles className="w-4 h-4 text-white" />
       </div>
-      <div className="flex-1 min-w-0 bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-4 py-3">
-        <div className="flex items-center gap-2 text-xs text-zinc-400 mb-2">
-          <RocketLoader size={16} />
+      <div className="flex-1 min-w-0 bg-card/60 border border-line/80 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+          <OrbitaSpinner className="size-4" />
           <span className="truncate">{visibleLabels.join(" · ")}</span>
           {visibleCount < steps.length && (
-            <span className="shrink-0 text-zinc-600">
+            <span className="shrink-0 text-muted-foreground">
               {visibleCount}/{steps.length} resultados
             </span>
           )}
           {visibleCount >= steps.length && (
-            <span className="shrink-0 text-violet-400">✓ concluído</span>
+            <span className="shrink-0 text-info">✓ concluído</span>
           )}
         </div>
         <div className="flex gap-1">
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-bounce"
+              className="w-1.5 h-1.5 rounded-full bg-info animate-bounce"
               style={{ animationDelay: `${i * 0.15}s` }}
             />
           ))}

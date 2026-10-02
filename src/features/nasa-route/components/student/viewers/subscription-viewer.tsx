@@ -8,10 +8,10 @@ import {
   Calendar,
   CheckCircle2,
   ChevronLeft,
-  Loader2,
   Repeat,
   XCircle,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Badge } from "@/components/ui/badge";
 import { imgSrc } from "@/features/public-calendar/utils/img-src";
 
@@ -66,11 +66,11 @@ const STATUS_META: Record<
 
 const TONE_CLASSES: Record<string, string> = {
   success:
-    "border-emerald-200 bg-emerald-50/60 text-emerald-900 dark:border-emerald-800/40 dark:bg-emerald-900/20 dark:text-emerald-200",
+    "border-success/30 bg-success/5 text-success",
   warning:
-    "border-amber-200 bg-amber-50/60 text-amber-900 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-200",
+    "border-warning/30 bg-warning/5 text-warning",
   error:
-    "border-red-200 bg-red-50/60 text-red-900 dark:border-red-800/40 dark:bg-red-900/20 dark:text-red-200",
+    "border-destructive/30 bg-destructive/5 text-destructive",
 };
 
 export function SubscriptionViewer({ course }: Props) {
@@ -103,7 +103,7 @@ export function SubscriptionViewer({ course }: Props) {
             />
           </div>
         ) : (
-          <div className="aspect-video bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-900/30 dark:to-indigo-950/30" />
+          <div className="aspect-video bg-info/10" />
         )}
 
         <div className="space-y-5 p-6">
@@ -127,7 +127,7 @@ export function SubscriptionViewer({ course }: Props) {
           {/* Status card */}
           {isLoading ? (
             <div className="flex items-center gap-2 rounded-xl border bg-muted/30 p-6 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
+              <OrbitaSpinner className="size-4 " />
               Carregando dados da assinatura...
             </div>
           ) : sub && meta ? (

@@ -3,7 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import type { LinnkerLinkType } from "../types";
-import { Kanban, ClipboardType, Calendar, MessageSquareText, Loader2 } from "lucide-react";
+import { Kanban, ClipboardType, Calendar, MessageSquareText, Check } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 interface Resource {
   id: string;
@@ -78,7 +79,7 @@ export function LinnkerResourceSelector({ type, pageSlug, selectedId, onSelect }
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-        <Loader2 className="size-3 animate-spin" /> Carregando...
+        <OrbitaSpinner className="size-3 " /> Carregando...
       </div>
     );
   }
@@ -104,7 +105,7 @@ export function LinnkerResourceSelector({ type, pageSlug, selectedId, onSelect }
             key={r.id}
             type="button"
             onClick={() => onSelect(r)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors text-sm ${
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[18px] border text-left transition-colors text-sm ${
               selectedId === r.id
                 ? "border-primary bg-primary/5 text-primary"
                 : "border-border hover:border-muted-foreground hover:bg-muted/30"
@@ -118,7 +119,7 @@ export function LinnkerResourceSelector({ type, pageSlug, selectedId, onSelect }
               )}
             </div>
             {selectedId === r.id && (
-              <span className="text-primary text-xs font-medium shrink-0">✓</span>
+              <Check className="size-4 shrink-0 text-primary" aria-label="Selecionado" />
             )}
           </button>
         ))}

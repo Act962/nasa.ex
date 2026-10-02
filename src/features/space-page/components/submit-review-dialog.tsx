@@ -81,7 +81,7 @@ export function SubmitReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="dark max-w-md">
         <DialogHeader>
           <DialogTitle>Avaliar empresa</DialogTitle>
           <DialogDescription>
@@ -110,7 +110,7 @@ export function SubmitReviewDialog({
                     className={cn(
                       "size-8 transition-colors",
                       (hoverRating || rating) >= n
-                        ? "fill-yellow-400 text-yellow-400"
+                        ? "fill-warning text-warning"
                         : "text-muted-foreground/40",
                     )}
                   />

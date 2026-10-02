@@ -6,6 +6,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
 
 import prisma from "@/lib/prisma";
+import { readIntegrationApiKey } from "@/features/integrations/lib/integration-api-key";
 
 /**
  * Registro de provedores de IA.
@@ -96,7 +97,7 @@ export async function loadOrganizationKeys(
 
   const keys: Partial<Record<AiProviderId, ProviderKey>> = {};
   for (const integration of integrations) {
-    const apiKey = (integration.config as Record<string, unknown> | null)?.apiKey;
+    const apiKey = readIntegrationApiKey(integration.config as Record<string, unknown> | null);
     if (typeof apiKey !== "string" || apiKey.length === 0) continue;
     if (!looksLikeApiKey(apiKey)) {
       // Chave malformada da organização não pode derrubar a IA dela inteira:

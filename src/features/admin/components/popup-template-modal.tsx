@@ -169,7 +169,7 @@ function ColorPalette({ values, onChange, disabled }: ColorPaletteProps) {
     <div className="space-y-4">
       {/* Presets */}
       <div>
-        <label className="block text-sm font-medium text-zinc-300 mb-2">
+        <label className="block text-sm font-medium text-foreground mb-2">
           Paletas de cores
         </label>
         <div className="flex flex-wrap gap-2">
@@ -180,18 +180,18 @@ function ColorPalette({ values, onChange, disabled }: ColorPaletteProps) {
               title={p.label}
               onClick={() => applyPreset(p)}
               disabled={disabled}
-              className="group relative flex items-center gap-1 px-2 py-1.5 rounded-lg border border-zinc-700 hover:border-violet-500/60 bg-zinc-800 hover:bg-zinc-700 transition-all"
+              className="group relative flex items-center gap-1 px-2 py-1.5 rounded-lg border border-border hover:border-info/50 bg-panel hover:bg-accent transition-all"
             >
               <span className="flex gap-0.5">
                 {[p.primary, p.accent, p.bg, p.text].map((c, i) => (
                   <span
                     key={i}
-                    className="w-3 h-3 rounded-full border border-white/10"
+                    className="w-3 h-3 rounded-full border border-line"
                     style={{ backgroundColor: c }}
                   />
                 ))}
               </span>
-              <span className="text-[10px] text-zinc-400 group-hover:text-white transition-colors">
+              <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">
                 {p.label}
               </span>
             </button>
@@ -206,20 +206,20 @@ function ColorPalette({ values, onChange, disabled }: ColorPaletteProps) {
           const isOpen = openPicker === field;
           return (
             <div key={field} className="relative">
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 {label}
               </label>
               <button
                 type="button"
                 disabled={disabled}
                 onClick={() => setOpenPicker(isOpen ? null : field)}
-                className="w-full flex items-center gap-2 bg-zinc-800 border border-zinc-700 hover:border-violet-500/60 rounded-lg px-3 py-2 transition-all"
+                className="w-full flex items-center gap-2 bg-panel border border-border hover:border-info/50 rounded-lg px-3 py-2 transition-all"
               >
                 <span
-                  className="w-5 h-5 rounded-md border border-white/20 shrink-0"
+                  className="w-5 h-5 rounded-md border border-line shrink-0"
                   style={{ backgroundColor: value }}
                 />
-                <span className="text-sm text-white font-mono flex-1 text-left">
+                <span className="text-sm text-foreground font-mono flex-1 text-left">
                   {value}
                 </span>
               </button>
@@ -230,14 +230,14 @@ function ColorPalette({ values, onChange, disabled }: ColorPaletteProps) {
                     className="fixed inset-0 z-40"
                     onClick={() => setOpenPicker(null)}
                   />
-                  <div className="absolute z-50 top-full left-0 mt-1 w-64 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-3 space-y-3">
+                  <div className="absolute z-50 top-full left-0 mt-1 w-64 bg-card border border-border rounded-xl shadow-2xl p-3 space-y-3">
                     {/* Native color picker */}
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
                         value={value}
                         onChange={(e) => onChange(field, e.target.value)}
-                        className="w-10 h-10 rounded-lg cursor-pointer border border-zinc-700 bg-zinc-800"
+                        className="w-10 h-10 rounded-lg cursor-pointer border border-border bg-panel"
                       />
                       <input
                         type="text"
@@ -246,12 +246,12 @@ function ColorPalette({ values, onChange, disabled }: ColorPaletteProps) {
                           /^#[0-9a-fA-F]{0,6}$/.test(e.target.value) &&
                           onChange(field, e.target.value)
                         }
-                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:border-violet-500/60"
+                        className="flex-1 bg-panel border border-border rounded-lg px-3 py-2 text-foreground text-sm font-mono focus:outline-none focus:border-ring"
                       />
                       <button
                         type="button"
                         onClick={() => setOpenPicker(null)}
-                        className="text-zinc-500 hover:text-white transition-colors"
+                        className="text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -259,7 +259,7 @@ function ColorPalette({ values, onChange, disabled }: ColorPaletteProps) {
 
                     {/* Swatches per field */}
                     <div>
-                      <p className="text-[10px] text-zinc-500 mb-1.5">
+                      <p className="text-[10px] text-muted-foreground mb-1.5">
                         Sugestões
                       </p>
                       <div className="flex flex-wrap gap-1.5">
@@ -290,7 +290,7 @@ function ColorPalette({ values, onChange, disabled }: ColorPaletteProps) {
                             type="button"
                             title={c}
                             onClick={() => onChange(field, c)}
-                            className={`w-6 h-6 rounded-md border-2 transition-all hover:scale-110 ${value === c ? "border-white" : "border-transparent hover:border-white/40"}`}
+                            className={`w-6 h-6 rounded-md border-2 transition-all hover:scale-110 ${value === c ? "border-foreground" : "border-transparent hover:border-foreground/40"}`}
                             style={{ backgroundColor: c }}
                           />
                         ))}
@@ -769,15 +769,15 @@ export function PopupTemplateModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto">
+      <div className="bg-card border border-border rounded-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-zinc-800 sticky top-0 bg-zinc-900 z-10">
-          <h2 className="text-xl font-bold text-white">
+        <div className="flex items-center justify-between p-6 sticky top-0 bg-card z-10">
+          <h2 className="text-xl font-bold text-foreground">
             {isCreating ? "Novo Template" : "Editar Template"}
           </h2>
           <button
             onClick={onClose}
-            className="text-zinc-400 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
             disabled={isLoading}
           >
             <X className="w-5 h-5" />
@@ -787,7 +787,7 @@ export function PopupTemplateModal({
         <div className="p-6 space-y-6">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Nome
             </label>
             <input
@@ -796,14 +796,14 @@ export function PopupTemplateModal({
               onChange={(e) =>
                 setTemplate({ ...template, name: e.target.value })
               }
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60"
+              className="w-full bg-panel border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-ring"
               disabled={isLoading}
             />
           </div>
 
           {/* Type */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Tipo
             </label>
             <select
@@ -814,7 +814,7 @@ export function PopupTemplateModal({
                   type: e.target.value as PopupTemplate["type"],
                 })
               }
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60"
+              className="w-full bg-panel border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-ring"
               disabled={isLoading}
             >
               <option value="achievement">Conquista</option>
@@ -825,13 +825,13 @@ export function PopupTemplateModal({
 
           {/* Popup Function */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Função
             </label>
             <select
               value={popupFunction}
               onChange={(e) => setPopupFunction(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60"
+              className="w-full bg-panel border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-ring"
               disabled={isLoading}
             >
               {POPUP_FUNCTIONS.map((fn) => (
@@ -844,9 +844,9 @@ export function PopupTemplateModal({
 
           {/* Global click URL */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Link do popup{" "}
-              <span className="text-zinc-500 font-normal text-xs">
+              <span className="text-muted-foreground font-normal text-xs">
                 (clicar em qualquer lugar abre o link)
               </span>
             </label>
@@ -856,13 +856,13 @@ export function PopupTemplateModal({
                 value={clickUrl}
                 onChange={(e) => setClickUrl(e.target.value)}
                 placeholder="https://... ou /ranking"
-                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500/60"
+                className="flex-1 bg-panel border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:border-ring"
                 disabled={isLoading}
               />
               <select
                 value={clickUrlTarget}
                 onChange={(e) => setClickUrlTarget(e.target.value)}
-                className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-violet-500/60"
+                className="bg-panel border border-border rounded-lg px-2 py-2 text-foreground text-xs focus:outline-none focus:border-ring"
                 disabled={isLoading}
               >
                 <option value="_blank">Nova aba</option>
@@ -872,7 +872,7 @@ export function PopupTemplateModal({
                 <button
                   type="button"
                   onClick={() => setClickUrl("")}
-                  className="px-2 text-zinc-500 hover:text-red-400 transition-colors text-xs"
+                  className="px-2 text-muted-foreground hover:text-destructive transition-colors text-xs"
                 >
                   ×
                 </button>
@@ -882,7 +882,7 @@ export function PopupTemplateModal({
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Título
             </label>
             <input
@@ -891,14 +891,14 @@ export function PopupTemplateModal({
               onChange={(e) =>
                 setTemplate({ ...template, title: e.target.value })
               }
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60"
+              className="w-full bg-panel border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-ring"
               disabled={isLoading}
             />
           </div>
 
           {/* Message */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Mensagem
             </label>
             <textarea
@@ -906,7 +906,7 @@ export function PopupTemplateModal({
               onChange={(e) =>
                 setTemplate({ ...template, message: e.target.value })
               }
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60 resize-none h-20"
+              className="w-full bg-panel border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-ring resize-none h-20"
               disabled={isLoading}
             />
           </div>
@@ -914,7 +914,7 @@ export function PopupTemplateModal({
           {/* Prize Value - Conditional */}
           {popupFunction === "SPACE_POINT" && (
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Prêmio
               </label>
               <input
@@ -922,7 +922,7 @@ export function PopupTemplateModal({
                 value={prizeValue}
                 onChange={(e) => setPrizeValue(e.target.value)}
                 placeholder="Ex: 10 STARS"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60"
+                className="w-full bg-panel border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-ring"
                 disabled={isLoading}
               />
             </div>
@@ -931,11 +931,11 @@ export function PopupTemplateModal({
           {/* SVG Pattern */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-zinc-300">
+              <label className="block text-sm font-medium text-foreground">
                 Padrão do Banner
               </label>
               <label
-                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs cursor-pointer transition-all ${uploadingPattern ? "opacity-50 pointer-events-none" : "bg-zinc-700 hover:bg-zinc-600 text-zinc-300"}`}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs cursor-pointer transition-all ${uploadingPattern ? "opacity-50 pointer-events-none" : "bg-muted hover:bg-knob text-foreground"}`}
               >
                 <Upload className="w-3 h-3" />
                 {uploadingPattern ? "Enviando..." : "Novo padrão"}
@@ -965,15 +965,15 @@ export function PopupTemplateModal({
                 onClick={() => setSvgPattern("")}
                 className={`relative border-2 rounded-xl p-3 flex flex-col items-center gap-2 transition-all ${
                   !svgPattern
-                    ? "border-violet-500 bg-violet-600/10"
-                    : "border-zinc-700 hover:border-zinc-600"
+                    ? "border-info bg-info/10"
+                    : "border-border hover:border-knob"
                 }`}
               >
-                <div className="w-full h-12 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500 text-xs">
+                <div className="w-full h-12 rounded-lg bg-panel flex items-center justify-center text-muted-foreground text-xs">
                   Sem padrão
                 </div>
                 {!svgPattern && (
-                  <Check className="absolute top-1.5 right-1.5 w-4 h-4 text-violet-400" />
+                  <Check className="absolute top-1.5 right-1.5 w-4 h-4 text-info" />
                 )}
               </button>
 
@@ -982,8 +982,8 @@ export function PopupTemplateModal({
                   key={p.id}
                   className={`relative border-2 rounded-xl p-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${
                     svgPattern === p.id
-                      ? "border-violet-500 bg-violet-600/10"
-                      : "border-zinc-700 hover:border-zinc-600"
+                      ? "border-info bg-info/10"
+                      : "border-border hover:border-knob"
                   }`}
                   onClick={() => setSvgPattern(p.id)}
                 >
@@ -993,22 +993,22 @@ export function PopupTemplateModal({
                     alt={p.label}
                     className="w-full h-16 object-cover rounded-lg"
                   />
-                  <span className="text-xs text-zinc-300 truncate w-full text-center">
+                  <span className="text-xs text-foreground truncate w-full text-center">
                     {p.label}
                   </span>
                   {svgPattern === p.id && (
-                    <Check className="absolute top-1.5 right-1.5 w-4 h-4 text-violet-400" />
+                    <Check className="absolute top-1.5 right-1.5 w-4 h-4 text-info" />
                   )}
                   {/* Edit button */}
                   <label
-                    className="absolute bottom-1.5 right-1.5 w-6 h-6 bg-zinc-800/90 hover:bg-violet-600 rounded-md flex items-center justify-center cursor-pointer transition-colors"
+                    className="absolute bottom-1.5 right-1.5 w-6 h-6 bg-panel hover:bg-accent rounded-md flex items-center justify-center cursor-pointer transition-colors"
                     title="Substituir imagem"
                     onClick={(e) => {
                       e.stopPropagation();
                       setEditingPatternId(p.id);
                     }}
                   >
-                    <Pencil className="w-3 h-3 text-white" />
+                    <Pencil className="w-3 h-3 text-foreground" />
                     {editingPatternId === p.id && (
                       <input
                         type="file"
@@ -1039,9 +1039,9 @@ export function PopupTemplateModal({
           {/* Elements — add as draggable to preview */}
           {mascots.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 Elementos arrastáveis{" "}
-                <span className="text-zinc-500 font-normal text-xs">
+                <span className="text-muted-foreground font-normal text-xs">
                   (clique para adicionar na Prévia)
                 </span>
               </label>
@@ -1063,8 +1063,8 @@ export function PopupTemplateModal({
                       }
                       className={`relative flex items-center gap-2 px-2 py-1.5 rounded-xl border-2 transition-all ${
                         alreadyAdded
-                          ? "border-emerald-500/50 bg-emerald-600/10 opacity-60 cursor-default"
-                          : "border-zinc-700 hover:border-violet-500 bg-zinc-800 hover:bg-violet-600/10 cursor-pointer"
+                          ? "border-success/50 bg-success/10 opacity-60 cursor-default"
+                          : "border-border hover:border-info bg-panel hover:bg-info/10 cursor-pointer"
                       }`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1073,9 +1073,9 @@ export function PopupTemplateModal({
                         alt={m.label}
                         className="w-7 h-7 object-contain rounded"
                       />
-                      <span className="text-xs text-zinc-300">{m.label}</span>
+                      <span className="text-xs text-foreground">{m.label}</span>
                       {alreadyAdded && (
-                        <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                        <Check className="w-3 h-3 text-success shrink-0" />
                       )}
                     </button>
                   );
@@ -1100,7 +1100,7 @@ export function PopupTemplateModal({
 
           {/* Duration */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Duração (ms)
             </label>
             <input
@@ -1112,7 +1112,7 @@ export function PopupTemplateModal({
                   dismissDuration: Number(e.target.value),
                 })
               }
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60"
+              className="w-full bg-panel border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-ring"
               disabled={isLoading}
             />
           </div>
@@ -1126,10 +1126,10 @@ export function PopupTemplateModal({
                 onChange={(e) =>
                   setTemplate({ ...template, enableConfetti: e.target.checked })
                 }
-                className="rounded border-zinc-700"
+                className="rounded border-border"
                 disabled={isLoading}
               />
-              <span className="text-sm text-zinc-300">Confete</span>
+              <span className="text-sm text-foreground">Confete</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -1138,16 +1138,16 @@ export function PopupTemplateModal({
                 onChange={(e) =>
                   setTemplate({ ...template, enableSound: e.target.checked })
                 }
-                className="rounded border-zinc-700"
+                className="rounded border-border"
                 disabled={isLoading}
               />
-              <span className="text-sm text-zinc-300">Som</span>
+              <span className="text-sm text-foreground">Som</span>
             </label>
           </div>
 
           {/* Preview */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-3">
+            <label className="block text-sm font-medium text-foreground mb-3">
               Prévia (Arraste os elementos)
             </label>
             <div
@@ -1266,10 +1266,10 @@ export function PopupTemplateModal({
                       whiteSpace: "normal",
                       overflow: "hidden",
                       border: isSelected
-                        ? "1px solid rgba(139,92,246,0.9)"
+                        ? "1px solid var(--info)"
                         : "1px dashed rgba(255,255,255,0.3)",
                       background: isSelected
-                        ? "rgba(139,92,246,0.12)"
+                        ? "color-mix(in oklch, var(--info) 12%, transparent)"
                         : "rgba(255,255,255,0.06)",
                       borderRadius: "4px",
                     }}
@@ -1314,8 +1314,8 @@ export function PopupTemplateModal({
                             transform: "translate(-50%, -50%)",
                             width: 8,
                             height: 8,
-                            background: "#8b5cf6",
-                            border: "1.5px solid #fff",
+                            background: "var(--info)",
+                            border: "1.5px solid var(--background)",
                             borderRadius: 2,
                             cursor: h.cursor,
                             zIndex: 20,
@@ -1337,8 +1337,8 @@ export function PopupTemplateModal({
                     onClick={() => toggleElementVisibility(el.id)}
                     className={`w-24 shrink-0 px-2 py-1 text-xs rounded transition-all text-left truncate ${
                       el.visible
-                        ? "bg-violet-600 text-white"
-                        : "bg-zinc-700 text-zinc-400 hover:bg-zinc-600"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-knob"
                     }`}
                     disabled={isLoading}
                     title={el.label}
@@ -1354,7 +1354,7 @@ export function PopupTemplateModal({
                         <img
                           src={el.imageUrl}
                           alt={el.label}
-                          className="w-6 h-6 object-contain rounded border border-zinc-700 shrink-0"
+                          className="w-6 h-6 object-contain rounded border border-border shrink-0"
                         />
                       )}
                       <button
@@ -1374,7 +1374,7 @@ export function PopupTemplateModal({
                             ),
                           )
                         }
-                        className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
+                        className="w-6 h-6 bg-muted hover:bg-knob text-foreground rounded text-xs flex items-center justify-center"
                         disabled={isLoading}
                       >
                         −
@@ -1399,7 +1399,7 @@ export function PopupTemplateModal({
                             ),
                           )
                         }
-                        className="w-12 bg-zinc-800 border border-zinc-700 rounded text-white text-xs text-center px-1 py-1 focus:outline-none focus:border-violet-500/60"
+                        className="w-12 bg-panel border border-border rounded text-foreground text-xs text-center px-1 py-1 focus:outline-none focus:border-ring"
                         disabled={isLoading}
                       />
                       <button
@@ -1419,16 +1419,16 @@ export function PopupTemplateModal({
                             ),
                           )
                         }
-                        className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
+                        className="w-6 h-6 bg-muted hover:bg-knob text-foreground rounded text-xs flex items-center justify-center"
                         disabled={isLoading}
                       >
                         +
                       </button>
-                      <span className="text-zinc-500 text-xs">%</span>
+                      <span className="text-muted-foreground text-xs">%</span>
                       <button
                         type="button"
                         onClick={() => removeElement(el.id)}
-                        className="ml-auto w-6 h-6 bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 rounded text-xs flex items-center justify-center"
+                        className="ml-auto w-6 h-6 bg-destructive/20 hover:bg-destructive/40 text-destructive hover:text-destructive rounded text-xs flex items-center justify-center"
                         disabled={isLoading}
                         title="Remover elemento"
                       >
@@ -1455,7 +1455,7 @@ export function PopupTemplateModal({
                             ),
                           )
                         }
-                        className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
+                        className="w-6 h-6 bg-muted hover:bg-knob text-foreground rounded text-xs flex items-center justify-center"
                         disabled={isLoading}
                       >
                         −
@@ -1480,7 +1480,7 @@ export function PopupTemplateModal({
                             ),
                           )
                         }
-                        className="w-12 bg-zinc-800 border border-zinc-700 rounded text-white text-xs text-center px-1 py-1 focus:outline-none focus:border-violet-500/60"
+                        className="w-12 bg-panel border border-border rounded text-foreground text-xs text-center px-1 py-1 focus:outline-none focus:border-ring"
                         disabled={isLoading}
                       />
                       <button
@@ -1500,12 +1500,12 @@ export function PopupTemplateModal({
                             ),
                           )
                         }
-                        className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
+                        className="w-6 h-6 bg-muted hover:bg-knob text-foreground rounded text-xs flex items-center justify-center"
                         disabled={isLoading}
                       >
                         +
                       </button>
-                      <span className="text-zinc-500 text-xs">px</span>
+                      <span className="text-muted-foreground text-xs">px</span>
                       <input
                         type="color"
                         value={el.color ?? "#ffffff"}
@@ -1518,7 +1518,7 @@ export function PopupTemplateModal({
                             ),
                           )
                         }
-                        className="w-7 h-7 rounded cursor-pointer border border-zinc-700 bg-zinc-800 shrink-0"
+                        className="w-7 h-7 rounded cursor-pointer border border-border bg-panel shrink-0"
                         title={`Cor de ${el.label}`}
                         disabled={isLoading}
                       />
@@ -1541,7 +1541,7 @@ export function PopupTemplateModal({
                           )
                         }
                         placeholder="Link (ex: /ranking)"
-                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded text-white text-[10px] px-2 py-1 focus:outline-none focus:border-violet-500/60"
+                        className="flex-1 bg-panel border border-border rounded text-foreground text-[10px] px-2 py-1 focus:outline-none focus:border-ring"
                         disabled={isLoading}
                       />
                       <select
@@ -1555,7 +1555,7 @@ export function PopupTemplateModal({
                             ),
                           )
                         }
-                        className="bg-zinc-800 border border-zinc-700 rounded text-white text-[10px] px-1 py-1 focus:outline-none focus:border-violet-500/60"
+                        className="bg-panel border border-border rounded text-foreground text-[10px] px-1 py-1 focus:outline-none focus:border-ring"
                         disabled={isLoading || !el.href}
                       >
                         <option value="_blank">↗ nova aba</option>
@@ -1569,9 +1569,9 @@ export function PopupTemplateModal({
 
             {/* System Variables */}
             <div className="mt-4">
-              <p className="text-xs font-medium text-zinc-400 mb-2">
+              <p className="text-xs font-medium text-muted-foreground mb-2">
                 Variáveis do sistema{" "}
-                <span className="text-zinc-600">(clique para copiar)</span>
+                <span className="text-muted-foreground">(clique para copiar)</span>
               </p>
               <div className="flex flex-wrap gap-2">
                 {[
@@ -1592,15 +1592,15 @@ export function PopupTemplateModal({
                       navigator.clipboard.writeText(v.value).catch(() => {})
                     }
                     title={`Copiar ${v.value}`}
-                    className="px-2 py-1 bg-zinc-800 hover:bg-violet-600/20 border border-zinc-700 hover:border-violet-500/50 text-zinc-300 hover:text-violet-300 text-xs rounded-lg transition-all font-mono"
+                    className="px-2 py-1 bg-panel hover:bg-info/20 border border-border hover:border-info/50 text-foreground hover:text-info text-xs rounded-lg transition-all font-mono"
                   >
                     {v.label}
                   </button>
                 ))}
               </div>
-              <p className="text-[10px] text-zinc-600 mt-1.5">
+              <p className="text-[10px] text-muted-foreground mt-1.5">
                 Use nas mensagens, ex:{" "}
-                <span className="text-zinc-500">
+                <span className="text-muted-foreground">
                   Parabéns, {`{{nome_usuario}}`}! Você ganhou{" "}
                   {`{{quantidade_stars}}`}⭐
                 </span>
@@ -1610,17 +1610,17 @@ export function PopupTemplateModal({
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 p-6 border-t border-zinc-800 sticky bottom-0 bg-zinc-900">
+        <div className="flex gap-3 p-6 sticky bottom-0 bg-card">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 bg-zinc-800 text-zinc-300 font-medium rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-panel text-foreground font-medium rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
             disabled={isLoading}
           >
             Cancelar
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 px-4 py-2 bg-violet-600 text-white font-medium rounded-lg hover:bg-violet-500 transition-colors disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
             disabled={isLoading}
           >
             {isLoading

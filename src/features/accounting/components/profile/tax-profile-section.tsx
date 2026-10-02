@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Loader2, Save } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Save } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -139,8 +140,8 @@ function ProfileEditor({ profile, onNavigate }: { profile: AccountingProfileData
           );
         })}
         <div className="sticky bottom-3 flex justify-end">
-          <Button className="gap-1.5 bg-violet-600 text-white shadow-md hover:bg-violet-700" disabled={updateProfile.isPending} onClick={() => handleSave(false)}>
-            {updateProfile.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+          <Button className="gap-1.5 bg-info text-white shadow-md hover:bg-info" disabled={updateProfile.isPending} onClick={() => handleSave(false)}>
+            {updateProfile.isPending ? <OrbitaSpinner className="size-4 " /> : <Save className="size-4" />}
             Salvar alterações
           </Button>
         </div>
@@ -164,8 +165,8 @@ function ProfileEditor({ profile, onNavigate }: { profile: AccountingProfileData
                 aria-current={isCurrent ? "step" : undefined}
                 className={cn(
                   "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
-                  isCurrent && "border-violet-500 bg-violet-500/10 text-violet-700 dark:text-violet-200",
-                  isDone && "text-emerald-700 dark:text-emerald-300",
+                  isCurrent && "border-info bg-info/10 text-info dark:text-info",
+                  isDone && "text-success dark:text-success",
                   !isCurrent && !isDone && "text-muted-foreground",
                 )}
               >
@@ -206,14 +207,14 @@ function ProfileEditor({ profile, onNavigate }: { profile: AccountingProfileData
               Voltar
             </Button>
             {isLastStep ? (
-              <Button className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700" disabled={updateProfile.isPending} onClick={() => handleSave(true)}>
-                {updateProfile.isPending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+              <Button className="gap-1.5 bg-info text-white hover:bg-info" disabled={updateProfile.isPending} onClick={() => handleSave(true)}>
+                {updateProfile.isPending ? <OrbitaSpinner className="size-4 " /> : <Check className="size-4" />}
                 Concluir e ativar
               </Button>
             ) : (
               <Button
                 type="button"
-                className="gap-1 bg-violet-600 text-white hover:bg-violet-700"
+                className="gap-1 bg-info text-white hover:bg-info"
                 onClick={() => setCurrentStepIndex((index) => Math.min(PROFILE_STEPS.length - 1, index + 1))}
               >
                 Continuar

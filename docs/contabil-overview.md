@@ -177,3 +177,4 @@ A lista está na spec 0051, §9. Na interface, as linhas de `TaxRate` com `needs
 | --- | --- |
 | 2026-09-29 | Fase 1 criada (spec 0051). |
 | 2026-09-29 | ASTRO cobre a aba inteira: 20 tools de leitura (`src/features/astro/server/tools/accounting/`, nomes em `tool-names.ts`), incluindo visão geral (`server/overview/load-accounting-overview.ts`, mesmo serviço do router), apurações gravadas, documentos cadastrados, fornecedores/despesas sem nota, balancete/balanço, linha do tempo da Reforma, tabelas de alíquota e link da subaba (`lib/accounting-sections.ts`). A subaba aberta vai ao contexto do ASTRO (`paymentSubTab`), e pergunta fiscal pula as consultas em código e o classificador de verbos (`astro/queries/accounting-question.ts`). |
+| 2026-10-01 | Visual no padrão ÓRBITA (design system, Fase 4): cores fixas da aba trocadas por tokens (`destructive`/`success`/`warning`/`info`), sem mudança de cálculo nem de texto. Fica fixo de propósito o azul do gov.br. |

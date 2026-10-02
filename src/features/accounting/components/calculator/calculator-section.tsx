@@ -17,9 +17,9 @@ export function CalculatorSection({ onNavigate }: { onNavigate?: (section: strin
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border bg-violet-500/5 p-4">
+      <div className="rounded-xl border bg-info/5 p-4">
         <div className="flex items-start gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-600/10 text-violet-600 dark:text-violet-300">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-info/10 text-info dark:text-info">
             <Calculator className="size-5" />
           </div>
           <div className="space-y-1.5 text-sm">
@@ -36,7 +36,7 @@ export function CalculatorSection({ onNavigate }: { onNavigate?: (section: strin
               type="button"
               variant="link"
               size="sm"
-              className="h-auto gap-1.5 px-0 text-[#1E90FF]"
+              className="h-auto gap-1.5 px-0 text-info"
               onClick={() => setIsRatesDialogOpen(true)}
             >
               <Table2 className="size-3.5" />

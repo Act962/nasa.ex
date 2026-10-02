@@ -61,7 +61,7 @@ export function ConnectionWizardDialog() {
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) cancel(); }}>
       <DialogContent className="max-w-lg gap-0 p-0 sm:max-w-lg overflow-hidden">
-        <DialogHeader className="border-b border-border/60 p-4">
+        <DialogHeader className="p-4">
           <DialogTitle className="flex items-center gap-2 text-base">
             {provider === "meta" ? "Conectar Meta" : provider === "google" ? "Conectar Google" : "Conectar"}
           </DialogTitle>
@@ -70,7 +70,7 @@ export function ConnectionWizardDialog() {
               <div
                 key={s.key}
                 className={`h-1.5 flex-1 rounded-full transition ${
-                  idx <= stepIndex ? "bg-[#7C3AED]" : "bg-muted"
+                  idx <= stepIndex ? "bg-primary" : "bg-muted"
                 }`}
                 aria-label={s.label}
               />
@@ -80,7 +80,7 @@ export function ConnectionWizardDialog() {
 
         <div className="p-5">
           {error && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:border-red-900/50 dark:text-red-300">
+            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               <div className="flex items-start justify-between gap-2">
                 <span className="leading-relaxed">{error}</span>
                 <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setError(null)}>
@@ -97,7 +97,7 @@ export function ConnectionWizardDialog() {
               <SelectAccountsStep />
               <div className="flex justify-end gap-2 border-t border-border/60 pt-3">
                 <Button variant="ghost" onClick={cancel}>Cancelar</Button>
-                <Button onClick={() => setStep("confirm")} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white">
+                <Button onClick={() => setStep("confirm")} className="bg-primary hover:bg-primary/90 text-primary-foreground">
                   Continuar
                 </Button>
               </div>

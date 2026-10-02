@@ -8,7 +8,6 @@ import {
   Calendar,
   Sparkles,
   Layers,
-  Plug,
   ListTodo,
   FormInput,
   Inbox,
@@ -18,7 +17,17 @@ import {
   Star,
   Rocket,
   Map as MapIcon,
+  Megaphone,
+  Target,
+  Store,
+  Gift,
+  CheckIcon,
+  ChevronDownIcon,
+  XIcon,
+  Satellite,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { appSectionElementId } from "./apps-sections";
 import type { AppModule } from "@/features/insights/types";
 import { ALL_MODULES } from "@/features/insights/types";
 import { useDashboardStore } from "../hooks/use-dashboard-store";
@@ -41,137 +50,141 @@ export const MODULE_DEFS: ModuleDef[] = [
     id: "tracking",
     label: "Tracking",
     icon: BarChart3,
-    color: "text-emerald-600",
-    bg: "bg-emerald-50 dark:bg-emerald-950/40",
-    activeBg: "bg-emerald-600",
-    border: "border-emerald-500",
+    color: "text-success",
+    bg: "bg-success/10 dark:bg-success/15",
+    activeBg: "bg-success",
+    border: "border-success",
   },
   {
     id: "chat",
     label: "Chat",
     icon: MessageSquare,
-    color: "text-violet-600",
-    bg: "bg-violet-50 dark:bg-violet-950/40",
-    activeBg: "bg-violet-600",
-    border: "border-violet-500",
+    color: "text-info",
+    bg: "bg-info/10 dark:bg-info/15",
+    activeBg: "bg-info",
+    border: "border-info",
   },
   {
     id: "forge",
     label: "Forge",
     icon: Flame,
-    color: "text-orange-600",
-    bg: "bg-orange-50 dark:bg-orange-950/40",
-    activeBg: "bg-orange-600",
-    border: "border-orange-500",
+    color: "text-warning",
+    bg: "bg-warning/10 dark:bg-warning/15",
+    activeBg: "bg-warning",
+    border: "border-warning",
   },
   {
     id: "spacetime",
     label: "SpaceTime",
     icon: Calendar,
-    color: "text-blue-600",
-    bg: "bg-blue-50 dark:bg-blue-950/40",
-    activeBg: "bg-blue-600",
-    border: "border-blue-500",
+    color: "text-info",
+    bg: "bg-info/10 dark:bg-info/15",
+    activeBg: "bg-info",
+    border: "border-info",
   },
   {
     id: "nasa-planner",
     label: "ÓRBITA Planner",
     icon: Sparkles,
-    color: "text-pink-600",
-    bg: "bg-pink-50 dark:bg-pink-950/40",
-    activeBg: "bg-pink-600",
-    border: "border-pink-500",
+    color: "text-info",
+    bg: "bg-info/10 dark:bg-info/15",
+    activeBg: "bg-info",
+    border: "border-info",
   },
   {
     id: "integrations",
-    label: "Integrações",
-    icon: Plug,
-    color: "text-cyan-600",
-    bg: "bg-cyan-50 dark:bg-cyan-950/40",
-    activeBg: "bg-cyan-600",
-    border: "border-cyan-500",
+    label: "Satélites",
+    icon: Satellite,
+    color: "text-info",
+    bg: "bg-info/10 dark:bg-info/15",
+    activeBg: "bg-info",
+    border: "border-info",
   },
   {
     id: "workspace",
     label: "Workspace",
     icon: ListTodo,
-    color: "text-amber-600",
-    bg: "bg-amber-50 dark:bg-amber-950/40",
-    activeBg: "bg-amber-600",
-    border: "border-amber-500",
+    color: "text-warning",
+    bg: "bg-warning/10 dark:bg-warning/15",
+    activeBg: "bg-warning",
+    border: "border-warning",
   },
   {
     id: "forms",
     label: "Formulários",
     icon: FormInput,
-    color: "text-teal-600",
-    bg: "bg-teal-50 dark:bg-teal-950/40",
-    activeBg: "bg-teal-600",
-    border: "border-teal-500",
+    color: "text-success",
+    bg: "bg-success/10 dark:bg-success/15",
+    activeBg: "bg-success",
+    border: "border-success",
   },
   {
     id: "nbox",
     label: "N-Box",
     icon: Inbox,
-    color: "text-slate-600",
-    bg: "bg-slate-50 dark:bg-slate-950/40",
-    activeBg: "bg-slate-600",
-    border: "border-slate-500",
+    color: "text-muted-foreground",
+    bg: "bg-muted dark:bg-background/40",
+    activeBg: "bg-knob",
+    border: "border-line",
   },
   {
     id: "payment",
     label: "Pagamentos",
     icon: Wallet,
-    color: "text-green-600",
-    bg: "bg-green-50 dark:bg-green-950/40",
-    activeBg: "bg-green-600",
-    border: "border-green-500",
+    color: "text-success",
+    bg: "bg-success/10 dark:bg-success/15",
+    activeBg: "bg-success",
+    border: "border-success",
   },
   {
     id: "linnker",
     label: "Linnker",
     icon: Link2,
-    color: "text-purple-600",
-    bg: "bg-purple-50 dark:bg-purple-950/40",
-    activeBg: "bg-purple-600",
-    border: "border-purple-500",
+    color: "text-info",
+    bg: "bg-info/10 dark:bg-info/15",
+    activeBg: "bg-info",
+    border: "border-info",
   },
   {
     id: "space-points",
     label: "Space Points",
     icon: Coins,
-    color: "text-yellow-600",
-    bg: "bg-yellow-50 dark:bg-yellow-950/40",
-    activeBg: "bg-yellow-600",
-    border: "border-yellow-500",
+    color: "text-warning",
+    bg: "bg-warning/10 dark:bg-warning/15",
+    activeBg: "bg-warning",
+    border: "border-warning",
   },
   {
     id: "stars",
     label: "Stars",
     icon: Star,
-    color: "text-fuchsia-600",
-    bg: "bg-fuchsia-50 dark:bg-fuchsia-950/40",
-    activeBg: "bg-fuchsia-600",
-    border: "border-fuchsia-500",
+    color: "text-info",
+    bg: "bg-info/10 dark:bg-info/15",
+    activeBg: "bg-info",
+    border: "border-info",
   },
   {
     id: "space-station",
     label: "Space Station",
     icon: Rocket,
-    color: "text-indigo-600",
-    bg: "bg-indigo-50 dark:bg-indigo-950/40",
-    activeBg: "bg-indigo-600",
-    border: "border-indigo-500",
+    color: "text-info",
+    bg: "bg-info/10 dark:bg-info/15",
+    activeBg: "bg-info",
+    border: "border-info",
   },
   {
     id: "nasa-route",
     label: "ÓRBITA Route",
     icon: MapIcon,
-    color: "text-sky-600",
-    bg: "bg-sky-50 dark:bg-sky-950/40",
-    activeBg: "bg-sky-600",
-    border: "border-sky-500",
+    color: "text-info",
+    bg: "bg-info/10 dark:bg-info/15",
+    activeBg: "bg-info",
+    border: "border-info",
   },
+  { id: "campanhas", label: "Campanhas", icon: Megaphone, color: "text-info", bg: "bg-info/10", activeBg: "bg-info", border: "border-info" },
+  { id: "trafego", label: "trafeGO", icon: Target, color: "text-info", bg: "bg-info/10", activeBg: "bg-info", border: "border-info" },
+  { id: "nerp", label: "NERP", icon: Store, color: "text-info", bg: "bg-info/10", activeBg: "bg-info", border: "border-info" },
+  { id: "star-friends", label: "Star Friends", icon: Gift, color: "text-info", bg: "bg-info/10", activeBg: "bg-info", border: "border-info" },
 ];
 
 interface AppSelectorProps {
@@ -179,25 +192,38 @@ interface AppSelectorProps {
   onChange: (modules: AppModule[]) => void;
 }
 
+// Apps escolhidos aparecem em pílula escura na mesma linha; o seletor fica neutro (padrão do design system).
+const CHIP_BASE =
+  "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors";
+const CHIP_SELECTED = "border-transparent bg-foreground text-background";
+const CHIP_UNSELECTED = "border-line bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground";
+
+/** Rola até a seção do App mais abaixo na página (âncora criada em `apps-sections.tsx`). */
+function scrollToAppSection(moduleId: AppModule) {
+  document.getElementById(appSectionElementId(moduleId))?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 export function AppSelector({ selected, onChange }: AppSelectorProps) {
   const allSelected = selected.length === ALL_MODULES.length;
-  // moduleOrder vem do store (persistido em localStorage). É a ordem que
-  // o usuário definiu via drag-and-drop em Configurações. Sem isso, o
-  // AppSelector mostrava sempre a ordem fixa de MODULE_DEFS — bug que
-  // fazia o drag não ter efeito visível.
+  // moduleOrder vem do store persistido (ordem do drag em Configurações). Apps novos que ainda
+  // não estão salvos lá entram no fim, senão nem apareceriam no seletor.
   const { moduleOrder } = useDashboardStore();
-  const orderedModules = moduleOrder
-    .map((id: AppModule) => MODULE_DEFS.find((m) => m.id === id))
-    .filter((m): m is NonNullable<typeof m> => !!m);
+  const orderedIds: AppModule[] = [
+    ...moduleOrder.filter((moduleId: AppModule) => ALL_MODULES.includes(moduleId)),
+    ...ALL_MODULES.filter((moduleId) => !moduleOrder.includes(moduleId)),
+  ];
+  const orderedModules = orderedIds
+    .map((moduleId) => MODULE_DEFS.find((moduleDef) => moduleDef.id === moduleId))
+    .filter((moduleDef): moduleDef is ModuleDef => Boolean(moduleDef));
+  const selectedModules = orderedModules.filter((moduleDef) => selected.includes(moduleDef.id));
 
-  const toggle = (id: AppModule) => {
-    const isActive = selected.includes(id);
-    if (isActive) {
+  const toggle = (moduleId: AppModule) => {
+    if (selected.includes(moduleId)) {
       if (selected.length === 1) return;
-      onChange(selected.filter((m) => m !== id));
-    } else {
-      onChange([...selected, id]);
+      onChange(selected.filter((selectedId) => selectedId !== moduleId));
+      return;
     }
+    onChange([...selected, moduleId]);
   };
 
   const toggleAll = () => {
@@ -206,41 +232,73 @@ export function AppSelector({ selected, onChange }: AppSelectorProps) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {/* All toggle */}
-      <button
-        onClick={toggleAll}
-        className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all",
-          allSelected
-            ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border-transparent"
-            : "border-border text-muted-foreground hover:border-muted-foreground/50",
-        )}
-      >
-        <Layers className="size-3.5" />
-        Todos os Apps
-      </button>
-
-      <div className="w-px h-5 bg-border" />
-
-      {orderedModules.map((mod) => {
-        const isActive = selected.includes(mod.id);
-        const Icon = mod.icon;
-        return (
-          <button
-            key={mod.id}
-            onClick={() => toggle(mod.id)}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
-              isActive
-                ? `${mod.activeBg} text-white border-transparent shadow-sm`
-                : `${mod.bg} ${mod.color} border-border hover:${mod.border}`,
-            )}
-          >
-            <Icon className="size-3.5" />
-            {mod.label}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button type="button" className={cn(CHIP_BASE, allSelected ? CHIP_SELECTED : CHIP_UNSELECTED)}>
+            <Layers className="size-3.5" />
+            {allSelected ? "Todos os Apps" : `Apps · ${selected.length}`}
+            <ChevronDownIcon className="size-3.5 opacity-60" />
           </button>
-        );
-      })}
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-64 p-1.5">
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm font-medium hover:bg-accent"
+          >
+            <Layers className="size-4 text-muted-foreground" />
+            <span className="flex-1">Todos os Apps</span>
+            {allSelected && <CheckIcon className="size-4" />}
+          </button>
+          <div className="my-1 h-px bg-line" />
+          <div className="max-h-80 overflow-y-auto">
+            {orderedModules.map((moduleDef) => {
+              const ModuleIcon = moduleDef.icon;
+              const isSelected = selected.includes(moduleDef.id);
+              return (
+                <button
+                  key={moduleDef.id}
+                  type="button"
+                  onClick={() => toggle(moduleDef.id)}
+                  className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm hover:bg-accent"
+                >
+                  <ModuleIcon className="size-4 text-muted-foreground" />
+                  <span className="flex-1 truncate">{moduleDef.label}</span>
+                  {isSelected && <CheckIcon className="size-4" />}
+                </button>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {!allSelected &&
+        selectedModules.map((moduleDef) => {
+          const ModuleIcon = moduleDef.icon;
+          return (
+            <span key={moduleDef.id} className={cn(CHIP_BASE, CHIP_SELECTED, "pr-1.5")}>
+              <button
+                type="button"
+                onClick={() => scrollToAppSection(moduleDef.id)}
+                title={`Ir para ${moduleDef.label}`}
+                className="flex items-center gap-1.5"
+              >
+                <ModuleIcon className="size-3.5" />
+                {moduleDef.label}
+              </button>
+              {selected.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => toggle(moduleDef.id)}
+                  aria-label={`Tirar ${moduleDef.label} do filtro`}
+                  className="grid size-4 place-items-center rounded-full hover:bg-background/20"
+                >
+                  <XIcon className="size-3" />
+                </button>
+              )}
+            </span>
+          );
+        })}
     </div>
   );
 }

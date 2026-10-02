@@ -637,14 +637,8 @@ export function FormSubmitComponent({
                 </Card>
               ) : (
                 blocks.length > 0 && (
-                  <div
-                    className={cn(
-                      "flex flex-col w-full gap-3 xl:gap-4 p-3 xl:p-4 rounded-md border shadow-sm",
-                      backgroundImage
-                        ? "bg-white/20 backdrop-blur-md border-white/30"
-                        : "bg-foreground/10 border-foreground/15",
-                    )}
-                  >
+                  // Sem cartão em volta: o fundo escolhido fica na página e os campos usam a largura toda.
+                  <div className="flex w-full flex-col gap-3 xl:gap-4">
                     {step === 1 && showLeadFields && (
                       <LeadStep
                         showName={showName}

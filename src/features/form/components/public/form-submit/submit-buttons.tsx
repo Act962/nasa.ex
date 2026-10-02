@@ -45,7 +45,7 @@ export function SubmitButtons({
         style={primaryBtnStyle}
         onClick={onSubmit}
       >
-        {isLoading && <Spinner className="w-4 h-4 mr-2 animate-spin" />}
+        {isLoading && <Spinner className="mr-2 size-4" />}
         {submitLabel ?? "Enviar"}
       </Button>
     </div>

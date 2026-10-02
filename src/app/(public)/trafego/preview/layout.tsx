@@ -22,8 +22,8 @@ export default async function TrafegoPreviewLayout({
   return (
     <TrafegoPreviewProvider>
       <div className="min-h-screen bg-background text-foreground">
-        <div className="sticky top-0 z-50 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs backdrop-blur">
-          <span className="font-semibold text-amber-600 dark:text-amber-300">
+        <div className="sticky top-0 z-50 flex flex-wrap items-center gap-x-4 gap-y-1 bg-warning/15 px-4 py-2 text-xs backdrop-blur">
+          <span className="font-semibold text-warning">
             PREVIEW
           </span>
           <span className="text-muted-foreground">

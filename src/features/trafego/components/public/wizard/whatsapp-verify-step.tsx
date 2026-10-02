@@ -2,10 +2,10 @@
 
 import {
   CheckCircle2,
-  Loader2,
   SearchCheck,
   TriangleAlert,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useCheckTrafegoWhatsappNumber } from "@/features/trafego/hooks/use-trafego-verification";
 import { WhatsappWarmupNote } from "./whatsapp-warmup-note";
 import { maskPhoneBr } from "@/features/form/lib/masks";
@@ -71,17 +71,17 @@ export function WhatsappVerifyStep({
           }}
           inputMode="tel"
           placeholder="(86) 99888-9999"
-          className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-violet-400/60"
+          className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-info/60"
         />
         {checkEnabled && (
           <button
             type="button"
             onClick={handleCheck}
             disabled={digits.length < 10 || checkNumber.isPending}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-40"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-40"
           >
             {checkNumber.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
+              <OrbitaSpinner className="size-4 " />
             ) : (
               <SearchCheck className="size-4" />
             )}
@@ -91,10 +91,10 @@ export function WhatsappVerifyStep({
       </div>
 
       {check?.status === "found" && (
-        <div className="flex items-start gap-3 rounded-xl border border-emerald-400/25 bg-emerald-500/[0.08] p-4">
-          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-400" />
+        <div className="flex items-start gap-3 rounded-xl border border-success/30 bg-success/15 p-4">
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" />
           <div className="min-w-0 text-xs leading-relaxed">
-            <p className="text-sm font-semibold text-emerald-200">
+            <p className="text-sm font-semibold text-success">
               Número ativo no WhatsApp!
             </p>
             <p className="mt-1 text-white/70">+{check.phone}</p>
@@ -119,9 +119,9 @@ export function WhatsappVerifyStep({
       )}
 
       {check?.status === "not_found" && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-400/25 bg-amber-500/[0.08] p-4">
-          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-300" />
-          <p className="text-xs leading-relaxed text-amber-100">
+        <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/15 p-4">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
+          <p className="text-xs leading-relaxed text-foreground/85">
             Esse número não aparece no WhatsApp. Confira o DDD e o dígito 9 — ou
             volte e escolha{" "}
             <strong>&quot;preciso adquirir um novo número&quot;</strong>.

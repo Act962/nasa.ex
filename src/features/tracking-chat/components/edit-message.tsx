@@ -76,15 +76,15 @@ export function EditMessage({
           />
 
           {/* Message Bubble Preview */}
-          <div className="relative z-10 max-w-[80%] bg-accent-foreground/10 text-[#e9edef] p-2 rounded-lg rounded-tr-none shadow-md mb-4 self-center min-w-[100px]">
+          <div className="relative z-10 max-w-[80%] bg-accent-foreground/10 text-foreground p-2 rounded-[14px] rounded-tr-none shadow-md mb-4 self-center min-w-[100px]">
             <p className="text-sm wrap-break-word whitespace-pre-wrap pr-12">
               {message || " "}
             </p>
             <div className="absolute bottom-1 right-2 flex items-center gap-1">
-              <span className="text-[10px] text-[#ffffff99]">
+              <span className="text-[10px] text-white/60">
                 {format(timestamp, "HH:mm")}
               </span>
-              <Check className="size-3 text-[#53bdeb]" />
+              <Check className="size-3 text-info" />
             </div>
 
             {/* Bubble Tail */}
@@ -98,7 +98,7 @@ export function EditMessage({
               ref={textareaRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              className=" border-0 border-b-2 bg-foreground/10 focus-visible:ring-0 rounded-none px-0 py-2 text-[#e9edef] text-sm min-h-0 max-h-[150px] resize-none overflow-y-auto w-full transition-colors duration-200"
+              className=" border-0 border-b-2 bg-foreground/10 focus-visible:ring-0 rounded-none px-0 py-2 text-foreground text-sm min-h-0 max-h-[150px] resize-none overflow-y-auto w-full transition-colors duration-200"
               placeholder="Digite sua mensagem"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -115,7 +115,7 @@ export function EditMessage({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="size-8 text-[#8696a0] hover:bg-transparent hover:text-[#e9edef]"
+                    className="size-8 text-muted-foreground hover:bg-transparent hover:text-foreground"
                   >
                     <Smile className="size-5" />
                   </Button>

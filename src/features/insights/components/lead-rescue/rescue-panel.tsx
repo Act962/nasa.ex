@@ -65,25 +65,25 @@ const TAB_META: Record<
     label: "Sem resposta (SLA)",
     description: "Lead mandou mensagem e ainda não recebeu resposta dentro do prazo.",
     icon: TimerOff,
-    color: "text-rose-600 bg-rose-50",
+    color: "text-destructive bg-destructive/10",
   },
   unassigned: {
     label: "Sem responsável",
     description: "Lead criado mas ninguém foi atribuído.",
     icon: UserMinus,
-    color: "text-amber-600 bg-amber-50",
+    color: "text-warning bg-warning/10",
   },
   stuckInStage: {
     label: "Parado em etapa",
     description: "Lead há muitos dias na mesma coluna sem movimento.",
     icon: Clock,
-    color: "text-blue-600 bg-blue-50",
+    color: "text-info bg-info/10",
   },
   noShow: {
     label: "No-show",
     description: "Lead faltou ao agendamento e não foi cobrado.",
     icon: CalendarX,
-    color: "text-purple-600 bg-purple-50",
+    color: "text-info bg-info/10",
   },
 };
 
@@ -121,7 +121,7 @@ export function RescuePanel({ organizationIds, trackingId }: RescuePanelProps) {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            <AlertTriangle className="size-5 text-amber-500" />
+            <AlertTriangle className="size-5 text-warning" />
             Para Resgatar
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
@@ -178,7 +178,7 @@ export function RescuePanel({ organizationIds, trackingId }: RescuePanelProps) {
             </div>
           ) : rows.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-              <CheckCircle2 className="size-10 text-emerald-500 mb-2" />
+              <CheckCircle2 className="size-10 text-success mb-2" />
               <p className="text-sm font-medium">Nenhum lead nesse bucket</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Tudo em ordem por aqui!

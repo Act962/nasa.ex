@@ -18,17 +18,17 @@ export function ResultOverlay({ result, onClose }: ResultOverlayProps) {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-700/60 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div className="bg-card border border-line/60 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className="p-6">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0 mt-0.5">
-              <CheckCircle2 className="w-5 h-5 text-green-400" />
+            <div className="w-10 h-10 rounded-full bg-success/20 border border-success/30 flex items-center justify-center shrink-0 mt-0.5">
+              <CheckCircle2 className="w-5 h-5 text-success" />
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-base font-bold text-white mb-1">
                 {result.title}
               </h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 {result.description}
               </p>
             </div>
@@ -37,14 +37,14 @@ export function ResultOverlay({ result, onClose }: ResultOverlayProps) {
           <div className="mt-5 flex items-center gap-2">
             <a
               href={result.url}
-              className="flex-1 flex items-center justify-center gap-2 bg-white text-black text-sm font-semibold py-2.5 rounded-lg hover:bg-zinc-100 transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 bg-white text-black text-sm font-semibold py-2.5 rounded-lg hover:bg-muted transition-colors"
             >
               <ExternalLink className="w-4 h-4" />
               Abrir agora
             </a>
             <button
               onClick={handleCopy}
-              className="flex items-center justify-center gap-2 bg-zinc-800 border border-zinc-700 text-zinc-300 text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-zinc-700 transition-colors"
+              className="flex items-center justify-center gap-2 bg-card border border-line text-muted-foreground text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-knob transition-colors"
             >
               <Copy className="w-4 h-4" />
               {copied ? "Copiado!" : "Copiar link"}
@@ -52,10 +52,10 @@ export function ResultOverlay({ result, onClose }: ResultOverlayProps) {
           </div>
         </div>
 
-        <div className="border-t border-zinc-800 px-6 py-3 flex justify-end">
+        <div className="border-t border-line px-6 py-3 flex justify-end">
           <button
             onClick={onClose}
-            className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="text-sm text-muted-foreground hover:text-muted-foreground transition-colors"
           >
             Fechar
           </button>

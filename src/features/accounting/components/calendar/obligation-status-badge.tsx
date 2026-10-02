@@ -4,9 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const OBLIGATION_STATUS_DISPLAY: Record<string, { label: string; className: string }> = {
-  PENDING: { label: "Pendente", className: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" },
-  DONE: { label: "Feita", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
-  OVERDUE: { label: "Atrasada", className: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300" },
+  PENDING: { label: "Pendente", className: "border-warning/30 bg-warning/10 text-warning dark:text-warning" },
+  DONE: { label: "Feita", className: "border-success/30 bg-success/10 text-success dark:text-success" },
+  OVERDUE: { label: "Atrasada", className: "border-destructive/30 bg-destructive/10 text-destructive dark:text-destructive" },
   NOT_APPLICABLE: { label: "Não se aplica", className: "border-border bg-muted text-muted-foreground" },
 };
 

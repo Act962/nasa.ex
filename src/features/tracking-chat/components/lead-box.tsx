@@ -82,6 +82,12 @@ interface UserBloxProps {
   highlightAwaitingReply?: boolean;
 }
 
+
+const MOBILE_MEDIA_QUERY = "(max-width: 1023.98px)";
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+const CARD_OPEN_ANIMATION_MS = 320;
+const CARD_OPEN_NAVIGATE_DELAY_MS = 240;
+
 export function LeadBox({
   item,
   lastMessage,
@@ -160,6 +166,7 @@ export function LeadBox({
     );
   };
 
+  const [isOpening, setIsOpening] = useState(false);
   const handleClick = useCallback(() => {
     // IMPORTANTE: limpa `pin=1` ao navegar entre LeadBoxes. Esse param só
     // deve ficar setado quando vier do ícone do canal no kanban (UX: pin-
@@ -171,12 +178,27 @@ export function LeadBox({
     const qs = cleanParams.toString();
     const basePath = trackingId ? item.id : `/tracking-chat/${item.id}`;
     const target = qs ? `${basePath}?${qs}` : basePath;
-    router.push(target);
     if (unreadCount && unreadCount > 0 && instance) {
       markRead.mutate({
         conversationId: item.id,
       });
     }
+
+    // No celular a conversa troca de tela: a navegação espera a animação do card (já pré-carregando a rota).
+    const isMobile = window.matchMedia(MOBILE_MEDIA_QUERY).matches;
+    const prefersReducedMotion = window.matchMedia(REDUCED_MOTION_QUERY).matches;
+    if (prefersReducedMotion) {
+      router.push(target);
+      return;
+    }
+    setIsOpening(true);
+    window.setTimeout(() => setIsOpening(false), CARD_OPEN_ANIMATION_MS);
+    if (!isMobile) {
+      router.push(target);
+      return;
+    }
+    router.prefetch(target);
+    window.setTimeout(() => router.push(target), CARD_OPEN_NAVIGATE_DELAY_MS);
   }, [router, item, unreadCount, instance, markRead, searchParams, trackingId]);
 
   const selected = item.id === conversationId;
@@ -202,6 +224,7 @@ export function LeadBox({
             : "bg-accent-foreground/2 hover:bg-accent-foreground/5",
           // Abrir a conversa não é responder: o destaque só sai com mensagem enviada.
           highlightAwaitingReply && isAwaitingReply && "animate-awaiting-reply",
+          isOpening && "lead-card-opening",
         )}
       >
         <div className="min-w-0 flex-1">
@@ -235,7 +258,7 @@ export function LeadBox({
                         // Leads arquivados aparecem em busca com nome em
                         // VERMELHO — visualmente distintos dos ativos
                         // pra usuário saber "esse aqui está arquivado".
-                        item.lead.isArchived && "text-red-500",
+                        item.lead.isArchived && "text-destructive",
                       )}
                     >
                       {/* Badge "Arquivado" — aparece quando o lead foi
@@ -243,7 +266,7 @@ export function LeadBox({
                           lista; mas no filtro "Arquivados" OU em busca
                           (search field) ele aparece — daí o badge. */}
                       {item.lead.isArchived && (
-                        <span className="inline-flex items-center rounded bg-red-500/15 text-red-600 dark:text-red-300 text-[9px] px-1 py-0.5 font-semibold shrink-0">
+                        <span className="inline-flex items-center rounded bg-destructive/15 text-destructive dark:text-destructive text-[9px] px-1 py-0.5 font-semibold shrink-0">
                           Arquivado
                         </span>
                       )}
@@ -254,7 +277,7 @@ export function LeadBox({
                           nome do lead/grupo. */}
                       {item.isGroup && (
                         <span
-                          className="inline-flex items-center gap-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[9px] px-1 py-0.5 font-semibold shrink-0"
+                          className="inline-flex items-center gap-0.5 rounded bg-success/15 text-success dark:text-success text-[9px] px-1 py-0.5 font-semibold shrink-0"
                           title={
                             (item as any).groupParticipantsCount
                               ? `Grupo com ${(item as any).groupParticipantsCount} participantes`
@@ -291,7 +314,7 @@ export function LeadBox({
                         className={cn(
                           "size-3 shrink-0",
                           preview.danger
-                            ? "text-red-500"
+                            ? "text-destructive"
                             : "text-muted-foreground",
                         )}
                       />
@@ -301,7 +324,7 @@ export function LeadBox({
                         "text-xs font-light line-clamp-1",
                         preview.italic && "italic",
                         preview.danger
-                          ? "text-red-500"
+                          ? "text-destructive"
                           : hasSeen
                             ? "text-muted-foreground"
                             : "",
@@ -350,7 +373,7 @@ export function LeadBox({
             {unreadCount && unreadCount >= 1 ? (
               <Badge
                 variant={"secondary"}
-                className="text-[9px] h-5 bg-green-500 hover:bg-green-600 text-white border-none"
+                className="text-[9px] h-5 bg-success hover:bg-success text-white border-none"
               >
                 {unreadCount}
               </Badge>
@@ -384,7 +407,7 @@ export function LeadBox({
                       event.stopPropagation();
                       openLeadTriggers();
                     }}
-                    className={hasActiveTrigger ? "text-emerald-500" : "text-muted-foreground hover:text-foreground"}
+                    className={hasActiveTrigger ? "text-success" : "text-muted-foreground hover:text-foreground"}
                   >
                     <TriggerIcon className="size-3.5" isSpinning={hasActiveTrigger} />
                   </button>
@@ -483,12 +506,12 @@ function FavoriteStar({
       onPointerDown={(e) => e.stopPropagation()}
       onClick={onClick}
       disabled={disabled}
-      className="text-muted-foreground hover:text-amber-400 transition-colors disabled:opacity-50 disabled:cursor-wait"
+      className="text-muted-foreground hover:text-warning transition-colors disabled:opacity-50 disabled:cursor-wait"
     >
       <Star
         className={
           isFavorite
-            ? "size-3.5 fill-amber-400 text-amber-400"
+            ? "size-3.5 fill-warning text-warning"
             : "size-3.5"
         }
       />

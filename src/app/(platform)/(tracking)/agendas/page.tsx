@@ -14,7 +14,8 @@ export default function Page() {
     <div className="h-full w-full">
       <HeaderTracking
         title="Agendas"
-        astroCommand={{ examples: ASTRO_COMMAND_EXAMPLES.agenda }}
+        isTitleHidden
+        astroCommand={{ examples: ASTRO_COMMAND_EXAMPLES.agenda, isHiddenOnMobile: true }}
       />
       <AppPinnedInsightsStrip appModule="spacetime" />
       <AgendaContainer>

@@ -170,7 +170,7 @@ export function CreateAgentDialog({ open, onOpenChange, trackingId }: Props) {
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <BotIcon className="size-5 text-emerald-600" />
+            <BotIcon className="size-5 text-success" />
             Criar agente IA autônomo
           </DialogTitle>
           <DialogDescription>

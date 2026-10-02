@@ -35,7 +35,7 @@ export function FormBlockBox() {
       <div className="flex gap-2 py-4 text-sm">
         <Input
           placeholder="Pesquisar Blocos"
-          className=" placeholder:text-gray-400 shadow-sm"
+          className=" placeholder:text-muted-foreground shadow-sm"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

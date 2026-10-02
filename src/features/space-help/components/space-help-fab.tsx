@@ -32,8 +32,8 @@ export function SpaceHelpFab() {
         aria-label="Abrir Space Help"
         className={cn(
           "fixed z-40 bottom-24 right-5 size-12 rounded-full",
-          "bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white",
-          "shadow-lg shadow-violet-600/30 ring-1 ring-white/10",
+          "bg-primary text-primary-foreground",
+          "shadow-lg",
           "flex items-center justify-center transition hover:scale-105 active:scale-95",
         )}
       >
@@ -42,9 +42,9 @@ export function SpaceHelpFab() {
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="w-full sm:max-w-2xl p-0 overflow-y-auto">
-          <SheetHeader className="px-6 pt-6 pb-2 sticky top-0 bg-background border-b border-border z-10">
+          <SheetHeader className="px-6 pt-6 pb-2 sticky top-0 bg-background z-10">
             <SheetTitle className="flex items-center gap-2 text-base">
-              <GraduationCap className="size-4 text-violet-600" />
+              <GraduationCap className="size-4 text-info" />
               Space Help
             </SheetTitle>
             <SheetDescription className="text-xs">
@@ -61,14 +61,14 @@ export function SpaceHelpFab() {
               />
             ) : (
               <div className="p-6 text-center space-y-3">
-                <GraduationCap className="size-10 mx-auto text-violet-600" />
+                <GraduationCap className="size-10 mx-auto text-info" />
                 <p className="text-sm text-muted-foreground">
                   Tutorial contextual desta tela ainda não disponível.
                 </p>
                 <Link
                   href="/space-help"
                   onClick={() => setOpen(false)}
-                  className="inline-flex items-center gap-2 rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                 >
                   Explorar Space Help completo
                 </Link>

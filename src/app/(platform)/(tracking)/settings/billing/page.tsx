@@ -10,8 +10,8 @@ import {
   ShieldCheck,
   ExternalLink,
   ChevronRight,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -70,7 +70,7 @@ export default function BillingPage() {
       });
       if (error) throw new Error(error.message);
       if (data?.url) window.location.href = data.url;
-    } catch (err) {
+    } catch {
       toast.error("Não foi possível acessar o portal do Stripe agora.");
       setIsRedirecting(false);
     }
@@ -79,7 +79,7 @@ export default function BillingPage() {
   if (balanceLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <Loader2 className="size-8 text-primary animate-spin mb-4" />
+        <OrbitaSpinner className="size-8 text-primary mb-4" />
         <p className="text-sm text-muted-foreground">
           Carregando informações de faturamento...
         </p>
@@ -90,9 +90,9 @@ export default function BillingPage() {
   return (
     <div className="px-4 space-y-8">
       {/* ── Plano Atual ── */}
-      <div className="flex items-center justify-between py-6">
+      <div className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h2 className="font-medium">Assinatura Atual</h2>
+          <h2 className="font-medium">Plano atual</h2>
           <div className="flex items-center gap-2">
             <span
               className={cn(
@@ -112,12 +112,12 @@ export default function BillingPage() {
           </div>
         </div>
         {canManageBilling ? (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPlanModalOpen(true)}
-              className="font-medium"
+              className="h-11 rounded-full font-medium sm:h-8"
             >
               Alterar plano
             </Button>
@@ -126,16 +126,16 @@ export default function BillingPage() {
               size="sm"
               disabled={isRedirecting}
               onClick={handleOpenPortal}
-              className="font-medium bg-primary hover:bg-primary/90"
+              className="h-11 rounded-full bg-primary font-medium hover:bg-primary/90 sm:h-8"
             >
               {isRedirecting ? <Spinner /> : <CreditCard className="size-4" />}
-              Gerenciar Assinatura
+              Gerenciar assinatura
             </Button>
           </div>
         ) : (
           // members/moderadores não gerenciam billing — só o owner ou admin
-          <p className="text-[10px] text-muted-foreground italic">
-            Apenas o owner ou admin pode gerenciar a assinatura.
+          <p className="text-xs text-muted-foreground">
+            Só o dono ou um admin da empresa pode mudar a assinatura.
           </p>
         )}
       </div>
@@ -144,7 +144,7 @@ export default function BillingPage() {
 
       {/* ── Saldo de Stars ── */}
       <div className="py-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="font-medium leading-relaxed">
               Saldo de Stars
@@ -156,7 +156,7 @@ export default function BillingPage() {
           {/* Modelo countdown: número em destaque é o saldo restante,
               desce de planMonthlyStars → 0. Ver
               docs/subscription-org-model.md. */}
-          <div className="text-right">
+          <div className="shrink-0 text-right">
             <span className="text-sm font-bold">
               {remaining.toLocaleString()}
             </span>
@@ -177,7 +177,7 @@ export default function BillingPage() {
           />
         </div>
 
-        <div className="flex justify-between mt-2">
+        <div className="mt-2 flex flex-wrap justify-between gap-x-4 gap-y-1">
           <span className="text-[10px] text-muted-foreground font-medium">
             {Math.round(pctUsed)}% utilizado
           </span>
@@ -190,10 +190,10 @@ export default function BillingPage() {
       <Separator />
 
       {/* ── Detalhes Adicionais ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-12 py-6">
+      <div className="grid grid-cols-1 gap-8 py-6 sm:grid-cols-2 sm:gap-12">
         <div className="space-y-4">
           <div className="flex items-start gap-3">
-            <div className="size-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+            <div className="grid size-9 shrink-0 place-items-center rounded-full bg-knob">
               <Star className="size-4 text-muted-foreground" />
             </div>
             <div>
@@ -206,11 +206,11 @@ export default function BillingPage() {
           </div>
 
           <div className="flex items-start gap-3">
-            <div className="size-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+            <div className="grid size-9 shrink-0 place-items-center rounded-full bg-knob">
               <ShieldCheck className="size-4 text-muted-foreground" />
             </div>
             <div>
-              <h3 className="text-sm font-medium">Faturamento Seguro</h3>
+              <h3 className="text-sm font-medium">Pagamento seguro</h3>
               <p className="text-xs text-muted-foreground leading-relaxed mt-1">
                 Seus pagamentos são processados com segurança via Stripe. Não
                 armazenamos seus dados de cartão.
@@ -220,7 +220,7 @@ export default function BillingPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
+          <div className="rounded-[20px] border border-line bg-muted/30 p-4">
             <h3 className="text-sm font-medium mb-1 flex items-center gap-2">
               Precisa de ajuda?
             </h3>
@@ -232,7 +232,7 @@ export default function BillingPage() {
               href="/support"
               className="text-xs font-bold text-primary hover:underline flex items-center gap-1 group"
             >
-              Contatar Suporte
+              Falar com o suporte
               <ChevronRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
             </Link>
           </div>
@@ -240,12 +240,12 @@ export default function BillingPage() {
           {canManageBilling && (
             <button
               onClick={handleOpenPortal}
-              className="w-full flex items-center justify-between p-4 rounded-xl border border-border hover:bg-muted/50 transition-colors group"
+              className="group flex w-full items-center justify-between rounded-[20px] border border-line p-4 transition-colors hover:bg-muted/50"
             >
               <div className="text-left">
                 <h3 className="text-sm font-medium">Ver faturas anteriores</h3>
-                <p className="text-[10px] text-muted-foreground">
-                  Acesse recibos e histórico no Stripe
+                <p className="text-xs text-muted-foreground">
+                  Recibos e histórico de pagamentos
                 </p>
               </div>
               <ExternalLink className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />

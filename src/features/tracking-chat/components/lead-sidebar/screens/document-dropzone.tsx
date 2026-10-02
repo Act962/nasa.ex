@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { CheckCircle2Icon, FileUpIcon, Loader2Icon } from "lucide-react";
+import { CheckCircle2Icon, FileUpIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -78,21 +79,21 @@ export function DocumentDropzone({ conversationId, lead }: DocumentDropzoneProps
       {...getRootProps()}
       className={cn(
         "flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors",
-        isDragActive ? "border-sky-400 bg-sky-500/10" : "border-muted-foreground/25 hover:border-sky-400/60 hover:bg-muted/40",
+        isDragActive ? "border-info bg-info/10" : "border-muted-foreground/25 hover:border-info/60 hover:bg-muted/40",
         isUploading && "cursor-wait",
       )}
     >
       <input {...getInputProps()} />
       <div
         className={cn(
-          "flex size-20 items-center justify-center rounded-full bg-sky-500/10 text-sky-400 transition-transform duration-300",
+          "flex size-20 items-center justify-center rounded-full bg-info/10 text-info transition-transform duration-300",
           isDragActive ? "scale-110" : !isUploading && "animate-bounce [animation-duration:2s]",
         )}
       >
         {isUploading ? (
-          <Loader2Icon className="size-10 animate-spin" />
+          <OrbitaSpinner className="size-10 " />
         ) : sentFileName ? (
-          <CheckCircle2Icon className="size-10 text-emerald-400" />
+          <CheckCircle2Icon className="size-10 text-success" />
         ) : (
           <FileUpIcon className="size-10" />
         )}

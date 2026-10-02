@@ -68,7 +68,7 @@ export function ProductsPricingTable({ products }: { products: PricedProductRow[
       <CardContent>
         {products.length === 0 ? (
           <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
-            <Package className="size-5 text-violet-500" />
+            <Package className="size-5 text-info" />
             <p>Nenhum produto cadastrado no Forge ainda. Cadastre o que você vende para ver o imposto de cada preço.</p>
             <Button asChild size="sm" variant="outline">
               <a href="/forge">Abrir o Forge</a>
@@ -95,7 +95,7 @@ export function ProductsPricingTable({ products }: { products: PricedProductRow[
                         {product.sku} · {product.unit}
                       </p>
                       {product.alerts.map((alert) => (
-                        <p key={alert} className="mt-1 flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
+                        <p key={alert} className="mt-1 flex items-center gap-1 text-xs text-warning dark:text-warning">
                           <TriangleAlert className="size-3 shrink-0" />
                           {alert}
                         </p>

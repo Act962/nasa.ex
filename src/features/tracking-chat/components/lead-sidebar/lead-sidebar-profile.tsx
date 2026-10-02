@@ -52,9 +52,9 @@ const DETAIL_BUTTONS: { field: LeadInfoField; title: string; icon: ReactNode }[]
 ];
 
 const STATUS_FLOW_COLORS: Record<string, string> = {
-  NEW: "text-sky-400",
-  ACTIVE: "text-emerald-400",
-  WAITING: "text-amber-400",
+  NEW: "text-info",
+  ACTIVE: "text-success",
+  WAITING: "text-warning",
   FINISHED: "text-muted-foreground",
 };
 
@@ -85,8 +85,8 @@ function ProfileIconButton({
         aria-label={title}
         onClick={onClick}
         className={cn(
-          "flex h-10 w-full items-center justify-center rounded-xl border border-[#232326] bg-[#19191A] text-zinc-300 transition-colors hover:border-zinc-600 hover:text-foreground",
-          isActive && "bg-sky-500/20 text-sky-300 ring-1 ring-sky-500/50",
+          "flex h-10 w-full items-center justify-center rounded-xl border border-line bg-card text-muted-foreground transition-colors hover:border-line hover:text-foreground",
+          isActive && "bg-info/20 text-info ring-1 ring-info/50",
         )}
       >
         {icon}

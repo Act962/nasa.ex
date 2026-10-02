@@ -9,6 +9,7 @@ import { TagIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { Skeleton } from "@/components/ui/skeleton";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 interface WidgetListProps {
   organizationIds: string[];
@@ -113,7 +114,7 @@ export function WidgetTag({
 
           <div className="flex items-center gap-x-2">
             {mutation.isPending ? (
-              <div className="size-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+              <OrbitaSpinner className="size-4" />
             ) : (
               <Button
                 size="icon-sm"
@@ -141,7 +142,7 @@ export function WidgetTag({
         <div className="flex flex-col gap-2 mt-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-6">
-              <div className="size-10 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+              <OrbitaSpinner className="size-10" />
             </div>
           ) : (
             <p

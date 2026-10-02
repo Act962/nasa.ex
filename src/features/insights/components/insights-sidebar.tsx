@@ -75,7 +75,7 @@ export function InsightsSidebar({ actions }: InsightsSidebarProps) {
             onClick={toggle}
             aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
             className={cn(
-              "flex items-center justify-center size-7 rounded-md hover:bg-muted text-muted-foreground transition-colors",
+              "flex items-center justify-center size-7 rounded-full hover:bg-muted text-muted-foreground transition-colors",
               collapsed && "mx-auto",
             )}
           >

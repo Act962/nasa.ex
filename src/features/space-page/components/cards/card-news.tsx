@@ -28,8 +28,8 @@ export function CardNews({ nick }: CardNewsProps) {
     >
       {isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="h-32 animate-pulse rounded-xl bg-white/5" />
-          <div className="h-32 animate-pulse rounded-xl bg-white/5" />
+          <div className="h-32 animate-pulse rounded-xl bg-muted/50" />
+          <div className="h-32 animate-pulse rounded-xl bg-muted/50" />
         </div>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
@@ -37,7 +37,7 @@ export function CardNews({ nick }: CardNewsProps) {
             <li key={p.id}>
               <Link
                 href={`/space/${nick}/post/${p.slug}`}
-                className="block overflow-hidden rounded-xl border border-white/5 bg-white/5 transition hover:border-orange-500/30"
+                className="block overflow-hidden rounded-xl border border-border bg-muted/50 transition hover:border-info/30"
               >
                 {p.coverUrl && (
                   <div className="relative aspect-video w-full">
@@ -50,15 +50,15 @@ export function CardNews({ nick }: CardNewsProps) {
                   </div>
                 )}
                 <div className="p-3">
-                  <p className="line-clamp-2 text-sm font-medium text-white">
+                  <p className="line-clamp-2 text-sm font-medium text-foreground">
                     {p.title}
                   </p>
                   {p.excerpt && (
-                    <p className="line-clamp-2 text-xs text-white/60">
+                    <p className="line-clamp-2 text-xs text-muted-foreground">
                       {p.excerpt}
                     </p>
                   )}
-                  <p className="mt-1 text-[10px] text-white/50">
+                  <p className="mt-1 text-[10px] text-muted-foreground">
                     {p.author?.name ?? ""} ·{" "}
                     {p.publishedAt
                       ? new Date(p.publishedAt).toLocaleDateString("pt-BR")

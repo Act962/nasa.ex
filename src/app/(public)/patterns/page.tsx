@@ -26,19 +26,19 @@ export default async function PatternsPage() {
 
   return (
     <ToastProvider>
-      <div className="min-h-screen bg-zinc-950 p-6">
+      <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Padrões ÓRBITA</h1>
-          <p className="text-zinc-400">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Padrões ÓRBITA</h1>
+          <p className="text-muted-foreground">
             Explore modelos pré-configurados para acelerar a criação de seus apps
           </p>
         </div>
 
         {/* Info Box */}
-        <div className="bg-violet-600/10 border border-violet-600/30 rounded-lg p-4 mb-8">
-          <p className="text-sm text-violet-300">
+        <div className="bg-info/10 border border-info/30 rounded-lg p-4 mb-8">
+          <p className="text-sm text-info">
             ✨ Estes padrões foram criados por moderadores ÓRBITA como exemplos de como
             configurar e usar cada app. Você pode duplicar qualquer padrão para sua
             organização e adaptá-lo conforme suas necessidades.
@@ -47,55 +47,55 @@ export default async function PatternsPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="tracking" className="space-y-6">
-          <TabsList className="bg-zinc-900 border border-zinc-800">
-            <TabsTrigger value="tracking" className="data-[state=active]:bg-violet-600">
+          <TabsList>
+            <TabsTrigger value="tracking">
               Tracking
             </TabsTrigger>
-            <TabsTrigger value="workspace" className="data-[state=active]:bg-violet-600">
+            <TabsTrigger value="workspace">
               Workspace
             </TabsTrigger>
-            <TabsTrigger value="forge-proposal" className="data-[state=active]:bg-violet-600">
+            <TabsTrigger value="forge-proposal">
               Proposta
             </TabsTrigger>
-            <TabsTrigger value="forge-contract" className="data-[state=active]:bg-violet-600">
+            <TabsTrigger value="forge-contract">
               Contrato
             </TabsTrigger>
-            <TabsTrigger value="form" className="data-[state=active]:bg-violet-600">
+            <TabsTrigger value="form">
               Formulário
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="tracking" className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-white mb-4">Padrões de Tracking</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-4">Padrões de Tracking</h2>
               <AppTemplatesGallery appType="tracking" organizationId={organizationId} />
             </div>
           </TabsContent>
 
           <TabsContent value="workspace" className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-white mb-4">Padrões de Workspace</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-4">Padrões de Workspace</h2>
               <AppTemplatesGallery appType="workspace" organizationId={organizationId} />
             </div>
           </TabsContent>
 
           <TabsContent value="forge-proposal" className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-white mb-4">Padrões de Proposta</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-4">Padrões de Proposta</h2>
               <AppTemplatesGallery appType="forge-proposal" organizationId={organizationId} />
             </div>
           </TabsContent>
 
           <TabsContent value="forge-contract" className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-white mb-4">Padrões de Contrato</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-4">Padrões de Contrato</h2>
               <AppTemplatesGallery appType="forge-contract" organizationId={organizationId} />
             </div>
           </TabsContent>
 
           <TabsContent value="form" className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-white mb-4">Padrões de Formulário</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-4">Padrões de Formulário</h2>
               <AppTemplatesGallery appType="form" organizationId={organizationId} />
             </div>
           </TabsContent>

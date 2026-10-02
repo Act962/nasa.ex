@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { BookOpen, ChevronLeft, Download, FileText, Loader2 } from "lucide-react";
+import { BookOpen, ChevronLeft, Download, FileText } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -134,7 +135,7 @@ export function EbookViewer({ course }: Props) {
             >
               {isDownloading ? (
                 <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <OrbitaSpinner className="mr-2 size-4 " />
                   Gerando link...
                 </>
               ) : (

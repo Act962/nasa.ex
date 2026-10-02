@@ -35,8 +35,8 @@ export function AstroWidgetHeader({
   const paymentTab = usePaymentTabStore((state) => state.activeTab);
 
   return (
-    <header className="relative flex shrink-0 items-center gap-2 border-b border-white/[0.07] px-4 py-3">
-      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#0b1220] p-px">
+    <header className="relative flex shrink-0 items-center gap-2 px-4 py-3">
+      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-info p-px">
         <AstroMark />
       </span>
       <div className="min-w-0 flex-1">
@@ -94,7 +94,7 @@ export function AstroWidgetHeader({
           />
           <div
             role="menu"
-            className="absolute right-3 top-full z-20 mt-1 overflow-hidden rounded-xl border border-zinc-700/60 bg-zinc-900/95 shadow-xl backdrop-blur"
+            className="absolute right-3 top-full z-20 mt-1 overflow-hidden rounded-xl border border-line/60 bg-card/95 shadow-xl backdrop-blur"
           >
             <AstroVoiceMenuItems onAction={() => setVoiceMenuOpen(false)} />
           </div>

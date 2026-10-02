@@ -40,14 +40,14 @@ export function EntriesPreviewCard({
   return (
     <>
       <Card className="flex h-full flex-col gap-0 py-0">
-        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 border-b p-4 sm:p-5">
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 p-4 sm:p-5">
           <CardTitle className="min-w-0 truncate text-base font-semibold">
             {title}
           </CardTitle>
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 shrink-0 gap-0.5 px-2 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
+            className="h-7 shrink-0 gap-0.5 px-2 text-xs text-info hover:text-info dark:text-info"
             onClick={onSeeAll}
           >
             Ver todas
@@ -110,7 +110,7 @@ export function EntriesPreviewCard({
                       className={cn(
                         "text-[11px] tabular-nums",
                         entry.status === "OVERDUE"
-                          ? "font-medium text-red-600 dark:text-red-400"
+                          ? "font-medium text-destructive dark:text-destructive"
                           : "text-muted-foreground",
                       )}
                     >

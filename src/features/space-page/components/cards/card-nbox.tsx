@@ -41,7 +41,7 @@ export function CardNBox({ nick }: CardNBoxProps) {
       }
       emptyAction={
         isAuthenticated ? (
-          <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600">
+          <Button asChild size="sm" >
             <Link href="/nbox">
               <Plus className="mr-1 size-4" />
               Enviar meu primeiro arquivo
@@ -52,22 +52,22 @@ export function CardNBox({ nick }: CardNBoxProps) {
     >
       {isLoading ? (
         <div className="space-y-2">
-          <div className="h-12 animate-pulse rounded-xl bg-white/5" />
-          <div className="h-12 animate-pulse rounded-xl bg-white/5" />
+          <div className="h-12 animate-pulse rounded-xl bg-muted/50" />
+          <div className="h-12 animate-pulse rounded-xl bg-muted/50" />
         </div>
       ) : (
         <ul className="space-y-2">
           {items.map((it) => (
             <li
               key={it.id}
-              className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/5 p-3"
+              className="flex items-center gap-3 rounded-xl border border-border bg-muted/50 p-3"
             >
-              <FileDown className="size-5 shrink-0 text-orange-400" />
+              <FileDown className="size-5 shrink-0 text-info" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-white">
+                <p className="truncate text-sm font-medium text-foreground">
                   {it.name}
                 </p>
-                <p className="text-xs text-white/50">
+                <p className="text-xs text-muted-foreground">
                   {it.type} · {formatBytes(it.size)}
                 </p>
               </div>
@@ -76,7 +76,7 @@ export function CardNBox({ nick }: CardNBoxProps) {
                   href={`/api/nbox/public/${it.publicToken}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-xs text-orange-300 hover:text-orange-200"
+                  className="text-xs text-info hover:text-info/80"
                 >
                   Baixar
                 </a>

@@ -25,7 +25,7 @@ export function LedgerSheet({ accountId, period, onClose }: LedgerSheetProps) {
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            <BookText className="size-4 text-violet-600" />
+            <BookText className="size-4 text-info" />
             Razão
             <FiscalTermHint termId="razao" />
           </SheetTitle>

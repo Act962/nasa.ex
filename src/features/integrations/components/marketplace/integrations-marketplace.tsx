@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { IntegrationGrid } from "./integration-grid";
 import { MetaMcpSection } from "@/features/integrations/components/meta-mcp-section";
 import { integrations } from "@/data/integrations";
@@ -71,7 +72,12 @@ export function IntegrationsMarketplace() {
   const { data } = useQueryPlatformIntegrations();
   const upsert = useUpsertPlatformIntegration();
   const remove = useDeletePlatformIntegration();
-  const [configuring, setConfiguring] = useState<PlatformDef | null>(null);
+  const searchParams = useSearchParams();
+  // `?connect=OPENAI` abre direto a configuração do satélite (cartão do ASTRO, spec 0053).
+  const [configuring, setConfiguring] = useState<PlatformDef | null>(() => {
+    const requestedPlatform = searchParams.get("connect")?.toUpperCase();
+    return PLATFORM_DEFS.find((platformDef) => platformDef.platform === requestedPlatform) ?? null;
+  });
   const [disconnecting, setDisconnecting] = useState<IntegrationPlatform | null>(null);
 
   const connectedMap = new Map(
@@ -97,7 +103,7 @@ export function IntegrationsMarketplace() {
   const installedCount = new Set([...hardcodedInstalled, ...installedSlugs]).size;
 
   const stats = [
-    { label: "Integrações", value: (integrations.length + PLATFORM_DEFS.length).toString(), icon: Puzzle },
+    { label: "Satélites", value: (integrations.length + PLATFORM_DEFS.length).toString(), icon: Puzzle },
     { label: "Instaladas", value: installedCount.toString(), icon: CheckCircle2 },
     { label: "Categorias", value: "26", icon: Zap },
   ];
@@ -105,23 +111,23 @@ export function IntegrationsMarketplace() {
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl" style={{ background: "linear-gradient(135deg, #0d0a1a 0%, #1a0e3a 40%, #0f0729 70%, #060312 100%)" }}>
+      <div className="dark relative overflow-hidden rounded-[28px] bg-background text-foreground">
         <StarsCanvas />
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-[#7C3AED]/20 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/3 w-48 h-48 rounded-full bg-[#a855f7]/15 blur-3xl pointer-events-none" />
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-info/20 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/3 w-48 h-48 rounded-full bg-info/15 blur-3xl pointer-events-none" />
         <div className="relative z-10 px-6 py-8 md:px-10 md:py-10">
           <div className="flex flex-col md:flex-row md:items-center gap-6">
             <div className="space-y-3 flex-1">
               <div className="flex items-center gap-2">
-                <Badge className="bg-[#7C3AED]/30 text-[#c4b5fd] border-[#7C3AED]/40 text-xs gap-1.5">
+                <Badge className="bg-info/15 text-info border-info/30 text-xs gap-1.5">
                   <Zap className="size-3" /> Marketplace
                 </Badge>
               </div>
-              <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
-                Conecte o ÓRBITA ao seu<br />
-                <span className="text-transparent bg-clip-text bg-linear-to-r from-[#c4b5fd] to-[#a78bfa]">ecossistema de vendas</span>
+              <h1 className="text-2xl md:text-3xl font-bold leading-tight">
+                Coloque seus apps na órbita do<br />
+                <span className="text-info">ASTRO</span>
               </h1>
-              <p className="text-sm text-white/60 max-w-md leading-relaxed">
+              <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
                 Integre mensageiros, gateways de pagamento, chatbots, e-commerce e muito mais para automatizar sua operação comercial.
               </p>
             </div>
@@ -129,11 +135,11 @@ export function IntegrationsMarketplace() {
             {/* Stats */}
             <div className="flex md:flex-col gap-3 shrink-0 overflow-x-auto">
               {stats.map(({ label, value, icon: Icon }) => (
-                <div key={label} className="flex items-center gap-2.5 bg-white/5 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/10">
-                  <Icon className="size-4 text-[#a78bfa]" />
+                <div key={label} className="flex items-center gap-2.5 bg-card/80 backdrop-blur-sm rounded-[20px] px-4 py-2.5">
+                  <Icon className="size-4 text-info" />
                   <div>
-                    <p className="text-lg font-bold text-white leading-none">{value}</p>
-                    <p className="text-[10px] text-white/50">{label}</p>
+                    <p className="text-lg font-bold leading-none">{value}</p>
+                    <p className="text-[10px] text-muted-foreground">{label}</p>
                   </div>
                 </div>
               ))}

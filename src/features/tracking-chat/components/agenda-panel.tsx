@@ -2,6 +2,7 @@
 
 import { CalendarIcon, XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 // react-big-calendar (+ addon DnD + 3 folhas de CSS) é pesado e só é usado neste
 // painel, que abre sob demanda. Lazy com ssr:false tira do grafo até abrir.
@@ -14,7 +15,7 @@ const AllAppointmentsCalendar = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-full w-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <OrbitaSpinner className="size-8" />
       </div>
     ),
   },

@@ -1,31 +1,62 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
-import { Bell, Smartphone, Monitor, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  BarChart3,
+  BellRing,
+  Bot,
+  CalendarClock,
+  Megaphone,
+  Monitor,
+  Smartphone,
+  SquarePen,
+  Star,
+  Target,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
+import { orpc } from "@/lib/orpc";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
+import { Switch } from "@/components/ui/switch";
 
-const NOTIF_META: Record<string, { label: string; icon: string; description: string; group: string }> = {
-  NEW_LEAD:             { label: "Novo Lead",                icon: "🎯", description: "Quando um novo lead chegar no CRM ou Chat",             group: "CRM & Chat" },
-  CARD_EDIT:            { label: "Edição de Card/Tarefa",    icon: "📝", description: "Cards onde você é responsável ou participante editados", group: "Tarefas" },
-  APPOINTMENT_REMINDER: { label: "Lembrete de Agendamento",  icon: "📅", description: "Agendamentos próximos do vencimento",                   group: "Agenda" },
-  INSIGHTS_MOVEMENT:    { label: "Movimentação de Insights", icon: "📊", description: "Novos eventos nos dashboards de insights",               group: "Insights" },
-  AI_TOKEN_ALERT:       { label: "Alerta de Tokens IA",      icon: "🤖", description: "Consumo alto de tokens nas integrações com IA",          group: "Integrações" },
-  STARS_ALERT:          { label: "Alerta de Stars",          icon: "⭐", description: "Saldo de Stars baixo na empresa",                       group: "Financeiro" },
-  PLAN_EXPIRY:          { label: "Vencimento de Plano",      icon: "⚠️", description: "Plano da empresa próximo do vencimento",                 group: "Financeiro" },
-  ADMIN_MESSAGE:        { label: "Mensagem do Admin",        icon: "📢", description: "Comunicados enviados pelos administradores",             group: "Sistema" },
-  CUSTOM:               { label: "Alertas Personalizados",   icon: "🔔", description: "Lembretes e alertas configurados manualmente",           group: "Sistema" },
+interface NotificationMeta {
+  label: string;
+  icon: LucideIcon;
+  description: string;
+  group: string;
+}
+
+const NOTIFICATION_META: Record<string, NotificationMeta> = {
+  NEW_LEAD: { label: "Novo lead", icon: Target, description: "Quando um novo lead chegar no Tracking ou no Chat", group: "Tracking e Chat" },
+  CARD_EDIT: { label: "Edição de tarefa", icon: SquarePen, description: "Tarefas em que você é responsável ou participa foram editadas", group: "Tarefas" },
+  APPOINTMENT_REMINDER: { label: "Lembrete de agendamento", icon: CalendarClock, description: "Agendamentos que estão chegando", group: "Agenda" },
+  INSIGHTS_MOVEMENT: { label: "Movimentação de Insights", icon: BarChart3, description: "Novidades nos painéis de Insights", group: "Insights" },
+  AI_TOKEN_ALERT: { label: "Consumo de IA", icon: Bot, description: "Uso alto de IA nas conexões da empresa", group: "Satélites" },
+  STARS_ALERT: { label: "Saldo de Stars", icon: Star, description: "Saldo de Stars baixo na empresa", group: "Financeiro" },
+  PLAN_EXPIRY: { label: "Vencimento do plano", icon: TriangleAlert, description: "Plano da empresa perto de vencer", group: "Financeiro" },
+  ADMIN_MESSAGE: { label: "Recados da ÓRBITA", icon: Megaphone, description: "Comunicados enviados pela equipe da plataforma", group: "Sistema" },
+  CUSTOM: { label: "Lembretes personalizados", icon: BellRing, description: "Lembretes e alertas que você mesmo criou", group: "Sistema" },
 };
 
-const GROUPS = ["CRM & Chat", "Tarefas", "Agenda", "Insights", "Integrações", "Financeiro", "Sistema"];
+const NOTIFICATION_GROUPS = ["Tracking e Chat", "Tarefas", "Agenda", "Insights", "Satélites", "Financeiro", "Sistema"];
 
-interface Pref { notifType: string; inApp: boolean; whatsApp: boolean }
+interface NotificationPreference {
+  notifType: string;
+  inApp: boolean;
+  whatsApp: boolean;
+}
 
 /**
  * A mesma lista atende às duas telas: em Configurações, o canal da plataforma;
  * na aba WhatsApp do App ASTRO, o canal do WhatsApp (spec 0029).
  */
 export type NotificationChannel = "inApp" | "whatsApp";
+
+const CHANNEL_META: Record<NotificationChannel, { label: string; icon: LucideIcon }> = {
+  inApp: { label: "Na plataforma", icon: Monitor },
+  whatsApp: { label: "WhatsApp", icon: Smartphone },
+};
 
 export function NotificationPreferencesPanel({
   organizationId,
@@ -34,34 +65,40 @@ export function NotificationPreferencesPanel({
   organizationId: string;
   channels?: NotificationChannel[];
 }) {
-  const qc = useQueryClient();
-  const [saving, setSaving] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const [savingNotifType, setSavingNotifType] = useState<string | null>(null);
+  const hasManyChannels = channels.length > 1;
 
-  const { data: prefs = [], isLoading } = useQuery({
+  const { data: preferences = [], isLoading } = useQuery({
     queryKey: ["notif-prefs", organizationId],
     queryFn: () => orpc.userNotifications.getPreferences.call({ organizationId }),
   });
 
-  const prefMap: Record<string, Pref> = {};
-  for (const p of prefs) prefMap[p.notifType] = p;
+  const preferenceByType: Record<string, NotificationPreference> = {};
+  for (const preference of preferences) preferenceByType[preference.notifType] = preference;
 
-  const mut = useMutation({
-    mutationFn: (data: { notifType: string; inApp: boolean; whatsApp: boolean }) =>
-      orpc.userNotifications.setPreference.call({ organizationId, ...data }),
-    onMutate: (vars) => setSaving(vars.notifType),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["notif-prefs", organizationId] }),
-    onSettled: () => setSaving(null),
+  const setPreferenceMutation = useMutation({
+    mutationFn: (payload: NotificationPreference) =>
+      orpc.userNotifications.setPreference.call({ organizationId, ...payload }),
+    onMutate: (payload) => setSavingNotifType(payload.notifType),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notif-prefs", organizationId] }),
+    onSettled: () => setSavingNotifType(null),
   });
 
-  function toggle(notifType: string, field: "inApp" | "whatsApp") {
-    const current = prefMap[notifType] ?? { notifType, inApp: true, whatsApp: false };
-    mut.mutate({ notifType, inApp: current.inApp, whatsApp: current.whatsApp, [field]: !current[field] });
+  function toggleChannel(notifType: string, channel: NotificationChannel) {
+    const current = preferenceByType[notifType] ?? { notifType, inApp: true, whatsApp: false };
+    setPreferenceMutation.mutate({
+      notifType,
+      inApp: current.inApp,
+      whatsApp: current.whatsApp,
+      [channel]: !current[channel],
+    });
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 text-muted-foreground py-8">
-        <Loader2 className="w-4 h-4 animate-spin" />
+      <div className="flex items-center gap-2 py-8 text-muted-foreground">
+        <OrbitaSpinner className="size-4" />
         <span className="text-sm">Carregando preferências...</span>
       </div>
     );
@@ -69,76 +106,65 @@ export function NotificationPreferencesPanel({
 
   return (
     <div className="space-y-6">
-      {channels.length > 1 && (
-        <div className="flex items-center gap-6 border-b pb-1 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <Monitor className="w-3.5 h-3.5" /> Na plataforma
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Smartphone className="w-3.5 h-3.5" /> WhatsApp
-          </div>
+      {hasManyChannels && (
+        <div className="flex items-center gap-6 pb-1 text-xs text-muted-foreground">
+          {channels.map((channel) => {
+            const ChannelIcon = CHANNEL_META[channel].icon;
+            return (
+              <div key={channel} className="flex items-center gap-1.5">
+                <ChannelIcon className="size-3.5" /> {CHANNEL_META[channel].label}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {GROUPS.map((group) => {
-        const groupTypes = Object.entries(NOTIF_META).filter(([, m]) => m.group === group);
+      {NOTIFICATION_GROUPS.map((group) => {
+        const groupTypes = Object.entries(NOTIFICATION_META).filter(([, meta]) => meta.group === group);
         return (
           <div key={group}>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{group}</p>
-            <div className="space-y-2">
-              {groupTypes.map(([type, meta]) => {
-                const pref = prefMap[type] ?? { inApp: true, whatsApp: false };
-                const isSavingThis = saving === type;
+            <p className="mb-2 px-1 text-xs font-semibold text-muted-foreground">{group}</p>
+            <div className="divide-y divide-line overflow-hidden rounded-[20px] border border-line bg-card">
+              {groupTypes.map(([notifType, meta]) => {
+                const preference = preferenceByType[notifType] ?? { inApp: true, whatsApp: false };
+                const isSavingThis = savingNotifType === notifType;
+                const TypeIcon = meta.icon;
                 return (
-                  <div
-                    key={type}
-                    className="flex items-center justify-between p-3.5 rounded-xl border bg-card hover:bg-accent/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">{meta.icon}</span>
-                      <div>
-                        <p className="text-sm font-medium">{meta.label}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{meta.description}</p>
-                      </div>
+                  <div key={notifType} className="flex items-center gap-3 p-3.5">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-knob">
+                      <TypeIcon className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{meta.label}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{meta.description}</p>
                     </div>
 
-                    <div className="flex items-center gap-4 shrink-0 ml-4">
-                      {isSavingThis && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
-
-                      {channels.includes("inApp") && (
-                      <div className="flex flex-col items-center gap-1">
-                        <Monitor className="w-3 h-3 text-muted-foreground" />
-                        <button
-                          onClick={() => toggle(type, "inApp")}
-                          disabled={isSavingThis}
-                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-60 ${
-                            pref.inApp ? "bg-violet-600" : "bg-muted"
-                          }`}
-                        >
-                          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                            pref.inApp ? "translate-x-4" : "translate-x-0.5"
-                          }`} />
-                        </button>
-                      </div>
-                      )}
-
-                      {channels.includes("whatsApp") && (
-                      <div className="flex flex-col items-center gap-1">
-                        <Smartphone className="w-3 h-3 text-muted-foreground" />
-                        <button
-                          onClick={() => toggle(type, "whatsApp")}
-                          disabled={isSavingThis}
-                          title="Requer instância WhatsApp conectada com seu número"
-                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-60 ${
-                            pref.whatsApp ? "bg-emerald-600" : "bg-muted"
-                          }`}
-                        >
-                          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                            pref.whatsApp ? "translate-x-4" : "translate-x-0.5"
-                          }`} />
-                        </button>
-                      </div>
-                      )}
+                    <div className="flex shrink-0 items-center gap-3">
+                      {isSavingThis && <OrbitaSpinner className="size-3.5" />}
+                      {channels.map((channel) => {
+                        const ChannelIcon = CHANNEL_META[channel].icon;
+                        return (
+                          <label
+                            key={channel}
+                            className="flex min-h-9 flex-col items-center justify-center gap-1"
+                            title={
+                              channel === "whatsApp"
+                                ? "Precisa de um WhatsApp conectado com o seu número"
+                                : undefined
+                            }
+                          >
+                            {hasManyChannels && (
+                              <ChannelIcon className="size-3 text-muted-foreground" />
+                            )}
+                            <Switch
+                              checked={preference[channel]}
+                              onCheckedChange={() => toggleChannel(notifType, channel)}
+                              disabled={isSavingThis}
+                              aria-label={`${meta.label} — ${CHANNEL_META[channel].label}`}
+                            />
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -150,8 +176,8 @@ export function NotificationPreferencesPanel({
 
       {channels.includes("whatsApp") && (
         <p className="text-xs text-muted-foreground">
-          * O envio via WhatsApp requer uma instância conectada na empresa e o seu número
-          vinculado à plataforma.
+          * O envio pelo WhatsApp precisa de um número conectado na empresa e do seu número
+          cadastrado no perfil.
         </p>
       )}
     </div>

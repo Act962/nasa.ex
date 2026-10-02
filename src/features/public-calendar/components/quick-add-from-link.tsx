@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Image as ImageIcon, Link2, Loader2, Sparkles, AlertTriangle } from "lucide-react";
+import { Image as ImageIcon, Link2, Sparkles, AlertTriangle } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -187,7 +188,7 @@ export function QuickAddFromLink() {
                 className="h-8 px-3 text-xs gap-1"
               >
                 {linkMutation.isPending ? (
-                  <Loader2 className="size-3 animate-spin" />
+                  <OrbitaSpinner className="size-3 " />
                 ) : (
                   <Sparkles className="size-3" />
                 )}
@@ -233,7 +234,7 @@ export function QuickAddFromLink() {
               >
                 {imageUploading ? (
                   <>
-                    <Loader2 className="size-3 animate-spin" />
+                    <OrbitaSpinner className="size-3 " />
                     Analisando imagem... pode levar alguns segundos
                   </>
                 ) : (

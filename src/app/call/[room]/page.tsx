@@ -180,7 +180,7 @@ export default function CallPage() {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
         <div className="max-w-md text-center space-y-4">
-          <AlertCircleIcon className="size-12 mx-auto text-red-400" />
+          <AlertCircleIcon className="size-12 mx-auto text-destructive" />
           <h1 className="text-xl font-semibold">Não foi possível conectar</h1>
           <p className="text-sm text-white/70">{error}</p>
           <Button onClick={() => router.push("/")} variant="secondary">
@@ -203,9 +203,9 @@ export default function CallPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex flex-col">
+    <div className="dark min-h-screen bg-background text-white flex flex-col">
       {/* Header da chamada */}
-      <header className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+      <header className="px-4 py-3 flex items-center justify-between">
         <div>
           <p className="text-xs text-white/50">
             {connState === "connecting" ? "Conectando..." : "Em chamada"}
@@ -220,7 +220,7 @@ export default function CallPage() {
       {/* Video grid: local + remotos */}
       <main className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 p-2 min-h-0">
         {/* Local */}
-        <div className="relative rounded-xl overflow-hidden bg-zinc-900 aspect-video flex items-center justify-center">
+        <div className="relative rounded-xl overflow-hidden bg-card aspect-video flex items-center justify-center">
           {mode === "video" && !camOff ? (
             <video
               ref={localVideoRef}
@@ -241,7 +241,7 @@ export default function CallPage() {
 
         {/* Remotos */}
         {connState === "connected" && remotes.length === 0 && (
-          <div className="rounded-xl bg-zinc-900 aspect-video flex items-center justify-center">
+          <div className="rounded-xl bg-card aspect-video flex items-center justify-center">
             <div className="text-center space-y-2">
               <Spinner className="size-5 mx-auto text-white/40" />
               <p className="text-xs text-white/40">
@@ -256,7 +256,7 @@ export default function CallPage() {
       </main>
 
       {/* Controls */}
-      <footer className="px-4 py-4 border-t border-white/10 flex items-center justify-center gap-3">
+      <footer className="px-4 py-4 flex items-center justify-center gap-3">
         <Button
           variant="ghost"
           size="icon"
@@ -289,7 +289,7 @@ export default function CallPage() {
           variant="destructive"
           size="icon"
           onClick={leaveCall}
-          className="rounded-full size-12 bg-red-500 hover:bg-red-600"
+          className="rounded-full size-12 bg-destructive text-white hover:bg-destructive/90"
           aria-label="Encerrar chamada"
         >
           <PhoneOffIcon className="size-5" />
@@ -353,7 +353,7 @@ function RemoteTile({
   }, [participant]);
 
   return (
-    <div className="relative rounded-xl overflow-hidden bg-zinc-900 aspect-video flex items-center justify-center">
+    <div className="relative rounded-xl overflow-hidden bg-card aspect-video flex items-center justify-center">
       {hasVideo && mode === "video" ? (
         <video
           ref={videoRef}

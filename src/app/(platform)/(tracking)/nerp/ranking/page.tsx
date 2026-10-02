@@ -321,7 +321,7 @@ export default function SalesGoalRankingPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] opacity-60">Vendido</p>
-                    <p className="text-base font-bold text-emerald-400">{formatBrl(achievedTotal)}</p>
+                    <p className="text-base font-bold text-success">{formatBrl(achievedTotal)}</p>
                   </div>
                 </div>
               </div>

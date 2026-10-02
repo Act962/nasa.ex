@@ -5,6 +5,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
 import prisma from "@/lib/prisma";
+import { readIntegrationApiKey } from "@/features/integrations/lib/integration-api-key";
 
 /**
  * Escolhe o modelo que lê boleto e nota fiscal (spec 0014, D-5).
@@ -105,7 +106,7 @@ async function loadOrganizationKeys(
 
   const keys: Partial<Record<ExtractionProvider, string>> = {};
   for (const integration of integrations) {
-    const apiKey = (integration.config as Record<string, unknown> | null)?.apiKey;
+    const apiKey = readIntegrationApiKey(integration.config as Record<string, unknown> | null);
     if (typeof apiKey !== "string" || apiKey.length === 0) continue;
     if (integration.platform === "OPENAI") keys.openai = apiKey;
     if (integration.platform === "GEMINI") keys.google = apiKey;

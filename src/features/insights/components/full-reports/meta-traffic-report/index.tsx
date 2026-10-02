@@ -99,8 +99,8 @@ function KpiCard({
       <span
         className={cn(
           "inline-flex items-center gap-0.5 text-xs font-semibold",
-          positive && "text-emerald-600 dark:text-emerald-400",
-          negative && "text-red-600 dark:text-red-400",
+          positive && "text-success dark:text-success",
+          negative && "text-destructive dark:text-destructive",
           tone === "neutral" && !positive && !negative && "text-muted-foreground",
         )}
       >

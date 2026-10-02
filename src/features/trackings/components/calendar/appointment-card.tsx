@@ -13,13 +13,13 @@ interface AppointmentCardProps {
 
 const statusColorMap: Record<string, string> = {
   PENDING:
-    "bg-yellow-50 text-yellow-800 border-l-yellow-500 hover:bg-yellow-100",
+    "bg-warning/10 text-warning border-l-warning hover:bg-warning/15",
   CONFIRMED:
-    "bg-green-50 text-green-800 border-l-green-500 hover:bg-green-100",
-  CANCELED: "bg-red-50 text-red-800 border-l-red-500 hover:bg-red-100",
-  NO_SHOW: "bg-red-50 text-red-800 border-l-red-500 hover:bg-red-100",
-  FINISHED: "bg-blue-50 text-blue-800 border-l-blue-500 hover:bg-blue-100",
-  DEFAULT: "bg-slate-50 text-slate-800 border-l-slate-400 hover:bg-slate-100",
+    "bg-success/10 text-success border-l-success hover:bg-success/15",
+  CANCELED: "bg-destructive/10 text-destructive border-l-destructive hover:bg-destructive/15",
+  NO_SHOW: "bg-destructive/10 text-destructive border-l-destructive hover:bg-destructive/15",
+  FINISHED: "bg-info/10 text-info border-l-info hover:bg-info/15",
+  DEFAULT: "bg-muted text-foreground border-l-line hover:bg-accent",
 };
 
 export const AppointmentCard = ({

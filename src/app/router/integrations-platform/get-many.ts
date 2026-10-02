@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { maskIntegrationConfig } from "@/features/integrations/lib/integration-api-key";
 
 export const getManyPlatformIntegrations = base
   .use(requiredAuthMiddleware)
@@ -13,7 +14,12 @@ export const getManyPlatformIntegrations = base
     });
     return {
       integrations: integrations.map((integration) => {
-        if (integration.platform !== "SEI") return integration;
+        if (integration.platform !== "SEI") {
+          return {
+            ...integration,
+            config: maskIntegrationConfig(integration.platform, integration.config as Record<string, unknown>),
+          };
+        }
         const config = integration.config as Record<string, unknown>;
         return {
           ...integration,

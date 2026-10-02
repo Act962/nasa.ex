@@ -35,11 +35,11 @@ export default async function PublicReportPage({ params }: PublicReportPageProps
       : "Período não informado";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-violet-50 to-white dark:from-violet-950/20 dark:to-background">
+    <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <header className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="size-12 rounded-xl bg-violet-600 flex items-center justify-center">
+            <div className="size-12 rounded-xl bg-info flex items-center justify-center">
               <FileBarChart2 className="size-6 text-white" />
             </div>
             <div>

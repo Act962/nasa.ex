@@ -1,5 +1,6 @@
 "use client";
 
+import { CHART_PALETTE, CHART_MUTED_FILL } from "@/lib/chart-palette";
 import {
   Bar,
   BarChart,
@@ -36,19 +37,10 @@ interface TagsChartProps {
   onClick?: (leadIds?: string[]) => void;
 }
 
-const TAG_COLORS = [
-  "hsl(262, 83%, 58%)",
-  "hsl(221, 83%, 53%)",
-  "hsl(142, 71%, 45%)",
-  "hsl(38, 92%, 50%)",
-  "hsl(330, 81%, 60%)",
-  "hsl(0, 84%, 60%)",
-  "hsl(173, 80%, 40%)",
-  "hsl(199, 89%, 48%)",
-];
+const TAG_COLORS = CHART_PALETTE;
 
 const MAX_VISIBLE = 8;
-const OTHERS_FILL = "hsl(220, 9%, 46%)";
+const OTHERS_FILL = CHART_MUTED_FILL;
 
 export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
   const isMobile = useIsMobile();

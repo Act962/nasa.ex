@@ -17,25 +17,9 @@ import {
   isItemVisible,
 } from "@/hooks/use-sidebar-prefs";
 import { ICON_MODE_BUTTON, ICON_MODE_LABEL } from "./icon-mode";
+import { AstroSymbolIcon } from "@/components/astro-symbol-icon";
 import { AppsLauncher } from "./apps-launcher";
 import { useUnansweredTotal } from "@/features/tracking-chat/hooks/use-unanswered-counts";
-
-function AstroNavIcon({ className }: { className?: string }) {
-  return (
-    <>
-      <img
-        src="/icon-astro-light.svg"
-        alt="Astro"
-        className={cn("w-4 h-4 object-contain dark:hidden", className)}
-      />
-      <img
-        src="/icon-astro.svg"
-        alt="Astro"
-        className={cn("w-4 h-4 object-contain hidden dark:block", className)}
-      />
-    </>
-  );
-}
 
 /** Bolinha de leads esperando resposta, no ícone do app (spec 0030, RF-7). */
 function NavIconWithBadge({
@@ -51,7 +35,7 @@ function NavIconWithBadge({
     <span className="relative flex shrink-0 items-center justify-center">
       <Icon className="size-4 shrink-0" />
       {count > 0 && (
-        <span className="absolute -top-1 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold leading-none text-white pointer-events-none">
+        <span className="absolute -top-1 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-destructive px-0.5 text-[8px] font-bold leading-none text-white pointer-events-none">
           {count > 99 ? "99+" : count}
         </span>
       )}
@@ -103,7 +87,7 @@ export function NavMenu() {
             {/* `home=1` evita o redirect pro app principal — o Início continua
                 acessível mesmo com outro app definido como inicial. */}
             <Link href="/home?home=1">
-              <AstroNavIcon />
+              <AstroSymbolIcon className="size-[18px]" />
               <span className={ICON_MODE_LABEL}>Início</span>
             </Link>
           </SidebarMenuButton>
@@ -113,9 +97,10 @@ export function NavMenu() {
           // Apps abre o painel de 2 colunas em vez de navegar direto.
           if (item.key === "apps") return <AppsLauncher key={item.key} />;
 
+          const activePath = item.activePrefix ?? item.url;
           const isActive =
-            pathname === item.url ||
-            (item.url !== "/home" && pathname.startsWith(item.url + "/"));
+            pathname === activePath ||
+            (activePath !== "/home" && pathname.startsWith(activePath + "/"));
           const Icon = item.icon as React.ElementType;
           const tourAttr = TOUR_ATTRS[item.key];
 

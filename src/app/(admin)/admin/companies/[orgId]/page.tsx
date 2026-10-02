@@ -48,17 +48,17 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ orgI
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/admin/companies" className="text-zinc-500 hover:text-white transition-colors">
+        <Link href="/admin/companies" className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div>
-          <h1 className="text-xl font-bold text-white">{org.name}</h1>
-          <p className="text-sm text-zinc-400">{org.slug} · desde {new Date(org.createdAt).toLocaleDateString("pt-BR")}</p>
+          <h1 className="text-xl font-bold text-foreground">{org.name}</h1>
+          <p className="text-sm text-muted-foreground">{org.slug} · desde {new Date(org.createdAt).toLocaleDateString("pt-BR")}</p>
         </div>
-        <div className="ml-auto flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-2">
-          <Star className="w-4 h-4 text-yellow-400" />
-          <span className="text-lg font-bold text-yellow-400">{org.starsBalance.toLocaleString("pt-BR")}</span>
-          <span className="text-xs text-zinc-400">stars</span>
+        <div className="ml-auto flex items-center gap-2 bg-warning/10 border border-warning/20 rounded-xl px-4 py-2">
+          <Star className="w-4 h-4 text-warning" />
+          <span className="text-lg font-bold text-warning">{org.starsBalance.toLocaleString("pt-BR")}</span>
+          <span className="text-xs text-muted-foreground">stars</span>
         </div>
       </div>
 
@@ -81,12 +81,12 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ orgI
       <OrgActivityLog orgId={org.id} members={org.members} />
 
       {/* Transaction history */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-white mb-4">Histórico de Stars</h2>
+      <div className="bg-card border border-border rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-foreground mb-4">Histórico de Stars</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-zinc-500 text-xs uppercase border-b border-zinc-800">
+              <tr className="text-muted-foreground text-xs uppercase border-b border-border">
                 <th className="text-left py-2 pr-4">Tipo</th>
                 <th className="text-right py-2 pr-4">Valor</th>
                 <th className="text-right py-2 pr-4">Saldo após</th>
@@ -94,16 +94,16 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ orgI
                 <th className="text-right py-2">Data</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody className="divide-y divide-border">
               {org.starTransactions.map((tx) => (
                 <tr key={tx.id} className="text-xs">
-                  <td className="py-2 pr-4 text-zinc-400">{txTypeLabel[tx.type] ?? tx.type}</td>
-                  <td className={`py-2 pr-4 text-right font-semibold ${tx.amount > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                  <td className="py-2 pr-4 text-muted-foreground">{txTypeLabel[tx.type] ?? tx.type}</td>
+                  <td className={`py-2 pr-4 text-right font-semibold ${tx.amount > 0 ? "text-success" : "text-destructive"}`}>
                     {tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString("pt-BR")}
                   </td>
-                  <td className="py-2 pr-4 text-right text-zinc-300">{tx.balanceAfter.toLocaleString("pt-BR")}</td>
-                  <td className="py-2 pr-4 text-zinc-400 max-w-xs truncate">{tx.description}</td>
-                  <td className="py-2 text-right text-zinc-500">
+                  <td className="py-2 pr-4 text-right text-foreground">{tx.balanceAfter.toLocaleString("pt-BR")}</td>
+                  <td className="py-2 pr-4 text-muted-foreground max-w-xs truncate">{tx.description}</td>
+                  <td className="py-2 text-right text-muted-foreground">
                     {new Date(tx.createdAt).toLocaleDateString("pt-BR")}
                   </td>
                 </tr>

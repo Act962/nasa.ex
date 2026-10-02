@@ -580,7 +580,7 @@ function CarouselSlidesEditor({
             onClick={() => onPatch({ carouselMode: opt.value })}
             className={`rounded border px-2 py-1 text-[10px] font-medium ${
               carouselMode === opt.value
-                ? "bg-indigo-500 text-white border-indigo-500"
+                ? "bg-foreground text-background border-foreground"
                 : "bg-background text-muted-foreground border-border hover:bg-accent"
             }`}
           >
@@ -599,7 +599,7 @@ function CarouselSlidesEditor({
           onClick={() => onPatch({ backgroundTransparent: true })}
           className={`rounded border px-2 py-1 text-[10px] font-medium ${
             isTransparent
-              ? "bg-indigo-500 text-white border-indigo-500"
+              ? "bg-foreground text-background border-foreground"
               : "bg-background text-muted-foreground border-border hover:bg-accent"
           }`}
         >
@@ -610,7 +610,7 @@ function CarouselSlidesEditor({
           onClick={() => onPatch({ backgroundTransparent: false })}
           className={`rounded border px-2 py-1 text-[10px] font-medium ${
             !isTransparent
-              ? "bg-indigo-500 text-white border-indigo-500"
+              ? "bg-foreground text-background border-foreground"
               : "bg-background text-muted-foreground border-border hover:bg-accent"
           }`}
         >
@@ -733,7 +733,7 @@ function CarouselSlidesEditor({
             onClick={() => onPatch({ imageMode: opt.value })}
             className={`rounded border px-2 py-1 text-[10px] font-medium ${
               imageMode === opt.value
-                ? "bg-indigo-500 text-white border-indigo-500"
+                ? "bg-foreground text-background border-foreground"
                 : "bg-background text-muted-foreground border-border hover:bg-accent"
             }`}
           >

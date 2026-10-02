@@ -15,6 +15,10 @@ import {
   type TagData,
 } from "@/features/insights/types";
 import { getDefaultVisibleKeys } from "@/features/insights/lib/insights-metric-catalog";
+import type { ChartsSnapshot } from "@/features/insights/hooks/use-charts-snapshot";
+import { FrozenChartCard } from "@/features/insights/components/cross-chart/frozen-chart-card";
+import { CrossInsightTiles } from "@/features/insights/components/cross-insight-tiles";
+import type { KpiCardStyle } from "@/features/insights/lib/kpi-card-style";
 
 interface PublicReportClientProps {
   snapshot: Record<string, unknown>;
@@ -35,9 +39,13 @@ export function PublicReportClient({
 }: PublicReportClientProps) {
   const sectionPrefs =
     (snapshot.sectionPrefs as Record<string, string[]>) ?? {};
+  const sectionCardStyles = (snapshot.sectionCardStyles ?? {}) as Record<string, Record<string, KpiCardStyle>>;
   const apps = (snapshot.apps as Record<string, unknown>) ?? {};
   const summary = snapshot.summary as Record<string, unknown> | undefined;
   const metaAds = snapshot.metaAds as Record<string, unknown> | undefined;
+  // Gráficos congelados no momento do salvamento (relatórios antigos não têm — seções ficam só com cartões).
+  const crossChart = snapshot.crossChart as ChartsSnapshot["crossChart"];
+  const appCharts = (snapshot.appCharts ?? {}) as ChartsSnapshot["appCharts"];
   const charts = snapshot.charts as
     | {
         byStatus?: Array<{ name: string; value: number; fill?: string }>;
@@ -102,6 +110,8 @@ export function PublicReportClient({
           // tracking-performance não é capturado hoje no snapshot — KPIs
           // de performance ficam vazios em relatórios.
           trackingPerformance: snapshot.trackingPerformance ?? {},
+          // Indicadores extras do Tracking (conversão, valores, origem, perdas).
+          tracking: apps.tracking ?? {},
         };
       case "forge":
         return { forge: apps.forge ?? snapshot.forge ?? {} };
@@ -133,6 +143,8 @@ export function PublicReportClient({
             publicStations: ss?.publicStations ?? 0,
             starsSent: ss?.starsSentInPeriod ?? 0,
             starsReceived: ss?.starsReceivedInPeriod ?? 0,
+            pendingAccessRequests: ss?.pendingAccessRequests ?? 0,
+            approvedAccessRequests: ss?.approvedAccessRequests ?? 0,
           },
         };
       }
@@ -148,9 +160,21 @@ export function PublicReportClient({
             certificates: nr?.certificatesIssued ?? 0,
             completionRate: nr?.completionRate ?? 0,
             avgTimeToCertificate: nr?.avgTimeToCertificate ?? 0,
+            topCourses: nr?.topCourses ?? [],
+            completedLessons: nr?.completedLessons ?? 0,
+            freeEnrollments: nr?.freeEnrollments ?? 0,
+            revenueBrl: nr?.revenueBrl ?? 0,
           },
         };
       }
+      case "campanhas":
+        return { campanhas: apps.campanhas ?? {} };
+      case "trafego":
+        return { trafego: apps.trafego ?? {} };
+      case "nerp":
+        return { nerp: apps.nerp ?? {} };
+      case "star-friends":
+        return { starFriends: apps.starFriends ?? {} };
       case "integrations":
         return { metaAds: metaAds ?? {} };
       default:
@@ -160,18 +184,32 @@ export function PublicReportClient({
 
   return (
     <div className="space-y-8">
-      {/* Cards KPI por app — usando sectionPrefs salvas */}
+      {crossChart && <FrozenChartCard chart={crossChart} globalType={crossChart.globalType} heightPx={320} />}
+
+      <CrossInsightTiles
+        tracking={summary as never}
+        chat={apps.chat as never}
+        forge={apps.forge as never}
+        spacetime={apps.spacetime as never}
+        metaAds={metaAds as never}
+      />
+
+      {/* Cards KPI por app — na ordem e com os indicadores salvos — e o gráfico de cada App congelado. */}
       {selectedModules.map((appModule) => {
         const visibleKeys =
           sectionPrefs[appModule] ?? getDefaultVisibleKeys(appModule);
-        if (visibleKeys.length === 0) return null;
+        const appChart = appCharts[appModule];
+        if (visibleKeys.length === 0 && !appChart) return null;
         return (
-          <SnapshotSection
-            key={appModule}
-            appModule={appModule}
-            data={dataForModule(appModule)}
-            visibleKeys={visibleKeys}
-          />
+          <div key={appModule} className="space-y-3">
+            <SnapshotSection
+              appModule={appModule}
+              data={dataForModule(appModule)}
+              visibleKeys={visibleKeys}
+              cardStyles={sectionCardStyles[appModule]}
+            />
+            {appChart && <FrozenChartCard chart={appChart} />}
+          </div>
         );
       })}
 

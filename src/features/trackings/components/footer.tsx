@@ -13,21 +13,21 @@ export function Footer() {
         label="EXCLUIR"
         typeAction="excluir"
         className="text-foreground"
-        overClassName="bg-[#ffffff1a] border-0"
+        overClassName="bg-foreground/10 border-0"
       />
       <ButtonAction
         id="ganho"
         label="GANHO"
         typeAction="ganho"
-        className="text-green-900"
-        overClassName="bg-green-900 border-0 text-white"
+        className="text-success"
+        overClassName="bg-success border-0 text-white"
       />
       <ButtonAction
         id="perdido"
         label="PERDIDO"
         typeAction="perdido"
-        className="text-red-500"
-        overClassName="bg-red-500 border-0 text-white"
+        className="text-destructive"
+        overClassName="bg-destructive border-0 text-white"
       />
     </div>
   );

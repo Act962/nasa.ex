@@ -42,7 +42,7 @@ export function AgentCard({ agent, onEdit }: AgentCardProps) {
   return (
     <Card className="p-4 flex flex-col gap-3 group">
       <div className="flex items-start gap-3">
-        <div className="size-10 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+        <div className="size-10 rounded-lg bg-success/10 text-success flex items-center justify-center shrink-0">
           <BotIcon className="size-5" />
         </div>
         <div className="flex-1 min-w-0">
@@ -55,7 +55,7 @@ export function AgentCard({ agent, onEdit }: AgentCardProps) {
               {agent.mode}
             </Badge>
             {agent.isActive ? (
-              <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-300">
+              <Badge className="text-[10px] bg-success/10 text-success border-success/30">
                 Ativo
               </Badge>
             ) : (

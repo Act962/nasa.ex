@@ -15,8 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ImageIcon,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { APPS } from "@/features/apps/components/apps-data";
@@ -102,7 +102,7 @@ export function SupportPage() {
                     className="h-40 text-center text-muted-foreground"
                   >
                     <div className="flex flex-col items-center justify-center space-y-3">
-                      <Loader2 className="size-8 animate-spin text-primary/50" />
+                      <OrbitaSpinner className="size-8 text-primary/50" />
                       <p className="text-sm font-medium">Carregando dados...</p>
                     </div>
                   </TableCell>

@@ -32,19 +32,19 @@ export function AstroChartCard({ payload }: { payload: AstroChartPayload }) {
   const isEmpty = payload.data.length === 0;
 
   return (
-    <div className="w-full overflow-hidden rounded-lg border border-zinc-800/80 bg-zinc-900/40">
-      <div className="border-b border-zinc-800/80 px-3 py-2">
-        <div className="text-xs font-semibold text-zinc-200">
+    <div className="w-full overflow-hidden rounded-lg border border-line/80 bg-card/40">
+      <div className="border-b border-line/80 px-3 py-2">
+        <div className="text-xs font-semibold text-foreground">
           {payload.title}
         </div>
         {payload.caption && (
-          <div className="text-[11px] text-zinc-500 mt-0.5">
+          <div className="text-[11px] text-muted-foreground mt-0.5">
             {payload.caption}
           </div>
         )}
       </div>
       {isEmpty ? (
-        <div className="flex items-center justify-center h-32 px-3 py-2 text-xs text-zinc-500 italic">
+        <div className="flex items-center justify-center h-32 px-3 py-2 text-xs text-muted-foreground italic">
           Sem dados pra esse gráfico no período.
         </div>
       ) : (
@@ -121,27 +121,27 @@ function RenderBar({
 }) {
   return (
     <BarChart width={width} height={height} data={payload.data}>
-      <CartesianGrid stroke="#27272a" strokeDasharray="3 3" vertical={false} />
+      <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false} />
       <XAxis
         dataKey="label"
-        tick={{ fill: "#a1a1aa", fontSize: 11 }}
-        axisLine={{ stroke: "#3f3f46" }}
-        tickLine={{ stroke: "#3f3f46" }}
+        tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+        axisLine={{ stroke: "var(--line)" }}
+        tickLine={{ stroke: "var(--line)" }}
       />
       <YAxis
-        tick={{ fill: "#a1a1aa", fontSize: 11 }}
-        axisLine={{ stroke: "#3f3f46" }}
-        tickLine={{ stroke: "#3f3f46" }}
+        tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+        axisLine={{ stroke: "var(--line)" }}
+        tickLine={{ stroke: "var(--line)" }}
         tickFormatter={(v) => tooltipFormatter(v, payload.valueFormat)}
       />
       <Tooltip
         contentStyle={{
-          background: "#18181b",
-          border: "1px solid #3f3f46",
+          background: "var(--popover)",
+          border: "1px solid var(--line)",
           borderRadius: 6,
           fontSize: 12,
         }}
-        labelStyle={{ color: "#e4e4e7" }}
+        labelStyle={{ color: "var(--popover-foreground)" }}
         formatter={(value: unknown) => [
           tooltipFormatter(value, payload.valueFormat),
           payload.yLabel ?? "Valor",
@@ -167,27 +167,27 @@ function RenderLine({
 }) {
   return (
     <LineChart width={width} height={height} data={payload.data}>
-      <CartesianGrid stroke="#27272a" strokeDasharray="3 3" vertical={false} />
+      <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false} />
       <XAxis
         dataKey="label"
-        tick={{ fill: "#a1a1aa", fontSize: 11 }}
-        axisLine={{ stroke: "#3f3f46" }}
-        tickLine={{ stroke: "#3f3f46" }}
+        tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+        axisLine={{ stroke: "var(--line)" }}
+        tickLine={{ stroke: "var(--line)" }}
       />
       <YAxis
-        tick={{ fill: "#a1a1aa", fontSize: 11 }}
-        axisLine={{ stroke: "#3f3f46" }}
-        tickLine={{ stroke: "#3f3f46" }}
+        tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+        axisLine={{ stroke: "var(--line)" }}
+        tickLine={{ stroke: "var(--line)" }}
         tickFormatter={(v) => tooltipFormatter(v, payload.valueFormat)}
       />
       <Tooltip
         contentStyle={{
-          background: "#18181b",
-          border: "1px solid #3f3f46",
+          background: "var(--popover)",
+          border: "1px solid var(--line)",
           borderRadius: 6,
           fontSize: 12,
         }}
-        labelStyle={{ color: "#e4e4e7" }}
+        labelStyle={{ color: "var(--popover-foreground)" }}
         formatter={(value: unknown) => [
           tooltipFormatter(value, payload.valueFormat),
           payload.yLabel ?? "Valor",
@@ -196,9 +196,9 @@ function RenderLine({
       <Line
         type="monotone"
         dataKey="value"
-        stroke="#8b5cf6"
+        stroke="var(--chart-2)"
         strokeWidth={2}
-        dot={{ fill: "#8b5cf6", r: 3 }}
+        dot={{ fill: "var(--chart-2)", r: 3 }}
         activeDot={{ r: 5 }}
       />
     </LineChart>
@@ -232,12 +232,12 @@ function RenderPie({
       </Pie>
       <Tooltip
         contentStyle={{
-          background: "#18181b",
-          border: "1px solid #3f3f46",
+          background: "var(--popover)",
+          border: "1px solid var(--line)",
           borderRadius: 6,
           fontSize: 12,
         }}
-        labelStyle={{ color: "#e4e4e7" }}
+        labelStyle={{ color: "var(--popover-foreground)" }}
         formatter={(value: unknown) => [
           tooltipFormatter(value, payload.valueFormat),
           "Quantidade",
@@ -246,7 +246,7 @@ function RenderPie({
       <Legend
         verticalAlign="bottom"
         height={36}
-        wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }}
+        wrapperStyle={{ fontSize: 11, color: "var(--muted-foreground)" }}
       />
     </PieChart>
   );

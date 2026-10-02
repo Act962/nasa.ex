@@ -79,22 +79,22 @@ export default async function StarsPage({ searchParams }: { searchParams: Promis
     <div className="space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <Star className="w-5 h-5 text-yellow-400" /> Stars
+        <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <Star className="w-5 h-5 text-warning" /> Stars
         </h1>
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Gerencie histórico de transações e distribuição de Stars por empresa.
         </p>
       </div>
 
       {/* Tab navigation */}
-      <div className="flex gap-1 p-1 bg-zinc-800/60 rounded-xl w-fit border border-zinc-700/40">
+      <div className="flex gap-1 p-1 bg-panel rounded-full w-fit">
         <Link
           href="?tab=history"
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
             tab === "history"
-              ? "bg-zinc-700 text-white shadow-sm"
-              : "text-zinc-400 hover:text-white"
+              ? "bg-foreground text-background shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
           <History className="size-4" />
@@ -102,10 +102,10 @@ export default async function StarsPage({ searchParams }: { searchParams: Promis
         </Link>
         <Link
           href="?tab=distribution"
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
             tab === "distribution"
-              ? "bg-zinc-700 text-white shadow-sm"
-              : "text-zinc-400 hover:text-white"
+              ? "bg-foreground text-background shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
           <Sliders className="size-4" />
@@ -113,10 +113,10 @@ export default async function StarsPage({ searchParams }: { searchParams: Promis
         </Link>
         <Link
           href="?tab=rules"
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
             tab === "rules"
-              ? "bg-zinc-700 text-white shadow-sm"
-              : "text-zinc-400 hover:text-white"
+              ? "bg-foreground text-background shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
           <ListChecks className="size-4" />
@@ -127,10 +127,10 @@ export default async function StarsPage({ searchParams }: { searchParams: Promis
       {/* ── Tab: Histórico ──────────────────────────────────────────────── */}
       {tab === "history" && (
         <div className="space-y-5">
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-muted-foreground">
             {total.toLocaleString("pt-BR")} transação(ões) ·{" "}
             Total líquido:{" "}
-            <span className={netAmount >= 0 ? "text-emerald-400" : "text-red-400"}>
+            <span className={netAmount >= 0 ? "text-success" : "text-destructive"}>
               {netAmount.toLocaleString("pt-BR")} ⭐
             </span>
           </p>
@@ -138,23 +138,23 @@ export default async function StarsPage({ searchParams }: { searchParams: Promis
           {/* Filters */}
           <form className="flex gap-3 flex-wrap">
             <select name="type" defaultValue={filterType}
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/60">
+              className="bg-muted border border-line rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-info/30">
               <option value="">Todos os tipos</option>
               {TX_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
             <input type="hidden" name="tab" value="history" />
             <button type="submit"
-              className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+              className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
               Filtrar
             </button>
           </form>
 
           {/* Table */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-zinc-500 text-xs uppercase border-b border-zinc-800">
+                  <tr className="text-muted-foreground text-xs uppercase border-b border-border">
                     <th className="text-left px-5 py-3">Empresa</th>
                     <th className="text-left px-5 py-3">Tipo</th>
                     <th className="text-right px-5 py-3">Valor</th>
@@ -163,30 +163,30 @@ export default async function StarsPage({ searchParams }: { searchParams: Promis
                     <th className="text-right px-5 py-3">Data</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800">
+                <tbody className="divide-y divide-border">
                   {transactions.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-zinc-800/50 transition-colors">
+                    <tr key={tx.id} className="hover:bg-muted transition-colors">
                       <td className="px-5 py-3">
                         <Link href={`/admin/companies/${tx.organizationId}`}
-                          className="text-violet-400 hover:text-violet-300 font-medium transition-colors">
+                          className="text-info hover:text-info font-medium transition-colors">
                           {tx.organization.name}
                         </Link>
                       </td>
                       <td className="px-5 py-3">
-                        <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded-full">
+                        <span className="text-xs bg-muted text-foreground px-2 py-1 rounded-full">
                           {txLabel[tx.type] ?? tx.type}
                         </span>
                       </td>
-                      <td className={`px-5 py-3 text-right font-semibold ${tx.amount > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      <td className={`px-5 py-3 text-right font-semibold ${tx.amount > 0 ? "text-success" : "text-destructive"}`}>
                         {tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString("pt-BR")}
                       </td>
-                      <td className="px-5 py-3 text-right text-zinc-300 text-xs">
+                      <td className="px-5 py-3 text-right text-foreground text-xs">
                         {tx.balanceAfter.toLocaleString("pt-BR")}
                       </td>
-                      <td className="px-5 py-3 text-zinc-400 text-xs max-w-xs truncate">
+                      <td className="px-5 py-3 text-muted-foreground text-xs max-w-xs truncate">
                         {tx.description}
                       </td>
-                      <td className="px-5 py-3 text-right text-zinc-500 text-xs">
+                      <td className="px-5 py-3 text-right text-muted-foreground text-xs">
                         {new Date(tx.createdAt).toLocaleDateString("pt-BR")}
                       </td>
                     </tr>
@@ -196,18 +196,18 @@ export default async function StarsPage({ searchParams }: { searchParams: Promis
             </div>
 
             {totalPages > 1 && (
-              <div className="px-5 py-4 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-400">
+              <div className="px-5 py-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
                 <span>Página {page} de {totalPages}</span>
                 <div className="flex gap-2">
                   {page > 1 && (
                     <Link href={`?tab=history&type=${filterType}&page=${page - 1}`}
-                      className="px-3 py-1.5 bg-zinc-800 rounded-lg hover:bg-zinc-700">
+                      className="px-3 py-1.5 bg-muted rounded-lg hover:bg-knob">
                       ← Anterior
                     </Link>
                   )}
                   {page < totalPages && (
                     <Link href={`?tab=history&type=${filterType}&page=${page + 1}`}
-                      className="px-3 py-1.5 bg-zinc-800 rounded-lg hover:bg-zinc-700">
+                      className="px-3 py-1.5 bg-muted rounded-lg hover:bg-knob">
                       Próxima →
                     </Link>
                   )}

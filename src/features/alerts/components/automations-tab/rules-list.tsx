@@ -54,12 +54,12 @@ export function RulesList({
 }: RulesListProps) {
   if (loading) {
     return (
-      <div className="text-xs text-zinc-500">Carregando regras…</div>
+      <div className="text-xs text-muted-foreground">Carregando regras…</div>
     );
   }
   if (rules.length === 0) {
     return (
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-3 py-6 text-center text-xs text-zinc-500">
+      <div className="rounded-lg border border-line bg-panel px-3 py-6 text-center text-xs text-muted-foreground">
         Nenhuma regra criada pra esse app ainda. Clica num card acima pra
         começar.
       </div>
@@ -70,10 +70,10 @@ export function RulesList({
 
   return (
     <div className="space-y-2">
-      <div className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">
+      <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
         Suas regras
       </div>
-      <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/30 divide-y divide-zinc-800/60">
+      <div className="rounded-lg border border-line bg-panel divide-y divide-line">
         {rules.map((rule) => (
           <RuleRow
             key={rule.id}
@@ -110,10 +110,10 @@ function RuleRow({
         : Bell;
   const sevColor =
     rule.severity === "critical"
-      ? "text-red-400"
+      ? "text-destructive"
       : rule.severity === "warning"
-        ? "text-amber-400"
-        : "text-blue-400";
+        ? "text-warning"
+        : "text-info";
 
   return (
     <div
@@ -128,8 +128,8 @@ function RuleRow({
         className={cn(
           "shrink-0 p-1.5 rounded-md transition-colors",
           rule.isActive
-            ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
-            : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700",
+            ? "bg-success/20 text-success hover:bg-success/30"
+            : "bg-muted text-muted-foreground hover:bg-knob",
         )}
         aria-label={rule.isActive ? "Desativar" : "Ativar"}
         title={rule.isActive ? "Desativar regra" : "Ativar regra"}
@@ -141,27 +141,27 @@ function RuleRow({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-semibold text-zinc-200 truncate">
+          <span className="text-xs font-semibold text-foreground truncate">
             {rule.name}
           </span>
           {rule.isGlobal ? (
-            <span className="inline-flex items-center gap-1 text-[10px] text-zinc-500 bg-zinc-800/60 px-1.5 py-0.5 rounded">
+            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
               <Building2 className="w-2.5 h-2.5" />
               Global
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[10px] text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded">
+            <span className="inline-flex items-center gap-1 text-[10px] text-info bg-info/10 px-1.5 py-0.5 rounded">
               <User className="w-2.5 h-2.5" />
               Org
             </span>
           )}
         </div>
-        <div className="text-[11px] text-zinc-500 mt-0.5 truncate">
+        <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
           {eventLabel}
           {rule.lastDispatchAt && (
             <>
               {" · "}
-              <span className="text-zinc-600">
+              <span className="text-muted-foreground/70">
                 últ. disparo{" "}
                 {formatDistanceToNow(new Date(rule.lastDispatchAt), {
                   locale: ptBR,
@@ -177,7 +177,7 @@ function RuleRow({
         <button
           type="button"
           onClick={onEdit}
-          className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
+          className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           aria-label="Editar"
           title="Editar"
         >
@@ -186,7 +186,7 @@ function RuleRow({
         <button
           type="button"
           onClick={onDelete}
-          className="p-1.5 rounded-md text-zinc-500 hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
+          className="p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
           aria-label="Excluir"
           title="Excluir"
         >

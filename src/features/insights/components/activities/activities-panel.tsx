@@ -56,14 +56,14 @@ function OnlineBadge() {
       className={cn(
         "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border cursor-pointer select-none transition-colors",
         count > 0
-          ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800"
-          : "bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-900/30",
+          ? "bg-success/10 text-success border-success/30 hover:bg-success/15 dark:bg-success/15 dark:text-success dark:border-success"
+          : "bg-muted text-muted-foreground border-line dark:bg-card/30",
       )}
     >
       <span
         className={cn(
           "size-2 rounded-full shrink-0",
-          count > 0 ? "bg-emerald-500 animate-pulse" : "bg-slate-300",
+          count > 0 ? "bg-success animate-pulse" : "bg-muted",
         )}
       />
       {count} online agora
@@ -92,7 +92,7 @@ function OnlineBadge() {
                     {initials(u.userName)}
                   </AvatarFallback>
                 </Avatar>
-                <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-500 border-2 border-background" />
+                <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-success border-2 border-background" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium truncate">{u.userName}</p>
@@ -142,8 +142,8 @@ export function ActivitiesPanel() {
   if (isSingle) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-16 text-center">
-        <div className="size-14 rounded-full bg-amber-100 flex items-center justify-center">
-          <Activity className="size-7 text-amber-600" />
+        <div className="size-14 rounded-full bg-warning/15 flex items-center justify-center">
+          <Activity className="size-7 text-warning" />
         </div>
         <div>
           <h3 className="text-base font-semibold">Acesso Restrito</h3>

@@ -44,7 +44,7 @@ export function SelectField({
           // O trigger do shadcn troca de fundo no hover (`dark:hover:bg-input/50`).
           // Aqui o campo tem que reagir igual aos inputs ao lado: só a borda.
           "dark:bg-white/[0.04] dark:hover:bg-white/[0.04] hover:border-white/20",
-          "focus-visible:border-violet-400/60 focus-visible:ring-0",
+          "focus-visible:border-info/60 focus-visible:ring-0",
           "[&_svg]:text-white/30",
         )}
       >

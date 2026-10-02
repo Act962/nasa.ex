@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
+import { CHART_PALETTE } from "@/lib/chart-palette";
 import { useUserStats, type RankingPeriod } from "../hooks/use-space-point";
 
 // ── Action → icon map ─────────────────────────────────────────────────────────
@@ -23,19 +24,16 @@ const ACTION_ICONS: Record<string, string> = {
   manual:                "✨",
 };
 
-const BAR_COLORS = [
-  "#7a1fe7", "#a855f7", "#ec4899", "#f59e0b",
-  "#10b981", "#3b82f6", "#ef4444", "#8b5cf6",
-];
+const BAR_COLORS = CHART_PALETTE;
 
 // ── Custom tooltip for bar chart ──────────────────────────────────────────────
 function ChartTooltip({ active, payload }: { active?: boolean; payload?: { payload: { label: string; points: number; count: number } }[] }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="bg-[#1a0a3d] border border-[#7a1fe7]/40 rounded-xl px-3 py-2 text-xs shadow-xl">
-      <p className="font-semibold text-white mb-1">{d.label}</p>
-      <p className="text-[#a78bfa]">{d.points} pts</p>
+    <div className="bg-popover border border-info/40 rounded-xl px-3 py-2 text-xs shadow-xl">
+      <p className="font-semibold text-foreground mb-1">{d.label}</p>
+      <p className="text-info">{d.points} pts</p>
       <p className="text-muted-foreground">{d.count} ações</p>
     </div>
   );
@@ -50,7 +48,7 @@ function SealBadge({ badgeNumber, name, earnedAt }: { badgeNumber: number; name:
           src={`/space-point/badges/${badgeNumber}.svg`}
           alt={name}
           fill
-          className="object-contain drop-shadow-[0_0_8px_rgba(122,31,231,0.6)]"
+          className="object-contain drop-shadow-[0_0_8px_color-mix(in_oklch,var(--info)_60%,transparent)]"
         />
       </div>
       <p className="text-[9px] text-muted-foreground text-center leading-tight">{name}</p>
@@ -68,15 +66,15 @@ function HistoryRow({ item }: {
   const timeStr = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-white/5 last:border-0">
-      <div className="w-8 h-8 rounded-xl bg-[#7a1fe7]/15 flex items-center justify-center text-base shrink-0">
+    <div className="flex items-center gap-3 py-2.5 border-b border-line last:border-0">
+      <div className="w-8 h-8 rounded-xl bg-info/15 flex items-center justify-center text-base shrink-0">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-foreground truncate">{item.description}</p>
         <p className="text-[10px] text-muted-foreground">{dateStr} · {timeStr}</p>
       </div>
-      <span className="text-xs font-bold text-[#a78bfa] shrink-0">+{item.points}</span>
+      <span className="text-xs font-bold text-info shrink-0">+{item.points}</span>
     </div>
   );
 }
@@ -120,7 +118,7 @@ export function UserStatsDrawer({
 
       {/* Panel */}
       <div
-        className="relative h-full w-full max-w-sm flex flex-col bg-[#0d0d1a] border-l border-[#7a1fe7]/25 shadow-2xl overflow-hidden"
+        className="relative h-full w-full max-w-sm flex flex-col bg-card border-l border-info/25 shadow-2xl overflow-hidden"
         style={{ animation: "slideInRight 0.3s ease-out" }}
       >
         <style>{`
@@ -131,34 +129,34 @@ export function UserStatsDrawer({
         `}</style>
 
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-[#7a1fe7]/15 bg-gradient-to-r from-[#7a1fe7]/10 to-transparent shrink-0">
-          <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-[#7a1fe7]/50 shrink-0">
+        <div className="flex items-center gap-3 px-4 py-4 bg-gradient-to-r from-info/10 to-transparent shrink-0">
+          <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-info/50 shrink-0">
             {userImage ? (
               <Image src={userImage} alt={userName} fill className="object-cover" />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-[#7a1fe7] to-[#4c1d95] flex items-center justify-center text-white text-sm font-bold">
+              <div className="w-full h-full bg-info flex items-center justify-center text-background text-sm font-bold">
                 {initials}
               </div>
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white truncate">{userName}</p>
+            <p className="text-sm font-bold text-foreground truncate">{userName}</p>
             {data && (
-              <p className="text-[11px] text-[#a78bfa]">
+              <p className="text-[11px] text-info">
                 <span className="font-semibold tabular-nums">{data.totalInPeriod.toLocaleString("pt-BR")}</span> pts neste período
               </p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-all"
+            className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full bg-knob hover:bg-muted transition-all"
           >
-            <X className="size-4 text-white" />
+            <X className="size-4 text-foreground" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 px-3 pt-3 shrink-0">
+        <div className="mx-3 mt-3 flex shrink-0 gap-1 rounded-full bg-panel p-1">
           {([
             { key: "apps",    label: "Apps",     icon: <TrendingUp className="size-3" /> },
             { key: "history", label: "Histórico", icon: <Clock className="size-3" /> },
@@ -168,10 +166,10 @@ export function UserStatsDrawer({
               key={t.key}
               onClick={() => setTab(t.key)}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all",
+                "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-xs font-semibold transition-all",
                 tab === t.key
-                  ? "bg-[#7a1fe7] text-white"
-                  : "text-muted-foreground hover:bg-white/5",
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:bg-muted",
               )}
             >
               {t.icon}{t.label}
@@ -184,7 +182,7 @@ export function UserStatsDrawer({
           {isLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-12 rounded-xl bg-white/5 animate-pulse" />
+                <div key={i} className="h-12 rounded-xl bg-panel animate-pulse" />
               ))}
             </div>
           ) : (
@@ -199,7 +197,7 @@ export function UserStatsDrawer({
                   ) : (
                     <>
                       {/* Bar chart */}
-                      <div className="bg-white/3 rounded-2xl p-3 border border-white/5">
+                      <div className="bg-panel rounded-2xl p-3 border border-line">
                         <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-3">
                           Pontos por ação
                         </p>
@@ -210,11 +208,11 @@ export function UserStatsDrawer({
                               type="category"
                               dataKey="icon"
                               width={24}
-                              tick={{ fontSize: 14, fill: "white" }}
+                              tick={{ fontSize: 14, fill: "var(--foreground)" }}
                               tickLine={false}
                               axisLine={false}
                             />
-                            <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(122,31,231,0.08)" }} />
+                            <Tooltip content={<ChartTooltip />} cursor={{ fill: "color-mix(in oklch, var(--info) 8%, transparent)" }} />
                             <Bar dataKey="points" radius={[0, 6, 6, 0]} barSize={16}>
                               {chartData.map((_, idx) => (
                                 <Cell key={idx} fill={BAR_COLORS[idx % BAR_COLORS.length]} />
@@ -230,7 +228,7 @@ export function UserStatsDrawer({
                           const maxPts = data.appBreakdown[0]?.points ?? 1;
                           const pct = Math.round((item.points / maxPts) * 100);
                           return (
-                            <div key={item.action} className="bg-white/3 rounded-xl px-3 py-2.5 border border-white/5">
+                            <div key={item.action} className="bg-panel rounded-xl px-3 py-2.5 border border-line">
                               <div className="flex items-center gap-2 mb-1.5">
                                 <span className="text-base">{ACTION_ICONS[item.action] ?? "✨"}</span>
                                 <span className="text-xs font-medium text-foreground flex-1 truncate">{item.label}</span>
@@ -238,7 +236,7 @@ export function UserStatsDrawer({
                                   {item.points} pts
                                 </span>
                               </div>
-                              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                              <div className="h-1.5 bg-panel rounded-full overflow-hidden">
                                 <div
                                   className="h-full rounded-full transition-all duration-700"
                                   style={{ width: `${pct}%`, background: BAR_COLORS[idx % BAR_COLORS.length] }}

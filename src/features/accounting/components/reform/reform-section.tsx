@@ -79,7 +79,7 @@ export function ReformSection({ onNavigate }: { onNavigate?: (section: string) =
                   <span
                     className={cn(
                       "absolute -left-[27px] top-1 size-3 rounded-full border-2 border-background",
-                      isCurrentYear ? "bg-violet-600 ring-2 ring-violet-500/30" : "bg-muted-foreground/40",
+                      isCurrentYear ? "bg-info ring-2 ring-info/30" : "bg-muted-foreground/40",
                     )}
                     aria-hidden
                   />
@@ -87,7 +87,7 @@ export function ReformSection({ onNavigate }: { onNavigate?: (section: string) =
                     <p className="flex flex-wrap items-center gap-2">
                       <span className="text-lg font-bold tabular-nums">{milestone.year}</span>
                       <span className="font-semibold">{milestone.title}</span>
-                      {isCurrentYear && <Badge className="bg-violet-600 text-white">você está aqui</Badge>}
+                      {isCurrentYear && <Badge className="bg-info text-white">você está aqui</Badge>}
                       {(TIMELINE_TERM_IDS[milestone.year] ?? []).map((termId) => (
                         <FiscalTermHint key={termId} termId={termId} withLabel className="text-xs" />
                       ))}
@@ -104,7 +104,7 @@ export function ReformSection({ onNavigate }: { onNavigate?: (section: string) =
                         <ul className="space-y-1">
                           {regimeActions.map((action) => (
                             <li key={action} className="flex flex-wrap items-center gap-1.5">
-                              <Badge variant="outline" className="border-violet-500/40 text-violet-700 dark:text-violet-300">
+                              <Badge variant="outline" className="border-info/40 text-info dark:text-info">
                                 {currentRegime ? REGIME_LABELS[currentRegime] : ""}
                               </Badge>
                               {action}
@@ -166,7 +166,7 @@ export function ReformSection({ onNavigate }: { onNavigate?: (section: string) =
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-sm text-[#1E90FF] hover:underline"
+                    className="inline-flex items-center gap-1.5 text-sm text-info hover:underline"
                   >
                     <ExternalLink className="size-3.5 shrink-0" />
                     {link.label}

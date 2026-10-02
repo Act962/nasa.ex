@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Wand2 } from "lucide-react";
+import { Wand2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   Dialog,
   DialogContent,
@@ -254,7 +255,7 @@ export function CreateCommandDialog({
               disabled={instruction.trim().length < 5 || draftCommand.isPending}
             >
               {draftCommand.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
+                <OrbitaSpinner className="size-4 " />
               ) : (
                 <Wand2 className="size-4" />
               )}
@@ -277,7 +278,7 @@ export function CreateCommandDialog({
                 disabled={createCommand.isPending}
               >
                 {createCommand.isPending && (
-                  <Loader2 className="size-4 animate-spin" />
+                  <OrbitaSpinner className="size-4 " />
                 )}
                 Criar e ativar
               </Button>

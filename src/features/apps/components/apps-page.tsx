@@ -62,23 +62,19 @@ export function AppsPage() {
   return (
     <div className="min-h-full bg-background w-full">
       {/* Hero Header */}
-      <div className="relative overflow-hidden border-b bg-linear-to-br from-[#7C3AED]/5 via-background to-background">
+      <div className="relative overflow-hidden bg-linear-to-br from-info/5 via-background to-background">
         {/* Background decoration */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-[#7C3AED]/5 blur-3xl" />
-          <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-[#7C3AED]/3 blur-2xl" />
+          <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-info/5 blur-3xl" />
+          <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-info/3 blur-2xl" />
         </div>
 
         <HeaderTracking title="Apps" />
         <div className="relative px-6 py-10 mx-auto">
           <div className="flex items-center gap-2 mb-1">
             <div className="flex gap-1">
-              {["#7C3AED", "#a855f7", "#c084fc"].map((c, i) => (
-                <div
-                  key={i}
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: c }}
-                />
+              {["bg-info", "bg-info/70", "bg-info/40"].map((dotClass) => (
+                <div key={dotClass} className={cn("w-2 h-2 rounded-full", dotClass)} />
               ))}
             </div>
             <span className="text-xs text-muted-foreground font-medium tracking-widest uppercase">
@@ -88,7 +84,7 @@ export function AppsPage() {
 
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight mt-2">
             Universo de Soluções{" "}
-            <span className="text-[#7C3AED]">ÓRBITA®</span>
+            <span className="text-info">ÓRBITA®</span>
           </h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
             Todas as ferramentas do ecossistema ÓRBITA em um só lugar
@@ -97,17 +93,17 @@ export function AppsPage() {
           {/* Stats */}
           <div className="flex gap-4 mt-6">
             <div className="flex items-center gap-1.5 text-sm">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="w-2 h-2 rounded-full bg-success" />
               <span className="font-semibold">{installedCount}</span>
               <span className="text-muted-foreground">instalados</span>
             </div>
             <div className="flex items-center gap-1.5 text-sm">
-              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              <span className="w-2 h-2 rounded-full bg-warning" />
               <span className="font-semibold">{devCount}</span>
               <span className="text-muted-foreground">em desenvolvimento</span>
             </div>
             <div className="flex items-center gap-1.5 text-sm">
-              <span className="w-2 h-2 rounded-full bg-[#7C3AED]" />
+              <span className="w-2 h-2 rounded-full bg-info" />
               <span className="font-semibold">{APPS.length}</span>
               <span className="text-muted-foreground">total</span>
             </div>
@@ -117,7 +113,7 @@ export function AppsPage() {
 
       {/* Filter Bar */}
       <div className="px-6 py-4 mx-auto">
-        <div className="flex flex-wrap gap-2">
+        <div className="inline-flex flex-wrap gap-1 rounded-full bg-panel p-1">
           {FILTERS.map((f) => {
             const count =
               f.value === "all"
@@ -132,10 +128,10 @@ export function AppsPage() {
                 key={f.value}
                 onClick={() => setFilter(f.value)}
                 className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all border",
+                  "flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all",
                   filter === f.value
-                    ? "bg-[#7C3AED] text-white border-[#7C3AED] shadow-sm"
-                    : "bg-card text-muted-foreground border-border hover:border-[#7C3AED]/50 hover:text-foreground",
+                    ? "bg-foreground text-background shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {f.label}
@@ -143,7 +139,7 @@ export function AppsPage() {
                   className={cn(
                     "text-[11px] px-1.5 py-0.5 rounded-full",
                     filter === f.value
-                      ? "bg-white/20 text-white"
+                      ? "bg-background/20 text-background"
                       : "bg-muted text-muted-foreground",
                   )}
                 >

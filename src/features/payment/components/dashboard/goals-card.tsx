@@ -25,7 +25,7 @@ export interface GoalsCardData {
 
 function ProgressBar({ percent, tone }: { percent: number; tone: "emerald" | "blue" }) {
   const width = Math.min(Math.max(percent, 0), 100);
-  const fill = tone === "emerald" ? "bg-emerald-500" : "bg-blue-500";
+  const fill = tone === "emerald" ? "bg-success" : "bg-info";
   return (
     <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
       <div className={`h-full rounded-full ${fill}`} style={{ width: `${width}%` }} />
@@ -88,7 +88,7 @@ export function GoalsCard({
         <div className="grid gap-5 sm:grid-cols-3">
           {/* Meta de vendas */}
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-emerald-500">
+            <div className="flex items-center gap-2 text-success">
               <Target className="size-4" />
               <span className="text-xs font-semibold uppercase tracking-wide">
                 Meta de vendas
@@ -117,7 +117,7 @@ export function GoalsCard({
 
           {/* Reserva de caixa */}
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-blue-500">
+            <div className="flex items-center gap-2 text-info">
               <PiggyBank className="size-4" />
               <span className="text-xs font-semibold uppercase tracking-wide">
                 Reserva de caixa
@@ -127,7 +127,7 @@ export function GoalsCard({
               <>
                 <p
                   className={`text-xl font-black tabular-nums ${
-                    data.isReserveAtRisk ? "text-red-500" : "text-blue-500"
+                    data.isReserveAtRisk ? "text-destructive" : "text-info"
                   }`}
                 >
                   {formatCurrency(data.projectedCash)}
@@ -154,13 +154,13 @@ export function GoalsCard({
 
           {/* Despesa a pagar */}
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-red-500">
+            <div className="flex items-center gap-2 text-destructive">
               <Receipt className="size-4" />
               <span className="text-xs font-semibold uppercase tracking-wide">
                 Ainda a pagar
               </span>
             </div>
-            <p className="text-xl font-black tabular-nums text-red-500">
+            <p className="text-xl font-black tabular-nums text-destructive">
               {formatCurrency(data.openPayable)}
             </p>
             <p className="text-[11px] tabular-nums text-muted-foreground">
@@ -175,9 +175,9 @@ export function GoalsCard({
         </div>
 
         {data.isReserveAtRisk && hasReserve && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-red-500" />
-            <p className="text-xs text-red-400">
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-destructive" />
+            <p className="text-xs text-destructive">
               Se tudo que está lançado se confirmar, o mês fecha{" "}
               {formatCurrency(Math.abs(data.reserveGap))} abaixo da reserva.
             </p>

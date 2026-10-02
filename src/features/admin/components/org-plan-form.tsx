@@ -19,9 +19,9 @@ export function OrgPlanForm({ orgId, currentPlanId, plans }: Props) {
   });
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-      <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-        <CreditCard className="w-4 h-4 text-violet-400" /> Plano Ativo
+    <div className="bg-card border border-border rounded-xl p-5">
+      <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+        <CreditCard className="w-4 h-4 text-info" /> Plano Ativo
       </h2>
 
       <div className="space-y-3">
@@ -30,8 +30,8 @@ export function OrgPlanForm({ orgId, currentPlanId, plans }: Props) {
             key={p.id}
             className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
               selectedPlanId === p.id
-                ? "border-violet-500/60 bg-violet-500/10"
-                : "border-zinc-700 hover:border-zinc-600"
+                ? "border-info/50 bg-info/10"
+                : "border-border hover:border-knob"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -41,28 +41,28 @@ export function OrgPlanForm({ orgId, currentPlanId, plans }: Props) {
                 value={p.id}
                 checked={selectedPlanId === p.id}
                 onChange={() => setSelectedPlanId(p.id)}
-                className="accent-violet-500"
+                className="accent-primary"
               />
               <div>
-                <p className="text-sm font-medium text-white">{p.name}</p>
-                <p className="text-[11px] text-zinc-500">{p.monthlyStars.toLocaleString("pt-BR")} ⭐/mês</p>
+                <p className="text-sm font-medium text-foreground">{p.name}</p>
+                <p className="text-[11px] text-muted-foreground">{p.monthlyStars.toLocaleString("pt-BR")} ⭐/mês</p>
               </div>
             </div>
-            <span className="text-sm font-semibold text-violet-300">
+            <span className="text-sm font-semibold text-info">
               R$ {p.priceMonthly.toFixed(2)}
             </span>
           </label>
         ))}
 
-        <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${!selectedPlanId ? "border-zinc-500 bg-zinc-800" : "border-zinc-700 hover:border-zinc-600"}`}>
-          <input type="radio" name="plan" value="" checked={!selectedPlanId} onChange={() => setSelectedPlanId("")} className="accent-violet-500" />
-          <p className="text-sm text-zinc-400">Sem plano</p>
+        <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${!selectedPlanId ? "border-knob bg-panel" : "border-border hover:border-knob"}`}>
+          <input type="radio" name="plan" value="" checked={!selectedPlanId} onChange={() => setSelectedPlanId("")} className="accent-primary" />
+          <p className="text-sm text-muted-foreground">Sem plano</p>
         </label>
 
         <button
           onClick={() => mutation.mutate({ orgId, planId: selectedPlanId || null })}
           disabled={mutation.isPending || selectedPlanId === (currentPlanId ?? "")}
-          className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 rounded-lg transition-colors mt-1"
+          className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground text-sm font-semibold py-2 rounded-lg transition-colors mt-1"
         >
           {mutation.isPending ? "Salvando..." : "Salvar Plano"}
         </button>

@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { Camera, Loader2, X, Check } from "lucide-react";
+import { Camera, X, Check } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -166,7 +167,7 @@ export function AvatarUploader() {
               className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-60 transition-all"
             >
               {uploading ? (
-                <><Loader2 className="w-3 h-3 animate-spin" /> Enviando...</>
+                <><OrbitaSpinner className="w-3 h-3 " /> Enviando...</>
               ) : (
                 <><Check className="w-3 h-3" /> Salvar</>
               )}

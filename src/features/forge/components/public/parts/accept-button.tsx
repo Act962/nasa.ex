@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   Dialog,
   DialogContent,
@@ -87,8 +88,8 @@ export function AcceptButton({
 
   const defaultAccent =
     variant === "dark"
-      ? "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:opacity-90 text-white shadow-lg shadow-emerald-900/30"
-      : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md";
+      ? "bg-gradient-to-r from-success to-success hover:opacity-90 text-white shadow-lg shadow-success/30"
+      : "bg-success hover:bg-success text-white shadow-md";
 
   return (
     <div className="max-w-3xl mx-auto px-8 pb-8 forge-no-print">
@@ -167,11 +168,11 @@ export function AcceptButton({
               <Button
                 type="submit"
                 disabled={acceptMutation.isPending}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-success hover:bg-success text-white"
               >
                 {acceptMutation.isPending ? (
                   <>
-                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    <OrbitaSpinner className="size-4 mr-2 " />
                     Processando...
                   </>
                 ) : (

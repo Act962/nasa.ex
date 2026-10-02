@@ -36,8 +36,8 @@ export default async function WorkflowsPage({ params }: WorkflowPageProps) {
         <div className="flex items-center gap-2 flex-shrink-0">
           <AiLeadButton trackingId={trackingId}>
             <Button variant="outline" size="sm">
-              <SparklesIcon className="size-4 text-purple-500" />
-              <span className="hidden sm:inline bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-semibold">
+              <SparklesIcon className="size-4 text-info" />
+              <span className="hidden sm:inline bg-linear-to-r from-info to-info bg-clip-text text-transparent font-semibold">
                 Agente de Gatilhos Automáticos
               </span>
             </Button>

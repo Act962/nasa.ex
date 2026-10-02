@@ -47,10 +47,10 @@ export type Action = {
 
 const priorityColors = {
   [ActionPriority.NONE]: "",
-  [ActionPriority.URGENT]: "bg-red-500/10",
-  [ActionPriority.HIGH]: "bg-red-500/10",
-  [ActionPriority.MEDIUM]: "bg-yellow-500/10",
-  [ActionPriority.LOW]: "bg-green-500/10",
+  [ActionPriority.URGENT]: "bg-destructive/10",
+  [ActionPriority.HIGH]: "bg-destructive/10",
+  [ActionPriority.MEDIUM]: "bg-warning/10",
+  [ActionPriority.LOW]: "bg-success/10",
 } as const;
 
 export const columns: ColumnDef<Action>[] = [
@@ -173,7 +173,7 @@ export const columns: ColumnDef<Action>[] = [
       return (
         <div className="flex items-center w-full">
           <CheckCircle2Icon
-            className={cn("size-4", isDone && "text-green-500")}
+            className={cn("size-4", isDone && "text-success")}
           />
           <span className="ml-2">{isDone ? "Concluído" : "Incompleto"}</span>
         </div>
@@ -221,7 +221,7 @@ export const columns: ColumnDef<Action>[] = [
         <div
           className={cn(
             "bg-accent rounded-sm px-1.5 w-fit",
-            isDone && subActions.length > 0 && "bg-green-500",
+            isDone && subActions.length > 0 && "bg-success",
           )}
         >
           {doneSubActions} / {subActions.length}

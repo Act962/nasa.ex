@@ -11,10 +11,10 @@ import {
   Clock,
   CopyIcon,
   ExternalLinkIcon,
-  Loader2,
   RotateCw,
   ShieldOff,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -107,16 +107,16 @@ export function CalendarShareSection() {
   const badgeClass = countdown.expired
     ? "bg-destructive/15 text-destructive border-destructive/30"
     : countdown.msLeft < 10 * 60_000
-      ? "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30"
+      ? "bg-destructive/15 text-destructive border-destructive/30"
       : countdown.msLeft < 30 * 60_000
-        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30"
-        : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30";
+        ? "bg-warning/15 text-warning border-warning/30"
+        : "bg-success/15 text-success border-success/30";
 
   return (
     <>
-      <section className="rounded-xl border border-border bg-card p-5">
+      <section className="rounded-[20px] border border-line bg-card p-4 sm:p-5">
         <header className="mb-4 flex items-start gap-3">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-violet-500/15 text-violet-700">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-info/15 text-info">
             <CalendarIcon className="size-4" />
           </div>
           <div className="flex-1">
@@ -142,7 +142,7 @@ export function CalendarShareSection() {
 
         {statusQ.isLoading ? (
           <div className="flex items-center justify-center py-6">
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            <OrbitaSpinner className="size-4 text-muted-foreground" />
           </div>
         ) : isActiveAndValid && status?.shareUrl ? (
           <div className="space-y-3">
@@ -248,7 +248,7 @@ export function CalendarShareSection() {
                 className="gap-1.5"
               >
                 {rotateMutation.isPending ? (
-                  <Loader2 className="size-3.5 animate-spin" />
+                  <OrbitaSpinner className="size-3.5 " />
                 ) : (
                   <RotateCw className="size-3.5" />
                 )}
@@ -267,7 +267,7 @@ export function CalendarShareSection() {
           </div>
         ) : isOff ? (
           <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-            <CheckCircle2 className="mb-1 inline size-3.5 text-emerald-600" />{" "}
+            <CheckCircle2 className="mb-1 inline size-3.5 text-success" />{" "}
             Calendário não está sendo compartilhado publicamente. Ative o
             toggle acima pra gerar um link.
           </div>
@@ -279,7 +279,7 @@ export function CalendarShareSection() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangleIcon className="size-5 text-amber-500" />
+              <AlertTriangleIcon className="size-5 text-warning" />
               Compartilhar calendário publicamente
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2 text-sm leading-relaxed">
@@ -293,7 +293,7 @@ export function CalendarShareSection() {
                 <strong className="text-foreground"> Membros logados</strong>{" "}
                 da sua empresa veem detalhes completos.
               </span>
-              <span className="block rounded-md bg-amber-500/10 px-2 py-1.5 text-amber-900 dark:text-amber-200">
+              <span className="block rounded-md bg-warning/10 px-2 py-1.5 text-warning">
                 <Clock className="mr-1 inline size-3" />O link expira em{" "}
                 <strong>1 hora</strong>. Você precisa rotacionar ou recompartilhar
                 pra estender. Pode desativar a qualquer momento.
@@ -310,10 +310,9 @@ export function CalendarShareSection() {
                 e.preventDefault();
                 enableMutation.mutate({ consent: true });
               }}
-              className="bg-amber-600 hover:bg-amber-700 focus-visible:ring-amber-400"
             >
               {enableMutation.isPending ? (
-                <Loader2 className="mr-1 size-3.5 animate-spin" />
+                <OrbitaSpinner className="mr-1 size-3.5 " />
               ) : null}
               Sim, ativar compartilhamento
             </AlertDialogAction>
@@ -348,7 +347,7 @@ export function CalendarShareSection() {
               className="bg-destructive hover:bg-destructive/90 focus-visible:ring-destructive/40"
             >
               {disableMutation.isPending ? (
-                <Loader2 className="mr-1 size-3.5 animate-spin" />
+                <OrbitaSpinner className="mr-1 size-3.5 " />
               ) : null}
               Sim, desativar
             </AlertDialogAction>
@@ -361,7 +360,7 @@ export function CalendarShareSection() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <RotateCw className="size-5 text-violet-600" />
+              <RotateCw className="size-5 text-info" />
               Rotacionar link
             </AlertDialogTitle>
             <AlertDialogDescription className="text-sm leading-relaxed">
@@ -381,7 +380,7 @@ export function CalendarShareSection() {
               }}
             >
               {rotateMutation.isPending ? (
-                <Loader2 className="mr-1 size-3.5 animate-spin" />
+                <OrbitaSpinner className="mr-1 size-3.5 " />
               ) : null}
               Sim, gerar novo link
             </AlertDialogAction>

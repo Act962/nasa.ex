@@ -9,9 +9,9 @@ const ACTIVITY_LABEL = {
 } as const;
 
 const ACTIVITY_COLOR = {
-  ACTIVE: "bg-emerald-500/15 text-emerald-300",
-  AT_RISK: "bg-amber-500/15 text-amber-300",
-  INACTIVE: "bg-zinc-700 text-zinc-300",
+  ACTIVE: "bg-success/15 text-success",
+  AT_RISK: "bg-warning/15 text-warning",
+  INACTIVE: "bg-muted text-muted-foreground",
 } as const;
 
 interface Search {
@@ -50,23 +50,23 @@ export default async function PartnerReferralsPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <Users className="w-5 h-5 text-amber-400" />
+        <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <Users className="w-5 h-5 text-muted-foreground" />
           Suas indicações
         </h1>
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           {referrals.length} empresa(s) indicada(s)
         </p>
       </div>
 
       {atRiskCount > 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
-          <div className="text-sm text-amber-200">
+        <div className="bg-warning/15 border border-warning/30 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-warning mt-0.5 shrink-0" />
+          <div className="text-sm text-warning">
             <p className="font-semibold">
               {atRiskCount} empresa(s) em risco
             </p>
-            <p className="text-amber-300/80 mt-1">
+            <p className="text-warning mt-1">
               Engaje essas orgs antes que se tornem inativas — caso contrário,
               seu nível pode cair.
             </p>
@@ -78,7 +78,7 @@ export default async function PartnerReferralsPage({
         <select
           name="status"
           defaultValue={filterStatus}
-          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500/60"
+          className="bg-muted border border-line rounded-full px-4 py-2 text-sm text-foreground focus:outline-none focus:border-ring"
         >
           <option value="">Todos status</option>
           <option value="ACTIVE">Ativas</option>
@@ -87,16 +87,16 @@ export default async function PartnerReferralsPage({
         </select>
         <button
           type="submit"
-          className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-4 py-2 rounded-full transition-colors"
         >
           Filtrar
         </button>
       </form>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+      <div className="bg-card border border-line rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-800 text-zinc-500 text-xs uppercase tracking-wider">
+            <tr className="border-b border-line text-muted-foreground text-xs uppercase tracking-wider">
               <th className="text-left px-5 py-3">Empresa</th>
               <th className="text-left px-5 py-3">Status</th>
               <th className="text-right px-5 py-3">Compras (R$)</th>
@@ -105,12 +105,12 @@ export default async function PartnerReferralsPage({
               <th className="text-right px-5 py-3">Cadastrada em</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800">
+          <tbody className="divide-y divide-line">
             {referrals.map((r) => (
-              <tr key={r.id} className="hover:bg-zinc-800/40">
+              <tr key={r.id} className="hover:bg-muted/40">
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-zinc-700 shrink-0 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-knob shrink-0 flex items-center justify-center">
                       {r.referredOrganization.logo ? (
                         <img
                           src={r.referredOrganization.logo}
@@ -120,10 +120,10 @@ export default async function PartnerReferralsPage({
                       ) : null}
                     </div>
                     <div>
-                      <div className="text-white font-medium">
+                      <div className="text-foreground font-medium">
                         {r.referredOrganization.name}
                       </div>
-                      <div className="text-[11px] text-zinc-500">
+                      <div className="text-[11px] text-muted-foreground">
                         {r.referredOrganization.slug}
                       </div>
                     </div>
@@ -136,20 +136,20 @@ export default async function PartnerReferralsPage({
                     {ACTIVITY_LABEL[r.activityStatus]}
                   </span>
                 </td>
-                <td className="px-5 py-3 text-right text-zinc-300">
+                <td className="px-5 py-3 text-right text-foreground">
                   R$ {fmt(Number(r.totalPurchasedBrl))}
                 </td>
-                <td className="px-5 py-3 text-right text-yellow-400">
+                <td className="px-5 py-3 text-right text-warning">
                   {r.totalStarsConsumed.toLocaleString("pt-BR")}
                 </td>
-                <td className="px-5 py-3 text-right text-zinc-400 text-xs">
+                <td className="px-5 py-3 text-right text-muted-foreground text-xs">
                   {r.lastQualifyingActivityAt
                     ? new Date(r.lastQualifyingActivityAt).toLocaleDateString(
                         "pt-BR",
                       )
                     : "—"}
                 </td>
-                <td className="px-5 py-3 text-right text-zinc-500 text-xs">
+                <td className="px-5 py-3 text-right text-muted-foreground text-xs">
                   {new Date(r.signedUpAt).toLocaleDateString("pt-BR")}
                 </td>
               </tr>
@@ -158,7 +158,7 @@ export default async function PartnerReferralsPage({
               <tr>
                 <td
                   colSpan={6}
-                  className="px-5 py-10 text-center text-zinc-500 text-sm"
+                  className="px-5 py-10 text-center text-muted-foreground text-sm"
                 >
                   Nenhuma indicação encontrada.
                 </td>

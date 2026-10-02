@@ -375,13 +375,13 @@ function Overlay({
       {/* Contorno vermelho */}
       <div
         data-dev-inspector="1"
-        className="absolute border-2 border-red-500 rounded-sm"
+        className="absolute border-2 border-destructive rounded-sm"
         style={{
           top: rect.top,
           left: rect.left,
           width: rect.width,
           height: rect.height,
-          boxShadow: "0 0 0 1px rgba(255,255,255,0.5), 0 0 12px rgba(239,68,68,0.5)",
+          boxShadow: "0 0 0 1px color-mix(in oklch, var(--background) 50%, transparent), 0 0 12px color-mix(in oklch, var(--destructive) 50%, transparent)",
         }}
       />
 
@@ -389,7 +389,7 @@ function Overlay({
       <div
         ref={labelDivRef}
         data-dev-inspector="1"
-        className="absolute bg-zinc-900 text-white text-xs rounded-md shadow-2xl border border-red-500 p-2.5 space-y-1 pointer-events-auto font-mono"
+        className="absolute bg-popover text-popover-foreground text-xs rounded-md shadow-2xl border border-destructive p-2.5 space-y-1 pointer-events-auto font-mono"
         style={{
           top: labelTop,
           left: labelLeft,
@@ -399,13 +399,13 @@ function Overlay({
       >
         {/* Linha 1: tag + componente */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-zinc-400 shrink-0">
+          <span className="text-muted-foreground shrink-0">
             &lt;{source.tagName}&gt;
           </span>
           {source.componentName && (
             <>
-              <span className="text-zinc-500">in</span>
-              <span className="text-red-400 font-bold">
+              <span className="text-muted-foreground">in</span>
+              <span className="text-destructive font-bold">
                 &lt;{source.componentName}&gt;
               </span>
             </>
@@ -414,14 +414,14 @@ function Overlay({
 
         {/* Linha 2: texto visível do elemento (se houver) */}
         {source.textPreview && (
-          <div className="text-[10px] text-emerald-300 truncate" title={source.textPreview}>
+          <div className="text-[10px] text-success truncate" title={source.textPreview}>
             “{source.textPreview}”
           </div>
         )}
 
         {/* Linha 3: owner chain */}
         {source.ownerChain.length > 0 && (
-          <div className="text-[10px] text-zinc-400 truncate">
+          <div className="text-[10px] text-muted-foreground truncate">
             ← {source.ownerChain.map((n) => `<${n}>`).join(" ← ")}
           </div>
         )}
@@ -429,7 +429,7 @@ function Overlay({
         {/* Linha 4: className (truncada na UI, copy mantém cheia) */}
         {source.className && (
           <div
-            className="text-[10px] text-blue-300 truncate"
+            className="text-[10px] text-info truncate"
             title={source.className}
           >
             class: {source.className}
@@ -440,7 +440,7 @@ function Overlay({
         {source.attributes.map((a) => (
           <div
             key={a.name}
-            className="text-[10px] text-amber-300 truncate"
+            className="text-[10px] text-warning truncate"
             title={`${a.name}: ${a.value}`}
           >
             {a.name}: {a.value}
@@ -448,15 +448,15 @@ function Overlay({
         ))}
 
         {/* Botão copiar + atalhos */}
-        <div className="flex items-center gap-2 pt-1 border-t border-zinc-700">
-          <span className="text-[9px] text-zinc-500">
+        <div className="flex items-center gap-2 pt-1 border-t border-line">
+          <span className="text-[9px] text-muted-foreground">
             ⌘C copia · ESC fecha
           </span>
           <button
             type="button"
             onClick={handleCopy}
             data-dev-inspector="1"
-            className="ml-auto px-2 py-0.5 text-[10px] font-sans rounded bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 text-red-200 transition-colors"
+            className="ml-auto px-2 py-0.5 text-[10px] font-sans rounded bg-destructive/20 hover:bg-destructive/40 border border-destructive/50 text-destructive transition-colors"
           >
             Copiar info
           </button>

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   Dialog,
   DialogContent,
@@ -101,7 +102,7 @@ export function DeleteFormModal({
             className="gap-2"
           >
             {deleteForm.isPending && (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <OrbitaSpinner className="h-4 w-4 " />
             )}
             Confirmar exclusão
           </Button>

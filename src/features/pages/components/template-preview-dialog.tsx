@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Rocket, Eye } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { DIALOG_AS_MOBILE_BOTTOM_SHEET_CLASSES } from "../lib/mobile-sheet-classes";
 import { ElementRenderer } from "./elements/element-renderer";
 import { applyTemplate, type PageTemplate } from "../lib/page-templates";
 import { RocketLoader } from "./rocket-loader";
@@ -19,6 +22,25 @@ import type { ElementType } from "../types";
 // Importa o CSS de animações no escopo do dialog pra que sections com
 // `nasa-pages-anim-*` rodem mesmo aqui (separado do public-page-view).
 import "../lib/animations.css";
+
+const TEMPLATE_RENDER_WIDTH_PX = 1280;
+
+/** Escala da prévia pela largura disponível (nunca maior que 1): sem rolagem lateral no celular. */
+function usePreviewScale() {
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const [previewScale, setPreviewScale] = useState(1);
+
+  useEffect(() => {
+    if (!container) return;
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      if (entry) setPreviewScale(Math.min(1, entry.contentRect.width / TEMPLATE_RENDER_WIDTH_PX));
+    });
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, [container]);
+
+  return { containerRef: setContainer, previewScale };
+}
 
 /**
  * Dialog de pré-visualização do template ANTES de debitar Stars e
@@ -47,6 +69,7 @@ export function TemplatePreviewDialog({
   isApplying: boolean;
   costStars: number;
 }) {
+  const { containerRef, previewScale } = usePreviewScale();
   if (!template) return null;
 
   const applied = applyTemplate(template.id);
@@ -56,12 +79,14 @@ export function TemplatePreviewDialog({
     .sort((a, b) => (a.y ?? 0) - (b.y ?? 0));
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !isApplying && onOpenChange(o)}>
-      <DialogContent className="max-w-5xl max-h-[92vh] p-0 gap-0 flex flex-col">
+    <Dialog open={open} onOpenChange={(isOpen) => !isApplying && onOpenChange(isOpen)}>
+      <DialogContent
+        className={cn("flex max-h-[92dvh] flex-col gap-0 p-0 sm:max-w-5xl", DIALOG_AS_MOBILE_BOTTOM_SHEET_CLASSES)}
+      >
         {/* Header */}
-        <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+        <DialogHeader className="px-5 pt-6 pb-4 shrink-0 sm:px-6">
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="size-5 text-violet-500" />
+            <Sparkles className="size-5 text-info" />
             {isApplying
               ? "Criando sua landing…"
               : `Pré-visualização: ${template.name}`}
@@ -76,7 +101,7 @@ export function TemplatePreviewDialog({
 
         {/* Body */}
         {isApplying ? (
-          <div className="min-h-[400px] bg-zinc-950 flex items-center justify-center flex-1">
+          <div className="dark min-h-[400px] bg-background flex items-center justify-center flex-1">
             <RocketLoader
               title="Preparando sua landing page"
               subtitle="Pode demorar alguns segundos. Não feche essa janela."
@@ -85,32 +110,24 @@ export function TemplatePreviewDialog({
         ) : (
           <div className="flex-1 flex flex-col min-h-0">
             {/* Stats do template */}
-            <div className="px-6 py-3 border-b bg-muted/30 flex items-center gap-3 flex-wrap text-xs shrink-0">
-              <Badge variant="outline" className="gap-1">
+            <div className="px-5 py-3 bg-muted/30 flex items-center gap-2 flex-wrap text-xs shrink-0 sm:px-6">
+              <Badge variant="outline" className="gap-1 rounded-full">
                 <Eye className="size-3" /> {flowElements.length} blocos
               </Badge>
-              <Badge variant="outline" className="gap-1">
+              <Badge variant="outline" className="gap-1 rounded-full">
                 <span
                   className="size-2 rounded-full"
                   style={{ background: template.tokens.primary }}
                 />
                 Cor primária
               </Badge>
-              <Badge variant="outline">{template.category}</Badge>
-              <span className="ml-auto text-muted-foreground">
-                Estilo "{template.intent}"
-              </span>
+              <Badge variant="outline" className="rounded-full">{template.category}</Badge>
             </div>
 
-            {/* Preview renderizado em "viewport desktop simulado".
-                Container interno tem largura fixa de 1280px pra que
-                media queries das sections (md:, lg:) funcionem
-                corretamente. Usuário pode rolar horizontal se o dialog
-                for menor (no mobile do builder), e o conteúdo é visto
-                exatamente como aparece no desktop publicado.
-                Scroll vertical interno separado pra ver tudo. */}
+            {/* Renderiza em 1280px (como no computador) e reduz pela largura disponível com `zoom`. */}
             <div
-              className="flex-1 min-h-0 overflow-auto bg-zinc-900"
+              ref={containerRef}
+              className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-panel"
               style={{ height: "65vh" }}
             >
               {flowElements.length === 0 ? (
@@ -119,8 +136,12 @@ export function TemplatePreviewDialog({
                 </div>
               ) : (
                 <div
-                  className="bg-white dark:bg-zinc-950 mx-auto"
-                  style={{ width: 1280, minWidth: 1280 }}
+                  className="mx-auto"
+                  style={{
+                    width: TEMPLATE_RENDER_WIDTH_PX,
+                    background: template.tokens.bg,
+                    zoom: previewScale,
+                  }}
                 >
                   {flowElements.map((el, idx) => (
                     <div
@@ -147,27 +168,25 @@ export function TemplatePreviewDialog({
 
         {/* Footer */}
         {!isApplying && (
-          <DialogFooter className="px-6 py-4 border-t gap-2 sm:gap-2 flex-col sm:flex-row shrink-0">
+          <DialogFooter className="px-5 py-4 gap-2 sm:gap-2 flex-col sm:flex-row sm:items-center shrink-0 sm:px-6">
             <Button
               variant="ghost"
               onClick={() => onOpenChange(false)}
-              className="sm:order-1"
+              className="rounded-full max-sm:hidden sm:order-1"
             >
               Cancelar
             </Button>
-            <div className="text-xs text-muted-foreground sm:flex-1 sm:text-right sm:order-2 sm:mr-3">
+            <div className="text-xs text-muted-foreground text-center sm:flex-1 sm:text-right sm:order-2 sm:mr-3">
               Custo:{" "}
               <strong className="text-foreground">
-                {costStars.toLocaleString("pt-BR")} ★
+                {costStars.toLocaleString("pt-BR")} Stars
               </strong>
-              <br className="sm:hidden" />
-              <span className="hidden sm:inline"> · </span>
-              Reverte sem custo se você apagar antes de publicar
+              <span> · </span>
+              Volta sem custo se você apagar antes de publicar
             </div>
             <Button
               onClick={onConfirm}
-              className="gap-2 sm:order-3"
-              size="lg"
+              className="h-12 w-full gap-2 rounded-full sm:order-3 sm:h-10 sm:w-auto"
             >
               <Rocket className="size-4" />
               Criar landing page

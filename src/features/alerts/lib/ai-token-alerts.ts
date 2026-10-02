@@ -3,6 +3,8 @@
 import prisma from "@/lib/prisma";
 import { dispatchAlert } from "@/features/alerts/lib/alert-engine";
 import { resolveOrgAdmins } from "@/features/alerts/lib/audience-resolver";
+import { markProviderExhausted } from "@/features/ai-credits/lib/provider-exhaustion";
+import { AI_CREDIT_PROVIDER_LABELS } from "@/features/ai-credits/lib/ai-credit-types";
 
 export const AI_QUOTA_EXHAUSTED_EVENT = "ai.quota_exhausted";
 export const AI_TOKEN_USAGE_HIGH_EVENT = "ai.token_usage_high";
@@ -93,9 +95,18 @@ export async function reportAiQuotaExhausted(params: {
   usingCustomKey: boolean;
   source: string;
   error?: unknown;
+  /** Provedor que recusou: alimenta a troca automática (spec 0055, RF-7). */
+  provider?: string;
 }): Promise<void> {
   try {
     if (params.error !== undefined && !isAiQuotaError(params.error)) return;
+    if (params.provider) {
+      markProviderExhausted({
+        organizationId: params.usingCustomKey ? params.organizationId : null,
+        provider: params.provider,
+      });
+    }
+    const providerLabel = params.provider ? (AI_CREDIT_PROVIDER_LABELS as Record<string, string>)[params.provider] ?? params.provider : "do provedor de IA";
     const since = new Date(Date.now() - QUOTA_ALERT_COOLDOWN_MS);
     if (await wasAlertedSince(params.organizationId, AI_QUOTA_EXHAUSTED_EVENT, params.usingCustomKey, since)) return;
     await dispatchAiAlert({
@@ -103,11 +114,11 @@ export async function reportAiQuotaExhausted(params: {
       usingCustomKey: params.usingCustomKey,
       eventType: AI_QUOTA_EXHAUSTED_EVENT,
       severity: "critical",
-      title: "Crédito da IA acabou",
+      title: params.provider ? `Crédito da ${providerLabel} acabou` : "Crédito da IA acabou",
       body: params.usingCustomKey
-        ? "A chave de IA própria desta empresa ficou sem crédito no provedor. Recarregue a conta do provedor para a IA voltar a responder."
-        : "A conta de IA da plataforma ficou sem crédito no provedor. Recarregue para o ASTRO, a IA do WhatsApp e os Workflows voltarem a responder.",
-      payload: { source: params.source },
+        ? `A chave ${providerLabel} desta empresa ficou sem crédito. Enquanto isso, o ASTRO está usando o modelo ÓRBITA, cobrado em Stars. Recarregue a conta do provedor e informe o saldo em Satélites para voltar à sua IA.`
+        : `A conta ${providerLabel} da plataforma ficou sem crédito. O ASTRO passou a usar outro provedor com chave por 30 minutos; recarregue e registre a recarga em Admin → Créditos de IA.`,
+      payload: { source: params.source, provider: params.provider ?? null },
     });
   } catch (alertError) {
     console.warn("[ai-token-alerts] alerta de crédito falhou:", alertError);

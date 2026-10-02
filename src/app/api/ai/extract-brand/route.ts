@@ -4,6 +4,7 @@ import { generateText } from "ai";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { readIntegrationApiKey } from "@/features/integrations/lib/integration-api-key";
 
 async function resolveApiKey(orgId: string): Promise<string | null> {
   // 1. Env var (configurado no servidor)
@@ -14,7 +15,7 @@ async function resolveApiKey(orgId: string): Promise<string | null> {
     where: { organizationId: orgId, platform: "ANTHROPIC", isActive: true },
     select: { config: true },
   });
-  const integrationKey = (integration?.config as Record<string, string> | null)?.apiKey;
+  const integrationKey = readIntegrationApiKey(integration?.config as Record<string, unknown> | null);
   if (integrationKey) return integrationKey;
 
   // 3. Chave configurada em qualquer Planner da organização

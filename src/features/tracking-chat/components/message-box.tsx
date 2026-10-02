@@ -276,7 +276,7 @@ export function MessageBox({
                   //
                   // Resultado: ao trocar Claro/Escuro, default segue tema;
                   // quando custom, texto se adapta à luminância da bolha.
-                  "relative text-sm w-fit max-w-[min(85vw,520px)] space-y-1 rounded-lg shadow-sm",
+                  "relative text-sm w-fit max-w-[min(85vw,520px)] space-y-1 rounded-[14px] shadow-sm",
                   isOwn ? "rounded-tr-none" : "rounded-tl-none",
                   // Mídia mantém a bolha — sem ela a legenda e o horário
                   // ficam soltos sobre o papel de parede do chat. Só o
@@ -379,7 +379,7 @@ export function MessageBox({
                           <Image
                             alt="Image"
                             src={useConstructUrl(message.mediaUrl)}
-                            className="object-contain cursor-pointer max-h-50 rounded-md hover:opacity-90 transition-opacity"
+                            className="object-contain cursor-pointer max-h-50 rounded-[11px] hover:opacity-90 transition-opacity"
                             width={288}
                             height={288}
                             onClick={() => setShowImageViewer(true)}

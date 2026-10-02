@@ -44,13 +44,13 @@ function ItemIcon({
 }) {
   const cls = cn("size-4 shrink-0", className);
   if (type === NBoxItemType.IMAGE)
-    return <ImageIcon className={cn(cls, "text-blue-500")} />;
+    return <ImageIcon className={cn(cls, "text-info")} />;
   if (type === NBoxItemType.LINK)
-    return <LinkIcon className={cn(cls, "text-green-500")} />;
+    return <LinkIcon className={cn(cls, "text-success")} />;
   if (type === NBoxItemType.CONTRACT)
-    return <FileTextIcon className={cn(cls, "text-purple-500")} />;
+    return <FileTextIcon className={cn(cls, "text-info")} />;
   if (type === NBoxItemType.PROPOSAL)
-    return <FileTextIcon className={cn(cls, "text-orange-500")} />;
+    return <FileTextIcon className={cn(cls, "text-warning")} />;
   return <FileIcon className={cn(cls, "text-muted-foreground")} />;
 }
 
@@ -397,7 +397,7 @@ export function NBoxPanel({ onClose, onSendItem }: NBoxPanelProps) {
                       onClick={() => setOpenFolderId(folder.id)}
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <FolderIcon className="size-4 text-yellow-500 shrink-0" />
+                        <FolderIcon className="size-4 text-warning shrink-0" />
                         <span className="text-sm truncate">{folder.name}</span>
                       </div>
                       <ChevronLeftIcon className="size-4 text-muted-foreground rotate-180 shrink-0" />

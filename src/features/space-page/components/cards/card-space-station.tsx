@@ -31,14 +31,14 @@ export function CardSpaceStation({
     >
       <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-3">
-          <div className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-purple-500">
-            <Rocket className="size-6 text-white" />
+          <div className="flex size-12 items-center justify-center rounded-xl bg-info/15">
+            <Rocket className="size-6 text-info" />
           </div>
           <div>
-            <p className="text-sm font-medium text-white">
+            <p className="text-sm font-medium text-foreground">
               Descubra a Space Station
             </p>
-            <p className="max-w-md text-xs text-white/60">
+            <p className="max-w-md text-xs text-muted-foreground">
               Mergulhe no universo 3D da empresa — mapa, pessoas, chats
               internos. Acesso controlado por permissão.
             </p>
@@ -48,7 +48,6 @@ export function CardSpaceStation({
         {!isViewerAuthenticated ? (
           <Button
             asChild
-            className="bg-orange-500 hover:bg-orange-600"
           >
             <Link href={`/sign-in?callbackUrl=/space/${nick}`}>
               Fazer login para entrar
@@ -57,14 +56,13 @@ export function CardSpaceStation({
         ) : isViewerMember ? (
           <Button
             asChild
-            className="bg-orange-500 hover:bg-orange-600"
           >
             <Link href={`/station/${nick}/world`}>Entrar na Space Station</Link>
           </Button>
         ) : (
           <Button
             variant="outline"
-            className="border-orange-500/40 text-orange-300 hover:bg-orange-500/10"
+            className="border-info/30 text-info hover:bg-info/15"
           >
             Solicitar acesso
           </Button>

@@ -1,8 +1,10 @@
 "use client";
 import { orpc } from "@/lib/orpc";
+import { authClient } from "@/lib/auth-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { DateRange } from "@/features/insights/types";
+import type { CrossBucket, CrossSeriesFilters } from "@/features/insights/lib/cross-chart-catalog";
 import { mockDashboardData } from "@/features/insights/types/mock";
 
 interface InsightFilter {
@@ -20,6 +22,21 @@ export const useQueryAppsInsights = (input: InsightFilter) => {
     orpc.insights.getAppsInsights.queryOptions({ input }),
   );
   return { appsInsights: data, ...query };
+};
+
+/** Dados do Gráfico Cruzado: cada série com os próprios filtros (o menu do Insights não entra aqui). */
+export const useQueryCrossSeries = (input: {
+  bucket: CrossBucket;
+  alignPeriods?: boolean;
+  series: Array<{ seriesId: string; datasetId: string; filters: CrossSeriesFilters }>;
+}) => {
+  const { data, ...query } = useQuery({
+    ...orpc.insights.getCrossSeries.queryOptions({ input }),
+    enabled: input.series.length > 0,
+    staleTime: 60_000,
+    placeholderData: (previousData) => previousData,
+  });
+  return { crossSeries: data, ...query };
 };
 
 export const useQueryTrackingDashboardReport = (input: InsightFilter) => {
@@ -50,13 +67,18 @@ export const useQueryListTrackings = () => {
   };
 };
 export const useQueryListAllTrackings = (organizationIds: string[]) => {
-  const { data, ...query } = useQuery(
-    orpc.tracking.listAllTrackings.queryOptions({
+  // "Todas as empresas" chega como lista vazia; a consulta precisa dos IDs, senão volta sem nenhum tracking.
+  const { data: userOrganizations } = authClient.useListOrganizations();
+  const scopedOrganizationIds =
+    organizationIds.length > 0 ? organizationIds : (userOrganizations ?? []).map((organization) => organization.id);
+  const { data, ...query } = useQuery({
+    ...orpc.tracking.listAllTrackings.queryOptions({
       input: {
-        organizationionIds: organizationIds,
+        organizationionIds: scopedOrganizationIds,
       },
     }),
-  );
+    enabled: scopedOrganizationIds.length > 0,
+  });
 
   return {
     trackings: data ?? [],

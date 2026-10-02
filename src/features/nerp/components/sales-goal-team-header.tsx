@@ -36,7 +36,7 @@ export function SalesGoalTeamHeader({
           {totalLabel}: <strong className="text-foreground">{totalValue}</strong>
         </span>
         <span className="text-[11px] px-2.5 py-1 rounded-full bg-white/5 text-muted-foreground whitespace-nowrap">
-          {top3Label}: <strong className="text-emerald-400">{top3Value}</strong>
+          {top3Label}: <strong className="text-success">{top3Value}</strong>
         </span>
       </div>
     </div>

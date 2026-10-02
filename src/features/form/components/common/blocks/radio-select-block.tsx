@@ -78,7 +78,7 @@ export const RadioSelectBlock: ObjectBlockType = {
 
   blockBtnElement: {
     icon: CircleIcon,
-    label: "Radio",
+    label: "Escolha única",
   },
 
   canvasComponent: RadioSelectCanvasComponent,
@@ -111,7 +111,7 @@ function RadioSelectCanvasComponent({
           style={{ color: textColor }}
         >
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
 
@@ -271,11 +271,11 @@ function RadioSelectFormComponent({
     <div className="flex flex-col gap-3 w-full">
       {label?.trim() && (
         <Label
-          className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}
+          className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-destructive" : ""}`}
           style={{ color: textColor }}
         >
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
           {allowMultiple && (
             <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground">
               (múltipla escolha)
@@ -301,7 +301,7 @@ function RadioSelectFormComponent({
                     commitMulti(next);
                   }}
                   className={`cursor-pointer ${
-                    isError || isSubmitError ? "border-red-500" : ""
+                    isError || isSubmitError ? "border-destructive" : ""
                   }`}
                   style={{
                     borderColor: settings?.primaryColor || undefined,
@@ -341,7 +341,7 @@ function RadioSelectFormComponent({
                   value={option.value}
                   id={uniqueId}
                   className={`cursor-pointer ${
-                    isError || isSubmitError ? "border-red-500" : ""
+                    isError || isSubmitError ? "border-destructive" : ""
                   }`}
                   style={{
                     borderColor: settings?.primaryColor || undefined,
@@ -362,7 +362,7 @@ function RadioSelectFormComponent({
       )}
 
       {isError ? (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
           {required
             ? allowMultiple
               ? "Selecione ao menos uma opção"
@@ -371,7 +371,7 @@ function RadioSelectFormComponent({
         </p>
       ) : (
         errorMessage && (
-          <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage}</p>
+          <p className="text-destructive text-[0.8rem] break-words whitespace-normal">{errorMessage}</p>
         )
       )}
     </div>

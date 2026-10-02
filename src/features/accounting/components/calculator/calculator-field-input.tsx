@@ -108,7 +108,7 @@ function FieldLabel({ field, inputId }: { field: CalculatorField; inputId: strin
 
 function PrefilledBadge() {
   return (
-    <p className="inline-flex items-center gap-1 text-[11px] text-violet-700 dark:text-violet-300">
+    <p className="inline-flex items-center gap-1 text-[11px] text-info dark:text-info">
       <Building2 className="size-3" />
       preenchido com os dados da sua empresa
     </p>

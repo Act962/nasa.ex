@@ -123,7 +123,7 @@ export const MaskedFieldBlock: ObjectBlockType = {
       validateCpf: false,
     } satisfies AttributesType,
   }),
-  blockBtnElement: { icon: Sparkles, label: "Campo formatado" },
+  blockBtnElement: { icon: Sparkles, label: "Telefone, CPF, CEP…" },
   canvasComponent: CanvasView,
   formComponent: FormView,
   propertiesComponent: PropertiesView,
@@ -155,7 +155,7 @@ function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
       {label?.trim() && (
         <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug">
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground ml-2">
             {formatLabel(format)}
           </span>
@@ -358,11 +358,11 @@ function FormView({
         {label?.trim() && (
           <Label
             className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${
-              isError ? "text-red-500" : ""
+              isError ? "text-destructive" : ""
             }`}
           >
             {label}
-            {required && <span className="text-red-500"> *</span>}
+            {required && <span className="text-destructive"> *</span>}
           </Label>
         )}
         <div className="flex gap-2">
@@ -375,7 +375,7 @@ function FormView({
               type="text"
               autoComplete="address-level2"
               placeholder={placeHolder || "São Paulo"}
-              className={`pl-9 bg-transparent! ${isError ? "border-red-500!" : ""}`}
+              className={`pl-9 bg-transparent! ${isError ? "border-destructive!" : ""}`}
               style={{
                 color: textColor || undefined,
                 borderColor: textColor ? `${textColor}40` : undefined,
@@ -387,7 +387,7 @@ function FormView({
           </div>
           <Select value={uf} onValueChange={(v) => commitCityUf(city, v)}>
             <SelectTrigger
-              className={`w-24 bg-transparent! ${isError ? "border-red-500!" : ""}`}
+              className={`w-24 bg-transparent! ${isError ? "border-destructive!" : ""}`}
               style={{
                 color: textColor || undefined,
                 borderColor: textColor ? `${textColor}40` : undefined,
@@ -416,7 +416,7 @@ function FormView({
           </p>
         )}
         {isError && (
-          <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+          <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
             {errorMessage || "Informe cidade e estado."}
           </p>
         )}
@@ -430,11 +430,11 @@ function FormView({
       {label?.trim() && (
         <Label
           className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${
-            isError ? "text-red-500" : ""
+            isError ? "text-destructive" : ""
           }`}
         >
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       <div className="relative">
@@ -447,7 +447,7 @@ function FormView({
           inputMode={inputModeFor(format)}
           autoComplete={autoCompleteFor(format)}
           placeholder={placeHolder || formatPlaceholder(format)}
-          className={`pl-9 bg-transparent! ${isError ? "border-red-500!" : ""}`}
+          className={`pl-9 bg-transparent! ${isError ? "border-destructive!" : ""}`}
           style={{
             color: textColor || undefined,
             borderColor: textColor ? `${textColor}40` : undefined,
@@ -477,7 +477,7 @@ function FormView({
         </p>
       )}
       {localInvalid && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
           {validationMessageFor(format)}
         </p>
       )}
@@ -493,17 +493,17 @@ function FormView({
         </p>
       )}
       {cepNotFound && !localInvalid && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
           CEP não encontrado
         </p>
       )}
       {cpfNotFound && !localInvalid && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
           CPF inválido
         </p>
       )}
       {isSubmitError && !localInvalid && !cepNotFound && !cpfNotFound && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
           {errorMessage || "Campo inválido."}
         </p>
       )}

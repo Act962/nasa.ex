@@ -11,10 +11,10 @@ import {
   CheckCircle2,
   FileText,
   Link2,
-  Loader2,
   Folder,
   BookOpen,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -106,11 +106,11 @@ export function PlansManager({ courseId, lessons, modules }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4 text-sm dark:border-violet-900/40 dark:bg-violet-900/10">
-        <p className="font-medium text-violet-900 dark:text-violet-200">
+      <div className="rounded-xl border border-info/30 bg-info/5 p-4 text-sm">
+        <p className="font-medium text-info">
           Planos e entregas
         </p>
-        <p className="mt-1 text-violet-800/80 dark:text-violet-200/80">
+        <p className="mt-1 text-info/80">
           Cada plano tem seu próprio preço e seleção de aulas. Use planos para
           oferecer um pacote básico (algumas aulas), um intermediário e um VIP
           (todas as aulas + materiais extras como PDFs e links).
@@ -189,7 +189,7 @@ export function PlansManager({ courseId, lessons, modules }: Props) {
                           : "Excluir plano"
                       }
                     >
-                      <Trash2 className="size-4 text-rose-600" />
+                      <Trash2 className="size-4 text-destructive" />
                     </Button>
                   </div>
                 </div>
@@ -198,7 +198,7 @@ export function PlansManager({ courseId, lessons, modules }: Props) {
                   <span
                     className={
                       plan.priceBrlCents === 0
-                        ? "text-lg font-bold text-emerald-700 dark:text-emerald-300"
+                        ? "text-lg font-bold text-success"
                         : "text-lg font-bold text-foreground"
                     }
                   >
@@ -222,7 +222,7 @@ export function PlansManager({ courseId, lessons, modules }: Props) {
                     {plan.attachments.length === 1 ? "entrega" : "entregas"}
                   </span>
                   {plan.enrollmentCount > 0 && (
-                    <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
+                    <span className="inline-flex items-center gap-1 text-success">
                       <CheckCircle2 className="size-3.5" />
                       {plan.enrollmentCount} alunos
                     </span>
@@ -332,10 +332,10 @@ export function PlansManager({ courseId, lessons, modules }: Props) {
                 confirmDeletePlanId &&
                 removePlan.mutate({ planId: confirmDeletePlanId })
               }
-              className="bg-rose-600 hover:bg-rose-700"
+              className="bg-destructive/10 text-destructive hover:bg-destructive/15"
             >
               {removePlan.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
+                <OrbitaSpinner className="size-4 " />
               ) : (
                 "Sim, excluir"
               )}

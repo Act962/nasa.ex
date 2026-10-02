@@ -30,7 +30,7 @@ export const NASA_TOUR_STEPS: TourStep[] = [
   {
     id:       "nav-integrations",
     selector: '[data-tour="nav-integrations"]',
-    title:    "Marketplace de Integrações 🔌",
+    title:    "Satélites do ASTRO 🛰️",
     message:  "Conecte o ÓRBITA com mais de 50 plataformas! WhatsApp Business, Instagram DM, RD Station, Hotmart, Stripe e muito mais. Cada integração expande o poder da sua operação.",
     position: "right",
     padding:  8,

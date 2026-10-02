@@ -55,10 +55,10 @@ function confidenceLabel(confidence: number, hasTrendBasis: boolean): string {
 function confidenceClasses(confidence: number, hasTrendBasis: boolean): string {
   if (!hasTrendBasis) return "border-border bg-muted text-muted-foreground";
   if (confidence >= 0.6)
-    return "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
+    return "border-success/30 bg-success/10 text-success dark:text-success";
   if (confidence >= 0.3)
-    return "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400";
-  return "border-orange-500/30 bg-orange-500/10 text-orange-600 dark:text-orange-400";
+    return "border-warning/30 bg-warning/10 text-warning dark:text-warning";
+  return "border-warning/30 bg-warning/10 text-warning dark:text-warning";
 }
 
 export function ProjectionTab() {
@@ -152,9 +152,9 @@ export function ProjectionTab() {
           <CardContent className="p-4">
             <div className="mb-1 flex items-center gap-2 text-muted-foreground">
               {finalBalance >= openingBalance ? (
-                <TrendingUp className="size-4 text-emerald-500" />
+                <TrendingUp className="size-4 text-success" />
               ) : (
-                <TrendingDown className="size-4 text-red-500" />
+                <TrendingDown className="size-4 text-destructive" />
               )}
               <span className="text-xs font-medium">
                 Saldo em {months[months.length - 1]?.label ?? "—"}
@@ -163,7 +163,7 @@ export function ProjectionTab() {
             <p
               className={cn(
                 "text-2xl font-semibold tabular-nums",
-                finalBalance < 0 && "text-red-500",
+                finalBalance < 0 && "text-destructive",
               )}
             >
               {formatCurrency(finalBalance)}
@@ -176,19 +176,19 @@ export function ProjectionTab() {
         </Card>
 
         <Card
-          className={cn(hasNegativeMonth && "border-red-500/40 bg-red-500/5")}
+          className={cn(hasNegativeMonth && "border-destructive/40 bg-destructive/5")}
         >
           <CardContent className="p-4">
             <div className="mb-1 flex items-center gap-2 text-muted-foreground">
               <AlertTriangle
-                className={cn("size-4", hasNegativeMonth && "text-red-500")}
+                className={cn("size-4", hasNegativeMonth && "text-destructive")}
               />
               <span className="text-xs font-medium">Menor saldo do período</span>
             </div>
             <p
               className={cn(
                 "text-2xl font-semibold tabular-nums",
-                hasNegativeMonth && "text-red-500",
+                hasNegativeMonth && "text-destructive",
               )}
             >
               {formatCurrency(lowestMonth?.projectedBalance ?? 0)}
@@ -205,8 +205,8 @@ export function ProjectionTab() {
       {(!hasTrendBasis || totalOverdue > 0 || data?.accountsCount === 0) && (
         <div className="space-y-2">
           {data?.accountsCount === 0 && (
-            <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs">
-              <Info className="mt-0.5 size-4 shrink-0 text-amber-500" />
+            <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 p-3 text-xs">
+              <Info className="mt-0.5 size-4 shrink-0 text-warning" />
               <p>
                 Nenhuma conta bancária ativa cadastrada, então a projeção parte
                 de zero e mostra só o resultado do período. Cadastre as contas na
@@ -227,8 +227,8 @@ export function ProjectionTab() {
           )}
 
           {totalOverdue > 0 && (
-            <div className="flex items-start gap-2 rounded-md border border-orange-500/30 bg-orange-500/5 p-3 text-xs">
-              <Clock className="mt-0.5 size-4 shrink-0 text-orange-500" />
+            <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 p-3 text-xs">
+              <Clock className="mt-0.5 size-4 shrink-0 text-warning" />
               <p>
                 <strong>{formatCurrency(totalOverdue)}</strong> em lançamentos
                 vencidos e ainda em aberto foram somados ao primeiro mês
@@ -313,17 +313,17 @@ export function ProjectionTab() {
                   return (
                     <TableRow
                       key={month.month}
-                      className={cn(isNegative && "bg-red-500/5")}
+                      className={cn(isNegative && "bg-destructive/5")}
                     >
                       <TableCell className="font-medium">
                         {month.label}
                         {isNegative && (
-                          <AlertTriangle className="ml-1.5 inline size-3.5 text-red-500" />
+                          <AlertTriangle className="ml-1.5 inline size-3.5 text-destructive" />
                         )}
                       </TableCell>
 
                       <TableCell className="text-right tabular-nums">
-                        <span className="text-emerald-600 dark:text-emerald-400">
+                        <span className="text-success dark:text-success">
                           {formatCurrency(totalIn)}
                         </span>
                         {month.estimatedIn > 0 && (
@@ -334,7 +334,7 @@ export function ProjectionTab() {
                       </TableCell>
 
                       <TableCell className="text-right tabular-nums">
-                        <span className="text-red-500">{formatCurrency(totalOut)}</span>
+                        <span className="text-destructive">{formatCurrency(totalOut)}</span>
                         {month.estimatedOut > 0 && (
                           <span className="ml-1 text-[10px] text-muted-foreground">
                             ({formatCurrency(month.estimatedOut)} est.)
@@ -345,7 +345,7 @@ export function ProjectionTab() {
                       <TableCell
                         className={cn(
                           "text-right font-medium tabular-nums",
-                          result >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500",
+                          result >= 0 ? "text-success dark:text-success" : "text-destructive",
                         )}
                       >
                         {result >= 0 ? "+" : ""}
@@ -355,7 +355,7 @@ export function ProjectionTab() {
                       <TableCell
                         className={cn(
                           "text-right font-semibold tabular-nums",
-                          isNegative && "text-red-500",
+                          isNegative && "text-destructive",
                         )}
                       >
                         {formatCurrency(month.projectedBalance)}

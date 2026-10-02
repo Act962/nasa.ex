@@ -127,7 +127,7 @@ export function QuickStepFields({ step, trackingId, onChange }: QuickStepFieldsP
             {selectedIds
               .filter((id) => id.startsWith("{{TAG:"))
               .map((placeholder) => (
-                <span key={placeholder} className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] text-emerald-500">
+                <span key={placeholder} className="rounded-full bg-success/15 px-2 py-0.5 text-[11px] text-success">
                   nova: {placeholder.slice(6, -2).split(":")[0]}
                 </span>
               ))}
@@ -272,7 +272,7 @@ export function QuickStepFields({ step, trackingId, onChange }: QuickStepFieldsP
 
     default:
       return data.needsReview ? (
-        <p className="text-xs text-amber-500">{readString(data, "reviewReason", "Complete este passo no modo avançado.")}</p>
+        <p className="text-xs text-warning">{readString(data, "reviewReason", "Complete este passo no modo avançado.")}</p>
       ) : null;
   }
 }

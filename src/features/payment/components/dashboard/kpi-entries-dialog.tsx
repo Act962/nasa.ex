@@ -20,7 +20,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, X } from "lucide-react";
+import { X } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { usePaymentEntries } from "../../hooks/use-payment";
 import { formatCurrency } from "../../lib/format";
 import { PaymentPagination } from "../shared/payment-pagination";
@@ -54,12 +55,12 @@ const STATUS_LABELS: Record<EntryStatus, string> = {
 };
 
 const STATUS_CLASSES: Record<EntryStatus, string> = {
-  PENDING_APPROVAL: "text-amber-400 border-amber-400/30 bg-amber-400/10",
-  PENDING: "text-zinc-400 border-zinc-400/30 bg-zinc-400/10",
-  PARTIAL: "text-blue-400 border-blue-400/30 bg-blue-400/10",
-  PAID: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10",
-  OVERDUE: "text-red-400 border-red-400/30 bg-red-400/10",
-  CANCELLED: "text-zinc-500 border-zinc-500/30 bg-zinc-500/10",
+  PENDING_APPROVAL: "text-warning border-warning/30 bg-warning/10",
+  PENDING: "text-muted-foreground border-line/30 bg-muted/10",
+  PARTIAL: "text-info border-info/30 bg-info/10",
+  PAID: "text-success border-success/30 bg-success/10",
+  OVERDUE: "text-destructive border-destructive/30 bg-destructive/10",
+  CANCELLED: "text-muted-foreground border-line/30 bg-knob/10",
 };
 
 export function KpiEntriesDialog({
@@ -68,7 +69,7 @@ export function KpiEntriesDialog({
   title,
   filter,
   // Cor do totalizador — combina com a cor do KPI que abriu o dialog
-  accentClassName = "text-[#1E90FF]",
+  accentClassName = "text-info",
   // Quando true, considera o valor "paidAmount" na soma (usado nos KPIs de
   // "Recebido"/"Pago" — o valor efetivamente realizado, não o total do
   // lançamento). Default: soma o total.
@@ -183,7 +184,7 @@ export function KpiEntriesDialog({
               {isLoading ? (
                 <tr>
                   <td colSpan={6} className="py-10 text-center text-muted-foreground">
-                    <Loader2 className="size-5 animate-spin inline mr-2" />
+                    <OrbitaSpinner className="size-5 inline mr-2" />
                     Carregando lançamentos…
                   </td>
                 </tr>

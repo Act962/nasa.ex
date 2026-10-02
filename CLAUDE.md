@@ -94,6 +94,9 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY` — mesma chave pública acima, exposta ao client para `pushManager.subscribe`. Pública por definição do protocolo. Trocar o par invalida todas as inscrições existentes (elas passam a devolver 403 e ficam no banco de propósito — ver spec 0022, D-4).
 - `VAPID_SUBJECT` — contato exigido pelo protocolo (`mailto:...` ou URL). Padrão: `mailto:suporte@nasaex.com`. Ausente não quebra.
 - `ACCOUNTING_ALERT_WHATSAPP_TEMPLATE` — (opcional) nome do template aprovado na Meta para os avisos fiscais da aba Contábil (idioma `pt_BR`; parâmetros na ordem: o que vence, data, valor, link). Sem ele, orgs no WhatsApp Oficial fora da janela de 24h não recebem o aviso por WhatsApp (sino/push seguem normais). Ver `docs/contabil-overview.md`.
+- `AI_PRICING_ADMIN_EMAILS` — (opcional) e-mails, separados por vírgula, que configuram o preço dos modelos do ASTRO (margem e modelos liberados na chave da plataforma, spec 0055) sem serem admin do sistema. Admins do sistema já podem.
+- `ASTRO_VOICE_REALTIME` / `ASTRO_VOICE_MODEL` / `ASTRO_VOICE_NAME` — (opcionais) conversa por voz do ASTRO em tempo real (spec 0054). `ASTRO_VOICE_REALTIME=false` volta ao reconhecimento de voz do navegador; modelo padrão `gpt-realtime`, voz padrão `marin`. Usa a chave OpenAI da empresa (Satélites) ou `OPENAI_API_KEY`.
+- `NUMBER_PURCHASE_NOTIFY_ORG_ID` — (opcional) organização da ÓRBITA cuja instância de WhatsApp conectada envia a cópia interna do "Comprar número" das Campanhas para a equipe (`NUMBER_PURCHASE_NOTIFY_PHONE`, padrão 5586998221810). Ausente = a cópia só vai para o log; o cliente continua sendo levado ao WhatsApp do comercial (`NEXT_PUBLIC_NUMBER_PURCHASE_SALES_PHONE`, padrão 5511952133700).
 - Sem `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`, o canal Web Push se declara indisponível e o envio vira no-op — o resto das notificações (bell, popup, Pusher) segue funcionando.
 
 ## Estrutura do Projeto

@@ -11,10 +11,10 @@ import { AdminCreateUserModal } from "./admin-create-user-modal";
 const ROLES = ["owner", "admin", "member", "moderador"] as const;
 const ROLE_LABELS: Record<string, string> = { owner: "Master", admin: "Adm", member: "Single", moderador: "Moderador" };
 const ROLE_COLORS: Record<string, string> = {
-  owner:     "bg-violet-500/20 text-violet-300 border-violet-500/30",
-  admin:     "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  member:    "bg-zinc-700/60 text-zinc-300 border-zinc-600/30",
-  moderador: "bg-orange-500/20 text-orange-300 border-orange-500/30",
+  owner:     "bg-info/20 text-info border-info/30",
+  admin:     "bg-knob text-foreground border-line",
+  member:    "bg-muted text-muted-foreground border-border",
+  moderador: "bg-warning/20 text-warning border-warning/30",
 };
 
 type Member = {
@@ -108,16 +108,16 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
       {/* Confirm dialog */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setConfirmDelete(null)}>
-          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl space-y-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-card border border-line rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-500/15 flex items-center justify-center">
-                <Trash2 className="w-5 h-5 text-red-400" />
+              <div className="w-10 h-10 rounded-full bg-destructive/15 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-destructive" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white">
+                <p className="text-sm font-semibold text-foreground">
                   {confirmDelete.type === "remove" ? "Remover da empresa?" : "Excluir usuário?"}
                 </p>
-                <p className="text-xs text-zinc-400 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {confirmDelete.type === "remove"
                     ? "O usuário perderá o acesso à empresa, mas sua conta permanece no sistema."
                     : "Esta ação é irreversível. O usuário será excluído de todo o sistema."}
@@ -125,7 +125,7 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
               </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm rounded-xl transition-colors">
+              <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2 bg-muted hover:bg-knob text-foreground text-sm rounded-xl transition-colors">
                 Cancelar
               </button>
               <button
@@ -134,7 +134,7 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
                   else deleteM.mutate({ userId: confirmDelete.userId });
                 }}
                 disabled={removeM.isPending || deleteM.isPending}
-                className="flex-1 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors"
+                className="flex-1 py-2 bg-destructive/15 text-destructive hover:bg-destructive/25 disabled:opacity-50 text-sm font-semibold rounded-xl transition-colors"
               >
                 {(removeM.isPending || deleteM.isPending) ? "Aguarde..." : confirmDelete.type === "remove" ? "Remover" : "Excluir"}
               </button>
@@ -143,16 +143,16 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
         </div>
       )}
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         {/* Table header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-          <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-            <Users className="w-4 h-4 text-blue-400" />
-            Membros <span className="text-zinc-500 font-normal">({members.length})</span>
+        <div className="flex items-center justify-between px-5 py-4">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Users className="w-4 h-4 text-info" />
+            Membros <span className="text-muted-foreground font-normal">({members.length})</span>
           </h2>
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold rounded-lg transition-colors"
           >
             <UserPlus className="w-3.5 h-3.5" />
             Novo usuário
@@ -162,7 +162,7 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-zinc-500 text-[11px] uppercase tracking-wide border-b border-zinc-800 bg-zinc-900/50">
+              <tr className="text-muted-foreground text-[11px] uppercase tracking-wide border-b border-border bg-card/50">
                 <th className="text-left px-5 py-3">Usuário</th>
                 <th className="text-left px-3 py-3">Função</th>
                 <th className="text-left px-3 py-3">Cargo</th>
@@ -171,18 +171,18 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
                 <th className="px-5 py-3 w-10" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/60">
+            <tbody className="divide-y divide-border/60">
               {members.map((m) => {
                 const isEditing = editing?.memberId === m.id;
                 return (
-                  <tr key={m.id} className="hover:bg-zinc-800/30 transition-colors group">
+                  <tr key={m.id} className="hover:bg-muted/30 transition-colors group">
 
                     {/* User */}
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2.5">
                         {m.user.image
                           ? <img src={m.user.image} className="w-8 h-8 rounded-full shrink-0 object-cover" />
-                          : <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-[11px] font-bold text-zinc-300 shrink-0">{m.user.name[0]?.toUpperCase()}</div>
+                          : <div className="w-8 h-8 rounded-full bg-knob flex items-center justify-center text-[11px] font-bold text-foreground shrink-0">{m.user.name[0]?.toUpperCase()}</div>
                         }
                         <div className="min-w-0">
                           {isEditing ? (
@@ -190,12 +190,12 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
                               autoFocus
                               value={editing.name}
                               onChange={(e) => setEditing((prev) => prev ? { ...prev, name: e.target.value } : prev)}
-                              className="w-full px-2 py-1 bg-zinc-700 border border-violet-500/60 rounded text-xs text-white focus:outline-none"
+                              className="w-full px-2 py-1 bg-knob border border-info/60 rounded text-xs text-foreground focus:outline-none"
                             />
                           ) : (
-                            <p className="text-xs font-medium text-white truncate">{m.user.name}</p>
+                            <p className="text-xs font-medium text-foreground truncate">{m.user.name}</p>
                           )}
-                          <p className="text-[11px] text-zinc-500 truncate">{m.user.email}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">{m.user.email}</p>
                         </div>
                       </div>
                     </td>
@@ -206,7 +206,7 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
                         <select
                           value={editing.role}
                           onChange={(e) => setEditing((prev) => prev ? { ...prev, role: e.target.value } : prev)}
-                          className="px-2 py-1 bg-zinc-700 border border-violet-500/60 rounded text-xs text-white focus:outline-none"
+                          className="px-2 py-1 bg-knob border border-info/60 rounded text-xs text-foreground focus:outline-none"
                         >
                           {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                         </select>
@@ -224,10 +224,10 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
                           value={editing.cargo}
                           onChange={(e) => setEditing((prev) => prev ? { ...prev, cargo: e.target.value } : prev)}
                           placeholder="Cargo (opcional)"
-                          className="w-28 px-2 py-1 bg-zinc-700 border border-violet-500/60 rounded text-xs text-white placeholder:text-zinc-500 focus:outline-none"
+                          className="w-28 px-2 py-1 bg-knob border border-info/60 rounded text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
                         />
                       ) : (
-                        <span className="text-xs text-zinc-400">{m.cargo || <span className="text-zinc-600">—</span>}</span>
+                        <span className="text-xs text-muted-foreground">{m.cargo || <span className="text-muted-foreground/70">—</span>}</span>
                       )}
                     </td>
 
@@ -239,8 +239,8 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
                         title={m.user.isSystemAdmin ? "Revogar admin de sistema" : "Conceder admin de sistema"}
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-colors ${
                           m.user.isSystemAdmin
-                            ? "bg-violet-500/20 text-violet-300 border-violet-500/30 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/30"
-                            : "bg-zinc-800 text-zinc-600 border-zinc-700 hover:bg-violet-500/20 hover:text-violet-300 hover:border-violet-500/30"
+                            ? "bg-info/20 text-info border-info/30 hover:bg-destructive/20 hover:text-destructive hover:border-destructive/30"
+                            : "bg-muted text-muted-foreground/70 border-line hover:bg-info/20 hover:text-info hover:border-info/30"
                         }`}
                       >
                         <ShieldCheck className="w-3 h-3" />
@@ -249,7 +249,7 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
                     </td>
 
                     {/* Date */}
-                    <td className="px-3 py-3 text-right text-[11px] text-zinc-500 whitespace-nowrap">
+                    <td className="px-3 py-3 text-right text-[11px] text-muted-foreground whitespace-nowrap">
                       {new Date(m.createdAt).toLocaleDateString("pt-BR")}
                     </td>
 
@@ -260,11 +260,11 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
                           <button
                             onClick={saveEdit}
                             disabled={updateM.isPending}
-                            className="p-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-lg transition-colors"
+                            className="p-1.5 bg-success/20 text-success hover:bg-success/30 rounded-lg transition-colors"
                           >
                             <Check className="w-3.5 h-3.5" />
                           </button>
-                          <button onClick={cancelEdit} className="p-1.5 bg-zinc-700 text-zinc-400 hover:bg-zinc-600 rounded-lg transition-colors">
+                          <button onClick={cancelEdit} className="p-1.5 bg-knob text-muted-foreground hover:bg-knob rounded-lg transition-colors">
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -274,7 +274,7 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
                           <button
                             onClick={() => startEdit(m)}
                             title="Editar"
-                            className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors"
+                            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-knob rounded-lg transition-colors"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -283,7 +283,7 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
                           <Link
                             href={`/admin/users/${m.user.id}`}
                             title="Ver perfil completo"
-                            className="p-1.5 text-zinc-500 hover:text-blue-400 hover:bg-zinc-700 rounded-lg transition-colors"
+                            className="p-1.5 text-muted-foreground hover:text-info hover:bg-knob rounded-lg transition-colors"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                           </Link>
@@ -292,7 +292,7 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
                           <button
                             onClick={() => setConfirmDelete({ memberId: m.id, userId: m.user.id, type: "remove" })}
                             title="Remover da empresa"
-                            className="p-1.5 text-zinc-500 hover:text-orange-400 hover:bg-zinc-700 rounded-lg transition-colors"
+                            className="p-1.5 text-muted-foreground hover:text-warning hover:bg-knob rounded-lg transition-colors"
                           >
                             <UserMinus className="w-3.5 h-3.5" />
                           </button>
@@ -301,7 +301,7 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
                           <button
                             onClick={() => setConfirmDelete({ memberId: m.id, userId: m.user.id, type: "delete" })}
                             title="Excluir do sistema"
-                            className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-700 rounded-lg transition-colors"
+                            className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-knob rounded-lg transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -314,7 +314,7 @@ export function OrgMembersTable({ members: initialMembers, orgId, orgName }: { m
 
               {members.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-sm text-zinc-500">
+                  <td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">
                     Nenhum membro nesta empresa.
                   </td>
                 </tr>

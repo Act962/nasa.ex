@@ -47,7 +47,7 @@ const SETUP_STEPS: Record<string, { title: string; desc: string }[]> = {
   ],
   default: [
     { title: "Instale a integração", desc: "Clique em 'Instalar' e confirme no modal." },
-    { title: "Configure as credenciais", desc: "Acesse Configurações → Integrações e insira as chaves de API." },
+    { title: "Configure as credenciais", desc: "Acesse Satélites e insira as chaves de API." },
     { title: "Mapeie seus dados", desc: "Configure quais campos sincronizam entre os sistemas." },
     { title: "Ative e teste", desc: "Ative a integração e faça um teste com um lead de teste." },
   ],
@@ -62,7 +62,7 @@ function IntegrationLogo({ integration }: { integration: Integration }) {
   return (
     <div className="size-16 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 relative shadow-lg">
       <div className={cn(
-        "absolute inset-0 rounded-2xl bg-gradient-to-br from-[#7C3AED]/20 to-[#a855f7]/20 border border-[#7C3AED]/30 flex items-center justify-center text-3xl",
+        "absolute inset-0 rounded-2xl bg-gradient-to-br from-info/20 to-info/10 border border-info/30 flex items-center justify-center text-3xl",
         isUrl && imgLoaded && !imgFailed && "opacity-0",
       )}>
         {fallbackEmoji}
@@ -105,36 +105,10 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
         <ArrowLeft className="size-4" /> Voltar ao marketplace
       </Link>
 
-      {/* Hero */}
-      <div
-        className="relative overflow-hidden rounded-2xl"
-        style={{
-          background: "linear-gradient(135deg, #0d0a1a 0%, #1a0e3a 50%, #060312 100%)",
-        }}
-      >
-        {/* Glow */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 right-1/4 w-72 h-72 rounded-full bg-[#7C3AED]/15 blur-3xl" />
-          <div className="absolute bottom-0 left-1/4 w-48 h-48 rounded-full bg-[#a855f7]/10 blur-3xl" />
-        </div>
-
-        {/* Stars (CSS) */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {Array.from({ length: 40 }).map((_, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full bg-white/50"
-              style={{
-                width: `${Math.random() * 2 + 1}px`,
-                height: `${Math.random() * 2 + 1}px`,
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                animation: `pulse ${2 + Math.random() * 3}s ease-in-out infinite`,
-                opacity: Math.random() * 0.6 + 0.2,
-              }}
-            />
-          ))}
+      <div className="dark relative overflow-hidden rounded-[28px] bg-background text-foreground">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute top-0 right-1/4 size-72 rounded-full bg-info/15 blur-3xl" />
+          <div className="absolute bottom-0 left-1/4 size-48 rounded-full bg-info/10 blur-3xl" />
         </div>
 
         <div className="relative z-10 p-6 md:p-10">
@@ -143,40 +117,40 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
 
             <div className="flex-1 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-white/10 text-white/70 border-white/20 text-[11px] gap-1">
+                <Badge className="bg-card text-muted-foreground border-line text-[11px] gap-1">
                   <span>{CATEGORY_ICONS[integration.category]}</span>
                   {CATEGORY_LABELS[integration.category]}
                 </Badge>
                 {integration.tags.filter((t) => !["Instalado", "Visualizar"].includes(t)).map((t) => (
-                  <Badge key={t} className="bg-[#7C3AED]/30 text-[#c4b5fd] border-[#7C3AED]/40 text-[11px]">
+                  <Badge key={t} className="bg-info/15 text-info border-info/30 text-[11px]">
                     {t}
                   </Badge>
                 ))}
                 {installed && (
-                  <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[11px] gap-1">
+                  <Badge className="bg-success/20 text-success border-success/30 text-[11px] gap-1">
                     <CheckCircle2 className="size-3" /> Instalado
                   </Badge>
                 )}
               </div>
 
-              <h1 className="text-2xl md:text-3xl font-bold text-white">{integration.name}</h1>
-              <p className="text-sm text-white/60 max-w-lg leading-relaxed">{integration.description}</p>
-              <StarCostBadge appSlug={integration.slug} showSetup className="[&>span]:bg-white/10 [&>span]:text-white/70 [&>span]:border-white/20" />
+              <h1 className="text-2xl md:text-3xl font-bold">{integration.name}</h1>
+              <p className="text-sm text-muted-foreground max-w-lg leading-relaxed">{integration.description}</p>
+              <StarCostBadge appSlug={integration.slug} showSetup className="[&>span]:bg-card [&>span]:text-muted-foreground [&>span]:border-line" />
 
               <div className="flex flex-wrap gap-2 pt-1">
                 {installed ? (
-                  <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white" asChild>
+                  <Button className="gap-2 bg-success hover:bg-success/90 text-primary-foreground" asChild>
                     <Link href="/insights">
                       <BarChart2 className="size-4" /> Ver Insights
                     </Link>
                   </Button>
                 ) : integration.status === "view_only" ? (
-                  <Button disabled className="gap-2 bg-amber-600/20 text-amber-300 border border-amber-500/30 cursor-not-allowed">
+                  <Button disabled className="gap-2 bg-warning/20 text-warning border border-warning/30 cursor-not-allowed">
                     <Lock className="size-4" /> Em Breve
                   </Button>
                 ) : (
                   <Button
-                    className="gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+                    className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
                     onClick={() => setInstallOpen(true)}
                   >
                     <Zap className="size-4" /> Instalar agora
@@ -184,7 +158,7 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
                 )}
 
                 {integration.connectUrl && (
-                  <Button variant="outline" className="gap-2 border-white/20 text-white/70 hover:bg-white/10 hover:text-white" asChild>
+                  <Button variant="outline" className="gap-2" asChild>
                     <a href={integration.connectUrl} target="_blank" rel="noopener noreferrer">
                       <ExternalLink className="size-4" /> Documentação
                     </a>
@@ -195,15 +169,15 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
           </div>
 
           {/* Metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-2">
             {METRICS.map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center gap-2.5">
-                <div className="size-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-                  <Icon className="size-4 text-[#a78bfa]" />
+                <div className="size-8 rounded-full bg-knob flex items-center justify-center shrink-0">
+                  <Icon className="size-4 text-info" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">{value}</p>
-                  <p className="text-[10px] text-white/40">{label}</p>
+                  <p className="text-sm font-semibold">{value}</p>
+                  <p className="text-[10px] text-muted-foreground">{label}</p>
                 </div>
               </div>
             ))}
@@ -216,13 +190,13 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
         {/* Features */}
         <div className="border rounded-xl p-5 space-y-4 bg-card">
           <h2 className="font-semibold text-sm flex items-center gap-2">
-            <Zap className="size-4 text-[#7C3AED]" />
+            <Zap className="size-4 text-info" />
             Funcionalidades incluídas
           </h2>
           <ul className="space-y-2.5">
             {features.map((f) => (
               <li key={f} className="flex items-start gap-2.5 text-sm">
-                <CheckCircle2 className="size-4 text-emerald-500 mt-0.5 shrink-0" />
+                <CheckCircle2 className="size-4 text-success mt-0.5 shrink-0" />
                 <span>{f}</span>
               </li>
             ))}
@@ -232,7 +206,7 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
         {/* Setup steps */}
         <div className="border rounded-xl p-5 space-y-4 bg-card">
           <h2 className="font-semibold text-sm flex items-center gap-2">
-            <ArrowRight className="size-4 text-[#7C3AED]" />
+            <ArrowRight className="size-4 text-info" />
             Como configurar
           </h2>
           <ol className="space-y-3">
@@ -240,7 +214,7 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
               <li key={i} className="flex gap-3">
                 <div className={cn(
                   "size-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5",
-                  "bg-[#7C3AED]/10 text-[#7C3AED]",
+                  "bg-info/10 text-info",
                 )}>
                   {i + 1}
                 </div>
@@ -259,22 +233,22 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
         <div className="border rounded-xl bg-card overflow-hidden">
           {/* Section header */}
           <div className={cn(
-            "flex items-center gap-3 px-5 py-4 border-b",
+            "flex items-center gap-3 px-5 py-4",
             installed
-              ? "bg-gradient-to-r from-emerald-50/50 to-card dark:from-emerald-950/20"
+              ? "bg-gradient-to-r from-success/5 to-card"
               : "bg-muted/30",
           )}>
             <div className={cn(
               "size-9 rounded-lg flex items-center justify-center shrink-0",
-              installed ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-[#7C3AED]/10",
+              installed ? "bg-success/15" : "bg-info/10",
             )}>
-              <KeyRound className={cn("size-4", installed ? "text-emerald-600" : "text-[#7C3AED]")} />
+              <KeyRound className={cn("size-4", installed ? "text-success" : "text-info")} />
             </div>
             <div className="flex-1">
               <h2 className="font-semibold text-sm flex items-center gap-2">
                 Configurar Credenciais
                 {installed && (
-                  <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]">
+                  <Badge className="bg-success/15 text-success border-success/30 text-[10px]">
                     <CheckCircle2 className="size-3 mr-1" /> Integração ativa
                   </Badge>
                 )}
@@ -288,7 +262,7 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
             {!installed && (
               <Button
                 size="sm"
-                className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-1.5 shrink-0"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shrink-0"
                 onClick={() => setInstallOpen(true)}
               >
                 <Zap className="size-3.5" /> Instalar primeiro
@@ -297,7 +271,7 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
           </div>
 
           {/* Step indicator */}
-          <div className="px-5 py-3 border-b bg-muted/10 flex items-center gap-6">
+          <div className="px-5 py-3 bg-muted/10 flex items-center gap-6">
             {[
               { n: 1, label: "Habilitar integração", done: installed },
               { n: 2, label: "Inserir credenciais", done: false },
@@ -307,16 +281,16 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
                 <div className={cn(
                   "size-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
                   step.done
-                    ? "bg-emerald-500 text-white"
+                    ? "bg-success text-primary-foreground"
                     : i === 1 && installed
-                      ? "bg-[#7C3AED] text-white"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground",
                 )}>
                   {step.done ? <CheckCircle2 className="size-3" /> : step.n}
                 </div>
                 <span className={cn(
                   "text-xs",
-                  step.done ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-muted-foreground",
+                  step.done ? "text-success font-medium" : "text-muted-foreground",
                 )}>
                   {step.label}
                 </span>
@@ -339,7 +313,7 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
 
       {/* CTA */}
       {!installed && (
-        <div className="border rounded-xl p-6 bg-gradient-to-br from-[#7C3AED]/5 to-[#a855f7]/5 border-[#7C3AED]/20 flex flex-col sm:flex-row items-center gap-4">
+        <div className="border rounded-xl p-6 bg-info/5 border-info/20 flex flex-col sm:flex-row items-center gap-4">
           <div className="flex-1 space-y-1">
             <p className="font-semibold">Pronto para integrar?</p>
             <p className="text-sm text-muted-foreground">
@@ -347,12 +321,12 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
             </p>
           </div>
           {integration.status === "view_only" ? (
-            <Button disabled className="gap-2 border-amber-300/30 text-amber-600 bg-amber-50 cursor-not-allowed">
+            <Button disabled className="gap-2 border-warning/30 text-warning bg-warning/10 cursor-not-allowed">
               <Lock className="size-4" /> Em Breve
             </Button>
           ) : (
             <Button
-              className="gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white shrink-0"
+              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
               onClick={() => setInstallOpen(true)}
             >
               <Zap className="size-4" /> Instalar {integration.name}

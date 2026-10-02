@@ -122,14 +122,6 @@ export default function Page() {
     <div className="w-full max-w-[920px] mx-auto py-6 px-4 space-y-4">
       {/* Cabeçalho */}
       <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.back()}
-          title="Voltar"
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight truncate">
             {data.form.name}

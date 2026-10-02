@@ -30,8 +30,8 @@ export function StarsLearnCard({ className }: { className?: string }) {
   return (
     <div className={cn("rounded-xl border bg-card overflow-hidden", className)}>
       {/* Header */}
-      <div className="px-4 py-3 bg-linear-to-r from-yellow-50 to-yellow-50/30 dark:from-yellow-950/20 dark:to-transparent border-b flex items-center gap-2">
-        <div className="size-7 rounded-lg bg-yellow-100 dark:bg-yellow-900/40 flex items-center justify-center">
+      <div className="px-4 py-3 bg-linear-to-r from-warning/10 to-transparent flex items-center gap-2">
+        <div className="size-7 rounded-lg bg-warning/15 flex items-center justify-center">
           <StarIcon className="size-3.5" />
         </div>
         <div>
@@ -73,7 +73,7 @@ export function StarsLearnCard({ className }: { className?: string }) {
               className="rounded-lg bg-muted/40 p-2 text-center space-y-0.5"
             >
               <p className="text-[11px] font-semibold">{plan.name}</p>
-              <p className="text-[10px] text-yellow-600 dark:text-yellow-400 font-bold flex items-center justify-center gap-0.5">
+              <p className="text-[10px] text-warning font-bold flex items-center justify-center gap-0.5">
                 <StarIcon className="size-2.5" />
                 {plan.stars}
               </p>
@@ -87,7 +87,7 @@ export function StarsLearnCard({ className }: { className?: string }) {
       {/* Top-up packages */}
       <div className="px-4 py-3 border-b">
         <div className="flex items-center gap-1.5 mb-2">
-          <Zap className="size-3 text-[#7C3AED]" />
+          <Zap className="size-3 text-info" />
           <p className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wide">
             Top-ups (nunca expiram)
           </p>
@@ -100,9 +100,9 @@ export function StarsLearnCard({ className }: { className?: string }) {
           ].map((pkg) => (
             <div
               key={pkg.stars}
-              className="rounded-lg bg-yellow-50 border border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-800 p-2 text-center"
+              className="rounded-lg bg-warning/10 border border-warning/30 p-2 text-center"
             >
-              <p className="text-[11px] font-bold text-yellow-700 dark:text-yellow-400 flex items-center justify-center gap-0.5">
+              <p className="text-[11px] font-bold text-warning flex items-center justify-center gap-0.5">
                 <StarIcon className="size-2.5" />
                 {pkg.stars.replace(" ★", "")}
               </p>

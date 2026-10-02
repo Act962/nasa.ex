@@ -112,7 +112,7 @@ export function AccountingTab() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-violet-600 shadow-sm">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-info shadow-sm">
             <Landmark className="size-5 text-white" />
           </div>
           <div>
@@ -146,7 +146,7 @@ export function AccountingTab() {
               className={cn(
                 "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
                 isActive
-                  ? "border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-200"
+                  ? "border-info/40 bg-info/10 text-info dark:text-info"
                   : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
               )}
             >

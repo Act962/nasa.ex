@@ -110,7 +110,7 @@ export function DuplicateResolver({
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <AlertTriangleIcon className="size-5 text-amber-500" />
+            <AlertTriangleIcon className="size-5 text-warning" />
             Resolver tags duplicadas
           </DialogTitle>
           <DialogDescription>
@@ -127,7 +127,7 @@ export function DuplicateResolver({
           )}
           {!isLoading && (!data || data.duplicates.length === 0) && (
             <div className="text-center py-8 text-sm text-muted-foreground">
-              <CheckIcon className="size-8 mx-auto mb-2 text-emerald-500" />
+              <CheckIcon className="size-8 mx-auto mb-2 text-success" />
               Nenhuma duplicata encontrada — tudo em ordem!
             </div>
           )}
@@ -209,7 +209,7 @@ export function DuplicateResolver({
                               className={cn(
                                 "size-3",
                                 tag.automationCount > 0
-                                  ? "text-amber-500"
+                                  ? "text-warning"
                                   : "",
                               )}
                             />
@@ -217,7 +217,7 @@ export function DuplicateResolver({
                               <b
                                 className={cn(
                                   tag.automationCount > 0
-                                    ? "text-amber-600"
+                                    ? "text-warning"
                                     : "text-foreground",
                                 )}
                               >

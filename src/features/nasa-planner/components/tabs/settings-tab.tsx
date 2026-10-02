@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/spinner";
 import { useNasaPlanner, useUpdatePlanner } from "../../hooks/use-nasa-planner";
+import { AppReportButton } from "@/features/insights/components/app-report-button";
 
 const INITIAL_FORM = {
   brandName: "", brandSlogan: "", website: "", icp: "",
@@ -71,6 +72,9 @@ export function SettingsTab({ plannerId }: { plannerId: string }) {
   return (
     <ScrollArea className="flex-1 h-full">
       <div className="p-6 space-y-8 max-w-2xl">
+        <div className="flex justify-end">
+          <AppReportButton appModule="nasa-planner" />
+        </div>
         {/* Marca */}
         <section className="space-y-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Marca</h2>
@@ -172,19 +176,19 @@ export function SettingsTab({ plannerId }: { plannerId: string }) {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Análise SWOT</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-green-600 dark:text-green-400 font-medium">Forças (Strengths)</Label>
+              <Label className="text-success font-medium">Forças (Strengths)</Label>
               <Textarea placeholder="Pontos fortes da sua marca..." rows={4} {...field("strengths")} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-red-600 dark:text-red-400 font-medium">Fraquezas (Weaknesses)</Label>
+              <Label className="text-destructive font-medium">Fraquezas (Weaknesses)</Label>
               <Textarea placeholder="Pontos fracos a melhorar..." rows={4} {...field("weaknesses")} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-blue-600 dark:text-blue-400 font-medium">Oportunidades (Opportunities)</Label>
+              <Label className="text-info font-medium">Oportunidades (Opportunities)</Label>
               <Textarea placeholder="Oportunidades de mercado..." rows={4} {...field("opportunities")} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-orange-600 dark:text-orange-400 font-medium">Ameaças (Threats)</Label>
+              <Label className="text-warning font-medium">Ameaças (Threats)</Label>
               <Textarea placeholder="Ameaças e riscos externos..." rows={4} {...field("threats")} />
             </div>
           </div>

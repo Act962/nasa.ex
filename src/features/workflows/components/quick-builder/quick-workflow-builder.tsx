@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangleIcon, GitBranchIcon, Loader2Icon, PlusIcon, SparklesIcon, XIcon } from "lucide-react";
+import { AlertTriangleIcon, GitBranchIcon, PlusIcon, SparklesIcon, XIcon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -139,7 +140,7 @@ export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }
         }}
       >
         <div className="flex items-center gap-2">
-          <SparklesIcon className="size-4 shrink-0 text-violet-500" />
+          <SparklesIcon className="size-4 shrink-0 text-info" />
           <Input
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
@@ -147,7 +148,7 @@ export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }
             className="h-9 border-0 bg-transparent text-sm shadow-none focus-visible:ring-0"
           />
           <Button type="submit" size="sm" disabled={draftWorkflow.isPending || prompt.trim().length < 8}>
-            {draftWorkflow.isPending ? <Loader2Icon className="size-4 animate-spin" /> : "Montar"}
+            {draftWorkflow.isPending ? <OrbitaSpinner className="size-4 " /> : "Montar"}
           </Button>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -167,7 +168,7 @@ export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }
       <ol className="relative flex flex-col gap-2 before:absolute before:bottom-4 before:left-[15px] before:top-4 before:w-px before:bg-border">
         <StepShell index={1} title="Quando">
           <Select value={trigger?.type} onValueChange={setTrigger}>
-            <SelectTrigger size="sm" className="h-8 w-64 text-xs">
+            <SelectTrigger size="sm" className="h-8 w-full max-w-64 text-xs">
               <SelectValue placeholder="Escolha o gatilho" />
             </SelectTrigger>
             <SelectContent>
@@ -196,7 +197,7 @@ export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }
                 {Icon && <Icon className="size-4 text-muted-foreground" />}
                 {stepLabel(step)}
                 {step.data.needsReview === true && (
-                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-500">revisar no avançado</span>
+                  <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">revisar no avançado</span>
                 )}
               </div>
               <QuickStepFields step={step} trackingId={trackingId} onChange={(data) => updateStep(actionIndex + 1, data)} />
@@ -210,7 +211,7 @@ export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }
               <PlusIcon className="size-4 text-muted-foreground" />
             </span>
             <Select value="" onValueChange={addAction}>
-              <SelectTrigger size="sm" className="h-8 w-64 text-xs">
+              <SelectTrigger size="sm" className="h-8 w-full max-w-64 text-xs">
                 <SelectValue placeholder="Adicionar passo" />
               </SelectTrigger>
               <SelectContent>
@@ -232,14 +233,14 @@ export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }
       </ol>
 
       {branchedFlow && (
-        <div className="flex items-start gap-2 rounded-xl bg-violet-500/10 p-3 text-xs text-violet-300">
+        <div className="flex items-start gap-2 rounded-xl bg-info/10 p-3 text-xs text-info">
           <GitBranchIcon className="mt-0.5 size-4 shrink-0" />
           Esse fluxo tem ramificações (Se/Senão, decisão da IA). Ele será criado inteiro e aberto no modo avançado.
         </div>
       )}
 
       {duplicates.length > 0 && (
-        <div className="flex items-start gap-2 rounded-xl bg-amber-500/10 p-3 text-xs text-amber-500">
+        <div className="flex items-start gap-2 rounded-xl bg-warning/10 p-3 text-xs text-warning">
           <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
           <div>
             <p className="font-medium">Já existe um gatilho ligado com essa mesma lógica{leadId ? " para este lead" : ""}:</p>
@@ -273,7 +274,7 @@ export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }
           Modo avançado
         </Button>
         <Button size="sm" disabled={!canCreate || createWorkflow.isPending} onClick={() => create(false)}>
-          {createWorkflow.isPending && <Loader2Icon className="size-4 animate-spin" />}
+          {createWorkflow.isPending && <OrbitaSpinner className="size-4 " />}
           Criar gatilho
         </Button>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, BellOff, Loader2 } from "lucide-react";
+import { Bell, BellOff } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useWebPush } from "../hooks/use-web-push";
 import { cn } from "@/lib/utils";
 
@@ -44,12 +45,12 @@ export function PushToggle({ className }: { className?: string }) {
           "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition",
           "disabled:cursor-not-allowed disabled:opacity-50",
           isSubscribed
-            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+            ? "border-success/40 bg-success/10 text-success hover:bg-success/20"
             : "border-white/15 text-white/70 hover:border-white/30 hover:text-white",
         )}
       >
         {isPending ? (
-          <Loader2 className="size-4 animate-spin" />
+          <OrbitaSpinner className="size-4 " />
         ) : isSubscribed ? (
           <Bell className="size-4" />
         ) : (
@@ -62,7 +63,7 @@ export function PushToggle({ className }: { className?: string }) {
             : "Ativar notificações"}
       </button>
 
-      {error && <p className="text-xs text-rose-400">{error}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

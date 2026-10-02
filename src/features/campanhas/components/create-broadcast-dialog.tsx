@@ -30,7 +30,7 @@ import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { emitTourResult } from "@/features/tour/store";
 import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
-export function CreateBroadcastDialog() {
+export function CreateBroadcastDialog({ triggerClassName }: { triggerClassName?: string } = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -66,7 +66,7 @@ export function CreateBroadcastDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button data-guide={GUIDE_ANCHORS.campaignNewButton.id}>
+        <Button data-guide={GUIDE_ANCHORS.campaignNewButton.id} className={triggerClassName}>
           <Plus className="size-4" /> Nova campanha
         </Button>
       </DialogTrigger>

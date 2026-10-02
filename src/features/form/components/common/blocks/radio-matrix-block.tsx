@@ -94,7 +94,7 @@ export const RadioMatrixBlock: ObjectBlockType = {
       ],
     } satisfies AttributesType,
   }),
-  blockBtnElement: { icon: Grid3x3, label: "Matriz de radios" },
+  blockBtnElement: { icon: Grid3x3, label: "Matriz de escolhas" },
   canvasComponent: CanvasView,
   formComponent: FormView,
   propertiesComponent: PropertiesView,
@@ -111,7 +111,7 @@ function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
       {label?.trim() && (
         <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug">
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       <MatrixTable rows={rows} columns={columns} answers={{}} disabled />
@@ -204,11 +204,11 @@ function FormView({
       {label?.trim() && (
         <Label
           className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${
-            isError || isSubmitError ? "text-red-500" : ""
+            isError || isSubmitError ? "text-destructive" : ""
           }`}
         >
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       <MatrixTable
@@ -224,7 +224,7 @@ function FormView({
         </p>
       )}
       {(isError || isSubmitError) && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
           {errorMessage || "Marque uma opção em cada linha."}
         </p>
       )}

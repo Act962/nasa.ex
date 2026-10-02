@@ -11,22 +11,22 @@ export interface IconsData {
 export const ICONS: Record<TypeAction, IconsData> = {
   ["NOTE"]: {
     title: "Nota",
-    Icon: <StickyNoteIcon className="size-4 text-green-600" />,
-    bgIcon: "bg-green-400/10",
+    Icon: <StickyNoteIcon className="size-4 text-success" />,
+    bgIcon: "bg-success/10",
   },
   ["TASK"]: {
     title: "Tarefa",
-    Icon: <ClipboardCheckIcon className="size-4 text-yellow-600" />,
-    bgIcon: "bg-yellow-400/10",
+    Icon: <ClipboardCheckIcon className="size-4 text-warning" />,
+    bgIcon: "bg-warning/10",
   },
   ["MEETING"]: {
     title: "Reunião",
-    Icon: <PhoneIcon className="size-4 text-orange-600" />,
-    bgIcon: "bg-orange-400/10",
+    Icon: <PhoneIcon className="size-4 text-warning" />,
+    bgIcon: "bg-warning/10",
   },
   ["ACTION"]: {
     title: "Ação",
-    Icon: <PhoneIcon className="size-4 text-orange-600" />,
-    bgIcon: "bg-orange-400/10",
+    Icon: <PhoneIcon className="size-4 text-warning" />,
+    bgIcon: "bg-warning/10",
   },
 };

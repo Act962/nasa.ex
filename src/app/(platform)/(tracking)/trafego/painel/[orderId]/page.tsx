@@ -11,7 +11,7 @@ export default async function TrafegoOrderPage({
 
   return (
     <SidebarInset className="overflow-hidden">
-      <HeaderTracking title="trafeGO" />
+      <HeaderTracking title="trafeGO" isTitleHidden />
       <div className="flex-1 overflow-auto">
         <TrafegoOrderDetail orderId={orderId} />
       </div>

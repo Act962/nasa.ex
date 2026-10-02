@@ -99,7 +99,7 @@ export function InChatManualToggle({
     <Card className="mt-4">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <RadioIcon className="size-4 text-violet-500" />
+          <RadioIcon className="size-4 text-info" />
           In-Chat como 2º canal
         </CardTitle>
         <CardDescription>
@@ -179,12 +179,12 @@ export function InChatManualToggle({
         )}
 
         {autoActive && (
-          <Alert variant="destructive" className="border-amber-300/40 bg-amber-50 dark:bg-amber-950/40">
+          <Alert variant="destructive" className="border-warning/40 bg-warning/10 dark:bg-warning/15">
             <AlertTriangleIcon className="size-4" />
-            <AlertTitle className="text-amber-900 dark:text-amber-200">
+            <AlertTitle className="text-warning">
               WhatsApp em modo automático
             </AlertTitle>
-            <AlertDescription className="text-amber-800 dark:text-amber-300">
+            <AlertDescription className="text-warning">
               A instância foi detectada como banida/offline. Mensagens
               outbound estão sendo entregues SÓ pelo In-Chat
               automaticamente até a uazapi voltar.

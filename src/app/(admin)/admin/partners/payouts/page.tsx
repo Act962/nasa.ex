@@ -32,7 +32,7 @@ export default async function PartnerPayoutsPage() {
       <div>
         <Link
           href="/admin/partners"
-          className="text-xs text-zinc-400 hover:text-zinc-200 inline-flex items-center gap-1"
+          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
         >
           <ArrowLeft className="w-3 h-3" /> Voltar para Parceiros
         </Link>
@@ -40,20 +40,20 @@ export default async function PartnerPayoutsPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-amber-400" /> Fila de Repasses
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-warning" /> Fila de Repasses
           </h1>
-          <p className="text-sm text-zinc-400 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             {payouts.length} payout(s) aguardando — bruto R${" "}
             {fmt(totalGross)} · líquido R$ {fmt(totalNet)}
           </p>
         </div>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-800 text-zinc-500 text-xs uppercase tracking-wider">
+            <tr className="border-b border-border text-muted-foreground text-xs uppercase tracking-wider">
               <th className="text-left px-5 py-3">Parceiro</th>
               <th className="text-left px-5 py-3">Nível</th>
               <th className="text-left px-5 py-3">Ciclo</th>
@@ -67,37 +67,37 @@ export default async function PartnerPayoutsPage() {
               <th className="px-5 py-3" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800">
+          <tbody className="divide-y divide-border">
             {payouts.map((p) => (
-              <tr key={p.id} className="hover:bg-zinc-800/40">
+              <tr key={p.id} className="hover:bg-muted/40">
                 <td className="px-5 py-3">
-                  <div className="text-white font-medium">{p.partner.user.name}</div>
-                  <div className="text-[11px] text-zinc-500">
+                  <div className="text-foreground font-medium">{p.partner.user.name}</div>
+                  <div className="text-[11px] text-muted-foreground">
                     {p.partner.user.email}
                   </div>
                 </td>
-                <td className="px-5 py-3 text-amber-300 text-xs">
+                <td className="px-5 py-3 text-warning text-xs">
                   {p.partner.tier ?? "—"}
                 </td>
-                <td className="px-5 py-3 text-zinc-300">{p.cycleYearMonth}</td>
-                <td className="px-5 py-3 text-zinc-400 text-xs">
+                <td className="px-5 py-3 text-foreground">{p.cycleYearMonth}</td>
+                <td className="px-5 py-3 text-muted-foreground text-xs">
                   {new Date(p.scheduledFor).toLocaleDateString("pt-BR")}
                 </td>
-                <td className="px-5 py-3 text-right text-zinc-300">
+                <td className="px-5 py-3 text-right text-foreground">
                   R$ {fmt(Number(p.grossBrl))}
                 </td>
-                <td className="px-5 py-3 text-right text-rose-300">
+                <td className="px-5 py-3 text-right text-destructive">
                   -R$ {fmt(Number(p.advanceFeeBrl))}
                 </td>
-                <td className="px-5 py-3 text-right text-emerald-400 font-semibold">
+                <td className="px-5 py-3 text-right text-success font-semibold">
                   R$ {fmt(Number(p.netBrl))}
                 </td>
                 <td className="px-5 py-3 text-right">
                   <span
                     className={`text-[11px] font-semibold px-2 py-1 rounded-full ${
                       p.status === "ADVANCED"
-                        ? "bg-purple-500/20 text-purple-300"
-                        : "bg-blue-500/20 text-blue-300"
+                        ? "bg-warning/15 text-warning"
+                        : "bg-info/15 text-info"
                     }`}
                   >
                     {p.status}
@@ -106,7 +106,7 @@ export default async function PartnerPayoutsPage() {
                 <td className="px-5 py-3 text-right">
                   <Link
                     href={`/admin/partners/${p.partner.id}`}
-                    className="text-xs text-amber-400 hover:text-amber-300"
+                    className="text-xs text-warning hover:text-warning/80"
                   >
                     Ver parceiro
                   </Link>
@@ -117,7 +117,7 @@ export default async function PartnerPayoutsPage() {
               <tr>
                 <td
                   colSpan={9}
-                  className="px-5 py-10 text-center text-zinc-500 text-sm"
+                  className="px-5 py-10 text-center text-muted-foreground text-sm"
                 >
                   Nenhum payout pendente.
                 </td>

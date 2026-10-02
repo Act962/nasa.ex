@@ -104,7 +104,7 @@ export function VoiceOutputToggle({ className }: { className?: string }) {
   return (
     <div className={cn("inline-flex items-center gap-1", className)}>
       <div
-        className="inline-flex rounded-lg border border-zinc-800 bg-zinc-900/60 p-0.5"
+        className="inline-flex rounded-lg border border-line bg-card/60 p-0.5"
         role="radiogroup"
         aria-label="Modo de saída do Astro"
       >
@@ -121,8 +121,8 @@ export function VoiceOutputToggle({ className }: { className?: string }) {
               className={cn(
                 "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors",
                 active
-                  ? "bg-violet-600/30 text-violet-200 ring-1 ring-violet-500/50"
-                  : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200",
+                  ? "bg-info/30 text-info ring-1 ring-info/50"
+                  : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
               )}
             >
               <Icon className="size-3" />
@@ -135,7 +135,7 @@ export function VoiceOutputToggle({ className }: { className?: string }) {
       {degraded && (
         <span
           title="A voz natural (Piper) está fora do ar e o Astro caiu para a voz do navegador. Rode `docker compose up piper -d` para recuperá-la."
-          className="inline-flex items-center gap-1 rounded-md border border-amber-600/40 bg-amber-600/10 px-2 py-1 text-[11px] text-amber-300"
+          className="inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[11px] text-warning"
         >
           <TriangleAlert className="size-3" />
           <span className="hidden sm:inline">Voz simplificada</span>
@@ -147,7 +147,7 @@ export function VoiceOutputToggle({ className }: { className?: string }) {
           type="button"
           onClick={handleTogglePause}
           title={paused ? "Continuar fala" : "Pausar fala"}
-          className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-800/60 px-2 py-1 text-[11px] text-zinc-300 transition-colors hover:bg-zinc-700/60"
+          className="inline-flex items-center gap-1 rounded-md border border-line bg-card/60 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-knob/60"
         >
           {paused ? <Play className="size-3" /> : <Pause className="size-3" />}
           <span className="hidden sm:inline">{paused ? "Continuar" : "Pausar"}</span>
@@ -159,7 +159,7 @@ export function VoiceOutputToggle({ className }: { className?: string }) {
           type="button"
           onClick={handleStop}
           title="Parar fala"
-          className="inline-flex items-center gap-1 rounded-md border border-red-600/40 bg-red-600/15 px-2 py-1 text-[11px] text-red-300 hover:bg-red-600/25 transition-colors"
+          className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/15 px-2 py-1 text-[11px] text-destructive hover:bg-destructive/25 transition-colors"
         >
           <Square className="size-3 fill-current" />
           <span className="hidden sm:inline">Parar</span>

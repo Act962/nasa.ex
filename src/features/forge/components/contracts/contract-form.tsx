@@ -291,34 +291,34 @@ export function ContractForm({
 
         <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6 min-w-0">
           {isFullySigned && (
-            <div className="rounded-lg border border-neutral-300 bg-neutral-50 dark:bg-neutral-900/40 dark:border-neutral-700 px-4 py-3 text-xs">
-              <p className="font-semibold text-neutral-700 dark:text-neutral-200">
+            <div className="rounded-lg border border-line bg-muted dark:bg-card/40 dark:border-line px-4 py-3 text-xs">
+              <p className="font-semibold text-foreground dark:text-foreground">
                 Contrato finalizado
               </p>
-              <p className="text-neutral-600 dark:text-neutral-400 mt-0.5">
+              <p className="text-muted-foreground dark:text-muted-foreground mt-0.5">
                 Todos os assinantes já assinaram. O contrato está em modo somente leitura.
               </p>
             </div>
           )}
           {isPartiallySigned && (
-            <div className="rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700/50 px-4 py-3 text-xs">
-              <p className="font-semibold text-amber-900 dark:text-amber-200">
+            <div className="rounded-lg border border-warning bg-warning/10 dark:bg-warning/15 dark:border-warning/40 px-4 py-3 text-xs">
+              <p className="font-semibold text-warning dark:text-warning">
                 Contrato em assinatura — edição limitada
               </p>
-              <p className="text-amber-800 dark:text-amber-300 mt-0.5">
+              <p className="text-warning dark:text-warning mt-0.5">
                 Algum assinante já assinou. Apenas a data de término pode ser alterada — texto, valor, signers e início estão bloqueados.
               </p>
             </div>
           )}
           {!isLocked && pending.length > 0 && (
-            <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700/50 px-4 py-3 text-xs">
-              <p className="font-semibold text-amber-900 dark:text-amber-200 mb-1.5">
+            <div className="rounded-lg border border-warning/30 bg-warning/10 dark:bg-warning/15 dark:border-warning/40 px-4 py-3 text-xs">
+              <p className="font-semibold text-warning dark:text-warning mb-1.5">
                 Pendências antes de salvar
               </p>
-              <ul className="space-y-0.5 text-amber-800 dark:text-amber-300">
+              <ul className="space-y-0.5 text-warning dark:text-warning">
                 {checklist.map((item) => (
                   <li key={item.label} className="flex items-center gap-2">
-                    <span className={item.ok ? "text-emerald-600" : "text-amber-700"}>
+                    <span className={item.ok ? "text-success" : "text-warning"}>
                       {item.ok ? "✓" : "□"}
                     </span>
                     <span className={item.ok ? "line-through opacity-60" : ""}>{item.label}</span>
@@ -458,7 +458,7 @@ export function ContractForm({
                     <code
                       key={v.key}
                       title={v.label}
-                      className="bg-background border border-border px-1.5 py-0.5 rounded text-[10px] cursor-pointer hover:bg-[#7C3AED]/10 hover:text-[#7C3AED] transition-colors"
+                      className="bg-background border border-border px-1.5 py-0.5 rounded text-[10px] cursor-pointer hover:bg-info/10 hover:text-info transition-colors"
                       onClick={() => {
                         if (isLocked) return;
                         const el = document.querySelector<HTMLTextAreaElement>('textarea[name="content"]');
@@ -542,7 +542,7 @@ export function ContractForm({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isPending} className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white">
+            <Button type="submit" disabled={isPending}>
               {isPending ? "Salvando..." : contractId ? "Salvar Contrato" : "Criar Contrato"}
             </Button>
           </DialogFooter>

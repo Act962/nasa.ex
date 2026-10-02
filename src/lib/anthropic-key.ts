@@ -1,6 +1,7 @@
 import "server-only";
 
 import prisma from "@/lib/prisma";
+import { readIntegrationApiKey } from "@/features/integrations/lib/integration-api-key";
 
 /**
  * Resolve a API key da Anthropic na ordem:
@@ -23,7 +24,7 @@ export async function resolveAnthropicApiKey(
     where: { organizationId, platform: "ANTHROPIC", isActive: true },
     select: { config: true },
   });
-  const integrationKey = (integration?.config as Record<string, string> | null)?.apiKey;
+  const integrationKey = readIntegrationApiKey(integration?.config as Record<string, unknown> | null);
   if (integrationKey) return integrationKey;
 
   const planner = await prisma.nasaPlanner.findFirst({

@@ -259,7 +259,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
   const entries = data?.entries ?? [];
   const totalEntries = data?.total ?? 0;
   const typeLabel = type === "RECEIVABLE" ? "Receita" : "Despesa";
-  const color = type === "RECEIVABLE" ? "text-green-400" : "text-red-400";
+  const color = type === "RECEIVABLE" ? "text-success" : "text-destructive";
 
   // ── Ordenação ──────────────────────────────────────────────────────────────
   const [sortField, sortDirection] = sort.split("_") as [SortField, SortDirection];
@@ -339,7 +339,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
         </div>
         <Button
           onClick={() => setShowForm(true)}
-          className="h-9 w-full gap-1.5 bg-[#1E90FF] text-white hover:bg-[#1E90FF]/90 sm:w-auto"
+          className="h-9 w-full gap-1.5 bg-info text-white hover:bg-info/90 sm:w-auto"
           data-guide={
             type === "RECEIVABLE"
               ? GUIDE_ANCHORS.paymentNewReceivableButton.id
@@ -524,7 +524,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
                     className="h-9 gap-1.5"
                     onClick={() => openPayDialog(entry)}
                   >
-                    <CheckCircle2 className="size-4 text-green-500" />
+                    <CheckCircle2 className="size-4 text-success" />
                     Pagar
                   </Button>
                   <Button
@@ -533,7 +533,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
                     className="h-9 gap-1.5"
                     onClick={() => setEditEntry(entry)}
                   >
-                    <Pencil className="size-4 text-blue-500" />
+                    <Pencil className="size-4 text-info" />
                     Editar
                   </Button>
                 </div>
@@ -757,7 +757,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
             <div className="flex gap-2">
               <Button variant="ghost" className="flex-1" onClick={() => setPayDialog(null)}>Cancelar</Button>
               <Button
-                className="flex-1 bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/20"
+                className="flex-1 bg-success/10 text-success hover:bg-success/20 border border-success/20"
                 onClick={handlePay}
                 disabled={payEntry.isPending}
                 data-guide={GUIDE_ANCHORS.paymentConfirmPay.id}
@@ -824,8 +824,8 @@ export function EntriesTable({ type }: EntriesTableProps) {
               disabled={deleteEntry.isPending || removeEntry.isPending}
               className={
                 confirm?.kind === "delete"
-                  ? "bg-red-500 hover:bg-red-500/90 text-white"
-                  : "bg-amber-500 hover:bg-amber-500/90 text-white"
+                  ? "bg-destructive hover:bg-destructive/90 text-white"
+                  : "bg-warning hover:bg-warning/90 text-white"
               }
             >
               {confirm?.kind === "delete" ? "Excluir" : "Cancelar lançamento"}

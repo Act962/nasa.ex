@@ -28,7 +28,7 @@ export function PriceStarsDisplay({
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 font-medium text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-900/20 dark:text-emerald-300",
+          "inline-flex items-center gap-1 rounded-full border border-success/30 bg-success/10 px-2.5 py-0.5 font-medium text-success",
           size === "sm" && "text-[11px]",
           size === "md" && "text-xs",
           size === "lg" && "text-sm",
@@ -48,7 +48,7 @@ export function PriceStarsDisplay({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 font-semibold text-violet-700 dark:border-violet-800/40 dark:bg-violet-900/20 dark:text-violet-300",
+        "inline-flex items-center gap-1 rounded-full border border-info/30 bg-info/10 px-2.5 py-0.5 font-semibold text-info",
         size === "sm" && "text-[11px]",
         size === "md" && "text-xs",
         size === "lg" && "text-base",

@@ -99,16 +99,19 @@ interface AddLeadSheetProps {
   onOpenChange: (open: boolean) => void;
   /** Sem tracking (ex.: /contatos), o formulário pergunta em qual ele entra. */
   trackingId?: string;
+  /** Mostra o campo "Tracking" já preenchido com este valor, mas trocável (ex.: Chat). */
+  defaultTrackingId?: string;
 }
 
 export default function AddLeadSheet({
   open,
   onOpenChange,
   trackingId,
+  defaultTrackingId,
 }: AddLeadSheetProps) {
   const queryClient = useQueryClient();
   const { earn } = useSpacePointCtx();
-  const [chosenTrackingId, setChosenTrackingId] = useState("");
+  const [chosenTrackingId, setChosenTrackingId] = useState(defaultTrackingId ?? "");
   const selectedTrackingId = trackingId ?? chosenTrackingId;
   const shouldAskTracking = !trackingId;
   const { trackings, isLoading: isLoadingTrackings } = useQueryTrackings();
@@ -242,7 +245,7 @@ export default function AddLeadSheet({
           {shouldAskTracking && (
             <div className="flex flex-col gap-y-2">
               <Label>
-                Tracking <span className="text-red-500">*</span>
+                Tracking <span className="text-destructive">*</span>
               </Label>
               <Select value={chosenTrackingId} onValueChange={setChosenTrackingId}>
                 <SelectTrigger className="w-full" data-guide={GUIDE_ANCHORS.leadSheetTracking.id}>
@@ -264,7 +267,7 @@ export default function AddLeadSheet({
           {/* Nome */}
           <div className="flex flex-col gap-y-2">
             <Label htmlFor="name">
-              Nome <span className="text-red-500">*</span>
+              Nome <span className="text-destructive">*</span>
             </Label>
 
             <InputGroup data-guide={GUIDE_ANCHORS.leadSheetName.id}>
@@ -289,7 +292,7 @@ export default function AddLeadSheet({
           >
             <div className="flex items-center justify-between">
               <Label htmlFor="phone">
-                Telefone <span className="text-red-500">*</span>
+                Telefone <span className="text-destructive">*</span>
               </Label>
               <div className="flex items-center gap-x-2">
                 <Label htmlFor="validateNumber" className="text-xs font-medium">
@@ -389,7 +392,7 @@ export default function AddLeadSheet({
           {/* Status */}
           <div className="flex flex-col gap-y-2">
             <Label>
-              Status <span className="text-red-500">*</span>
+              Status <span className="text-destructive">*</span>
             </Label>
 
             {isLoadingStatus ? (

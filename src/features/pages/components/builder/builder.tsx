@@ -12,6 +12,8 @@ import { BuilderSidebar } from "./builder-sidebar";
 // dos blocos interativos como marquee/counter).
 import "../../lib/animations.css";
 import { BuilderCanvas } from "./builder-canvas";
+import { BuilderMobileSheets, useBuilderOrbitDock } from "./builder-mobile-sheets";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import type { PageLayout } from "../../types";
 import { emitTourResult } from "@/features/tour/store";
 import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
@@ -30,6 +32,7 @@ export function PagesBuilder({ pageId }: Props) {
   const { data, isLoading } = usePage(pageId);
   const setPage = usePagesBuilderStore((s) => s.setPage);
   const layout = usePagesBuilderStore((s) => s.layout);
+  useBuilderOrbitDock();
 
   // Estado do autosave (idle/dirty/saving/saved/error)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
@@ -178,8 +181,8 @@ export function PagesBuilder({ pageId }: Props) {
 
   if (isLoading || !layout || !page) {
     return (
-      <div className="h-[calc(100vh-4rem)] flex items-center justify-center text-sm text-muted-foreground">
-        Carregando editor…
+      <div className="h-[calc(100dvh-4rem)] flex items-center justify-center">
+        <OrbitaSpinner className="size-8" />
       </div>
     );
   }
@@ -197,12 +200,11 @@ export function PagesBuilder({ pageId }: Props) {
         flushSave={saveNow}
       />
       <div className="flex-1 flex min-h-0">
-        {/* Em mobile (<md), sidebar e properties são drawers
-            controlados pelo topbar (botões + e ⚙). No desktop ficam
-            grudados nas laterais. */}
+        {/* No celular (<md) a sidebar vira gavetas de baixo abertas pelo menu em órbita. */}
         <BuilderSidebar />
         <BuilderCanvas />
       </div>
+      <BuilderMobileSheets />
     </div>
   );
 }

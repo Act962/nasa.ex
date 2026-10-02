@@ -8,23 +8,23 @@ const STATUS_STYLE: Record<
 > = {
   APPROVED: {
     label: "Aprovado",
-    className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    className: "bg-success/15 text-success dark:bg-success/20 dark:text-success",
   },
   PENDING: {
     label: "Em análise",
-    className: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    className: "bg-warning/15 text-warning dark:bg-warning/20 dark:text-warning",
   },
   IN_APPEAL: {
     label: "Em recurso",
-    className: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    className: "bg-warning/15 text-warning dark:bg-warning/20 dark:text-warning",
   },
   REJECTED: {
     label: "Rejeitado",
-    className: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+    className: "bg-destructive/15 text-destructive dark:bg-destructive/20 dark:text-destructive",
   },
   PAUSED: {
     label: "Pausado",
-    className: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
+    className: "bg-warning/15 text-warning dark:bg-warning/20 dark:text-warning",
   },
   DISABLED: {
     label: "Desativado",

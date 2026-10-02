@@ -40,7 +40,7 @@ export function PendingMediaNotice({ mediaType }: PendingMediaNoticeProps) {
           {label} não disponível
         </span>
         <span className="flex items-center gap-1">
-          <AlertTriangleIcon className="size-3 text-amber-500" />
+          <AlertTriangleIcon className="size-3 text-warning" />
           Mensagem sincronizada — mídia não foi importada.
         </span>
       </div>

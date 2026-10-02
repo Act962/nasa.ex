@@ -70,7 +70,7 @@ export function resolveToolSetForScope(scope: AstroToolScope, ctx: AgentContext)
 
   if (scope === "assistant") {
     return {
-      tools: { ...buildPlatformReadTools(ctx), ...packs.tools },
+      tools: { ...buildPlatformReadTools(ctx), ...packs.tools, ...buildGuideTools() },
       packPrompts,
       allowsRouting: false,
     };

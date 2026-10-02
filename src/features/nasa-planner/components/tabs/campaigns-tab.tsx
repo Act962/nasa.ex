@@ -50,7 +50,7 @@ export function CampaignsTab({ plannerId }: { plannerId: string }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 shrink-0">
         <div>
           <h2 className="font-semibold text-base">Campanhas</h2>
           <p className="text-xs text-muted-foreground">{campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""}</p>
@@ -89,7 +89,7 @@ export function CampaignsTab({ plannerId }: { plannerId: string }) {
               return (
                 <Card
                   key={campaign.id}
-                  className="group cursor-pointer hover:shadow-md transition-all border hover:border-violet-300 dark:hover:border-violet-700"
+                  className="group cursor-pointer hover:shadow-md transition-all border hover:border-info/40"
                   onClick={() => router.push(`/nasa-planner/campanhas/${campaign.id}`)}
                 >
                   <CardHeader className="pb-2">
@@ -144,7 +144,7 @@ export function CampaignsTab({ plannerId }: { plannerId: string }) {
                       </span>
                     </div>
                     <div className="mt-2 flex justify-end">
-                      <span className="text-xs text-violet-600 flex items-center gap-0.5">
+                      <span className="text-xs text-info flex items-center gap-0.5">
                         Abrir <ChevronRightIcon className="size-3" />
                       </span>
                     </div>

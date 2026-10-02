@@ -326,9 +326,9 @@ export function WorkspaceCalendarModal({ open, onOpenChange }: Props) {
           <DialogTitle className="sr-only">Calendário Workspace</DialogTitle>
 
           {/* Header */}
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-pink-500">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-info to-info">
                 <CalendarIcon className="size-5 text-white" />
               </div>
               <div className="min-w-0">

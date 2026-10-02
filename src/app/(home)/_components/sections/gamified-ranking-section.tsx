@@ -353,7 +353,7 @@ export function GamifiedRankingSection({
                     </div>
                     <button
                       type="button"
-                      className="w-7 h-7 rounded-md border border-white/8 flex items-center justify-center text-white/35"
+                      className="w-7 h-7 rounded-full border border-white/8 flex items-center justify-center text-white/35"
                       aria-label="Ver stats"
                     >
                       <BarChart2 className="size-3" />

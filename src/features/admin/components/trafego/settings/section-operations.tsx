@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, Wand2 } from "lucide-react";
+import { Wand2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,7 +95,7 @@ export function OperationsSection({
             onClick={handleProvisionTracking}
           >
             {provisionTracking.isPending ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" />
+              <OrbitaSpinner className="mr-1.5 size-4 " />
             ) : (
               <Wand2 className="mr-1.5 size-4" />
             )}
@@ -144,8 +145,8 @@ export function OperationsSection({
                   className={cn(
                     "rounded-full px-2 py-0.5 text-[11px] font-medium",
                     mappedCount === TRAFEGO_KANBAN_COLUMNS.length
-                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                      : "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                      ? "bg-success/10 text-success"
+                      : "bg-warning/10 text-warning",
                   )}
                 >
                   {mappedCount} de {TRAFEGO_KANBAN_COLUMNS.length} mapeadas
@@ -160,7 +161,7 @@ export function OperationsSection({
                       key={column.key}
                       className={cn(
                         "flex items-center gap-2 rounded-lg border px-3 py-2",
-                        !mappedStatusId && "border-dashed border-amber-500/40",
+                        !mappedStatusId && "border-dashed border-warning/40",
                       )}
                     >
                       <span
@@ -219,7 +220,7 @@ export function OperationsSection({
             onClick={handleProvisionForm}
           >
             {provisionForm.isPending ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" />
+              <OrbitaSpinner className="mr-1.5 size-4 " />
             ) : (
               <Wand2 className="mr-1.5 size-4" />
             )}

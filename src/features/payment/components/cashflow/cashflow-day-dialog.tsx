@@ -7,7 +7,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ArrowDownCircle, ArrowUpCircle, Loader2 } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useCashflowDay } from "../../hooks/use-payment";
 import { formatCurrency, formatDate, STATUS_COLORS, STATUS_LABELS } from "../../lib/format";
 
@@ -40,7 +41,7 @@ export function CashflowDayDialog({
 
         {isLoading ? (
           <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
             Carregando...
           </div>
         ) : entries.length === 0 ? (
@@ -51,20 +52,20 @@ export function CashflowDayDialog({
           <>
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-                <div className="flex items-center gap-1.5 text-green-400">
+                <div className="flex items-center gap-1.5 text-success">
                   <ArrowDownCircle className="size-3.5" />
                   <span className="text-xs font-medium">Entradas</span>
                 </div>
-                <p className="mt-0.5 text-lg font-black tabular-nums text-green-400">
+                <p className="mt-0.5 text-lg font-black tabular-nums text-success">
                   {formatCurrency(data?.totals.receivable ?? 0)}
                 </p>
               </div>
               <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-                <div className="flex items-center gap-1.5 text-red-400">
+                <div className="flex items-center gap-1.5 text-destructive">
                   <ArrowUpCircle className="size-3.5" />
                   <span className="text-xs font-medium">Saídas</span>
                 </div>
-                <p className="mt-0.5 text-lg font-black tabular-nums text-red-400">
+                <p className="mt-0.5 text-lg font-black tabular-nums text-destructive">
                   {formatCurrency(data?.totals.payable ?? 0)}
                 </p>
               </div>
@@ -73,7 +74,7 @@ export function CashflowDayDialog({
             <div className="space-y-2">
               {entries.map((entry) => {
                 const isIn = entry.type === "RECEIVABLE";
-                const color = isIn ? "text-green-400" : "text-red-400";
+                const color = isIn ? "text-success" : "text-destructive";
                 const isPartial = entry.cashAmount !== entry.amount;
                 return (
                   <div

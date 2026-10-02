@@ -39,8 +39,8 @@ export function FullReportsPanel() {
   if (isSingle) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-16 text-center">
-        <div className="size-14 rounded-full bg-amber-100 flex items-center justify-center">
-          <BarChart3 className="size-7 text-amber-600" />
+        <div className="size-14 rounded-full bg-warning/15 flex items-center justify-center">
+          <BarChart3 className="size-7 text-warning" />
         </div>
         <div>
           <h3 className="text-base font-semibold">Acesso Restrito</h3>

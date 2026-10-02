@@ -20,11 +20,11 @@ import {
 import {
   FileSpreadsheet,
   Download,
-  Loader2,
   CheckCircle2,
   Settings2,
   Filter,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useQueryTracking } from "../tracking-settings/hooks/use-tracking";
 import { useStatus } from "../status/hooks/use-status";
 import { useMutationExport } from "./hooks/use-export";
@@ -275,8 +275,8 @@ export function LeadExportDialog({
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-10 gap-4 text-center">
-            <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-full">
-              <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
+            <div className="bg-success/15 dark:bg-success/15 p-3 rounded-full">
+              <CheckCircle2 className="h-10 w-10 text-success" />
             </div>
             <div>
               <p className="text-lg font-semibold">Exportação Concluída!</p>
@@ -298,7 +298,7 @@ export function LeadExportDialog({
             >
               {isExporting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <OrbitaSpinner className="h-4 w-4 " />
                   Processando...
                 </>
               ) : (

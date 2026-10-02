@@ -117,7 +117,7 @@ export const columns: ColumnDef<LeadWithTrackingAndStatus>[] = [
                   aparece só no filtro "Arquivados" lá. Aqui em /contatos
                   continua listado mas com essa marca visual. */}
               {row.original.isArchived && (
-                <span className="inline-flex items-center rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-semibold px-1.5 py-0.5">
+                <span className="inline-flex items-center rounded-full bg-warning/15 text-warning dark:text-warning text-[10px] font-semibold px-1.5 py-0.5">
                   Arquivado
                 </span>
               )}
@@ -251,7 +251,7 @@ function ContactActionsMenu({ lead }: { lead: LeadWithTrackingAndStatus }) {
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="cursor-pointer text-emerald-700 focus:text-emerald-800"
+              className="cursor-pointer text-success focus:text-success"
               onClick={() =>
                 unarchive.mutate({ leadId: lead.id, isArchived: false })
               }

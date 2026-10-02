@@ -42,7 +42,8 @@ export default async function PlatformHomePage({
   }
 
   return (
-    <SidebarInset className="overflow-hidden">
+    // Altura da tela travada: a conversa rola por dentro e a caixa do ASTRO fica parada embaixo.
+    <SidebarInset className="h-svh overflow-hidden">
       <NasaCommandCenter />
     </SidebarInset>
   );

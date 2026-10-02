@@ -63,13 +63,13 @@ const SEARCH_DEBOUNCE_MS = 300;
 type LinkageFilter = "all" | "RECEIVABLE" | "PAYABLE" | "unlinked";
 
 const KIND_BADGE_CLASSES: Record<PaymentAttachmentKind, string> = {
-  NOTA_FISCAL: "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  BOLETO: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  RECIBO: "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400",
+  NOTA_FISCAL: "border-info/30 bg-info/10 text-info dark:text-info",
+  BOLETO: "border-warning/30 bg-warning/10 text-warning dark:text-warning",
+  RECIBO: "border-info/30 bg-info/10 text-info dark:text-info",
   COMPROVANTE:
-    "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  CONTRATO: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400",
-  EXTRATO: "border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400",
+    "border-success/30 bg-success/10 text-success dark:text-success",
+  CONTRATO: "border-info/30 bg-info/10 text-info dark:text-info",
+  EXTRATO: "border-success/30 bg-success/10 text-success dark:text-success",
   OUTRO: "border-border bg-muted text-muted-foreground",
 };
 
@@ -343,9 +343,9 @@ export function DocumentsTab() {
               {attachment.entry ? (
                 <div className="flex items-center gap-1.5 rounded-md bg-muted/50 px-2 py-1.5 text-xs">
                   {attachment.entry.type === "RECEIVABLE" ? (
-                    <ArrowDownLeft className="size-3.5 shrink-0 text-emerald-500" />
+                    <ArrowDownLeft className="size-3.5 shrink-0 text-success" />
                   ) : (
-                    <ArrowUpRight className="size-3.5 shrink-0 text-red-500" />
+                    <ArrowUpRight className="size-3.5 shrink-0 text-destructive" />
                   )}
                   <span className="truncate" title={attachment.entry.description}>
                     {attachment.entry.description}

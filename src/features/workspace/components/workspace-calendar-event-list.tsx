@@ -177,7 +177,7 @@ function ActionListCard({
           </div>
         )}
         {action.lead?.name && !action.orgProject && (
-          <div className="mt-0.5 flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+          <div className="mt-0.5 flex items-center gap-1 text-[11px] text-warning dark:text-warning">
             <UserIcon className="h-2.5 w-2.5 shrink-0" />
             <span className="truncate font-medium">{action.lead.name}</span>
           </div>

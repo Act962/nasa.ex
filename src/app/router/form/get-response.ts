@@ -21,6 +21,8 @@ import {
  *
  * Auth: usuário precisa estar logado e na mesma organização do form.
  */
+const FORM_ADMIN_ROLES = new Set(["owner", "admin"]);
+
 export const getResponseById = base
   .use(requiredAuthMiddleware)
   .route({
@@ -59,6 +61,7 @@ export const getResponseById = base
               jsonBlock: true,
               published: true,
               organizationId: true,
+              userId: true,
               settings: true,
             },
           },
@@ -102,7 +105,7 @@ export const getResponseById = base
       // Verifica que o user é membro da org do form (defesa em profundidade).
       const member = await prisma.member.findFirst({
         where: { organizationId: response.form.organizationId, userId },
-        select: { id: true },
+        select: { id: true, role: true },
       });
       if (!member) {
         throw errors.UNAUTHORIZED({
@@ -142,9 +145,14 @@ export const getResponseById = base
         response.form.organizationId,
       );
 
+      // Atalho para o construtor: só quem criou o formulário ou administra a empresa.
+      const canEditForm =
+        response.form.userId === userId || FORM_ADMIN_ROLES.has(member.role);
+
       return {
         response,
         canEdit: verdict.canEdit,
+        canEditForm,
         editBlockedReason: verdict.reason
           ? EDIT_BLOCKED_MESSAGE[verdict.reason]
           : null,

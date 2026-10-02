@@ -149,7 +149,7 @@ export function GenerateActionsSection() {
           <Field>
             <FieldLabel>Workspace</FieldLabel>
             {!trackingId ? (
-              <p className="text-[11px] text-amber-500">
+              <p className="text-[11px] text-warning">
                 Selecione um tracking em “Direcionamento” para listar os
                 workpaces conectados.
               </p>

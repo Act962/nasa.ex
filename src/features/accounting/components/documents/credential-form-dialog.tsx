@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -188,8 +189,8 @@ export function CredentialFormDialog({ isOpen, credential, onClose }: Credential
             <Button variant="ghost" onClick={onClose}>
               Cancelar
             </Button>
-            <Button className="bg-violet-600 text-white hover:bg-violet-700" disabled={!canSave} onClick={save}>
-              {isSaving && <Loader2 className="size-3.5 animate-spin" />}
+            <Button className="bg-info text-white hover:bg-info" disabled={!canSave} onClick={save}>
+              {isSaving && <OrbitaSpinner className="size-3.5 " />}
               Salvar
             </Button>
           </div>

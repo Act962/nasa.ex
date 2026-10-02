@@ -8,6 +8,11 @@ export function useStarsBalance() {
   return useQuery(orpc.stars.getBalance.queryOptions());
 }
 
+/** Consumo de Stars do ciclo atual (plano mensal, bônus, por App). */
+export function useStarsUsageBreakdown() {
+  return useQuery(orpc.stars.getUsageBreakdown.queryOptions());
+}
+
 /** Config de preço (R$/★, mínimo, presets) pro modal de compra. */
 export function useStarsPricing() {
   return useQuery(orpc.stars.getStarsPricing.queryOptions());

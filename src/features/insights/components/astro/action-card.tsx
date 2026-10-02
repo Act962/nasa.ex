@@ -5,7 +5,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, AlertTriangle, X, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertTriangle, X } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 
 /**
@@ -66,9 +67,9 @@ export function AstroActionCard({
 
   if (state.kind === "confirmed") {
     return (
-      <Card className="border-emerald-500/40 bg-emerald-50/40 dark:bg-emerald-950/20">
+      <Card className="border-success/40 bg-success/40 dark:bg-success/20">
         <CardContent className="p-3 flex items-start gap-2.5">
-          <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+          <CheckCircle2 className="size-4 text-success dark:text-success shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0 text-xs">
             <p className="font-medium">Ação executada</p>
             <p className="text-muted-foreground mt-0.5">{summary}</p>
@@ -94,9 +95,9 @@ export function AstroActionCard({
 
   if (state.kind === "error") {
     return (
-      <Card className="border-red-500/40 bg-red-50/40 dark:bg-red-950/20">
+      <Card className="border-destructive/40 bg-destructive/40 dark:bg-destructive/20">
         <CardContent className="p-3 flex items-start gap-2.5">
-          <AlertTriangle className="size-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+          <AlertTriangle className="size-4 text-destructive dark:text-destructive shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0 text-xs">
             <p className="font-medium">Falha ao executar</p>
             <p className="text-muted-foreground mt-0.5">{state.message}</p>
@@ -107,12 +108,12 @@ export function AstroActionCard({
   }
 
   return (
-    <Card className="border-amber-300/60 bg-amber-50/30 dark:bg-amber-950/15">
+    <Card className="border-warning/60 bg-warning/30 dark:bg-warning/15">
       <CardContent className="p-3 space-y-2.5">
         <div className="flex items-start gap-2.5">
-          <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <AlertTriangle className="size-4 text-warning dark:text-warning shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0 text-xs">
-            <p className="font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400 text-[10px]">
+            <p className="font-medium uppercase tracking-wide text-warning dark:text-warning text-[10px]">
               Confirmação necessária
             </p>
             <p className="text-foreground mt-1">{summary}</p>
@@ -123,7 +124,7 @@ export function AstroActionCard({
             )}
           </div>
         </div>
-        <div className="flex items-center justify-end gap-2 pt-1 border-t border-amber-200/40 dark:border-amber-900/40">
+        <div className="flex items-center justify-end gap-2 pt-1 border-t border-warning/40 dark:border-warning/40">
           <Button
             type="button"
             size="sm"
@@ -143,7 +144,7 @@ export function AstroActionCard({
           >
             {executeMutation.isPending ? (
               <>
-                <Loader2 className="size-3 animate-spin" />
+                <OrbitaSpinner className="size-3 " />
                 Executando...
               </>
             ) : (

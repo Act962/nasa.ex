@@ -15,8 +15,8 @@ export default async function NotificationsSettingsPage() {
   return (
     <div className="max-w-3xl space-y-6 px-4 pb-8">
       <div>
-        <h2 className="text-lg font-semibold">Notificações</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h2 className="text-lg font-semibold max-md:hidden">Notificações</h2>
+        <p className="mt-1 text-sm text-muted-foreground max-md:mt-0">
           O que você quer receber na plataforma. O que chega no seu WhatsApp fica no App ASTRO.
         </p>
       </div>
@@ -27,9 +27,9 @@ export default async function NotificationsSettingsPage() {
           widget e no orb, e tê-las aqui escondia essa relação. */}
       <Link
         href="/astro?aba=alertas"
-        className="flex items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-accent"
+        className="flex items-center gap-3 rounded-[20px] border border-line bg-card p-4 transition-colors hover:bg-accent"
       >
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-knob">
           <Bell className="size-4 text-muted-foreground" />
         </span>
         <span className="min-w-0 flex-1">
@@ -37,8 +37,8 @@ export default async function NotificationsSettingsPage() {
             Configurar o que o ASTRO avisa
           </span>
           <span className="block text-xs text-muted-foreground">
-            Alertas por app — lead esperando, boleto vencendo, contrato a vencer — agora
-            ficam no App ASTRO, junto das aprovações.
+            Lead esperando, boleto vencendo, contrato a vencer: esses avisos ficam no
+            App ASTRO, junto das aprovações.
           </span>
         </span>
         <ArrowRight className="size-4 shrink-0 text-muted-foreground" />

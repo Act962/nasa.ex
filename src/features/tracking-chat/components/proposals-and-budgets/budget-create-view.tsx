@@ -3,12 +3,12 @@
 import { useMemo, useState } from "react";
 import {
   FileTextIcon,
-  Loader2,
   PaperclipIcon,
   SendIcon,
   SparklesIcon,
   XIcon,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useMutation } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
@@ -299,7 +299,7 @@ export function BudgetCreateView({
               </p>
             </div>
             {(isUploading || isExtracting) && (
-              <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
+              <OrbitaSpinner className="size-4 shrink-0 text-muted-foreground" />
             )}
             {!isUploading && !isExtracting && (
               <button
@@ -314,7 +314,7 @@ export function BudgetCreateView({
           </div>
         )}
         {(autoFilled.value || autoFilled.description) && (
-          <div className="flex items-start gap-1.5 rounded-md bg-purple-500/10 px-2 py-1.5 text-[11px] text-purple-700 dark:text-purple-300">
+          <div className="flex items-start gap-1.5 rounded-md bg-info/10 px-2 py-1.5 text-[11px] text-info dark:text-info">
             <SparklesIcon className="mt-0.5 size-3 shrink-0" />
             <span>
               Campos preenchidos pela IA — confira e edite se necessário antes
@@ -418,7 +418,7 @@ export function BudgetCreateView({
           disabled={isPending || cents <= 0 || !description.trim()}
           className="gap-1.5"
         >
-          {isPending && <Loader2 className="size-4 animate-spin" />}
+          {isPending && <OrbitaSpinner className="size-4 " />}
           <SendIcon className="size-3.5" />
           {attachKey ? "Enviar arquivo + lançar" : "Enviar orçamento"}
         </Button>

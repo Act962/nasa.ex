@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Zap } from "lucide-react";
+import { Plus, Trash2, Zap } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,7 +56,7 @@ export function AutomationsList({ canCreate }: { canCreate: boolean }) {
           }
         >
           {create.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
+            <OrbitaSpinner className="size-4 " />
           ) : (
             <Plus className="size-4" />
           )}

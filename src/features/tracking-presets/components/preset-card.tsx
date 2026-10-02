@@ -79,7 +79,7 @@ export function PresetCard({
           </Badge>
         </div>
         {preset.starsCost > 0 && (
-          <Badge className="bg-amber-500 text-white text-[10px] gap-1">
+          <Badge className="bg-warning text-white text-[10px] gap-1">
             <StarIcon className="size-2.5" />
             {preset.starsCost}
           </Badge>

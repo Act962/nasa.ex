@@ -7,8 +7,8 @@ import {
   Send,
   X,
   ArrowRight,
-  Loader2,
 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/lib/orpc";
 import { useDebouncedValue } from "@/hooks/use-debounced";
@@ -150,7 +150,7 @@ export function SlashComposer({
   return (
     <div
       className={cn(
-        "rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 space-y-3",
+        "rounded-xl border border-line bg-card/40 p-3 space-y-3",
         className,
       )}
     >
@@ -183,7 +183,7 @@ export function SlashComposer({
           );
         })}
         {!state.verb && (
-          <p className="text-xs text-zinc-500 px-1">
+          <p className="text-xs text-muted-foreground px-1">
             Escolha um verbo abaixo
           </p>
         )}
@@ -206,17 +206,17 @@ export function SlashComposer({
 
       {/* Action bar */}
       {state.verb && (
-        <div className="flex items-center justify-between gap-2 pt-1 border-t border-zinc-800">
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-line">
           {template && (
-            <p className="text-[11px] text-zinc-500 truncate">
-              Vou: <span className="text-zinc-300">{previewPrompt(template, state.values)}</span>
+            <p className="text-[11px] text-muted-foreground truncate">
+              Vou: <span className="text-muted-foreground">{previewPrompt(template, state.values)}</span>
             </p>
           )}
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={reset}
-              className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
               disabled={loading}
             >
               Limpar
@@ -228,12 +228,12 @@ export function SlashComposer({
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
                 canSubmit && !loading
-                  ? "bg-violet-600 hover:bg-violet-500 text-white"
-                  : "bg-zinc-800 text-zinc-500 cursor-not-allowed",
+                  ? "bg-info hover:bg-info text-white"
+                  : "bg-card text-muted-foreground cursor-not-allowed",
               )}
             >
               {loading ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                <OrbitaSpinner className="size-3.5 " />
               ) : (
                 <Send className="size-3.5" />
               )}
@@ -300,7 +300,7 @@ function StepPicker(props: {
     return (
       <div className="space-y-3">
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
             Verbos
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
@@ -309,7 +309,7 @@ function StepPicker(props: {
                 key={v.id}
                 type="button"
                 onClick={() => onSelectVerb(v.id)}
-                className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-100 hover:border-violet-500/50 hover:bg-zinc-900 transition-colors"
+                className="flex items-center gap-2 rounded-lg border border-line bg-card/60 px-2.5 py-1.5 text-xs text-foreground hover:border-info/50 hover:bg-card transition-colors"
               >
                 <span className="font-mono">{v.label}</span>
               </button>
@@ -318,7 +318,7 @@ function StepPicker(props: {
         </div>
         {recent.length > 0 && props.onSubmitPrompt && (
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
               Recentes
             </p>
             <div className="flex flex-wrap gap-1">
@@ -328,7 +328,7 @@ function StepPicker(props: {
                   type="button"
                   onClick={() => props.onSubmitPrompt?.(r.prompt)}
                   title={r.prompt}
-                  className="inline-flex items-center gap-1 rounded-md border border-violet-500/30 bg-violet-500/10 text-violet-200 px-2 py-1 text-[11px] hover:bg-violet-500/20"
+                  className="inline-flex items-center gap-1 rounded-md border border-info/30 bg-info/10 text-info px-2 py-1 text-[11px] hover:bg-info/20"
                 >
                   <span className="truncate max-w-[200px]">{r.label}</span>
                 </button>
@@ -392,12 +392,12 @@ function StepPicker(props: {
 
     return (
       <div>
-        <p className="text-[11px] text-zinc-500 mb-1.5">O que você quer?</p>
+        <p className="text-[11px] text-muted-foreground mb-1.5">O que você quer?</p>
         {groupedOrdered ? (
           <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
             {Object.entries(groupedOrdered).map(([g, list]) => (
               <div key={g}>
-                <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
                   {groupLabels[g] ?? g}
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
@@ -406,7 +406,7 @@ function StepPicker(props: {
                       key={a.id}
                       type="button"
                       onClick={() => onSelectApp(a.id)}
-                      className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-100 hover:border-violet-500/50 hover:bg-zinc-900 transition-colors text-left"
+                      className="flex items-center gap-2 rounded-lg border border-line bg-card/60 px-2.5 py-1.5 text-xs text-foreground hover:border-info/50 hover:bg-card transition-colors text-left"
                     >
                       <span className="truncate">{a.label}</span>
                     </button>
@@ -422,7 +422,7 @@ function StepPicker(props: {
                 key={a.id}
                 type="button"
                 onClick={() => onSelectApp(a.id)}
-                className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-100 hover:border-violet-500/50 hover:bg-zinc-900 transition-colors"
+                className="flex items-center gap-2 rounded-lg border border-line bg-card/60 px-2.5 py-1.5 text-xs text-foreground hover:border-info/50 hover:bg-card transition-colors"
               >
                 <span className="font-mono">{a.label}</span>
               </button>
@@ -437,14 +437,14 @@ function StepPicker(props: {
   //    ou termina (sem nextStep, todos preenchidos)
   if (!template) {
     return (
-      <p className="text-xs text-amber-400">
+      <p className="text-xs text-warning">
         Essa combinação ainda não está disponível.
       </p>
     );
   }
   if (!nextStep) {
     return (
-      <p className="text-xs text-emerald-400">
+      <p className="text-xs text-success">
         Pronto pra enviar — clique "Enviar pro Astro" abaixo.
       </p>
     );
@@ -520,7 +520,7 @@ function FreeTextInput({
 
   return (
     <div className="space-y-1.5">
-      <p className="text-[11px] text-zinc-500">{step.prompt ?? step.label}</p>
+      <p className="text-[11px] text-muted-foreground">{step.prompt ?? step.label}</p>
       <div className="flex items-center gap-1.5">
         <input
           ref={inputRef}
@@ -534,13 +534,13 @@ function FreeTextInput({
             }
           }}
           placeholder={step.placeholder ?? ""}
-          className="flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"
+          className="flex-1 rounded-md border border-line bg-card px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info"
         />
         <button
           type="button"
           onClick={handleConfirm}
           disabled={!value.trim()}
-          className="rounded-md bg-violet-600/70 hover:bg-violet-600 text-white px-2 py-1.5 text-xs disabled:opacity-50"
+          className="rounded-md bg-info/70 hover:bg-info text-white px-2 py-1.5 text-xs disabled:opacity-50"
         >
           <ArrowRight className="size-3.5" />
         </button>
@@ -552,7 +552,7 @@ function FreeTextInput({
               key={s}
               type="button"
               onClick={() => onComplete({ display: s, raw: s })}
-              className="text-[10px] rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-300 px-1.5 py-0.5 hover:bg-amber-500/20"
+              className="text-[10px] rounded-md border border-warning/30 bg-warning/10 text-warning px-1.5 py-0.5 hover:bg-warning/20"
             >
               {s}
             </button>
@@ -563,7 +563,7 @@ function FreeTextInput({
         <button
           type="button"
           onClick={() => onComplete({ display: "—", raw: "" })}
-          className="text-[10px] text-zinc-500 hover:text-zinc-300"
+          className="text-[10px] text-muted-foreground hover:text-muted-foreground"
         >
           Pular (opcional)
         </button>
@@ -585,7 +585,7 @@ function EnumPickerInput({
 }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-[11px] text-zinc-500">{step.prompt ?? step.label}</p>
+      <p className="text-[11px] text-muted-foreground">{step.prompt ?? step.label}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
         {options.map((opt) => (
           <button
@@ -594,7 +594,7 @@ function EnumPickerInput({
             onClick={() =>
               onComplete({ display: opt.label, raw: opt.value })
             }
-            className="text-left rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-200 px-2 py-1.5 text-xs hover:bg-emerald-500/20 transition-colors"
+            className="text-left rounded-md border border-success/30 bg-success/10 text-success px-2 py-1.5 text-xs hover:bg-success/20 transition-colors"
           >
             {opt.label}
           </button>
@@ -631,24 +631,24 @@ function EntityPickerInput({
 
   return (
     <div className="space-y-1.5">
-      <p className="text-[11px] text-zinc-500">{step.prompt ?? step.label}</p>
+      <p className="text-[11px] text-muted-foreground">{step.prompt ?? step.label}</p>
       <div className="relative">
-        <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-zinc-500" />
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
         <input
           ref={inputRef}
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={`Buscar ${entityKind}…`}
-          className="w-full rounded-md border border-zinc-700 bg-zinc-900 pl-7 pr-2 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-pink-500"
+          className="w-full rounded-md border border-line bg-card pl-7 pr-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info"
         />
         {isFetching && (
-          <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 size-3 text-zinc-500 animate-spin" />
+          <OrbitaSpinner className="absolute right-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground " />
         )}
       </div>
       <div className="max-h-44 overflow-y-auto space-y-0.5">
         {data?.matches.length === 0 && !query && (
-          <p className="text-[11px] text-zinc-500 px-1 py-1">
+          <p className="text-[11px] text-muted-foreground px-1 py-1">
             Nada encontrado. Tente outro termo
             {step.required ? "" : " ou pule abaixo"}.
           </p>
@@ -665,11 +665,11 @@ function EntityPickerInput({
                 entityLabel: m.label,
               })
             }
-            className="w-full text-left rounded-md border border-pink-500/20 bg-pink-500/5 hover:bg-pink-500/15 px-2 py-1 text-xs text-pink-100"
+            className="w-full text-left rounded-md border border-info/20 bg-info/5 hover:bg-info/15 px-2 py-1 text-xs text-info"
           >
             <span className="block truncate font-medium">{m.label}</span>
             {m.hint && (
-              <span className="block truncate text-[10px] text-pink-300/60">
+              <span className="block truncate text-[10px] text-info/60">
                 {m.hint}
               </span>
             )}
@@ -693,12 +693,12 @@ function EntityPickerInput({
                   entityLabel: name,
                 });
               }}
-              className="w-full text-left rounded-md border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-1 text-xs text-emerald-200"
+              className="w-full text-left rounded-md border border-success/30 bg-success/10 hover:bg-success/20 px-2 py-1 text-xs text-success"
             >
               <span className="block truncate font-medium">
                 + Criar &ldquo;{query.trim()}&rdquo;
               </span>
-              <span className="block truncate text-[10px] text-emerald-300/70">
+              <span className="block truncate text-[10px] text-success/70">
                 vira um novo {entityKind === "workflow_folder" ? "pasta" : entityKind}
               </span>
             </button>
@@ -708,7 +708,7 @@ function EntityPickerInput({
         <button
           type="button"
           onClick={() => onComplete({ display: "—", raw: "" })}
-          className="text-[10px] text-zinc-500 hover:text-zinc-300"
+          className="text-[10px] text-muted-foreground hover:text-muted-foreground"
         >
           Pular (opcional)
         </button>

@@ -74,19 +74,24 @@ Cada formato tem uma seção dedicada no editor: [forms/](src/features/nasa-rout
 ```
 src/features/nasa-route/components/
 ├── creator/    # editor, formulários, dashboards, tabelas de vendas/alunos
-│   ├── course-editor.tsx          ← shell com tabs (Básico, Módulos, Planos, Integrações)
-│   ├── course-form.tsx / lesson-form.tsx / module-form.tsx / plan-form.tsx
+│   ├── course-editor.tsx          ← shell com abas (Aulas, Planos, Informações, Integrações, E-mail pós-compra)
+│   │   └── course-editor-header.tsx + course-editor-tab-content.tsx + course-editor-delete-dialogs.tsx
+│   ├── course-form.tsx / lesson-form.tsx / module-form.tsx / plan-form.tsx  ← gaveta de baixo no celular (`lib/bottom-sheet-dialog.ts`)
+│   ├── creator-new-course-page.tsx + creator-free-access-page.tsx  ← telas de "Novo curso" e "Acesso livre"
 │   ├── lessons-board.tsx          ← DnD (@dnd-kit) pra reordenar módulos, reordenar aulas dentro do módulo e movê-las entre módulos (incl. "Aulas avulsas")
 │   ├── plan-lessons-picker.tsx    ← DnD pra atribuir aulas a planos
 │   ├── lesson-form-video-uploader.tsx + video-upload-cost-modal.tsx
 │   ├── free-access-manager.tsx
-│   ├── creator-dashboard.tsx + sales-table.tsx + students-table.tsx
-│   │   └── sales-table.tsx → abas "Confirmadas" (enrollments) e
-│   │      "Pendentes" (pending purchases), com KPIs de faturamento.
+│   ├── creator-dashboard.tsx + creator-course-card.tsx  ← grade de cursos com capa
+│   ├── sales-table.tsx → abas "Confirmadas" (sales-confirmed-list) e "Pendentes"
+│   │   (sales-pending-list), KPIs em sales-shared; tabela no computador, cartões no celular
+│   ├── students-table.tsx → students-grouped-view / students-enrollments-list / students-shared
 │   ├── integrations-tab.tsx       ← Pixel, GTM, redirect URL
 │   └── forms/                     ← seções condicionais por formato
 ├── student/    # player, "meus cursos", certificados, modal de matrícula
-│   ├── course-player-shell.tsx + lesson-list-sidebar.tsx
+│   ├── nasa-route-home.tsx        ← vitrine logada: seções Catálogo (nasa-route-catalog) e Meus cursos (`?secao=meus-cursos`)
+│   ├── course-player-shell.tsx + course-player-header.tsx + lesson-player.tsx + lesson-attachments.tsx
+│   ├── lesson-list-sidebar.tsx    ← lateral no computador, gaveta "Aulas" no celular
 │   ├── viewers/                   ← um viewer por formato (course/ebook/event/community/subscription)
 │   ├── enrollment-modal.tsx       ← fluxo de compra para usuário autenticado
 │   ├── certificate-page.tsx + certificate-view.tsx + certificates-list.tsx
@@ -100,6 +105,10 @@ src/features/nasa-route/components/
 │   ├── format-cta-button.tsx + format-details-section.tsx
 │   └── tracking-scripts.tsx       ← injeta Pixel/GTM
 ├── shared/     # cards, posters, price display, share menu, video embed
+│   ├── nasa-route-shell.tsx       ← SidebarInset + HeaderTracking sem título em toda tela logada
+│   ├── nasa-route-page-top.tsx    ← topo (ícone redondo + seção atual no celular) e TopActionLink
+│   ├── filter-pills.tsx + search-pill.tsx
+│   └── student-dock-registrar.tsx
 └── upload-manager-dock.tsx        ← dock flutuante com uploads ativos
 ```
 
@@ -112,6 +121,9 @@ Stores/hooks/lib:
 - `lib/upload-manager-db.ts` — persiste estado de upload no IndexedDB (idb-keyval) para sobreviver a reloads.
 - `lib/event-date.ts` — formatação compacta (“13 mai · 19h00”, “30 mai – 02 jun”).
 - `lib/video-url.ts` — presigned R2 + URL otimizada via CDN.
+- `hooks/use-nasa-route-dock.ts` — menu de baixo do celular: aluno (Cursos, Meus cursos · Certificados, Criador) e criador (Cursos, Vendas · Alunos, Acesso livre). O player registra o próprio (Meus cursos, Aulas · Próxima, Certificados).
+- `hooks/use-nasa-route-creator-course.ts` — `creatorGetCourse` do editor + tipo `NasaRouteCreatorCourse`.
+- `lib/command-examples.ts` — exemplos do "Criar comando" do ASTRO nas telas do Route.
 
 ### Guias do Astro na tela (spec 0050)
 
@@ -120,7 +132,7 @@ O Astro conduz dois fluxos do criador na tela real (`src/features/astro-guides/l
 | Guia | Âncoras (`data-guide`) | Fim do guia |
 |---|---|---|
 | Criar um curso | `route.new-course` (creator-dashboard), `route.course.title` (forms/header-fields), `route.course.submit` (course-form) | `route.course-created`, emitido no `onSuccess` do `creatorUpsertCourse` **antes** de navegar para o editor |
-| Adicionar uma aula | `route.course-list` (creator-dashboard), `route.new-lesson` (course-editor), `route.lesson.title` / `route.lesson.submit` (lesson-form) | `route.lesson-created`, só na criação (não na edição) |
+| Adicionar uma aula | `route.course-list` (creator-dashboard), `route.new-lesson` (course-editor-tab-content), `route.lesson.title` / `route.lesson.submit` (lesson-form) | `route.lesson-created`, só na criação (não na edição) |
 
 Ao mover ou renomear esses componentes, mantenha os `data-guide` — `pnpm guides:check` falha se algum sumir.
 
@@ -411,3 +423,8 @@ própria** (em BRL), tirando Stars do payout:
 NASA Route é um “mini-Hotmart/Kiwify” embutido na plataforma. Oferece **7 formatos** de produto, **dois fluxos de aquisição** (interno via Stars com transação atômica e público via Stripe com resgate por email), **upload nativo de vídeo** com cobrança previsível por GB-ano, **pipeline completo de progresso e certificação**, e **integrações de tracking** (Pixel/GTM/CRM interno). Toda a economia gira em Stars, com fee fixo de 10 % para a plataforma e 90 % para o criador.
 
 A separação de responsabilidades segue rigidamente a arquitetura por features do projeto: domínio fechado em `src/features/nasa-route/`, procedimentos oRPC em `src/app/router/nasa-route/routes/`, e nenhum vazamento de domínio para `src/lib/` (que mantém apenas infra global como R2, Stripe, Prisma e oRPC).
+
+## Changelog
+
+- 2026-10-01 — Migração visual para o Design System ÓRBITA (Fase 6): telas logadas (vitrine, painel do criador, editor, player, matrícula, certificados) usam tokens (`info`/`success`/`warning`/`destructive`, `card`/`line`), abas do editor em pílula, sem linha nos cabeçalhos e dock do celular na vitrine e no painel do criador. Ficam fixos de propósito (D-3): página pública do curso/checkout/catálogo, prévia gratuita e o certificado.
+- 2026-10-02 — Celular primeiro (playbook dos Apps): todas as telas logadas ganham `NasaRouteShell` (barra de cima sem título, ASTRO "Criar comando" escondido no celular) e topo com ícone redondo + seção atual. Menu de baixo do aluno, do criador e do player. Vitrine com busca em pílula, categorias em linha que rola, destaque em cartão e "Em alta" em grade de 2; nova seção "Meus cursos". Painel do criador em grade de cursos com capa e KPIs em 2 colunas; Vendas e Alunos com cartões no celular e filtro de curso em pílulas; formulários de aula/módulo/plano/acesso livre como gaveta de baixo com ação fixa; "Novo curso" e "Informações" com botão de salvar fixo embaixo. Player com vídeo na largura toda, gaveta "Aulas" e botão "Próxima". Arquivos grandes divididos (editor, vendas, alunos, player, vitrine). Só UI — sem mudança de servidor.

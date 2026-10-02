@@ -309,7 +309,7 @@ const CreateActionTagInline = ({
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="size-7 shrink-0 rounded-sm border cursor-pointer"
+              className="size-7 shrink-0 rounded-full border cursor-pointer"
               style={{ backgroundColor: color }}
               aria-label="Selecionar cor"
             />
@@ -321,7 +321,7 @@ const CreateActionTagInline = ({
                   key={c}
                   type="button"
                   className={cn(
-                    "size-5 rounded-sm cursor-pointer hover:scale-110 transition-transform",
+                    "size-5 rounded-full cursor-pointer hover:scale-110 transition-transform",
                     color === c && "ring-1 ring-offset-1 ring-primary",
                   )}
                   style={{ backgroundColor: c }}

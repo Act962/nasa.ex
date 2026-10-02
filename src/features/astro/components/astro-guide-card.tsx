@@ -6,9 +6,9 @@ import type { AstroGuidePayload } from "@/features/astro/lib/astro-guide";
 
 export function AstroGuideCard({ payload }: { payload: AstroGuidePayload }) {
   return (
-    <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3">
+    <div className="rounded-[20px] bg-card p-3">
       <div className="flex items-start gap-2.5">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-600/15 text-violet-500">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-info/15 text-info">
           <Compass className="size-4" />
         </div>
         <div className="min-w-0 flex-1">

@@ -6,10 +6,13 @@ import { renderTemplate, type RenderContext } from "@/features/forge/utils/rende
 
 interface Props {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ preview?: string }>;
 }
 
-export default async function PublicProposalPage({ params }: Props) {
+export default async function PublicProposalPage({ params, searchParams }: Props) {
   const { token } = await params;
+  // ?preview=1: miniatura da lista do Forge — não conta como visualização do cliente.
+  const isPreview = (await searchParams).preview === "1";
 
   const proposal = await prisma.forgeProposal.findUnique({
     where: { publicToken: token },
@@ -163,11 +166,13 @@ export default async function PublicProposalPage({ params }: Props) {
 
   return (
     <>
-      <ProposalViewTracker
-        token={token}
-        responsibleId={proposal.responsibleId}
-        createdById={proposal.createdById}
-      />
+      {!isPreview && (
+        <ProposalViewTracker
+          token={token}
+          responsibleId={proposal.responsibleId}
+          createdById={proposal.createdById}
+        />
+      )}
       <PublicProposalView
         proposal={serialized}
         token={token}

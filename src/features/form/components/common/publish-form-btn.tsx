@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader, Send } from "lucide-react";
+import { Send } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { cn } from "@/lib/utils";
@@ -123,13 +124,13 @@ export function PublishFormBtn() {
     <Button
       disabled={mutate.isPending || saveMutate.isPending}
       size="sm"
-      variant={isPublished ? "destructive" : "secondary"}
-      className={cn(isPublished && "bg-red-500 hover:bg-red-600", "text-white")}
+      variant={isPublished ? "destructive" : "default"}
+      className={cn(isPublished && "bg-destructive text-white hover:bg-destructive")}
       onClick={togglePublishState}
       data-guide={GUIDE_ANCHORS.formPublishButton.id}
     >
       {mutate.isPending || saveMutate.isPending ? (
-        <Loader className="w-4 h-4 animate-spin" />
+        <OrbitaSpinner className="w-4 h-4 " />
       ) : isPublished ? (
         "Despublicar"
       ) : (

@@ -26,9 +26,9 @@ export function AstroUnauthorizedCard({
       : "Peça ao Master ou Moderador da organização pra liberar o uso do Astro Meta Ads.";
 
   return (
-    <Card className="border-amber-200 bg-amber-50/40 dark:bg-amber-950/20 dark:border-amber-900/40">
+    <Card className="border-warning/30 bg-warning/40 dark:bg-warning/20 dark:border-warning/40">
       <CardContent className="p-4 flex items-start gap-3">
-        <div className="p-1.5 rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 shrink-0">
+        <div className="p-1.5 rounded-md bg-warning/15 text-warning dark:bg-warning/15 dark:text-warning shrink-0">
           <Lock className="size-4" />
         </div>
         <div className="flex-1 min-w-0">

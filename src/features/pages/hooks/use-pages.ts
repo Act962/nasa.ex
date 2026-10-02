@@ -39,7 +39,7 @@ export function useDeletePage() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.pages.deletePage.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["pages"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.pages.key() }),
   });
 }
 
@@ -52,6 +52,10 @@ export function useUpdatePageSlug() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.pages.updatePageSlug.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["pages"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.pages.key() }),
   });
+}
+
+export function usePageAnalytics(pageId: string, days: number) {
+  return useQuery(orpc.pages.getAnalytics.queryOptions({ input: { id: pageId, days } }));
 }

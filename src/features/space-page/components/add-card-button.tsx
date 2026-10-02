@@ -55,14 +55,14 @@ export function AddCardButton({ onAdd }: AddCardButtonProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-white/15 bg-transparent p-8 text-sm text-white/50 transition hover:border-orange-400/40 hover:bg-orange-500/5 hover:text-orange-200"
+        className="group flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-transparent p-8 text-sm text-muted-foreground transition hover:border-info/30 hover:bg-info/10 hover:text-info/80"
       >
         <Plus className="size-5" />
         <span className="font-medium">Adicionar</span>
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="dark max-w-md">
           <DialogHeader>
             <DialogTitle>Adicionar à Spacehome</DialogTitle>
             <DialogDescription>
@@ -72,25 +72,25 @@ export function AddCardButton({ onAdd }: AddCardButtonProps) {
 
           <div className="grid grid-cols-2 gap-3">
             <Option
-              icon={<FileText className="size-5 text-orange-400" />}
+              icon={<FileText className="size-5 text-info" />}
               label="Formulário"
               hint="Trabalhe conosco / contato"
               onClick={() => pick("form")}
             />
             <Option
-              icon={<FolderArchive className="size-5 text-orange-400" />}
+              icon={<FolderArchive className="size-5 text-info" />}
               label="Arquivo no N-Box"
               hint="Catálogo / brochura / PDF"
               onClick={() => pick("nbox")}
             />
             <Option
-              icon={<Calendar className="size-5 text-orange-400" />}
+              icon={<Calendar className="size-5 text-info" />}
               label="Agendar"
               hint="Eventos públicos / reuniões"
               onClick={() => pick("calendar")}
             />
             <Option
-              icon={<Link2 className="size-5 text-orange-400" />}
+              icon={<Link2 className="size-5 text-info" />}
               label="Integrar Linnker"
               hint="Página de links com mockup mobile"
               onClick={() => pick("linnker")}
@@ -117,11 +117,11 @@ function Option({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-start gap-1.5 rounded-xl border border-white/10 bg-white/5 p-4 text-left transition hover:border-orange-400/40 hover:bg-orange-500/10"
+      className="flex flex-col items-start gap-1.5 rounded-xl border border-border bg-muted/50 p-4 text-left transition hover:border-info/30 hover:bg-info/15"
     >
       {icon}
-      <span className="text-sm font-medium text-white">{label}</span>
-      <span className="text-xs text-white/60">{hint}</span>
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      <span className="text-xs text-muted-foreground">{hint}</span>
     </button>
   );
 }

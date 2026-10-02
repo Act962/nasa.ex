@@ -55,6 +55,7 @@ import pt from "emoji-picker-react/dist/data/emojis-pt.json";
 import type { EmojiData } from "emoji-picker-react/dist/types/exposedTypes";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { toast } from "sonner";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 
 /**
  * Janela do In-Chat (cliente) — UI estilo WhatsApp Web do lado do LEAD.
@@ -720,7 +721,7 @@ export function InChatWindow({
       >
         {isFetchingNextPage && (
           <div className="flex items-center justify-center py-2">
-            <div className="size-5 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
+            <OrbitaSpinner className="size-5" />
           </div>
         )}
         {messages.length === 0 && (

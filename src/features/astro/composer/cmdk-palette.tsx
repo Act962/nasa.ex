@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Command as CmdIcon, Loader2, Sparkles } from "lucide-react";
+import { Command as CmdIcon, Sparkles } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import {
   Dialog,
   DialogContent,
@@ -196,10 +197,10 @@ export function CmdkPalette() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-2xl p-0 gap-0 bg-zinc-950 border-zinc-800">
+      <DialogContent className="sm:max-w-2xl p-0 gap-0 bg-background border-line">
         <DialogHeader className="px-4 pt-4 pb-2">
-          <DialogTitle className="text-sm text-zinc-200 flex items-center gap-2">
-            <Sparkles className="size-3.5 text-violet-400" />
+          <DialogTitle className="text-sm text-foreground flex items-center gap-2">
+            <Sparkles className="size-3.5 text-info" />
             Comando rápido
           </DialogTitle>
           <DialogDescription className="sr-only">
@@ -212,18 +213,18 @@ export function CmdkPalette() {
             onDirectIntent={handleDirectIntent}
             loading={isPending}
           />
-          <p className="mt-2 text-[10px] text-zinc-600 text-center flex items-center justify-center gap-2">
+          <p className="mt-2 text-[10px] text-muted-foreground text-center flex items-center justify-center gap-2">
             {isPending && (
-              <span className="inline-flex items-center gap-1 text-violet-400">
-                <Loader2 className="size-3 animate-spin" /> Criando automação...
+              <span className="inline-flex items-center gap-1 text-info">
+                <OrbitaSpinner className="size-3 " /> Criando automação...
               </span>
             )}
             <span>
-              <kbd className="px-1 py-0.5 rounded bg-zinc-900 border border-zinc-800">
+              <kbd className="px-1 py-0.5 rounded bg-card border border-line">
                 <CmdIcon className="inline size-2.5" />K
               </kbd>{" "}
               abre e fecha •{" "}
-              <kbd className="px-1 py-0.5 rounded bg-zinc-900 border border-zinc-800">
+              <kbd className="px-1 py-0.5 rounded bg-card border border-line">
                 Esc
               </kbd>{" "}
               cancela

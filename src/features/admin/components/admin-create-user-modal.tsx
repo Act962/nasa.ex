@@ -53,16 +53,16 @@ export function AdminCreateUserModal({ orgId, orgName, onClose, onCreated }: Pro
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-card border border-line rounded-2xl w-full max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+        <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
-            <UserPlus className="w-4 h-4 text-violet-400" />
-            <h2 className="text-sm font-semibold text-white">Novo usuário</h2>
-            <span className="text-xs text-zinc-500">· {orgName}</span>
+            <UserPlus className="w-4 h-4 text-info" />
+            <h2 className="text-sm font-semibold text-foreground">Novo usuário</h2>
+            <span className="text-xs text-muted-foreground">· {orgName}</span>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -71,34 +71,34 @@ export function AdminCreateUserModal({ orgId, orgName, onClose, onCreated }: Pro
         {result ? (
           <div className="px-6 py-6 space-y-5">
             <div className="text-center space-y-1">
-              <div className="w-12 h-12 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-3">
-                <Check className="w-6 h-6 text-emerald-400" />
+              <div className="w-12 h-12 rounded-full bg-success/15 flex items-center justify-center mx-auto mb-3">
+                <Check className="w-6 h-6 text-success" />
               </div>
-              <p className="text-white font-semibold">{result.isNewUser ? "Usuário criado!" : "Membro adicionado!"}</p>
-              <p className="text-xs text-zinc-400">
+              <p className="text-foreground font-semibold">{result.isNewUser ? "Usuário criado!" : "Membro adicionado!"}</p>
+              <p className="text-xs text-muted-foreground">
                 {result.name} foi adicionado(a) à empresa com sucesso.
               </p>
             </div>
 
             {result.isNewUser && result.tempPassword && (
-              <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-4 space-y-3">
-                <p className="text-xs text-zinc-400 font-medium">Senha temporária gerada:</p>
+              <div className="bg-muted border border-line rounded-xl p-4 space-y-3">
+                <p className="text-xs text-muted-foreground font-medium">Senha temporária gerada:</p>
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 font-mono text-sm font-bold text-violet-300 bg-zinc-900 px-3 py-2 rounded-lg tracking-wider">
+                  <div className="flex-1 font-mono text-sm font-bold text-info bg-card px-3 py-2 rounded-lg tracking-wider">
                     {showPass ? result.tempPassword : "•".repeat(result.tempPassword.length)}
                   </div>
-                  <button onClick={() => setShowPass((v) => !v)} className="p-2 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors">
+                  <button onClick={() => setShowPass((v) => !v)} className="p-2 hover:bg-knob rounded-lg text-muted-foreground hover:text-foreground transition-colors">
                     {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
-                  <button onClick={copyPassword} className="p-2 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors">
-                    {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  <button onClick={copyPassword} className="p-2 hover:bg-knob rounded-lg text-muted-foreground hover:text-foreground transition-colors">
+                    {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-[11px] text-yellow-500/80">⚠ Compartilhe esta senha com o usuário. Ela não será exibida novamente.</p>
+                <p className="text-[11px] text-warning/80">⚠ Compartilhe esta senha com o usuário. Ela não será exibida novamente.</p>
               </div>
             )}
 
-            <button onClick={handleDone} className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold rounded-xl transition-colors">
+            <button onClick={handleDone} className="w-full py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-xl transition-colors">
               Concluir
             </button>
           </div>
@@ -107,62 +107,62 @@ export function AdminCreateUserModal({ orgId, orgName, onClose, onCreated }: Pro
           <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
-                <label className="block text-xs text-zinc-400 mb-1.5">Nome completo *</label>
+                <label className="block text-xs text-muted-foreground mb-1.5">Nome completo *</label>
                 <input
                   required minLength={2}
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="João Silva"
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full px-3 py-2 bg-muted border border-line rounded-lg text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-ring transition-colors"
                 />
               </div>
 
               <div className="col-span-2">
-                <label className="block text-xs text-zinc-400 mb-1.5">E-mail *</label>
+                <label className="block text-xs text-muted-foreground mb-1.5">E-mail *</label>
                 <input
                   required type="email"
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   placeholder="joao@empresa.com"
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full px-3 py-2 bg-muted border border-line rounded-lg text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-ring transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-xs text-zinc-400 mb-1.5">Função</label>
+                <label className="block text-xs text-muted-foreground mb-1.5">Função</label>
                 <select
                   value={form.role}
                   onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as typeof ROLES[number] }))}
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full px-3 py-2 bg-muted border border-line rounded-lg text-sm text-foreground focus:outline-none focus:border-ring transition-colors"
                 >
                   {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs text-zinc-400 mb-1.5">Cargo <span className="text-zinc-600">(opcional)</span></label>
+                <label className="block text-xs text-muted-foreground mb-1.5">Cargo <span className="text-muted-foreground/70">(opcional)</span></label>
                 <input
                   value={form.cargo}
                   onChange={(e) => setForm((f) => ({ ...f, cargo: e.target.value }))}
                   placeholder="Ex: Vendedor"
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full px-3 py-2 bg-muted border border-line rounded-lg text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-ring transition-colors"
                 />
               </div>
             </div>
 
-            <p className="text-[11px] text-zinc-500">
+            <p className="text-[11px] text-muted-foreground">
               Se o e-mail já estiver cadastrado no sistema, o usuário será adicionado à empresa sem criar nova conta.
               Caso contrário, uma senha temporária será gerada.
             </p>
 
             <div className="flex gap-3 pt-1">
-              <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm rounded-xl transition-colors">
+              <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-muted hover:bg-knob text-foreground text-sm rounded-xl transition-colors">
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={mutation.isPending}
-                className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors"
+                className="flex-1 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-semibold rounded-xl transition-colors"
               >
                 {mutation.isPending ? "Criando..." : "Criar usuário"}
               </button>

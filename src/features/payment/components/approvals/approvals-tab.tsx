@@ -56,8 +56,8 @@ export function ApprovalsTab() {
   if (requests.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="size-12 rounded-full bg-green-50 flex items-center justify-center mb-3">
-          <ShieldCheck className="size-6 text-green-600" />
+        <div className="size-12 rounded-full bg-success/10 flex items-center justify-center mb-3">
+          <ShieldCheck className="size-6 text-success" />
         </div>
         <p className="text-sm font-medium">Nada pra aprovar agora</p>
         <p className="text-xs text-muted-foreground mt-1 max-w-sm">

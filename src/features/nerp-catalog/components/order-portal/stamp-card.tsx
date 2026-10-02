@@ -35,12 +35,12 @@ function StampStar({ position, isFilled }: { position: number; isFilled: boolean
           strokeLinejoin="round"
           className={cn(
             isFilled
-              ? "fill-amber-400 stroke-amber-400"
-              : "fill-primary/5 stroke-primary/50 dark:fill-blue-400/10 dark:stroke-blue-400/70",
+              ? "fill-warning stroke-warning"
+              : "fill-primary/5 stroke-primary/50",
           )}
         />
       </svg>
-      {!isFilled && <span className="relative mt-0.5 text-[10px] font-semibold text-primary/80 dark:text-blue-300">{position}</span>}
+      {!isFilled && <span className="relative mt-0.5 text-[10px] font-semibold text-primary/80">{position}</span>}
     </span>
   );
 }
@@ -97,7 +97,7 @@ export function StampCard({
         </div>
       ) : (
         <div className="h-2 overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full bg-amber-400" style={{ width: `${(filled / reward.costStars) * 100}%` }} />
+          <div className="h-full rounded-full bg-warning" style={{ width: `${(filled / reward.costStars) * 100}%` }} />
         </div>
       )}
 

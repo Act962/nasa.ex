@@ -14,7 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { StarIcon } from "./star-icon";
-import { Loader2, Sparkles, Users, ExternalLink, Zap } from "lucide-react";
+import { Sparkles, Users, ExternalLink, Zap } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { toast } from "sonner";
 
 interface PlanSelectModalProps {
@@ -92,17 +93,17 @@ export function PlanSelectModal({
         if (!o) onClose();
       }}
     >
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0a0a14] border-white/10">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-line">
         <DialogHeader className="pb-1">
           <div className="flex items-start gap-3">
-            <div className="size-10 rounded-xl bg-linear-to-br from-[#7C3AED] to-[#a855f7] flex items-center justify-center shrink-0">
-              <Sparkles className="size-5 text-white" />
+            <div className="size-10 rounded-xl bg-info flex items-center justify-center shrink-0">
+              <Sparkles className="size-5 text-background" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-white">
+              <DialogTitle className="text-base font-bold text-foreground">
                 Escolha seu plano
               </DialogTitle>
-              <p className="text-xs text-white/40 mt-0.5 leading-relaxed">
+              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                 Stars são creditados mensalmente e usados para manter
                 integrações ativas
               </p>
@@ -115,12 +116,12 @@ export function PlanSelectModal({
             {[1, 2, 3].map((index) => (
               <div
                 key={index}
-                className="h-52 rounded-xl bg-white/5 animate-pulse"
+                className="h-52 rounded-xl bg-panel animate-pulse"
               />
             ))}
           </div>
         ) : plans.length === 0 ? (
-          <div className="py-12 text-center text-sm text-white/40">
+          <div className="py-12 text-center text-sm text-muted-foreground">
             Nenhum plano disponível no momento.
           </div>
         ) : (
@@ -137,41 +138,41 @@ export function PlanSelectModal({
                   className={cn(
                     "relative flex flex-col rounded-xl border p-4 transition-all",
                     plan.highlighted
-                      ? "border-[#7C3AED]/60 bg-[#7C3AED]/8 shadow-[0_0_24px_rgba(124,58,237,.15)]"
-                      : "border-white/10 bg-white/4 hover:border-white/20 hover:bg-white/6",
+                      ? "border-info/60 bg-info/8 shadow-lg shadow-info/15"
+                      : "border-line bg-panel hover:border-border hover:bg-muted",
                   )}
                 >
                   {plan.highlighted && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                      <span className="bg-[#7C3AED] text-white text-[10px] font-bold px-3 py-0.5 rounded-full whitespace-nowrap shadow-lg">
+                      <span className="bg-primary text-primary-foreground text-[10px] font-bold px-3 py-0.5 rounded-full whitespace-nowrap shadow-lg">
                         Mais popular
                       </span>
                     </div>
                   )}
 
-                  <p className="text-sm font-bold text-white text-center mb-3 mt-1">
+                  <p className="text-sm font-bold text-foreground text-center mb-3 mt-1">
                     {plan.name}
                   </p>
 
                   <div className="text-center mb-3">
                     {isFree ? (
-                      <div className="text-2xl font-extrabold text-white">
+                      <div className="text-2xl font-extrabold text-foreground">
                         R$ 0
-                        <span className="text-xs text-white/40 font-normal">
+                        <span className="text-xs text-muted-foreground font-normal">
                           {billingLabel}
                         </span>
                       </div>
                     ) : (
                       <div>
-                        <span className="text-[11px] text-white/50 font-medium">
+                        <span className="text-[11px] text-muted-foreground font-medium">
                           R$
                         </span>
-                        <span className="text-3xl font-extrabold text-white mx-1 leading-none">
+                        <span className="text-3xl font-extrabold text-foreground mx-1 leading-none">
                           {plan.priceMonthly.toLocaleString("pt-BR", {
                             minimumFractionDigits: 0,
                           })}
                         </span>
-                        <span className="text-[11px] text-white/40">
+                        <span className="text-[11px] text-muted-foreground">
                           {billingLabel}
                         </span>
                       </div>
@@ -183,7 +184,7 @@ export function PlanSelectModal({
                     <span
                       className={cn(
                         "text-[12px] font-bold",
-                        plan.highlighted ? "text-[#a78bfa]" : "text-[#7C3AED]",
+                        "text-info",
                       )}
                     >
                       {plan.monthlyStars.toLocaleString("pt-BR")} stars/mês
@@ -191,8 +192,8 @@ export function PlanSelectModal({
                   </div>
 
                   <div className="flex items-center justify-center gap-1.5 mb-4">
-                    <Users className="size-3 text-white/30 shrink-0" />
-                    <span className="text-[11px] text-white/40">
+                    <Users className="size-3 text-muted-foreground shrink-0" />
+                    <span className="text-[11px] text-muted-foreground">
                       {plan.maxUsers >= 999_999
                         ? "Usuários ilimitados"
                         : `Até ${plan.maxUsers} usuários`}
@@ -206,13 +207,13 @@ export function PlanSelectModal({
                     className={cn(
                       "w-full mt-auto gap-1.5 font-semibold text-xs rounded-lg h-8",
                       plan.highlighted
-                        ? "bg-[#7C3AED] hover:bg-[#6D28D9] text-white shadow-lg shadow-[#7C3AED]/20"
-                        : "bg-white/10 hover:bg-white/15 text-white border border-white/10",
+                        ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-info/20"
+                        : "bg-knob hover:bg-muted text-foreground border border-line",
                     )}
                   >
                     {busy ? (
                       <>
-                        <Loader2 className="size-3.5 animate-spin" /> Aguarde...
+                        <OrbitaSpinner className="size-3.5 " /> Aguarde...
                       </>
                     ) : isCurrent ? (
                       "Plano atual"
@@ -232,7 +233,7 @@ export function PlanSelectModal({
           </div>
         )}
 
-        <p className="text-center text-[11px] text-white/25 pt-1 pb-0.5">
+        <p className="text-center text-[11px] text-muted-foreground pt-1 pb-0.5">
           🔒 Pagamento seguro via Stripe — cancele quando quiser, sem multas
         </p>
       </DialogContent>

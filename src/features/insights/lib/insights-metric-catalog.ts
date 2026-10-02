@@ -27,6 +27,9 @@ import {
   Eye,
   FileText,
   Flame,
+  Gift,
+  Megaphone,
+  Store,
   FormInput,
   GraduationCap,
   Inbox,
@@ -76,6 +79,11 @@ export interface MetricDef {
    * o valor da métrica. Suporta segmentos aninhados separados por ".".
    */
   dataPath: string;
+  /**
+   * Para `format: "ranking"`: como ler a lista (array de objetos ou mapa `{ nome: valor }`).
+   * Mapas viram itens `{ name, value }` ordenados do maior para o menor.
+   */
+  ranking?: { labelKey: string; valueKey: string; valueFormat: Exclude<MetricFormat, "ranking"> };
 }
 
 // ─── Forge ──────────────────────────────────────────────────────────────────
@@ -264,7 +272,7 @@ export const SECTION_META: Partial<Record<AppModule, SectionMeta>> = {
   forge: { label: "Forge — Propostas & Contratos", description: "Propostas comerciais geradas e contratos assinados no período", icon: Flame, color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-950/40" },
   spacetime: { label: "SpaceTime — Agendamentos", description: "Reuniões e compromissos agendados no período", icon: Calendar, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/40" },
   "nasa-planner": { label: "ÓRBITA Post — Conteúdo", description: "Posts criados e publicados no período", icon: Sparkles, color: "text-pink-600", bg: "bg-pink-50 dark:bg-pink-950/40" },
-  integrations: { label: "Integrações — Meta Ads", description: "Investimento e performance em campanhas Meta", icon: Plug, color: "text-cyan-600", bg: "bg-cyan-50 dark:bg-cyan-950/40" },
+  integrations: { label: "Satélites — Meta Ads", description: "Investimento e performance em campanhas Meta", icon: Plug, color: "text-cyan-600", bg: "bg-cyan-50 dark:bg-cyan-950/40" },
   workspace: { label: "Workspace — Ações", description: "Tarefas e ações registradas no Workspace", icon: ListTodo, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/40" },
   forms: { label: "Formulários", description: "Formulários publicados e respostas recebidas", icon: FormInput, color: "text-teal-600", bg: "bg-teal-50 dark:bg-teal-950/40" },
   nbox: { label: "N-Box — Conteúdo", description: "Itens armazenados no N-Box", icon: Inbox, color: "text-slate-600", bg: "bg-slate-50 dark:bg-slate-950/40" },
@@ -274,7 +282,128 @@ export const SECTION_META: Partial<Record<AppModule, SectionMeta>> = {
   stars: { label: "Stars", description: "Saldo e movimentação de Stars da empresa", icon: Star, color: "text-fuchsia-600", bg: "bg-fuchsia-50 dark:bg-fuchsia-950/40" },
   "space-station": { label: "Space Station", description: "Estações, acessos e stars trocadas", icon: Rocket, color: "text-indigo-600", bg: "bg-indigo-50 dark:bg-indigo-950/40" },
   "nasa-route": { label: "ÓRBITA Route — Cursos", description: "Cursos publicados, matrículas e conclusões", icon: MapIcon, color: "text-sky-600", bg: "bg-sky-50 dark:bg-sky-950/40" },
+  campanhas: { label: "Campanhas — WhatsApp Oficial", description: "Disparos, entregas e leituras no período", icon: Megaphone, color: "text-info", bg: "bg-info/10" },
+  trafego: { label: "trafeGO — Tráfego pago", description: "Pedidos de tráfego, verba e campanhas no ar", icon: Target, color: "text-info", bg: "bg-info/10" },
+  nerp: { label: "NERP — Catálogo online", description: "Pedidos do catálogo e receita paga", icon: Store, color: "text-info", bg: "bg-info/10" },
+  "star-friends": { label: "Star Friends — Fidelidade", description: "Membros, estrelas ganhas e resgates", icon: Gift, color: "text-info", bg: "bg-info/10" },
 };
+
+// ─── Já calculados no servidor, agora oferecidos no "Adicionar Insight" ──────
+
+const MAP_RANKING = { labelKey: "name", valueKey: "value", valueFormat: "number" } as const;
+
+const PAYLOAD_EXTRAS: MetricDef[] = [
+  { appModule: "chat", key: "attendanceRate", label: "Taxa de atendimento", icon: Percent, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, description: "Conversas atendidas ÷ total", dataPath: "chat.attendanceRate" },
+  { appModule: "spacetime", key: "conversionRate", label: "Taxa de realização", icon: Percent, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, description: "Agendamentos realizados ÷ total", dataPath: "spacetime.conversionRate" },
+  { appModule: "nasa-planner", key: "approved", label: "Aprovados", icon: CheckCircle2, color: "text-success", bg: "bg-success/10", format: "number", defaultVisible: false, dataPath: "nasaPlanner.approved" },
+  { appModule: "nasa-planner", key: "byNetwork", label: "Posts por rede", icon: Layers, color: "text-info", bg: "bg-info/10", format: "ranking", defaultVisible: false, dataPath: "nasaPlanner.byNetwork", ranking: MAP_RANKING },
+  { appModule: "workspace", key: "byType", label: "Ações por tipo", icon: Layers, color: "text-info", bg: "bg-info/10", format: "ranking", defaultVisible: false, dataPath: "workspace.byType", ranking: MAP_RANKING },
+  { appModule: "workspace", key: "topCreators", label: "Quem mais cria ações", icon: Trophy, color: "text-warning", bg: "bg-warning/10", format: "ranking", defaultVisible: false, dataPath: "workspace.topCreators", ranking: { labelKey: "name", valueKey: "count", valueFormat: "number" } },
+  { appModule: "forms", key: "publishedForms", label: "Formulários publicados", icon: FileText, color: "text-success", bg: "bg-success/10", format: "number", defaultVisible: false, dataPath: "forms.publishedForms" },
+  { appModule: "forms", key: "topForms", label: "Formulários com mais respostas", icon: Trophy, color: "text-warning", bg: "bg-warning/10", format: "ranking", defaultVisible: false, dataPath: "forms.topForms", ranking: { labelKey: "name", valueKey: "responses", valueFormat: "number" } },
+  { appModule: "nbox", key: "byType", label: "Itens por tipo", icon: Layers, color: "text-info", bg: "bg-info/10", format: "ranking", defaultVisible: false, dataPath: "nbox.byType", ranking: MAP_RANKING },
+  { appModule: "payment", key: "pendingCount", label: "Lançamentos pendentes", icon: Clock, color: "text-warning", bg: "bg-warning/10", format: "number", defaultVisible: false, dataPath: "payment.pendingCount" },
+  { appModule: "payment", key: "overdueCount", label: "Lançamentos atrasados", icon: AlertCircle, color: "text-destructive", bg: "bg-destructive/10", format: "number", defaultVisible: false, dataPath: "payment.overdueCount" },
+  { appModule: "linnker", key: "topLinks", label: "Links mais clicados", icon: Link2, color: "text-info", bg: "bg-info/10", format: "ranking", defaultVisible: false, dataPath: "linnker.topLinks", ranking: { labelKey: "title", valueKey: "clicks", valueFormat: "number" } },
+  { appModule: "space-points", key: "weeklyBalance", label: "Pontos na semana", icon: Coins, color: "text-warning", bg: "bg-warning/10", format: "number", defaultVisible: false, dataPath: "spacePoints.weeklyBalance" },
+  { appModule: "stars", key: "planCredit", label: "Crédito do plano", icon: Star, color: "text-warning", bg: "bg-warning/10", format: "number", defaultVisible: false, dataPath: "stars.planCredit" },
+  { appModule: "stars", key: "byApp", label: "Consumo por App", icon: Layers, color: "text-info", bg: "bg-info/10", format: "ranking", defaultVisible: false, dataPath: "stars.byApp", ranking: MAP_RANKING },
+  { appModule: "space-station", key: "pendingAccessRequests", label: "Pedidos de acesso pendentes", icon: Clock, color: "text-warning", bg: "bg-warning/10", format: "number", defaultVisible: false, dataPath: "spaceStation.pendingAccessRequests" },
+  { appModule: "space-station", key: "approvedAccessRequests", label: "Pedidos de acesso aprovados", icon: CheckCircle2, color: "text-success", bg: "bg-success/10", format: "number", defaultVisible: false, dataPath: "spaceStation.approvedAccessRequests" },
+  { appModule: "nasa-route", key: "topCourses", label: "Cursos mais procurados", icon: Trophy, color: "text-warning", bg: "bg-warning/10", format: "ranking", defaultVisible: false, dataPath: "nasaRoute.topCourses", ranking: { labelKey: "title", valueKey: "enrollments", valueFormat: "number" } },
+  { appModule: "nasa-route", key: "completedLessons", label: "Aulas concluídas", icon: BookOpen, color: "text-success", bg: "bg-success/10", format: "number", defaultVisible: false, dataPath: "nasaRoute.completedLessons" },
+  { appModule: "nasa-route", key: "freeEnrollments", label: "Matrículas gratuitas", icon: GraduationCap, color: "text-info", bg: "bg-info/10", format: "number", defaultVisible: false, dataPath: "nasaRoute.freeEnrollments" },
+];
+
+// ─── Indicadores novos de prioridade alta (load-kpi-extras.ts) ───────────────
+
+const NAME_VALUE_RANKING = { labelKey: "name", valueKey: "value", valueFormat: "number" } as const;
+const NAME_CURRENCY_RANKING = { labelKey: "name", valueKey: "value", valueFormat: "currency" } as const;
+
+const HIGH_PRIORITY_EXTRAS: MetricDef[] = [
+  { appModule: "integrations", key: "metaCTR", label: "CTR", icon: Percent, color: "text-info", bg: "bg-info/10", format: "percent", defaultVisible: false, description: "Cliques ÷ impressões", dataPath: "metaAds.ctr" },
+  { appModule: "integrations", key: "metaClicks", label: "Cliques", icon: Activity, color: "text-info", bg: "bg-info/10", format: "number", defaultVisible: false, dataPath: "metaAds.clicks" },
+  { appModule: "integrations", key: "metaImpressions", label: "Impressões", icon: Eye, color: "text-info", bg: "bg-info/10", format: "number", defaultVisible: false, dataPath: "metaAds.impressions" },
+  { appModule: "tracking", key: "conversionRate", label: "Taxa de conversão", icon: Percent, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, description: "Ganhos ÷ (ganhos + perdidos)", dataPath: "tracking.conversionRate" },
+  { appModule: "tracking", key: "wonAmount", label: "Valor ganho", icon: DollarSign, color: "text-success", bg: "bg-success/10", format: "currency", defaultVisible: false, dataPath: "tracking.wonAmount" },
+  { appModule: "tracking", key: "pipelineAmount", label: "Pipeline em aberto", icon: TrendingUp, color: "text-info", bg: "bg-info/10", format: "currency", defaultVisible: false, dataPath: "tracking.pipelineAmount" },
+  { appModule: "tracking", key: "leadsBySource", label: "Leads por origem", icon: Layers, color: "text-info", bg: "bg-info/10", format: "ranking", defaultVisible: false, dataPath: "tracking.leadsBySource", ranking: NAME_VALUE_RANKING },
+  { appModule: "tracking", key: "lossReasons", label: "Motivos de perda", icon: XCircle, color: "text-destructive", bg: "bg-destructive/10", format: "ranking", defaultVisible: false, dataPath: "tracking.lossReasons", ranking: NAME_VALUE_RANKING },
+  { appModule: "chat", key: "avgFirstResponse", label: "Tempo da 1ª resposta", icon: Timer, color: "text-info", bg: "bg-info/10", format: "duration", defaultVisible: false, dataPath: "chat.avgFirstResponse" },
+  { appModule: "chat", key: "unansweredOver24h", label: "Sem resposta há +24h", icon: AlertCircle, color: "text-destructive", bg: "bg-destructive/10", format: "number", defaultVisible: false, dataPath: "chat.unansweredOver24h" },
+  { appModule: "forge", key: "closeRate", label: "Taxa de fechamento", icon: Percent, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, description: "Pagas ÷ enviadas", dataPath: "forge.closeRate" },
+  { appModule: "forge", key: "topSellers", label: "Ranking de vendedores", icon: Trophy, color: "text-warning", bg: "bg-warning/10", format: "ranking", defaultVisible: false, dataPath: "forge.topSellers", ranking: NAME_CURRENCY_RANKING },
+  { appModule: "forge", key: "activeContractsValue", label: "Contratos ativos (valor)", icon: Wallet, color: "text-success", bg: "bg-success/10", format: "currency", defaultVisible: false, dataPath: "forge.activeContractsValue" },
+  { appModule: "spacetime", key: "appointmentToSaleRate", label: "Agendamentos que viraram venda", icon: Target, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, dataPath: "spacetime.appointmentToSaleRate" },
+  { appModule: "nasa-planner", key: "totalReach", label: "Alcance", icon: Eye, color: "text-info", bg: "bg-info/10", format: "number", defaultVisible: false, dataPath: "nasaPlanner.totalReach" },
+  { appModule: "nasa-planner", key: "engagementRate", label: "Engajamento", icon: Percent, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, description: "(curtidas + comentários + compart.) ÷ alcance", dataPath: "nasaPlanner.engagementRate" },
+  { appModule: "workspace", key: "onTimeRate", label: "Entregues no prazo", icon: CheckCircle2, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, dataPath: "workspace.onTimeRate" },
+  { appModule: "forms", key: "viewToResponseRate", label: "Conversão (respostas ÷ visitas)", icon: Percent, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, dataPath: "forms.viewToResponseRate" },
+  { appModule: "forms", key: "formLeadsWonRate", label: "Leads de form que viraram venda", icon: Target, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, dataPath: "forms.formLeadsWonRate" },
+  { appModule: "payment", key: "cashResult", label: "Resultado de caixa", icon: DollarSign, color: "text-success", bg: "bg-success/10", format: "currency", defaultVisible: false, description: "Receita recebida − despesa paga", dataPath: "payment.cashResult" },
+  { appModule: "payment", key: "monthGoalProgress", label: "Meta do mês", icon: Target, color: "text-info", bg: "bg-info/10", format: "percent", defaultVisible: false, description: "Receita do mês ÷ meta", dataPath: "payment.monthGoalProgress" },
+  { appModule: "payment", key: "defaultRate", label: "Inadimplência", icon: AlertCircle, color: "text-destructive", bg: "bg-destructive/10", format: "percent", defaultVisible: false, description: "Atrasado ÷ a receber em aberto", dataPath: "payment.defaultRate" },
+  { appModule: "payment", key: "expenseByCategory", label: "Despesa por categoria", icon: Layers, color: "text-warning", bg: "bg-warning/10", format: "ranking", defaultVisible: false, dataPath: "payment.expenseByCategory", ranking: NAME_CURRENCY_RANKING },
+  { appModule: "payment", key: "taxesAssessed", label: "Impostos apurados", icon: Receipt, color: "text-warning", bg: "bg-warning/10", format: "currency", defaultVisible: false, dataPath: "payment.taxesAssessed" },
+  { appModule: "payment", key: "overdueObligations", label: "Obrigações fiscais vencidas", icon: AlertCircle, color: "text-destructive", bg: "bg-destructive/10", format: "number", defaultVisible: false, dataPath: "payment.overdueObligations" },
+  { appModule: "linnker", key: "captureRate", label: "Taxa de captação", icon: Percent, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, description: "Acessos que viraram lead", dataPath: "linnker.captureRate" },
+  { appModule: "stars", key: "aiCostBrl", label: "Custo de IA", icon: DollarSign, color: "text-warning", bg: "bg-warning/10", format: "currency", defaultVisible: false, dataPath: "stars.aiCostBrl" },
+  { appModule: "stars", key: "aiMargin", label: "Margem da IA", icon: Percent, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, dataPath: "stars.aiMargin" },
+  { appModule: "stars", key: "hoursUntilEmpty", label: "Saldo acaba em", icon: Clock, color: "text-destructive", bg: "bg-destructive/10", format: "duration", defaultVisible: false, description: "No ritmo de consumo dos últimos 30 dias", dataPath: "stars.hoursUntilEmpty" },
+  { appModule: "nasa-route", key: "revenueBrl", label: "Receita em R$", icon: DollarSign, color: "text-success", bg: "bg-success/10", format: "currency", defaultVisible: false, dataPath: "nasaRoute.revenueBrl" },
+  { appModule: "campanhas", key: "responseRate", label: "Taxa de resposta", icon: MessageSquare, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, dataPath: "campanhas.responseRate" },
+  { appModule: "campanhas", key: "wonAfterCampaign", label: "Leads ganhos após campanha", icon: Trophy, color: "text-success", bg: "bg-success/10", format: "number", defaultVisible: false, dataPath: "campanhas.wonAfterCampaign" },
+  { appModule: "trafego", key: "avgTimeToLive", label: "Tempo até ir ao ar", icon: Timer, color: "text-info", bg: "bg-info/10", format: "duration", defaultVisible: false, dataPath: "trafego.avgTimeToLive" },
+  { appModule: "trafego", key: "ordersByStatus", label: "Pedidos por etapa", icon: Layers, color: "text-warning", bg: "bg-warning/10", format: "ranking", defaultVisible: false, dataPath: "trafego.ordersByStatus", ranking: NAME_VALUE_RANKING },
+  { appModule: "nerp", key: "avgTimeToPay", label: "Tempo até o pagamento", icon: Timer, color: "text-info", bg: "bg-info/10", format: "duration", defaultVisible: false, dataPath: "nerp.avgTimeToPay" },
+  { appModule: "nerp", key: "topProducts", label: "Produtos mais vendidos", icon: Trophy, color: "text-warning", bg: "bg-warning/10", format: "ranking", defaultVisible: false, dataPath: "nerp.topProducts", ranking: NAME_VALUE_RANKING },
+  { appModule: "nerp", key: "repurchaseRate", label: "Taxa de recompra", icon: Percent, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, dataPath: "nerp.repurchaseRate" },
+  { appModule: "star-friends", key: "membersByLevel", label: "Membros por nível", icon: Layers, color: "text-info", bg: "bg-info/10", format: "ranking", defaultVisible: false, dataPath: "starFriends.membersByLevel", ranking: NAME_VALUE_RANKING },
+  { appModule: "star-friends", key: "redemptionRate", label: "Taxa de resgate", icon: Percent, color: "text-success", bg: "bg-success/10", format: "percent", defaultVisible: false, description: "Estrelas trocadas ÷ ganhas", dataPath: "starFriends.redemptionRate" },
+  { appModule: "star-friends", key: "pendingRedemptions", label: "Resgates pendentes", icon: Clock, color: "text-warning", bg: "bg-warning/10", format: "number", defaultVisible: false, dataPath: "starFriends.pendingRedemptions" },
+];
+
+// ─── Apps novos (Campanhas, trafeGO, NERP, Star Friends) ─────────────────────
+
+const INFO_TONE = { color: "text-info", bg: "bg-info/10" };
+const SUCCESS_TONE = { color: "text-success", bg: "bg-success/10" };
+const WARNING_TONE = { color: "text-warning", bg: "bg-warning/10" };
+const DESTRUCTIVE_TONE = { color: "text-destructive", bg: "bg-destructive/10" };
+
+const CAMPANHAS: MetricDef[] = [
+  { appModule: "campanhas", key: "totalCampaigns", label: "Campanhas", icon: Megaphone, ...INFO_TONE, format: "number", defaultVisible: true, dataPath: "campanhas.totalCampaigns" },
+  { appModule: "campanhas", key: "sentCount", label: "Mensagens enviadas", icon: Send, ...INFO_TONE, format: "number", defaultVisible: true, dataPath: "campanhas.sentCount" },
+  { appModule: "campanhas", key: "deliveryRate", label: "Taxa de entrega", icon: CheckCircle2, ...SUCCESS_TONE, format: "percent", defaultVisible: true, dataPath: "campanhas.deliveryRate" },
+  { appModule: "campanhas", key: "readRate", label: "Taxa de leitura", icon: Eye, ...SUCCESS_TONE, format: "percent", defaultVisible: true, dataPath: "campanhas.readRate" },
+  { appModule: "campanhas", key: "failedCount", label: "Falhas", icon: XCircle, ...DESTRUCTIVE_TONE, format: "number", defaultVisible: true, dataPath: "campanhas.failedCount" },
+  { appModule: "campanhas", key: "totalRecipients", label: "Destinatários", icon: Users, ...INFO_TONE, format: "number", defaultVisible: false, dataPath: "campanhas.totalRecipients" },
+];
+
+const TRAFEGO: MetricDef[] = [
+  { appModule: "trafego", key: "totalOrders", label: "Pedidos de tráfego", icon: Target, ...INFO_TONE, format: "number", defaultVisible: true, dataPath: "trafego.totalOrders" },
+  { appModule: "trafego", key: "activeOrders", label: "Campanhas no ar", icon: Activity, ...SUCCESS_TONE, format: "number", defaultVisible: true, dataPath: "trafego.activeOrders" },
+  { appModule: "trafego", key: "adBudget", label: "Verba de anúncios", icon: DollarSign, ...INFO_TONE, format: "currency", defaultVisible: true, dataPath: "trafego.adBudget" },
+  { appModule: "trafego", key: "revenue", label: "Faturado", icon: Wallet, ...SUCCESS_TONE, format: "currency", defaultVisible: true, dataPath: "trafego.revenue" },
+  { appModule: "trafego", key: "serviceFees", label: "Taxas de serviço", icon: Receipt, ...WARNING_TONE, format: "currency", defaultVisible: false, dataPath: "trafego.serviceFees" },
+];
+
+const NERP: MetricDef[] = [
+  { appModule: "nerp", key: "totalOrders", label: "Pedidos do catálogo", icon: ShoppingCart, ...INFO_TONE, format: "number", defaultVisible: true, dataPath: "nerp.totalOrders" },
+  { appModule: "nerp", key: "paidOrders", label: "Pedidos pagos", icon: CheckCircle2, ...SUCCESS_TONE, format: "number", defaultVisible: true, dataPath: "nerp.paidOrders" },
+  { appModule: "nerp", key: "paidRevenue", label: "Receita paga", icon: DollarSign, ...SUCCESS_TONE, format: "currency", defaultVisible: true, dataPath: "nerp.paidRevenue" },
+  { appModule: "nerp", key: "avgTicket", label: "Ticket médio", icon: Receipt, ...INFO_TONE, format: "currency", defaultVisible: true, dataPath: "nerp.avgTicket" },
+  { appModule: "nerp", key: "conversionRate", label: "Conversão em pagamento", icon: Percent, ...SUCCESS_TONE, format: "percent", defaultVisible: false, dataPath: "nerp.conversionRate" },
+  { appModule: "nerp", key: "canceledOrders", label: "Cancelados", icon: XCircle, ...DESTRUCTIVE_TONE, format: "number", defaultVisible: false, dataPath: "nerp.canceledOrders" },
+];
+
+const STAR_FRIENDS: MetricDef[] = [
+  { appModule: "star-friends", key: "totalMembers", label: "Membros", icon: Users, ...INFO_TONE, format: "number", defaultVisible: true, dataPath: "starFriends.totalMembers" },
+  { appModule: "star-friends", key: "newMembers", label: "Novos membros", icon: Sparkles, ...SUCCESS_TONE, format: "number", defaultVisible: true, dataPath: "starFriends.newMembers" },
+  { appModule: "star-friends", key: "starsEarned", label: "Estrelas ganhas", icon: Star, ...WARNING_TONE, format: "number", defaultVisible: true, dataPath: "starFriends.starsEarned" },
+  { appModule: "star-friends", key: "starsRedeemed", label: "Estrelas trocadas", icon: Gift, ...INFO_TONE, format: "number", defaultVisible: true, dataPath: "starFriends.starsRedeemed" },
+  { appModule: "star-friends", key: "redemptions", label: "Resgates", icon: Trophy, ...SUCCESS_TONE, format: "number", defaultVisible: false, dataPath: "starFriends.redemptions" },
+  { appModule: "star-friends", key: "starsExpired", label: "Estrelas expiradas", icon: Clock, ...DESTRUCTIVE_TONE, format: "number", defaultVisible: false, dataPath: "starFriends.starsExpired" },
+];
 
 // ─── Catálogo agregado ──────────────────────────────────────────────────────
 
@@ -294,6 +423,12 @@ export const METRIC_CATALOG: MetricDef[] = [
   ...STARS,
   ...SPACE_STATION,
   ...NASA_ROUTE,
+  ...PAYLOAD_EXTRAS,
+  ...HIGH_PRIORITY_EXTRAS,
+  ...CAMPANHAS,
+  ...TRAFEGO,
+  ...NERP,
+  ...STAR_FRIENDS,
 ];
 
 /**
@@ -342,6 +477,14 @@ export function resolveDataPath(payload: unknown, path: string): unknown {
  * Retorna string. Para format=ranking retorna "" (caller deve renderizar
  * UI customizada).
  */
+/** Rankings vêm como lista ou como mapa `{ nome: valor }`; mapas viram itens `{ name, value }` do maior para o menor. */
+export function toRankingItems(rawValue: unknown): unknown {
+  if (Array.isArray(rawValue) || !rawValue || typeof rawValue !== "object") return rawValue;
+  return Object.entries(rawValue as Record<string, number>)
+    .map(([name, value]) => ({ name, value }))
+    .sort((left, right) => right.value - left.value);
+}
+
 export function formatMetricValue(
   value: unknown,
   format: MetricFormat,

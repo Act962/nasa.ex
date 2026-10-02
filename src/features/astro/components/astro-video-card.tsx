@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AstroInlineLinks } from "./astro-inline-links";
 import { PlayCircleIcon, ClockIcon } from "lucide-react";
 import {
   youtubeThumbnail,
@@ -21,8 +22,8 @@ import {
 export function AstroVideoCardList({ payload }: { payload: AstroVideosPayload }) {
   if (payload.videos.length === 0) {
     return (
-      <div className="w-full rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-500">
-        {payload.caption ?? "Nenhum tutorial encontrado."}
+      <div className="w-full rounded-lg border border-line/80 bg-card/40 px-3 py-2 text-xs text-muted-foreground">
+        <AstroInlineLinks text={payload.caption ?? "Nenhum tutorial encontrado."} />
       </div>
     );
   }
@@ -32,12 +33,14 @@ export function AstroVideoCardList({ payload }: { payload: AstroVideosPayload })
       {(payload.title || payload.caption) && (
         <div className="px-1">
           {payload.title && (
-            <div className="text-xs font-semibold text-zinc-300">
+            <div className="text-xs font-semibold text-muted-foreground">
               {payload.title}
             </div>
           )}
           {payload.caption && (
-            <div className="text-[11px] text-zinc-500">{payload.caption}</div>
+            <div className="text-[11px] text-muted-foreground">
+              <AstroInlineLinks text={payload.caption} />
+            </div>
           )}
         </div>
       )}
@@ -61,9 +64,9 @@ function VideoCard({ video }: { video: AstroVideoCard }) {
       href={href}
       target={video.link ? undefined : "_blank"}
       rel={video.link ? undefined : "noopener noreferrer"}
-      className="group flex flex-col overflow-hidden rounded-lg border border-zinc-800/80 bg-zinc-900/40 transition-colors hover:border-zinc-700 hover:bg-zinc-800/40"
+      className="group flex flex-col overflow-hidden rounded-lg border border-line/80 bg-card/40 transition-colors hover:border-line hover:bg-card/40"
     >
-      <div className="relative aspect-video bg-zinc-900">
+      <div className="relative aspect-video bg-card">
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -73,8 +76,8 @@ function VideoCard({ video }: { video: AstroVideoCard }) {
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900">
-            <PlayCircleIcon className="size-10 text-zinc-600" />
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-card to-card">
+            <PlayCircleIcon className="size-10 text-muted-foreground" />
           </div>
         )}
         <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
@@ -88,16 +91,16 @@ function VideoCard({ video }: { video: AstroVideoCard }) {
         )}
       </div>
       <div className="flex flex-1 flex-col gap-1 px-2.5 py-2">
-        <div className="line-clamp-2 text-xs font-medium text-zinc-200 group-hover:text-white">
+        <div className="line-clamp-2 text-xs font-medium text-foreground group-hover:text-white">
           {video.title}
         </div>
         {video.category && (
-          <div className="text-[10px] uppercase tracking-wider text-zinc-500">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
             {video.category}
           </div>
         )}
         {video.summary && (
-          <div className="line-clamp-2 text-[11px] text-zinc-400">
+          <div className="line-clamp-2 text-[11px] text-muted-foreground">
             {video.summary}
           </div>
         )}

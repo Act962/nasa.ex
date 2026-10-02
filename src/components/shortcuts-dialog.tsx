@@ -13,7 +13,7 @@ import { SHORTCUTS } from "@/features/admin/components/shortcuts-data";
 
 function Key({ label }: { label: string }) {
   return (
-    <kbd className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded text-xs font-mono font-medium bg-zinc-800 text-zinc-200 border border-zinc-700 shadow-sm">
+    <kbd className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded text-xs font-mono font-medium bg-muted text-foreground border border-line shadow-sm">
       {label}
     </kbd>
   );
@@ -46,7 +46,7 @@ export function ShortcutsDialog({
         <div className="space-y-4 mt-4">
           {categories.map((category) => (
             <div key={category}>
-              <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                 {category}
               </h3>
               <div className="space-y-2">
@@ -56,15 +56,15 @@ export function ShortcutsDialog({
                   return (
                     <div
                       key={i}
-                      className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-zinc-900"
+                      className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-muted"
                     >
-                      <span className="text-zinc-300">{s.description}</span>
+                      <span className="text-foreground">{s.description}</span>
                       <div className="flex items-center gap-1">
                         {keys.map((k, j) => (
                           <span key={j} className="flex items-center gap-0.5">
                             <Key label={k} />
                             {j < keys.length - 1 && (
-                              <span className="text-zinc-600 text-xs">
+                              <span className="text-muted-foreground/70 text-xs">
                                 {separator}
                               </span>
                             )}

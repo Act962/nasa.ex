@@ -66,19 +66,19 @@ export function LessonFormVideoSection({
             placeholder="https://youtube.com/watch?v=… ou https://vimeo.com/…"
           />
           {videoUrl && videoInfo.provider && (
-            <p className="inline-flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-300">
+            <p className="inline-flex items-center gap-1 text-xs text-success">
               <Eye className="size-3" />
               Detectado: <strong className="capitalize">{videoInfo.provider}</strong>
               {videoInfo.videoId && <span> · ID: {videoInfo.videoId}</span>}
             </p>
           )}
           {videoUrl && !videoInfo.provider && (
-            <p className="text-xs text-amber-700 dark:text-amber-300">
+            <p className="text-xs text-warning">
               URL não reconhecida. Use links do YouTube ou Vimeo.
             </p>
           )}
           {videoFileKey && (
-            <p className="text-xs text-amber-700 dark:text-amber-300">
+            <p className="text-xs text-warning">
               ⚠️ Definir um link externo aqui vai limpar o vídeo R2 já enviado
               (mas o arquivo continua no storage até cleanup).
             </p>

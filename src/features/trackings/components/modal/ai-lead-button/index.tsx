@@ -92,18 +92,18 @@ export function AiLeadButton({ trackingId, children }: AiLeadButtonProps) {
 
       <SheetContent
         side="right"
-        className="sm:max-w-md border-l border-zinc-800 px-0 flex flex-col h-full gap-0 bg-zinc-950"
+        className="sm:max-w-md border-l border-line px-0 flex flex-col h-full gap-0 bg-background"
       >
-        <SheetHeader className="space-y-4 mb-6 px-4 pt-4 border-b border-zinc-900 pb-6">
+        <SheetHeader className="space-y-4 mb-6 px-4 pt-4 border-b border-line pb-6">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-purple-500/10">
-              <SparklesIcon className="size-5 text-purple-500" />
+            <div className="p-2 rounded-lg bg-info/10">
+              <SparklesIcon className="size-5 text-info" />
             </div>
-            <SheetTitle className="text-2xl font-bold tracking-tight text-zinc-100">
+            <SheetTitle className="text-2xl font-bold tracking-tight text-foreground">
               Agente de Automações
             </SheetTitle>
           </div>
-          <SheetDescription className="text-sm text-zinc-400">
+          <SheetDescription className="text-sm text-muted-foreground">
             Descreva o que precisa — o ASTRO cria workflows inteiros,
             aplica presets prontos, gerencia leads e move o funil pra você.
           </SheetDescription>
@@ -114,7 +114,7 @@ export function AiLeadButton({ trackingId, children }: AiLeadButtonProps) {
             {messages.length === 0 && (
               <div className="space-y-6 pt-2">
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 uppercase tracking-widest ml-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-widest ml-1">
                     <LightbulbIcon className="size-3.5" />
                     Sugestões de início
                   </div>
@@ -122,19 +122,19 @@ export function AiLeadButton({ trackingId, children }: AiLeadButtonProps) {
                     {SUGGESTED_PROMPTS.map((item, idx) => (
                       <Card
                         key={idx}
-                        className="cursor-pointer bg-zinc-900/40 hover:bg-zinc-900 transition-all border-zinc-800 hover:border-purple-500/30 group"
+                        className="cursor-pointer bg-card/40 hover:bg-card transition-all border-line hover:border-info/30 group"
                         onClick={() => setPrompt(item.text)}
                       >
                         <CardContent className="p-3 flex items-start gap-3">
                           <div
                             className={cn(
-                              "p-1.5 rounded-md bg-zinc-950 border border-zinc-800 shadow-sm transition-colors",
+                              "p-1.5 rounded-md bg-background border border-line shadow-sm transition-colors",
                               item.color,
                             )}
                           >
                             <item.icon className="size-3.5" />
                           </div>
-                          <p className="text-xs text-zinc-400 group-hover:text-zinc-200 transition-colors leading-relaxed">
+                          <p className="text-xs text-muted-foreground group-hover:text-foreground transition-colors leading-relaxed">
                             {item.text}
                           </p>
                         </CardContent>
@@ -164,8 +164,8 @@ export function AiLeadButton({ trackingId, children }: AiLeadButtonProps) {
                       className={cn(
                         "px-4 py-2 rounded-2xl max-w-[90%] shadow-sm",
                         message.role === "user"
-                          ? "bg-purple-600 text-white rounded-tr-none"
-                          : "bg-zinc-900 text-zinc-200 border border-zinc-800 rounded-tl-none",
+                          ? "bg-info text-white rounded-tr-none"
+                          : "bg-card text-foreground border border-line rounded-tl-none",
                       )}
                     >
                       {message.parts.map((part, partIdx) => {
@@ -202,21 +202,21 @@ export function AiLeadButton({ trackingId, children }: AiLeadButtonProps) {
                                   "flex items-center gap-2 text-[10px] font-mono italic my-1 h-auto py-0.5 px-1 w-full justify-start",
                                   isComplete
                                     ? isSuccess
-                                      ? "text-emerald-500 opacity-80"
-                                      : "text-red-400 opacity-80"
-                                    : "text-zinc-500 opacity-70",
+                                      ? "text-success opacity-80"
+                                      : "text-destructive opacity-80"
+                                    : "text-muted-foreground opacity-70",
                                 )}
                               >
                                 {isComplete ? (
                                   isSuccess ? (
-                                    <CheckCircle2Icon className="size-3 text-emerald-500" />
+                                    <CheckCircle2Icon className="size-3 text-success" />
                                   ) : (
-                                    <XCircleIcon className="size-3 text-red-400" />
+                                    <XCircleIcon className="size-3 text-destructive" />
                                   )
                                 ) : isAutomation ? (
-                                  <WorkflowIcon className="size-3 text-blue-400" />
+                                  <WorkflowIcon className="size-3 text-info" />
                                 ) : (
-                                  <ZapIcon className="size-3 text-purple-500" />
+                                  <ZapIcon className="size-3 text-info" />
                                 )}
                                 <span>
                                   {isComplete
@@ -240,13 +240,13 @@ export function AiLeadButton({ trackingId, children }: AiLeadButtonProps) {
           </div>
         </div>
 
-        <div className="p-4 border-t border-zinc-900 bg-zinc-950/80 backdrop-blur-md">
+        <div className="p-4 border-t border-line bg-background/80 backdrop-blur-md">
           {error && (
             <div className="py-2">
               <span className="text-sm text-muted-foreground">
                 Algo deu errado na sua solicitação.{" "}
                 <span
-                  className="underline text-blue-400 cursor-pointer"
+                  className="underline text-info cursor-pointer"
                   onClick={() => {
                     clearError();
                     stop();
@@ -257,11 +257,11 @@ export function AiLeadButton({ trackingId, children }: AiLeadButtonProps) {
               </span>
             </div>
           )}
-          <InputGroup className="border-zinc-800 rounded-2xl flex-col h-auto">
+          <InputGroup className="border-line rounded-2xl flex-col h-auto">
             <div className="flex w-full items-end">
               <InputGroupTextarea
                 placeholder="Crie um workflow, aplique um preset ou gerencie leads..."
-                className="min-h-11 max-h-40 text-sm text-zinc-100 placeholder:text-zinc-600"
+                className="min-h-11 max-h-40 text-sm text-foreground placeholder:text-muted-foreground"
                 value={prompt}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -275,7 +275,7 @@ export function AiLeadButton({ trackingId, children }: AiLeadButtonProps) {
                 {status === "submitted" || status === "streaming" ? (
                   <InputGroupButton
                     size="icon-sm"
-                    className="rounded-xl bg-purple-600 hover:bg-purple-500 text-white"
+                    className="rounded-xl bg-info hover:bg-info/90 text-white"
                     onClick={stop}
                   >
                     <Spinner className="size-4" />
@@ -284,7 +284,7 @@ export function AiLeadButton({ trackingId, children }: AiLeadButtonProps) {
                   <InputGroupButton
                     disabled={!prompt.trim()}
                     size="icon-sm"
-                    className="rounded-xl bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-20 disabled:bg-zinc-800"
+                    className="rounded-xl bg-info hover:bg-info/90 text-white disabled:opacity-20 disabled:bg-card"
                     onClick={handleGenerate}
                   >
                     <SendIcon className="size-4" />

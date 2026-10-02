@@ -93,9 +93,9 @@ export function CampaignMasterCalendar() {
   return (
     <div className="flex flex-col h-full overflow-auto">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-5 border-b">
+      <div className="flex items-center justify-between px-6 py-5">
         <div className="flex items-center gap-3">
-          <div className="size-9 rounded-xl bg-gradient-to-br from-violet-600 to-pink-500 flex items-center justify-center">
+          <div className="size-9 rounded-xl bg-info flex items-center justify-center">
             <CalendarIcon className="size-5 text-white" />
           </div>
           <div>
@@ -152,7 +152,7 @@ export function CampaignMasterCalendar() {
 
       {/* Legend */}
       {campaigns.length > 0 && (
-        <div className="flex items-center gap-3 px-6 py-2 border-b flex-wrap">
+        <div className="flex items-center gap-3 px-6 py-2 flex-wrap">
           {campaigns.map((c: any, i: number) => (
             <div key={c.id} className="flex items-center gap-1.5 text-xs">
               <div className="size-2.5 rounded-full" style={{ backgroundColor: c.color ?? PALETTE[i % PALETTE.length] }} />
@@ -187,11 +187,11 @@ export function CampaignMasterCalendar() {
                 return (
                   <div
                     key={idx}
-                    className={cn("min-h-24 border rounded-lg p-1.5 transition-colors", day ? "hover:bg-muted/30" : "opacity-0 pointer-events-none", isToday && "border-violet-400 bg-violet-50 dark:bg-violet-950/20")}
+                    className={cn("min-h-24 border rounded-lg p-1.5 transition-colors", day ? "hover:bg-muted/30" : "opacity-0 pointer-events-none", isToday && "border-info/40 bg-info/10")}
                   >
                     {day && (
                       <>
-                        <div className={cn("text-xs font-medium mb-1 w-5 h-5 flex items-center justify-center rounded-full", isToday ? "bg-violet-600 text-white" : "text-muted-foreground")}>
+                        <div className={cn("text-xs font-medium mb-1 w-5 h-5 flex items-center justify-center rounded-full", isToday ? "bg-foreground text-background" : "text-muted-foreground")}>
                           {day}
                         </div>
                         <div className="space-y-0.5">

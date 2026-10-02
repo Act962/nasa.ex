@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Instagram, Loader2, Plug } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Instagram, Plug } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -190,7 +191,7 @@ function GuideContent({
       const isFilled = value.trim().length > 0;
       const isValid = KEY_VALIDATORS[keyName](value);
       return (
-        <div className="space-y-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-3">
+        <div className="space-y-1.5 rounded-lg border border-success/40 bg-success/5 p-3">
           <Label className="text-xs font-medium">Cole aqui: {field.label}</Label>
           <Input
             value={value}
@@ -203,7 +204,7 @@ function GuideContent({
             <p className="text-xs text-destructive">Esse valor não parece certo. Confira se copiou inteiro.</p>
           )}
           {keyName === "accountId" && looksLikeInstagramAppId(value) && (
-            <p className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+            <p className="flex items-center gap-1.5 text-xs text-warning">
               <AlertTriangle className="size-3.5" /> Parece o ID do app. O da conta fica embaixo do @ e começa com 1784.
             </p>
           )}
@@ -214,7 +215,7 @@ function GuideContent({
     if (step.slug === CONNECT_STEP_SLUG) {
       if (isConnected) {
         return (
-          <p className="flex items-center gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-800 dark:text-emerald-300">
+          <p className="flex items-center gap-2 rounded-lg bg-success/10 p-3 text-sm text-success">
             <CheckCircle2 className="size-4" /> Conectado! Clique em próximo para configurar o webhook.
           </p>
         );
@@ -226,9 +227,9 @@ function GuideContent({
             {(Object.keys(KEY_FIELDS) as KeyName[]).map((name) => (
               <li key={name} className="flex items-center gap-2">
                 {KEY_VALIDATORS[name](keys[name]) ? (
-                  <CheckCircle2 className="size-4 text-emerald-500" />
+                  <CheckCircle2 className="size-4 text-success" />
                 ) : (
-                  <AlertTriangle className="size-4 text-amber-500" />
+                  <AlertTriangle className="size-4 text-warning" />
                 )}
                 {KEY_FIELDS[name].label}
               </li>
@@ -238,7 +239,7 @@ function GuideContent({
             <p className="rounded-md bg-destructive/10 p-2 text-xs text-destructive">{connectError}</p>
           )}
           <Button onClick={connectChannel} disabled={connect.isPending || missingKeys.length > 0}>
-            {connect.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}
+            {connect.isPending ? <OrbitaSpinner className="size-4 " /> : <Plug className="size-4" />}
             Conectar
           </Button>
           {missingKeys.length > 0 && (
@@ -264,7 +265,7 @@ function GuideContent({
     <>
       <DialogHeader className="shrink-0 space-y-2">
         <DialogTitle className="flex items-center gap-2">
-          <Instagram className="size-5 text-pink-500" />
+          <Instagram className="size-5 text-info" />
           {currentStep.title}
         </DialogTitle>
         <DialogDescription className="sr-only">Passo a passo para conectar o Instagram no COMMENTS</DialogDescription>

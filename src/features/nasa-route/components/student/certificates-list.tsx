@@ -7,8 +7,11 @@ import { Award, Calendar, Eye, GraduationCap } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { imgSrc } from "@/features/public-calendar/utils/img-src";
+import { NasaRoutePageTop, TopActionLink } from "../shared/nasa-route-page-top";
+import { useNasaRouteStudentDock } from "../../hooks/use-nasa-route-dock";
 
 export function CertificatesList() {
+  useNasaRouteStudentDock({ activeSection: "certificates" });
   const { data, isLoading } = useQuery({
     ...orpc.nasaRoute.listMyCertificates.queryOptions(),
   });
@@ -16,57 +19,54 @@ export function CertificatesList() {
   const certificates = data?.certificates ?? [];
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
-      <header className="mb-8 flex items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-violet-700 dark:text-violet-300">
-            ÓRBITA Route
-          </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">
-            Meus certificados
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Todos os cursos que você concluiu na plataforma.
-          </p>
-        </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/nasa-route">Voltar ao catálogo</Link>
-        </Button>
-      </header>
+    <div className="mx-auto w-full max-w-5xl px-4 pt-2 pb-[150px] md:py-8 lg:pb-10">
+      <NasaRoutePageTop
+        icon={<Award />}
+        title="Meus certificados"
+        mobileTitle="Certificados"
+        subtitle="Todos os cursos que você concluiu na plataforma."
+        mobileSubtitle="Cursos que você concluiu"
+        actions={
+          <TopActionLink href="/nasa-route" icon={<GraduationCap className="size-4" />} label="Ver catálogo" />
+        }
+        className="mb-5 md:mb-8"
+      />
 
       {isLoading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-44 rounded-2xl" />
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
+          {[1, 2, 3, 4].map((placeholderIndex) => (
+            <Skeleton key={placeholderIndex} className="h-44 rounded-[20px]" />
           ))}
         </div>
       ) : certificates.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-16 text-center">
-          <Award className="mx-auto size-10 text-muted-foreground" />
+        <div className="rounded-[22px] border border-dashed border-line p-10 text-center md:p-16">
+          <div className="mx-auto grid size-12 place-items-center rounded-full bg-muted">
+            <Award className="size-5 text-muted-foreground" />
+          </div>
           <p className="mt-3 text-base font-semibold">
             Você ainda não possui certificados
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             Conclua um curso no ÓRBITA Route para receber seu primeiro certificado.
           </p>
-          <Button asChild className="mt-6">
+          <Button asChild className="mt-6 h-11 rounded-full md:h-9">
             <Link href="/nasa-route">Explorar cursos</Link>
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {certificates.map((c) => (
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
+          {certificates.map((certificate) => (
             <Link
-              key={c.id}
-              href={`/nasa-route/certificados/${c.code}`}
-              className="group flex overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-violet-400 hover:shadow-lg"
+              key={certificate.id}
+              href={`/nasa-route/certificados/${certificate.code}`}
+              className="group flex min-w-0 flex-col overflow-hidden rounded-[20px] border border-line bg-card transition-all hover:border-info hover:shadow-lg md:flex-row"
             >
-              <div className="relative aspect-[16/9] w-32 shrink-0 bg-gradient-to-br from-violet-600 to-fuchsia-600 sm:w-40">
-                {c.course.coverUrl ? (
+              <div className="relative aspect-video w-full shrink-0 bg-info md:w-40">
+                {certificate.course.coverUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={imgSrc(c.course.coverUrl)}
-                    alt={c.courseTitle}
+                    src={imgSrc(certificate.course.coverUrl)}
+                    alt={certificate.courseTitle}
                     className="h-full w-full object-cover opacity-80 transition group-hover:opacity-100"
                   />
                 ) : (
@@ -74,28 +74,28 @@ export function CertificatesList() {
                     <GraduationCap className="size-10" />
                   </div>
                 )}
-                <div className="absolute right-1.5 top-1.5 inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                <div className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 rounded-full bg-warning px-2 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
                   <Award className="size-3" />
                   Concluído
                 </div>
               </div>
-              <div className="flex flex-1 flex-col gap-1.5 p-4">
-                <h3 className="line-clamp-2 font-semibold leading-tight">
-                  {c.courseTitle}
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3 md:p-4">
+                <h3 className="line-clamp-2 text-sm leading-tight font-semibold md:text-base">
+                  {certificate.courseTitle}
                 </h3>
-                <p className="text-xs text-muted-foreground">{c.orgName}</p>
-                <div className="mt-auto flex items-center justify-between text-[11px] text-muted-foreground">
+                <p className="truncate text-xs text-muted-foreground">{certificate.orgName}</p>
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-1 text-[11px] text-muted-foreground">
                   <span className="inline-flex items-center gap-1">
                     <Calendar className="size-3" />
-                    {new Date(c.issuedAt).toLocaleDateString("pt-BR")}
+                    {new Date(certificate.issuedAt).toLocaleDateString("pt-BR")}
                   </span>
-                  <span className="inline-flex items-center gap-1 font-medium text-violet-700 dark:text-violet-300">
+                  <span className="inline-flex items-center gap-1 font-medium text-info max-md:hidden">
                     <Eye className="size-3" />
                     Ver certificado
                   </span>
                 </div>
-                <p className="mt-1 font-mono text-[10px] text-muted-foreground">
-                  {c.code}
+                <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
+                  {certificate.code}
                 </p>
               </div>
             </Link>

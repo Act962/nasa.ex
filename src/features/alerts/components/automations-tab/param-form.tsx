@@ -47,7 +47,7 @@ export function ParamForm({ fields, values, onChange }: ParamFormProps) {
 
   if (fields.length === 0) {
     return (
-      <div className="text-xs text-zinc-500 italic px-1 py-2">
+      <div className="text-xs text-muted-foreground italic px-1 py-2">
         Esse evento não tem parâmetros configuráveis.
       </div>
     );
@@ -108,7 +108,7 @@ function FieldRow({
   const label = (
     <Label className="text-xs">
       {spec.label}
-      {spec.required && <span className="text-rose-400 ml-1">*</span>}
+      {spec.required && <span className="text-destructive ml-1">*</span>}
     </Label>
   );
 
@@ -136,11 +136,11 @@ function FieldRow({
               className="max-w-[160px]"
             />
             {spec.unitLabel && (
-              <span className="text-xs text-zinc-500">{spec.unitLabel}</span>
+              <span className="text-xs text-muted-foreground">{spec.unitLabel}</span>
             )}
           </div>
           {spec.hint && (
-            <p className="text-[11px] text-zinc-500 mt-1">{spec.hint}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{spec.hint}</p>
           )}
         </div>
       );
@@ -157,7 +157,7 @@ function FieldRow({
             className="mt-1"
           />
           {spec.hint && (
-            <p className="text-[11px] text-zinc-500 mt-1">{spec.hint}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{spec.hint}</p>
           )}
         </div>
       );
@@ -176,7 +176,7 @@ function FieldRow({
             <select
               value={selectedTrackingId ?? ""}
               onChange={(e) => onPickTracking(e.target.value)}
-              className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs"
+              className="rounded-md border border-line bg-card px-2 py-1.5 text-xs"
               disabled={loading}
             >
               <option value="">Tracking…</option>
@@ -189,7 +189,7 @@ function FieldRow({
             <select
               value={v}
               onChange={(e) => onChange(e.target.value)}
-              className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs"
+              className="rounded-md border border-line bg-card px-2 py-1.5 text-xs"
               disabled={!tracking || loading}
             >
               <option value="">
@@ -203,7 +203,7 @@ function FieldRow({
             </select>
           </div>
           {spec.hint && (
-            <p className="text-[11px] text-zinc-500 mt-1">{spec.hint}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{spec.hint}</p>
           )}
         </div>
       );
@@ -224,7 +224,7 @@ function FieldRow({
             <select
               value={selectedTrackingId ?? ""}
               onChange={(e) => onPickTracking(e.target.value)}
-              className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs"
+              className="rounded-md border border-line bg-card px-2 py-1.5 text-xs"
               disabled={loading}
             >
               <option value="">Tracking (opcional)</option>
@@ -237,7 +237,7 @@ function FieldRow({
             <select
               value={v}
               onChange={(e) => onChange(e.target.value)}
-              className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs"
+              className="rounded-md border border-line bg-card px-2 py-1.5 text-xs"
               disabled={loading}
             >
               <option value="">Tag…</option>
@@ -250,7 +250,7 @@ function FieldRow({
             </select>
           </div>
           {spec.hint && (
-            <p className="text-[11px] text-zinc-500 mt-1">{spec.hint}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{spec.hint}</p>
           )}
         </div>
       );
@@ -264,7 +264,7 @@ function FieldRow({
           <select
             value={v}
             onChange={(e) => onChange(e.target.value)}
-            className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs"
+            className="mt-1 w-full rounded-md border border-line bg-card px-2 py-1.5 text-xs"
             disabled={loading}
           >
             <option value="">{spec.required ? "Tracking…" : "Qualquer"}</option>
@@ -275,7 +275,7 @@ function FieldRow({
             ))}
           </select>
           {spec.hint && (
-            <p className="text-[11px] text-zinc-500 mt-1">{spec.hint}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{spec.hint}</p>
           )}
         </div>
       );
@@ -289,7 +289,7 @@ function FieldRow({
           <select
             value={v}
             onChange={(e) => onChange(e.target.value)}
-            className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs"
+            className="mt-1 w-full rounded-md border border-line bg-card px-2 py-1.5 text-xs"
             disabled={loading}
           >
             <option value="">{spec.required ? "Formulário…" : "Qualquer formulário"}</option>
@@ -300,7 +300,7 @@ function FieldRow({
             ))}
           </select>
           {spec.hint && (
-            <p className="text-[11px] text-zinc-500 mt-1">{spec.hint}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{spec.hint}</p>
           )}
         </div>
       );
@@ -314,7 +314,7 @@ function FieldRow({
           <select
             value={v}
             onChange={(e) => onChange(e.target.value)}
-            className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs"
+            className="mt-1 w-full rounded-md border border-line bg-card px-2 py-1.5 text-xs"
             disabled={loading}
           >
             <option value="">{spec.required ? "Workspace…" : "Qualquer workspace"}</option>
@@ -325,7 +325,7 @@ function FieldRow({
             ))}
           </select>
           {spec.hint && (
-            <p className="text-[11px] text-zinc-500 mt-1">{spec.hint}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{spec.hint}</p>
           )}
         </div>
       );
@@ -339,7 +339,7 @@ function FieldRow({
           <select
             value={v}
             onChange={(e) => onChange(e.target.value)}
-            className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs"
+            className="mt-1 w-full rounded-md border border-line bg-card px-2 py-1.5 text-xs"
             disabled={loading}
           >
             <option value="">{spec.required ? "Agenda…" : "Qualquer agenda"}</option>
@@ -350,7 +350,7 @@ function FieldRow({
             ))}
           </select>
           {spec.hint && (
-            <p className="text-[11px] text-zinc-500 mt-1">{spec.hint}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{spec.hint}</p>
           )}
         </div>
       );
@@ -364,7 +364,7 @@ function FieldRow({
           <select
             value={v}
             onChange={(e) => onChange(e.target.value)}
-            className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs"
+            className="mt-1 w-full rounded-md border border-line bg-card px-2 py-1.5 text-xs"
           >
             <option value="">
               {spec.required ? "Escolha…" : "Qualquer"}
@@ -376,7 +376,7 @@ function FieldRow({
             ))}
           </select>
           {spec.hint && (
-            <p className="text-[11px] text-zinc-500 mt-1">{spec.hint}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{spec.hint}</p>
           )}
         </div>
       );

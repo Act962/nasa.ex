@@ -201,6 +201,7 @@ export const useQueryFormResponseById = (id: string) => {
     // cliente nunca re-deriva a regra. Ausente = ainda carregando; tratamos
     // como não-editável pra não piscar o formulário habilitado.
     canEdit: data?.canEdit ?? false,
+    canEditForm: data?.canEditForm ?? false,
     editBlockedReason: data?.editBlockedReason ?? null,
     createdBy: data?.createdBy ?? null,
     isLoading,

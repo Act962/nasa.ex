@@ -37,7 +37,7 @@ export const FORGE_GUIDES: GuideDef[] = [
     app: "forge",
     title: "Criar uma proposta",
     summary: "Monte a proposta com os produtos e gere o link para o cliente.",
-    topicPattern: /\b(cri\w*|mont\w*|fac\w*|ger\w*|elabor\w*|novas?)\b.*\b(propostas?|orcamentos?)\b/,
+    topicPattern: /\b(cri\w*|mont\w*|fac\w*|faz\w*|ger\w*|elabor\w*|novas?)\b.*\b(propostas?|orcamentos?)\b/,
     spaceHelp: { categorySlug: "forge", featureSlug: "criar-proposta" },
     steps: [
       {

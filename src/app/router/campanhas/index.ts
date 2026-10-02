@@ -21,7 +21,7 @@ import { contactFilterOptions } from "./contact-filter-options";
 import { addRecipientsFromContacts } from "./add-recipients-from-contacts";
 import { analytics } from "./analytics";
 import { quoteFee, checkoutFee, confirmFee, getFeeSettings, updateFeeSettings } from "./self-service/fee";
-import { numberOffer, listNumbers, buyNumber, latestNumberCode, cancelNumber, numberPanel } from "./self-service/numbers";
+import { numberOffer, listNumbers, buyNumber, latestNumberCode, cancelNumber, numberPanel, notifyNumberPurchaseInterest } from "./self-service/numbers";
 import {
   metaSetupStatus,
   saveMetaKeysProcedure,
@@ -75,6 +75,7 @@ export const campanhasRouter = {
   latestNumberCode,
   cancelNumber,
   numberPanel,
+  notifyNumberPurchaseInterest,
   metaSetupStatus,
   saveMetaKeys: saveMetaKeysProcedure,
   selectMetaPhone,

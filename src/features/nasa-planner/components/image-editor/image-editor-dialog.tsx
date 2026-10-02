@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { DownloadIcon, Loader2Icon, RemoveFormattingIcon, WandIcon, ImageIcon, Trash2Icon } from "lucide-react";
+import { DownloadIcon, RemoveFormattingIcon, WandIcon, ImageIcon, Trash2Icon } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -375,16 +376,16 @@ export function ImageEditorDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-3xl max-h-[95vh] sm:max-h-[80vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="px-6 py-4 border-b shrink-0">
+        <DialogHeader className="px-6 py-4 shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <ImageIcon className="size-4 text-pink-500" />
+            <ImageIcon className="size-4 text-info" />
             Editor de Imagem
           </DialogTitle>
         </DialogHeader>
 
         {/* Slide strip for carousel */}
         {isCarousel && (
-          <div className="flex gap-2 px-4 py-2 border-b overflow-x-auto shrink-0 bg-muted/30">
+          <div className="flex gap-2 px-4 py-2 overflow-x-auto shrink-0 bg-muted/30">
             {slides.map((slide, idx) => (
               <div key={slide.id} className="relative shrink-0 group">
                 <button
@@ -392,7 +393,7 @@ export function ImageEditorDialog({
                   onClick={() => handleSlideSelect(idx)}
                   className={`relative size-12 rounded-md overflow-hidden border-2 transition-all block ${
                     idx === selectedSlideIdx
-                      ? "border-pink-500 shadow-md"
+                      ? "border-info shadow-md"
                       : "border-transparent opacity-60 hover:opacity-100"
                   }`}
                 >
@@ -423,7 +424,7 @@ export function ImageEditorDialog({
                 >
                   {removeSlide.isPending &&
                   removeSlide.variables?.slideId === slide.id
-                    ? <Loader2Icon className="size-2.5 animate-spin" />
+                    ? <OrbitaSpinner className="size-2.5 " />
                     : <Trash2Icon className="size-2.5" />}
                 </button>
               </div>
@@ -494,7 +495,7 @@ export function ImageEditorDialog({
                       disabled={bgRemoval.isRemoving}
                     >
                       {bgRemoval.isRemoving
-                        ? <><Loader2Icon className="size-3.5 animate-spin" />Removendo fundo...</>
+                        ? <><OrbitaSpinner className="size-3.5 " />Removendo fundo...</>
                         : <><RemoveFormattingIcon className="size-3.5" />Remover Fundo</>}
                     </Button>
                   </div>
@@ -576,7 +577,7 @@ export function ImageEditorDialog({
                   disabled={!editor.currentImageKey || editor.isExporting}
                 >
                   {editor.isExporting
-                    ? <><Loader2Icon className="size-4 animate-spin" />Salvando...</>
+                    ? <><OrbitaSpinner className="size-4 " />Salvando...</>
                     : <><WandIcon className="size-4" />Exportar e Salvar</>}
                 </Button>
                 <Button

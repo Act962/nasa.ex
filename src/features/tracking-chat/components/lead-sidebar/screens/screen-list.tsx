@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import type { ReactNode } from "react";
 
 // Moldura comum das listas da lateral: carregando, vazio e itens.
@@ -17,7 +17,7 @@ export function ScreenList({
   if (isLoading) {
     return (
       <div className="flex h-40 items-center justify-center">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        <OrbitaSpinner className="size-5 text-muted-foreground" />
       </div>
     );
   }

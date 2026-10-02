@@ -92,7 +92,7 @@ export function LeadActionsPopover({
                   className="flex items-start gap-2 rounded-md px-2 py-2 text-left text-sm outline-hidden hover:bg-accent focus-visible:bg-accent"
                 >
                   {action.isDone ? (
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
                   ) : (
                     <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                   )}

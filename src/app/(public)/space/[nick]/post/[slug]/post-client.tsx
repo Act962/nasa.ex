@@ -55,14 +55,13 @@ export function PostClient({
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="dark min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-3xl px-6 pt-8 pb-20">
         <div className="mb-6 flex items-center gap-3">
           <Button
             asChild
             size="sm"
             variant="outline"
-            className="border-white/20 bg-white/5 text-white hover:bg-white/10"
           >
             <Link href={`/space/${nick}`}>
               <ArrowLeft className="mr-1 size-3" />
@@ -82,13 +81,13 @@ export function PostClient({
 
         {isLoading || !data ? (
           <div className="space-y-3">
-            <div className="h-10 w-3/4 animate-pulse rounded bg-white/5" />
-            <div className="h-64 animate-pulse rounded bg-white/5" />
+            <div className="h-10 w-3/4 animate-pulse rounded bg-muted/50" />
+            <div className="h-64 animate-pulse rounded bg-muted/50" />
           </div>
         ) : (
           <article className="space-y-4">
             {data.post.coverUrl && (
-              <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-white/10">
+              <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border">
                 <Image
                   src={data.post.coverUrl}
                   alt={data.post.title}
@@ -101,7 +100,7 @@ export function PostClient({
             <h1 className="text-3xl font-bold md:text-4xl">
               {data.post.title}
             </h1>
-            <p className="text-xs text-white/50">
+            <p className="text-xs text-muted-foreground">
               {data.post.author?.name} ·{" "}
               {data.post.publishedAt
                 ? new Date(data.post.publishedAt).toLocaleDateString(
@@ -111,7 +110,7 @@ export function PostClient({
               · {data.post.viewCount} visualizações
             </p>
             {data.post.excerpt && (
-              <p className="text-lg text-white/70">{data.post.excerpt}</p>
+              <p className="text-lg text-muted-foreground">{data.post.excerpt}</p>
             )}
             <TipTapView json={data.post.content} />
           </article>
@@ -127,9 +126,9 @@ export function PostClient({
               {data.comments.map((c) => (
                 <li
                   key={c.id}
-                  className="rounded-xl border border-white/5 bg-white/5 p-3"
+                  className="rounded-xl border border-border bg-muted/50 p-3"
                 >
-                  <p className="text-xs text-white/50">
+                  <p className="text-xs text-muted-foreground">
                     {c.author?.name ?? c.authorName ?? "Anônimo"} ·{" "}
                     {new Date(c.createdAt).toLocaleDateString("pt-BR")}
                   </p>
@@ -137,7 +136,7 @@ export function PostClient({
                 </li>
               ))}
               {data.comments.length === 0 && (
-                <p className="text-sm text-white/50">
+                <p className="text-sm text-muted-foreground">
                   Seja o primeiro a comentar.
                 </p>
               )}
@@ -149,7 +148,7 @@ export function PostClient({
                 if (!comment.trim()) return;
                 submit.mutate();
               }}
-              className="space-y-2 rounded-xl border border-white/10 bg-white/5 p-4"
+              className="space-y-2 rounded-xl border border-border bg-muted/50 p-4"
             >
               {!isAuthenticated && (
                 <Input
@@ -157,7 +156,7 @@ export function PostClient({
                   onChange={(e) => setAuthorName(e.target.value)}
                   placeholder="Seu nome (opcional)"
                   maxLength={60}
-                  className="bg-slate-950/40"
+                  className="bg-background/40"
                 />
               )}
               <Textarea
@@ -166,16 +165,15 @@ export function PostClient({
                 placeholder="Escreva seu comentário..."
                 rows={3}
                 maxLength={500}
-                className="bg-slate-950/40"
+                className="bg-background/40"
               />
-              <div className="flex items-center justify-between text-xs text-white/50">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>
                   Comentários passam por moderação antes de aparecerem.
                 </span>
                 <Button
                   type="submit"
                   disabled={submit.isPending || !comment.trim()}
-                  className="bg-orange-500 hover:bg-orange-600"
                 >
                   Enviar
                 </Button>

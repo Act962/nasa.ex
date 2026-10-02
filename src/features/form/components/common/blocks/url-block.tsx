@@ -71,7 +71,7 @@ export const UrlBlock: ObjectBlockType = {
       placeHolder: "https://exemplo.com",
     } satisfies AttributesType,
   }),
-  blockBtnElement: { icon: LinkIcon, label: "URL" },
+  blockBtnElement: { icon: LinkIcon, label: "Link (URL)" },
   canvasComponent: CanvasView,
   formComponent: FormView,
   propertiesComponent: PropertiesView,
@@ -101,7 +101,7 @@ function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
       {label?.trim() && (
         <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug">
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       <div className="relative pointer-events-none">
@@ -175,11 +175,11 @@ function FormView({
       {label?.trim() && (
         <Label
           className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${
-            isError ? "text-red-500" : ""
+            isError ? "text-destructive" : ""
           }`}
         >
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
       <div className="relative">
@@ -193,7 +193,7 @@ function FormView({
           autoComplete="url"
           placeholder={placeHolder || "https://exemplo.com"}
           className={`pl-9 bg-transparent! ${
-            isError ? "border-red-500!" : ""
+            isError ? "border-destructive!" : ""
           } ${value && isValidUrl(value) ? "pr-10" : ""}`}
           style={{
             color: textColor || undefined,
@@ -232,12 +232,12 @@ function FormView({
         </p>
       )}
       {localInvalid && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
           URL inválida — use o formato https://...
         </p>
       )}
       {isSubmitError && !localInvalid && (
-        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
+        <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
           {errorMessage || "Informe um link válido."}
         </p>
       )}
