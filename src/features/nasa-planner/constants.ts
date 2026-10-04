@@ -20,10 +20,17 @@ export const calendarLocalizer = dateFnsLocalizer({
 export const POST_STATUSES = [
   { key: "DRAFT", label: "Rascunho", color: "secondary" },
   { key: "PENDING_APPROVAL", label: "Aguardando Aprovação", color: "warning" },
+  { key: "CHANGES_REQUESTED", label: "Ajustes pedidos", color: "warning" },
   { key: "APPROVED", label: "Aprovado", color: "default" },
   { key: "SCHEDULED", label: "Agendado", color: "outline" },
   { key: "PUBLISHED", label: "Publicado", color: "default" },
+  { key: "FAILED", label: "Falhou", color: "destructive" },
 ] as const;
+
+/** Status que dá para escolher na mão; programar e publicar passam pelo fluxo próprio (spec 0057). */
+export const MANUAL_POST_STATUSES = POST_STATUSES.filter((status) =>
+  status.key === "DRAFT" || status.key === "PENDING_APPROVAL" || status.key === "APPROVED",
+);
 
 export const POST_TYPES: Record<string, string> = {
   IMAGE: "Imagem",

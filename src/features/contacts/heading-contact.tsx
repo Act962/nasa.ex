@@ -35,6 +35,7 @@ import { LeadExportDialog } from "./lead-export-dialog";
 import { useState } from "react";
 import { useContactsFilters } from "./hooks/use-contacts-filters";
 import { useLeadSegments } from "./hooks/use-lead-segments";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 
 export default function HeadingContacts() {
   const [modalImportIsOpen, setImportIsModal] = useState(false);
@@ -95,6 +96,7 @@ export default function HeadingContacts() {
           >
             Adicionar novo lead
           </Button>
+          <FullscreenControls />
         </div>
 
         <DropdownMenu>

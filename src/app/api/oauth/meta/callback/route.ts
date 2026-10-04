@@ -4,7 +4,7 @@ import {
   exchangeForLongLivedToken,
   fetchMetaConnections,
   metaPublicOrigin,
-  META_SCOPES,
+  resolveMetaScopes,
 } from "@/features/integrations/lib/oauth/meta-config";
 import { consumeState } from "@/features/integrations/lib/oauth/state-store";
 import { putSession } from "@/features/integrations/lib/oauth/session-cache";
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
       userId: state.userId,
       accessToken,
       expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null,
-      scopes: [...META_SCOPES],
+      scopes: resolveMetaScopes(),
       fbUser: connections.user,
       pages: connections.pages,
       adAccounts: connections.adAccounts,

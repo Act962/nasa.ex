@@ -37,6 +37,11 @@ export async function requireOrgAdmin(
   }
 }
 
+export async function requireOrgMember(organizationId: string, userId: string): Promise<void> {
+  const member = await prisma.member.findFirst({ where: { organizationId, userId }, select: { id: true } });
+  if (!member) throw new ORPCError("FORBIDDEN", { message: "Você não faz parte desta empresa." });
+}
+
 const STATUS_BY_CODE: Record<string, "NOT_FOUND" | "FORBIDDEN" | "BAD_REQUEST" | "CONFLICT"> = {
   [SocialErrorCode.AUTOMATION_NOT_FOUND]: "NOT_FOUND",
   [SocialErrorCode.CHANNEL_NOT_CONNECTED]: "BAD_REQUEST",

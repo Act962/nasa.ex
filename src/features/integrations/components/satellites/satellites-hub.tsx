@@ -15,6 +15,7 @@ import {
   type PlatformDef,
 } from "@/features/integrations/components/integrations-page";
 import { MetaMcpSection } from "@/features/integrations/components/meta-mcp-section";
+import { ExternalAiSection } from "@/features/external-ai/components/external-ai-section";
 import {
   useChannelOrbit,
   useDeletePlatformIntegration,
@@ -271,6 +272,7 @@ export function SatellitesHub() {
       )}
 
       <MetaMcpSection />
+      <ExternalAiSection />
 
       {configuring && configuring.platform !== "WHATSAPP" && (
         <ConfigDialog

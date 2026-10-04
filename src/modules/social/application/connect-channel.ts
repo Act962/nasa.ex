@@ -44,8 +44,10 @@ export async function connectChannel(
   input: ConnectChannelInput,
   deps: ConnectChannelDeps,
 ): Promise<ConnectChannelResult> {
-  const { accessToken, appSecret, verifyToken } = input.credentials;
-  if (!accessToken.trim() || !appSecret.trim() || !verifyToken.trim()) {
+  const { accessToken, appSecret, verifyToken, authMode } = input.credentials;
+  // Pelo login da Meta (spec 0061) o webhook é o da plataforma: sem app secret nem verify token próprios.
+  const needsOwnWebhookSecrets = authMode !== "META_LOGIN";
+  if (!accessToken.trim() || (needsOwnWebhookSecrets && (!appSecret.trim() || !verifyToken.trim()))) {
     throw new InvalidCredentialsError(
       "Informe token de acesso, app secret e verify token.",
     );

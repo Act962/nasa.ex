@@ -9,9 +9,15 @@ import {
   commentsProcedure,
   repositoriesFor,
   requireOrgAdmin,
+  requireOrgMember,
   webhookUrlFor,
   withDomainErrors,
 } from "./_shared";
+import { getInstagramLeadTracking, setInstagramLeadTracking } from "@/features/comments/server/lead-tracking";
+import {
+  connectCommentsWithMetaAccount,
+  listMetaInstagramAccounts,
+} from "@/features/comments/server/meta-login-channel";
 
 export const getChannel = commentsProcedure
   .input(z.object({}).optional())
@@ -34,6 +40,7 @@ export const getChannel = commentsProcedure
       lastErrorMessage: channel.lastErrorMessage,
       lastErrorAt: channel.lastErrorAt,
       accessTokenLast4: channel.accessTokenLast4,
+      authMode: channel.authMode,
       webhookUrl: webhookUrlFor(
         channel.provider,
         channel.webhookPathToken,
@@ -96,6 +103,54 @@ export const connectChannelProcedure = commentsProcedure
           result.channel.webhookPathToken,
           context.headers,
         ),
+        subscribed: result.subscribed,
+        subscriptionError: result.subscriptionError,
+        replacedExternalAccountId: result.replacedExternalAccountId,
+        deactivatedAutomations: result.deactivatedAutomations,
+      };
+    });
+  });
+
+/** Tracking que recebe os leads do Instagram no tracking-chat (spec 0062). */
+export const getLeadTracking = commentsProcedure
+  .input(z.object({}).optional())
+  .handler(async ({ context }) => getInstagramLeadTracking(context.org.id));
+
+export const setLeadTracking = commentsProcedure
+  .input(z.object({ trackingId: z.string().min(1) }))
+  .handler(async ({ context, input }) => {
+    await requireOrgAdmin(context.org.id, context.user.id);
+    return setInstagramLeadTracking(context.org.id, input.trackingId);
+  });
+
+/** Contas do Instagram da conexão da Meta da org, para conectar com um clique (spec 0061, RF-1). */
+export const listMetaAccounts = commentsProcedure
+  .input(z.object({ organizationId: z.string().optional() }).optional())
+  .handler(async ({ context, input }) => {
+    // O Planner é multi-cliente: o post pode ser de outra empresa do usuário, não da ativa.
+    const organizationId = input?.organizationId ?? context.org.id;
+    await requireOrgMember(organizationId, context.user.id);
+    return listMetaInstagramAccounts(organizationId);
+  });
+
+/** Conecta o Comments com o token de página da conexão da Meta (spec 0061, RF-2). */
+export const connectWithMeta = commentsProcedure
+  .input(z.object({ metaPublishAccountId: z.string().optional(), organizationId: z.string().optional() }))
+  .handler(async ({ context, input }) => {
+    const organizationId = input.organizationId ?? context.org.id;
+    await requireOrgAdmin(organizationId, context.user.id);
+
+    return withDomainErrors(async () => {
+      const result = await connectCommentsWithMetaAccount({
+        organizationId,
+        userId: context.user.id,
+        metaPublishAccountId: input.metaPublishAccountId,
+      });
+      return {
+        id: result.channel.id,
+        handle: result.channel.handle,
+        externalAccountId: result.channel.externalAccountId,
+        status: result.channel.status,
         subscribed: result.subscribed,
         subscriptionError: result.subscriptionError,
         replacedExternalAccountId: result.replacedExternalAccountId,

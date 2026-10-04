@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MessageBox } from "./message-box";
+import { MessageBox, toMarkedMessage } from "./message-box";
 import { useParams } from "next/navigation";
 import {
   useInfiniteQuery,
@@ -29,6 +29,7 @@ import {
 } from "../types";
 import { authClient } from "@/lib/auth-client";
 import { MarkedMessage } from "../types";
+import { readInstagramMetadata } from "../lib/instagram-message-metadata";
 import { cn } from "@/lib/utils";
 import { EditMessage } from "./edit-message";
 import { SaveToNBoxPanel } from "./save-to-nbox-panel";
@@ -113,6 +114,19 @@ export function Body({ messageSelected, onSelectMessage, conversationId: convers
     });
     return merged;
   }, [data]);
+
+  // Instagram (spec 0062, RF-7): se a última mensagem do cliente é um comentário, ele já vem
+  // selecionado — responder publica naquele comentário. Uma vez por conversa, para não brigar com o usuário.
+  const autoSelectedConversationRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!conversationId || autoSelectedConversationRef.current === conversationId || items.length === 0) return;
+    autoSelectedConversationRef.current = conversationId;
+    if (messageSelected) return;
+    const latestInbound = items.flatMap((group) => group.messages).filter((message) => !message.fromMe).at(-1);
+    if (latestInbound && readInstagramMetadata(latestInbound.metadata)?.kind === "COMMENT") {
+      onSelectMessage(toMarkedMessage(latestInbound));
+    }
+  }, [conversationId, items, messageSelected, onSelectMessage]);
 
   useEffect(() => {
     if (!hasInitialScrolled && data?.pages.length) {

@@ -234,28 +234,28 @@ model Organization {
   companyCep   String?  @map("company_cep")
 
   // ── STARS ──────────────────────────────────
-  planId                 String?   @map("plan_id")
-  starsBalance           Int       @default(0) @map("stars_balance")
-  starsBonusBalance      Int       @default(0) @map("stars_bonus_balance")
+  planId                 String?      @map("plan_id")
+  starsBalance           Int          @default(0) @map("stars_balance")
+  starsBonusBalance      Int          @default(0) @map("stars_bonus_balance")
   // Saldo de bônus (welcome, promoções) — não pode pagar curso no NASA Router,
   // mas pode ser consumido por integrações (Planner IA, Command IA, APP_CHARGE/SETUP).
-  starsCycleStart        DateTime? @map("stars_cycle_start")
+  starsCycleStart        DateTime?    @map("stars_cycle_start")
   // ── Grace period / suspensão (pay-per-use) ────────────────
   // Quando saldo zera, `starsGraceStartedAt` é setado. Org tem 15 dias
   // pra recarregar. Cron `stars-grace-period-monitor` notifica em dias
   // 1/3/7/12/14 e seta `starsSuspendedAt` em dia 15+. Suspensão zera o
   // acesso a todas as procedures que cobram via `requireStarsMiddleware`.
-  starsGraceStartedAt    DateTime? @map("stars_grace_started_at")
-  starsSuspendedAt       DateTime? @map("stars_suspended_at")
+  starsGraceStartedAt    DateTime?    @map("stars_grace_started_at")
+  starsSuspendedAt       DateTime?    @map("stars_suspended_at")
   /// Botão "pausar tudo" do ASTRO COMMANDER (spec 0028, RF-7). Setado, nenhum
   /// comando da org executa — nem por agenda, nem por evento.
-  astroCommanderPausedAt DateTime? @map("astro_commander_paused_at")
+  astroCommanderPausedAt DateTime?    @map("astro_commander_paused_at")
   /// IA do ASTRO (spec 0053): PLATFORM = modelo ÓRBITA; OWN = chave da org nos Satélites; null = ainda não escolheu.
   astroAiMode            AstroAiMode? @map("astro_ai_mode")
   // Anti-spam de notificações pós-débito (1 dispatch/dia/severidade).
-  starsLastAlertAt       DateTime? @map("stars_last_alert_at")
-  starsAlertConfig       Json      @default("{}") @map("stars_alert_config")
-  starDistributionMode   String    @default("org") @map("star_distribution_mode")
+  starsLastAlertAt       DateTime?    @map("stars_last_alert_at")
+  starsAlertConfig       Json         @default("{}") @map("stars_alert_config")
+  starDistributionMode   String       @default("org") @map("star_distribution_mode")
   // "org"    = pool compartilhado (padrão)
   // "equal"  = dividido igualmente entre usuários ativos
   // "custom" = orçamento personalizado por usuário
@@ -336,6 +336,8 @@ model Organization {
   nboxItems              NBoxItem[]
   trafegoOrders          TrafegoOrder[]
   nasaPlanners           NasaPlanner[]
+  metaPublishAccounts    MetaPublishAccount[]
+  brandKitAssets         BrandKitAsset[]
   orgPermissions         OrgPermission[]
   activityLogs           OrgActivityLog[]
   systemActivityLogs     SystemActivityLog[]
@@ -4331,12 +4333,53 @@ model NBoxItem {
 // ─── NASA Planner ──────────────────────────────────────────────────────────────
 
 enum NasaPlannerPostStatus {
+  IDEA
   DRAFT
   PENDING_APPROVAL
+  CHANGES_REQUESTED
   APPROVED
   SCHEDULED
+  PUBLISHING
   PUBLISHED
   FAILED
+}
+
+// ── Planner v2 (specs 0057 e 0058) ──
+enum NasaPlannerPostSource {
+  WEB
+  ASTRO
+  WHATSAPP
+  MCP
+}
+
+enum NasaPlannerReviewKind {
+  SUBMITTED
+  COMMENT
+  CHANGES_REQUESTED
+  APPROVED
+  REOPENED
+}
+
+enum NasaPlannerPublishNetwork {
+  INSTAGRAM
+  FACEBOOK
+}
+
+enum NasaPlannerSlotSource {
+  DEFAULT
+  MANUAL
+  INSIGHTS
+}
+
+enum MetaPublishAccountKind {
+  IG_BUSINESS
+  FB_PAGE
+}
+
+enum MetaPublishAccountStatus {
+  ACTIVE
+  NEEDS_RECONNECT
+  DISABLED
 }
 
 enum NasaPlannerPostType {
@@ -4385,9 +4428,11 @@ model NasaPlanner {
   examplePosts    String[] @map("example_posts")
   showBranding    Boolean  @default(true) @map("show_branding")
 
-  anthropicApiKey String? @map("anthropic_api_key")
-  clientOrgId     String? @map("client_org_id")
-  clientOrgName   String? @map("client_org_name")
+  anthropicApiKey  String?  @map("anthropic_api_key")
+  clientOrgId      String?  @map("client_org_id")
+  clientOrgName    String?  @map("client_org_name")
+  /// Aprovação obrigatória antes de programar (spec 0058, RF-5). Null = padrão: obrigatória em org com mais de um membro.
+  requiresApproval Boolean? @map("requires_approval")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -4401,6 +4446,7 @@ model NasaPlanner {
   calendarShares            NasaPlannerCalendarShare[]
   campaignPlanners          NasaCampaignPlanner[]
   clientOnboardingProcesses ClientOnboardingProcess[]
+  contentPillars            NasaPlannerContentPillar[]
 
   @@index([organizationId])
   @@map("nasa_planner")
@@ -4462,6 +4508,35 @@ model NasaPlannerPost {
   externalFbPostId String? @map("external_fb_post_id")
   publishError     String? @map("publish_error")
 
+  // ── Planner v2: publicação confiável (spec 0057) ──
+  /// Muda a cada programação: o evento de uma versão antiga não publica (idempotência).
+  scheduleVersion     Int       @default(0) @map("schedule_version")
+  publishAttempts     Int       @default(0) @map("publish_attempts")
+  publishingStartedAt DateTime? @map("publishing_started_at")
+  externalIgPermalink String?   @map("external_ig_permalink")
+  publishErrorCode    String?   @map("publish_error_code")
+
+  // ── Planner v2: roteiro, aprovação e origem (spec 0058) ──
+  pillarId           String?               @map("pillar_id")
+  script             String?
+  /// Objetivo / gatilho do conteúdo (spec 0067). Nasce do tema do dia da semana.
+  objective          String?
+  momentKey          String?               @map("moment_key")
+  submittedAt        DateTime?             @map("submitted_at")
+  submittedById      String?               @map("submitted_by_id")
+  reviewerId         String?               @map("reviewer_id")
+  approvedAt         DateTime?             @map("approved_at")
+  approvedById       String?               @map("approved_by_id")
+  changesRequestedAt DateTime?             @map("changes_requested_at")
+  source             NasaPlannerPostSource @default(WEB)
+  sourceActorLabel   String?               @map("source_actor_label")
+
+  // ── Planner v2: Comments por post (spec 0059) ──
+  /// Automação do Comments ligada ao post (SocialAutomation da mesma org).
+  commentsAutomationId String? @map("comments_automation_id")
+  /// Ligar a automação quando o post for publicado.
+  commentsAutoActivate Boolean @default(true) @map("comments_auto_activate")
+
   metricsImpressions Int?      @map("metrics_impressions")
   metricsReach       Int?      @map("metrics_reach")
   metricsLikes       Int?      @map("metrics_likes")
@@ -4474,20 +4549,213 @@ model NasaPlannerPost {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  planner    NasaPlanner              @relation(fields: [plannerId], references: [id], onDelete: Cascade)
-  createdBy  User                     @relation("NasaPlannerPostCreatedBy", fields: [createdById], references: [id])
-  orgProject OrgProject?              @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
-  campaign   NasaCampaignPlanner?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  action     Action?                  @relation("ActionPlannerPosts", fields: [actionId], references: [id], onDelete: SetNull)
-  template   NasaPlannerPostTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  slides     NasaPlannerPostSlide[]
+  planner            NasaPlanner                 @relation(fields: [plannerId], references: [id], onDelete: Cascade)
+  createdBy          User                        @relation("NasaPlannerPostCreatedBy", fields: [createdById], references: [id])
+  orgProject         OrgProject?                 @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
+  campaign           NasaCampaignPlanner?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  action             Action?                     @relation("ActionPlannerPosts", fields: [actionId], references: [id], onDelete: SetNull)
+  template           NasaPlannerPostTemplate?    @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  slides             NasaPlannerPostSlide[]
+  pillar             NasaPlannerContentPillar?   @relation(fields: [pillarId], references: [id], onDelete: SetNull)
+  reviews            NasaPlannerPostReview[]
+  publishAttemptLogs NasaPlannerPublishAttempt[]
 
   @@index([plannerId, status])
   @@index([plannerId, scheduledAt])
   @@index([organizationId])
+  @@index([organizationId, scheduledAt])
+  @@index([status, scheduledAt])
+  @@index([commentsAutomationId])
   @@index([actionId])
   @@index([templateId])
   @@map("nasa_planner_posts")
+}
+
+// ── Planner v2 (specs 0057 e 0058) ──
+
+/// Conta de publicação (IG Business ou página FB) de uma org, com o token próprio cifrado (spec 0057, RF-1).
+/// Itens do Kit da Marca que são lista (spec 0063): fundos, produtos/serviços, materiais e
+/// posts de referência. Logos, paleta, fontes e voz ficam em Organization/NasaPlanner (D-1).
+enum BrandKitAssetKind {
+  BACKGROUND
+  PRODUCT
+  MATERIAL
+  REFERENCE_POST
+}
+
+model BrandKitAsset {
+  id             String            @id @default(cuid())
+  organizationId String            @map("organization_id")
+  kind           BrandKitAssetKind
+  title          String
+  description    String?
+  /// Chave no R2 ou URL (link externo / upload local em desenvolvimento).
+  fileKey        String?           @map("file_key")
+  url            String?
+  price          String?
+  order          Int               @default(0)
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, kind])
+  @@map("brand_kit_assets")
+}
+
+model MetaPublishAccount {
+  id                String                   @id @default(cuid())
+  organizationId    String                   @map("organization_id")
+  kind              MetaPublishAccountKind
+  pageId            String                   @map("page_id")
+  pageName          String?                  @map("page_name")
+  igUserId          String?                  @map("ig_user_id")
+  igUsername        String?                  @map("ig_username")
+  profilePictureUrl String?                  @map("profile_picture_url")
+  accessTokenEnc    String                   @map("access_token_enc")
+  status            MetaPublishAccountStatus @default(ACTIVE)
+  lastErrorCode     String?                  @map("last_error_code")
+  lastErrorMessage  String?                  @map("last_error_message")
+  lastCheckedAt     DateTime?                @map("last_checked_at")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, kind, pageId])
+  @@index([igUserId])
+  @@map("meta_publish_accounts")
+}
+
+/// Histórico de aprovação de um post: envio, comentários, pedidos de ajuste e aprovação (spec 0058, D-2).
+model NasaPlannerPostReview {
+  id             String                @id @default(cuid())
+  postId         String                @map("post_id")
+  organizationId String                @map("organization_id")
+  authorId       String?               @map("author_id")
+  kind           NasaPlannerReviewKind
+  body           String?
+  checklist      Json?
+  slideId        String?               @map("slide_id")
+  resolvedAt     DateTime?             @map("resolved_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+
+  post NasaPlannerPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@index([organizationId])
+  @@map("nasa_planner_post_reviews")
+}
+
+model NasaPlannerContentPillar {
+  id             String   @id @default(cuid())
+  plannerId      String   @map("planner_id")
+  organizationId String   @map("organization_id")
+  name           String
+  /// Nome de token do Design System (ex.: "info", "success"), nunca hex.
+  colorToken     String   @default("info") @map("color_token")
+  description    String?
+  targetSharePct Int?     @map("target_share_pct")
+  order          Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  planner NasaPlanner       @relation(fields: [plannerId], references: [id], onDelete: Cascade)
+  posts   NasaPlannerPost[]
+
+  @@index([plannerId])
+  @@index([organizationId])
+  @@map("nasa_planner_content_pillars")
+}
+
+/// Horário de publicação sugerido/cadência (spec 0058, RF-7). Fase 5 preenche a partir dos insights.
+model NasaPlannerPublishSlot {
+  id               String                @id @default(cuid())
+  organizationId   String                @map("organization_id")
+  publishAccountId String?               @map("publish_account_id")
+  /// 0 = domingo … 6 = sábado.
+  weekday          Int
+  /// Minutos desde 00:00 no fuso de Brasília.
+  minuteOfDay      Int                   @map("minute_of_day")
+  source           NasaPlannerSlotSource @default(MANUAL)
+  score            Float?
+  postTypes        NasaPlannerPostType[] @map("post_types")
+  isActive         Boolean               @default(true) @map("is_active")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  @@index([organizationId, isActive])
+  @@map("nasa_planner_publish_slots")
+}
+
+/// Uma tentativa de publicação por rede (spec 0057, RF-10).
+/// Chave de acesso de IA externa ao MCP do ÓRBITA (spec 0065). Só o hash é guardado; o dono e as
+/// empresas são conferidos a cada chamada (perdeu acesso = chave para de funcionar). Sem relation: o dono
+/// é ponteiro solto (como `connectedById`), e as empresas são uma lista.
+model ExternalAiAccessToken {
+  id              String    @id @default(cuid())
+  createdById     String    @map("created_by_id")
+  label           String
+  tokenHash       String    @unique @map("token_hash")
+  tokenPrefix     String    @map("token_prefix")
+  organizationIds String[]  @map("organization_ids")
+  lastUsedAt      DateTime? @map("last_used_at")
+  revokedAt       DateTime? @map("revoked_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([createdById])
+  @@map("external_ai_access_tokens")
+}
+
+model NasaPlannerPublishAttempt {
+  id              String                    @id @default(cuid())
+  postId          String                    @map("post_id")
+  organizationId  String                    @map("organization_id")
+  network         NasaPlannerPublishNetwork
+  scheduleVersion Int                       @map("schedule_version")
+  /// CONTAINER | POLL | PUBLISH
+  step            String
+  containerId     String?                   @map("container_id")
+  externalId      String?                   @map("external_id")
+  /// OK | ERROR
+  status          String
+  errorCode       String?                   @map("error_code")
+  errorMessage    String?                   @map("error_message")
+  /// SCHEDULE | PUBLISH_NOW | RETRY | SWEEP
+  trigger         String
+  createdAt       DateTime                  @default(now()) @map("created_at")
+
+  post NasaPlannerPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@map("nasa_planner_publish_attempts")
+}
+
+/// Meta de cadência por formato (aba Metas do Planner).
+model NasaPlannerCadenceGoal {
+  id             String              @id @default(cuid())
+  organizationId String              @map("organization_id")
+  postType       NasaPlannerPostType @map("post_type")
+  perWeek        Int                 @map("per_week")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  @@unique([organizationId, postType])
+  @@map("nasa_planner_cadence_goals")
+}
+
+/// Tema fixo de cada dia da semana por cliente (spec 0067): "Segunda = Dor + identificação + perda".
+model NasaPlannerWeekdayTheme {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  /// 0 = domingo … 6 = sábado
+  weekday        Int
+  theme          String
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([organizationId, weekday])
+  @@map("nasa_planner_weekday_themes")
 }
 
 // ── Templates de post estático brandeáveis (NASA Planner 2.0 / sprint 2) ──
@@ -7976,17 +8244,17 @@ model PendingCoursePurchase {
 
 // Configurações globais de pricing do NASA Route. Singleton (id="singleton").
 model RouterPaymentSettings {
-  id           String   @id
-  starPriceBrl Decimal  @default(0.15) @map("star_price_brl") @db.Decimal(10, 4)
+  id                      String   @id
+  starPriceBrl            Decimal  @default(0.15) @map("star_price_brl") @db.Decimal(10, 4)
   /// Cambio USD->BRL. Sai do codigo porque e o numero que de fato varia e o
   /// financeiro precisa ajustar sem deploy (D-5 da spec 0021).
-  usdToBrlRate Decimal  @default(5.5) @map("usd_to_brl_rate") @db.Decimal(10, 4)
+  usdToBrlRate            Decimal  @default(5.5) @map("usd_to_brl_rate") @db.Decimal(10, 4)
   /// Margem sobre o custo do modelo escolhido pelo usuario na chave da plataforma (spec 0055, RF-12).
   astroModelMarkupPercent Int      @default(50) @map("astro_model_markup_percent")
   /// Modelos que o usuario pode escolher na chave da plataforma; vazio = todos do catalogo.
   astroPlatformModelIds   String[] @default([]) @map("astro_platform_model_ids")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  updatedById  String?  @map("updated_by_id")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+  updatedById             String?  @map("updated_by_id")
 
   updatedBy User? @relation("RouterPaymentSettingsUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
 
@@ -10065,6 +10333,11 @@ model SocialChannel {
   /// Ponteiro solto para `User.id` — sem relation de propósito, para não somar
   /// mais uma aresta ao god-model `User` (73 relations hoje).
   connectedById String?  @map("connected_by_id")
+
+  /// Tracking que recebe os leads do Instagram no tracking-chat (spec 0062). Ponteiro
+  /// solto, sem relation: tracking apagado cai no primeiro tracking da org.
+  leadTrackingId String? @map("lead_tracking_id")
+
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 

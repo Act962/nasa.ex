@@ -36,14 +36,23 @@ export type HandleInboundEventDeps = {
   logger: Logger;
 };
 
+/** O que a automação de fato enviou — o tracking-chat mostra na conversa (spec 0062, D-3). */
+export type AutomationDelivery = {
+  kind: "SEND_DIRECT_MESSAGE" | "REPLY_TO_COMMENT";
+  text: string;
+  buttons: { title: string; url: string }[];
+  externalMessageId: string | null;
+};
+
 export type HandleInboundEventResult =
   | { outcome: "DUPLICATE" }
   | { outcome: "SKIPPED"; reason: string }
-  | { outcome: "SENT"; automationId: string; runId: string }
+  | { outcome: "SENT"; automationId: string; runId: string; deliveries: AutomationDelivery[] }
   | {
       outcome: "FAILED";
       automationId: string;
       runId: string;
+      deliveries: AutomationDelivery[];
       error: string;
       /** A credencial foi recusada (401/403), não é falha pontual de envio. */
       authError: boolean;
@@ -132,13 +141,14 @@ export async function handleInboundEvent(
     .sort((left, right) => left.order - right.order);
 
   const stepRecords: StepRunRecord[] = [];
+  const deliveries: AutomationDelivery[] = [];
   let anySent = false;
   let firstError: string | null = null;
   let hasAuthError = false;
 
   for (const step of steps) {
     const startedAt = deps.clock.now().getTime();
-    const { record, authError } = await executeStep({
+    const { record, authError, sent } = await executeStep({
       step,
       event,
       deps,
@@ -149,7 +159,10 @@ export async function handleInboundEvent(
     stepRecords.push(record);
 
     if (authError) hasAuthError = true;
-    if (record.status === "SENT") anySent = true;
+    if (record.status === "SENT") {
+      anySent = true;
+      if (sent) deliveries.push({ ...sent, externalMessageId: record.externalMessageId ?? null });
+    }
     if (record.status === "FAILED" && !firstError) {
       firstError = record.error ?? "Falha no envio";
     }
@@ -180,10 +193,11 @@ export async function handleInboundEvent(
       runId,
       error: firstError ?? "Falha no envio",
       authError: hasAuthError,
+      deliveries,
     };
   }
 
-  return { outcome: "SENT", automationId: selection.automation.id, runId };
+  return { outcome: "SENT", automationId: selection.automation.id, runId, deliveries };
 }
 
 async function executeStep(input: {
@@ -192,7 +206,7 @@ async function executeStep(input: {
   deps: HandleInboundEventDeps;
   organizationId: string;
   sequenceIndex: number;
-}): Promise<{ record: StepRunRecord; authError: boolean }> {
+}): Promise<{ record: StepRunRecord; authError: boolean; sent?: Omit<AutomationDelivery, "externalMessageId"> }> {
   const { step, event, deps } = input;
   const base: StepRunRecord = {
     stepId: step.id,
@@ -211,11 +225,12 @@ async function executeStep(input: {
     const text = pickReplyVariant(config, deps.picker, input.sequenceIndex);
     if (!text) return { record: base, authError: false };
 
+    const replyText = truncateToChars(text, MAX_MESSAGE_CHARS);
     const result = await deps.gateway.replyToComment({
       commentId: event.externalEventId,
-      text: truncateToChars(text, MAX_MESSAGE_CHARS),
+      text: replyText,
     });
-    return toRecord(base, result);
+    return { ...toRecord(base, result), sent: { kind: "REPLY_TO_COMMENT", text: replyText, buttons: [] } };
   }
 
   const config = step.config as SendDirectMessageConfig;
@@ -267,7 +282,10 @@ async function executeStep(input: {
     });
   }
 
-  return toRecord(base, lastResult);
+  return {
+    ...toRecord(base, lastResult),
+    sent: { kind: "SEND_DIRECT_MESSAGE", text, buttons: buttons.map((button) => ({ title: button.title, url: button.url })) },
+  };
 }
 
 /**

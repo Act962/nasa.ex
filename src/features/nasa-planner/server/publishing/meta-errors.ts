@@ -1,0 +1,49 @@
+import { MetaGraphError } from "@/http/meta/planner-graph";
+
+/** Traduz erro da Graph API para o que o Planner faz com ele (spec 0057): reconectar, tentar de novo ou parar. */
+
+export interface ClassifiedPublishError {
+  code: string;
+  message: string;
+  isRetryable: boolean;
+  needsReconnect: boolean;
+}
+
+const RATE_LIMIT_CODES = new Set([4, 17, 32, 613]);
+const EXPIRED_TOKEN_CODE = 190;
+const PUBLISH_LIMIT_SUBCODE = 2207042;
+
+export function classifyPublishError(error: unknown): ClassifiedPublishError {
+  if (!(error instanceof MetaGraphError)) {
+    const message = error instanceof Error ? error.message : "Erro desconhecido na publicação";
+    return { code: "UNKNOWN", message, isRetryable: true, needsReconnect: false };
+  }
+  if (error.code === EXPIRED_TOKEN_CODE) {
+    return {
+      code: "TOKEN_EXPIRED",
+      message: "A conexão com a Meta expirou ou foi revogada. Reconecte a conta nos Satélites.",
+      isRetryable: false,
+      needsReconnect: true,
+    };
+  }
+  if (error.subcode === PUBLISH_LIMIT_SUBCODE) {
+    return {
+      code: "PUBLISH_LIMIT",
+      message: "Esta conta atingiu o limite de 50 publicações em 24 horas da Meta. Tente mais tarde.",
+      isRetryable: false,
+      needsReconnect: false,
+    };
+  }
+  if (error.code !== null && RATE_LIMIT_CODES.has(error.code)) {
+    return { code: "RATE_LIMIT", message: "A Meta pediu uma pausa nas publicações. Vamos tentar de novo.", isRetryable: true, needsReconnect: false };
+  }
+  if (error.isTransient) {
+    return { code: "TRANSIENT", message: "A Meta ficou instável. Vamos tentar de novo.", isRetryable: true, needsReconnect: false };
+  }
+  return {
+    code: `GRAPH_${error.code ?? "ERR"}${error.subcode ? `_${error.subcode}` : ""}`,
+    message: `A Meta recusou a publicação: ${error.message}`,
+    isRetryable: false,
+    needsReconnect: false,
+  };
+}

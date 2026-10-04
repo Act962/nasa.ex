@@ -18,6 +18,8 @@ export interface WhatsappBotChannel {
   sendText(phone: string, text: string): Promise<{ messageId: string | null }>;
   /** Envia menu de até 3 botões interativos (confirmações destrutivas). */
   sendButtons(phone: string, payload: ButtonPayload): Promise<{ messageId: string | null }>;
+  /** Envia imagem com legenda por URL pública (prévia de post do Planner, spec 0064). */
+  sendMedia(phone: string, media: { url: string; caption?: string }): Promise<{ messageId: string | null }>;
   /** Mostra typing indicator (humaniza respostas longas). */
   sendTyping(phone: string, durationMs: number): Promise<void>;
 }

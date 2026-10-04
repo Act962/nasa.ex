@@ -1,14 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { handleInboundEvent } from "@/modules/social/application/handle-inbound-event";
-import {
-  channelLookup,
-  createChannelGateway,
-  createSocialRepositories,
-  getInboundTranslator,
-  socialClock,
-  socialLogger,
-  socialPicker,
-} from "@/modules/social";
+import { channelLookup, getInboundTranslator, socialLogger } from "@/modules/social";
+import { processChannelEvents } from "@/modules/social/process-channel-events";
 
 export const runtime = "nodejs";
 
@@ -61,7 +53,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ ok: true }, { status: 200 });
   }
 
-  const { channel, tenant } = found;
+  const { channel } = found;
   const translator = getInboundTranslator("INSTAGRAM");
 
   const isSignatureValid = translator.verifySignature({
@@ -92,37 +84,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ ok: true }, { status: 200 });
   }
 
-  const repositories = createSocialRepositories(tenant);
-  const gateway = createChannelGateway(channel);
-
-  for (const event of events) {
-    try {
-      const result = await handleInboundEvent(event, {
-        channel,
-        automations: repositories.automations,
-        inboundEvents: repositories.inboundEvents,
-        runs: repositories.runs,
-        contacts: repositories.contacts,
-        gateway,
-        ai: repositories.ai,
-        clock: socialClock,
-        picker: socialPicker,
-        logger: socialLogger,
-      });
-
-      if (result.outcome === "FAILED" && result.authError) {
-        await repositories.channels.markNeedsReconnect(channel.id, result.error);
-      }
-    } catch (error) {
-      // Uma falha num evento não pode derrubar o lote: a Meta reentregaria
-      // todos, inclusive os que já foram respondidos.
-      socialLogger.error("Falha ao processar evento", {
-        channelId: channel.id,
-        externalEventId: event.externalEventId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
+  await processChannelEvents(found, events);
 
   return NextResponse.json({ ok: true }, { status: 200 });
 }

@@ -60,3 +60,34 @@ export function useCommentsContent(enabled = true) {
     enabled,
   });
 }
+
+/** Instagram da conexão da Meta da empresa, para conectar o Comments com um clique (spec 0061). */
+export function useCommentsMetaAccounts({ organizationId, enabled = true }: { organizationId?: string; enabled?: boolean } = {}) {
+  return useQuery({
+    ...orpc.comments.channel.metaAccounts.queryOptions({ input: { organizationId } }),
+    enabled,
+  });
+}
+
+export function useConnectCommentsWithMeta() {
+  const invalidate = useInvalidateChannel();
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.comments.channel.connectWithMeta.mutationOptions({
+      onSuccess: () => {
+        invalidate();
+        void queryClient.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
+      },
+    }),
+  );
+}
+
+/** Tracking que recebe os leads do Instagram no tracking-chat (spec 0062). */
+export function useCommentsLeadTracking({ enabled = true }: { enabled?: boolean } = {}) {
+  return useQuery({ ...orpc.comments.channel.leadTracking.queryOptions({ input: {} }), enabled });
+}
+
+export function useSetCommentsLeadTracking() {
+  const invalidate = useInvalidateChannel();
+  return useMutation(orpc.comments.channel.setLeadTracking.mutationOptions({ onSuccess: invalidate }));
+}

@@ -28,7 +28,7 @@ import {
 import { dialPhone } from "../utils/dial-phone";
 import Link from "next/link";
 import { SummerizeConversation } from "./summerize-conversation";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { withSearchParams } from "../utils/url";
 import { CheckIaLead } from "./check-ia-lead";
 import { MessageChannel, StatusFlow } from "@/generated/prisma/enums";
@@ -43,6 +43,7 @@ import { HeatRing } from "@/features/leads/components/lead-audit/heat-ring";
 import { useLeadDetailsStore } from "./lead-sidebar/use-lead-details-store";
 import type { HeatLevel } from "@/features/leads/components/lead-audit/lead-heat";
 import { SeiLeadProcessDialog } from "@/features/sei/components/lead-process-dialog";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 
 interface HeaderProps {
   name: string;
@@ -103,6 +104,8 @@ export function Header({
 }: HeaderProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Dentro do tracking a barra dele (NavTracking) já tem o botão de tela cheia.
+  const isInsideTrackingNav = usePathname().startsWith("/tracking/");
   const profileUrl = useConstructUrl(profile || "");
   const mutation = useMutationRodizio(conversationId);
   const qc = useQueryClient();
@@ -400,6 +403,7 @@ export function Header({
           open={seiOpen}
           onOpenChange={setSeiOpen}
         />
+        {!isInsideTrackingNav && <FullscreenControls />}
       </div>
     </div>
   );

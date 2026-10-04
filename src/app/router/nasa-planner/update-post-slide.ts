@@ -1,13 +1,13 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { assertPostAccess } from "@/features/nasa-planner/server/cross-org";
+import { reopenPostAfterEdit } from "@/features/nasa-planner/server/approval";
 import prisma from "@/lib/prisma";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 export const updatePostSlide = base
   .use(requiredAuthMiddleware)
-  .use(requireOrgMiddleware)
   .input(
     z.object({
       slideId: z.string(),
@@ -24,7 +24,7 @@ export const updatePostSlide = base
       include: { post: { select: { organizationId: true, id: true } } },
     });
     if (!slide) throw new ORPCError("NOT_FOUND", { message: "Slide não encontrado" });
-    if (slide.post.organizationId !== context.org.id) throw new ORPCError("FORBIDDEN");
+    await assertPostAccess(context.user.id, slide.post.id, "create");
 
     const updated = await prisma.nasaPlannerPostSlide.update({
       where: { id: input.slideId },
@@ -45,5 +45,6 @@ export const updatePostSlide = base
       });
     }
 
+    await reopenPostAfterEdit(slide.post.id, context.user.id);
     return { slide: updated };
   });

@@ -127,10 +127,19 @@ export type Automation = {
   triggers: Trigger[];
 };
 
+/**
+ * `INSTAGRAM_LOGIN`: app próprio do cliente, colado à mão (spec 0024).
+ * `META_LOGIN`: token de página da conexão da Meta do ÓRBITA (spec 0061) — sem
+ * app secret nem verify token próprios, porque o webhook é o da plataforma.
+ */
+export type ChannelAuthModeValue = "INSTAGRAM_LOGIN" | "META_LOGIN";
+
 export type ChannelCredentials = {
+  authMode?: ChannelAuthModeValue;
   accessToken: string;
   appSecret: string;
   verifyToken: string;
+  pageId?: string;
 };
 
 export type Channel = {

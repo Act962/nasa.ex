@@ -1,13 +1,13 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { assertPostAccess } from "@/features/nasa-planner/server/cross-org";
+import { reopenPostAfterEdit } from "@/features/nasa-planner/server/approval";
 import prisma from "@/lib/prisma";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 export const uploadPostImage = base
   .use(requiredAuthMiddleware)
-  .use(requireOrgMiddleware)
   .input(
     z.object({
       postId: z.string(),
@@ -16,8 +16,9 @@ export const uploadPostImage = base
     }),
   )
   .handler(async ({ input, context }) => {
+    const { post: accessiblePost } = await assertPostAccess(context.user.id, input.postId, "create");
     const post = await prisma.nasaPlannerPost.findFirst({
-      where: { id: input.postId, organizationId: context.org.id },
+      where: { id: input.postId, organizationId: accessiblePost.organizationId },
     });
     if (!post) throw new ORPCError("NOT_FOUND", { message: "Post não encontrado" });
 
@@ -43,5 +44,6 @@ export const uploadPostImage = base
       });
     }
 
+    await reopenPostAfterEdit(input.postId, context.user.id);
     return { success: true };
   });

@@ -3,6 +3,7 @@ import { Camera, FileIcon, Mic, PlayCircle, XIcon } from "lucide-react";
 import { MarkedMessage } from "../types";
 import Image from "next/image";
 import { useConstructUrl } from "@/hooks/use-construct-url";
+import { INSTAGRAM_MEDIA_TYPE_LABEL, readInstagramMetadata, type InstagramMediaCard } from "../lib/instagram-message-metadata";
 
 interface MessageSelectedProps {
   messageSelected: MarkedMessage;
@@ -25,6 +26,11 @@ export function MessageSelected({
   const isText = !mimetype;
 
   const mediaUrl = useConstructUrl(messageSelected.mediaUrl || "");
+
+  const instagram = readInstagramMetadata(messageSelected.metadata);
+  if (instagram?.kind === "COMMENT") {
+    return <InstagramCommentSelected messageSelected={messageSelected} media={instagram.media ?? null} closeMessageSelected={closeMessageSelected} />;
+  }
 
   const handleScrollToMessage = () => {
     const element = document.getElementById(`message-${messageSelected.id}`);
@@ -110,6 +116,35 @@ export function MessageSelected({
         className="ml-2 shrink-0"
       >
         <XIcon className="size-5" />
+      </Button>
+    </div>
+  );
+}
+
+/** Comentário do Instagram selecionado (spec 0062, RF-7): a resposta sai publicada nele. */
+function InstagramCommentSelected({
+  messageSelected,
+  media,
+  closeMessageSelected,
+}: {
+  messageSelected: MarkedMessage;
+  media: InstagramMediaCard | null;
+  closeMessageSelected: () => void;
+}) {
+  return (
+    <div className="flex w-full items-center gap-2.5 rounded-md border-l-4 border-l-[#e1306c] bg-accent px-3 py-2 shadow-sm">
+      {media?.thumbnailUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={media.thumbnailUrl} alt="" className="size-9 shrink-0 rounded-md object-cover" />
+      )}
+      <p className="min-w-0 flex-1 text-sm">
+        Respondendo ao comentário <span className="font-semibold">&ldquo;{messageSelected.body}&rdquo;</span>
+        <span className="text-muted-foreground">
+          {media ? ` · no ${INSTAGRAM_MEDIA_TYPE_LABEL[media.mediaType]}${media.title ? ` ${media.title}` : ""}` : ""} · em público
+        </span>
+      </p>
+      <Button type="button" variant="ghost" size="icon" className="size-7 shrink-0" onClick={closeMessageSelected} aria-label="Responder no Direct">
+        <XIcon className="size-4" />
       </Button>
     </div>
   );

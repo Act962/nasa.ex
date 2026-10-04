@@ -2,6 +2,7 @@ import type { TenantScope } from "@/modules/shared/domain/tenant-scope";
 import type {
   Automation,
   Channel,
+  ChannelAuthModeValue,
   ChannelCredentials,
   SocialEventTypeValue,
   SocialProviderValue,
@@ -23,6 +24,7 @@ export type ChannelSummary = {
   createdAt: Date;
   /** Últimos 4 caracteres do token — a UI nunca recebe o segredo inteiro. */
   accessTokenLast4: string;
+  authMode: ChannelAuthModeValue;
 };
 
 /**
@@ -34,6 +36,11 @@ export interface ChannelLookupRepository {
   findByWebhookPathToken(
     provider: SocialProviderValue,
     webhookPathToken: string,
+  ): Promise<{ channel: Channel; tenant: TenantScope } | null>;
+  /** Webhook único da plataforma (spec 0061): o dono da conta é quem recebe. */
+  findByExternalAccountId(
+    provider: SocialProviderValue,
+    externalAccountId: string,
   ): Promise<{ channel: Channel; tenant: TenantScope } | null>;
 }
 

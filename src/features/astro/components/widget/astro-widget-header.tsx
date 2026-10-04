@@ -6,19 +6,9 @@ import { MoreHorizontal, Plus, Settings, X } from "lucide-react";
 import { AstroMark } from "@/features/astro/components/astro-mark";
 import { AstroVoiceMenuItems } from "@/features/astro/voice/astro-voice-menu";
 import { usePaymentTabStore } from "@/features/payment/store/use-payment-tab-store";
+import { resolveWidgetScreenContext } from "@/features/astro/lib/widget-screen-context";
 
-/** Cabeçalho do painel: marca, contexto da tela, nova conversa, voz e fechar. */
-
-function describeScreen(pathname: string, paymentTab: string | null): string {
-  if (pathname.startsWith("/payment") && paymentTab === "accounting") {
-    return "Na aba Contábil — pergunte sobre impostos, guias e documentos";
-  }
-  if (pathname.startsWith("/payment")) return "No financeiro — pergunte sobre o que está na tela";
-  if (pathname.startsWith("/tracking")) return "No tracking";
-  if (pathname.startsWith("/agendas")) return "Na agenda";
-  if (pathname.startsWith("/workspaces")) return "No workspace";
-  return "Seu copiloto no ÓRBITA";
-}
+/** Cabeçalho do painel: marca, App aberto, nova conversa, voz e (no celular) fechar. */
 
 export function AstroWidgetHeader({
   pathname,
@@ -41,7 +31,7 @@ export function AstroWidgetHeader({
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-foreground">Astro</p>
-        <p className="truncate text-[11px] text-foreground/40">{describeScreen(pathname, paymentTab)}</p>
+        <p className="truncate text-[11px] text-foreground/40">{resolveWidgetScreenContext(pathname, paymentTab).screenLabel}</p>
       </div>
 
       {canStartNewConversation && (
@@ -79,7 +69,8 @@ export function AstroWidgetHeader({
         type="button"
         onClick={onClose}
         aria-label="Fechar o chat"
-        className="grid size-8 shrink-0 place-items-center rounded-full text-foreground/45 transition hover:bg-foreground/[0.06] hover:text-foreground"
+        // No computador o fechar fica do lado de fora do painel (AstroWidgetPanel).
+        className="grid size-8 shrink-0 sm:hidden place-items-center rounded-full text-foreground/45 transition hover:bg-foreground/[0.06] hover:text-foreground"
       >
         <X className="size-4" />
       </button>

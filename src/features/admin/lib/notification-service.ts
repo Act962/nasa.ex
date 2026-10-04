@@ -41,6 +41,12 @@ export const NOTIF_TYPES = {
   // ── ASTRO COMMANDER (spec 0028) ───────────────────────────────────────
   ASTRO_APPROVAL_PENDING:    "ASTRO_APPROVAL_PENDING",
   ASTRO_COMMAND_FAILED:      "ASTRO_COMMAND_FAILED",
+  // ── Planner v2 (specs 0057 e 0058) ────────────────────────────────────
+  PLANNER_APPROVAL_PENDING:  "PLANNER_APPROVAL_PENDING",
+  PLANNER_CHANGES_REQUESTED: "PLANNER_CHANGES_REQUESTED",
+  PLANNER_POST_APPROVED:     "PLANNER_POST_APPROVED",
+  PLANNER_PUBLISH_FAILED:    "PLANNER_PUBLISH_FAILED",
+  PLANNER_ACCOUNT_RECONNECT: "PLANNER_ACCOUNT_RECONNECT",
 } as const;
 
 export type NotifType = (typeof NOTIF_TYPES)[keyof typeof NOTIF_TYPES];
@@ -71,6 +77,12 @@ export const NOTIF_META: Record<NotifType, { label: string; appKey: string; desc
   // ── ASTRO COMMANDER ─────────────────────────────────────────────────────
   ASTRO_APPROVAL_PENDING:    { label: "ASTRO aguardando aprovação",        appKey: "astro",      description: "Um comando preparou uma ação e espera alguém aprovar" },
   ASTRO_COMMAND_FAILED:      { label: "Comando do ASTRO falhou",           appKey: "astro",      description: "Uma execução automática terminou com erro" },
+  // ── Planner v2 ──────────────────────────────────────────────────────────
+  PLANNER_APPROVAL_PENDING:  { label: "Conteúdo para aprovar",             appKey: "nasa-planner", description: "Um post do Planner espera sua aprovação" },
+  PLANNER_CHANGES_REQUESTED: { label: "Ajustes pedidos no conteúdo",       appKey: "nasa-planner", description: "O revisor pediu ajustes em um post seu" },
+  PLANNER_POST_APPROVED:     { label: "Conteúdo aprovado",                 appKey: "nasa-planner", description: "Um post seu foi aprovado" },
+  PLANNER_PUBLISH_FAILED:    { label: "Publicação falhou",                 appKey: "nasa-planner", description: "Um post programado não foi publicado" },
+  PLANNER_ACCOUNT_RECONNECT: { label: "Reconectar conta da Meta",          appKey: "nasa-planner", description: "A conexão de uma conta do Instagram/Facebook expirou" },
 };
 
 interface CreateNotificationOptions {

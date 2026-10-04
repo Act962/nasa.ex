@@ -1,11 +1,15 @@
 import {
   connectChannelProcedure,
+  connectWithMeta,
   disconnectChannel,
   getChannel,
+  getLeadTracking,
   getWebhookSetup,
   listContent,
+  listMetaAccounts,
   reactivateChannel,
   repairSubscription,
+  setLeadTracking,
 } from "./channel";
 import {
   createAutomation,
@@ -35,6 +39,10 @@ export const commentsRouter = {
     listContent,
     repairSubscription,
     webhookSetup: getWebhookSetup,
+    metaAccounts: listMetaAccounts,
+    leadTracking: getLeadTracking,
+    setLeadTracking,
+    connectWithMeta,
   },
   automations: {
     list: listAutomations,

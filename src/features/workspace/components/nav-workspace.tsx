@@ -11,6 +11,7 @@ import { PlusIcon, SettingsIcon } from "lucide-react";
 import { useWorkspaceMembers } from "../hooks/use-workspace";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQueryState } from "nuqs";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 
 interface Props {
   title: string;
@@ -77,6 +78,7 @@ export function NavWorkspace({ workspaceId, title }: Props) {
           <Button variant="ghost" size="icon" onClick={() => setOpen(true)}>
             <SettingsIcon className="size-4" />
           </Button>
+          <FullscreenControls />
         </div>
       </div>
 

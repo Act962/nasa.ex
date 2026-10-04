@@ -34,6 +34,8 @@ import {
 } from "../hooks/use-comments-channel";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { InstagramConnectGuideDialog } from "./instagram-connect-guide-dialog";
+import { MetaConnectOption } from "./meta-connect-option";
+import { LeadTrackingSelect } from "./lead-tracking-select";
 
 function CopyField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
@@ -81,6 +83,7 @@ export function ChannelConnectCard() {
   if (channel?.connected) {
     const needsReconnect = channel.status === "NEEDS_RECONNECT";
     const isDisabled = channel.status === "DISABLED";
+    const isMetaLogin = channel.authMode === "META_LOGIN";
 
     return (
       <Card>
@@ -101,7 +104,9 @@ export function ChannelConnectCard() {
             </Badge>
           </CardTitle>
           <CardDescription>
-            ID {channel.externalAccountId} · token ••••{channel.accessTokenLast4}
+            {isMetaLogin
+              ? "Conectado pela conexão da Meta da empresa"
+              : `ID ${channel.externalAccountId} · token ••••${channel.accessTokenLast4}`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -112,19 +117,27 @@ export function ChannelConnectCard() {
                 <p className="font-medium">A Meta recusou a credencial.</p>
                 <p className="text-xs text-muted-foreground">
                   {channel.lastErrorMessage ??
-                    "Gere um novo token e conecte de novo."}
+                    (isMetaLogin
+                      ? "Reconecte a Meta nos Satélites."
+                      : "Gere um novo token e conecte de novo.")}
                 </p>
               </div>
             </div>
           )}
 
-          <CopyField label="URL do webhook" value={channel.webhookUrl} />
-          <p className="text-xs text-muted-foreground">
-            No App da Meta, cole essa URL em Webhooks → Instagram, use o mesmo
-            verify token que você informou aqui e assine os campos{" "}
-            <code className="font-mono">comments</code> e{" "}
-            <code className="font-mono">messages</code>.
-          </p>
+          {isMetaLogin && <LeadTrackingSelect />}
+
+          {!isMetaLogin && (
+            <>
+              <CopyField label="URL do webhook" value={channel.webhookUrl} />
+              <p className="text-xs text-muted-foreground">
+                No App da Meta, cole essa URL em Webhooks → Instagram, use o mesmo
+                verify token que você informou aqui e assine os campos{" "}
+                <code className="font-mono">comments</code> e{" "}
+                <code className="font-mono">messages</code>.
+              </p>
+            </>
+          )}
 
           {isDisabled && (
             <div className="flex gap-2 rounded-md border bg-muted/40 p-3 text-sm">
@@ -244,12 +257,14 @@ export function ChannelConnectCard() {
           Conectar Instagram
         </CardTitle>
         <CardDescription>
-          Um passo a passo com as telas da Meta: crie o app, pegue as chaves e
-          cole aqui. Leva uns 15 minutos.
+          Um clique com o Instagram já conectado na Meta, ou o passo a passo
+          com app próprio (uns 15 minutos).
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        <MetaConnectOption />
         <Button
+          variant="outline"
           data-guide={GUIDE_ANCHORS.commentsConnectInstagram.id}
           onClick={() => setIsGuideOpen(true)}
         >

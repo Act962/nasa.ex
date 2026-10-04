@@ -18,6 +18,7 @@ import { AutomationsTab } from "@/features/alerts/components/automations-tab";
 import { AutoIntelligenceTab } from "@/features/astro-commander/components/tabs/auto-intelligence-tab";
 import { SessionsTab } from "@/features/astro-commander/components/tabs/sessions-tab";
 import { PermissionsTab } from "@/features/astro-commander/components/tabs/permissions-tab";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 
 /**
  * App ASTRO (spec 0028, RF-9 / RF-10). O ASTRO é o único assistente; o que se
@@ -78,15 +79,18 @@ export function AstroAppShell() {
           <SidebarTrigger className="-ml-1" />
           <h1 className="text-sm font-medium">ASTRO</h1>
         </div>
-        <Button
-          size="sm"
-          onClick={() =>
-            openCreateCommand({ examples: [...ASTRO_COMMAND_EXAMPLES.astro] })
-          }
-        >
-          <Plus className="size-4" />
-          Criar comando
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() =>
+              openCreateCommand({ examples: [...ASTRO_COMMAND_EXAMPLES.astro] })
+            }
+          >
+            <Plus className="size-4" />
+            Criar comando
+          </Button>
+          <FullscreenControls />
+        </div>
       </header>
 
       <Tabs

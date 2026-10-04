@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { last4 } from "@/lib/crypto";
 import { tenantScope, type TenantScope } from "@/modules/shared/domain/tenant-scope";
 import { ChannelAlreadyTakenError } from "../domain/errors";
-import type { Channel, SocialProviderValue } from "../domain/types";
+import type { Channel, ChannelAuthModeValue, SocialProviderValue } from "../domain/types";
 import type {
   ChannelLookupRepository,
   ChannelRepository,
@@ -43,8 +43,11 @@ function toChannel(row: ChannelRow): Channel {
 
 function toSummary(row: ChannelRow): ChannelSummary {
   let accessTokenLast4 = "";
+  let authMode: ChannelAuthModeValue = "INSTAGRAM_LOGIN";
   try {
-    accessTokenLast4 = last4(decryptCredentials(row.credentials).accessToken);
+    const credentials = decryptCredentials(row.credentials);
+    accessTokenLast4 = last4(credentials.accessToken);
+    authMode = credentials.authMode ?? "INSTAGRAM_LOGIN";
   } catch {
     accessTokenLast4 = "????";
   }
@@ -61,6 +64,7 @@ function toSummary(row: ChannelRow): ChannelSummary {
     lastErrorAt: row.lastErrorAt,
     createdAt: row.createdAt,
     accessTokenLast4,
+    authMode,
   };
 }
 
@@ -80,6 +84,21 @@ export class PrismaChannelLookupRepository implements ChannelLookupRepository {
       where: { webhookPathToken },
     });
     if (!row || row.provider !== provider) return null;
+
+    return {
+      channel: toChannel(row as unknown as ChannelRow),
+      tenant: tenantScope(row.organizationId),
+    };
+  }
+
+  async findByExternalAccountId(
+    provider: SocialProviderValue,
+    externalAccountId: string,
+  ): Promise<{ channel: Channel; tenant: TenantScope } | null> {
+    const row = await prisma.socialChannel.findUnique({
+      where: { provider_externalAccountId: { provider, externalAccountId } },
+    });
+    if (!row) return null;
 
     return {
       channel: toChannel(row as unknown as ChannelRow),

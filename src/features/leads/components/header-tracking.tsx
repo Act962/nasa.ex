@@ -9,6 +9,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { StarsWidget } from "@/features/stars";
 import { SpacePointWidget } from "@/features/space-point";
 import { AstroCommandButton } from "@/features/astro-commander/components/astro-command-button";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 
 interface HeaderTrackingProps {
   title?: string;
@@ -90,6 +91,7 @@ export function HeaderTracking({
         <div data-tour="stars">
           <StarsWidget />
         </div>
+        <FullscreenControls />
       </div>
     </header>
   );

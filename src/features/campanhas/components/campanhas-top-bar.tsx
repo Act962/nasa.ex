@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useMetaNumberPanel } from "../hooks/use-official-number";
 import { useActiveTrackingId } from "../hooks/use-active-tracking-id";
 import { META_PRICING_CATEGORY_LABELS } from "../lib/meta-pricing-categories";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 
 /** Barra de cima do app Campanhas: saldo do número (disponível hoje + gasto no mês) e atalho do relatório. */
 
@@ -31,6 +32,7 @@ export function CampanhasTopBar() {
       >
         <BarChart3 className="size-4" />
       </Link>
+      <FullscreenControls />
     </header>
   );
 }

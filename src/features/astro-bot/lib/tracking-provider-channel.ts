@@ -12,6 +12,8 @@
  * longas ficarem naturais.
  */
 import "server-only";
+// Registra os adapters: fora da rota do webhook (Inngest, scripts) o canal ficava sem provider.
+import "@/features/tracking-chat/lib/providers";
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
 import type { WhatsappBotChannel, ButtonPayload } from "./types";
 
@@ -143,6 +145,12 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
       .filter(Boolean)
       .join("\n");
     return this.sendText(phone, body);
+  }
+
+  async sendMedia(phone: string, media: { url: string; caption?: string }): Promise<{ messageId: string | null }> {
+    const resolved = await resolveOutboundProvider(this.trackingId);
+    const result = await resolved.provider.sendMedia({ kind: "media", to: phone, mediaKind: "image", mediaUrl: media.url, caption: media.caption });
+    return { messageId: result.externalMessageId ?? null };
   }
 
   async sendTyping(_phone: string, _durationMs: number): Promise<void> {

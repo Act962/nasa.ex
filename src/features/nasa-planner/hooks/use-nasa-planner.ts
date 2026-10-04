@@ -182,8 +182,8 @@ export function usePublishPlannerPost() {
   const { earn } = useSpacePointCtx();
   return useMutation(
     orpc.nasaPlanner.posts.publish.mutationOptions({
-      onSuccess: (data) => {
-        toast.success(`Post publicado! ${data.balanceAfter} stars restantes`);
+      onSuccess: () => {
+        toast.success("Publicação iniciada. Acompanhe o status no calendário.");
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
         earn("post_published", "Post publicado no Planner 🚀");
       },

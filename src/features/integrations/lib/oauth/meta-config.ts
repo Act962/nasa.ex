@@ -20,6 +20,18 @@ export const META_SCOPES = [
 
 export type MetaScope = (typeof META_SCOPES)[number];
 
+/**
+ * Permissões do Planner e do Comments (specs 0057/0059): publicar no Instagram e na página e responder comentários.
+ * Só entram quando `META_PUBLISH_SCOPES_ENABLED=true` — pedir permissão ainda não aprovada no app de produção
+ * quebra o login de quem não tem papel no app. Em dev, com um app de teste em modo desenvolvimento, pode ligar.
+ */
+export const META_PUBLISH_SCOPES = ["instagram_content_publish", "pages_manage_posts", "instagram_manage_comments"] as const;
+
+export function resolveMetaScopes(): string[] {
+  const isPublishingEnabled = process.env.META_PUBLISH_SCOPES_ENABLED === "true";
+  return isPublishingEnabled ? [...META_SCOPES, ...META_PUBLISH_SCOPES] : [...META_SCOPES];
+}
+
 function appId(): string {
   const v = process.env.META_APP_ID;
   if (!v) throw new Error("META_APP_ID ausente");
@@ -42,7 +54,7 @@ export function metaPublicOrigin(): string {
   return new URL(metaRedirectUri()).origin;
 }
 
-export function buildMetaAuthUrl(state: string, scopes: readonly string[] = META_SCOPES): string {
+export function buildMetaAuthUrl(state: string, scopes: readonly string[] = resolveMetaScopes()): string {
   const params = new URLSearchParams({
     client_id: appId(),
     redirect_uri: metaRedirectUri(),

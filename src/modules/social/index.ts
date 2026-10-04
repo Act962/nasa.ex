@@ -9,6 +9,7 @@ import { tenantScope, type TenantScope } from "@/modules/shared/domain/tenant-sc
 import type { Channel, SocialProviderValue } from "./domain/types";
 import type { ChannelGateway } from "./ports/channel-gateway";
 import { InstagramGraphChannelGateway } from "./infra/instagram/graph-channel-gateway";
+import { MetaLoginInstagramChannelGateway } from "./infra/instagram/meta-login-channel-gateway";
 import { InstagramWebhookTranslator } from "./infra/instagram/webhook-translator";
 import {
   PrismaChannelLookupRepository,
@@ -45,6 +46,13 @@ export function getInboundTranslator(provider: SocialProviderValue) {
 export function createChannelGateway(channel: Channel): ChannelGateway {
   switch (channel.provider) {
     case "INSTAGRAM":
+      if (channel.credentials.authMode === "META_LOGIN" && channel.credentials.pageId) {
+        return new MetaLoginInstagramChannelGateway(
+          channel.externalAccountId,
+          channel.credentials.pageId,
+          channel.credentials.accessToken,
+        );
+      }
       return new InstagramGraphChannelGateway(
         channel.externalAccountId,
         channel.credentials.accessToken,
@@ -63,6 +71,7 @@ export function createGatewayForCredentials(
   provider: SocialProviderValue,
   externalAccountId: string,
   accessToken: string,
+  metaLogin?: { pageId: string },
 ): ChannelGateway {
   return createChannelGateway({
     id: "",
@@ -73,7 +82,9 @@ export function createGatewayForCredentials(
     handle: null,
     displayName: null,
     status: "ACTIVE",
-    credentials: { accessToken, appSecret: "", verifyToken: "" },
+    credentials: metaLogin
+      ? { authMode: "META_LOGIN", accessToken, appSecret: "", verifyToken: "", pageId: metaLogin.pageId }
+      : { accessToken, appSecret: "", verifyToken: "" },
   });
 }
 

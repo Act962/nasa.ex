@@ -115,6 +115,23 @@ Sem contadores denormalizados: `sentCount` é derivado dos runs.
 
 ## 5. Configuração pelo usuário
 
+### 5.0 Um clique — pelo Instagram já conectado na Meta (spec 0061) ✅
+
+Se a empresa já conectou a Meta nos Satélites (mesmo login do Tráfego e do Planner), o card
+"Conectar Instagram" mostra **Usar @conta**. Um clique e pronto — sem app próprio, token, chave
+secreta ou webhook. O mesmo botão aparece no painel **Comentários automáticos** do Planner.
+
+- Credencial: token de página copiado de `MetaPublishAccount` (`authMode: "META_LOGIN"`, `pageId`).
+- Gateway: `MetaLoginInstagramChannelGateway` (graph.facebook.com) — DM em `/{page-id}/messages`,
+  resposta pública em `/{comment-id}/replies`, inscrição em `/{page-id}/subscribed_apps`.
+- Eventos: webhook único da plataforma, `/api/social/webhook/meta`, **ou** o webhook antigo
+  `/api/integrations/instagram/webhook` (a Meta aceita uma URL por objeto; os dois repassam ao
+  Comments via `processMetaCommentsWebhook`). Canal achado pelo `entry.id`.
+- Reconectar a Meta nos Satélites atualiza o token do canal (`refreshMetaLinkedCommentsChannel`).
+- O que o dono do app de produção precisa fazer uma vez: [`comments-meta-producao.md`](comments-meta-producao.md).
+
+### 5.1 Passo a passo — app próprio do cliente
+
 Feita pelo guia **"Conectar Instagram passo a passo"** (spec 0047), com print
 de cada tela da Meta. Resumo dos 24 passos:
 
@@ -138,8 +155,9 @@ Tirados do app de teste "ÓRBITA GUIA COMMENTS" (ID 1143172268148079) com a cont
 > quem está sem inscrição: a verificação da URL responde 200 e **nenhum POST**
 > chega depois. Mesmo papel de `src/http/whats-oficial/subscribe-app.ts`.
 
-Env: nenhuma nova. Usa `AI_SECRETS_KEY` e, para montar a URL do webhook,
-`NEXT_PUBLIC_BASE_URL` (ou `NEXT_PUBLIC_APP_URL`).
+Env: `AI_SECRETS_KEY` e, para montar a URL do webhook, `NEXT_PUBLIC_BASE_URL` (ou
+`NEXT_PUBLIC_APP_URL`). A conexão pela Meta (5.0) usa ainda `META_APP_SECRET` (assinatura) e
+`META_WEBHOOK_VERIFY_TOKEN` (verificação) — sem as duas, o webhook único recusa tudo.
 
 > A URL mostrada na tela resolve nesta ordem: **env** → **headers da requisição**
 > (`x-forwarded-host`/`x-forwarded-proto`, preenchidos pelo proxy) → `localhost`.
@@ -151,7 +169,9 @@ Env: nenhuma nova. Usa `AI_SECRETS_KEY` e, para montar a URL do webhook,
 
 ## 6. Coexistência com a integração Instagram existente
 
-`/api/integrations/instagram/webhook` (DM → Lead no Tracking) **não foi tocado**.
+`/api/integrations/instagram/webhook` (DM → Lead no Tracking) segue com a mesma lógica; desde a
+spec 0061 ele também repassa o lote ao Comments (best-effort, nunca derruba o fluxo de leads), para
+que contas conectadas pela Meta funcionem com a URL que já estiver no app.
 São mundos separados: aquele usa o App Meta central do NASA via OAuth; este usa
 o App do próprio cliente. Se a mesma conta estiver nos dois, ambos agem — um
 cria lead, o outro responde. Sem dedupe entre sistemas nesta fase.
@@ -175,10 +195,10 @@ cria lead, o outro responde. Sem dedupe entre sistemas nesta fase.
 | 1 | Resposta com IA fora do request (Inngest) | ⬜ |
 | 2 | Canvas editável, passos encadeados, delay, condição | ⬜ |
 | 2 | Quick replies (postback) | ⬜ |
-| 3 | OAuth substituindo credencial manual | ⬜ |
+| 3 | Conectar com a conexão da Meta, um clique (spec 0061) | ✅ |
 | 3 | Rate limit por automação · cooldown por autor | ⬜ |
 | 3.5 | Facebook, WhatsApp, Telegram | ⬜ |
-| 4 | Comentário vira Lead no Tracking | ⬜ |
+| 4 | Comentário e DM viram conversa no tracking-chat (spec 0062) | ✅ |
 
 ## 8. Dívidas conhecidas
 
@@ -199,6 +219,8 @@ cria lead, o outro responde. Sem dedupe entre sistemas nesta fase.
 
 | Data | Mudança |
 | --- | --- |
+| 2026-10-04 | **Instagram no tracking-chat** (spec 0062): todo comentário e DM de conta conectada pela Meta vira mensagem na conversa do lead (`@usuario`, tag Instagram, um lead por pessoa) no tracking escolhido em Integrações (`social_channels.lead_tracking_id`); comentário mostra o card do post, DM o rótulo "Mensagem no Direct do Instagram"; respostas da automação aparecem como enviadas (`handleInboundEvent` devolve `deliveries`); responder no chat com o comentário selecionado publica naquele comentário (`sendInstagramFromChat`). Ponte por observador em `processChannelEvents`; webhook antigo deixa de criar lead de DM para contas `META_LOGIN` |
+| 2026-10-04 | **Conectar pela Meta em um clique** (spec 0061): `authMode`/`pageId` nas credenciais (sem migration), gateway graph.facebook.com, webhook único `/api/social/webhook/meta` + repasse no webhook antigo, procedures `channel.metaAccounts`/`channel.connectWithMeta`, botão no card e no Planner, token atualizado ao reconectar a Meta. Testado no app ÓRBITA TESTE 2026 com @weydsonlima |
 | 2026-09-29 | **Guia "Conectar Instagram passo a passo"** (spec 0047): popup com 24 passos e prints reais da Meta no lugar do formulário solto; verify token gerado pela ÓRBITA; nova procedure `channel.webhookSetup`. O stepper do WhatsApp virou o módulo compartilhado `src/features/meta-guide/` |
 | 2026-09-24 | **Trocar de conta passou a funcionar.** `connect` criava uma linha nova quando o `external_account_id` mudava — o unique é `(provider, account)`, então não havia colisão — e as leituras, que pegam a linha mais antiga da organização, seguiam devolvendo a conta anterior: a UI dizia "conectada" e mostrava a conta errada, sem como sair dela. Agora a troca reaproveita a linha canônica (preserva automações, histórico e a URL na Meta), remove linhas órfãs de tentativas anteriores e desativa as automações que apontavam para publicações da conta antiga, informando quantas |
 | 2026-09-24 | Credencial recusada passou a ser sinalizada pelo `DispatchResult.authError` do gateway (status 401/403) em vez de regex sobre o texto do erro, que marcaria a conexão como quebrada em qualquer mensagem contendo "token" |

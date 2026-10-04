@@ -11,6 +11,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "templates/**",
   ]),
   {
     // Cobrança de Stars só nasce no ponto único de cobrança.

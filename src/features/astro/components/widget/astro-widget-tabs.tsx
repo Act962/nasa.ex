@@ -17,8 +17,8 @@ export function AstroWidgetTabs({
   homeBadge: number;
 }) {
   const tabs: Array<{ value: AstroWidgetView; label: string }> = [
-    { value: "home", label: "Início" },
     { value: "chat", label: "Conversa" },
+    { value: "home", label: "Início" },
   ];
 
   return (
@@ -37,7 +37,7 @@ export function AstroWidgetTabs({
             aria-selected={isActive}
             onClick={() => onViewChange(tab.value)}
             className={cn(
-              "relative flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] transition",
+              "relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition",
               isActive
                 ? "bg-foreground/[0.09] font-medium text-foreground"
                 : "text-foreground/45 hover:bg-foreground/[0.04] hover:text-foreground/70",

@@ -89,6 +89,7 @@ import { Spinner } from "@/components/spinner";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import { MindMapToPostDialog } from "./mind-map-to-post-dialog";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 
 // ─── Branch Colors ─────────────────────────────────────────────────────────────
 const BRANCH_COLORS = [
@@ -1164,6 +1165,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
           {isSaving ? <OrbitaSpinner className="size-3.5 " /> : <SaveIcon className="size-3.5" />}
           Salvar
         </Button>
+        <FullscreenControls />
       </div>
 
       {/* Search bar */}

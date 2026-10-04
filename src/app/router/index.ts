@@ -25,6 +25,7 @@ import { forgeRouter } from "./forge";
 import { starsRouter } from "./stars";
 import { nboxRouter } from "./nbox";
 import { nasaPlannerRouter } from "./nasa-planner";
+import { externalAiRouter } from "./external-ai";
 import { nasaCommandRouter } from "./nasa-command";
 import { permissionsRouter } from "./permissions";
 import { activityRouter } from "./activity";
@@ -114,6 +115,7 @@ export const router = {
   stars: starsRouter,
   nbox: nboxRouter,
   nasaPlanner: nasaPlannerRouter,
+  externalAi: externalAiRouter,
   nasaCommand: nasaCommandRouter,
   permissions: permissionsRouter,
   activity: activityRouter,

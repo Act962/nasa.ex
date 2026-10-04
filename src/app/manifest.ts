@@ -5,8 +5,11 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "ÓRBITA",
     short_name: "ÓRBITA",
     description: "Órbita Hub",
-    start_url: "/",
+    id: "/",
+    start_url: "/home",
+    scope: "/",
     display: "standalone",
+    display_override: ["fullscreen", "standalone"],
     background_color: "#fff",
     theme_color: "#fff",
     icons: [

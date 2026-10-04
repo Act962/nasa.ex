@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, type ReactNode } from "react";
 import type { UIMessage } from "ai";
 import { AstroMessage } from "@/features/astro/components/astro-message";
 import { AstroPrivacyConsentCard } from "./astro-privacy-consent-card";
 
-/** Lista de mensagens do painel, com indicador de digitação e erro legível. */
+/** Lista de mensagens do painel, abaixo da abertura do App, com indicador de digitação e erro legível. */
 
 const TYPING_DOT_DELAYS_MS = [0, 150, 300];
 
@@ -14,7 +14,8 @@ export function AstroWidgetMessages({
   loading,
   error,
   onRespond,
-  emptyState,
+  introduction,
+  renderAfterMessageCount,
   sessionId,
 }: {
   messages: UIMessage[];
@@ -23,30 +24,47 @@ export function AstroWidgetMessages({
   error?: Error;
   /** Responde a um cartão de confirmação ("confirmar <id>"). */
   onRespond: (text: string) => void;
-  emptyState: ReactNode;
+  /** Abertura do App (sugestões e mensagens do Astro): fica sempre em cima, também depois que a conversa começa. */
+  introduction: ReactNode;
+  /** Conteúdo encaixado depois da N-ésima mensagem (ex.: o Astro falando do App para onde o usuário foi). */
+  renderAfterMessageCount?: (messageCount: number) => ReactNode;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
+  // Desce até perto da caixa de texto sempre que algo novo cresce a conversa: resposta, "digitando", troca de App.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, loading]);
+    const contentElement = contentRef.current;
+    if (!contentElement) return;
+    let lastHeight = contentElement.offsetHeight;
+    const observer = new ResizeObserver(() => {
+      const currentHeight = contentElement.offsetHeight;
+      if (currentHeight > lastHeight) bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      lastHeight = currentHeight;
+    });
+    observer.observe(contentElement);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div ref={contentRef} className="flex min-h-full flex-col">
       <AstroPrivacyConsentCard />
-      {messages.length === 0 ? (
-        emptyState
-      ) : (
+      {introduction}
+      {renderAfterMessageCount?.(0)}
+      {messages.length > 0 && (
         <div className="py-2">
           {messages.map((message, index) => (
-            <AstroMessage
-              key={message.id}
-              message={message}
-              onRespond={onRespond}
-              busy={loading}
-              sessionId={sessionId}
-              isLatest={index === messages.length - 1}
-            />
+            <Fragment key={message.id}>
+              <AstroMessage
+                message={message}
+                onRespond={onRespond}
+                busy={loading}
+                sessionId={sessionId}
+                isLatest={index === messages.length - 1}
+              />
+              {renderAfterMessageCount?.(index + 1)}
+            </Fragment>
           ))}
         </div>
       )}
@@ -70,6 +88,7 @@ export function AstroWidgetMessages({
       )}
 
       <div ref={bottomRef} />
+      </div>
     </div>
   );
 }

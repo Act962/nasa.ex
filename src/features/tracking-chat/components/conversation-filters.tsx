@@ -35,7 +35,7 @@ import { ConversationFiltersPanel } from "./conversation-filters-panel";
 import { useConversationFilters } from "../hooks/use-conversation-filters";
 import { DEFAULT_CONVERSATION_SORT_BY } from "../lib/conversation-filters-state";
 import Link from "next/link";
-import { useState, type SVGProps } from "react";
+import { useId, useState, type SVGProps } from "react";
 import { AppNotConnectedDialog } from "@/components/app-not-connected-dialog";
 import { useCommentsChannel } from "@/features/comments/hooks/use-comments-channel";
 import { integrations } from "@/data/integrations";
@@ -463,7 +463,7 @@ function getChannelMappingFromSlug(slug: string):
   if (slug === "instagram-dm") {
     return {
       id: "INSTAGRAM",
-      renderIcon: () => <InstagramLogoIcon className="size-5" />,
+      renderIcon: () => <InstagramLogoIcon className="size-5" isBrandColored />,
     };
   }
 
@@ -494,9 +494,22 @@ function WhatsappLogoIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function InstagramLogoIcon(props: SVGProps<SVGSVGElement>) {
+/** Logo do Instagram com o degradê da marca; apagado quando a conta não está conectada (o botão aplica `grayscale`). */
+function InstagramLogoIcon({ isBrandColored = false, ...props }: SVGProps<SVGSVGElement> & { isBrandColored?: boolean }) {
+  const gradientId = useId();
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24" fill={isBrandColored ? `url(#${gradientId})` : "currentColor"} aria-hidden="true" {...props}>
+      {isBrandColored && (
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#feda75" />
+            <stop offset="30%" stopColor="#fa7e1e" />
+            <stop offset="60%" stopColor="#d62976" />
+            <stop offset="85%" stopColor="#962fbf" />
+            <stop offset="100%" stopColor="#4f5bd5" />
+          </linearGradient>
+        </defs>
+      )}
       <path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2m0 1.8A3.95 3.95 0 0 0 3.8 7.75v8.5a3.95 3.95 0 0 0 3.95 3.95h8.5a3.95 3.95 0 0 0 3.95-3.95v-8.5a3.95 3.95 0 0 0-3.95-3.95zm8.95 1.35a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2M12 6.85A5.15 5.15 0 1 1 6.85 12 5.16 5.16 0 0 1 12 6.85m0 1.8A3.35 3.35 0 1 0 15.35 12 3.35 3.35 0 0 0 12 8.65" />
     </svg>
   );

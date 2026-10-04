@@ -36,11 +36,22 @@ interface PostLike {
   targetFbPageId?: string | null;
 }
 
-interface Props {
-  post: PostLike;
+/** Post já publicado: mostra os números reais e a data em vez do rótulo de rascunho. */
+interface PublishedDetails {
+  handle?: string | null;
+  likeCount?: number | null;
+  commentsCount?: number | null;
+  publishedAt?: Date | string | null;
 }
 
-export function PostPreview({ post }: Props) {
+interface Props {
+  post: PostLike;
+  published?: PublishedDetails;
+}
+
+const formatCount = (count: number) => count.toLocaleString("pt-BR");
+
+export function PostPreview({ post, published }: Props) {
   const { data } = useQuery(
     orpc.integrations.listAvailableMetaAccounts.queryOptions(),
   );
@@ -55,9 +66,11 @@ export function PostPreview({ post }: Props) {
     [data, post.targetFbPageId],
   );
 
-  const handleLabel = igAccount?.username
-    ? `@${igAccount.username}`
-    : igAccount?.name ?? fbPage?.name ?? "sua_conta";
+  const handleLabel = published?.handle
+    ? `@${published.handle}`
+    : igAccount?.username
+      ? `@${igAccount.username}`
+      : igAccount?.name ?? fbPage?.name ?? "sua_conta";
 
   const initial = handleLabel.replace(/^@/, "").charAt(0).toUpperCase() || "•";
 
@@ -71,7 +84,7 @@ export function PostPreview({ post }: Props) {
   const videoUrl = mediaUrl(post.videoKey);
 
   const captionText = post.caption ?? "";
-  const hashtagsText = (post.hashtags ?? []).join(" ");
+  const hashtagsText = (post.hashtags ?? []).map((hashtag) => `#${hashtag.replace(/^#/, "")}`).join(" ");
 
   return (
     <div className="w-full max-w-[300px] mx-auto bg-white dark:bg-zinc-950 rounded-[28px] border-2 border-border shadow-2xl overflow-hidden">
@@ -96,7 +109,7 @@ export function PostPreview({ post }: Props) {
                 <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <MusicIcon className="size-2.5" /> Som original
                 </p>
-              ) : (
+              ) : published ? null : (
                 <p className="text-[10px] text-muted-foreground">Patrocinado</p>
               )}
             </div>
@@ -167,6 +180,12 @@ export function PostPreview({ post }: Props) {
           </div>
         )}
 
+        {!isStory && published?.likeCount != null && (
+          <p className="px-3 text-[11px] font-semibold">
+            {formatCount(published.likeCount)} {published.likeCount === 1 ? "curtida" : "curtidas"}
+          </p>
+        )}
+
         {/* Caption */}
         {!isStory && (captionText || hashtagsText) && (
           <div className="px-3 pb-3 text-[11px] leading-relaxed">
@@ -178,6 +197,21 @@ export function PostPreview({ post }: Props) {
             )}
             {hashtagsText && (
               <p className="text-blue-500 mt-1 line-clamp-2">{hashtagsText}</p>
+            )}
+          </div>
+        )}
+
+        {!isStory && published && (
+          <div className="px-3 pb-3 text-[11px]">
+            {published.commentsCount != null && published.commentsCount > 0 && (
+              <p className="text-muted-foreground">
+                {published.commentsCount === 1 ? "Ver 1 comentário" : `Ver todos os ${formatCount(published.commentsCount)} comentários`}
+              </p>
+            )}
+            {published.publishedAt && (
+              <p className="mt-1 text-[9px] uppercase text-muted-foreground">
+                {new Date(published.publishedAt).toLocaleDateString("pt-BR", { day: "numeric", month: "long" })}
+              </p>
             )}
           </div>
         )}

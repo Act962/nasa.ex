@@ -33,7 +33,7 @@ import {
 } from "../hooks/use-nasa-planner";
 import { PostMetricsRow } from "./post-metrics-row";
 import { RefreshCwIcon } from "lucide-react";
-import { POST_STATUSES, POST_NETWORKS } from "../constants";
+import { MANUAL_POST_STATUSES, POST_NETWORKS } from "../constants";
 import { ImageEditorDialog } from "./image-editor/image-editor-dialog";
 import { VideoEditorDialog } from "./video-editor/video-editor-dialog";
 import { PostMediaUploader } from "./post-media-uploader";
@@ -199,7 +199,7 @@ export function PostDetailDialog({ post, plannerId, open, onOpenChange, initialA
                         <RocketIcon className="size-3.5 mr-2" />Mover para
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent>
-                        {POST_STATUSES.map((s) => (
+                        {MANUAL_POST_STATUSES.map((s) => (
                           <DropdownMenuItem
                             key={s.key}
                             disabled={post.status === s.key}

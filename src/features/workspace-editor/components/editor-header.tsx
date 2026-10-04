@@ -32,6 +32,7 @@ import {
   useUpdateWorkspaceWorkflowIsActive,
   useUpdateWorkspaceWorkflowName,
 } from "../hooks/use-workspace-workflows";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 
 const WsEditorActiveToggle = ({ workflowId }: { workflowId: string }) => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -72,6 +73,7 @@ export const WsEditorHeader = ({ workflowId }: { workflowId: string }) => {
         <WsEditorActiveToggle workflowId={workflowId} />
         <WsEditorOptions workflowId={workflowId} />
         <WsEditorSaveButton workflowId={workflowId} />
+        <FullscreenControls />
       </div>
     </div>
   );

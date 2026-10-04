@@ -22,11 +22,20 @@ import { useNotifications } from "@/components/sidebar/hooks/use-notifications";
 import { AstroWidgetHome } from "./astro-widget-home";
 import { AstroWidgetTabs } from "./astro-widget-tabs";
 import { hasOpenPicker } from "@/features/astro/lib/astro-action-result";
+import { resolveWidgetScreenContext } from "@/features/astro/lib/widget-screen-context";
+import { usePaymentTabStore } from "@/features/payment/store/use-payment-tab-store";
 
 /**
  * A conversa do painel: mesmo motor do /home (`useAstroChat`), com anexos,
  * cartão de confirmação e contexto da rota (spec 0015, RF-2).
  */
+
+interface AppArrival {
+  id: string;
+  pathname: string;
+  /** Quantas mensagens a conversa tinha quando o usuário chegou ao App: a chegada aparece logo depois delas. */
+  afterMessageCount: number;
+}
 
 // Com anexo e sem texto, o bloco [ARQUIVOS ANEXADOS] já diz ao Astro o que fazer.
 const ATTACHMENT_ONLY_PROMPT = "Lê esse documento e me diz o que é.";
@@ -40,6 +49,12 @@ export function AstroWidgetConversation({ initialMessages }: { initialMessages?:
   const closeWidget = useAstroWidgetStore((state) => state.close);
   const setLastInputWasVoice = useVoiceModeStore((state) => state.setLastInputWasVoice);
   const [draft, setDraft] = useState("");
+  const paymentTab = usePaymentTabStore((state) => state.activeTab);
+  const screenContextKey = resolveWidgetScreenContext(pathname, paymentTab).screenLabel;
+  // A abertura do topo fica presa ao App onde a conversa começou; trocar de App vira mensagem nova embaixo.
+  const [introPathname, setIntroPathname] = useState(pathname);
+  const [lastShownContextKey, setLastShownContextKey] = useState(screenContextKey);
+  const [appArrivals, setAppArrivals] = useState<AppArrival[]>([]);
 
   const { messages, status, error, stop, setMessages, clearError, sendMessageWithAttachments } =
     useAstroChat({
@@ -84,6 +99,15 @@ export function AstroWidgetConversation({ initialMessages }: { initialMessages?:
   const { unread: unreadAlerts } = useNotifications();
   const { pendingCount: pendingApprovals } = useAstroPendingApprovals();
   const homeBadge = unreadAlerts + pendingApprovals;
+
+  // Trocou de App com o painel aberto (ou abriu num App diferente do último mostrado): o Astro manda as informações dele.
+  if (isWidgetOpen && screenContextKey !== lastShownContextKey) {
+    setLastShownContextKey(screenContextKey);
+    setAppArrivals((arrivals) => [
+      ...arrivals,
+      { id: `${screenContextKey}-${arrivals.length}`, pathname, afterMessageCount: messages.length },
+    ]);
+  }
 
   // Painel fechado com resposta em andamento: o orb avisa que o ASTRO está
   // trabalhando, em vez de ficar parado até o contador aparecer (spec 0029, RF-10).
@@ -155,7 +179,10 @@ export function AstroWidgetConversation({ initialMessages }: { initialMessages?:
     clearAttachments();
     clearError();
     setDraft("");
-  }, [stop, setMessages, setSessionId, clearAttachments, clearError]);
+    setAppArrivals([]);
+    setIntroPathname(pathname);
+    setLastShownContextKey(screenContextKey);
+  }, [stop, setMessages, setSessionId, clearAttachments, clearError, pathname, screenContextKey]);
 
   return (
     <>
@@ -177,12 +204,27 @@ export function AstroWidgetConversation({ initialMessages }: { initialMessages?:
         error={error}
         sessionId={sessionId ?? undefined}
         onRespond={(text) => void submit(text)}
-        emptyState={
+        introduction={
           <AstroWidgetEmptyState
-            pathname={pathname}
+            pathname={introPathname}
             disabled={loading}
+            hasConversation={messages.length > 0 || appArrivals.length > 0}
             onSelect={(text) => void submit(text)}
           />
+        }
+        renderAfterMessageCount={(messageCount) =>
+          appArrivals
+            .filter((arrival) => Math.min(arrival.afterMessageCount, messages.length) === messageCount)
+            .map((arrival) => (
+              <AstroWidgetEmptyState
+                key={arrival.id}
+                pathname={arrival.pathname}
+                disabled={loading}
+                hasConversation
+                isArrival
+                onSelect={(text) => void submit(text)}
+              />
+            ))
         }
       />
       <AstroWidgetComposer
