@@ -19,10 +19,35 @@ const link = new RPCLink({
   },
 });
 
+const browserClient: RouterClient<typeof router> = createORPCClient(link);
+
+type CallableNode = (...args: unknown[]) => unknown;
+
 /**
- * Fallback to client-side client if server-side client is not available.
+ * No servidor, o cliente é resolvido a cada chamada, não quando este módulo é avaliado.
+ * `globalThis.$client` é criado por `orpc.server.ts` (importado no layout raiz); se este módulo
+ * fosse avaliado antes dele, um `const client = globalThis.$client ?? ...` ficaria preso para
+ * sempre no cliente de navegador, que lança erro no servidor.
  */
+function createServerClient(path: string[] = []): unknown {
+  return new Proxy((() => undefined) as CallableNode, {
+    get(_target, key) {
+      if (typeof key !== "string" || key === "then") return undefined;
+      return createServerClient([...path, key]);
+    },
+    apply(_target, _thisArg, args: unknown[]) {
+      const procedure = path.reduce<unknown>(
+        (node, segment) => (node as Record<string, unknown>)[segment],
+        globalThis.$client ?? browserClient,
+      );
+      return (procedure as CallableNode)(...args);
+    },
+  });
+}
+
 export const client: RouterClient<typeof router> =
-  globalThis.$client ?? createORPCClient(link);
+  typeof window === "undefined"
+    ? (createServerClient() as RouterClient<typeof router>)
+    : browserClient;
 
 export const orpc = createTanstackQueryUtils(client);
