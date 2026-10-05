@@ -2,6 +2,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { MetaPublishAccountKind, MetaPublishAccountStatus } from "@/generated/prisma/enums";
+import { listInstagramPublishAccounts } from "./instagram-channels";
 
 /** Registro das contas de publicação de cada org (spec 0057, RF-1): token cifrado, nunca devolvido ao navegador. */
 
@@ -60,13 +61,18 @@ export const PUBLIC_ACCOUNT_SELECT = {
   lastErrorMessage: true,
 } as const;
 
+/** Destinos de publicação: Instagram vem das contas dos Satélites (spec 0071); páginas do Facebook, da conexão da Meta. */
 export async function listPublishAccounts(organizationIds: string[]) {
   if (organizationIds.length === 0) return [];
-  return prisma.metaPublishAccount.findMany({
-    where: { organizationId: { in: organizationIds }, status: { not: MetaPublishAccountStatus.DISABLED } },
-    select: PUBLIC_ACCOUNT_SELECT,
-    orderBy: [{ kind: "desc" }, { igUsername: "asc" }, { pageName: "asc" }],
-  });
+  const [instagramAccounts, facebookPages] = await Promise.all([
+    listInstagramPublishAccounts(organizationIds),
+    prisma.metaPublishAccount.findMany({
+      where: { organizationId: { in: organizationIds }, kind: MetaPublishAccountKind.FB_PAGE, status: { not: MetaPublishAccountStatus.DISABLED } },
+      select: PUBLIC_ACCOUNT_SELECT,
+      orderBy: { pageName: "asc" },
+    }),
+  ]);
+  return [...instagramAccounts, ...facebookPages.map((page) => ({ ...page, kind: "FB_PAGE" as const, canPublish: null }))];
 }
 
 export async function findPublishAccountWithToken(

@@ -1,19 +1,8 @@
 import "server-only";
 import { ORPCError } from "@orpc/server";
 import prisma from "@/lib/prisma";
-import { decryptSecret } from "@/lib/crypto";
-import { MetaPublishAccountKind } from "@/generated/prisma/enums";
-import {
-  createIgMediaComment,
-  deleteIgComment,
-  getIgCommentOwnership,
-  listIgMediaComments,
-  MetaGraphError,
-  replyToIgComment,
-  sendIgPrivateReply,
-  setIgCommentHidden,
-  type IgCommentNode,
-} from "@/http/meta/planner-graph";
+import { ContentPublishError, type PublishedComment } from "@/modules/social/ports/content-publisher";
+import { loadInstagramPublisherForPost } from "./instagram-channels";
 
 /** Comentários do post publicado: ler, responder em público ou por DM, ocultar e apagar (tela do post publicado). */
 
@@ -35,27 +24,20 @@ async function loadPostAccess(postId: string) {
     select: { organizationId: true, externalIgPostId: true, targetIgAccountId: true },
   });
   if (!post.externalIgPostId) throw new ORPCError("BAD_REQUEST", { message: "O post ainda não está no Instagram." });
-  const account = await prisma.metaPublishAccount.findFirst({
-    where: {
-      organizationId: post.organizationId,
-      kind: MetaPublishAccountKind.IG_BUSINESS,
-      ...(post.targetIgAccountId && { igUserId: post.targetIgAccountId }),
-    },
-    select: { igUserId: true, pageId: true, accessTokenEnc: true },
-  });
-  if (!account) throw new ORPCError("BAD_REQUEST", { message: "Conta do Instagram não encontrada. Reconecte a Meta nos Satélites." });
-  return { mediaId: post.externalIgPostId, igUserId: account.igUserId, pageId: account.pageId, accessToken: decryptSecret(account.accessTokenEnc) };
+  const access = await loadInstagramPublisherForPost(post);
+  if (!access) throw new ORPCError("BAD_REQUEST", { message: "Conta do Instagram não encontrada. Conecte a conta nos Satélites." });
+  return { mediaId: post.externalIgPostId, igUserId: access.externalAccountId, publisher: access.publisher };
 }
 
 function toGraphError(error: unknown): never {
-  if (error instanceof MetaGraphError) throw new ORPCError("BAD_REQUEST", { message: `A Meta recusou: ${error.message}` });
+  if (error instanceof ContentPublishError) throw new ORPCError("BAD_REQUEST", { message: `A Meta recusou: ${error.message}` });
   throw error;
 }
 
 export async function listPlannerPostComments(postId: string, after?: string) {
   const access = await loadPostAccess(postId);
-  const page = await listIgMediaComments(access.accessToken, access.mediaId, after).catch(toGraphError);
-  const nodes = page.data ?? [];
+  const page = await access.publisher.listMediaComments(access.mediaId, after).catch(toGraphError);
+  const nodes = page.comments;
 
   const commentIds = nodes.map((node) => node.id);
   const inboundEvents = commentIds.length
@@ -74,27 +56,27 @@ export async function listPlannerPostComments(postId: string, after?: string) {
       }),
   );
 
-  const toComment = (node: IgCommentNode): PlannerComment => ({
+  const toComment = (node: PublishedComment): PlannerComment => ({
     id: node.id,
-    text: node.text ?? "",
-    username: node.username ?? node.from?.username ?? null,
-    timestamp: node.timestamp ?? null,
-    isHidden: Boolean(node.hidden),
-    likeCount: node.like_count ?? 0,
-    isFromAccount: Boolean(access.igUserId && node.from?.id === access.igUserId),
+    text: node.text,
+    username: node.username,
+    timestamp: node.timestamp,
+    isHidden: node.isHidden,
+    likeCount: node.likeCount,
+    isFromAccount: node.authorId === access.igUserId,
     automation: automationByCommentId.get(node.id) ?? null,
-    replies: (node.replies?.data ?? []).map(toComment),
+    replies: node.replies.map(toComment),
   });
 
   return {
     comments: nodes.map(toComment),
-    nextCursor: page.paging?.next ? (page.paging.cursors?.after ?? null) : null,
+    nextCursor: page.nextCursor,
   };
 }
 
 /** Toda ação confere na Meta que o comentário é deste post: o id vem do navegador. */
 async function assertCommentBelongsToPost(access: Awaited<ReturnType<typeof loadPostAccess>>, commentId: string) {
-  const ownership = await getIgCommentOwnership(access.accessToken, commentId).catch(toGraphError);
+  const ownership = await access.publisher.getCommentOwnership(commentId).catch(toGraphError);
   if (ownership.mediaId !== access.mediaId) throw new ORPCError("FORBIDDEN", { message: "Este comentário não é deste post." });
   return ownership;
 }
@@ -103,24 +85,24 @@ export async function replyToPlannerComment(input: { postId: string; commentId: 
   const access = await loadPostAccess(input.postId);
   await assertCommentBelongsToPost(access, input.commentId);
   if (input.channel === "DIRECT_MESSAGE") {
-    await sendIgPrivateReply(access.accessToken, access.pageId, input.commentId, input.text).catch(toGraphError);
+    await access.publisher.sendPrivateReply(input.commentId, input.text).catch(toGraphError);
     return { ok: true as const };
   }
-  await replyToIgComment(access.accessToken, input.commentId, input.text).catch(toGraphError);
+  await access.publisher.replyToComment(input.commentId, input.text).catch(toGraphError);
   return { ok: true as const };
 }
 
 export async function setPlannerCommentHidden(input: { postId: string; commentId: string; isHidden: boolean }) {
   const access = await loadPostAccess(input.postId);
   await assertCommentBelongsToPost(access, input.commentId);
-  await setIgCommentHidden(access.accessToken, input.commentId, input.isHidden).catch(toGraphError);
+  await access.publisher.setCommentHidden(input.commentId, input.isHidden).catch(toGraphError);
   return { ok: true as const };
 }
 
 export async function deletePlannerComment(input: { postId: string; commentId: string }) {
   const access = await loadPostAccess(input.postId);
   await assertCommentBelongsToPost(access, input.commentId);
-  await deleteIgComment(access.accessToken, input.commentId).catch(toGraphError);
+  await access.publisher.deleteComment(input.commentId).catch(toGraphError);
   return { ok: true as const };
 }
 
@@ -131,12 +113,12 @@ export async function deletePlannerComment(input: { postId: string; commentId: s
 export async function editPlannerOwnComment(input: { postId: string; commentId: string; text: string }) {
   const access = await loadPostAccess(input.postId);
   const ownership = await assertCommentBelongsToPost(access, input.commentId);
-  if (!access.igUserId || ownership.authorId !== access.igUserId) {
+  if (ownership.authorId !== access.igUserId) {
     throw new ORPCError("FORBIDDEN", { message: "Só dá para editar comentários da própria conta." });
   }
   const created = ownership.parentId
-    ? await replyToIgComment(access.accessToken, ownership.parentId, input.text).catch(toGraphError)
-    : await createIgMediaComment(access.accessToken, access.mediaId, input.text).catch(toGraphError);
-  await deleteIgComment(access.accessToken, input.commentId).catch(toGraphError);
+    ? await access.publisher.replyToComment(ownership.parentId, input.text).catch(toGraphError)
+    : await access.publisher.createMediaComment(access.mediaId, input.text).catch(toGraphError);
+  await access.publisher.deleteComment(input.commentId).catch(toGraphError);
   return { commentId: created.id };
 }

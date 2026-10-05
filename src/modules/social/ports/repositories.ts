@@ -28,6 +28,11 @@ export type ChannelSummary = {
   automationCount: number;
   /** Kit da Marca que os posts da conta usam (spec 0070). O módulo só transporta; nulo = kit padrão. */
   brandKitId: string | null;
+  /** O que a credencial permite, conferido na rede (spec 0071). Nulo = ainda não conferido. */
+  canPublish: boolean | null;
+  canReadInsights: boolean | null;
+  /** Validade do token; nulo = desconhecida ou não vence por tempo. */
+  credentialsExpiresAt: Date | null;
 };
 
 /**
@@ -83,6 +88,21 @@ export interface ChannelRepository {
   disconnect(channelId: string): Promise<void>;
   markNeedsReconnect(channelId: string, reason: string): Promise<void>;
   markActive(channelId: string): Promise<void>;
+  saveCapabilities(
+    channelId: string,
+    capabilities: { canPublish: boolean | null; canReadInsights: boolean | null },
+  ): Promise<void>;
+  /** Troca só o token, mantendo o resto da credencial, e grava a nova validade. */
+  saveRenewedCredentials(channelId: string, accessToken: string, expiresAt: Date): Promise<void>;
+}
+
+/**
+ * Leitura sem escopo para as rotinas diárias (spec 0071): devolve só a
+ * referência de cada conta ativa, sem credencial. O trabalho em cada uma
+ * passa pelo repositório escopado da organização dela.
+ */
+export interface ChannelMaintenanceRepository {
+  listActiveChannelRefs(): Promise<Array<{ channelId: string; organizationId: string }>>;
 }
 
 export type AutomationListItem = {

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   useDisconnectSocialAccount,
   useReactivateSocialAccount,
+  useRecheckSocialAccountCapabilities,
   useRepairSocialAccountSubscription,
   type SocialAccount,
 } from "../hooks/use-social-accounts";
@@ -29,6 +30,22 @@ const STATUS_DOT_CLASS: Record<SocialAccount["status"], string> = {
 
 export function socialAccountLabel(account: SocialAccount): string {
   return account.handle ? `@${account.handle}` : account.externalAccountId;
+}
+
+function CapabilityChip({ label, capability }: { label: string; capability: boolean | null }) {
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[11px]",
+        capability === true && "bg-success/10 text-success",
+        capability === false && "bg-warning/10 text-warning",
+        capability === null && "bg-knob text-muted-foreground",
+      )}
+    >
+      {capability === false ? `não ${label}` : label}
+      {capability === null && " · a conferir"}
+    </span>
+  );
 }
 
 function AccountFact({ label, value }: { label: string; value: string }) {
@@ -68,6 +85,7 @@ export function SocialAccountCard({
   const disconnect = useDisconnectSocialAccount();
   const repair = useRepairSocialAccountSubscription();
   const reactivate = useReactivateSocialAccount();
+  const recheck = useRecheckSocialAccountCapabilities();
   const needsReconnect = account.status === "NEEDS_RECONNECT";
   const isDisabled = account.status === "DISABLED";
   const isActive = account.status === "ACTIVE";
@@ -127,7 +145,43 @@ export function SocialAccountCard({
           label="Automações"
           value={account.automationCount > 0 ? `${account.automationCount} no Comments` : "Nenhuma"}
         />
+        {!isMetaLogin && (
+          <AccountFact
+            label="Validade do token"
+            value={account.credentialsExpiresAt ? `até ${new Date(account.credentialsExpiresAt).toLocaleDateString("pt-BR")} · renova sozinho` : "A conferir · renova sozinho"}
+          />
+        )}
       </div>
+
+      {!isDisabled && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">Esta conta:</span>
+          <CapabilityChip label="responde comentários e directs" capability />
+          <CapabilityChip label="publica pelo Planner" capability={account.canPublish} />
+          <CapabilityChip label="lê métricas" capability={account.canReadInsights} />
+          {canManage && (
+            <button
+              type="button"
+              disabled={recheck.isPending}
+              onClick={() => recheck.mutate({ channelId: account.id }, { onSuccess: () => toast.success("Permissões conferidas."), onError: (error) => toast.error(error.message) })}
+              className="text-xs text-muted-foreground underline hover:text-foreground disabled:opacity-50"
+            >
+              {recheck.isPending ? "conferindo…" : "conferir de novo"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {!isDisabled && account.canPublish === false && (
+        <p className="rounded-[14px] bg-warning/10 px-3 py-2.5 text-xs">
+          <span className="font-medium">Falta a permissão de publicar.</span>{" "}
+          <span className="text-muted-foreground">
+            {isMetaLogin
+              ? "A conexão da Meta desta empresa não pediu a permissão de publicação."
+              : "No app da Meta, adicione instagram_business_content_publish ao caso de uso do Instagram, gere um token novo e troque a credencial."}
+          </span>
+        </p>
+      )}
 
       <p className="text-xs text-muted-foreground">
         Kit da marca: <span className="font-medium text-foreground">{account.brandKitName ?? "Padrão da empresa"}</span>

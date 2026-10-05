@@ -11,6 +11,10 @@ export const GUIDE_ANCHORS = {
     id: "comments.account-select",
     description: "Seletor da conta do Instagram em uso, no topo de /comments",
   },
+  plannerAccountFilter: {
+    id: "planner.account-filter",
+    description: "Filtro \"Conta\" do calendário do Planner: mostra só os posts de uma conta do Instagram",
+  },
   plannerBrandKitSwitcher: {
     id: "planner.brand-kit.switcher",
     description: "Lista de kits da empresa (padrão e adicionais) e o botão \"Novo kit\", na aba Kit da Marca do Planner",

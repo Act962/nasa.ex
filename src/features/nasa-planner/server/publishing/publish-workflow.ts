@@ -4,15 +4,8 @@ import type { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { meter } from "@/features/stars/lib/metering/meter";
 import { NasaPlannerPostStatus, NasaPlannerPublishNetwork } from "@/generated/prisma/enums";
-import {
-  createIgContainer,
-  getIgContainerStatus,
-  getIgMediaPermalink,
-  publishFbPagePhoto,
-  publishFbPagePhotoStory,
-  publishFbPageVideo,
-  publishIgContainer,
-} from "@/http/meta/planner-graph";
+import { publishFbPagePhoto, publishFbPagePhotoStory, publishFbPageVideo } from "@/http/meta/planner-graph";
+import { loadInstagramPublisher, markInstagramChannelNeedsReconnect } from "./instagram-channels";
 import { attachCommentsAutomationAfterPublish } from "../comments-link";
 import { classifyPublishError } from "./meta-errors";
 import { markPublishAccountError } from "./publish-accounts";
@@ -65,8 +58,11 @@ async function recordAttempt(input: {
 }
 
 /** Erro retentável sobe para o Inngest repetir o passo; o resto vira resultado de falha. */
-async function handleNetworkError(error: unknown, target: PublishTarget): Promise<{ code: string; message: string }> {
+async function handleNetworkError(error: unknown, target: PublishTarget, organizationId: string): Promise<{ code: string; message: string }> {
   const classified = classifyPublishError(error);
+  if (target.source === "channel" && classified.needsReconnect) {
+    await markInstagramChannelNeedsReconnect(organizationId, target.channelId, classified.message);
+  }
   if (target.source === "account" && (classified.needsReconnect || classified.code === "PUBLISH_LIMIT")) {
     await markPublishAccountError(target.accountId, classified.code, classified.message, classified.needsReconnect);
   }
@@ -76,26 +72,29 @@ async function handleNetworkError(error: unknown, target: PublishTarget): Promis
 
 async function publishToInstagram(step: StepTools, plan: PublishPlan, input: WorkflowInput): Promise<NetworkOutcome> {
   const instagram = plan.instagram!;
+  const loadPublisher = async () => {
+    if (instagram.target.source !== "channel") throw new Error("Instagram só publica por conta dos Satélites.");
+    return (await loadInstagramPublisher(plan.organizationId, instagram.target.channelId)).publisher;
+  };
   const attemptBase = { postId: input.postId, organizationId: plan.organizationId, network: NasaPlannerPublishNetwork.INSTAGRAM, scheduleVersion: input.scheduleVersion, trigger: input.trigger };
 
   const container = await step.run("ig-container", async () => {
     try {
-      const accessToken = await loadTargetToken(plan.organizationId, instagram.target);
-      const igUserId = instagram.target.externalTargetId;
+      const publisher = await loadPublisher();
       let containerId: string;
       if (instagram.media.kind === "CAROUSEL") {
         const childrenIds: string[] = [];
         for (const item of instagram.media.items) {
-          childrenIds.push(await createIgContainer(accessToken, igUserId, { kind: "CAROUSEL_ITEM", ...item }));
+          childrenIds.push(await publisher.createMediaContainer({ kind: "CAROUSEL_ITEM", ...item }));
         }
-        containerId = await createIgContainer(accessToken, igUserId, { kind: "CAROUSEL", childrenIds, caption: plan.caption });
+        containerId = await publisher.createMediaContainer({ kind: "CAROUSEL", childrenIds, caption: plan.caption });
       } else {
-        containerId = await createIgContainer(accessToken, igUserId, toContainerParams(instagram.media, plan.caption));
+        containerId = await publisher.createMediaContainer(toContainerParams(instagram.media, plan.caption));
       }
       await recordAttempt({ ...attemptBase, step: "CONTAINER", containerId });
       return { ok: true as const, containerId };
     } catch (error) {
-      const failure = await handleNetworkError(error, instagram.target);
+      const failure = await handleNetworkError(error, instagram.target, plan.organizationId);
       await recordAttempt({ ...attemptBase, step: "CONTAINER", error: failure });
       return { ok: false as const, ...failure };
     }
@@ -106,10 +105,7 @@ async function publishToInstagram(step: StepTools, plan: PublishPlan, input: Wor
     let isReady = false;
     for (let checkIndex = 0; checkIndex < PROCESSING_MAX_CHECKS && !isReady; checkIndex++) {
       await step.sleep(`ig-wait-${checkIndex}`, PROCESSING_POLL_INTERVAL);
-      const status = await step.run(`ig-status-${checkIndex}`, async () => {
-        const accessToken = await loadTargetToken(plan.organizationId, instagram.target);
-        return getIgContainerStatus(accessToken, container.containerId);
-      });
+      const status = await step.run(`ig-status-${checkIndex}`, async () => (await loadPublisher()).getMediaContainerStatus(container.containerId));
       if (status.statusCode === "FINISHED") isReady = true;
       if (status.statusCode === "ERROR" || status.statusCode === "EXPIRED") {
         const failure = { code: `CONTAINER_${status.statusCode}`, message: `A Meta não conseguiu processar o vídeo${status.detail ? `: ${status.detail}` : "."}` };
@@ -126,9 +122,9 @@ async function publishToInstagram(step: StepTools, plan: PublishPlan, input: Wor
 
   return step.run("ig-publish", async () => {
     try {
-      const accessToken = await loadTargetToken(plan.organizationId, instagram.target);
-      const mediaId = await publishIgContainer(accessToken, instagram.target.externalTargetId, container.containerId);
-      const permalink = await getIgMediaPermalink(accessToken, mediaId);
+      const publisher = await loadPublisher();
+      const mediaId = await publisher.publishMediaContainer(container.containerId);
+      const permalink = await publisher.getMediaPermalink(mediaId);
       // Grava na hora: se o resto falhar, o retry não publica de novo no Instagram (RF-9).
       await prisma.nasaPlannerPost.update({
         where: { id: input.postId },
@@ -137,7 +133,7 @@ async function publishToInstagram(step: StepTools, plan: PublishPlan, input: Wor
       await recordAttempt({ ...attemptBase, step: "PUBLISH", containerId: container.containerId, externalId: mediaId });
       return { ok: true as const };
     } catch (error) {
-      const failure = await handleNetworkError(error, instagram.target);
+      const failure = await handleNetworkError(error, instagram.target, plan.organizationId);
       await recordAttempt({ ...attemptBase, step: "PUBLISH", containerId: container.containerId, error: failure });
       return { ok: false as const, ...failure };
     }
@@ -162,7 +158,7 @@ async function publishToFacebook(step: StepTools, plan: PublishPlan, input: Work
       await recordAttempt({ ...attemptBase, step: "PUBLISH", externalId: fbPostId });
       return { ok: true as const };
     } catch (error) {
-      const failure = await handleNetworkError(error, facebook.target);
+      const failure = await handleNetworkError(error, facebook.target, plan.organizationId);
       await recordAttempt({ ...attemptBase, step: "PUBLISH", error: failure });
       return { ok: false as const, ...failure };
     }

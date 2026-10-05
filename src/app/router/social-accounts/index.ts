@@ -7,6 +7,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { IntegrationPlatform } from "@/generated/prisma/enums";
 import {
   createChannelGateway,
+  createContentPublisher,
   createGatewayForCredentials,
   generateWebhookPathToken,
 } from "@/modules/social";
@@ -15,6 +16,7 @@ import {
   MAX_CHANNELS_PER_PROVIDER,
   reconnectChannel,
 } from "@/modules/social/application/connect-channel";
+import { refreshChannelCapabilities } from "@/modules/social/application/maintain-channel";
 import type { ChannelSummary } from "@/modules/social/ports/repositories";
 import {
   connectMetaInstagramAccount,
@@ -59,7 +61,22 @@ function toPublicAccount(channel: ChannelSummary, brandKitName: string | null = 
     authMode: channel.authMode,
     automationCount: channel.automationCount,
     connectedAt: channel.createdAt,
+    canPublish: channel.canPublish,
+    canReadInsights: channel.canReadInsights,
+    credentialsExpiresAt: channel.credentialsExpiresAt,
   };
+}
+
+/** Confere o que a credencial permite logo depois de salvar (spec 0071, RF-6). Falha aqui não desfaz a conexão. */
+async function checkCapabilitiesAfterConnect(organizationId: string, channelId: string) {
+  const { channels } = repositoriesFor(organizationId);
+  try {
+    await refreshChannelCapabilities(channelId, { channels, createPublisher: createContentPublisher });
+  } catch {
+    // A rotina diária confere de novo.
+  }
+  const refreshed = await channels.findById(channelId);
+  return refreshed ? toPublicAccount(refreshed) : null;
 }
 
 async function requireChannel(organizationId: string, channelId: string) {
@@ -142,7 +159,7 @@ const connectAccount = socialAccountsProcedure
       );
 
       return {
-        account: toPublicAccount(result.channel),
+        account: (await checkCapabilitiesAfterConnect(context.org.id, result.channel.id)) ?? toPublicAccount(result.channel),
         isNewAccount: result.isNewChannel,
         subscribed: result.subscribed,
         subscriptionError: result.subscriptionError,
@@ -179,7 +196,7 @@ const reconnectAccount = socialAccountsProcedure
       );
 
       return {
-        account: toPublicAccount(result.channel),
+        account: (await checkCapabilitiesAfterConnect(context.org.id, result.channel.id)) ?? toPublicAccount(result.channel),
         subscribed: result.subscribed,
         subscriptionError: result.subscriptionError,
       };
@@ -279,12 +296,21 @@ const connectWithMeta = socialAccountsProcedure
         metaPublishAccountId: input.metaPublishAccountId,
       });
       return {
-        account: toPublicAccount(result.channel),
+        account: (await checkCapabilitiesAfterConnect(organizationId, result.channel.id)) ?? toPublicAccount(result.channel),
         isNewAccount: result.isNewChannel,
         subscribed: result.subscribed,
         subscriptionError: result.subscriptionError,
       };
     });
+  });
+
+/** Confere de novo o que a conta consegue fazer, depois de liberar uma permissão no app da Meta. */
+const recheckCapabilities = socialAccountsProcedure
+  .input(channelIdInput)
+  .handler(async ({ context, input }) => {
+    await requireOrgAdmin(context.org.id, context.user.id);
+    await requireChannel(context.org.id, input.channelId);
+    return { account: await checkCapabilitiesAfterConnect(context.org.id, input.channelId) };
   });
 
 export const socialAccountsRouter = {
@@ -297,4 +323,5 @@ export const socialAccountsRouter = {
   webhookSetup: getWebhookSetup,
   metaAccounts: listMetaAccounts,
   connectWithMeta,
+  recheckCapabilities,
 };

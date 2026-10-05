@@ -7,6 +7,7 @@ import { ChannelAlreadyTakenError } from "../domain/errors";
 import type { Channel, ChannelAuthModeValue, SocialProviderValue } from "../domain/types";
 import type {
   ChannelLookupRepository,
+  ChannelMaintenanceRepository,
   ChannelRepository,
   ChannelSummary,
   ConnectChannelOutcome,
@@ -27,6 +28,9 @@ type ChannelRow = {
   lastErrorAt: Date | null;
   createdAt: Date;
   brandKitId?: string | null;
+  canPublish?: boolean | null;
+  canReadInsights?: boolean | null;
+  credentialsExpiresAt?: Date | null;
   _count?: { automations: number };
 };
 
@@ -70,6 +74,9 @@ function toSummary(row: ChannelRow): ChannelSummary {
     authMode,
     automationCount: row._count?.automations ?? 0,
     brandKitId: row.brandKitId ?? null,
+    canPublish: row.canPublish ?? null,
+    canReadInsights: row.canReadInsights ?? null,
+    credentialsExpiresAt: row.credentialsExpiresAt ?? null,
   };
 }
 
@@ -208,6 +215,10 @@ export class PrismaChannelRepository implements ChannelRepository {
           displayName: input.displayName,
           // Conta desativada continua desativada: só "Reativar" a liga de novo.
           status: existing.status === "DISABLED" ? "DISABLED" : "ACTIVE",
+          // Credencial nova: validade e permissões voltam a ser desconhecidas até a conferência.
+          credentialsExpiresAt: null,
+          canPublish: null,
+          canReadInsights: null,
           lastErrorMessage: null,
           lastErrorAt: null,
           ...(input.connectedById ? { connectedById: input.connectedById } : {}),
@@ -282,5 +293,39 @@ export class PrismaChannelRepository implements ChannelRepository {
       where: { id: channelId, organizationId: this.tenant.organizationId },
       data: { status: "ACTIVE", lastErrorMessage: null, lastErrorAt: null },
     });
+  }
+
+  async saveCapabilities(
+    channelId: string,
+    capabilities: { canPublish: boolean | null; canReadInsights: boolean | null },
+  ): Promise<void> {
+    await prisma.socialChannel.updateMany({
+      where: { id: channelId, organizationId: this.tenant.organizationId },
+      data: capabilities,
+    });
+  }
+
+  async saveRenewedCredentials(channelId: string, accessToken: string, expiresAt: Date): Promise<void> {
+    const row = await prisma.socialChannel.findFirst({
+      where: { id: channelId, organizationId: this.tenant.organizationId },
+      select: { credentials: true },
+    });
+    if (!row) return;
+    const credentials = encryptCredentials({ ...decryptCredentials(row.credentials), accessToken });
+    await prisma.socialChannel.updateMany({
+      where: { id: channelId, organizationId: this.tenant.organizationId },
+      data: { credentials, credentialsExpiresAt: expiresAt },
+    });
+  }
+}
+
+export class PrismaChannelMaintenanceRepository implements ChannelMaintenanceRepository {
+  async listActiveChannelRefs(): Promise<Array<{ channelId: string; organizationId: string }>> {
+    const rows = await prisma.socialChannel.findMany({
+      where: { status: "ACTIVE" },
+      select: { id: true, organizationId: true },
+      orderBy: { createdAt: "asc" },
+    });
+    return rows.map((row) => ({ channelId: row.id, organizationId: row.organizationId }));
   }
 }

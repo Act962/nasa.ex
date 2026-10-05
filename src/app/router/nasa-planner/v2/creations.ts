@@ -4,6 +4,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import prisma from "@/lib/prisma";
 import { NasaPlannerPostSource, NasaPlannerPostStatus } from "@/generated/prisma/enums";
+import { findDefaultInstagramAccountId } from "@/features/nasa-planner/server/publishing/instagram-channels";
 import { assertPlannerOrganizationAccess, assertPostAccess, ensureDefaultPlanner, resolvePlannerOrganizationIds } from "@/features/nasa-planner/server/cross-org";
 
 /** Caixa de criações (spec 0065, RF-6/RF-7): rascunhos vindos de IA, para revisão humana. */
@@ -71,7 +72,7 @@ export const importCreation = base
   .handler(async ({ input, context }) => {
     await assertPlannerOrganizationAccess(context.user.id, input.organizationId, "create");
     const plannerId = await ensureDefaultPlanner(input.organizationId);
-    const igAccount = await prisma.metaPublishAccount.findFirst({ where: { organizationId: input.organizationId, kind: "IG_BUSINESS", status: "ACTIVE" }, select: { igUserId: true } });
+    const defaultInstagramAccountId = await findDefaultInstagramAccountId(input.organizationId);
     // Vídeo no feed é sempre Reel: um vídeo marcado como post estático ficaria sem prévia e não publicaria.
     const format = input.isVideo && input.format !== "STORY" ? "REEL" : input.format;
     const post = await prisma.nasaPlannerPost.create({
@@ -85,7 +86,7 @@ export const importCreation = base
         caption: input.caption,
         hashtags: [],
         targetNetworks: ["INSTAGRAM"],
-        targetIgAccountId: igAccount?.igUserId ?? null,
+        targetIgAccountId: defaultInstagramAccountId,
         source: NasaPlannerPostSource.WEB,
         sourceActorLabel: input.originLabel,
         ...(input.isVideo ? { videoKey: input.mediaKey } : format === "CAROUSEL" ? {} : { thumbnail: input.mediaKey }),

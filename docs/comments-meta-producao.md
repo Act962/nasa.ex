@@ -82,6 +82,12 @@ Painel do app → **Webhooks** (ou caso de uso do Instagram → Configurar webho
 | Resposta pelo chat falha "O Instagram recusou" | Comentário apagado, DM fora da janela de 24 h (ou resposta privada fora de 7 dias), ou falta `instagram_manage_comments`/`instagram_manage_messages` | Responder no post (comentário selecionado) ou esperar o cliente escrever de novo |
 | Webhook responde 401 | Assinatura não bate: `META_APP_SECRET` de outro app | Usar o secret do mesmo app que está no login |
 
+## Permissões do app do Instagram (spec 0071)
+
+Para a conta conectada pelo passo a passo servir ao Comments e ao Planner, o caso de uso do Instagram no app da Meta precisa de três grupos de permissão: comentários e mensagens (`instagram_business_manage_comments`, `instagram_business_manage_messages`), publicação (`instagram_business_content_publish`) e métricas (`instagram_business_manage_insights`). O cartão da conta em Satélites › Instagram mostra o que o token atual permite; depois de liberar uma permissão, gere um token novo e troque a credencial.
+
+O Instagram baixa a mídia do post por URL pública: em `localhost` a publicação só funciona se os arquivos estiverem num bucket público.
+
 ## Teste local (app de teste)
 
 Ver [nasa-planner-teste-local-meta.md](nasa-planner-teste-local-meta.md), seção "Comments pela Meta".

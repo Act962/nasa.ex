@@ -30,7 +30,7 @@ import { CampaignsTab } from "../tabs/campaigns-tab";
 import { MindMapsTab } from "../tabs/mind-maps-tab";
 import { BrandKitClientSelect, BrandKitPage } from "../brand-kit/brand-kit-page";
 import { PostComposer } from "./post-composer";
-import { POST_TYPES, RESCHEDULABLE_STATUSES, computeVisibleRange } from "./planner-v2-utils";
+import { POST_TYPES, RESCHEDULABLE_STATUSES, computeVisibleRange, resolvePostInstagramAccount } from "./planner-v2-utils";
 import type { CalendarSlot, ComposerRequest } from "./planner-v2-types";
 
 /** Planner v2 (spec 0058): abas Dashboard, Calendário (Semana/Mês/Kanban), Campanhas, Mapas Mentais e Kit da Marca, multi-cliente. */
@@ -48,6 +48,8 @@ const plannerSearchParams = {
   column: parseAsStringLiteral(BOARD_COLUMN_KEYS),
   date: parseAsIsoDate,
   orgs: parseAsArrayOf(parseAsString).withDefault([]),
+  /** Contas do Instagram em vista no calendário (ID na rede); vazio = todas. */
+  contas: parseAsArrayOf(parseAsString).withDefault([]),
   types: parseAsArrayOf(parseAsStringLiteral(POST_TYPES)).withDefault([]),
   status: parseAsArrayOf(parseAsStringLiteral(STATUS_VALUES)).withDefault([]),
   post: parseAsString,
@@ -67,12 +69,19 @@ export function PlannerHome() {
   const organizationIds = searchState.orgs.length ? searchState.orgs : undefined;
 
   const { clients } = usePlannerClients();
-  const { posts } = usePlannerCalendarPosts({
+  const { posts: allPosts } = usePlannerCalendarPosts({
     organizationIds,
     ...range,
     types: searchState.types.length ? searchState.types : undefined,
     statuses: searchState.status.length ? searchState.status : undefined,
   });
+  const posts = useMemo(() => {
+    if (searchState.contas.length === 0) return allPosts;
+    return allPosts.filter((post) => {
+      const account = resolvePostInstagramAccount(post, clients.find((client) => client.id === post.organizationId));
+      return account ? searchState.contas.includes(account.igUserId) : false;
+    });
+  }, [allPosts, clients, searchState.contas]);
   const { slots } = usePlannerSlots({ organizationIds, ...range });
   const { broadcasts: allBroadcasts } = usePlannerCalendarBroadcasts({ organizationIds, ...range });
   // Filtrar por formato de post esconde os disparos: o filtro fala de conteúdo das redes.
@@ -185,6 +194,8 @@ export function PlannerHome() {
               anchorDate={anchorDate}
               clients={clients}
               selectedClientIds={searchState.orgs}
+              selectedAccountIds={searchState.contas}
+              onAccountIdsChange={(contas) => void setSearchState({ contas })}
               selectedTypes={searchState.types}
               selectedStatuses={searchState.status}
               origin={searchState.origin}
@@ -195,7 +206,7 @@ export function PlannerHome() {
               onImportWeeklyScript={() => setIsWeeklyScriptOpen(true)}
               onViewChange={(view) => void setSearchState({ view })}
               onAnchorDateChange={(date) => void setSearchState({ date })}
-              onClientIdsChange={(orgs) => void setSearchState({ orgs })}
+              onClientIdsChange={(orgs) => void setSearchState({ orgs, contas: [] })}
               onTypesChange={(types) => void setSearchState({ types })}
               onStatusesChange={(status) => void setSearchState({ status })}
               onCreate={(type) => openCreate(type)}

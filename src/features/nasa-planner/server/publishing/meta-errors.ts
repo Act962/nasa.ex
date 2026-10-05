@@ -1,4 +1,6 @@
 import { MetaGraphError } from "@/http/meta/planner-graph";
+import { ContentPublishError } from "@/modules/social/ports/content-publisher";
+import { PublishAccountUnavailableError } from "./instagram-channels";
 
 /** Traduz erro da Graph API para o que o Planner faz com ele (spec 0057): reconectar, tentar de novo ou parar. */
 
@@ -14,7 +16,10 @@ const EXPIRED_TOKEN_CODE = 190;
 const PUBLISH_LIMIT_SUBCODE = 2207042;
 
 export function classifyPublishError(error: unknown): ClassifiedPublishError {
-  if (!(error instanceof MetaGraphError)) {
+  if (error instanceof PublishAccountUnavailableError) {
+    return { code: "ACCOUNT_UNAVAILABLE", message: error.message, isRetryable: false, needsReconnect: false };
+  }
+  if (!(error instanceof MetaGraphError) && !(error instanceof ContentPublishError)) {
     const message = error instanceof Error ? error.message : "Erro desconhecido na publicação";
     return { code: "UNKNOWN", message, isRetryable: true, needsReconnect: false };
   }
@@ -29,7 +34,7 @@ export function classifyPublishError(error: unknown): ClassifiedPublishError {
   if (error.subcode === PUBLISH_LIMIT_SUBCODE) {
     return {
       code: "PUBLISH_LIMIT",
-      message: "Esta conta atingiu o limite de 50 publicações em 24 horas da Meta. Tente mais tarde.",
+      message: "Esta conta atingiu o limite de publicações em 24 horas da Meta. Tente mais tarde.",
       isRetryable: false,
       needsReconnect: false,
     };

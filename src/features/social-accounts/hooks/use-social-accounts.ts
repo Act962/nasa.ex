@@ -50,6 +50,11 @@ export function useRepairSocialAccountSubscription() {
   return useMutation(orpc.socialAccounts.repairSubscription.mutationOptions({ onSuccess: invalidate }));
 }
 
+export function useRecheckSocialAccountCapabilities() {
+  const invalidate = useInvalidateSocialAccounts();
+  return useMutation(orpc.socialAccounts.recheckCapabilities.mutationOptions({ onSuccess: invalidate }));
+}
+
 /** URL e verify token do webhook de uma conta, para o passo final do guia (só admin). */
 export function useSocialAccountWebhookSetup(channelId: string | null) {
   return useQuery({

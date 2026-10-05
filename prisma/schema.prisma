@@ -10385,6 +10385,13 @@ model SocialChannel {
   /// Kit da Marca que os posts desta conta usam (spec 0070). Nulo = kit padrão da empresa.
   brandKitId String? @map("brand_kit_id")
 
+  /// O que a credencial permite, conferido na rede (spec 0071). Nulo = ainda não conferido.
+  canPublish      Boolean? @map("can_publish")
+  canReadInsights Boolean? @map("can_read_insights")
+
+  /// Validade do token do app do Instagram, gravada na renovação (spec 0071). Nulo = desconhecida.
+  credentialsExpiresAt DateTime? @map("credentials_expires_at")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

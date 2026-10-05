@@ -13,6 +13,7 @@ import { ensureDefaultPlanner } from "@/features/nasa-planner/server/cross-org";
 import { getBrandKit } from "@/features/nasa-planner/server/brand-kit/brand-kit";
 import { getBrandKitForInstagramHandle, summarizeBrandKits } from "@/features/nasa-planner/server/brand-kit/brand-kits";
 import { submitPostForApproval } from "@/features/nasa-planner/server/approval";
+import { findDefaultInstagramAccountId, listInstagramHandles } from "@/features/nasa-planner/server/publishing/instagram-channels";
 import { DEFAULT_SLOT_RULES, expandSlotRules } from "@/features/nasa-planner/lib/publish-slots";
 import { assertCallerOrganization, type ExternalAiCaller } from "../access-tokens";
 import { LOCAL_UPLOAD_PREFIX, createLocalUploadUrl, isLocalUploadEnabled } from "../local-upload";
@@ -98,7 +99,7 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
             const [kit, brandKits, accounts] = await Promise.all([
               getBrandKit(organization.id),
               summarizeBrandKits(organization.id),
-              prisma.metaPublishAccount.findMany({ where: { organizationId: organization.id, kind: "IG_BUSINESS", status: "ACTIVE" }, select: { igUsername: true } }),
+              listInstagramHandles(organization.id),
             ]);
             return {
               organizationId: organization.id,
@@ -107,7 +108,7 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
               brandKitComplete: kit.completeness.isComplete,
               brandKitMissing: kit.completeness.missing,
               brandKits,
-              instagramAccounts: accounts.map((account) => `@${account.igUsername}`),
+              instagramAccounts: accounts.map((handle) => `@${handle}`),
             };
           }),
         );
@@ -164,7 +165,7 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
         await assertCallerOrganization(caller, organizationId, "view");
         const [kit, igAccount] = await Promise.all([
           getBrandKit(organizationId),
-          prisma.metaPublishAccount.findFirst({ where: { organizationId, kind: "IG_BUSINESS", status: "ACTIVE" }, select: { igUsername: true } }),
+          listInstagramHandles(organizationId).then(([firstHandle]) => (firstHandle ? { igUsername: firstHandle } : null)),
         ]);
         const logoUrl = await toAbsoluteMediaUrl(kit.logos.white ?? kit.logos.color ?? kit.organization.logo);
         return {
@@ -257,7 +258,7 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
       runTool(async () => {
         await assertCallerOrganization(caller, organizationId, "create");
         const plannerId = await ensureDefaultPlanner(organizationId);
-        const igAccount = await prisma.metaPublishAccount.findFirst({ where: { organizationId, kind: "IG_BUSINESS", status: "ACTIVE" }, select: { igUserId: true } });
+        const defaultInstagramAccountId = await findDefaultInstagramAccountId(organizationId);
         const post = await prisma.nasaPlannerPost.create({
           data: {
             organizationId,
@@ -273,7 +274,7 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
             hashtags: (hashtags ?? []).map((hashtag) => hashtag.replace(/^#/, "")),
             scheduledAt: intendedAtIso ? new Date(intendedAtIso) : null,
             targetNetworks: ["INSTAGRAM"],
-            targetIgAccountId: igAccount?.igUserId ?? null,
+            targetIgAccountId: defaultInstagramAccountId,
             source: NasaPlannerPostSource.MCP,
             sourceActorLabel: caller.label,
           },

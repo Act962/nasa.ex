@@ -2,7 +2,7 @@
 id: 0071
 titulo: Planner publica no Instagram pelas contas conectadas nos Satélites
 dominio: nasa-planner
-status: rascunho
+status: aprovada
 autor: João Gabriel
 criada: 2026-10-05
 atualizada: 2026-10-05
@@ -83,6 +83,7 @@ conexão; e o token dessas contas se renova sozinho.
 | RF-11 | A checagem diária de saúde passa a cobrir as contas dos Satélites. A checagem de `MetaPublishAccount` fica só para páginas do Facebook. |
 | RF-12 | As ferramentas do Astro e do MCP que listam ou escolhem conta do Instagram leem as contas dos Satélites. |
 | RF-13 | Desativar ou desconectar a conta nos Satélites impede novas publicações nela; o post agendado falha com mensagem clara, sem tentar de novo. |
+| RF-14 | O calendário filtra os posts por conta do Instagram (filtro "Conta", na URL) e mostra o @ da conta no cartão do post quando o cliente tem mais de uma conta. |
 
 ### Não-funcionais
 
@@ -99,17 +100,17 @@ conexão; e o token dessas contas se renova sozinho.
 - [ ] **CA-1** — Dada uma conta conectada pelo formulário, com permissão de publicar, quando o usuário publica um post de imagem, então o post sai no Instagram e guarda o id e o link da publicação.
 - [ ] **CA-2** — Idem para carrossel, reels e story (um caso por tipo).
 - [ ] **CA-3** — Dada uma conta conectada pela Meta, quando o usuário publica, então o post sai como hoje.
-- [ ] **CA-4** — Dada uma empresa com duas contas nos Satélites e nenhuma `MetaPublishAccount`, quando abre o criador de post, então vê as duas contas para escolher.
-- [ ] **CA-5** — Dada uma empresa só com `MetaPublishAccount` do Instagram e nenhuma conta nos Satélites, quando abre o criador de post, então não vê conta do Instagram e vê o convite para conectar nos Satélites.
-- [ ] **CA-6** — Dada uma conta cujo token não tem a permissão de publicar, quando é conectada, então fica marcada como "não publica", não pode ser escolhida no post e o cartão aponta o passo do guia.
+- [x] **CA-4** — Dada uma empresa com duas contas nos Satélites e nenhuma `MetaPublishAccount`, quando abre o criador de post, então vê as duas contas para escolher.
+- [x] **CA-5** — Dada uma empresa só com `MetaPublishAccount` do Instagram e nenhuma conta nos Satélites, quando abre o criador de post, então não vê conta do Instagram e vê o convite para conectar nos Satélites.
+- [x] **CA-6** — Dada uma conta cujo token não tem a permissão de publicar, quando é conectada, então fica marcada como "não publica", não pode ser escolhida no post e o cartão aponta o passo do guia.
 - [ ] **CA-7** — Dado um post publicado por conta do formulário, quando o usuário abre o post, então vê métricas e comentários lidos com o token dessa conta.
-- [ ] **CA-8** — Dada uma conta do formulário com token a menos de 10 dias de vencer, quando a rotina diária roda, então o token é trocado pelo renovado e a nova validade é gravada.
-- [ ] **CA-9** — Dada a renovação recusada pelo Instagram, quando a rotina roda, então a conta vira "precisa reconectar" e uma notificação é criada para owners e admins.
-- [ ] **CA-10** — Dado um post agendado para conta desativada, quando chega a hora, então o post falha com "A conta está desativada nos Satélites" e não entra em nova tentativa.
-- [ ] **CA-11** — Dado um post de outra empresa, quando sua conta é resolvida para publicar, então uma conta de mesmo ID em outra empresa nunca é usada.
+- [x] **CA-8** — Dada uma conta do formulário com token a menos de 10 dias de vencer, quando a rotina diária roda, então o token é trocado pelo renovado e a nova validade é gravada.
+- [x] **CA-9** — Dada a renovação recusada pelo Instagram, quando a rotina roda, então a conta vira "precisa reconectar" e uma notificação é criada para owners e admins.
+- [x] **CA-10** — Dado um post agendado para conta desativada, quando chega a hora, então o post falha com "A conta está desativada nos Satélites" e não entra em nova tentativa.
+- [x] **CA-11** — Dado um post de outra empresa, quando sua conta é resolvida para publicar, então uma conta de mesmo ID em outra empresa nunca é usada.
 - [ ] **CA-12** — Dado um post para Instagram e Facebook, quando é publicado, então o Instagram sai pela conta dos Satélites e o Facebook pela página da conexão da Meta, e a falha de um não desfaz o outro (comportamento da spec 0057).
-- [ ] **CA-13** — O plano de publicação gravado no Inngest não contém token (inspeção do objeto).
-- [ ] **CA-14** — `pnpm guides:check` passa; o guia de conexão tem os passos das três permissões.
+- [x] **CA-13** — O plano de publicação gravado no Inngest não contém token (inspeção do objeto).
+- [x] **CA-14** — `pnpm guides:check` passa; o guia de conexão tem os passos das três permissões.
 
 ## 5. Casos de borda
 
@@ -257,3 +258,4 @@ uma URL pública para a mídia (o Instagram baixa o arquivo pela internet;
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-05 | João Gabriel | Rascunho. Decisões do dono do produto: Facebook segue como extra pela Meta; sem migração (não há uso real em produção); renovação de token na mesma etapa |
+| 2026-10-05 | João Gabriel | Aprovada e **implementada**. Marcados os critérios provados por `scripts/planner-publish-accounts-qa-check.ts` e por `pnpm guides:check`. Abertos, dependem de conta real: CA-1, CA-2, CA-3, CA-7; CA-12 (Instagram + Facebook no mesmo post) não tem caso no script. Desvios do texto: (1) D-1 previa dois adaptadores; ficou **um** `InstagramContentPublisher` configurado por forma de conexão, porque só host, token e nó da resposta privada mudam; (2) RF-10: a notificação e o estado "precisa reconectar" existem, mas o aviso no cartão do post agendado não foi feito — o calendário mostra "reconectar" no filtro de contas e de clientes; (3) CB-4 (aviso de conta duplicada pelas duas formas de conexão) não foi implementado; (4) renovação recusada só derruba a conta quando a validade já é conhecida, para o token com menos de 24h não virar "precisa reconectar" (CB-6); (5) acrescentado o RF-14 a pedido do dono do produto; (6) nova procedure `socialAccounts.recheckCapabilities` ("conferir de novo" no cartão) |
