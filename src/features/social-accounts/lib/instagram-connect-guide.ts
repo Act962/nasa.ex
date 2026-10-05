@@ -1,4 +1,4 @@
-// Guia "Conectar Instagram" do COMMENTS (spec 0047): as telas da Meta com o
+// Guia "Conectar Instagram" dos Satélites e do COMMENTS (specs 0047 e 0069): as telas da Meta com o
 // print, o alvo da seta vermelha e os balões do Astro. Os dados moram no JSON
 // para o script de prints (scripts/guides) ler o mesmo.
 
@@ -12,6 +12,7 @@ export const INSTAGRAM_GUIDE_STEPS = guideData.steps as MetaGuideStep[];
 /** Primeiro passo das chaves: onde "Já tenho o app" e "Trocar conta" começam. */
 export const FIRST_KEY_STEP_SLUG = "id-conta";
 export const CONNECT_STEP_SLUG = "conectar";
+export const WEBHOOK_STEP_SLUG = "webhook";
 
 /** Em qual passo cada chave é colada — o mesmo em que ela é copiada na Meta. */
 export const KEY_STEP_SLUGS = {

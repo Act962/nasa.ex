@@ -4,6 +4,8 @@ export const SocialErrorCode = {
   CHANNEL_NOT_CONNECTED: "CHANNEL_NOT_CONNECTED",
   CHANNEL_NEEDS_RECONNECT: "CHANNEL_NEEDS_RECONNECT",
   CHANNEL_ALREADY_TAKEN: "CHANNEL_ALREADY_TAKEN",
+  CHANNEL_NOT_FOUND: "CHANNEL_NOT_FOUND",
+  CHANNEL_LIMIT_REACHED: "CHANNEL_LIMIT_REACHED",
   AUTOMATION_NOT_FOUND: "AUTOMATION_NOT_FOUND",
   AUTOMATION_INCOMPLETE: "AUTOMATION_INCOMPLETE",
   INVALID_CREDENTIALS: "INVALID_CREDENTIALS",
@@ -34,6 +36,21 @@ export class ChannelAlreadyTakenError extends DomainError {
     super(
       SocialErrorCode.CHANNEL_ALREADY_TAKEN,
       "Esta conta já está conectada em outra organização.",
+    );
+  }
+}
+
+export class ChannelNotFoundError extends DomainError {
+  constructor() {
+    super(SocialErrorCode.CHANNEL_NOT_FOUND, "Conta não encontrada.");
+  }
+}
+
+export class ChannelLimitReachedError extends DomainError {
+  constructor(limit: number) {
+    super(
+      SocialErrorCode.CHANNEL_LIMIT_REACHED,
+      `Esta organização já tem ${limit} contas conectadas, que é o limite. Desative uma conta que não usa mais.`,
     );
   }
 }

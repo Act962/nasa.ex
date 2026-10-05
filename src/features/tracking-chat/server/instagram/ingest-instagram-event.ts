@@ -164,8 +164,8 @@ export const ingestInstagramEventToChat: ChannelEventObserver = async ({ channel
 
   if (!alreadyStored) {
     const metadata: InstagramMessageMetadata = isComment
-      ? { kind: "COMMENT", commentId: event.externalEventId, media }
-      : { kind: "DIRECT_MESSAGE" };
+      ? { kind: "COMMENT", commentId: event.externalEventId, channelId: channel.id, media }
+      : { kind: "DIRECT_MESSAGE", channelId: channel.id };
     const awaitingState = await loadAwaitingState(lead.leadId).catch(() => null);
     const inbound = await prisma.message.create({
       data: {
@@ -209,8 +209,8 @@ export const ingestInstagramEventToChat: ChannelEventObserver = async ({ channel
     if (isStored) continue;
     const metadata: InstagramMessageMetadata =
       delivery.kind === "REPLY_TO_COMMENT"
-        ? { kind: "AUTOMATION_COMMENT_REPLY", commentId: event.externalEventId, media }
-        : { kind: "AUTOMATION_DIRECT_MESSAGE", buttons: delivery.buttons };
+        ? { kind: "AUTOMATION_COMMENT_REPLY", commentId: event.externalEventId, channelId: channel.id, media }
+        : { kind: "AUTOMATION_DIRECT_MESSAGE", channelId: channel.id, buttons: delivery.buttons };
     const outbound = await prisma.message.create({
       data: {
         fromMe: true,

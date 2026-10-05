@@ -23,9 +23,12 @@ import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { emitTourResult } from "@/features/tour/store";
 import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
-export function AutomationsList({ canCreate }: { canCreate: boolean }) {
+/** Automações da conta selecionada; `channelId` nulo é organização sem conta conectada. */
+export function AutomationsList({ channelId, accountLabel }: { channelId: string | null; accountLabel?: string }) {
   const router = useRouter();
-  const { data: automations, isLoading } = useCommentsAutomations();
+  const canCreate = Boolean(channelId);
+  const { data: automations, isLoading: isLoadingAutomations } = useCommentsAutomations(channelId);
+  const isLoading = canCreate && isLoadingAutomations;
   const create = useCreateCommentsAutomation();
   const remove = useDeleteCommentsAutomation();
 
@@ -35,7 +38,9 @@ export function AutomationsList({ canCreate }: { canCreate: boolean }) {
         <div>
           <CardTitle className="text-base">Automações</CardTitle>
           <CardDescription>
-            Cada automação escuta um gatilho e responde por você.
+            {accountLabel
+              ? `Automações de ${accountLabel}. Cada uma escuta um gatilho e responde por você.`
+              : "Cada automação escuta um gatilho e responde por você."}
           </CardDescription>
         </div>
         <Button
@@ -43,8 +48,9 @@ export function AutomationsList({ canCreate }: { canCreate: boolean }) {
           disabled={!canCreate || create.isPending}
           data-guide={GUIDE_ANCHORS.commentsNewAutomation.id}
           onClick={() =>
+            channelId &&
             create.mutate(
-              { name: "Sem título" },
+              { channelId, name: "Sem título" },
               {
                 onSuccess: (created) => {
                   emitTourResult({ kind: GUIDE_RESULT_KINDS.commentAutomationCreated });

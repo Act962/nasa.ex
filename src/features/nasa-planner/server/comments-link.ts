@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { socialRepositoriesForOrganization } from "@/modules/social";
 import { setAutomationActive } from "@/modules/social/application/activate-automation";
 import type { Automation, ReplyToCommentConfig, SendDirectMessageConfig } from "@/modules/social/domain/types";
+import type { ChannelRepository } from "@/modules/social/ports/repositories";
 
 /**
  * Comments nativo no post do Planner (spec 0059). A automação mora no Comments (SocialAutomation);
@@ -45,19 +46,33 @@ function summarizeAutomation(automation: Automation) {
   };
 }
 
+/**
+ * A automação de um post mora na conta do Instagram **do post** (spec 0069, RF-19).
+ * Post sem conta definida só resolve sozinho quando a organização tem uma conta só (CB-16).
+ */
+async function resolvePostChannel(channels: ChannelRepository, targetIgAccountId: string | null) {
+  if (targetIgAccountId) {
+    return { channel: await channels.findByExternalAccountId("INSTAGRAM", targetIgAccountId), needsAccountChoice: false };
+  }
+  const usableChannels = (await channels.listForTenant("INSTAGRAM")).filter((channel) => channel.status !== "DISABLED");
+  if (usableChannels.length === 1) return { channel: usableChannels[0], needsAccountChoice: false };
+  return { channel: null, needsAccountChoice: usableChannels.length > 1 };
+}
+
 export async function getPlannerCommentsStatus(postId: string) {
   const post = await prisma.nasaPlannerPost.findUniqueOrThrow({
     where: { id: postId },
     select: { organizationId: true, targetIgAccountId: true, externalIgPostId: true, commentsAutomationId: true, commentsAutoActivate: true },
   });
   const { channels, automations } = socialRepositoriesForOrganization(post.organizationId);
-  const channel = await channels.findForTenant();
   const linkedAutomation = post.commentsAutomationId ? await automations.findById(post.commentsAutomationId) : null;
+  const { channel, needsAccountChoice } = await resolvePostChannel(channels, post.targetIgAccountId);
   if (post.commentsAutomationId && !linkedAutomation) {
     // Apagada no Comments: o vínculo deixa de existir (spec 0059, CB-1).
     await prisma.nasaPlannerPost.update({ where: { id: postId }, data: { commentsAutomationId: null } });
   }
-  const accountMismatch = Boolean(channel && post.targetIgAccountId && channel.externalAccountId !== post.targetIgAccountId);
+  // Automação criada quando o post apontava para outra conta (spec 0069, CB-17).
+  const accountMismatch = Boolean(channel && linkedAutomation && linkedAutomation.channelId !== channel.id);
   const allPostsAutomations = channel
     ? (await automations.findActiveByChannel(channel.id))
         .filter((automation) => automation.id !== linkedAutomation?.id && automation.triggers.some((trigger) => trigger.targetScope === "ALL_CONTENT"))
@@ -67,8 +82,8 @@ export async function getPlannerCommentsStatus(postId: string) {
   return {
     organizationId: post.organizationId,
     channel: channel
-      ? { isConnected: true, isActive: channel.status === "ACTIVE", handle: channel.handle, accountMismatch }
-      : { isConnected: false, isActive: false, handle: null, accountMismatch: false },
+      ? { isConnected: true, isActive: channel.status === "ACTIVE", handle: channel.handle, accountMismatch, needsAccountChoice: false }
+      : { isConnected: false, isActive: false, handle: null, accountMismatch: false, needsAccountChoice },
     isPublished: Boolean(post.externalIgPostId),
     autoActivateOnPublish: post.commentsAutoActivate,
     automation: linkedAutomation ? summarizeAutomation(linkedAutomation) : null,
@@ -112,13 +127,15 @@ export async function savePlannerCommentsAutomation(postId: string, actorId: str
   if (!config.directMessageText.trim()) throw new ORPCError("BAD_REQUEST", { message: "Escreva a mensagem que vai por DM." });
 
   const repositories = socialRepositoriesForOrganization(post.organizationId);
-  const channel = await repositories.channels.findForTenant();
-  if (!channel) throw new ORPCError("PRECONDITION_FAILED", { message: "Conecte o Instagram no Comments para usar a automação." });
-  if (post.targetIgAccountId && channel.externalAccountId !== post.targetIgAccountId) {
-    throw new ORPCError("PRECONDITION_FAILED", { message: "O Comments está conectado em outra conta do Instagram. Use a mesma conta do post." });
+  const { channel, needsAccountChoice } = await resolvePostChannel(repositories.channels, post.targetIgAccountId);
+  if (needsAccountChoice) {
+    throw new ORPCError("PRECONDITION_FAILED", { message: "Escolha em qual conta do Instagram o post vai sair antes de configurar a automação." });
   }
+  if (!channel) throw new ORPCError("PRECONDITION_FAILED", { message: "Conecte a conta do Instagram deste post nos Satélites para usar a automação." });
 
-  const existingAutomation = post.commentsAutomationId ? await repositories.automations.findById(post.commentsAutomationId) : null;
+  const linkedAutomation = post.commentsAutomationId ? await repositories.automations.findById(post.commentsAutomationId) : null;
+  // Automação de outra conta não é reaproveitada: nasce uma nova na conta do post (CB-17).
+  const existingAutomation = linkedAutomation?.channelId === channel.id ? linkedAutomation : null;
   const automationId = existingAutomation?.id
     ?? (await repositories.automations.create({ channelId: channel.id, name: `Planner: ${post.title?.trim() || "post"}`.slice(0, 120), createdById: actorId })).id;
 

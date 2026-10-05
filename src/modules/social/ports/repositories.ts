@@ -25,6 +25,7 @@ export type ChannelSummary = {
   /** Últimos 4 caracteres do token — a UI nunca recebe o segredo inteiro. */
   accessTokenLast4: string;
   authMode: ChannelAuthModeValue;
+  automationCount: number;
 };
 
 /**
@@ -46,17 +47,28 @@ export interface ChannelLookupRepository {
 
 export type ConnectChannelOutcome = {
   channel: ChannelSummary;
-  /**
-   * Conta que ocupava a conexão antes, quando a troca mudou de conta — `null`
-   * na primeira conexão e na troca só de credencial. Quem chama usa isso para
-   * decidir o que fazer com o que foi configurado para a conta anterior.
-   */
-  replacedExternalAccountId: string | null;
+  /** Falso quando a conta já existia na organização e só a credencial mudou. */
+  isNewChannel: boolean;
 };
 
+/**
+ * Uma organização tem várias contas (spec 0069, D-1). Não existe leitura de
+ * "a conta da organização": quem chama sempre diz qual, pelo `channelId`.
+ */
 export interface ChannelRepository {
-  findForTenant(): Promise<ChannelSummary | null>;
-  findWithCredentials(): Promise<Channel | null>;
+  listForTenant(provider?: SocialProviderValue): Promise<ChannelSummary[]>;
+  countForTenant(provider: SocialProviderValue): Promise<number>;
+  findById(channelId: string): Promise<ChannelSummary | null>;
+  findWithCredentialsById(channelId: string): Promise<Channel | null>;
+  findByExternalAccountId(
+    provider: SocialProviderValue,
+    externalAccountId: string,
+  ): Promise<ChannelSummary | null>;
+  /**
+   * Conecta pela chave `(provider, externalAccountId)`: conta que já é da
+   * organização tem a credencial atualizada; conta nova vira outra linha.
+   * Nunca altera nem remove as demais contas.
+   */
   connect(input: {
     provider: SocialProviderValue;
     externalAccountId: string;
@@ -106,7 +118,7 @@ export type UpsertTriggerInput = {
 };
 
 export interface AutomationRepository {
-  list(): Promise<AutomationListItem[]>;
+  listByChannel(channelId: string): Promise<AutomationListItem[]>;
   findById(automationId: string): Promise<Automation | null>;
   /** Automações ativas de um canal — caminho quente do webhook. */
   findActiveByChannel(channelId: string): Promise<Automation[]>;
@@ -120,13 +132,6 @@ export interface AutomationRepository {
   remove(automationId: string): Promise<void>;
   upsertTrigger(input: UpsertTriggerInput): Promise<{ triggerId: string }>;
   removeTrigger(automationId: string, triggerId: string): Promise<void>;
-  /**
-   * Desativa as automações do canal que dependem de publicações específicas e
-   * devolve quantas foram. Serve para a troca de conta: o id de post da conta
-   * antiga não existe na nova, e a automação ficaria marcada como ativa sem ter
-   * como disparar.
-   */
-  deactivateTargetingContent(channelId: string): Promise<number>;
 }
 
 export interface InboundEventRepository {

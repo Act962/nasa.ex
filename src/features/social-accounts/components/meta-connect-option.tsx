@@ -6,24 +6,43 @@ import { cn } from "@/lib/utils";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
-import { useCommentsMetaAccounts, useConnectCommentsWithMeta } from "../hooks/use-comments-channel";
+import { useConnectSocialAccountWithMeta, useMetaInstagramAccounts } from "../hooks/use-social-accounts";
 
-/** Conectar o Comments com o Instagram que a empresa já ligou na Meta (spec 0061, RF-7). Some quando não há conta. */
-export function MetaConnectOption({ organizationId, className }: { organizationId?: string; className?: string }) {
-  const { data, isLoading } = useCommentsMetaAccounts({ organizationId });
-  const connectWithMeta = useConnectCommentsWithMeta();
-  const accounts = data?.accounts ?? [];
+/**
+ * Conectar o Instagram que a empresa já ligou na Meta (spec 0061, RF-7). Some quando não há
+ * conta ou quando todas já estão conectadas.
+ */
+export function MetaConnectOption({
+  organizationId,
+  connectedExternalAccountIds = [],
+  onConnected,
+  className,
+}: {
+  organizationId?: string;
+  connectedExternalAccountIds?: string[];
+  onConnected?: (accountId: string) => void;
+  className?: string;
+}) {
+  const { data, isLoading } = useMetaInstagramAccounts({ organizationId });
+  const connectWithMeta = useConnectSocialAccountWithMeta();
+  const availableAccounts = (data?.accounts ?? []).filter(
+    (account) => !connectedExternalAccountIds.includes(account.igUserId),
+  );
 
-  if (isLoading || accounts.length === 0) return null;
+  if (isLoading || availableAccounts.length === 0) return null;
 
   const connect = (metaPublishAccountId: string) =>
     connectWithMeta.mutate(
       { metaPublishAccountId, organizationId },
       {
-        onSuccess: (result) =>
-          result.subscribed
-            ? toast.success(`Comments conectado em @${result.handle ?? "sua conta"}.`)
-            : toast.warning(`Conectado, mas a Meta não confirmou o recebimento: ${result.subscriptionError ?? "tente de novo"}.`),
+        onSuccess: (result) => {
+          onConnected?.(result.account.id);
+          if (result.subscribed) {
+            toast.success(`Conectado em @${result.account.handle ?? "sua conta"}.`);
+          } else {
+            toast.warning(`Conectado, mas a Meta não confirmou o recebimento: ${result.subscriptionError ?? "tente de novo"}.`);
+          }
+        },
         onError: (error) => toast.error(error.message),
       },
     );
@@ -32,7 +51,7 @@ export function MetaConnectOption({ organizationId, className }: { organizationI
     <div className={cn("space-y-2", className)}>
       <p className="text-sm text-muted-foreground">Use o Instagram que esta empresa já conectou na Meta. Não precisa de token nem de configurar nada na Meta.</p>
       <div className="flex flex-wrap gap-2">
-        {accounts.map((account) => (
+        {availableAccounts.map((account) => (
           <Button
             key={account.id}
             data-guide={GUIDE_ANCHORS.commentsConnectWithMeta.id}

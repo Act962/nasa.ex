@@ -19,7 +19,7 @@ Depois de conectado, quem comenta ou manda DM vira conversa no **tracking-chat**
 | --- | --- |
 | Token por página guardado cifrado (`MetaPublishAccount`) | `oauth-finalize.ts` → `upsertPublishAccounts` |
 | Publicar feed, carrossel, Story e Reel (Instagram e página) | `src/features/nasa-planner/server/publishing/` + Inngest `nasa-planner/post.*` |
-| Comments conectado pelo token da página (`authMode: META_LOGIN`) | `src/features/comments/server/meta-login-channel.ts` |
+| Comments conectado pelo token da página (`authMode: META_LOGIN`) | `src/features/social-accounts/server/meta-login-channel.ts` |
 | Resposta privada (DM com botão) e resposta pública ao comentário | `src/modules/social/infra/instagram/meta-login-channel-gateway.ts` |
 | Webhook único `/api/social/webhook/meta` (verify token + assinatura do app) | `src/app/api/social/webhook/meta/route.ts` |
 | Webhook antigo do Instagram também entrega ao Comments | `src/app/api/integrations/instagram/webhook/route.ts` |

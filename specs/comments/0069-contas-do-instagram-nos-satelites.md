@@ -109,22 +109,22 @@ contas está trabalhando, e cada automação pertence a uma conta.
 ## 4. Critérios de aceite
 
 - [ ] **CA-1** — Dada uma empresa sem Instagram, quando o admin conclui o guia nos Satélites com credenciais válidas, então a conta aparece na lista como ativa e o cartão do Instagram entra em órbita.
-- [ ] **CA-2** — Dada uma empresa com a conta A conectada e com automações, quando o admin adiciona a conta B, então A continua ativa, com as mesmas automações, o mesmo histórico e a mesma URL de webhook, e a lista mostra A e B.
-- [ ] **CA-3** — Dadas A e B conectadas, quando chega um evento no webhook de B, então ele é processado no canal B e nenhuma automação de A dispara.
-- [ ] **CA-4** — Dado um token inválido ou de conta diferente do ID informado, quando o admin tenta conectar, então nada é salvo e a mensagem diz qual é o problema.
-- [ ] **CA-5** — Dada uma conta já conectada em **outra** empresa, quando o admin tenta conectá-la, então recebe "conta já conectada em outra empresa" e nada é salvo.
-- [ ] **CA-6** — Dada uma conta já conectada na **mesma** empresa, quando o admin a conecta de novo, então a credencial dela é atualizada e nenhuma linha nova é criada.
-- [ ] **CA-7** — Dadas A e B, quando o usuário escolhe B no seletor do Comments, então a lista mostra só as automações de B e a URL passa a identificar B; ao recarregar a página, B continua selecionada.
+- [x] **CA-2** — Dada uma empresa com a conta A conectada e com automações, quando o admin adiciona a conta B, então A continua ativa, com as mesmas automações, o mesmo histórico e a mesma URL de webhook, e a lista mostra A e B.
+- [x] **CA-3** — Dadas A e B conectadas, quando chega um evento no webhook de B, então ele é processado no canal B e nenhuma automação de A dispara.
+- [x] **CA-4** — Dado um token inválido ou de conta diferente do ID informado, quando o admin tenta conectar, então nada é salvo e a mensagem diz qual é o problema.
+- [x] **CA-5** — Dada uma conta já conectada em **outra** empresa, quando o admin tenta conectá-la, então recebe "conta já conectada em outra empresa" e nada é salvo.
+- [x] **CA-6** — Dada uma conta já conectada na **mesma** empresa, quando o admin a conecta de novo, então a credencial dela é atualizada e nenhuma linha nova é criada.
+- [x] **CA-7** — Dadas A e B, quando o usuário escolhe B no seletor do Comments, então a lista mostra só as automações de B e a URL passa a identificar B; ao recarregar a página, B continua selecionada.
 - [ ] **CA-8** — Dado um membro que não é owner nem admin, quando abre os Satélites, então vê a lista sem botões de gerenciar, e as chamadas de conectar/desativar devolvem FORBIDDEN.
-- [ ] **CA-9** — Dada a conta B desativada, quando o admin a reativa, então volta a ativa e a inscrição nos eventos é reenviada.
-- [ ] **CA-10** — Dada a lista de contas, quando inspecionada a resposta da API, então não há token, app secret nem verify token (só os 4 últimos caracteres do token).
-- [ ] **CA-11** — Dada uma empresa com 20 contas, quando o admin tenta a 21ª, então recebe a mensagem de limite e nada é salvo.
-- [ ] **CA-12** — `pnpm guides:check` passa com as âncoras novas e com o guia apontando para os componentes movidos.
-- [ ] **CA-13** — Dada B selecionada, quando o usuário cria uma automação, então ela é gravada com o `channelId` de B e não aparece com A selecionada.
-- [ ] **CA-14** — Dada A em "precisa reconectar" e B ativa, quando o usuário ativa uma automação de B, então ativa; quando ativa uma de A, então recebe o erro de reconexão.
-- [ ] **CA-15** — Dadas A e B com trackings diferentes escolhidos, quando chega um comentário em B, então o lead é criado no tracking de B.
+- [x] **CA-9** — Dada a conta B desativada, quando o admin a reativa, então volta a ativa e a inscrição nos eventos é reenviada.
+- [x] **CA-10** — Dada a lista de contas, quando inspecionada a resposta da API, então não há token, app secret nem verify token (só os 4 últimos caracteres do token).
+- [x] **CA-11** — Dada uma empresa com 20 contas, quando o admin tenta a 21ª, então recebe a mensagem de limite e nada é salvo.
+- [x] **CA-12** — `pnpm guides:check` passa com as âncoras novas e com o guia apontando para os componentes movidos.
+- [x] **CA-13** — Dada B selecionada, quando o usuário cria uma automação, então ela é gravada com o `channelId` de B e não aparece com A selecionada.
+- [x] **CA-14** — Dada A em "precisa reconectar" e B ativa, quando o usuário ativa uma automação de B, então ativa; quando ativa uma de A, então recebe o erro de reconexão.
+- [x] **CA-15** — Dadas A e B com trackings diferentes escolhidos, quando chega um comentário em B, então o lead é criado no tracking de B.
 - [ ] **CA-16** — Dado um lead que comentou em B, quando o atendente responde pelo chat, então a resposta sai por B.
-- [ ] **CA-17** — Dado um `channelId` de outra empresa, quando enviado a qualquer procedure do Comments ou dos Satélites, então a resposta é NOT_FOUND e nada é lido nem alterado.
+- [x] **CA-17** — Dado um `channelId` de outra empresa, quando enviado a qualquer procedure do Comments ou dos Satélites, então a resposta é NOT_FOUND e nada é lido nem alterado.
 - [ ] **CA-18** — Dado um post do Planner apontando para a conta B, quando o usuário configura a automação de Comments do post, então ela é criada em B, mesmo com A sendo a conta mais antiga.
 
 ## 5. Casos de borda
@@ -290,3 +290,4 @@ runner existir; os demais são manuais.
 | --- | --- | --- |
 | 2026-10-05 | João Gabriel | Criada, cobrindo só os Satélites |
 | 2026-10-05 | João Gabriel | Decisões do dono do produto: limite fixo de 20 contas; passo de permissão de publicar sem print; etapa 2 (Comments escolhe a conta) incorporada, o que eliminou a "conta padrão" temporária; branch própria empilhada sobre a PR 431 |
+| 2026-10-05 | João Gabriel | **Implementada** (falta conferência com conta real da Meta). Marcados os critérios provados por `scripts/social-accounts-qa-check.ts` (CA-2, 3, 4, 5, 6, 9, 11, 13, 14, 15, 17) e no navegador com a empresa de `scripts/social-accounts-qa-seed.ts` (CA-7, CA-10, CA-12). Seguem abertos os que exigem a Meta ou outro papel: CA-1, CA-8, CA-16, CA-18. Ajustes em relação ao texto: conta conectada pela Meta não tem "Trocar credencial" (o servidor recusa; ela se renova reconectando a Meta); o tracking de leads por conta só aparece para contas conectadas pela Meta, que são as únicas que viram lead no chat (spec 0062); no Planner, `accountMismatch` passou a significar "automação criada em outra conta" e não bloqueia mais o painel |

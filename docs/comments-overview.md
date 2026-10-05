@@ -63,21 +63,24 @@ src/modules/social/
 | Rota | Papel |
 | --- | --- |
 | `POST/GET /api/social/webhook/instagram/[token]` | Webhook, **um endpoint por conexão** |
-| `src/app/router/comments/channel.ts` | Conectar, desconectar, status, listar publicações, `webhookSetup` (URL + verify token, só admin) |
-| `src/app/router/comments/automations.ts` | CRUD, salvar gatilho, ativar, histórico |
+| `src/app/router/social-accounts/index.ts` | Contas da organização (spec 0069): listar, conectar, reconectar, desativar, reativar, reenviar inscrição, `webhookSetup` (URL + verify token, só admin), conectar pela Meta |
+| `src/app/router/comments/channel.ts` | O que o Comments lê **de uma conta**: publicações e tracking de leads. Toda procedure recebe `channelId` |
+| `src/app/router/comments/automations.ts` | CRUD, salvar gatilho, ativar, histórico. Listar e criar recebem `channelId` |
 
 ### UI
 
 | Arquivo | Papel |
 | --- | --- |
-| `features/comments/components/channel-connect-card.tsx` | Status da conta + URL do webhook com copiar; abre o guia para conectar/trocar |
-| `features/comments/components/instagram-connect-guide-dialog.tsx` | Popup passo a passo com prints da Meta (spec 0047) |
-| `features/comments/lib/instagram-connect-guide.{ts,json}` | Os 24 passos do guia: fases, prints, alvo da seta, dicas |
-| `features/comments/components/automations-list.tsx` | Lista e criação |
+| `features/social-accounts/components/social-accounts-manager.tsx` | Lista de contas da organização com estado e ações por conta (reenviar inscrição, trocar credencial, ver webhook, desativar/reativar) e "Adicionar conta". Usada nos Satélites (`instagram-accounts-dialog.tsx`) e na aba Integrações do Comments |
+| `features/social-accounts/components/instagram-connect-guide-dialog.tsx` | Popup passo a passo com prints da Meta (spec 0047). Sem conta-alvo adiciona uma conta; com conta-alvo troca a credencial ou reabre no passo do webhook |
+| `features/social-accounts/lib/instagram-connect-guide.{ts,json}` | Os 25 passos do guia: fases, prints, alvo da seta, dicas. `n` nomeia o arquivo do print, então passo novo usa o próximo número livre em vez de renumerar |
+| `features/comments/components/comments-account-select.tsx` | Seletor da conta em uso, no topo do Comments (`?conta=<channelId>`) |
+| `features/comments/components/automations-list.tsx` | Lista e criação, da conta selecionada |
 | `features/comments/components/automation-editor.tsx` | Painel guiado em 3 passos |
 | `features/comments/components/automation-canvas.tsx` | Canvas `@xyflow` derivado dos dados |
 | `features/comments/components/runs-panel.tsx` | Histórico — responde "por que não respondeu?" |
-| `features/comments/hooks/use-comments-*.ts` | Toda chamada oRPC (regra 9) |
+| `features/comments/hooks/use-comments-*.ts` | Toda chamada oRPC do Comments (regra 9); `useSelectedCommentsAccount` resolve a conta em uso |
+| `features/social-accounts/hooks/use-social-accounts.ts` | Toda chamada oRPC das contas conectadas |
 
 Rotas: `/comments` e `/comments/automations/[id]`.
 
@@ -111,7 +114,7 @@ Sem contadores denormalizados: `sentCount` é derivado dos runs.
 | Conta duplicada | `@@unique([provider, external_account_id])` impede duas orgs na mesma conta |
 | Papel | Conectar/desconectar exige owner ou admin |
 | Desconectar | **Desativa, não apaga.** `SocialAutomation`/`SocialContact`/`SocialInboundEvent` cascateiam do canal — deletar a linha destruía a configuração do usuário. Também preserva o `webhook_path_token`, mantendo válida a URL já registrada na Meta |
-| Uma conexão por organização | Invariante do módulo (spec 0024 D-13): `connect` **reaproveita a linha existente**, inclusive ao trocar de conta. Criar uma segunda linha fazia as leituras (`findFirst` pela mais antiga) continuarem devolvendo a conta anterior. A linha mais antiga é a canônica — é ela que automações, contatos, histórico e a URL registrada na Meta referenciam |
+| Várias contas por organização | Spec 0069 (revoga a D-13 da 0024). A chave de uma conta é `(provider, externalAccountId)`: conectar atualiza a linha dela ou cria outra, e nunca toca nas demais. Nenhuma leitura devolve "a conta da organização" — toda operação recebe `channelId`, conferido contra a organização da sessão. Reconectar não troca a conta de uma linha (token de outra conta é recusado), que era a origem do bug da D-13 |
 
 ## 5. Configuração pelo usuário
 
@@ -144,7 +147,7 @@ de cada tela da Meta. Resumo dos 24 passos:
 7. **Webhook** — colar URL de callback e verify token no bloco *3. Configurar webhooks* → Verificar e salvar (se falhar, tentar de novo: na 1ª tentativa real falhou e na 2ª passou). `comments` e `messages` já vêm assinados.
 
 Prints: `public/guides/instagram-comments/`, gerados por
-`python3 scripts/guides/prepare-whatsapp-guide.py <pasta> --guide src/features/comments/lib/instagram-connect-guide.json --out public/guides/instagram-comments`.
+`python3 scripts/guides/prepare-whatsapp-guide.py <pasta> --guide src/features/social-accounts/lib/instagram-connect-guide.json --out public/guides/instagram-comments`.
 Tirados do app de teste "ÓRBITA GUIA COMMENTS" (ID 1143172268148079) com a conta @orbitahub.plataforma.
 
 > ⚠️ Assinar os campos no painel diz apenas **quais** eventos o app quer — não faz a
@@ -207,11 +210,14 @@ cria lead, o outro responde. Sem dedupe entre sistemas nesta fase.
   caminho (D-4); ficou como dívida para não segurar a entrega. Com prompt longo,
   pode passar do tempo confortável de resposta à Meta.
 - **`social_contacts.lead_id` não é FK** e ninguém escreve nele ainda.
-- **Alvo de publicação não é validado contra a conta conectada.** Na troca de
-  conta, as automações com alvo específico são desativadas e o usuário é avisado
-  (D-13), mas nada impede reativá-las sem reescolher os posts — e aí o gatilho
-  não casa, porque o id do post é de outra conta. A validação na ativação exige
-  uma consulta ao provider e ficou para depois.
+- **Passo "permissão de publicar" do guia está sem print** (spec 0069, RF-9).
+  O texto cita `instagram_business_content_publish`; falta conferir o rótulo
+  exato no painel da Meta e capturar o print no app de teste.
+- **Permissões do token não são conferidas.** A conta conecta mesmo sem a
+  permissão de publicar; a conferência entra com a publicação pelo Planner
+  (etapa 3 da spec 0069).
+- **`MetaPublishAccount` segue em paralelo** como fonte de publicação do
+  Planner. A convergência com `SocialChannel` é a etapa 3.
 - O proxy antigo segue no repo, desregistrado, em `src/app/router/comments-remote/`
   e `src/http/comments/`.
 
@@ -219,6 +225,7 @@ cria lead, o outro responde. Sem dedupe entre sistemas nesta fase.
 
 | Data | Mudança |
 | --- | --- |
+| 2026-10-05 | **Várias contas do Instagram por empresa, conectadas pelos Satélites** (spec 0069). Revoga a D-13 da spec 0024: `ChannelRepository` perde `findForTenant`/`findWithCredentials` e ganha `listForTenant`, `findById`, `findWithCredentialsById` e `findByExternalAccountId` — não existe mais leitura de "a conta da empresa". `connect` passa a ser por `(provider, externalAccountId)` e **não toca nas outras contas** (a limpeza de "órfãs" foi removida: com várias contas ela apagaria contas legítimas); `reconnectChannel` troca a credencial de uma conta sem nunca trocar a conta da linha; teto de 20 contas (`MAX_CHANNELS_PER_PROVIDER`). Conexão saiu de `comments.channel.*` para o novo router `socialAccounts.*` e a tela virou a feature `src/features/social-accounts/` (guia, lista de contas, conectar pela Meta), usada pelo cartão do Instagram dos Satélites e pela aba Integrações do Comments. O cartão "Instagram DM" dos Satélites perdeu o formulário genérico. No Comments: seletor de conta (`?conta=`), automações/execuções/publicações por conta, tracking de leads por conta, sem "Trocar conta". No chat, as mensagens do Instagram gravam `metadata.instagram.channelId` e a resposta sai pela conta que recebeu (conversa antiga cai na conta mais antiga). No Planner, a automação do post usa a conta do post. Guia ganhou o passo da permissão de publicar (sem print). Sem migration. Conferência: `scripts/social-accounts-qa-check.ts` (21 asserções); telas: `scripts/social-accounts-qa-seed.ts` |
 | 2026-10-04 | **Instagram no tracking-chat** (spec 0062): todo comentário e DM de conta conectada pela Meta vira mensagem na conversa do lead (`@usuario`, tag Instagram, um lead por pessoa) no tracking escolhido em Integrações (`social_channels.lead_tracking_id`); comentário mostra o card do post, DM o rótulo "Mensagem no Direct do Instagram"; respostas da automação aparecem como enviadas (`handleInboundEvent` devolve `deliveries`); responder no chat com o comentário selecionado publica naquele comentário (`sendInstagramFromChat`). Ponte por observador em `processChannelEvents`; webhook antigo deixa de criar lead de DM para contas `META_LOGIN` |
 | 2026-10-04 | **Conectar pela Meta em um clique** (spec 0061): `authMode`/`pageId` nas credenciais (sem migration), gateway graph.facebook.com, webhook único `/api/social/webhook/meta` + repasse no webhook antigo, procedures `channel.metaAccounts`/`channel.connectWithMeta`, botão no card e no Planner, token atualizado ao reconectar a Meta. Testado no app ÓRBITA TESTE 2026 com @weydsonlima |
 | 2026-09-29 | **Guia "Conectar Instagram passo a passo"** (spec 0047): popup com 24 passos e prints reais da Meta no lugar do formulário solto; verify token gerado pela ÓRBITA; nova procedure `channel.webhookSetup`. O stepper do WhatsApp virou o módulo compartilhado `src/features/meta-guide/` |

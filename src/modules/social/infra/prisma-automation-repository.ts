@@ -97,9 +97,9 @@ export class PrismaAutomationRepository implements AutomationRepository {
     if (!found) throw new AutomationNotFoundError();
   }
 
-  async list(): Promise<AutomationListItem[]> {
+  async listByChannel(channelId: string): Promise<AutomationListItem[]> {
     const rows = await prisma.socialAutomation.findMany({
-      where: { organizationId: this.tenant.organizationId },
+      where: { organizationId: this.tenant.organizationId, channelId },
       orderBy: { createdAt: "desc" },
       include: {
         _count: { select: { triggers: true } },
@@ -110,7 +110,7 @@ export class PrismaAutomationRepository implements AutomationRepository {
       by: ["automationId"],
       where: {
         status: "SENT",
-        automation: { organizationId: this.tenant.organizationId },
+        automation: { organizationId: this.tenant.organizationId, channelId },
       },
       _count: { _all: true },
     });
@@ -202,28 +202,6 @@ export class PrismaAutomationRepository implements AutomationRepository {
     await prisma.socialAutomation.deleteMany({
       where: { id: automationId, organizationId: this.tenant.organizationId },
     });
-  }
-
-  /**
-   * Desativa o que só faz sentido na conta anterior.
-   *
-   * O alvo guarda o id da publicação; trocada a conta, aquele id não existe do
-   * outro lado e o gatilho nunca casa. Desativar é mais honesto que deixar o
-   * selo "Ativa" numa automação incapaz de disparar — e preserva a
-   * configuração, que o usuário só precisa reapontar para os posts novos.
-   */
-  async deactivateTargetingContent(channelId: string): Promise<number> {
-    const result = await prisma.socialAutomation.updateMany({
-      where: {
-        channelId,
-        organizationId: this.tenant.organizationId,
-        isActive: true,
-        triggers: { some: { targets: { some: {} } } },
-      },
-      data: { isActive: false },
-    });
-
-    return result.count;
   }
 
   /**

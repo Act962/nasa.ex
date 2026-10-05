@@ -5,7 +5,11 @@
 export const GUIDE_ANCHORS = {
   commentsConnectInstagram: {
     id: "comments.connect-instagram",
-    description: "Botão \"Conectar Instagram passo a passo\" em /comments → Integrações",
+    description: "Botão que abre o passo a passo para conectar uma conta do Instagram, em /comments → Integrações e nos Satélites",
+  },
+  commentsAccountSelect: {
+    id: "comments.account-select",
+    description: "Seletor da conta do Instagram em uso, no topo de /comments",
   },
   plannerBrandKitPage: {
     id: "planner.brand-kit.page",
@@ -45,7 +49,7 @@ export const GUIDE_ANCHORS = {
   },
   commentsConnectWithMeta: {
     id: "comments.connect-with-meta",
-    description: "Botão \"Usar @conta\" que conecta o Comments com o Instagram já ligado na Meta",
+    description: "Botão \"Usar @conta\" que conecta o Instagram já ligado na Meta",
   },
   trackingList: {
     id: "tracking.list",

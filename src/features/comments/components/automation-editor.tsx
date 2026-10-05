@@ -37,7 +37,9 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
   const [refitSignal, setRefitSignal] = useState(0);
 
   const isCommentTrigger = state.eventType === "COMMENT_CREATED";
+  // As publicações são as da conta desta automação (spec 0069, RF-14).
   const content = useCommentsContent(
+    automation?.channelId,
     isCommentTrigger && state.targetScope === "SPECIFIC_CONTENT",
   );
 
@@ -236,6 +238,8 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
       <AutomationEditorHeader
         automationId={automationId}
         name={automation.name}
+        channelId={automation.channelId}
+        accountHandle={automation.channel?.handle ?? null}
         isActive={automation.isActive}
         onSave={handleSave}
         isSaving={saveTrigger.isPending}

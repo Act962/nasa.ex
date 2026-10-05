@@ -18,6 +18,7 @@ import {
   INSTAGRAM_GUIDE,
   INSTAGRAM_GUIDE_STEPS,
   KEY_STEP_SLUGS,
+  WEBHOOK_STEP_SLUG,
   generateVerifyToken,
   isAccessTokenValid,
   isAppSecretValid,
@@ -25,10 +26,10 @@ import {
   looksLikeInstagramAppId,
 } from "../lib/instagram-connect-guide";
 import {
-  useCommentsChannel,
-  useCommentsWebhookSetup,
-  useConnectCommentsChannel,
-} from "../hooks/use-comments-channel";
+  useConnectSocialAccount,
+  useReconnectSocialAccount,
+  useSocialAccountWebhookSetup,
+} from "../hooks/use-social-accounts";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { emitTourResult } from "@/features/tour/store";
 import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
@@ -78,21 +79,33 @@ function keyNameForStep(slug: string): KeyName | null {
   return entry ? (entry[0] as KeyName) : null;
 }
 
+function stepIndexOf(slug: string | null): number {
+  return INSTAGRAM_GUIDE_STEPS.findIndex((step) => step.slug === slug);
+}
+
+/** Conta já conectada sobre a qual o guia atua: trocar a credencial ou rever o webhook. */
+export interface GuideTargetAccount {
+  id: string;
+  externalAccountId: string;
+  /** `webhook` reabre direto no passo do webhook (spec 0069, CB-11). */
+  startAt: "keys" | "webhook";
+}
+
 /**
- * Popup "Conectar Instagram" do COMMENTS (spec 0047): as telas da Meta uma de
- * cada vez, com as chaves coladas no passo em que são copiadas.
+ * Popup "Conectar Instagram" (specs 0047 e 0069): as telas da Meta uma de cada
+ * vez, com as chaves coladas no passo em que são copiadas. Sem `targetAccount`,
+ * adiciona uma conta nova à organização.
  */
 export function InstagramConnectGuideDialog({
   open,
   onOpenChange,
-  initialAccountId = "",
-  isStartingAtKeys = false,
+  targetAccount,
+  onConnected,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialAccountId?: string;
-  /** "Trocar conta ou credenciais": pula a criação do app (spec 0047, CA-5). */
-  isStartingAtKeys?: boolean;
+  targetAccount?: GuideTargetAccount;
+  onConnected?: (accountId: string) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -103,8 +116,8 @@ export function InstagramConnectGuideDialog({
       >
         {open && (
           <GuideContent
-            initialAccountId={initialAccountId}
-            isStartingAtKeys={isStartingAtKeys}
+            targetAccount={targetAccount}
+            onConnected={onConnected}
             onClose={() => onOpenChange(false)}
           />
         )}
@@ -113,46 +126,89 @@ export function InstagramConnectGuideDialog({
   );
 }
 
+function resolveInitialSlug(targetAccount: GuideTargetAccount | undefined, storedSlug: string | null): string | null {
+  if (targetAccount) return targetAccount.startAt === "webhook" ? WEBHOOK_STEP_SLUG : FIRST_KEY_STEP_SLUG;
+  // Conta nova: o progresso salvo depois do "Conectar" era de outra conta. Recomeça nas chaves.
+  if (stepIndexOf(storedSlug) > stepIndexOf(CONNECT_STEP_SLUG)) return FIRST_KEY_STEP_SLUG;
+  return storedSlug;
+}
+
 function GuideContent({
-  initialAccountId,
-  isStartingAtKeys,
+  targetAccount,
+  onConnected,
   onClose,
 }: {
-  initialAccountId: string;
-  isStartingAtKeys: boolean;
+  targetAccount?: GuideTargetAccount;
+  onConnected?: (accountId: string) => void;
   onClose: () => void;
 }) {
   const [storedProgress] = useState(readStoredProgress);
-  const initialSlug = isStartingAtKeys ? FIRST_KEY_STEP_SLUG : storedProgress.slug;
+  const [initialSlug] = useState(() => resolveInitialSlug(targetAccount, storedProgress.slug));
   const [cheeredIds, setCheeredIds] = useState(() => new Set(storedProgress.cheeredIds));
   const [currentStep, setCurrentStep] = useState<MetaGuideStep>(
     () => INSTAGRAM_GUIDE_STEPS.find((step) => step.slug === initialSlug) ?? INSTAGRAM_GUIDE_STEPS[0],
   );
   const [progress, setProgress] = useState(() => ({
-    done: Math.max(0, INSTAGRAM_GUIDE_STEPS.findIndex((step) => step.slug === initialSlug)),
+    done: Math.max(0, stepIndexOf(initialSlug)),
     total: INSTAGRAM_GUIDE_STEPS.length,
   }));
   const [keys, setKeys] = useState<Record<KeyName, string>>({
-    accountId: initialAccountId,
+    accountId: targetAccount?.externalAccountId ?? "",
     accessToken: "",
     appSecret: "",
   });
   const [verifyToken] = useState(generateVerifyToken);
-  const [isConnectedNow, setIsConnectedNow] = useState(false);
+  const isReviewingWebhook = targetAccount?.startAt === "webhook";
+  const [connectedAccountId, setConnectedAccountId] = useState<string | null>(
+    isReviewingWebhook ? targetAccount.id : null,
+  );
   const [connectError, setConnectError] = useState<string | null>(null);
-  const connect = useConnectCommentsChannel();
-  const { data: channel } = useCommentsChannel();
-  const { data: webhookSetup } = useCommentsWebhookSetup();
-  // Retomou o guia depois de já ter conectado: não obriga a colar as chaves de novo.
-  const isAlreadyConnected = !isStartingAtKeys && channel?.connected === true && channel.status === "ACTIVE";
-  const isConnected = isConnectedNow || isAlreadyConnected;
+  const connect = useConnectSocialAccount();
+  const reconnect = useReconnectSocialAccount();
+  const { data: webhookSetup } = useSocialAccountWebhookSetup(connectedAccountId);
+  const isConnected = connectedAccountId !== null;
+  const isSaving = connect.isPending || reconnect.isPending;
 
   function persist(patch: Partial<StoredProgress>) {
     writeStoredProgress({ slug: currentStep.slug, cheeredIds: [...cheeredIds], ...patch });
   }
 
-  function connectChannel() {
+  type ConnectionResult = {
+    account: { id: string; handle: string | null; externalAccountId: string };
+    subscribed: boolean;
+    subscriptionError: string | null;
+    isNewAccount?: boolean;
+  };
+
+  function handleConnected(result: ConnectionResult) {
+    setConnectedAccountId(result.account.id);
+    onConnected?.(result.account.id);
+    emitTourResult({ kind: GUIDE_RESULT_KINDS.instagramConnected });
+    const accountLabel = result.account.handle ? `@${result.account.handle}` : result.account.externalAccountId;
+    if (!result.subscribed) {
+      toast.warning(`Conectado em ${accountLabel}, mas a inscrição nos eventos falhou`, {
+        description: result.subscriptionError ?? undefined,
+      });
+    } else if (result.isNewAccount === false) {
+      toast.success(`Credencial de ${accountLabel} atualizada`);
+    } else {
+      toast.success(`Conectado em ${accountLabel}`);
+    }
+  }
+
+  function submitKeys() {
     setConnectError(null);
+    const callbacks = {
+      onSuccess: handleConnected,
+      onError: (error: Error) => setConnectError(error.message),
+    };
+    if (targetAccount) {
+      reconnect.mutate(
+        { channelId: targetAccount.id, accessToken: keys.accessToken.trim(), appSecret: keys.appSecret.trim() },
+        callbacks,
+      );
+      return;
+    }
     connect.mutate(
       {
         provider: "INSTAGRAM",
@@ -161,25 +217,7 @@ function GuideContent({
         appSecret: keys.appSecret.trim(),
         verifyToken,
       },
-      {
-        onSuccess: (result) => {
-          setIsConnectedNow(true);
-          emitTourResult({ kind: GUIDE_RESULT_KINDS.instagramConnected });
-          const account = result.handle ? `@${result.handle}` : result.externalAccountId;
-          if (!result.subscribed) {
-            toast.warning(`Conectado em ${account}, mas a inscrição nos eventos falhou`, {
-              description: result.subscriptionError ?? undefined,
-            });
-          } else if (result.replacedExternalAccountId && result.deactivatedAutomations > 0) {
-            toast.success(`Conta trocada para ${account}`, {
-              description: `${result.deactivatedAutomations} automação(ões) apontavam para posts da conta anterior e foram desativadas.`,
-            });
-          } else {
-            toast.success(`Conectado em ${account}`);
-          }
-        },
-        onError: (error) => setConnectError(error.message),
-      },
+      callbacks,
     );
   }
 
@@ -190,20 +228,28 @@ function GuideContent({
       const value = keys[keyName];
       const isFilled = value.trim().length > 0;
       const isValid = KEY_VALIDATORS[keyName](value);
+      // Reconectar não troca a conta da linha: o ID fica travado (spec 0069, CB-8).
+      const isLocked = keyName === "accountId" && Boolean(targetAccount);
       return (
         <div className="space-y-1.5 rounded-lg border border-success/40 bg-success/5 p-3">
-          <Label className="text-xs font-medium">Cole aqui: {field.label}</Label>
+          <Label className="text-xs font-medium">{isLocked ? field.label : `Cole aqui: ${field.label}`}</Label>
           <Input
             value={value}
             type={field.isSecret ? "password" : "text"}
             autoComplete="off"
             placeholder={field.placeholder}
+            readOnly={isLocked}
             onChange={(event) => setKeys((current) => ({ ...current, [keyName]: event.target.value }))}
           />
+          {isLocked && (
+            <p className="text-xs text-muted-foreground">
+              Você está trocando a credencial desta conta. Para outro Instagram, use &ldquo;Adicionar conta&rdquo;.
+            </p>
+          )}
           {isFilled && !isValid && (
             <p className="text-xs text-destructive">Esse valor não parece certo. Confira se copiou inteiro.</p>
           )}
-          {keyName === "accountId" && looksLikeInstagramAppId(value) && (
+          {!isLocked && keyName === "accountId" && looksLikeInstagramAppId(value) && (
             <p className="flex items-center gap-1.5 text-xs text-warning">
               <AlertTriangle className="size-3.5" /> Parece o ID do app. O da conta fica embaixo do @ e começa com 1784.
             </p>
@@ -238,9 +284,9 @@ function GuideContent({
           {connectError && (
             <p className="rounded-md bg-destructive/10 p-2 text-xs text-destructive">{connectError}</p>
           )}
-          <Button onClick={connectChannel} disabled={connect.isPending || missingKeys.length > 0}>
-            {connect.isPending ? <OrbitaSpinner className="size-4 " /> : <Plug className="size-4" />}
-            Conectar
+          <Button onClick={submitKeys} disabled={isSaving || missingKeys.length > 0}>
+            {isSaving ? <OrbitaSpinner className="size-4 " /> : <Plug className="size-4" />}
+            {targetAccount ? "Atualizar credencial" : "Conectar"}
           </Button>
           {missingKeys.length > 0 && (
             <p className="text-xs text-muted-foreground">Volte aos passos marcados em amarelo e cole a chave.</p>
@@ -268,13 +314,13 @@ function GuideContent({
           <Instagram className="size-5 text-info" />
           {currentStep.title}
         </DialogTitle>
-        <DialogDescription className="sr-only">Passo a passo para conectar o Instagram no COMMENTS</DialogDescription>
+        <DialogDescription className="sr-only">Passo a passo para conectar uma conta do Instagram</DialogDescription>
         <div className="flex items-center gap-3">
           <Progress value={percent} className="h-1.5" />
           <span className="shrink-0 text-xs text-muted-foreground">
             Passo {progress.done + 1} de {progress.total}
           </span>
-          <RequestTeamHelp step={currentStep.title} contextLabel="Comments · Conectar Instagram" appId="comments" />
+          <RequestTeamHelp step={currentStep.title} contextLabel="Satélites · Conectar Instagram" appId="comments" />
         </div>
       </DialogHeader>
 
@@ -293,15 +339,16 @@ function GuideContent({
         onStepChange={(step, index, total) => {
           setCurrentStep(step);
           setProgress({ done: index, total });
-          persist({ slug: step.slug });
+          // O progresso salvo é o de uma conta nova; rever uma conta não o sobrescreve.
+          if (!targetAccount) persist({ slug: step.slug });
         }}
         onCheer={(cheerId) => {
           const nextCheered = new Set(cheeredIds).add(cheerId);
           setCheeredIds(nextCheered);
-          persist({ cheeredIds: [...nextCheered] });
+          if (!targetAccount) persist({ cheeredIds: [...nextCheered] });
         }}
         onFinished={() => {
-          writeStoredProgress({ slug: null, cheeredIds: [] });
+          if (!targetAccount) writeStoredProgress({ slug: null, cheeredIds: [] });
           toast.success("Instagram conectado e recebendo comentários!");
           onClose();
         }}

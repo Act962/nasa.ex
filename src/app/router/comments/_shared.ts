@@ -21,16 +21,22 @@ const FULL_ACCESS_ROLES = new Set(["owner", "admin"]);
  * Conectar e desconectar mexem em credencial — ficam restritos a owner/admin.
  * Ler e editar automação segue liberado para qualquer membro.
  */
-export async function requireOrgAdmin(
+export async function isOrgAdmin(
   organizationId: string,
   userId: string,
-): Promise<void> {
+): Promise<boolean> {
   const member = await prisma.member.findFirst({
     where: { organizationId, userId },
     select: { role: true },
   });
+  return Boolean(member && FULL_ACCESS_ROLES.has(member.role));
+}
 
-  if (!member || !FULL_ACCESS_ROLES.has(member.role)) {
+export async function requireOrgAdmin(
+  organizationId: string,
+  userId: string,
+): Promise<void> {
+  if (!(await isOrgAdmin(organizationId, userId))) {
     throw new ORPCError("FORBIDDEN", {
       message: "Apenas owner ou admin podem gerenciar a conexão.",
     });
@@ -47,6 +53,8 @@ const STATUS_BY_CODE: Record<string, "NOT_FOUND" | "FORBIDDEN" | "BAD_REQUEST" |
   [SocialErrorCode.CHANNEL_NOT_CONNECTED]: "BAD_REQUEST",
   [SocialErrorCode.CHANNEL_NEEDS_RECONNECT]: "BAD_REQUEST",
   [SocialErrorCode.CHANNEL_ALREADY_TAKEN]: "CONFLICT",
+  [SocialErrorCode.CHANNEL_NOT_FOUND]: "NOT_FOUND",
+  [SocialErrorCode.CHANNEL_LIMIT_REACHED]: "BAD_REQUEST",
   [SocialErrorCode.AUTOMATION_INCOMPLETE]: "BAD_REQUEST",
   [SocialErrorCode.INVALID_CREDENTIALS]: "BAD_REQUEST",
   [SocialErrorCode.INVALID_STEP_CONFIG]: "BAD_REQUEST",

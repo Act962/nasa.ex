@@ -5,22 +5,22 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCommentsLeadTracking, useSetCommentsLeadTracking } from "../hooks/use-comments-channel";
 
-/** Em qual tracking entram os leads do Instagram (spec 0062, RF-1). */
-export function LeadTrackingSelect() {
-  const { data } = useCommentsLeadTracking();
+/** Em qual tracking entram os leads desta conta do Instagram (spec 0062, RF-1; por conta na 0069, RF-16). */
+export function LeadTrackingSelect({ channelId, isDisabled = false }: { channelId: string; isDisabled?: boolean }) {
+  const { data } = useCommentsLeadTracking(channelId);
   const setLeadTracking = useSetCommentsLeadTracking();
   if (!data || data.trackings.length === 0) return null;
 
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">Leads do Instagram entram no tracking</Label>
+      <Label className="text-xs text-muted-foreground">Leads desta conta entram no tracking</Label>
       <Select
         value={data.trackingId ?? undefined}
-        disabled={setLeadTracking.isPending}
+        disabled={setLeadTracking.isPending || isDisabled}
         onValueChange={(trackingId) =>
           setLeadTracking.mutate(
-            { trackingId },
-            { onSuccess: () => toast.success("Tracking dos leads do Instagram atualizado."), onError: (error) => toast.error(error.message) },
+            { channelId, trackingId },
+            { onSuccess: () => toast.success("Tracking dos leads desta conta atualizado."), onError: (error) => toast.error(error.message) },
           )
         }
       >

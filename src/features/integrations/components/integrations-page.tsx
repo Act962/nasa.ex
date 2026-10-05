@@ -257,25 +257,15 @@ export const PLATFORM_DEFS: PlatformDef[] = [
   },
   {
     platform: IntegrationPlatform.INSTAGRAM,
-    label: "Instagram DM",
-    description: "Centralize mensagens diretas do Instagram no chat do ÓRBITA. Identifique leads por origem automaticamente.",
+    label: "Instagram",
+    description: "Conecte uma ou mais contas do Instagram para responder comentários e directs no Comments e publicar pelo Planner.",
     color: "text-brand-instagram", bgColor: "bg-gradient-to-br from-[#833AB4]/10 via-[#FD1D1D]/10 to-[#F77737]/10", borderColor: "border-brand-instagram/30",
     icon: InstagramIcon,
     docsUrl: "https://developers.facebook.com/docs/instagram-api/getting-started", docsLabel: "Meta for Developers",
     category: "messaging",
-    oauthProvider: "meta",
-    steps: [
-      "Acesse developers.facebook.com e crie um App do tipo 'Business'",
-      "Ative o produto 'Instagram Graph API' no App",
-      "Gere um Token de Acesso de Página de longa duração em Ferramentas > Explorador da API",
-      "Copie o App ID, App Secret e Token abaixo",
-    ],
-    fields: [
-      { key: "appId", label: "App ID (Meta)", placeholder: "123456789", hint: "Meta for Developers > Seu App > Configurações Básicas" },
-      { key: "appSecret", label: "App Secret", placeholder: "abc123...", type: "password", hint: "Configurações Básicas do seu App Meta" },
-      { key: "accessToken", label: "Token de Acesso de Página", placeholder: "EAABsb...", type: "password", hint: "Ferramentas > Explorador da API do Graph" },
-      { key: "webhookSecret", label: "Webhook Secret (opcional)", placeholder: "meu_secret_webhook" },
-    ],
+    // Sem formulário próprio: as contas são conectadas pela lista dos Satélites (spec 0069, RF-8).
+    steps: [],
+    fields: [],
   },
   // ── Ads / Marketing ────────────────────
   {

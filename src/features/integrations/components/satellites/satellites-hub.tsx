@@ -16,6 +16,7 @@ import {
 } from "@/features/integrations/components/integrations-page";
 import { MetaMcpSection } from "@/features/integrations/components/meta-mcp-section";
 import { ExternalAiSection } from "@/features/external-ai/components/external-ai-section";
+import { InstagramAccountsDialog } from "@/features/social-accounts/components/instagram-accounts-dialog";
 import {
   useChannelOrbit,
   useDeletePlatformIntegration,
@@ -76,10 +77,20 @@ export function SatellitesHub() {
   const [searchText, setSearchText] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   // `?connect=OPENAI` abre direto a configuração do satélite (cartão do ASTRO, spec 0053).
-  const [configuring, setConfiguring] = useState<PlatformDef | null>(() => {
-    const requestedPlatform = searchParams.get("connect")?.toUpperCase();
-    return PLATFORM_DEFS.find((platformDef) => platformDef.platform === requestedPlatform) ?? null;
-  });
+  const requestedPlatform = searchParams.get("connect")?.toUpperCase();
+  const [configuring, setConfiguring] = useState<PlatformDef | null>(
+    () =>
+      PLATFORM_DEFS.find(
+        (platformDef) => platformDef.platform === requestedPlatform && platformDef.platform !== "INSTAGRAM",
+      ) ?? null,
+  );
+  // O Instagram não tem formulário próprio: abre a lista de contas conectadas (spec 0069, RF-1).
+  const [isInstagramAccountsOpen, setIsInstagramAccountsOpen] = useState(requestedPlatform === "INSTAGRAM");
+  const openPlatform = (platformDef: PlatformDef) => {
+    if (platformDef.platform === "WHATSAPP") router.push(platformDef.docsUrl);
+    else if (platformDef.platform === "INSTAGRAM") setIsInstagramAccountsOpen(true);
+    else setConfiguring(platformDef);
+  };
   const [disconnecting, setDisconnecting] = useState<IntegrationPlatform | null>(null);
 
   const integrationRows = data?.integrations ?? [];
@@ -213,8 +224,13 @@ export function SatellitesHub() {
                   !activeRowByPlatform.has(platformDef.platform)
                 }
                 canManage={canManage}
-                onConfigure={() => setConfiguring(platformDef)}
-                onDisconnect={() => setDisconnecting(platformDef.platform as IntegrationPlatform)}
+                onConfigure={() => openPlatform(platformDef)}
+                // Conta do Instagram se desativa uma a uma, na lista; o botão só resta para a conexão antiga de DM.
+                onDisconnect={
+                  platformDef.platform === "INSTAGRAM" && !activeRowByPlatform.has(platformDef.platform)
+                    ? undefined
+                    : () => setDisconnecting(platformDef.platform as IntegrationPlatform)
+                }
                 footer={renderAiCreditFooter(platformDef)}
               />
             ))}
@@ -236,11 +252,7 @@ export function SatellitesHub() {
                 key={platformDef.platform}
                 platformDef={platformDef}
                 canManage={canManage}
-                onActivate={() =>
-                  platformDef.platform === "WHATSAPP"
-                    ? router.push(platformDef.docsUrl)
-                    : setConfiguring(platformDef)
-                }
+                onActivate={() => openPlatform(platformDef)}
               />
             ))}
           </div>
@@ -286,6 +298,8 @@ export function SatellitesHub() {
           isSaving={upsertIntegration.isPending}
         />
       )}
+
+      <InstagramAccountsDialog open={isInstagramAccountsOpen} onOpenChange={setIsInstagramAccountsOpen} />
 
       <AlertDialog open={Boolean(disconnecting)} onOpenChange={(isOpen) => !isOpen && setDisconnecting(null)}>
         <AlertDialogContent>
