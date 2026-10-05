@@ -28,7 +28,7 @@ import { ScriptTableView } from "./script-table-view";
 import { usePlannerWeekdayThemes } from "../../hooks/use-planner-weekly-script";
 import { CampaignsTab } from "../tabs/campaigns-tab";
 import { MindMapsTab } from "../tabs/mind-maps-tab";
-import { BrandKitPage } from "../brand-kit/brand-kit-page";
+import { BrandKitClientSelect, BrandKitPage } from "../brand-kit/brand-kit-page";
 import { PostComposer } from "./post-composer";
 import { POST_TYPES, RESCHEDULABLE_STATUSES, computeVisibleRange } from "./planner-v2-utils";
 import type { CalendarSlot, ComposerRequest } from "./planner-v2-types";
@@ -51,6 +51,8 @@ const plannerSearchParams = {
   types: parseAsArrayOf(parseAsStringLiteral(POST_TYPES)).withDefault([]),
   status: parseAsArrayOf(parseAsStringLiteral(STATUS_VALUES)).withDefault([]),
   post: parseAsString,
+  /** Cliente do Kit da Marca em tela. */
+  org: parseAsString,
 };
 
 export function PlannerHome() {
@@ -86,6 +88,7 @@ export function PlannerHome() {
   const pendingApprovalCount = clients
     .filter((client) => !organizationIds || organizationIds.includes(client.id))
     .reduce((total, client) => total + client.counts.pendingApproval, 0);
+  const brandKitOrganizationId = searchState.org ?? clients[0]?.id ?? null;
   const activeComposerRequest: ComposerRequest | null = composerRequest ?? (searchState.post ? { mode: "edit", postId: searchState.post } : null);
 
   const openPost = (postId: string) => setComposerRequest({ mode: "edit", postId });
@@ -149,18 +152,27 @@ export function PlannerHome() {
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="space-y-3 p-3 md:p-4">
-        <nav className="flex [scrollbar-width:none] w-full max-w-max overflow-x-auto rounded-full border border-line bg-card p-1 [&::-webkit-scrollbar]:hidden">
-          {PLANNER_TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => showTab(tab)}
-              className={cn("flex-none rounded-full px-4 py-1.5 text-sm whitespace-nowrap", searchState.tab === tab ? "bg-foreground font-semibold text-background" : "text-muted-foreground hover:text-foreground")}
-            >
-              {TAB_LABEL[tab]}
-            </button>
-          ))}
-        </nav>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <nav className="flex [scrollbar-width:none] w-full max-w-max overflow-x-auto rounded-full border border-line bg-card p-1 [&::-webkit-scrollbar]:hidden">
+            {PLANNER_TABS.map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => showTab(tab)}
+                className={cn("flex-none rounded-full px-4 py-1.5 text-sm whitespace-nowrap", searchState.tab === tab ? "bg-foreground font-semibold text-background" : "text-muted-foreground hover:text-foreground")}
+              >
+                {TAB_LABEL[tab]}
+              </button>
+            ))}
+          </nav>
+          {searchState.tab === "kit" && (
+            <BrandKitClientSelect
+              clients={clients}
+              selectedOrganizationId={brandKitOrganizationId}
+              onSelect={(organizationId) => void setSearchState({ org: organizationId })}
+            />
+          )}
+        </div>
 
         {searchState.tab === "dashboard" && (
           <PlannerDashboard organizationIds={organizationIds} clients={clients} onOpenPost={openPost} onCreate={setComposerRequest} onNavigate={navigateFromDashboard} />
@@ -238,7 +250,7 @@ export function PlannerHome() {
 
         {searchState.tab === "campaigns" && <ClientWorkspaceTab clients={clients}>{(plannerId) => <CampaignsTab plannerId={plannerId} />}</ClientWorkspaceTab>}
         {searchState.tab === "mindmaps" && <ClientWorkspaceTab clients={clients}>{(plannerId) => <MindMapsTab plannerId={plannerId} />}</ClientWorkspaceTab>}
-        {searchState.tab === "kit" && <BrandKitPage />}
+        {searchState.tab === "kit" && <BrandKitPage organizationId={brandKitOrganizationId} />}
       </div>
       <PostComposer request={activeComposerRequest} clients={clients} onClose={closeComposer} />
       <BroadcastComposer isOpen={isBroadcastComposerOpen} clients={clients} onClose={() => setIsBroadcastComposerOpen(false)} />
