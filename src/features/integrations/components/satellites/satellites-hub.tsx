@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MegaphoneIcon, MessageCircleIcon, SearchIcon, SparklesIcon } from "lucide-react";
 import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
@@ -16,7 +16,6 @@ import {
 } from "@/features/integrations/components/integrations-page";
 import { MetaMcpSection } from "@/features/integrations/components/meta-mcp-section";
 import { ExternalAiSection } from "@/features/external-ai/components/external-ai-section";
-import { InstagramAccountsDialog } from "@/features/social-accounts/components/instagram-accounts-dialog";
 import {
   useChannelOrbit,
   useDeletePlatformIntegration,
@@ -49,6 +48,7 @@ import { OrganizationAiCreditStrip } from "@/features/ai-credits/components/orga
 import type { AiCreditProvider } from "@/features/ai-credits/lib/ai-credit-types";
 
 const ORBIT_SECTION_ID = "satellites-orbit";
+const INSTAGRAM_ACCOUNTS_HREF = "/integrations/instagram";
 
 function scrollToSatelliteSection(sectionId: string) {
   const section = document.getElementById(sectionId) ?? document.getElementById(ORBIT_SECTION_ID);
@@ -84,11 +84,13 @@ export function SatellitesHub() {
         (platformDef) => platformDef.platform === requestedPlatform && platformDef.platform !== "INSTAGRAM",
       ) ?? null,
   );
-  // O Instagram não tem formulário próprio: abre a lista de contas conectadas (spec 0069, RF-1).
-  const [isInstagramAccountsOpen, setIsInstagramAccountsOpen] = useState(requestedPlatform === "INSTAGRAM");
+  // O Instagram não tem formulário próprio: tem a página das contas conectadas (spec 0069, RF-1).
+  useEffect(() => {
+    if (requestedPlatform === "INSTAGRAM") router.replace(INSTAGRAM_ACCOUNTS_HREF);
+  }, [requestedPlatform, router]);
   const openPlatform = (platformDef: PlatformDef) => {
     if (platformDef.platform === "WHATSAPP") router.push(platformDef.docsUrl);
-    else if (platformDef.platform === "INSTAGRAM") setIsInstagramAccountsOpen(true);
+    else if (platformDef.platform === "INSTAGRAM") router.push(INSTAGRAM_ACCOUNTS_HREF);
     else setConfiguring(platformDef);
   };
   const [disconnecting, setDisconnecting] = useState<IntegrationPlatform | null>(null);
@@ -298,8 +300,6 @@ export function SatellitesHub() {
           isSaving={upsertIntegration.isPending}
         />
       )}
-
-      <InstagramAccountsDialog open={isInstagramAccountsOpen} onOpenChange={setIsInstagramAccountsOpen} />
 
       <AlertDialog open={Boolean(disconnecting)} onOpenChange={(isOpen) => !isOpen && setDisconnecting(null)}>
         <AlertDialogContent>

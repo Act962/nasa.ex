@@ -98,7 +98,7 @@ function CommentsPageContent() {
               <CardTitle className="text-base">Contas do Instagram</CardTitle>
               <CardDescription>
                 As mesmas contas dos{" "}
-                <Link href="/integrations?connect=INSTAGRAM" className="underline">
+                <Link href="/integrations/instagram" className="underline">
                   Satélites
                 </Link>
                 . A conta marcada como &ldquo;em uso aqui&rdquo; é a que você escolheu no topo.

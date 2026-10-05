@@ -138,7 +138,7 @@ export function CommentsAutomationPanel({ postId }: { postId: string }) {
             <div className="space-y-3">
               <MetaConnectOption organizationId={commentsStatus.organizationId} />
               <p className="text-xs text-muted-foreground">
-                Ou conecte a conta deste post pelo passo a passo nos <Link href="/integrations" className="underline">Satélites</Link>.
+                Ou conecte a conta deste post pelo passo a passo nos <Link href="/integrations/instagram" className="underline">Satélites</Link>.
               </p>
             </div>
           ) : (
