@@ -610,8 +610,9 @@ function RowLayoutFormComponent({
               return (
                 <div
                   key={childblock.id}
+                  data-form-field-id={childblock.id}
                   className={cn(
-                    "flex items-stretch justify-center h-auto min-w-0",
+                    "flex items-stretch justify-center h-auto min-w-0 scroll-mt-24",
                     getBasisClass(width),
                   )}
                 >

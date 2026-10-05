@@ -209,7 +209,7 @@ function TextAreaFormComponent({
       {isError || isSubmitError ? (
         <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
           {required && value.trim().length === 0
-            ? `This field is required.`
+            ? "Este campo é obrigatório"
             : ""}
         </p>
       ) : (

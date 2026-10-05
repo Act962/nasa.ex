@@ -88,6 +88,11 @@ const propertiesValidateSchema = z.object({
 });
 type PropertiesType = z.input<typeof propertiesValidateSchema>;
 
+// Seletor de mês/ano no calendário: sem ele, data de nascimento exigia
+// voltar mês a mês.
+const CALENDAR_START_MONTH = new Date(1900, 0);
+const CALENDAR_END_MONTH = new Date(new Date().getFullYear() + 10, 11);
+
 export const DatePickerBlock: ObjectBlockType = {
   blockType,
   blockCategory,
@@ -243,6 +248,10 @@ function FormView({
               selected={date}
               onSelect={(d) => commit(d, time)}
               locale={ptBR}
+              captionLayout="dropdown"
+              startMonth={CALENDAR_START_MONTH}
+              endMonth={CALENDAR_END_MONTH}
+              defaultMonth={date}
               autoFocus
             />
           </PopoverContent>
