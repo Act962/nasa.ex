@@ -50,6 +50,12 @@ import type { AiCreditProvider } from "@/features/ai-credits/lib/ai-credit-types
 const ORBIT_SECTION_ID = "satellites-orbit";
 const INSTAGRAM_ACCOUNTS_HREF = "/integrations/instagram";
 
+/** Itens do catálogo que repetem um satélite com cartão próprio (WhatsApp, Instagram, TikTok): só o cartão próprio aparece. */
+const CATALOG_SLUGS_WITH_PLATFORM_CARD = new Set(["whatsapp-business", "instagram-dm", "tiktok"]);
+const HUB_CATALOG_INTEGRATIONS = CATALOG_INTEGRATIONS.filter(
+  (integration) => !CATALOG_SLUGS_WITH_PLATFORM_CARD.has(integration.slug),
+);
+
 function scrollToSatelliteSection(sectionId: string) {
   const section = document.getElementById(sectionId) ?? document.getElementById(ORBIT_SECTION_ID);
   section?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -103,9 +109,9 @@ export function SatellitesHub() {
   // WhatsApp e Instagram entram em órbita pelo canal real: instância conectada / conta ativa no Comments.
   const isWhatsAppConnected = channelOrbit?.isWhatsAppConnected ?? false;
   const isInstagramConnected = channelOrbit?.isInstagramConnected ?? false;
-  const CHANNEL_CATALOG_STATUS: Record<string, boolean> = {
-    "whatsapp-business": isWhatsAppConnected,
-    "instagram-dm": isInstagramConnected,
+  // Itens do catálogo com conexão de verdade no banco: é ela que decide se estão em órbita.
+  const catalogConnectionBySlug: Record<string, boolean> = {
+    nerp: activeRowByPlatform.has("NERP"),
   };
   const isPlatformActive = (platformDef: PlatformDef) =>
     (platformDef.platform === "WHATSAPP" && isWhatsAppConnected) ||
@@ -122,17 +128,16 @@ export function SatellitesHub() {
   };
 
   const search = normalizeSearch(searchText);
-  const isCatalogInstalled = (slug: string, status: string) =>
-    slug in CHANNEL_CATALOG_STATUS
-      ? CHANNEL_CATALOG_STATUS[slug]
-      : status === "installed" || installedSlugs.has(slug);
+  // O `status: "installed"` fixo do catálogo não conta: marcava o satélite como ativo em toda empresa, conectada ou não.
+  const isCatalogInstalled = (slug: string) =>
+    slug in catalogConnectionBySlug ? catalogConnectionBySlug[slug] : installedSlugs.has(slug);
 
   const activePlatformDefs = PLATFORM_DEFS.filter(isPlatformActive).filter((platformDef) =>
     matchesSearch(search, platformDef.label, platformDef.description),
   );
-  const activeCatalog = CATALOG_INTEGRATIONS.filter(
+  const activeCatalog = HUB_CATALOG_INTEGRATIONS.filter(
     (integration) =>
-      isCatalogInstalled(integration.slug, integration.status) &&
+      isCatalogInstalled(integration.slug) &&
       matchesSearch(search, integration.name, integration.description),
   );
   const availablePlatformGroups = groupPlatformDefs(
@@ -142,9 +147,9 @@ export function SatellitesHub() {
     ),
   );
   const availableCatalogGroups = groupCatalogIntegrations(
-    CATALOG_INTEGRATIONS.filter(
+    HUB_CATALOG_INTEGRATIONS.filter(
       (integration) =>
-        !isCatalogInstalled(integration.slug, integration.status) &&
+        !isCatalogInstalled(integration.slug) &&
         matchesSearch(search, integration.name, integration.description, ...integration.tags),
     ),
   );
