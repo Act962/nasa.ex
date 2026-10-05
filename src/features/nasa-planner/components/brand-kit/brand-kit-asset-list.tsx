@@ -13,11 +13,11 @@ import type { PlannerBrandKitAsset } from "./brand-kit-types";
 
 type AssetKind = PlannerBrandKitAsset["kind"];
 
-const KIND_COPY: Record<AssetKind, { addLabel: string; titlePlaceholder: string; descriptionPlaceholder: string; hasPrice: boolean; isVisual: boolean }> = {
-  BACKGROUND: { addLabel: "Fundo ou textura", titlePlaceholder: "Nome do fundo", descriptionPlaceholder: "Quando usar (opcional)", hasPrice: false, isVisual: true },
-  PRODUCT: { addLabel: "Produto ou serviço", titlePlaceholder: "Nome do produto ou serviço", descriptionPlaceholder: "O que é e para quem", hasPrice: true, isVisual: true },
-  MATERIAL: { addLabel: "Release, site ou material", titlePlaceholder: "Nome (ex.: Release de lançamento)", descriptionPlaceholder: "Resumo (opcional)", hasPrice: false, isVisual: false },
-  REFERENCE_POST: { addLabel: "Post de referência", titlePlaceholder: "Ex.: Carrossel de dicas que performou bem", descriptionPlaceholder: "Por que ele é referência", hasPrice: false, isVisual: true },
+const KIND_COPY: Record<AssetKind, { addLabel: string; emptyLabel: string; titlePlaceholder: string; descriptionPlaceholder: string; hasPrice: boolean; isVisual: boolean }> = {
+  BACKGROUND: { addLabel: "Adicionar fundo ou textura", emptyLabel: "Adicionar fundo ou textura", titlePlaceholder: "Nome do fundo", descriptionPlaceholder: "Quando usar (opcional)", hasPrice: false, isVisual: true },
+  PRODUCT: { addLabel: "Adicionar produto ou serviço", emptyLabel: "Adicionar o primeiro produto ou serviço", titlePlaceholder: "Nome do produto ou serviço", descriptionPlaceholder: "O que é e para quem", hasPrice: true, isVisual: true },
+  MATERIAL: { addLabel: "Anexar outro material", emptyLabel: "Anexar release, catálogo ou material", titlePlaceholder: "Nome (ex.: Release de lançamento)", descriptionPlaceholder: "Resumo (opcional)", hasPrice: false, isVisual: false },
+  REFERENCE_POST: { addLabel: "Adicionar post de referência", emptyLabel: "Adicionar um post que performou bem", titlePlaceholder: "Ex.: Carrossel de dicas que performou bem", descriptionPlaceholder: "Por que ele é referência", hasPrice: false, isVisual: true },
 };
 
 function AssetRow({ organizationId, asset, canEdit }: { organizationId: string; asset: PlannerBrandKitAsset; canEdit: boolean }) {
@@ -122,13 +122,20 @@ export function BrandKitAssetList({ organizationId, brandKitId, kind, assets, ca
       {assets.map((asset) => (
         <AssetRow key={asset.id} organizationId={organizationId} asset={asset} canEdit={canEdit} />
       ))}
-      {assets.length === 0 && !isAdding && <p className="text-xs text-muted-foreground">Nada ainda.</p>}
+      {assets.length === 0 && !canEdit && <p className="text-xs text-muted-foreground">Nenhum item cadastrado.</p>}
       {canEdit &&
         (isAdding ? (
           <AddAssetForm organizationId={organizationId} brandKitId={brandKitId} kind={kind} onDone={() => setIsAdding(false)} />
         ) : (
-          <button type="button" onClick={() => setIsAdding(true)} className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
-            <Plus className="size-3" /> {KIND_COPY[kind].addLabel}
+          <button
+            type="button"
+            onClick={() => setIsAdding(true)}
+            className="flex w-full items-center gap-2.5 rounded-2xl border border-dashed border-line p-2.5 text-left text-xs text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
+          >
+            <span className="grid size-7 flex-none place-items-center rounded-full bg-card">
+              <Plus className="size-3.5" />
+            </span>
+            {assets.length === 0 ? KIND_COPY[kind].emptyLabel : KIND_COPY[kind].addLabel}
           </button>
         ))}
     </div>
