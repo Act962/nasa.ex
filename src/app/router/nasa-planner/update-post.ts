@@ -17,6 +17,10 @@ const slideSchema = z.object({
 
 // Mudar qualquer um destes depois de aprovado exige nova aprovação (spec 0058, RF-2).
 const CONTENT_FIELDS = ["type", "title", "caption", "hashtags", "cta", "thumbnail"] as const;
+// Onde o post sai também foi o que se aprovou: trocar a conta ou a rede de um post aprovado ou programado o reabre.
+const TARGET_ACCOUNT_FIELDS = ["targetIgAccountId", "targetFbPageId"] as const;
+
+const toSortedKey = (values: string[]) => [...values].sort().join("|");
 
 export const updatePost = base
   .use(requiredAuthMiddleware)
@@ -50,8 +54,12 @@ export const updatePost = base
     // O formulário manda tudo de novo ao salvar: só conta o que mudou de verdade.
     const currentSlideKeys = currentPost.slides.map((slide) => slide.imageKey ?? "").join("|");
     const hasSlidesChange = slides !== undefined && slides.map((slide) => slide.imageKey ?? "").join("|") !== currentSlideKeys;
+    const hasTargetChange =
+      (data.targetNetworks !== undefined && toSortedKey(data.targetNetworks) !== toSortedKey(currentPost.targetNetworks ?? [])) ||
+      TARGET_ACCOUNT_FIELDS.some((field) => data[field] !== undefined && data[field] !== currentPost[field]);
     const hasContentChange =
       hasSlidesChange ||
+      hasTargetChange ||
       CONTENT_FIELDS.some((field) => data[field] !== undefined && JSON.stringify(data[field]) !== JSON.stringify(currentPost[field]));
     // Horário de post programado só muda por "reprogramar", que refaz o agendamento.
     const canTouchSchedule = currentPost.status !== "SCHEDULED" && currentPost.status !== "PUBLISHING";

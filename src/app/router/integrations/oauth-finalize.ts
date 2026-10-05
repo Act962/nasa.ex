@@ -5,7 +5,7 @@ import { IntegrationPlatform } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import { consumeSession, getSessionByProvider } from "@/features/integrations/lib/oauth/session-cache";
 import { z } from "zod";
-import { upsertPublishAccounts } from "@/features/nasa-planner/server/publishing/publish-accounts";
+import { disablePublishAccountsOutsideSelection, upsertPublishAccounts } from "@/features/nasa-planner/server/publishing/publish-accounts";
 import { refreshMetaLinkedChannels } from "@/features/social-accounts/server/meta-login-channel";
 
 const FinalizeInput = z.object({
@@ -77,6 +77,10 @@ export const oauthFinalize = base
         sess.pages.filter((page) => publishPageIds.has(page.id)),
         selectedIgAccounts,
       );
+      await disablePublishAccountsOutsideSelection(orgId, {
+        pageIds: [...publishPageIds],
+        igUserIds: selectedIgAccounts.map((igAccount) => igAccount.id),
+      });
       await refreshMetaLinkedChannels(orgId);
 
       if (input.selectedIgAccountIds.length > 0) {

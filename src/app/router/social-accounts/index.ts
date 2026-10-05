@@ -12,6 +12,7 @@ import {
   generateWebhookPathToken,
 } from "@/modules/social";
 import {
+  assertChannelCapacity,
   connectChannel,
   MAX_CHANNELS_PER_PROVIDER,
   reconnectChannel,
@@ -221,6 +222,10 @@ const reactivateAccount = socialAccountsProcedure
     await requireOrgAdmin(context.org.id, context.user.id);
     const { channels, channel } = await requireChannel(context.org.id, input.channelId);
 
+    // Reativar ocupa uma vaga de novo: sem isto, desativar e reativar furaria o limite.
+    if (channel.status === "DISABLED") {
+      await withDomainErrors(() => assertChannelCapacity(channels, channel.provider));
+    }
     await channels.markActive(channel.id);
     const subscription = await createChannelGateway(channel).subscribeToEvents();
     return { reactivated: true, subscribed: subscription.ok };

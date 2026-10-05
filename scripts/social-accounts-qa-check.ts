@@ -11,6 +11,7 @@ import { tenantScope } from "../src/modules/shared/domain/tenant-scope";
 import { channelLookup, createSocialRepositories } from "../src/modules/social";
 import {
   connectChannel,
+  assertChannelCapacity,
   MAX_CHANNELS_PER_PROVIDER,
   reconnectChannel,
 } from "../src/modules/social/application/connect-channel";
@@ -212,15 +213,22 @@ async function main() {
       (await repositoriesA.channels.findById(second.channel.id))?.status === "ACTIVE");
 
     console.log("\nLimite de contas");
-    for (let suffix = 10; (await repositoriesA.channels.countForTenant("INSTAGRAM")) < MAX_CHANNELS_PER_PROVIDER; suffix += 1) {
+    const countChannelsInUse = async () => (await repositoriesA.channels.listForTenant("INSTAGRAM")).filter((channel) => channel.status !== "DISABLED").length;
+    for (let suffix = 10; (await countChannelsInUse()) < MAX_CHANNELS_PER_PROVIDER; suffix += 1) {
       await connectIn(repositoriesA, accountIdOf(suffix), `token-lote-${suffix}`);
     }
     const overLimitAccountId = accountIdOf(99);
     check("CA-11", `a ${MAX_CHANNELS_PER_PROVIDER + 1}ª conta é recusada e nada é salvo`,
       (await domainErrorCodeOf(() => connectIn(repositoriesA, overLimitAccountId, "token-excedente"))) === SocialErrorCode.CHANNEL_LIMIT_REACHED &&
-      (await repositoriesA.channels.countForTenant("INSTAGRAM")) === MAX_CHANNELS_PER_PROVIDER);
+      (await countChannelsInUse()) === MAX_CHANNELS_PER_PROVIDER);
     check("CA-11", "no limite, reconectar uma conta existente ainda funciona",
       !(await connectIn(repositoriesA, firstAccountId, "token-primeira-FIM0")).isNewChannel);
+    const disabledToFreeSlot = (await repositoriesA.channels.listForTenant("INSTAGRAM")).find((channel) => channel.status === "ACTIVE")!;
+    await repositoriesA.channels.disconnect(disabledToFreeSlot.id);
+    check("CA-11", "desativar uma conta libera a vaga para conectar outra",
+      (await connectIn(repositoriesA, overLimitAccountId, "token-na-vaga")).isNewChannel);
+    check("CA-11", "com o limite cheio de novo, a conta desativada não pode ser reativada por cima dele",
+      (await domainErrorCodeOf(() => assertChannelCapacity(repositoriesA.channels, "INSTAGRAM"))) === SocialErrorCode.CHANNEL_LIMIT_REACHED);
   } finally {
     // Cascade em Organization leva canais, automações e trackings de teste.
     await prisma.organization.deleteMany({ where: { id: { in: [organizationA.id, organizationB.id] } } });

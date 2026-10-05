@@ -48,6 +48,26 @@ export async function upsertPublishAccounts(organizationId: string, pages: Publi
   }
 }
 
+/**
+ * Reconexão da Meta com menos páginas ou contas: o que ficou de fora deixa de ser destino.
+ * A linha é desativada, não apagada, e volta a ACTIVE se for escolhida de novo.
+ */
+export async function disablePublishAccountsOutsideSelection(organizationId: string, selection: { pageIds: string[]; igUserIds: string[] }) {
+  await prisma.metaPublishAccount.updateMany({
+    where: { organizationId, kind: MetaPublishAccountKind.FB_PAGE, pageId: { notIn: selection.pageIds }, status: { not: MetaPublishAccountStatus.DISABLED } },
+    data: { status: MetaPublishAccountStatus.DISABLED },
+  });
+  await prisma.metaPublishAccount.updateMany({
+    where: {
+      organizationId,
+      kind: MetaPublishAccountKind.IG_BUSINESS,
+      OR: [{ igUserId: null }, { igUserId: { notIn: selection.igUserIds } }],
+      status: { not: MetaPublishAccountStatus.DISABLED },
+    },
+    data: { status: MetaPublishAccountStatus.DISABLED },
+  });
+}
+
 export const PUBLIC_ACCOUNT_SELECT = {
   id: true,
   organizationId: true,

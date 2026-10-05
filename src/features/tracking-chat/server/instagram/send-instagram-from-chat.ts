@@ -16,13 +16,15 @@ async function findLegacyDefaultChannelId(organizationId: string): Promise<strin
   return oldestChannel?.id ?? null;
 }
 
+type ReplyChannelRef = { channelId: string; isFromConversation: boolean };
+
 /** A resposta sai pela conta da mensagem citada ou, sem citação, pela última que o lead usou (spec 0069, RF-18). */
-async function resolveReplyChannelId(input: {
+async function resolveReplyChannel(input: {
   organizationId: string;
   conversationId: string;
   quotedMetadata: InstagramMessageMetadata | null;
-}): Promise<string | null> {
-  if (input.quotedMetadata?.channelId) return input.quotedMetadata.channelId;
+}): Promise<ReplyChannelRef | null> {
+  if (input.quotedMetadata?.channelId) return { channelId: input.quotedMetadata.channelId, isFromConversation: true };
 
   const recentInboundMessages = await prisma.message.findMany({
     where: { conversationId: input.conversationId, fromMe: false },
@@ -33,13 +35,19 @@ async function resolveReplyChannelId(input: {
   const latestChannelId = recentInboundMessages
     .map((message) => readInstagramMetadata(message.metadata)?.channelId)
     .find(Boolean);
-  return latestChannelId ?? findLegacyDefaultChannelId(input.organizationId);
+  if (latestChannelId) return { channelId: latestChannelId, isFromConversation: true };
+  const legacyChannelId = await findLegacyDefaultChannelId(input.organizationId);
+  return legacyChannelId ? { channelId: legacyChannelId, isFromConversation: false } : null;
 }
 
 /**
  * Envio do chat para lead do Instagram conectado pela Meta (spec 0062, RF-7).
  * Comentário citado → resposta naquele comentário; sem citação → DM (resposta privada
- * ao último comentário se o lead nunca mandou DM). Devolve null para cair no fluxo antigo.
+ * ao último comentário se o lead nunca mandou DM).
+ *
+ * Devolve null (fluxo antigo, da integração única da organização) só quando a conversa não
+ * registra por qual conta chegou. Se registra, a resposta sai por essa conta ou falha: cair
+ * no fluxo antigo responderia pela conta de outra marca da mesma empresa.
  */
 export async function sendInstagramFromChat(input: {
   organizationId: string;
@@ -56,14 +64,23 @@ export async function sendInstagramFromChat(input: {
     : null;
   const quotedInstagram = quoted ? readInstagramMetadata(quoted.metadata) : null;
 
-  const channelId = await resolveReplyChannelId({
+  const replyChannel = await resolveReplyChannel({
     organizationId: input.organizationId,
     conversationId: input.conversationId,
     quotedMetadata: quotedInstagram,
   });
+  if (!replyChannel) return null;
   const { channels } = socialRepositoriesForOrganization(input.organizationId);
-  const channel = channelId ? await channels.findWithCredentialsById(channelId) : null;
-  if (!channel || channel.credentials.authMode !== "META_LOGIN" || channel.status !== "ACTIVE") return null;
+  const channel = await channels.findWithCredentialsById(replyChannel.channelId);
+  if (replyChannel.isFromConversation) {
+    if (!channel || channel.status !== "ACTIVE") {
+      throw new ORPCError("BAD_REQUEST", {
+        message: "A conta do Instagram desta conversa está desativada ou precisa ser reconectada. Reative em Satélites › Instagram para responder.",
+      });
+    }
+  } else if (!channel || channel.credentials.authMode !== "META_LOGIN" || channel.status !== "ACTIVE") {
+    return null;
+  }
   const gateway = createChannelGateway(channel);
   const failWith = (error: string): never => {
     throw new ORPCError("BAD_REQUEST", { message: `O Instagram recusou: ${error}` });

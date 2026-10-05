@@ -92,10 +92,16 @@ export async function refreshMetaLinkedChannels(organizationId: string): Promise
   for (const channel of metaLinkedChannels) {
     try {
       const account = await prisma.metaPublishAccount.findFirst({
-        where: { organizationId, kind: MetaPublishAccountKind.IG_BUSINESS, igUserId: channel.externalAccountId, status: MetaPublishAccountStatus.ACTIVE },
-        select: { id: true },
+        where: { organizationId, kind: MetaPublishAccountKind.IG_BUSINESS, igUserId: channel.externalAccountId },
+        select: { id: true, status: true },
       });
       if (!account) continue;
+      // Conta tirada da seleção na reconexão da Meta: a conta dos Satélites que usava o token dela para de operar.
+      if (account.status === MetaPublishAccountStatus.DISABLED) {
+        await channels.disconnect(channel.id);
+        continue;
+      }
+      if (account.status !== MetaPublishAccountStatus.ACTIVE) continue;
 
       await connectMetaInstagramAccount({ organizationId, userId: "", metaPublishAccountId: account.id });
     } catch (error) {

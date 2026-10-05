@@ -7,8 +7,19 @@ import type { ChannelCredentials, SocialProviderValue } from "../domain/types";
 import type { ChannelGateway } from "../ports/channel-gateway";
 import type { ChannelRepository, ChannelSummary } from "../ports/repositories";
 
-/** Teto de contas por rede em cada organização (spec 0069, RNF-3). */
+/** Teto de contas em uso por rede em cada organização (spec 0069, RNF-3). */
 export const MAX_CHANNELS_PER_PROVIDER = 20;
+
+/**
+ * Desconectar só desativa a linha, para preservar automações e histórico. Se a
+ * desativada contasse, uma organização que já teve 20 contas nunca conectaria outra.
+ */
+export async function assertChannelCapacity(channels: ChannelRepository, provider: SocialProviderValue): Promise<void> {
+  const channelsInUse = (await channels.listForTenant(provider)).filter((channel) => channel.status !== "DISABLED");
+  if (channelsInUse.length >= MAX_CHANNELS_PER_PROVIDER) {
+    throw new ChannelLimitReachedError(MAX_CHANNELS_PER_PROVIDER);
+  }
+}
 
 export type ConnectChannelInput = {
   provider: SocialProviderValue;
@@ -70,12 +81,7 @@ export async function connectChannel(
     input.provider,
     input.externalAccountId,
   );
-  if (!alreadyConnected) {
-    const connectedCount = await deps.channels.countForTenant(input.provider);
-    if (connectedCount >= MAX_CHANNELS_PER_PROVIDER) {
-      throw new ChannelLimitReachedError(MAX_CHANNELS_PER_PROVIDER);
-    }
-  }
+  if (!alreadyConnected) await assertChannelCapacity(deps.channels, input.provider);
 
   const { channel, isNewChannel } = await deps.channels.connect({
     provider: input.provider,
