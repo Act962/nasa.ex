@@ -12,7 +12,10 @@ export const createMindMap = base
     z.object({
       plannerId: z.string(),
       name: z.string().min(1),
-      template: z.enum(["mindmap", "gantt", "diagram", "checklist"]).default("mindmap"),
+      template: z.enum(["mindmap", "gantt", "diagram", "checklist", "weekly"]).default("mindmap"),
+      // Planejamento semanal (spec 0068): o mapa já nasce montado a partir do roteiro.
+      nodes: z.array(z.record(z.string(), z.unknown())).max(400).optional(),
+      edges: z.array(z.record(z.string(), z.unknown())).max(600).optional(),
     }),
   )
   .handler(async ({ input, context }) => {
@@ -21,8 +24,8 @@ export const createMindMap = base
     });
 
     // Seed initial nodes based on template
-    const initialNodes = getInitialNodes(input.template, input.name);
-    const initialEdges = getInitialEdges(input.template);
+    const initialNodes = input.nodes ?? getInitialNodes(input.template === "weekly" ? "mindmap" : input.template, input.name);
+    const initialEdges = input.edges ?? getInitialEdges(input.template);
 
     const mindMap = await prisma.nasaPlannerMindMap.create({
       data: {

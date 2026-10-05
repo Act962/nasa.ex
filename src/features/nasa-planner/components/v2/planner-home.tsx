@@ -232,7 +232,7 @@ export function PlannerHome() {
                   )}
                 </div>
                 <div className="md:hidden">
-                  <MobileAgenda posts={posts} slots={slots} clients={clients} onOpenPost={openPost} onRetryPost={retryPost} onUseSlot={programSlot} />
+                  <MobileAgenda themeClient={themeClient} weekdayThemes={weekdayThemes} posts={posts} slots={slots} clients={clients} onOpenPost={openPost} onRetryPost={retryPost} onUseSlot={programSlot} />
                 </div>
               </>
             )}

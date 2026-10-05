@@ -50,7 +50,7 @@ export function CampaignsTab({ plannerId }: { plannerId: string }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 shrink-0">
+      <div className="flex items-center justify-between gap-2 px-1 py-3 shrink-0 sm:px-6 sm:py-4">
         <div>
           <h2 className="font-semibold text-base">Campanhas</h2>
           <p className="text-xs text-muted-foreground">{campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""}</p>
@@ -62,7 +62,7 @@ export function CampaignsTab({ plannerId }: { plannerId: string }) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-1 sm:p-6">
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => <Skeleton key={i} className="h-48 rounded-xl" />)}
@@ -104,7 +104,7 @@ export function CampaignsTab({ plannerId }: { plannerId: string }) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-7 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive shrink-0"
+                        className="size-8 rounded-full opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity text-destructive hover:text-destructive shrink-0"
                         onClick={(e) => { e.stopPropagation(); setDeleteId(campaign.id); }}
                       >
                         <Trash2Icon className="size-4" />

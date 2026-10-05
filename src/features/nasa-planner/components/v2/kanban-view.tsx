@@ -49,7 +49,7 @@ function KanbanCard({ post, columnKey, client, clientIndex, showClient, onOpen, 
       {...attributes}
       {...listeners}
       onClick={() => onOpen(post.id)}
-      className={cn("rounded-2xl bg-panel p-2 text-left", isDraggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer", columnKey === "changes" && "ring-1 ring-warning", isDragging && "opacity-40")}
+      className={cn("rounded-2xl bg-card p-2 text-left", isDraggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer", columnKey === "changes" && "ring-1 ring-warning", isDragging && "opacity-40")}
     >
       {(previewUrl || post.videoKey) && (
         <div className={cn("mb-2 grid place-items-center overflow-hidden rounded-xl bg-knob/60", typeMeta.isVertical ? "h-28" : "h-20")}>
@@ -102,14 +102,14 @@ function KanbanColumn({ column, children, guideAnchor, isFocused }: { column: Bo
       ref={setNodeRef}
       data-board-column={column.key}
       data-guide={guideAnchor}
-      className={cn("flex w-64 shrink-0 flex-col rounded-[18px] bg-card p-2 transition-colors", isFocused && "ring-2 ring-foreground/40", isValidTarget && "ring-1 ring-foreground/30", isValidTarget && isOver && "bg-panel")}
+      className={cn("flex w-[80vw] max-w-72 shrink-0 snap-start flex-col rounded-[18px] bg-panel/40 p-2 transition-colors sm:w-64", isFocused && "ring-2 ring-foreground/40", isValidTarget && "ring-1 ring-foreground/30", isValidTarget && isOver && "bg-panel")}
     >
       <div className="mb-2 flex items-center gap-1.5 px-1 pt-0.5">
         <span className={cn("size-2 rounded-full", meta.dotClassName)} />
         <span className="text-xs font-semibold">{meta.label}</span>
         <span className="ml-auto text-xs text-muted-foreground tabular-nums">{column.total}</span>
       </div>
-      <div className="flex max-h-[calc(100dvh-15rem)] flex-col gap-1.5 overflow-y-auto">
+      <div className="flex max-h-[calc(100dvh-17rem)] flex-col gap-1.5 overflow-y-auto md:max-h-[calc(100dvh-15rem)]">
         {children}
         {column.total === 0 && <p className="px-1 py-4 text-center text-[11px] text-muted-foreground">{meta.hint}</p>}
         {column.total > column.posts.length && <p className="px-1 py-1 text-center text-[11px] text-muted-foreground">+{column.total - column.posts.length} mais antigos</p>}
@@ -173,7 +173,7 @@ export function KanbanView({
   if (isLoading) return <OrbitaSpinner className="mx-auto my-16 size-6" />;
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div ref={boardRef} className="flex gap-2 overflow-x-auto px-3 pb-3">
+      <div ref={boardRef} className="scroll-hidden-x flex snap-x snap-mandatory scroll-px-3 gap-2 overflow-x-auto px-3 pb-3 md:snap-none">
         {columns.map((column) => (
           <KanbanColumn
             key={column.key}

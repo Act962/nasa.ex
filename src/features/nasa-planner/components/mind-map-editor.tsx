@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   MouseEvent as ReactMouseEvent,
@@ -90,20 +91,20 @@ import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import { MindMapToPostDialog } from "./mind-map-to-post-dialog";
 import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
-
-// ─── Branch Colors ─────────────────────────────────────────────────────────────
-const BRANCH_COLORS = [
-  "#7C3AED", // violet
-  "#EC4899", // pink
-  "#3B82F6", // blue
-  "#10B981", // green
-  "#F59E0B", // amber
-  "#EF4444", // red
-  "#06B6D4", // cyan
-  "#8B5CF6", // purple
-  "#F97316", // orange
-  "#14B8A6", // teal
-];
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { addDays } from "date-fns";
+import { ArrowLeftIcon, LayoutListIcon, Link2Icon, ListTreeIcon, MoreHorizontalIcon, NetworkIcon, RefreshCwIcon, SparklesIcon, StickyNoteIcon, WorkflowIcon } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useHideOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
+import { usePlannerCalendarPosts } from "../hooks/use-planner-calendar";
+import { usePlannerWeekdayThemes } from "../hooks/use-planner-weekly-script";
+import { BRANCH_COLORS, ROOT_NODE_ID, findDayTopic, layoutTree, type MapEdge } from "../lib/mind-map/map-graph";
+import { listPendingContents, mergeWeeklyPosts } from "../lib/mind-map/weekly-map";
+import { LinkNode, MindMapPostsContext, PostNode, type MapPostInfo } from "./mind-map/content-nodes";
+import { MapItemDialog, type MapItemKind, type MapItemRequest, type MapItemValues } from "./mind-map/item-dialog";
+import { MindMapOutlineView } from "./mind-map/outline-view";
+import { WeeklyContentsDialog } from "./mind-map/weekly-contents-dialog";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getNodeDepth(nodeId: string, nodes: Node[], edges: Edge[]): number {
@@ -379,6 +380,7 @@ function TopicNode({ id, data, selected }: { id: string; data: any; selected?: b
         ) : (
           <>
             <span className="block leading-snug">{data.label ?? "Tópico"}</span>
+            {data.theme && <span className="block truncate text-[10.5px] font-normal opacity-90">{data.theme}</span>}
             {/* Quick add on hover */}
             {!data.aiSuggested && (
               <button
@@ -483,6 +485,8 @@ const nodeTypes: NodeTypes = {
   topic: TopicNode as any,
   stickyNote: StickyNoteNode as any,
   cardNode: CardNode as any,
+  postNode: PostNode as any,
+  linkNode: LinkNode as any,
 };
 
 // ─── Custom Edge ──────────────────────────────────────────────────────────────
@@ -1079,6 +1083,146 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
     }
   }, [onNodesChange, getNodes, getEdges, pushHistory, triggerSave]);
 
+  // ── Planejamento semanal, Lista e itens de conteúdo (spec 0068) ─────────────
+  const router = useRouter();
+  const isMobile = useIsMobile();
+  // O editor tem o próprio menu de baixo no celular; o menu em órbita sairia por cima dele.
+  useHideOrbitDock();
+  const [chosenView, setChosenView] = useState<"map" | "list" | null>(null);
+  const view = chosenView ?? (isMobile ? "list" : "map");
+  const [itemRequest, setItemRequest] = useState<MapItemRequest | null>(null);
+  const [isContentsOpen, setIsContentsOpen] = useState(false);
+
+  const rootData = nodes.find((node) => node.id === ROOT_NODE_ID)?.data as Record<string, unknown> | undefined;
+  const weekStartIso = typeof rootData?.weekStartIso === "string" ? rootData.weekStartIso : null;
+  const weeklyOrganizationId = typeof rootData?.organizationId === "string" ? rootData.organizationId : null;
+  const isWeekly = Boolean(weekStartIso && weeklyOrganizationId);
+  const weekRange = useMemo(() => {
+    const from = weekStartIso ? new Date(weekStartIso) : new Date(0);
+    return { from, to: addDays(from, 7) };
+  }, [weekStartIso]);
+  const { posts: weekPosts } = usePlannerCalendarPosts({ organizationIds: weeklyOrganizationId ? [weeklyOrganizationId] : undefined, ...weekRange }, { enabled: isWeekly });
+  const { themes: allWeekdayThemes } = usePlannerWeekdayThemes(weeklyOrganizationId ? [weeklyOrganizationId] : undefined);
+  const weekThemes = useMemo(() => allWeekdayThemes.filter((theme) => theme.organizationId === weeklyOrganizationId), [allWeekdayThemes, weeklyOrganizationId]);
+  const postsById = useMemo(() => new Map<string, MapPostInfo>(weekPosts.map((post) => [post.id, { status: post.status, scheduledAt: post.scheduledAt, title: post.title }])), [weekPosts]);
+  const pendingContents = useMemo(() => (isWeekly ? listPendingContents(nodes as never, edges as MapEdge[]) : []), [isWeekly, nodes, edges]);
+
+  const applyGraph = useCallback(
+    (nextNodes: Node[], nextEdges: Edge[]) => {
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      pushHistory(nextNodes, nextEdges);
+      triggerSave(nextNodes, nextEdges);
+    },
+    [setNodes, setEdges, pushHistory, triggerSave],
+  );
+
+  const organizeMap = useCallback(() => {
+    applyGraph(layoutTree(getNodes(), getEdges() as MapEdge[]), getEdges());
+    setTimeout(() => fitView({ padding: 0.1 }), 60);
+  }, [applyGraph, getNodes, getEdges, fitView]);
+
+  const addMapItem = useCallback(
+    (kind: MapItemKind, parentId: string, values: MapItemValues) => {
+      const currentNodes = getNodes();
+      const currentEdges = getEdges();
+      const parent = currentNodes.find((node) => node.id === parentId);
+      if (!parent) return;
+      const color = parentId === ROOT_NODE_ID ? getNextBranchColor(currentNodes) : getBranchColor(parentId, currentNodes, currentEdges);
+      const nodeId = `node-${Date.now()}`;
+      const siblingCount = currentEdges.filter((edge) => edge.source === parentId).length;
+      const nodeByKind: Record<MapItemKind, Pick<Node, "type" | "data">> = {
+        post: { type: "postNode", data: { title: values.title, format: values.format } },
+        link: { type: "linkNode", data: { label: values.title || values.url, url: values.url } },
+        note: { type: "stickyNote", data: { label: values.title } },
+        topic: { type: "topic", data: { label: values.title, color, depth: getNodeDepth(parentId, currentNodes, currentEdges) + 1 } },
+      };
+      const newNode: Node = { id: nodeId, position: { x: parent.position.x + 290, y: parent.position.y + siblingCount * 70 }, ...nodeByKind[kind] };
+      const newEdge: Edge = { id: `e-${parentId}-${nodeId}`, source: parentId, target: nodeId, type: "custom", data: { color } };
+      const nextEdges = [...currentEdges, newEdge];
+      // No planejamento semanal o mapa se mantém organizado sozinho; nos outros, o item entra ao lado do pai.
+      const nextNodes = isWeekly ? layoutTree([...currentNodes, newNode], nextEdges as MapEdge[]) : [...currentNodes, newNode];
+      applyGraph(nextNodes, nextEdges);
+    },
+    [getNodes, getEdges, getNextBranchColor, applyGraph, isWeekly],
+  );
+
+  const updateMapItem = useCallback(
+    (nodeId: string, kind: MapItemKind, values: MapItemValues) => {
+      const patchByKind: Record<MapItemKind, Record<string, unknown>> = {
+        post: { title: values.title, format: values.format },
+        link: { label: values.title || values.url, url: values.url },
+        note: { label: values.title },
+        topic: { label: values.title },
+      };
+      applyGraph(
+        getNodes().map((node) => (node.id === nodeId ? { ...node, data: { ...node.data, ...patchByKind[kind] } } : node)),
+        getEdges(),
+      );
+    },
+    [applyGraph, getNodes, getEdges],
+  );
+
+  const openMapItem = useCallback(
+    (nodeId: string) => {
+      const node = getNodes().find((candidate) => candidate.id === nodeId);
+      if (!node) return;
+      const data = node.data as Record<string, unknown>;
+      const kindByType: Record<string, MapItemKind> = { postNode: "post", linkNode: "link", stickyNote: "note", topic: "topic" };
+      const kind = kindByType[node.type ?? ""];
+      if (!kind) return;
+      setItemRequest({
+        mode: "edit",
+        kind,
+        nodeId,
+        postId: typeof data.postId === "string" ? data.postId : undefined,
+        initial: { title: String(data.title ?? data.label ?? ""), url: typeof data.url === "string" ? data.url : "", format: data.format as MapItemValues["format"] | undefined },
+      });
+    },
+    [getNodes],
+  );
+
+  const requestAddItem = useCallback(
+    (kind: MapItemKind, parentId?: string) => {
+      const currentNodes = getNodes();
+      const targetId = parentId ?? currentNodes.find((node) => node.selected)?.id ?? ROOT_NODE_ID;
+      const target = currentNodes.find((node) => node.id === targetId);
+      if (kind === "post") {
+        const dayTopic = findDayTopic(targetId, currentNodes as never, getEdges() as MapEdge[]);
+        if (!dayTopic) {
+          toast.info("Escolha um dia primeiro: toque no dia no mapa ou use a Lista.");
+          return;
+        }
+        setItemRequest({ mode: "create", kind, parentId: dayTopic.id, parentLabel: String(dayTopic.data.label ?? "") });
+        return;
+      }
+      setItemRequest({ mode: "create", kind, parentId: targetId, parentLabel: String((target?.data as Record<string, unknown> | undefined)?.label ?? (target?.data as Record<string, unknown> | undefined)?.title ?? "") });
+    },
+    [getNodes, getEdges],
+  );
+
+  const syncWithScript = useCallback(() => {
+    const merged = mergeWeeklyPosts(getNodes() as never, getEdges() as MapEdge[], weekPosts, weekThemes);
+    applyGraph(layoutTree(merged.nodes as Node[], merged.edges) as Node[], merged.edges as Edge[]);
+    toast.success(merged.addedCount > 0 ? `${merged.addedCount} conteúdo${merged.addedCount > 1 ? "s" : ""} do roteiro entr${merged.addedCount > 1 ? "aram" : "ou"} no mapa.` : "O mapa já está em dia com o roteiro.");
+  }, [applyGraph, getNodes, getEdges, weekPosts, weekThemes]);
+
+  const linkCreatedPost = useCallback(
+    (nodeId: string, postId: string) => {
+      const nextNodes = getNodes().map((node) => (node.id === nodeId ? { ...node, data: { ...node.data, postId } } : node));
+      setNodes(nextNodes);
+      triggerSave(nextNodes, getEdges());
+    },
+    [getNodes, getEdges, setNodes, triggerSave],
+  );
+
+  const onNodeClick = useCallback(
+    (_event: ReactMouseEvent, node: Node) => {
+      if (node.type === "postNode" || node.type === "linkNode") openMapItem(node.id);
+    },
+    [openMapItem],
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -1091,81 +1235,91 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
   const canRedo = historyIndexRef.current < historyRef.current.length - 1;
 
   return (
+    <MindMapPostsContext.Provider value={postsById}>
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center gap-1.5 px-3 py-2 bg-background z-10 shrink-0 flex-wrap">
-        <div className="h-5 w-px bg-border" />
-        <span className="font-semibold text-sm truncate max-w-[200px]">
-          {(mindMap as any)?.name ?? "Mapa Mental"}
-        </span>
+      <div className="z-10 flex shrink-0 items-center gap-1.5 bg-background px-3 py-2">
+        <Link href="/nasa-planner?tab=mindmaps" aria-label="Voltar aos mapas" className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-muted">
+          <ArrowLeftIcon className="size-4" />
+        </Link>
+        <span className="min-w-0 truncate text-sm font-semibold">{(mindMap as any)?.name ?? "Mapa Mental"}</span>
+        <div className="ml-1 inline-flex shrink-0 rounded-full bg-muted p-[3px]">
+          {(["map", "list"] as const).map((viewOption) => (
+            <button
+              key={viewOption}
+              type="button"
+              onClick={() => setChosenView(viewOption)}
+              className={cn("inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs", view === viewOption ? "bg-foreground font-semibold text-background" : "text-muted-foreground")}
+            >
+              {viewOption === "map" ? <NetworkIcon className="size-3.5" /> : <ListTreeIcon className="size-3.5" />}
+              {viewOption === "map" ? "Mapa" : "Lista"}
+            </button>
+          ))}
+        </div>
         <div className="flex-1" />
 
-        {/* Undo/Redo */}
-        <Button size="icon" variant="ghost" onClick={undo} disabled={!canUndo} title="Desfazer (Ctrl+Z)" className="size-8">
-          <Undo2Icon className="size-3.5" />
-        </Button>
-        <Button size="icon" variant="ghost" onClick={redo} disabled={!canRedo} title="Refazer (Ctrl+Y)" className="size-8">
-          <Redo2Icon className="size-3.5" />
-        </Button>
-        <div className="h-5 w-px bg-border" />
+        {isSaving && (
+          <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+            <OrbitaSpinner className="size-3" /> <span className="max-sm:hidden">Salvando</span>
+          </span>
+        )}
 
-        {/* Search */}
-        <Button size="icon" variant="ghost" onClick={() => setSearchOpen((p) => !p)} title="Buscar (Ctrl+F)" className="size-8">
-          <SearchIcon className="size-3.5" />
-        </Button>
-
-        {/* Fit view */}
-        <Button size="icon" variant="ghost" onClick={() => fitView({ padding: 0.1 })} title="Fit to screen (Ctrl+Shift+H)" className="size-8">
-          <MaximizeIcon className="size-3.5" />
-        </Button>
-
-        {/* Add node */}
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5 h-8"
-          onClick={() => addChildNode("root")}
-        >
-          <PlusIcon className="size-3.5" />
-          Tópico
-        </Button>
-
-        {/* Add card */}
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5 h-8"
-          onClick={() => setCardDialogOpen(true)}
-        >
-          <ZapIcon className="size-3.5" />
-          Card
-        </Button>
-
-        {/* Export */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline" className="gap-1.5 h-8">
-              <DownloadIcon className="size-3.5" />
-              Export
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={exportPNG}>
-              <ImageIcon className="size-3.5 mr-2" />
-              PNG
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={exportJSON}>
-              <FileJsonIcon className="size-3.5 mr-2" />
-              JSON
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <Button size="sm" onClick={handleSave} disabled={isSaving} className="gap-1.5 h-8">
-          {isSaving ? <OrbitaSpinner className="size-3.5 " /> : <SaveIcon className="size-3.5" />}
-          Salvar
-        </Button>
-        <FullscreenControls />
+        {/* Computador: ações na barra. No celular elas ficam no menu de baixo. */}
+        <div className="flex items-center gap-1.5 max-md:hidden">
+          <Button size="icon" variant="ghost" onClick={undo} disabled={!canUndo} title="Desfazer (Ctrl+Z)" className="size-8 rounded-full">
+            <Undo2Icon className="size-3.5" />
+          </Button>
+          <Button size="icon" variant="ghost" onClick={redo} disabled={!canRedo} title="Refazer (Ctrl+Y)" className="size-8 rounded-full">
+            <Redo2Icon className="size-3.5" />
+          </Button>
+          <Button size="icon" variant="ghost" onClick={() => setSearchOpen((isOpen) => !isOpen)} title="Buscar (Ctrl+F)" className="size-8 rounded-full">
+            <SearchIcon className="size-3.5" />
+          </Button>
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full" onClick={() => requestAddItem("topic")}>
+            <PlusIcon className="size-3.5" /> Tópico
+          </Button>
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full" onClick={() => (isWeekly ? requestAddItem("post") : setCardDialogOpen(true))}>
+            <ZapIcon className="size-3.5" /> Card
+          </Button>
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full" onClick={() => requestAddItem("link")}>
+            <Link2Icon className="size-3.5" /> Link
+          </Button>
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full" onClick={() => requestAddItem("note")}>
+            <StickyNoteIcon className="size-3.5" /> Nota
+          </Button>
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full" onClick={organizeMap}>
+            <WorkflowIcon className="size-3.5" /> Organizar
+          </Button>
+          {isWeekly && (
+            <>
+              <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full" onClick={syncWithScript}>
+                <RefreshCwIcon className="size-3.5" /> Atualizar com o roteiro
+              </Button>
+              <Button size="sm" className="h-8 gap-1.5 rounded-full" onClick={() => setIsContentsOpen(true)}>
+                <SparklesIcon className="size-3.5" /> Criar conteúdos{pendingContents.length > 0 && ` (${pendingContents.length})`}
+              </Button>
+            </>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="ghost" title="Exportar" className="size-8 rounded-full">
+                <DownloadIcon className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportPNG}>
+                <ImageIcon className="mr-2 size-3.5" /> PNG
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportJSON}>
+                <FileJsonIcon className="mr-2 size-3.5" /> JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="icon" variant="ghost" onClick={handleSave} disabled={isSaving} title="Salvar agora" className="size-8 rounded-full">
+            <SaveIcon className="size-3.5" />
+          </Button>
+          <FullscreenControls />
+        </div>
       </div>
 
       {/* Search bar */}
@@ -1189,7 +1343,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
       )}
 
       {/* Keyboard shortcuts hint */}
-      <div className="flex items-center gap-3 px-4 py-1 text-[10px] text-muted-foreground bg-muted/30 shrink-0 overflow-x-auto">
+      <div className={cn("flex items-center gap-3 px-4 py-1 text-[10px] text-muted-foreground bg-muted/30 shrink-0 overflow-x-auto max-md:hidden", view === "list" && "hidden")}>
         <span><kbd className="font-mono bg-muted px-1 rounded">Tab</kbd> filho</span>
         <span><kbd className="font-mono bg-muted px-1 rounded">Enter</kbd> irmão</span>
         <span><kbd className="font-mono bg-muted px-1 rounded">F2</kbd> editar</span>
@@ -1200,8 +1354,14 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
         <span>clique duplo = editar</span>
       </div>
 
+      {view === "list" && (
+        <div className="min-h-0 flex-1">
+          <MindMapOutlineView nodes={nodes} edges={edges} canAddContentCards={isWeekly} onOpenItem={openMapItem} onAdd={requestAddItem} />
+        </div>
+      )}
+
       {/* Canvas */}
-      <div className="flex-1 min-h-0" ref={reactFlowRef}>
+      <div className={cn("flex-1 min-h-0", view === "list" && "hidden")} ref={reactFlowRef}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -1209,6 +1369,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeDoubleClick={onNodeDoubleClick}
+          onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
@@ -1226,18 +1387,91 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
               if ((n.data as any)?.searchHighlight === false && searchQuery) return "#e5e7eb";
               return (n.data as any).color ?? "#7C3AED";
             }}
-            className="!bottom-4 !right-4"
+            className="!bottom-4 !right-4 max-md:!hidden"
           />
-          <Panel position="bottom-center">
-            {isSaving && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1.5 rounded-full border shadow-sm">
-                <OrbitaSpinner className="size-3 " />
-                Salvando...
-              </div>
-            )}
-          </Panel>
         </ReactFlow>
       </div>
+
+      {/* Celular: ações no menu de baixo, com toque de 44px. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
+        <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-line bg-card p-1.5 shadow-xl">
+          <button type="button" aria-label="Desfazer" onClick={undo} disabled={!canUndo} className="grid size-11 place-items-center rounded-full disabled:opacity-30">
+            <Undo2Icon className="size-4" />
+          </button>
+          <button type="button" aria-label="Organizar" onClick={organizeMap} className="grid size-11 place-items-center rounded-full">
+            <WorkflowIcon className="size-4" />
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="inline-flex h-11 items-center gap-1.5 rounded-full bg-foreground px-4 text-sm font-semibold text-background">
+                <PlusIcon className="size-4" /> Adicionar
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" side="top" className="w-56 rounded-[18px] p-1.5">
+              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={() => requestAddItem("topic")}>
+                <WorkflowIcon className="size-4" /> Tópico
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={() => (isWeekly ? requestAddItem("post") : setCardDialogOpen(true))}>
+                <LayoutListIcon className="size-4" /> Card
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={() => requestAddItem("link")}>
+                <Link2Icon className="size-4" /> Link
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={() => requestAddItem("note")}>
+                <StickyNoteIcon className="size-4" /> Nota
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {isWeekly && (
+            <button type="button" aria-label="Criar conteúdos" onClick={() => setIsContentsOpen(true)} className="relative grid size-11 place-items-center rounded-full">
+              <SparklesIcon className="size-4" />
+              {pendingContents.length > 0 && <span className="absolute top-1 right-1 grid size-4 place-items-center rounded-full bg-destructive text-[9px] font-bold text-white">{pendingContents.length}</span>}
+            </button>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" aria-label="Mais ações" className="grid size-11 place-items-center rounded-full">
+                <MoreHorizontalIcon className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top" className="w-60 rounded-[18px] p-1.5">
+              {isWeekly && (
+                <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={syncWithScript}>
+                  <RefreshCwIcon className="size-4" /> Atualizar com o roteiro
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={redo} disabled={!canRedo}>
+                <Redo2Icon className="size-4" /> Refazer
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={() => { setChosenView("map"); setSearchOpen(true); }}>
+                <SearchIcon className="size-4" /> Buscar no mapa
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={exportPNG}>
+                <ImageIcon className="size-4" /> Exportar PNG
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={exportJSON}>
+                <FileJsonIcon className="size-4" /> Exportar JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      <MapItemDialog
+        request={itemRequest}
+        onSave={(values) => {
+          if (!itemRequest) return;
+          if (itemRequest.mode === "create") addMapItem(itemRequest.kind, itemRequest.parentId, values);
+          else updateMapItem(itemRequest.nodeId, itemRequest.kind, values);
+        }}
+        onDelete={itemRequest?.mode === "edit" && itemRequest.nodeId !== ROOT_NODE_ID ? () => deleteNode(itemRequest.nodeId) : undefined}
+        onOpenPost={(postId) => router.push(`/nasa-planner?tab=calendar&post=${postId}`)}
+        onClose={() => setItemRequest(null)}
+      />
+      {weeklyOrganizationId && (
+        <WeeklyContentsDialog isOpen={isContentsOpen} organizationId={weeklyOrganizationId} pendingContents={pendingContents} onCreated={linkCreatedPost} onClose={() => setIsContentsOpen(false)} />
+      )}
 
       {/* Card Creation Dialog */}
       <Dialog open={cardDialogOpen} onOpenChange={setCardDialogOpen}>
@@ -1306,7 +1540,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <BotIcon className="size-4 text-warning" />
-                Sugestões de IA para "{aiSuggestionDialog.label}"
+                Sugestões de IA para “{aiSuggestionDialog.label}”
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-2">
@@ -1338,6 +1572,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
         initialTitle={mmPostDialog.title}
       />
     </div>
+    </MindMapPostsContext.Provider>
   );
 }
 

@@ -19,9 +19,10 @@ export function usePlannerClients() {
   return { clients: data?.clients ?? [], isLoading };
 }
 
-export function usePlannerCalendarPosts(range: CalendarRange & { types?: NasaPlannerPostType[]; statuses?: NasaPlannerPostStatus[] }) {
+export function usePlannerCalendarPosts(range: CalendarRange & { types?: NasaPlannerPostType[]; statuses?: NasaPlannerPostStatus[] }, { enabled = true }: { enabled?: boolean } = {}) {
   const query = useQuery({
     ...orpc.nasaPlanner.calendar.posts.queryOptions({ input: range }),
+    enabled,
     // Enquanto algum post está publicando, a tela acompanha o status sozinha.
     refetchInterval: (currentQuery) =>
       currentQuery.state.data?.posts.some((post) => post.status === "PUBLISHING" || post.status === "SCHEDULED" && post.scheduledAt && new Date(post.scheduledAt).getTime() < Date.now())

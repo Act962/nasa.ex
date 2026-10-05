@@ -23,6 +23,10 @@ export const GUIDE_ANCHORS = {
     id: "external-ai.generate-key",
     description: "Botão \"Gerar chave\" em Satélites → IA externa (MCP do ÓRBITA para Claude Code)",
   },
+  plannerWeeklyMindMap: {
+    id: "planner.weekly-mind-map",
+    description: "Botão \"Planejar a semana\" da aba Mapas Mentais do Planner",
+  },
   plannerWeekdayTheme: {
     id: "planner.weekday-theme",
     description: "Etiqueta do tema fixo do dia da semana, acima do dia no calendário semanal do Planner",

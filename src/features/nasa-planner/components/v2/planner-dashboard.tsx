@@ -39,22 +39,22 @@ const ACTIVITY_LABEL: Record<string, string> = {
 
 function StatCard({ label, value, hint, icon: Icon, toneClassName, onSelect }: { label: string; value: number; hint: string; icon: LucideIcon; toneClassName: string; onSelect: () => void }) {
   return (
-    <button type="button" onClick={onSelect} className={cn("relative overflow-hidden rounded-[20px] bg-card p-4 text-left transition hover:-translate-y-0.5 hover:ring-1 hover:ring-line", toneClassName)}>
+    <button type="button" onClick={onSelect} className={cn("relative overflow-hidden rounded-[20px] bg-card p-3 text-left transition hover:-translate-y-0.5 hover:ring-1 hover:ring-line sm:p-4", toneClassName)}>
       <div className="flex items-start justify-between">
-        <span className="text-3xl font-bold tabular-nums">{value}</span>
+        <span className="text-2xl font-bold tabular-nums sm:text-3xl">{value}</span>
         <span className="grid size-9 place-items-center rounded-full bg-panel">
           <Icon className="size-4" />
         </span>
       </div>
-      <p className="mt-1 text-sm font-medium">{label}</p>
-      <p className="text-xs text-muted-foreground">{hint}</p>
+      <p className="mt-1 text-[13px] font-medium sm:text-sm">{label}</p>
+      <p className="line-clamp-2 text-[11px] text-muted-foreground sm:text-xs">{hint}</p>
     </button>
   );
 }
 
 function SectionCard({ title, count, children, className }: { title: string; count?: number; children: React.ReactNode; className?: string }) {
   return (
-    <section className={cn("rounded-[20px] bg-card p-4", className)}>
+    <section className={cn("rounded-[20px] bg-card p-3 sm:p-4", className)}>
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold">{title}</h3>
         {count !== undefined && <span className="rounded-full bg-panel px-2 py-0.5 text-[11px] text-muted-foreground tabular-nums">{count}</span>}
@@ -87,7 +87,7 @@ export function PlannerDashboard({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         <StatCard label="Total de posts" value={totalPosts} hint={`${visibleClients.length} cliente${visibleClients.length === 1 ? "" : "s"}`} icon={FileText} toneClassName="bg-linear-to-br from-info/15 to-card" onSelect={() => onNavigate({ kind: "kanban" })} />
         <StatCard label="Publicados" value={countOf(["PUBLISHED"])} hint="ao vivo nas redes" icon={CheckCircle2} toneClassName="bg-linear-to-br from-success/15 to-card" onSelect={() => onNavigate({ kind: "kanban", column: "published" })} />
         <StatCard label="Programados" value={dashboard.scheduledNextWeek} hint="próximos 7 dias" icon={CalendarClock} toneClassName="bg-linear-to-br from-info/15 to-card" onSelect={() => onNavigate({ kind: "calendar" })} />

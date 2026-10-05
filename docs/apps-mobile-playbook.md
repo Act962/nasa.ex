@@ -104,6 +104,7 @@
 
 ## Changelog
 
+- 2026-10-05 — Planner (2ª passada): barra do calendário reorganizada no celular (navegação + Criar, seletor de visão na largura toda, filtros em linha que rola), Roteiro em cartões, Kanban com `snap`, janelas de importação como gaveta de baixo; editor de mapa mental com visão Lista (padrão no celular) e menu de baixo próprio com `useHideOrbitDock`.
 - 2026-10-04 — Planner: abas no topo (Dashboard, Calendário, Campanhas, Mapas Mentais, Kit da Marca) em pílulas com rolagem horizontal no celular; Kanban por status com colunas de 256px roláveis na horizontal; menu de baixo Dashboard/Calendário/Criar/Kanban/Planners.
 - 2026-10-04 — Aplicado no Planner v2 (calendário Semana/Mês vira agenda em cartões no celular, menu de baixo Hoje/Rascunhos/Criar/Aprovação/Planners, criador em passos e revisão em gaveta de baixo, filtros em pílulas, cliente identificado por anel de cor em token).
 - 2026-10-02 — Aplicado no NASA Route (vitrine com Catálogo/Meus cursos e cursos em grade de 2, painel do criador com capas e KPIs em 2 colunas, Vendas/Alunos em cartões com filtro em pílulas, formulários em gaveta de baixo com ação fixa, player com vídeo na largura toda e gaveta de aulas, menu de baixo do aluno/criador/player).

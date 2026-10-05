@@ -51,7 +51,7 @@ export function ImportCreationDialog({ isOpen, clients, onClose }: { isOpen: boo
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-sm rounded-[22px]">
+      <DialogContent className="rounded-[22px] sm:max-w-sm max-sm:top-auto max-sm:bottom-0 max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-t-[26px] max-sm:rounded-b-none max-sm:border-x-0 max-sm:border-b-0 max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))] max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=open]:zoom-in-100">
         <DialogHeader>
           <DialogTitle>Trouxe de outra IA?</DialogTitle>
           <DialogDescription>Envie a imagem ou o vídeo. Ele entra como rascunho, com a origem marcada, para revisar e aprovar.</DialogDescription>

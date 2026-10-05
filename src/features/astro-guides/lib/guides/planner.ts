@@ -54,6 +54,24 @@ export const PLANNER_GUIDES: GuideDef[] = [
     finish: { title: "Kit no caminho certo! 🎨", message: "Quando completar, crie conteúdo em vários formatos com o Astro." },
   },
   {
+    key: "planner.weekly-mind-map",
+    app: "planner",
+    title: "Planejar a semana em mapa mental",
+    summary: "A semana vira um mapa: um tópico por dia, os posts como cards, links e notas. Dele saem os conteúdos.",
+    topicPattern: /\bmapas? menta(l|is)\b/,
+    steps: [
+      {
+        anchor: "plannerWeeklyMindMap",
+        route: "/nasa-planner?tab=mindmaps",
+        title: "Planejar a semana",
+        message: "Escolha a semana. O mapa já vem com os dias, o tema de cada dia e os posts do roteiro. Adicione cards, links e notas, e use Criar conteúdos para virar pauta no Planner.",
+        position: "bottom",
+        advanceOn: "next",
+      },
+    ],
+    finish: { title: "Mapa da semana pronto! 🗺️", message: "No celular ele abre em Lista; no computador, em Mapa." },
+  },
+  {
     key: "planner.weekly-script",
     app: "planner",
     title: "Montar o roteiro da semana",

@@ -30,7 +30,7 @@ export function WeekdayThemeChip({ organizationId, weekday, theme, canEdit, isFi
           title={theme ?? undefined}
           data-guide={isFirst ? GUIDE_ANCHORS.plannerWeekdayTheme.id : undefined}
           className={cn(
-            "mb-1 block h-5 w-full truncate rounded-full px-2 text-[10.5px] leading-5",
+            "block h-5 w-full truncate rounded-full px-2 text-[10.5px] leading-5 md:mb-1",
             theme ? "bg-info/15 font-semibold text-info" : "border border-dashed border-line text-muted-foreground hover:text-foreground",
           )}
         >

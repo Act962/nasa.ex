@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarPostChip } from "./calendar-post-chip";
+import { WeekdayThemeChip } from "./weekday-theme-chip";
 import { postDate } from "./planner-v2-utils";
 import type { CalendarPost, CalendarSlot, PlannerClient } from "./planner-v2-types";
 
@@ -12,6 +13,8 @@ export function MobileAgenda({
   posts,
   slots,
   clients,
+  themeClient,
+  weekdayThemes,
   onOpenPost,
   onRetryPost,
   onUseSlot,
@@ -19,6 +22,8 @@ export function MobileAgenda({
   posts: CalendarPost[];
   slots: CalendarSlot[];
   clients: PlannerClient[];
+  themeClient: PlannerClient | null;
+  weekdayThemes: Array<{ organizationId: string; weekday: number; theme: string }>;
   onOpenPost: (postId: string) => void;
   onRetryPost: (postId: string) => void;
   onUseSlot: (slot: CalendarSlot) => void;
@@ -45,7 +50,19 @@ export function MobileAgenda({
         const daySlots = dayPosts.length === 0 ? slots.filter((slot) => isSameDay(new Date(slot.startsAt), day)).slice(0, 1) : [];
         return (
           <section key={day.toISOString()}>
-            <p className="mb-2 text-sm font-bold capitalize">{format(day, "EEEE, d 'de' MMMM", { locale: ptBR })}</p>
+            <div className="mb-2 flex items-center gap-2">
+              <p className="shrink-0 text-sm font-bold capitalize">{format(day, "EEEE, d 'de' MMM", { locale: ptBR })}</p>
+              {themeClient && (
+                <div className="ml-auto max-w-[55%] min-w-24">
+                  <WeekdayThemeChip
+                    organizationId={themeClient.id}
+                    weekday={day.getDay()}
+                    theme={weekdayThemes.find((candidate) => candidate.organizationId === themeClient.id && candidate.weekday === day.getDay())?.theme ?? null}
+                    canEdit={themeClient.permissions.canCreate}
+                  />
+                </div>
+              )}
+            </div>
             <div className="space-y-1.5">
               {dayPosts.map((post) => {
                 const clientIndex = clients.findIndex((client) => client.id === post.organizationId);

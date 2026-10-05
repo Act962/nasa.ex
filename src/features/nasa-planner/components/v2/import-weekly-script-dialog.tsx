@@ -94,7 +94,7 @@ export function ImportWeeklyScriptDialog({ isOpen, clients, anchorDate, defaultO
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-[22px] sm:max-w-3xl">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-[22px] sm:max-w-3xl max-sm:top-auto max-sm:bottom-0 max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-t-[26px] max-sm:rounded-b-none max-sm:border-x-0 max-sm:border-b-0 max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))] max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=open]:zoom-in-100">
         <DialogHeader>
           <DialogTitle>Colar roteiro da semana</DialogTitle>
           <DialogDescription>
@@ -112,9 +112,9 @@ export function ImportWeeklyScriptDialog({ isOpen, clients, anchorDate, defaultO
         )}
         {items === null ? (
           <>
-            <Textarea value={text} onChange={(event) => setText(event.target.value)} placeholder={"SEGUNDA — REEL\nTema: …\nNarração: …\nDescrição: …"} className="min-h-64 rounded-2xl text-sm" />
+            <Textarea value={text} onChange={(event) => setText(event.target.value)} placeholder={"SEGUNDA — REEL\nTema: …\nNarração: …\nDescrição: …"} className="min-h-48 rounded-2xl text-base sm:min-h-64 sm:text-sm" />
             <div className="flex justify-end">
-              <button type="button" disabled={text.trim().length < 40 || !organizationId || parseScript.isPending} onClick={separate} className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background disabled:opacity-40">
+              <button type="button" disabled={text.trim().length < 40 || !organizationId || parseScript.isPending} onClick={separate} className="inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background disabled:opacity-40 max-sm:h-11 max-sm:w-full">
                 {parseScript.isPending && <OrbitaSpinner className="size-4" />}
                 {parseScript.isPending ? "O Astro está separando…" : "Separar por dia"}
               </button>
