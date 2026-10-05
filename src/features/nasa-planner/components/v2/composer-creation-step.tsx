@@ -8,6 +8,7 @@ import { PostMediaUploader } from "../post-media-uploader";
 import { PostPreview } from "../post-preview";
 import { useUpdatePlannerPostV2 } from "../../hooks/use-planner-planning";
 import { plannerMediaUrl } from "./planner-v2-utils";
+import { ReelCoverPicker } from "./reel-cover-picker";
 import type { usePlannerPost } from "../../hooks/use-planner-calendar";
 
 /** Passo 2 do criador (spec 0058, RF-10): mídia, legenda e hashtags, com prévia no formato certo. */
@@ -95,6 +96,7 @@ export function ComposerCreationStep({ post, canEdit, onContinue }: { post: Comp
       <div className="flex flex-col items-center gap-3 bg-panel p-5">
         <p className="text-xs text-muted-foreground">Prévia</p>
         {isStory ? <StoryFrame post={post} /> : <PostPreview post={{ ...post, caption, hashtags: hashtagsText.split(/\s+/).filter(Boolean) }} />}
+        {!isStory && post.videoKey && canEdit && <ReelCoverPicker postId={post.id} videoKey={post.videoKey} thumbnail={post.thumbnail} />}
       </div>
     </div>
   );

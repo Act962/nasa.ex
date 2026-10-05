@@ -21,7 +21,7 @@ const S3_BASE = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL
 
 function mediaUrl(key: string | null | undefined): string | undefined {
   if (!key) return undefined;
-  if (key.startsWith("http") || key.startsWith("data:")) return key;
+  if (key.startsWith("http") || key.startsWith("data:") || key.startsWith("/")) return key;
   return `${S3_BASE}/${key}`;
 }
 
@@ -47,11 +47,13 @@ interface PublishedDetails {
 interface Props {
   post: PostLike;
   published?: PublishedDetails;
+  /** Revisão antes de publicar: Reel em pé, com a capa, som e controles para assistir inteiro. */
+  isReviewing?: boolean;
 }
 
 const formatCount = (count: number) => count.toLocaleString("pt-BR");
 
-export function PostPreview({ post, published }: Props) {
+export function PostPreview({ post, published, isReviewing = false }: Props) {
   const { data } = useQuery(
     orpc.integrations.listAvailableMetaAccounts.queryOptions(),
   );
@@ -82,6 +84,8 @@ export function PostPreview({ post, published }: Props) {
   const primaryMedia =
     mediaUrl(post.thumbnail) ?? mediaUrl(slides[0]?.imageKey);
   const videoUrl = mediaUrl(post.videoKey);
+  // Vídeo importado com o formato errado (ex.: marcado como post estático) ainda precisa aparecer na prévia.
+  const showsVideo = Boolean(videoUrl) && (isReel || !primaryMedia);
 
   const captionText = post.caption ?? "";
   const hashtagsText = (post.hashtags ?? []).map((hashtag) => `#${hashtag.replace(/^#/, "")}`).join(" ");
@@ -118,8 +122,11 @@ export function PostPreview({ post, published }: Props) {
         </div>
 
         {/* Media */}
-        <div className="relative bg-zinc-100 dark:bg-zinc-900 aspect-square">
-          {isReel && videoUrl ? (
+        <div className={`relative bg-zinc-100 dark:bg-zinc-900 ${isReviewing && showsVideo ? "aspect-[9/16]" : "aspect-square"}`}>
+          {isReviewing && showsVideo ? (
+            // "#t=0.1" faz o navegador desenhar o primeiro quadro quando ainda não há capa.
+            <video src={primaryMedia ? videoUrl : `${videoUrl}#t=0.1`} poster={primaryMedia} className="w-full h-full object-cover" controls playsInline preload="metadata" />
+          ) : showsVideo ? (
             <>
               <video
                 src={videoUrl}

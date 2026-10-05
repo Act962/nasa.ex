@@ -18,10 +18,13 @@ import {
   useRequestPlannerPostChanges,
   useSubmitPlannerPostForApproval,
 } from "../../hooks/use-planner-approval";
+import { PostPreview } from "../post-preview";
+import { StoryFrame } from "./composer-creation-step";
+import { ReelCoverPicker } from "./reel-cover-picker";
 import { POST_STATUS_META } from "./planner-v2-utils";
 import type { usePlannerPost } from "../../hooks/use-planner-calendar";
 
-/** Passo 3 do criador (spec 0058, RF-3/RF-4): checklist da marca, conversa e decisão do revisor. */
+/** Passo 3 do criador (spec 0058, RF-3/RF-4): prévia do post, checklist da marca, conversa e decisão do revisor. */
 
 type ComposerPost = NonNullable<ReturnType<typeof usePlannerPost>["post"]>;
 type ComposerPermissions = NonNullable<ReturnType<typeof usePlannerPost>["permissions"]>;
@@ -56,7 +59,11 @@ export function ReviewPanel({ post, permissions, onApproved }: { post: ComposerP
     commentOnPost.mutate({ postId: post.id, body: message.trim() }, { onSuccess: () => setMessage(""), onError: showError });
   };
 
+  const isStory = post.type === "STORY";
+  const hashtagsText = post.hashtags.map((hashtag) => `#${hashtag.replace(/^#/, "")}`).join(" ");
+
   return (
+    <div className="grid gap-0 md:grid-cols-[1fr_300px]">
     <div className="flex flex-col gap-4 p-5">
       <div className="flex flex-wrap items-center gap-2">
         <span className={cn("rounded-full bg-panel px-2.5 py-1 text-xs font-semibold", POST_STATUS_META[post.status].textClassName)}>
@@ -64,6 +71,14 @@ export function ReviewPanel({ post, permissions, onApproved }: { post: ComposerP
         </span>
         {post.sourceActorLabel && <span className="text-xs text-muted-foreground">Enviado por {post.sourceActorLabel}</span>}
       </div>
+
+      {!isStory && (
+        <section className="rounded-2xl bg-panel p-3 text-sm">
+          <p className="mb-1 text-xs font-semibold text-muted-foreground">Legenda</p>
+          {post.caption ? <p className="whitespace-pre-wrap">{post.caption}</p> : <p className="text-muted-foreground">Sem legenda ainda.</p>}
+          {hashtagsText && <p className="mt-1 text-xs text-muted-foreground">{hashtagsText}</p>}
+        </section>
+      )}
 
       <section className="rounded-2xl bg-panel p-3">
         <p className="mb-2 text-xs font-semibold text-muted-foreground">Checklist da marca</p>
@@ -142,6 +157,14 @@ export function ReviewPanel({ post, permissions, onApproved }: { post: ComposerP
           <button type="button" onClick={onApproved} className="rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background">
             Ir para a programação
           </button>
+        )}
+      </div>
+    </div>
+      <div className="flex flex-col items-center gap-3 bg-panel p-5">
+        <p className="text-xs text-muted-foreground">Como vai ficar no Instagram</p>
+        {isStory ? <StoryFrame post={post} /> : <PostPreview post={post} isReviewing />}
+        {post.type !== "STORY" && post.videoKey && permissions.canEdit && (
+          <ReelCoverPicker postId={post.id} videoKey={post.videoKey} thumbnail={post.thumbnail} />
         )}
       </div>
     </div>

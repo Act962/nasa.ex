@@ -72,12 +72,14 @@ export const importCreation = base
     await assertPlannerOrganizationAccess(context.user.id, input.organizationId, "create");
     const plannerId = await ensureDefaultPlanner(input.organizationId);
     const igAccount = await prisma.metaPublishAccount.findFirst({ where: { organizationId: input.organizationId, kind: "IG_BUSINESS", status: "ACTIVE" }, select: { igUserId: true } });
+    // Vídeo no feed é sempre Reel: um vídeo marcado como post estático ficaria sem prévia e não publicaria.
+    const format = input.isVideo && input.format !== "STORY" ? "REEL" : input.format;
     const post = await prisma.nasaPlannerPost.create({
       data: {
         organizationId: input.organizationId,
         plannerId,
         createdById: context.user.id,
-        type: input.format,
+        type: format,
         status: NasaPlannerPostStatus.DRAFT,
         title: input.title || `Criação do ${input.originLabel}`,
         caption: input.caption,
@@ -86,8 +88,8 @@ export const importCreation = base
         targetIgAccountId: igAccount?.igUserId ?? null,
         source: NasaPlannerPostSource.WEB,
         sourceActorLabel: input.originLabel,
-        ...(input.isVideo ? { videoKey: input.mediaKey } : input.format === "CAROUSEL" ? {} : { thumbnail: input.mediaKey }),
-        ...(input.format === "CAROUSEL" && !input.isVideo && { slides: { create: [{ order: 1, imageKey: input.mediaKey }] } }),
+        ...(input.isVideo ? { videoKey: input.mediaKey } : format === "CAROUSEL" ? {} : { thumbnail: input.mediaKey }),
+        ...(format === "CAROUSEL" && !input.isVideo && { slides: { create: [{ order: 1, imageKey: input.mediaKey }] } }),
       },
       select: { id: true },
     });

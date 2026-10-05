@@ -2,7 +2,8 @@
 
 /**
  * Envio de arquivo do Kit da Marca. Produção: R2 por URL assinada (devolve a chave).
- * Desenvolvimento: se o R2 recusar (CORS/chave sem escrita), imagem cai no /api/upload-local (devolve /uploads/...).
+ * Desenvolvimento: se o R2 recusar (CORS/chave sem escrita), cai no /api/upload-local — imagem devolve /uploads/...,
+ * vídeo devolve a URL completa (os players do Planner só aceitam chave do R2 ou http).
  */
 export async function uploadBrandFile(file: File): Promise<string> {
   const isImage = file.type.startsWith("image/");
@@ -18,7 +19,7 @@ export async function uploadBrandFile(file: File): Promise<string> {
     if (!putResponse.ok) throw new Error("put");
     return key;
   } catch (uploadError) {
-    if (process.env.NODE_ENV === "production" || !isImage) {
+    if (process.env.NODE_ENV === "production") {
       throw new Error("Não deu para enviar o arquivo. Tente de novo.", { cause: uploadError });
     }
     const formData = new FormData();
@@ -26,7 +27,7 @@ export async function uploadBrandFile(file: File): Promise<string> {
     const localResponse = await fetch("/api/upload-local", { method: "POST", body: formData });
     if (!localResponse.ok) throw new Error("Não deu para enviar o arquivo.");
     const { url } = (await localResponse.json()) as { url: string };
-    return url;
+    return isImage ? url : `${window.location.origin}${url}`;
   }
 }
 

@@ -515,6 +515,10 @@ export const GUIDE_ANCHORS = {
     id: "planner.composer.schedule",
     description: "Botão \"Programar\" no criador de post",
   },
+  plannerReelCoverFromVideo: {
+    id: "planner.reel.cover-from-video",
+    description: "Botão \"Usar este quadro\" que define a capa do Reel a partir do vídeo",
+  },
   plannerReviewApprove: {
     id: "planner.review.approve",
     description: "Botão \"Aprovar\" na revisão do post",
