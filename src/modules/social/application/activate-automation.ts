@@ -30,7 +30,8 @@ export async function setAutomationActive(
     return;
   }
 
-  const channel = await deps.channels.findForTenant();
+  // A conta da própria automação, não outra da organização (spec 0069, RF-15).
+  const channel = await deps.channels.findById(automation.channelId);
   if (channel && channel.status !== "ACTIVE") {
     throw new ChannelNeedsReconnectError(channel.lastErrorMessage ?? undefined);
   }

@@ -1,13 +1,13 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { decryptSecret } from "@/lib/crypto";
-import { IntegrationPlatform, MetaPublishAccountStatus } from "@/generated/prisma/enums";
+import { IntegrationPlatform, MetaPublishAccountKind, MetaPublishAccountStatus } from "@/generated/prisma/enums";
 import { listUserPagesWithTokens, pingGraphObject } from "@/http/meta/planner-graph";
 import { classifyPublishError } from "@/features/nasa-planner/server/publishing/meta-errors";
 import { upsertPublishAccounts } from "@/features/nasa-planner/server/publishing/publish-accounts";
 import { createNotification, NOTIF_TYPES } from "@/features/admin/lib/notification-service";
 
-/** Saúde diária das contas de publicação (spec 0057, RF-12) e backfill das orgs conectadas antes da spec (RF-3). */
+/** Saúde diária das páginas do Facebook (spec 0057, RF-12; as contas do Instagram são cuidadas pela rotina dos Satélites, spec 0071) e backfill das orgs conectadas antes da spec (RF-3). */
 
 async function notifyOrganizationOwners(organizationId: string, accountLabel: string) {
   const owners = await prisma.member.findMany({
@@ -36,7 +36,7 @@ export const plannerPublishAccountsHealth = inngest.createFunction(
   async ({ step }) => {
     const activeAccounts = await step.run("list-active", () =>
       prisma.metaPublishAccount.findMany({
-        where: { status: MetaPublishAccountStatus.ACTIVE },
+        where: { status: MetaPublishAccountStatus.ACTIVE, kind: MetaPublishAccountKind.FB_PAGE },
         select: { id: true },
       }),
     );
@@ -45,7 +45,7 @@ export const plannerPublishAccountsHealth = inngest.createFunction(
       const needsReconnect = await step.run(`check-${accountId}`, async () => {
         const account = await prisma.metaPublishAccount.findUniqueOrThrow({ where: { id: accountId } });
         try {
-          await pingGraphObject(decryptSecret(account.accessTokenEnc), account.igUserId ?? account.pageId);
+          await pingGraphObject(decryptSecret(account.accessTokenEnc), account.pageId);
           await prisma.metaPublishAccount.update({ where: { id: accountId }, data: { lastCheckedAt: new Date() } });
           return false;
         } catch (error) {
@@ -60,7 +60,7 @@ export const plannerPublishAccountsHealth = inngest.createFunction(
             },
           });
           if (classified.needsReconnect) {
-            await notifyOrganizationOwners(account.organizationId, account.igUsername ? `@${account.igUsername}` : account.pageName ?? "uma página");
+            await notifyOrganizationOwners(account.organizationId, account.pageName ?? "uma página");
           }
           return classified.needsReconnect;
         }

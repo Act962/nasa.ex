@@ -19,7 +19,7 @@ Depois de conectado, quem comenta ou manda DM vira conversa no **tracking-chat**
 | --- | --- |
 | Token por página guardado cifrado (`MetaPublishAccount`) | `oauth-finalize.ts` → `upsertPublishAccounts` |
 | Publicar feed, carrossel, Story e Reel (Instagram e página) | `src/features/nasa-planner/server/publishing/` + Inngest `nasa-planner/post.*` |
-| Comments conectado pelo token da página (`authMode: META_LOGIN`) | `src/features/comments/server/meta-login-channel.ts` |
+| Comments conectado pelo token da página (`authMode: META_LOGIN`) | `src/features/social-accounts/server/meta-login-channel.ts` |
 | Resposta privada (DM com botão) e resposta pública ao comentário | `src/modules/social/infra/instagram/meta-login-channel-gateway.ts` |
 | Webhook único `/api/social/webhook/meta` (verify token + assinatura do app) | `src/app/api/social/webhook/meta/route.ts` |
 | Webhook antigo do Instagram também entrega ao Comments | `src/app/api/integrations/instagram/webhook/route.ts` |
@@ -81,6 +81,12 @@ Painel do app → **Webhooks** (ou caso de uso do Instagram → Configurar webho
 | Comentário/DM não aparece no tracking-chat | Empresa sem tracking, tracking sem etapa, ou conta conectada pelo passo a passo manual (só a conexão pela Meta alimenta o chat) | Criar tracking com etapa; conectar pela Meta |
 | Resposta pelo chat falha "O Instagram recusou" | Comentário apagado, DM fora da janela de 24 h (ou resposta privada fora de 7 dias), ou falta `instagram_manage_comments`/`instagram_manage_messages` | Responder no post (comentário selecionado) ou esperar o cliente escrever de novo |
 | Webhook responde 401 | Assinatura não bate: `META_APP_SECRET` de outro app | Usar o secret do mesmo app que está no login |
+
+## Permissões do app do Instagram (spec 0071)
+
+Para a conta conectada pelo passo a passo servir ao Comments e ao Planner, o caso de uso do Instagram no app da Meta precisa de três grupos de permissão: comentários e mensagens (`instagram_business_manage_comments`, `instagram_business_manage_messages`), publicação (`instagram_business_content_publish`) e métricas (`instagram_business_manage_insights`). O cartão da conta em Satélites › Instagram mostra o que o token atual permite; depois de liberar uma permissão, gere um token novo e troque a credencial.
+
+O Instagram baixa a mídia do post por URL pública: em `localhost` a publicação só funciona se os arquivos estiverem num bucket público.
 
 ## Teste local (app de teste)
 

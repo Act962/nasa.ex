@@ -134,6 +134,7 @@ export function ComposerScriptStep({
       {isCreating && values.organizationId && (
         <ComposerAstroPanel
           organizationId={values.organizationId}
+          instagramAccountId={values.targetNetworks.includes("INSTAGRAM") ? (values.targetIgAccountId ?? igAccounts[0]?.igUserId ?? null) : null}
           formats={values.formats}
           generatedByFormat={values.generatedByFormat}
           onGenerated={applyGenerated}
@@ -144,7 +145,7 @@ export function ComposerScriptStep({
         <p className="mb-2 text-xs text-muted-foreground">Onde publicar</p>
         {client && client.accounts.length === 0 ? (
           <p className="rounded-2xl bg-warning/10 px-3 py-2 text-sm text-warning">
-            Este cliente ainda não conectou o Instagram. Conecte nos Satélites para programar; por enquanto o post fica como rascunho.
+            Este cliente ainda não conectou o Instagram. Conecte em Satélites › Instagram para programar; por enquanto o post fica como rascunho.
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -152,10 +153,14 @@ export function ComposerScriptStep({
               <OptionPill
                 key={account.id}
                 isSelected={values.targetNetworks.includes("INSTAGRAM") && (values.targetIgAccountId ?? igAccounts[0]?.igUserId) === account.igUserId}
-                onSelect={() => update({ targetNetworks: Array.from(new Set([...values.targetNetworks, "INSTAGRAM" as const])), targetIgAccountId: account.igUserId })}
+                onSelect={() => {
+                  if (account.canPublish === false) return;
+                  update({ targetNetworks: Array.from(new Set([...values.targetNetworks, "INSTAGRAM" as const])), targetIgAccountId: account.igUserId });
+                }}
               >
-                @{account.igUsername ?? account.pageName}
+                @{account.igUsername ?? account.pageName ?? account.igUserId}
                 {account.status === "NEEDS_RECONNECT" && <span className="text-[10px] text-destructive">reconectar</span>}
+                {account.canPublish === false && <span className="text-[10px] text-warning">não publica</span>}
               </OptionPill>
             ))}
             {fbPages.map((page) => (

@@ -3,15 +3,18 @@ import prisma from "@/lib/prisma";
 import { getPublicMediaUrl } from "@/lib/r2-url";
 import { IntegrationPlatform, MetaPublishAccountKind, MetaPublishAccountStatus } from "@/generated/prisma/enums";
 import { decryptSecret } from "@/lib/crypto";
-import type { IgContainerParams } from "@/http/meta/planner-graph";
+import type { MediaContainerInput } from "@/modules/social/ports/content-publisher";
+import { resolveInstagramTarget } from "./instagram-channels";
 import { validatePostForPublishing } from "./validate-post";
 
 /**
  * Monta o plano de publicação de um post (spec 0057): para onde vai e com qual mídia.
+ * Instagram sai pela conta dos Satélites (spec 0071); Facebook, pela página da conexão da Meta.
  * O plano é gravado no histórico do Inngest, então **nunca** leva token — cada passo busca o seu.
  */
 
 export type PublishTarget =
+  | { source: "channel"; channelId: string; externalTargetId: string }
   | { source: "account"; accountId: string; externalTargetId: string }
   | { source: "legacy"; externalTargetId: string };
 
@@ -41,7 +44,6 @@ export interface PublishPlan {
 type LegacyMetaConfig = {
   page_access_token?: string;
   page_id?: string;
-  instagram_account_id?: string;
 };
 
 async function readLegacyMetaConfig(organizationId: string): Promise<LegacyMetaConfig | null> {
@@ -52,37 +54,29 @@ async function readLegacyMetaConfig(organizationId: string): Promise<LegacyMetaC
   return (integration?.config as LegacyMetaConfig | null) ?? null;
 }
 
-async function resolveTarget(
-  organizationId: string,
-  kind: MetaPublishAccountKind,
-  requestedExternalId: string | null,
-): Promise<PublishTarget | null> {
-  const isInstagram = kind === MetaPublishAccountKind.IG_BUSINESS;
+async function resolveFacebookTarget(organizationId: string, requestedPageId: string | null): Promise<PublishTarget | null> {
   const candidates = await prisma.metaPublishAccount.findMany({
-    where: { organizationId, kind, status: MetaPublishAccountStatus.ACTIVE },
-    select: { id: true, igUserId: true, pageId: true },
+    where: { organizationId, kind: MetaPublishAccountKind.FB_PAGE, status: MetaPublishAccountStatus.ACTIVE },
+    select: { id: true, pageId: true },
   });
-  const externalIdOf = (candidate: (typeof candidates)[number]) => (isInstagram ? candidate.igUserId : candidate.pageId);
-  const chosen = requestedExternalId
-    ? candidates.find((candidate) => externalIdOf(candidate) === requestedExternalId)
+  const chosen = requestedPageId
+    ? candidates.find((candidate) => candidate.pageId === requestedPageId)
     : candidates.length === 1
       ? candidates[0]
       : undefined;
-  if (chosen && externalIdOf(chosen)) {
-    return { source: "account", accountId: chosen.id, externalTargetId: externalIdOf(chosen)! };
-  }
+  if (chosen) return { source: "account", accountId: chosen.id, externalTargetId: chosen.pageId };
 
   // Org conectada antes da spec 0057, sem contas cadastradas: usa o config antigo (CB-5).
   if (candidates.length > 0) return null;
   const legacyConfig = await readLegacyMetaConfig(organizationId);
-  const legacyExternalId = isInstagram ? legacyConfig?.instagram_account_id : legacyConfig?.page_id;
-  if (!legacyConfig?.page_access_token || !legacyExternalId) return null;
-  if (requestedExternalId && requestedExternalId !== legacyExternalId) return null;
-  return { source: "legacy", externalTargetId: legacyExternalId };
+  if (!legacyConfig?.page_access_token || !legacyConfig.page_id) return null;
+  if (requestedPageId && requestedPageId !== legacyConfig.page_id) return null;
+  return { source: "legacy", externalTargetId: legacyConfig.page_id };
 }
 
-/** Busca o token do destino dentro do passo que vai usá-lo. */
+/** Busca o token da página do Facebook dentro do passo que vai usá-lo. */
 export async function loadTargetToken(organizationId: string, target: PublishTarget): Promise<string> {
+  if (target.source === "channel") throw new Error("Conta dos Satélites publica pelo ContentPublisher, não por token solto.");
   if (target.source === "account") {
     const account = await prisma.metaPublishAccount.findUniqueOrThrow({
       where: { id: target.accountId },
@@ -117,10 +111,11 @@ export async function buildPublishPlan(postId: string): Promise<PublishPlan> {
   if (problems.length > 0) return plan;
 
   if (requestedNetworks.includes("INSTAGRAM") && !post.externalIgPostId) {
-    const target = await resolveTarget(post.organizationId, MetaPublishAccountKind.IG_BUSINESS, post.targetIgAccountId);
-    if (!target) {
-      problems.push("Nenhuma conta do Instagram conectada para este cliente. Conecte nos Satélites.");
+    const resolution = await resolveInstagramTarget(post.organizationId, post.targetIgAccountId);
+    if (!resolution.ok) {
+      problems.push(resolution.problem);
     } else {
+      const target: PublishTarget = { source: "channel", channelId: resolution.channelId, externalTargetId: resolution.externalAccountId };
       const media = await buildInstagramMedia(post.type, post.thumbnail, post.videoKey, post.slides);
       const needsProcessing = media.kind === "REELS" || (media.kind === "STORIES" && Boolean(media.videoUrl))
         || (media.kind === "CAROUSEL" && media.items.some((item) => item.videoUrl));
@@ -129,7 +124,7 @@ export async function buildPublishPlan(postId: string): Promise<PublishPlan> {
   }
 
   if (requestedNetworks.includes("FACEBOOK") && !post.externalFbPostId) {
-    const target = await resolveTarget(post.organizationId, MetaPublishAccountKind.FB_PAGE, post.targetFbPageId);
+    const target = await resolveFacebookTarget(post.organizationId, post.targetFbPageId);
     const media = await buildFacebookMedia(post.type, post.thumbnail, post.videoKey, post.slides);
     if (!target) problems.push("Nenhuma página do Facebook conectada para este cliente. Conecte nos Satélites.");
     else if (!media) problems.push("O post no Facebook precisa de uma imagem ou de um vídeo.");
@@ -183,7 +178,7 @@ async function buildFacebookMedia(
   return anyImageKey ? { kind: "PHOTO", imageUrl: await getPublicMediaUrl(anyImageKey) } : null;
 }
 
-export function toContainerParams(media: IgMediaPlan, caption: string | undefined): IgContainerParams {
+export function toContainerParams(media: IgMediaPlan, caption: string | undefined): MediaContainerInput {
   switch (media.kind) {
     case "IMAGE":
       return { kind: "IMAGE", imageUrl: media.imageUrl, caption };

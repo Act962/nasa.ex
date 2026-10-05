@@ -1,14 +1,13 @@
 import "server-only";
 import prisma from "@/lib/prisma";
-import { decryptSecret } from "@/lib/crypto";
-import { MetaPublishAccountKind } from "@/generated/prisma/enums";
-import { getIgMediaMetrics, MetaGraphError, type IgMediaMetrics } from "@/http/meta/planner-graph";
+import { ContentPublishError, type PublishedMediaMetrics } from "@/modules/social/ports/content-publisher";
+import { loadInstagramPublisherForPost } from "./instagram-channels";
 
-/** Números reais do post publicado no Instagram, lidos na hora da Meta (tela do post publicado). */
+/** Números reais do post publicado no Instagram, lidos na hora pela conta dos Satélites (spec 0071, RF-4). */
 
 export type PlannerPostMetrics = {
   account: { username: string | null; profilePictureUrl: string | null } | null;
-  metrics: IgMediaMetrics | null;
+  metrics: PublishedMediaMetrics | null;
   fetchedAt: Date;
   error: string | null;
 };
@@ -18,25 +17,19 @@ export async function getPlannerPostMetrics(postId: string): Promise<PlannerPost
     where: { id: postId },
     select: { organizationId: true, type: true, externalIgPostId: true, targetIgAccountId: true },
   });
-  const account = await prisma.metaPublishAccount.findFirst({
-    where: {
-      organizationId: post.organizationId,
-      kind: MetaPublishAccountKind.IG_BUSINESS,
-      ...(post.targetIgAccountId && { igUserId: post.targetIgAccountId }),
-    },
-    select: { igUsername: true, profilePictureUrl: true, accessTokenEnc: true },
-  });
-  const accountSummary = account ? { username: account.igUsername, profilePictureUrl: account.profilePictureUrl } : null;
+  const access = await loadInstagramPublisherForPost(post);
+  const accountSummary = access ? { username: access.handle, profilePictureUrl: null } : null;
 
-  if (!post.externalIgPostId || !account) {
-    return { account: accountSummary, metrics: null, fetchedAt: new Date(), error: post.externalIgPostId ? "Conta do Instagram não encontrada." : null };
+  if (!post.externalIgPostId || !access) {
+    return { account: accountSummary, metrics: null, fetchedAt: new Date(), error: post.externalIgPostId ? "Conta do Instagram não encontrada nos Satélites." : null };
   }
 
   try {
-    const metrics = await getIgMediaMetrics(decryptSecret(account.accessTokenEnc), post.externalIgPostId, post.type === "STORY");
-    return { account: accountSummary, metrics, fetchedAt: new Date(), error: null };
+    const metrics = await access.publisher.getMediaMetrics(post.externalIgPostId, post.type === "STORY");
+    const isInsightsBlocked = access.canReadInsights === false && metrics.reach === null;
+    return { account: accountSummary, metrics, fetchedAt: new Date(), error: isInsightsBlocked ? "Esta conta não tem permissão de métricas: alcance e visualizações ficam em branco." : null };
   } catch (error) {
-    const message = error instanceof MetaGraphError ? error.message : "Não deu para ler os números na Meta.";
+    const message = error instanceof ContentPublishError ? error.message : "Não deu para ler os números na Meta.";
     return { account: accountSummary, metrics: null, fetchedAt: new Date(), error: message };
   }
 }

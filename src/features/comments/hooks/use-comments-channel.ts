@@ -1,93 +1,102 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
+import { useSocialAccounts, type SocialAccount } from "@/features/social-accounts/hooks/use-social-accounts";
 
-function useInvalidateChannel() {
-  const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: orpc.comments.key() });
+/** O que o Comments lê de uma conta. As contas em si vêm de `use-social-accounts` (spec 0069). */
+
+const SELECTED_ACCOUNT_PARAM = "conta";
+const SELECTED_ACCOUNT_STORAGE_KEY = "orbita:comments-account";
+
+function readRememberedAccountId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(SELECTED_ACCOUNT_STORAGE_KEY);
+  } catch {
+    return null;
+  }
 }
 
-export function useCommentsChannel() {
-  return useQuery(orpc.comments.channel.get.queryOptions({ input: {} }));
+function rememberAccountId(accountId: string) {
+  try {
+    window.localStorage.setItem(SELECTED_ACCOUNT_STORAGE_KEY, accountId);
+  } catch {
+    // Modo privado: a escolha vale só pela URL.
+  }
 }
 
-/** URL e verify token do webhook, para o passo final do guia (só admin). */
-export function useCommentsWebhookSetup({ enabled = true }: { enabled?: boolean } = {}) {
+/** URL primeiro, depois a última escolha neste navegador, depois a primeira ativa (spec 0069, D-6 e CB-4). */
+function pickAccount(accounts: SocialAccount[], requestedId: string | null, rememberedId: string | null) {
+  return (
+    accounts.find((account) => account.id === requestedId) ??
+    accounts.find((account) => account.id === rememberedId) ??
+    accounts.find((account) => account.status === "ACTIVE") ??
+    accounts[0] ??
+    null
+  );
+}
+
+/** Conta do Instagram em que o usuário está trabalhando no Comments (spec 0069, RF-12). */
+export function useSelectedCommentsAccount() {
+  const { data, isLoading } = useSocialAccounts();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // Conta escolhida que ainda não está na lista: acabou de ser conectada e a lista não recarregou.
+  const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
+
+  // As contas só existem depois da query, no navegador: ler o storage aqui não diverge do servidor.
+  const accounts = (data?.accounts ?? []).filter((account) => account.provider === "INSTAGRAM");
+  const requestedId = searchParams.get(SELECTED_ACCOUNT_PARAM);
+  const selectedAccount = pickAccount(accounts, requestedId, readRememberedAccountId());
+  const selectedAccountId = selectedAccount?.id ?? null;
+
+  const selectAccount = (accountId: string) => {
+    rememberAccountId(accountId);
+    setPendingAccountId(accountId);
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set(SELECTED_ACCOUNT_PARAM, accountId);
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  };
+
+  // URL sem conta, ou apontando para conta que não é mais desta empresa: corrige.
+  const isAwaitingRequestedAccount = requestedId !== null && requestedId === pendingAccountId;
+  useEffect(() => {
+    if (!selectedAccountId || requestedId === selectedAccountId || isAwaitingRequestedAccount) return;
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set(SELECTED_ACCOUNT_PARAM, selectedAccountId);
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  }, [selectedAccountId, requestedId, isAwaitingRequestedAccount, pathname, router, searchParams]);
+
+  return {
+    accounts,
+    selectedAccount,
+    selectAccount,
+    canManage: data?.canManage ?? false,
+    isLoading,
+  };
+}
+
+export function useCommentsContent(channelId: string | null | undefined, enabled = true) {
   return useQuery({
-    ...orpc.comments.channel.webhookSetup.queryOptions({ input: {} }),
-    enabled,
+    ...orpc.comments.channel.listContent.queryOptions({ input: { channelId: channelId ?? "" } }),
+    enabled: Boolean(channelId) && enabled,
   });
 }
 
-export function useConnectCommentsChannel() {
-  const invalidate = useInvalidateChannel();
-  return useMutation(
-    orpc.comments.channel.connect.mutationOptions({ onSuccess: invalidate }),
-  );
-}
-
-export function useDisconnectCommentsChannel() {
-  const invalidate = useInvalidateChannel();
-  return useMutation(
-    orpc.comments.channel.disconnect.mutationOptions({ onSuccess: invalidate }),
-  );
-}
-
-/**
- * Reinscreve o app nos eventos da conta. Assinar os campos no painel da Meta
- * não basta — sem isto a conta não entrega nada.
- */
-export function useRepairCommentsSubscription() {
-  const invalidate = useInvalidateChannel();
-  return useMutation(
-    orpc.comments.channel.repairSubscription.mutationOptions({
-      onSuccess: invalidate,
-    }),
-  );
-}
-
-export function useReactivateCommentsChannel() {
-  const invalidate = useInvalidateChannel();
-  return useMutation(
-    orpc.comments.channel.reactivate.mutationOptions({ onSuccess: invalidate }),
-  );
-}
-
-export function useCommentsContent(enabled = true) {
-  return useQuery({
-    ...orpc.comments.channel.listContent.queryOptions({ input: {} }),
-    enabled,
-  });
-}
-
-/** Instagram da conexão da Meta da empresa, para conectar o Comments com um clique (spec 0061). */
-export function useCommentsMetaAccounts({ organizationId, enabled = true }: { organizationId?: string; enabled?: boolean } = {}) {
-  return useQuery({
-    ...orpc.comments.channel.metaAccounts.queryOptions({ input: { organizationId } }),
-    enabled,
-  });
-}
-
-export function useConnectCommentsWithMeta() {
-  const invalidate = useInvalidateChannel();
-  const queryClient = useQueryClient();
-  return useMutation(
-    orpc.comments.channel.connectWithMeta.mutationOptions({
-      onSuccess: () => {
-        invalidate();
-        void queryClient.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
-      },
-    }),
-  );
-}
-
-/** Tracking que recebe os leads do Instagram no tracking-chat (spec 0062). */
-export function useCommentsLeadTracking({ enabled = true }: { enabled?: boolean } = {}) {
-  return useQuery({ ...orpc.comments.channel.leadTracking.queryOptions({ input: {} }), enabled });
+/** Tracking que recebe os leads desta conta no tracking-chat (spec 0062). */
+export function useCommentsLeadTracking(channelId: string) {
+  return useQuery(orpc.comments.channel.leadTracking.queryOptions({ input: { channelId } }));
 }
 
 export function useSetCommentsLeadTracking() {
-  const invalidate = useInvalidateChannel();
-  return useMutation(orpc.comments.channel.setLeadTracking.mutationOptions({ onSuccess: invalidate }));
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.comments.channel.setLeadTracking.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: orpc.comments.key() }),
+    }),
+  );
 }

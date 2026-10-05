@@ -59,7 +59,18 @@ import {
 } from "./v2/calendar";
 import { approve, comment, listReviews, requestChanges, submitForApproval } from "./v2/approval";
 import { listAccounts, postMetrics, publishNow, retryPublish, schedule, unschedule } from "./v2/publishing";
-import { addPlannerBrandKitAsset, generateScriptsWithAstro, getPlannerBrandKit, removePlannerBrandKitAsset, savePlannerBrandKit } from "./v2/brand-kit";
+import {
+  addPlannerBrandKitAsset,
+  createPlannerBrandKit,
+  deletePlannerBrandKit,
+  generateScriptsWithAstro,
+  getPlannerBrandKit,
+  listPlannerBrandKits,
+  removePlannerBrandKitAsset,
+  renamePlannerBrandKit,
+  savePlannerBrandKit,
+  setPlannerAccountBrandKit,
+} from "./v2/brand-kit";
 import { discardCreation, importCreation, listCreations } from "./v2/creations";
 import { getPlannerDashboard, listBoardPosts } from "./v2/board";
 import { parseWeeklyScriptText } from "./v2/weekly-script";
@@ -99,7 +110,12 @@ export const nasaPlannerRouter = {
     import: importCreation,
   },
   brandKit: {
+    list: listPlannerBrandKits,
     get: getPlannerBrandKit,
+    create: createPlannerBrandKit,
+    rename: renamePlannerBrandKit,
+    delete: deletePlannerBrandKit,
+    setAccountKit: setPlannerAccountBrandKit,
     save: savePlannerBrandKit,
     addAsset: addPlannerBrandKitAsset,
     removeAsset: removePlannerBrandKitAsset,

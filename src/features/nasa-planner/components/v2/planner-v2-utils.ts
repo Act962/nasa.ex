@@ -81,3 +81,20 @@ export const WEEKDAY_LABELS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta
 export function isScriptOnlyPost(post: { status: string; thumbnail: string | null; videoKey: string | null }) {
   return post.status === "IDEA" || (post.status === "DRAFT" && !post.thumbnail && !post.videoKey);
 }
+
+type InstagramAccountOwner = { accounts: Array<{ kind: string; igUserId: string | null }> };
+
+export function instagramAccountsOf<Client extends InstagramAccountOwner>(client: Client | undefined) {
+  return (client?.accounts.filter((account) => account.kind === "IG_BUSINESS") ?? []) as Array<Extract<Client["accounts"][number], { kind: "IG_BUSINESS" }>>;
+}
+
+/** Conta do Instagram em que o post sai: a escolhida, ou a única do cliente (mesma regra da publicação, spec 0071). */
+export function resolvePostInstagramAccount<Client extends InstagramAccountOwner>(
+  post: { targetIgAccountId?: string | null; targetNetworks?: string[] | null },
+  client: Client | undefined,
+) {
+  if (post.targetNetworks && !post.targetNetworks.includes("INSTAGRAM")) return null;
+  const instagramAccounts = instagramAccountsOf(client);
+  if (post.targetIgAccountId) return instagramAccounts.find((account) => account.igUserId === post.targetIgAccountId) ?? null;
+  return instagramAccounts.length === 1 ? instagramAccounts[0] : null;
+}

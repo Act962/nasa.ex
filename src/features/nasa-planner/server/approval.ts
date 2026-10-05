@@ -8,6 +8,7 @@ import { createNotification, NOTIF_TYPES, type NotifType } from "@/features/admi
 import { getUserAppPermissions } from "@/features/permissions/server/app-permission";
 import { canDoPlannerAction, PLANNER_APP_KEY } from "./cross-org";
 import { buildBrandChecklist } from "../lib/brand-checklist";
+import { getBrandChecklistRulesForPost } from "./brand-kit/brand-kits";
 import { schedulePlannerPost, unschedulePlannerPost } from "./scheduling";
 
 /** Fluxo de aprovação do Planner (spec 0058, RF-3): cada passo vira uma linha de histórico e avisa quem precisa agir. */
@@ -56,7 +57,7 @@ export async function submitPostForApproval(input: { postId: string; actorId: st
   if (!SUBMITTABLE_STATUSES.includes(post.status)) {
     throw new ORPCError("BAD_REQUEST", { message: "Este post já está em aprovação ou aprovado." });
   }
-  const checklist = buildBrandChecklist(post, post.planner);
+  const checklist = buildBrandChecklist(post, await getBrandChecklistRulesForPost(post));
   const now = new Date();
   await prisma.nasaPlannerPost.update({
     where: { id: post.id },

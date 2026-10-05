@@ -1,16 +1,4 @@
-import {
-  connectChannelProcedure,
-  connectWithMeta,
-  disconnectChannel,
-  getChannel,
-  getLeadTracking,
-  getWebhookSetup,
-  listContent,
-  listMetaAccounts,
-  reactivateChannel,
-  repairSubscription,
-  setLeadTracking,
-} from "./channel";
+import { getLeadTracking, listContent, setLeadTracking } from "./channel";
 import {
   createAutomation,
   deleteAutomation,
@@ -28,21 +16,14 @@ import {
  *
  * Adapter primário do módulo `src/modules/social`. Não há Prisma de domínio
  * aqui: as procedures validam entrada, resolvem tenancy pelo middleware e
- * chamam use case ou repositório.
+ * chamam use case ou repositório. As contas conectadas vêm de
+ * `socialAccounts.*` (spec 0069).
  */
 export const commentsRouter = {
   channel: {
-    get: getChannel,
-    connect: connectChannelProcedure,
-    disconnect: disconnectChannel,
-    reactivate: reactivateChannel,
     listContent,
-    repairSubscription,
-    webhookSetup: getWebhookSetup,
-    metaAccounts: listMetaAccounts,
     leadTracking: getLeadTracking,
     setLeadTracking,
-    connectWithMeta,
   },
   automations: {
     list: listAutomations,

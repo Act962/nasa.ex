@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { parseAsArrayOf, parseAsIsoDate, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { CalendarDays, Columns3, LayoutDashboard, Layers, Plus } from "lucide-react";
@@ -29,16 +28,17 @@ import { ScriptTableView } from "./script-table-view";
 import { usePlannerWeekdayThemes } from "../../hooks/use-planner-weekly-script";
 import { CampaignsTab } from "../tabs/campaigns-tab";
 import { MindMapsTab } from "../tabs/mind-maps-tab";
+import { BrandKitClientSelect, BrandKitPage } from "../brand-kit/brand-kit-page";
 import { PostComposer } from "./post-composer";
-import { POST_TYPES, RESCHEDULABLE_STATUSES, computeVisibleRange } from "./planner-v2-utils";
+import { POST_TYPES, RESCHEDULABLE_STATUSES, computeVisibleRange, resolvePostInstagramAccount } from "./planner-v2-utils";
 import type { CalendarSlot, ComposerRequest } from "./planner-v2-types";
 
-/** Planner v2 (spec 0058): abas Dashboard, Calendário (Semana/Mês/Kanban), Campanhas e Mapas Mentais, multi-cliente. */
+/** Planner v2 (spec 0058): abas Dashboard, Calendário (Semana/Mês/Kanban), Campanhas, Mapas Mentais e Kit da Marca, multi-cliente. */
 
 const STATUS_VALUES: NasaPlannerPostStatus[] = ["IDEA", "DRAFT", "PENDING_APPROVAL", "CHANGES_REQUESTED", "APPROVED", "SCHEDULED", "PUBLISHING", "PUBLISHED", "FAILED"];
-const PLANNER_TABS = ["dashboard", "calendar", "campaigns", "mindmaps"] as const;
+const PLANNER_TABS = ["dashboard", "calendar", "campaigns", "mindmaps", "kit"] as const;
 type PlannerTab = (typeof PLANNER_TABS)[number];
-const TAB_LABEL: Record<PlannerTab, string> = { dashboard: "Dashboard", calendar: "Calendário", campaigns: "Campanhas", mindmaps: "Mapas Mentais" };
+const TAB_LABEL: Record<PlannerTab, string> = { dashboard: "Dashboard", calendar: "Calendário", campaigns: "Campanhas", mindmaps: "Mapas Mentais", kit: "Kit da Marca" };
 const DRAG_ACTIVATION_DISTANCE_PX = 6;
 
 const plannerSearchParams = {
@@ -48,9 +48,13 @@ const plannerSearchParams = {
   column: parseAsStringLiteral(BOARD_COLUMN_KEYS),
   date: parseAsIsoDate,
   orgs: parseAsArrayOf(parseAsString).withDefault([]),
+  /** Contas do Instagram em vista no calendário (ID na rede); vazio = todas. */
+  contas: parseAsArrayOf(parseAsString).withDefault([]),
   types: parseAsArrayOf(parseAsStringLiteral(POST_TYPES)).withDefault([]),
   status: parseAsArrayOf(parseAsStringLiteral(STATUS_VALUES)).withDefault([]),
   post: parseAsString,
+  /** Cliente do Kit da Marca em tela. */
+  org: parseAsString,
 };
 
 export function PlannerHome() {
@@ -65,12 +69,19 @@ export function PlannerHome() {
   const organizationIds = searchState.orgs.length ? searchState.orgs : undefined;
 
   const { clients } = usePlannerClients();
-  const { posts } = usePlannerCalendarPosts({
+  const { posts: allPosts } = usePlannerCalendarPosts({
     organizationIds,
     ...range,
     types: searchState.types.length ? searchState.types : undefined,
     statuses: searchState.status.length ? searchState.status : undefined,
   });
+  const posts = useMemo(() => {
+    if (searchState.contas.length === 0) return allPosts;
+    return allPosts.filter((post) => {
+      const account = resolvePostInstagramAccount(post, clients.find((client) => client.id === post.organizationId));
+      return account ? searchState.contas.includes(account.igUserId) : false;
+    });
+  }, [allPosts, clients, searchState.contas]);
   const { slots } = usePlannerSlots({ organizationIds, ...range });
   const { broadcasts: allBroadcasts } = usePlannerCalendarBroadcasts({ organizationIds, ...range });
   // Filtrar por formato de post esconde os disparos: o filtro fala de conteúdo das redes.
@@ -86,6 +97,7 @@ export function PlannerHome() {
   const pendingApprovalCount = clients
     .filter((client) => !organizationIds || organizationIds.includes(client.id))
     .reduce((total, client) => total + client.counts.pendingApproval, 0);
+  const brandKitOrganizationId = searchState.org ?? clients[0]?.id ?? null;
   const activeComposerRequest: ComposerRequest | null = composerRequest ?? (searchState.post ? { mode: "edit", postId: searchState.post } : null);
 
   const openPost = (postId: string) => setComposerRequest({ mode: "edit", postId });
@@ -149,21 +161,27 @@ export function PlannerHome() {
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="space-y-3 p-3 md:p-4">
-        <nav className="flex [scrollbar-width:none] w-full max-w-max overflow-x-auto rounded-full border border-line bg-card p-1 [&::-webkit-scrollbar]:hidden">
-          {PLANNER_TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => showTab(tab)}
-              className={cn("flex-none rounded-full px-4 py-1.5 text-sm whitespace-nowrap", searchState.tab === tab ? "bg-foreground font-semibold text-background" : "text-muted-foreground hover:text-foreground")}
-            >
-              {TAB_LABEL[tab]}
-            </button>
-          ))}
-          <Link href="/nasa-planner/kit" className="flex-none rounded-full px-4 py-1.5 text-sm whitespace-nowrap text-muted-foreground hover:text-foreground">
-            Kit da Marca
-          </Link>
-        </nav>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <nav className="flex [scrollbar-width:none] w-full max-w-max overflow-x-auto rounded-full border border-line bg-card p-1 [&::-webkit-scrollbar]:hidden">
+            {PLANNER_TABS.map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => showTab(tab)}
+                className={cn("flex-none rounded-full px-4 py-1.5 text-sm whitespace-nowrap", searchState.tab === tab ? "bg-foreground font-semibold text-background" : "text-muted-foreground hover:text-foreground")}
+              >
+                {TAB_LABEL[tab]}
+              </button>
+            ))}
+          </nav>
+          {searchState.tab === "kit" && (
+            <BrandKitClientSelect
+              clients={clients}
+              selectedOrganizationId={brandKitOrganizationId}
+              onSelect={(organizationId) => void setSearchState({ org: organizationId })}
+            />
+          )}
+        </div>
 
         {searchState.tab === "dashboard" && (
           <PlannerDashboard organizationIds={organizationIds} clients={clients} onOpenPost={openPost} onCreate={setComposerRequest} onNavigate={navigateFromDashboard} />
@@ -176,6 +194,8 @@ export function PlannerHome() {
               anchorDate={anchorDate}
               clients={clients}
               selectedClientIds={searchState.orgs}
+              selectedAccountIds={searchState.contas}
+              onAccountIdsChange={(contas) => void setSearchState({ contas })}
               selectedTypes={searchState.types}
               selectedStatuses={searchState.status}
               origin={searchState.origin}
@@ -186,7 +206,7 @@ export function PlannerHome() {
               onImportWeeklyScript={() => setIsWeeklyScriptOpen(true)}
               onViewChange={(view) => void setSearchState({ view })}
               onAnchorDateChange={(date) => void setSearchState({ date })}
-              onClientIdsChange={(orgs) => void setSearchState({ orgs })}
+              onClientIdsChange={(orgs) => void setSearchState({ orgs, contas: [] })}
               onTypesChange={(types) => void setSearchState({ types })}
               onStatusesChange={(status) => void setSearchState({ status })}
               onCreate={(type) => openCreate(type)}
@@ -241,6 +261,7 @@ export function PlannerHome() {
 
         {searchState.tab === "campaigns" && <ClientWorkspaceTab clients={clients}>{(plannerId) => <CampaignsTab plannerId={plannerId} />}</ClientWorkspaceTab>}
         {searchState.tab === "mindmaps" && <ClientWorkspaceTab clients={clients}>{(plannerId) => <MindMapsTab plannerId={plannerId} />}</ClientWorkspaceTab>}
+        {searchState.tab === "kit" && <BrandKitPage organizationId={brandKitOrganizationId} />}
       </div>
       <PostComposer request={activeComposerRequest} clients={clients} onClose={closeComposer} />
       <BroadcastComposer isOpen={isBroadcastComposerOpen} clients={clients} onClose={() => setIsBroadcastComposerOpen(false)} />

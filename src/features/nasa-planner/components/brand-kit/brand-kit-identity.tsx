@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,10 +16,14 @@ type IdentityField = "brandName" | "fontHeading" | "fontBody" | "voiceTone" | "a
 
 type BrandKitSavePayload = Parameters<ReturnType<typeof useSavePlannerBrandKit>["mutate"]>[0];
 
-export function useBrandKitFieldSaver(organizationId: string) {
+/** Grava no kit que está em tela: o padrão da empresa ou um adicional (spec 0070). */
+export function useBrandKitFieldSaver(brandKit: Pick<PlannerBrandKit, "organization" | "brandKitId">) {
   const saveBrandKit = useSavePlannerBrandKit();
-  return (patch: Omit<BrandKitSavePayload, "organizationId">) =>
-    saveBrandKit.mutate({ organizationId, ...patch }, { onError: (error) => toast.error(error.message) });
+  return (patch: Omit<BrandKitSavePayload, "organizationId" | "brandKitId">) =>
+    saveBrandKit.mutate(
+      { organizationId: brandKit.organization.id, brandKitId: brandKit.brandKitId, ...patch },
+      { onError: (error) => toast.error(error.message) },
+    );
 }
 
 function BlurField({ value, placeholder, isMultiline, canEdit, onSave }: { value: string | null; placeholder: string; isMultiline?: boolean; canEdit: boolean; onSave: (value: string | null) => void }) {
@@ -28,14 +33,27 @@ function BlurField({ value, placeholder, isMultiline, canEdit, onSave }: { value
     onSave(draft.trim() || null);
   };
   return isMultiline ? (
-    <Textarea value={draft} disabled={!canEdit} onChange={(event) => setDraft(event.target.value)} onBlur={commit} placeholder={placeholder} className="min-h-16 rounded-2xl text-sm" />
+    <Textarea value={draft} disabled={!canEdit} onChange={(event) => setDraft(event.target.value)} onBlur={commit} placeholder={placeholder} className="min-h-16 rounded-xl text-sm" />
   ) : (
-    <Input value={draft} disabled={!canEdit} onChange={(event) => setDraft(event.target.value)} onBlur={commit} placeholder={placeholder} className="h-9 rounded-full text-sm" />
+    <Input value={draft} disabled={!canEdit} onChange={(event) => setDraft(event.target.value)} onBlur={commit} placeholder={placeholder} className="h-9 rounded-xl text-sm" />
+  );
+}
+
+function LabeledField({ label, note, hint, isNegative, children }: { label: string; note?: string; hint?: string; isNegative?: boolean; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className={cn("text-xs font-semibold", isNegative && "text-destructive")}>
+        {label}
+        {note && <span className="font-normal text-muted-foreground"> · {note}</span>}
+      </p>
+      {hint && <p className="text-[11.5px] text-muted-foreground">{hint}</p>}
+      <div className="mt-1.5">{children}</div>
+    </div>
   );
 }
 
 export function BrandKitPalette({ brandKit, canEdit }: { brandKit: PlannerBrandKit; canEdit: boolean }) {
-  const saveField = useBrandKitFieldSaver(brandKit.organization.id);
+  const saveField = useBrandKitFieldSaver(brandKit);
   const [newColor, setNewColor] = useState("#1d4ed8");
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -54,15 +72,16 @@ export function BrandKitPalette({ brandKit, canEdit }: { brandKit: PlannerBrandK
           )}
         </span>
       ))}
+      {!canEdit && brandKit.palette.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma cor cadastrada.</p>}
       {canEdit && (
-        <label className="flex items-center gap-1.5 rounded-xl border border-dashed border-line px-2 py-1.5">
+        <label className="flex h-10 items-center gap-1.5 rounded-xl border border-dashed border-line px-2">
           <input type="color" value={newColor} onChange={(event) => setNewColor(event.target.value)} className="size-6 cursor-pointer rounded border-0 bg-transparent" />
           <button
             type="button"
             onClick={() => !brandKit.palette.includes(newColor) && saveField({ palette: [...brandKit.palette, newColor] })}
             className="inline-flex items-center gap-1 text-xs"
           >
-            <Plus className="size-3" /> Cor
+            <Plus className="size-3" /> Adicionar cor
           </button>
         </label>
       )}
@@ -71,53 +90,69 @@ export function BrandKitPalette({ brandKit, canEdit }: { brandKit: PlannerBrandK
 }
 
 export function BrandKitTypography({ brandKit, canEdit }: { brandKit: PlannerBrandKit; canEdit: boolean }) {
-  const saveField = useBrandKitFieldSaver(brandKit.organization.id);
+  const saveField = useBrandKitFieldSaver(brandKit);
   const saveText = (field: IdentityField) => (value: string | null) => saveField({ [field]: value });
   return (
-    <div className="space-y-2">
-      <div>
-        <p className="mb-1 text-[11px] text-muted-foreground">Títulos (nome da fonte no Google Fonts)</p>
+    <div className="space-y-3">
+      <LabeledField label="Títulos">
         <BlurField value={brandKit.fontHeading} placeholder="Ex.: Sora" canEdit={canEdit} onSave={saveText("fontHeading")} />
-      </div>
-      <div>
-        <p className="mb-1 text-[11px] text-muted-foreground">Textos</p>
+      </LabeledField>
+      <LabeledField label="Textos" note="opcional">
         <BlurField value={brandKit.fontBody} placeholder="Ex.: Inter" canEdit={canEdit} onSave={saveText("fontBody")} />
-      </div>
+      </LabeledField>
     </div>
   );
 }
 
-export function BrandKitVoice({ brandKit, canEdit }: { brandKit: PlannerBrandKit; canEdit: boolean }) {
-  const saveField = useBrandKitFieldSaver(brandKit.organization.id);
+export function BrandKitIdentityFields({ brandKit, canEdit }: { brandKit: PlannerBrandKit; canEdit: boolean }) {
+  const saveField = useBrandKitFieldSaver(brandKit);
   const saveText = (field: IdentityField) => (value: string | null) => saveField({ [field]: value });
   return (
     <div className="space-y-3">
-      <BlurField value={brandKit.brandName} placeholder={`Nome da marca (ex.: ${brandKit.organization.name})`} canEdit={canEdit} onSave={saveText("brandName")} />
-      <BlurField value={brandKit.voiceTone} placeholder="Tom de voz: direta, otimista, sem jargão…" isMultiline canEdit={canEdit} onSave={saveText("voiceTone")} />
-      <BlurField value={brandKit.audience} placeholder="Público: donos de pequenas empresas…" canEdit={canEdit} onSave={saveText("audience")} />
-      <BlurField value={brandKit.positioning} placeholder="Posicionamento: o que diferencia a marca" canEdit={canEdit} onSave={saveText("positioning")} />
-      <BlurField value={brandKit.slogan} placeholder="Slogan" canEdit={canEdit} onSave={saveText("slogan")} />
-      <div>
-        <p className="mb-1 text-[11px] text-muted-foreground">Frases da marca</p>
+      <LabeledField label="Nome da marca">
+        <BlurField value={brandKit.brandName} placeholder={`Ex.: ${brandKit.organization.name}`} canEdit={canEdit} onSave={saveText("brandName")} />
+      </LabeledField>
+      <LabeledField label="Tom de voz" hint="Como ela fala e como não fala.">
+        <BlurField value={brandKit.voiceTone} placeholder="Ex.: direta, otimista, sem jargão…" isMultiline canEdit={canEdit} onSave={saveText("voiceTone")} />
+      </LabeledField>
+      <LabeledField label="Público" hint="Para quem os posts são escritos.">
+        <BlurField value={brandKit.audience} placeholder="Ex.: donos de pequenas empresas" canEdit={canEdit} onSave={saveText("audience")} />
+      </LabeledField>
+      <LabeledField label="Posicionamento" note="vale no lugar do público">
+        <BlurField value={brandKit.positioning} placeholder="O que diferencia a marca" canEdit={canEdit} onSave={saveText("positioning")} />
+      </LabeledField>
+      <LabeledField label="Slogan" note="opcional">
+        <BlurField value={brandKit.slogan} placeholder="Ex.: Feito para durar" canEdit={canEdit} onSave={saveText("slogan")} />
+      </LabeledField>
+    </div>
+  );
+}
+
+export function BrandKitVocabulary({ brandKit, canEdit }: { brandKit: PlannerBrandKit; canEdit: boolean }) {
+  const saveField = useBrandKitFieldSaver(brandKit);
+  return (
+    <div className="space-y-3">
+      <LabeledField label="Frases da marca" hint="Bordões e mensagens que podem aparecer nos textos.">
         <BrandKitChips values={brandKit.keyMessages} placeholder="Escreva e aperte Enter" canEdit={canEdit} onChange={(keyMessages) => saveField({ keyMessages })} />
-      </div>
-      <div>
-        <p className="mb-1 text-[11px] text-muted-foreground">Nunca usar</p>
+      </LabeledField>
+      <LabeledField label="Nunca usar" hint="Palavras proibidas. A aprovação do post avisa quando aparecem." isNegative>
         <BrandKitChips values={brandKit.forbiddenWords} placeholder="Palavra proibida + Enter" canEdit={canEdit} isNegative onChange={(forbiddenWords) => saveField({ forbiddenWords })} />
-      </div>
-      <div>
-        <p className="mb-1 text-[11px] text-muted-foreground">Hashtags padrão</p>
+      </LabeledField>
+      <LabeledField label="Hashtags padrão">
         <BrandKitChips values={brandKit.defaultHashtags} placeholder="#hashtag + Enter" prefix="#" canEdit={canEdit} onChange={(defaultHashtags) => saveField({ defaultHashtags })} />
-      </div>
-      <div>
-        <p className="mb-1 text-[11px] text-muted-foreground">CTAs padrão</p>
+      </LabeledField>
+      <LabeledField label="Chamadas para ação" hint="Como os posts costumam terminar.">
         <BrandKitChips values={brandKit.defaultCtas} placeholder="Ex.: Fale com a gente no direct" canEdit={canEdit} onChange={(defaultCtas) => saveField({ defaultCtas })} />
-      </div>
+      </LabeledField>
     </div>
   );
 }
 
 export function BrandKitWebsite({ brandKit, canEdit }: { brandKit: PlannerBrandKit; canEdit: boolean }) {
-  const saveField = useBrandKitFieldSaver(brandKit.organization.id);
-  return <BlurField value={brandKit.website} placeholder="https://site-da-marca.com" canEdit={canEdit} onSave={(website) => saveField({ website })} />;
+  const saveField = useBrandKitFieldSaver(brandKit);
+  return (
+    <LabeledField label="Site">
+      <BlurField value={brandKit.website} placeholder="https://site-da-marca.com" canEdit={canEdit} onSave={(website) => saveField({ website })} />
+    </LabeledField>
+  );
 }

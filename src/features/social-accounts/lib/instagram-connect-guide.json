@@ -244,6 +244,22 @@
       }
     },
     {
+      "n": 25,
+      "phase": "instagram",
+      "slug": "permissao-publicar",
+      "title": "Libere também a permissão de publicar",
+      "instruction": "Na mesma tela, na lista de permissões do caso de uso, confira se instagram_business_content_publish aparece como adicionada. Se não estiver, clique em Adicionar ao lado dela.",
+      "tip": "Sem essa permissão a conta responde comentários e directs, mas não publica posts pelo Planner."
+    },
+    {
+      "n": 26,
+      "phase": "instagram",
+      "slug": "permissao-insights",
+      "title": "E a permissão de métricas",
+      "instruction": "Ainda na lista de permissões, confira se instagram_business_manage_insights aparece como adicionada. Se não estiver, clique em Adicionar ao lado dela.",
+      "tip": "É ela que mostra alcance e visualizações de cada post publicado pelo Planner."
+    },
+    {
       "n": 8,
       "phase": "publish",
       "slug": "privacidade",

@@ -37,7 +37,7 @@ import { DEFAULT_CONVERSATION_SORT_BY } from "../lib/conversation-filters-state"
 import Link from "next/link";
 import { useId, useState, type SVGProps } from "react";
 import { AppNotConnectedDialog } from "@/components/app-not-connected-dialog";
-import { useCommentsChannel } from "@/features/comments/hooks/use-comments-channel";
+import { useSocialAccounts } from "@/features/social-accounts/hooks/use-social-accounts";
 import { integrations } from "@/data/integrations";
 import { useMarketplace } from "@/features/integrations/context/marketplace-context";
 import { AstroMark } from "@/features/astro/components/astro-mark";
@@ -249,11 +249,10 @@ export function ConversationChannelCircles({
 
   // O Instagram chega pelo COMMENTS: sem conta conectada (ou com credencial
   // recusada), o ícone fica apagado e leva à conexão (spec 0029, RF-13).
-  const { data: commentsChannel } = useCommentsChannel();
-  const isInstagramReady =
-    commentsChannel?.connected === true && commentsChannel.status === "ACTIVE";
-  const instagramNeedsReconnect =
-    commentsChannel?.connected === true && commentsChannel.status !== "ACTIVE";
+  const { data: socialAccounts } = useSocialAccounts();
+  const instagramAccounts = (socialAccounts?.accounts ?? []).filter((account) => account.provider === "INSTAGRAM");
+  const isInstagramReady = instagramAccounts.some((account) => account.status === "ACTIVE");
+  const instagramNeedsReconnect = instagramAccounts.length > 0 && !isInstagramReady;
   const [instagramDialogOpen, setInstagramDialogOpen] = useState(false);
 
   // Contadores de "sem resposta" por canal e o estado do Gmail da empresa.

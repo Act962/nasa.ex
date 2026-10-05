@@ -2,7 +2,7 @@
 
 import { addDays, addMonths, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, ListChecks, MessageSquareText, Plus, Upload } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Instagram, ListChecks, MessageSquareText, Plus, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -17,7 +17,7 @@ import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import type { NasaPlannerPostStatus, NasaPlannerPostType } from "@/generated/prisma/enums";
 import type { PlannerOriginFilter } from "../../hooks/use-planner-board";
 import { ClientAvatar } from "./client-avatar";
-import { POST_STATUS_META, POST_TYPE_META, POST_TYPES, WEEKDAY_LABELS, isScriptOnlyPost, postDate, type CalendarView } from "./planner-v2-utils";
+import { POST_STATUS_META, POST_TYPE_META, POST_TYPES, WEEKDAY_LABELS, instagramAccountsOf, isScriptOnlyPost, postDate, type CalendarView } from "./planner-v2-utils";
 import type { CalendarPost, PlannerClient } from "./planner-v2-types";
 
 /** Barra do calendário (spec 0058, RF-6): Hoje, navegação, Semana|Mês|Kanban, filtros e o menu Criar. */
@@ -47,6 +47,9 @@ interface CalendarToolbarProps {
   anchorDate: Date;
   clients: PlannerClient[];
   selectedClientIds: string[];
+  /** IDs (na rede) das contas do Instagram em vista; vazio = todas. */
+  selectedAccountIds: string[];
+  onAccountIdsChange: (accountIds: string[]) => void;
   selectedTypes: NasaPlannerPostType[];
   selectedStatuses: NasaPlannerPostStatus[];
   origin: PlannerOriginFilter;
@@ -66,7 +69,7 @@ interface CalendarToolbarProps {
 }
 
 export function CalendarToolbar(props: CalendarToolbarProps) {
-  const { view, anchorDate, clients, selectedClientIds, selectedTypes, selectedStatuses, origin } = props;
+  const { view, anchorDate, clients, selectedClientIds, selectedAccountIds, selectedTypes, selectedStatuses, origin } = props;
   const isKanban = view === "kanban";
   const step = (direction: 1 | -1) => props.onAnchorDateChange(view === "month" ? addMonths(anchorDate, direction) : addDays(anchorDate, 7 * direction));
   const monthLabel = format(anchorDate, "MMMM 'de' yyyy", { locale: ptBR });
@@ -75,6 +78,9 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
   const sortedContents = [...props.periodContents].sort((first, second) => (postDate(first)?.getTime() ?? 0) - (postDate(second)?.getTime() ?? 0));
   const hasWhatsAppNumber = clients.some((client) => client.whatsappNumbers.length > 0 && client.permissions.canSchedule);
   const visibleClients = selectedClientIds.length ? clients.filter((client) => selectedClientIds.includes(client.id)) : clients;
+  const accountOptions = visibleClients.flatMap((client) => instagramAccountsOf(client).map((account) => ({ account, client })));
+  const accountLabelOf = (account: (typeof accountOptions)[number]["account"]) => `@${account.igUsername ?? account.igUserId}`;
+  const selectedAccountOptions = accountOptions.filter(({ account }) => selectedAccountIds.includes(account.igUserId));
 
   return (
     <div className="flex flex-wrap items-center gap-2 p-3">
@@ -158,6 +164,46 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
             ))}
           </PopoverContent>
         </Popover>
+
+        {!isKanban && accountOptions.length > 0 && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                data-guide={GUIDE_ANCHORS.plannerAccountFilter.id}
+                className={cn("inline-flex items-center gap-1.5 rounded-full bg-panel px-3 py-1.5 text-sm", selectedAccountOptions.length > 0 && "ring-1 ring-foreground/30")}
+              >
+                <Instagram className="size-3.5 text-brand-instagram" />
+                {selectedAccountOptions.length === 0
+                  ? `Todas as contas (${accountOptions.length})`
+                  : selectedAccountOptions.length === 1
+                    ? accountLabelOf(selectedAccountOptions[0].account)
+                    : `${selectedAccountOptions.length} contas`}
+                <ChevronDown className="size-3.5 text-muted-foreground" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[calc(100vw-1.5rem)] max-w-72 rounded-[18px] p-1.5">
+              <p className="px-2 pt-1 pb-1.5 text-[11px] text-muted-foreground">Ver só os posts destas contas do Instagram</p>
+              <FilterOption isSelected={selectedAccountOptions.length === 0} onSelect={() => props.onAccountIdsChange([])}>
+                Todas as contas
+              </FilterOption>
+              {accountOptions.map(({ account, client }) => (
+                <FilterOption
+                  key={account.id}
+                  isSelected={selectedAccountIds.includes(account.igUserId)}
+                  onSelect={() => props.onAccountIdsChange(toggleInList(selectedAccountIds, account.igUserId))}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{accountLabelOf(account)}</span>
+                    {clients.length > 1 && <span className="block truncate text-[11px] text-muted-foreground">{client.name}</span>}
+                  </span>
+                  {account.status === "NEEDS_RECONNECT" && <span className="text-[10px] text-destructive">reconectar</span>}
+                  {account.canPublish === false && <span className="text-[10px] text-warning">não publica</span>}
+                </FilterOption>
+              ))}
+            </PopoverContent>
+          </Popover>
+        )}
 
         {!isKanban && (
           <Popover>

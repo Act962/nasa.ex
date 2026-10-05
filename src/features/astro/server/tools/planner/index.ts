@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { createPendingAction } from "@/features/astro/server/tools/_shared/proposals/create-proposal";
 import { assertPostAccess } from "@/features/nasa-planner/server/cross-org";
-import { getBrandKit } from "@/features/nasa-planner/server/brand-kit/brand-kit";
+import { getBrandKitForInstagramHandle, summarizeBrandKits } from "@/features/nasa-planner/server/brand-kit/brand-kits";
 import { getPlannerPostMetrics } from "@/features/nasa-planner/server/publishing/post-metrics";
 import { PLANNER_ACTION_TYPES, type CreateDraftsProposalPayload } from "./executors";
 import { resolvePlannerOrganization, toToolError } from "./planner-access";
@@ -131,15 +131,24 @@ export function buildPlannerReadTools(ctx: AgentContext): ToolSet {
       },
     }),
     planner_brand_kit_status: tool({
-      description: "Situação do Kit da Marca (o que falta para o Astro criar conteúdo) e um resumo da identidade.",
-      inputSchema: z.object({ organizationId: organizationField }),
-      execute: async ({ organizationId }) => {
+      description:
+        "Situação do Kit da Marca (o que falta para o Astro criar conteúdo) e um resumo da identidade. A empresa pode ter mais de um kit: informe o @ da conta do Instagram para ver o kit dela; sem conta, vem o kit padrão.",
+      inputSchema: z.object({
+        organizationId: organizationField,
+        instagramAccount: z.string().optional().describe("@ da conta do Instagram em que o conteúdo vai sair"),
+      }),
+      execute: async ({ organizationId, instagramAccount }) => {
         const access = await resolvePlannerOrganization(ctx, organizationId, "view");
         if ("error" in access) return access;
-        const kit = await getBrandKit(access.organizationId);
+        const [kit, brandKits] = await Promise.all([
+          getBrandKitForInstagramHandle(access.organizationId, instagramAccount),
+          summarizeBrandKits(access.organizationId),
+        ]);
         const weekdayThemes = await prisma.nasaPlannerWeekdayTheme.findMany({ where: { organizationId: access.organizationId }, orderBy: { weekday: "asc" }, select: { weekday: true, theme: true } });
         return {
           weekdayThemes: weekdayThemes.map((weekdayTheme) => ({ weekday: WEEKDAY_NAMES[weekdayTheme.weekday], theme: weekdayTheme.theme })),
+          kitName: kit.kitName,
+          brandKits,
           completeness: kit.completeness,
           voiceTone: kit.voiceTone,
           audience: kit.audience,
@@ -151,7 +160,7 @@ export function buildPlannerReadTools(ctx: AgentContext): ToolSet {
           brandHashtags: kit.defaultHashtags.map((hashtag) => `#${hashtag}`),
           brandCtas: kit.defaultCtas,
           products: kit.assets.filter((asset) => asset.kind === "PRODUCT").map((asset) => ({ title: asset.title, price: asset.price })),
-          link: appLink(`/nasa-planner/kit?org=${access.organizationId}`),
+          link: appLink(`/nasa-planner?tab=kit&org=${access.organizationId}${kit.brandKitId ? `&kit=${kit.brandKitId}` : ""}`),
         };
       },
     }),

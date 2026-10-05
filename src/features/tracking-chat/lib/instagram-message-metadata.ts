@@ -14,6 +14,8 @@ export const instagramMediaCardSchema = z.object({
 export const instagramMessageMetadataSchema = z.object({
   kind: z.enum(["COMMENT", "DIRECT_MESSAGE", "COMMENT_REPLY", "AUTOMATION_COMMENT_REPLY", "AUTOMATION_DIRECT_MESSAGE"]),
   commentId: z.string().optional(),
+  /** Conta (`SocialChannel.id`) que recebeu ou enviou a mensagem (spec 0069, RF-18). Ausente nas anteriores à spec. */
+  channelId: z.string().optional(),
   media: instagramMediaCardSchema.nullable().optional(),
   buttons: z.array(z.object({ title: z.string(), url: z.string() })).optional(),
 });

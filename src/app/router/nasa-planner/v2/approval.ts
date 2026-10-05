@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { assertPostAccess } from "@/features/nasa-planner/server/cross-org";
 import { approvePost, commentOnPost, requestPostChanges, submitPostForApproval } from "@/features/nasa-planner/server/approval";
 import { buildBrandChecklist } from "@/features/nasa-planner/lib/brand-checklist";
+import { getBrandChecklistRulesForPost } from "@/features/nasa-planner/server/brand-kit/brand-kits";
 
 /** Aprovação do Planner (spec 0058, RF-3). Aprovar exige sessão de uma pessoa com `canApprove` na org do post. */
 
@@ -60,6 +61,7 @@ export const listReviews = base
     const authors = await prisma.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, name: true, image: true } });
     return {
       reviews: reviews.map((review) => ({ ...review, author: authors.find((author) => author.id === review.authorId) ?? null })),
-      checklist: buildBrandChecklist(post, post.planner),
+      // Palavras proibidas vêm do kit da conta do post (spec 0070, RF-8).
+      checklist: buildBrandChecklist(post, await getBrandChecklistRulesForPost(post)),
     };
   });

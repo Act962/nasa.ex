@@ -11,7 +11,7 @@ import {
 import { connectChannel } from "@/modules/social/application/connect-channel";
 import { InvalidCredentialsError } from "@/modules/social/domain/errors";
 
-/** Comments conectado pela conexão da Meta da org (spec 0061): usa o token de página guardado em MetaPublishAccount. */
+/** Conta do Instagram conectada pela conexão da Meta da org (spec 0061): usa o token de página guardado em MetaPublishAccount. */
 
 /** A plataforma recebe eventos só com as duas envs (RNF-1); sem elas o botão avisa em vez de conectar no escuro. */
 export function isMetaCommentsWebhookConfigured(): boolean {
@@ -36,7 +36,7 @@ export async function listMetaInstagramAccounts(organizationId: string) {
   };
 }
 
-export async function connectCommentsWithMetaAccount(input: {
+export async function connectMetaInstagramAccount(input: {
   organizationId: string;
   userId: string;
   metaPublishAccountId?: string;
@@ -55,13 +55,13 @@ export async function connectCommentsWithMetaAccount(input: {
     throw new InvalidCredentialsError("Nenhum Instagram conectado na Meta desta empresa. Conecte a Meta nos Satélites primeiro.");
   }
   if (accounts.length > 1) {
-    throw new InvalidCredentialsError("Esta empresa tem mais de um Instagram na Meta. Escolha qual vai responder os comentários.");
+    throw new InvalidCredentialsError("Esta empresa tem mais de um Instagram na Meta. Escolha qual conectar.");
   }
 
   const [account] = accounts;
   const igUserId = account.igUserId!;
   const accessToken = decryptSecret(account.accessTokenEnc);
-  const { channels, automations } = socialRepositoriesForOrganization(input.organizationId);
+  const { channels } = socialRepositoriesForOrganization(input.organizationId);
 
   return connectChannel(
     {
@@ -72,7 +72,6 @@ export async function connectCommentsWithMetaAccount(input: {
     },
     {
       channels,
-      automations,
       gateway: createGatewayForCredentials("INSTAGRAM", igUserId, accessToken, { pageId: account.pageId }),
       generateWebhookPathToken,
     },
@@ -80,26 +79,31 @@ export async function connectCommentsWithMetaAccount(input: {
 }
 
 /**
- * Reconectar a Meta nos Satélites troca o token de página (RF-6). Best-effort: falha aqui
- * não pode desfazer a conexão da Meta que acabou de dar certo.
+ * Reconectar a Meta nos Satélites troca o token de página (spec 0061, RF-6): atualiza cada
+ * conta da org que foi conectada pela Meta. Best-effort: falha aqui não pode desfazer a
+ * conexão da Meta que acabou de dar certo.
  */
-export async function refreshMetaLinkedCommentsChannel(organizationId: string): Promise<void> {
-  try {
-    const { channels } = socialRepositoriesForOrganization(organizationId);
-    const channel = await channels.findWithCredentials();
-    if (!channel || channel.credentials.authMode !== "META_LOGIN") return;
+export async function refreshMetaLinkedChannels(organizationId: string): Promise<void> {
+  const { channels } = socialRepositoriesForOrganization(organizationId);
+  const metaLinkedChannels = (await channels.listForTenant("INSTAGRAM")).filter(
+    (channel) => channel.authMode === "META_LOGIN" && channel.status !== "DISABLED",
+  );
 
-    const account = await prisma.metaPublishAccount.findFirst({
-      where: { organizationId, kind: MetaPublishAccountKind.IG_BUSINESS, igUserId: channel.externalAccountId, status: MetaPublishAccountStatus.ACTIVE },
-      select: { id: true },
-    });
-    if (!account) return;
+  for (const channel of metaLinkedChannels) {
+    try {
+      const account = await prisma.metaPublishAccount.findFirst({
+        where: { organizationId, kind: MetaPublishAccountKind.IG_BUSINESS, igUserId: channel.externalAccountId, status: MetaPublishAccountStatus.ACTIVE },
+        select: { id: true },
+      });
+      if (!account) continue;
 
-    await connectCommentsWithMetaAccount({ organizationId, userId: "", metaPublishAccountId: account.id });
-  } catch (error) {
-    socialLogger.warn("Não deu para atualizar o token do Comments pela Meta", {
-      organizationId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+      await connectMetaInstagramAccount({ organizationId, userId: "", metaPublishAccountId: account.id });
+    } catch (error) {
+      socialLogger.warn("Não deu para atualizar o token da conta pela Meta", {
+        organizationId,
+        channelId: channel.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 }

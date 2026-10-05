@@ -39,35 +39,46 @@ const targetSchema = z.object({
 });
 
 export const listAutomations = commentsProcedure
-  .input(z.object({}).optional())
-  .handler(async ({ context }) => {
+  .input(z.object({ channelId: z.string().min(1) }))
+  .handler(async ({ context, input }) => {
     const { automations } = repositoriesFor(context.org.id);
-    return automations.list();
+    return automations.listByChannel(input.channelId);
   });
 
 export const getAutomation = commentsProcedure
   .input(z.object({ id: z.string().min(1) }))
   .handler(async ({ context, input }) => {
-    const { automations } = repositoriesFor(context.org.id);
+    const { automations, channels } = repositoriesFor(context.org.id);
     const automation = await automations.findById(input.id);
 
     if (!automation) {
       throw new ORPCError("NOT_FOUND", { message: "Automação não encontrada" });
     }
 
-    return { ...automation, issues: findReadinessIssues(automation) };
+    const channel = await channels.findById(automation.channelId);
+
+    return {
+      ...automation,
+      issues: findReadinessIssues(automation),
+      channel: channel
+        ? { id: channel.id, handle: channel.handle, status: channel.status }
+        : null,
+    };
   });
 
 export const createAutomation = commentsProcedure
-  .input(z.object({ name: z.string().trim().max(120).optional() }))
+  .input(
+    z.object({
+      channelId: z.string().min(1),
+      name: z.string().trim().max(120).optional(),
+    }),
+  )
   .handler(async ({ context, input }) => {
     const { automations, channels } = repositoriesFor(context.org.id);
-    const channel = await channels.findForTenant();
+    const channel = await channels.findById(input.channelId);
 
     if (!channel) {
-      throw new ORPCError("BAD_REQUEST", {
-        message: "Conecte uma conta do Instagram antes de criar automações.",
-      });
+      throw new ORPCError("NOT_FOUND", { message: "Conta não encontrada." });
     }
 
     return automations.create({
@@ -150,6 +161,7 @@ export const deleteTrigger = commentsProcedure
 export const listRuns = commentsProcedure
   .input(
     z.object({
+      channelId: z.string().optional(),
       automationId: z.string().optional(),
       limit: z.number().int().min(1).max(100).default(20),
     }),
@@ -157,7 +169,10 @@ export const listRuns = commentsProcedure
   .handler(async ({ context, input }) => {
     const runs = await prisma.socialAutomationRun.findMany({
       where: {
-        automation: { organizationId: context.org.id },
+        automation: {
+          organizationId: context.org.id,
+          ...(input.channelId ? { channelId: input.channelId } : {}),
+        },
         ...(input.automationId ? { automationId: input.automationId } : {}),
       },
       orderBy: { startedAt: "desc" },

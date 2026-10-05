@@ -31,7 +31,7 @@ export function BrandKitChips({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5">
+      <div className={cn("flex flex-wrap gap-1.5", values.length === 0 && canEdit && "hidden")}>
         {values.map((value) => (
           <span key={value} className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs", isNegative ? "bg-destructive/10 text-destructive" : "bg-card")}>
             {prefix}
@@ -43,7 +43,7 @@ export function BrandKitChips({
             )}
           </span>
         ))}
-        {values.length === 0 && <span className="text-xs text-muted-foreground">Nada ainda.</span>}
+        {values.length === 0 && !canEdit && <span className="text-xs text-muted-foreground">Nenhum item.</span>}
       </div>
       {canEdit && (
         <Input
@@ -57,7 +57,7 @@ export function BrandKitChips({
           }}
           onBlur={addDraft}
           placeholder={placeholder}
-          className="h-8 rounded-full text-xs"
+          className="h-9 rounded-xl text-sm"
         />
       )}
     </div>

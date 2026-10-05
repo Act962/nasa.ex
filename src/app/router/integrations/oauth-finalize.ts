@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 import { consumeSession, getSessionByProvider } from "@/features/integrations/lib/oauth/session-cache";
 import { z } from "zod";
 import { upsertPublishAccounts } from "@/features/nasa-planner/server/publishing/publish-accounts";
-import { refreshMetaLinkedCommentsChannel } from "@/features/comments/server/meta-login-channel";
+import { refreshMetaLinkedChannels } from "@/features/social-accounts/server/meta-login-channel";
 
 const FinalizeInput = z.object({
   oauthSessionId: z.string().min(8),
@@ -77,7 +77,7 @@ export const oauthFinalize = base
         sess.pages.filter((page) => publishPageIds.has(page.id)),
         selectedIgAccounts,
       );
-      await refreshMetaLinkedCommentsChannel(orgId);
+      await refreshMetaLinkedChannels(orgId);
 
       if (input.selectedIgAccountIds.length > 0) {
         const firstIg = sess.igAccounts.find((ig) => input.selectedIgAccountIds.includes(ig.id));

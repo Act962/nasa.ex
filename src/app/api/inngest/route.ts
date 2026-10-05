@@ -41,6 +41,7 @@ import {
   plannerPublishAccountsHealth,
 } from "@/inngest/functions/nasa-planner/publish-accounts-health";
 import { refreshMetaTokens } from "@/inngest/functions/nasa-planner/refresh-meta-tokens";
+import { socialChannelsDailyMaintenance } from "@/inngest/functions/social/channels-daily-maintenance";
 import { syncPostMetricsCron } from "@/inngest/functions/nasa-planner/sync-post-metrics-cron";
 import { syncPriceSuggestionsCron } from "@/inngest/functions/forge/sync-price-suggestions-cron";
 import { syncMetaAdsKpis } from "@/inngest/functions/crons/sync-meta-ads-kpis";
@@ -188,6 +189,7 @@ export const { GET, POST, PUT } = serve({
     plannerPublishSweep,
     plannerApprovalWhatsappNotify,
     plannerPublishAccountsHealth,
+    socialChannelsDailyMaintenance,
     plannerBackfillPublishAccounts,
     refreshMetaTokens,
     syncPostMetricsCron,

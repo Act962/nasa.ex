@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
-import { MetaConnectOption } from "@/features/comments/components/meta-connect-option";
+import { MetaConnectOption } from "@/features/social-accounts/components/meta-connect-option";
 import { usePlannerPostComments, useSavePlannerPostComments } from "../../hooks/use-planner-integrations";
 
 /** Comments nativo no post (spec 0059): responder comentários com DM e resposta pública, editado aqui mesmo. */
@@ -132,17 +132,22 @@ export function CommentsAutomationPanel({ postId }: { postId: string }) {
         <div className="mt-3">
           {isLoading || !commentsStatus ? (
             <OrbitaSpinner className="size-4" />
+          ) : commentsStatus.channel.needsAccountChoice ? (
+            <p className="text-sm text-warning">Escolha em qual conta do Instagram este post vai sair para configurar os comentários automáticos.</p>
           ) : !commentsStatus.channel.isConnected ? (
             <div className="space-y-3">
               <MetaConnectOption organizationId={commentsStatus.organizationId} />
               <p className="text-xs text-muted-foreground">
-                Ou conecte pelo passo a passo no <Link href="/comments" className="underline">Comments</Link>.
+                Ou conecte a conta deste post pelo passo a passo nos <Link href="/integrations/instagram" className="underline">Satélites</Link>.
               </p>
             </div>
-          ) : commentsStatus.channel.accountMismatch ? (
-            <p className="text-sm text-warning">O Comments está conectado em outra conta do Instagram. Use a mesma conta do post.</p>
           ) : (
             <>
+              {commentsStatus.channel.accountMismatch && (
+                <p className="mb-3 text-xs text-warning">
+                  Esta automação foi criada em outra conta do Instagram. Ao salvar, ela é recriada em @{commentsStatus.channel.handle ?? "conta do post"}.
+                </p>
+              )}
               {commentsStatus.allPostsAutomations.length > 0 && (
                 <p className="mb-3 text-xs text-muted-foreground">
                   Também vale para este post: {commentsStatus.allPostsAutomations.map((allPostsAutomation) => allPostsAutomation.name).join(", ")} (automação em todos os posts).
