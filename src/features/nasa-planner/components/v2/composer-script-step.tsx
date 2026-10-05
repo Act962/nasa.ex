@@ -134,6 +134,7 @@ export function ComposerScriptStep({
       {isCreating && values.organizationId && (
         <ComposerAstroPanel
           organizationId={values.organizationId}
+          instagramAccountId={values.targetNetworks.includes("INSTAGRAM") ? (values.targetIgAccountId ?? igAccounts[0]?.igUserId ?? null) : null}
           formats={values.formats}
           generatedByFormat={values.generatedByFormat}
           onGenerated={applyGenerated}

@@ -5,7 +5,8 @@ import { ORPCError } from "@orpc/server";
 import { NoAiProviderError, resolvePrimaryModel } from "@/features/ia/lib/router/resolve-model";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import type { NasaPlannerPostType } from "@/generated/prisma/enums";
-import { buildBrandKitPrompt, getBrandKit } from "./brand-kit";
+import { buildBrandKitPrompt } from "./brand-kit";
+import { getBrandKitForInstagramAccount } from "./brand-kits";
 
 /**
  * "Gerar com o Astro" (spec 0063, RF-5/RF-6): um roteiro por formato a partir de uma ideia,
@@ -35,10 +36,17 @@ function buildGenerationSchema(formats: NasaPlannerPostType[]) {
   return z.object(Object.fromEntries(formats.map((format) => [format, formatScriptSchema])) as Record<NasaPlannerPostType, typeof formatScriptSchema>);
 }
 
-export async function generatePlannerScripts(input: { organizationId: string; userId: string; idea: string; formats: NasaPlannerPostType[] }) {
-  const kit = await getBrandKit(input.organizationId);
+export async function generatePlannerScripts(input: {
+  organizationId: string;
+  /** Conta do Instagram em que o conteúdo vai sair: é ela que define o kit (spec 0070, RF-8). */
+  instagramAccountId?: string | null;
+  userId: string;
+  idea: string;
+  formats: NasaPlannerPostType[];
+}) {
+  const kit = await getBrandKitForInstagramAccount(input.organizationId, input.instagramAccountId);
   if (!kit.completeness.isComplete) {
-    throw new ORPCError("BAD_REQUEST", { message: `Kit da marca incompleto. Falta: ${kit.completeness.missing.join(", ")}.` });
+    throw new ORPCError("BAD_REQUEST", { message: `Kit da marca "${kit.kitName}" incompleto. Falta: ${kit.completeness.missing.join(", ")}.` });
   }
 
   let resolved;

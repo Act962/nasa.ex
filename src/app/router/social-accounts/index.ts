@@ -42,8 +42,11 @@ const socialAccountsProcedure = base
 
 const channelIdInput = z.object({ channelId: z.string().min(1) });
 
-function toPublicAccount(channel: ChannelSummary) {
+function toPublicAccount(channel: ChannelSummary, brandKitName: string | null = null) {
   return {
+    brandKitId: channel.brandKitId,
+    /** Nulo quando a conta usa o kit padrão da empresa. */
+    brandKitName,
     id: channel.id,
     provider: channel.provider,
     externalAccountId: channel.externalAccountId,
@@ -72,9 +75,10 @@ const listAccounts = socialAccountsProcedure
   .input(z.object({}).optional())
   .handler(async ({ context }) => {
     const { channels } = repositoriesFor(context.org.id);
-    const [accounts, canManage, legacyDirectMessageIntegrations] = await Promise.all([
+    const [accounts, canManage, brandKits, legacyDirectMessageIntegrations] = await Promise.all([
       channels.listForTenant(),
       isOrgAdmin(context.org.id, context.user.id),
+      prisma.brandKit.findMany({ where: { organizationId: context.org.id }, select: { id: true, name: true } }),
       prisma.platformIntegration.count({
         where: {
           organizationId: context.org.id,
@@ -85,7 +89,10 @@ const listAccounts = socialAccountsProcedure
     ]);
 
     return {
-      accounts: accounts.map(toPublicAccount),
+      accounts: accounts.map((account) => ({
+        ...toPublicAccount(account, brandKits.find((brandKit) => brandKit.id === account.brandKitId)?.name ?? null),
+        organizationId: context.org.id,
+      })),
       canManage,
       limitPerProvider: MAX_CHANNELS_PER_PROVIDER,
       // Conexão antiga do cartão "Instagram DM" (spec 0069, CB-12).

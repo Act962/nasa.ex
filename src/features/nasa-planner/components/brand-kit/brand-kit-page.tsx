@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect } from "react";
+import { parseAsString, useQueryState } from "nuqs";
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { usePlannerClients } from "../../hooks/use-planner-calendar";
-import { usePlannerBrandKit } from "../../hooks/use-planner-brand-kit";
+import { usePlannerBrandKit, usePlannerBrandKits } from "../../hooks/use-planner-brand-kit";
+import { BrandKitSwitcher } from "./brand-kit-switcher";
 import { ClientAvatar } from "../v2/client-avatar";
 import { BrandKitLogos } from "./brand-kit-logos";
 import { BrandKitPalette, BrandKitTypography, BrandKitVoice, BrandKitWebsite } from "./brand-kit-identity";
@@ -76,7 +79,15 @@ export function BrandKitClientSelect({
 export function BrandKitPage({ organizationId }: { organizationId: string | null }) {
   const { clients, isLoading: isLoadingClients } = usePlannerClients();
   const client = clients.find((candidate) => candidate.id === organizationId);
-  const { brandKit, isLoading } = usePlannerBrandKit(organizationId);
+  const [requestedKitId, setRequestedKitId] = useQueryState("kit", parseAsString);
+  const { kits, isLoading: isLoadingKits } = usePlannerBrandKits(organizationId);
+  // Kit da URL que não é deste cliente (apagado, ou de outra empresa) cai no padrão (spec 0070, CB-10).
+  const selectedKitId = kits.some((kit) => kit.brandKitId === requestedKitId) ? requestedKitId : null;
+  const isRequestedKitMissing = !isLoadingKits && kits.length > 0 && requestedKitId !== null && selectedKitId === null;
+  useEffect(() => {
+    if (isRequestedKitMissing) void setRequestedKitId(null);
+  }, [isRequestedKitMissing, setRequestedKitId]);
+  const { brandKit, isLoading } = usePlannerBrandKit(isLoadingKits ? null : organizationId, { brandKitId: selectedKitId });
   const canEdit = Boolean(client?.permissions.canCreate);
   const assetsOf = (kind: PlannerBrandKit["assets"][number]["kind"]) => brandKit?.assets.filter((asset) => asset.kind === kind) ?? [];
   const missing = new Set(brandKit?.completeness.missing ?? []);
@@ -84,15 +95,24 @@ export function BrandKitPage({ organizationId }: { organizationId: string | null
 
   return (
     <div data-guide={GUIDE_ANCHORS.plannerBrandKitPage.id} className="flex flex-col gap-4">
-      {isLoadingClients || isLoading || !brandKit ? (
+      {organizationId && (
+        <BrandKitSwitcher
+          organizationId={organizationId}
+          selectedKitId={selectedKitId}
+          canEdit={canEdit}
+          onSelectKit={(brandKitId) => void setRequestedKitId(brandKitId)}
+        />
+      )}
+
+      {isLoadingClients || isLoadingKits || isLoading || !brandKit ? (
         <OrbitaSpinner className="size-5" />
       ) : (
         <>
           <CompletenessMeter completeness={brandKit.completeness} />
           {!canEdit && <p className="text-sm text-muted-foreground">Você pode ver o kit deste cliente, mas seu papel não permite editar.</p>}
-          <div key={brandKit.organization.id} className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div key={`${brandKit.organization.id}:${brandKit.brandKitId ?? "padrao"}`} className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <Section title="Logos" isDone={!isMissing("logo")} className="md:col-span-2">
-              <BrandKitLogos organizationId={brandKit.organization.id} logos={brandKit.logos} canEdit={canEdit} />
+              <BrandKitLogos organizationId={brandKit.organization.id} brandKitId={brandKit.brandKitId} logos={brandKit.logos} canEdit={canEdit} />
             </Section>
             <Section title="Cores" isDone={!isMissing("2 cores")}>
               <BrandKitPalette brandKit={brandKit} canEdit={canEdit} />
@@ -104,19 +124,19 @@ export function BrandKitPage({ organizationId }: { organizationId: string | null
               <BrandKitVoice brandKit={brandKit} canEdit={canEdit} />
             </Section>
             <Section title="Fundos e texturas">
-              <BrandKitAssetList organizationId={brandKit.organization.id} kind="BACKGROUND" assets={assetsOf("BACKGROUND")} canEdit={canEdit} />
+              <BrandKitAssetList organizationId={brandKit.organization.id} brandKitId={brandKit.brandKitId} kind="BACKGROUND" assets={assetsOf("BACKGROUND")} canEdit={canEdit} />
             </Section>
             <Section title="Produtos e serviços" isDone={!isMissing("produtos")}>
-              <BrandKitAssetList organizationId={brandKit.organization.id} kind="PRODUCT" assets={assetsOf("PRODUCT")} canEdit={canEdit} />
+              <BrandKitAssetList organizationId={brandKit.organization.id} brandKitId={brandKit.brandKitId} kind="PRODUCT" assets={assetsOf("PRODUCT")} canEdit={canEdit} />
             </Section>
             <Section title="Site, releases e materiais" isDone={!isMissing("site")}>
               <div className="space-y-3">
                 <BrandKitWebsite brandKit={brandKit} canEdit={canEdit} />
-                <BrandKitAssetList organizationId={brandKit.organization.id} kind="MATERIAL" assets={assetsOf("MATERIAL")} canEdit={canEdit} />
+                <BrandKitAssetList organizationId={brandKit.organization.id} brandKitId={brandKit.brandKitId} kind="MATERIAL" assets={assetsOf("MATERIAL")} canEdit={canEdit} />
               </div>
             </Section>
             <Section title="Posts de referência" isDone={!isMissing("posts de referência")}>
-              <BrandKitAssetList organizationId={brandKit.organization.id} kind="REFERENCE_POST" assets={assetsOf("REFERENCE_POST")} canEdit={canEdit} />
+              <BrandKitAssetList organizationId={brandKit.organization.id} brandKitId={brandKit.brandKitId} kind="REFERENCE_POST" assets={assetsOf("REFERENCE_POST")} canEdit={canEdit} />
             </Section>
           </div>
         </>

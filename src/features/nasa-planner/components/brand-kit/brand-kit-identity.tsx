@@ -15,10 +15,14 @@ type IdentityField = "brandName" | "fontHeading" | "fontBody" | "voiceTone" | "a
 
 type BrandKitSavePayload = Parameters<ReturnType<typeof useSavePlannerBrandKit>["mutate"]>[0];
 
-export function useBrandKitFieldSaver(organizationId: string) {
+/** Grava no kit que está em tela: o padrão da empresa ou um adicional (spec 0070). */
+export function useBrandKitFieldSaver(brandKit: Pick<PlannerBrandKit, "organization" | "brandKitId">) {
   const saveBrandKit = useSavePlannerBrandKit();
-  return (patch: Omit<BrandKitSavePayload, "organizationId">) =>
-    saveBrandKit.mutate({ organizationId, ...patch }, { onError: (error) => toast.error(error.message) });
+  return (patch: Omit<BrandKitSavePayload, "organizationId" | "brandKitId">) =>
+    saveBrandKit.mutate(
+      { organizationId: brandKit.organization.id, brandKitId: brandKit.brandKitId, ...patch },
+      { onError: (error) => toast.error(error.message) },
+    );
 }
 
 function BlurField({ value, placeholder, isMultiline, canEdit, onSave }: { value: string | null; placeholder: string; isMultiline?: boolean; canEdit: boolean; onSave: (value: string | null) => void }) {
@@ -35,7 +39,7 @@ function BlurField({ value, placeholder, isMultiline, canEdit, onSave }: { value
 }
 
 export function BrandKitPalette({ brandKit, canEdit }: { brandKit: PlannerBrandKit; canEdit: boolean }) {
-  const saveField = useBrandKitFieldSaver(brandKit.organization.id);
+  const saveField = useBrandKitFieldSaver(brandKit);
   const [newColor, setNewColor] = useState("#1d4ed8");
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -71,7 +75,7 @@ export function BrandKitPalette({ brandKit, canEdit }: { brandKit: PlannerBrandK
 }
 
 export function BrandKitTypography({ brandKit, canEdit }: { brandKit: PlannerBrandKit; canEdit: boolean }) {
-  const saveField = useBrandKitFieldSaver(brandKit.organization.id);
+  const saveField = useBrandKitFieldSaver(brandKit);
   const saveText = (field: IdentityField) => (value: string | null) => saveField({ [field]: value });
   return (
     <div className="space-y-2">
@@ -88,7 +92,7 @@ export function BrandKitTypography({ brandKit, canEdit }: { brandKit: PlannerBra
 }
 
 export function BrandKitVoice({ brandKit, canEdit }: { brandKit: PlannerBrandKit; canEdit: boolean }) {
-  const saveField = useBrandKitFieldSaver(brandKit.organization.id);
+  const saveField = useBrandKitFieldSaver(brandKit);
   const saveText = (field: IdentityField) => (value: string | null) => saveField({ [field]: value });
   return (
     <div className="space-y-3">
@@ -118,6 +122,6 @@ export function BrandKitVoice({ brandKit, canEdit }: { brandKit: PlannerBrandKit
 }
 
 export function BrandKitWebsite({ brandKit, canEdit }: { brandKit: PlannerBrandKit; canEdit: boolean }) {
-  const saveField = useBrandKitFieldSaver(brandKit.organization.id);
+  const saveField = useBrandKitFieldSaver(brandKit);
   return <BlurField value={brandKit.website} placeholder="https://site-da-marca.com" canEdit={canEdit} onSave={(website) => saveField({ website })} />;
 }

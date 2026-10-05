@@ -11,14 +11,14 @@ import { brandFileUrl, uploadBrandFile } from "./brand-file-upload";
 
 /** Logos do kit em 5 variações, PNG com fundo transparente (spec 0063, RF-1). */
 
-function LogoSlot({ organizationId, variant, value, canEdit }: { organizationId: string; variant: BrandLogoVariant; value: string | null; canEdit: boolean }) {
+function LogoSlot({ organizationId, brandKitId, variant, value, canEdit }: { organizationId: string; brandKitId: string | null; variant: BrandLogoVariant; value: string | null; canEdit: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const saveBrandKit = useSavePlannerBrandKit();
   const isDarkSlot = variant === "white";
 
   const saveLogo = (logoValue: string | null) =>
-    saveBrandKit.mutate({ organizationId, logos: { [variant]: logoValue } }, { onError: (error) => toast.error(error.message) });
+    saveBrandKit.mutate({ organizationId, brandKitId, logos: { [variant]: logoValue } }, { onError: (error) => toast.error(error.message) });
 
   const pickFile = async (file: File | undefined) => {
     if (!file) return;
@@ -66,12 +66,12 @@ function LogoSlot({ organizationId, variant, value, canEdit }: { organizationId:
   );
 }
 
-export function BrandKitLogos({ organizationId, logos, canEdit }: { organizationId: string; logos: Record<BrandLogoVariant, string | null>; canEdit: boolean }) {
+export function BrandKitLogos({ organizationId, brandKitId, logos, canEdit }: { organizationId: string; brandKitId: string | null; logos: Record<BrandLogoVariant, string | null>; canEdit: boolean }) {
   return (
     <div>
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
         {BRAND_LOGO_VARIANTS.map((variant) => (
-          <LogoSlot key={variant} organizationId={organizationId} variant={variant} value={logos[variant]} canEdit={canEdit} />
+          <LogoSlot key={variant} organizationId={organizationId} brandKitId={brandKitId} variant={variant} value={logos[variant]} canEdit={canEdit} />
         ))}
       </div>
       <p className="mt-2 text-[11px] text-muted-foreground">Use PNG com fundo transparente. A versão branca aparece sobre fundo escuro.</p>

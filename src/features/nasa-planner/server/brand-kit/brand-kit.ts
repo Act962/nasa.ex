@@ -1,4 +1,5 @@
 import "server-only";
+import { ORPCError } from "@orpc/server";
 import prisma from "@/lib/prisma";
 import type { BrandKitAssetKind } from "@/generated/prisma/enums";
 import { ensureDefaultPlanner } from "../cross-org";
@@ -9,9 +10,13 @@ import {
 } from "../../lib/brand-kit-completeness";
 
 /**
- * Kit da Marca de uma org (spec 0063). Reaproveita os campos de marca da Organization
- * (lidos também por `buildBrandedContext`) e do planner padrão; listas ficam em BrandKitAsset.
+ * Kit da Marca (specs 0063 e 0070). O kit **padrão** de uma org reaproveita os campos de marca da
+ * Organization (lidos também por `buildBrandedContext`) e do planner padrão; os kits **adicionais**
+ * moram em BrandKit. Os dois devolvem o mesmo formato, e as listas ficam em BrandKitAsset
+ * (`brandKitId` nulo = kit padrão).
  */
+
+export const DEFAULT_BRAND_KIT_NAME = "Padrão da empresa";
 
 export type BrandKitLogos = Record<BrandLogoVariant, string | null>;
 
@@ -32,7 +37,25 @@ export interface BrandKitIdentityInput {
   defaultCtas?: string[];
 }
 
+export interface BrandKitIdentity {
+  brandName: string | null;
+  logos: BrandKitLogos;
+  palette: string[];
+  fontHeading: string | null;
+  fontBody: string | null;
+  voiceTone: string | null;
+  audience: string | null;
+  positioning: string | null;
+  slogan: string | null;
+  website: string | null;
+  keyMessages: string[];
+  forbiddenWords: string[];
+  defaultHashtags: string[];
+  defaultCtas: string[];
+}
+
 const toStringArray = (value: unknown): string[] => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []);
+const stripHash = (hashtag: string) => hashtag.replace(/^#/, "");
 
 function readLogos(brandLogoUrl: string | null, variants: unknown): BrandKitLogos {
   const stored = (variants && typeof variants === "object" ? variants : {}) as Record<string, unknown>;
@@ -44,15 +67,13 @@ function readLogos(brandLogoUrl: string | null, variants: unknown): BrandKitLogo
   return logos;
 }
 
-export async function getBrandKit(organizationId: string) {
+/** Identidade do kit padrão; também serve de base a um kit novo criado como cópia (spec 0070, RF-2). */
+export async function readDefaultBrandKitIdentity(organizationId: string): Promise<BrandKitIdentity> {
   const plannerId = await ensureDefaultPlanner(organizationId);
-  const [organization, planner, assets] = await Promise.all([
+  const [organization, planner] = await Promise.all([
     prisma.organization.findUniqueOrThrow({
       where: { id: organizationId },
       select: {
-        id: true,
-        name: true,
-        logo: true,
         brandSlogan: true,
         brandWebsite: true,
         brandIcp: true,
@@ -69,30 +90,11 @@ export async function getBrandKit(organizationId: string) {
       where: { id: plannerId },
       select: { brandName: true, keyMessages: true, forbiddenWords: true, defaultHashtags: true, defaultCtas: true },
     }),
-    prisma.brandKitAsset.findMany({ where: { organizationId }, orderBy: [{ kind: "asc" }, { order: "asc" }, { createdAt: "asc" }] }),
   ]);
-
-  const logos = readLogos(organization.brandLogoUrl, organization.brandLogoVariants);
-  const palette = toStringArray(organization.brandPaletteHex);
-  const countOf = (kind: BrandKitAssetKind) => assets.filter((asset) => asset.kind === kind).length;
-  const completeness = computeBrandKitCompleteness({
-    logos,
-    palette,
-    fontHeading: organization.brandFontHeading,
-    voiceTone: organization.brandVoiceTone,
-    audience: organization.brandIcp,
-    positioning: organization.brandPositioning,
-    website: organization.brandWebsite,
-    productCount: countOf("PRODUCT"),
-    materialCount: countOf("MATERIAL"),
-    referencePostCount: countOf("REFERENCE_POST"),
-  });
-
   return {
-    organization: { id: organization.id, name: organization.name, logo: organization.logo },
     brandName: planner.brandName,
-    logos,
-    palette,
+    logos: readLogos(organization.brandLogoUrl, organization.brandLogoVariants),
+    palette: toStringArray(organization.brandPaletteHex),
     fontHeading: organization.brandFontHeading,
     fontBody: organization.brandFontBody,
     voiceTone: organization.brandVoiceTone,
@@ -104,6 +106,69 @@ export async function getBrandKit(organizationId: string) {
     forbiddenWords: planner.forbiddenWords,
     defaultHashtags: planner.defaultHashtags,
     defaultCtas: planner.defaultCtas,
+  };
+}
+
+/** Kit adicional, sempre conferido contra a org: id de outra empresa não lê nada (spec 0070, RNF-4). */
+export async function findAdditionalBrandKit(organizationId: string, brandKitId: string) {
+  const kit = await prisma.brandKit.findFirst({ where: { id: brandKitId, organizationId } });
+  if (!kit) throw new ORPCError("NOT_FOUND", { message: "Kit da marca não encontrado." });
+  return kit;
+}
+
+type AdditionalBrandKitRow = Awaited<ReturnType<typeof findAdditionalBrandKit>>;
+
+function toIdentity(kit: AdditionalBrandKitRow): BrandKitIdentity {
+  return {
+    brandName: kit.brandName,
+    logos: readLogos(null, kit.logos),
+    palette: kit.palette,
+    fontHeading: kit.fontHeading,
+    fontBody: kit.fontBody,
+    voiceTone: kit.voiceTone,
+    audience: kit.audience,
+    positioning: kit.positioning,
+    slogan: kit.slogan,
+    website: kit.website,
+    keyMessages: kit.keyMessages,
+    forbiddenWords: kit.forbiddenWords,
+    defaultHashtags: kit.defaultHashtags,
+    defaultCtas: kit.defaultCtas,
+  };
+}
+
+/** Kit padrão quando `brandKitId` é nulo; kit adicional da org caso contrário. O formato é o mesmo. */
+export async function getBrandKit(organizationId: string, brandKitId: string | null = null) {
+  const additionalKit = brandKitId ? await findAdditionalBrandKit(organizationId, brandKitId) : null;
+  const [organization, identity, assets] = await Promise.all([
+    prisma.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { id: true, name: true, logo: true } }),
+    additionalKit ? toIdentity(additionalKit) : readDefaultBrandKitIdentity(organizationId),
+    prisma.brandKitAsset.findMany({
+      where: { organizationId, brandKitId: additionalKit?.id ?? null },
+      orderBy: [{ kind: "asc" }, { order: "asc" }, { createdAt: "asc" }],
+    }),
+  ]);
+
+  const countOf = (kind: BrandKitAssetKind) => assets.filter((asset) => asset.kind === kind).length;
+  const completeness = computeBrandKitCompleteness({
+    logos: identity.logos,
+    palette: identity.palette,
+    fontHeading: identity.fontHeading,
+    voiceTone: identity.voiceTone,
+    audience: identity.audience,
+    positioning: identity.positioning,
+    website: identity.website,
+    productCount: countOf("PRODUCT"),
+    materialCount: countOf("MATERIAL"),
+    referencePostCount: countOf("REFERENCE_POST"),
+  });
+
+  return {
+    organization,
+    /** Nulo no kit padrão. */
+    brandKitId: additionalKit?.id ?? null,
+    kitName: additionalKit?.name ?? DEFAULT_BRAND_KIT_NAME,
+    ...identity,
     assets: assets.map((asset) => ({
       id: asset.id,
       kind: asset.kind,
@@ -119,7 +184,7 @@ export async function getBrandKit(organizationId: string) {
 
 export type BrandKit = Awaited<ReturnType<typeof getBrandKit>>;
 
-export async function saveBrandKitIdentity(organizationId: string, input: BrandKitIdentityInput) {
+async function saveDefaultIdentity(organizationId: string, input: BrandKitIdentityInput) {
   const current = await prisma.organization.findUniqueOrThrow({
     where: { id: organizationId },
     select: { brandLogoUrl: true, brandLogoVariants: true },
@@ -149,20 +214,55 @@ export async function saveBrandKitIdentity(organizationId: string, input: BrandK
         ...(input.brandName !== undefined && { brandName: input.brandName }),
         ...(input.keyMessages && { keyMessages: input.keyMessages }),
         ...(input.forbiddenWords && { forbiddenWords: input.forbiddenWords }),
-        ...(input.defaultHashtags && { defaultHashtags: input.defaultHashtags.map((hashtag) => hashtag.replace(/^#/, "")) }),
+        ...(input.defaultHashtags && { defaultHashtags: input.defaultHashtags.map(stripHash) }),
         ...(input.defaultCtas && { defaultCtas: input.defaultCtas }),
       },
     });
   }
-  return getBrandKit(organizationId);
+}
+
+async function saveAdditionalIdentity(organizationId: string, brandKitId: string, input: BrandKitIdentityInput) {
+  const current = await findAdditionalBrandKit(organizationId, brandKitId);
+  const logos = input.logos ? { ...readLogos(null, current.logos), ...input.logos } : null;
+  await prisma.brandKit.update({
+    where: { id: current.id },
+    data: {
+      ...(logos && { logos }),
+      ...(input.palette && { palette: input.palette }),
+      ...(input.brandName !== undefined && { brandName: input.brandName }),
+      ...(input.fontHeading !== undefined && { fontHeading: input.fontHeading }),
+      ...(input.fontBody !== undefined && { fontBody: input.fontBody }),
+      ...(input.voiceTone !== undefined && { voiceTone: input.voiceTone }),
+      ...(input.audience !== undefined && { audience: input.audience }),
+      ...(input.positioning !== undefined && { positioning: input.positioning }),
+      ...(input.slogan !== undefined && { slogan: input.slogan }),
+      ...(input.website !== undefined && { website: input.website }),
+      ...(input.keyMessages && { keyMessages: input.keyMessages }),
+      ...(input.forbiddenWords && { forbiddenWords: input.forbiddenWords }),
+      ...(input.defaultHashtags && { defaultHashtags: input.defaultHashtags.map(stripHash) }),
+      ...(input.defaultCtas && { defaultCtas: input.defaultCtas }),
+    },
+  });
+}
+
+export async function saveBrandKitIdentity(organizationId: string, brandKitId: string | null, input: BrandKitIdentityInput) {
+  if (brandKitId) await saveAdditionalIdentity(organizationId, brandKitId, input);
+  else await saveDefaultIdentity(organizationId, input);
+  return getBrandKit(organizationId, brandKitId);
 }
 
 export async function addBrandKitAsset(
   organizationId: string,
+  brandKitId: string | null,
   input: { kind: BrandKitAssetKind; title: string; description?: string | null; fileKey?: string | null; url?: string | null; price?: string | null },
 ) {
-  const lastAsset = await prisma.brandKitAsset.findFirst({ where: { organizationId, kind: input.kind }, orderBy: { order: "desc" }, select: { order: true } });
-  return prisma.brandKitAsset.create({ data: { organizationId, ...input, order: (lastAsset?.order ?? -1) + 1 } });
+  if (brandKitId) await findAdditionalBrandKit(organizationId, brandKitId);
+  const lastAsset = await prisma.brandKitAsset.findFirst({
+    where: { organizationId, brandKitId, kind: input.kind },
+    orderBy: { order: "desc" },
+    select: { order: true },
+  });
+  return prisma.brandKitAsset.create({ data: { organizationId, brandKitId, ...input, order: (lastAsset?.order ?? -1) + 1 } });
 }
 
 export async function removeBrandKitAsset(organizationId: string, assetId: string) {

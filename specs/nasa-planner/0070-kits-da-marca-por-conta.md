@@ -2,7 +2,7 @@
 id: 0070
 titulo: Vários Kits da Marca por empresa, vinculados à conta do Instagram
 dominio: nasa-planner
-status: rascunho
+status: aprovada
 autor: João Gabriel
 criada: 2026-10-05
 atualizada: 2026-10-05
@@ -91,20 +91,20 @@ da conta em que vai sair.
 
 ## 4. Critérios de aceite
 
-- [ ] **CA-1** — Dada uma empresa com o kit preenchido antes desta spec, quando abre a aba Kit da Marca, então vê "Padrão da empresa" com os mesmos dados e o mesmo medidor de antes.
-- [ ] **CA-2** — Dado o kit adicional "Cliente B" com tom de voz próprio, quando o usuário gera roteiro com o Astro para um post da conta vinculada a ele, então o prompt leva a voz, as cores e os produtos do "Cliente B", e nada do kit padrão.
-- [ ] **CA-3** — Dadas as contas A e B sem vínculo, quando geram conteúdo, então as duas usam o kit padrão.
-- [ ] **CA-4** — Dado o kit "Cliente B" incompleto e o padrão completo, quando o usuário tenta "Gerar com o Astro" num post da conta do "Cliente B", então é bloqueado com a lista do que falta **no kit do Cliente B**.
-- [ ] **CA-5** — Dado um post da conta do "Cliente B" com uma palavra proibida só no kit dele, quando vai para aprovação, então o checklist aponta a palavra; o mesmo texto num post de conta do kit padrão não é apontado.
-- [ ] **CA-6** — Dado o kit "Cliente B" usado por duas contas, quando é apagado, então as duas contas passam a usar o kit padrão e os materiais do kit apagado somem.
+- [x] **CA-1** — Dada uma empresa com o kit preenchido antes desta spec, quando abre a aba Kit da Marca, então vê "Padrão da empresa" com os mesmos dados e o mesmo medidor de antes.
+- [x] **CA-2** — Dado o kit adicional "Cliente B" com tom de voz próprio, quando o usuário gera roteiro com o Astro para um post da conta vinculada a ele, então o prompt leva a voz, as cores e os produtos do "Cliente B", e nada do kit padrão.
+- [x] **CA-3** — Dadas as contas A e B sem vínculo, quando geram conteúdo, então as duas usam o kit padrão.
+- [x] **CA-4** — Dado o kit "Cliente B" incompleto e o padrão completo, quando o usuário tenta "Gerar com o Astro" num post da conta do "Cliente B", então é bloqueado com a lista do que falta **no kit do Cliente B**.
+- [x] **CA-5** — Dado um post da conta do "Cliente B" com uma palavra proibida só no kit dele, quando vai para aprovação, então o checklist aponta a palavra; o mesmo texto num post de conta do kit padrão não é apontado.
+- [x] **CA-6** — Dado o kit "Cliente B" usado por duas contas, quando é apagado, então as duas contas passam a usar o kit padrão e os materiais do kit apagado somem.
 - [ ] **CA-7** — Dado o kit padrão, quando o usuário tenta apagá-lo, então a ação não existe na tela e a procedure recusa.
-- [ ] **CA-8** — Dado um kit de outra empresa, quando seu id é enviado a qualquer procedure de kit ou de vínculo, então a resposta é NOT_FOUND e nada é lido nem alterado.
-- [ ] **CA-9** — Dado o kit padrão editado na aba Kit da Marca, quando o usuário abre Configurações → Marca, então vê a alteração; e o inverso.
-- [ ] **CA-10** — Dado um kit adicional editado, quando o usuário abre Configurações → Marca, então nada mudou lá.
+- [x] **CA-8** — Dado um kit de outra empresa, quando seu id é enviado a qualquer procedure de kit ou de vínculo, então a resposta é NOT_FOUND e nada é lido nem alterado.
+- [x] **CA-9** — Dado o kit padrão editado na aba Kit da Marca, quando o usuário abre Configurações → Marca, então vê a alteração; e o inverso.
+- [x] **CA-10** — Dado um kit adicional editado, quando o usuário abre Configurações → Marca, então nada mudou lá.
 - [ ] **CA-11** — Dado um membro sem permissão de criar no Planner, quando abre um kit, então vê em modo leitura e as procedures de escrita devolvem FORBIDDEN.
-- [ ] **CA-12** — Dada uma empresa com 20 kits adicionais, quando tenta criar o 21º, então recebe a mensagem de limite.
-- [ ] **CA-13** — Dado "Criar como cópia do padrão", quando o kit nasce, então identidade e listas de texto vêm copiadas e as quatro listas de materiais vêm vazias.
-- [ ] **CA-14** — `pnpm guides:check` passa com as âncoras novas.
+- [x] **CA-12** — Dada uma empresa com 20 kits adicionais, quando tenta criar o 21º, então recebe a mensagem de limite.
+- [x] **CA-13** — Dado "Criar como cópia do padrão", quando o kit nasce, então identidade e listas de texto vêm copiadas e as quatro listas de materiais vêm vazias.
+- [x] **CA-14** — `pnpm guides:check` passa com as âncoras novas.
 
 ## 5. Casos de borda
 
@@ -238,3 +238,4 @@ Sem runner no projeto (CLAUDE.md, regra 20): os casos de servidor viram
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-05 | João Gabriel | Criada. Decisões do dono do produto: vínculo pela conta do Instagram; kit padrão continua sendo a marca de Configurações → Marca; só o kit nesta etapa; quem cria no Planner cria e edita kits, owner e admin vinculam |
+| 2026-10-05 | João Gabriel | Aprovada e **implementada**. Marcados os critérios provados por `scripts/brand-kits-qa-check.ts` e por `pnpm guides:check` (CA-14). Abertos: CA-7 (kit padrão não tem id, então a procedure de apagar não tem como recebê-lo — conferido por construção, sem teste) e CA-11 (papel sem permissão de criar, conferência manual). Desvios do texto: (1) o vínculo conta–kit ficou em `nasaPlanner.brandKit.setAccountKit`, e não em `socialAccounts.setBrandKit`, para a regra não entrar no módulo `social`; (2) no cartão da conta em Satélites › Instagram o kit é **mostrado** com um link "trocar no Planner", em vez de um seletor no próprio cartão — a troca fica só na aba Kit da Marca (RF-7 parcial); (3) `get_video_templates` do MCP segue usando o kit padrão |

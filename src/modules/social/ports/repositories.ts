@@ -26,6 +26,8 @@ export type ChannelSummary = {
   accessTokenLast4: string;
   authMode: ChannelAuthModeValue;
   automationCount: number;
+  /** Kit da Marca que os posts da conta usam (spec 0070). O módulo só transporta; nulo = kit padrão. */
+  brandKitId: string | null;
 };
 
 /**

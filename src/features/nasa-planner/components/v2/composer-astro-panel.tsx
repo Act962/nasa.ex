@@ -22,24 +22,28 @@ export interface GeneratedPostDraft {
 
 export function ComposerAstroPanel({
   organizationId,
+  instagramAccountId,
   formats,
   generatedByFormat,
   onGenerated,
 }: {
   organizationId: string;
+  /** Conta do Instagram em que o post vai sair; define o kit em uso (spec 0070, RF-8). */
+  instagramAccountId: string | null;
   formats: NasaPlannerPostType[];
   generatedByFormat: Partial<Record<NasaPlannerPostType, GeneratedPostDraft>>;
   onGenerated: (drafts: Partial<Record<NasaPlannerPostType, GeneratedPostDraft>>) => void;
 }) {
   const [idea, setIdea] = useState("");
-  const { brandKit, isLoading } = usePlannerBrandKit(organizationId || null);
+  const { brandKit, isLoading } = usePlannerBrandKit(organizationId || null, { instagramAccountId });
+  const kitHref = `/nasa-planner?tab=kit&org=${organizationId}${brandKit?.brandKitId ? `&kit=${brandKit.brandKitId}` : ""}`;
   const generateScripts = useGeneratePlannerScripts();
   const isKitComplete = Boolean(brandKit?.completeness.isComplete);
   const generatedFormats = formats.filter((format) => generatedByFormat[format]);
 
   const generate = () =>
     generateScripts.mutate(
-      { organizationId, idea, formats },
+      { organizationId, instagramAccountId, idea, formats },
       {
         onSuccess: ({ scripts }) => {
           const drafts = Object.fromEntries(
@@ -62,9 +66,17 @@ export function ComposerAstroPanel({
 
   return (
     <section className="rounded-2xl bg-panel p-3">
-      <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+      <p className="mb-2 flex flex-wrap items-center gap-1.5 text-sm font-semibold">
         <Sparkles className="size-4" /> Gerar com o Astro
+        {brandKit && (
+          <Link href={kitHref} className="ml-auto text-xs font-normal text-muted-foreground underline">
+            Kit: {brandKit.kitName}
+          </Link>
+        )}
       </p>
+      {brandKit && !brandKit.brandKitId && !instagramAccountId && (
+        <p className="mb-2 text-[11px] text-muted-foreground">Escolha a conta do Instagram em &ldquo;Onde publicar&rdquo; para usar o kit dela.</p>
+      )}
       {!isLoading && brandKit && !isKitComplete && (
         <div className="mb-3 flex gap-2 rounded-xl bg-warning/10 px-3 py-2 text-sm">
           <CircleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
@@ -73,7 +85,7 @@ export function ComposerAstroPanel({
             <p className="text-xs text-muted-foreground">
               Falta: {brandKit.completeness.missing.join(", ")}. O Astro precisa do kit para criar no tom e nas cores da marca.
             </p>
-            <Link href={`/nasa-planner?tab=kit&org=${organizationId}`} className="text-xs font-semibold text-warning underline">
+            <Link href={kitHref} className="text-xs font-semibold text-warning underline">
               Completar kit →
             </Link>
           </div>

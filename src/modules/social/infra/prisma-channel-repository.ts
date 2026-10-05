@@ -26,6 +26,7 @@ type ChannelRow = {
   lastErrorMessage: string | null;
   lastErrorAt: Date | null;
   createdAt: Date;
+  brandKitId?: string | null;
   _count?: { automations: number };
 };
 
@@ -68,6 +69,7 @@ function toSummary(row: ChannelRow): ChannelSummary {
     accessTokenLast4,
     authMode,
     automationCount: row._count?.automations ?? 0,
+    brandKitId: row.brandKitId ?? null,
   };
 }
 

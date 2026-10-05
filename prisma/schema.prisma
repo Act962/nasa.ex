@@ -338,6 +338,7 @@ model Organization {
   nasaPlanners           NasaPlanner[]
   metaPublishAccounts    MetaPublishAccount[]
   brandKitAssets         BrandKitAsset[]
+  brandKits              BrandKit[]
   orgPermissions         OrgPermission[]
   activityLogs           OrgActivityLog[]
   systemActivityLogs     SystemActivityLog[]
@@ -4594,13 +4595,56 @@ model BrandKitAsset {
   url            String?
   price          String?
   order          Int               @default(0)
+  /// Kit adicional dono do material (spec 0070). Nulo = kit padrão da empresa.
+  brandKitId     String?           @map("brand_kit_id")
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brandKit     BrandKit?    @relation(fields: [brandKitId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, kind])
+  @@index([brandKitId])
   @@map("brand_kit_assets")
+}
+
+/// Kit da Marca **adicional** de uma empresa (spec 0070). O kit padrão não tem
+/// linha aqui: continua em `Organization.brand*`, no planner padrão e nos
+/// `BrandKitAsset` sem `brandKitId`, porque é a marca da empresa no sistema todo.
+model BrandKit {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  name           String
+  /// Nome em minúsculas, para o unique não diferenciar maiúsculas (spec 0070, CB-7).
+  nameKey        String @map("name_key")
+
+  brandName   String?  @map("brand_name")
+  /// Mesmas variantes de `Organization.brandLogoVariants`: color, black, white, icon, horizontal.
+  logos       Json     @default("{}")
+  palette     String[]
+  fontHeading String?  @map("font_heading")
+  fontBody    String?  @map("font_body")
+  voiceTone   String?  @map("voice_tone")
+  audience    String?
+  positioning String?
+  slogan      String?
+  website     String?
+
+  keyMessages     String[] @map("key_messages")
+  forbiddenWords  String[] @map("forbidden_words")
+  defaultHashtags String[] @map("default_hashtags")
+  defaultCtas     String[] @map("default_ctas")
+
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assets       BrandKitAsset[]
+  channels     SocialChannel[]
+
+  @@unique([organizationId, nameKey])
+  @@map("brand_kits")
 }
 
 model MetaPublishAccount {
@@ -10332,16 +10376,20 @@ model SocialChannel {
 
   /// Ponteiro solto para `User.id` — sem relation de propósito, para não somar
   /// mais uma aresta ao god-model `User` (73 relations hoje).
-  connectedById String?  @map("connected_by_id")
+  connectedById String? @map("connected_by_id")
 
   /// Tracking que recebe os leads do Instagram no tracking-chat (spec 0062). Ponteiro
   /// solto, sem relation: tracking apagado cai no primeiro tracking da org.
   leadTrackingId String? @map("lead_tracking_id")
 
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  /// Kit da Marca que os posts desta conta usam (spec 0070). Nulo = kit padrão da empresa.
+  brandKitId String? @map("brand_kit_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   organization  Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brandKit      BrandKit?             @relation(fields: [brandKitId], references: [id], onDelete: SetNull)
   automations   SocialAutomation[]
   contacts      SocialContact[]
   inboundEvents SocialInboundEvent[]

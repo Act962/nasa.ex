@@ -129,6 +129,18 @@ export function SocialAccountCard({
         />
       </div>
 
+      <p className="text-xs text-muted-foreground">
+        Kit da marca: <span className="font-medium text-foreground">{account.brandKitName ?? "Padrão da empresa"}</span>
+        {canManage && (
+          <>
+            {" · "}
+            <Link href={`/nasa-planner?tab=kit&org=${account.organizationId}${account.brandKitId ? `&kit=${account.brandKitId}` : ""}`} className="underline">
+              trocar no Planner
+            </Link>
+          </>
+        )}
+      </p>
+
       <div className="flex flex-wrap gap-1.5">
         <AppChip label="Comments" isOn={isActive} />
         {/* Só conta conectada pela Meta vira lead no chat (spec 0062). */}

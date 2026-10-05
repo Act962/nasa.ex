@@ -11,6 +11,7 @@ import { getPublicMediaUrl } from "@/lib/r2-url";
 import { NasaPlannerPostSource, NasaPlannerPostStatus } from "@/generated/prisma/enums";
 import { ensureDefaultPlanner } from "@/features/nasa-planner/server/cross-org";
 import { getBrandKit } from "@/features/nasa-planner/server/brand-kit/brand-kit";
+import { getBrandKitForInstagramHandle, summarizeBrandKits } from "@/features/nasa-planner/server/brand-kit/brand-kits";
 import { submitPostForApproval } from "@/features/nasa-planner/server/approval";
 import { DEFAULT_SLOT_RULES, expandSlotRules } from "@/features/nasa-planner/lib/publish-slots";
 import { assertCallerOrganization, type ExternalAiCaller } from "../access-tokens";
@@ -94,8 +95,9 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
         const organizations = await prisma.organization.findMany({ where: { id: { in: caller.organizationIds } }, select: { id: true, name: true } });
         return Promise.all(
           organizations.map(async (organization) => {
-            const [kit, accounts] = await Promise.all([
+            const [kit, brandKits, accounts] = await Promise.all([
               getBrandKit(organization.id),
+              summarizeBrandKits(organization.id),
               prisma.metaPublishAccount.findMany({ where: { organizationId: organization.id, kind: "IG_BUSINESS", status: "ACTIVE" }, select: { igUsername: true } }),
             ]);
             return {
@@ -104,6 +106,7 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
               brandName: kit.brandName || organization.name,
               brandKitComplete: kit.completeness.isComplete,
               brandKitMissing: kit.completeness.missing,
+              brandKits,
               instagramAccounts: accounts.map((account) => `@${account.igUsername}`),
             };
           }),
@@ -114,19 +117,21 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
   server.registerTool(
     "get_brand_kit",
     {
-      description: "Kit da Marca da empresa: nome, voz, público, cores, fontes, logos (URLs), fundos, produtos, materiais, posts de referência, hashtags e CTAs. Leia antes de criar qualquer conteúdo.",
-      inputSchema: { organizationId: z.string() },
+      description:
+        "Kit da Marca: nome, voz, público, cores, fontes, logos (URLs), fundos, produtos, materiais, posts de referência, hashtags e CTAs. Leia antes de criar qualquer conteúdo. A empresa pode ter mais de um kit (veja brandKits em list_clients): informe instagramAccount para receber o kit daquela conta; sem ele, vem o kit padrão.",
+      inputSchema: { organizationId: z.string(), instagramAccount: z.string().optional().describe("@ da conta do Instagram em que o conteúdo vai sair") },
     },
-    ({ organizationId }) =>
+    ({ organizationId, instagramAccount }) =>
       runTool(async () => {
         await assertCallerOrganization(caller, organizationId, "view");
-        const kit = await getBrandKit(organizationId);
+        const kit = await getBrandKitForInstagramHandle(organizationId, instagramAccount);
         const weekdayThemes = await prisma.nasaPlannerWeekdayTheme.findMany({ where: { organizationId }, orderBy: { weekday: "asc" }, select: { weekday: true, theme: true } });
         const logos = Object.fromEntries(await Promise.all(Object.entries(kit.logos).map(async ([variant, value]) => [variant, await toAbsoluteMediaUrl(value)] as const)));
         const assets = await Promise.all(
           kit.assets.map(async (asset) => ({ kind: asset.kind, title: asset.title, description: asset.description, price: asset.price, url: asset.url, fileUrl: await toAbsoluteMediaUrl(asset.fileKey) })),
         );
         return {
+          kitName: kit.kitName,
           brandName: kit.brandName || kit.organization.name,
           slogan: kit.slogan,
           voiceTone: kit.voiceTone,

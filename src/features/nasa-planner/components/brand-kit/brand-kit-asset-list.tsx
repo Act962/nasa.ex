@@ -60,7 +60,7 @@ function AssetRow({ organizationId, asset, canEdit }: { organizationId: string; 
   );
 }
 
-function AddAssetForm({ organizationId, kind, onDone }: { organizationId: string; kind: AssetKind; onDone: () => void }) {
+function AddAssetForm({ organizationId, brandKitId, kind, onDone }: { organizationId: string; brandKitId: string | null; kind: AssetKind; onDone: () => void }) {
   const copy = KIND_COPY[kind];
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -86,7 +86,7 @@ function AddAssetForm({ organizationId, kind, onDone }: { organizationId: string
 
   const save = () =>
     addAsset.mutate(
-      { organizationId, kind, title, description: description || null, price: price || null, url: url || null, fileKey },
+      { organizationId, brandKitId, kind, title, description: description || null, price: price || null, url: url || null, fileKey },
       { onSuccess: onDone, onError: (error) => toast.error(error.message) },
     );
 
@@ -115,7 +115,7 @@ function AddAssetForm({ organizationId, kind, onDone }: { organizationId: string
   );
 }
 
-export function BrandKitAssetList({ organizationId, kind, assets, canEdit }: { organizationId: string; kind: AssetKind; assets: PlannerBrandKitAsset[]; canEdit: boolean }) {
+export function BrandKitAssetList({ organizationId, brandKitId, kind, assets, canEdit }: { organizationId: string; brandKitId: string | null; kind: AssetKind; assets: PlannerBrandKitAsset[]; canEdit: boolean }) {
   const [isAdding, setIsAdding] = useState(false);
   return (
     <div className="space-y-2">
@@ -125,7 +125,7 @@ export function BrandKitAssetList({ organizationId, kind, assets, canEdit }: { o
       {assets.length === 0 && !isAdding && <p className="text-xs text-muted-foreground">Nada ainda.</p>}
       {canEdit &&
         (isAdding ? (
-          <AddAssetForm organizationId={organizationId} kind={kind} onDone={() => setIsAdding(false)} />
+          <AddAssetForm organizationId={organizationId} brandKitId={brandKitId} kind={kind} onDone={() => setIsAdding(false)} />
         ) : (
           <button type="button" onClick={() => setIsAdding(true)} className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
             <Plus className="size-3" /> {KIND_COPY[kind].addLabel}
