@@ -204,6 +204,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0049](astro/0049-astro-guia-workspace-financeiro-campanhas-contatos-equipe.md) | astro | Astro Guia em Workspace, Financeiro, Campanhas, Contatos e Equipe | em-revisao |
 | [0050](astro/0050-astro-guia-em-todos-os-apps.md) | astro | Astro Guia em todos os apps restantes | em-revisao |
 | [0051](accounting/0051-aba-contabil-fundacao.md) | accounting | Aba Contábil — fundação contábil, guias, documentos, créditos e precificação | em-revisao |
+| [0069](comments/0069-contas-do-instagram-nos-satelites.md) | comments | Conectar várias contas do Instagram pelos Satélites e escolher a conta no Comments | aprovada |
 
 ---
 
