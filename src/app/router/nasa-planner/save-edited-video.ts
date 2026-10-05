@@ -1,7 +1,8 @@
 import { meterOrThrow } from "@/features/stars/lib/metering";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { assertPostAccess } from "@/features/nasa-planner/server/cross-org";
+import { reopenPostAfterEdit } from "@/features/nasa-planner/server/approval";
 import { StarTransactionType } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import { ORPCError } from "@orpc/server";
@@ -11,7 +12,6 @@ const STARS_MERGE_FFMPEG = 1;
 
 export const saveEditedVideo = base
   .use(requiredAuthMiddleware)
-  .use(requireOrgMiddleware)
   .input(
     z.object({
       postId: z.string(),
@@ -20,13 +20,14 @@ export const saveEditedVideo = base
     }),
   )
   .handler(async ({ input, context }) => {
+    const { post: accessiblePost } = await assertPostAccess(context.user.id, input.postId, "create");
     const post = await prisma.nasaPlannerPost.findFirst({
-      where: { id: input.postId, organizationId: context.org.id },
+      where: { id: input.postId, organizationId: accessiblePost.organizationId },
     });
     if (!post) throw new ORPCError("NOT_FOUND", { message: "Post não encontrado" });
 
     const { stars: starsCharged, balanceAfter } = await meterOrThrow({
-      organizationId: context.org.id,
+      organizationId: accessiblePost.organizationId,
       action: "planner_video_merge",
       userId: context.user.id,
       appSlug: "nasa-planner",
@@ -44,5 +45,6 @@ export const saveEditedVideo = base
       },
     });
 
+    await reopenPostAfterEdit(input.postId, context.user.id);
     return { post: updated, starsSpent: starsCharged, balanceAfter };
   });

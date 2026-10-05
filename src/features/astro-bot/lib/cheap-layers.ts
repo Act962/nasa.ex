@@ -126,8 +126,10 @@ async function tryConfirmation(
         errorMessage: result.ok ? null : result.summary,
       },
     });
+    // No WhatsApp só link absoluto abre; os relativos ficam de fora.
+    const absoluteLinks = (result.links ?? []).filter((link) => /^https?:\/\//.test(link.href)).map((link) => `${link.label}: ${link.href}`);
     return {
-      reply: result.ok ? `✅ ${result.summary}` : `⚠️ ${result.summary}`,
+      reply: [result.ok ? `✅ ${result.summary}` : `⚠️ ${result.summary}`, ...absoluteLinks].join("\n"),
       route: "confirmacao",
       tokensUsed: 0,
     };

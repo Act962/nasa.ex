@@ -8,10 +8,19 @@ import {
 import { tenantScope, type TenantScope } from "@/modules/shared/domain/tenant-scope";
 import type { Channel, SocialProviderValue } from "./domain/types";
 import type { ChannelGateway } from "./ports/channel-gateway";
+import type { ContentPublisher } from "./ports/content-publisher";
+import {
+  INSTAGRAM_LOGIN_GRAPH_URL,
+  InstagramContentPublisher,
+  InstagramLoginCredentialRenewer,
+  META_LOGIN_GRAPH_URL,
+} from "./infra/instagram/content-publisher";
 import { InstagramGraphChannelGateway } from "./infra/instagram/graph-channel-gateway";
+import { MetaLoginInstagramChannelGateway } from "./infra/instagram/meta-login-channel-gateway";
 import { InstagramWebhookTranslator } from "./infra/instagram/webhook-translator";
 import {
   PrismaChannelLookupRepository,
+  PrismaChannelMaintenanceRepository,
   PrismaChannelRepository,
 } from "./infra/prisma-channel-repository";
 import { PrismaAutomationRepository } from "./infra/prisma-automation-repository";
@@ -45,6 +54,13 @@ export function getInboundTranslator(provider: SocialProviderValue) {
 export function createChannelGateway(channel: Channel): ChannelGateway {
   switch (channel.provider) {
     case "INSTAGRAM":
+      if (channel.credentials.authMode === "META_LOGIN" && channel.credentials.pageId) {
+        return new MetaLoginInstagramChannelGateway(
+          channel.externalAccountId,
+          channel.credentials.pageId,
+          channel.credentials.accessToken,
+        );
+      }
       return new InstagramGraphChannelGateway(
         channel.externalAccountId,
         channel.credentials.accessToken,
@@ -58,11 +74,40 @@ export function createChannelGateway(channel: Channel): ChannelGateway {
   }
 }
 
+/** Publicação e leitura do que foi publicado, na forma de conexão da conta (spec 0071, D-1). */
+export function createContentPublisher(channel: Channel): ContentPublisher {
+  switch (channel.provider) {
+    case "INSTAGRAM":
+      if (channel.credentials.authMode === "META_LOGIN" && channel.credentials.pageId) {
+        return new InstagramContentPublisher(
+          META_LOGIN_GRAPH_URL,
+          channel.externalAccountId,
+          channel.credentials.accessToken,
+          channel.credentials.pageId,
+        );
+      }
+      return new InstagramContentPublisher(
+        INSTAGRAM_LOGIN_GRAPH_URL,
+        channel.externalAccountId,
+        channel.credentials.accessToken,
+        channel.externalAccountId,
+      );
+    default: {
+      const exhaustive: never = channel.provider;
+      throw new Error(`Provider sem publicador: ${String(exhaustive)}`);
+    }
+  }
+}
+
+export const instagramCredentialRenewer = new InstagramLoginCredentialRenewer();
+export const channelMaintenance = new PrismaChannelMaintenanceRepository();
+
 /** Credenciais fornecidas à mão, ainda não salvas — usado no connect. */
 export function createGatewayForCredentials(
   provider: SocialProviderValue,
   externalAccountId: string,
   accessToken: string,
+  metaLogin?: { pageId: string },
 ): ChannelGateway {
   return createChannelGateway({
     id: "",
@@ -73,7 +118,9 @@ export function createGatewayForCredentials(
     handle: null,
     displayName: null,
     status: "ACTIVE",
-    credentials: { accessToken, appSecret: "", verifyToken: "" },
+    credentials: metaLogin
+      ? { authMode: "META_LOGIN", accessToken, appSecret: "", verifyToken: "", pageId: metaLogin.pageId }
+      : { accessToken, appSecret: "", verifyToken: "" },
   });
 }
 

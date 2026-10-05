@@ -1,14 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { handleInboundEvent } from "@/modules/social/application/handle-inbound-event";
-import {
-  channelLookup,
-  createChannelGateway,
-  createSocialRepositories,
-  getInboundTranslator,
-  socialClock,
-  socialLogger,
-  socialPicker,
-} from "@/modules/social";
+import { channelLookup, getInboundTranslator, socialLogger } from "@/modules/social";
+import { processChannelEvents } from "@/modules/social/process-channel-events";
+import { ingestInstagramEventToChat } from "@/features/tracking-chat/server/instagram/ingest-instagram-event";
 
 export const runtime = "nodejs";
 
@@ -19,8 +12,8 @@ export const runtime = "nodejs";
  * conhecido antes de qualquer consulta. É a única porta anônima do módulo, e
  * por isso todo o resto aqui é fail-closed.
  *
- * Separado de propósito de `/api/integrations/instagram/webhook`, que cria lead
- * a partir de DM e não deve ganhar uma segunda responsabilidade (D-7).
+ * Separado de propósito de `/api/integrations/instagram/webhook` (D-7). Depois da
+ * automação do Comments, o comentário ou a DM vira conversa no Chat (spec 0062).
  */
 
 type RouteContext = { params: Promise<{ token: string }> };
@@ -61,7 +54,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ ok: true }, { status: 200 });
   }
 
-  const { channel, tenant } = found;
+  const { channel } = found;
   const translator = getInboundTranslator("INSTAGRAM");
 
   const isSignatureValid = translator.verifySignature({
@@ -92,37 +85,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ ok: true }, { status: 200 });
   }
 
-  const repositories = createSocialRepositories(tenant);
-  const gateway = createChannelGateway(channel);
-
-  for (const event of events) {
-    try {
-      const result = await handleInboundEvent(event, {
-        channel,
-        automations: repositories.automations,
-        inboundEvents: repositories.inboundEvents,
-        runs: repositories.runs,
-        contacts: repositories.contacts,
-        gateway,
-        ai: repositories.ai,
-        clock: socialClock,
-        picker: socialPicker,
-        logger: socialLogger,
-      });
-
-      if (result.outcome === "FAILED" && result.authError) {
-        await repositories.channels.markNeedsReconnect(channel.id, result.error);
-      }
-    } catch (error) {
-      // Uma falha num evento não pode derrubar o lote: a Meta reentregaria
-      // todos, inclusive os que já foram respondidos.
-      socialLogger.error("Falha ao processar evento", {
-        channelId: channel.id,
-        externalEventId: event.externalEventId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
+  await processChannelEvents(found, events, ingestInstagramEventToChat);
 
   return NextResponse.json({ ok: true }, { status: 200 });
 }

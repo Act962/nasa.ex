@@ -21,6 +21,7 @@ import type { FormBlockInstance } from "@/features/form/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { buildResponseSlug } from "@/features/form/lib/response-slug";
 import { orpc } from "@/lib/orpc";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 
 const FormPrintButton = dynamic(
   () =>
@@ -244,6 +245,7 @@ function NovaRespostaContent() {
               </span>
             </div>
           )}
+          <FullscreenControls />
         </div>
       </header>
 

@@ -21,8 +21,8 @@ const STATUS_ICON = {
  * Histórico de execuções. É a tela que responde "por que não respondeu?" —
  * sem ela, automação que não dispara vira suporte.
  */
-export function RunsPanel({ automationId }: { automationId?: string }) {
-  const { data: runs, isLoading } = useCommentsRuns(automationId);
+export function RunsPanel({ channelId, automationId }: { channelId?: string | null; automationId?: string }) {
+  const { data: runs, isLoading } = useCommentsRuns({ channelId, automationId });
 
   return (
     <Card>

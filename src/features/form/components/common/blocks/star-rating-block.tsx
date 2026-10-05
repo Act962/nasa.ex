@@ -208,7 +208,7 @@ function StarRatingFormComponent({
       </div>
       {isError || isSubmitError ? (
         <p className="text-destructive text-[0.8rem] break-words whitespace-normal">
-          {required && rating === 0 ? "This field is required." : ""}
+          {required && rating === 0 ? "Este campo é obrigatório" : ""}
         </p>
       ) : (
         errorMessage && (

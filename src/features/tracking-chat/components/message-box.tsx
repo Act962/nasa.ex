@@ -40,6 +40,26 @@ import { isForwardable } from "../lib/forward-strategies/build-payload";
 import { useMutation } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { useRouter } from "next/navigation";
+import { InstagramMessageButtons, InstagramMessageContext } from "./instagram-message-context";
+
+export function toMarkedMessage(message: Message): MarkedMessage {
+  return {
+    body: message.body,
+    id: message.id,
+    messageId: message.messageId,
+    fromMe: message.fromMe,
+    senderName: message.senderName,
+    quotedMessageId: message.quotedMessageId,
+    mediaUrl: message.mediaUrl,
+    mimetype: message.mimetype,
+    fileName: message.fileName,
+    metadata: message.metadata,
+    lead: {
+      id: message.conversation?.lead?.id || "",
+      name: message.conversation?.lead?.name || "",
+    },
+  };
+}
 
 export function MessageBox({
   message,
@@ -328,6 +348,12 @@ export function MessageBox({
                 {message.quotedMessage && !isDeleted && (
                   <QuotedMessage message={message} />
                 )}
+                {!isDeleted && (
+                  <InstagramMessageContext
+                    metadata={message.metadata}
+                    onReplyToComment={isOwn ? undefined : () => onSelectMessage(toMarkedMessage(message))}
+                  />
+                )}
                 {isDeleted && (
                   // Mensagem apagada — italic, cor secundária theme-aware
                   // via CSS var (mesma lógica do timestamp).
@@ -389,21 +415,7 @@ export function MessageBox({
                             onOpenChange={setShowImageViewer}
                             message={message}
                             onReply={() =>
-                              onSelectMessage({
-                                body: message.body,
-                                id: message.id,
-                                messageId: message.messageId,
-                                fromMe: message.fromMe,
-                                senderName: message.senderName,
-                                quotedMessageId: message.quotedMessageId,
-                                mediaUrl: message.mediaUrl,
-                                mimetype: message.mimetype,
-                                fileName: message.fileName,
-                                lead: {
-                                  id: message.conversation?.lead?.id || "",
-                                  name: message.conversation?.lead?.name || "",
-                                },
-                              })
+                              onSelectMessage(toMarkedMessage(message))
                             }
                           />
                         </>
@@ -436,6 +448,7 @@ export function MessageBox({
                       // precisa do respiro lateral que o texto puro já tem.
                       <div className={cn(isFile && "px-1.5 pt-1")}>
                         <BodyMessage message={message} />
+                        <InstagramMessageButtons metadata={message.metadata} />
                       </div>
                     )}
                   </div>

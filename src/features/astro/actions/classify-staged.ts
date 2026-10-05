@@ -92,6 +92,9 @@ async function runStage<T>(stageName: string, startStage: () => Promise<T>): Pro
   return secondAttempt;
 }
 
+const SOCIAL_CONTENT_PATTERN = /\b(reels?|story|stories|carross\w*|posts?|postage\w*|feed|planner|legendas?|instagram|publica\w*)\b/i;
+const COMMERCIAL_PROPOSAL_PATTERN = /\b(proposta|or[cç]amento)\b/i;
+
 const STAGE1_PROMPT = `Você recebe um pedido de usuário de um sistema de gestão
 e diz de qual APP ele é. Responda null quando o pedido for análise, comparação,
 relatório, ou não pertencer claramente a nenhum app.
@@ -145,6 +148,9 @@ export async function classifyStaged(params: {
 }): Promise<StagedClassification | null> {
   const apps = appsWithVerbs();
   if (apps.length === 0) return null;
+  // Conteúdo de rede social é do Planner (spec 0063), que vive nas tools do orquestrador. Sem isto,
+  // "cria um rascunho de reel" virava rascunho de proposta do Forge.
+  if (SOCIAL_CONTENT_PATTERN.test(params.text) && !COMMERCIAL_PROPOSAL_PATTERN.test(params.text)) return null;
 
   let tokensUsed = 0;
 

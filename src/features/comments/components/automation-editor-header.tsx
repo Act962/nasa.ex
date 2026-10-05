@@ -38,6 +38,8 @@ import {
 export function AutomationEditorHeader({
   automationId,
   name,
+  channelId,
+  accountHandle,
   isActive,
   onSave,
   isSaving,
@@ -46,17 +48,21 @@ export function AutomationEditorHeader({
 }: {
   automationId: string;
   name: string;
+  /** Conta do Instagram dona da automação (spec 0069, RF-14). */
+  channelId: string;
+  accountHandle: string | null;
   isActive: boolean;
   onSave: () => void;
   isSaving: boolean;
   onToggleActive: (isActive: boolean) => void;
   isTogglingActive: boolean;
 }) {
+  const commentsHref = `/comments?conta=${channelId}`;
   return (
     <div className="flex h-12 shrink-0 items-center justify-between gap-2 bg-background px-4">
       <div className="flex min-w-0 items-center gap-2">
         <Button asChild size="sm" variant="ghost" className="gap-1.5">
-          <Link href="/comments">
+          <Link href={commentsHref}>
             <ArrowLeftIcon className="size-4" />
             Voltar
           </Link>
@@ -66,7 +72,7 @@ export function AutomationEditorHeader({
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="/comments">Automações</Link>
+                <Link href={commentsHref}>Automações{accountHandle ? ` de @${accountHandle}` : ""}</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />

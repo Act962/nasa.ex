@@ -353,7 +353,7 @@ export async function buildAstroAgent(opts: {
     toolScope === "trafego"
       ? TRAFEGO_SCOPE_PROMPT
       : toolScope === "insights"
-      ? INSIGHTS_SCOPE_PROMPT
+      ? `${INSIGHTS_SCOPE_PROMPT}${scope.packPrompts}`
       : `${buildAgentsBriefing(enabled)}${scope.packPrompts}`;
 
   // ── Roteamento de modelo (custo) ──

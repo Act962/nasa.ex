@@ -22,7 +22,7 @@ export const ASTRO_APPS = {
     "Propostas comerciais e orçamentos: criar PROPOSTA/orçamento para um cliente, e também alterar " +
     "(acrescentar ou tirar produto, mudar validade ou título), cancelar, excluir e limpar RASCUNHO de " +
     "proposta. Use sempre que a frase falar em proposta, orçamento ou rascunho de proposta — mesmo " +
-    "quando citar o cliente, porque quem é apagado é a proposta, não a pessoa",
+    "quando citar o cliente, porque quem é apagado é a proposta, não a pessoa. Rascunho de post, reel, story ou carrossel NÃO é daqui (é do Planner): responda null",
   form:
     "Formulários, briefings e fichas de cadastro: mandar o FORMULÁRIO ao cliente, publicar, tirar do ar. Só quando a palavra formulário, briefing ou ficha aparecer",
   payment:

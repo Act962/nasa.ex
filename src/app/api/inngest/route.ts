@@ -33,9 +33,15 @@ import { trafegoKanbanDriftSweep } from "@/inngest/functions/crons/trafego-kanba
 import { trafegoPixPendingSweep } from "@/inngest/functions/crons/trafego-pix-pending-sweep";
 import { trafegoAsaasPaymentEvent } from "@/inngest/functions/trafego/asaas-payment-event";
 import { trafegoAsaasChargeWatch } from "@/inngest/functions/trafego/asaas-charge-watch";
-import { publishPostHandler } from "@/inngest/functions/nasa-planner/publish-post-handler";
-import { publishScheduledPosts } from "@/inngest/functions/nasa-planner/publish-scheduled-posts";
+import { publishPlannerPost, publishPlannerPostLegacy } from "@/inngest/functions/nasa-planner/publish-post";
+import { plannerPublishSweep } from "@/inngest/functions/nasa-planner/publish-sweep-cron";
+import { plannerApprovalWhatsappNotify } from "@/inngest/functions/nasa-planner/approval-whatsapp-notify";
+import {
+  plannerBackfillPublishAccounts,
+  plannerPublishAccountsHealth,
+} from "@/inngest/functions/nasa-planner/publish-accounts-health";
 import { refreshMetaTokens } from "@/inngest/functions/nasa-planner/refresh-meta-tokens";
+import { socialChannelsDailyMaintenance } from "@/inngest/functions/social/channels-daily-maintenance";
 import { syncPostMetricsCron } from "@/inngest/functions/nasa-planner/sync-post-metrics-cron";
 import { syncPriceSuggestionsCron } from "@/inngest/functions/forge/sync-price-suggestions-cron";
 import { syncMetaAdsKpis } from "@/inngest/functions/crons/sync-meta-ads-kpis";
@@ -178,8 +184,13 @@ export const { GET, POST, PUT } = serve({
     detectContractsExpiring,
     detectComplianceDue,
     // ── NASA Planner ──
-    publishPostHandler,
-    publishScheduledPosts,
+    publishPlannerPost,
+    publishPlannerPostLegacy,
+    plannerPublishSweep,
+    plannerApprovalWhatsappNotify,
+    plannerPublishAccountsHealth,
+    socialChannelsDailyMaintenance,
+    plannerBackfillPublishAccounts,
     refreshMetaTokens,
     syncPostMetricsCron,
     // ── Meta Ads ──

@@ -1,0 +1,10 @@
+{
+  "brand": { "brandName": "ÓRBITA", "handle": "@orbitahub", "palette": ["#05070D", "#009EF7", "#FFFFFF"], "logoUrl": null, "fontHeading": "Sora", "fontBody": "Inter" },
+  "scenes": [
+    { "headline": "Cansou de post *fora do tom*?", "durationSec": 3 },
+    { "headline": "Monte o Kit uma vez", "body": "Logo, cores, fontes e voz num lugar só.", "durationSec": 3 },
+    { "headline": "O Astro cria, *você aprova*", "durationSec": 3 }
+  ],
+  "cta": "Comece hoje no Planner",
+  "hashtags": ["#orbitahub"]
+}

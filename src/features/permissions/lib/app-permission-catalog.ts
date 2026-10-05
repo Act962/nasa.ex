@@ -34,7 +34,12 @@ export const ALL_APPS: AppPermissionDefinition[] = [
   { key: "forge-contracts",       label: "Contratos",               icon: "✍️" },
   // Agenda & Planejamento
   { key: "spacetime",             label: "SpaceTime / Agenda",      icon: "📅" },
-  { key: "nasa-planner",          label: "Planner",                 icon: "🗓️" },
+  {
+    key: "nasa-planner",
+    label: "Planner",
+    icon: "🗓️",
+    actionHints: { canApprove: "Aprovar conteúdos e pedir ajustes", canEdit: "Programar, reprogramar e publicar" },
+  },
   // Workspace
   { key: "workspace",             label: "Workspace",               icon: "🏢" },
   { key: "workspace-automacoes",  label: "Workspace (Automações)",  icon: "⚙️" },
@@ -163,6 +168,7 @@ export const DEFAULT_PERMISSIONS: Record<string, AppPermissions> = {
 export const EXTENDED_ACTIONS_BY_APP: Record<string, ExtendedPermissionAction[]> = {
   financeiro: ["canApprove", "canPay"],
   "star-friends": ["canApprove"],
+  "nasa-planner": ["canApprove"],
 };
 
 export const APPS_WITH_EXTENDED_ACTIONS = new Set<string>(Object.keys(EXTENDED_ACTIONS_BY_APP));

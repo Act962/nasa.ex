@@ -8,7 +8,7 @@ escreve rótulos neutros e grava em public/guides/whatsapp-oficial/NN-slug.webp.
 
 Uso:
   python3 scripts/guides/prepare-whatsapp-guide.py <pasta-dos-prints> [--preview <pasta>]
-  python3 scripts/guides/prepare-whatsapp-guide.py <pasta> --guide src/features/comments/lib/instagram-connect-guide.json --out public/guides/instagram-comments
+  python3 scripts/guides/prepare-whatsapp-guide.py <pasta> --guide src/features/social-accounts/lib/instagram-connect-guide.json --out public/guides/instagram-comments
 
 --preview grava cópias com o alvo da seta desenhado, só para conferência.
 """

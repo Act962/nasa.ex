@@ -52,15 +52,21 @@ function toContentType(mediaType?: string): SocialContentTypeValue {
  */
 export class InstagramGraphChannelGateway implements ChannelGateway {
   constructor(
-    private readonly accountId: string,
+    protected readonly accountId: string,
     private readonly accessToken: string,
+    private readonly baseUrl: string = GRAPH_BASE_URL,
   ) {}
 
-  private async request<T>(
+  /** Nó que recebe DM e resposta privada; no login do Facebook é a página. */
+  protected messagesPath(): string {
+    return `/${this.accountId}/messages`;
+  }
+
+  protected async request<T>(
     path: string,
     init?: { method?: "GET" | "POST"; body?: unknown },
   ): Promise<{ ok: true; data: T } | { ok: false; error: string; authError: boolean }> {
-    const url = `${GRAPH_BASE_URL}${path}`;
+    const url = `${this.baseUrl}${path}`;
     let response: Response;
 
     try {
@@ -89,7 +95,10 @@ export class InstagramGraphChannelGateway implements ChannelGateway {
       return {
         ok: false,
         error: describeError(response.status, body),
-        authError: response.status === 401 || response.status === 403,
+        authError:
+          response.status === 401 ||
+          response.status === 403 ||
+          (body as GraphError | null)?.error?.code === 190,
       };
     }
 
@@ -106,7 +115,7 @@ export class InstagramGraphChannelGateway implements ChannelGateway {
       : { id: input.externalUserId };
 
     const result = await this.request<{ message_id?: string }>(
-      `/${this.accountId}/messages`,
+      this.messagesPath(),
       {
         method: "POST",
         body: {

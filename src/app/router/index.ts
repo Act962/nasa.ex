@@ -25,6 +25,7 @@ import { forgeRouter } from "./forge";
 import { starsRouter } from "./stars";
 import { nboxRouter } from "./nbox";
 import { nasaPlannerRouter } from "./nasa-planner";
+import { externalAiRouter } from "./external-ai";
 import { nasaCommandRouter } from "./nasa-command";
 import { permissionsRouter } from "./permissions";
 import { activityRouter } from "./activity";
@@ -64,6 +65,7 @@ import { starFriendsRouter } from "./star-friends";
 import { base } from "@/app/middlewares/base";
 import { appRouterPermission } from "@/app/middlewares/app-router-permission";
 import { commentsRouter } from "./comments";
+import { socialAccountsRouter } from "./social-accounts";
 import { livekitRouter } from "./livekit";
 import { stickersRouter } from "./stickers";
 import { brandRouter } from "./brand";
@@ -114,6 +116,7 @@ export const router = {
   stars: starsRouter,
   nbox: nboxRouter,
   nasaPlanner: nasaPlannerRouter,
+  externalAi: externalAiRouter,
   nasaCommand: nasaCommandRouter,
   permissions: permissionsRouter,
   activity: activityRouter,
@@ -155,6 +158,7 @@ export const router = {
   starFriends: starFriendsRouter,
   /** App COMMENTS — automações de Instagram nativas (spec 0024). */
   comments: base.use(appRouterPermission("comments")).router(commentsRouter),
+  socialAccounts: socialAccountsRouter,
   livekit: livekitRouter,
   stickers: stickersRouter,
   brand: brandRouter,

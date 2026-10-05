@@ -34,34 +34,34 @@ export function ConfirmDialog({
       closeOnBackdropClick={!isLoading}
       hideCloseButton={isLoading}
     >
-      <div className="space-y-4">
-        <div className="flex gap-3">
-          <div className={`flex-shrink-0 p-2 rounded-lg ${isDangerous ? "bg-red-500/10" : "bg-yellow-500/10"}`}>
-            <AlertCircle
-              className={`w-6 h-6 ${isDangerous ? "text-red-400" : "text-yellow-400"}`}
-            />
+      <div className="space-y-5">
+        <div className="space-y-3">
+          <div
+            className={`grid size-10 flex-none place-items-center rounded-full ${isDangerous ? "bg-red-500/10" : "bg-yellow-500/10"}`}
+          >
+            <AlertCircle className={`size-5 ${isDangerous ? "text-red-400" : "text-yellow-400"}`} />
           </div>
-          <div>
-            <h3 className="font-bold text-white">{title}</h3>
-            <p className="text-sm text-zinc-400 mt-1">{description}</p>
+          <div className="min-w-0">
+            <h3 className="text-base leading-snug font-bold break-words text-white">{title}</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{description}</p>
           </div>
         </div>
 
-        <div className="flex gap-3 justify-end pt-4">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
+            type="button"
             onClick={onCancel}
             disabled={isLoading}
-            className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
+            className="rounded-full bg-zinc-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
           >
             {cancelText}
           </button>
           <button
+            type="button"
             onClick={onConfirm}
             disabled={isLoading}
-            className={`px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50 ${
-              isDangerous
-                ? "bg-red-600 hover:bg-red-700"
-                : "bg-violet-600 hover:bg-violet-700"
+            className={`rounded-full px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50 ${
+              isDangerous ? "bg-red-600 hover:bg-red-700" : "bg-violet-600 hover:bg-violet-700"
             }`}
           >
             {isLoading ? "Processando..." : confirmText}

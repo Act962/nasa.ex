@@ -6,6 +6,8 @@ import {
   MessageStatus,
 } from "@/features/tracking-chat/types";
 import { sendInstagramDm } from "@/http/meta/send-instagram-dm";
+import { sendInstagramFromChat } from "@/features/tracking-chat/server/instagram/send-instagram-from-chat";
+import type { InstagramMessageMetadata } from "@/features/tracking-chat/lib/instagram-message-metadata";
 import { sendFacebookMessage } from "@/http/meta/send-facebook-message";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
@@ -114,8 +116,23 @@ export const createTextMessage = base
       }
 
       let externalMessageId = uuidv4();
+      let instagramMetadata: InstagramMessageMetadata | null = null;
 
-      if (channel === MessageChannel.INSTAGRAM) {
+      const instagramSent =
+        channel === MessageChannel.INSTAGRAM && organizationId
+          ? await sendInstagramFromChat({
+              organizationId,
+              conversationId: input.conversationId,
+              leadPhone: input.leadPhone,
+              text: input.body,
+              quotedMessageInternalId: input.id,
+            })
+          : null;
+
+      if (instagramSent) {
+        externalMessageId = instagramSent.externalMessageId;
+        instagramMetadata = instagramSent.metadata;
+      } else if (channel === MessageChannel.INSTAGRAM) {
         const integration = await prisma.platformIntegration.findFirst({
           where: {
             platform: IntegrationPlatform.INSTAGRAM,
@@ -222,6 +239,7 @@ export const createTextMessage = base
           // Marca a origem da mensagem — In-Chat (página pública) ou
           // WhatsApp normal. Visível em Insights e ajuda no debug.
           viaInChat: inChatMode,
+          ...(instagramMetadata && { metadata: { instagram: instagramMetadata } }),
         },
         select: {
           id: true,
@@ -239,6 +257,7 @@ export const createTextMessage = base
           conversationId: true,
           senderId: true,
           senderName: true,
+          metadata: true,
           conversation: {
             select: {
               id: true,

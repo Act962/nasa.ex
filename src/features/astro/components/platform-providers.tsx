@@ -4,6 +4,7 @@ import { type ReactNode } from "react";
 import { MarketplaceProvider } from "@/features/integrations/context/marketplace-context";
 import { AstroProvider } from "./astro-provider";
 import { AstroWidgetPanel } from "./widget/astro-widget-panel";
+import { AstroAppBriefingBalloon } from "./widget/astro-app-briefing-balloon";
 import { AstroCreateCommandHost } from "@/features/astro-commander/components/astro-create-command-host";
 import { HeartbeatProvider } from "@/components/heartbeat-provider";
 import { SpacePointProvider } from "@/features/space-point";
@@ -39,6 +40,7 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
                   por cobrir o composer; agora o usuário arrasta para onde quiser. */}
               <AstroOrb />
               <AstroWidgetPanel />
+              <AstroAppBriefingBalloon />
               <AstroCreateCommandHost />
               <TourOverlay />
               <HeartbeatProvider />
@@ -58,6 +60,7 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
             <GlobalShortcutsRegistrar />
             <AstroOrb />
             <AstroWidgetPanel />
+            <AstroAppBriefingBalloon />
             <AstroCreateCommandHost />
             <CmdkPalette />
             <ConnectionWizardDialog />

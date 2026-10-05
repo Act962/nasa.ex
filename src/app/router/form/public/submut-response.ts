@@ -21,6 +21,7 @@ import {
   publishLeadCreated,
   publishLeadMoved,
 } from "@/features/leads/realtime/publish";
+import { extractResponseTagIds } from "@/features/form/lib/apply-response-tags";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 import { generateActionsForResponse } from "@/features/form/server/lib/generate-actions-for-response";
 import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
@@ -112,9 +113,7 @@ export const submitResponse = base
         }
       }
 
-      const tagIds: string[] = Object.values(JSON.parse(response))
-        .map((field: any) => field?.meta?.tagId)
-        .filter((tagId): tagId is string => Boolean(tagId));
+      const tagIds = extractResponseTagIds(response);
       let outLeadId: string | null = null;
       let outLeadName: string | null = null;
       let outLeadEmail: string | null = null;

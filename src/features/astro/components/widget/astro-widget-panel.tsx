@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import type { UIMessage } from "ai";
+import { XIcon } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { AstroEmbedScope } from "@/features/astro/components/astro-provider";
 import {
@@ -63,6 +64,7 @@ export function AstroWidgetPanel() {
   const panelRect = isMeasured ? computePanelRect(orbCenter, viewport) : null;
 
   return (
+    <>
     <section
       role="dialog"
       aria-label="Chat com o Astro"
@@ -71,7 +73,7 @@ export function AstroWidgetPanel() {
         "fixed z-[9050] flex flex-col overflow-hidden border border-foreground/10 bg-card text-foreground shadow-[0_30px_70px_-20px_rgba(0,0,0,0.6)]",
         panelRect
           ? "rounded-[22px]"
-          : "inset-x-0 bottom-0 h-[85dvh] rounded-t-[22px] sm:inset-x-auto sm:bottom-20 sm:right-5 sm:h-[min(620px,calc(100dvh-7rem))] sm:w-[400px] sm:rounded-[22px]",
+          : "inset-0 h-dvh border-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:inset-auto sm:bottom-20 sm:right-5 sm:h-[min(720px,calc(100dvh-7rem))] sm:w-[460px] sm:rounded-[22px] sm:border sm:pt-0 sm:pb-0",
       )}
       style={
         panelRect
@@ -86,6 +88,23 @@ export function AstroWidgetPanel() {
     >
       <AstroWidgetSession />
     </section>
+    {/* No computador o fechar fica do lado de fora, no canto do painel; no celular (tela cheia) ele está no cabeçalho. */}
+    {panelRect && isOpen && (
+      <button
+        type="button"
+        onClick={close}
+        aria-label="Fechar o chat"
+        title="Fechar"
+        className="fixed z-[9051] grid size-8 place-items-center rounded-full border border-line bg-card text-foreground/60 shadow-lg transition hover:scale-105 hover:text-foreground active:scale-95"
+        style={{
+          left: panelRect.left + panelRect.width - 20,
+          top: Math.max(4, panelRect.top - 12),
+        }}
+      >
+        <XIcon className="size-4" />
+      </button>
+    )}
+    </>
   );
 }
 

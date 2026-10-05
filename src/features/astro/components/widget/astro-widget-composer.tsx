@@ -89,7 +89,7 @@ export function AstroWidgetComposer({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="shrink-0 border-t border-foreground/[0.07] px-3 pb-3 pt-2.5">
+    <form onSubmit={handleSubmit} className="shrink-0 px-3 pb-3 pt-2.5">
       <div onDrop={handleDrop} onDragOver={handleDragOver}>
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5">
@@ -109,10 +109,10 @@ export function AstroWidgetComposer({
 
         <div
           className={cn(
-            "flex items-end gap-1 rounded-[26px] bg-foreground/[0.05] p-1.5 transition-shadow",
+            "flex items-end gap-1 rounded-[26px] bg-foreground/[0.05] p-1.5 transition-[background-color,box-shadow]",
             isListening
               ? "shadow-[inset_0_0_0_1.5px_rgba(59,130,246,0.85)]"
-              : "shadow-[inset_0_0_0_1.5px_rgba(139,92,246,0.45)] focus-within:shadow-[inset_0_0_0_1.5px_rgba(167,139,250,0.9)]",
+              : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--info)_55%,transparent)] focus-within:bg-foreground/[0.08] focus-within:shadow-[inset_0_0_0_1.5px_var(--info)]",
           )}
         >
           <input

@@ -7,6 +7,7 @@
  * org liga `financeEnabled` — escrita financeira sempre via proposta + "sim".
  */
 import "server-only";
+import { buildPlannerAdjustPrompt, tryPlannerChangesReply } from "@/features/nasa-planner/server/approval-whatsapp";
 import type {
   OrganizationBotConfig,
   UserWhatsappBinding,
@@ -202,6 +203,17 @@ export async function handleBotCommand(
     // leads temos" é `count()`, e os verbos executam em código — pelo
     // WhatsApp isso ia ao modelo caro e voltava "não consegui montar uma
     // resposta". Só vale sem anexo: documento é trabalho de modelo.
+    // "AJUSTE: motivo" respondendo a um aviso de aprovação do Planner (spec 0064, RF-5).
+    if (!media) {
+      const changesReply = await tryPlannerChangesReply({ binding, text: promptText }).catch((error: unknown) => {
+        console.warn("[astro-bot/router] ajuste do Planner falhou", error);
+        return null;
+      });
+      if (changesReply) {
+        return logAndReturn(binding, loggedText, { status: "ok", reply: changesReply, toolsCalled: ["planner.request_changes"], starsCharged: stake.starsCharged });
+      }
+    }
+
     if (!media) {
       const cheap = await tryCheapLayers({
         ctx: agentCtx,
@@ -226,6 +238,9 @@ export async function handleBotCommand(
       }
     }
 
+    const plannerAdjustPrompt = media ? null : await buildPlannerAdjustPrompt({ binding, text: promptText }).catch(() => null);
+    const orchestratorPrompt = plannerAdjustPrompt ?? promptText;
+
     const stream = await streamAstro({
       ctx: agentCtx,
       toolScope: isFinanceEnabled ? "assistant" : "insights",
@@ -237,7 +252,7 @@ export async function handleBotCommand(
         {
           id: "bot-cmd",
           role: "user",
-          parts: [{ type: "text", text: promptText }],
+          parts: [{ type: "text", text: orchestratorPrompt }],
         } as never,
       ],
     });
@@ -262,9 +277,25 @@ export async function handleBotCommand(
       }
     }
 
-    const formatted = cleanWhatsappReply(markdownToWhatsapp(finalText ?? ""), {
+    const formattedReply = cleanWhatsappReply(markdownToWhatsapp(finalText ?? ""), {
       hasStructured: structuredSummaries.length > 0,
     });
+    // O cartão de confirmação já traz o "Responda SIM…"; o modelo às vezes repete a instrução antes dele.
+    const hasConfirmationCard = structuredSummaries.some((summary) => /Responda \*SIM\*/.test(summary));
+    // Texto imitando cartão sem a tool ter criado um: o SIM confirmaria outra coisa. Nunca envia.
+    const isImitatedCard = !hasConfirmationCard && /responda\s+[_*]?sim|confira e confirme|confira o cart[aã]o|\[cart[aã]o/i.test(formattedReply);
+    if (isImitatedCard) {
+      console.warn("[astro-bot/router] resposta imitou cartão sem proposta — descartada");
+    }
+    const formatted = isImitatedCard
+      ? "Não consegui preparar o cartão desta vez. Pode repetir o pedido?"
+      : hasConfirmationCard
+      ? formattedReply
+          .split("\n")
+          .filter((line) => !/responda\s+[_*]?sim/i.test(line))
+          .join("\n")
+          .trim()
+      : formattedReply;
     const reply = [
       formatted || null,
       structuredSummaries.length > 0 ? structuredSummaries.join("\n\n") : null,

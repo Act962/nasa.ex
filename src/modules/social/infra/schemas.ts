@@ -6,11 +6,21 @@ import { z } from "zod";
  * dado velho ou torto é rejeitado, não três camadas adiante.
  */
 
-export const channelCredentialsSchema = z.object({
-  accessToken: z.string().min(1),
-  appSecret: z.string().min(1),
-  verifyToken: z.string().min(1),
-});
+export const channelCredentialsSchema = z
+  .object({
+    authMode: z.enum(["INSTAGRAM_LOGIN", "META_LOGIN"]).optional(),
+    accessToken: z.string().min(1),
+    appSecret: z.string().default(""),
+    verifyToken: z.string().default(""),
+    pageId: z.string().optional(),
+  })
+  .refine(
+    (credentials) =>
+      credentials.authMode === "META_LOGIN"
+        ? Boolean(credentials.pageId)
+        : Boolean(credentials.appSecret && credentials.verifyToken),
+    { message: "Credenciais incompletas para o modo de conexão." },
+  );
 
 export const messageButtonSchema = z.object({
   type: z.literal("URL").default("URL"),

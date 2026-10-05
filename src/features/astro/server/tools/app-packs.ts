@@ -16,6 +16,9 @@ import {
   buildWhatsAppSetupWriteTools,
 } from "@/features/astro/server/tools/whatsapp-setup";
 import { WHATSAPP_SETUP_SCOPE_PROMPT } from "@/features/astro/lib/prompts/whatsapp-setup";
+import { buildPlannerReadTools, buildPlannerWriteTools } from "@/features/astro/server/tools/planner";
+import "@/features/astro/server/tools/planner/executors";
+import { PLANNER_SCOPE_PROMPT } from "@/features/astro/lib/prompts/planner";
 
 /**
  * Registro dos "packs" de tools por app (spec 0014, D-1). É o ponto de
@@ -50,6 +53,13 @@ export const APP_TOOL_PACKS: Record<string, AppToolPack> = {
     read: buildWhatsAppSetupReadTools,
     write: buildWhatsAppSetupWriteTools,
     systemPrompt: WHATSAPP_SETUP_SCOPE_PROMPT,
+  },
+  // Planner (spec 0063): calendário, rascunhos, aprovações, números e Kit da Marca; criar e programar por proposta.
+  planner: {
+    appSlug: "nasa-planner",
+    read: buildPlannerReadTools,
+    write: buildPlannerWriteTools,
+    systemPrompt: PLANNER_SCOPE_PROMPT,
   },
 };
 

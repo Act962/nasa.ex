@@ -10,8 +10,8 @@ export const ORB_EDGE_MARGIN_PX = 12;
 /** Posição padrão: canto inferior direito, como sempre foi (`bottom-5 right-5`). */
 const DEFAULT_OFFSET_PX = 20;
 
-const PANEL_WIDTH_PX = 400;
-const PANEL_MAX_HEIGHT_PX = 620;
+const PANEL_WIDTH_PX = 460;
+const PANEL_MAX_HEIGHT_PX = 720;
 const PANEL_MIN_HEIGHT_PX = 360;
 const PANEL_GAP_PX = 12;
 /** Abaixo disso o painel vira folha de baixo, largura inteira (celular). */

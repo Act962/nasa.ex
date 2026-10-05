@@ -29,11 +29,10 @@ const starsBalance: AstroQuery = {
   },
 };
 
-/** Apps cujos dados o ASTRO ainda não lê. A resposta é o caminho, não um palpite. */
+/** Apps cujos dados o ASTRO ainda não lê. A resposta é o caminho, não um palpite. O Planner saiu daqui: tem pacote de tools (spec 0063). */
 const UNREADABLE_APPS: { pattern: RegExp; appName: string; href: string }[] = [
   { pattern: /\b(instagram|comments?|comentarios?|direct)\b/, appName: "Comments", href: "/comments" },
   { pattern: /\b(campanhas?|disparos?)\b/, appName: "Campanhas", href: "/campanhas" },
-  { pattern: /\b(planner|posts?|publicacoes?)\b/, appName: "Planner", href: "/nasa-planner" },
   { pattern: /\b(trafego|anuncios?|meta ads|facebook ads)\b/, appName: "trafeGO", href: "/trafego/painel" },
   { pattern: /\b(cursos?|alunos?|route)\b/, appName: "ÓRBITA Route", href: "/nasa-route" },
 ];

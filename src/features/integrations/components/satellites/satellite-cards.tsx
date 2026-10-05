@@ -49,7 +49,8 @@ interface ActivePlatformCardProps {
   isProvidedByOrbita?: boolean;
   canManage: boolean;
   onConfigure: () => void;
-  onDisconnect: () => void;
+  /** Ausente quando o satélite não se desliga por aqui (ex.: contas do Instagram). */
+  onDisconnect?: () => void;
   /** Conteúdo extra abaixo do estado, ex.: consumo e saldo da IA própria (spec 0055). */
   footer?: React.ReactNode;
 }
@@ -98,9 +99,11 @@ export function ActivePlatformCard({
                 <Settings2Icon />
                 Configurar
               </Button>
-              <Button size="icon" variant="ghost" className="size-8" aria-label="Desconectar" onClick={onDisconnect}>
-                <UnplugIcon />
-              </Button>
+              {onDisconnect && (
+                <Button size="icon" variant="ghost" className="size-8" aria-label="Desconectar" onClick={onDisconnect}>
+                  <UnplugIcon />
+                </Button>
+              )}
             </>
           )}
         </div>

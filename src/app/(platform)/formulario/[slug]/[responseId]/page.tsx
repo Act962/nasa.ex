@@ -18,6 +18,7 @@ import { FormLeadProvider } from "@/features/form/context/form-lead-context";
 import type { FieldValue, FormBlockInstance } from "@/features/form/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { orpc } from "@/lib/orpc";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 
 const FormPrintButton = dynamic(
   () =>
@@ -262,6 +263,7 @@ export default function Page() {
               </span>
             </div>
           )}
+          <FullscreenControls />
         </div>
       </header>
 

@@ -8,8 +8,12 @@ function useInvalidateAutomations() {
   return () => queryClient.invalidateQueries({ queryKey: orpc.comments.key() });
 }
 
-export function useCommentsAutomations() {
-  return useQuery(orpc.comments.automations.list.queryOptions({ input: {} }));
+/** Automações de uma conta (spec 0069, RF-13). */
+export function useCommentsAutomations(channelId: string | null) {
+  return useQuery({
+    ...orpc.comments.automations.list.queryOptions({ input: { channelId: channelId ?? "" } }),
+    enabled: Boolean(channelId),
+  });
 }
 
 export function useCommentsAutomation(id: string, enabled = true) {
@@ -58,10 +62,10 @@ export function useSaveCommentsTrigger() {
   );
 }
 
-export function useCommentsRuns(automationId?: string) {
+export function useCommentsRuns({ channelId, automationId }: { channelId?: string | null; automationId?: string }) {
   return useQuery(
     orpc.comments.automations.listRuns.queryOptions({
-      input: { automationId, limit: 20 },
+      input: { channelId: channelId ?? undefined, automationId, limit: 20 },
     }),
   );
 }

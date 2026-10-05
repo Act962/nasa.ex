@@ -22,6 +22,7 @@ import { DeleteAgendaModal } from "./delete-agenda-modal";
 import Link from "next/link";
 import { CopyLinkWithUtm } from "@/components/ui/copy-link-with-utm";
 import { AppReportButton } from "@/features/insights/components/app-report-button";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 
 interface HeaderAgendaProps {
   agendaId: string;
@@ -109,6 +110,7 @@ export function HeaderAgenda({ agendaId }: HeaderAgendaProps) {
               <TrashIcon />
             </Button>
           </ButtonGroup>
+          <FullscreenControls />
         </div>
       </div>
 

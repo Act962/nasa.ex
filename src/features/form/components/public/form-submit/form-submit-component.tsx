@@ -298,7 +298,13 @@ export function FormSubmitComponent({
     };
     blocks.forEach(walkBlock);
     setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    return Object.keys(errors);
+  };
+
+  const scrollToField = (blockId: string) => {
+    document
+      .querySelector(`[data-form-field-id="${CSS.escape(blockId)}"]`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   const persistPartial = async () => {
@@ -375,8 +381,10 @@ export function FormSubmitComponent({
   };
 
   const handleSubmit = async () => {
-    if (!validateFormBlocks()) {
-      toast("Campos obrigatórios não preenchidos");
+    const invalidBlockIds = validateFormBlocks();
+    if (invalidBlockIds.length > 0) {
+      toast.error("Preencha os campos obrigatórios destacados");
+      scrollToField(invalidBlockIds[0]);
       return;
     }
     setIsLoading(true);

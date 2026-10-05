@@ -10,7 +10,7 @@ import { buildChartTools } from "@/features/astro/server/tools/charts";
 import { buildInsightsReportTools } from "@/features/astro/server/tools/insights-reports";
 import { buildWorkflowTools } from "@/features/astro/server/tools/workflows";
 import { buildProposalTools } from "@/features/astro/server/tools/_shared/proposals/confirm-tools";
-import { listAppToolPacks } from "@/features/astro/server/tools/app-packs";
+import { APP_TOOL_PACKS, listAppToolPacks } from "@/features/astro/server/tools/app-packs";
 import { buildTrafegoAstroTools } from "@/features/trafego/server/lib/astro-tools";
 import { buildActionRegistryTools } from "@/features/astro/actions/to-tools";
 import { buildGuideTools } from "@/features/astro/server/tools/guides";
@@ -62,7 +62,13 @@ export function resolveToolSetForScope(scope: AstroToolScope, ctx: AgentContext)
   }
 
   if (scope === "insights") {
-    return { tools: buildPlatformReadTools(ctx), packPrompts: "", allowsRouting: false };
+    // Planner entra no WhatsApp sem financeiro (spec 0064, D-3): só escreve por proposta confirmada.
+    const plannerPack = APP_TOOL_PACKS.planner;
+    return {
+      tools: { ...buildPlatformReadTools(ctx), ...plannerPack.read(ctx), ...plannerPack.write(ctx), ...buildProposalTools(ctx) },
+      packPrompts: plannerPack.systemPrompt,
+      allowsRouting: false,
+    };
   }
 
   const packs = buildAppPackTools(ctx, true);

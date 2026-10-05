@@ -9,6 +9,7 @@ import { updateAstroAgentConfig } from "./update-agent-config";
 import { getAstroAiMode, setAstroAiMode } from "./ai-mode";
 import { getAstroUsageSummary } from "./usage-summary";
 import { getAstroModelPricing, setAstroModelPricing } from "./model-pricing";
+import { getAstroAppBriefing } from "./app-briefing";
 import { searchEntities } from "@/app/router/astro/search-entities";
 
 export const astroRoutes = {
@@ -29,6 +30,7 @@ export const astroRoutes = {
     set: setAstroAiMode,
   },
   usageSummary: getAstroUsageSummary,
+  appBriefing: getAstroAppBriefing,
   modelPricing: {
     get: getAstroModelPricing,
     set: setAstroModelPricing,

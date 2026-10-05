@@ -12,6 +12,7 @@ interface Props {
 }
 
 function buildVideoUrl(key: string) {
+  if (key.startsWith("http")) return key;
   const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES;
   const endpoint = process.env.NEXT_PUBLIC_S3_PUBLIC_URL;
   if (endpoint) return `${endpoint}/${key}`;

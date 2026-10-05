@@ -65,6 +65,8 @@ export interface Message {
     };
   };
   quotedMessage?: Message | null;
+  /** `metadata.instagram` marca comentário/DM do Instagram (spec 0062). */
+  metadata?: unknown;
 }
 
 export interface MarkedMessage {
@@ -77,6 +79,7 @@ export interface MarkedMessage {
   mediaUrl?: string | null;
   mimetype?: string | null;
   fileName?: string | null;
+  metadata?: unknown;
   lead: {
     id: string;
     name: string;

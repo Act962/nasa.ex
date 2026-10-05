@@ -17,6 +17,14 @@ import type { UIMessage } from "ai";
 const HISTORY_MAX_TURNS = 6;
 const HISTORY_WINDOW_MINUTES = 30;
 
+/**
+ * O cartão de confirmação sai do histórico. Com o cartão inteiro na memória, o modelo
+ * passa a escrevê-lo como texto em vez de chamar a tool — e o "SIM" confirmaria o cartão velho (spec 0064).
+ */
+function summarizeConfirmationCards(responseText: string): string {
+  return responseText.replace(/📝 [*_](.+?)[*_]\n[\s\S]*?Responda [*_]SIM[*_][^\n]*/g, "").replace(/\[cart[aã]o[^\]]*\]/g, "").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export async function loadRecentBotHistory(
   bindingId: string,
 ): Promise<UIMessage[]> {
@@ -42,7 +50,7 @@ export async function loadRecentBotHistory(
       messages.push({
         id: `hist-assistant-${turnKey}`,
         role: "assistant",
-        parts: [{ type: "text", text: command.responseSummary }],
+        parts: [{ type: "text", text: summarizeConfirmationCards(command.responseSummary) }],
       } as never);
     }
   }

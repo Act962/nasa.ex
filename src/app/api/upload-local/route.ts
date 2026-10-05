@@ -6,6 +6,9 @@ import { v4 as uuidv4 } from "uuid";
 // Fallback local upload — only used when S3 is not configured.
 // Files are saved to /public/uploads/ and served as static assets.
 
+const DEV_VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
+const DEV_VIDEO_MAX_BYTES = 200 * 1024 * 1024;
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -16,13 +19,15 @@ export async function POST(req: NextRequest) {
     }
 
     const ALLOWED = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml", "image/avif"];
-    if (!ALLOWED.includes(file.type) && !file.name.endsWith(".svg")) {
+    // Vídeo só em desenvolvimento: sem R2 local, é o único jeito de testar Reel e Story em vídeo.
+    const isDevVideo = process.env.NODE_ENV !== "production" && DEV_VIDEO_TYPES.includes(file.type);
+    if (!ALLOWED.includes(file.type) && !file.name.endsWith(".svg") && !isDevVideo) {
       return NextResponse.json({ error: `Tipo não suportado: ${file.type}` }, { status: 400 });
     }
 
-    const MAX = 10 * 1024 * 1024;
+    const MAX = isDevVideo ? DEV_VIDEO_MAX_BYTES : 10 * 1024 * 1024;
     if (file.size > MAX) {
-      return NextResponse.json({ error: "Arquivo muito grande. Máx 10MB." }, { status: 400 });
+      return NextResponse.json({ error: `Arquivo muito grande. Máx ${Math.round(MAX / 1024 / 1024)}MB.` }, { status: 400 });
     }
 
     const ext = file.name.split(".").pop() ?? "bin";

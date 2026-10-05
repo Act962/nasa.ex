@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { applyInboundAutoTags, loadAwaitingState } from "@/features/org-defaults/lib/auto-tags"
 import { pusherServer } from "@/lib/pusher"
+import { isMetaLoginInstagramAccount, processMetaCommentsWebhookSafely } from "@/features/comments/server/meta-webhook"
 import prisma from "@/lib/prisma"
 import { LeadSource, IntegrationPlatform } from "@/generated/prisma/enums"
 import { S3 } from "@/lib/s3-client"
@@ -44,13 +45,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const rawBody = await request.text()
+    const body = JSON.parse(rawBody)
+
+    if (body.object === "instagram") {
+      await processMetaCommentsWebhookSafely({
+        rawBody,
+        signatureHeader: request.headers.get("x-hub-signature-256"),
+      })
+    }
 
     if (body.object !== "instagram") {
       return NextResponse.json({ success: true }, { status: 200 })
     }
 
     for (const entry of body.entry ?? []) {
+      if (entry.id && (await isMetaLoginInstagramAccount(entry.id))) continue
       for (const event of entry.messaging ?? []) {
         const senderId: string = event.sender?.id
         const message = event.message

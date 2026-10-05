@@ -11,7 +11,7 @@ import {
   CheckCircle2Icon, ClockIcon, SendIcon, DownloadIcon,
   RocketIcon, TrashIcon, CheckIcon,
 } from "lucide-react";
-import { POST_STATUSES } from "../../constants";
+import { MANUAL_POST_STATUSES } from "../../constants";
 import type { MenuAction } from "./types";
 
 interface Post {
@@ -81,7 +81,7 @@ export function PostCardDropdownMenu({ post, onAction }: Props) {
             <RocketIcon className="size-3.5 mr-2" />Mover para
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            {POST_STATUSES.map((s) => (
+            {MANUAL_POST_STATUSES.map((s) => (
               <DropdownMenuItem
                 key={s.key}
                 disabled={post.status === s.key}

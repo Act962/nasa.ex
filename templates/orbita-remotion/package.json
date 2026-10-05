@@ -1,0 +1,23 @@
+{
+  "name": "orbita-remotion",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio",
+    "reel": "remotion render PostReel out/reel.mp4 --props=props/reel.json",
+    "story": "remotion render StoryFrame out/story.mp4 --props=props/story.json",
+    "card": "remotion still CarouselSlide out/card.png --props=props/carousel-slide.json",
+    "feed": "remotion still FeedPost out/feed.png --props=props/feed.json"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.532",
+    "@remotion/google-fonts": "4.0.532",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "4.0.532"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.6.0"
+  }
+}

@@ -9,8 +9,6 @@ import { createPost } from "./create-post";
 import { updatePost } from "./update-post";
 import { deletePost } from "./delete-post";
 import { generatePost } from "./generate-post";
-import { approvePost } from "./approve-post";
-import { schedulePost } from "./schedule-post";
 import { listMindMaps } from "./list-mind-maps";
 import { getMindMap } from "./get-mind-map";
 import { createMindMap } from "./create-mind-map";
@@ -37,7 +35,6 @@ import { deleteCampaignBrandAsset } from "./delete-campaign-brand-asset";
 import { getCampaignCalendar } from "./get-campaign-calendar";
 import { getPublicCalendar } from "./get-public-calendar";
 import { generateCampaignBrief } from "./generate-campaign-brief";
-import { publishPost } from "./publish-post";
 import { generateImageFromPrompt } from "./generate-image-from-prompt";
 import { uploadPostImage } from "./upload-post-image";
 import { updatePostSlide } from "./update-post-slide";
@@ -46,7 +43,6 @@ import { attachVideo } from "./attach-video";
 import { addVideoClip } from "./add-video-clip";
 import { saveEditedVideo } from "./save-edited-video";
 import { generateVideoClip } from "./generate-video-clip";
-import { schedulePostReal } from "./schedule-post-real";
 import { generateImageFromReference } from "./generate-image-from-reference";
 import { transcribeVideo } from "./transcribe-video";
 import { removePostMedia } from "./remove-post-media";
@@ -54,6 +50,51 @@ import { removePostSlide } from "./remove-post-slide";
 import { addSlidesBatch } from "./add-slides-batch";
 import { syncPostMetrics } from "./sync-post-metrics";
 import { generatePostImage } from "./generate-post-image";
+import {
+  listCalendarDrafts,
+  listCalendarMoments,
+  listCalendarPosts,
+  listCalendarSlots,
+  listPlannerClients,
+} from "./v2/calendar";
+import { approve, comment, listReviews, requestChanges, submitForApproval } from "./v2/approval";
+import { listAccounts, postMetrics, publishNow, retryPublish, schedule, unschedule } from "./v2/publishing";
+import {
+  addPlannerBrandKitAsset,
+  createPlannerBrandKit,
+  deletePlannerBrandKit,
+  generateScriptsWithAstro,
+  getPlannerBrandKit,
+  listPlannerBrandKits,
+  removePlannerBrandKitAsset,
+  renamePlannerBrandKit,
+  savePlannerBrandKit,
+  setPlannerAccountBrandKit,
+} from "./v2/brand-kit";
+import { discardCreation, importCreation, listCreations } from "./v2/creations";
+import { getPlannerDashboard, listBoardPosts } from "./v2/board";
+import { parseWeeklyScriptText } from "./v2/weekly-script";
+import { deletePostComment, editOwnPostComment, listPostComments, replyToPostComment, setPostCommentHidden } from "./v2/post-comments";
+import {
+  createClientPost,
+  deletePillar,
+  deleteSlot,
+  getGoals,
+  listPillars,
+  listWeekdayThemes,
+  setApprovalRequired,
+  setGoal,
+  setWeekdayTheme,
+  upsertPillar,
+  upsertSlot,
+} from "./v2/planning";
+import {
+  createScheduledBroadcastForClient,
+  getPostComments,
+  listBroadcastsInRange,
+  listBroadcastTemplates,
+  savePostComments,
+} from "./v2/integrations";
 
 export const nasaPlannerRouter = {
   planners: {
@@ -63,6 +104,23 @@ export const nasaPlannerRouter = {
     update: updatePlanner,
     delete: deletePlanner,
   },
+  creations: {
+    list: listCreations,
+    discard: discardCreation,
+    import: importCreation,
+  },
+  brandKit: {
+    list: listPlannerBrandKits,
+    get: getPlannerBrandKit,
+    create: createPlannerBrandKit,
+    rename: renamePlannerBrandKit,
+    delete: deletePlannerBrandKit,
+    setAccountKit: setPlannerAccountBrandKit,
+    save: savePlannerBrandKit,
+    addAsset: addPlannerBrandKitAsset,
+    removeAsset: removePlannerBrandKitAsset,
+    generateScripts: generateScriptsWithAstro,
+  },
   posts: {
     getMany: getPosts,
     getOne: getPost,
@@ -70,9 +128,22 @@ export const nasaPlannerRouter = {
     update: updatePost,
     delete: deletePost,
     generate: generatePost,
-    approve: approvePost,
-    schedule: schedulePost,
-    publish: publishPost,
+    approve,
+    // Planner v2 (spec 0057): programar/publicar passam pelo fluxo único; `publish` virou "publicar agora" assíncrono.
+    schedule,
+    unschedule,
+    publish: publishNow,
+    publishNow,
+    retryPublish,
+    metrics: postMetrics,
+    instagramComments: {
+      list: listPostComments,
+      reply: replyToPostComment,
+      setHidden: setPostCommentHidden,
+      delete: deletePostComment,
+      editOwn: editOwnPostComment,
+    },
+    createForClient: createClientPost,
     generateImage: generateImageFromPrompt,
     uploadImage: uploadPostImage,
     updateSlide: updatePostSlide,
@@ -81,7 +152,7 @@ export const nasaPlannerRouter = {
     addVideoClip: addVideoClip,
     saveEditedVideo: saveEditedVideo,
     generateVideoClip: generateVideoClip,
-    scheduleReal: schedulePostReal,
+    scheduleReal: schedule,
     generateImageFromReference: generateImageFromReference,
     transcribeVideo: transcribeVideo,
     removeMedia: removePostMedia,
@@ -107,6 +178,50 @@ export const nasaPlannerRouter = {
   calendar: {
     share: createCalendarShare,
     getShare: getCalendarShare,
+    // Planner v2 (spec 0058): calendário multi-cliente
+    posts: listCalendarPosts,
+    drafts: listCalendarDrafts,
+    slots: listCalendarSlots,
+    moments: listCalendarMoments,
+    broadcasts: listBroadcastsInRange,
+    board: listBoardPosts,
+  },
+  dashboard: {
+    summary: getPlannerDashboard,
+  },
+  comments: {
+    get: getPostComments,
+    save: savePostComments,
+  },
+  broadcasts: {
+    templates: listBroadcastTemplates,
+    createScheduled: createScheduledBroadcastForClient,
+  },
+  clients: {
+    list: listPlannerClients,
+  },
+  publishAccounts: {
+    list: listAccounts,
+  },
+  approval: {
+    submit: submitForApproval,
+    requestChanges,
+    approve,
+    comment,
+    listReviews,
+  },
+  planning: {
+    getGoals,
+    setGoal,
+    upsertSlot,
+    deleteSlot,
+    listPillars,
+    upsertPillar,
+    deletePillar,
+    setApprovalRequired,
+    listWeekdayThemes,
+    setWeekdayTheme,
+    parseWeeklyScript: parseWeeklyScriptText,
   },
   campaigns: {
     list: listCampaigns,

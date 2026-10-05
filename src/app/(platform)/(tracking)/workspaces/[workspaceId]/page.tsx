@@ -1,6 +1,9 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { NavWorkspace } from "@/features/workspace/components/nav-workspace";
 import { WorkspaceBoard } from "@/features/workspace/components/workspace";
-import { client } from "@/lib/orpc";
+import { auth } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 
 interface Props {
   params: Promise<{ workspaceId: string }>;
@@ -10,9 +13,17 @@ interface Props {
 export default async function Page({ params }: Props) {
   const { workspaceId } = await params;
 
-  const { workspace } = await client.workspace.get({
-    workspaceId,
+  // Consulta direta, sem o cliente oRPC do servidor: em produção ele falhava aqui, o erro caía no
+  // error.tsx e o projeto "não abria" (voltava para a lista sem aviso).
+  const session = await auth.api.getSession({ headers: await headers() });
+  const organizationId = session?.session.activeOrganizationId;
+  if (!organizationId) redirect("/workspaces");
+
+  const workspace = await prisma.workspace.findFirst({
+    where: { id: workspaceId, organizationId },
+    select: { name: true },
   });
+  if (!workspace) redirect("/workspaces");
 
   return (
     <>

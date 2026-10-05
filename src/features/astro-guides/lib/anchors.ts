@@ -5,7 +5,59 @@
 export const GUIDE_ANCHORS = {
   commentsConnectInstagram: {
     id: "comments.connect-instagram",
-    description: "Botão \"Conectar Instagram passo a passo\" em /comments → Integrações",
+    description: "Botão que abre o passo a passo para conectar uma conta do Instagram, em /comments → Integrações e nos Satélites",
+  },
+  commentsAccountSelect: {
+    id: "comments.account-select",
+    description: "Seletor da conta do Instagram em uso, no topo de /comments",
+  },
+  plannerAccountFilter: {
+    id: "planner.account-filter",
+    description: "Filtro \"Conta\" do calendário do Planner: mostra só os posts de uma conta do Instagram",
+  },
+  plannerBrandKitSwitcher: {
+    id: "planner.brand-kit.switcher",
+    description: "Lista de kits da empresa (padrão e adicionais) e o botão \"Novo kit\", na aba Kit da Marca do Planner",
+  },
+  plannerBrandKitPage: {
+    id: "planner.brand-kit.page",
+    description: "Tela Kit da Marca do Planner (logos, cores, fontes, voz, produtos, materiais e referências)",
+  },
+  plannerBrandKitMeter: {
+    id: "planner.brand-kit.meter",
+    description: "Medidor de completude do Kit da Marca, com o que falta",
+  },
+  plannerAstroGenerate: {
+    id: "planner.astro-generate",
+    description: "Botão \"Gerar com o Astro\" no Roteiro do Novo conteúdo",
+  },
+  externalAiGenerateKey: {
+    id: "external-ai.generate-key",
+    description: "Botão \"Gerar chave\" em Satélites → IA externa (MCP do ÓRBITA para Claude Code)",
+  },
+  plannerWeeklyMindMap: {
+    id: "planner.weekly-mind-map",
+    description: "Botão \"Planejar a semana\" da aba Mapas Mentais do Planner",
+  },
+  plannerWeekdayTheme: {
+    id: "planner.weekday-theme",
+    description: "Etiqueta do tema fixo do dia da semana, acima do dia no calendário semanal do Planner",
+  },
+  plannerContentFilter: {
+    id: "planner.content-filter",
+    description: "Filtro \"Conteúdo\" do calendário do Planner (pautas da semana com o botão Criar)",
+  },
+  plannerImportWeeklyScript: {
+    id: "planner.import-weekly-script",
+    description: "Opção \"Conteúdo (roteiro da semana)\" do menu Criar do Planner",
+  },
+  plannerCreationsTab: {
+    id: "planner.creations-tab",
+    description: "Filtro \"Origem\" do Kanban do Planner (conteúdos criados por IA)",
+  },
+  commentsConnectWithMeta: {
+    id: "comments.connect-with-meta",
+    description: "Botão \"Usar @conta\" que conecta o Instagram já ligado na Meta",
   },
   trackingList: {
     id: "tracking.list",
@@ -426,6 +478,86 @@ export const GUIDE_ANCHORS = {
   plannerPostSubmit: {
     id: "planner.post.submit",
     description: "Botão \"Criar Post\"",
+  },
+  plannerCalendar: {
+    id: "planner.calendar",
+    description: "Calendário do Planner (Semana/Mês) em /nasa-planner",
+  },
+  plannerTodayButton: {
+    id: "planner.today-button",
+    description: "Botão \"Hoje\" do calendário do Planner",
+  },
+  plannerViewToggle: {
+    id: "planner.view-toggle",
+    description: "Alternador Semana | Mês do calendário do Planner",
+  },
+  plannerClientFilter: {
+    id: "planner.client-filter",
+    description: "Filtro de clientes (empresas) do calendário do Planner",
+  },
+  plannerTypeFilter: {
+    id: "planner.type-filter",
+    description: "Filtro de formato (Feed, Carrossel, Reel, Story) do Planner",
+  },
+  plannerCreateMenu: {
+    id: "planner.create-menu",
+    description: "Botão \"Criar\" do calendário do Planner",
+  },
+  plannerBestTimeSlot: {
+    id: "planner.best-time-slot",
+    description: "Horário sugerido tracejado \"Programar\" no calendário",
+  },
+  plannerDraftsTab: {
+    id: "planner.side-panel.drafts",
+    description: "Coluna \"Rascunho\" do Kanban do Planner",
+  },
+  plannerApprovalTab: {
+    id: "planner.side-panel.approval",
+    description: "Coluna \"Aguardando aprovação\" do Kanban do Planner",
+  },
+  plannerComposerClient: {
+    id: "planner.composer.client",
+    description: "Escolha do cliente e da conta no criador de post",
+  },
+  plannerComposerType: {
+    id: "planner.composer.type",
+    description: "Escolha do formato no criador de post",
+  },
+  plannerComposerSubmitApproval: {
+    id: "planner.composer.submit-approval",
+    description: "Botão \"Enviar para aprovação\" no criador de post",
+  },
+  plannerComposerSchedule: {
+    id: "planner.composer.schedule",
+    description: "Botão \"Programar\" no criador de post",
+  },
+  plannerReelCoverFromVideo: {
+    id: "planner.reel.cover-from-video",
+    description: "Botão \"Usar este quadro\" que define a capa do Reel a partir do vídeo",
+  },
+  plannerReviewApprove: {
+    id: "planner.review.approve",
+    description: "Botão \"Aprovar\" na revisão do post",
+  },
+  plannerReviewRequestChanges: {
+    id: "planner.review.request-changes",
+    description: "Botão \"Pedir ajustes\" na revisão do post",
+  },
+  plannerCommentsPanel: {
+    id: "planner.comments-panel",
+    description: "Painel \"Comentários automáticos\" (Comments) dentro do post do Planner",
+  },
+  plannerCommentsSave: {
+    id: "planner.comments-save",
+    description: "Botão \"Salvar automação\" do Comments no post do Planner",
+  },
+  plannerBroadcastSubmit: {
+    id: "planner.broadcast-submit",
+    description: "Botão \"Programar disparo\" do disparo de WhatsApp no Planner",
+  },
+  plannerFailedRetry: {
+    id: "planner.failed-retry",
+    description: "Botão \"Tentar de novo\" de post que falhou",
   },
   routeNewCourseButton: {
     id: "route.new-course",

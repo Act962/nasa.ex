@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { SaveStatus } from "./builder";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 
 interface Props {
   page: {
@@ -321,6 +322,7 @@ export function BuilderTopbar({
               ? "Atualizar"
               : "Publicar"}
         </Button>
+        <FullscreenControls />
       </header>
       <PublishDialog open={publishOpen} onOpenChange={setPublishOpen} pageId={page.id} />
 

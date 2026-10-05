@@ -61,6 +61,13 @@ export function LeadStep({
   onContinue,
   existingLeadHint,
 }: LeadStepProps) {
+  // Os inputs herdam o tema do app; no form o fundo é do formulário, então
+  // ficam transparentes e seguem a cor de contraste.
+  const fieldStyle: React.CSSProperties = {
+    color: textColor || undefined,
+    borderColor: textColor ? `${textColor}40` : undefined,
+  };
+
   return (
     <>
       <Card
@@ -78,7 +85,8 @@ export function LeadStep({
               <Input
                 id="lead_name"
                 placeholder="Seu nome"
-                style={{ color: textColor || undefined }}
+                className="bg-transparent!"
+                style={fieldStyle}
                 value={leadInfo.name}
                 onChange={(e) => onNameChange(e.target.value)}
               />
@@ -95,7 +103,8 @@ export function LeadStep({
                 id="lead_email"
                 placeholder="seu@email.com"
                 type="email"
-                style={{ color: textColor || undefined }}
+                className="bg-transparent!"
+                style={fieldStyle}
                 value={leadInfo.email}
                 onChange={(e) => onEmailChange(e.target.value)}
               />
@@ -108,7 +117,10 @@ export function LeadStep({
           {showPhone && (
             <Field>
               <FieldLabel htmlFor="lead_phone">Telefone</FieldLabel>
-              <InputGroup>
+              <InputGroup
+                className="bg-transparent!"
+                style={{ borderColor: fieldStyle.borderColor }}
+              >
                 <InputGroupAddon align="inline-start">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

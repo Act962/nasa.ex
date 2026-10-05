@@ -103,6 +103,11 @@ export class UazapiBotChannel implements WhatsappBotChannel {
     return { messageId: result?.id ?? null };
   }
 
+  /** Canal legado (sem uso): manda o link da imagem em texto. O caminho atual é `TrackingProviderBotChannel`. */
+  async sendMedia(phone: string, media: { url: string; caption?: string }): Promise<{ messageId: string | null }> {
+    return this.sendText(phone, [media.caption, media.url].filter(Boolean).join("\n"));
+  }
+
   async sendTyping(_phone: string, _durationMs: number): Promise<void> {
     // uazapi não tem endpoint dedicado pra typing indicator — o `delay`
     // do sendText já gera typing automaticamente. Implementação no-op

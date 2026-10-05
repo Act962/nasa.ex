@@ -68,7 +68,7 @@ export function AstroSpeechFeed({
       type="button"
       onClick={handleClick}
       aria-live="polite"
-      className={cn(POINTER_RADIUS[pointsTo], "max-w-[min(280px,calc(100vw-2.5rem))] bg-white px-3.5 py-2.5 pr-7 text-left text-foreground shadow-[0_10px_26px_-8px_rgba(0,0,0,0.5)] transition-colors hover:bg-panel")}
+      className={cn(POINTER_RADIUS[pointsTo], "max-w-[min(280px,calc(100vw-2.5rem))] border border-line bg-popover px-3.5 py-2.5 pr-7 text-left text-popover-foreground shadow-[0_10px_26px_-8px_rgba(0,0,0,0.5)] transition-colors hover:bg-panel")}
     >
       {voiceHint ? (
         <span className="text-[0.9rem] leading-snug">{voiceHint}</span>

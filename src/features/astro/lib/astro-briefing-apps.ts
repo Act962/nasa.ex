@@ -1,0 +1,25 @@
+/** Apps com resumo no painel do Astro (spec 0056); compartilhado entre a procedure e a tela. */
+export const ASTRO_BRIEFING_APPS = [
+  "forms",
+  "tracking",
+  "chat",
+  "agenda",
+  "workspace",
+  "forge",
+  "campanhas",
+  "contacts",
+  "pages",
+  "linnker",
+  "nbox",
+  "insights",
+  "planner",
+  "route",
+  "trafego",
+  "integrations",
+  "starFriends",
+  "spaceStation",
+  "spaceHelp",
+  "finance",
+  "accounting",
+] as const;
+export type AstroBriefingApp = (typeof ASTRO_BRIEFING_APPS)[number];

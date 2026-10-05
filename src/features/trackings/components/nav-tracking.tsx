@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { useAddLead } from "@/hooks/modal/use-add-lead";
 import AddLeadSheet from "@/features/trackings/components/modal/add-lead-sheet";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 
 export function NavTracking() {
   const params = useParams<{ trackingId: string; workflowId: string }>();
@@ -145,6 +146,7 @@ export function NavTracking() {
               Novo Lead
             </Button>
           )}
+          <FullscreenControls />
         </div>
       </div>
 

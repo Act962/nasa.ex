@@ -5,6 +5,8 @@ import { IntegrationPlatform } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import { consumeSession, getSessionByProvider } from "@/features/integrations/lib/oauth/session-cache";
 import { z } from "zod";
+import { disablePublishAccountsOutsideSelection, upsertPublishAccounts } from "@/features/nasa-planner/server/publishing/publish-accounts";
+import { refreshMetaLinkedChannels } from "@/features/social-accounts/server/meta-login-channel";
 
 const FinalizeInput = z.object({
   oauthSessionId: z.string().min(8),
@@ -66,6 +68,20 @@ export const oauthFinalize = base
           isActive: true,
         },
       });
+
+      // Planner (spec 0057, RF-2): cada página e conta IG escolhida guarda o próprio token, cifrado.
+      const selectedIgAccounts = sess.igAccounts.filter((igAccount) => input.selectedIgAccountIds.includes(igAccount.id));
+      const publishPageIds = new Set([...input.selectedPageIds, ...selectedIgAccounts.map((igAccount) => igAccount.page_id)]);
+      await upsertPublishAccounts(
+        orgId,
+        sess.pages.filter((page) => publishPageIds.has(page.id)),
+        selectedIgAccounts,
+      );
+      await disablePublishAccountsOutsideSelection(orgId, {
+        pageIds: [...publishPageIds],
+        igUserIds: selectedIgAccounts.map((igAccount) => igAccount.id),
+      });
+      await refreshMetaLinkedChannels(orgId);
 
       if (input.selectedIgAccountIds.length > 0) {
         const firstIg = sess.igAccounts.find((ig) => input.selectedIgAccountIds.includes(ig.id));

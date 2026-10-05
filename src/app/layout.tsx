@@ -48,6 +48,11 @@ export const metadata: Metadata = {
   ),
   title: "Órbita Hub",
   description: "Suas ideias e Seus Planos. Bem-vindo ao Órbita Hub",
+  appleWebApp: {
+    capable: true,
+    title: "ÓRBITA",
+    statusBarStyle: "black-translucent",
+  },
   icons: {
     icon: [
       {

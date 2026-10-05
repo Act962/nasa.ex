@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MegaphoneIcon, MessageCircleIcon, SearchIcon, SparklesIcon } from "lucide-react";
 import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
@@ -15,6 +15,7 @@ import {
   type PlatformDef,
 } from "@/features/integrations/components/integrations-page";
 import { MetaMcpSection } from "@/features/integrations/components/meta-mcp-section";
+import { ExternalAiSection } from "@/features/external-ai/components/external-ai-section";
 import {
   useChannelOrbit,
   useDeletePlatformIntegration,
@@ -47,6 +48,13 @@ import { OrganizationAiCreditStrip } from "@/features/ai-credits/components/orga
 import type { AiCreditProvider } from "@/features/ai-credits/lib/ai-credit-types";
 
 const ORBIT_SECTION_ID = "satellites-orbit";
+const INSTAGRAM_ACCOUNTS_HREF = "/integrations/instagram";
+
+/** Itens do catálogo que repetem um satélite com cartão próprio (WhatsApp, Instagram, TikTok): só o cartão próprio aparece. */
+const CATALOG_SLUGS_WITH_PLATFORM_CARD = new Set(["whatsapp-business", "instagram-dm", "tiktok"]);
+const HUB_CATALOG_INTEGRATIONS = CATALOG_INTEGRATIONS.filter(
+  (integration) => !CATALOG_SLUGS_WITH_PLATFORM_CARD.has(integration.slug),
+);
 
 function scrollToSatelliteSection(sectionId: string) {
   const section = document.getElementById(sectionId) ?? document.getElementById(ORBIT_SECTION_ID);
@@ -75,10 +83,22 @@ export function SatellitesHub() {
   const [searchText, setSearchText] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   // `?connect=OPENAI` abre direto a configuração do satélite (cartão do ASTRO, spec 0053).
-  const [configuring, setConfiguring] = useState<PlatformDef | null>(() => {
-    const requestedPlatform = searchParams.get("connect")?.toUpperCase();
-    return PLATFORM_DEFS.find((platformDef) => platformDef.platform === requestedPlatform) ?? null;
-  });
+  const requestedPlatform = searchParams.get("connect")?.toUpperCase();
+  const [configuring, setConfiguring] = useState<PlatformDef | null>(
+    () =>
+      PLATFORM_DEFS.find(
+        (platformDef) => platformDef.platform === requestedPlatform && platformDef.platform !== "INSTAGRAM",
+      ) ?? null,
+  );
+  // O Instagram não tem formulário próprio: tem a página das contas conectadas (spec 0069, RF-1).
+  useEffect(() => {
+    if (requestedPlatform === "INSTAGRAM") router.replace(INSTAGRAM_ACCOUNTS_HREF);
+  }, [requestedPlatform, router]);
+  const openPlatform = (platformDef: PlatformDef) => {
+    if (platformDef.platform === "WHATSAPP") router.push(platformDef.docsUrl);
+    else if (platformDef.platform === "INSTAGRAM") router.push(INSTAGRAM_ACCOUNTS_HREF);
+    else setConfiguring(platformDef);
+  };
   const [disconnecting, setDisconnecting] = useState<IntegrationPlatform | null>(null);
 
   const integrationRows = data?.integrations ?? [];
@@ -89,9 +109,9 @@ export function SatellitesHub() {
   // WhatsApp e Instagram entram em órbita pelo canal real: instância conectada / conta ativa no Comments.
   const isWhatsAppConnected = channelOrbit?.isWhatsAppConnected ?? false;
   const isInstagramConnected = channelOrbit?.isInstagramConnected ?? false;
-  const CHANNEL_CATALOG_STATUS: Record<string, boolean> = {
-    "whatsapp-business": isWhatsAppConnected,
-    "instagram-dm": isInstagramConnected,
+  // Itens do catálogo com conexão de verdade no banco: é ela que decide se estão em órbita.
+  const catalogConnectionBySlug: Record<string, boolean> = {
+    nerp: activeRowByPlatform.has("NERP"),
   };
   const isPlatformActive = (platformDef: PlatformDef) =>
     (platformDef.platform === "WHATSAPP" && isWhatsAppConnected) ||
@@ -108,17 +128,16 @@ export function SatellitesHub() {
   };
 
   const search = normalizeSearch(searchText);
-  const isCatalogInstalled = (slug: string, status: string) =>
-    slug in CHANNEL_CATALOG_STATUS
-      ? CHANNEL_CATALOG_STATUS[slug]
-      : status === "installed" || installedSlugs.has(slug);
+  // O `status: "installed"` fixo do catálogo não conta: marcava o satélite como ativo em toda empresa, conectada ou não.
+  const isCatalogInstalled = (slug: string) =>
+    slug in catalogConnectionBySlug ? catalogConnectionBySlug[slug] : installedSlugs.has(slug);
 
   const activePlatformDefs = PLATFORM_DEFS.filter(isPlatformActive).filter((platformDef) =>
     matchesSearch(search, platformDef.label, platformDef.description),
   );
-  const activeCatalog = CATALOG_INTEGRATIONS.filter(
+  const activeCatalog = HUB_CATALOG_INTEGRATIONS.filter(
     (integration) =>
-      isCatalogInstalled(integration.slug, integration.status) &&
+      isCatalogInstalled(integration.slug) &&
       matchesSearch(search, integration.name, integration.description),
   );
   const availablePlatformGroups = groupPlatformDefs(
@@ -128,9 +147,9 @@ export function SatellitesHub() {
     ),
   );
   const availableCatalogGroups = groupCatalogIntegrations(
-    CATALOG_INTEGRATIONS.filter(
+    HUB_CATALOG_INTEGRATIONS.filter(
       (integration) =>
-        !isCatalogInstalled(integration.slug, integration.status) &&
+        !isCatalogInstalled(integration.slug) &&
         matchesSearch(search, integration.name, integration.description, ...integration.tags),
     ),
   );
@@ -212,8 +231,13 @@ export function SatellitesHub() {
                   !activeRowByPlatform.has(platformDef.platform)
                 }
                 canManage={canManage}
-                onConfigure={() => setConfiguring(platformDef)}
-                onDisconnect={() => setDisconnecting(platformDef.platform as IntegrationPlatform)}
+                onConfigure={() => openPlatform(platformDef)}
+                // Conta do Instagram se desativa uma a uma, na lista; o botão só resta para a conexão antiga de DM.
+                onDisconnect={
+                  platformDef.platform === "INSTAGRAM" && !activeRowByPlatform.has(platformDef.platform)
+                    ? undefined
+                    : () => setDisconnecting(platformDef.platform as IntegrationPlatform)
+                }
                 footer={renderAiCreditFooter(platformDef)}
               />
             ))}
@@ -235,11 +259,7 @@ export function SatellitesHub() {
                 key={platformDef.platform}
                 platformDef={platformDef}
                 canManage={canManage}
-                onActivate={() =>
-                  platformDef.platform === "WHATSAPP"
-                    ? router.push(platformDef.docsUrl)
-                    : setConfiguring(platformDef)
-                }
+                onActivate={() => openPlatform(platformDef)}
               />
             ))}
           </div>
@@ -271,6 +291,7 @@ export function SatellitesHub() {
       )}
 
       <MetaMcpSection />
+      <ExternalAiSection />
 
       {configuring && configuring.platform !== "WHATSAPP" && (
         <ConfigDialog
