@@ -10,7 +10,6 @@ import { usePlannerClients } from "../../hooks/use-planner-calendar";
 import { usePlannerBrandKit, usePlannerBrandKits } from "../../hooks/use-planner-brand-kit";
 import { BRAND_LOGO_LABEL } from "../../lib/brand-kit-completeness";
 import { BrandKitHeader, BrandKitList } from "./brand-kit-switcher";
-import { ClientAvatar } from "../v2/client-avatar";
 import { BrandKitLogos } from "./brand-kit-logos";
 import { BrandKitIdentityFields, BrandKitPalette, BrandKitTypography, BrandKitVocabulary, BrandKitWebsite } from "./brand-kit-identity";
 import { BrandKitAssetList } from "./brand-kit-asset-list";
@@ -131,35 +130,6 @@ function CompletenessSummary({ completeness, steps }: { completeness: PlannerBra
           );
         })}
       </nav>
-    </div>
-  );
-}
-
-type PlannerClient = ReturnType<typeof usePlannerClients>["clients"][number];
-
-/** De qual cliente é o kit em tela; fica na linha das abas do Planner. */
-export function BrandKitClientSelect({
-  clients,
-  selectedOrganizationId,
-  onSelect,
-}: {
-  clients: PlannerClient[];
-  selectedOrganizationId: string | null;
-  onSelect: (organizationId: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {clients.map((candidate, clientIndex) => (
-        <button
-          key={candidate.id}
-          type="button"
-          onClick={() => onSelect(candidate.id)}
-          className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm", candidate.id === selectedOrganizationId ? "bg-foreground font-semibold text-background" : "bg-panel")}
-        >
-          <ClientAvatar name={candidate.name} logo={candidate.logo} clientIndex={clientIndex} className="size-4 text-[7px] ring-1" />
-          {candidate.name}
-        </button>
-      ))}
     </div>
   );
 }

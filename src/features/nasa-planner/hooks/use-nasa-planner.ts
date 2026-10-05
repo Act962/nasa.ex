@@ -223,7 +223,7 @@ export function useUploadPlannerPostImage() {
   return useMutation(
     orpc.nasaPlanner.posts.uploadImage.mutationOptions({
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
       },
       onError: () => toast.error("Erro ao fazer upload da imagem"),
     }),
@@ -235,7 +235,7 @@ export function useUpdatePlannerPostSlide() {
   return useMutation(
     orpc.nasaPlanner.posts.updateSlide.mutationOptions({
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
       },
       onError: () => toast.error("Erro ao salvar slide"),
     }),
@@ -247,7 +247,7 @@ export function useAttachVideo() {
   return useMutation(
     orpc.nasaPlanner.posts.attachVideo.mutationOptions({
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
       },
       onError: () => toast.error("Erro ao anexar vídeo"),
     }),
@@ -259,7 +259,7 @@ export function useAddVideoClip() {
   return useMutation(
     orpc.nasaPlanner.posts.addVideoClip.mutationOptions({
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
       },
       onError: () => toast.error("Erro ao adicionar clipe"),
     }),
@@ -273,7 +273,7 @@ export function useSaveEditedVideo() {
     orpc.nasaPlanner.posts.saveEditedVideo.mutationOptions({
       onSuccess: (data) => {
         toast.success(`Vídeo salvo! ${data.starsSpent} star${data.starsSpent !== 1 ? "s" : ""} usada${data.starsSpent !== 1 ? "s" : ""}`);
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
         earn("create_post", "Vídeo editado no Planner 🎬");
       },
       onError: (err: any) => toast.error(err?.message ?? "Erro ao salvar vídeo editado"),
@@ -287,7 +287,7 @@ export function useSchedulePlannerPostReal() {
     orpc.nasaPlanner.posts.scheduleReal.mutationOptions({
       onSuccess: () => {
         toast.success("Post agendado para publicação!");
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
       },
       onError: (err: any) => toast.error(err?.message ?? "Erro ao agendar post"),
     }),
@@ -300,7 +300,7 @@ export function useGenerateImageFromReference() {
     orpc.nasaPlanner.posts.generateImageFromReference.mutationOptions({
       onSuccess: (data) => {
         toast.success(`Imagem gerada! ${data.starsSpent} star usada.`);
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
       },
       onError: (err: any) => toast.error(err?.message ?? "Erro ao gerar imagem por referência"),
     }),
@@ -312,7 +312,7 @@ export function useAddSlidesBatch() {
   return useMutation(
     orpc.nasaPlanner.posts.addSlidesBatch.mutationOptions({
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
       },
       onError: () => toast.error("Erro ao adicionar slides"),
     }),
@@ -324,7 +324,7 @@ export function useRemovePostSlide() {
   return useMutation(
     orpc.nasaPlanner.posts.removeSlide.mutationOptions({
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
       },
       onError: () => toast.error("Erro ao remover slide"),
     }),
@@ -336,7 +336,7 @@ export function useRemovePostMedia() {
   return useMutation(
     orpc.nasaPlanner.posts.removeMedia.mutationOptions({
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
       },
       onError: () => toast.error("Erro ao remover mídia"),
     }),

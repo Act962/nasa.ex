@@ -26,7 +26,7 @@ Todo comentário e DM do Instagram conectado vira mensagem na conversa do lead (
 - Enviar mídia (imagem/áudio) pelo Instagram a partir do chat.
 - Curtir ou editar comentário pelo chat (a API não permite — ver seção Comentários do Planner).
 - Migrar leads antigos criados pelo fluxo de DM legado.
-- Contas conectadas pelo passo a passo manual (`INSTAGRAM_LOGIN`) — só `META_LOGIN` nesta fase.
+- ~~Contas conectadas pelo passo a passo manual (`INSTAGRAM_LOGIN`) — só `META_LOGIN` nesta fase.~~ Entraram em 2026-10-05 (ver changelog).
 
 ## 3. Requisitos
 
@@ -101,3 +101,4 @@ O módulo `social` não conhece o tracking-chat. A rota injeta um observador (`C
 ## 8. Changelog
 
 - 2026-10-04 — criada e implementada. Testado com eventos assinados simulados (comentário + DM do mesmo usuário → uma conversa `@usuario` no tracking escolhido, card do Reel, rótulo de Direct, tag Instagram, chip "Respondendo ao comentário"). Falta o teste real de envio (CA-4) e de automação (CA-5).
+- 2026-10-05 — **contas conectadas pelo formulário dos Satélites (`INSTAGRAM_LOGIN`) também viram conversa no Chat.** O webhook por conexão (`/api/social/webhook/instagram/[token]`) passa a mesma ponte do webhook único, e a ponte deixou de exigir `META_LOGIN`. As consultas de perfil e de mídia usam o host da forma de conexão (`graph.instagram.com` com o token do app do Instagram). A resposta do atendente já saía pela conta registrada na conversa, em qualquer forma de conexão. Testado com DM assinada simulada numa conta do formulário (empresa de QA): virou lead e conversa `INSTAGRAM` no tracking da empresa. Sem teste real de envio por conta do formulário. Empresa sem tracking continua sem conversa (o evento é ignorado em silêncio).

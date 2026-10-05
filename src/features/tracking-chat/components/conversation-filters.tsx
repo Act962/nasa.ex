@@ -57,7 +57,8 @@ interface ConversationFiltersProps {
 }
 
 /** Canais com recebimento real no Tracking Chat. */
-const CHAT_CHANNEL_SLUGS = new Set(["whatsapp-business", "instagram-dm"]);
+const INSTAGRAM_CHANNEL_SLUG = "instagram-dm";
+const CHAT_CHANNEL_SLUGS = new Set(["whatsapp-business", INSTAGRAM_CHANNEL_SLUG]);
 
 export function ConversationFilters({
   trackingId,
@@ -243,7 +244,10 @@ export function ConversationChannelCircles({
     (integration) =>
       integration.category === "messengers" &&
       CHAT_CHANNEL_SLUGS.has(integration.slug) &&
-      (integration.status === "installed" ||
+      // O Instagram não depende da marcação do catálogo (guardada só no navegador):
+      // quem diz se está conectado são as contas dos Satélites, logo abaixo.
+      (integration.slug === INSTAGRAM_CHANNEL_SLUG ||
+        integration.status === "installed" ||
         installedSlugs.has(integration.slug)),
   );
 

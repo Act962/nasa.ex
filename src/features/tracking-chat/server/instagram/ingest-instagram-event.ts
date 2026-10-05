@@ -15,7 +15,8 @@ import type { InstagramMessageMetadata } from "../../lib/instagram-message-metad
 import { fetchInstagramMediaCard, fetchInstagramUserProfile } from "./instagram-graph-lookups";
 
 /**
- * Comentários e DMs do Instagram viram conversa no tracking-chat (spec 0062).
+ * Comentários e DMs do Instagram viram conversa no tracking-chat (spec 0062), para toda conta
+ * dos Satélites: conectada pela Meta ou pelo formulário (token do app do Instagram).
  * Roda depois da automação do Comments, fora de transação, e cada efeito é best-effort.
  */
 
@@ -135,18 +136,17 @@ async function publishMessage(trackingId: string, conversationId: string, messag
 }
 
 export const ingestInstagramEventToChat: ChannelEventObserver = async ({ channel, event, result }) => {
-  if (channel.credentials.authMode !== "META_LOGIN") return;
   // Comentário ou eco da própria conta não é cliente (CA-7).
   if (event.actor.externalUserId === channel.externalAccountId) return;
 
   const trackingId = await resolveLeadTrackingId(channel.id, channel.organizationId);
   if (!trackingId) return;
-  const accessToken = channel.credentials.accessToken;
+  const graphAccess = { accessToken: channel.credentials.accessToken, authMode: channel.credentials.authMode ?? "INSTAGRAM_LOGIN" };
   const isComment = event.type === "COMMENT_CREATED";
 
   const alreadyStored = await prisma.message.findUnique({ where: { messageId: event.externalEventId }, select: { id: true } });
   const needsProfile = !event.actor.username;
-  const profile = needsProfile ? await fetchInstagramUserProfile(event.actor.externalUserId, accessToken) : null;
+  const profile = needsProfile ? await fetchInstagramUserProfile(event.actor.externalUserId, graphAccess) : null;
   const username = event.actor.username ?? profile?.username ?? null;
 
   const lead = await findOrCreateLead({
@@ -160,7 +160,7 @@ export const ingestInstagramEventToChat: ChannelEventObserver = async ({ channel
   });
   if (!lead) return;
 
-  const media = isComment && event.content ? await fetchInstagramMediaCard(event.content.externalId, accessToken) : null;
+  const media = isComment && event.content ? await fetchInstagramMediaCard(event.content.externalId, graphAccess) : null;
 
   if (!alreadyStored) {
     const metadata: InstagramMessageMetadata = isComment

@@ -2,15 +2,23 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import type { InstagramMediaCard } from "../../lib/instagram-message-metadata";
 
-/** Consultas à Graph API (token de página) para montar a conversa do Instagram. Falha vira null, nunca erro. */
+/**
+ * Consultas à Graph API para montar a conversa do Instagram. Falha vira null, nunca erro.
+ * O host acompanha a forma de conexão da conta: token de página (Meta) ou token do app do Instagram.
+ */
 
-const FACEBOOK_GRAPH = process.env.META_GRAPH_BASE_URL ?? "https://graph.facebook.com/v21.0";
+const GRAPH_URL_BY_AUTH_MODE = {
+  META_LOGIN: process.env.META_GRAPH_BASE_URL ?? "https://graph.facebook.com/v21.0",
+  INSTAGRAM_LOGIN: process.env.INSTAGRAM_BASE_URL ?? "https://graph.instagram.com/v21.0",
+} as const;
 const REQUEST_TIMEOUT_MS = 8_000;
 
-async function getGraph<T>(path: string, accessToken: string): Promise<T | null> {
+export type InstagramGraphAccess = { accessToken: string; authMode: keyof typeof GRAPH_URL_BY_AUTH_MODE };
+
+async function getGraph<T>(path: string, { accessToken, authMode }: InstagramGraphAccess): Promise<T | null> {
   try {
     const separator = path.includes("?") ? "&" : "?";
-    const response = await fetch(`${FACEBOOK_GRAPH}${path}${separator}access_token=${encodeURIComponent(accessToken)}`, {
+    const response = await fetch(`${GRAPH_URL_BY_AUTH_MODE[authMode]}${path}${separator}access_token=${encodeURIComponent(accessToken)}`, {
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!response.ok) return null;
@@ -28,7 +36,7 @@ function toMediaType(mediaType?: string, productType?: string): InstagramMediaCa
   return "OTHER";
 }
 
-export async function fetchInstagramMediaCard(mediaId: string, accessToken: string): Promise<InstagramMediaCard | null> {
+export async function fetchInstagramMediaCard(mediaId: string, access: InstagramGraphAccess): Promise<InstagramMediaCard | null> {
   const media = await getGraph<{
     id: string;
     permalink?: string;
@@ -38,7 +46,7 @@ export async function fetchInstagramMediaCard(mediaId: string, accessToken: stri
     media_url?: string;
     caption?: string;
     timestamp?: string;
-  }>(`/${mediaId}?fields=id,permalink,media_type,media_product_type,thumbnail_url,media_url,caption,timestamp`, accessToken);
+  }>(`/${mediaId}?fields=id,permalink,media_type,media_product_type,thumbnail_url,media_url,caption,timestamp`, access);
   if (!media) return null;
 
   const plannerPost = await prisma.nasaPlannerPost.findFirst({ where: { externalIgPostId: mediaId }, select: { title: true } });
@@ -54,6 +62,6 @@ export async function fetchInstagramMediaCard(mediaId: string, accessToken: stri
   };
 }
 
-export async function fetchInstagramUserProfile(igScopedUserId: string, accessToken: string) {
-  return getGraph<{ name?: string; username?: string; profile_pic?: string }>(`/${igScopedUserId}?fields=name,username,profile_pic`, accessToken);
+export async function fetchInstagramUserProfile(igScopedUserId: string, access: InstagramGraphAccess) {
+  return getGraph<{ name?: string; username?: string; profile_pic?: string }>(`/${igScopedUserId}?fields=name,username,profile_pic`, access);
 }

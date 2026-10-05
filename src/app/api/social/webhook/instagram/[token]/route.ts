@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { channelLookup, getInboundTranslator, socialLogger } from "@/modules/social";
 import { processChannelEvents } from "@/modules/social/process-channel-events";
+import { ingestInstagramEventToChat } from "@/features/tracking-chat/server/instagram/ingest-instagram-event";
 
 export const runtime = "nodejs";
 
@@ -11,8 +12,8 @@ export const runtime = "nodejs";
  * conhecido antes de qualquer consulta. É a única porta anônima do módulo, e
  * por isso todo o resto aqui é fail-closed.
  *
- * Separado de propósito de `/api/integrations/instagram/webhook`, que cria lead
- * a partir de DM e não deve ganhar uma segunda responsabilidade (D-7).
+ * Separado de propósito de `/api/integrations/instagram/webhook` (D-7). Depois da
+ * automação do Comments, o comentário ou a DM vira conversa no Chat (spec 0062).
  */
 
 type RouteContext = { params: Promise<{ token: string }> };
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ ok: true }, { status: 200 });
   }
 
-  await processChannelEvents(found, events);
+  await processChannelEvents(found, events, ingestInstagramEventToChat);
 
   return NextResponse.json({ ok: true }, { status: 200 });
 }

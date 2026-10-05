@@ -28,7 +28,8 @@ import { ScriptTableView } from "./script-table-view";
 import { usePlannerWeekdayThemes } from "../../hooks/use-planner-weekly-script";
 import { CampaignsTab } from "../tabs/campaigns-tab";
 import { MindMapsTab } from "../tabs/mind-maps-tab";
-import { BrandKitClientSelect, BrandKitPage } from "../brand-kit/brand-kit-page";
+import { BrandKitPage } from "../brand-kit/brand-kit-page";
+import { ClientSelect } from "./client-select";
 import { PostComposer } from "./post-composer";
 import { POST_TYPES, RESCHEDULABLE_STATUSES, computeVisibleRange, resolvePostInstagramAccount } from "./planner-v2-utils";
 import type { CalendarSlot, ComposerRequest } from "./planner-v2-types";
@@ -175,8 +176,9 @@ export function PlannerHome() {
             ))}
           </nav>
           {searchState.tab === "kit" && (
-            <BrandKitClientSelect
+            <ClientSelect
               clients={clients}
+              className="bg-card sm:w-72"
               selectedOrganizationId={brandKitOrganizationId}
               onSelect={(organizationId) => void setSearchState({ org: organizationId })}
             />

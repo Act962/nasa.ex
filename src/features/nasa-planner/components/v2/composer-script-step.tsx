@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import type { NasaPlannerPostType } from "@/generated/prisma/enums";
 import { usePlannerPillars } from "../../hooks/use-planner-planning";
-import { ClientAvatar } from "./client-avatar";
+import { ClientSelect } from "./client-select";
 import { ComposerAstroPanel, type GeneratedPostDraft } from "./composer-astro-panel";
 import { POST_TYPE_META, POST_TYPES } from "./planner-v2-utils";
 import type { PlannerClient } from "./planner-v2-types";
@@ -96,19 +96,16 @@ export function ComposerScriptStep({
     <div className="flex flex-col gap-5 p-5">
       <section data-guide={GUIDE_ANCHORS.plannerComposerClient.id}>
         <p className="mb-2 text-xs text-muted-foreground">Cliente</p>
-        <div className="flex flex-wrap gap-2">
-          {clients.filter((candidate) => candidate.permissions.canCreate).map((candidate) => (
-            <OptionPill
-              key={candidate.id}
-              isSelected={candidate.id === values.organizationId}
-              disabled={isClientLocked && candidate.id !== values.organizationId}
-              onSelect={() => update({ organizationId: candidate.id, targetIgAccountId: null, targetFbPageId: null, pillarId: null })}
-            >
-              <ClientAvatar name={candidate.name} logo={candidate.logo} clientIndex={clients.indexOf(candidate)} className="size-4 text-[7px] ring-1" />
-              {candidate.name}
-            </OptionPill>
-          ))}
-        </div>
+        <ClientSelect
+          clients={clients}
+          options={clients.filter((candidate) => candidate.permissions.canCreate)}
+          selectedOrganizationId={values.organizationId}
+          disabled={isClientLocked}
+          onSelect={(organizationId) => {
+            if (organizationId === values.organizationId) return;
+            update({ organizationId, targetIgAccountId: null, targetFbPageId: null, pillarId: null });
+          }}
+        />
       </section>
 
       <section data-guide={GUIDE_ANCHORS.plannerComposerType.id}>

@@ -4,8 +4,10 @@ import { useState } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { authClient } from "@/lib/auth-client";
 import { emitTourResult } from "@/features/tour/store";
 import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { usePlannerPost } from "../../hooks/use-planner-calendar";
@@ -43,10 +45,13 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
   const createPost = useCreatePlannerClientPost();
   const updatePost = useUpdatePlannerPostV2();
   const deletePost = useDeletePlannerPostV2();
+  const { data: activeOrganization, isPending: isLoadingActiveOrganization } = authClient.useActiveOrganization();
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const step = chosenStep ?? (post ? stepForStatus(post.status) : "script");
   const intendedAt = request.mode === "create" ? request.intendedAt : undefined;
 
-  if (postId && (isLoading || !post || !permissions)) {
+  const isWaitingDefaultClient = !postId && request.mode === "create" && !request.organizationId && isLoadingActiveOrganization;
+  if (isWaitingDefaultClient || (postId && (isLoading || !post || !permissions))) {
     return (
       <div className="grid h-80 place-items-center">
         <DialogTitle className="sr-only">Carregando conteúdo</DialogTitle>
@@ -55,8 +60,10 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
     );
   }
 
-  const firstClientId = clients.find((client) => client.permissions.canCreate)?.id ?? "";
-  const initialOrganizationId = (request.mode === "create" && request.organizationId) || firstClientId;
+  const creatableClients = clients.filter((client) => client.permissions.canCreate);
+  // Sem cliente pedido, o conteúdo novo nasce na empresa em que a pessoa está trabalhando.
+  const defaultClientId = (creatableClients.find((client) => client.id === activeOrganization?.id) ?? creatableClients[0])?.id ?? "";
+  const initialOrganizationId = (request.mode === "create" && request.organizationId) || defaultClientId;
   // Post novo já nasce com o tema fixo do dia da semana como objetivo (spec 0067).
   const defaultObjective = intendedAt ? (weekdayThemes.find((theme) => theme.organizationId === initialOrganizationId && theme.weekday === intendedAt.getDay())?.theme ?? "") : "";
   const scriptInitialValues: ScriptStepValues = post
@@ -141,7 +148,7 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
 
   return (
     <>
-      <div className="flex items-center gap-2 border-b border-line py-3 pr-14 pl-4">
+      <div className="flex h-16 items-center gap-2 border-b border-line pr-14 pl-4">
         <DialogTitle className="mr-auto truncate text-base font-bold">
           {post ? post.title || POST_TYPE_META[post.type].label : "Novo conteúdo"}
         </DialogTitle>
@@ -149,11 +156,43 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
           <button
             type="button"
             aria-label="Excluir post"
-            onClick={() => deletePost.mutate({ postId: post.id }, { onSuccess: onClose, onError: (error) => toast.error(error.message) })}
-            className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setIsConfirmingDelete(true)}
+            className="grid size-8 flex-none place-items-center rounded-full bg-knob text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="size-4" />
           </button>
+        )}
+        {post && (
+          <ConfirmDialog
+            isOpen={isConfirmingDelete}
+            isDangerous
+            isLoading={deletePost.isPending}
+            title={`Excluir "${post.title || POST_TYPE_META[post.type].label}"?`}
+            description={
+              post.status === "PUBLISHED"
+                ? "O roteiro, a mídia, a legenda e os números deste post saem do Planner e não dá para desfazer. O que já foi publicado continua na rede social."
+                : post.status === "SCHEDULED"
+                  ? "Este post está programado: ao excluir, ele não será publicado. O roteiro, a mídia e a legenda são apagados e não dá para desfazer."
+                  : "O roteiro, a mídia e a legenda deste post são apagados e não dá para desfazer."
+            }
+            confirmText="Excluir post"
+            onCancel={() => setIsConfirmingDelete(false)}
+            onConfirm={() =>
+              deletePost.mutate(
+                { postId: post.id },
+                {
+                  onSuccess: () => {
+                    toast.success("Post excluído.");
+                    onClose();
+                  },
+                  onError: (error) => {
+                    setIsConfirmingDelete(false);
+                    toast.error(error.message);
+                  },
+                },
+              )
+            }
+          />
         )}
       </div>
       <nav className="scroll-hidden-x flex gap-1.5 overflow-x-auto px-4 py-3">

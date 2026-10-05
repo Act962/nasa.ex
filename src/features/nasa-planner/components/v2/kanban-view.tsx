@@ -49,7 +49,7 @@ function KanbanCard({ post, columnKey, client, clientIndex, showClient, onOpen, 
       {...attributes}
       {...listeners}
       onClick={() => onOpen(post.id)}
-      className={cn("rounded-2xl bg-card p-2 text-left", isDraggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer", columnKey === "changes" && "ring-1 ring-warning", isDragging && "opacity-40")}
+      className={cn("rounded-2xl bg-card p-2 text-left", isDraggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer", columnKey === "changes" && "ring-1 ring-warning ring-inset", isDragging && "opacity-40")}
     >
       {(previewUrl || post.videoKey) && (
         <div className={cn("mb-2 grid place-items-center overflow-hidden rounded-xl bg-knob/60", typeMeta.isVertical ? "h-28" : "h-20")}>
@@ -102,7 +102,7 @@ function KanbanColumn({ column, children, guideAnchor, isFocused }: { column: Bo
       ref={setNodeRef}
       data-board-column={column.key}
       data-guide={guideAnchor}
-      className={cn("flex w-[80vw] max-w-72 shrink-0 snap-start flex-col rounded-[18px] bg-panel/40 p-2 transition-colors sm:w-64", isFocused && "ring-2 ring-foreground/40", isValidTarget && "ring-1 ring-foreground/30", isValidTarget && isOver && "bg-panel")}
+      className={cn("flex w-[80vw] max-w-72 shrink-0 snap-start flex-col rounded-[18px] bg-panel/40 p-2 transition-colors sm:w-64", isFocused && "ring-2 ring-foreground/40 ring-inset", isValidTarget && "ring-1 ring-foreground/30 ring-inset", isValidTarget && isOver && "bg-panel")}
     >
       <div className="mb-2 flex items-center gap-1.5 px-1 pt-0.5">
         <span className={cn("size-2 rounded-full", meta.dotClassName)} />
