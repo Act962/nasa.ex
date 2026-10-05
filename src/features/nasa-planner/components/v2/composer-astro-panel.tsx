@@ -73,7 +73,7 @@ export function ComposerAstroPanel({
             <p className="text-xs text-muted-foreground">
               Falta: {brandKit.completeness.missing.join(", ")}. O Astro precisa do kit para criar no tom e nas cores da marca.
             </p>
-            <Link href={`/nasa-planner/kit?org=${organizationId}`} className="text-xs font-semibold text-warning underline">
+            <Link href={`/nasa-planner?tab=kit&org=${organizationId}`} className="text-xs font-semibold text-warning underline">
               Completar kit →
             </Link>
           </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { parseAsArrayOf, parseAsIsoDate, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { CalendarDays, Columns3, LayoutDashboard, Layers, Plus } from "lucide-react";
@@ -29,16 +28,17 @@ import { ScriptTableView } from "./script-table-view";
 import { usePlannerWeekdayThemes } from "../../hooks/use-planner-weekly-script";
 import { CampaignsTab } from "../tabs/campaigns-tab";
 import { MindMapsTab } from "../tabs/mind-maps-tab";
+import { BrandKitPage } from "../brand-kit/brand-kit-page";
 import { PostComposer } from "./post-composer";
 import { POST_TYPES, RESCHEDULABLE_STATUSES, computeVisibleRange } from "./planner-v2-utils";
 import type { CalendarSlot, ComposerRequest } from "./planner-v2-types";
 
-/** Planner v2 (spec 0058): abas Dashboard, Calendário (Semana/Mês/Kanban), Campanhas e Mapas Mentais, multi-cliente. */
+/** Planner v2 (spec 0058): abas Dashboard, Calendário (Semana/Mês/Kanban), Campanhas, Mapas Mentais e Kit da Marca, multi-cliente. */
 
 const STATUS_VALUES: NasaPlannerPostStatus[] = ["IDEA", "DRAFT", "PENDING_APPROVAL", "CHANGES_REQUESTED", "APPROVED", "SCHEDULED", "PUBLISHING", "PUBLISHED", "FAILED"];
-const PLANNER_TABS = ["dashboard", "calendar", "campaigns", "mindmaps"] as const;
+const PLANNER_TABS = ["dashboard", "calendar", "campaigns", "mindmaps", "kit"] as const;
 type PlannerTab = (typeof PLANNER_TABS)[number];
-const TAB_LABEL: Record<PlannerTab, string> = { dashboard: "Dashboard", calendar: "Calendário", campaigns: "Campanhas", mindmaps: "Mapas Mentais" };
+const TAB_LABEL: Record<PlannerTab, string> = { dashboard: "Dashboard", calendar: "Calendário", campaigns: "Campanhas", mindmaps: "Mapas Mentais", kit: "Kit da Marca" };
 const DRAG_ACTIVATION_DISTANCE_PX = 6;
 
 const plannerSearchParams = {
@@ -160,9 +160,6 @@ export function PlannerHome() {
               {TAB_LABEL[tab]}
             </button>
           ))}
-          <Link href="/nasa-planner/kit" className="flex-none rounded-full px-4 py-1.5 text-sm whitespace-nowrap text-muted-foreground hover:text-foreground">
-            Kit da Marca
-          </Link>
         </nav>
 
         {searchState.tab === "dashboard" && (
@@ -241,6 +238,7 @@ export function PlannerHome() {
 
         {searchState.tab === "campaigns" && <ClientWorkspaceTab clients={clients}>{(plannerId) => <CampaignsTab plannerId={plannerId} />}</ClientWorkspaceTab>}
         {searchState.tab === "mindmaps" && <ClientWorkspaceTab clients={clients}>{(plannerId) => <MindMapsTab plannerId={plannerId} />}</ClientWorkspaceTab>}
+        {searchState.tab === "kit" && <BrandKitPage />}
       </div>
       <PostComposer request={activeComposerRequest} clients={clients} onClose={closeComposer} />
       <BroadcastComposer isOpen={isBroadcastComposerOpen} clients={clients} onClose={() => setIsBroadcastComposerOpen(false)} />

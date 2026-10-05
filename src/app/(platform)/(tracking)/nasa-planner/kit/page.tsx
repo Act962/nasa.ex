@@ -1,13 +1,7 @@
-import { SidebarInset } from "@/components/ui/sidebar";
-import { HeaderTracking } from "@/features/leads/components/header-tracking";
-import { BrandKitPage } from "@/features/nasa-planner/components/brand-kit/brand-kit-page";
+import { redirect } from "next/navigation";
 
-/** Kit da Marca por cliente (spec 0063). */
-export default function NasaPlannerBrandKitPage() {
-  return (
-    <SidebarInset className="overflow-y-auto">
-      <HeaderTracking title="Kit da Marca" />
-      <BrandKitPage />
-    </SidebarInset>
-  );
+/** O Kit da Marca virou aba do Planner; o endereço antigo segue valendo para links já enviados. */
+export default async function NasaPlannerBrandKitPage({ searchParams }: { searchParams: Promise<{ org?: string }> }) {
+  const { org } = await searchParams;
+  redirect(org ? `/nasa-planner?tab=kit&org=${encodeURIComponent(org)}` : "/nasa-planner?tab=kit");
 }

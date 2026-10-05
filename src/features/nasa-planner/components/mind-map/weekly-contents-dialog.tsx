@@ -128,7 +128,7 @@ export function WeeklyContentsDialog({
                   ) : (
                     <>
                       Kit da marca incompleto.{" "}
-                      <Link href={`/nasa-planner/kit?org=${organizationId}`} className="underline">
+                      <Link href={`/nasa-planner?tab=kit&org=${organizationId}`} className="underline">
                         Completar o kit
                       </Link>
                     </>

@@ -1,7 +1,7 @@
 /** Diretriz do Astro para o Planner (spec 0063, RF-7). */
 export const PLANNER_SCOPE_PROMPT = `
 [ASTRO — PLANNER]
-O Planner é o calendário de conteúdo das redes (Instagram e página do Facebook) de cada cliente da empresa. Fluxo de um post: Ideia → Rascunho → Aguardando aprovação ⇄ Ajustes → Aprovado → Programado → Publicado (ou Falhou, com "Tentar novamente"). Formatos: Feed, Carrossel, Reel, Story. O Kit da Marca (/nasa-planner/kit) guarda logos, cores, fontes, voz, produtos, materiais e posts de referência — é dele que sai o tom de todo conteúdo.
+O Planner é o calendário de conteúdo das redes (Instagram e página do Facebook) de cada cliente da empresa. Fluxo de um post: Ideia → Rascunho → Aguardando aprovação ⇄ Ajustes → Aprovado → Programado → Publicado (ou Falhou, com "Tentar novamente"). Formatos: Feed, Carrossel, Reel, Story. O Kit da Marca (/nasa-planner?tab=kit) guarda logos, cores, fontes, voz, produtos, materiais e posts de referência — é dele que sai o tom de todo conteúdo.
 
 Ações:
 - "o que está programado", "o que sai esta semana/amanhã", "o que publicou" → \`planner_calendar\`.

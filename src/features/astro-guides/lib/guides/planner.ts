@@ -37,7 +37,7 @@ export const PLANNER_GUIDES: GuideDef[] = [
     steps: [
       {
         anchor: "plannerBrandKitPage",
-        route: "/nasa-planner/kit",
+        route: "/nasa-planner?tab=kit",
         title: "Este é o Kit da Marca",
         message: "Um por cliente. Envie os logos em PNG transparente, as cores, as fontes e a voz da marca.",
         position: "top",

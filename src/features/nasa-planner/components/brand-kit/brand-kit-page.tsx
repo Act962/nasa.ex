@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { parseAsString, useQueryState } from "nuqs";
-import { ArrowLeft, CheckCircle2, CircleAlert } from "lucide-react";
+import { CheckCircle2, CircleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
@@ -14,7 +13,7 @@ import { BrandKitPalette, BrandKitTypography, BrandKitVoice, BrandKitWebsite } f
 import { BrandKitAssetList } from "./brand-kit-asset-list";
 import type { PlannerBrandKit } from "./brand-kit-types";
 
-/** Kit da Marca por cliente (spec 0063): tudo que a IA precisa para criar no tom, nas cores e com os materiais da marca. */
+/** Kit da Marca por cliente (spec 0063), aba do Planner: tudo que a IA precisa para criar no tom, nas cores e com os materiais da marca. */
 
 function Section({ title, isDone, className, children }: { title: string; isDone?: boolean; className?: string; children: React.ReactNode }) {
   return (
@@ -58,12 +57,9 @@ export function BrandKitPage() {
   const isMissing = (label: string) => [...missing].some((missingLabel) => missingLabel.startsWith(label));
 
   return (
-    <div data-guide={GUIDE_ANCHORS.plannerBrandKitPage.id} className="mx-auto flex max-w-6xl flex-col gap-4 p-3 md:p-5">
+    <div data-guide={GUIDE_ANCHORS.plannerBrandKitPage.id} className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/nasa-planner" className="grid size-9 place-items-center rounded-full bg-panel" aria-label="Voltar ao calendário">
-          <ArrowLeft className="size-4" />
-        </Link>
-        <h1 className="flex-1 text-xl font-bold">Kit da Marca</h1>
+        <h2 className="flex-1 text-lg font-bold">Kit da Marca</h2>
         <div className="flex flex-wrap gap-2">
           {clients.map((candidate) => (
             <button

@@ -151,7 +151,7 @@ export function buildPlannerReadTools(ctx: AgentContext): ToolSet {
           brandHashtags: kit.defaultHashtags.map((hashtag) => `#${hashtag}`),
           brandCtas: kit.defaultCtas,
           products: kit.assets.filter((asset) => asset.kind === "PRODUCT").map((asset) => ({ title: asset.title, price: asset.price })),
-          link: appLink(`/nasa-planner/kit?org=${access.organizationId}`),
+          link: appLink(`/nasa-planner?tab=kit&org=${access.organizationId}`),
         };
       },
     }),
