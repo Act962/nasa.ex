@@ -192,6 +192,26 @@ export async function summarizeBrandKits(organizationId: string) {
   }));
 }
 
+/**
+ * Regras de marca que o checklist de aprovação confere num post.
+ *
+ * Com kit adicional, valem só as dele. No kit padrão, somam-se as palavras proibidas do planner
+ * do próprio post: uma empresa pode ter mais de um planner, cada um com as suas, e elas já eram
+ * conferidas antes da spec 0070.
+ */
+export async function getBrandChecklistRulesForPost(post: {
+  organizationId: string;
+  targetIgAccountId: string | null;
+  planner: { forbiddenWords: string[] } | null;
+}) {
+  const kit = await getBrandKitForPost(post);
+  const plannerForbiddenWords = kit.brandKitId ? [] : (post.planner?.forbiddenWords ?? []);
+  return {
+    forbiddenWords: [...new Set([...kit.forbiddenWords, ...plannerForbiddenWords])],
+    defaultHashtags: kit.defaultHashtags,
+  };
+}
+
 export function getBrandKitForPost(post: { organizationId: string; targetIgAccountId: string | null }) {
   return getBrandKitForInstagramAccount(post.organizationId, post.targetIgAccountId);
 }

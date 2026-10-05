@@ -202,6 +202,11 @@ async function main() {
       disabledSecond?.status === "DISABLED" &&
       disabledSecond.webhookPathToken === second.channel.webhookPathToken &&
       disabledSecond.automationCount === 1);
+    const credentialSwapOnDisabled = await connectIn(repositoriesA, secondAccountId, "token-segunda-NOVO");
+    check("RF-6", "trocar a credencial de conta desativada não a reativa nem a reinscreve",
+      credentialSwapOnDisabled.channel.status === "DISABLED" &&
+      !credentialSwapOnDisabled.subscribed &&
+      credentialSwapOnDisabled.channel.accessTokenLast4 === "NOVO");
     await repositoriesA.channels.markActive(second.channel.id);
     check("CA-9", "reativar devolve a conta para ativa",
       (await repositoriesA.channels.findById(second.channel.id))?.status === "ACTIVE");

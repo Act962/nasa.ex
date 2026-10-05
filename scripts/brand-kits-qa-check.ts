@@ -18,6 +18,7 @@ import {
 import {
   createBrandKit,
   deleteBrandKit,
+  getBrandChecklistRulesForPost,
   getBrandKitForInstagramAccount,
   getBrandKitForInstagramHandle,
   getBrandKitForPost,
@@ -156,6 +157,13 @@ async function main() {
       (await getBrandKitForInstagramHandle(organizationId, undefined)).brandKitId === null);
     check("CA-5", "palavra proibida só do kit do cliente é apontada só nos posts dele",
       hasForbiddenWordWarning(kitOfClientPost.forbiddenWords) && !hasForbiddenWordWarning(kitOfDefaultPost.forbiddenWords));
+
+    const plannerOfPost = { forbiddenWords: ["grátis"] };
+    const defaultRules = await getBrandChecklistRulesForPost({ organizationId, targetIgAccountId: defaultAccountId, planner: plannerOfPost });
+    const clientRules = await getBrandChecklistRulesForPost({ organizationId, targetIgAccountId: clientAccountId, planner: plannerOfPost });
+    check("CA-5", "no kit padrão, as palavras proibidas do planner do post continuam valendo; no kit do cliente, só as dele",
+      defaultRules.forbiddenWords.includes("grátis") && defaultRules.forbiddenWords.includes("barato") &&
+      clientRules.forbiddenWords.join() === "imbatível");
 
     const listed = await listBrandKits(organizationId);
     check("RF-6", "a lista mostra o padrão primeiro e quantas contas usam cada kit",

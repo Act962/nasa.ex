@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -45,6 +45,8 @@ export function useSelectedCommentsAccount() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  // Conta escolhida que ainda não está na lista: acabou de ser conectada e a lista não recarregou.
+  const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
 
   // As contas só existem depois da query, no navegador: ler o storage aqui não diverge do servidor.
   const accounts = (data?.accounts ?? []).filter((account) => account.provider === "INSTAGRAM");
@@ -54,18 +56,20 @@ export function useSelectedCommentsAccount() {
 
   const selectAccount = (accountId: string) => {
     rememberAccountId(accountId);
+    setPendingAccountId(accountId);
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set(SELECTED_ACCOUNT_PARAM, accountId);
     router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
   };
 
   // URL sem conta, ou apontando para conta que não é mais desta empresa: corrige.
+  const isAwaitingRequestedAccount = requestedId !== null && requestedId === pendingAccountId;
   useEffect(() => {
-    if (!selectedAccountId || requestedId === selectedAccountId) return;
+    if (!selectedAccountId || requestedId === selectedAccountId || isAwaitingRequestedAccount) return;
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set(SELECTED_ACCOUNT_PARAM, selectedAccountId);
     router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
-  }, [selectedAccountId, requestedId, pathname, router, searchParams]);
+  }, [selectedAccountId, requestedId, isAwaitingRequestedAccount, pathname, router, searchParams]);
 
   return {
     accounts,

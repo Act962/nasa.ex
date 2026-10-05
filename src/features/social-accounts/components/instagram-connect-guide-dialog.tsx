@@ -174,7 +174,7 @@ function GuideContent({
   }
 
   type ConnectionResult = {
-    account: { id: string; handle: string | null; externalAccountId: string };
+    account: { id: string; handle: string | null; externalAccountId: string; status: string };
     subscribed: boolean;
     subscriptionError: string | null;
     isNewAccount?: boolean;
@@ -185,7 +185,9 @@ function GuideContent({
     onConnected?.(result.account.id);
     emitTourResult({ kind: GUIDE_RESULT_KINDS.instagramConnected });
     const accountLabel = result.account.handle ? `@${result.account.handle}` : result.account.externalAccountId;
-    if (!result.subscribed) {
+    if (result.account.status === "DISABLED") {
+      toast.success(`Credencial de ${accountLabel} atualizada. A conta continua desativada.`);
+    } else if (!result.subscribed) {
       toast.warning(`Conectado em ${accountLabel}, mas a inscrição nos eventos falhou`, {
         description: result.subscriptionError ?? undefined,
       });

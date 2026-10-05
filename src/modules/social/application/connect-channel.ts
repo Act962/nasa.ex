@@ -87,6 +87,11 @@ export async function connectChannel(
     connectedById: input.connectedById ?? null,
   });
 
+  // Conta desativada só troca a credencial: reinscrever a faria voltar a receber eventos.
+  if (channel.status === "DISABLED") {
+    return { channel, isNewChannel, subscribed: false, subscriptionError: null };
+  }
+
   // Sem isto a conta nunca entrega evento nenhum — a verificação da URL passa,
   // e o silêncio depois é indistinguível de "automação errada". Best-effort:
   // não desfaz a conexão, mas o resultado vai para a UI.

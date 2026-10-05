@@ -189,7 +189,7 @@ export class PrismaChannelRepository implements ChannelRepository {
           externalAccountId: input.externalAccountId,
         },
       },
-      select: { id: true, organizationId: true },
+      select: { id: true, organizationId: true, status: true },
     });
 
     if (existing && existing.organizationId !== this.tenant.organizationId) {
@@ -206,7 +206,8 @@ export class PrismaChannelRepository implements ChannelRepository {
           credentials,
           handle: input.handle,
           displayName: input.displayName,
-          status: "ACTIVE",
+          // Conta desativada continua desativada: só "Reativar" a liga de novo.
+          status: existing.status === "DISABLED" ? "DISABLED" : "ACTIVE",
           lastErrorMessage: null,
           lastErrorAt: null,
           ...(input.connectedById ? { connectedById: input.connectedById } : {}),

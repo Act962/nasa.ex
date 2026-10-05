@@ -235,7 +235,9 @@ export function BrandKitSwitcher({
           </button>
         )}
         <span className="flex-1" />
-        {canEdit && selectedKit && <KitActions organizationId={organizationId} kit={selectedKit} onDeleted={() => onSelectKit(null)} />}
+        {canEdit && selectedKit && (
+          <KitActions key={selectedKit.brandKitId ?? DEFAULT_KIT_VALUE} organizationId={organizationId} kit={selectedKit} onDeleted={() => onSelectKit(null)} />
+        )}
       </div>
 
       {isCreating && (
