@@ -97,13 +97,13 @@ conexão; e o token dessas contas se renova sozinho.
 
 ## 4. Critérios de aceite
 
-- [ ] **CA-1** — Dada uma conta conectada pelo formulário, com permissão de publicar, quando o usuário publica um post de imagem, então o post sai no Instagram e guarda o id e o link da publicação.
+- [x] **CA-1** — Dada uma conta conectada pelo formulário, com permissão de publicar, quando o usuário publica um post de imagem, então o post sai no Instagram e guarda o id e o link da publicação.
 - [ ] **CA-2** — Idem para carrossel, reels e story (um caso por tipo).
 - [ ] **CA-3** — Dada uma conta conectada pela Meta, quando o usuário publica, então o post sai como hoje.
 - [x] **CA-4** — Dada uma empresa com duas contas nos Satélites e nenhuma `MetaPublishAccount`, quando abre o criador de post, então vê as duas contas para escolher.
 - [x] **CA-5** — Dada uma empresa só com `MetaPublishAccount` do Instagram e nenhuma conta nos Satélites, quando abre o criador de post, então não vê conta do Instagram e vê o convite para conectar nos Satélites.
 - [x] **CA-6** — Dada uma conta cujo token não tem a permissão de publicar, quando é conectada, então fica marcada como "não publica", não pode ser escolhida no post e o cartão aponta o passo do guia.
-- [ ] **CA-7** — Dado um post publicado por conta do formulário, quando o usuário abre o post, então vê métricas e comentários lidos com o token dessa conta.
+- [x] **CA-7** — Dado um post publicado por conta do formulário, quando o usuário abre o post, então vê métricas e comentários lidos com o token dessa conta.
 - [x] **CA-8** — Dada uma conta do formulário com token a menos de 10 dias de vencer, quando a rotina diária roda, então o token é trocado pelo renovado e a nova validade é gravada.
 - [x] **CA-9** — Dada a renovação recusada pelo Instagram, quando a rotina roda, então a conta vira "precisa reconectar" e uma notificação é criada para owners e admins.
 - [x] **CA-10** — Dado um post agendado para conta desativada, quando chega a hora, então o post falha com "A conta está desativada nos Satélites" e não entra em nova tentativa.
@@ -259,3 +259,4 @@ uma URL pública para a mídia (o Instagram baixa o arquivo pela internet;
 | --- | --- | --- |
 | 2026-10-05 | João Gabriel | Rascunho. Decisões do dono do produto: Facebook segue como extra pela Meta; sem migração (não há uso real em produção); renovação de token na mesma etapa |
 | 2026-10-05 | João Gabriel | Aprovada e **implementada**. Marcados os critérios provados por `scripts/planner-publish-accounts-qa-check.ts` e por `pnpm guides:check`. Abertos, dependem de conta real: CA-1, CA-2, CA-3, CA-7; CA-12 (Instagram + Facebook no mesmo post) não tem caso no script. Desvios do texto: (1) D-1 previa dois adaptadores; ficou **um** `InstagramContentPublisher` configurado por forma de conexão, porque só host, token e nó da resposta privada mudam; (2) RF-10: a notificação e o estado "precisa reconectar" existem, mas o aviso no cartão do post agendado não foi feito — o calendário mostra "reconectar" no filtro de contas e de clientes; (3) CB-4 (aviso de conta duplicada pelas duas formas de conexão) não foi implementado; (4) renovação recusada só derruba a conta quando a validade já é conhecida, para o token com menos de 24h não virar "precisa reconectar" (CB-6); (5) acrescentado o RF-14 a pedido do dono do produto; (6) nova procedure `socialAccounts.recheckCapabilities` ("conferir de novo" no cartão) |
+| 2026-10-05 | João Gabriel | **Primeira publicação real** pelo token do app do Instagram (conta de teste, post de imagem): CA-1 e CA-7 provados, e a renovação do token e a conferência de capacidades (D-3) confirmadas na rede. O teste achou um defeito: publicar logo depois de criar o contêiner de imagem devolve "Media ID is not available" (9007/2207027). O workflow agora espera o contêiner ficar pronto para qualquer mídia (3s entre checagens para imagem, 15s para vídeo) e esse erro passou a ser tentado de novo. CA-2 (carrossel, reels, story) e CA-3 (conta pela Meta) seguem abertos |

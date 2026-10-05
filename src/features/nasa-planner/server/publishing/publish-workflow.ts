@@ -20,7 +20,9 @@ export type PublishTrigger = "SCHEDULE" | "PUBLISH_NOW" | "RETRY" | "SWEEP";
 type StepTools = GetStepTools<typeof inngest>;
 type NetworkOutcome = { ok: true } | { ok: false; code: string; message: string };
 
-const PROCESSING_POLL_INTERVAL = "15s";
+const VIDEO_POLL_INTERVAL = "15s";
+/** Imagem fica pronta em segundos, mas publicar antes disso devolve "Media ID is not available". */
+const IMAGE_POLL_INTERVAL = "3s";
 const PROCESSING_MAX_CHECKS = 40;
 
 interface WorkflowInput {
@@ -101,23 +103,22 @@ async function publishToInstagram(step: StepTools, plan: PublishPlan, input: Wor
   });
   if (!container.ok) return container;
 
-  if (instagram.needsProcessing) {
-    let isReady = false;
-    for (let checkIndex = 0; checkIndex < PROCESSING_MAX_CHECKS && !isReady; checkIndex++) {
-      await step.sleep(`ig-wait-${checkIndex}`, PROCESSING_POLL_INTERVAL);
-      const status = await step.run(`ig-status-${checkIndex}`, async () => (await loadPublisher()).getMediaContainerStatus(container.containerId));
-      if (status.statusCode === "FINISHED") isReady = true;
-      if (status.statusCode === "ERROR" || status.statusCode === "EXPIRED") {
-        const failure = { code: `CONTAINER_${status.statusCode}`, message: `A Meta não conseguiu processar o vídeo${status.detail ? `: ${status.detail}` : "."}` };
-        await step.run("ig-processing-failed", () => recordAttempt({ ...attemptBase, step: "POLL", containerId: container.containerId, error: failure }));
-        return { ok: false, ...failure };
-      }
-    }
-    if (!isReady) {
-      const failure = { code: "PROCESSING_TIMEOUT", message: "A Meta não terminou de processar o vídeo a tempo. Tente de novo." };
-      await step.run("ig-processing-timeout", () => recordAttempt({ ...attemptBase, step: "POLL", containerId: container.containerId, error: failure }));
+  const pollInterval = instagram.needsProcessing ? VIDEO_POLL_INTERVAL : IMAGE_POLL_INTERVAL;
+  let isReady = false;
+  for (let checkIndex = 0; checkIndex < PROCESSING_MAX_CHECKS && !isReady; checkIndex++) {
+    await step.sleep(`ig-wait-${checkIndex}`, pollInterval);
+    const status = await step.run(`ig-status-${checkIndex}`, async () => (await loadPublisher()).getMediaContainerStatus(container.containerId));
+    if (status.statusCode === "FINISHED") isReady = true;
+    if (status.statusCode === "ERROR" || status.statusCode === "EXPIRED") {
+      const failure = { code: `CONTAINER_${status.statusCode}`, message: `A Meta não conseguiu processar a mídia${status.detail ? `: ${status.detail}` : "."}` };
+      await step.run("ig-processing-failed", () => recordAttempt({ ...attemptBase, step: "POLL", containerId: container.containerId, error: failure }));
       return { ok: false, ...failure };
     }
+  }
+  if (!isReady) {
+    const failure = { code: "PROCESSING_TIMEOUT", message: "A Meta não terminou de processar a mídia a tempo. Tente de novo." };
+    await step.run("ig-processing-timeout", () => recordAttempt({ ...attemptBase, step: "POLL", containerId: container.containerId, error: failure }));
+    return { ok: false, ...failure };
   }
 
   return step.run("ig-publish", async () => {

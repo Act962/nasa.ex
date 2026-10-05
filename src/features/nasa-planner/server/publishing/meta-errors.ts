@@ -14,6 +14,8 @@ export interface ClassifiedPublishError {
 const RATE_LIMIT_CODES = new Set([4, 17, 32, 613]);
 const EXPIRED_TOKEN_CODE = 190;
 const PUBLISH_LIMIT_SUBCODE = 2207042;
+/** "Media ID is not available": o contêiner ainda não terminou de processar. */
+const MEDIA_NOT_READY_SUBCODE = 2207027;
 
 export function classifyPublishError(error: unknown): ClassifiedPublishError {
   if (error instanceof PublishAccountUnavailableError) {
@@ -38,6 +40,9 @@ export function classifyPublishError(error: unknown): ClassifiedPublishError {
       isRetryable: false,
       needsReconnect: false,
     };
+  }
+  if (error.subcode === MEDIA_NOT_READY_SUBCODE) {
+    return { code: "MEDIA_NOT_READY", message: "A Meta ainda está processando a mídia. Vamos tentar de novo.", isRetryable: true, needsReconnect: false };
   }
   if (error.code !== null && RATE_LIMIT_CODES.has(error.code)) {
     return { code: "RATE_LIMIT", message: "A Meta pediu uma pausa nas publicações. Vamos tentar de novo.", isRetryable: true, needsReconnect: false };
