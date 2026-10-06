@@ -7,7 +7,7 @@ autor: Weydson
 criada: 2026-10-06
 atualizada: 2026-10-06
 branch: feature/W-tracking-chat-fix-resposta-astro-chat-20261006
-pr:
+pr: https://github.com/Act962/nasa.ex/pull/436
 peso: leve
 ---
 
