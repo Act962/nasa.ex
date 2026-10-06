@@ -29,13 +29,17 @@ const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "ut
  */
 // Entradas públicas onde ?ref e ?utm_* são capturados (era o matcher antes de ele cobrir tudo).
 const TRACKED_EXACT_PATHS = new Set(["/", "/sign-up", "/sign-in"]);
-const TRACKED_PATH_PREFIXES = [
-  "/submit-form/", "/agenda/", "/calendario/", "/c/", "/s/", "/pages/", "/portal/", "/profile/",
-  "/proposta/", "/contrato/", "/checkout/", "/space/", "/l/", "/join/", "/resgatar/", "/trafego/",
+const TRACKED_PATH_BASES = [
+  "/submit-form", "/agenda", "/calendario", "/c", "/s", "/pages", "/portal", "/profile",
+  "/proposta", "/contrato", "/checkout", "/space", "/l", "/join", "/resgatar", "/trafego",
 ];
 
+// Mesmo alcance do antigo `/<base>/:path*`: a própria base e tudo abaixo dela.
 function isTrackedPath(pathname: string): boolean {
-  return TRACKED_EXACT_PATHS.has(pathname) || TRACKED_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  return (
+    TRACKED_EXACT_PATHS.has(pathname) ||
+    TRACKED_PATH_BASES.some((basePath) => pathname === basePath || pathname.startsWith(`${basePath}/`))
+  );
 }
 
 /**

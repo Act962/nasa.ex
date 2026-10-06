@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { nanoid } from "nanoid";
+import { customDomainCandidates } from "@/features/pages/lib/edge-headers";
 import z from "zod";
 
 const domainRegex = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i;
@@ -31,8 +32,9 @@ export const setCustomDomain = base
     });
     if (!page) throw errors.NOT_FOUND({ message: "Página não encontrada" });
 
+    // O site responde com e sem `www`: as duas formas ficam reservadas para a mesma página.
     const conflict = await prisma.nasaPage.findFirst({
-      where: { customDomain: normalized, NOT: { id: page.id } },
+      where: { customDomain: { in: customDomainCandidates(normalized) }, NOT: { id: page.id } },
       select: { id: true },
     });
     if (conflict) {

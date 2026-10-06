@@ -46,10 +46,18 @@ export async function resolveCustomDomainSite(host: string, pathSegments: string
   if (pathSegments.length > 1) return null;
   const [subpageSlug] = pathSegments;
 
+  // O domínio pode estar numa página que deixou de ser a inicial ("definir como home" troca
+  // a raiz sem mexer no domínio): o site é sempre o da raiz atual de quem tem o domínio.
+  const domainOwnerPage = await prisma.nasaPage.findFirst({
+    where: { customDomain: { in: customDomainCandidates(host) }, domainStatus: "VERIFIED" },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, parentPageId: true },
+  });
+  if (!domainOwnerPage) return null;
+
   const rootPage = await prisma.nasaPage.findFirst({
     where: {
-      customDomain: { in: customDomainCandidates(host) },
-      domainStatus: "VERIFIED",
+      id: domainOwnerPage.parentPageId ?? domainOwnerPage.id,
       status: "PUBLISHED",
       parentPageId: null,
     },
