@@ -10,6 +10,7 @@ import {
   primaryColor,
   type SectionRendererProps,
 } from "./types";
+import { renderHighlightedText } from "./highlight-text";
 import {
   resolveTextStyle,
   textStyleToCSS,
@@ -126,8 +127,8 @@ export function SectionPricing({ element, tokens }: SectionRendererProps) {
       <div className="max-w-7xl mx-auto flex flex-col gap-8 sm:gap-10">
         <RenderInterludeBlocks blocks={interlude.aboveHeading} />
         <div className="max-w-2xl mx-auto">
-          <h2 style={{ ...textStyleToCSS(resolveTextStyle(undefined, headingStyle, headingDefaults)), marginBottom: 12 }}>
-            {heading}
+          <h2 data-cascade-item style={{ ...textStyleToCSS(resolveTextStyle(undefined, headingStyle, headingDefaults)), marginBottom: 12 }}>
+            {renderHighlightedText(heading, element, primary)}
           </h2>
           <p style={textStyleToCSS(resolveTextStyle(undefined, subheadingStyle, subheadingDefaults))}>
             {subheading}
@@ -153,6 +154,7 @@ export function SectionPricing({ element, tokens }: SectionRendererProps) {
             const ctaMerged = resolveTextStyle(plan.ctaStyle, sectionCtaStyle, plan.highlighted ? ctaDefaults : { ...ctaDefaults, color: fg });
             const planInner = (
               <div
+                data-cascade-item
                 className="relative flex flex-col gap-4 border-2"
                 style={{
                   background:

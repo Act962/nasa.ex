@@ -43,10 +43,19 @@ interface Props {
   onOpenChange: (o: boolean) => void;
 }
 
-// "template" é o NOVO primeiro step — galeria de templates prontos
-// + opção "começar do zero" (que mantém o fluxo antigo dos outros 5
-// steps).
-type Step = "template" | "intent" | "layers" | "palette" | "details" | "confirm";
+type Step = "template" | "intent" | "layers" | "palette" | "details";
+
+// Com modelo, tipo de site, camadas e cores já vêm dele: sobra só dar nome e criar.
+const TEMPLATE_STEPS: Step[] = ["template", "details"];
+const BLANK_STEPS: Step[] = ["template", "intent", "layers", "palette", "details"];
+
+const STEP_LABELS: Record<Step, string> = {
+  template: "Modelo",
+  intent: "Tipo de site",
+  layers: "Camadas",
+  palette: "Cores",
+  details: "Nome e endereço",
+};
 
 function slugify(input: string) {
   return input
@@ -57,8 +66,6 @@ function slugify(input: string) {
     .replace(/^-+|-+$/g, "")
     .slice(0, 64);
 }
-
-const STEPS: Step[] = ["template", "intent", "layers", "palette", "details", "confirm"];
 
 const PALETTE_KEYS: { key: string; label: string }[] = [
   { key: "primary", label: "Primária" },
@@ -168,7 +175,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
   const [layerCount, setLayerCount] = useState<1 | 2>(1);
   const [palette, setPalette] = useState<Record<string, string>>(DEFAULT_PALETTES[0]);
   const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
+  const [customSlug, setCustomSlug] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   // Template selecionado (null = "começar do zero"). Quando setado,
   // intent + palette ficam derivados do template e a aplicação dos
@@ -183,15 +190,15 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
       setLayerCount(1);
       setPalette(DEFAULT_PALETTES[0]);
       setTitle("");
-      setSlug("");
+      setCustomSlug(null);
       setDescription("");
       setSelectedTemplate(null);
     }
   }, [open]);
 
-  useEffect(() => {
-    if (title && !slug) setSlug(slugify(title));
-  }, [title, slug]);
+  // O endereço acompanha o nome até a pessoa digitar um endereço próprio.
+  const slug = customSlug ?? slugify(title);
+  const steps = selectedTemplate ? TEMPLATE_STEPS : BLANK_STEPS;
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
@@ -199,7 +206,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
       //    `emptyLayout(layerCount)` pelo padrão atual).
       const res = await client.pages.createPage({
         title,
-        slug: slug || slugify(title),
+        slug,
         description: description || undefined,
         intent,
         layerCount,
@@ -254,7 +261,8 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
     onError: (e: Error) => toast.error(e.message ?? "Erro ao criar"),
   });
 
-  const stepIndex = STEPS.indexOf(step);
+  const stepIndex = Math.max(0, steps.indexOf(step));
+  const isLastStep = stepIndex === steps.length - 1;
   const canAfford = cost ? cost.canAfford : true;
 
   const canAdvance = useMemo(() => {
@@ -287,7 +295,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
             Novo site ÓRBITA Pages
           </DialogTitle>
           <DialogDescription>
-            Etapa {stepIndex + 1} de {STEPS.length} — {STEPS[stepIndex]}
+            Etapa {stepIndex + 1} de {steps.length} — {STEP_LABELS[step]}
           </DialogDescription>
         </DialogHeader>
 
@@ -326,8 +334,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
                     fg: template.tokens.fg,
                     muted: template.tokens.muted,
                   });
-                  // Avança automático pro próximo step (details).
-                  setStep("intent");
+                  setStep("details");
                 }}
                 onStartBlank={() => {
                   setSelectedTemplate(null);
@@ -416,7 +423,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
                   <span className="text-sm text-muted-foreground">/s/</span>
                   <Input
                     value={slug}
-                    onChange={(e) => setSlug(slugify(e.target.value))}
+                    onChange={(e) => setCustomSlug(slugify(e.target.value) || null)}
                     placeholder="meu-site"
                   />
                 </div>
@@ -430,29 +437,6 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
                   maxLength={500}
                 />
               </div>
-            </div>
-          )}
-
-          {step === "confirm" && (
-            <div className="flex flex-col gap-3">
-              <Card>
-                <CardContent className="p-4 flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Intenção</span>
-                    <span className="font-medium">{INTENT_LABELS[intent]}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Camadas</span>
-                    <span className="font-medium">
-                      {layerCount === 2 ? "2 camadas (parallax)" : "1 camada"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Slug</span>
-                    <span className="font-mono text-xs">/{slug}</span>
-                  </div>
-                </CardContent>
-              </Card>
               <Card
                 className={cn(
                   canAfford ? "border-primary" : "border-destructive",
@@ -478,6 +462,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
               </Card>
             </div>
           )}
+
         </div>
         </div>
 
@@ -485,16 +470,16 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
           {stepIndex > 0 && (
             <Button
               variant="ghost"
-              onClick={() => setStep(STEPS[stepIndex - 1])}
+              onClick={() => setStep(steps[stepIndex - 1])}
               disabled={isPending}
               className="h-12 rounded-full sm:h-9"
             >
               Voltar
             </Button>
           )}
-          {step !== "confirm" ? (
+          {!isLastStep ? (
             <Button
-              onClick={() => setStep(STEPS[stepIndex + 1])}
+              onClick={() => setStep(steps[stepIndex + 1])}
               disabled={!canAdvance}
               className="h-12 flex-1 rounded-full sm:h-9 sm:flex-none"
             >
@@ -503,7 +488,7 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
           ) : (
             <Button
               onClick={() => mutate()}
-              disabled={!canAfford || isPending}
+              disabled={!canAdvance || !canAfford || isPending}
               className="h-12 flex-1 gap-1 rounded-full sm:h-9 sm:flex-none"
             >
               <Sparkles className="size-4" />

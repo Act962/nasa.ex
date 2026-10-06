@@ -25,6 +25,7 @@ import {
   primaryColor,
   type SectionRendererProps,
 } from "./types";
+import { renderHighlightedText } from "./highlight-text";
 
 export function SectionHero({ element, tokens }: SectionRendererProps) {
   const badge = (element.badge as string) ?? "★ Novo na ÓRBITA";
@@ -81,6 +82,7 @@ export function SectionHero({ element, tokens }: SectionRendererProps) {
     >
       {/* Badge */}
       <div
+        data-cascade-item
         className="relative inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs sm:text-sm font-medium border"
         style={{
           background: `${primary}20`,
@@ -93,16 +95,18 @@ export function SectionHero({ element, tokens }: SectionRendererProps) {
 
       {/* Headline */}
       <h1
+        data-cascade-item
         className="relative text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.05] max-w-4xl"
         style={{ color: fg, textShadow: backgroundImage ? "0 2px 16px rgba(0,0,0,0.6)" : undefined }}
       >
-        {titleLine1}
+        {renderHighlightedText(titleLine1, element, primary)}
         <br />
-        <span style={{ color: primary }}>{titleLine2}</span>
+        <span style={{ color: primary }}>{renderHighlightedText(titleLine2, element, fg)}</span>
       </h1>
 
       {/* Subtitle */}
       <p
+        data-cascade-item
         className="relative text-sm sm:text-base md:text-lg leading-relaxed max-w-2xl"
         style={{ color: muted, textShadow: backgroundImage ? "0 1px 8px rgba(0,0,0,0.6)" : undefined }}
       >
@@ -118,7 +122,7 @@ export function SectionHero({ element, tokens }: SectionRendererProps) {
         });
         if (buttons.length === 0) return null;
         return (
-          <div className="relative flex flex-col sm:flex-row items-stretch sm:items-center justify-center flex-wrap gap-3 mt-2 w-full sm:w-auto">
+          <div data-cascade-item className="relative flex flex-col sm:flex-row items-stretch sm:items-center justify-center flex-wrap gap-3 mt-2 w-full sm:w-auto">
             {buttons.map((b) =>
               renderSectionButton(b, {
                 primary,
@@ -137,6 +141,7 @@ export function SectionHero({ element, tokens }: SectionRendererProps) {
       {imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          data-cascade-item
           src={imageUrl}
           alt=""
           className="relative w-full max-w-4xl rounded-xl mt-4 sm:mt-6"

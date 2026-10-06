@@ -14,6 +14,7 @@ import {
   primaryColor,
   type SectionRendererProps,
 } from "./types";
+import { renderHighlightedText } from "./highlight-text";
 
 export function SectionCta({ element, tokens }: SectionRendererProps) {
   const heading = (element.heading as string) ?? "Pronto pra começar?";
@@ -57,13 +58,13 @@ export function SectionCta({ element, tokens }: SectionRendererProps) {
       />
 
       <div className="relative z-10 max-w-3xl mx-auto flex flex-col gap-6">
-        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black leading-[1.05]">
-          {heading}
+        <h2 data-cascade-item className="text-3xl sm:text-4xl md:text-5xl font-black leading-[1.05]">
+          {renderHighlightedText(heading, element, primary)}
           <br />
           <span style={{ color: primary }}>{headingAccent}</span>
         </h2>
 
-        <p className="text-sm sm:text-base md:text-lg leading-relaxed max-w-xl mx-auto" style={{ color: muted }}>
+        <p data-cascade-item className="text-sm sm:text-base md:text-lg leading-relaxed max-w-xl mx-auto" style={{ color: muted }}>
           {subtitle}
         </p>
 

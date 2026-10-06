@@ -37,6 +37,7 @@ export const ELEMENT_TYPES = [
   // Sections completas (Fase 1)
   "section-hero", "section-features", "section-pricing", "section-cta",
   "section-stats", "section-testimonials", "section-faq", "section-logo-cloud",
+  "section-comparison", "section-before-after", "section-media-text",
   "section-navbar", "section-footer",
   // Blocos interativos (Fase 2)
   "marquee", "tabs", "accordion", "counter",
@@ -55,6 +56,8 @@ export const ELEMENT_TYPE_CATEGORIES: Record<string, string> = {
   "section-pricing": "sections", "section-cta": "sections",
   "section-stats": "sections", "section-testimonials": "sections",
   "section-faq": "sections", "section-logo-cloud": "sections",
+  "section-comparison": "sections", "section-before-after": "sections",
+  "section-media-text": "sections",
   "section-navbar": "sections", "section-footer": "sections",
   marquee: "interactive", tabs: "interactive",
   accordion: "interactive", counter: "interactive",
@@ -90,6 +93,9 @@ export const ELEMENT_TYPE_LABELS: Record<
   "section-testimonials": { label: "Depoimentos", icon: "💬" },
   "section-faq": { label: "FAQ", icon: "❓" },
   "section-logo-cloud": { label: "Logos", icon: "🏷" },
+  "section-comparison": { label: "Tabela comparativa", icon: "📋" },
+  "section-before-after": { label: "Antes × Depois", icon: "🔀" },
+  "section-media-text": { label: "Foto + texto", icon: "🖼" },
   "section-navbar": { label: "Header", icon: "🧭" },
   "section-footer": { label: "Footer", icon: "📜" },
   marquee: { label: "Carrossel", icon: "🎠" },

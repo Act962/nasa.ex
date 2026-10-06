@@ -22,7 +22,7 @@ import {
   LayoutGrid, DollarSign, Megaphone, BarChart3,
   Quote, HelpCircle, Building2, MoveHorizontal, Layers,
   Rows3, Hash, Database, Navigation, PanelBottom, Images,
-  MessageCircle, ClipboardList, DoorOpen, FolderTree,
+  MessageCircle, ClipboardList, DoorOpen, FolderTree, Table2, Columns2, LayoutPanelLeft, CircleArrowUp,
 } from "lucide-react";
 import type { ElementBase, ElementType } from "../types";
 
@@ -52,6 +52,10 @@ const TYPE_LABELS: Partial<Record<ElementType, string>> = {
   "section-testimonials": "Depoimentos",
   "section-faq": "FAQ",
   "section-logo-cloud": "Logos",
+  "section-comparison": "Tabela comparativa",
+  "section-before-after": "Antes × Depois",
+  "section-media-text": "Foto + texto",
+  "floating-buttons": "Botões flutuantes",
   "section-navbar": "Navbar",
   "section-footer": "Footer",
   marquee: "Marquee",
@@ -163,6 +167,10 @@ const TYPE_ICONS: Partial<Record<ElementType, React.ComponentType<{ className?: 
   "section-testimonials": Quote,
   "section-faq": HelpCircle,
   "section-logo-cloud": Building2,
+  "section-comparison": Table2,
+  "section-before-after": Columns2,
+  "section-media-text": LayoutPanelLeft,
+  "floating-buttons": CircleArrowUp,
   "section-navbar": Navigation,
   "section-footer": PanelBottom,
   marquee: MoveHorizontal,

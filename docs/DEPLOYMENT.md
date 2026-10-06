@@ -40,6 +40,9 @@ Coolify. Desligue o build por Nixpacks (`.nixpacks.toml` fica só como legado).
   3000 não conflita. Se definir `PORT`, `Ports Exposes` tem que ser igual (o healthcheck segue o `PORT`).
 - **`DIRECT_URL`:** conexão direta com o Postgres, sem PgBouncer. O `migrate deploy` do boot usa ela quando existe;
   via PgBouncer (pool por transação) o advisory lock do Prisma expira (`P1002`) e o container reinicia em loop.
+- **`SKIP_MIGRATIONS=1`:** o container sobe sem rodar `prisma migrate deploy`. Só para instâncias extras da mesma imagem
+  (ex.: a dedicada aos sites de domínio próprio do Pages, atrás do `orbita-pages-edge`). O app principal nunca leva essa
+  variável: sem ela é que as migrations são aplicadas no deploy.
 - **Valores com `$`** (ex.: `ASAAS_API_KEY`): o recurso *Docker Image* sobe via `docker compose`, que interpola `$`.
   Marque a variável como **Is Literal** (ou escreva `$$`); senão ela chega vazia, sem erro.
 

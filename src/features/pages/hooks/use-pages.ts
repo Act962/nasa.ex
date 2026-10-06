@@ -17,6 +17,15 @@ export function usePagesCost() {
   });
 }
 
+/** Destinos de DNS (CNAME e A) para domínio próprio; mudam só com deploy. */
+export function usePagesEdgeConfig(isEnabled = true) {
+  return useQuery({
+    ...orpc.pages.getEdgeConfig.queryOptions({ input: {} }),
+    enabled: isEnabled,
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function usePage(id: string) {
   return useQuery({
     ...orpc.pages.getPage.queryOptions({ input: { id } }),

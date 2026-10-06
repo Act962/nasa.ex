@@ -9,6 +9,10 @@ import { SectionStats } from "./sections/section-stats";
 import { SectionTestimonials } from "./sections/section-testimonials";
 import { SectionFaq } from "./sections/section-faq";
 import { SectionLogoCloud } from "./sections/section-logo-cloud";
+import { SectionComparison } from "./sections/section-comparison";
+import { SectionBeforeAfter } from "./sections/section-before-after";
+import { SectionMediaText } from "./sections/section-media-text";
+import { FloatingButtons } from "./floating-buttons";
 import { SectionNavbar } from "./sections/section-navbar";
 import { SectionFooter } from "./sections/section-footer";
 import {
@@ -467,6 +471,20 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
       return (
         <SectionFaq element={element} tokens={tokens} readonly={readonly} />
       );
+    case "section-comparison":
+      return <SectionComparison element={element} tokens={tokens} readonly={readonly} />;
+    case "section-media-text":
+      return <SectionMediaText element={element} tokens={tokens} readonly={readonly} />;
+    case "floating-buttons":
+      // No editor fica uma etiqueta no canvas; os botões de verdade só aparecem no site.
+      if (readonly) return <FloatingButtons element={element} />;
+      return (
+        <div className="flex h-full w-full items-center justify-center rounded-lg border-2 border-dashed border-success/40 bg-success/10 p-2 text-center text-xs text-foreground">
+          Botões flutuantes — WhatsApp e voltar ao topo
+        </div>
+      );
+    case "section-before-after":
+      return <SectionBeforeAfter element={element} tokens={tokens} readonly={readonly} />;
     case "section-logo-cloud":
       return (
         <SectionLogoCloud

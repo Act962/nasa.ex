@@ -79,7 +79,7 @@ export function SectionStats({ element, tokens }: SectionRendererProps) {
             labelDefaults,
           );
           return (
-            <div key={stat.id}>
+            <div key={stat.id} data-cascade-item>
               <div style={{ ...textStyleToCSS(valueMerged), marginBottom: 6 }}>
                 {stat.value}
               </div>

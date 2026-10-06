@@ -47,6 +47,10 @@ import {
   ClipboardList,
   LogOut,
   Sparkles,
+  Table2,
+  Columns2,
+  LayoutPanelLeft,
+  CircleArrowUp,
 } from "lucide-react";
 import type { ElementType } from "../../types";
 
@@ -65,6 +69,7 @@ export const SINGLETON_TYPES = new Set<ElementType>([
   "section-navbar",
   "section-footer",
   "marketing",
+  "floating-buttons",
 ]);
 
 export const SINGLETON_LABELS: Record<string, string> = {
@@ -73,6 +78,7 @@ export const SINGLETON_LABELS: Record<string, string> = {
   "section-navbar": "Navbar",
   "section-footer": "Footer",
   marketing: "Marketing toolkit",
+  "floating-buttons": "bloco de botões flutuantes",
 };
 
 export const ICONS: Record<
@@ -100,6 +106,10 @@ export const ICONS: Record<
   "section-testimonials": Quote,
   "section-faq": HelpCircle,
   "section-logo-cloud": Building2,
+  "section-comparison": Table2,
+  "section-before-after": Columns2,
+  "section-media-text": LayoutPanelLeft,
+  "floating-buttons": CircleArrowUp,
   "section-navbar": PanelTop,
   "section-footer": PanelBottom,
   marquee: MoveHorizontal,
@@ -136,6 +146,10 @@ export const LABELS: Record<ElementType, string> = {
   "section-testimonials": "Depoimentos",
   "section-faq": "FAQ",
   "section-logo-cloud": "Logos",
+  "section-comparison": "Tabela comparativa",
+  "section-before-after": "Antes × Depois",
+  "section-media-text": "Foto + texto",
+  "floating-buttons": "WhatsApp e voltar ao topo",
   "section-navbar": "Navbar",
   "section-footer": "Footer",
   marquee: "Marquee",
@@ -164,6 +178,7 @@ export const ELEMENT_ORDER: ElementType[] = [
   "embed",
   "carousel",
   "chat-button",
+  "floating-buttons",
   "embedded-form",
   "exit-intent",
   "marketing",

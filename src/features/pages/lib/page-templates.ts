@@ -11,6 +11,7 @@
  */
 import { nanoid } from "nanoid";
 import type { ElementBase, PageIntent } from "../types";
+import { MENTORIA_LIFTBUMBUM_TOKENS, mentoriaLiftbumbumElements } from "./templates/mentoria-liftbumbum";
 
 export interface PageTemplate {
   /** Slug estável — usado no link e analytics. */
@@ -1448,6 +1449,16 @@ function aulaoLiftbumbumPosPmma(): Omit<
 }
 
 export const PAGE_TEMPLATES: PageTemplate[] = [
+  {
+    id: "mentoria-liftbumbum",
+    name: "Mentoria LiftBumbum® — Dra. Thaine",
+    description:
+      "Landing da mentoria presencial de 3 dias, com os textos do site drathainemalinowski.com: topo com foto, antes × depois, para quem é, método, cronograma, ecossistema, mentora, depoimentos, 3 planos, tabela comparativa, garantias, bônus, FAQ e WhatsApp flutuante. Preto com dourado, entradas em cascata.",
+    intent: "LANDING",
+    category: "Sales",
+    tokens: MENTORIA_LIFTBUMBUM_TOKENS,
+    elements: mentoriaLiftbumbumElements(),
+  },
   {
     id: "aulao-liftbumbum-pos-pmma",
     name: "Aulão LiftBumbum® — Pós-PMMA",

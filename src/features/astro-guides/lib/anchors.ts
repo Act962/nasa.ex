@@ -391,6 +391,10 @@ export const GUIDE_ANCHORS = {
     id: "pages.publish",
     description: "Botão \"Publicar\" no editor do site",
   },
+  pagesDeviceSwitcher: {
+    id: "pages.device-switcher",
+    description: "Seletor Computador / Tablet / Celular no topo do editor do site",
+  },
   linnkerNewButton: {
     id: "linnker.new-button",
     description: "Botão \"Nova página\" em /linnker",

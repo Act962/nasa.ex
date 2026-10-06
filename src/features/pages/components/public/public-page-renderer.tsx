@@ -15,6 +15,7 @@ import {
   ScrollReveal,
   getScrollRevealProps,
 } from "../elements/scroll-reveal";
+import { CascadeReveal, getCascadeRevealProps } from "../elements/cascade-reveal";
 import { PageAnalytics } from "./page-analytics";
 import { PageTracker } from "./page-tracker";
 import { PageRenderContextProvider } from "./page-context";
@@ -37,6 +38,10 @@ interface Props {
   rootSlug?: string;
   /** Páginas-irmãs publicadas (root + subpages). Default empty array. */
   siblingPages?: Array<{ id: string; slug: string; title: string; isRoot: boolean }>;
+  /** Só em domínio próprio: base dos links internos ("" = raiz do domínio). */
+  siteBasePath?: string;
+  /** Só em domínio próprio: origem do app para recursos que voltam a ele. */
+  appOrigin?: string;
 }
 
 export function PublicPageRenderer({
@@ -47,6 +52,8 @@ export function PublicPageRenderer({
   organizationSlug,
   rootSlug,
   siblingPages,
+  siteBasePath,
+  appOrigin,
 }: Props) {
   const [device, setDevice] = useState<Device>("desktop");
   const [scrollY, setScrollY] = useState(0);
@@ -126,6 +133,8 @@ export function PublicPageRenderer({
     pageSlug: trackingSlug,
     rootSlug,
     siblingPages,
+    siteBasePath,
+    appOrigin,
     availablePlans,
     inChatTrackingId: pageMeta.inChatTrackingId,
     inChatStatusId: pageMeta.inChatStatusId,
@@ -308,6 +317,7 @@ function LandingFlow({
     "section-navbar",
     "section-footer",
     "marketing",
+    "floating-buttons",
   ]);
   const seenSingletons = new Set<string>();
   const deduped = flat.filter((el) => {
@@ -347,6 +357,10 @@ function LandingFlow({
               )}
             </div>
           );
+        }
+        // Botões flutuantes são fixos na tela: não ocupam faixa no fluxo da página.
+        if (el.type === "floating-buttons") {
+          return <ElementRenderer key={el.id} element={el} readonly />;
         }
         // Átomo — container centralizado com padding vertical.
         // Box interna mantém o tamanho desenhado no builder (w x h),
@@ -490,7 +504,11 @@ function wrapWithEffects(
 ): React.ReactNode {
   const border = getAnimatedBorderProps(el as unknown as Record<string, unknown>);
   const scroll = getScrollRevealProps(el as unknown as Record<string, unknown>);
+  const cascade = getCascadeRevealProps(el as unknown as Record<string, unknown>);
   let content: React.ReactNode = children;
+  if (cascade) {
+    content = <CascadeReveal {...cascade}>{content}</CascadeReveal>;
+  }
   if (border) {
     content = (
       <AnimatedBorder

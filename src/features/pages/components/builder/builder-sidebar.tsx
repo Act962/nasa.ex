@@ -66,6 +66,7 @@ import { DraggableElementButton } from "./draggable-element-button";
 import { PageSettingsPanel } from "./page-settings-panel";
 import { ALL_BUILDER_SIDEBAR_TAB_IDS, BuilderSidebarTabs } from "./builder-sidebar-tabs";
 import { BuilderSelectionHint } from "./builder-selection-hint";
+import { useIsMobileOrTablet } from "@/hooks/use-mobile";
 
 interface BuilderSidebarPanelProps {
   /** Abas mostradas (no celular cada gaveta mostra só as dela). */
@@ -93,6 +94,10 @@ function BuilderSidebarBody({
   isPropertiesEmbedded = true,
 }: BuilderSidebarPanelProps & { asPanel?: boolean }) {
   const [tab, setTab] = useState<Tab>(visibleTabIds[0] ?? "elements");
+  // Telas largas: propriedades em coluna própria à direita do canvas. Ela fica dentro do
+  // DndContext da sidebar (reorder dos itens de section) e vai para a direita via `order-last`.
+  const isNarrowScreen = useIsMobileOrTablet();
+  const hasPropertiesColumn = !asPanel && !isNarrowScreen;
   const addElement = usePagesBuilderStore((s) => s.addElement);
   const insertElementAt = usePagesBuilderStore((s) => s.insertElementAt);
   const appendInterludeBlockToSection = usePagesBuilderStore(
@@ -343,11 +348,9 @@ function BuilderSidebarBody({
   )?.palette ?? {}) as Record<string, string>;
   const bgColor = pagePalette.bg ?? layout?.artboard.background ?? "#ffffff";
 
-  // Sidebar 320px (era 300) — abre espaço pras 5 abas + properties
-  // panel embutido sem ficar apertado.
   const wrapperCls = asPanel
     ? "w-full h-full flex flex-col overflow-hidden bg-card"
-    : "w-[320px] border-r bg-card hidden md:flex flex-col shrink-0 overflow-hidden";
+    : "w-[320px] lg:w-[300px] border-r bg-card hidden md:flex flex-col shrink-0 overflow-hidden";
   const Tag: React.ElementType = asPanel ? "div" : "aside";
 
   return (
@@ -400,9 +403,20 @@ function BuilderSidebarBody({
           )}
 
           {isPropertiesEmbedded &&
+            !hasPropertiesColumn &&
             (selected.length > 0 ? <PropertiesPanelContent /> : <BuilderSelectionHint />)}
         </div>
       </Tag>
+      {hasPropertiesColumn && (
+        <aside
+          data-builder-properties
+          className="order-last flex w-[300px] shrink-0 flex-col overflow-hidden border-l bg-card"
+        >
+          <div className="flex-1 overflow-y-auto">
+            {selected.length > 0 ? <PropertiesPanelContent /> : <BuilderSelectionHint />}
+          </div>
+        </aside>
+      )}
     </DndContext>
   );
 }

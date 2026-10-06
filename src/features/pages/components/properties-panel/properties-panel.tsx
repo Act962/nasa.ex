@@ -50,6 +50,14 @@ import { getElementDisplayName } from "../../lib/layer-utils";
 import { mapElementToInterludeBlock } from "../../lib/visible-section";
 import { ScrollRevealEditor } from "./scroll-reveal-editor";
 import { MarketingProps } from "./marketing-props";
+import { PropertyGroup } from "./property-group";
+import { BeforeAfterProps, ComparisonProps } from "./comparison-props";
+import {
+  FloatingButtonsProps,
+  MediaTextProps,
+  SectionEffectsFields,
+  TitleHighlightFields,
+} from "./media-text-props";
 import type { TextStyle } from "../../lib/text-style";
 import {
   legacyToButtonsList,
@@ -1473,18 +1481,17 @@ function HeroProps({ el, update }: { el: ElementBase; update: (p: Partial<Elemen
 function ColorBlock({ el, update }: { el: ElementBase; update: (p: Partial<ElementBase>) => void }) {
   return (
     <>
-      <Seg />
-      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
-        Cores
-      </p>
-      <Row>
-        <ColorField label="Fundo" value={(el.bgColor as string) ?? ""} onChange={(v) => update({ bgColor: v })} />
-        <ColorField label="Texto" value={(el.fgColor as string) ?? ""} onChange={(v) => update({ fgColor: v })} />
-      </Row>
-      <Row>
-        <ColorField label="Primária" value={(el.primaryColor as string) ?? ""} onChange={(v) => update({ primaryColor: v })} />
-        <ColorField label="Secundária" value={(el.mutedColor as string) ?? ""} onChange={(v) => update({ mutedColor: v })} />
-      </Row>
+      <Seg className="mb-0" />
+      <PropertyGroup title="Cores">
+        <Row>
+          <ColorField label="Fundo" value={(el.bgColor as string) ?? ""} onChange={(v) => update({ bgColor: v })} />
+          <ColorField label="Texto" value={(el.fgColor as string) ?? ""} onChange={(v) => update({ fgColor: v })} />
+        </Row>
+        <Row>
+          <ColorField label="Primária" value={(el.primaryColor as string) ?? ""} onChange={(v) => update({ primaryColor: v })} />
+          <ColorField label="Secundária" value={(el.mutedColor as string) ?? ""} onChange={(v) => update({ mutedColor: v })} />
+        </Row>
+      </PropertyGroup>
     </>
   );
 }
@@ -1510,10 +1517,6 @@ function ResponsiveProps({ el, update }: { el: ElementBase; update: (p: Partial<
 
   return (
     <>
-      <Seg />
-      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
-        Responsividade
-      </p>
       <Field label="Ocultar em:">
         <div className="flex gap-1.5">
           {(["mobile", "tablet"] as Device[]).map((d) => (
@@ -4269,13 +4272,33 @@ const TYPE_LABELS: Record<string, string> = {
   "section-faq": "Perguntas Frequentes (FAQ)",
   "section-cta": "Call to Action (CTA)",
   "section-logo-cloud": "Logos / Marcas",
+  "section-comparison": "Tabela comparativa",
+  "section-before-after": "Antes × Depois",
+  "section-media-text": "Foto + texto",
+  "floating-buttons": "Botões flutuantes",
   "section-footer": "Footer / Rodapé",
   marquee: "Marquee (texto rolando)",
   marketing: "Marketing (conversão)",
 };
 
 /** Renders just the properties content (no outer wrapper) — for embedding inside the sidebar */
+type PropertiesTab = "content" | "advanced";
+
+const PROPERTIES_TABS: { id: PropertiesTab; label: string }[] = [
+  { id: "content", label: "Conteúdo" },
+  { id: "advanced", label: "Avançado" },
+];
+
+const TYPES_WITH_CONTENT_EDITOR = new Set<ElementBase["type"]>([
+  "text", "image", "shape", "button", "video", "embed", "nasa-link", "social", "carousel",
+  "chat-button", "embedded-form", "exit-intent", "marketing",
+  "section-navbar", "section-footer", "section-hero", "section-features", "section-pricing",
+  "section-testimonials", "section-stats", "section-faq", "section-cta", "section-logo-cloud",
+  "section-comparison", "section-before-after", "section-media-text", "floating-buttons",
+]);
+
 export function PropertiesPanelContent() {
+  const [activeTab, setActiveTab] = useState<PropertiesTab>("content");
   const layout = usePagesBuilderStore((s) => s.layout);
   const activeLayer = usePagesBuilderStore((s) => s.activeLayer);
   const selected = usePagesBuilderStore((s) => s.selected);
@@ -4298,6 +4321,9 @@ export function PropertiesPanelContent() {
   if (!el) return null;
 
   const update = (patch: Partial<ElementBase>) => updateElement(el.id, patch);
+  const hasContentEditor = TYPES_WITH_CONTENT_EDITOR.has(el.type);
+  const isSection = isFlowSection(el.type);
+  const visibleTab: PropertiesTab = hasContentEditor ? activeTab : "advanced";
 
   return (
     <div className="flex flex-col">
@@ -4319,59 +4345,96 @@ export function PropertiesPanelContent() {
         </div>
       </div>
 
-      {/* body */}
-      <div className="px-3 py-3 flex flex-col gap-2">
-        {/* Ordem e localização — botões ⬆/⬇ pra reordenar no fluxo +
-            dropdown "Adicionar à camada" pra mover o element pra DENTRO
-            de outra section como interlude block. Funciona pra qualquer
-            tipo de element (incluindo flow sections — Subir/Descer
-            espelha o drag da aba Camadas). */}
-        <ElementOrderControls element={el} />
-        <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-1">Posição e tamanho</p>
-        <Row>
-          <NumField label="X" value={el.x} onChange={(v) => update({ x: v })} />
-          <NumField label="Y" value={el.y} onChange={(v) => update({ y: v })} />
-          <NumField label="W" value={el.w} onChange={(v) => update({ w: Math.max(4, v) })} />
-          <NumField label="H" value={el.h} onChange={(v) => update({ h: Math.max(4, v) })} />
-        </Row>
-        <Row cols={3}>
-          <NumField label="Rotação °" value={el.rotation ?? 0} onChange={(v) => update({ rotation: v })} step={1} />
-          <NumField label="Opac. %" value={Math.round((el.opacity ?? 1) * 100)} onChange={(v) => update({ opacity: Math.min(1, Math.max(0, v / 100)) })} step={5} min={0} />
-          <NumField label="Z-index" value={el.zIndex ?? 1} onChange={(v) => update({ zIndex: v })} min={0} />
-        </Row>
-        {/* Borda animada — efeito Explorer reusável. Funciona pra
-            qualquer element. Toggle off por default. */}
-        <AnimatedBorderEditor el={el} update={update} />
-        {/* Scroll reveal — animação suave de entrada/saída ao rolar a
-            página. Aceita preset (slide/fade/zoom/blur), distância,
-            duração, atraso e threshold. Toggle off por default. */}
-        <ScrollRevealEditor el={el} update={update} />
-        {el.type === "text"   && <TextProps   el={el} update={update} />}
-        {el.type === "image"  && <ImageProps  el={el} update={update} />}
-        {el.type === "shape"  && <ShapeProps  el={el} update={update} />}
-        {el.type === "button" && <ButtonProps el={el} update={update} />}
-        {el.type === "video"  && <VideoProps  el={el} update={update} />}
-        {el.type === "embed"  && <EmbedProps  el={el} update={update} />}
-        {el.type === "nasa-link" && <NasaLinkProps el={el} update={update} />}
-        {el.type === "social" && <SocialProps el={el} update={update} />}
-        {el.type === "carousel"      && <CarouselProps     el={el} update={update} />}
-        {el.type === "chat-button"   && <ChatButtonProps   el={el} update={update} />}
-        {el.type === "embedded-form" && <EmbeddedFormProps el={el} update={update} />}
-        {el.type === "exit-intent"   && <ExitIntentProps   el={el} update={update} />}
-        {el.type === "marketing"     && <MarketingProps    el={el} update={update} />}
-        {/* Sections novas (Fase 1 do builder evoluído) */}
-        {el.type === "section-navbar"        && <NavbarProps        el={el} update={update} />}
-        {el.type === "section-footer"        && <FooterProps        el={el} update={update} />}
-        {el.type === "section-hero"          && <HeroProps          el={el} update={update} />}
-        {el.type === "section-features"      && <FeaturesProps      el={el} update={update} />}
-        {el.type === "section-pricing"       && <PricingProps       el={el} update={update} />}
-        {el.type === "section-testimonials"  && <TestimonialsProps  el={el} update={update} />}
-        {el.type === "section-stats"         && <StatsProps         el={el} update={update} />}
-        {el.type === "section-faq"           && <FaqProps           el={el} update={update} />}
-        {el.type === "section-cta"           && <CtaProps           el={el} update={update} />}
-        {el.type === "section-logo-cloud"    && <LogoCloudProps     el={el} update={update} />}
-        <ResponsiveProps el={el} update={update} />
-      </div>
+      {hasContentEditor && (
+        <div className="mx-3 mt-3 flex shrink-0 gap-0.5 rounded-full bg-muted p-0.5">
+          {PROPERTIES_TABS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActiveTab(id)}
+              aria-pressed={visibleTab === id}
+              className={cn(
+                "h-7 flex-1 rounded-full text-xs font-medium transition-colors",
+                visibleTab === id ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {visibleTab === "content" && (
+        // Os editores abrem com um separador próprio; no topo da aba ele sobra.
+        <div className="flex flex-col gap-2 px-3 py-3 [&>[data-slot=separator]:first-child]:hidden">
+          {el.type === "text"   && <TextProps   el={el} update={update} />}
+          {el.type === "image"  && <ImageProps  el={el} update={update} />}
+          {el.type === "shape"  && <ShapeProps  el={el} update={update} />}
+          {el.type === "button" && <ButtonProps el={el} update={update} />}
+          {el.type === "video"  && <VideoProps  el={el} update={update} />}
+          {el.type === "embed"  && <EmbedProps  el={el} update={update} />}
+          {el.type === "nasa-link" && <NasaLinkProps el={el} update={update} />}
+          {el.type === "social" && <SocialProps el={el} update={update} />}
+          {el.type === "carousel"      && <CarouselProps     el={el} update={update} />}
+          {el.type === "chat-button"   && <ChatButtonProps   el={el} update={update} />}
+          {el.type === "embedded-form" && <EmbeddedFormProps el={el} update={update} />}
+          {el.type === "exit-intent"   && <ExitIntentProps   el={el} update={update} />}
+          {el.type === "marketing"     && <MarketingProps    el={el} update={update} />}
+          {el.type === "section-navbar"        && <NavbarProps        el={el} update={update} />}
+          {el.type === "section-footer"        && <FooterProps        el={el} update={update} />}
+          {el.type === "section-hero"          && <HeroProps          el={el} update={update} />}
+          {el.type === "section-features"      && <FeaturesProps      el={el} update={update} />}
+          {el.type === "section-pricing"       && <PricingProps       el={el} update={update} />}
+          {el.type === "section-testimonials"  && <TestimonialsProps  el={el} update={update} />}
+          {el.type === "section-stats"         && <StatsProps         el={el} update={update} />}
+          {el.type === "section-faq"           && <FaqProps           el={el} update={update} />}
+          {el.type === "section-cta"           && <CtaProps           el={el} update={update} />}
+          {el.type === "section-logo-cloud"    && <LogoCloudProps     el={el} update={update} />}
+          {el.type === "section-comparison"    && <ComparisonProps    el={el} update={update} />}
+          {el.type === "section-before-after"  && <BeforeAfterProps   el={el} update={update} />}
+          {el.type === "section-media-text"    && <MediaTextProps     el={el} update={update} />}
+          {el.type === "floating-buttons"      && <FloatingButtonsProps el={el} update={update} />}
+        </div>
+      )}
+
+      {visibleTab === "advanced" && (
+        <div className="flex flex-col px-3 py-1">
+          <PropertyGroup title="Ordem na página" defaultOpen>
+            <ElementOrderControls element={el} />
+          </PropertyGroup>
+          {/* Seção de fluxo ocupa a largura toda e a altura do conteúdo: X/Y/L/A e rotação não se aplicam. */}
+          {!isSection && (
+            <PropertyGroup title="Posição e tamanho" defaultOpen>
+              <Row>
+                <NumField label="X" value={el.x} onChange={(v) => update({ x: v })} />
+                <NumField label="Y" value={el.y} onChange={(v) => update({ y: v })} />
+                <NumField label="Largura" value={el.w} onChange={(v) => update({ w: Math.max(4, v) })} />
+                <NumField label="Altura" value={el.h} onChange={(v) => update({ h: Math.max(4, v) })} />
+              </Row>
+              <NumField label="Rotação °" value={el.rotation ?? 0} onChange={(v) => update({ rotation: v })} step={1} />
+            </PropertyGroup>
+          )}
+          {isSection && (
+            <PropertyGroup title="Destaque no título">
+              <TitleHighlightFields el={el} update={update} />
+            </PropertyGroup>
+          )}
+          <PropertyGroup title="Efeitos">
+            {isSection && <SectionEffectsFields el={el} update={update} />}
+            <AnimatedBorderEditor el={el} update={update} />
+            <ScrollRevealEditor el={el} update={update} />
+          </PropertyGroup>
+          <PropertyGroup title="Visibilidade por dispositivo">
+            <ResponsiveProps el={el} update={update} />
+          </PropertyGroup>
+          <PropertyGroup title="Opacidade e sobreposição">
+            <Row>
+              <NumField label="Opacidade %" value={Math.round((el.opacity ?? 1) * 100)} onChange={(v) => update({ opacity: Math.min(1, Math.max(0, v / 100)) })} step={5} min={0} />
+              <NumField label="Z-index" value={el.zIndex ?? 1} onChange={(v) => update({ zIndex: v })} min={0} />
+            </Row>
+          </PropertyGroup>
+        </div>
+      )}
     </div>
   );
 }
@@ -4486,10 +4549,7 @@ function ElementOrderControls({ element }: { element: ElementBase }) {
   };
 
   return (
-    <div className="rounded border bg-muted/30 px-2 py-2 mb-2">
-      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-1.5">
-        Organização
-      </p>
+    <div>
       {/* Subir/Descer no fluxo */}
       <div className="grid grid-cols-2 gap-1 mb-2">
         <Button

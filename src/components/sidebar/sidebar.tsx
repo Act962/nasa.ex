@@ -28,6 +28,9 @@ import { WorkspacesItems } from "./workspaces-items";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
 
+// Editor de sites (/pages/<id>) é imersivo: o menu do app sai de cena e o editor ocupa a tela toda.
+const IMMERSIVE_EDITOR_PATH_PATTERN = /^\/pages\/(?!templates$)[^/]+$/;
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { isMobile, setOpenMobile } = useSidebar();
   const pathname = usePathname();
@@ -51,6 +54,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const currentOrganization = mounted
     ? session?.session.activeOrganizationId
     : undefined;
+
+  if (IMMERSIVE_EDITOR_PATH_PATTERN.test(pathname)) return null;
 
   return (
     <Sidebar collapsible="icon" {...props}>

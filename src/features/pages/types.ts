@@ -152,6 +152,9 @@ export type ElementType =
   | "section-testimonials"
   | "section-faq"
   | "section-logo-cloud"
+  | "section-comparison"
+  | "section-before-after"
+  | "section-media-text"
   // Estrutura global da landing
   | "section-navbar"
   | "section-footer"
@@ -163,6 +166,7 @@ export type ElementType =
   | "carousel"
   // ── Lead capture & engagement (Fase 6) ──
   | "chat-button"
+  | "floating-buttons"
   | "embedded-form"
   | "exit-intent"
   // ── Marketing toolkit (Fase 7) ──

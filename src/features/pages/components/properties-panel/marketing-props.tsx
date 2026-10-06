@@ -768,6 +768,9 @@ function AutoChatConfig({ el, update }: Props) {
       <Label className="text-[10px] text-muted-foreground">
         Abrir após (segundos)
       </Label>
+      <p className="text-[10px] text-muted-foreground leading-snug">
+        No celular o chat não abre sozinho (cobriria a tela): só acende o aviso de mensagem no botão.
+      </p>
       <Input
         type="number"
         min={0}

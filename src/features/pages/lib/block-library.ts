@@ -31,7 +31,9 @@ export type BlockCategory =
   | "footer"
   | "stats"
   | "logos"
-  | "carousel";
+  | "carousel"
+  | "comparison"
+  | "media";
 
 export interface BlockDef {
   id: string;
@@ -904,6 +906,91 @@ const CAROUSEL: BlockDef[] = [
 /*  Index combinado + helpers                                         */
 /* ─────────────────────────────────────────────────────────────────── */
 
+/* ─────────────────────────────────────────────────────────────────── */
+/*  COMPARATIVOS (2)                                                  */
+/* ─────────────────────────────────────────────────────────────────── */
+
+const COMPARISON: BlockDef[] = [
+  {
+    id: "comparison-plans-table",
+    category: "comparison",
+    label: "Tabela comparativa",
+    description: "O que está incluso em cada plano, com ✓ e ✗ e uma coluna em destaque",
+    type: "section-comparison",
+    previewClass: "bg-gradient-to-br from-slate-800 to-slate-950",
+    previewLines: [
+      { width: "50%", align: "center", opacity: 0.6 },
+      { width: "90%", align: "center", opacity: 0.3 },
+      { width: "90%", align: "center", opacity: 0.3 },
+      { width: "90%", align: "center", opacity: 0.3 },
+    ],
+    build: () => ({}),
+  },
+  {
+    id: "comparison-before-after",
+    category: "comparison",
+    label: "Antes × Depois",
+    description: "Duas colunas: onde a pessoa está hoje e onde vai chegar",
+    type: "section-before-after",
+    previewClass: "bg-gradient-to-r from-slate-700 to-amber-700",
+    previewLines: [
+      { width: "55%", align: "center", opacity: 0.6 },
+      { width: "40%", align: "left", opacity: 0.35 },
+      { width: "40%", align: "right", opacity: 0.5 },
+    ],
+    build: () => ({}),
+  },
+];
+
+/* ─────────────────────────────────────────────────────────────────── */
+/*  FOTO + TEXTO (2)                                                  */
+/* ─────────────────────────────────────────────────────────────────── */
+
+const MEDIA: BlockDef[] = [
+  {
+    id: "media-text-about",
+    category: "media",
+    label: "Foto + texto",
+    description: "Foto de um lado; título, texto, números e botão do outro",
+    type: "section-media-text",
+    previewClass: "bg-gradient-to-r from-slate-900 to-slate-600",
+    previewLines: [
+      { width: "40%", align: "left", opacity: 0.6 },
+      { width: "45%", align: "left", opacity: 0.3 },
+      { width: "30%", align: "left", opacity: 0.3 },
+    ],
+    build: () => ({}),
+  },
+  {
+    id: "media-text-hero",
+    category: "media",
+    label: "Topo com foto ao lado",
+    description: "Abertura da página: título grande, lista com ✓, botões e foto à direita",
+    type: "section-media-text",
+    previewClass: "bg-gradient-to-r from-zinc-950 to-amber-800",
+    previewLines: [
+      { width: "50%", align: "left", opacity: 0.7 },
+      { width: "40%", align: "left", opacity: 0.3 },
+      { width: "25%", align: "left", opacity: 0.5 },
+    ],
+    build: () => ({
+      isHero: true,
+      eyebrow: "Vagas limitadas",
+      heading: "O método que vai fazer você *subir de nível*",
+      body: "Uma frase curta que explica para quem é e o que a pessoa leva.",
+      checklist: [
+        "Primeiro benefício, direto ao ponto",
+        "Segundo benefício, com resultado concreto",
+        "Terceiro benefício, que tira uma objeção",
+      ],
+      stats: ["500+ | Alunas formadas", "98% | Satisfação", "3 dias | Imersão completa"],
+      primaryButtonLabel: "Quero participar",
+      secondaryButtonLabel: "Ver planos",
+      cascadeReveal: true,
+    }),
+  },
+];
+
 export const BLOCK_LIBRARY: BlockDef[] = [
   ...HERO,
   ...TESTIMONIALS,
@@ -916,6 +1003,8 @@ export const BLOCK_LIBRARY: BlockDef[] = [
   ...STATS,
   ...LOGOS,
   ...CAROUSEL,
+  ...COMPARISON,
+  ...MEDIA,
 ];
 
 export const CATEGORY_LABELS: Record<BlockCategory, string> = {
@@ -930,6 +1019,8 @@ export const CATEGORY_LABELS: Record<BlockCategory, string> = {
   stats: "Estatísticas / Números",
   logos: "Logos parceiros",
   carousel: "Carrosséis",
+  comparison: "Comparativos",
+  media: "Foto + texto",
 };
 
 export const CATEGORY_ORDER: BlockCategory[] = [
@@ -944,6 +1035,8 @@ export const CATEGORY_ORDER: BlockCategory[] = [
   "footer",
   "logos",
   "carousel",
+  "comparison",
+  "media",
 ];
 
 export function getBlocksByCategory(category: BlockCategory | "all"): BlockDef[] {

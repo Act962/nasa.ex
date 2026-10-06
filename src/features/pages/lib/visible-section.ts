@@ -224,6 +224,10 @@ export function mapElementToInterludeBlock(
     "section-faq",
     "section-cta",
     "section-logo-cloud",
+    "section-comparison",
+    "section-before-after",
+    "section-media-text",
+    "floating-buttons",
   ]);
   if (EXCLUDED_TYPES.has(type)) return null;
 

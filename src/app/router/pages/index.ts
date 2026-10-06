@@ -1,4 +1,5 @@
 import { getPagesCost } from "./get-cost";
+import { getEdgeConfig } from "./get-edge-config";
 import { createPage } from "./create-page";
 import { listPages } from "./list-pages";
 import { getPage } from "./get-page";
@@ -33,6 +34,7 @@ import { updatePageSlug } from "./update-page-slug";
 export const pagesRouter = {
   getAnalytics: getPageAnalytics,
   getCost: getPagesCost,
+  getEdgeConfig,
   createPage,
   listPages,
   getPage,

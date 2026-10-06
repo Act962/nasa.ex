@@ -9,6 +9,7 @@ import type { ElementBase, ElementType } from "../../types";
 import { ElementRenderer } from "./element-renderer";
 import { AnimatedBorder, getAnimatedBorderProps } from "./animated-border";
 import { ScrollReveal, getScrollRevealProps } from "./scroll-reveal";
+import { CascadeReveal, getCascadeRevealProps } from "./cascade-reveal";
 
 // Threshold em px de tela pra distinguir "clique" de "drag". Sem
 // isso, qualquer micro-tremor do mouse vira drag e a section (que
@@ -238,6 +239,10 @@ export function ElementBox({ element, editable }: Props) {
           const scrollProps = getScrollRevealProps(element);
           // Conteúdo base — eventualmente envolvido por borda animada.
           let content: React.ReactNode = <ElementRenderer element={element} />;
+          const cascadeProps = getCascadeRevealProps(element);
+          if (cascadeProps) {
+            content = <CascadeReveal {...cascadeProps}>{content}</CascadeReveal>;
+          }
           if (borderProps) {
             content = (
               <AnimatedBorder
