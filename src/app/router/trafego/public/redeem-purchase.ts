@@ -144,12 +144,6 @@ export const redeemTrafegoPurchase = base
           data: [{ userId, itemKey: "app:trafego", visible: true }],
           skipDuplicates: true,
         });
-        // Sem isto o OnboardingGate abre o wizard de CRM da plataforma inteira
-        // na cara de quem acabou de comprar uma campanha.
-        await tx.user.updateMany({
-          where: { id: userId, onboardingCompletedAt: null },
-          data: { onboardingCompletedAt: new Date() },
-        });
       }
 
       return {

@@ -2,6 +2,7 @@
 
 import { clearAppSignupCookie, readAppSignupCookie, resolveAppLink } from "@/features/apps/lib/app-signup-link";
 import { useSetHomeApp } from "@/hooks/use-sidebar-prefs";
+import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,115 +14,208 @@ import {
 } from "@/components/ui/card";
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { clearSignupCompanyType, readSignupCompanyType } from "@/features/company/lib/signup-company-type";
+import { useConsumePartnerReferral } from "@/features/partner/hooks/use-partner-referral";
+import { CompanyLogoDropzone } from "@/features/settings/components/company-logo-dropzone";
 import { authClient } from "@/lib/auth-client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Image from "next/image";
+import { CheckIcon, SparklesIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { checkOrgSlug } from "../_actions/check-org-slug";
 import { updateOrgOnboarding } from "../_actions/update-org-onboarding";
+import { type OrgSlugStatus, useOrgSlugAvailability } from "../_hooks/use-org-slug-availability";
+import { ORG_SLUG_MAX_LENGTH, ORG_SLUG_PATTERN, createSlug } from "../_lib/org-slug";
 
-const step1Schema = z.object({
+const MAX_VISIBLE_SUGGESTIONS = 3;
+const SLUG_TAKEN_MESSAGE = "Já existe uma empresa com este identificador.";
+
+const createOrgSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(50, "Nome muito longo"),
   slug: z
     .string()
-    .min(1, "Slug é obrigatório")
-    .regex(
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      "Slug deve conter apenas letras minúsculas, números e hífens",
-    ),
+    .min(1, "Identificador é obrigatório")
+    .max(ORG_SLUG_MAX_LENGTH, `Use até ${ORG_SLUG_MAX_LENGTH} caracteres`)
+    .regex(ORG_SLUG_PATTERN, "Use apenas letras minúsculas, números e hífens"),
   logo: z.string().optional(),
-});
-
-const step2Schema = z.object({
   companyNiche: z.string().optional(),
-  companyCep: z.string().optional(),
+  companyCep: z
+    .string()
+    .regex(/^(\d{5}-\d{3})?$/, "CEP incompleto")
+    .optional(),
 });
 
-type Step1Data = z.infer<typeof step1Schema>;
-type Step2Data = z.infer<typeof step2Schema>;
+type CreateOrgData = z.infer<typeof createOrgSchema>;
+
+function OptionalHint() {
+  return <span className="font-normal text-muted-foreground">(opcional)</span>;
+}
+
+interface SlugFeedbackProps {
+  status: OrgSlugStatus;
+  errorMessage?: string;
+  replacedTakenSlug: string | null;
+  suggestions: string[];
+  onPickSuggestion: (suggestedSlug: string) => void;
+}
+
+function SlugFeedback({
+  status,
+  errorMessage,
+  replacedTakenSlug,
+  suggestions,
+  onPickSuggestion,
+}: SlugFeedbackProps) {
+  if (status === "taken") {
+    return (
+      <div className="flex flex-col gap-2">
+        <FieldError>{SLUG_TAKEN_MESSAGE}</FieldError>
+        {suggestions.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <span>Disponíveis:</span>
+            {suggestions.slice(0, MAX_VISIBLE_SUGGESTIONS).map((suggestedSlug) => (
+              <button
+                key={suggestedSlug}
+                type="button"
+                onClick={() => onPickSuggestion(suggestedSlug)}
+                className="cursor-pointer rounded-full border border-line bg-foreground/5 px-2.5 py-1 font-mono text-foreground transition-colors hover:border-ring hover:bg-foreground/10"
+              >
+                {suggestedSlug}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (errorMessage) return <FieldError>{errorMessage}</FieldError>;
+
+  if (status === "available" && replacedTakenSlug) {
+    return (
+      <FieldDescription>
+        <span className="font-mono">{replacedTakenSlug}</span> já estava em uso,
+        então escolhemos este para você.
+      </FieldDescription>
+    );
+  }
+
+  if (status === "available") {
+    return <FieldDescription>Identificador disponível.</FieldDescription>;
+  }
+  if (status === "checking") {
+    return <FieldDescription>Verificando disponibilidade…</FieldDescription>;
+  }
+
+  return (
+    <FieldDescription>
+      Preenchido a partir do nome. Aparece nos links públicos da empresa.
+    </FieldDescription>
+  );
+}
 
 export function FormCreateOrg() {
-  const [step, setStep] = useState<1 | 2>(1);
-  const [step1Data, setStep1Data] = useState<Step1Data | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const setHomeApp = useSetHomeApp();
+  const consumePartnerReferral = useConsumePartnerReferral();
 
-  const form1 = useForm<Step1Data>({ resolver: zodResolver(step1Schema) });
-  const form2 = useForm<Step2Data>({ resolver: zodResolver(step2Schema) });
+  const form = useForm<CreateOrgData>({ resolver: zodResolver(createOrgSchema) });
+  const { errors } = form.formState;
 
   const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
+  const [replacedTakenSlug, setReplacedTakenSlug] = useState<string | null>(null);
+  const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
+  const generatedSlugsRef = useRef<string[]>([]);
   const isFirstRender = useRef(true);
 
-  const name = form1.watch("name");
-  const logo = form1.watch("logo");
+  const name = form.watch("name");
+  const slug = form.watch("slug") ?? "";
+  const logo = form.watch("logo");
 
-  function createSlug(text: string): string {
-    if (!text) return "";
-    return text
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-+|-+$/g, "");
-  }
+  const { status: slugStatus, suggestions: slugSuggestions } =
+    useOrgSlugAvailability(slug);
+  const isSlugTaken = slugStatus === "taken";
 
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-    if (!isSlugManuallyEdited && name) {
-      form1.setValue("slug", createSlug(name), { shouldValidate: true });
-    }
-  }, [name, isSlugManuallyEdited, form1]);
-
-  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    form1.setValue("slug", createSlug(e.target.value), {
-      shouldValidate: true,
-    });
-    setIsSlugManuallyEdited(true);
-  };
-
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => form1.setValue("logo", reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, "").slice(0, 8);
-    const formatted =
-      raw.length > 5 ? `${raw.slice(0, 5)}-${raw.slice(5)}` : raw;
-    form2.setValue("companyCep", formatted, { shouldValidate: true });
-  };
-
-  const onStep1Next = async (data: Step1Data) => {
-    const { data: checkData } = await authClient.organization.checkSlug({
-      slug: data.slug,
-    });
-    if (!checkData?.status) {
-      form1.setError("slug", {
-        message: "Este slug já está em uso. Por favor, escolha outro.",
+    if (!isSlugManuallyEdited) {
+      setReplacedTakenSlug(null);
+      form.setValue("slug", createSlug(name ?? ""), {
+        shouldValidate: Boolean(name),
       });
+    }
+  }, [name, isSlugManuallyEdited, form]);
+
+  // Identificador derivado do nome que já existe é trocado sozinho pela primeira variação livre.
+  useEffect(() => {
+    if (!isSlugTaken || isSlugManuallyEdited) return;
+    const firstAvailableSlug = slugSuggestions[0];
+    if (!firstAvailableSlug) return;
+    setReplacedTakenSlug(slug);
+    form.setValue("slug", firstAvailableSlug, { shouldValidate: true });
+  }, [isSlugTaken, isSlugManuallyEdited, slugSuggestions, slug, form]);
+
+  const applySlug = (nextSlug: string) => {
+    setReplacedTakenSlug(null);
+    setIsSlugManuallyEdited(true);
+    form.setValue("slug", nextSlug, { shouldValidate: true });
+  };
+
+  const handleSlugChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const typedSlug = createSlug(event.target.value);
+    setReplacedTakenSlug(null);
+    form.setValue("slug", typedSlug, { shouldValidate: true });
+    // Campo esvaziado volta a acompanhar o nome da empresa.
+    setIsSlugManuallyEdited(typedSlug !== "");
+  };
+
+  const handleGenerateSlug = async () => {
+    const baseSlug = createSlug(name ?? "") || slug;
+    if (!baseSlug) {
+      form.setFocus("name");
       return;
     }
-    setStep1Data(data);
-    setStep(2);
+    setIsGeneratingSlug(true);
+    try {
+      const { isAvailable, suggestions } = await checkOrgSlug(baseSlug);
+      const availableSlugs = (
+        isAvailable ? [baseSlug, ...suggestions] : suggestions
+      ).filter((availableSlug) => availableSlug !== slug);
+      const unseenSlug = availableSlugs.find(
+        (availableSlug) => !generatedSlugsRef.current.includes(availableSlug),
+      );
+      const generatedSlug = unseenSlug ?? availableSlugs[0];
+      if (!generatedSlug) return;
+      generatedSlugsRef.current = unseenSlug
+        ? [...generatedSlugsRef.current, unseenSlug]
+        : [generatedSlug];
+      applySlug(generatedSlug);
+    } catch {
+      toast.error("Não foi possível gerar um identificador agora.");
+    } finally {
+      setIsGeneratingSlug(false);
+    }
+  };
+
+  const handleCepChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = event.target.value.replace(/\D/g, "").slice(0, 8);
+    const formattedCep =
+      digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+    form.setValue("companyCep", formattedCep, { shouldValidate: true });
   };
 
   // Cadastro vindo do link de um app (/app/<chave>): o app vira principal e abre direto (spec 0042).
@@ -134,209 +228,194 @@ export function FormCreateOrg() {
     return appLink.url;
   };
 
-  const onStep2Submit = async (data: Step2Data) => {
-    if (!step1Data) return;
+  const onSubmit = async (formData: CreateOrgData) => {
     setIsSubmitting(true);
 
     try {
-      const metadata = {
-        name: step1Data.name,
-        createdAt: new Date().toISOString(),
-      };
-
-      const { data: org, error } = await authClient.organization.create({
-        name: step1Data.name,
-        slug: step1Data.slug,
-        logo: step1Data.logo,
-        metadata,
-      });
-
-      if (error || !org) {
-        toast.error(error?.message ?? "Erro ao criar organização");
+      const slugCheck = await checkOrgSlug(formData.slug);
+      if (!slugCheck.isAvailable) {
+        form.setError("slug", { message: SLUG_TAKEN_MESSAGE }, { shouldFocus: true });
         return;
       }
 
-      await updateOrgOnboarding(org.id, {
-        companyNiche: data.companyNiche,
-        companyCep: data.companyCep,
+      const { data: org, error } = await authClient.organization.create({
+        name: formData.name,
+        slug: formData.slug,
+        logo: formData.logo,
+        metadata: { name: formData.name, createdAt: new Date().toISOString() },
       });
 
-      toast.success("Organização criada com sucesso!");
+      if (error || !org) {
+        toast.error(error?.message ?? "Erro ao criar empresa");
+        return;
+      }
+
+      // Indicação é best-effort: pode ser atribuída manualmente depois.
+      await consumePartnerReferral
+        .mutateAsync({ organizationId: org.id })
+        .catch((referralError) => {
+          console.error("[create-org] Falha ao consumir indicação:", referralError);
+        });
+
+      // A empresa já existe: falha nos dados opcionais não pode prender o usuário nesta tela.
+      const hasSavedCompanyDetails = await updateOrgOnboarding(org.id, {
+        companyNiche: formData.companyNiche,
+        companyCep: formData.companyCep,
+        companyType: readSignupCompanyType() ?? undefined,
+      })
+        .then(() => true)
+        .catch(() => false);
+      clearSignupCompanyType();
+
+      if (hasSavedCompanyDetails) {
+        toast.success("Empresa criada com sucesso!");
+      } else {
+        toast.warning(
+          "Empresa criada, mas não foi possível salvar os dados complementares. Preencha depois em Configurações.",
+        );
+      }
       router.push(await consumeAppSignupLink());
+    } catch {
+      toast.error("Erro ao criar empresa. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Card className="w-full max-w-3xl">
+    <Card className="w-full max-w-xl">
       <CardHeader>
-        <CardTitle>Criar organização</CardTitle>
+        <CardTitle>Crie sua empresa</CardTitle>
         <CardDescription>
-          {step === 1
-            ? "Preencha os dados básicos da sua empresa."
-            : "Informe a localização e o nicho da empresa."}
+          Só o nome é obrigatório. O restante você pode preencher depois.
         </CardDescription>
       </CardHeader>
 
       <CardContent>
-        {/* Indicador de etapas */}
-        <div className="flex items-center gap-2 mb-6">
-          {[1, 2].map((s) => (
-            <div key={s} className="flex items-center gap-2">
-              <div
-                className={`size-7 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-colors ${
-                  step === s
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : step > s
-                      ? "border-primary bg-primary/20 text-primary"
-                      : "border-muted-foreground/30 text-muted-foreground"
-                }`}
-              >
-                {s}
-              </div>
-              {s < 2 && <div className="h-px w-8 bg-muted-foreground/20" />}
-            </div>
-          ))}
-          <span className="ml-2 text-xs text-muted-foreground">
-            Etapa {step} de 2
-          </span>
-        </div>
-
-        {/* Etapa 1 */}
-        {step === 1 && (
-          <form onSubmit={form1.handleSubmit(onStep1Next)}>
-            <FieldSet>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="name">Nome da empresa</FieldLabel>
-                  <Input
-                    id="name"
-                    placeholder="Acm Distribuidora"
-                    {...form1.register("name")}
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <FieldSet>
+            <FieldGroup>
+              <Field>
+                <FieldLabel>
+                  Logo <OptionalHint />
+                </FieldLabel>
+                <div className="flex items-center gap-4">
+                  <CompanyLogoDropzone
+                    logoUrl={logo}
+                    onLogoChange={(logoDataUrl) => form.setValue("logo", logoDataUrl)}
                     disabled={isSubmitting}
+                    className="size-20"
                   />
-                  {form1.formState.errors.name && (
-                    <FieldError>
-                      {form1.formState.errors.name.message}
-                    </FieldError>
-                  )}
-                </Field>
+                  <div className="flex flex-col items-start gap-1 text-sm text-muted-foreground">
+                    <span>Clique ou arraste uma imagem de até 2 MB.</span>
+                    {logo && (
+                      <button
+                        type="button"
+                        className="cursor-pointer text-xs text-foreground underline-offset-4 hover:underline"
+                        onClick={() => form.setValue("logo", undefined)}
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </Field>
 
-                <Field>
-                  <FieldLabel htmlFor="slug">Slug</FieldLabel>
-                  <div className="flex items-center gap-x-4">
+              <Field>
+                <FieldLabel htmlFor="name">Nome da empresa</FieldLabel>
+                <Input
+                  id="name"
+                  placeholder="Acm Distribuidora"
+                  autoFocus
+                  {...form.register("name")}
+                  disabled={isSubmitting}
+                />
+                {errors.name && <FieldError>{errors.name.message}</FieldError>}
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="slug">Identificador (slug)</FieldLabel>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
                     <Input
                       id="slug"
                       placeholder="acm-distribuidora"
-                      {...form1.register("slug")}
+                      aria-invalid={isSlugTaken || Boolean(errors.slug)}
+                      className="pr-10"
+                      maxLength={ORG_SLUG_MAX_LENGTH}
+                      {...form.register("slug")}
                       onChange={handleSlugChange}
                       disabled={isSubmitting}
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        if (name) form1.setValue("slug", createSlug(name));
-                      }}
-                    >
-                      Gerar
-                    </Button>
+                    <span className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2">
+                      {slugStatus === "checking" && <OrbitaSpinner className="size-4" />}
+                      {slugStatus === "available" && (
+                        <CheckIcon className="size-4 text-success" />
+                      )}
+                    </span>
                   </div>
-                  {form1.formState.errors.slug && (
-                    <FieldError>
-                      {form1.formState.errors.slug.message}
-                    </FieldError>
-                  )}
-                </Field>
-
-                <Field>
-                  <FieldLabel htmlFor="logo">Logo</FieldLabel>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoChange}
-                    disabled={isSubmitting}
-                  />
-                  {logo && (
-                    <div className="mt-2">
-                      <Image
-                        src={logo}
-                        alt="Logo da organização"
-                        className="w-16 h-16 object-cover rounded-md"
-                        width={64}
-                        height={64}
-                      />
-                    </div>
-                  )}
-                </Field>
-              </FieldGroup>
-
-              <Field className="w-fit self-end">
-                <Button type="submit" disabled={isSubmitting}>
-                  Próximo
-                </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleGenerateSlug}
+                    disabled={isSubmitting || isGeneratingSlug}
+                  >
+                    <SparklesIcon />
+                    Gerar
+                  </Button>
+                </div>
+                <SlugFeedback
+                  status={slugStatus}
+                  errorMessage={errors.slug?.message}
+                  replacedTakenSlug={replacedTakenSlug}
+                  suggestions={slugSuggestions}
+                  onPickSuggestion={applySlug}
+                />
               </Field>
-            </FieldSet>
-          </form>
-        )}
 
-        {/* Etapa 2 */}
-        {step === 2 && (
-          <form onSubmit={form2.handleSubmit(onStep2Submit)}>
-            <FieldSet>
-              <FieldGroup>
+              <div className="grid gap-4 sm:grid-cols-[1fr_10rem]">
                 <Field>
                   <FieldLabel htmlFor="companyNiche">
-                    Nicho da empresa
+                    Nicho <OptionalHint />
                   </FieldLabel>
                   <Input
                     id="companyNiche"
-                    placeholder="Ex: Agência de Marketing, E-commerce, Saúde…"
-                    {...form2.register("companyNiche")}
+                    placeholder="Ex: Agência de Marketing, E-commerce…"
+                    maxLength={120}
+                    {...form.register("companyNiche")}
                     disabled={isSubmitting}
                   />
-                  {form2.formState.errors.companyNiche && (
-                    <FieldError>
-                      {form2.formState.errors.companyNiche.message}
-                    </FieldError>
-                  )}
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="companyCep">CEP</FieldLabel>
+                  <FieldLabel htmlFor="companyCep">
+                    CEP <OptionalHint />
+                  </FieldLabel>
                   <Input
                     id="companyCep"
                     placeholder="00000-000"
-                    value={form2.watch("companyCep") ?? ""}
+                    inputMode="numeric"
+                    value={form.watch("companyCep") ?? ""}
                     onChange={handleCepChange}
                     disabled={isSubmitting}
                     maxLength={9}
                   />
-                  {form2.formState.errors.companyCep && (
-                    <FieldError>
-                      {form2.formState.errors.companyCep.message}
-                    </FieldError>
+                  {errors.companyCep && (
+                    <FieldError>{errors.companyCep.message}</FieldError>
                   )}
                 </Field>
-              </FieldGroup>
-
-              <div className="flex items-center gap-3 w-fit self-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setStep(1)}
-                  disabled={isSubmitting}
-                >
-                  Voltar
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Criando…" : "Criar organização"}
-                </Button>
               </div>
-            </FieldSet>
-          </form>
-        )}
+            </FieldGroup>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isSubmitting || isSlugTaken}
+            >
+              {isSubmitting ? "Criando…" : "Criar empresa"}
+            </Button>
+          </FieldSet>
+        </form>
       </CardContent>
       <CardFooter />
     </Card>
