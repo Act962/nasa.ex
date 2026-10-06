@@ -98,6 +98,12 @@ export const consumeReferralFromCookie = base
       throw errors.FORBIDDEN({ message: "Org não pertence ao usuário" });
     }
 
+    // Indicação vale para cliente novo: a segunda empresa do mesmo dono não gera comissão.
+    const ownedOrganizationCount = await prisma.member.count({
+      where: { userId: session.user.id, role: "owner" },
+    });
+    if (ownedOrganizationCount > 1) return { attached: false, referralId: null };
+
     // Lê cookie nasa_ref do header
     const cookieHeader = context.headers.get("cookie") ?? "";
     const match = cookieHeader.match(/(?:^|;\s*)nasa_ref=([^;]+)/);

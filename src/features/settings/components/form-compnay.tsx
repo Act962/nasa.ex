@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { CompanyLogoDropzone } from "./company-logo-dropzone";
 import { SettingsStickySave } from "./settings-sticky-save";
 import {
   FieldGroup,
@@ -20,12 +21,9 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { useOrgRole } from "@/hooks/use-org-role";
 import { useGetCompanyCode } from "@/features/workspace/hooks/use-workspace";
-import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Briefcase, Building2Icon, CopyIcon, FileBadge, Lock, Mail, Phone, UploadIcon } from "lucide-react";
+import { Briefcase, Building2Icon, CopyIcon, FileBadge, Lock, Mail, Phone } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
-import { useDropzone } from "react-dropzone";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -33,13 +31,6 @@ import { useSpacePointCtx } from "@/features/space-point/components/space-point-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc, client as orpcClient } from "@/lib/orpc";
 import { COMPANY_TYPES, COMPANY_TYPE_SLUGS } from "@/features/company/constants";
-
-interface UploadLogo {
-  file: File | null;
-  uploading: boolean;
-  error: boolean;
-  objectUrl?: string;
-}
 
 const cnpjRegex = /^(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{14})$/;
 
@@ -104,55 +95,7 @@ export function FormCompany({ company }: Props) {
     },
   });
 
-  const [uploadLogo, setUploadLogo] = useState<UploadLogo>({
-    file: null,
-    uploading: false,
-    error: false,
-    objectUrl: company.logo,
-  });
-
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0) {
-      const file = acceptedFiles[0];
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        form.setValue("logo", reader.result as string);
-        setUploadLogo({
-          file,
-          uploading: false,
-          error: false,
-          objectUrl: reader.result as string,
-        });
-      };
-
-      reader.readAsDataURL(file);
-    }
-  }, []);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: { "image/*": [] },
-    maxFiles: 1,
-    multiple: false,
-    maxSize: 1024 * 1024 * 2,
-  });
-
-  function renderContent() {
-    if (uploadLogo.objectUrl) {
-      return (
-        <div className="group relative size-full">
-          <img
-            src={uploadLogo.objectUrl}
-            alt="Uploaded file"
-            className="size-full object-cover"
-          />
-        </div>
-      );
-    }
-
-    return <RenderLogoEmptyState isDragActive={isDragActive} />;
-  }
+  const logo = form.watch("logo");
 
   const onSubmit = async (data: FormCompanySchema) => {
     const { error } = await authClient.organization.update({
@@ -203,20 +146,11 @@ export function FormCompany({ company }: Props) {
       <FieldGroup>
         <Field>
           <FieldLabel>Logo</FieldLabel>
-          <div {...(!isSingle ? getRootProps() : {})} className="relative">
-            <div
-              className={cn(
-                "group/avatar relative size-24 overflow-hidden rounded-full border border-dashed transition-colors",
-                isSingle ? "cursor-not-allowed opacity-60" : "cursor-pointer",
-                !isSingle && isDragActive
-                  ? "border-primary bg-primary/5"
-                  : "border-muted-foreground/25 hover:border-muted-foreground/20",
-              )}
-            >
-              {!isSingle && <input {...getInputProps()} />}
-              {renderContent()}
-            </div>
-          </div>
+          <CompanyLogoDropzone
+            logoUrl={logo}
+            onLogoChange={(logoDataUrl) => form.setValue("logo", logoDataUrl)}
+            disabled={isSingle}
+          />
         </Field>
 
         <Field>
@@ -400,17 +334,5 @@ export function FormCompany({ company }: Props) {
         )}
       </FieldGroup>
     </form>
-  );
-}
-
-export function RenderLogoEmptyState({
-  isDragActive,
-}: {
-  isDragActive: boolean;
-}) {
-  return (
-    <div className="flex h-full w-full items-center justify-center">
-      <UploadIcon className="size-6 text-muted-foreground" />
-    </div>
   );
 }

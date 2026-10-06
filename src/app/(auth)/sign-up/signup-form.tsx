@@ -24,7 +24,7 @@ import {
   COMPANY_TYPES,
   COMPANY_TYPE_SLUGS,
 } from "@/features/company/constants";
-import { client as orpcClient } from "@/lib/orpc";
+import { saveSignupCompanyType } from "@/features/company/lib/signup-company-type";
 import posthog from "posthog-js";
 
 const signUpSchema = z
@@ -116,6 +116,7 @@ function EyeToggle({
 export function SignupForm() {
   const [callbackUrl] = useQueryState("callbackUrl");
   const [emailParam] = useQueryState("email");
+  const postSignUpUrl = callbackUrl ?? "/create-organization";
 
   const {
     register,
@@ -136,43 +137,13 @@ export function SignupForm() {
     if (emailParam) setValue("email", emailParam);
   }, [emailParam, setValue]);
 
-  const persistCompanyType = async (companyType: string) => {
-    try {
-      await orpcClient.orgs.updateCompanyProfile({
-        companyType,
-        companySegment: null,
-      });
-    } catch (err) {
-      // Não bloqueia a continuação do signup — usuário pode definir depois em /settings
-      console.error("[signup] Falha ao salvar tipo de empresa:", err);
-    }
-  };
-
-  /**
-   * NASA Partner: consome cookie nasa_ref (setado pelo proxy em src/proxy.ts)
-   * e cria PartnerReferral vinculando a org recém-criada ao parceiro indicador.
-   */
-  const consumePartnerReferral = async () => {
-    try {
-      const session = await authClient.getSession();
-      const orgId = session.data?.session?.activeOrganizationId;
-      if (!orgId) return;
-      await orpcClient.partner.consumeReferralFromCookie({
-        organizationId: orgId,
-      });
-    } catch (err) {
-      // Não bloqueia signup — referral pode ser atribuído manualmente depois
-      console.error("[signup] Falha ao consumir referral:", err);
-    }
-  };
-
   const onSignUp = (data: SignUpData) => {
     setIsLoading(async () => {
       const result = await authClient.signUp.email({
         email: data.email,
         password: data.password,
         name: data.name.trim(),
-        callbackURL: "/create-organization",
+        callbackURL: postSignUpUrl,
       });
 
       // better-auth's organizationClient plugin fires an internal request after
@@ -192,8 +163,7 @@ export function SignupForm() {
           // Account was created – verify by checking whether we now have a session
           const session = await authClient.getSession();
           if (session.data) {
-            await persistCompanyType(data.companyType);
-            await consumePartnerReferral();
+            saveSignupCompanyType(data.companyType);
             posthog.identify(session.data.user.id, {
               email: data.email,
               name: data.name.trim(),
@@ -206,7 +176,7 @@ export function SignupForm() {
             toast.success("🚀 Conta criada! Bem-vindo ao ÓRBITA.ex!");
             // Hard navigation — bypassa o Router Cache do Next (RSC),
             // que mantém versão "deslogada" e causa loop sign-up → sign-in.
-            window.location.assign(callbackUrl ?? "/home");
+            window.location.assign(postSignUpUrl);
             return;
           }
         }
@@ -223,8 +193,7 @@ export function SignupForm() {
         return;
       }
 
-      await persistCompanyType(data.companyType);
-      await consumePartnerReferral();
+      saveSignupCompanyType(data.companyType);
       if (result.data?.user) {
         posthog.identify(result.data.user.id, {
           email: data.email,
@@ -239,7 +208,7 @@ export function SignupForm() {
       toast.success("🚀 Conta criada! Bem-vindo ao ÓRBITA.ex!");
       // Hard navigation — invalida Router Cache do Next que estaria
       // com versão "deslogada" da home, causando loop pós cadastro.
-      window.location.assign(callbackUrl ?? "/home");
+      window.location.assign(postSignUpUrl);
     });
   };
 
@@ -247,6 +216,7 @@ export function SignupForm() {
     await authClient.signIn.social({
       provider: "google",
       callbackURL: callbackUrl ?? "/home",
+      newUserCallbackURL: postSignUpUrl,
     });
   };
 

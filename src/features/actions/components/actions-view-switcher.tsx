@@ -22,7 +22,6 @@ import { FiltersBar } from "./filters-bar";
 import { FiltersSheet } from "./filters-sheet";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { useTour } from "@/features/tour/context";
 import { WorkspaceCalendarModal } from "@/features/workspace/components/workspace-calendar-modal";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
@@ -54,7 +53,6 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
   const [seedTitle, setSeedTitle] = useQueryState("seedTitle");
   const [seedStartDate, setSeedStartDate] = useQueryState("seedStartDate");
   const presetPublic = createParam === "event-public";
-  const { endTour } = useTour();
 
   // Modal abre se o usuário clicou no botão OU se chegou com ?create=event-public
   const open = localOpen || presetPublic;
@@ -71,17 +69,6 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
       { label: "Nova ação", icon: <PlusIcon />, onSelect: () => setLocalOpen(true) },
     ],
   });
-
-  // Fluxo do calendário público: o `OnboardingWizard` dispara `startTour`
-  // 600ms depois de finalizar — esse tour cobre a tela e esconde a modal de
-  // criação. Quando chegamos com `?create=event-public`, cancelamos o tour
-  // logo após o mount e novamente em ~800ms (cobre o setTimeout do wizard).
-  useEffect(() => {
-    if (!presetPublic) return;
-    endTour();
-    const t = setTimeout(() => endTour(), 800);
-    return () => clearTimeout(t);
-  }, [presetPublic, endTour]);
 
   // Sincroniza o estado com o fullscreen do browser: sair via F11/Esc dispara
   // `fullscreenchange` e reseta o maximize (mantém o ícone e o layout corretos).
