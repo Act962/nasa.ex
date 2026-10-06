@@ -267,7 +267,9 @@ export function Footer({
     if (message.trim().length > 0) {
       mutation.mutate({
         body: messageBody,
-        leadPhone: lead.phone!,
+        // Sem `!`: visitante do ASTRO CHAT não tem telefone, e o servidor
+        // aceita a falta dele quando a conversa é In-Chat (spec 0072).
+        leadPhone: lead.phone,
         conversationId: conversationId,
         replyId: messageSelected?.messageId,
         replyIdInternal: messageSelected?.id,
