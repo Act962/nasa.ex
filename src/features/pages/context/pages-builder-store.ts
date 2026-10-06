@@ -12,6 +12,10 @@ interface BuilderState {
   layout: PageLayout | null;
   device: Device;
   zoom: number;
+  /** Zoom acompanha a largura disponível do canvas até o usuário escolher um valor. */
+  isZoomFit: boolean;
+  /** Sobe a cada salvamento concluído: a prévia de tablet/celular recarrega. */
+  savedRevision: number;
   activeLayer: ActiveLayer;
   selected: string[];
   history: PageLayout[];
@@ -23,6 +27,9 @@ interface BuilderState {
   setLayout: (layout: PageLayout, pushHistory?: boolean) => void;
   setDevice: (d: Device) => void;
   setZoom: (z: number) => void;
+  setZoomFit: (isZoomFit: boolean) => void;
+  applyFitZoom: (z: number) => void;
+  markSaved: () => void;
   setActiveLayer: (l: ActiveLayer) => void;
   setSelected: (ids: string[]) => void;
   toggleSelected: (id: string, additive?: boolean) => void;
@@ -117,6 +124,8 @@ export const usePagesBuilderStore = create<BuilderState>((set, get) => ({
   layout: null,
   device: "desktop",
   zoom: 1,
+  isZoomFit: true,
+  savedRevision: 0,
   activeLayer: "main",
   selected: [],
   history: [],
@@ -150,7 +159,10 @@ export const usePagesBuilderStore = create<BuilderState>((set, get) => ({
   },
 
   setDevice: (device) => set({ device }),
-  setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(2, zoom)) }),
+  setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(2, zoom)), isZoomFit: false }),
+  setZoomFit: (isZoomFit) => set({ isZoomFit }),
+  applyFitZoom: (zoom) => set({ zoom: Math.max(0.1, Math.min(1, zoom)) }),
+  markSaved: () => set((state) => ({ savedRevision: state.savedRevision + 1 })),
   setActiveLayer: (activeLayer) => set({ activeLayer, selected: [] }),
 
   setSelected: (ids) => set({ selected: ids }),

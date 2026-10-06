@@ -34,6 +34,8 @@ import {
 import { useChatRealtime } from "./use-chat-realtime";
 
 const AUTO_CLOSE_DELAY_MS = 3000;
+// Abaixo disso o popover ocupa a tela quase toda e esconde a primeira dobra da página.
+const SMALL_SCREEN_QUERY = "(max-width: 639px)";
 
 export function useChatButton(element: ElementBase) {
   const label = (element.label as string) ?? "Falar com a gente";
@@ -158,8 +160,13 @@ export function useChatButton(element: ElementBase) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const handler = () => {
-      setOpen(true);
-      setHasUnread(false);
+      // No celular a saudação fica atrás da bolinha de não-lida, em vez de abrir por cima da página.
+      if (window.matchMedia(SMALL_SCREEN_QUERY).matches) {
+        if (!openRef.current) setHasUnread(true);
+      } else {
+        setOpen(true);
+        setHasUnread(false);
+      }
       // Se nunca mostramos mensagem ainda (welcome puro), injeta o
       // greeting pra não abrir popover vazio.
       setMessages((prev) =>

@@ -1,9 +1,16 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePagesBuilderStore, getActiveLayerElements } from "../../context/pages-builder-store";
 import { ElementBox } from "../elements/element-box";
-import type { ElementBase } from "../../types";
+import type { Device, ElementBase } from "../../types";
+import { CanvasZoomControl } from "./canvas-zoom-control";
+
+const CANVAS_GUTTER_PX = 32;
+const DEVICE_PREVIEW_MIN_HEIGHT_PX = 480;
+// Larguras que caem nos breakpoints reais da página publicada (tablet < 1024, celular < 640).
+const DEVICE_PREVIEW_WIDTHS: Record<Exclude<Device, "desktop">, number> = { tablet: 768, mobile: 375 };
+const DEVICE_PREVIEW_LABELS: Record<Exclude<Device, "desktop">, string> = { tablet: "tablet", mobile: "celular" };
 
 export function BuilderCanvas() {
   const layout = usePagesBuilderStore((s) => s.layout);
@@ -21,7 +28,14 @@ export function BuilderCanvas() {
   const toggleVisibility = usePagesBuilderStore((s) => s.toggleVisibility);
   const toggleLock = usePagesBuilderStore((s) => s.toggleLock);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const pageId = usePagesBuilderStore((s) => s.pageId);
+  const device = usePagesBuilderStore((s) => s.device);
+  const isZoomFit = usePagesBuilderStore((s) => s.isZoomFit);
+  const applyFitZoom = usePagesBuilderStore((s) => s.applyFitZoom);
+  const savedRevision = usePagesBuilderStore((s) => s.savedRevision);
+
+  const [scrollNode, setScrollNode] = useState<HTMLDivElement | null>(null);
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -120,9 +134,25 @@ export function BuilderCanvas() {
     undo, redo, groupElements, ungroupElement, toggleVisibility, toggleLock,
   ]);
 
+  useEffect(() => {
+    if (!scrollNode) return;
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      if (entry) setViewportSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+    });
+    resizeObserver.observe(scrollNode);
+    return () => resizeObserver.disconnect();
+  }, [scrollNode]);
+
+  const artboardWidth = layout?.artboard.width ?? 1440;
+  const frameWidth = device === "desktop" ? artboardWidth : DEVICE_PREVIEW_WIDTHS[device];
+
+  useEffect(() => {
+    if (!isZoomFit || viewportSize.width <= 0) return;
+    applyFitZoom((viewportSize.width - CANVAS_GUTTER_PX * 2) / frameWidth);
+  }, [isZoomFit, viewportSize.width, frameWidth, applyFitZoom]);
+
   if (!layout) return null;
 
-  const artboardWidth = layout.artboard.width ?? 1440;
   const elements = getActiveLayerElements(layout, activeLayer);
 
   // Altura real do canvas = max(minHeight do artboard, bottom da última
@@ -139,51 +169,76 @@ export function BuilderCanvas() {
     if (e.target === e.currentTarget) setSelected([]);
   };
 
+  const previewFrameHeight = Math.max(
+    DEVICE_PREVIEW_MIN_HEIGHT_PX,
+    (viewportSize.height - CANVAS_GUTTER_PX * 2) / zoom,
+  );
+
   return (
-    <div
-      ref={scrollRef}
-      data-pages-canvas-scroll
-      className="flex-1 overflow-auto py-8 flex justify-center"
-      style={{ background: "repeating-linear-gradient(45deg, #f5f5f5, #f5f5f5 10px, #ffffff 10px, #ffffff 20px)" }}
-      onClick={handleCanvasClick}
-    >
+    <div className="relative flex min-w-0 flex-1 flex-col">
+      {device !== "desktop" && (
+        <p className="shrink-0 border-b bg-card px-4 py-1.5 text-center text-[11px] text-muted-foreground">
+          Prévia em {DEVICE_PREVIEW_LABELS[device]}, atualizada a cada salvamento. Para editar, selecione o
+          bloco em <strong className="text-foreground">Camadas</strong> ou volte para Computador.
+        </p>
+      )}
       <div
-        style={{
-          width: artboardWidth * zoom,
-          height: minHeight * zoom,
-          flexShrink: 0,
-          position: "relative",
-        }}
+        ref={setScrollNode}
+        data-pages-canvas-scroll
+        className="min-h-0 flex-1 overflow-auto bg-panel bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:20px_20px] pt-8 pb-20"
+        onClick={handleCanvasClick}
       >
-        <div
-          data-pages-artboard
-          className="relative bg-white shadow-lg rounded-sm"
-          style={{
-            width: artboardWidth,
-            minHeight,
-            transform: `scale(${zoom})`,
-            transformOrigin: "top left",
-            background: layout.artboard.background ?? "#ffffff",
-          }}
-        >
-          {layout.mode === "stacked" ? (
-            <>
-              <LayerSurface
-                elements={layout.back.elements}
-                dimmed={activeLayer !== "back"}
-                active={activeLayer === "back"}
-              />
-              <LayerSurface
-                elements={layout.front.elements}
-                dimmed={activeLayer !== "front"}
-                active={activeLayer === "front"}
-              />
-            </>
-          ) : (
-            <LayerSurface elements={elements} active={true} />
-          )}
-        </div>
+        {device !== "desktop" ? (
+          <div
+            className="relative mx-auto shrink-0"
+            style={{ width: frameWidth * zoom, height: previewFrameHeight * zoom }}
+          >
+            <iframe
+              key={device}
+              title={`Prévia em ${DEVICE_PREVIEW_LABELS[device]}`}
+              src={`/pages/${pageId}/preview?preview=1&v=${savedRevision}`}
+              sandbox="allow-same-origin allow-scripts"
+              className="absolute top-0 left-0 origin-top-left rounded-[18px] border bg-white shadow-lg"
+              style={{ width: frameWidth, height: previewFrameHeight, transform: `scale(${zoom})` }}
+            />
+          </div>
+        ) : (
+          <div
+            className="relative mx-auto shrink-0"
+            style={{ width: artboardWidth * zoom, height: minHeight * zoom }}
+          >
+            <div
+              data-pages-artboard
+              className="relative bg-white shadow-lg rounded-sm"
+              style={{
+                width: artboardWidth,
+                minHeight,
+                transform: `scale(${zoom})`,
+                transformOrigin: "top left",
+                background: layout.artboard.background ?? "#ffffff",
+              }}
+            >
+              {layout.mode === "stacked" ? (
+                <>
+                  <LayerSurface
+                    elements={layout.back.elements}
+                    dimmed={activeLayer !== "back"}
+                    active={activeLayer === "back"}
+                  />
+                  <LayerSurface
+                    elements={layout.front.elements}
+                    dimmed={activeLayer !== "front"}
+                    active={activeLayer === "front"}
+                  />
+                </>
+              ) : (
+                <LayerSurface elements={elements} active={true} />
+              )}
+            </div>
+          </div>
+        )}
       </div>
+      <CanvasZoomControl />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import {
   primaryColor,
   type SectionRendererProps,
 } from "./types";
+import { renderHighlightedText } from "./highlight-text";
 import {
   resolveTextStyle,
   textStyleToCSS,
@@ -111,7 +112,9 @@ export function SectionTestimonials({ element, tokens }: SectionRendererProps) {
     >
       <div className="max-w-7xl mx-auto flex flex-col gap-8 sm:gap-10">
         <RenderInterludeBlocks blocks={interlude.aboveHeading} />
-        <h2 style={textStyleToCSS(headingMerged)}>{heading}</h2>
+        <h2 data-cascade-item style={textStyleToCSS(headingMerged)}>
+          {renderHighlightedText(heading, element, primary)}
+        </h2>
         <RenderInterludeBlocks blocks={interlude.betweenHeadingAndCards} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -133,6 +136,7 @@ export function SectionTestimonials({ element, tokens }: SectionRendererProps) {
             );
             const cardInner = (
               <div
+                data-cascade-item
                 className="border"
                 style={{
                   background: card.cardBg ?? sectionCardBg,

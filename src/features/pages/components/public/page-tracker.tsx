@@ -19,6 +19,9 @@ import { useEffect, useRef } from "react";
  * Não dispara no editor — só quando o componente é instanciado
  * com `slug` (página publicada/preview).
  */
+// O handler oRPC serve os procedimentos com barra (`pages/registerVisit`), não com ponto.
+const REGISTER_VISIT_ENDPOINT = "/api/rpc/pages/registerVisit";
+
 export function PageTracker({ slug }: { slug: string }) {
   const startedAt = useRef<number>(0);
   const seenSections = useRef(new Set<string>());
@@ -54,7 +57,7 @@ export function PageTracker({ slug }: { slug: string }) {
       if ("sendBeacon" in navigator) {
         try {
           navigator.sendBeacon(
-            "/api/rpc/pages.registerVisit",
+            REGISTER_VISIT_ENDPOINT,
             new Blob([body], { type: "application/json" }),
           );
           return;
@@ -62,7 +65,7 @@ export function PageTracker({ slug }: { slug: string }) {
           /* fallback fetch */
         }
       }
-      fetch("/api/rpc/pages.registerVisit", {
+      fetch(REGISTER_VISIT_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body,

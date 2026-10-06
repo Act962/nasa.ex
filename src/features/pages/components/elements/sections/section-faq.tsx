@@ -8,6 +8,7 @@ import {
   primaryColor,
   type SectionRendererProps,
 } from "./types";
+import { renderHighlightedText } from "./highlight-text";
 import {
   resolveTextStyle,
   textStyleToCSS,
@@ -81,8 +82,8 @@ export function SectionFaq({ element, tokens }: SectionRendererProps) {
     >
       <div className="max-w-3xl mx-auto flex flex-col gap-8">
         <RenderInterludeBlocks blocks={interlude.aboveHeading} />
-        <h2 style={textStyleToCSS(resolveTextStyle(undefined, sectionHeadingStyle, headingDefaults))}>
-          {heading}
+        <h2 data-cascade-item style={textStyleToCSS(resolveTextStyle(undefined, sectionHeadingStyle, headingDefaults))}>
+          {renderHighlightedText(heading, element, primary)}
         </h2>
         <RenderInterludeBlocks blocks={interlude.betweenHeadingAndCards} />
 
@@ -100,6 +101,7 @@ export function SectionFaq({ element, tokens }: SectionRendererProps) {
             );
             const itemInner = (
               <details
+                data-cascade-item
                 className="cursor-pointer border"
                 style={{
                   background: item.cardBg ?? sectionCardBg,

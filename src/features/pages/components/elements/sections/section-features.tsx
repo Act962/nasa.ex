@@ -16,6 +16,7 @@ import {
   type SectionListItem,
   type SectionRendererProps,
 } from "./types";
+import { renderHighlightedText } from "./highlight-text";
 import {
   resolveTextStyle,
   textStyleToCSS,
@@ -96,8 +97,8 @@ export function SectionFeatures({ element, tokens }: SectionRendererProps) {
       <div className="max-w-7xl mx-auto flex flex-col gap-8 sm:gap-10">
         <RenderInterludeBlocks blocks={interlude.aboveHeading} />
         <div className="max-w-2xl mx-auto px-2">
-          <h2 style={{ ...textStyleToCSS(resolveTextStyle(undefined, headingStyle, headingDefaults)), marginBottom: 12 }}>
-            {heading}
+          <h2 data-cascade-item style={{ ...textStyleToCSS(resolveTextStyle(undefined, headingStyle, headingDefaults)), marginBottom: 12 }}>
+            {renderHighlightedText(heading, element, primary)}
           </h2>
           <p style={textStyleToCSS(resolveTextStyle(undefined, subheadingStyle, subheadingDefaults))}>
             {subheading}
@@ -119,6 +120,7 @@ export function SectionFeatures({ element, tokens }: SectionRendererProps) {
             );
             const cardInner = (
               <div
+                data-cascade-item
                 className="border"
                 style={{
                   background: card.cardBg ?? sectionCardBg,

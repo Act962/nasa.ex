@@ -31,6 +31,7 @@ import {
 import type { SaveStatus } from "./builder";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
+import { DeviceSwitcher } from "./device-switcher";
 
 interface Props {
   page: {
@@ -85,7 +86,7 @@ export function BuilderTopbar({
 
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center gap-1.5 bg-card px-3 sm:gap-2">
+      <header className="flex h-14 shrink-0 items-center gap-1.5 border-b bg-card px-3 sm:gap-2">
         {/* No celular: voltar redondo; Elementos, Camadas, Editar e Ajustes ficam no menu de baixo. */}
         <Button
           size="icon"
@@ -159,38 +160,40 @@ export function BuilderTopbar({
         )}
 
         <div className="min-w-0 flex-1 max-md:hidden" />
+        <DeviceSwitcher />
+        <div className="min-w-0 flex-1 max-md:hidden" />
 
         {/* Autosave — texto só ≥md. Em mobile, só ícone (compacto). */}
         <div className="flex items-center gap-1.5 text-xs shrink-0">
           {saveStatus === "saving" && (
             <>
               <OrbitaSpinner className="size-3.5 text-muted-foreground" />
-              <span className="hidden md:inline text-muted-foreground">Salvando…</span>
+              <span className="hidden xl:inline text-muted-foreground">Salvando…</span>
             </>
           )}
           {saveStatus === "saved" && (
             <>
               <Check className="size-3.5 text-success" />
-              <span className="hidden md:inline text-success">Salvo</span>
+              <span className="hidden xl:inline text-success">Salvo</span>
             </>
           )}
           {saveStatus === "dirty" && (
             <>
               <span className="size-1.5 rounded-full bg-warning" />
-              <span className="hidden md:inline text-muted-foreground">Mudanças pendentes…</span>
+              <span className="hidden xl:inline text-muted-foreground">Mudanças pendentes…</span>
             </>
           )}
           {saveStatus === "error" && (
             <>
               <AlertCircle className="size-3.5 text-destructive" />
-              <span className="hidden md:inline text-destructive">Falha ao salvar</span>
+              <span className="hidden xl:inline text-destructive">Falha ao salvar</span>
             </>
           )}
         </div>
 
         <Badge
           variant={page.status === "PUBLISHED" ? "default" : "secondary"}
-          className="ml-1 hidden shrink-0 rounded-full md:inline-flex"
+          className="ml-1 hidden shrink-0 rounded-full xl:inline-flex"
         >
           <Save className="size-3 mr-1" />
           {page.status === "PUBLISHED" ? "Publicado" : "Rascunho"}

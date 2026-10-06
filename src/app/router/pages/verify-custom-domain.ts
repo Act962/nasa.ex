@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { promises as dns } from "node:dns";
+import { isDomainPointingToEdge } from "@/features/pages/server/custom-domain";
 import z from "zod";
 
 export const verifyCustomDomain = base
@@ -9,7 +10,7 @@ export const verifyCustomDomain = base
   .route({
     method: "POST",
     path: "/pages/:id/domain/verify",
-    summary: "Verificar TXT + CNAME do domínio externo",
+    summary: "Verificar TXT de posse e apontamento (CNAME/A) do domínio externo",
   })
   .input(z.object({ id: z.string() }))
   .handler(async ({ input, context, errors }) => {
@@ -31,18 +32,20 @@ export const verifyCustomDomain = base
     }
 
     const txtHost = `_nasa-verify.${page.customDomain}`;
-    let ok = false;
+    let isOwnershipProven = false;
     try {
       const txtRecords = await dns.resolveTxt(txtHost);
-      ok = txtRecords.some((rows) => rows.join("").trim() === page.domainVerifyToken);
+      isOwnershipProven = txtRecords.some((rows) => rows.join("").trim() === page.domainVerifyToken);
     } catch {
-      ok = false;
+      isOwnershipProven = false;
     }
+    const isPointingToEdge = await isDomainPointingToEdge(page.customDomain);
+    const ok = isOwnershipProven && isPointingToEdge;
 
     const updated = await prisma.nasaPage.update({
       where: { id: page.id },
       data: { domainStatus: ok ? "VERIFIED" : "FAILED" },
       select: { customDomain: true, domainStatus: true },
     });
-    return { verified: ok, page: updated };
+    return { verified: ok, isOwnershipProven, isPointingToEdge, page: updated };
   });

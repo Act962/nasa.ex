@@ -30,10 +30,13 @@ export function resolveNavLinkHref(
   link: NavLinkShape,
   rootSlug: string | undefined,
   siblingPages: SiblingPageInfo[] | undefined,
+  siteBasePath?: string,
 ): string {
   if (link.subpageId) {
     const sub = siblingPages?.find((p) => p.id === link.subpageId);
     if (!sub) return "#";
+    // Em domínio próprio o site mora na raiz: nada de `/s/<slug>`.
+    if (siteBasePath !== undefined) return sub.isRoot ? `${siteBasePath}/` : `${siteBasePath}/${sub.slug}`;
     if (!rootSlug) return "#";
     if (sub.isRoot) return `/s/${rootSlug}`;
     return `/s/${rootSlug}/${sub.slug}`;

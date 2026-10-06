@@ -29,6 +29,10 @@ export type PageRenderContext = {
   /** Páginas-irmãs publicadas do site (root + subpages). Alimentada
    *  pelo dropdown "link interno" e pela resolução de NavLink.subpageId. */
   siblingPages?: SiblingPageInfo[];
+  /** Definido quando o site roda em domínio próprio: os links internos saem da raiz do domínio. */
+  siteBasePath?: string;
+  /** Origem do app, para recursos que precisam apontar de volta para ele (formulário embutido). */
+  appOrigin?: string;
   /** Nomes dos planos detectados em sections-pricing da page atual.
    *  Usado pelo elemento Marketing pra gerar toasts "Fulano adquiriu
    *  <plano>". Vazio se a page não tem pricing. */

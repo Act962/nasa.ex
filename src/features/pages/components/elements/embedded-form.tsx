@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ElementBase } from "../../types";
+import { usePageRenderContext } from "../public/page-context";
 
 /**
  * Embedded Form — renderiza um Formulário NASA existente dentro da
@@ -24,6 +25,7 @@ import type { ElementBase } from "../../types";
  * no editor).
  */
 export function EmbeddedForm({ element }: { element: ElementBase }) {
+  const { appOrigin } = usePageRenderContext();
   const formId = (element.formId as string) ?? "";
   const trackingId = (element.trackingId as string) ?? "";
   const bgColor = (element.bgColor as string) ?? "#ffffff";
@@ -68,7 +70,8 @@ export function EmbeddedForm({ element }: { element: ElementBase }) {
   }
 
   // Endpoint público do form
-  const src = `/submit-form/${formId}?${params.toString()}`;
+  // Em domínio próprio a rota do formulário não existe: o iframe volta para o app.
+  const src = `${appOrigin ?? ""}/submit-form/${formId}?${params.toString()}`;
 
   return (
     <div

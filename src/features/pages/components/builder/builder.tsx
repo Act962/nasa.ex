@@ -32,6 +32,7 @@ export function PagesBuilder({ pageId }: Props) {
   const { data, isLoading } = usePage(pageId);
   const setPage = usePagesBuilderStore((s) => s.setPage);
   const layout = usePagesBuilderStore((s) => s.layout);
+  const markSaved = usePagesBuilderStore((s) => s.markSaved);
   useBuilderOrbitDock();
 
   // Estado do autosave (idle/dirty/saving/saved/error)
@@ -89,6 +90,7 @@ export function PagesBuilder({ pageId }: Props) {
     onSuccess: () => {
       dirtyRef.current = false;
       setSaveStatus("saved");
+      markSaved();
     },
     onError: () => {
       setSaveStatus("error");
@@ -181,17 +183,17 @@ export function PagesBuilder({ pageId }: Props) {
 
   if (isLoading || !layout || !page) {
     return (
-      <div className="h-[calc(100dvh-4rem)] flex items-center justify-center">
+      <div className="flex h-dvh w-full flex-1 items-center justify-center">
         <OrbitaSpinner className="size-8" />
       </div>
     );
   }
 
   return (
-    // h-dvh (dynamic viewport) em vez de calc(100vh - 4rem) — `dvh`
-    // respeita a barra do navegador móvel (ela some/aparece) e evita
-    // scroll-duplo. -4rem do header global do app.
-    <div className="h-[calc(100dvh-4rem)] flex flex-col bg-muted/20">
+    // `dvh` respeita a barra do navegador móvel (ela some/aparece) e evita scroll-duplo.
+    // O editor é filho direto do SidebarProvider (sem SidebarInset nem header): precisa de
+    // `flex-1 w-full` para ocupar a largura toda.
+    <div className="h-dvh w-full min-w-0 flex-1 flex flex-col bg-muted/20">
       <BuilderTopbar
         page={page}
         onPublish={handlePublish}
@@ -199,8 +201,9 @@ export function PagesBuilder({ pageId }: Props) {
         saveStatus={saveStatus}
         flushSave={saveNow}
       />
-      <div className="flex-1 flex min-h-0">
-        {/* No celular (<md) a sidebar vira gavetas de baixo abertas pelo menu em órbita. */}
+      <div className="flex-1 flex min-h-0 min-w-0">
+        {/* No celular (<md) a sidebar vira gavetas de baixo abertas pelo menu em órbita.
+            Em telas largas a sidebar também rende a coluna de propriedades, à direita do canvas. */}
         <BuilderSidebar />
         <BuilderCanvas />
       </div>

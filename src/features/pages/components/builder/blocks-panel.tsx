@@ -42,6 +42,7 @@ const SINGLETON_TYPES = new Set([
   "exit-intent",
   "section-navbar",
   "section-footer",
+  "floating-buttons",
 ]);
 
 export function BlocksPanel() {
@@ -72,7 +73,8 @@ export function BlocksPanel() {
     }
 
     // Cria base via factory pra herdar w/h/x/y defaults
-    const base = createElement(block.type, {});
+    const pagePalette = (lay as unknown as { palette?: Record<string, string> }).palette ?? {};
+    const base = createElement(block.type, pagePalette);
     // Sobrescreve com as props do bloco
     const merged: ElementBase = { ...base, ...block.build() };
     // Posiciona via computeInsertPosition (flow section → empilha;
