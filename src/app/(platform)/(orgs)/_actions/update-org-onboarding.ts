@@ -57,12 +57,18 @@ export async function updateOrgOnboarding(
     throw new Error("Você não tem permissão para alterar esta empresa");
   }
 
+  // O tipo vem do cadastro e vale só para a primeira empresa do dono.
+  const ownedOrganizationCount = await prisma.member.count({
+    where: { userId: session.user.id, role: "owner" },
+  });
+  const isFirstOwnedOrganization = ownedOrganizationCount === 1;
+
   await prisma.organization.update({
     where: { id: payload.orgId },
     data: {
       companyNiche: payload.companyNiche,
       companyCep: payload.companyCep,
-      companyType: payload.companyType,
+      companyType: isFirstOwnedOrganization ? payload.companyType : undefined,
     },
   });
 }

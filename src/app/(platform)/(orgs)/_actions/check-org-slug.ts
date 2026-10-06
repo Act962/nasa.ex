@@ -3,9 +3,7 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { ORG_SLUG_PATTERN, buildSlugCandidates } from "../_lib/org-slug";
-
-const MAX_SLUG_LENGTH = 80;
+import { ORG_SLUG_MAX_LENGTH, ORG_SLUG_PATTERN, buildSlugCandidates } from "../_lib/org-slug";
 
 export interface OrgSlugCheck {
   isAvailable: boolean;
@@ -17,7 +15,7 @@ export async function checkOrgSlug(slug: string): Promise<OrgSlugCheck> {
   if (!session) {
     throw new Error("Não autorizado");
   }
-  if (slug.length > MAX_SLUG_LENGTH || !ORG_SLUG_PATTERN.test(slug)) {
+  if (slug.length > ORG_SLUG_MAX_LENGTH || !ORG_SLUG_PATTERN.test(slug)) {
     throw new Error("Identificador inválido");
   }
 

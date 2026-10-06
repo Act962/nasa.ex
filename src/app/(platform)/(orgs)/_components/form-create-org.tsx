@@ -35,7 +35,7 @@ import { z } from "zod";
 import { checkOrgSlug } from "../_actions/check-org-slug";
 import { updateOrgOnboarding } from "../_actions/update-org-onboarding";
 import { type OrgSlugStatus, useOrgSlugAvailability } from "../_hooks/use-org-slug-availability";
-import { ORG_SLUG_PATTERN, createSlug } from "../_lib/org-slug";
+import { ORG_SLUG_MAX_LENGTH, ORG_SLUG_PATTERN, createSlug } from "../_lib/org-slug";
 
 const MAX_VISIBLE_SUGGESTIONS = 3;
 const SLUG_TAKEN_MESSAGE = "Já existe uma empresa com este identificador.";
@@ -45,6 +45,7 @@ const createOrgSchema = z.object({
   slug: z
     .string()
     .min(1, "Identificador é obrigatório")
+    .max(ORG_SLUG_MAX_LENGTH, `Use até ${ORG_SLUG_MAX_LENGTH} caracteres`)
     .regex(ORG_SLUG_PATTERN, "Use apenas letras minúsculas, números e hífens"),
   logo: z.string().optional(),
   companyNiche: z.string().optional(),
@@ -264,9 +265,9 @@ export function FormCreateOrg() {
       })
         .then(() => true)
         .catch(() => false);
+      clearSignupCompanyType();
 
       if (hasSavedCompanyDetails) {
-        clearSignupCompanyType();
         toast.success("Empresa criada com sucesso!");
       } else {
         toast.warning(
@@ -341,6 +342,7 @@ export function FormCreateOrg() {
                       placeholder="acm-distribuidora"
                       aria-invalid={isSlugTaken || Boolean(errors.slug)}
                       className="pr-10"
+                      maxLength={ORG_SLUG_MAX_LENGTH}
                       {...form.register("slug")}
                       onChange={handleSlugChange}
                       disabled={isSubmitting}

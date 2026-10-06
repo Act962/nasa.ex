@@ -1,7 +1,11 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import {
+  SIGNUP_COMPANY_TYPE_COOKIE,
+  parseSignupCompanyType,
+} from "@/features/company/lib/signup-company-type";
 
 /**
  * Página de provisionamento + redirecionamento para criar evento público.
@@ -55,10 +59,16 @@ export default async function CriarEventoRedirect({
       .slice(0, 32);
     const slug = `${baseSlug || "espaco"}-${userId.slice(-6)}`;
 
+    const cookieStore = await cookies();
+    const signupCompanyType = parseSignupCompanyType(
+      cookieStore.get(SIGNUP_COMPANY_TYPE_COOKIE)?.value,
+    );
+
     const newOrg = await prisma.organization.create({
       data: {
         name: orgName,
         slug,
+        companyType: signupCompanyType,
         createdAt: new Date(),
         members: {
           create: {
