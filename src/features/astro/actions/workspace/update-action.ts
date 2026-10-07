@@ -17,6 +17,7 @@ import {
   priorityLabel,
   toPriority,
 } from "./task-fields";
+import { notifyNewTask } from "@/features/actions/server/lib/notify-new-task";
 
 // Editar uma demanda que já existe (spec 0072, RF-9). Sem este verbo, "quero
 // editar a última demanda" caía em `action.create` e abria uma demanda nova.
@@ -199,6 +200,17 @@ export const updateWorkspaceActionItem: AstroAction<typeof inputSchema> = {
           : {}),
       },
     });
+
+    if (newResponsibleId) {
+      await notifyNewTask({
+        actionId: task.id,
+        title: changes.title ?? task.title,
+        workspaceId: task.workspaceId,
+        organizationId: ctx.organizationId,
+        actorId: ctx.userId,
+        userIds: [newResponsibleId],
+      });
+    }
 
     return {
       status: "done",

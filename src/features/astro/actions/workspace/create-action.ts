@@ -16,6 +16,7 @@ import {
   normalizeIntent,
   toPriority,
 } from "./task-fields";
+import { notifyNewTask } from "@/features/actions/server/lib/notify-new-task";
 
 // Criar demanda/tarefa dentro de um workspace. Sem este verbo, "adicione a
 // demanda CRIAR SITE dentro de DEMANDAS" caía em `workspace.create` e
@@ -272,6 +273,15 @@ export const createWorkspaceActionItem: AstroAction<typeof inputSchema> = {
         participants: { create: participants.map((participant) => ({ userId: participant.id })) },
       },
       select: { id: true },
+    });
+
+    await notifyNewTask({
+      actionId: created.id,
+      title: input.title,
+      workspaceId: workspace.id,
+      organizationId: ctx.organizationId,
+      actorId: ctx.userId,
+      userIds: [responsible.id, ...participants.map((participant) => participant.id)],
     });
 
     return {
