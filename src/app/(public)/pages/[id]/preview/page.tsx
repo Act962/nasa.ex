@@ -119,10 +119,18 @@ export default async function PreviewPage({
         </Link>
       </div>
 
-      {/* Banner secundário (não-fixed) explicando que cada bloco
-          é editável quando vai pro builder. Aparece UMA VEZ no topo
-          da preview, abaixo da barra fixa. */}
       <div aria-hidden style={{ height: PREVIEW_BAR_HEIGHT_PX }} />
+
+      {/* O menu fixo do site desce a altura da barra; sem isso ele fica por cima dela. */}
+      <div style={{ [FIXED_TOP_OFFSET_VARIABLE]: `${PREVIEW_BAR_HEIGHT_PX}px` } as CSSProperties}>
+        <PublicPageRenderer
+          layout={page.layout as unknown as PageLayout}
+          palette={(page.palette as Record<string, string>) ?? {}}
+          fontFamily={page.fontFamily}
+          organizationSlug={page.organization?.slug ?? undefined}
+        />
+      </div>
+      {/* Fica no fim: no topo, o menu fixo do site ocuparia a mesma faixa e cobriria o aviso. */}
       <div className="bg-info/10 px-4 py-3 text-center text-xs leading-normal text-muted-foreground">
         <Lightbulb size={13} className="mr-1 inline align-[-2px] text-info" />
         <strong>Esta é a prévia da landing</strong> — readonly por
@@ -134,16 +142,6 @@ export default async function PreviewPage({
         </Link>
         . Lá cada bloco é clicável e o painel direito mostra todos
         os campos editáveis.
-      </div>
-
-      {/* O menu fixo do site desce a altura da barra; sem isso ele fica por cima dela. */}
-      <div style={{ [FIXED_TOP_OFFSET_VARIABLE]: `${PREVIEW_BAR_HEIGHT_PX}px` } as CSSProperties}>
-        <PublicPageRenderer
-          layout={page.layout as unknown as PageLayout}
-          palette={(page.palette as Record<string, string>) ?? {}}
-          fontFamily={page.fontFamily}
-          organizationSlug={page.organization?.slug ?? undefined}
-        />
       </div>
     </>
   );
