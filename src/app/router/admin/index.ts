@@ -62,9 +62,11 @@ import { getRouterPaymentSettings } from "./get-router-payment-settings";
 import { updateRouterPaymentSettings } from "./update-router-payment-settings";
 import { nerpLoginAs } from "./nerp-login-as";
 import { adminAiCreditsRouter } from "./ai-credits";
+import { adminAstroCorrectionsRouter } from "./astro-corrections";
 
 export const adminRouter = {
   aiCredits: adminAiCreditsRouter,
+  astroCorrections: adminAstroCorrectionsRouter,
   getDashboard,
   listOrganizations,
   getOrganization,

@@ -25,6 +25,7 @@ import {
   GraduationCap,
   TrendingUp,
   BrainCircuit,
+  MessageSquareWarning,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +52,7 @@ const NAV = [
   { href: "/admin/atalhos", icon: Keyboard, label: "Atalhos" },
   { href: "/admin/trafego", icon: TrendingUp, label: "trafeGO" },
   { href: "/admin/support", icon: LifeBuoyIcon, label: "Suporte" },
+  { href: "/admin/astro-correcoes", icon: MessageSquareWarning, label: "Correções do ASTRO" },
 ];
 
 export function AdminSidebar({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {

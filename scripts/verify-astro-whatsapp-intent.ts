@@ -12,6 +12,7 @@ import { addChecklistItemAction } from "../src/features/astro/actions/workspace/
 import { looksLikeNewRequest } from "../src/features/astro/actions/guided-answers";
 import { matchIntentPattern, matchesAnyIntentPattern } from "../src/features/astro/actions/match-intent-pattern";
 import { parseCalendarDate } from "../src/features/astro/actions/parse-when";
+import { parseCorrectionMessage } from "../src/features/astro-corrections/lib/parse-correction";
 
 let failures = 0;
 
@@ -123,6 +124,21 @@ check(
   !matchesAnyIntentPattern("quanto gastei com combustível esse mês?"),
   "não vira lançamento",
 );
+
+// ── Spec 0073 — "errou" ─────────────────────────────────────────────────────
+for (const phrase of ["errou", "Errou!", "não era isso", "tá errado", "👎"]) {
+  check(`0073 CA-1 "${phrase}" é aviso de erro`, parseCorrectionMessage(phrase).kind === "report", parseCorrectionMessage(phrase).kind);
+}
+for (const phrase of ["o cliente errou o endereço", "errou feio no relatório de ontem", "quantos leads tenho hoje?"]) {
+  check(`0073 CA-1 "${phrase}" não é aviso`, parseCorrectionMessage(phrase).kind === "other", parseCorrectionMessage(phrase).kind);
+}
+const reportWithExpected = parseCorrectionMessage("errou: o título era o texto inteiro entre aspas");
+check(
+  "0073 CA-2 'errou: …' separa o certo",
+  reportWithExpected.kind === "report" && reportWithExpected.expected === "o título era o texto inteiro entre aspas",
+  JSON.stringify(reportWithExpected),
+);
+check("0073 CA-3 'pular' pula", parseCorrectionMessage("pular").kind === "skip" && parseCorrectionMessage("não sei").kind === "skip", "skip");
 
 console.log(failures === 0 ? "\nTudo certo." : `\n${failures} falha(s).`);
 process.exit(failures === 0 ? 0 : 1);
