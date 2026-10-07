@@ -26,6 +26,7 @@ import { assessBotInboundMedia, storeBotInboundDocument } from "./inbound-media"
 import { chargeBotPromptStake, debitBotTokenUsage } from "./stars-billing";
 import { tryCheapLayers } from "./cheap-layers";
 import { transcribeBotAudio, type AudioDownloader } from "./audio-transcription";
+import { tryWhatsappCorrection } from "@/features/astro-corrections/lib/whatsapp-correction-flow";
 import type { BotCommandResult, BotInboundMedia, WhatsappBotChannel } from "./types";
 
 interface RouteContext {
@@ -114,6 +115,14 @@ export async function handleBotCommand(
     });
   }
 
+  // "Errou" vem antes do stake: avisar que o ASTRO errou não custa Stars.
+  if (!ctx.media) {
+    const correctionReply = await tryWhatsappCorrection({ binding, text: messageText });
+    if (correctionReply) {
+      return logAndReturn(binding, loggedText, { status: "feedback", reply: correctionReply, toolsCalled: ["correcao"], starsCharged: 0 });
+    }
+  }
+
   // Validação barata antes do stake: arquivo recusado não gasta Stars.
   if (media) {
     const assessment = await assessBotInboundMedia(binding, media);
@@ -152,6 +161,10 @@ export async function handleBotCommand(
     messageText = transcription.text;
     loggedText = `[áudio] ${transcription.text}`;
     stake.starsCharged += transcription.starsCharged;
+    const spokenCorrectionReply = await tryWhatsappCorrection({ binding, text: messageText });
+    if (spokenCorrectionReply) {
+      return logAndReturn(binding, loggedText, { status: "feedback", reply: spokenCorrectionReply, toolsCalled: ["correcao"], starsCharged: stake.starsCharged });
+    }
   }
 
   let attachments: AstroAttachmentRef[] | undefined;

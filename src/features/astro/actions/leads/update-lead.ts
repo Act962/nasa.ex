@@ -126,7 +126,7 @@ export const updateLeadAction: AstroAction<typeof inputSchema> = {
   inferFields: inferUpdateFields,
   codeOnlyFields: ["fieldToChange", "newValue"],
   intentPatterns: [
-    /^(?!.*\b(funil|tracking|coluna|etapa|agenda|workspace|tag|etiqueta|proposta|conta)\b).*\b(muda|mudar|mude|altera|alterar|altere|atualiza|atualizar|atualize|corrige|corrigir|corrija|troca|trocar|troque|edita|editar|edite)\b.{0,30}\b(lead|contato|cliente|telefone|e-?mail|valor|temperatura|descricao)\b/,
+    /^(?!.*\b(funil|tracking|coluna|etapa|agenda|workspace|tag|etiqueta|proposta|conta|tarefa|demanda|atividade|checklist)\b).*\b(muda|mudar|mude|altera|alterar|altere|atualiza|atualizar|atualize|corrige|corrigir|corrija|troca|trocar|troque|edita|editar|edite)\b.{0,30}\b(lead|contato|cliente|telefone|e-?mail|valor|temperatura|descricao)\b/,
     /\bmarca\b.{0,40}\bcomo\s+(frio|morno|quente|muito quente)\b/,
   ],
   fieldSteps: { leadName: LEAD_FIELD_STEP },

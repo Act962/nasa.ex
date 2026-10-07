@@ -65,6 +65,11 @@ function normalizeIntent(text: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+/** Valor abrindo a frase, seguido do tipo: "200,00 em despesa de combustível". */
+const LEADING_AMOUNT = /^\s*(?:r\$\s*)?([\d.,]+)\s*(?:reais\s+)?(?:de|em|com)\s+(?:despesa|receita|gasto|custo)s?\b/i;
+const ENTRY_TYPE_PREFIX = /^(?:despesas?|receitas?|gastos?|custos?)\s+(?:de|com|em|da|do)\s+/i;
+const ENTRY_TYPE_ONLY = /^(?:despesas?|receitas?|gastos?|custos?)$/i;
+
 /** Vocabulário conhecido; traduzir não é trabalho de modelo. */
 function normalizeEntryType(raw: string): "PAYABLE" | "RECEIVABLE" | null {
   const key = normalizeIntent(raw.trim());
@@ -97,7 +102,8 @@ function inferEntryFields(text: string): Record<string, unknown> {
   const amountText =
     text.match(/r\$\s*([\d.,]+)/i)?.[1] ??
     text.match(/\b([\d.,]+)\s*(?:reais|real)\b/i)?.[1] ??
-    text.match(/\b(?:de|por)\s+([\d.,]+)\s+(?:de|em|com|no|na)\b/i)?.[1];
+    text.match(/\b(?:de|por)\s+([\d.,]+)\s+(?:de|em|com|no|na)\b/i)?.[1] ??
+    text.match(LEADING_AMOUNT)?.[1];
   const amount = amountText ? parseMoney(amountText) : null;
   if (amount) inferred.amount = amount;
 
@@ -108,8 +114,11 @@ function inferEntryFields(text: string): Record<string, unknown> {
   const descriptionWithoutAmount = text.match(
     /\b(?:despesa|receita|gasto|conta)\s+(?:de|com|em|da|do)\s+(?!r\$|\d)(.+?)(?=\s+(?:de|por)\s+(?:r\$\s*)?\d|\s+(?:vencendo|vence|com vencimento|para o dia|no dia|dia \d|hoje|amanha|amanhã)\b|,|$)/iu,
   )?.[1];
-  const inferredDescription = description ?? descriptionWithoutAmount;
-  if (inferredDescription && inferredDescription.trim().length >= 2) inferred.description = inferredDescription.trim();
+  // "200,00 em despesa de combustível": o tipo não faz parte da descrição.
+  const inferredDescription = (description ?? descriptionWithoutAmount)?.replace(ENTRY_TYPE_PREFIX, "").trim();
+  if (inferredDescription && inferredDescription.length >= 2 && !ENTRY_TYPE_ONLY.test(inferredDescription)) {
+    inferred.description = inferredDescription;
+  }
 
   const dueText = text.match(/\b(?:vencendo|vence|vencimento)\s+(?:em\s+|no\s+|dia\s+)?(.+?)(?=,|$)/iu)?.[1];
   if (dueText) inferred.dueDate = /^\d{1,2}$/.test(dueText.trim()) ? `dia ${dueText.trim()}` : dueText;
@@ -159,6 +168,9 @@ export const createPaymentEntryAction: AstroAction<typeof inputSchema> = {
     /\b(lanca|lancar|lance|registra|registrar|registre|adiciona|adicionar|adicione|cadastra|cadastrar|nova|novo|quero lancar)\b.{0,30}\b(despesa|receita|gasto|conta a pagar|conta a receber|lancamento)\b/,
     /\b(lanca|lancar|lance)\s+(a|uma|o|um)?\s*(conta|boleto|fatura)\b/,
     /\b(paguei|gastei|recebi)\s+(r\$\s*)?\d/,
+    // Frase que abre com o valor é lançamento, não pergunta: sem isto ela
+    // casava com "gasto por categoria" e voltava um relatório.
+    /^\s*(r\$\s*)?\d[\d.,]*\s*(reais\s+)?(de|em|com)\s+(despesa|receita|gasto|custo)s?\b/,
   ],
   fieldSteps: {
     type: { title: "Despesa ou receita?", question: "O que você quer lançar?", picker: TYPE_PICKER },

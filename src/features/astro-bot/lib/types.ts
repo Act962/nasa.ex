@@ -39,7 +39,9 @@ export type BotCommandStatus =
   | "stars_insufficient"
   | "media_unsupported"
   | "media_forbidden"
-  | "media_failed";
+  | "media_failed"
+  /** "Errou" e a resposta a "o que era o certo?" (spec 0073) — fora do histórico. */
+  | "feedback";
 
 /** Documento/imagem enviado por membro allow-listado (spec 0019). */
 export interface BotInboundMedia {

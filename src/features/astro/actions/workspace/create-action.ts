@@ -5,6 +5,17 @@ import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { parseCalendarDate } from "../parse-when";
 import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
+import {
+  DAY_WORDS,
+  MEMBER_PICKER,
+  PRIORITY_OPTIONS,
+  TIME_OF_DAY,
+  findTeamMember,
+  formatDay,
+  hasTimeOfDay,
+  normalizeIntent,
+  toPriority,
+} from "./task-fields";
 
 // Criar demanda/tarefa dentro de um workspace. Sem este verbo, "adicione a
 // demanda CRIAR SITE dentro de DEMANDAS" caía em `workspace.create` e
@@ -12,28 +23,7 @@ import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-
 // Roteiro (spec 0033, RF-9): título → workspace → prazo → responsável →
 // prioridade, cada passo com o seu seletor.
 
-const BRAZIL_TIME_ZONE = "America/Sao_Paulo";
 const NO_DEADLINE_ANSWER = "sem prazo";
-const MYSELF_ANSWER = "eu mesmo";
-
-const PRIORITY_OPTIONS = [
-  { label: "Sem prioridade", answer: "NONE" },
-  { label: "Baixa", answer: "LOW" },
-  { label: "Média", answer: "MEDIUM" },
-  { label: "Alta", answer: "HIGH" },
-  { label: "Urgente", answer: "URGENT" },
-] as const;
-
-type ActionPriority = (typeof PRIORITY_OPTIONS)[number]["answer"];
-
-const PRIORITY_WORDS: Record<string, ActionPriority> = {
-  urgente: "URGENT",
-  alta: "HIGH",
-  media: "MEDIUM",
-  baixa: "LOW",
-  nenhuma: "NONE",
-  sem: "NONE",
-};
 
 const inputSchema = z.object({
   title: z
@@ -51,43 +41,37 @@ const inputSchema = z.object({
   dueAnswer: z.string().trim().optional().describe("Prazo dito na frase ou escolhido no roteiro."),
   responsibleName: z.string().trim().optional().describe("Responsável escolhido no roteiro."),
   priorityName: z.string().trim().optional().describe("Prioridade dita ou escolhida."),
+  participantNames: z.string().trim().optional().describe("Participantes ditos na frase, separados por vírgula ou 'e'."),
 });
 
-function normalizeIntent(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function toPriority(raw: string): ActionPriority | null {
-  const normalized = normalizeIntent(raw.trim());
-  const byAnswer = PRIORITY_OPTIONS.find((option) => option.answer.toLowerCase() === normalized);
-  if (byAnswer) return byAnswer.answer;
-  const word = Object.keys(PRIORITY_WORDS).find((key) => new RegExp(`\\b${key}\\b`).test(normalized));
-  return word ? PRIORITY_WORDS[word] : null;
-}
-
-const DAY_WORDS = "amanha|amanhã|hoje|depois de amanha|depois de amanhã|segunda|terca|terça|quarta|quinta|sexta|sabado|sábado|domingo";
+const TITLE_LEAD_IN = /^(?:com\s+o\s+(?:t[ií]tulo|nome)|chamad[ao]|intitulad[ao]|de\s+nome)\s*:?\s*/iu;
 
 /** "cria a tarefa revisar contrato no workspace Operação para amanhã, urgente" → campos, sem modelo. */
 function inferTaskFields(text: string): Record<string, unknown> {
   const inferred: Record<string, unknown> = {};
-  const title = text.match(
+  // Título entre aspas é citação: vale inteiro, com vírgula e tudo. Sem isto,
+  // "Cobrar STARs no Planner, criação e publicação" era cortado na vírgula.
+  const quotedTitle = text.match(/["“]([^"”]{2,200})["”]/u)?.[1];
+  const looseTitle = text.match(
     new RegExp(
-      `\\b(?:tarefa|demanda|atividade)\\s+(?:de\\s+|para\\s+)?["“]?(.+?)["”]?(?=\\s+(?:no|na|em)\\s+(?:workspace|quadro)\\b|\\s+(?:para|pra|ate|até)\\s+(?:${DAY_WORDS}|dia\\s+\\d|\\d{1,2}\\/\\d{1,2})|,|$)`,
+      `\\b(?:tarefa|demanda|atividade)\\s+(?:de\\s+|para\\s+)?(.+?)(?=\\s+(?:no|na|em)\\s+(?:workspace|quadro)\\b|\\s+com\\s+(?:os\\s+|as\\s+)?participantes?\\b|\\s+(?:para|pra|ate|até)\\s+(?:${DAY_WORDS}|dia\\s+\\d|\\d{1,2}\\/\\d{1,2})|,|$)`,
       "iu",
     ),
   )?.[1];
-  if (title && title.trim().length >= 2) inferred.title = title.trim();
+  const title = (quotedTitle ?? looseTitle?.replace(TITLE_LEAD_IN, ""))?.trim();
+  if (title && title.length >= 2) inferred.title = title;
   // Sem a flag "i": a continuação do nome exige inicial maiúscula, senão
   // "Operação para amanhã" virava o nome do workspace.
   const workspaceName = text.match(/\b(?:no|na|em)\s+(?:[Ww]orkspace|[Qq]uadro)\s+([^\s,]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ]+)*)/u)?.[1];
   if (workspaceName) inferred.workspaceName = workspaceName;
   const due = text.match(
-    new RegExp(`\\b(?:para|pra|ate|até)\\s+(${DAY_WORDS}|dia\\s+\\d{1,2}|\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?)`, "iu"),
+    new RegExp(`\\b(?:para|pra|ate|até)\\s+((?:${DAY_WORDS}|dia\\s+\\d{1,2}|\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?)${TIME_OF_DAY})`, "iu"),
   )?.[1];
-  if (due) inferred.dueAnswer = due;
+  if (due) inferred.dueAnswer = due.trim();
+  const participants = text.match(
+    /\bparticipantes?\s*:?\s+(.+?)(?=\s+(?:no|na|em)\s+(?:workspace|quadro)\b|\s+(?:para|pra|ate|até)\s|\s*[,;.]\s*(?:prioridade|urgente|respons)|[;.]|$)/iu,
+  )?.[1];
+  if (participants) inferred.participantNames = participants.trim();
   const priority = normalizeIntent(text).match(/\b(urgente|prioridade\s+(alta|media|baixa))\b/);
   if (priority) inferred.priorityName = priority[2] ?? priority[1];
   const responsible = text.match(/\b(?:atribui|atribua|atribuir|responsavel|responsável)\s+(?:a|ao|à|pra|para|pro|e|é)?\s*(?:o\s+|a\s+)?([A-ZÀ-Ý][\wÀ-ÿ]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ]+)*)/u)?.[1];
@@ -95,13 +79,11 @@ function inferTaskFields(text: string): Record<string, unknown> {
   return inferred;
 }
 
-function formatDay(date: Date): string {
-  return date.toLocaleDateString("pt-BR", {
-    timeZone: BRAZIL_TIME_ZONE,
-    weekday: "long",
-    day: "2-digit",
-    month: "2-digit",
-  });
+function splitNames(raw: string): string[] {
+  return raw
+    .split(/\s*(?:,|;|\be\b)\s*/iu)
+    .map((name) => name.trim())
+    .filter((name) => name.length >= 2);
 }
 
 const WORKSPACE_PICKER: AstroPicker = { kind: "entity", entity: "workspace", placeholder: "Buscar workspace" };
@@ -118,9 +100,9 @@ export const createWorkspaceActionItem: AstroAction<typeof inputSchema> = {
   newNameFields: ["title"],
   input: inputSchema,
   inferFields: inferTaskFields,
-  codeOnlyFields: ["dueAnswer", "responsibleName", "priorityName"],
+  codeOnlyFields: ["dueAnswer", "responsibleName", "priorityName", "participantNames"],
   intentPatterns: [
-    /\b(cria|criar|crie|adiciona|adicionar|adicione|nova|novo|abre|abrir|quero criar)\b.{0,20}\b(tarefa|demanda|atividade)\b/,
+    /^(?!.*\b(checklist|check-list|subtarefas?|sub-tarefas?|subitem)\b).*\b(cria|criar|crie|adiciona|adicionar|adicione|nova|novo|abre|abrir|quero criar)\b.{0,20}\b(tarefa|demanda|atividade)\b/,
   ],
   fieldSteps: {
     title: {
@@ -213,27 +195,11 @@ export const createWorkspaceActionItem: AstroAction<typeof inputSchema> = {
         description: "Quem fica responsável?",
         missingFields: [{ key: "responsibleName", label: "o responsável" }],
         appName: "Workspaces",
-        picker: {
-          kind: "entity",
-          entity: "member",
-          placeholder: "Buscar pessoa da equipe",
-          noneOption: { label: "Eu mesmo", answer: MYSELF_ANSWER },
-        },
+        picker: MEMBER_PICKER,
       };
     }
     const pickedResponsible = parsePickedAnswer(input.responsibleName);
-    const responsible =
-      normalizeIntent(pickedResponsible.label) === MYSELF_ANSWER
-        ? await prisma.user.findUnique({ where: { id: ctx.userId }, select: { id: true, name: true } })
-        : await prisma.user.findFirst({
-            where: {
-              members: { some: { organizationId: ctx.organizationId } },
-              ...(pickedResponsible.id
-                ? { id: pickedResponsible.id }
-                : { name: { contains: pickedResponsible.label, mode: "insensitive" } }),
-            },
-            select: { id: true, name: true },
-          });
+    const responsible = await findTeamMember(ctx, input.responsibleName);
     if (!responsible) {
       return {
         status: "needs_input",
@@ -241,12 +207,7 @@ export const createWorkspaceActionItem: AstroAction<typeof inputSchema> = {
         description: `Não achei "${pickedResponsible.label}" na equipe. Busque abaixo.`,
         missingFields: [{ key: "responsibleName", label: "o responsável" }],
         appName: "Workspaces",
-        picker: {
-          kind: "entity",
-          entity: "member",
-          placeholder: "Buscar pessoa da equipe",
-          noneOption: { label: "Eu mesmo", answer: MYSELF_ANSWER },
-        },
+        picker: MEMBER_PICKER,
       };
     }
 
@@ -262,9 +223,22 @@ export const createWorkspaceActionItem: AstroAction<typeof inputSchema> = {
       };
     }
     const priorityLabel = PRIORITY_OPTIONS.find((option) => option.answer === priority)!.label.toLowerCase();
+
+    const participants: { id: string; name: string }[] = [];
+    const unknownParticipants: string[] = [];
+    for (const spokenName of input.participantNames ? splitNames(input.participantNames) : []) {
+      const member = await findTeamMember(ctx, spokenName);
+      if (!member) unknownParticipants.push(spokenName);
+      else if (!participants.some((participant) => participant.id === member.id)) participants.push(member);
+    }
+
+    const hasDueTime = hasTimeOfDay(input.dueAnswer);
     const summary =
-      `"${input.title}" em ${workspace.name}, ${dueDate ? `prazo ${formatDay(dueDate)}` : "sem prazo"}, ` +
-      `responsável ${responsible.name}, prioridade ${priorityLabel}.`;
+      `"${input.title}" em ${workspace.name}, ${dueDate ? `prazo ${formatDay(dueDate, hasDueTime)}` : "sem prazo"}, ` +
+      `responsável ${responsible.name}, prioridade ${priorityLabel}` +
+      (participants.length > 0 ? `, participantes ${participants.map((participant) => participant.name).join(" e ")}` : "") +
+      "." +
+      (unknownParticipants.length > 0 ? ` Não achei ${unknownParticipants.join(" e ")} na equipe — adicione pela demanda.` : "");
 
     if (dryRun) {
       return { status: "done", title: "Criar demanda", description: summary, appName: "Workspaces" };
@@ -295,6 +269,7 @@ export const createWorkspaceActionItem: AstroAction<typeof inputSchema> = {
         priority,
         order: last ? new Decimal(last.order).plus(1) : new Decimal(0),
         responsibles: { create: { userId: responsible.id } },
+        participants: { create: participants.map((participant) => ({ userId: participant.id })) },
       },
       select: { id: true },
     });

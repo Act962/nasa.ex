@@ -39,6 +39,18 @@ export const ABANDON_PHRASES = new Set([
 const NEW_QUESTION =
   /^(quantos|quantas|quais|qual|quem|onde|quando|como|me mostra|me manda|me envia|me envie|mostra|liste|lista as|lista os|lista de)\b/;
 
+/** "manda no Nubank" cita a opção "Nu bank - 5263" — é resposta, não pedido novo. */
+function mentionsSomeOption(normalized: string, options: { label: string }[]): boolean {
+  const squash = (value: string) => value.replace(/[^a-z0-9]/g, "");
+  const words = normalized.split(/[^a-z0-9]+/).filter((word) => word.length >= 3);
+  return options.some((option) => {
+    const label = squash(normalizeQuestion(option.label));
+    return words.some((word) => label.includes(word));
+  });
+}
+
+const CHANGE_VERB = /^(editar?|edite|alterar?|altere|mudar?|mude|atualizar?|atualize|corrigir|corrija)\b/;
+
 export function looksLikeNewRequest(text: string, options?: { label: string }[]): boolean {
   const normalized = normalizeQuestion(text);
   // Casou com uma opção oferecida: é resposta, ponto final.
@@ -52,6 +64,16 @@ export function looksLikeNewRequest(text: string, options?: { label: string }[])
     return false;
   }
   if (NEW_QUESTION.test(normalized)) return true;
+  // Havia lista e a resposta não é nenhuma das opções, mas abre com verbo:
+  // "Editar tarefa", respondendo a "em qual workspace?", virava nome de workspace.
+  if (
+    options &&
+    options.length > 0 &&
+    !mentionsSomeOption(normalized, options) &&
+    (WRITE_VERB.test(normalized) || CHANGE_VERB.test(normalized))
+  ) {
+    return true;
+  }
   const words = normalized.split(/\s+/).filter(Boolean);
   return words.length > 3 && WRITE_VERB.test(normalized);
 }
