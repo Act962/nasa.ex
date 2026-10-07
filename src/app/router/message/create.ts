@@ -42,7 +42,14 @@ export const createTextMessage = base
     z.object({
       conversationId: z.string(),
       body: z.string(),
-      leadPhone: z.string(),
+      /**
+       * Opcional desde a spec 0072: conversa In-Chat (visitante do ASTRO CHAT,
+       * página pública, pedido do catálogo) não sai por telefone, e o lead
+       * anônimo do site nasce sem um. Exigir string aqui recusava a resposta
+       * da equipe antes de o handler rodar. Fora do In-Chat o telefone
+       * continua obrigatório — a checagem está no handler.
+       */
+      leadPhone: z.string().nullish(),
       /**
        * @deprecated Ignorado pelo servidor desde Fase 6 — provider
        * resolvido server-side via `resolveOutboundProviderOrBadRequest(trackingId)`.
@@ -81,6 +88,23 @@ export const createTextMessage = base
         channel === MessageChannel.WHATSAPP &&
         ((await shouldSkipUazapiForConversation(input.conversationId)) ||
           (await isCatalogPortalConversation(input.conversationId)));
+
+      // ── Telefone do lead (spec 0072) ─────────────────────────────────
+      // Só o In-Chat dispensa: ali a mensagem é gravada e o lead a lê na
+      // página pública ou no widget do site. Em WhatsApp, Instagram e
+      // Facebook o `leadPhone` é o destinatário — sem ele não há para onde
+      // mandar, e o erro precisa dizer isso antes de cobrar ★.
+      //
+      // A checagem é por nulo/ausente, e não por vazio, de propósito: é
+      // exatamente o que o schema antigo (`z.string()`) recusava. Fora do
+      // In-Chat nada passa a ser aceito nem recusado além do que já era.
+      if (!inChatMode && input.leadPhone == null) {
+        throw errors.BAD_REQUEST({
+          message: "Este lead não tem telefone cadastrado para receber a mensagem.",
+          data: { code: "LEAD_WITHOUT_PHONE" } as never,
+        });
+      }
+      const leadPhone = input.leadPhone ?? "";
 
       // ── Provider resolve ANTES do charge (Fix #2) ────────────────────
       // resolveOutboundProviderOrBadRequest pode lançar (instância deletada,
@@ -123,7 +147,7 @@ export const createTextMessage = base
           ? await sendInstagramFromChat({
               organizationId,
               conversationId: input.conversationId,
-              leadPhone: input.leadPhone,
+              leadPhone,
               text: input.body,
               quotedMessageInternalId: input.id,
             })
@@ -144,7 +168,7 @@ export const createTextMessage = base
         if (config?.access_token) {
           const result = await sendInstagramDm({
             accessToken: config.access_token,
-            recipientId: input.leadPhone,
+            recipientId: leadPhone,
             text: input.body,
           });
           if (result?.message_id) externalMessageId = result.message_id;
@@ -162,7 +186,7 @@ export const createTextMessage = base
           const result = await sendFacebookMessage({
             pageId: config.page_id,
             pageAccessToken: config.page_access_token,
-            recipientId: input.leadPhone,
+            recipientId: leadPhone,
             text: input.body,
           });
           if (result?.message_id) externalMessageId = result.message_id;
@@ -180,7 +204,7 @@ export const createTextMessage = base
         try {
           const response = await resolved.provider.sendText({
             kind: "text",
-            to: input.leadPhone,
+            to: leadPhone,
             body: input.body,
             replyToExternalMessageId: input.replyId,
           });

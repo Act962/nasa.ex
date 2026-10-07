@@ -14,6 +14,7 @@
  *  - META_FEATURE_UNSUPPORTED / PROVIDER_FEATURE_UNSUPPORTED → mensagem do
  *    servidor, que já vem específica por feature
  *  - PROVIDER_SEND_INVALID_RESPONSE → falha transitória, sugere repetir
+ *  - LEAD_WITHOUT_PHONE → canal por telefone e lead sem telefone (spec 0072)
  *  - Demais erros → toast.error genérico
  *
  * Os `code` chegam via `data.code` desde a spec 0010 — antes, erro de
@@ -133,6 +134,16 @@ export function showSendMessageError(
       toast.error("Janela de 24h fechada", {
         description:
           "O lead não responde há mais de 24h. Envie um template aprovado pra reabrir a conversa.",
+        duration: ACTIONABLE_TOAST_MS,
+      });
+      return;
+
+    // Conversa que sai por telefone (WhatsApp, Instagram, Facebook) e o lead
+    // não tem um. O genérico "Erro ao enviar" não dizia o que fazer (spec 0072).
+    case "LEAD_WITHOUT_PHONE":
+      toast.error("Lead sem telefone", {
+        description:
+          "Cadastre o telefone do lead nos detalhes para enviar por este canal.",
         duration: ACTIONABLE_TOAST_MS,
       });
       return;
