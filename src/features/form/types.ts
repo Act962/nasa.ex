@@ -51,7 +51,8 @@ export type FormBlockType =
   | "NumberMeasure"
   | "ItemList"
   | "Calculation"
-  | "ImageMarker";
+  | "ImageMarker"
+  | "OrbitLookup";
 
 export type HandleBlurFuncWithTagId = (
   key: string,

@@ -50,8 +50,8 @@ Qualquer empresa monta, sem código, uma ficha com itens, medidas e cálculo; li
 | RF-4 | Bloco **Marcar na imagem**: imagem enviada no construtor; quem preenche toca para pôr marcadores numerados com legenda opcional. | 1 ✅ |
 | RF-5 | Qualquer campo de valor curto pode ter **nome-chave**, ser **pesquisável**, aparecer **na lista de fichas**; um campo de data pode ser a **data da ficha**. | 1 ✅ |
 | RF-6 | Cada resposta de formulário que usa esses recursos mantém uma projeção `FormRecord` (cliente, período, campos-chave, texto de busca, itens e total), atualizada a cada gravação. | 1 ✅ |
-| RF-7 | Bloco **Busca no Órbita**: fonte = clientes, fichas de outro formulário, catálogo ou lista própria; sempre aceita texto digitado; escolher uma ficha preenche os campos de mesmo nome-chave. Só busca para membro logado. | 2 ⬜ |
-| RF-8 | **Listas próprias** (`FormOptionList`) e rota de preenchimento sem cliente pré-escolhido. Modelos prontos "Abertura de O.S." e "Controle de consumo de materiais". | 2 ⬜ |
+| RF-7 | Bloco **Busca no Órbita**: fonte = clientes, fichas de outro formulário, catálogo ou lista própria do campo; sempre aceita texto digitado; escolher uma ficha preenche os campos de mesmo nome-chave (texto, máscara e número com medida) que o usuário ainda não editou. Fontes do servidor só buscam para membro logado; em link público viram texto comum. | 2 ✅ |
+| RF-8 | **Lista própria** colada no próprio campo (um item por linha, até 2.000). Rota `/formulario/novo/[formId]` sem cliente pré-escolhido: busca o cliente e segue para o preenchimento. Modelos prontos "Abertura de O.S." (com lista de modelos de carro) e "Controle de consumo de materiais". | 2 ✅ |
 | RF-9 | **Lista de fichas** em tabela com colunas configuradas, total e filtros; clicar abre a **visão rápida** (formulário inteiro em leitura, reduzido por escala). | 3 ⬜ |
 | RF-10 | **Fechamento por cliente**: período, grupos de custo compartilhado nomeados pelo usuário, rateio por número de fichas, total por cliente, "Fechar período" e "Gerar contas a receber" (uma por cliente, sem duplicar). | 4 ⬜ |
 | RF-11 | **Visão do cliente** em `/lead/[token]/fichas`: fichas do período, visão rápida e resumo. Período aberto aparece como prévia, sem rateio. | 5 ⬜ |
@@ -79,6 +79,8 @@ CA-1 a CA-6 e CA-9 são conferidos por `scripts/form-records-qa-check.ts` (30 ch
 - [ ] **CA-8** — Manual: ficha de período fechado não pode ser editada nem cancelada.
 - [x] **CA-9** — Rateio de R$ 13.540,49 e de R$ 7.154,69 entre as 15 concessionárias por 69 veículos fecha no centavo; quem tem 10 veículos paga R$ 1.962,39 de insumos; total de setembro = R$ 23.701,60.
 - [ ] **CA-10** — Manual: "Gerar contas a receber" duas vezes não duplica.
+- [x] **CA-12** — Lista colada vira itens únicos; filtro ignora acento e ordem das palavras; texto digitado à mão vale sem referência; ficha escolhida guarda a origem. _(script)_
+- [ ] **CA-13** — Manual, depois da migration: preencher uma "Abertura de O.S.", abrir o "Controle de consumo", buscar pela placa e ver cliente, O.S., modelo e cor preenchidos; repetir digitando tudo à mão.
 - [ ] **CA-11** — Manual: token de um cliente pedindo ficha de outro recebe 404.
 
 ## 5. Casos de borda
@@ -116,6 +118,12 @@ Uma operação sobre campos escolhidos cobre os casos e não exige interpretador
 ### D-6 — Sem FK de `FormRecord` para `Lead`
 Ficha de período fechado é documento de cobrança: sobrevive ao lead ser apagado. O nome do cliente é copiado na linha do fechamento.
 
+### D-7 — Lista própria dentro do campo, não em tabela
+A lista (ex.: modelos de carro) fica nos atributos do bloco. Funciona em formulário público, viaja junto ao duplicar o formulário e dispensa tela de cadastro. A tabela `form_option_list` já criada na migration fica reservada para listas compartilhadas entre formulários, se a necessidade aparecer.
+
+### D-8 — Escolher o cliente antes, não dentro do formulário
+A ficha nova sem cliente passa por uma tela de busca e cai no preenchimento interno de sempre, que já exige um lead. Alternativa descartada: resolver o `leadId` a partir de um campo do formulário no momento de salvar — mexeria na criação de resposta e nas regras de permissão por tracking.
+
 ## 7. Modelo de dados
 
 Migration `20261008120000_form_records_and_closings`, só aditiva: `form_record`, `form_option_list`, `form_closing`, `form_closing_line`, enum `FormClosingStatus`. Roda no deploy; **não** foi aplicada à mão em banco nenhum.
@@ -128,6 +136,7 @@ Formato dos valores novos em `jsonResponse[blockId]` (`value` sempre texto; estr
 | ItemList | `item-list` | `items[{ itemId, productId, name, unit, billingMode, quantity, unitPriceCents, lineTotalCents }]`, `usageTotalCents`, `pricedAt` |
 | Calculation | `calculation` | `amount`, `unit` |
 | ImageMarker | `image-markers` | `markers[{ id, xPercent, yPercent, note }]` |
+| OrbitLookup | `orbit-lookup` | `source`, `refId` (`null` = digitado à mão). Com `source: RECORDS`, o `refId` vira `FormRecord.sourceRecordId`. |
 
 ## 8. Segurança
 
@@ -137,3 +146,4 @@ Formato dos valores novos em `jsonResponse[blockId]` (`value` sempre texto; estr
 ## 9. Changelog
 
 - 2026-10-07 — Criada. Fase 0 (correção do link público) e fase 1 (blocos, nome-chave, projeção, PDF) implementadas; fases 2 a 5 pendentes.
+- 2026-10-08 — Fase 2 implementada. Mudou em relação ao plano: lista própria fica no campo (D-7) e o cliente é escolhido numa tela antes do formulário (D-8). O modelo de consumo nasce sem a imagem do veículo e sem itens: os dois são da empresa e entram pelas propriedades.

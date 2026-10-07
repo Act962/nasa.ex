@@ -15,7 +15,7 @@ import { useMobileBuilderStore } from "./use-mobile-builder-store";
 
 const BLOCK_CATEGORIES: Array<{ id: string; label: string; blockTypes: FormBlockType[] }> = [
   { id: "fields", label: "Campos", blockTypes: ["TextField", "TextArea", "MaskedField", "DatePicker", "Url", "StarRating", "Slider", "NumberMeasure"] },
-  { id: "records", label: "Itens e cálculo", blockTypes: ["ItemList", "Calculation", "ImageMarker"] },
+  { id: "records", label: "Itens e cálculo", blockTypes: ["ItemList", "Calculation", "ImageMarker", "OrbitLookup"] },
   { id: "choices", label: "Escolha", blockTypes: ["RadioSelect", "Checkbox", "Dropdown", "RadioMatrix", "UserSelect", "MultiUserSelect"] },
   { id: "structure", label: "Estrutura", blockTypes: ["Heading", "Paragraph", "ParagraphWithTitle", "ImageDisplay", "PageBreak", "RowLayout"] },
   { id: "files", label: "Arquivos e assinatura", blockTypes: ["FileUpload", "ImageUpload", "QrCodeMulti", "SignatureUser", "SignatureClient"] },

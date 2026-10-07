@@ -43,6 +43,7 @@ function checkBlock(block: FormBlockInstance): string | null {
     case "Slider":
     case "NumberMeasure":
     case "Calculation":
+    case "OrbitLookup":
     case "MaskedField":
     case "FileUpload":
     case "ImageUpload":

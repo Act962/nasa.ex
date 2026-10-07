@@ -31,6 +31,7 @@ import { NumberMeasureBlock } from "@/features/form/components/common/blocks/num
 import { ItemListBlock } from "@/features/form/components/common/blocks/item-list-block";
 import { CalculationBlock } from "@/features/form/components/common/blocks/calculation-block";
 import { ImageMarkerBlock } from "@/features/form/components/common/blocks/image-marker-block";
+import { OrbitLookupBlock } from "@/features/form/components/common/blocks/orbit-lookup-block";
 
 export const FormBlocks: FormBlocksType = {
   RowLayout: RowLayoutBlock,
@@ -61,4 +62,5 @@ export const FormBlocks: FormBlocksType = {
   ItemList: ItemListBlock,
   Calculation: CalculationBlock,
   ImageMarker: ImageMarkerBlock,
+  OrbitLookup: OrbitLookupBlock,
 };

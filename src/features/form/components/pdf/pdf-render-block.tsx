@@ -42,6 +42,7 @@ export function renderBlock(
     case "Url":
     case "NumberMeasure":
     case "Calculation":
+    case "OrbitLookup":
       return renderTextFieldBlock(block, responseValues);
     case "TextArea":
       return renderTextAreaBlock(block, responseValues);

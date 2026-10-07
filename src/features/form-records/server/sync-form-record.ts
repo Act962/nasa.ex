@@ -2,7 +2,13 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { ITEM_LIST_BLOCK_TYPE } from "@/features/form-records/lib/item-list-value";
 import { buildRecordProjection, toPeriodKey } from "@/features/form-records/lib/record-fields";
-import { flattenBlocks, parseResponse, type RecordBlock } from "@/features/form-records/lib/response-values";
+import { parseOrbitLookupMeta } from "@/features/form-records/lib/orbit-lookup-value";
+import {
+  flattenBlocks,
+  parseResponse,
+  type ParsedResponse,
+  type RecordBlock,
+} from "@/features/form-records/lib/response-values";
 
 // Mantém o `FormRecord` da resposta em dia (spec 0075, RF-6). Roda depois da
 // gravação, fora de transação, e nunca lança: a ficha é uma projeção — falha
@@ -18,11 +24,24 @@ function isRecordForm(blocks: RecordBlock[]): boolean {
   );
 }
 
+/** Ficha de origem: a escolhida numa "Busca no Órbita" de fichas, se for da mesma organização. */
+async function resolveSourceRecordId(response: ParsedResponse, organizationId: string): Promise<string | null> {
+  for (const entry of Object.values(response)) {
+    const lookup = parseOrbitLookupMeta(entry.meta);
+    if (lookup?.source !== "RECORDS" || !lookup.refId) continue;
+    const sourceRecord = await prisma.formRecord.findFirst({
+      where: { id: lookup.refId, organizationId },
+      select: { id: true },
+    });
+    if (sourceRecord) return sourceRecord.id;
+  }
+  return null;
+}
+
 export async function syncFormRecord(params: {
   responseId: string;
   /** Envio final: marca a ficha como finalizada (rascunho não entra no fechamento). */
   isFinal: boolean;
-  sourceRecordId?: string | null;
 }): Promise<void> {
   try {
     const response = await prisma.formResponses.findUnique({
@@ -42,7 +61,9 @@ export async function syncFormRecord(params: {
     const blocks = flattenBlocks(response.form.jsonBlock);
     if (!isRecordForm(blocks)) return;
 
-    const projection = buildRecordProjection({ blocks, response: parseResponse(response.jsonResponse) });
+    const parsedResponse = parseResponse(response.jsonResponse);
+    const projection = buildRecordProjection({ blocks, response: parsedResponse });
+    const sourceRecordId = await resolveSourceRecordId(parsedResponse, response.form.organizationId);
     const referenceDate = projection.referenceDate ?? response.createdAt;
     const projected = {
       leadId: response.leadId,
@@ -65,7 +86,7 @@ export async function syncFormRecord(params: {
         data: {
           ...projected,
           ...(params.isFinal && !existing.finalizedAt ? { finalizedAt: new Date() } : {}),
-          ...(params.sourceRecordId ? { sourceRecordId: params.sourceRecordId } : {}),
+          ...(sourceRecordId ? { sourceRecordId } : {}),
         },
       });
       return;
@@ -77,7 +98,7 @@ export async function syncFormRecord(params: {
         formId: response.formId,
         responseId: response.id,
         finalizedAt: params.isFinal ? new Date() : null,
-        sourceRecordId: params.sourceRecordId ?? null,
+        sourceRecordId,
       },
     });
   } catch (error) {

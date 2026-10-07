@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { FormBlocks } from "@/features/form/lib/form-blocks";
 import { defaultBackgroundColor } from "@/features/form/constants";
 import type { FormBlockInstance, FormBlockType } from "@/features/form/types";
+import { STARTER_VEHICLE_MODELS } from "./starter-vehicle-models";
 
 /**
  * Modelos de formulário prontos no sistema: aparecem ao criar um formulário e
@@ -118,6 +119,47 @@ export const STARTER_FORM_TEMPLATES: StarterFormTemplate[] = [
       group(block("ImageUpload", { label: "Fotos do serviço" })),
       group(block("TextArea", { label: "Observações", rows: 3 })),
       group(block("SignatureClient", { label: "Assinatura do cliente" })),
+    ],
+  },
+  {
+    id: "starter-abertura-os",
+    name: "Abertura de O.S.",
+    description: "Cliente, veículo e valor — alimenta a ficha de consumo",
+    emoji: "🚗",
+    primaryColor: "#1d4ed8",
+    backgroundColor: defaultBackgroundColor,
+    buildBlocks: () => [
+      header("Abertura de ordem de serviço", "Preencha ao receber o veículo. Estes dados são puxados depois pela ficha de consumo."),
+      group(block("TextField", { label: "Cliente", required: true, prefillFromLead: "name", fieldKey: "cliente", isSearchable: true, showInList: true })),
+      group(block("TextField", { label: "Nº da O.S.", required: true, placeHolder: "00123", useAsResponseLabel: true, fieldKey: "os", isSearchable: true, showInList: true })),
+      group(block("TextField", { label: "Placa do veículo", required: true, placeHolder: "ABC1D23", fieldKey: "placa", isSearchable: true, showInList: true })),
+      group(block("OrbitLookup", { label: "Modelo do veículo", required: true, placeHolder: "Ex.: Fiat Argo", source: "INLINE", inlineOptions: STARTER_VEHICLE_MODELS, fieldKey: "modelo", isSearchable: true, showInList: true })),
+      group(block("TextField", { label: "Cor", placeHolder: "Ex.: Prata Bari", fieldKey: "cor", showInList: true })),
+      group(block("DatePicker", { label: "Data", required: true, useAsReferenceDate: true, fieldKey: "data" })),
+      group(block("NumberMeasure", { label: "Valor do serviço", unitId: "brl", placeHolder: "0,00", fieldKey: "valor_servico", showInList: true })),
+    ],
+  },
+  {
+    id: "starter-controle-consumo",
+    name: "Controle de consumo de materiais",
+    description: "Itens usados por atendimento, com quantidade e total",
+    emoji: "🧾",
+    primaryColor: "#b45309",
+    backgroundColor: defaultBackgroundColor,
+    buildBlocks: () => [
+      header("Controle de consumo de materiais", "Busque a O.S. para puxar os dados do veículo, ou digite à mão."),
+      group(block("OrbitLookup", { label: "Buscar O.S. (número ou placa)", placeHolder: "Digite o número da O.S. ou a placa", source: "RECORDS", helperText: "Nas propriedades deste campo, escolha o formulário de abertura de O.S." })),
+      group(block("TextField", { label: "Cliente", required: true, prefillFromLead: "name", fieldKey: "cliente", isSearchable: true, showInList: true })),
+      group(block("TextField", { label: "Nº da O.S.", required: true, useAsResponseLabel: true, fieldKey: "os", isSearchable: true, showInList: true })),
+      group(block("TextField", { label: "Placa do veículo", fieldKey: "placa", isSearchable: true, showInList: true })),
+      group(block("TextField", { label: "Modelo do veículo", fieldKey: "modelo", isSearchable: true, showInList: true })),
+      group(block("TextField", { label: "Cor", fieldKey: "cor" })),
+      group(block("DatePicker", { label: "Data", required: true, useAsReferenceDate: true, fieldKey: "data" })),
+      group(block("NumberMeasure", { label: "Valor do serviço", unitId: "brl", placeHolder: "0,00", fieldKey: "valor_servico" })),
+      group(block("ItemList", { label: "Materiais utilizados", helperText: "Informe só a quantidade. Os valores aparecem depois de salvar." })),
+      group(block("ImageMarker", { label: "Peças trabalhadas", helperText: "Toque na imagem para marcar cada peça e escreva o nome dela." })),
+      group(block("Checkbox", { label: "Também foram feitos", multiple: true, options: choices(["Rodas", "Frisos", "Peças em preto fosco"]) })),
+      group(block("TextArea", { label: "Técnicos por etapa", placeHolder: "Desmontagem: …\nFunilaria: …\nPreparação: …\nPintura: …\nMontagem: …\nPolimento: …", rows: 6 })),
     ],
   },
   {

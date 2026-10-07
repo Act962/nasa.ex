@@ -10,6 +10,12 @@ import { buildImageMarkersValue, parseImageMarkers } from "../src/features/form-
 import { parseItemListMeta, priceItemLists } from "../src/features/form-records/lib/item-list-value";
 import { convertMeasure, formatMeasure, parseDecimalInput } from "../src/features/form-records/lib/measure-units";
 import { buildNumberMeasureValue } from "../src/features/form-records/lib/number-measure-value";
+import {
+  buildOrbitLookupValue,
+  filterInlineOptions,
+  parseInlineOptions,
+  parseOrbitLookupMeta,
+} from "../src/features/form-records/lib/orbit-lookup-value";
 import { buildRecordProjection, toFieldKey, toPeriodKey } from "../src/features/form-records/lib/record-fields";
 import { flattenBlocks, parseResponse } from "../src/features/form-records/lib/response-values";
 
@@ -127,6 +133,16 @@ check("CA-6 campos-chave e busca", projection.keyFields.placa?.value === "ABC1D2
 check("CA-6 total e itens de uso", projection.usageTotalCents === 1375 && projection.usageItems.length === 3, String(projection.usageTotalCents));
 check("CA-6 período vem da data da ficha", projection.referenceDate !== null && toPeriodKey(projection.referenceDate) === "2026-09", String(projection.referenceDate));
 check("CA-6 nome-chave digitado vira slug", toFieldKey("Placa do Veículo") === "placa_do_veiculo", toFieldKey("Placa do Veículo"));
+
+// ── CA-12 — busca no Órbita ────────────────────────────────────────────────
+const pastedList = parseInlineOptions("Fiat Argo\nFiat Mobi\n\nfiat argo\tJeep Compass;Citroën C3");
+check("CA-12 lista colada vira itens únicos", pastedList.join("|") === "Fiat Argo|Fiat Mobi|Jeep Compass|Citroën C3", pastedList.join("|"));
+check("CA-12 filtro ignora acento e ordem", filterInlineOptions(pastedList, "c3 citroen").join("|") === "Citroën C3", filterInlineOptions(pastedList, "c3 citroen").join("|"));
+const typedLookup = buildOrbitLookupValue({ text: "  Modelo raro  ", source: "INLINE", refId: null });
+check("CA-12 texto digitado à mão vale", typedLookup.value === "Modelo raro" && parseOrbitLookupMeta(typedLookup.meta)?.refId === null, JSON.stringify(typedLookup));
+const pickedLookup = buildOrbitLookupValue({ text: "00123", source: "RECORDS", refId: "rec_1" });
+check("CA-12 ficha escolhida guarda a origem", parseOrbitLookupMeta(pickedLookup.meta)?.refId === "rec_1", JSON.stringify(pickedLookup.meta));
+check("CA-12 vazio emite value vazio", buildOrbitLookupValue({ text: " ", source: "LEADS", refId: null }).value === "", "campo vazio");
 
 // ── CA-9 — rateio ──────────────────────────────────────────────────────────
 // Setembro da oficina (planilha): 15 concessionárias, 69 veículos.

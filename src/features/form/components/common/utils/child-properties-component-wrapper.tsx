@@ -34,6 +34,7 @@ const RECORD_FIELD_ELIGIBLE_BLOCKS: ReadonlySet<FormBlockType> = new Set([
   "DatePicker",
   "NumberMeasure",
   "Calculation",
+  "OrbitLookup",
 ]);
 
 export function ChildPropertiesComponentWrapper({

@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { usePrefillFieldValue } from "@/features/form/context/form-prefill-context";
+import { useRecordFillValue } from "@/features/form-records/hooks/use-record-fill-store";
 import { CURRENCY_UNIT_ID, CUSTOM_UNIT_ID, MEASURE_UNITS } from "@/features/form-records/lib/measure-units";
 import {
   buildNumberMeasureValue,
@@ -113,6 +114,15 @@ function FormView({
     if (savedAmount !== undefined) commit(String(savedAmount).replace(".", ","));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Dado trazido por uma "Busca no Órbita": vale enquanto o campo estiver vazio.
+  const recordFillValue = useRecordFillValue((block.attributes as { fieldKey?: string }).fieldKey);
+  useEffect(() => {
+    if (recordFillValue === undefined || text.trim().length > 0) return;
+    setText(recordFillValue);
+    commit(recordFillValue);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recordFillValue]);
 
   const hasError = isInvalid || isSubmitError;
   return (
