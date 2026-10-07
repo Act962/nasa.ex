@@ -28,9 +28,21 @@ export const setCustomDomain = base
     const normalized = input.domain.toLowerCase();
     const page = await prisma.nasaPage.findFirst({
       where: { id: input.id, organizationId },
-      select: { id: true, customDomain: true },
+      select: {
+        id: true,
+        customDomain: true,
+        domainStatus: true,
+        domainSource: true,
+        domainVerifyToken: true,
+      },
     });
     if (!page) throw errors.NOT_FOUND({ message: "Página não encontrada" });
+
+    // Salvar de novo o mesmo domínio não troca o código: o cliente já colou o TXT no provedor,
+    // e um código novo invalidaria o registro dele sem aviso.
+    if (page.customDomain === normalized && page.domainVerifyToken) {
+      return { page };
+    }
 
     // O site responde com e sem `www`: as duas formas ficam reservadas para a mesma página.
     const conflict = await prisma.nasaPage.findFirst({

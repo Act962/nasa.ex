@@ -22,6 +22,9 @@ import { ColorPickerWithPalette } from "../properties-panel/color-picker-with-pa
 import { UrlSlugEditor } from "./url-slug-editor";
 import { PalettePanel } from "./palette-panel";
 import { ChatLeadDestinationFields } from "./chat-lead-destination-fields";
+import { PageSeoPanel } from "./page-seo-panel";
+import { usePage } from "../../hooks/use-pages";
+import { readPageSeoFields } from "../../lib/page-seo";
 
 export function PageSettingsPanel({
   bgColor,
@@ -36,6 +39,13 @@ export function PageSettingsPanel({
 }) {
   const updateMeta = usePagesBuilderStore((s) => s.updateMeta);
   const updatePalette = usePagesBuilderStore((s) => s.updatePalette);
+  const pageId = usePagesBuilderStore((s) => s.pageId);
+  const { data: pageData } = usePage(pageId ?? "");
+  const sitePage = pageData?.page;
+  const siteAddress =
+    sitePage?.customDomain && sitePage.domainStatus === "VERIFIED"
+      ? sitePage.customDomain
+      : `/s/${sitePage?.slug ?? ""}`;
   const meta = ((layout as unknown as { meta?: Record<string, unknown> })
     ?.meta ?? {}) as Record<string, string | undefined>;
   const palette = ((layout as unknown as { palette?: Record<string, string> })
@@ -45,6 +55,15 @@ export function PageSettingsPanel({
     <div>
       <UrlSlugEditor />
       <div className="py-2 px-3">
+        <PageSeoPanel
+          seo={readPageSeoFields(layout)}
+          siteName={sitePage?.title ?? ""}
+          siteAddress={siteAddress}
+          updateMeta={updateMeta}
+        />
+
+        <hr className="my-4" />
+
         <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-3">
           Aparência da página
         </p>

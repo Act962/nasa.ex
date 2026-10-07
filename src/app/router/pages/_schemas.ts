@@ -53,6 +53,7 @@ export const metaSchema = z
     description: z.string().optional(),
     favicon: z.string().optional(),
     og: z.string().optional(),
+    noIndex: z.boolean().optional(),
     // Tracking IDs (UI guarda aqui pra evitar migration no NasaPage).
     metaPixelId: z.string().optional(),
     googleTagId: z.string().optional(),

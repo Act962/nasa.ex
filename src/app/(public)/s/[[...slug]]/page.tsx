@@ -20,6 +20,7 @@ import { client } from "@/lib/orpc";
 import type { Metadata } from "next";
 import { PublicPageView } from "@/features/pages/components/public/public-page-view";
 import { resolvePageBackground } from "@/features/pages/lib/page-background";
+import { buildPageMetadata } from "@/features/pages/lib/page-seo";
 import type { PageLayout } from "@/features/pages/types";
 
 interface Params {
@@ -34,17 +35,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const resolved = await client.pages.publicResolve({ slug });
   if (!resolved) return { title: "Página não encontrada" };
-  const { page } = resolved;
-  return {
-    title: page.title,
-    description: page.description ?? undefined,
-    openGraph: {
-      title: page.title,
-      description: page.description ?? undefined,
-      images: page.ogImageUrl ? [page.ogImageUrl] : undefined,
-    },
-    icons: page.faviconUrl ? { icon: page.faviconUrl } : undefined,
-  };
+  return buildPageMetadata(resolved.page);
 }
 
 export default async function Page({ params }: { params: Promise<Params> }) {

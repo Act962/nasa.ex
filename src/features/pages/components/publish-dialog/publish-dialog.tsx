@@ -49,6 +49,7 @@ export function PublishDialog({ open, onOpenChange, pageId }: Props) {
     mutationFn: () => client.pages.verifyCustomDomain({ id: pageId }),
     onSuccess: (res) => {
       if (res.verified) toast.success("Domínio verificado!");
+      else if (res.hasOutdatedTxt) toast.error("Achamos o registro TXT, mas com um código diferente do mostrado aqui. Copie o código desta tela para o provedor e verifique de novo.");
       else if (!res.isOwnershipProven) toast.error("Ainda não encontramos o registro TXT. O DNS pode levar algumas horas para propagar.");
       else toast.error("O TXT está certo, mas o domínio ainda não aponta para a ÓRBITA. Confira o CNAME e o registro A.");
       qc.invalidateQueries({ queryKey: orpc.pages.getPage.queryKey({ input: { id: pageId } }) });

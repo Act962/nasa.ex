@@ -32,13 +32,13 @@ export const verifyCustomDomain = base
     }
 
     const txtHost = `_nasa-verify.${page.customDomain}`;
-    let isOwnershipProven = false;
-    try {
-      const txtRecords = await dns.resolveTxt(txtHost);
-      isOwnershipProven = txtRecords.some((rows) => rows.join("").trim() === page.domainVerifyToken);
-    } catch {
-      isOwnershipProven = false;
-    }
+    const publishedTxtValues = await dns
+      .resolveTxt(txtHost)
+      .then((txtRecords) => txtRecords.map((rows) => rows.join("").trim()))
+      .catch(() => [] as string[]);
+    const isOwnershipProven = publishedTxtValues.includes(page.domainVerifyToken);
+    // Existe TXT no nome certo, mas com outro valor: quase sempre um código antigo colado no provedor.
+    const hasOutdatedTxt = !isOwnershipProven && publishedTxtValues.length > 0;
     const isPointingToEdge = await isDomainPointingToEdge(page.customDomain);
     const ok = isOwnershipProven && isPointingToEdge;
 
@@ -47,5 +47,5 @@ export const verifyCustomDomain = base
       data: { domainStatus: ok ? "VERIFIED" : "FAILED" },
       select: { customDomain: true, domainStatus: true },
     });
-    return { verified: ok, isOwnershipProven, isPointingToEdge, page: updated };
+    return { verified: ok, isOwnershipProven, hasOutdatedTxt, isPointingToEdge, page: updated };
   });
