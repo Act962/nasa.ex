@@ -1,10 +1,14 @@
 import { notFound } from "next/navigation";
 import prisma from "@/lib/prisma";
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 import { PublicPageRenderer } from "@/features/pages/components/public/public-page-renderer";
+import { FIXED_TOP_OFFSET_VARIABLE } from "@/features/pages/lib/fixed-top-offset";
 import type { PageLayout } from "@/features/pages/types";
 import Link from "next/link";
 import { ArrowLeft, Eye, Lightbulb, Pencil, MousePointerClick } from "lucide-react";
+
+const PREVIEW_BAR_HEIGHT_PX = 60;
 
 interface Params {
   id: string;
@@ -75,7 +79,10 @@ export default async function PreviewPage({
       {/* Barra flutuante de preview — refeita pra deixar CLARO que
           esta é só a visualização, e que pra editar elementos
           (textos, imagens, botões) o user precisa ir pro builder. */}
-      <div className="dark fixed inset-x-0 top-0 z-[9999] flex items-center gap-3 bg-background/95 px-4 py-2.5 text-foreground backdrop-blur-md">
+      <div
+        className="dark fixed inset-x-0 top-0 z-[10000] flex items-center gap-3 bg-background/95 px-4 text-foreground backdrop-blur-md"
+        style={{ height: PREVIEW_BAR_HEIGHT_PX }}
+      >
         <Link
           href={`/pages/${id}`}
           className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground no-underline hover:text-foreground"
@@ -115,6 +122,7 @@ export default async function PreviewPage({
       {/* Banner secundário (não-fixed) explicando que cada bloco
           é editável quando vai pro builder. Aparece UMA VEZ no topo
           da preview, abaixo da barra fixa. */}
+      <div aria-hidden style={{ height: PREVIEW_BAR_HEIGHT_PX }} />
       <div className="bg-info/10 px-4 py-3 text-center text-xs leading-normal text-muted-foreground">
         <Lightbulb size={13} className="mr-1 inline align-[-2px] text-info" />
         <strong>Esta é a prévia da landing</strong> — readonly por
@@ -128,8 +136,8 @@ export default async function PreviewPage({
         os campos editáveis.
       </div>
 
-      {/* Espaço para a barra não cobrir conteúdo */}
-      <div style={{ paddingTop: "0" }}>
+      {/* O menu fixo do site desce a altura da barra; sem isso ele fica por cima dela. */}
+      <div style={{ [FIXED_TOP_OFFSET_VARIABLE]: `${PREVIEW_BAR_HEIGHT_PX}px` } as CSSProperties}>
         <PublicPageRenderer
           layout={page.layout as unknown as PageLayout}
           palette={(page.palette as Record<string, string>) ?? {}}

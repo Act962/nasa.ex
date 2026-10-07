@@ -20,6 +20,7 @@ import { PageAnalytics } from "./page-analytics";
 import { PageTracker } from "./page-tracker";
 import { PageRenderContextProvider } from "./page-context";
 import { resolvePageBackground } from "../../lib/page-background";
+import { FIXED_TOP_OFFSET_VARIABLE } from "../../lib/fixed-top-offset";
 
 interface Props {
   layout: PageLayout;
@@ -460,7 +461,7 @@ function NavbarOverlay({
   // elements com backdrop-blur "piscam" ou somem ao scrollar rápido.
   const overlayStyle: React.CSSProperties = {
     position,
-    top: 0,
+    top: `var(${FIXED_TOP_OFFSET_VARIABLE}, 0px)`,
     left: 0,
     right: 0,
     zIndex: 9999,
