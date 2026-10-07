@@ -10,6 +10,7 @@ import type { Metadata } from "next";
 import { PublicPageRenderer } from "@/features/pages/components/public/public-page-renderer";
 import { PoweredByNasa } from "@/features/pages/components/public/powered-by-nasa";
 import { toValidCustomDomain } from "@/features/pages/lib/edge-headers";
+import { buildPageMetadata } from "@/features/pages/lib/page-seo";
 import { resolvePageBackground } from "@/features/pages/lib/page-background";
 import { resolveCustomDomainSite } from "@/features/pages/server/custom-domain";
 import type { PageLayout } from "@/features/pages/types";
@@ -38,17 +39,7 @@ async function loadSite(params: Promise<Params>) {
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const site = await loadSite(params);
   if (!site) return { title: "Página não encontrada" };
-  const { page } = site;
-  return {
-    title: page.title,
-    description: page.description ?? undefined,
-    openGraph: {
-      title: page.title,
-      description: page.description ?? undefined,
-      images: page.ogImageUrl ? [page.ogImageUrl] : undefined,
-    },
-    icons: page.faviconUrl ? { icon: page.faviconUrl } : undefined,
-  };
+  return buildPageMetadata(site.page);
 }
 
 export default async function CustomDomainSitePage({ params }: { params: Promise<Params> }) {
