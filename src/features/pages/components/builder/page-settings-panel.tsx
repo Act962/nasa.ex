@@ -58,6 +58,7 @@ export function PageSettingsPanel({
         <PageSeoPanel
           seo={readPageSeoFields(layout)}
           siteName={sitePage?.title ?? ""}
+          siteDescription={sitePage?.description ?? ""}
           siteAddress={siteAddress}
           updateMeta={updateMeta}
         />

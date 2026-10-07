@@ -25,27 +25,35 @@ interface PageSeoSource {
   publishedLayout: unknown;
 }
 
-function toFilledText(rawValue: unknown): string | undefined {
-  return typeof rawValue === "string" && rawValue.trim() ? rawValue.trim() : undefined;
+function toText(rawValue: unknown): string | undefined {
+  return typeof rawValue === "string" && rawValue.length > 0 ? rawValue : undefined;
 }
 
+function toTrimmedText(rawValue: string | undefined): string | undefined {
+  return rawValue?.trim() || undefined;
+}
+
+/**
+ * Lê os campos como foram digitados. Não apara espaços: estes valores alimentam os campos do
+ * editor, e aparar aqui apagaria o espaço entre duas palavras a cada tecla.
+ */
 export function readPageSeoFields(layout: unknown): PageSeoFields {
   const meta = (layout as { meta?: Record<string, unknown> } | null | undefined)?.meta ?? {};
   return {
-    title: toFilledText(meta.title),
-    description: toFilledText(meta.description),
-    og: toFilledText(meta.og),
-    favicon: toFilledText(meta.favicon),
+    title: toText(meta.title),
+    description: toText(meta.description),
+    og: toText(meta.og),
+    favicon: toText(meta.favicon),
     noIndex: meta.noIndex === true,
   };
 }
 
 export function buildPageMetadata(page: PageSeoSource): Metadata {
   const seo = readPageSeoFields(page.publishedLayout);
-  const title = seo.title ?? page.title;
-  const description = seo.description ?? page.description ?? undefined;
-  const shareImageUrl = seo.og ?? page.ogImageUrl ?? undefined;
-  const faviconUrl = seo.favicon ?? page.faviconUrl ?? undefined;
+  const title = toTrimmedText(seo.title) ?? page.title;
+  const description = toTrimmedText(seo.description) ?? page.description ?? undefined;
+  const shareImageUrl = toTrimmedText(seo.og) ?? page.ogImageUrl ?? undefined;
+  const faviconUrl = toTrimmedText(seo.favicon) ?? page.faviconUrl ?? undefined;
 
   return {
     // `absolute` impede que um template de título do app seja aplicado por cima.

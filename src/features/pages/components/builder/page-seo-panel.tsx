@@ -25,20 +25,25 @@ function LengthHint({ length, recommendedLength }: { length: number; recommended
 export function PageSeoPanel({
   seo,
   siteName,
+  siteDescription,
   siteAddress,
   updateMeta,
 }: {
   seo: PageSeoFields;
   /** Nome do site: é o título usado enquanto o campo estiver vazio. */
   siteName: string;
+  /** Descrição do cadastro do site: é a publicada enquanto o campo estiver vazio. */
+  siteDescription: string;
   /** Endereço mostrado na prévia (domínio próprio ou /s/<slug>). */
   siteAddress: string;
   updateMeta: (patch: Record<string, unknown>) => void;
 }) {
   const title = seo.title ?? "";
   const description = seo.description ?? "";
-  const previewTitle = title || siteName;
-  const previewDescription = description || "Escreva uma descrição para aparecer aqui, embaixo do título.";
+  // Mesma ordem de fallback de `buildPageMetadata`, para a prévia mostrar o que será publicado.
+  const previewTitle = title.trim() || siteName;
+  const previewDescription =
+    description.trim() || siteDescription || "Escreva uma descrição para aparecer aqui, embaixo do título.";
 
   return (
     <div data-guide={GUIDE_ANCHORS.pagesSeoPanel.id}>
@@ -72,7 +77,7 @@ export function PageSeoPanel({
             rows={3}
             value={description}
             onChange={(event) => updateMeta({ description: event.target.value || undefined })}
-            placeholder="Uma ou duas frases dizendo o que a pessoa encontra na página."
+            placeholder={siteDescription || "Uma ou duas frases dizendo o que a pessoa encontra na página."}
             className="mt-1 text-xs"
           />
         </div>
