@@ -63,7 +63,9 @@ export function buildPageMetadata(page: PageSeoSource): Metadata {
       description,
       images: shareImageUrl ? [shareImageUrl] : undefined,
     },
-    icons: faviconUrl ? { icon: faviconUrl } : undefined,
-    robots: seo.noIndex ? { index: false, follow: false } : undefined,
+    // As chaves só entram quando há valor: `icons: undefined` apagaria o ícone herdado do app
+    // e a página ficaria sem favicon nenhum.
+    ...(faviconUrl ? { icons: { icon: faviconUrl, shortcut: faviconUrl, apple: faviconUrl } } : {}),
+    ...(seo.noIndex ? { robots: { index: false, follow: false } } : {}),
   };
 }
