@@ -30,7 +30,7 @@ export const ASTRO_APPS = {
     "Apurar imposto, simular DAS, gerar guia, certidão e dúvida de imposto NÃO são daqui (aba Contábil): responda null",
   pages: "Sites e páginas publicadas",
   workspaces:
-    "Trabalho interno da equipe: criar DEMANDA/tarefa dentro de um quadro, criar workspace, tarefas pendentes. Não é funil de leads",
+    "Trabalho interno da equipe: criar DEMANDA/tarefa dentro de um quadro, EDITAR demanda (título, prazo, responsável, prioridade), adicionar ITEM DE CHECKLIST/subtarefa numa demanda, criar workspace, tarefas pendentes. Não é funil de leads",
 } as const;
 
 export type AstroAppId = keyof typeof ASTRO_APPS;

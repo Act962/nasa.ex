@@ -54,25 +54,35 @@ const filteredLeads: AstroQuery = {
     // Sem nenhum filtro reconhecido, a lista genérica responde.
     if (!tracking && !tag && !period) return null;
 
-    const leads = await prisma.lead.findMany({
-      where: {
-        tracking: { organizationId: ctx.organizationId },
-        ...(tracking ? { trackingId: tracking.id } : {}),
-        ...(tag ? { leadTags: { some: { tagId: tag.id } } } : {}),
-        ...(period ? { createdAt: { gte: period.since, lt: period.until } } : {}),
-      },
-      select: { id: true, name: true, status: { select: { name: true } }, tracking: { select: { name: true } } },
-      orderBy: { createdAt: "desc" },
-      take: MAX_ROWS,
-    });
+    const where = {
+      tracking: { organizationId: ctx.organizationId },
+      ...(tracking ? { trackingId: tracking.id } : {}),
+      ...(tag ? { leadTags: { some: { tagId: tag.id } } } : {}),
+      ...(period ? { createdAt: { gte: period.since, lt: period.until } } : {}),
+    };
+    const [leads, totalLeads] = await Promise.all([
+      prisma.lead.findMany({
+        where,
+        select: { id: true, name: true, status: { select: { name: true } }, tracking: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+        take: MAX_ROWS,
+      }),
+      prisma.lead.count({ where }),
+    ]);
     const filters = [
       tag ? `com a tag ${tag.name}` : null,
       tracking ? `no funil ${tracking.name}` : null,
       period ? `criados ${period.label}` : null,
     ].filter(Boolean);
     if (leads.length === 0) return { text: `Nenhum lead ${filters.join(", ")}.` };
+    // "Entraram" sem período devolve o funil inteiro: dizer isso evita que o
+    // total seja lido como "entraram hoje".
+    const periodHint =
+      !period && /\bentraram\b/.test(text)
+        ? "Este é o total do funil. Para saber quantos entraram num período, diga: hoje, esta semana ou este mês.\n"
+        : "";
     return {
-      text: `${leads.length} ${plural(leads.length, "lead", "leads")} ${filters.join(", ")}:`,
+      text: `${periodHint}${totalLeads} ${plural(totalLeads, "lead", "leads")} ${filters.join(", ")}:`,
       table: {
         kind: "astro_table",
         entityType: "lead",
@@ -83,7 +93,7 @@ const filteredLeads: AstroQuery = {
           { key: "funil", label: "Funil" },
         ],
         rows: leads.map((lead) => ({ id: lead.id, name: lead.name, etapa: lead.status.name, funil: lead.tracking.name })),
-        totalCount: leads.length,
+        totalCount: totalLeads,
       },
     };
   },

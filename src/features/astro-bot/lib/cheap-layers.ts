@@ -43,10 +43,8 @@ function tableToText(table: AstroTablePayload): string {
       .filter(Boolean);
     return `• ${parts.join(" — ")}`;
   });
-  const rest =
-    table.rows.length > MAX_TABLE_ROWS
-      ? `\n_e mais ${table.rows.length - MAX_TABLE_ROWS}_`
-      : "";
+  const totalRows = table.totalCount ?? table.rows.length;
+  const rest = totalRows > MAX_TABLE_ROWS ? `\n_e mais ${totalRows - MAX_TABLE_ROWS}_` : "";
   return `${rows.join("\n")}${rest}`;
 }
 
@@ -71,19 +69,12 @@ const NO = /^(2|nao|n|cancela|cancelar|negativo|👎)$/;
 async function tryConfirmation(
   ctx: AgentContext,
   text: string,
-  /**
-   * "1" e "2" só valem como SIM/NÃO quando NÃO há pergunta do ciclo no ar.
-   * Sem isto, escolher a conta na lista ("2") cancelava uma proposta antiga
-   * que ainda estava pendente — o número pertence à última lista mostrada.
-   */
-  allowNumeric: boolean,
 ): Promise<CheapLayerReply | null> {
   const normalized = text
     .trim()
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
-  if (!allowNumeric && /^\d+$/.test(normalized)) return null;
   const isYes = YES.test(normalized);
   const isNo = NO.test(normalized);
   if (!isYes && !isNo) return null;
@@ -194,12 +185,13 @@ export async function tryCheapLayers(params: {
 
   const sessionId = params.ctx.sessionId ?? params.ctx.organizationId;
 
-  // 0. "SIM"/"NÃO" respondendo a uma proposta pendente.
-  const confirmed = await tryConfirmation(
-    params.ctx,
-    text,
-    !isAwaitingAnswer(sessionId),
-  );
+  // 0. "SIM"/"NÃO" respondendo a uma proposta pendente — só sem pergunta do
+  // ciclo no ar. Com pergunta aberta, a resposta é dela: "sim" para "já foi
+  // pago?" aprovava um post do Planner que esperava há horas, e "2" na lista
+  // de contas cancelava uma proposta antiga.
+  const confirmed = isAwaitingAnswer(sessionId)
+    ? null
+    : await tryConfirmation(params.ctx, text);
   if (confirmed) return confirmed;
 
   // 1. Consulta em código — custo zero. Pulada quando há pergunta no ar:
