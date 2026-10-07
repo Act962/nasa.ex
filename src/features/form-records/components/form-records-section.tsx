@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ExternalLink, Lock, Search } from "lucide-react";
+import { Calculator, ChevronLeft, ChevronRight, ExternalLink, Lock, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,6 +115,12 @@ export function FormRecordsSection({ formId }: { formId: string }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/form/responses/${formId}/fechamento`}>
+              <Calculator className="size-4" />
+              Fechamento por cliente
+            </Link>
+          </Button>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input

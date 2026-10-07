@@ -53,7 +53,7 @@ Qualquer empresa monta, sem código, uma ficha com itens, medidas e cálculo; li
 | RF-7 | Bloco **Busca no Órbita**: fonte = clientes, fichas de outro formulário, catálogo ou lista própria do campo; sempre aceita texto digitado; escolher uma ficha preenche os campos de mesmo nome-chave (texto, máscara e número com medida) que o usuário ainda não editou. Fontes do servidor só buscam para membro logado; em link público viram texto comum. | 2 ✅ |
 | RF-8 | **Lista própria** colada no próprio campo (um item por linha, até 2.000). Rota `/formulario/novo/[formId]` sem cliente pré-escolhido: busca o cliente e segue para o preenchimento. Modelos prontos "Abertura de O.S." (com lista de modelos de carro) e "Controle de consumo de materiais". | 2 ✅ |
 | RF-9 | **Lista de fichas** na tela de respostas do formulário: tabela com data, cliente, colunas dos campos "mostrar na lista", total dos itens e situação (rascunho, enviada, fechada); busca, filtro por período e por cliente, soma do filtro. Clicar numa linha abre a **visão rápida**: o formulário inteiro em leitura, desenhado pelos próprios blocos na largura da ficha e reduzido por escala até caber, com "Abrir ficha" e PDF. Formulário sem recursos de ficha não mostra a seção. | 3 ✅ |
-| RF-10 | **Fechamento por cliente**: período, grupos de custo compartilhado nomeados pelo usuário, rateio por número de fichas, total por cliente, "Fechar período" e "Gerar contas a receber" (uma por cliente, sem duplicar). | 4 ⬜ |
+| RF-10 | **Fechamento por cliente** em `/form/responses/[formId]/fechamento`: período (mês), grupos de custo compartilhado nomeados pelo usuário (linhas com descrição, quantidade, medida, valor e data), rateio por número de fichas, total por cliente. Aberto = prévia calculada na hora. "Fechar período" grava as linhas e trava as fichas; "Reabrir" desfaz, se não houver conta gerada; "Gerar contas a receber" cria uma por cliente no Financeiro (vencimento e competência no último dia do período), sem duplicar. Gerar contas exige permissão de criar lançamentos no Financeiro. | 4 ✅ |
 | RF-11 | **Visão do cliente** em `/lead/[token]/fichas`: fichas do período, visão rápida e resumo. Período aberto aparece como prévia, sem rateio. | 5 ⬜ |
 
 ### Não-funcionais
@@ -78,7 +78,8 @@ CA-1 a CA-6 e CA-9 são conferidos por `scripts/form-records-qa-check.ts` (30 ch
 - [ ] **CA-7** — Manual: montar um formulário sem nada de oficina (visita técnica com itens e horas), preencher, reabrir, gerar PDF.
 - [ ] **CA-8** — Manual: ficha de período fechado não pode ser editada nem cancelada.
 - [x] **CA-9** — Rateio de R$ 13.540,49 e de R$ 7.154,69 entre as 15 concessionárias por 69 veículos fecha no centavo; quem tem 10 veículos paga R$ 1.962,39 de insumos; total de setembro = R$ 23.701,60.
-- [ ] **CA-10** — Manual: "Gerar contas a receber" duas vezes não duplica.
+- [x] **CA-10** — Fechamento de setembro pelo cálculo novo: 15 clientes, 69 fichas, R$ 23.701,60; a soma das linhas é o total; rascunho e ficha sem cliente ficam de fora e são avisados; período sem fichas não gera linha. _(script)_
+- [ ] **CA-15** — Manual, depois da migration: salvar custos, fechar, tentar editar uma ficha do período (recusa), gerar contas a receber duas vezes (não duplica), reabrir com conta gerada (recusa).
 - [x] **CA-12** — Lista colada vira itens únicos; filtro ignora acento e ordem das palavras; texto digitado à mão vale sem referência; ficha escolhida guarda a origem. _(script)_
 - [ ] **CA-14** — Manual, depois da migration: a lista mostra as fichas com as colunas configuradas; filtrar por período e cliente muda total e soma; clicar abre a visão rápida sem rolagem lateral no computador e no celular; nada na visão rápida é editável.
 - [ ] **CA-13** — Manual, depois da migration: preencher uma "Abertura de O.S.", abrir o "Controle de consumo", buscar pela placa e ver cliente, O.S., modelo e cor preenchidos; repetir digitando tudo à mão.
@@ -98,6 +99,10 @@ CA-1 a CA-6 e CA-9 são conferidos por `scripts/form-records-qa-check.ts` (30 ch
 | CB-8 | Ficha digitada dias depois | O período vem do campo marcado como data da ficha. |
 | CB-9 | Divisão por zero no cálculo | Resultado em branco. |
 | CB-10 | Formulário público com lista de itens | Grava o que veio, sem preço do servidor e sem projeção; não entra em fechamento. |
+| CB-11 | Dois cliques simultâneos em "Gerar contas a receber" | Cada linha é reservada antes de criar a conta; só um dos pedidos cria. |
+| CB-12 | Criação da conta falha para um cliente | A reserva é desfeita, os demais seguem, e o botão volta a oferecer as que faltam. |
+| CB-13 | Processo cai entre reservar e criar a conta | A linha fica com a marca provisória e aparece como "não gerada", mas não é refeita sozinha. Reabrir e fechar o período limpa. |
+| CB-14 | Ficha enviada depois do fechamento, no mesmo período | Não entra nas linhas já gravadas; a tela avisa e é preciso reabrir para incluí-la. |
 
 ## 6. Decisões de design
 
@@ -147,5 +152,6 @@ Formato dos valores novos em `jsonResponse[blockId]` (`value` sempre texto; estr
 ## 9. Changelog
 
 - 2026-10-07 — Criada. Fase 0 (correção do link público) e fase 1 (blocos, nome-chave, projeção, PDF) implementadas; fases 2 a 5 pendentes.
+- 2026-10-08 — Fase 4 implementada: cálculo puro do fechamento, rotas (ler, salvar custos, fechar, reabrir, gerar contas) e tela. A conta a receber sai sem categoria nem conta bancária, como as demais criações automáticas; quem recebe ajusta no Financeiro.
 - 2026-10-08 — Fase 3 implementada: lista de fichas e visão rápida (componente único `FormRecordQuickView`, que a fase 5 reusa na página do cliente).
 - 2026-10-08 — Fase 2 implementada. Mudou em relação ao plano: lista própria fica no campo (D-7) e o cliente é escolhido numa tela antes do formulário (D-8). O modelo de consumo nasce sem a imagem do veículo e sem itens: os dois são da empresa e entram pelas propriedades.

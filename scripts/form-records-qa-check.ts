@@ -6,6 +6,7 @@
  */
 import { allocateSharedCost } from "../src/features/form-records/lib/allocate-shared-cost";
 import { computeCalculations } from "../src/features/form-records/lib/calculation";
+import { computeClosing, lastDayOfPeriod, parseSharedCostGroups } from "../src/features/form-records/lib/compute-closing";
 import { buildImageMarkersValue, parseImageMarkers } from "../src/features/form-records/lib/image-markers-value";
 import { parseItemListMeta, priceItemLists } from "../src/features/form-records/lib/item-list-value";
 import { convertMeasure, formatMeasure, parseDecimalInput } from "../src/features/form-records/lib/measure-units";
@@ -166,6 +167,36 @@ check("CA-9 total de setembro bate com a planilha", SUPPLIES_CENTS + PAINTS_CENT
 const withIdle = allocateSharedCost(1000, [{ key: "a", weight: 1 }, { key: "b", weight: 0 }, { key: "c", weight: 2 }]);
 check("CA-9 cliente sem ficha não recebe rateio", withIdle.get("b") === 0 && sumOf(withIdle) === 1000, JSON.stringify([...withIdle]));
 check("CA-9 sem fichas não divide", sumOf(allocateSharedCost(1000, [])) === 0, "zero fichas");
+
+// ── CA-10 — fechamento por cliente ─────────────────────────────────────────
+const septemberGroups = parseSharedCostGroups([
+  { id: "insumos", name: "Insumos", lines: [{ id: "l1", description: "Verniz", quantity: 16, unit: "un", totalCents: SUPPLIES_CENTS }] },
+  { id: "tintas", name: "Tintas produzidas", lines: [{ id: "l2", description: "Tintas do mês", quantity: 1, unit: "un", totalCents: PAINTS_CENTS, date: "2026-09-30" }] },
+  { id: 7, name: "grupo inválido" },
+]);
+check("CA-10 grupo malformado é descartado", septemberGroups.length === 2, String(septemberGroups.length));
+// Abrasivos distribuídos de forma arbitrária entre as fichas; só o total importa aqui.
+const septemberRecords = vehiclesByClient.flatMap(([leadId, vehicleCount], clientIndex) =>
+  Array.from({ length: vehicleCount }, (_unused, vehicleIndex) => ({
+    leadId,
+    usageTotalCents: clientIndex === 0 && vehicleIndex === 0 ? ABRASIVES_CENTS : 0,
+    isFinalized: true,
+  })),
+);
+const closing = computeClosing({
+  records: [...septemberRecords, { leadId: "jelta-frei", usageTotalCents: 9999, isFinalized: false }, { leadId: null, usageTotalCents: 500, isFinalized: true }],
+  groups: septemberGroups,
+  leadNameById: new Map(vehiclesByClient.map(([leadId]) => [leadId, leadId])),
+});
+check("CA-10 15 clientes e 69 fichas", closing.lines.length === 15 && closing.totalRecords === 69, `${closing.lines.length} clientes, ${closing.totalRecords} fichas`);
+check("CA-10 total de setembro", closing.totalCents === 2_370_160, String(closing.totalCents));
+check("CA-10 soma das linhas fecha com o total", closing.lines.reduce((total, line) => total + line.totalCents, 0) === closing.totalCents, "linhas = total");
+check("CA-10 rascunho e ficha sem cliente ficam de fora e são avisados", closing.draftCount === 1 && closing.withoutClientCount === 1, `${closing.draftCount} rascunho, ${closing.withoutClientCount} sem cliente`);
+const jeltaFrei = closing.lines.find((line) => line.leadId === "jelta-frei");
+check("CA-10 linha do cliente com 10 fichas", jeltaFrei?.recordCount === 10 && jeltaFrei.shares[0].cents === 196_239 && jeltaFrei.usageCents === ABRASIVES_CENTS, JSON.stringify(jeltaFrei?.shares));
+check("CA-10 vencimento é o último dia do período", lastDayOfPeriod("2026-09") === "2026-09-30" && lastDayOfPeriod("2028-02") === "2028-02-29", lastDayOfPeriod("2026-09"));
+const emptyClosing = computeClosing({ records: [], groups: septemberGroups, leadNameById: new Map() });
+check("CA-10 período sem fichas não gera linha", emptyClosing.lines.length === 0 && emptyClosing.totalCents === 0, "vazio");
 
 console.log(failures === 0 ? "\nTudo certo." : `\n${failures} falha(s).`);
 process.exit(failures === 0 ? 0 : 1);
