@@ -2,7 +2,7 @@
 id: 0075
 titulo: Fichas com itens, cálculo e fechamento por cliente
 dominio: form
-status: em-revisao
+status: implementada
 autor: Weydson
 criada: 2026-10-07
 atualizada: 2026-10-07
@@ -54,7 +54,7 @@ Qualquer empresa monta, sem código, uma ficha com itens, medidas e cálculo; li
 | RF-8 | **Lista própria** colada no próprio campo (um item por linha, até 2.000). Rota `/formulario/novo/[formId]` sem cliente pré-escolhido: busca o cliente e segue para o preenchimento. Modelos prontos "Abertura de O.S." (com lista de modelos de carro) e "Controle de consumo de materiais". | 2 ✅ |
 | RF-9 | **Lista de fichas** na tela de respostas do formulário: tabela com data, cliente, colunas dos campos "mostrar na lista", total dos itens e situação (rascunho, enviada, fechada); busca, filtro por período e por cliente, soma do filtro. Clicar numa linha abre a **visão rápida**: o formulário inteiro em leitura, desenhado pelos próprios blocos na largura da ficha e reduzido por escala até caber, com "Abrir ficha" e PDF. Formulário sem recursos de ficha não mostra a seção. | 3 ✅ |
 | RF-10 | **Fechamento por cliente** em `/form/responses/[formId]/fechamento`: período (mês), grupos de custo compartilhado nomeados pelo usuário (linhas com descrição, quantidade, medida, valor e data), rateio por número de fichas, total por cliente. Aberto = prévia calculada na hora. "Fechar período" grava as linhas e trava as fichas; "Reabrir" desfaz, se não houver conta gerada; "Gerar contas a receber" cria uma por cliente no Financeiro (vencimento e competência no último dia do período), sem duplicar. Gerar contas exige permissão de criar lançamentos no Financeiro. | 4 ✅ |
-| RF-11 | **Visão do cliente** em `/lead/[token]/fichas`: fichas do período, visão rápida e resumo. Período aberto aparece como prévia, sem rateio. | 5 ⬜ |
+| RF-11 | **Visão do cliente** em `/lead/[token]/fichas`, sem login: fichas enviadas do período (rascunho não aparece) com data, campos "mostrar na lista" e total dos itens; **visão rápida** ao tocar; resumo do período por formulário (itens, cada custo rateado, total) quando fechado. Período aberto aparece como "Prévia", só com a soma dos itens. Atalho "Ver fichas e valores" na página `/lead/[token]`, só quando há ficha. | 5 ✅ |
 
 ### Não-funcionais
 
@@ -83,7 +83,8 @@ CA-1 a CA-6 e CA-9 são conferidos por `scripts/form-records-qa-check.ts` (30 ch
 - [x] **CA-12** — Lista colada vira itens únicos; filtro ignora acento e ordem das palavras; texto digitado à mão vale sem referência; ficha escolhida guarda a origem. _(script)_
 - [ ] **CA-14** — Manual, depois da migration: a lista mostra as fichas com as colunas configuradas; filtrar por período e cliente muda total e soma; clicar abre a visão rápida sem rolagem lateral no computador e no celular; nada na visão rápida é editável.
 - [ ] **CA-13** — Manual, depois da migration: preencher uma "Abertura de O.S.", abrir o "Controle de consumo", buscar pela placa e ver cliente, O.S., modelo e cor preenchidos; repetir digitando tudo à mão.
-- [ ] **CA-11** — Manual: token de um cliente pedindo ficha de outro recebe 404.
+- [ ] **CA-11** — Manual, depois da migration: token de um cliente pedindo ficha de outro recebe 404; token inválido mostra "Link inválido"; a página não expõe número de fichas nem custo total do período.
+- [ ] **CA-16** — Manual, depois da migration: abrir `/lead/[token]/fichas` em janela anônima com período aberto (selo "Prévia", sem rateio) e fechado (resumo com total); visão rápida abre sem rolagem lateral no celular.
 
 ## 5. Casos de borda
 
@@ -152,6 +153,7 @@ Formato dos valores novos em `jsonResponse[blockId]` (`value` sempre texto; estr
 ## 9. Changelog
 
 - 2026-10-07 — Criada. Fase 0 (correção do link público) e fase 1 (blocos, nome-chave, projeção, PDF) implementadas; fases 2 a 5 pendentes.
+- 2026-10-08 — Fase 5 implementada: procedure pública `formRecords.public.list`, página `/lead/[token]/fichas` e atalho na página do lead. Spec concluída no código; faltam os testes manuais, que dependem da migration no banco.
 - 2026-10-08 — Fase 4 implementada: cálculo puro do fechamento, rotas (ler, salvar custos, fechar, reabrir, gerar contas) e tela. A conta a receber sai sem categoria nem conta bancária, como as demais criações automáticas; quem recebe ajusta no Financeiro.
 - 2026-10-08 — Fase 3 implementada: lista de fichas e visão rápida (componente único `FormRecordQuickView`, que a fase 5 reusa na página do cliente).
 - 2026-10-08 — Fase 2 implementada. Mudou em relação ao plano: lista própria fica no campo (D-7) e o cliente é escolhido numa tela antes do formulário (D-8). O modelo de consumo nasce sem a imagem do veículo e sem itens: os dois são da empresa e entram pelas propriedades.
