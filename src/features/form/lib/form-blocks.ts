@@ -27,6 +27,10 @@ import { UrlBlock } from "@/features/form/components/common/blocks/url-block";
 import { MaskedFieldBlock } from "@/features/form/components/common/blocks/masked-field-block";
 import { PageBreakBlock } from "@/features/form/components/common/blocks/page-break-block";
 import { QrCodeMultiBlock } from "@/features/form/components/common/blocks/qr-code-multi-block";
+import { NumberMeasureBlock } from "@/features/form/components/common/blocks/number-measure-block";
+import { ItemListBlock } from "@/features/form/components/common/blocks/item-list-block";
+import { CalculationBlock } from "@/features/form/components/common/blocks/calculation-block";
+import { ImageMarkerBlock } from "@/features/form/components/common/blocks/image-marker-block";
 
 export const FormBlocks: FormBlocksType = {
   RowLayout: RowLayoutBlock,
@@ -53,4 +57,8 @@ export const FormBlocks: FormBlocksType = {
   MaskedField: MaskedFieldBlock,
   PageBreak: PageBreakBlock,
   QrCodeMulti: QrCodeMultiBlock,
+  NumberMeasure: NumberMeasureBlock,
+  ItemList: ItemListBlock,
+  Calculation: CalculationBlock,
+  ImageMarker: ImageMarkerBlock,
 };

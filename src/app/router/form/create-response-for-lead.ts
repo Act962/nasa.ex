@@ -2,6 +2,8 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { prepareRecordResponse } from "@/features/form-records/server/prepare-record-response";
+import { syncFormRecord } from "@/features/form-records/server/sync-form-record";
 import { recordLeadEvent } from "@/features/leads/lib/history";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
@@ -53,7 +55,7 @@ export const createResponseForLead = base
   )
   .handler(async ({ input, context, errors }) => {
     try {
-      const { formId, leadId, response, isFinal, actionId } = input;
+      const { formId, leadId, isFinal, actionId } = input;
       const userId = context.user.id;
 
       // Carrega form (incluindo settings.trackingId/statusId pro
@@ -108,6 +110,13 @@ export const createResponseForLead = base
           message: NOT_TRACKING_PARTICIPANT_MESSAGE,
         });
       }
+
+      // Preço das listas de itens e campos de cálculo saem do servidor (spec 0075).
+      const response = await prepareRecordResponse({
+        organizationId: form.organizationId,
+        jsonBlock: form.jsonBlock,
+        response: input.response,
+      });
 
       // Auto-deriva o título customizado (label) a partir do bloco marcado
       // com `useAsResponseLabel`. `labelManuallyEdited=false` na criação —
@@ -181,6 +190,8 @@ export const createResponseForLead = base
           label: true,
         },
       });
+
+      await syncFormRecord({ responseId: created.id, isFinal });
 
       // Incrementa contador (mantém paridade com submitResponse público).
       await prisma.form.update({

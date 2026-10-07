@@ -47,7 +47,11 @@ export type FormBlockType =
   | "ParagraphWithTitle"
   | "SignatureUser"
   | "SignatureClient"
-  | "Slider";
+  | "Slider"
+  | "NumberMeasure"
+  | "ItemList"
+  | "Calculation"
+  | "ImageMarker";
 
 export type HandleBlurFuncWithTagId = (
   key: string,

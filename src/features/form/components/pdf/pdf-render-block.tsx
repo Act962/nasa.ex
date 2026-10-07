@@ -23,6 +23,7 @@ import {
   renderImageDisplayBlock,
 } from "./pdf-media-blocks";
 import { renderPageBreak, renderRowLayoutBlock } from "./pdf-layout-blocks";
+import { renderImageMarkerBlock, renderItemListBlock } from "./pdf-record-blocks";
 import type { PdfResponseValues } from "./pdf-field-helpers";
 
 export function renderBlock(
@@ -39,6 +40,8 @@ export function renderBlock(
     case "TextField":
     case "MaskedField":
     case "Url":
+    case "NumberMeasure":
+    case "Calculation":
       return renderTextFieldBlock(block, responseValues);
     case "TextArea":
       return renderTextAreaBlock(block, responseValues);
@@ -69,6 +72,10 @@ export function renderBlock(
       return renderQrCodeBlock(block);
     case "ImageDisplay":
       return renderImageDisplayBlock(block);
+    case "ItemList":
+      return renderItemListBlock(block, responseValues);
+    case "ImageMarker":
+      return renderImageMarkerBlock(block, responseValues);
     case "PageBreak":
       return renderPageBreak();
     case "RowLayout":

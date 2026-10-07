@@ -1,11 +1,13 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import crypto from "node:crypto";
 
 export const generateLeadPublicLink = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "POST",
     summary: "Generate or rotate public link token of a lead",
@@ -17,21 +19,21 @@ export const generateLeadPublicLink = base
       rotate: z.boolean().optional().default(false),
     }),
   )
-  .handler(async ({ input, errors }) => {
-    try {
-      const lead = await prisma.lead.findUnique({
-        where: { id: input.leadId },
-        // publicToken só existe no client após `prisma generate` rodar
-        select: { id: true, publicToken: true } as unknown as { id: true; publicToken: true },
-      });
-      if (!lead) throw errors.NOT_FOUND;
+  .handler(async ({ input, context, errors }) => {
+    // Só lead da organização ativa: sem este filtro, qualquer usuário logado
+    // obtinha (ou trocava) o link público de um lead de outra empresa pelo id.
+    const lead = await prisma.lead.findFirst({
+      where: { id: input.leadId, tracking: { organizationId: context.org.id } },
+      select: { id: true, publicToken: true },
+    });
+    if (!lead) throw errors.NOT_FOUND;
 
-      const existing = (lead as unknown as { publicToken?: string | null }).publicToken;
-      let token = existing ?? null;
+    try {
+      let token = lead.publicToken ?? null;
       if (!token || input.rotate) {
         token = crypto.randomBytes(18).toString("base64url");
-        await (prisma.lead.update as (args: unknown) => Promise<unknown>)({
-          where: { id: input.leadId },
+        await prisma.lead.update({
+          where: { id: lead.id },
           data: { publicToken: token },
         });
       }

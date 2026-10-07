@@ -2224,6 +2224,9 @@ model Form {
 
   actionForms ActionForm[]
 
+  records  FormRecord[]
+  closings FormClosing[]
+
   isPublicOnSpace Boolean @default(false) @map("is_public_on_space")
 
   @@map("forms")
@@ -2353,12 +2356,135 @@ model FormResponses {
   /// Não confundir com `action` acima. Ver spec 0002, decisão D-1.
   actions Action[] @relation("FormResponseActions")
 
+  /// Projeção da ficha para lista, busca e fechamento (spec 0075).
+  record FormRecord?
+
   @@index([completedAt])
   @@index([actionId])
   @@index([formId])
   @@index([leadId])
   @@index([createdById])
   @@map("form_responses")
+}
+
+// ─── FICHAS COM ITENS E FECHAMENTO POR CLIENTE (spec 0075) ──────────────────
+
+enum FormClosingStatus {
+  OPEN
+  CLOSED
+}
+
+/// Projeção de uma resposta, gravada a cada save. Existe para a lista de
+/// fichas, a busca e o fechamento não dependerem de reler o `jsonBlock` nem
+/// de filtrar dentro do `jsonResponse` (que é uma string JSON).
+model FormRecord {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  formId         String  @map("form_id")
+  responseId     String  @unique @map("response_id")
+  /// Cliente da ficha. Sem FK: o lead pode ser apagado e a ficha fechada fica.
+  leadId         String? @map("lead_id")
+  label          String?
+
+  /// Data da ficha (campo marcado como data de referência) ou, na falta, o
+  /// dia da criação. O período é "AAAA-MM" em Brasília.
+  referenceDate DateTime @map("reference_date")
+  periodKey     String   @map("period_key")
+
+  /// nome-chave → { label, value, showInList }.
+  keyFields       Json   @default("{}") @map("key_fields")
+  /// Valores dos campos pesquisáveis, sem acento e em minúsculas.
+  searchText      String @default("") @map("search_text") @db.Text
+  /// Itens cobrados pelo uso, com o preço congelado no dia do preenchimento.
+  usageItems      Json   @default("[]") @map("usage_items")
+  usageTotalCents Int    @default(0) @map("usage_total_cents")
+
+  /// NULL = rascunho: não conta como ficha no fechamento.
+  finalizedAt    DateTime? @map("finalized_at")
+  /// Preenchido ao fechar o período: trava edição e exclusão da ficha.
+  closingId      String?   @map("closing_id")
+  /// Ficha de onde os dados foram puxados (ex.: a abertura da O.S.).
+  sourceRecordId String?   @map("source_record_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  form     Form          @relation(fields: [formId], references: [id], onDelete: Cascade)
+  response FormResponses @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  closing  FormClosing?  @relation(fields: [closingId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, formId, periodKey])
+  @@index([leadId, periodKey])
+  @@index([closingId])
+  @@map("form_record")
+}
+
+/// Lista própria da empresa (ex.: modelos de carro) usada como fonte do
+/// campo de busca dos formulários.
+model FormOptionList {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  name           String
+  /// Itens em ordem: string[].
+  items          Json     @default("[]")
+  createdById    String?  @map("created_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([organizationId, name])
+  @@map("form_option_list")
+}
+
+/// Fechamento de um período para um formulário: soma as fichas por cliente e
+/// rateia os custos compartilhados do período pelo número de fichas.
+model FormClosing {
+  id             String            @id @default(cuid())
+  organizationId String            @map("organization_id")
+  formId         String            @map("form_id")
+  periodKey      String            @map("period_key")
+  status         FormClosingStatus @default(OPEN)
+
+  /// Grupos nomeados pelo usuário:
+  /// [{ id, name, lines: [{ id, description, productId?, quantity, unit, totalCents, date? }] }]
+  sharedCostGroups Json @default("[]") @map("shared_cost_groups")
+  totalRecords     Int  @default(0) @map("total_records")
+  sharedCostCents  Int  @default(0) @map("shared_cost_cents")
+  usageCents       Int  @default(0) @map("usage_cents")
+
+  closedAt   DateTime? @map("closed_at")
+  closedById String?   @map("closed_by_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  form    Form              @relation(fields: [formId], references: [id], onDelete: Cascade)
+  lines   FormClosingLine[]
+  records FormRecord[]
+
+  @@unique([organizationId, formId, periodKey])
+  @@map("form_closing")
+}
+
+/// Uma linha por cliente, gravada ao fechar. `paymentEntryId` único garante
+/// que a conta a receber não é gerada duas vezes.
+model FormClosingLine {
+  id          String @id @default(cuid())
+  closingId   String @map("closing_id")
+  leadId      String @map("lead_id")
+  /// Nome do cliente no dia do fechamento: o documento não muda se o lead for renomeado.
+  leadName    String @map("lead_name")
+  recordCount Int    @map("record_count")
+  usageCents  Int    @map("usage_cents")
+  /// Parte do cliente em cada grupo: [{ groupId, name, cents }].
+  sharedCostShares Json @default("[]") @map("shared_cost_shares")
+  sharedCostCents  Int  @default(0) @map("shared_cost_cents")
+  totalCents       Int  @map("total_cents")
+  paymentEntryId   String? @unique @map("payment_entry_id")
+
+  closing FormClosing @relation(fields: [closingId], references: [id], onDelete: Cascade)
+
+  @@unique([closingId, leadId])
+  @@index([leadId])
+  @@map("form_closing_line")
 }
 
 // ─────────────────────────────────────────────

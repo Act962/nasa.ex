@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import z from "zod";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { recordLeadEvent } from "@/features/leads/lib/history";
+import { RECORD_LOCKED_MESSAGE, isRecordLockedByClosing } from "@/features/form-records/server/sync-form-record";
 
 /**
  * "Cancelar formulário" do lead — DELETA a `FormResponses` por completo.
@@ -60,6 +61,10 @@ export const cancelResponse = base
 
       if (!existing) {
         throw errors.NOT_FOUND({ message: "Resposta não encontrada" });
+      }
+
+      if (await isRecordLockedByClosing(existing.id)) {
+        throw errors.FORBIDDEN({ message: RECORD_LOCKED_MESSAGE });
       }
 
       const orgId = existing.form.organizationId;

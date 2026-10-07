@@ -41,6 +41,8 @@ function checkBlock(block: FormBlockInstance): string | null {
     case "Url":
     case "DatePicker":
     case "Slider":
+    case "NumberMeasure":
+    case "Calculation":
     case "MaskedField":
     case "FileUpload":
     case "ImageUpload":
@@ -63,6 +65,18 @@ function checkBlock(block: FormBlockInstance): string | null {
         return "Adicione pelo menos 2 opções.";
       if (options.some((o) => !o.value?.trim()))
         return "Toda opção precisa de um texto.";
+      return null;
+    }
+
+    case "ItemList": {
+      const items = (attrs.items as unknown[] | undefined) ?? [];
+      if (items.length === 0) return "Adicione pelo menos 1 item à lista.";
+      return null;
+    }
+
+    case "ImageMarker": {
+      const imageUrl = (attrs.imageUrl as string | undefined)?.trim();
+      if (!imageUrl) return "Envie a imagem que será marcada.";
       return null;
     }
 
