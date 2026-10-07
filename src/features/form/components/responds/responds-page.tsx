@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import AllReponds from "./all-reponds";
 import { useQueryFormResponses } from "../../hooks/use-form";
 import Link from "next/link";
+import { FormRecordsSection } from "@/features/form-records/components/form-records-section";
 
 export function RespondsPage({ formId }: { formId: string }) {
   const { form } = useQueryFormResponses({ id: formId });
@@ -50,6 +51,7 @@ export function RespondsPage({ formId }: { formId: string }) {
             </div>
           </div>
           <Separator />
+          <FormRecordsSection formId={formId} />
           <AllReponds blocks={blocks} responses={responses.formSubmissions} />
         </div>
       </div>

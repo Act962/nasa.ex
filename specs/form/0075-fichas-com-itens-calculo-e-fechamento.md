@@ -52,7 +52,7 @@ Qualquer empresa monta, sem código, uma ficha com itens, medidas e cálculo; li
 | RF-6 | Cada resposta de formulário que usa esses recursos mantém uma projeção `FormRecord` (cliente, período, campos-chave, texto de busca, itens e total), atualizada a cada gravação. | 1 ✅ |
 | RF-7 | Bloco **Busca no Órbita**: fonte = clientes, fichas de outro formulário, catálogo ou lista própria do campo; sempre aceita texto digitado; escolher uma ficha preenche os campos de mesmo nome-chave (texto, máscara e número com medida) que o usuário ainda não editou. Fontes do servidor só buscam para membro logado; em link público viram texto comum. | 2 ✅ |
 | RF-8 | **Lista própria** colada no próprio campo (um item por linha, até 2.000). Rota `/formulario/novo/[formId]` sem cliente pré-escolhido: busca o cliente e segue para o preenchimento. Modelos prontos "Abertura de O.S." (com lista de modelos de carro) e "Controle de consumo de materiais". | 2 ✅ |
-| RF-9 | **Lista de fichas** em tabela com colunas configuradas, total e filtros; clicar abre a **visão rápida** (formulário inteiro em leitura, reduzido por escala). | 3 ⬜ |
+| RF-9 | **Lista de fichas** na tela de respostas do formulário: tabela com data, cliente, colunas dos campos "mostrar na lista", total dos itens e situação (rascunho, enviada, fechada); busca, filtro por período e por cliente, soma do filtro. Clicar numa linha abre a **visão rápida**: o formulário inteiro em leitura, desenhado pelos próprios blocos na largura da ficha e reduzido por escala até caber, com "Abrir ficha" e PDF. Formulário sem recursos de ficha não mostra a seção. | 3 ✅ |
 | RF-10 | **Fechamento por cliente**: período, grupos de custo compartilhado nomeados pelo usuário, rateio por número de fichas, total por cliente, "Fechar período" e "Gerar contas a receber" (uma por cliente, sem duplicar). | 4 ⬜ |
 | RF-11 | **Visão do cliente** em `/lead/[token]/fichas`: fichas do período, visão rápida e resumo. Período aberto aparece como prévia, sem rateio. | 5 ⬜ |
 
@@ -80,6 +80,7 @@ CA-1 a CA-6 e CA-9 são conferidos por `scripts/form-records-qa-check.ts` (30 ch
 - [x] **CA-9** — Rateio de R$ 13.540,49 e de R$ 7.154,69 entre as 15 concessionárias por 69 veículos fecha no centavo; quem tem 10 veículos paga R$ 1.962,39 de insumos; total de setembro = R$ 23.701,60.
 - [ ] **CA-10** — Manual: "Gerar contas a receber" duas vezes não duplica.
 - [x] **CA-12** — Lista colada vira itens únicos; filtro ignora acento e ordem das palavras; texto digitado à mão vale sem referência; ficha escolhida guarda a origem. _(script)_
+- [ ] **CA-14** — Manual, depois da migration: a lista mostra as fichas com as colunas configuradas; filtrar por período e cliente muda total e soma; clicar abre a visão rápida sem rolagem lateral no computador e no celular; nada na visão rápida é editável.
 - [ ] **CA-13** — Manual, depois da migration: preencher uma "Abertura de O.S.", abrir o "Controle de consumo", buscar pela placa e ver cliente, O.S., modelo e cor preenchidos; repetir digitando tudo à mão.
 - [ ] **CA-11** — Manual: token de um cliente pedindo ficha de outro recebe 404.
 
@@ -146,4 +147,5 @@ Formato dos valores novos em `jsonResponse[blockId]` (`value` sempre texto; estr
 ## 9. Changelog
 
 - 2026-10-07 — Criada. Fase 0 (correção do link público) e fase 1 (blocos, nome-chave, projeção, PDF) implementadas; fases 2 a 5 pendentes.
+- 2026-10-08 — Fase 3 implementada: lista de fichas e visão rápida (componente único `FormRecordQuickView`, que a fase 5 reusa na página do cliente).
 - 2026-10-08 — Fase 2 implementada. Mudou em relação ao plano: lista própria fica no campo (D-7) e o cliente é escolhido numa tela antes do formulário (D-8). O modelo de consumo nasce sem a imagem do veículo e sem itens: os dois são da empresa e entram pelas propriedades.
