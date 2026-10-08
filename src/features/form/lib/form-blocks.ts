@@ -32,6 +32,8 @@ import { ItemListBlock } from "@/features/form/components/common/blocks/item-lis
 import { CalculationBlock } from "@/features/form/components/common/blocks/calculation-block";
 import { ImageMarkerBlock } from "@/features/form/components/common/blocks/image-marker-block";
 import { OrbitLookupBlock } from "@/features/form/components/common/blocks/orbit-lookup-block";
+import { AutoNumberBlock } from "@/features/form/components/common/blocks/auto-number-block";
+import { VehicleDiagramBlock } from "@/features/form/components/common/blocks/vehicle-diagram-block";
 
 export const FormBlocks: FormBlocksType = {
   RowLayout: RowLayoutBlock,
@@ -63,4 +65,6 @@ export const FormBlocks: FormBlocksType = {
   Calculation: CalculationBlock,
   ImageMarker: ImageMarkerBlock,
   OrbitLookup: OrbitLookupBlock,
+  VehicleDiagram: VehicleDiagramBlock,
+  AutoNumber: AutoNumberBlock,
 };

@@ -16,7 +16,7 @@ import {
   useReopenFormPeriod,
   useSaveClosingSharedCosts,
 } from "@/features/form-records/hooks/use-form-closings";
-import type { SharedCostGroup } from "@/features/form-records/lib/compute-closing";
+import { groupLinesForBilling, type SharedCostGroup } from "@/features/form-records/lib/compute-closing";
 import { formatCents } from "@/features/form-records/lib/measure-units";
 import { toPeriodKey } from "@/features/form-records/lib/record-fields";
 import { formatPeriodKey } from "./form-records-section";
@@ -63,7 +63,8 @@ export function FormClosingPage({ formId }: { formId: string }) {
 
   const isClosed = data.status === "CLOSED";
   const periodOptions = [...new Set([periodKey, toPeriodKey(new Date()), ...data.periodKeys])].sort().reverse();
-  const pendingReceivables = data.lines.filter((line) => !line.paymentEntryId && line.totalCents > 0).length;
+  // Uma conta por grupo de cobrança: o titular com os vinculados "no titular", e cada vinculado de cobrança própria.
+  const pendingReceivables = groupLinesForBilling(data.lines).filter((group) => !group.lines[0].paymentEntryId && group.totalCents > 0).length;
   const isBusy = saveSharedCosts.isPending || closePeriod.isPending || reopenPeriod.isPending || generateReceivables.isPending;
   const canClose = !isClosed && !isDirty && data.lines.length > 0 && data.withoutClientCount === 0;
 
@@ -172,8 +173,18 @@ export function FormClosingPage({ formId }: { formId: string }) {
                 </TableRow>
               ) : (
                 data.lines.map((line) => (
-                  <TableRow key={line.leadId}>
-                    <TableCell>{line.leadName}</TableCell>
+                  <TableRow key={`${line.leadId}|${line.leadMemberId}`}>
+                    <TableCell>
+                      {line.leadMemberName ? (
+                        <span className="flex flex-wrap items-center gap-2 pl-4">
+                          <span className="text-muted-foreground">↳ {line.leadName} ·</span>
+                          <span>{line.leadMemberName}</span>
+                          {line.billingMode === "PROPRIO" && <Badge variant="outline">Conta própria</Badge>}
+                        </span>
+                      ) : (
+                        line.leadName
+                      )}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">{line.recordCount}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatCents(line.usageCents)}</TableCell>
                     <TableCell

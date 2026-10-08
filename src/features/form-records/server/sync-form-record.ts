@@ -50,6 +50,7 @@ export async function syncFormRecord(params: {
         id: true,
         formId: true,
         leadId: true,
+        leadMemberId: true,
         label: true,
         createdAt: true,
         jsonResponse: true,
@@ -67,6 +68,7 @@ export async function syncFormRecord(params: {
     const referenceDate = projection.referenceDate ?? response.createdAt;
     const projected = {
       leadId: response.leadId,
+      leadMemberId: response.leadMemberId,
       label: response.label,
       referenceDate,
       periodKey: toPeriodKey(referenceDate),

@@ -4,7 +4,7 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { requirePaymentAccess } from "@/app/middlewares/payment-access";
 import prisma from "@/lib/prisma";
-import { lastDayOfPeriod, parseSharedCostGroups } from "@/features/form-records/lib/compute-closing";
+import { groupLinesForBilling, lastDayOfPeriod, parseSharedCostGroups } from "@/features/form-records/lib/compute-closing";
 import { findClosing, loadClosingComputation } from "@/features/form-records/server/closing-data";
 import { createPaymentEntryRecord } from "@/features/payment/server/entries/create-entry";
 
@@ -36,9 +36,15 @@ const shareSchema = z.object({ groupId: z.string(), name: z.string(), cents: z.n
 // Marca provisória gravada na linha enquanto a conta é criada. Se o processo
 // cair nesse intervalo ela fica para trás; reabrir e fechar o período limpa.
 const RESERVATION_PREFIX = "pending:";
+// Uma conta pode cobrir várias linhas (o titular e seus vinculados), mas a
+// coluna é única: a primeira linha guarda o id da conta e as demais, esta
+// marca — "shared:<id da conta>:<id da linha>".
+const SHARED_ENTRY_PREFIX = "shared:";
 
 function toRealEntryId(paymentEntryId: string | null): string | null {
-  return paymentEntryId && !paymentEntryId.startsWith(RESERVATION_PREFIX) ? paymentEntryId : null;
+  if (!paymentEntryId || paymentEntryId.startsWith(RESERVATION_PREFIX)) return null;
+  if (paymentEntryId.startsWith(SHARED_ENTRY_PREFIX)) return paymentEntryId.split(":")[1] || null;
+  return paymentEntryId;
 }
 
 function readShares(rawShares: unknown): z.infer<typeof shareSchema>[] {
@@ -65,6 +71,10 @@ export const getFormClosing = base
         z.object({
           leadId: z.string(),
           leadName: z.string(),
+          leadMemberId: z.string(),
+          leadMemberName: z.string().nullable(),
+          billingMode: z.enum(["TITULAR", "PROPRIO"]),
+          costCenterId: z.string().nullable(),
           recordCount: z.number(),
           usageCents: z.number(),
           shares: z.array(shareSchema),
@@ -108,6 +118,10 @@ export const getFormClosing = base
         lines: closing.lines.map((line) => ({
           leadId: line.leadId,
           leadName: line.leadName,
+          leadMemberId: line.leadMemberId,
+          leadMemberName: line.leadMemberName,
+          billingMode: line.billingMode,
+          costCenterId: line.costCenterId,
           recordCount: line.recordCount,
           usageCents: line.usageCents,
           shares: readShares(line.sharedCostShares),
@@ -216,6 +230,10 @@ export const closeFormPeriod = base
           closingId: closing.id,
           leadId: line.leadId,
           leadName: line.leadName,
+          leadMemberId: line.leadMemberId,
+          leadMemberName: line.leadMemberName,
+          billingMode: line.billingMode,
+          costCenterId: line.costCenterId,
           recordCount: line.recordCount,
           usageCents: line.usageCents,
           sharedCostShares: line.shares as unknown as object,
@@ -284,17 +302,20 @@ export const generateClosingReceivables = base
     let skippedCount = 0;
     let failedCount = 0;
 
-    for (const line of closing.lines) {
-      if (line.paymentEntryId || line.totalCents <= 0) {
+    // Uma conta por grupo de cobrança (spec 0076, RF-8). A primeira linha do
+    // grupo é a âncora: é ela que se reserva e que guarda o id da conta.
+    for (const group of groupLinesForBilling(closing.lines)) {
+      const [anchorLine, ...otherLines] = group.lines;
+      if (anchorLine.paymentEntryId || group.totalCents <= 0) {
         skippedCount += 1;
         continue;
       }
       try {
-        // Reserva a linha antes de criar: dois cliques simultâneos não geram
-        // duas contas, porque só um deles consegue marcar a linha.
-        const reservation = `${RESERVATION_PREFIX}${closing.id}:${line.leadId}`;
+        // Reserva antes de criar: dois cliques simultâneos não geram duas
+        // contas, porque só um deles consegue marcar a âncora.
+        const reservation = `${RESERVATION_PREFIX}${closing.id}:${group.key}`;
         const reserved = await prisma.formClosingLine.updateMany({
-          where: { id: line.id, paymentEntryId: null },
+          where: { id: anchorLine.id, paymentEntryId: null },
           data: { paymentEntryId: reservation },
         });
         if (reserved.count === 0) {
@@ -302,29 +323,43 @@ export const generateClosingReceivables = base
           continue;
         }
         try {
+          const billedName = group.ownMemberName ? `${anchorLine.leadName} · ${group.ownMemberName}` : anchorLine.leadName;
+          const memberBreakdown = group.lines
+            .filter((line) => line.leadMemberName)
+            .map((line) => `${line.leadMemberName}: ${(line.totalCents / 100).toFixed(2)}`)
+            .join("; ");
           const [entry] = await createPaymentEntryRecord({
             organizationId,
             actor: context.user,
             input: {
               type: "RECEIVABLE",
-              description: `${form.name} — ${line.leadName} (${input.periodKey})`,
-              amount: line.totalCents,
+              description: `${form.name} — ${billedName} (${input.periodKey})`,
+              amount: group.totalCents,
               dueDate,
               competenceDate: dueDate,
-              leadId: line.leadId,
+              leadId: group.leadId,
+              ...(group.costCenterId ? { costCenterId: group.costCenterId } : {}),
               documentNumber: `FICHAS-${input.periodKey}`,
-              notes: `${line.recordCount} ficha(s). Itens: ${(line.usageCents / 100).toFixed(2)}. Custos rateados: ${(line.sharedCostCents / 100).toFixed(2)}.`,
+              notes:
+                `${group.recordCount} ficha(s). Itens: ${(group.usageCents / 100).toFixed(2)}. Custos rateados: ${(group.sharedCostCents / 100).toFixed(2)}.` +
+                (memberBreakdown ? ` Por vinculado — ${memberBreakdown}.` : ""),
             },
           });
-          await prisma.formClosingLine.update({ where: { id: line.id }, data: { paymentEntryId: entry.id } });
+          await prisma.formClosingLine.update({ where: { id: anchorLine.id }, data: { paymentEntryId: entry.id } });
+          for (const otherLine of otherLines) {
+            await prisma.formClosingLine.update({
+              where: { id: otherLine.id },
+              data: { paymentEntryId: `${SHARED_ENTRY_PREFIX}${entry.id}:${otherLine.id}` },
+            });
+          }
           createdCount += 1;
         } catch (creationError) {
-          await prisma.formClosingLine.update({ where: { id: line.id }, data: { paymentEntryId: null } });
+          await prisma.formClosingLine.update({ where: { id: anchorLine.id }, data: { paymentEntryId: null } });
           throw creationError;
         }
       } catch (error) {
         failedCount += 1;
-        console.error("[form-records/closings] conta a receber falhou", { closingId: closing.id, leadId: line.leadId, error });
+        console.error("[form-records/closings] conta a receber falhou", { closingId: closing.id, billingGroup: group.key, error });
       }
     }
 

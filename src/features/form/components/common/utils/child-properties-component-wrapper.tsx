@@ -35,6 +35,7 @@ const RECORD_FIELD_ELIGIBLE_BLOCKS: ReadonlySet<FormBlockType> = new Set([
   "NumberMeasure",
   "Calculation",
   "OrbitLookup",
+  "AutoNumber",
 ]);
 
 export function ChildPropertiesComponentWrapper({

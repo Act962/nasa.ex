@@ -124,20 +124,49 @@ export const STARTER_FORM_TEMPLATES: StarterFormTemplate[] = [
   {
     id: "starter-abertura-os",
     name: "Abertura de O.S.",
-    description: "Cliente, veículo e valor — alimenta a ficha de consumo",
+    description: "Orçamento da O.S.: cliente, veículo, fotos, serviços, valores e assinaturas",
     emoji: "🚗",
     primaryColor: "#1d4ed8",
     backgroundColor: defaultBackgroundColor,
-    buildBlocks: () => [
-      header("Abertura de ordem de serviço", "Preencha ao receber o veículo. Estes dados são puxados depois pela ficha de consumo."),
-      group(block("TextField", { label: "Cliente", required: true, prefillFromLead: "name", fieldKey: "cliente", isSearchable: true, showInList: true })),
-      group(block("TextField", { label: "Nº da O.S.", required: true, placeHolder: "00123", useAsResponseLabel: true, fieldKey: "os", isSearchable: true, showInList: true })),
-      group(block("TextField", { label: "Placa do veículo", required: true, placeHolder: "ABC1D23", fieldKey: "placa", isSearchable: true, showInList: true })),
-      group(block("OrbitLookup", { label: "Modelo do veículo", required: true, placeHolder: "Ex.: Fiat Argo", source: "INLINE", inlineOptions: STARTER_VEHICLE_MODELS, fieldKey: "modelo", isSearchable: true, showInList: true })),
-      group(block("TextField", { label: "Cor", placeHolder: "Ex.: Prata Bari", fieldKey: "cor", showInList: true })),
-      group(block("DatePicker", { label: "Data", required: true, useAsReferenceDate: true, fieldKey: "data" })),
-      group(block("NumberMeasure", { label: "Valor do serviço", unitId: "brl", placeHolder: "0,00", fieldKey: "valor_servico", showInList: true })),
-    ],
+    buildBlocks: () => {
+      const laborValue = block("NumberMeasure", { label: "Mão de obra / serviços", unitId: "brl", placeHolder: "0,00" });
+      const partsValue = block("NumberMeasure", { label: "Peças", unitId: "brl", placeHolder: "0,00" });
+      const previousServicesValue = block("NumberMeasure", { label: "Serviços anteriores", unitId: "brl", placeHolder: "0,00" });
+      return [
+        header("Orçamento da ordem de serviço", "Preencha ao receber o veículo. Estes dados são puxados depois pela ficha de consumo."),
+        group(block("AutoNumber", { label: "Nº da O.S.", digits: 5, useAsResponseLabel: true, fieldKey: "os", isSearchable: true, showInList: true })),
+        group(block("TextField", { label: "Cliente", required: true, prefillFromLead: "name", fieldKey: "cliente", isSearchable: true, showInList: true })),
+        group(block("MaskedField", { label: "Fones", placeHolder: "(11) 99999-9999", format: "phone-br", prefillFromLead: "phone", fieldKey: "fones" })),
+        group(block("TextField", { label: "Placa", required: true, placeHolder: "ABC1D23", fieldKey: "placa", isSearchable: true, showInList: true })),
+        group(block("OrbitLookup", { label: "Veículo", required: true, placeHolder: "Ex.: Fiat Argo", helperText: "Escolha na lista ou digite o modelo.", source: "INLINE", inlineOptions: STARTER_VEHICLE_MODELS, fieldKey: "modelo", isSearchable: true, showInList: true })),
+        group(block("TextField", { label: "Marca", placeHolder: "Ex.: Fiat", fieldKey: "marca" })),
+        group(block("TextField", { label: "Ano", placeHolder: "Ex.: 2022/2023", fieldKey: "ano" })),
+        group(block("TextField", { label: "Cor", placeHolder: "Ex.: Prata Bari", fieldKey: "cor", showInList: true })),
+        group(block("TextField", { label: "Nº do chassi", fieldKey: "chassi" })),
+        group(block("TextField", { label: "Quilometragem", placeHolder: "Ex.: 45.300", fieldKey: "quilometragem" })),
+        group(block("DatePicker", { label: "Entrada", required: true, useAsReferenceDate: true, fieldKey: "data" })),
+        group(block("DatePicker", { label: "Entrega prevista", fieldKey: "entrega" })),
+        group(block("ImageUpload", { label: "Fotos do veículo na entrada", multiple: true })),
+        group(block("VehicleDiagram", { label: "Avarias e peças a trabalhar", helperText: "Toque na peça para marcar e escreva o ponto de observação." })),
+        group(block("TextArea", { label: "Serviços a realizar", required: true, placeHolder: "Um serviço por linha", rows: 6 })),
+        group(laborValue),
+        group(partsValue),
+        group(previousServicesValue),
+        group(block("Calculation", { label: "TOTAL", operation: "SUM", sourceBlockIds: [laborValue.id, partsValue.id, previousServicesValue.id], resultUnit: "brl", fieldKey: "valor_servico", showInList: true })),
+        group(block("TextArea", { label: "Condições de pagamento", rows: 2 })),
+        group(
+          block("QrCodeMulti", {
+            helperText: "Aponte a câmera para acompanhar o serviço e ver as fichas deste cliente.",
+            items: [
+              { id: `qr-${uuidv4()}`, title: "Fichas deste cliente", source: "client-records-link" },
+              { id: `qr-${uuidv4()}`, title: "Acompanhamento do cliente", source: "client-link" },
+            ],
+          }),
+        ),
+        group(block("SignatureClient", { label: "Assinatura do cliente" })),
+        group(block("SignatureUser", { label: "Assinatura da empresa" })),
+      ];
+    },
   },
   {
     id: "starter-controle-consumo",
@@ -156,8 +185,8 @@ export const STARTER_FORM_TEMPLATES: StarterFormTemplate[] = [
       group(block("TextField", { label: "Cor", fieldKey: "cor" })),
       group(block("DatePicker", { label: "Data", required: true, useAsReferenceDate: true, fieldKey: "data" })),
       group(block("NumberMeasure", { label: "Valor do serviço", unitId: "brl", placeHolder: "0,00", fieldKey: "valor_servico" })),
-      group(block("ItemList", { label: "Materiais utilizados", helperText: "Informe só a quantidade. Os valores aparecem depois de salvar." })),
-      group(block("ImageMarker", { label: "Peças trabalhadas", helperText: "Toque na imagem para marcar cada peça e escreva o nome dela." })),
+      group(block("ItemList", { label: "Materiais utilizados", twoColumns: true, helperText: "Informe só a quantidade. Os valores aparecem depois de salvar." })),
+      group(block("VehicleDiagram", { label: "Peças trabalhadas", helperText: "Toque em cada peça pintada." })),
       group(block("Checkbox", { label: "Também foram feitos", multiple: true, options: choices(["Rodas", "Frisos", "Peças em preto fosco"]) })),
       group(block("TextArea", { label: "Técnicos por etapa", placeHolder: "Desmontagem: …\nFunilaria: …\nPreparação: …\nPintura: …\nMontagem: …\nPolimento: …", rows: 6 })),
     ],

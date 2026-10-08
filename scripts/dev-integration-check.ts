@@ -64,6 +64,7 @@ async function main() {
   await prisma.form.deleteMany({ where: { id: { in: oldForms.map((form) => form.id) } } });
   await prisma.paymentEntry.deleteMany({ where: { organizationId, OR: [{ documentNumber: { startsWith: "FICHAS-" } }, { description: { contains: FIXTURE_PREFIX } }] } });
   await prisma.lead.deleteMany({ where: { tracking: { organizationId }, name: { startsWith: FIXTURE_PREFIX } } });
+  await prisma.paymentCostCenter.deleteMany({ where: { organizationId, name: { startsWith: FIXTURE_PREFIX } } });
   await prisma.forgeProduct.deleteMany({ where: { organizationId, sku: { startsWith: "QAF-" } } });
   await prisma.action.deleteMany({ where: { organizationId, title: { startsWith: FIXTURE_PREFIX } } });
   await prisma.adminNotification.deleteMany({ where: { organizationId, eventType: "action.assigned" } });
@@ -419,6 +420,177 @@ async function main() {
       "T-29 quem entra numa demanda recebe um aviso; repetir ou adicionar a si mesmo não avisa",
       added.status === 200 && addedAgain.status === 200 && selfAdded.status === 200 && notifications.length === 1 && notifications[0].targetId === qaOrg.sellerUserId && notifications[0].body.includes("Financeiro QA") && Boolean(notifications[0].actionUrl?.includes(plain.id)),
       `${notifications.length} aviso(s): ${notifications[0]?.title} — ${notifications[0]?.body}`,
+    );
+  }
+
+  // ── Spec 0076 — vinculados do lead: ficha, rateio e contas por vinculado ──
+  {
+    const MEMBER_PERIOD = "2026-08";
+    const group = await createLead("Grupo com filiais", `55869${runSuffix}04`);
+    const createMember = (name: string, extra: Record<string, unknown> = {}) =>
+      rpc<{ id?: string }>(seller, "leadMembers/create", { leadId: group.id, name, kind: "Filial", ...extra });
+    const memberOnTitular = await createMember(`${FIXTURE_PREFIX} — Filial Centro`);
+    const memberOwnBilling = await createMember(`${FIXTURE_PREFIX} — Filial Norte`, { billingMode: "PROPRIO", newCostCenterName: `${FIXTURE_PREFIX} — CC Filial Norte` });
+    const nested = await createMember("Oficina da Filial Norte", { parentMemberId: memberOwnBilling.data.id });
+    const cycle = await rpc(seller, "leadMembers/update", { id: memberOwnBilling.data.id, parentMemberId: nested.data.id });
+    check(
+      "T-30 vinculados são criados em níveis e ciclo é recusado (CA-13)",
+      memberOnTitular.status === 200 && memberOwnBilling.status === 200 && nested.status === 200 && cycle.status === 400,
+      `status ${memberOnTitular.status}/${memberOwnBilling.status}/${nested.status}, ciclo ${cycle.status}`,
+    );
+
+    const fillFor = (leadId: string, leadMemberId: string | null, os: string, day: string) =>
+      rpc<{ response?: { id: string } }>(seller, "form/createResponseForLead", {
+        formId: usageForm.id,
+        leadId,
+        leadMemberId,
+        isFinal: true,
+        response: usagePayload(os, `MB${os}`, `${MEMBER_PERIOD}-${day}`, { lixa: 1 }, null),
+      });
+    const foreignMember = await fillFor(clientA.id, memberOnTitular.data.id ?? "", "0900", "02");
+    const recordsBefore = await prisma.formRecord.count({ where: { formId: usageForm.id, periodKey: MEMBER_PERIOD } });
+    check("T-31 vinculado de outro lead é recusado e nada é gravado (CA-3)", foreignMember.status === 404 && recordsBefore === 0, `status ${foreignMember.status}, ${recordsBefore} ficha(s)`);
+
+    const fills = await Promise.all([
+      fillFor(group.id, memberOnTitular.data.id ?? null, "0901", "03"),
+      fillFor(group.id, memberOnTitular.data.id ?? null, "0902", "04"),
+      fillFor(group.id, memberOnTitular.data.id ?? null, "0903", "05"),
+      fillFor(group.id, memberOwnBilling.data.id ?? null, "0904", "06"),
+      fillFor(clientA.id, null, "0905", "07"),
+      fillFor(clientA.id, null, "0906", "08"),
+    ]);
+    const memberList = await rpc<{ total: number; records: { leadMemberName: string | null }[] }>(seller, "formRecords/records/list", {
+      formId: usageForm.id,
+      periodKey: MEMBER_PERIOD,
+      leadMemberId: memberOwnBilling.data.id,
+    });
+    check(
+      "T-32 ficha fica com o vinculado e o filtro separa (CA-2)",
+      fills.every((fill) => fill.status === 200) && memberList.data.total === 1 && memberList.data.records?.[0]?.leadMemberName === `${FIXTURE_PREFIX} — Filial Norte`,
+      `status ${fills.map((fill) => fill.status).join("/")}, filtro ${memberList.data.total}`,
+    );
+
+    const memberPeriod = { formId: usageForm.id, periodKey: MEMBER_PERIOD };
+    await rpc(seller, "formRecords/closings/saveSharedCosts", {
+      ...memberPeriod,
+      groups: [{ id: "insumos", name: "Insumos", lines: [{ id: "m1", description: "Insumos de agosto", quantity: 1, unit: "un", totalCents: 60_000, date: null }] }],
+    });
+    interface MemberClosingView {
+      totalCents: number;
+      lines: { leadId: string; leadMemberId: string; leadMemberName: string | null; billingMode: string; recordCount: number; sharedCostCents: number; totalCents: number }[];
+    }
+    const memberPreview = await rpc<MemberClosingView>(seller, "formRecords/closings/get", memberPeriod);
+    const shareOf = (leadId: string, leadMemberId: string) =>
+      memberPreview.data.lines?.find((line) => line.leadId === leadId && line.leadMemberId === leadMemberId)?.sharedCostCents;
+    const sharesSum = (memberPreview.data.lines ?? []).reduce((total, line) => total + line.sharedCostCents, 0);
+    check(
+      "T-33 rateio por vinculado: 3/6, 1/6 e 2/6, somando o total (CA-4)",
+      shareOf(group.id, memberOnTitular.data.id ?? "") === 30_000 && shareOf(group.id, memberOwnBilling.data.id ?? "") === 10_000 && shareOf(clientA.id, "") === 20_000 && sharesSum === 60_000,
+      `${shareOf(group.id, memberOnTitular.data.id ?? "")}/${shareOf(group.id, memberOwnBilling.data.id ?? "")}/${shareOf(clientA.id, "")}, soma ${sharesSum}`,
+    );
+
+    const memberClose = await rpc(seller, "formRecords/closings/close", memberPeriod);
+    const memberGenerated = await rpc<{ createdCount: number; failedCount: number }>(finance, "formRecords/closings/generateReceivables", memberPeriod);
+    const memberGeneratedAgain = await rpc<{ createdCount: number }>(finance, "formRecords/closings/generateReceivables", memberPeriod);
+    const memberEntries = await prisma.paymentEntry.findMany({
+      where: { organizationId, documentNumber: `FICHAS-${MEMBER_PERIOD}` },
+      select: { leadId: true, amount: true, description: true, costCenter: { select: { name: true } } },
+    });
+    const ownEntry = memberEntries.find((entry) => entry.description.includes("Filial Norte"));
+    const titularEntry = memberEntries.find((entry) => entry.leadId === group.id && !entry.description.includes("Filial Norte"));
+    check(
+      "T-34 uma conta por titular e uma por vinculado de cobrança própria, sem duplicar (CA-5)",
+      memberClose.status === 200 && memberGenerated.data.createdCount === 3 && memberGenerated.data.failedCount === 0 && memberGeneratedAgain.data.createdCount === 0 && memberEntries.length === 3 && Number(titularEntry?.amount) === 3 * 330 + 30_000 && Number(ownEntry?.amount) === 330 + 10_000,
+      `fechar ${memberClose.status} ${memberClose.message}; criadas ${memberGenerated.data.createdCount}+${memberGeneratedAgain.data.createdCount}; ${memberEntries.length} conta(s): ${memberEntries.map((entry) => `${entry.description}=${entry.amount}`).join(" | ")}`,
+    );
+    check(
+      "T-35 conta do vinculado de cobrança própria sai com o centro de custo dele (CA-6)",
+      ownEntry?.costCenter?.name === `${FIXTURE_PREFIX} — CC Filial Norte` && !titularEntry?.costCenter,
+      `centro de custo: ${ownEntry?.costCenter?.name ?? "nenhum"}`,
+    );
+
+    // ── Fase 5 — promover vinculado a lead e juntar lead como vinculado ──────
+    const OPEN_PERIOD = "2026-07";
+    const openFills = await Promise.all([
+      rpc(seller, "form/createResponseForLead", { formId: usageForm.id, leadId: group.id, leadMemberId: memberOnTitular.data.id, isFinal: true, response: usagePayload("0951", "PR0951", `${OPEN_PERIOD}-03`, { lixa: 1 }, null) }),
+      rpc(seller, "form/createResponseForLead", { formId: usageForm.id, leadId: group.id, leadMemberId: memberOnTitular.data.id, isFinal: true, response: usagePayload("0952", "PR0952", `${OPEN_PERIOD}-04`, { lixa: 1 }, null) }),
+    ]);
+    const promoteWithoutPhone = await rpc(seller, "leadMembers/promote", { id: memberOnTitular.data.id });
+    const clientBPhone = (await prisma.lead.findUniqueOrThrow({ where: { id: clientB.id }, select: { phone: true } })).phone;
+    await rpc(seller, "leadMembers/update", { id: memberOnTitular.data.id, phone: clientBPhone });
+    const promoteDuplicatePhone = await rpc(seller, "leadMembers/promote", { id: memberOnTitular.data.id });
+    check(
+      "T-36 promover sem telefone, ou com telefone que já existe no tracking, é recusado (CA-9)",
+      openFills.every((fill) => fill.status === 200) && promoteWithoutPhone.status === 400 && promoteDuplicatePhone.status === 400,
+      `sem telefone ${promoteWithoutPhone.status}: ${promoteWithoutPhone.message} | repetido ${promoteDuplicatePhone.status}: ${promoteDuplicatePhone.message}`,
+    );
+
+    const promotedPhone = `55869${runSuffix}05`;
+    await rpc(seller, "leadMembers/update", { id: memberOnTitular.data.id, phone: promotedPhone, email: "filial.centro@astro-qa.invalid", document: "00.000.000/0001-00", notes: "Filial do centro" });
+    const promoted = await rpc<{ leadId?: string }>(seller, "leadMembers/promote", { id: memberOnTitular.data.id });
+    const promotedLeadId = promoted.data.leadId ?? "";
+    const [promotedRecords, stayedRecords, promotedMember, fillAfterPromotion] = await Promise.all([
+      prisma.formRecord.count({ where: { leadId: promotedLeadId, leadMemberId: null } }),
+      prisma.formRecord.count({ where: { leadId: group.id, leadMemberId: memberOnTitular.data.id, closingId: { not: null } } }),
+      prisma.leadMember.findUnique({ where: { id: memberOnTitular.data.id ?? "" }, select: { promotedLeadId: true } }),
+      rpc(seller, "form/createResponseForLead", { formId: usageForm.id, leadId: group.id, leadMemberId: memberOnTitular.data.id, isFinal: true, response: usagePayload("0953", "PR0953", `${OPEN_PERIOD}-05`, { lixa: 1 }, null) }),
+    ]);
+    check(
+      "T-37 promovido leva as 2 fichas abertas; as 3 de período fechado ficam; não aceita ficha nova (CA-8)",
+      promoted.status === 200 && promotedRecords === 2 && stayedRecords === 3 && promotedMember?.promotedLeadId === promotedLeadId && fillAfterPromotion.status === 404,
+      `status ${promoted.status} ${promoted.message}; ${promotedRecords} foram, ${stayedRecords} ficaram; ficha nova ${fillAfterPromotion.status}`,
+    );
+
+    const manual = await rpc<{ lead?: { id: string } }>(seller, "leads/create", {
+      name: `${FIXTURE_PREFIX} — Lead criado à mão`,
+      phone: `55869${runSuffix}06`,
+      email: "manual@astro-qa.invalid",
+      description: "Criado à mão",
+      statusId,
+      trackingId: tracking.id,
+    });
+    const manualLeadId = manual.data.lead?.id ?? "";
+    const [promotedRow, manualRow, groupRow] = await Promise.all([
+      prisma.lead.findUnique({ where: { id: promotedLeadId } }),
+      prisma.lead.findUnique({ where: { id: manualLeadId } }),
+      prisma.lead.findUnique({ where: { id: group.id }, select: { trackingId: true, statusId: true, responsibleId: true } }),
+    ]);
+    // Colunas que a promoção preenche a mais de propósito: a origem e o documento vindo do vinculado.
+    const EXPECTED_EXTRA_COLUMNS = new Set(["originLeadId", "document"]);
+    const filledColumns = (row: Record<string, unknown> | null) => new Set(Object.entries(row ?? {}).filter(([, value]) => value !== null).map(([column]) => column));
+    const promotedColumns = filledColumns(promotedRow);
+    const manualColumns = filledColumns(manualRow);
+    const missingInPromoted = [...manualColumns].filter((column) => !promotedColumns.has(column));
+    const extraInPromoted = [...promotedColumns].filter((column) => !manualColumns.has(column) && !EXPECTED_EXTRA_COLUMNS.has(column));
+    const effectsOf = async (leadId: string) => {
+      const [history, journey, activity] = await Promise.all([
+        prisma.leadHistory.findMany({ where: { leadId }, select: { action: true } }),
+        prisma.leadJourneyEvent.findMany({ where: { leadId }, select: { kind: true } }),
+        prisma.systemActivityLog.count({ where: { resourceId: leadId, action: "lead_create" } }),
+      ]);
+      return `${history.map((entry) => entry.action).join(",")}|${journey.map((event) => event.kind).sort().join(",")}|${activity}`;
+    };
+    const [promotedEffects, manualEffects] = await Promise.all([effectsOf(promotedLeadId), effectsOf(manualLeadId)]);
+    const isLastInColumn = promotedRow !== null && manualRow !== null && Number(manualRow.order) === Number(promotedRow.order) + 1;
+    check(
+      "T-38 lead promovido tem as mesmas colunas e os mesmos registros de um lead criado à mão (CA-12)",
+      manual.status === 200 && missingInPromoted.length === 0 && extraInPromoted.length === 0 && promotedEffects === manualEffects && promotedRow?.trackingId === groupRow?.trackingId && promotedRow?.statusId === groupRow?.statusId && promotedRow?.responsibleId === groupRow?.responsibleId && promotedRow?.originLeadId === group.id && isLastInColumn,
+      `faltando ${JSON.stringify(missingInPromoted)}, sobrando ${JSON.stringify(extraInPromoted)}; registros ${promotedEffects} x ${manualEffects}; fim da coluna ${isLastInColumn}`,
+    );
+
+    const mergeBilled = await rpc(seller, "leadMembers/mergeLead", { titularLeadId: group.id, sourceLeadId: clientB.id });
+    const clientBStillLead = await prisma.lead.findUnique({ where: { id: clientB.id }, select: { isArchived: true } });
+    const standalone = await createLead("Filial avulsa", `55869${runSuffix}07`);
+    await rpc(seller, "form/createResponseForLead", { formId: usageForm.id, leadId: standalone.id, isFinal: true, response: usagePayload("0961", "PR0961", `${OPEN_PERIOD}-06`, { lixa: 1 }, null) });
+    const merged = await rpc<{ memberId?: string }>(seller, "leadMembers/mergeLead", { titularLeadId: group.id, sourceLeadId: standalone.id });
+    const [mergedRecords, standaloneAfter] = await Promise.all([
+      prisma.formRecord.count({ where: { leadId: group.id, leadMemberId: merged.data.memberId ?? "x" } }),
+      prisma.lead.findUnique({ where: { id: standalone.id }, select: { isArchived: true } }),
+    ]);
+    check(
+      "T-39 juntar lead com conta gerada é recusado; lead sem conta vira vinculado e leva a ficha (CA-10)",
+      mergeBilled.status === 400 && clientBStillLead?.isArchived === false && merged.status === 200 && mergedRecords === 1 && standaloneAfter?.isArchived === true,
+      `com conta ${mergeBilled.status}: ${mergeBilled.message} | sem conta ${merged.status} ${merged.message}, ${mergedRecords} ficha(s)`,
     );
   }
 

@@ -12,6 +12,7 @@ import {
   resolveEditPolicy,
   EDIT_BLOCKED_MESSAGE,
 } from "@/features/form/lib/can-edit-response";
+import { applyAutoNumbers } from "@/features/form-records/lib/auto-number";
 import { prepareRecordResponse } from "@/features/form-records/server/prepare-record-response";
 import {
   RECORD_LOCKED_MESSAGE,
@@ -121,10 +122,15 @@ export const updateResponse = base
       }
 
       // Preço das listas de itens e campos de cálculo saem do servidor (spec 0075).
-      const response = await prepareRecordResponse({
+      const pricedResponse = await prepareRecordResponse({
         organizationId: existing.form.organizationId,
         jsonBlock: existing.form.jsonBlock,
         response: input.response,
+        previousResponse: existing.jsonResponse,
+      });
+      const response = applyAutoNumbers({
+        jsonBlock: existing.form.jsonBlock,
+        response: pricedResponse,
         previousResponse: existing.jsonResponse,
       });
 

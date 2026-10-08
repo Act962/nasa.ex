@@ -4,6 +4,7 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { normalizeSearchText } from "@/features/form-records/lib/record-fields";
+import { summarizeRecords, toDateRangeBounds } from "@/features/form-records/lib/records-summary";
 import { flattenBlocks } from "@/features/form-records/lib/response-values";
 
 // Lista de fichas de um formulário (spec 0075, RF-9): colunas vindas dos campos
@@ -11,6 +12,9 @@ import { flattenBlocks } from "@/features/form-records/lib/response-values";
 
 const PAGE_SIZE = 50;
 const PERIOD_KEY = /^\d{4}-\d{2}$/;
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+// O painel soma no máximo este número de fichas do filtro; acima disso avisa que é parcial.
+const SUMMARY_RECORD_LIMIT = 5000;
 
 function readListColumns(jsonBlock: unknown): { key: string; label: string }[] {
   const columns: { key: string; label: string }[] = [];
@@ -44,7 +48,11 @@ export const listFormRecords = base
     z.object({
       formId: z.string(),
       periodKey: z.string().regex(PERIOD_KEY).optional(),
+      /** Intervalo de dias de Brasília, os dois inclusivos. */
+      dateFrom: z.string().regex(DATE_ONLY).optional(),
+      dateTo: z.string().regex(DATE_ONLY).optional(),
       leadId: z.string().optional(),
+      leadMemberId: z.string().optional(),
       search: z.string().trim().max(80).optional(),
       page: z.coerce.number().int().positive().default(1),
     }),
@@ -60,6 +68,8 @@ export const listFormRecords = base
           label: z.string().nullable(),
           leadId: z.string().nullable(),
           leadName: z.string().nullable(),
+          /** Vinculado do lead a quem a ficha se refere (spec 0076). */
+          leadMemberName: z.string().nullable(),
           referenceDate: z.string(),
           usageTotalCents: z.number(),
           isFinalized: z.boolean(),
@@ -74,6 +84,24 @@ export const listFormRecords = base
       periodKeys: z.array(z.string()),
       /** Clientes que têm ficha neste formulário, para o filtro. */
       clients: z.array(z.object({ id: z.string(), name: z.string() })),
+      /** Vinculados que têm ficha neste formulário, para a coluna e o filtro. */
+      members: z.array(z.object({ id: z.string(), name: z.string(), leadId: z.string() })),
+      /** Painel do filtro atual. */
+      summary: z.object({
+        recordCount: z.number(),
+        usageCents: z.number(),
+        averageUsageCents: z.number(),
+        clientCount: z.number(),
+        draftCount: z.number(),
+        sentCount: z.number(),
+        closedCount: z.number(),
+        granularity: z.enum(["day", "month"]),
+        buckets: z.array(z.object({ key: z.string(), recordCount: z.number(), usageCents: z.number() })),
+        topClients: z.array(z.object({ id: z.string(), name: z.string(), recordCount: z.number(), usageCents: z.number() })),
+        topMembers: z.array(z.object({ id: z.string(), name: z.string(), recordCount: z.number(), usageCents: z.number() })),
+        topItems: z.array(z.object({ name: z.string(), unit: z.string(), quantity: z.number(), totalCents: z.number() })),
+        isPartial: z.boolean(),
+      }),
     }),
   )
   .handler(async ({ input, context, errors }) => {
@@ -85,14 +113,17 @@ export const listFormRecords = base
     if (!form) throw errors.NOT_FOUND({ message: "Formulário não encontrado" });
 
     const scope = { organizationId, formId: form.id };
+    const dateBounds = toDateRangeBounds(input.dateFrom, input.dateTo);
     const where = {
       ...scope,
       ...(input.periodKey ? { periodKey: input.periodKey } : {}),
+      ...(dateBounds.gte || dateBounds.lt ? { referenceDate: dateBounds } : {}),
       ...(input.leadId ? { leadId: input.leadId } : {}),
+      ...(input.leadMemberId ? { leadMemberId: input.leadMemberId } : {}),
       ...(input.search ? { searchText: { contains: normalizeSearchText(input.search) } } : {}),
     };
 
-    const [records, total, usageSum, periodGroups, leadGroups] = await Promise.all([
+    const [records, total, usageSum, periodGroups, leadGroups, memberGroups, summaryRecords] = await Promise.all([
       prisma.formRecord.findMany({
         where,
         orderBy: [{ referenceDate: "desc" }, { createdAt: "desc" }],
@@ -103,6 +134,7 @@ export const listFormRecords = base
           responseId: true,
           label: true,
           leadId: true,
+          leadMemberId: true,
           referenceDate: true,
           usageTotalCents: true,
           finalizedAt: true,
@@ -114,6 +146,21 @@ export const listFormRecords = base
       prisma.formRecord.aggregate({ where, _sum: { usageTotalCents: true } }),
       prisma.formRecord.groupBy({ by: ["periodKey"], where: scope, orderBy: { periodKey: "desc" } }),
       prisma.formRecord.groupBy({ by: ["leadId"], where: scope }),
+      prisma.formRecord.groupBy({ by: ["leadMemberId"], where: { ...scope, leadMemberId: { not: null } } }),
+      prisma.formRecord.findMany({
+        where,
+        orderBy: [{ referenceDate: "desc" }, { createdAt: "desc" }],
+        take: SUMMARY_RECORD_LIMIT,
+        select: {
+          referenceDate: true,
+          leadId: true,
+          leadMemberId: true,
+          usageTotalCents: true,
+          finalizedAt: true,
+          usageItems: true,
+          closing: { select: { status: true } },
+        },
+      }),
     ]);
 
     const leadIds = leadGroups.map((group) => group.leadId).filter((leadId): leadId is string => leadId !== null);
@@ -127,6 +174,17 @@ export const listFormRecords = base
         : [];
     const leadNameById = new Map(leads.map((lead) => [lead.id, lead.name]));
 
+    const memberIds = memberGroups.map((group) => group.leadMemberId).filter((memberId): memberId is string => memberId !== null);
+    const members =
+      memberIds.length > 0
+        ? await prisma.leadMember.findMany({
+            where: { id: { in: memberIds }, organizationId },
+            select: { id: true, name: true, leadId: true },
+            orderBy: { name: "asc" },
+          })
+        : [];
+    const memberNameById = new Map(members.map((member) => [member.id, member.name]));
+
     return {
       formName: form.name,
       columns: readListColumns(form.jsonBlock),
@@ -136,6 +194,7 @@ export const listFormRecords = base
         label: record.label,
         leadId: record.leadId,
         leadName: record.leadId ? (leadNameById.get(record.leadId) ?? null) : null,
+        leadMemberName: record.leadMemberId ? (memberNameById.get(record.leadMemberId) ?? null) : null,
         referenceDate: record.referenceDate.toISOString(),
         usageTotalCents: record.usageTotalCents,
         isFinalized: record.finalizedAt !== null,
@@ -147,5 +206,22 @@ export const listFormRecords = base
       pageSize: PAGE_SIZE,
       periodKeys: periodGroups.map((group) => group.periodKey),
       clients: leads,
+      members,
+      summary: {
+        ...summarizeRecords({
+          records: summaryRecords.map((record) => ({
+            referenceDate: record.referenceDate,
+            leadId: record.leadId,
+            leadMemberId: record.leadMemberId,
+            usageTotalCents: record.usageTotalCents,
+            isFinalized: record.finalizedAt !== null,
+            isClosed: record.closing?.status === "CLOSED",
+            usageItems: record.usageItems,
+          })),
+          leadNameById,
+          memberNameById,
+        }),
+        isPartial: total > summaryRecords.length,
+      },
     };
   });

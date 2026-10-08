@@ -44,6 +44,8 @@ function checkBlock(block: FormBlockInstance): string | null {
     case "NumberMeasure":
     case "Calculation":
     case "OrbitLookup":
+    case "VehicleDiagram":
+    case "AutoNumber":
     case "MaskedField":
     case "FileUpload":
     case "ImageUpload":

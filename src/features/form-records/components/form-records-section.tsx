@@ -11,7 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQueryFormResponseById } from "@/features/form/hooks/use-form";
 import { buildResponseSlug } from "@/features/form/lib/response-slug";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { useFormRecords } from "@/features/form-records/hooks/use-form-records";
+import { ALL_TIME_RANGE, DateRangeFilter, type DateRangeValue } from "./date-range-filter";
+import { FormRecordsDashboard } from "./form-records-dashboard";
 import { formatCents } from "@/features/form-records/lib/measure-units";
 import { FormRecordQuickView, parseFormBlocks, parseResponseValues } from "./form-record-quick-view";
 
@@ -80,8 +83,9 @@ function InternalQuickView({
  * formulário que não usa os recursos de ficha.
  */
 export function FormRecordsSection({ formId }: { formId: string }) {
-  const [periodKey, setPeriodKey] = useState<string | undefined>();
+  const [dateRange, setDateRange] = useState<DateRangeValue>(ALL_TIME_RANGE);
   const [leadId, setLeadId] = useState<string | undefined>();
+  const [leadMemberId, setLeadMemberId] = useState<string | undefined>();
   const [searchText, setSearchText] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -95,15 +99,18 @@ export function FormRecordsSection({ formId }: { formId: string }) {
     return () => clearTimeout(timer);
   }, [searchText]);
 
-  const { data, isLoading, isError } = useFormRecords({ formId, periodKey, leadId, search: search || undefined, page });
+  const { data, isLoading, isError } = useFormRecords({ formId, dateFrom: dateRange.dateFrom, dateTo: dateRange.dateTo, leadId, leadMemberId, search: search || undefined, page });
 
-  const hasFilter = Boolean(periodKey || leadId || search);
+  const hasFilter = Boolean(dateRange.dateFrom || dateRange.dateTo || leadId || leadMemberId || search);
   // Formulário sem fichas e sem colunas configuradas segue só com a tela de respostas de sempre.
   if (isError || (!isLoading && data && data.total === 0 && !hasFilter && data.columns.length === 0)) return null;
   if (isLoading && !data) return null;
   if (!data) return null;
 
   const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+  const hasMembers = data.members.length > 0;
+  // Com um cliente escolhido, o filtro mostra só os vinculados dele.
+  const memberOptions = leadId ? data.members.filter((member) => member.leadId === leadId) : data.members;
 
   return (
     <section className="space-y-3 py-5" aria-label="Fichas">
@@ -115,7 +122,7 @@ export function FormRecordsSection({ formId }: { formId: string }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" data-guide={GUIDE_ANCHORS.formRecordsClosingButton.id}>
             <Link href={`/form/responses/${formId}/fechamento`}>
               <Calculator className="size-4" />
               Fechamento por cliente
@@ -131,29 +138,18 @@ export function FormRecordsSection({ formId }: { formId: string }) {
               className="w-44 pl-9"
             />
           </div>
-          <Select
-            value={periodKey ?? ALL_FILTER}
-            onValueChange={(value) => {
-              setPeriodKey(value === ALL_FILTER ? undefined : value);
+          <DateRangeFilter
+            value={dateRange}
+            onChange={(nextRange) => {
+              setDateRange(nextRange);
               setPage(1);
             }}
-          >
-            <SelectTrigger className="w-44" aria-label="Período">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_FILTER}>Todos os períodos</SelectItem>
-              {data.periodKeys.map((key) => (
-                <SelectItem key={key} value={key}>
-                  {formatPeriodKey(key)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
           <Select
             value={leadId ?? ALL_FILTER}
             onValueChange={(value) => {
               setLeadId(value === ALL_FILTER ? undefined : value);
+              setLeadMemberId(undefined);
               setPage(1);
             }}
           >
@@ -169,8 +165,31 @@ export function FormRecordsSection({ formId }: { formId: string }) {
               ))}
             </SelectContent>
           </Select>
+          {hasMembers && (
+            <Select
+              value={leadMemberId ?? ALL_FILTER}
+              onValueChange={(value) => {
+                setLeadMemberId(value === ALL_FILTER ? undefined : value);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-44" aria-label="Vinculado">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_FILTER}>Todos os vinculados</SelectItem>
+                {memberOptions.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
+
+      <FormRecordsDashboard summary={data.summary} />
 
       <div className="overflow-x-auto rounded-md border">
         <Table>
@@ -178,6 +197,7 @@ export function FormRecordsSection({ formId }: { formId: string }) {
             <TableRow className="hover:bg-transparent">
               <TableHead>Data</TableHead>
               <TableHead>Cliente</TableHead>
+              {hasMembers && <TableHead>Vinculado</TableHead>}
               {data.columns.map((column) => (
                 <TableHead key={column.key}>{column.label}</TableHead>
               ))}
@@ -188,7 +208,7 @@ export function FormRecordsSection({ formId }: { formId: string }) {
           <TableBody>
             {data.records.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={data.columns.length + 4} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={data.columns.length + (hasMembers ? 5 : 4)} className="h-24 text-center text-muted-foreground">
                   {hasFilter ? "Nenhuma ficha com esse filtro." : "Nenhuma ficha ainda."}
                 </TableCell>
               </TableRow>
@@ -210,6 +230,7 @@ export function FormRecordsSection({ formId }: { formId: string }) {
                 >
                   <TableCell className="whitespace-nowrap">{formatRecordDate(record.referenceDate)}</TableCell>
                   <TableCell>{record.leadName ?? "Sem cliente"}</TableCell>
+                  {hasMembers && <TableCell>{record.leadMemberName ?? "—"}</TableCell>}
                   {data.columns.map((column) => (
                     <TableCell key={column.key}>{record.values[column.key] || "—"}</TableCell>
                   ))}

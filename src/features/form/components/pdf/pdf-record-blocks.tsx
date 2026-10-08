@@ -1,11 +1,12 @@
-import { Image, Text, View } from "@react-pdf/renderer";
+import { Image, Polygon, Svg, Text, View } from "@react-pdf/renderer";
 import type { FormBlockInstance } from "@/features/form/types";
 import { parseImageMarkers } from "@/features/form-records/lib/image-markers-value";
 import { parseItemListMeta, readConfigItems } from "@/features/form-records/lib/item-list-value";
 import { findMeasureUnit, formatCents } from "@/features/form-records/lib/measure-units";
+import { buildVehicleDiagram, parseVehicleDiagramMeta } from "@/features/form-records/lib/vehicle-diagrams";
 import { constructUrl, renderFieldLabel, renderHelperText, type PdfResponseValues } from "./pdf-field-helpers";
 
-// PDF dos blocos de ficha (spec 0075): lista de itens e marcações na imagem.
+// PDF dos blocos de ficha (spec 0075): lista de itens, marcações na imagem e diagrama do veículo.
 
 const CELL_TEXT = { fontSize: 8.5, color: "#374151" } as const;
 const HEADER_TEXT = { ...CELL_TEXT, fontFamily: "Helvetica-Bold" } as const;
@@ -103,6 +104,42 @@ export function renderImageMarkerBlock(block: FormBlockInstance, responseValues?
       {markers.map((marker, index) => (
         <Text key={marker.id} style={{ ...CELL_TEXT, marginTop: 2 }}>
           {index + 1}. {marker.note || "Marcação sem legenda"}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
+export function renderVehicleDiagramBlock(block: FormBlockInstance, responseValues?: PdfResponseValues) {
+  const attributes = (block.attributes ?? {}) as Record<string, unknown>;
+  const saved = parseVehicleDiagramMeta(responseValues?.[block.id]?.meta);
+  const diagram = buildVehicleDiagram();
+  const selectedPartIds = new Set((saved?.parts ?? []).map((part) => part.partId));
+  const diagramHeight = (PAGE_CONTENT_WIDTH * diagram.height) / diagram.width;
+
+  return (
+    <View>
+      {renderFieldLabel(attributes.label as string, attributes.required as boolean)}
+      <View wrap={false} style={{ position: "relative", width: PAGE_CONTENT_WIDTH, height: diagramHeight, marginTop: 4 }}>
+        {/* eslint-disable-next-line jsx-a11y/alt-text -- Image do react-pdf não tem alt */}
+        <Image src={constructUrl(diagram.imageUrl)} style={{ width: PAGE_CONTENT_WIDTH, height: diagramHeight }} />
+        <Svg
+          viewBox={`0 0 ${diagram.width} ${diagram.height}`}
+          style={{ position: "absolute", left: 0, top: 0, width: PAGE_CONTENT_WIDTH, height: diagramHeight }}
+        >
+          {diagram.parts
+            .filter((part) => selectedPartIds.has(part.id))
+            .flatMap((part) =>
+              part.polygons.map((polygon) => (
+                <Polygon key={`${part.id}-${polygon}`} points={polygon} fill="#ef4444" fillOpacity={0.55} stroke="#b91c1c" strokeWidth={1.5} />
+              )),
+            )}
+        </Svg>
+      </View>
+      {(saved?.parts ?? []).map((part, index) => (
+        <Text key={part.partId} style={{ ...CELL_TEXT, marginTop: 2 }}>
+          {index + 1}. {part.label}
+          {part.note ? ` — ${part.note}` : ""}
         </Text>
       ))}
     </View>

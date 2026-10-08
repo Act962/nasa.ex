@@ -52,7 +52,9 @@ export type FormBlockType =
   | "ItemList"
   | "Calculation"
   | "ImageMarker"
-  | "OrbitLookup";
+  | "OrbitLookup"
+  | "VehicleDiagram"
+  | "AutoNumber";
 
 export type HandleBlurFuncWithTagId = (
   key: string,

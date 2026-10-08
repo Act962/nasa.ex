@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, ExternalLink, FileText, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Spinner } from "@/components/ui/spinner";
 import { useClientRecordResponse, useClientRecords } from "@/features/form-records/hooks/use-client-records";
 import { formatCents } from "@/features/form-records/lib/measure-units";
+import { ClientMemberOrgChart } from "@/features/lead-members/components/client-member-org-chart";
 import { FormRecordQuickView, parseFormBlocks, parseResponseValues } from "./form-record-quick-view";
 import { formatPeriodKey } from "./form-records-section";
 
@@ -41,7 +43,9 @@ function ClientQuickView({ token, responseId, onClose }: { token: string; respon
 export function ClientRecordsPage({ token }: { token: string }) {
   const [periodKey, setPeriodKey] = useState<string | undefined>();
   const [openResponseId, setOpenResponseId] = useState<string | null>(null);
-  const { data, isLoading, isError } = useClientRecords({ token, periodKey });
+  // O organograma leva a `?vinculado=<id>`, que filtra as fichas de um vinculado.
+  const memberId = useSearchParams().get("vinculado") ?? undefined;
+  const { data, isLoading, isError } = useClientRecords({ token, periodKey, memberId });
 
   if (isLoading && !data) {
     return (
@@ -90,6 +94,14 @@ export function ClientRecordsPage({ token }: { token: string }) {
           </div>
         </header>
 
+        <ClientMemberOrgChart
+          token={token}
+          clientName={data.clientName}
+          rootSubtitle="Todas as fichas"
+          members={data.members}
+          selectedMemberId={data.selectedMemberId}
+        />
+
         {data.records.length === 0 ? (
           <p className="rounded-md border p-6 text-sm text-muted-foreground">Nenhuma ficha por enquanto.</p>
         ) : (
@@ -100,9 +112,10 @@ export function ClientRecordsPage({ token }: { token: string }) {
                 {data.hasOpenPeriod && <Badge variant="outline">Prévia</Badge>}
               </div>
               {data.closedSummaries.map((summary) => (
-                <dl key={summary.formName} className="space-y-1 text-sm">
+                <dl key={`${summary.formName}|${summary.leadMemberName ?? ""}`} className="space-y-1 text-sm">
                   <div className="flex justify-between gap-3">
                     <dt className="text-muted-foreground">
+                      {summary.leadMemberName ? `${summary.leadMemberName} · ` : ""}
                       {summary.formName} · {summary.recordCount} {summary.recordCount === 1 ? "ficha" : "fichas"} · itens
                     </dt>
                     <dd className="tabular-nums">{formatCents(summary.usageCents)}</dd>
@@ -151,6 +164,7 @@ export function ClientRecordsPage({ token }: { token: string }) {
                       <p className="break-words text-xs text-muted-foreground">
                         {[
                           new Date(record.referenceDate).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+                          ...(record.leadMemberName ? [record.leadMemberName] : []),
                           ...record.fields.map((field) => `${field.label}: ${field.value}`),
                         ].join(" · ")}
                       </p>
@@ -174,7 +188,19 @@ export function ClientRecordsPage({ token }: { token: string }) {
 /** Atalho na página do lead: só aparece quando o cliente tem alguma ficha. */
 export function ClientRecordsCard({ token }: { token: string }) {
   const { data } = useClientRecords({ token });
-  if (!data || data.periodKeys.length === 0) return null;
+  if (!data || (data.periodKeys.length === 0 && data.members.length === 0)) return null;
+  if (data.periodKeys.length === 0) {
+    return <ClientMemberOrgChart token={token} clientName={data.clientName} rootSubtitle="Todas as fichas" members={data.members} selectedMemberId={null} />;
+  }
+  return (
+    <div className="space-y-3">
+      <ClientMemberOrgChart token={token} clientName={data.clientName} rootSubtitle="Todas as fichas" members={data.members} selectedMemberId={null} />
+      <ClientRecordsLink token={token} />
+    </div>
+  );
+}
+
+function ClientRecordsLink({ token }: { token: string }) {
   return (
     <Link href={`/lead/${token}/fichas`} className="flex items-center justify-between gap-3 rounded-md border p-4 hover:bg-accent">
       <span className="flex items-center gap-2 text-sm font-medium">

@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 
 /** Fichas do cliente pelo link público (sem login). */
-export function useClientRecords(params: { token: string; periodKey?: string }) {
+export function useClientRecords(params: { token: string; periodKey?: string; memberId?: string }) {
   return useQuery({
-    ...orpc.formRecords.public.list.queryOptions({ input: { token: params.token, periodKey: params.periodKey } }),
+    ...orpc.formRecords.public.list.queryOptions({ input: { token: params.token, periodKey: params.periodKey, memberId: params.memberId } }),
     retry: false,
   });
 }

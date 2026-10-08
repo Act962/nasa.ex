@@ -34,6 +34,8 @@ type AttributesType = {
   helperText: string;
   required: boolean;
   items: ItemListConfigItem[];
+  /** Mostra os itens lado a lado em telas largas; no celular segue uma coluna. */
+  twoColumns?: boolean;
 };
 
 type Instance = FormBlockInstance & { attributes: AttributesType };
@@ -108,7 +110,7 @@ function FormView({
   isError?: boolean;
 }) {
   const block = blockInstance as Instance;
-  const { label, required, helperText } = block.attributes;
+  const { label, required, helperText, twoColumns } = block.attributes;
   const items = readItems(blockInstance);
 
   const savedMeta = parseItemListMeta(usePrefillFieldValue(block.id)?.meta);
@@ -158,7 +160,9 @@ function FormView({
       {items.length === 0 ? (
         <p className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">Este campo ainda não tem itens.</p>
       ) : (
-        <ul className={`divide-y rounded-md border ${isSubmitError ? "border-destructive" : ""}`}>
+        <ul
+          className={`rounded-md border ${twoColumns ? "grid sm:grid-cols-2 [&>li]:border-b sm:[&>li:nth-child(odd)]:border-r" : "divide-y"} ${isSubmitError ? "border-destructive" : ""}`}
+        >
           {items.map((item) => {
             const savedItem = savedItemsById.get(item.itemId);
             const hasSavedPrice = savedItem && savedItem.unitPriceCents !== null && readQuantity(item.itemId) === savedItem.quantity;
@@ -269,6 +273,10 @@ function PropertiesView({
         <div className="flex items-center justify-between gap-2">
           <Label className="text-[13px] font-normal">Obrigatório</Label>
           <Switch checked={attributes.required} onCheckedChange={(required) => commit({ required })} />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-[13px] font-normal">Itens em duas colunas</Label>
+          <Switch checked={attributes.twoColumns === true} onCheckedChange={(twoColumns) => commit({ twoColumns })} />
         </div>
 
         <div className="space-y-2">

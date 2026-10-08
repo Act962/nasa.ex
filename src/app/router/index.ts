@@ -31,6 +31,7 @@ import { permissionsRouter } from "./permissions";
 import { activityRouter } from "./activity";
 import { formRouter } from "./form";
 import { formRecordsRouter } from "./form-records";
+import { leadMembersRouter } from "./lead-members";
 import { adminRouter } from "./admin";
 import { userNotificationsRouter } from "./user-notifications";
 import { userChatPreferencesRoutes } from "./user-chat-preferences";
@@ -123,6 +124,7 @@ export const router = {
   activity: activityRouter,
   form: formRouter,
   formRecords: formRecordsRouter,
+  leadMembers: leadMembersRouter,
   admin: adminRouter,
   userNotifications: userNotificationsRouter,
   userChatPreferences: userChatPreferencesRoutes,
