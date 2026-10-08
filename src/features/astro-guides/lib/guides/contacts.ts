@@ -1,7 +1,72 @@
 import type { GuideDef } from "../types";
 import { GUIDE_RESULT_KINDS } from "../result-kinds";
 
+const LEAD_PAGE_PATH = "^/contatos/[^/]+";
+
 export const CONTACTS_GUIDES: GuideDef[] = [
+  {
+    key: "contacts.member.create",
+    app: "contacts",
+    title: "Cadastrar um vinculado do lead",
+    summary: "Ligue filhos, filiais ou unidades a um lead, sem pôr cada um no funil.",
+    topicPattern:
+      /\b(cri\w*|cadastr\w*|adicion\w*|coloc\w*|inclu\w*|vincul\w*|lig\w*|novos?|novas?)\b.*\b(vinculad\w*|dependentes?|filiais|filial|filhos?|filhas?|unidades?)\b/,
+    steps: [
+      {
+        anchor: "contactsSearchField",
+        route: "/contatos",
+        skipWhenPath: LEAD_PAGE_PATH,
+        title: "Clique em Buscar contato",
+        message: "Vamos abrir o lead titular: quem contrata ou paga.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "contactsSearchDialog",
+        skipWhenPath: LEAD_PAGE_PATH,
+        title: "Escolha o titular",
+        message: "Digite o nome ou o telefone e clique no lead.",
+        position: "left",
+        advanceOn: "result",
+        resultKind: GUIDE_RESULT_KINDS.contactOpened,
+      },
+      {
+        anchor: "leadMembersTab",
+        skipWhenVisible: "leadMembersNewButton",
+        title: "Abra a aba Vinculados",
+        message: "Aqui fica o organograma: o titular em cima e quem está ligado a ele abaixo.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "leadMembersNewButton",
+        title: "Clique em Novo vinculado",
+        message: "Vinculado não entra no funil e não precisa de telefone.",
+        position: "left",
+        advanceOn: "click",
+        missingMessage: "Só quem participa do tracking deste lead pode cadastrar vinculados.",
+      },
+      {
+        anchor: "leadMemberName",
+        title: "Digite o nome",
+        message: "Em \"Fica abaixo de\" você monta os níveis; em \"Cobrança\" escolhe se a conta sai no titular ou em nome dele.",
+        position: "left",
+        advanceOn: "input",
+      },
+      {
+        anchor: "leadMemberSave",
+        title: "Clique em Salvar",
+        message: "Ele aparece no organograma na hora.",
+        position: "top",
+        advanceOn: "result",
+        resultKind: GUIDE_RESULT_KINDS.leadMemberSaved,
+      },
+    ],
+    finish: {
+      title: "Vinculado cadastrado! 🌳",
+      message: "Ao preencher uma ficha para este lead, escolha em \"Para quem é esta ficha?\". O link do cliente mostra o organograma com as fichas de cada um.",
+    },
+  },
   {
     key: "contacts.find",
     app: "contacts",

@@ -208,6 +208,9 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0070](nasa-planner/0070-kits-da-marca-por-conta.md) | nasa-planner | Vários Kits da Marca por empresa, vinculados à conta do Instagram | aprovada |
 | [0071](nasa-planner/0071-planner-publica-pelas-contas-dos-satelites.md) | nasa-planner | Planner publica no Instagram pelas contas conectadas nos Satélites | aprovada |
 | [0072](tracking-chat/0072-resposta-da-equipe-a-visitante-sem-telefone.md) | tracking-chat | Equipe responde pelo Chat a visitante do ASTRO CHAT sem telefone | em-revisao |
+| [0074](payment/0074-lead-ganho-vira-conta-a-receber.md) | payment | Lead marcado como ganho vira conta a receber | em-revisao |
+| [0075](form/0075-fichas-com-itens-calculo-e-fechamento.md) | form | Fichas com itens, cálculo e fechamento por cliente | em-revisao |
+| [0076](leads/0076-vinculados-do-lead.md) | leads | Vinculados do lead (dependentes, filiais) com cobrança pelo Financeiro | implementada |
 
 ---
 

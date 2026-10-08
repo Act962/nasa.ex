@@ -2,11 +2,12 @@
 
 import { FormBlockInstance } from "@/features/form/types";
 import { Button } from "@/components/ui/button";
-import { LinkIcon } from "lucide-react";
+import { LinkIcon, Plus } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import AllReponds from "./all-reponds";
 import { useQueryFormResponses } from "../../hooks/use-form";
 import Link from "next/link";
+import { FormRecordsSection } from "@/features/form-records/components/form-records-section";
 
 export function RespondsPage({ formId }: { formId: string }) {
   const { form } = useQueryFormResponses({ id: formId });
@@ -31,17 +32,26 @@ export function RespondsPage({ formId }: { formId: string }) {
               ({responses?.formSubmissions?.length}) Respostas
             </h1>
 
-            <Button asChild className="w-full max-w-44 bg-primary!">
-              <Link
-                href={`${process.env.NEXT_PUBLIC_APP_URL}/submit-form/${formId}`}
-                target="_blank"
-              >
-                <LinkIcon />
-                Visitar formulário
-              </Link>
-            </Button>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button asChild variant="outline">
+                <Link href={`/formulario/novo/${formId}`}>
+                  <Plus />
+                  Preencher para um cliente
+                </Link>
+              </Button>
+              <Button asChild className="bg-primary!">
+                <Link
+                  href={`${process.env.NEXT_PUBLIC_APP_URL}/submit-form/${formId}`}
+                  target="_blank"
+                >
+                  <LinkIcon />
+                  Visitar formulário
+                </Link>
+              </Button>
+            </div>
           </div>
           <Separator />
+          <FormRecordsSection formId={formId} />
           <AllReponds blocks={blocks} responses={responses.formSubmissions} />
         </div>
       </div>

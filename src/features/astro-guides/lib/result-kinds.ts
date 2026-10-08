@@ -17,6 +17,7 @@ export const GUIDE_RESULT_KINDS = {
   broadcastCreated: "broadcast.created",
   memberInvited: "member.invited",
   contactOpened: "contact.opened",
+  leadMemberSaved: "lead-member.saved",
   pageCreated: "page.created",
   pagePublished: "page.published",
   linnkerPageCreated: "linnker.page-created",

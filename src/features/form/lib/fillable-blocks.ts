@@ -16,6 +16,7 @@ const NON_FILLABLE_TYPES = new Set<FormBlockType>([
   "ImageDisplay",
   "PageBreak",
   "QrCodeMulti",
+  "AutoNumber",
 ]);
 
 export function isFillableBlock(

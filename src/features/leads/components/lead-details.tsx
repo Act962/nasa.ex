@@ -16,6 +16,7 @@ import {
   FileIcon,
   FileSignature,
   Megaphone,
+  NetworkIcon,
   RouteIcon,
   ShoppingBasket,
   StickyNoteIcon,
@@ -32,6 +33,8 @@ import { LeadAttachmentsByFolder } from "./lead-files/lead-attachments-by-folder
 import { ObservationLead } from "./observations";
 import { JourneyTimeline } from "./journey-timeline";
 import { LeadFormResponses } from "./lead-form-responses";
+import { LeadMembersTab } from "@/features/lead-members/components/lead-members-tab";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { LeadProducts } from "./lead-products";
 import { LeadStarFriendsCard } from "@/features/star-friends/components/lead-star-friends-card";
 import { useCheckPermission } from "@/hooks/use-check-permission";
@@ -122,6 +125,12 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
           trackingId={initialData.lead.trackingId}
         />
       ),
+    },
+    {
+      name: "Vinculados",
+      value: "members",
+      icon: NetworkIcon,
+      content: <LeadMembersTab leadId={initialData.lead.id} />,
     },
     {
       name: "Contratos",
@@ -215,6 +224,7 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
               <TabsTrigger
                 key={value}
                 value={value}
+                data-guide={value === "members" ? GUIDE_ANCHORS.leadMembersTab.id : undefined}
                 className={cn(
                   "shrink-0 px-3 sm:w-full sm:shrink",
                   DOCK_TAB_VALUES.includes(value) && "max-lg:hidden",

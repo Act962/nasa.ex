@@ -228,6 +228,7 @@ function FormView({
     useResolvedInitialValue(
       block.id,
       block.attributes.prefillFromLead ?? null,
+      (block.attributes as { fieldKey?: string }).fieldKey,
     );
   const identityValue =
     rawIdentityValue === undefined

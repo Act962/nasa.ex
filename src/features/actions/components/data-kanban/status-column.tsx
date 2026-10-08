@@ -17,6 +17,8 @@ interface Props {
   workspaceId: string;
   color: string | null;
   actionsCount: number;
+  doneCount?: number;
+  overdueCount?: number;
 }
 
 function WorkspaceColumnImpl({
@@ -25,6 +27,8 @@ function WorkspaceColumnImpl({
   workspaceId,
   name,
   actionsCount,
+  doneCount = 0,
+  overdueCount = 0,
 }: Props) {
   const registerColumn = useActionKanbanStore((s) => s.registerColumn);
   const isBoardDragging = useActionKanbanStore((s) => s.isDragging);
@@ -114,7 +118,7 @@ function WorkspaceColumnImpl({
     >
       <div className="flex flex-col flex-1 min-h-0 rounded-md bg-muted/60 shadow-md">
         <StatusHeader
-          data={{ id, name, color, workspaceId, actionsCount }}
+          data={{ id, name, color, workspaceId, actionsCount, doneCount, overdueCount }}
           attributes={attributes}
           listeners={listeners}
         />
@@ -182,6 +186,8 @@ export const WorkspaceColumn = memo(WorkspaceColumnImpl, (prev, next) => {
     prev.name === next.name &&
     prev.color === next.color &&
     prev.actionsCount === next.actionsCount &&
+    prev.doneCount === next.doneCount &&
+    prev.overdueCount === next.overdueCount &&
     prev.workspaceId === next.workspaceId
   );
 });
