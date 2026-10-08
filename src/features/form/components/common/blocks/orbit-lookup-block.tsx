@@ -82,6 +82,12 @@ export const OrbitLookupBlock: ObjectBlockType = {
   propertiesComponent: PropertiesView,
 };
 
+/** Formulário salvo sem a lista (outro caminho de criação) não pode quebrar a tela. */
+function readInlineOptions(blockInstance: FormBlockInstance): string[] {
+  const inlineOptions = (blockInstance as Instance).attributes?.inlineOptions;
+  return Array.isArray(inlineOptions) ? inlineOptions : [];
+}
+
 function BlockLabel({ label, required, hasError }: { label: string; required: boolean; hasError?: boolean }) {
   if (!label?.trim()) return null;
   return (
@@ -117,7 +123,8 @@ function FormView({
   isError?: boolean;
 }) {
   const block = blockInstance as Instance;
-  const { label, required, helperText, placeHolder, source, sourceFormId, inlineOptions } = block.attributes;
+  const { label, required, helperText, placeHolder, source, sourceFormId } = block.attributes;
+  const inlineOptions = readInlineOptions(blockInstance);
 
   const saved = usePrefillFieldValue(block.id);
   const [text, setText] = useState(saved?.value ?? "");
@@ -236,7 +243,7 @@ function PropertiesView({
 }) {
   const block = blockInstance as Instance;
   const { updateChildBlock, formData } = useBuilderStore();
-  const attributes = block.attributes;
+  const attributes = { ...block.attributes, inlineOptions: readInlineOptions(blockInstance) };
   const [inlineText, setInlineText] = useState(attributes.inlineOptions.join("\n"));
   const { forms } = useQueryListForms();
 
