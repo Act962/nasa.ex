@@ -5,15 +5,7 @@ import prisma from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import { NasaPlannerPostStatus } from "@/generated/prisma/enums";
 import { buildBrandChecklist } from "../lib/brand-checklist";
-import {
-  APPROVED_STATUSES,
-  REVIEWABLE_STATUSES,
-  SUBMITTABLE_STATUSES,
-  approvePost,
-  reopenPostAfterEdit,
-  requestPostChanges,
-  submitPostForApproval,
-} from "./approval";
+import { approvePost, reopenPostAfterEdit, requestPostChanges, submitPostForApproval } from "./approval";
 import { getBrandChecklistRulesForPost } from "./brand-kit/brand-kits";
 import { listInstagramPublishAccounts } from "./publishing/instagram-channels";
 import { requestImmediatePublish, schedulePlannerPost, unschedulePlannerPost } from "./scheduling";
@@ -192,18 +184,18 @@ async function dissolveSingletonGroup(publishGroupId: string) {
  * Define em quais contas o conteúdo sai (RF-3): cria os irmãos que faltam copiando o post aberto e apaga
  * os das contas desmarcadas. Devolve o post que o criador deve manter aberto.
  */
-export async function setPublishGroupAccounts(input: { postId: string; instagramAccountIds: string[]; actorId: string }) {
+export async function setPublishGroupAccounts(input: { postId: string; instagramAccountIds: string[]; actorId: string; canDeleteOthersPosts: boolean }) {
   if (input.instagramAccountIds.length === 0) throw new ORPCError("BAD_REQUEST", { message: "Escolha pelo menos uma conta do Instagram." });
-  const openPost = await prisma.nasaPlannerPost.findUniqueOrThrow({ where: { id: input.postId }, select: { ...contentSelect, plannerId: true, targetIgAccountId: true, scheduledAt: true, source: true, sourceActorLabel: true } });
+  const openPost = await prisma.nasaPlannerPost.findUniqueOrThrow({ where: { id: input.postId }, select: { ...contentSelect, plannerId: true, createdById: true, targetIgAccountId: true, scheduledAt: true, source: true, sourceActorLabel: true } });
   await assertInstagramAccountsOfOrganization(openPost.organizationId, input.instagramAccountIds);
 
   const groupPosts = openPost.publishGroupId
     ? await prisma.nasaPlannerPost.findMany({
         where: { publishGroupId: openPost.publishGroupId },
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        select: { id: true, status: true, targetIgAccountId: true },
+        select: { id: true, status: true, targetIgAccountId: true, createdById: true },
       })
-    : [{ id: openPost.id, status: openPost.status, targetIgAccountId: openPost.targetIgAccountId }];
+    : [{ id: openPost.id, status: openPost.status, targetIgAccountId: openPost.targetIgAccountId, createdById: openPost.createdById }];
 
   const postsToRemove = groupPosts.filter((groupPost) => !groupPost.targetIgAccountId || !input.instagramAccountIds.includes(groupPost.targetIgAccountId));
   const lockedRemoval = postsToRemove.find((groupPost) => isLocked(groupPost.status));
@@ -216,7 +208,9 @@ export async function setPublishGroupAccounts(input: { postId: string; instagram
   // A conta do post aberto foi desmarcada: ele passa para a primeira conta nova, para o criador não perder o post.
   const isOpenPostRemoved = postsToRemove.some((groupPost) => groupPost.id === openPost.id);
   const reassignedAccountId = isOpenPostRemoved ? accountIdsToAdd.shift() : undefined;
-  const postIdsToDelete = postsToRemove.filter((groupPost) => groupPost.id !== openPost.id || !reassignedAccountId).map((groupPost) => groupPost.id);
+  const postsToDelete = postsToRemove.filter((groupPost) => groupPost.id !== openPost.id || !reassignedAccountId);
+  assertCanDeleteAll(postsToDelete, { id: input.actorId, canDeleteOthersPosts: input.canDeleteOthersPosts });
+  const postIdsToDelete = postsToDelete.map((groupPost) => groupPost.id);
   const newSiblingStatus = openPost.status === NasaPlannerPostStatus.IDEA ? NasaPlannerPostStatus.IDEA : NasaPlannerPostStatus.DRAFT;
 
   await prisma.$transaction(async (tx) => {
@@ -271,14 +265,28 @@ export async function setPublishGroupDetached(input: { postId: string; isDetache
   await reopenPostAfterEdit(post.id, input.actorId);
 }
 
+const FOREIGN_POST_MESSAGE = "Este conteúdo tem contas criadas por outra pessoa. Só quem aprova conteúdo neste cliente pode excluí-las.";
+
+/** Excluir conteúdo de outra pessoa exige poder aprovar — vale para cada conta do grupo, não só para a que está aberta. */
+function assertCanDeleteAll(deletedPosts: Array<{ createdById: string }>, actor: { id: string; canDeleteOthersPosts: boolean }) {
+  if (actor.canDeleteOthersPosts) return;
+  if (deletedPosts.some((deletedPost) => deletedPost.createdById !== actor.id)) throw new ORPCError("FORBIDDEN", { message: FOREIGN_POST_MESSAGE });
+}
+
 /** Apaga o grupo inteiro, menos o que já foi ou está sendo publicado (RF-16). */
-export async function deletePublishGroupPosts(postId: string) {
-  const post = await prisma.nasaPlannerPost.findUniqueOrThrow({ where: { id: postId }, select: { publishGroupId: true } });
+export async function deletePublishGroupPosts(postId: string, actor: { id: string; canDeleteOthersPosts: boolean }) {
+  const post = await prisma.nasaPlannerPost.findUniqueOrThrow({ where: { id: postId }, select: { publishGroupId: true, createdById: true } });
   if (!post.publishGroupId) {
+    assertCanDeleteAll([post], actor);
     await prisma.nasaPlannerPost.delete({ where: { id: postId } });
     return { deletedCount: 1, keptCount: 0 };
   }
-  const deleted = await prisma.nasaPlannerPost.deleteMany({ where: { publishGroupId: post.publishGroupId, status: { notIn: LOCKED_STATUSES } } });
+  const deletablePosts = await prisma.nasaPlannerPost.findMany({
+    where: { publishGroupId: post.publishGroupId, status: { notIn: LOCKED_STATUSES } },
+    select: { id: true, createdById: true },
+  });
+  assertCanDeleteAll(deletablePosts, actor);
+  const deleted = await prisma.nasaPlannerPost.deleteMany({ where: { id: { in: deletablePosts.map((deletablePost) => deletablePost.id) }, status: { notIn: LOCKED_STATUSES } } });
   const keptCount = await prisma.nasaPlannerPost.count({ where: { publishGroupId: post.publishGroupId } });
   await dissolveSingletonGroup(post.publishGroupId);
   return { deletedCount: deleted.count, keptCount };
@@ -289,48 +297,28 @@ export async function dissolvePublishGroupAfterDelete(publishGroupId: string | n
   if (publishGroupId) await dissolveSingletonGroup(publishGroupId);
 }
 
-async function loadSiblingsExcept(postId: string, statuses: NasaPlannerPostStatus[]) {
-  const post = await prisma.nasaPlannerPost.findUniqueOrThrow({ where: { id: postId }, select: { publishGroupId: true } });
-  if (!post.publishGroupId) return [];
-  return prisma.nasaPlannerPost.findMany({
-    where: { publishGroupId: post.publishGroupId, id: { not: postId }, status: { in: statuses } },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    select: { id: true },
-  });
+async function loadOtherGroupPostIds(postId: string, scope: GroupScope) {
+  if (scope !== "group") return [];
+  return (await listPublishGroupPostIds(postId)).filter((groupPostId) => groupPostId !== postId);
 }
 
 /**
- * Aprovação por grupo (RF-7, RF-9): a ação vale para o post pedido, com as regras e o aviso de sempre,
- * e se repete em silêncio nos irmãos que estão num status que a aceita.
+ * Aprovação por grupo (RF-7, RF-9): a ação vale para o post pedido e para os irmãos que estão num status que
+ * a aceita, tudo na mesma transação (`approval.ts`), com um aviso só.
  */
 export async function submitForApprovalWithGroup(input: { postId: string; actorId: string; reviewerId?: string; note?: string; scope?: GroupScope }) {
   const { scope = "group", ...submission } = input;
-  const result = await submitPostForApproval(submission);
-  if (scope === "group") {
-    for (const sibling of await loadSiblingsExcept(input.postId, SUBMITTABLE_STATUSES)) {
-      await submitPostForApproval({ ...submission, postId: sibling.id, shouldNotify: false });
-    }
-  }
-  return result;
+  return submitPostForApproval({ ...submission, groupPostIds: await loadOtherGroupPostIds(input.postId, scope) });
 }
 
 export async function approveWithGroup(input: { postId: string; actorId: string; note?: string; checklist?: Record<string, boolean>; scope?: GroupScope }) {
   const { scope = "group", ...approval } = input;
-  await approvePost(approval);
-  if (scope !== "group") return;
-  // Irmão já aprovado fica como está (CB-4): só os que ainda esperam decisão são aprovados.
-  for (const sibling of await loadSiblingsExcept(input.postId, [...REVIEWABLE_STATUSES, ...SUBMITTABLE_STATUSES])) {
-    await approvePost({ postId: sibling.id, actorId: input.actorId, note: input.note, shouldNotify: false });
-  }
+  await approvePost({ ...approval, groupPostIds: await loadOtherGroupPostIds(input.postId, scope) });
 }
 
 export async function requestChangesWithGroup(input: { postId: string; actorId: string; body: string; slideId?: string; scope?: GroupScope }) {
   const { scope = "group", ...request } = input;
-  await requestPostChanges(request);
-  if (scope !== "group") return;
-  for (const sibling of await loadSiblingsExcept(input.postId, [...REVIEWABLE_STATUSES, ...APPROVED_STATUSES])) {
-    await requestPostChanges({ postId: sibling.id, actorId: input.actorId, body: input.body, shouldNotify: false });
-  }
+  await requestPostChanges({ ...request, groupPostIds: await loadOtherGroupPostIds(input.postId, scope) });
 }
 
 export interface GroupActionSkip {

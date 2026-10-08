@@ -39,7 +39,7 @@ const DRAG_ACTIVATION_DISTANCE_PX = 6;
 
 function KanbanCard({ post, columnKey, client, clientIndex, showClient, onOpen, onRetry }: { post: BoardPost; columnKey: ColumnKey; client?: PlannerClient; clientIndex: number; showClient: boolean; onOpen: (postId: string) => void; onRetry: (postId: string) => void }) {
   const isDraggable = Object.values(DROP_RULES).some((sources) => sources?.includes(columnKey));
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `board:${post.id}`, data: { postId: post.id, columnKey, scheduledAt: post.scheduledAt }, disabled: !isDraggable });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `board:${post.id}`, data: { postId: post.id, columnKey, scheduledAt: post.scheduledAt, isGroup: (post.groupAccountCount ?? 1) > 1 }, disabled: !isDraggable });
   const typeMeta = POST_TYPE_META[post.type];
   const previewUrl = plannerMediaUrl(post.thumbnail ?? post.slides[0]?.imageKey ?? null);
   const originLabel = creationOriginLabel(post);
@@ -152,7 +152,7 @@ export function KanbanView({
   }, [focusColumn, hasColumns]);
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    const dragged = active.data.current as { postId: string; columnKey: ColumnKey; scheduledAt: Date | string | null } | undefined;
+    const dragged = active.data.current as { postId: string; columnKey: ColumnKey; scheduledAt: Date | string | null; isGroup?: boolean } | undefined;
     const target = (over?.data.current as { columnKey?: ColumnKey } | undefined)?.columnKey;
     if (!dragged || !target || !DROP_RULES[target]?.includes(dragged.columnKey)) return;
     const showError = (error: Error) => toast.error(error.message);
@@ -167,8 +167,15 @@ export function KanbanView({
       return;
     }
     schedulePost.mutate(
-      { postId: dragged.postId, scheduledAt: intendedAt },
-      { onSuccess: () => toast.success(`Programado para ${format(intendedAt, "EEE dd/MM 'às' HH:mm", { locale: ptBR })}.`), onError: showError },
+      { postId: dragged.postId, scheduledAt: intendedAt, scope: dragged.isGroup ? "group" : "post" },
+      {
+        onSuccess: ({ scheduledCount, skipped }) => {
+          const when = format(intendedAt, "EEE dd/MM 'às' HH:mm", { locale: ptBR });
+          if (skipped.length > 0) toast.warning(`Programado em ${scheduledCount} conta(s) para ${when}. ${skipped.length} ficou(aram) de fora: ${skipped[0].reason}`);
+          else toast.success(scheduledCount > 1 ? `Programado em ${scheduledCount} contas para ${when}.` : `Programado para ${when}.`);
+        },
+        onError: showError,
+      },
     );
   };
 

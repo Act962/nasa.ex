@@ -23,8 +23,8 @@ export const setGroupAccounts = base
   .use(requiredAuthMiddleware)
   .input(z.object({ postId: z.string(), instagramAccountIds: z.array(z.string()).min(1).max(MAX_GROUP_ACCOUNTS) }))
   .handler(async ({ input, context }) => {
-    await assertPostAccess(context.user.id, input.postId, "create");
-    return setPublishGroupAccounts({ ...input, actorId: context.user.id });
+    const { permissions } = await assertPostAccess(context.user.id, input.postId, "create");
+    return setPublishGroupAccounts({ ...input, actorId: context.user.id, canDeleteOthersPosts: permissions.canApprove });
   });
 
 export const setGroupDetached = base
