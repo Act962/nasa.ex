@@ -186,6 +186,18 @@ const BUILDERS: Record<string, VoiceBuilder> = {
     actions: openLink(input, "Abrir tarefa"),
   }),
 
+  "action.assigned": (input, data) => {
+    const taskTitle = readString(data, "taskTitle");
+    const actorName = readString(data, "actorName");
+    const task = taskTitle ? `"${taskTitle}"` : "uma tarefa";
+    return {
+      headline: "Você tem uma nova tarefa",
+      speech: actorName ? `${actorName} colocou você em ${task}.` : `Você entrou em ${task}.`,
+      priority: "important",
+      actions: openLink(input, "Abrir tarefa"),
+    };
+  },
+
   "action.overdue": (input) => ({
     headline: "Tarefa atrasada",
     speech: `Atenção: ${input.title} já passou do prazo.`,

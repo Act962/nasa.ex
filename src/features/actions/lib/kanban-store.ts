@@ -218,12 +218,29 @@ export const useActionKanbanStore = create<ActionKanbanStore>()(
             newDestActions.push(updatedAction);
           }
 
+          // O cartão leva junto o que ele soma no contador da coluna.
+          const startOfToday = new Date();
+          startOfToday.setHours(0, 0, 0, 0);
+          const movedDone = activeAction.isDone ? 1 : 0;
+          const movedOverdue =
+            !activeAction.isDone && activeAction.dueDate && new Date(activeAction.dueDate) < startOfToday ? 1 : 0;
+
           const newColumnList = state.columnList.map((col) => {
             if (col.id === activeColumnId) {
-              return { ...col, actionsCount: Math.max(0, (col.actionsCount || 0) - 1) };
+              return {
+                ...col,
+                actionsCount: Math.max(0, (col.actionsCount || 0) - 1),
+                doneCount: Math.max(0, (col.doneCount || 0) - movedDone),
+                overdueCount: Math.max(0, (col.overdueCount || 0) - movedOverdue),
+              };
             }
             if (col.id === overColumnId) {
-              return { ...col, actionsCount: (col.actionsCount || 0) + 1 };
+              return {
+                ...col,
+                actionsCount: (col.actionsCount || 0) + 1,
+                doneCount: (col.doneCount || 0) + movedDone,
+                overdueCount: (col.overdueCount || 0) + movedOverdue,
+              };
             }
             return col;
           });
