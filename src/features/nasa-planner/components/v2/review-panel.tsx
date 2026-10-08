@@ -18,7 +18,10 @@ import {
   useRequestPlannerPostChanges,
   useSubmitPlannerPostForApproval,
 } from "../../hooks/use-planner-approval";
+import type { PublishGroupPost } from "../../hooks/use-planner-publish-group";
 import { PostPreview } from "../post-preview";
+import { GroupChecklists } from "./group-checklists";
+import type { PlannerClient } from "./planner-v2-types";
 import { StoryFrame } from "./composer-creation-step";
 import { ReelCoverPicker } from "./reel-cover-picker";
 import { POST_STATUS_META } from "./planner-v2-utils";
@@ -43,7 +46,21 @@ const CHECK_ICONS = {
   manual: <Circle className="size-4 shrink-0 text-muted-foreground" />,
 };
 
-export function ReviewPanel({ post, permissions, onApproved }: { post: ComposerPost; permissions: ComposerPermissions; onApproved: () => void }) {
+export function ReviewPanel({
+  post,
+  permissions,
+  groupPosts = [],
+  client,
+  onApproved,
+}: {
+  post: ComposerPost;
+  permissions: ComposerPermissions;
+  /** Contas do grupo (spec 0074): enviar, aprovar e pedir ajustes valem para todas. */
+  groupPosts?: PublishGroupPost[];
+  client?: PlannerClient;
+  onApproved: () => void;
+}) {
+  const isGroup = groupPosts.length > 1;
   const [message, setMessage] = useState("");
   const { reviews, checklist, isLoading } = usePlannerReviews(post.id);
   const submitForApproval = useSubmitPlannerPostForApproval();
@@ -70,6 +87,7 @@ export function ReviewPanel({ post, permissions, onApproved }: { post: ComposerP
           {POST_STATUS_META[post.status].label}
         </span>
         {post.sourceActorLabel && <span className="text-xs text-muted-foreground">Enviado por {post.sourceActorLabel}</span>}
+        {isGroup && <span className="text-xs text-muted-foreground">A decisão vale para as {groupPosts.length} contas.</span>}
       </div>
 
       {!isStory && (
@@ -99,6 +117,8 @@ export function ReviewPanel({ post, permissions, onApproved }: { post: ComposerP
         )}
       </section>
 
+      {isGroup && <GroupChecklists groupPosts={groupPosts} client={client} />}
+
       <section className="space-y-2">
         {reviews.map((review) => (
           <div key={review.id} className="rounded-2xl bg-panel px-3 py-2 text-sm">
@@ -125,7 +145,7 @@ export function ReviewPanel({ post, permissions, onApproved }: { post: ComposerP
             type="button"
             data-guide={GUIDE_ANCHORS.plannerComposerSubmitApproval.id}
             disabled={submitForApproval.isPending}
-            onClick={() => submitForApproval.mutate({ postId: post.id, note: message.trim() || undefined }, { onSuccess: () => { setMessage(""); toast.success("Enviado para aprovação."); }, onError: showError })}
+            onClick={() => submitForApproval.mutate({ postId: post.id, note: message.trim() || undefined }, { onSuccess: () => { setMessage(""); toast.success(isGroup ? `Enviado para aprovação nas ${groupPosts.length} contas.` : "Enviado para aprovação."); }, onError: showError })}
             className="rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-40"
           >
             Enviar para aprovação
@@ -146,7 +166,7 @@ export function ReviewPanel({ post, permissions, onApproved }: { post: ComposerP
               type="button"
               data-guide={GUIDE_ANCHORS.plannerReviewApprove.id}
               disabled={approvePost.isPending}
-              onClick={() => approvePost.mutate({ postId: post.id, note: message.trim() || undefined }, { onSuccess: () => { setMessage(""); toast.success("Conteúdo aprovado."); emitTourResult({ kind: GUIDE_RESULT_KINDS.plannerPostApproved }); onApproved(); }, onError: showError })}
+              onClick={() => approvePost.mutate({ postId: post.id, note: message.trim() || undefined }, { onSuccess: () => { setMessage(""); toast.success(isGroup ? `Conteúdo aprovado nas ${groupPosts.length} contas.` : "Conteúdo aprovado."); emitTourResult({ kind: GUIDE_RESULT_KINDS.plannerPostApproved }); onApproved(); }, onError: showError })}
               className="rounded-full bg-success px-4 py-2 text-sm font-bold text-background disabled:opacity-40"
             >
               Aprovar

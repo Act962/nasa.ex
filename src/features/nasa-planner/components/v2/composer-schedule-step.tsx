@@ -32,7 +32,25 @@ function toDateTimeInputValue(date: Date) {
   return format(date, "yyyy-MM-dd'T'HH:mm");
 }
 
-export function ComposerScheduleStep({ post, canSchedule, initialDate }: { post: ComposerPost; canSchedule: boolean; initialDate?: Date }) {
+const STAGGER_OPTIONS_MINUTES = [0, 5, 10, 15, 30];
+
+export function ComposerScheduleStep({
+  post,
+  canSchedule,
+  initialDate,
+  groupAccountCount = 1,
+}: {
+  post: ComposerPost;
+  canSchedule: boolean;
+  initialDate?: Date;
+  /** Contas do grupo que ainda não publicaram (spec 0074, RF-10): com mais de uma, dá para programar todas de uma vez. */
+  groupAccountCount?: number;
+}) {
+  const isGroup = groupAccountCount > 1;
+  const [scope, setScope] = useState<"group" | "post">("group");
+  const [staggerMinutes, setStaggerMinutes] = useState(0);
+  const actionScope = isGroup ? scope : "post";
+  const chargedPublishCount = actionScope === "group" ? groupAccountCount : 1;
   const defaultDate = initialDate ?? (post.scheduledAt ? new Date(post.scheduledAt) : addDays(new Date(), 1));
   const [dateTimeValue, setDateTimeValue] = useState(toDateTimeInputValue(defaultDate));
   const suggestionRange = useMemo(() => ({ organizationIds: [post.organizationId], from: new Date(), to: addDays(new Date(), SUGGESTION_WINDOW_DAYS) }), [post.organizationId]);
@@ -42,6 +60,13 @@ export function ComposerScheduleStep({ post, canSchedule, initialDate }: { post:
   const publishNow = usePublishPlannerPostNow();
   const retryPublish = useRetryPlannerPublish();
   const showError = (error: Error) => toast.error(error.message || "Não deu certo. Tente de novo.");
+  const reportGroupResult = (successMessage: string) => (result: { scheduledCount: number; skipped: Array<{ reason: string }> }) => {
+    if (result.skipped.length === 0) {
+      toast.success(result.scheduledCount > 1 ? `${successMessage} (${result.scheduledCount} contas)` : successMessage);
+      return;
+    }
+    toast.warning(`${successMessage} em ${result.scheduledCount} conta(s). ${result.skipped.length} ficou(aram) de fora: ${result.skipped[0].reason}`);
+  };
   const isFinished = post.status === "PUBLISHED" || post.status === "PUBLISHING";
   const suggestedSlots = slots.filter((slot) => slot.postTypes.length === 0 || slot.postTypes.includes(post.type)).slice(0, MAX_SUGGESTIONS);
 
@@ -104,19 +129,56 @@ export function ComposerScheduleStep({ post, canSchedule, initialDate }: { post:
         </>
       )}
 
+      {isGroup && canSchedule && !isFinished && (
+        <section data-guide={GUIDE_ANCHORS.plannerComposerScheduleScope.id}>
+          <p className="mb-2 text-xs text-muted-foreground">Contas</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {(["group", "post"] as const).map((scopeOption) => (
+              <button
+                key={scopeOption}
+                type="button"
+                onClick={() => setScope(scopeOption)}
+                className={cn("rounded-full px-3.5 py-1.5 text-sm", scope === scopeOption ? "bg-foreground font-semibold text-background" : "bg-panel")}
+              >
+                {scopeOption === "group" ? `Todas as ${groupAccountCount} contas` : "Só esta conta"}
+              </button>
+            ))}
+            {scope === "group" && (
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                Intervalo entre contas
+                <select
+                  value={staggerMinutes}
+                  onChange={(event) => setStaggerMinutes(Number(event.target.value))}
+                  className="rounded-full bg-panel px-3 py-1.5 text-sm text-foreground"
+                >
+                  {STAGGER_OPTIONS_MINUTES.map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {minutes === 0 ? "Sem intervalo" : `${minutes} min`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {chargedPublishCount > 1 ? `${chargedPublishCount} publicações: cada conta publicada cobra Stars em separado.` : "1 publicação será cobrada ao sair."}
+          </p>
+        </section>
+      )}
+
       {post.targetNetworks.includes("INSTAGRAM") && post.type !== "STORY" && <CommentsAutomationPanel postId={post.id} />}
 
       {canSchedule && !isFinished ? (
         <div className="flex flex-wrap justify-end gap-2">
           {post.status === "SCHEDULED" && (
-            <button type="button" onClick={() => unschedulePost.mutate({ postId: post.id }, { onError: showError })} className="rounded-full bg-panel px-4 py-2 text-sm">
+            <button type="button" onClick={() => unschedulePost.mutate({ postId: post.id, scope: actionScope }, { onError: showError })} className="rounded-full bg-panel px-4 py-2 text-sm">
               Desprogramar
             </button>
           )}
           <button
             type="button"
             disabled={publishNow.isPending}
-            onClick={() => publishNow.mutate({ postId: post.id }, { onSuccess: () => toast.success("Publicando agora…"), onError: showError })}
+            onClick={() => publishNow.mutate({ postId: post.id, scope: actionScope }, { onSuccess: reportGroupResult("Publicando agora…"), onError: showError })}
             className="rounded-full bg-panel px-4 py-2 text-sm font-medium disabled:opacity-40"
           >
             Publicar agora
@@ -127,8 +189,8 @@ export function ComposerScheduleStep({ post, canSchedule, initialDate }: { post:
             disabled={schedulePost.isPending || !dateTimeValue}
             onClick={() =>
               schedulePost.mutate(
-                { postId: post.id, scheduledAt: new Date(dateTimeValue) },
-                { onSuccess: () => { toast.success("Post programado."); emitTourResult({ kind: GUIDE_RESULT_KINDS.plannerPostScheduled }); }, onError: showError },
+                { postId: post.id, scheduledAt: new Date(dateTimeValue), scope: actionScope, staggerMinutes: actionScope === "group" ? staggerMinutes : 0 },
+                { onSuccess: (result) => { reportGroupResult("Post programado.")(result); emitTourResult({ kind: GUIDE_RESULT_KINDS.plannerPostScheduled }); }, onError: showError },
               )
             }
             className="rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background disabled:opacity-40"

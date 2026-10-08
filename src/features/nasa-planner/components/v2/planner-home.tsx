@@ -10,6 +10,7 @@ import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import type { NasaPlannerPostStatus, NasaPlannerPostType } from "@/generated/prisma/enums";
 import { usePlannerCalendarPosts, usePlannerClients, usePlannerSlots } from "../../hooks/use-planner-calendar";
+import { collapsePublishGroups, toGroupScope } from "../../lib/publish-group-collapse";
 import { useRetryPlannerPublish, useSchedulePlannerPostV2 } from "../../hooks/use-planner-publishing";
 import { useUpdatePlannerPostV2 } from "../../hooks/use-planner-planning";
 import { usePlannerCalendarBroadcasts } from "../../hooks/use-planner-integrations";
@@ -77,7 +78,8 @@ export function PlannerHome() {
     statuses: searchState.status.length ? searchState.status : undefined,
   });
   const posts = useMemo(() => {
-    if (searchState.contas.length === 0) return allPosts;
+    // Sem filtro de conta, as contas do mesmo conteúdo viram um cartão só (spec 0074, RF-14).
+    if (searchState.contas.length === 0) return collapsePublishGroups(allPosts);
     return allPosts.filter((post) => {
       const account = resolvePostInstagramAccount(post, clients.find((client) => client.id === post.organizationId));
       return account ? searchState.contas.includes(account.igUserId) : false;
@@ -134,7 +136,7 @@ export function PlannerHome() {
   });
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    const dragged = active.data.current as { kind: "post" | "draft"; postId: string; status?: NasaPlannerPostStatus } | undefined;
+    const dragged = active.data.current as { kind: "post" | "draft"; postId: string; status?: NasaPlannerPostStatus; groupPostIds?: string[] } | undefined;
     const dropTarget = over?.data.current as { date: string; keepTime?: boolean } | undefined;
     if (!dragged || !dropTarget) return;
     const targetDate = new Date(dropTarget.date);
@@ -149,7 +151,10 @@ export function PlannerHome() {
     }
     const showError = (error: Error) => toast.error(error.message);
     if (dragged.status && RESCHEDULABLE_STATUSES.includes(dragged.status)) {
-      schedulePost.mutate({ postId: dragged.postId, scheduledAt: targetDate }, { onSuccess: () => toast.success("Post programado."), onError: showError });
+      schedulePost.mutate(
+        { postId: dragged.postId, scheduledAt: targetDate, ...toGroupScope(dragged.groupPostIds) },
+        { onSuccess: ({ scheduledCount }) => toast.success(scheduledCount > 1 ? `Programado em ${scheduledCount} contas.` : "Post programado."), onError: showError },
+      );
       return;
     }
     // Rascunho ganha horário pretendido; só programa de verdade depois de aprovado (spec 0058, RF-5).

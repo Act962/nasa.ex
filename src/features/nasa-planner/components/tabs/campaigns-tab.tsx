@@ -14,9 +14,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
-import { useDeleteCampaign } from "../../hooks/use-campaign-planner";
+import { useDeleteCampaign, usePlannerCampaigns } from "../../hooks/use-campaign-planner";
 import { CampaignPlannerWizard } from "../campaign-planner-wizard";
 import { useNasaPlanner } from "../../hooks/use-nasa-planner";
 
@@ -36,10 +34,7 @@ export function CampaignsTab({ plannerId }: { plannerId: string }) {
 
   const deleteCampaign = useDeleteCampaign();
 
-  const { data, isLoading } = useQuery(
-    orpc.nasaPlanner.campaigns.list.queryOptions({ input: { plannerId } }),
-  );
-  const campaigns = data?.campaigns ?? [];
+  const { campaigns, isLoading } = usePlannerCampaigns(plannerId);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -83,7 +78,7 @@ export function CampaignsTab({ plannerId }: { plannerId: string }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {campaigns.map((campaign: any) => {
+            {campaigns.map((campaign) => {
               const statusInfo = STATUS_LABELS[campaign.status] ?? { label: campaign.status, variant: "secondary" as const };
               const nextEvent = campaign.events?.[0];
               return (

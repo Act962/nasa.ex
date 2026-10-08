@@ -3,26 +3,33 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import prisma from "@/lib/prisma";
 import { assertPostAccess } from "@/features/nasa-planner/server/cross-org";
-import { approvePost, commentOnPost, requestPostChanges, submitPostForApproval } from "@/features/nasa-planner/server/approval";
+import { commentOnPost } from "@/features/nasa-planner/server/approval";
+import { approveWithGroup, requestChangesWithGroup, schedulePublishGroup, submitForApprovalWithGroup } from "@/features/nasa-planner/server/publish-group";
+import { schedulePlannerPost } from "@/features/nasa-planner/server/scheduling";
 import { buildBrandChecklist } from "@/features/nasa-planner/lib/brand-checklist";
 import { getBrandChecklistRulesForPost } from "@/features/nasa-planner/server/brand-kit/brand-kits";
 
-/** Aprovação do Planner (spec 0058, RF-3). Aprovar exige sessão de uma pessoa com `canApprove` na org do post. */
+/**
+ * Aprovação do Planner (spec 0058, RF-3). Aprovar exige sessão de uma pessoa com `canApprove` na org do post.
+ * Num grupo de contas a ação vale para todas (spec 0074, RF-7); `scope: "post"` restringe a uma conta.
+ */
+
+const scopeInput = z.enum(["post", "group"]).default("group");
 
 export const submitForApproval = base
   .use(requiredAuthMiddleware)
-  .input(z.object({ postId: z.string(), reviewerId: z.string().optional(), note: z.string().max(2000).optional() }))
+  .input(z.object({ postId: z.string(), reviewerId: z.string().optional(), note: z.string().max(2000).optional(), scope: scopeInput }))
   .handler(async ({ input, context }) => {
     await assertPostAccess(context.user.id, input.postId, "create");
-    return submitPostForApproval({ ...input, actorId: context.user.id });
+    return submitForApprovalWithGroup({ ...input, actorId: context.user.id });
   });
 
 export const requestChanges = base
   .use(requiredAuthMiddleware)
-  .input(z.object({ postId: z.string(), body: z.string().trim().min(3).max(2000), slideId: z.string().optional() }))
+  .input(z.object({ postId: z.string(), body: z.string().trim().min(3).max(2000), slideId: z.string().optional(), scope: scopeInput }))
   .handler(async ({ input, context }) => {
     await assertPostAccess(context.user.id, input.postId, "approve");
-    await requestPostChanges({ ...input, actorId: context.user.id });
+    await requestChangesWithGroup({ ...input, actorId: context.user.id });
     return { ok: true };
   });
 
@@ -34,11 +41,17 @@ export const approve = base
       note: z.string().max(2000).optional(),
       checklist: z.record(z.string(), z.boolean()).optional(),
       scheduleAt: z.coerce.date().optional(),
+      scope: scopeInput,
     }),
   )
   .handler(async ({ input, context }) => {
     await assertPostAccess(context.user.id, input.postId, "approve");
-    await approvePost({ ...input, actorId: context.user.id });
+    const { scheduleAt, ...approval } = input;
+    await approveWithGroup({ ...approval, actorId: context.user.id });
+    if (scheduleAt) {
+      if (input.scope === "group") await schedulePublishGroup({ postId: input.postId, scheduledAt: scheduleAt });
+      else await schedulePlannerPost(input.postId, scheduleAt);
+    }
     return { ok: true };
   });
 

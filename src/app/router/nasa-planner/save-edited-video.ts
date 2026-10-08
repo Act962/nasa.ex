@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { assertPostAccess } from "@/features/nasa-planner/server/cross-org";
 import { reopenPostAfterEdit } from "@/features/nasa-planner/server/approval";
+import { syncPublishGroupContent } from "@/features/nasa-planner/server/publish-group";
 import { StarTransactionType } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import { ORPCError } from "@orpc/server";
@@ -46,5 +47,7 @@ export const saveEditedVideo = base
     });
 
     await reopenPostAfterEdit(input.postId, context.user.id);
+
+    await syncPublishGroupContent(input.postId, context.user.id);
     return { post: updated, starsSpent: starsCharged, balanceAfter };
   });

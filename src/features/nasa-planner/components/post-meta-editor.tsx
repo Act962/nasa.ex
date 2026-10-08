@@ -10,8 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
-import { orpc } from "@/lib/orpc";
-import { useQuery } from "@tanstack/react-query";
+import { useActiveOrgProjectsByOrg } from "@/features/org-projects/hooks/use-org-projects";
 import { useUpdatePlannerPost } from "../hooks/use-nasa-planner";
 
 interface PostMeta {
@@ -19,11 +18,11 @@ interface PostMeta {
   clientOrgName?: string | null;
   orgProjectId?: string | null;
   orgProject?: { id: string; name: string } | null;
-  scheduledAt?: string | null;
+  scheduledAt?: string | Date | null;
   isAd?: boolean;
 }
 
-function toLocalDatetimeValue(scheduledAt: string | null | undefined): string {
+function toLocalDatetimeValue(scheduledAt: string | Date | null | undefined): string {
   if (!scheduledAt) return "";
   const d = new Date(scheduledAt);
   if (isNaN(d.getTime())) return "";
@@ -35,7 +34,7 @@ export function PostMetaEditor({ post }: { post: PostMeta }) {
   const updatePost = useUpdatePlannerPost();
   const { data: organizations } = authClient.useListOrganizations();
 
-  const matchedOrg = (organizations ?? []).find((o: any) => o.name === post.clientOrgName);
+  const matchedOrg = (organizations ?? []).find((o) => o.name === post.clientOrgName);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(matchedOrg?.id ?? null);
   const [orgOpen, setOrgOpen] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
@@ -47,15 +46,11 @@ export function PostMetaEditor({ post }: { post: PostMeta }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post.id]);
 
-  const { data: projectsData } = useQuery({
-    ...orpc.orgProjects.list.queryOptions({ input: { orgId: selectedOrgId ?? undefined, isActive: true } }),
-    enabled: !!selectedOrgId,
-  });
-  const orgProjects = projectsData?.projects ?? [];
+  const { projects: orgProjects } = useActiveOrgProjectsByOrg(selectedOrgId);
 
   const clientOrgName = post.clientOrgName ?? "";
   const orgProjectId = post.orgProjectId ?? null;
-  const selectedProject = orgProjects.find((p: any) => p.id === orgProjectId);
+  const selectedProject = orgProjects.find((p) => p.id === orgProjectId);
 
   return (
     <div className="space-y-3">
@@ -86,7 +81,7 @@ export function PostMetaEditor({ post }: { post: PostMeta }) {
                   }} className="text-xs text-muted-foreground">
                     <BuildingIcon className="size-3 mr-2 opacity-50" />Nenhuma
                   </CommandItem>
-                  {(organizations ?? []).map((org: any) => (
+                  {(organizations ?? []).map((org) => (
                     <CommandItem key={org.id} value={org.name} className="text-xs" onSelect={() => {
                       setSelectedOrgId(org.id);
                       updatePost.mutate({ postId: post.id, clientOrgName: org.name });
@@ -114,7 +109,7 @@ export function PostMetaEditor({ post }: { post: PostMeta }) {
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" role="combobox" className="w-full justify-between font-normal h-8 text-xs">
                 {selectedProject ? (
-                  <span className="truncate">{(selectedProject as any).name}</span>
+                  <span className="truncate">{selectedProject.name}</span>
                 ) : <span className="text-muted-foreground">Selecionar projeto...</span>}
                 <ChevronsUpDownIcon className="ml-1 size-3 shrink-0 opacity-50" />
               </Button>
@@ -131,7 +126,7 @@ export function PostMetaEditor({ post }: { post: PostMeta }) {
                     }}>
                       <FolderIcon className="size-3 mr-2 opacity-50" />Nenhum
                     </CommandItem>
-                    {orgProjects.map((p: any) => (
+                    {orgProjects.map((p) => (
                       <CommandItem key={p.id} value={p.name} className="text-xs" onSelect={() => {
                         updatePost.mutate({ postId: post.id, orgProjectId: p.id });
                         setProjectOpen(false);

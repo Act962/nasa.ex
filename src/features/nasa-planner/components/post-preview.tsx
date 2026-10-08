@@ -12,18 +12,10 @@ import {
   PlayIcon,
   MusicIcon,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
+import { useAvailableMetaAccounts } from "@/features/integrations/hooks/use-active-meta-account";
+import { toPlannerMediaUrl } from "../lib/post-media";
 
-const S3_BASE = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL
-  ? `https://${process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL}`
-  : "";
-
-function mediaUrl(key: string | null | undefined): string | undefined {
-  if (!key) return undefined;
-  if (key.startsWith("http") || key.startsWith("data:") || key.startsWith("/")) return key;
-  return `${S3_BASE}/${key}`;
-}
+const mediaUrl = toPlannerMediaUrl;
 
 interface PostLike {
   type?: "STATIC" | "CAROUSEL" | "REEL" | "STORY" | string;
@@ -54,9 +46,7 @@ interface Props {
 const formatCount = (count: number) => count.toLocaleString("pt-BR");
 
 export function PostPreview({ post, published, isReviewing = false }: Props) {
-  const { data } = useQuery(
-    orpc.integrations.listAvailableMetaAccounts.queryOptions(),
-  );
+  const { data } = useAvailableMetaAccounts();
 
   const igAccount = useMemo(
     () =>

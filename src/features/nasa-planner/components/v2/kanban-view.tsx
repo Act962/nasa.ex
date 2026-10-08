@@ -11,6 +11,7 @@ import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import type { NasaPlannerPostType } from "@/generated/prisma/enums";
 import { usePlannerBoard, type PlannerOriginFilter } from "../../hooks/use-planner-board";
+import { collapsePublishGroups, toGroupScope, type GroupCardFields } from "../../lib/publish-group-collapse";
 import { useSubmitPlannerPostForApproval } from "../../hooks/use-planner-approval";
 import { useSchedulePlannerPostV2 } from "../../hooks/use-planner-publishing";
 import { ClientAvatar } from "./client-avatar";
@@ -21,7 +22,7 @@ import type { PlannerClient } from "./planner-v2-types";
 /** Kanban do Calendário: posts em colunas por status. Arrastar só segue a regra (enviar para aprovação, programar). */
 
 type BoardColumn = ReturnType<typeof usePlannerBoard>["columns"][number];
-type BoardPost = BoardColumn["posts"][number];
+type BoardPost = BoardColumn["posts"][number] & Partial<GroupCardFields>;
 type ColumnKey = BoardColumn["key"];
 
 const COLUMN_META: Record<ColumnKey, { label: string; hint: string; dotClassName: string }> = {
@@ -38,7 +39,7 @@ const DRAG_ACTIVATION_DISTANCE_PX = 6;
 
 function KanbanCard({ post, columnKey, client, clientIndex, showClient, onOpen, onRetry }: { post: BoardPost; columnKey: ColumnKey; client?: PlannerClient; clientIndex: number; showClient: boolean; onOpen: (postId: string) => void; onRetry: (postId: string) => void }) {
   const isDraggable = Object.values(DROP_RULES).some((sources) => sources?.includes(columnKey));
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `board:${post.id}`, data: { postId: post.id, columnKey, scheduledAt: post.scheduledAt }, disabled: !isDraggable });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `board:${post.id}`, data: { postId: post.id, columnKey, scheduledAt: post.scheduledAt, groupPostIds: post.groupPostIds }, disabled: !isDraggable });
   const typeMeta = POST_TYPE_META[post.type];
   const previewUrl = plannerMediaUrl(post.thumbnail ?? post.slides[0]?.imageKey ?? null);
   const originLabel = creationOriginLabel(post);
@@ -63,6 +64,7 @@ function KanbanCard({ post, columnKey, client, clientIndex, showClient, onOpen, 
       )}
       {originLabel && <OriginBadge label={originLabel} />}
       <p className="mt-0.5 line-clamp-2 text-[13px] font-semibold">{post.title || typeMeta.label}</p>
+      {(post.groupAccountCount ?? 1) > 1 && <p className="text-[11px] text-muted-foreground">{post.groupAccountCount} contas</p>}
       <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
         {showClient && client && <ClientAvatar name={client.name} logo={client.logo} clientIndex={clientIndex} className="size-3.5 text-[6px] ring-1" />}
         <typeMeta.icon className="size-3" />
@@ -150,7 +152,7 @@ export function KanbanView({
   }, [focusColumn, hasColumns]);
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    const dragged = active.data.current as { postId: string; columnKey: ColumnKey; scheduledAt: Date | string | null } | undefined;
+    const dragged = active.data.current as { postId: string; columnKey: ColumnKey; scheduledAt: Date | string | null; groupPostIds?: string[] } | undefined;
     const target = (over?.data.current as { columnKey?: ColumnKey } | undefined)?.columnKey;
     if (!dragged || !target || !DROP_RULES[target]?.includes(dragged.columnKey)) return;
     const showError = (error: Error) => toast.error(error.message);
@@ -165,8 +167,15 @@ export function KanbanView({
       return;
     }
     schedulePost.mutate(
-      { postId: dragged.postId, scheduledAt: intendedAt },
-      { onSuccess: () => toast.success(`Programado para ${format(intendedAt, "EEE dd/MM 'às' HH:mm", { locale: ptBR })}.`), onError: showError },
+      { postId: dragged.postId, scheduledAt: intendedAt, ...toGroupScope(dragged.groupPostIds) },
+      {
+        onSuccess: ({ scheduledCount, skipped }) => {
+          const when = format(intendedAt, "EEE dd/MM 'às' HH:mm", { locale: ptBR });
+          if (skipped.length > 0) toast.warning(`Programado em ${scheduledCount} conta(s) para ${when}. ${skipped.length} ficou(aram) de fora: ${skipped[0].reason}`);
+          else toast.success(scheduledCount > 1 ? `Programado em ${scheduledCount} contas para ${when}.` : `Programado para ${when}.`);
+        },
+        onError: showError,
+      },
     );
   };
 
@@ -181,7 +190,7 @@ export function KanbanView({
             isFocused={focusColumn === column.key}
             guideAnchor={column.key === "draft" ? GUIDE_ANCHORS.plannerDraftsTab.id : column.key === "approval" ? GUIDE_ANCHORS.plannerApprovalTab.id : undefined}
           >
-            {column.posts.map((post) => {
+            {collapsePublishGroups(column.posts).map((post) => {
               const clientIndex = clients.findIndex((client) => client.id === post.organizationId);
               return <KanbanCard key={post.id} post={post} columnKey={column.key} client={clients[clientIndex]} clientIndex={Math.max(clientIndex, 0)} showClient={showClient} onOpen={onOpenPost} onRetry={onRetryPost} />;
             })}

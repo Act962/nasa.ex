@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { assertPostAccess } from "@/features/nasa-planner/server/cross-org";
 import { reopenPostAfterEdit } from "@/features/nasa-planner/server/approval";
+import { syncPublishGroupContent } from "@/features/nasa-planner/server/publish-group";
 import prisma from "@/lib/prisma";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -39,5 +40,7 @@ export const removePostSlide = base
     });
 
     await reopenPostAfterEdit(input.postId, context.user.id);
+
+    await syncPublishGroupContent(input.postId, context.user.id);
     return { success: true };
   });

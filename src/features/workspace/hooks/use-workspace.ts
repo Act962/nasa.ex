@@ -22,8 +22,8 @@ export const useWorkspacesByTracking = (trackingId: string) => {
   );
 };
 
-export const useWorkspaces = () => {
-  return useQuery(orpc.workspace.list.queryOptions());
+export const useWorkspaces = ({ enabled = true }: { enabled?: boolean } = {}) => {
+  return useQuery(orpc.workspace.list.queryOptions({ enabled }));
 };
 
 export const useWorkspace = (workspaceId: string) => {
@@ -99,6 +99,18 @@ export const useColumnsByWorkspace = (
     columns: data?.columns ?? [],
     isLoading,
   };
+};
+
+/** Colunas para seletor (sem filtros e sem manter as do workspace anterior enquanto carrega). */
+export const useWorkspaceColumnOptions = (workspaceId: string) => {
+  const { data, isLoading } = useQuery(
+    orpc.workspace.getColumnsByWorkspace.queryOptions({
+      input: { workspaceId },
+      enabled: !!workspaceId,
+    }),
+  );
+
+  return { columns: data?.columns ?? [], isLoading };
 };
 
 export const useWorkspaceMembers = (workspaceId: string) => {

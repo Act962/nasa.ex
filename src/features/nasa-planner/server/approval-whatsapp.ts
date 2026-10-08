@@ -5,7 +5,7 @@ import type { AgentContext } from "@/features/astro/server/agents/types";
 import { createPendingAction } from "@/features/astro/server/tools/_shared/proposals/create-proposal";
 import { cancelPendingAction } from "@/features/astro/server/tools/_shared/proposals/confirm-direct";
 import { TrackingProviderBotChannel } from "@/features/astro-bot/lib/tracking-provider-channel";
-import { requestPostChanges } from "./approval";
+import { requestChangesWithGroup } from "./publish-group";
 
 /**
  * Aprovação de posts pelo WhatsApp (spec 0064, RF-4/RF-5). O aviso vira uma proposta pendente na
@@ -111,7 +111,7 @@ export async function tryPlannerChangesReply(input: { binding: { id: string; use
   if (!postId) return null;
 
   const reason = match[1].trim();
-  await requestPostChanges({ postId, actorId: input.binding.userId, body: reason });
+  await requestChangesWithGroup({ postId, actorId: input.binding.userId, body: reason });
   await cancelPendingAction({ ctx, proposalId: pending.id });
   return `✍️ Ajuste pedido: “${reason}”. Quem criou o post foi avisado.`;
 }

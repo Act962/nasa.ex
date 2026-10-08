@@ -1,8 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useAvailableMetaAccounts } from "@/features/integrations/hooks/use-active-meta-account";
 import { InstagramIcon, FacebookIcon, AlertCircleIcon, Link2OffIcon } from "lucide-react";
-import { orpc } from "@/lib/orpc";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -34,9 +33,7 @@ export function PublishTargetPicker({
   onChange,
   disabled,
 }: Props) {
-  const { data, isLoading } = useQuery(
-    orpc.integrations.listAvailableMetaAccounts.queryOptions(),
-  );
+  const { data, isLoading } = useAvailableMetaAccounts();
 
   const wantsInstagram = targetNetworks.includes("INSTAGRAM");
   const wantsFacebook = targetNetworks.includes("FACEBOOK");

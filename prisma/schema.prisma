@@ -4739,6 +4739,12 @@ model NasaPlannerPost {
   /// Ligar a automação quando o post for publicado.
   commentsAutoActivate Boolean @default(true) @map("comments_auto_activate")
 
+  // ── Planner v2: mesmo conteúdo em várias contas (spec 0074) ──
+  /// Liga os posts "irmãos" (um por conta do Instagram). Nulo = post comum.
+  publishGroupId         String? @map("publish_group_id")
+  /// "Diferente nesta conta": não recebe nem envia mudanças de conteúdo do grupo.
+  isGroupContentDetached Boolean @default(false) @map("is_group_content_detached")
+
   metricsImpressions Int?      @map("metrics_impressions")
   metricsReach       Int?      @map("metrics_reach")
   metricsLikes       Int?      @map("metrics_likes")
@@ -4768,6 +4774,7 @@ model NasaPlannerPost {
   @@index([organizationId, scheduledAt])
   @@index([status, scheduledAt])
   @@index([commentsAutomationId])
+  @@index([publishGroupId])
   @@index([actionId])
   @@index([templateId])
   @@map("nasa_planner_posts")

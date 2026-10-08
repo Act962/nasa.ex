@@ -12,8 +12,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
+import { useQueryPlatformIntegrations } from "@/features/integrations/hooks/use-integrations";
+import {
+  useGeneratePlannerPostImage, useRemovePostSlide, useUpdatePlannerPostQuietly,
+  useUpdatePlannerPostSlide, useUploadPlannerPostImageQuietly,
+} from "../../hooks/use-nasa-planner";
 import { useImageEditor } from "./use-image-editor";
 import { useBackgroundRemoval } from "./use-background-removal";
 import { ImageEditorCanvas } from "./image-editor-canvas";
@@ -21,14 +24,7 @@ import { ImageFormatSelector } from "./image-format-selector";
 import { ImageSourceTabs } from "./image-source-tabs";
 import { FORMAT_DIMENSIONS } from "./use-image-editor";
 import { PostMetaEditor } from "../post-meta-editor";
-
-const S3_BASE = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL
-  ? `https://${process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL}`
-  : "";
-
-function resolveUrl(key: string) {
-  return key.startsWith("http") ? key : `${S3_BASE}/${key}`;
-}
+import { getPlannerMediaUrl } from "../../lib/post-media";
 
 interface Slide {
   id: string;
@@ -41,7 +37,7 @@ interface PostMeta {
   clientOrgName?: string | null;
   orgProjectId?: string | null;
   orgProject?: { id: string; name: string } | null;
-  scheduledAt?: string | null;
+  scheduledAt?: string | Date | null;
   isAd?: boolean;
 }
 
@@ -68,7 +64,6 @@ export function ImageEditorDialog({
   onSaved,
   post,
 }: Props) {
-  const qc = useQueryClient();
   const editor = useImageEditor(postId);
   const bgRemoval = useBackgroundRemoval();
   const [selectedSlideIdx, setSelectedSlideIdx] = useState(0);
@@ -101,75 +96,35 @@ export function ImageEditorDialog({
     onOpenChange(v);
   }, [editor, onOpenChange]);
 
-  // Remove slide
-  const removeSlide = useMutation(
-    orpc.nasaPlanner.posts.removeSlide.mutationOptions({
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
-        setSelectedSlideIdx(0);
-        toast.success("Slide removido!");
+  const removeSlide = useRemovePostSlide();
+  const handleRemoveSlide = (slideId: string) =>
+    removeSlide.mutate(
+      { postId, slideId },
+      {
+        onSuccess: () => {
+          setSelectedSlideIdx(0);
+          toast.success("Slide removido!");
+        },
       },
-      onError: () => toast.error("Erro ao remover slide"),
-    }),
-  );
+    );
 
-  // Check if OpenAI integration is active
-  const { data: integrationsData } = useQuery(
-    orpc.platformIntegrations.getMany.queryOptions({}),
-  );
+  const { data: integrationsData } = useQueryPlatformIntegrations();
   const hasOpenAI = (integrationsData?.integrations ?? []).some(
-    (i: any) => i.platform === "OPENAI" && i.isActive,
+    (i) => i.platform === "OPENAI" && i.isActive,
   );
 
-  // Generate image from prompt
-  const generateImage = useMutation(
-    orpc.nasaPlanner.posts.generateImage.mutationOptions({
-      onSuccess: (data) => {
-        editor.setCurrentImageKey(data.imageKey);
-        toast.success(`Imagem gerada! ${data.starsSpent} star${data.starsSpent !== 1 ? "s" : ""} usada${data.starsSpent !== 1 ? "s" : ""}`);
-        qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts", "getMany"] });
-      },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao gerar imagem"),
-    }),
-  );
-
-  // Update slide
-  const updateSlide = useMutation(
-    orpc.nasaPlanner.posts.updateSlide.mutationOptions({
-      onSuccess: () => {
-        toast.success("Imagem salva!");
-        qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts", "getMany"] });
-      },
-      onError: () => toast.error("Erro ao salvar imagem"),
-    }),
-  );
-
-  // Upload image
-  const uploadImage = useMutation(
-    orpc.nasaPlanner.posts.uploadImage.mutationOptions({
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts", "getMany"] });
-      },
-    }),
-  );
-
-  // Update post (used to persist slides with headline/subtext on export)
-  const updatePost = useMutation(
-    orpc.nasaPlanner.posts.update.mutationOptions({
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts", "getMany"] });
-      },
-    }),
-  );
+  const generateImage = useGeneratePlannerPostImage();
+  const updateSlide = useUpdatePlannerPostSlide();
+  const uploadImage = useUploadPlannerPostImageQuietly();
+  const updatePost = useUpdatePlannerPostQuietly();
 
   const handleGenerate = useCallback(() => {
     if (!editor.aiPrompt.trim()) return;
-    generateImage.mutate({
-      postId,
-      prompt: editor.aiPrompt,
-      quality: editor.quality,
-    });
-  }, [editor.aiPrompt, editor.quality, generateImage, postId]);
+    generateImage.mutate(
+      { postId, prompt: editor.aiPrompt, quality: editor.quality },
+      { onSuccess: (generated) => editor.setCurrentImageKey(generated.imageKey) },
+    );
+  }, [editor, generateImage, postId]);
 
   // Upload a local file: resize client-side, upload to S3 via presigned URL
   const handleFileSelect = useCallback(async (file: File) => {
@@ -213,9 +168,9 @@ export function ImageEditorDialog({
       editor.setCurrentImageKey(key);
       await uploadImage.mutateAsync({ postId, imageKey: key });
       toast.success("Imagem carregada!");
-    } catch (err: any) {
+    } catch (error) {
       toast.error("Erro ao fazer upload da imagem");
-      console.error(err);
+      console.error(error);
     }
   }, [editor, postId, uploadImage]);
 
@@ -250,7 +205,7 @@ export function ImageEditorDialog({
     if (!editor.currentImageKey) return;
     const imgEl = new Image();
     imgEl.crossOrigin = "anonymous";
-    imgEl.src = resolveUrl(editor.currentImageKey);
+    imgEl.src = getPlannerMediaUrl(editor.currentImageKey);
     await new Promise((res) => { imgEl.onload = res; imgEl.onerror = res; });
     const blob = await bgRemoval.removeBackground(imgEl);
     if (!blob) return;
@@ -283,7 +238,7 @@ export function ImageEditorDialog({
     if (editor.currentImageKey) {
       const img = new Image();
       img.crossOrigin = "anonymous";
-      img.src = resolveUrl(editor.currentImageKey);
+      img.src = getPlannerMediaUrl(editor.currentImageKey);
       await new Promise((r) => { img.onload = r; img.onerror = r; });
       ctx.drawImage(img, 0, 0, canvasW, canvasH);
     } else {
@@ -295,7 +250,7 @@ export function ImageEditorDialog({
     if (editor.showLogo && logoKey) {
       const logo = new Image();
       logo.crossOrigin = "anonymous";
-      logo.src = logoKey ? resolveUrl(logoKey) : "";
+      logo.src = logoKey ? getPlannerMediaUrl(logoKey) : "";
       await new Promise((r) => { logo.onload = r; logo.onerror = r; });
       ctx.drawImage(logo, editor.logoPosition.x, editor.logoPosition.y, editor.logoSize, editor.logoSize);
     }
@@ -367,7 +322,7 @@ export function ImageEditorDialog({
   const handleDownload = useCallback(() => {
     if (!editor.currentImageKey) return;
     const a = document.createElement("a");
-    a.href = editor.currentImageKey ? resolveUrl(editor.currentImageKey) : "";
+    a.href = editor.currentImageKey ? getPlannerMediaUrl(editor.currentImageKey) : "";
     a.download = `post-${postId}.png`;
     a.target = "_blank";
     a.click();
@@ -400,7 +355,7 @@ export function ImageEditorDialog({
                   {slide.imageKey ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={resolveUrl(slide.imageKey)}
+                      src={getPlannerMediaUrl(slide.imageKey)}
                       alt={`Slide ${idx + 1}`}
                       className="w-full h-full object-cover"
                     />
@@ -415,7 +370,7 @@ export function ImageEditorDialog({
                 </button>
                 <button
                   type="button"
-                  onClick={() => removeSlide.mutate({ postId, slideId: slide.id })}
+                  onClick={() => handleRemoveSlide(slide.id)}
                   disabled={
                     removeSlide.isPending &&
                     removeSlide.variables?.slideId === slide.id
