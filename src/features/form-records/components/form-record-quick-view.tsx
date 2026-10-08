@@ -111,7 +111,8 @@ export function FormRecordQuickView({
             // `pointer-events-none` garante a leitura mesmo onde `inert` não vale.
             <div
               inert
-              className="pointer-events-none p-4"
+              // Em leitura, os botões de +/− das listas de itens só confundem.
+              className="pointer-events-none p-4 [&_[data-record-stepper]]:hidden"
               style={{ width: SHEET_WIDTH_PX, zoom: scale }}
             >
               <FormPrefillProvider key={recordKey} values={responseValues} sessionKey={`quick-view-${recordKey}`}>
