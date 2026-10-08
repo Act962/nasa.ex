@@ -19,6 +19,8 @@ export type FormLeadCtx = {
   leadPublicToken: string | null;
   /** ID do form atual — usado em `/formulario/novo/<formId>/<leadId>`. */
   formId: string | null;
+  /** Ficha de origem já escolhida na tela anterior (ex.: a O.S. que recebe o consumo). */
+  sourceRecordId?: string | null;
 };
 
 const FormLeadContext = createContext<FormLeadCtx | null>(null);

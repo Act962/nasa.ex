@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { usePrefillFieldValue } from "@/features/form/context/form-prefill-context";
 import { VEHICLE_ART_CREDIT } from "@/features/form-records/lib/vehicle-diagram-art";
@@ -237,42 +238,33 @@ function FormView({
         </p>
       )}
       {selectedParts.length > 0 && (
-        <ul className="space-y-1">
+        <ul className="space-y-2">
           {selectedParts.map((part) => (
-            <li
-              key={part.partId}
-              className="flex flex-wrap items-center gap-2 sm:flex-nowrap"
-            >
-              <span className="flex min-w-0 shrink-0 items-center gap-2 text-sm sm:w-56">
-                <span
-                  className="size-3 shrink-0 rounded-sm bg-destructive"
-                  aria-hidden
-                />
-                <span className="break-words">{part.label}</span>
-              </span>
-              <Input
+            <li key={part.partId} className="rounded-[16px] border bg-card p-3">
+              <div className="flex items-center gap-2">
+                <span className="size-3 shrink-0 rounded-sm bg-destructive" aria-hidden />
+                <span className="min-w-0 flex-1 break-words text-sm font-medium">{part.label}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  data-record-stepper
+                  aria-label={`Desmarcar ${part.label}`}
+                  onClick={() => togglePart(part.partId)}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+              <Textarea
                 value={part.note}
                 maxLength={120}
+                rows={2}
                 placeholder="Ponto de observação (opcional)"
                 aria-label={`Ponto de observação de ${part.label}`}
-                onChange={(event) =>
-                  updateNote(part.partId, event.target.value, false)
-                }
-                onBlur={(event) =>
-                  updateNote(part.partId, event.target.value.trim(), true)
-                }
-                className="h-8 min-w-0 flex-1"
+                onChange={(event) => updateNote(part.partId, event.target.value, false)}
+                onBlur={(event) => updateNote(part.partId, event.target.value.trim(), true)}
+                className="mt-2 min-h-[3.25rem] w-full resize-none"
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                data-record-stepper
-                aria-label={`Desmarcar ${part.label}`}
-                onClick={() => togglePart(part.partId)}
-              >
-                <Trash2 className="size-4" />
-              </Button>
             </li>
           ))}
         </ul>

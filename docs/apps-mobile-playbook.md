@@ -114,3 +114,5 @@
 - 2026-10-02 — Aplicado em Configurações (lista de seções no celular com voltar, abas em pílula no computador, perfil em linhas de ajuste, membros/convites/links em cartões com busca, notificações com Switch e ícones no lugar de emoji, diálogos em gaveta de baixo, salvar fixo nos formulários da empresa).
 - 2026-10-02 — Aplicado no N-Box (Enviar no centro do menu, pastas em pílulas e gaveta, pré-visualização em gaveta).
 - 2026-10-02 — Primeira versão, consolidando Formulários, Campanhas, Agenda, Forge e STAR FRIENDS.
+- 2026-10-08 — Fichas dos Formulários (lista, painel e fechamento): cartões no celular no lugar da tabela, filtros em linha que rola, KPIs em 2 colunas e menu de baixo da tela (Painel · Fichas · Fechamento · Preencher). Formulário e visão rápida passam a fixar o tema dos campos pela cor de fundo do formulário.
+- 2026-10-08 — Fichas dos Formulários: tela inicial como app (uma ação principal, dois atalhos, lista Pendentes/Prontas) e menu de baixo Início · Fichas · **Nova** (centro) · Fechamento · Links. Barra de cima do preenchimento com voltar, cliente e menu "⋯".

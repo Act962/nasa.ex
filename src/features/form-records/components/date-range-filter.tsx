@@ -76,12 +76,12 @@ export function DateRangeFilter({ value, onChange }: { value: DateRangeValue; on
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" aria-label="Período" data-guide={GUIDE_ANCHORS.formRecordsDateFilter.id} className="justify-start gap-2 font-normal">
+        <Button type="button" variant="outline" aria-label="Período" data-guide={GUIDE_ANCHORS.formRecordsDateFilter.id} className="shrink-0 justify-start gap-2 font-normal">
           <CalendarDays className="size-4 text-muted-foreground" />
           {describeRange(value, presets)}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 space-y-3">
+      <PopoverContent align="end" className="w-80 max-w-[calc(100vw-1rem)] space-y-3">
         <div className="grid grid-cols-2 gap-1">
           {presets.map((preset) => (
             <Button

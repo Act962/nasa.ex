@@ -36,6 +36,8 @@ export const listClientRecords = base
     z.object({
       clientFirstName: z.string(),
       clientName: z.string(),
+      /** Marca da empresa que atende o cliente, para o cabeçalho da página. */
+      organization: z.object({ name: z.string(), logo: z.string().nullable() }),
       /** Vinculados do lead para o organograma; vazio quando ele não tem nenhum. */
       members: z.array(
         z.object({
@@ -82,7 +84,7 @@ export const listClientRecords = base
   .handler(async ({ input, errors }) => {
     const lead = await prisma.lead.findUnique({
       where: { publicToken: input.token },
-      select: { id: true, name: true },
+      select: { id: true, name: true, tracking: { select: { organization: { select: { name: true, logo: true } } } } },
     });
     if (!lead) throw errors.NOT_FOUND({ message: "Link inválido" });
 
@@ -120,6 +122,7 @@ export const listClientRecords = base
     const periodKeys = periodGroups.map((group) => group.periodKey);
     const periodKey = input.periodKey ?? periodKeys[0] ?? null;
     const clientFirstName = lead.name.split(" ")[0] || "Cliente";
+    const organization = { name: lead.tracking.organization.name.trim(), logo: lead.tracking.organization.logo };
 
     const everFilledMemberIds = new Set(
       (await prisma.formRecord.groupBy({ by: ["leadMemberId"], where: { ...leadScope, leadMemberId: { not: null } } })).map((group) => group.leadMemberId),
@@ -142,6 +145,7 @@ export const listClientRecords = base
       return {
         clientFirstName,
         clientName: lead.name,
+        organization,
         members: toChartMembers(new Map()),
         selectedMemberId,
         periodKey: null,
@@ -223,6 +227,7 @@ export const listClientRecords = base
     return {
       clientFirstName,
       clientName: lead.name,
+      organization,
       members: toChartMembers(branchTotalsByMemberId),
       selectedMemberId,
       periodKey,

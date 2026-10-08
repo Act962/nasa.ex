@@ -98,7 +98,11 @@
   --breakpoint-tiny: 380px;
 }
 
-:root {
+/* `.light` fixa o tema claro numa área mesmo com a plataforma no escuro: o
+   formulário mantém a cor escolhida pela empresa (design system, D-3), então os
+   campos dentro dele precisam dos tokens do tema que combina com esse fundo. */
+:root,
+.light {
   --radius: 1.85rem;
   --spacing: 0.28rem;
   --tracking-normal: -0.015em;

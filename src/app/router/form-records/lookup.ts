@@ -21,7 +21,7 @@ const lookupOptionSchema = z.object({
 
 type LookupOption = z.infer<typeof lookupOptionSchema>;
 
-function readKeyFieldValues(rawKeyFields: unknown): Record<string, string> {
+export function readKeyFieldValues(rawKeyFields: unknown): Record<string, string> {
   if (!rawKeyFields || typeof rawKeyFields !== "object" || Array.isArray(rawKeyFields)) return {};
   const values: Record<string, string> = {};
   for (const [fieldKey, rawField] of Object.entries(rawKeyFields as Record<string, unknown>)) {
@@ -41,6 +41,8 @@ export const searchLookup = base
       query: z.string().trim().max(80).default(""),
       /** Formulário cujas fichas são a fonte, quando `source` é RECORDS. */
       sourceFormId: z.string().optional(),
+      /** Traz só esta ficha: usada quando a tela já abre com a ficha de origem escolhida. */
+      recordId: z.string().optional(),
     }),
   )
   .output(z.object({ options: z.array(lookupOptionSchema) }))
@@ -91,6 +93,7 @@ export const searchLookup = base
       where: {
         organizationId,
         formId: input.sourceFormId,
+        ...(input.recordId ? { id: input.recordId } : {}),
         ...(query ? { searchText: { contains: normalizeSearchText(query) } } : {}),
       },
       select: { id: true, label: true, leadId: true, keyFields: true, referenceDate: true },
@@ -122,4 +125,42 @@ export const searchLookup = base
       };
     });
     return { options };
+  });
+
+/**
+ * Onde um cliente cadastrado na hora, pela tela de nova ficha, deve entrar:
+ * o tracking e a etapa configurados no formulário ou, na falta, o primeiro
+ * tracking de que o usuário participa. A criação em si usa `leads.create`.
+ */
+export const getQuickClientDefaults = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .route({ method: "GET", summary: "Where a client created from the record picker should land", tags: ["Forms"] })
+  .input(z.object({ formId: z.string() }))
+  .output(z.object({ trackingId: z.string().nullable(), statusId: z.string().nullable(), trackingName: z.string().nullable() }))
+  .handler(async ({ input, context, errors }) => {
+    const organizationId = context.org.id;
+    const form = await prisma.form.findFirst({
+      where: { id: input.formId, organizationId },
+      select: { settings: { select: { trackingId: true, statusId: true } } },
+    });
+    if (!form) throw errors.NOT_FOUND({ message: "Formulário não encontrado" });
+
+    const firstStatusOf = (trackingId: string) =>
+      prisma.status.findFirst({ where: { trackingId }, orderBy: { order: "asc" }, select: { id: true } });
+    const participantOf = (trackingId?: string) =>
+      prisma.trackingParticipant.findFirst({
+        where: { userId: context.user.id, tracking: { organizationId }, ...(trackingId ? { trackingId } : {}) },
+        orderBy: { createdAt: "asc" },
+        select: { tracking: { select: { id: true, name: true } } },
+      });
+
+    // O tracking do formulário só vale se quem está preenchendo participa dele.
+    const configured = form.settings?.trackingId ? await participantOf(form.settings.trackingId) : null;
+    const participation = configured ?? (await participantOf());
+    if (!participation) return { trackingId: null, statusId: null, trackingName: null };
+
+    const isConfiguredStatus = configured !== null && Boolean(form.settings?.statusId);
+    const status = isConfiguredStatus ? { id: form.settings?.statusId ?? "" } : await firstStatusOf(participation.tracking.id);
+    return { trackingId: participation.tracking.id, statusId: status?.id ?? null, trackingName: participation.tracking.name };
   });

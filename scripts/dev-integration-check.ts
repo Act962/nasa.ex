@@ -11,6 +11,7 @@
 import "./astro-qa/load-env";
 import { createHmac, randomBytes } from "node:crypto";
 import prisma from "../src/lib/prisma";
+import { defaultBackgroundColor, defaultPrimaryColor } from "../src/features/form/constants";
 import { assertQaOrg, loadQaOrg } from "./astro-qa/qa-org";
 
 const APP_URL = process.env.ASTRO_QA_APP_URL ?? "http://localhost:3000";
@@ -130,6 +131,8 @@ async function main() {
         content: "",
         shareUrl: `qa-fichas-${randomBytes(6).toString("hex")}`,
         jsonBlock: JSON.stringify([row(blocks)]),
+        // Como na criação pelo app: sem este registro a aba "Configurações" do construtor fica vazia.
+        settings: { create: { primaryColor: defaultPrimaryColor, backgroundColor: defaultBackgroundColor } },
       },
       select: { id: true },
     });

@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Lock, LockOpen, Receipt } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ClipboardList, Coins, Link2, Lock, LockOpen, Plus, Receipt, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
+import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
 import {
   useCloseFormPeriod,
   useFormClosing,
@@ -16,6 +18,7 @@ import {
   useReopenFormPeriod,
   useSaveClosingSharedCosts,
 } from "@/features/form-records/hooks/use-form-closings";
+import { useClientPublicLink } from "@/features/form-records/hooks/use-client-records";
 import { groupLinesForBilling, type SharedCostGroup } from "@/features/form-records/lib/compute-closing";
 import { formatCents } from "@/features/form-records/lib/measure-units";
 import { toPeriodKey } from "@/features/form-records/lib/record-fields";
@@ -27,7 +30,27 @@ function readErrorMessage(error: unknown): string {
 }
 
 /** Fechamento de um período por cliente (spec 0075, RF-10). */
+const SHARED_COSTS_SECTION_ID = "closing-shared-costs";
+const CLIENT_TOTALS_SECTION_ID = "closing-client-totals";
+
+function scrollToSection(sectionId: string) {
+  document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 export function FormClosingPage({ formId }: { formId: string }) {
+  const router = useRouter();
+  // Menu de baixo do celular com as seções desta tela (playbook dos Apps, §3).
+  useRegisterOrbitDock({
+    leftItems: [
+      { label: "Fichas", icon: <ClipboardList />, onSelect: () => router.push(`/form/responses/${formId}`) },
+      { label: "Custos", icon: <Coins />, onSelect: () => scrollToSection(SHARED_COSTS_SECTION_ID) },
+    ],
+    rightItems: [
+      { label: "Clientes", icon: <Users />, onSelect: () => scrollToSection(CLIENT_TOTALS_SECTION_ID) },
+      { label: "Preencher", icon: <Plus />, onSelect: () => router.push(`/formulario/novo/${formId}`) },
+    ],
+  });
+
   const [periodKey, setPeriodKey] = useState(() => toPeriodKey(new Date()));
   const { data, isLoading, isError } = useFormClosing({ formId, periodKey });
   const [groups, setGroups] = useState<SharedCostGroup[]>([]);
@@ -37,6 +60,7 @@ export function FormClosingPage({ formId }: { formId: string }) {
   const closePeriod = useCloseFormPeriod();
   const reopenPeriod = useReopenFormPeriod();
   const generateReceivables = useGenerateClosingReceivables();
+  const clientLink = useClientPublicLink();
 
   // O que veio do servidor substitui o rascunho local só quando não há edição pendente.
   useEffect(() => {
@@ -68,6 +92,24 @@ export function FormClosingPage({ formId }: { formId: string }) {
   const isBusy = saveSharedCosts.isPending || closePeriod.isPending || reopenPeriod.isPending || generateReceivables.isPending;
   const canClose = !isClosed && !isDirty && data.lines.length > 0 && data.withoutClientCount === 0;
 
+  // O cliente confere pelo link público dele, já aberto neste mês.
+  const copyClientLink = (leadId: string, leadName: string) =>
+    clientLink.mutate(
+      { leadId, rotate: false },
+      {
+        onSuccess: async (result) => {
+          const url = `${window.location.origin}/lead/${result.token}/fichas?periodo=${periodKey}`;
+          try {
+            await navigator.clipboard.writeText(url);
+            toast.success(`Link de ${leadName} copiado. Envie para o cliente conferir ${formatPeriodKey(periodKey)}.`);
+          } catch {
+            toast.message(url);
+          }
+        },
+        onError: (error) => toast.error(readErrorMessage(error)),
+      },
+    );
+
   const handleSave = () =>
     saveSharedCosts.mutate(
       { formId, periodKey, groups },
@@ -81,18 +123,18 @@ export function FormClosingPage({ formId }: { formId: string }) {
     );
 
   return (
-    <main className="space-y-6 pt-5 pb-28">
+    <main className="min-w-0 space-y-6 pt-5 pb-28">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           <Link href={`/form/responses/${formId}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="size-4" />
             Voltar para as fichas
           </Link>
-          <h1 className="text-2xl font-semibold tracking-tight">Fechamento · {data.formName}</h1>
+          <h1 className="break-words text-xl font-semibold tracking-tight sm:text-2xl">Fechamento · {data.formName}</h1>
         </div>
         <div className="flex items-center gap-2">
           <Select value={periodKey} onValueChange={changePeriod}>
-            <SelectTrigger className="w-52" aria-label="Período">
+            <SelectTrigger className="w-52 max-w-full" aria-label="Período">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -123,7 +165,7 @@ export function FormClosingPage({ formId }: { formId: string }) {
         </div>
       )}
 
-      <section className="space-y-3" aria-label="Custos compartilhados">
+      <section id={SHARED_COSTS_SECTION_ID} className="scroll-mt-16 space-y-3" aria-label="Custos compartilhados">
         <div>
           <h2 className="text-lg font-semibold">Custos compartilhados do período</h2>
           <p className="text-sm text-muted-foreground">
@@ -145,7 +187,7 @@ export function FormClosingPage({ formId }: { formId: string }) {
         )}
       </section>
 
-      <section className="space-y-3" aria-label="Total por cliente">
+      <section id={CLIENT_TOTALS_SECTION_ID} className="scroll-mt-16 space-y-3" aria-label="Total por cliente">
         <div>
           <h2 className="text-lg font-semibold">Total por cliente</h2>
           <p className="text-sm text-muted-foreground">
@@ -162,12 +204,13 @@ export function FormClosingPage({ formId }: { formId: string }) {
                 <TableHead className="text-right">Custos rateados</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 {isClosed && <TableHead>Conta a receber</TableHead>}
+                <TableHead className="text-right">Link do cliente</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.lines.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isClosed ? 6 : 5} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={isClosed ? 7 : 6} className="h-24 text-center text-muted-foreground">
                     Nenhuma ficha enviada neste período.
                   </TableCell>
                 </TableRow>
@@ -195,6 +238,19 @@ export function FormClosingPage({ formId }: { formId: string }) {
                     </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">{formatCents(line.totalCents)}</TableCell>
                     {isClosed && <TableCell>{line.paymentEntryId ? "Gerada" : "Não gerada"}</TableCell>}
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={clientLink.isPending}
+                        aria-label={`Copiar link de ${line.leadName} para conferir ${formatPeriodKey(periodKey)}`}
+                        onClick={() => copyClientLink(line.leadId, line.leadName)}
+                      >
+                        <Link2 className="size-4" />
+                        Copiar link
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -208,6 +264,7 @@ export function FormClosingPage({ formId }: { formId: string }) {
                   <TableCell className="text-right tabular-nums">{formatCents(data.sharedCostCents)}</TableCell>
                   <TableCell className="text-right font-semibold tabular-nums">{formatCents(data.totalCents)}</TableCell>
                   {isClosed && <TableCell />}
+                  <TableCell />
                 </TableRow>
               </TableFooter>
             )}

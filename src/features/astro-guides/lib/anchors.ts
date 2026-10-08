@@ -239,6 +239,14 @@ export const GUIDE_ANCHORS = {
     id: "form.records.closing-button",
     description: "Botão \"Fechamento por cliente\" na lista de fichas de um formulário",
   },
+  formWorkspaceNewRecord: {
+    id: "form.workspace.new-record",
+    description: "Botão grande que abre uma ficha nova na tela inicial das fichas de um formulário",
+  },
+  formWorkspaceSendLink: {
+    id: "form.workspace.send-link",
+    description: "Atalho \"Enviar link ao cliente\" na tela inicial das fichas, para o cliente conferir as fichas dele",
+  },
   formRecordsDateFilter: {
     id: "form.records.date-filter",
     description: "Filtro de datas da lista de fichas, que também muda os números do painel",

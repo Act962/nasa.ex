@@ -26,6 +26,8 @@ import { Switch } from "@/components/ui/switch";
 import { FormSettings } from "@/generated/prisma/client";
 import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
+import { maskPhoneBr } from "@/features/form/lib/masks";
+import { LicensePlateInput } from "@/features/form/components/common/license-plate-input";
 import {
   useResolvedInitialValue,
   type LeadPrefillSource,
@@ -41,7 +43,32 @@ type attributesType = {
   placeHolder: string;
   /** Vínculo com o step de identificação (spec 0006). */
   prefillFromLead?: LeadPrefillSource | null;
+  /** Mostra o campo como placa de veículo. Ausente = só quando o nome-chave é "placa". */
+  showAsPlate?: boolean;
+  fieldKey?: string;
 };
+
+const PLATE_FIELD_KEY = "placa";
+
+const PHONE_FIELD_KEYS = ["fone", "fones", "telefone", "celular", "whatsapp"];
+const BRAZIL_COUNTRY_CODE = "55";
+const BRAZIL_PHONE_DIGITS = 11;
+
+/** Campo de texto ligado ao telefone do lead, ou com nome-chave de telefone, ganha a máscara de WhatsApp. */
+function isPhoneField(attributes: attributesType): boolean {
+  return attributes.prefillFromLead === "phone" || PHONE_FIELD_KEYS.includes(attributes.fieldKey?.trim().toLowerCase() ?? "");
+}
+
+/** O telefone do lead chega com o DDI do Brasil; a máscara mostra só DDD e número. */
+function toMaskedPhone(rawPhone: string): string {
+  const digits = rawPhone.replace(/\D/g, "");
+  const hasCountryCode = digits.length > BRAZIL_PHONE_DIGITS && digits.startsWith(BRAZIL_COUNTRY_CODE);
+  return maskPhoneBr(hasCountryCode ? digits.slice(BRAZIL_COUNTRY_CODE.length) : digits);
+}
+
+function isPlateField(attributes: attributesType): boolean {
+  return attributes.showAsPlate ?? attributes.fieldKey?.trim().toLowerCase() === PLATE_FIELD_KEY;
+}
 
 type propertiesValidateSchemaType = z.input<typeof propertiesValidateSchema>;
 
@@ -49,6 +76,7 @@ const propertiesValidateSchema = z.object({
   placeHolder: z.string().trim().optional(),
   label: z.string().trim().max(255).optional(),
   required: z.boolean().default(false).optional(),
+  showAsPlate: z.boolean().optional(),
   helperText: z.string().trim().max(255).optional(),
 });
 
@@ -149,9 +177,11 @@ function TextFieldFormComponent({
   const { initialValue: prefill, identityValue } = useResolvedInitialValue(
     block.id,
     block.attributes.prefillFromLead ?? null,
-    (block.attributes as { fieldKey?: string }).fieldKey,
+    block.attributes.fieldKey,
   );
-  const [value, setValue] = useState(prefill ?? "");
+  const isPhone = isPhoneField(block.attributes);
+  const toFieldValue = (rawValue: string) => (isPhone ? toMaskedPhone(rawValue) : rawValue);
+  const [value, setValue] = useState(toFieldValue(prefill ?? ""));
   const [isError, setIsError] = useState(false);
   // Enquanto o usuário não editar, o campo acompanha a identificação; depois
   // congela (D-4). Esvaziar o campo conta como edição (CB-7).
@@ -161,7 +191,7 @@ function TextFieldFormComponent({
   // pra que mesmo sem interação o blur já tenha registrado a resposta.
   useEffect(() => {
     if (prefill && prefill.trim().length > 0 && handleBlur) {
-      handleBlur(block.id, { value: prefill });
+      handleBlur(block.id, { value: toFieldValue(prefill) });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -171,8 +201,8 @@ function TextFieldFormComponent({
   useEffect(() => {
     if (touchedRef.current) return;
     if (identityValue === undefined) return;
-    setValue(identityValue);
-    handleBlur?.(block.id, { value: identityValue });
+    setValue(toFieldValue(identityValue));
+    handleBlur?.(block.id, { value: toFieldValue(identityValue) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identityValue]);
 
@@ -192,20 +222,54 @@ function TextFieldFormComponent({
           {required && <span className="text-destructive"> *</span>}
         </Label>
       )}
-      <AutoGrowTextarea
-        value={value}
-        onChange={(v) => {
-          touchedRef.current = true;
-          setValue(v);
-        }}
-        onBlur={(v) => {
-          const isValid = validateField(v);
-          setIsError(!isValid);
-          if (handleBlur) handleBlur(block.id, { value: v });
-        }}
-        placeholder={placeHolder}
-        className={`min-h-10 ${isError || isSubmitError ? "border-destructive!" : ""}`}
-      />
+      {isPlateField(block.attributes) ? (
+        <LicensePlateInput
+          value={value}
+          label={label?.trim() || "Placa"}
+          hasError={isError || isSubmitError}
+          onChange={(plate) => {
+            touchedRef.current = true;
+            setValue(plate);
+          }}
+          onBlur={(plate) => {
+            setIsError(!validateField(plate));
+            handleBlur?.(block.id, { value: plate });
+          }}
+        />
+      ) : isPhone ? (
+        <Input
+          type="text"
+          inputMode="tel"
+          autoComplete="tel"
+          value={value}
+          placeholder={placeHolder || "(11) 91234-5678"}
+          onChange={(event) => {
+            touchedRef.current = true;
+            setValue(toMaskedPhone(event.target.value));
+          }}
+          onBlur={(event) => {
+            const maskedPhone = toMaskedPhone(event.target.value);
+            setIsError(!validateField(maskedPhone));
+            handleBlur?.(block.id, { value: maskedPhone });
+          }}
+          className={`h-10 text-base ${isError || isSubmitError ? "border-destructive!" : ""}`}
+        />
+      ) : (
+        <AutoGrowTextarea
+          value={value}
+          onChange={(v) => {
+            touchedRef.current = true;
+            setValue(v);
+          }}
+          onBlur={(v) => {
+            const isValid = validateField(v);
+            setIsError(!isValid);
+            if (handleBlur) handleBlur(block.id, { value: v });
+          }}
+          placeholder={placeHolder}
+          className={`min-h-10 ${isError || isSubmitError ? "border-destructive!" : ""}`}
+        />
+      )}
       {helperText && (
         <p
           className={
@@ -253,6 +317,7 @@ function TextFieldPropertiesComponent({
       helperText: block.attributes.helperText,
       required: block.attributes.required,
       placeHolder: block.attributes.placeHolder,
+      showAsPlate: isPlateField(block.attributes),
     },
   });
 
@@ -262,6 +327,7 @@ function TextFieldPropertiesComponent({
       helperText: block.attributes.helperText,
       required: block.attributes.required,
       placeHolder: block.attributes.placeHolder,
+      showAsPlate: isPlateField(block.attributes),
     });
   }, [block.attributes, form]);
 
@@ -403,6 +469,30 @@ function TextFieldPropertiesComponent({
                           ...form.getValues(),
                           required: value,
                         });
+                      }}
+                    />
+                  </FormControl>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="showAsPlate"
+            render={({ field }) => (
+              <FormItem className="text-end">
+                <div className="flex items-center justify-between w-full gap-2">
+                  <FormLabel className="text-[13px] font-normal">
+                    Mostrar como placa de veículo
+                  </FormLabel>
+                  <FormControl>
+                    <Switch
+                      checked={field.value === true}
+                      onCheckedChange={(showAsPlate) => {
+                        field.onChange(showAsPlate);
+                        setChanges({ ...form.getValues(), showAsPlate });
                       }}
                     />
                   </FormControl>

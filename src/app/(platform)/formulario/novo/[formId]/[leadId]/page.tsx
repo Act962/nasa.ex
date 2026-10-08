@@ -5,8 +5,14 @@ import dynamic from "next/dynamic";
 import { useMutation } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Link2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ChevronLeft, Link2, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import {
   useQueryFormById,
@@ -19,7 +25,6 @@ import { FormLeadProvider } from "@/features/form/context/form-lead-context";
 import { LeadMemberPicker } from "@/features/lead-members/components/lead-member-picker";
 import { NotAvaliable } from "@/features/form/components/public/not-avaliable";
 import type { FormBlockInstance } from "@/features/form/types";
-import { useConstructUrl } from "@/hooks/use-construct-url";
 import { buildResponseSlug } from "@/features/form/lib/response-slug";
 import { orpc } from "@/lib/orpc";
 import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
@@ -71,6 +76,8 @@ function NovaRespostaContent() {
   // deste formulário.
   const searchParams = useSearchParams();
   const actionId = searchParams.get("fromAction") ?? undefined;
+  // Ficha de origem já escolhida na tela inicial das fichas (ex.: a O.S. que recebe o consumo).
+  const sourceRecordId = searchParams.get("origem");
   // Vinculado do lead a quem esta ficha se refere (spec 0076). Vale para a
   // criação; depois do primeiro salvamento a escolha fica travada.
   const [leadMemberId, setLeadMemberId] = useState<string | null>(searchParams.get("vinculado"));
@@ -125,8 +132,6 @@ function NovaRespostaContent() {
     }
   }, [form?.jsonBlock]);
 
-  const responsibleImg = useConstructUrl(responsible?.image || "");
-
   // Compartilhar link do cliente (mesma feature da página de edição).
   const generateLink = useMutation(
     orpc.leads.generatePublicLink.mutationOptions({}),
@@ -174,46 +179,22 @@ function NovaRespostaContent() {
       {/* Cabeçalho com contexto do lead */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-[920px] mx-auto px-4 py-3 flex items-center gap-3">
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-sm font-semibold truncate">{form.name}</h1>
-              {tracking?.name && (
-                <span className="text-[11px] text-muted-foreground">
-                  • {tracking.name}
-                </span>
-              )}
-              <span className="text-[10px] uppercase font-semibold text-warning dark:text-warning bg-warning/10 px-2 py-0.5 rounded">
-                Novo preenchimento
-              </span>
-            </div>
-            <div className="text-[11px] text-muted-foreground truncate">
-              Lead: {lead.name ?? "—"}
-            </div>
-          </div>
-
-          {/* Compartilhar link do cliente */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={copyClientLink}
-            disabled={generateLink.isPending}
-            className="shrink-0"
-            title="Copiar link de acompanhamento pra enviar ao cliente"
+          <button
+            type="button"
+            aria-label="Voltar"
+            onClick={() => (window.history.length > 1 ? router.back() : router.push(`/form/responses/${formId}`))}
+            className="grid size-9 shrink-0 place-items-center rounded-full bg-knob transition-colors hover:bg-panel"
           >
-            <Link2 className="size-4" />
-            <span className="hidden sm:inline">Link do cliente</span>
-          </Button>
-
-          <FormPrintButton
-            blocks={blocks}
-            formName={form.name}
-            leadName={lead.name ?? undefined}
-          />
+            <ChevronLeft className="size-4" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="truncate text-sm font-semibold">{lead.name ?? "—"}</h1>
+            <p className="truncate text-[11px] text-muted-foreground">{form.name} · nova ficha</p>
+          </div>
 
           {status && (
             <div
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0"
+              className="flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium max-md:hidden"
               style={{
                 borderColor: status.color || undefined,
                 color: status.color || undefined,
@@ -221,36 +202,38 @@ function NovaRespostaContent() {
               }}
               title="Status atual do lead"
             >
-              <span
-                className="inline-block size-2 rounded-full"
-                style={{ background: status.color || "#888" }}
-              />
+              <span className="inline-block size-2 rounded-full" style={{ background: status.color || "#888" }} />
               {status.name}
             </div>
           )}
 
-          {responsible && (
-            <div
-              className="flex items-center gap-2 shrink-0"
-              title={`Responsável: ${responsible.name}`}
-            >
-              {responsible.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={responsibleImg}
-                  alt={responsible.name}
-                  className="size-7 rounded-full object-cover border"
-                />
-              ) : (
-                <span className="size-7 rounded-full bg-foreground/10 flex items-center justify-center text-[10px] font-semibold">
-                  {(responsible.name ?? "?").slice(0, 1).toUpperCase()}
-                </span>
-              )}
-              <span className="text-xs hidden sm:inline">
-                {responsible.name}
-              </span>
-            </div>
-          )}
+          {/* Ações secundárias num menu só: a barra fica com voltar, cliente e menu. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Mais opções"
+                className="grid size-9 shrink-0 place-items-center rounded-full bg-knob transition-colors hover:bg-panel"
+              >
+                <MoreHorizontal className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuItem onSelect={copyClientLink} disabled={generateLink.isPending}>
+                <Link2 className="size-4" />
+                Copiar link do cliente
+              </DropdownMenuItem>
+              <div className="px-1 py-1 [&_button]:w-full [&_button]:justify-start [&_button]:border-0 [&_button]:px-2 [&_button]:font-normal [&_button]:shadow-none [&_span]:inline!">
+                <FormPrintButton blocks={blocks} formName={form.name} leadName={lead.name ?? undefined} />
+              </div>
+              <DropdownMenuSeparator />
+              <div className="space-y-1 px-2 py-1.5 text-xs text-muted-foreground">
+                {tracking?.name && <p>Tracking: {tracking.name}</p>}
+                {status?.name && <p>Etapa: {status.name}</p>}
+                {responsible?.name && <p>Responsável: {responsible.name}</p>}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <FullscreenControls />
         </div>
       </header>
@@ -272,6 +255,7 @@ function NovaRespostaContent() {
               (lead as { publicToken?: string | null } | null)?.publicToken ??
               null,
             formId,
+            sourceRecordId,
           }}
         >
           <FormSubmitComponent

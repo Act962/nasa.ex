@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import {
   FormBlockInstance,
@@ -14,10 +14,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { authClient } from "@/lib/auth-client";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
+import { useFormLeadContext } from "@/features/form/context/form-lead-context";
 import { usePrefillFieldValue } from "@/features/form/context/form-prefill-context";
 import { useQueryListForms } from "@/features/form/hooks/use-form";
 import { useFormRecordLookup } from "@/features/form-records/hooks/use-form-record-lookup";
 import { useRecordFillStore } from "@/features/form-records/hooks/use-record-fill-store";
+import { VEHICLE_BRAND_FIELD_KEY, VEHICLE_MODEL_FIELD_KEYS, detectVehicleBrand } from "@/features/form-records/lib/vehicle-brand";
 import {
   buildOrbitLookupValue,
   filterInlineOptions,
@@ -156,8 +158,18 @@ function FormView({
     ? (lookup.data?.options ?? [])
     : filterInlineOptions(inlineOptions, text).map((option) => ({ id: null, label: option, detail: null, fields: {} }));
 
+  const fieldKey = (block.attributes as { fieldKey?: string }).fieldKey?.trim().toLowerCase() ?? "";
+  const isVehicleModelField = VEHICLE_MODEL_FIELD_KEYS.includes(fieldKey);
+
   const publish = (nextText: string, nextRefId: string | null) => {
     handleBlur?.(block.id, buildOrbitLookupValue({ text: nextText, source, refId: nextRefId }));
+  };
+
+  // Modelo escolhido ou digitado agora: a marca entra sozinha no campo de nome-chave `marca`.
+  // Não roda para resposta salva, para não trocar uma marca corrigida à mão.
+  const fillVehicleBrand = (model: string) => {
+    const brand = isVehicleModelField ? detectVehicleBrand(model) : "";
+    if (brand) fillRecordFields({ [VEHICLE_BRAND_FIELD_KEY]: brand });
   };
 
   // Resposta salva entra no formulário mesmo sem o usuário tocar no campo.
@@ -171,8 +183,26 @@ function FormView({
     setRefId(suggestion.id);
     setIsOpen(false);
     publish(suggestion.label, suggestion.id);
+    fillVehicleBrand(suggestion.label);
     if (Object.keys(suggestion.fields).length > 0) fillRecordFields(suggestion.fields);
   };
+
+  // Tela aberta a partir de uma ficha de origem: ela já entra escolhida.
+  const { sourceRecordId } = useFormLeadContext();
+  const hasEditedRef = useRef(false);
+  const shouldPreselect = source === "RECORDS" && Boolean(sourceRecordId) && Boolean(sourceFormId) && !saved?.value && canSearchServer;
+  const preselection = useFormRecordLookup({
+    source: "RECORDS",
+    query: "",
+    sourceFormId: sourceFormId || undefined,
+    recordId: sourceRecordId ?? undefined,
+    enabled: shouldPreselect,
+  });
+  const preselectedRecord = shouldPreselect ? preselection.data?.options[0] : undefined;
+  useEffect(() => {
+    if (preselectedRecord && !hasEditedRef.current) choose(preselectedRecord);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preselectedRecord]);
 
   const showSuggestions = isOpen && (suggestions.length > 0 || (canSearchServer && lookup.isFetching));
 
@@ -190,6 +220,7 @@ function FormView({
           autoComplete="off"
           onFocus={() => setIsOpen(true)}
           onChange={(event) => {
+            hasEditedRef.current = true;
             setText(event.target.value);
             setRefId(null);
             setIsOpen(true);
@@ -199,6 +230,7 @@ function FormView({
             const typedText = event.target.value;
             setTimeout(() => setIsOpen(false), 150);
             publish(typedText, refId);
+            if (hasEditedRef.current) fillVehicleBrand(typedText);
           }}
           className={`pl-9 ${isSubmitError ? "border-destructive!" : ""}`}
         />
