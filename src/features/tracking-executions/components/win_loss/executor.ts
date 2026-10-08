@@ -5,6 +5,7 @@ import { LeadContext } from "../../schemas";
 import prisma from "@/lib/prisma";
 import { winLossChannel } from "@/inngest/channels/win-loss";
 import { publishLeadClosed } from "@/features/leads/realtime/publish";
+import { createReceivableFromWonLead } from "@/features/payment/server/entries/create-receivable-from-won-lead";
 
 type WinLossNodeData = {
   action?: WinLossFormValues;
@@ -80,6 +81,10 @@ export const winLossExecutor: NodeExecutor<WinLossNodeData> = async ({
         statusId: lead.statusId,
         outcome: leadAction,
       });
+
+      if (leadAction === "WON") {
+        await createReceivableFromWonLead({ leadId: lead.id });
+      }
 
       return {
         ...context,
