@@ -26,7 +26,7 @@ export const generateLeadPublicLink = base
       where: { id: input.leadId, tracking: { organizationId: context.org.id } },
       select: { id: true, publicToken: true },
     });
-    if (!lead) throw errors.NOT_FOUND;
+    if (!lead) throw errors.NOT_FOUND({ message: "Lead não encontrado" });
 
     try {
       let token = lead.publicToken ?? null;
