@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { sendButtons, sendItemsAsList } from "@/http/uazapi/send-menu";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import { persistOutboundMessage } from "../../lib/persist";
 import type { AgentContext } from "../../lib/context";
 
@@ -46,9 +46,19 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
 
       const asList = preset.menuFormat === "LIST";
       try {
+        const resolved = await resolveOutboundProvider(ctx.trackingId);
+        if (!resolved.uazapiToken) {
+          return {
+            error: "buttons_unsupported_on_official_api",
+            message:
+              "Botões e listas não estão disponíveis na API Oficial. Responda em texto com as opções.",
+          };
+        }
+        const uazapiToken = resolved.uazapiToken;
+        const uazapiBaseUrl = resolved.uazapiBaseUrl;
         const result = asList
           ? await sendItemsAsList(
-              requireUazapiToken(ctx.instance.apiKey),
+              uazapiToken,
               {
                 number: ctx.lead.phone,
                 text: preset.bodyText,
@@ -58,10 +68,10 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
                 readchat: true,
                 readmessages: true,
               },
-              ctx.instance.baseUrl ?? undefined,
+              uazapiBaseUrl,
             )
           : await sendButtons(
-              requireUazapiToken(ctx.instance.apiKey),
+              uazapiToken,
               {
                 number: ctx.lead.phone,
                 text: preset.bodyText,
@@ -72,7 +82,7 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
                 readchat: true,
                 readmessages: true,
               },
-              ctx.instance.baseUrl ?? undefined,
+              uazapiBaseUrl,
             );
 
         const summary = buttons.map((b) => `• ${b.text}`).join("\n");

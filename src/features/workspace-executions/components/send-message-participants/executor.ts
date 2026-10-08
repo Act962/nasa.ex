@@ -1,10 +1,8 @@
 import { NodeExecutor } from "@/features/workspace-executions/types";
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
-import {
-  requireUazapiToken,
-  requireUazapiBaseUrl,
-} from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import { NOTICE_NEEDS_CLIENT_TEMPLATE_MESSAGE } from "@/features/tracking-chat/lib/providers/automated-outbound";
 import { wsSendMessageChannel } from "@/inngest/channels/workspace";
 import { ActionContext } from "../../schemas";
 import { loadActionContext } from "../../lib/load-action-context";
@@ -61,6 +59,21 @@ export const wsSendMessageParticipantsExecutor: NodeExecutor<Data> = async ({
         where: { id: cfg.instanceId },
       });
       if (!instance) throw new NonRetriableError("Instance not found");
+      // Participante não é lead e não tem janela de 24h: na API Oficial só
+      // sai template aprovado da conta do cliente. Conferido antes de cobrar.
+      const resolved = await resolveOutboundProvider(instance.trackingId);
+      if (
+        resolved.providerId === "meta-cloud" &&
+        cfg.payload.type !== "TEMPLATE"
+      ) {
+        throw new NonRetriableError(NOTICE_NEEDS_CLIENT_TEMPLATE_MESSAGE);
+      }
+      if (resolved.providerId !== "meta-cloud" && cfg.payload.type === "TEMPLATE") {
+        throw new NonRetriableError(
+          "Template só pode ser enviado por instância da API Oficial.",
+        );
+      }
+      const { provider } = resolved;
 
       const renderFor = (
         template: string,
@@ -93,29 +106,51 @@ export const wsSendMessageParticipantsExecutor: NodeExecutor<Data> = async ({
         }
 
         const payload = cfg.payload;
-        if (payload.type === "TEXT") {
+        if (payload.type === "TEMPLATE") {
+          const renderParameters = (parameters: string[] | undefined) =>
+            (parameters ?? []).map((parameter) =>
+              renderFor(parameter, participant).trim(),
+            );
+          const headerParameters = renderParameters(payload.headerParameters);
+          const bodyParameters = renderParameters(payload.bodyParameters);
+          const hasEmptyParameter = [...headerParameters, ...bodyParameters].some(
+            (parameter) => parameter.length === 0,
+          );
+          if (hasEmptyParameter) {
+            throw new NonRetriableError(
+              `Uma variável do template ficou vazia para ${participant?.name ?? number}.`,
+            );
+          }
+          await provider.sendTemplate({
+            kind: "template",
+            to: number,
+            templateName: payload.templateName,
+            languageCode: payload.languageCode,
+            headerParameters: headerParameters.length
+              ? headerParameters
+              : undefined,
+            bodyParameters: bodyParameters.length ? bodyParameters : undefined,
+          });
+        } else if (payload.type === "TEXT") {
           await sendTextRaw({
             body: renderFor(payload.message, participant),
             number,
-            token: requireUazapiToken(instance.apiKey),
-            baseUrl: requireUazapiBaseUrl(instance.baseUrl),
+            provider,
           });
         } else if (payload.type === "IMAGE") {
           await sendImageRaw({
             body: renderFor(payload.caption ?? "", participant),
             number,
-            token: requireUazapiToken(instance.apiKey),
+            provider,
             mediaUrl: payload.imageUrl,
-            baseUrl: requireUazapiBaseUrl(instance.baseUrl),
           });
         } else if (payload.type === "DOCUMENT") {
           await sendDocumentRaw({
             body: renderFor(payload.caption ?? "", participant),
             number,
-            token: requireUazapiToken(instance.apiKey),
+            provider,
             mediaUrl: payload.documentUrl,
             fileName: payload.fileName,
-            baseUrl: requireUazapiBaseUrl(instance.baseUrl),
           });
         }
       };

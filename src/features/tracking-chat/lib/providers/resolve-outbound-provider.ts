@@ -10,10 +10,7 @@ import {
   InstanceNotFoundError,
   MetaCredentialsIncompleteError,
 } from "./outbound-errors";
-import {
-  requireUazapiBaseUrl,
-  requireUazapiToken,
-} from "./uazapi-credentials";
+import { requireUazapiToken } from "./uazapi-credentials";
 import type { ProviderId, WhatsAppChatProvider } from "./types";
 
 /**
@@ -154,7 +151,9 @@ export async function resolveOutboundProvider(
     // META_CLOUD não as tem), então narrowamos com erro claro caso uma
     // instância Uazapi esteja sem credenciais (estado corrompido).
     const token = requireUazapiToken(instance.apiKey);
-    const baseUrl = requireUazapiBaseUrl(instance.baseUrl);
+    // Instância antiga pode não ter `baseUrl`: o client Uazapi cai no
+    // endereço padrão, como os envios automáticos sempre fizeram.
+    const baseUrl = instance.baseUrl ?? undefined;
     const provider = createProvider("uazapi", { token, baseUrl });
     result = {
       provider,

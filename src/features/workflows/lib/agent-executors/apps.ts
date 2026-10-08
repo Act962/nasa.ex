@@ -16,8 +16,20 @@ import OpenAI from "openai";
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { sendMedia } from "@/http/uazapi/send-media";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
-import type { MediaType } from "@/http/uazapi/types";
+import type { CanonicalMediaKind } from "@/features/tracking-chat/lib/providers";
+import {
+  assertFreeFormWindowOpenForLead,
+  isFreeFormWindowClosedForLead,
+  requireUazapiCredentials,
+  resolveWorkflowProvider,
+  sendWithWorkflowErrors,
+  VOICE_UNSUPPORTED_MESSAGE,
+} from "@/features/tracking-executions/lib/workflow-outbound";
+import {
+  sendTemplateToLead,
+  toWorkflowTemplateContent,
+  type WorkflowTemplateContent,
+} from "@/features/tracking-executions/lib/send-template-to-lead";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { AGENT_STARS_ACTIONS } from "../agent-stars-actions";
 import { getByPath, interpolate } from "../workflow-context";
@@ -173,6 +185,11 @@ export const sendVoiceExecutor: NodeExecutor = async ({
     };
   }
 
+  const voiceCredentials = requireUazapiCredentials(
+    await resolveWorkflowProvider(trackingId),
+    VOICE_UNSUPPORTED_MESSAGE,
+  );
+
   // 1. Gera áudio via OpenAI Audio API
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const speech = await openai.audio.speech.create({
@@ -198,22 +215,19 @@ export const sendVoiceExecutor: NodeExecutor = async ({
   if (!lead?.phone) {
     throw new NonRetriableError("Lead sem telefone pra envio de voz");
   }
-  const instance = await prisma.whatsAppInstance.findFirst({
-    where: { trackingId },
-    select: { apiKey: true },
-  });
-  if (!instance) {
-    throw new NonRetriableError("Instância WhatsApp não encontrada");
-  }
 
   // 4. Envia como ptt (push-to-talk = mensagem de voz)
-  const result = await sendMedia(requireUazapiToken(instance.apiKey), {
-    number: lead.phone,
-    type: "ptt",
-    file: dataUrl,
-    mimetype: "audio/ogg",
-    delay: 1200,
-  });
+  const result = await sendMedia(
+    voiceCredentials.token,
+    {
+      number: lead.phone,
+      type: "ptt",
+      file: dataUrl,
+      mimetype: "audio/ogg",
+      delay: 1200,
+    },
+    voiceCredentials.baseUrl,
+  );
 
   if (orgId) {
     await chargeStarsByAction(orgId, AGENT_STARS_ACTIONS.SEND_VOICE, {
@@ -240,7 +254,7 @@ export const sendVoiceExecutor: NodeExecutor = async ({
 //   fileName?: string,            // pra DOCUMENT
 //   leadId?, trackingId?, organizationId?
 // }
-const MEDIA_TYPE_MAP: Record<string, MediaType> = {
+const MEDIA_TYPE_MAP: Record<string, CanonicalMediaKind> = {
   IMAGE: "image",
   VIDEO: "video",
   AUDIO: "audio",
@@ -310,22 +324,21 @@ export const sendMediaExecutor: NodeExecutor = async ({
   if (!lead?.phone) {
     throw new NonRetriableError("Lead sem telefone pra envio de mídia");
   }
-  const instance = await prisma.whatsAppInstance.findFirst({
-    where: { trackingId },
-    select: { apiKey: true },
-  });
-  if (!instance) {
-    throw new NonRetriableError("Instância WhatsApp não encontrada");
-  }
+  const leadPhone = lead.phone;
+  const resolved = await resolveWorkflowProvider(trackingId);
+  await assertFreeFormWindowOpenForLead(resolved, { leadId, trackingId });
 
-  const result = await sendMedia(requireUazapiToken(instance.apiKey), {
-    number: lead.phone,
-    type: uazapiType,
-    file: url,
-    text: caption || undefined,
-    docName: uazapiType === "document" ? fileName : undefined,
-    delay: 1500,
-  });
+  const sent = await sendWithWorkflowErrors(() =>
+    resolved.provider.sendMedia({
+      kind: "media",
+      mediaKind: uazapiType,
+      to: leadPhone,
+      mediaUrl: url,
+      caption: caption || undefined,
+      fileName: uazapiType === "document" ? fileName : undefined,
+      typingDelayMs: 1500,
+    }),
+  );
 
   if (orgId) {
     await chargeStarsByAction(orgId, AGENT_STARS_ACTIONS.SEND_MEDIA, {
@@ -339,11 +352,46 @@ export const sendMediaExecutor: NodeExecutor = async ({
       sent: true,
       mediaType: uazapiType,
       url,
-      uazapiResult: result?.response?.status ?? "unknown",
+      externalMessageId: sent.externalMessageId,
     },
     starsSpent: 1,
   };
 };
+
+function toTemplateContent(
+  rawTemplate: unknown,
+  context: Parameters<typeof interpolate>[0],
+): WorkflowTemplateContent | null {
+  return toWorkflowTemplateContent(rawTemplate, (parameter) =>
+    interpolate(context, parameter),
+  );
+}
+
+async function sendTemplateStep(params: {
+  leadId: string;
+  trackingId: string;
+  template: WorkflowTemplateContent;
+}) {
+  try {
+    const result = await sendTemplateToLead(params);
+    return {
+      output: {
+        sent: true,
+        type: "TEMPLATE",
+        templateName: params.template.templateName,
+        messageId: result.messageId,
+      },
+    };
+  } catch (err) {
+    const errorMessage =
+      err instanceof Error ? err.message : "send_template_failed";
+    return {
+      output: { error: errorMessage },
+      status: "FAILED" as const,
+      errorMessage,
+    };
+  }
+}
 
 // ─── SEND_MESSAGE ──────────────────────────────────
 // Executor agent-mode pro SEND_MESSAGE. O engine antigo já tem um pelo
@@ -516,6 +564,30 @@ export const sendMessageExecutor: NodeExecutor = async ({
     }
   }
 
+  // ─── TEMPLATE branch (API Oficial) ────────────────────────────────
+  if (payloadType === "TEMPLATE") {
+    const template = toTemplateContent(payload, context);
+    if (!template) {
+      return {
+        output: { error: "template_missing" },
+        status: "FAILED",
+        errorMessage: "Selecione um template aprovado",
+      };
+    }
+    if (dryRun) {
+      return {
+        output: {
+          dryRun: true,
+          type: "TEMPLATE",
+          templateName: template.templateName,
+          headerParameters: template.headerParameters,
+          bodyParameters: template.bodyParameters,
+        },
+      };
+    }
+    return sendTemplateStep({ leadId, trackingId, template });
+  }
+
   // ─── TEXT branch (default) ────────────────────────────────────────
   const rawText = String(payload.message ?? payload.text ?? "");
   const text = interpolate(context, rawText).trim();
@@ -535,6 +607,28 @@ export const sendMessageExecutor: NodeExecutor = async ({
         preview: text.slice(0, 200),
       },
     };
+  }
+
+  // Template reserva: na API Oficial, fora da janela de 24h, vai no lugar
+  // do texto em vez de o passo falhar.
+  const fallbackTemplate = toTemplateContent(action.fallbackTemplate, context);
+  if (fallbackTemplate) {
+    try {
+      const isWindowClosed = await isFreeFormWindowClosedForLead({
+        leadId,
+        trackingId,
+      });
+      if (isWindowClosed) {
+        return sendTemplateStep({
+          leadId,
+          trackingId,
+          template: fallbackTemplate,
+        });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "send_failed";
+      return { output: { error: errorMessage }, status: "FAILED", errorMessage };
+    }
   }
 
   try {

@@ -7,12 +7,26 @@ import { sendTextMessage } from "./message/send-text-message";
 import { sendImageMessage } from "./message/send-image";
 import { sendDocumentMessage } from "./message/send-document";
 import { sendButtonsOrList, sendItemsAsList } from "@/http/uazapi/send-menu";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import {
+  isLeadWindowOpen,
+  isPhoneWindowOpen,
+  requireUazapiMenuCredentials,
+  resolveWorkflowProvider,
+  WINDOW_CLOSED_MESSAGE,
+} from "../../lib/workflow-outbound";
+import {
+  assertTemplateSendable,
+  assertTemplateSupported,
+  ensureLeadConversation,
+  sendTemplateMessage,
+  toWorkflowTemplateContent,
+} from "../../lib/send-template-to-lead";
 import { sendMessageChannel } from "@/inngest/channels/send-message";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { normalizePhone } from "@/utils/format-phone";
 import { countries } from "@/types/some";
 import dayjs from "dayjs";
+import { applyVariables } from "../../lib/interpolate-message";
 import {
   colorsByTemperature,
   LeadSourceColors,
@@ -98,33 +112,57 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
         );
       }
 
-      const instance = await prisma.whatsAppInstance.findFirst({
-        where: {
-          trackingId: lead.trackingId,
-        },
-      });
+      const resolved = await resolveWorkflowProvider(lead.trackingId);
+      const typeMessage = data.action?.payload.type;
+      const isTemplate = typeMessage === "TEMPLATE";
+      if (isTemplate) assertTemplateSupported(resolved);
 
-      if (!instance) {
-        if (realTime) {
-          await publish(
-            sendMessageChannel().status({
-              nodeId,
-              status: "error",
-            }),
-          );
-        }
+      const target = data.action?.target;
 
-        throw new NonRetriableError("Instance not found");
+      // Fora da janela de 24h a API Oficial só aceita template: vai o
+      // template reserva do passo, ou o passo falha.
+      const fallbackTemplate = data.action?.fallbackTemplate ?? null;
+      const isCustomTarget = target?.sendMode === "CUSTOM";
+      const customPhone = isCustomTarget
+        ? (countries
+            .find((country) => country.code === target.code)
+            ?.ddi.replace(/\D/g, "") ?? "") + normalizePhone(target.phone)
+        : null;
+      // Número customizado: vale a janela do lead dono daquele telefone.
+      const isWindowOpen = customPhone
+        ? await isPhoneWindowOpen(resolved, {
+            trackingId: lead.trackingId,
+            phone: customPhone,
+          })
+        : await isLeadWindowOpen(resolved, {
+            leadId: lead.id,
+            trackingId: lead.trackingId,
+          });
+      const isWindowClosed = !isTemplate && !isWindowOpen;
+      if (isWindowClosed && !fallbackTemplate) {
+        throw new NonRetriableError(WINDOW_CLOSED_MESSAGE);
       }
 
-      const conversation = await prisma.conversation.findFirst({
+      const existingConversation = await prisma.conversation.findFirst({
         where: {
           leadId: lead.id,
           trackingId: lead.trackingId,
         },
       });
 
-      if (!conversation) {
+      // Template (o do passo ou o reserva) abre conversa; os demais tipos
+      // respondem a uma que já existe.
+      const opensConversation = isTemplate || isWindowClosed;
+      const conversationId =
+        existingConversation?.id ??
+        (opensConversation && lead.phone
+          ? await ensureLeadConversation(lead.trackingId, {
+              id: lead.id,
+              phone: lead.phone,
+            })
+          : null);
+
+      if (!conversationId) {
         if (realTime) {
           await publish(
             sendMessageChannel().status({
@@ -133,11 +171,11 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             }),
           );
         }
-        throw new NonRetriableError("Conversation not found");
+        throw new NonRetriableError(
+          lead.phone ? "Conversation not found" : "Lead phone is missing",
+        );
       }
 
-      const typeMessage = data.action?.payload.type;
-      const target = data.action?.target;
       if (!lead.phone) {
         if (realTime) {
           await publish(
@@ -150,13 +188,23 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
         throw new NonRetriableError("Lead phone is missing");
       }
 
-      let phone: string = lead.phone;
+      const phone: string = customPhone ?? lead.phone;
 
-      if (target?.sendMode === "CUSTOM") {
-        const country = countries.find((c) => c.code === target.code);
-        const ddi = country?.ddi.replace(/\D/g, "") || "";
-        phone = ddi + normalizePhone(target.phone);
+      // Template do passo ou template reserva, já com as variáveis do lead.
+      // Validado aqui, antes da cobrança.
+      const templateToSend = isTemplate
+        ? toWorkflowTemplateContent(data.action?.payload, (parameter) =>
+            applyVariables(parameter, variables),
+          )
+        : isWindowClosed
+          ? toWorkflowTemplateContent(fallbackTemplate, (parameter) =>
+              applyVariables(parameter, variables),
+            )
+          : null;
+      if (isTemplate && !templateToSend) {
+        throw new NonRetriableError("Selecione um template aprovado");
       }
+      if (templateToSend) assertTemplateSendable(resolved, templateToSend);
 
       const charge = await chargeStarsByAction(
         lead.tracking.organizationId,
@@ -178,6 +226,14 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
         throw new NonRetriableError("Saldo de STARs insuficiente.");
       }
 
+      if (templateToSend) {
+        await sendTemplateMessage({
+          resolved,
+          conversationId,
+          toPhone: phone,
+          template: templateToSend,
+        });
+      } else
       switch (typeMessage) {
         case "TEXT":
           let message = data.action?.payload.message || "";
@@ -188,9 +244,9 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
 
           await sendTextMessage({
             body: message,
-            conversationId: conversation.id,
+            conversationId,
             leadPhone: phone,
-            token: requireUazapiToken(instance.apiKey),
+            provider: resolved.provider,
           });
 
           break;
@@ -203,9 +259,9 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
 
           await sendImageMessage({
             body: caption,
-            conversationId: conversation.id,
+            conversationId,
             leadPhone: phone,
-            token: requireUazapiToken(instance.apiKey),
+            provider: resolved.provider,
             mediaUrl: data.action?.payload.imageUrl || "",
           });
           break;
@@ -218,9 +274,9 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
 
           await sendDocumentMessage({
             body: documentCaption,
-            conversationId: conversation.id,
+            conversationId,
             leadPhone: phone,
-            token: requireUazapiToken(instance.apiKey),
+            provider: resolved.provider,
             mediaUrl: data.action?.payload.documentUrl || "",
             fileName: data.action?.payload.fileName || "",
           });
@@ -303,12 +359,14 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             throw new NonRetriableError("Menu sem botões válidos");
           }
 
+          const menuCredentials = requireUazapiMenuCredentials(resolved);
+
           // Envia como botões OU lista conforme `menuFormat`. Lista reusa a
           // mesma composição de itens (`sendItemsAsList` embrulha numa seção).
           const asList = menuFormat === "LIST";
           const buttonsResponse = asList
             ? await sendItemsAsList(
-                requireUazapiToken(instance.apiKey),
+                menuCredentials.token,
                 {
                   number: phone,
                   text: bodyText,
@@ -319,10 +377,10 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
                   readmessages: true,
                   delay: 2000,
                 },
-                instance.baseUrl ?? undefined,
+                menuCredentials.baseUrl,
               )
             : await sendButtonsOrList(
-                requireUazapiToken(instance.apiKey),
+                menuCredentials.token,
                 {
                   number: phone,
                   text: bodyText,
@@ -332,7 +390,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
                   readmessages: true,
                   delay: 2000,
                 },
-                instance.baseUrl ?? undefined,
+                menuCredentials.baseUrl,
               );
 
           // Persiste Message no banco com format espelhado da produção
@@ -364,7 +422,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
           const { pusherServer: pusher } = await import("@/lib/pusher");
           const message = await prisma.message.create({
             data: {
-              conversationId: conversation.id,
+              conversationId,
               body: persistedBody,
               messageId: buttonsResponse.messageid,
               fromMe: true,

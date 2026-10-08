@@ -1,32 +1,25 @@
-import { sendMedia } from "@/http/uazapi/send-media";
+import type { WhatsAppChatProvider } from "@/features/tracking-chat/lib/providers";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
 interface Params {
   body: string;
   number: string;
-  token: string;
+  provider: WhatsAppChatProvider;
   mediaUrl: string;
-  baseUrl?: string;
 }
 
 export const sendImageRaw = async ({
   body,
   number,
-  token,
+  provider,
   mediaUrl,
-  baseUrl,
 }: Params) => {
-  return await sendMedia(
-    token,
-    {
-      file: useConstructUrl(mediaUrl),
-      text: body,
-      number,
-      delay: 2000,
-      type: "image",
-      readchat: true,
-      readmessages: true,
-    },
-    baseUrl,
-  );
+  return await provider.sendMedia({
+    kind: "media",
+    mediaKind: "image",
+    to: number,
+    mediaUrl: useConstructUrl(mediaUrl),
+    caption: body || undefined,
+    typingDelayMs: 2000,
+  });
 };

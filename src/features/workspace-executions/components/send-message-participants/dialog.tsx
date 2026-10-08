@@ -56,6 +56,11 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { VariablePicker } from "./variable-picker";
+import {
+  templateSelectionShape,
+  WorkflowTemplateFields,
+  type WorkflowTemplateSelection,
+} from "@/features/tracking-executions/components/send-message/template-fields";
 import { useVariableAutocomplete } from "./use-variable-autocomplete";
 
 /* ---------- TARGET ---------- */
@@ -96,10 +101,20 @@ const documentPayloadSchema = z.object({
   caption: z.string().optional(),
 });
 
+/**
+ * TEMPLATE: modelo aprovado da conta do cliente (API Oficial). Participante
+ * não é lead e não tem janela de 24h — na API Oficial é o único tipo que sai.
+ */
+const templatePayloadSchema = z.object({
+  type: z.literal("TEMPLATE"),
+  ...templateSelectionShape,
+});
+
 const payloadSchema = z.discriminatedUnion("type", [
   textPayloadSchema,
   imagePayloadSchema,
   documentPayloadSchema,
+  templatePayloadSchema,
 ]);
 
 /* ---------- FORM ---------- */
@@ -218,6 +233,39 @@ export const WsSendMessageDialog = ({
   const countrySelected =
     countries.find((c) => c.code === selectedCode) || countries[0];
   const messageType = form.watch("payload.type");
+  const payloadValues = form.watch("payload");
+  const selectedInstance = instances.find(
+    (instance) => instance.id === form.watch("instanceId"),
+  );
+  const isOfficialApi = selectedInstance?.provider === "META_CLOUD";
+  const hasSubmitted = form.formState.isSubmitted;
+
+  // Template só existe na API Oficial, e lá é o único tipo que chega ao
+  // participante: trocar de instância ajusta o tipo de mensagem junto.
+  const handleInstanceChange = (instanceId: string) => {
+    form.setValue("instanceId", instanceId, { shouldValidate: hasSubmitted });
+    const nextInstance = instances.find((instance) => instance.id === instanceId);
+    const isNextOfficialApi = nextInstance?.provider === "META_CLOUD";
+    const currentType = form.getValues("payload.type");
+    if (isNextOfficialApi && currentType !== "TEMPLATE") {
+      form.setValue("payload", {
+        type: "TEMPLATE",
+        templateName: "",
+        languageCode: "",
+      });
+    }
+    if (!isNextOfficialApi && currentType === "TEMPLATE") {
+      form.setValue("payload", { type: "TEXT", message: "" });
+    }
+  };
+
+  const setTemplatePayload = (selection: WorkflowTemplateSelection) => {
+    form.setValue(
+      "payload",
+      { type: "TEMPLATE", ...selection },
+      { shouldValidate: hasSubmitted, shouldDirty: true },
+    );
+  };
 
   const handleSubmit = (values: WsSendMessageFormValues) => {
     onSubmit(values);
@@ -256,7 +304,7 @@ export const WsSendMessageDialog = ({
                     <FieldLabel>Instância (WhatsApp)</FieldLabel>
                     <Select
                       value={field.value}
-                      onValueChange={field.onChange}
+                      onValueChange={handleInstanceChange}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione a instância" />
@@ -313,17 +361,40 @@ export const WsSendMessageDialog = ({
                             fileName: "",
                             caption: "",
                           } as any);
+                        if (v === "TEMPLATE")
+                          form.setValue("payload", {
+                            type: "TEMPLATE",
+                            templateName: "",
+                            languageCode: "",
+                          });
                       }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o tipo" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="TEXT">Texto</SelectItem>
-                        <SelectItem value="IMAGE">Imagem</SelectItem>
-                        <SelectItem value="DOCUMENT">Documento</SelectItem>
+                        <SelectItem value="TEXT" disabled={isOfficialApi}>
+                          Texto
+                        </SelectItem>
+                        <SelectItem value="IMAGE" disabled={isOfficialApi}>
+                          Imagem
+                        </SelectItem>
+                        <SelectItem value="DOCUMENT" disabled={isOfficialApi}>
+                          Documento
+                        </SelectItem>
+                        {isOfficialApi && (
+                          <SelectItem value="TEMPLATE">
+                            Template (API Oficial)
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
+                    {isOfficialApi && (
+                      <FieldDescription>
+                        Na API Oficial, participantes só recebem template
+                        aprovado da sua conta.
+                      </FieldDescription>
+                    )}
                   </Field>
                 )}
               />
@@ -451,6 +522,29 @@ export const WsSendMessageDialog = ({
                     </Field>
                   )}
                 />
+              )}
+
+              {messageType === "TEMPLATE" && selectedInstance && (
+                <Field>
+                  <FieldLabel>Template aprovado</FieldLabel>
+                  <WorkflowTemplateFields
+                    trackingId={selectedInstance.trackingId}
+                    value={
+                      payloadValues?.type === "TEMPLATE" ? payloadValues : null
+                    }
+                    onChange={setTemplatePayload}
+                    showValidation={hasSubmitted}
+                    parameterPlaceholder='Texto fixo ou "/" para variáveis'
+                    renderParameterInput={(inputProps) => (
+                      <VariableInput
+                        value={inputProps.value}
+                        onChange={inputProps.onChange}
+                        placeholder={inputProps.placeholder}
+                        aria-invalid={inputProps.isInvalid}
+                      />
+                    )}
+                  />
+                </Field>
               )}
 
               {messageType === "IMAGE" && (

@@ -1,8 +1,7 @@
 import "server-only";
 
 import prisma from "@/lib/prisma";
-import { sendText } from "@/http/uazapi/send-text";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import { pusherServer } from "@/lib/pusher";
 import { notificationService } from "@/lib/notifications";
 import { buildAstroVoice } from "@/features/astro/lib/astro-voice-catalog";
@@ -252,7 +251,7 @@ async function sendWhatsAppNotification({
   // Get org's active WhatsApp instance
   const instance = await prisma.whatsAppInstance.findFirst({
     where: { organizationId, isActive: true, status: "CONNECTED" },
-    select: { apiKey: true, baseUrl: true },
+    select: { trackingId: true },
   });
   if (!instance) return;
 
@@ -271,7 +270,10 @@ async function sendWhatsAppNotification({
 
   const text = `*${title}*\n\n${body}\n\n_NASA.ex Platform_`;
 
-  await sendText(requireUazapiToken(instance.apiKey), { number: phone, text }, instance.baseUrl ?? undefined);
+  const resolved = await resolveOutboundProvider(instance.trackingId);
+  // Na API Oficial só sairia por template do próprio cliente: não envia.
+  if (resolved.providerId === "meta-cloud") return;
+  await resolved.provider.sendText({ kind: "text", to: phone, body: text });
 }
 
 /**

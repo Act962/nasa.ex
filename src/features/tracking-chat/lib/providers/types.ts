@@ -214,6 +214,11 @@ interface SendBase {
    * flag).
    */
   readonly markPreviousAsRead?: boolean;
+  /**
+   * Atraso de "digitando…" antes da entrega, em ms. Só a Uazapi tem isso
+   * (`delay`); a Meta ignora. Usado pelas automações, que simulam digitação.
+   */
+  readonly typingDelayMs?: number;
 }
 
 export interface SendCanonicalText extends SendBase {

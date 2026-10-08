@@ -1,7 +1,11 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { sendText } from "@/http/uazapi/send-text";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  isFreeFormWindowOpen,
+  toLegacyUazapiMessageId,
+  toPhoneDigits,
+} from "@/features/tracking-chat/lib/providers/automated-outbound";
 import { computeNextRemindAt } from "@/lib/reminder-recurrence";
 import { createNotification } from "@/features/admin/lib/notification-service";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
@@ -32,10 +36,9 @@ export const processReminder = inngest.createFunction(
           lead: { select: { id: true, name: true } },
           tracking: {
             select: {
+              id: true,
               organizationId: true,
-              whatsappInstance: {
-                select: { apiKey: true, baseUrl: true, status: true },
-              },
+              whatsappInstance: { select: { status: true } },
             },
           },
         },
@@ -77,10 +80,9 @@ export const processReminder = inngest.createFunction(
           createdBy: { select: { id: true, name: true } },
           tracking: {
             select: {
+              id: true,
               organizationId: true,
-              whatsappInstance: {
-                select: { apiKey: true, baseUrl: true, status: true },
-              },
+              whatsappInstance: { select: { status: true } },
             },
           },
           action: {
@@ -129,7 +131,30 @@ export const processReminder = inngest.createFunction(
       resolvedMessage = resolvedMessage.replaceAll(key, val);
     }
 
-    if (phone && instance?.status === "CONNECTED") {
+    const trackingId = fresh.tracking?.id;
+
+    // O telefone do lembrete pode ser o do lead ou o de alguém da equipe. Na
+    // API Oficial só dá pra mandar texto livre ao lead, com a janela de 24h
+    // aberta; fora disso o WhatsApp é pulado (sino e push seguem).
+    const leadPhoneDigits = toPhoneDigits(fresh.lead?.phone ?? "");
+    const isLeadPhone =
+      Boolean(phone) &&
+      leadPhoneDigits.length >= 8 &&
+      toPhoneDigits(phone ?? "").endsWith(leadPhoneDigits.slice(-8));
+    const leadConversationId = isLeadPhone
+      ? (fresh.conversation?.id ?? fresh.lead?.conversation?.id ?? null)
+      : null;
+    const canSendWhatsapp =
+      Boolean(phone) && Boolean(trackingId) && instance?.status === "CONNECTED"
+        ? await step.run("check-whatsapp-window", async () =>
+            isFreeFormWindowOpen(
+              await resolveOutboundProvider(trackingId as string),
+              leadConversationId,
+            ),
+          )
+        : false;
+
+    if (phone && trackingId && canSendWhatsapp) {
       const message = resolvedMessage;
 
       const orgId = fresh.tracking?.organizationId;
@@ -145,13 +170,21 @@ export const processReminder = inngest.createFunction(
         }
       }
 
-      const sendResponse = await step.run("send-whatsapp", () =>
-        sendText(
-          requireUazapiToken(instance.apiKey),
-          { number: phone, text: message },
-          instance.baseUrl ?? undefined,
-        ),
-      );
+      const sendResponse = await step.run("send-whatsapp", async () => {
+        const resolved = await resolveOutboundProvider(trackingId);
+        const sent = await resolved.provider.sendText({
+          kind: "text",
+          to: phone,
+          body: message,
+        });
+        const sentTimestamp = (sent.raw as { messageTimestamp?: unknown } | null)
+          ?.messageTimestamp;
+        return {
+          messageid: toLegacyUazapiMessageId(sent),
+          messageTimestamp:
+            typeof sentTimestamp === "number" ? sentTimestamp : null,
+        };
+      });
 
       sent = true;
 

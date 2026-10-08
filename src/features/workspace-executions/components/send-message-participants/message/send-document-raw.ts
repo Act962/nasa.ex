@@ -1,35 +1,28 @@
-import { sendMedia } from "@/http/uazapi/send-media";
+import type { WhatsAppChatProvider } from "@/features/tracking-chat/lib/providers";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
 interface Params {
   body: string;
   number: string;
-  token: string;
+  provider: WhatsAppChatProvider;
   mediaUrl: string;
   fileName: string;
-  baseUrl?: string;
 }
 
 export const sendDocumentRaw = async ({
   body,
   number,
-  token,
+  provider,
   mediaUrl,
   fileName,
-  baseUrl,
 }: Params) => {
-  return await sendMedia(
-    token,
-    {
-      file: useConstructUrl(mediaUrl),
-      text: body,
-      docName: fileName,
-      number,
-      delay: 2000,
-      type: "document",
-      readchat: true,
-      readmessages: true,
-    },
-    baseUrl,
-  );
+  return await provider.sendMedia({
+    kind: "media",
+    mediaKind: "document",
+    to: number,
+    mediaUrl: useConstructUrl(mediaUrl),
+    caption: body || undefined,
+    fileName,
+    typingDelayMs: 2000,
+  });
 };

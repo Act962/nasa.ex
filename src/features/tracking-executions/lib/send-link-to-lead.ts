@@ -4,8 +4,7 @@
  * SEND_LINNKER, SEND_NBOX, SEND_NASA_ROUTE).
  *
  * Espelha **exatamente** o que `sendMessageExecutor` faz no step
- * "send-message" — instance lookup + uazapi sendText + DB write +
- * Pusher. Diferenças:
+ * "send-message" — provedor do tracking + sendText + DB write + Pusher. Diferenças:
  *
  *  - Aceita callback `getResource()` que retorna o recurso já validado
  *    (form, agenda, proposta, etc) — caller fica responsável pela
@@ -23,8 +22,6 @@
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
-import { sendText } from "@/http/uazapi/send-text";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import {
   type CreatedMessageProps,
@@ -35,6 +32,13 @@ import {
 // claro). Quando #72 mergear, trocar pelo novo nome.
 import { isInChatModeActiveForConversation as shouldSkipUazapiForConversation } from "@/features/tracking-chat/lib/in-chat-mode";
 import { v4 as uuidv4 } from "uuid";
+import {
+  assertFreeFormWindowOpenForLead,
+  resolveWorkflowProvider,
+  sendWithWorkflowErrors,
+  toStoredMessageId,
+  WORKFLOW_TYPING_DELAY_MS,
+} from "./workflow-outbound";
 
 export interface SendLinkToLeadParams {
   leadId: string;
@@ -80,11 +84,18 @@ export async function sendLinkToLead(
   //    pula uazapi e marca viaInChat. Lead vê via /whatsapp/[slug].
   const skipUazapi = await shouldSkipUazapiForConversation(conversation.id);
 
-  // 4. Instance lookup (necessário pra apiKey quando NÃO em fallback)
+  // 4. Envio pelo provedor do tracking (Uazapi ou API Oficial), quando NÃO
+  //    em fallback. Provedor e janela de 24h são conferidos antes da cobrança.
   let externalMessageId = `auto-${uuidv4()}`;
   if (!skipUazapi) {
-    // Cobra 1★ por envio automático. Em in-chat fallback nada vai pra
-    // uazapi (mensagem fica visível na página /whatsapp/[slug]) — sem
+    const resolved = await resolveWorkflowProvider(params.trackingId);
+    await assertFreeFormWindowOpenForLead(resolved, {
+      leadId: lead.id,
+      trackingId: params.trackingId,
+    });
+
+    // Cobra 1★ por envio automático. Em in-chat fallback nada sai pelo
+    // WhatsApp (mensagem fica visível na página /whatsapp/[slug]) — sem
     // custo de envio externo, então não cobramos esse caminho.
     const charge = await chargeStarsByAction(
       lead.tracking.organizationId,
@@ -100,19 +111,16 @@ export async function sendLinkToLead(
       );
     }
 
-    const instance = await prisma.whatsAppInstance.findFirst({
-      where: { trackingId: params.trackingId },
-      select: { apiKey: true },
-    });
-    if (!instance) {
-      throw new NonRetriableError("WhatsApp instance not found for tracking");
-    }
-    const response = await sendText(requireUazapiToken(instance.apiKey), {
-      text: params.body,
-      number: lead.phone,
-      delay: 2000,
-    });
-    externalMessageId = response.messageid;
+    const leadPhone = lead.phone;
+    const sent = await sendWithWorkflowErrors(() =>
+      resolved.provider.sendText({
+        kind: "text",
+        to: leadPhone,
+        body: params.body,
+        typingDelayMs: WORKFLOW_TYPING_DELAY_MS,
+      }),
+    );
+    externalMessageId = toStoredMessageId(sent);
   }
 
   // 5. Grava Message no DB (sempre — tanto via uazapi quanto via In-Chat)

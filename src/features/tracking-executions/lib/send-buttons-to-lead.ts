@@ -16,13 +16,16 @@ import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { sendButtonsOrList, sendItemsAsList } from "@/http/uazapi/send-menu";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import {
   type CreatedMessageProps,
   MessageStatus,
 } from "@/features/tracking-chat/types";
 import { isInChatModeActiveForConversation as shouldSkipUazapiForConversation } from "@/features/tracking-chat/lib/in-chat-mode";
 import { v4 as uuidv4 } from "uuid";
+import {
+  requireUazapiMenuCredentials,
+  resolveWorkflowProvider,
+} from "./workflow-outbound";
 
 export interface SendButtonsToLeadParams {
   leadId: string;
@@ -79,16 +82,12 @@ export async function sendButtonsToLead(
   //    badge de não-lida.
   let externalMessageId = `auto-${uuidv4()}`;
   if (!skipUazapi) {
-    const instance = await prisma.whatsAppInstance.findFirst({
-      where: { trackingId },
-      select: { apiKey: true, baseUrl: true },
-    });
-    if (!instance) {
-      throw new NonRetriableError("WhatsApp instance not found for tracking");
-    }
+    const menuCredentials = requireUazapiMenuCredentials(
+      await resolveWorkflowProvider(trackingId),
+    );
     const response = asList
       ? await sendItemsAsList(
-          requireUazapiToken(instance.apiKey),
+          menuCredentials.token,
           {
             number: lead.phone,
             text: bodyText,
@@ -99,10 +98,10 @@ export async function sendButtonsToLead(
             readmessages: true,
             delay: 2000,
           },
-          instance.baseUrl ?? undefined,
+          menuCredentials.baseUrl,
         )
       : await sendButtonsOrList(
-          requireUazapiToken(instance.apiKey),
+          menuCredentials.token,
           {
             number: lead.phone,
             text: bodyText,
@@ -112,7 +111,7 @@ export async function sendButtonsToLead(
             readmessages: true,
             delay: 2000,
           },
-          instance.baseUrl ?? undefined,
+          menuCredentials.baseUrl,
         );
     externalMessageId = response.messageid ?? externalMessageId;
   }
