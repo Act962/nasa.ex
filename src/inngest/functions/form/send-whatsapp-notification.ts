@@ -1,11 +1,12 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import { NOTICE_NEEDS_CLIENT_TEMPLATE_REASON } from "@/features/tracking-chat/lib/providers/automated-outbound";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { MessageStatus } from "@/generated/prisma/enums";
 import type { WhatsappChat } from "@/features/form/types";
-import type { SendTextPayload, SendTextResponse } from "@/http/uazapi/types";
+import type { SendTextPayload } from "@/http/uazapi/types";
 
 export type FormWhatsappSendEvent = {
   data: {
@@ -142,12 +143,21 @@ export const formSendWhatsappNotification = inngest.createFunction(
     // ── 1. Busca a instância WhatsApp do tracking ──────────────────────────
     const instance = await prisma.whatsAppInstance.findUnique({
       where: { trackingId },
-      select: { apiKey: true, baseUrl: true, status: true },
+      select: { status: true },
     });
 
     if (!instance || instance.status !== "CONNECTED") {
       return { skipped: "whatsapp_not_connected" };
     }
+
+    // Os destinos são contatos e grupos da equipe, não o lead: na API
+    // Oficial só sairia por template do próprio cliente. Nada é enviado.
+    const resolved = await resolveOutboundProvider(trackingId);
+    if (!resolved.uazapiToken) {
+      return { skipped: NOTICE_NEEDS_CLIENT_TEMPLATE_REASON };
+    }
+    const uazapiToken = resolved.uazapiToken;
+    const uazapiBaseUrl = resolved.uazapiBaseUrl;
 
     // Tracking pra resolver a org dona — cobrança de stars usa orgId.
     const tracking = await prisma.tracking.findUnique({
@@ -208,9 +218,9 @@ export const formSendWhatsappNotification = inngest.createFunction(
     const send = async (
       number: string,
       extra?: Partial<SendTextPayload>,
-    ): Promise<SendTextResponse> => {
+    ): Promise<{ messageid: string | null }> => {
       return sendText(
-        requireUazapiToken(instance.apiKey),
+        uazapiToken,
         {
           number,
           text: messageText,
@@ -220,7 +230,7 @@ export const formSendWhatsappNotification = inngest.createFunction(
           track_source: "nasa-form",
           ...extra,
         },
-        instance.baseUrl ?? undefined,
+        uazapiBaseUrl,
       );
     };
 
@@ -273,7 +283,7 @@ export const formSendWhatsappNotification = inngest.createFunction(
       }
 
       // ── 5b. Contato (@s.whatsapp.net / @lid): envia e tenta persistir ────
-      let sendResponse: SendTextResponse;
+      let sendResponse: { messageid: string | null };
       try {
         sendResponse = await send(chat.chatId, {
           readchat: true,

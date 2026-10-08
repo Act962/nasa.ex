@@ -15,6 +15,10 @@ import { useQuickCreateWorkflow, useQuickDraftWorkflow, useQuickDuplicates } fro
 import type { QuickBlueprintEdge, QuickBlueprintNode, QuickStep } from "@/features/workflows/lib/quick-builder/steps";
 import { QUICK_CATALOG, QUICK_CATEGORY_LABELS, findCatalogItem, type QuickCategory } from "./quick-catalog";
 import { QuickStepFields } from "./quick-step-fields";
+import {
+  isTemplateSelectionComplete,
+  type WorkflowTemplateSelection,
+} from "@/features/tracking-executions/components/send-message/template-fields";
 
 // Construtor rápido de Gatilhos Automáticos (spec 0039): frase ou selects,
 // passos lineares "Quando → Então", alerta de duplicação e modo avançado.
@@ -56,7 +60,11 @@ export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }
   const trigger = steps[0];
   const actions = steps.slice(1);
   const hasReviewStep = steps.some((step) => step.data.needsReview === true);
-  const canCreate = Boolean(trigger) && (branchedFlow !== null || actions.length > 0);
+  const hasIncompleteTemplate = actions.some((step) => {
+    const payload = (step.data.action as { payload?: Partial<WorkflowTemplateSelection> & { type?: string } } | undefined)?.payload;
+    return step.type === "SEND_MESSAGE" && payload?.type === "TEMPLATE" && !isTemplateSelectionComplete(payload);
+  });
+  const canCreate = Boolean(trigger) && (branchedFlow !== null || actions.length > 0) && !hasIncompleteTemplate;
   const examples = [
     `Todo dia às 9h me lembra de retornar para ${leadName ?? "o lead"}`,
     leadName ? `Se ${leadName} mandar mensagem, me avisa` : "Quando o lead receber a tag Quente, envia uma mensagem de boas-vindas",

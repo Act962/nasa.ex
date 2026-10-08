@@ -1,7 +1,8 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { sendMedia } from "@/http/uazapi/send-media";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import { toLegacyUazapiMessageId } from "@/features/tracking-chat/lib/providers/automated-outbound";
 import { persistOutboundMessage } from "../../lib/persist";
 import type { AgentContext } from "../../lib/context";
 
@@ -16,15 +17,25 @@ export const makeSendAudioTool = (ctx: AgentContext) =>
       if (!ctx.instance) return { error: "WhatsApp instance not configured" };
       if (!ctx.lead.phone) return { error: "Lead has no phone" };
 
-      const result = await sendMedia(
-        requireUazapiToken(ctx.instance.apiKey),
-        {
-          number: ctx.lead.phone,
-          type: "ptt",
-          file: url,
-        },
-        ctx.instance.baseUrl ?? undefined,
-      );
+      // A porta não tem "ptt": na Uazapi segue como nota de voz; na API
+      // Oficial sai como áudio comum (nota de voz exige upload em OGG/Opus).
+      const resolved = await resolveOutboundProvider(ctx.trackingId);
+      const externalMessageId = resolved.uazapiToken
+        ? (
+            await sendMedia(
+              resolved.uazapiToken,
+              { number: ctx.lead.phone, type: "ptt", file: url },
+              resolved.uazapiBaseUrl,
+            )
+          ).messageid
+        : toLegacyUazapiMessageId(
+            await resolved.provider.sendMedia({
+              kind: "media",
+              mediaKind: "audio",
+              to: ctx.lead.phone,
+              mediaUrl: url,
+            }),
+          );
 
       await persistOutboundMessage({
         conversationId: ctx.conversation.id,
@@ -34,7 +45,7 @@ export const makeSendAudioTool = (ctx: AgentContext) =>
         mediaUrl: url,
         mediaType: "audio",
         senderName: ctx.settings?.assistantName ?? "IA",
-        externalMessageId: result.messageid,
+        externalMessageId,
       });
 
       return { ok: true };

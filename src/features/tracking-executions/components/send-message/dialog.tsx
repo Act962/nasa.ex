@@ -59,6 +59,12 @@ import { VariablePicker } from "./variable-picker";
 import { useVariableAutocomplete } from "./use-variable-autocomplete";
 import { useAiButtonPresets } from "@/features/tracking-settings/hooks/use-ai-button-presets";
 import { useTags } from "@/features/tags/hooks/use-tags";
+import {
+  templateSelectionSchema,
+  templateSelectionShape,
+  WorkflowTemplateFields,
+  type WorkflowTemplateSelection,
+} from "./template-fields";
 
 /* ---------- TARGET ---------- */
 
@@ -159,11 +165,18 @@ const buttonsPayloadSchema = z
     }
   });
 
+/** TEMPLATE: modelo aprovado da API Oficial (os mesmos do app de Campanhas). */
+const templatePayloadSchema = z.object({
+  type: z.literal("TEMPLATE"),
+  ...templateSelectionShape,
+});
+
 const payloadSchema = z.discriminatedUnion("type", [
   textPayloadSchema,
   imagePayloadSchema,
   documentPayloadSchema,
   buttonsPayloadSchema,
+  templatePayloadSchema,
 ]);
 
 /* ---------- FORM ---------- */
@@ -171,6 +184,9 @@ const payloadSchema = z.discriminatedUnion("type", [
 export const formSchema = z.object({
   target: targetSchema,
   payload: payloadSchema,
+  // Enviado no lugar de texto/imagem/documento quando a janela de 24h da
+  // API Oficial está fechada, em vez de o passo falhar.
+  fallbackTemplate: templateSelectionSchema.nullable().optional(),
 });
 export type SendMessageFormValues = z.infer<typeof formSchema>;
 
@@ -554,6 +570,8 @@ function ButtonsPayloadFields({
   );
 }
 
+const TEMPLATE_PARAMETER_PLACEHOLDER = 'Texto fixo ou "/" para variáveis';
+
 export const SendMessageDialog = ({
   open,
   onOpenChange,
@@ -587,9 +605,45 @@ export const SendMessageDialog = ({
   const countrySelected =
     countries.find((c) => c.code === selectedCode) || countries[0];
   const messageType = form.watch("payload.type");
+  const isOfficialApi = instance?.provider === "META_CLOUD";
+  const payloadValues = form.watch("payload");
+  const fallbackTemplate = form.watch("fallbackTemplate");
+  const canHaveFallbackTemplate =
+    isOfficialApi &&
+    (messageType === "TEXT" ||
+      messageType === "IMAGE" ||
+      messageType === "DOCUMENT");
+  const hasSubmitted = form.formState.isSubmitted;
+
+  const setTemplatePayload = (selection: WorkflowTemplateSelection) => {
+    form.setValue(
+      "payload",
+      { type: "TEMPLATE", ...selection },
+      { shouldValidate: hasSubmitted, shouldDirty: true },
+    );
+  };
+
+  const renderTemplateParameterInput = (inputProps: {
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
+    isInvalid: boolean;
+  }) => (
+    <VariableInput
+      value={inputProps.value}
+      onChange={inputProps.onChange}
+      placeholder={inputProps.placeholder}
+      aria-invalid={inputProps.isInvalid}
+    />
+  );
 
   const handleSubmit = (values: SendMessageFormValues) => {
-    onSubmit(values);
+    onSubmit({
+      ...values,
+      fallbackTemplate: canHaveFallbackTemplate
+        ? (values.fallbackTemplate ?? null)
+        : null,
+    });
     onOpenChange(false);
   };
 
@@ -632,9 +686,24 @@ export const SendMessageDialog = ({
                       <SelectItem value="TEXT">Texto</SelectItem>
                       <SelectItem value="IMAGE">Imagem</SelectItem>
                       <SelectItem value="DOCUMENT">Documento</SelectItem>
-                      <SelectItem value="BUTTONS">Menu de Botões</SelectItem>
+                      <SelectItem value="BUTTONS" disabled={isOfficialApi}>
+                        Menu de Botões
+                        {isOfficialApi && " (indisponível na API Oficial)"}
+                      </SelectItem>
+                      {isOfficialApi && (
+                        <SelectItem value="TEMPLATE">
+                          Template (API Oficial)
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
+                  {canHaveFallbackTemplate && (
+                    <FieldDescription>
+                      Na API Oficial, este tipo só é entregue se o lead escreveu
+                      nas últimas 24h. Fora disso o passo falha, a menos que
+                      haja um template reserva.
+                    </FieldDescription>
+                  )}
                 </Field>
               )}
             />
@@ -845,6 +914,65 @@ export const SendMessageDialog = ({
                   trackingId={trackingId}
                   form={form}
                 />
+              )}
+
+              {messageType === "TEMPLATE" && (
+                <Field>
+                  <FieldLabel>Template aprovado</FieldLabel>
+                  <WorkflowTemplateFields
+                    trackingId={trackingId}
+                    value={
+                      payloadValues?.type === "TEMPLATE" ? payloadValues : null
+                    }
+                    onChange={setTemplatePayload}
+                    showValidation={hasSubmitted}
+                    parameterPlaceholder={TEMPLATE_PARAMETER_PLACEHOLDER}
+                    renderParameterInput={renderTemplateParameterInput}
+                  />
+                  <FieldDescription>
+                    Os mesmos modelos do app de Campanhas. Template é o único
+                    tipo que a API Oficial entrega fora da janela de 24h.
+                  </FieldDescription>
+                </Field>
+              )}
+
+              {canHaveFallbackTemplate && (
+                <Field>
+                  <div className="flex items-center justify-between gap-2">
+                    <FieldLabel>Template reserva</FieldLabel>
+                    <Switch
+                      checked={Boolean(fallbackTemplate)}
+                      onCheckedChange={(isEnabled) =>
+                        form.setValue(
+                          "fallbackTemplate",
+                          isEnabled
+                            ? { templateName: "", languageCode: "" }
+                            : null,
+                          { shouldDirty: true },
+                        )
+                      }
+                    />
+                  </div>
+                  <FieldDescription>
+                    Enviado no lugar desta mensagem quando a janela de 24h do
+                    lead estiver fechada.
+                  </FieldDescription>
+                  {fallbackTemplate && (
+                    <WorkflowTemplateFields
+                      trackingId={trackingId}
+                      value={fallbackTemplate}
+                      onChange={(selection) =>
+                        form.setValue("fallbackTemplate", selection, {
+                          shouldValidate: hasSubmitted,
+                          shouldDirty: true,
+                        })
+                      }
+                      showValidation={hasSubmitted}
+                      parameterPlaceholder={TEMPLATE_PARAMETER_PLACEHOLDER}
+                      renderParameterInput={renderTemplateParameterInput}
+                    />
+                  )}
+                </Field>
               )}
             </FieldGroup>
 

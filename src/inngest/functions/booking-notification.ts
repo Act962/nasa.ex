@@ -1,7 +1,10 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { sendText } from "@/http/uazapi/send-text";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  isFreeFormWindowOpen,
+  WINDOW_CLOSED_SKIP_REASON,
+} from "@/features/tracking-chat/lib/providers/automated-outbound";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
@@ -30,7 +33,11 @@ export const bookingNotification = inngest.createFunction(
       where: { id: appointmentId },
       include: {
         lead: {
-          select: { phone: true, name: true },
+          select: {
+            phone: true,
+            name: true,
+            conversation: { select: { id: true } },
+          },
         },
         agenda: {
           select: {
@@ -38,13 +45,8 @@ export const bookingNotification = inngest.createFunction(
             organizationId: true,
             tracking: {
               select: {
-                whatsappInstance: {
-                  select: {
-                    apiKey: true,
-                    baseUrl: true,
-                    status: true,
-                  },
-                },
+                id: true,
+                whatsappInstance: { select: { status: true } },
               },
             },
           },
@@ -63,6 +65,15 @@ export const bookingNotification = inngest.createFunction(
     const instance = appointment.agenda.tracking.whatsappInstance;
     if (!instance || instance.status !== "CONNECTED") {
       return { skipped: "whatsapp_not_connected" };
+    }
+
+    const resolved = await resolveOutboundProvider(appointment.agenda.tracking.id);
+    const canSendFreeForm = await isFreeFormWindowOpen(
+      resolved,
+      appointment.lead.conversation?.id,
+    );
+    if (!canSendFreeForm) {
+      return { skipped: WINDOW_CLOSED_SKIP_REASON, appointmentId };
     }
 
     const date = dayjs(appointment.startsAt).locale("pt-br").format("DD/MM/YYYY");
@@ -104,11 +115,11 @@ export const bookingNotification = inngest.createFunction(
       return { skipped: "insufficient_stars", appointmentId };
     }
 
-    await sendText(
-      requireUazapiToken(instance.apiKey),
-      { number: appointment.lead.phone, text: message },
-      instance.baseUrl ?? undefined,
-    );
+    await resolved.provider.sendText({
+      kind: "text",
+      to: appointment.lead.phone,
+      body: message,
+    });
 
     return { sent: true, to: appointment.lead.phone, type };
   },

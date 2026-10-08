@@ -6,6 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useStatus } from "@/features/status/hooks/use-status";
 import { useTags } from "@/features/tags/hooks/use-tags";
+import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
+import { WorkflowTemplateFields } from "@/features/tracking-executions/components/send-message/template-fields";
 import type { QuickStep } from "@/features/workflows/lib/quick-builder/steps";
 
 // Campos essenciais de cada passo do construtor rápido (spec 0039, RF-1). O
@@ -34,6 +36,8 @@ interface QuickStepFieldsProps {
 export function QuickStepFields({ step, trackingId, onChange }: QuickStepFieldsProps) {
   const { tags } = useTags({ trackingId });
   const { status: statuses } = useStatus(trackingId);
+  const { instance } = useQueryInstances(trackingId, { enabled: step.type === "SEND_MESSAGE" });
+  const isOfficialApi = instance?.provider === "META_CLOUD";
   const data = step.data;
   const action = readRecord(data.action);
   const setAction = (patch: Data) => onChange({ ...data, action: { ...action, ...patch } });
@@ -155,14 +159,54 @@ export function QuickStepFields({ step, trackingId, onChange }: QuickStepFieldsP
 
     case "SEND_MESSAGE": {
       const payload = readRecord(action.payload);
+      const isTemplate = payload.type === "TEMPLATE";
+      // Template só existe na API Oficial; na Uazapi o passo segue só texto.
       return (
-        <Textarea
-          rows={2}
-          value={readString(payload, "message")}
-          onChange={(event) => setAction({ payload: { ...payload, type: "TEXT", message: event.target.value } })}
-          placeholder="Oi, {{lead.name}}!"
-          className="min-h-0 resize-none text-xs"
-        />
+        <div className="flex flex-col gap-1.5">
+          {(isOfficialApi || isTemplate) && (
+            <Select
+              value={isTemplate ? "TEMPLATE" : "TEXT"}
+              onValueChange={(value) =>
+                setAction({
+                  payload:
+                    value === "TEMPLATE"
+                      ? { type: "TEMPLATE", templateName: "", languageCode: "" }
+                      : { type: "TEXT", message: "Oi, {{lead.name}}!" },
+                })
+              }
+            >
+              <SelectTrigger size="sm" className={cn(FIELD_CLASS, "w-56")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TEXT">Texto livre</SelectItem>
+                <SelectItem value="TEMPLATE">Template aprovado</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {isTemplate ? (
+            <WorkflowTemplateFields
+              trackingId={trackingId}
+              value={payload}
+              onChange={(selection) => setAction({ payload: { type: "TEMPLATE", ...selection } })}
+              parameterPlaceholder="Texto fixo ou {{lead.name}}"
+              isCompact
+            />
+          ) : (
+            <Textarea
+              rows={2}
+              value={readString(payload, "message")}
+              onChange={(event) => setAction({ payload: { ...payload, type: "TEXT", message: event.target.value } })}
+              placeholder="Oi, {{lead.name}}!"
+              className="min-h-0 resize-none text-xs"
+            />
+          )}
+          {isOfficialApi && !isTemplate && (
+            <p className="text-[11px] text-muted-foreground">
+              Na API Oficial, texto livre só chega se o lead escreveu nas últimas 24h. Fora disso, use template.
+            </p>
+          )}
+        </div>
       );
     }
 

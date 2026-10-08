@@ -2,8 +2,12 @@ import "server-only";
 import { generateText } from "ai";
 import { reportAiQuotaExhausted } from "@/features/alerts/lib/ai-token-alerts";
 import type { GetStepTools } from "inngest";
-import { sendText } from "@/http/uazapi/send-text";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  isFreeFormWindowOpen,
+  toLegacyUazapiMessageId,
+  WINDOW_CLOSED_SKIP_REASON,
+} from "@/features/tracking-chat/lib/providers/automated-outbound";
 import { inngest } from "@/inngest/client";
 import { recordUsageEvent } from "@/features/stars/lib/metering";
 import prisma from "@/lib/prisma";
@@ -26,6 +30,23 @@ interface RunArgs {
 
 const INTER_MESSAGE_DELAY_MS = 600;
 
+/** A janela de 24h já foi conferida no início de `runWhatsappAgent`. */
+async function sendAgentText(
+  trackingId: string,
+  leadPhone: string,
+  text: string,
+  typingDelayMs: number,
+): Promise<string> {
+  const resolved = await resolveOutboundProvider(trackingId);
+  const sent = await resolved.provider.sendText({
+    kind: "text",
+    to: leadPhone,
+    body: text,
+    typingDelayMs,
+  });
+  return toLegacyUazapiMessageId(sent);
+}
+
 export async function runWhatsappAgent({ step, data }: RunArgs) {
   // Não envolvemos load-context em step.run: o serializador do Inngest
   // converte o retorno em JsonifyObject, o que quebra o tipo de ModelMessage[]
@@ -46,6 +67,16 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   // reativa o agente naturalmente.
   if (ctx.history.length === 0)
     return { skipped: true, reason: "empty_history" };
+
+  // A IA também é acordada pela automação de inatividade, horas depois da
+  // última mensagem do lead. Na API Oficial, fora da janela de 24h a
+  // resposta não chegaria: não roda (nem cobra).
+  if (ctx.instance && !ctx.catalogOrder) {
+    const resolved = await resolveOutboundProvider(ctx.trackingId);
+    if (!(await isFreeFormWindowOpen(resolved, ctx.conversation.id))) {
+      return { skipped: true, reason: WINDOW_CLOSED_SKIP_REASON };
+    }
+  }
 
   // ── Barramento por STARS ──────────────────────────────────────────────
   // Verifica grace period e suspensão ANTES de gastar tokens com IA. Org
@@ -78,15 +109,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
         });
         return;
       }
-      await sendText(
-        requireUazapiToken(ctx.instance!.apiKey),
-        {
-          number: ctx.lead.phone!,
-          text: fallbackText,
-          delay: 0,
-        },
-        ctx.instance!.baseUrl ?? undefined,
-      );
+      await sendAgentText(ctx.trackingId, ctx.lead.phone!, fallbackText, 0);
     });
     return { skipped: true, reason: "stars_grace_no_balance" };
   }
@@ -108,15 +131,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
         });
         return;
       }
-      await sendText(
-        requireUazapiToken(ctx.instance!.apiKey),
-        {
-          number: ctx.lead.phone!,
-          text: fallbackText,
-          delay: 0,
-        },
-        ctx.instance!.baseUrl ?? undefined,
-      );
+      await sendAgentText(ctx.trackingId, ctx.lead.phone!, fallbackText, 0);
     });
     return { skipped: true, reason: "stars_insufficient" };
   }
@@ -241,14 +256,11 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
           });
           continue;
         }
-        const res = await sendText(
-          requireUazapiToken(ctx.instance!.apiKey),
-          {
-            number: ctx.lead.phone!,
-            text: chunk,
-            delay: INTER_MESSAGE_DELAY_MS,
-          },
-          ctx.instance!.baseUrl ?? undefined,
+        const externalMessageId = await sendAgentText(
+          ctx.trackingId,
+          ctx.lead.phone!,
+          chunk,
+          INTER_MESSAGE_DELAY_MS,
         );
         await persistOutboundMessage({
           conversationId: ctx.conversation.id,
@@ -256,7 +268,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
           trackingId: ctx.trackingId,
           body: chunk,
           senderName: ctx.settings?.assistantName ?? "IA",
-          externalMessageId: res.messageid,
+          externalMessageId,
         });
         if (i < parts.length - 1) {
           await new Promise((r) => setTimeout(r, INTER_MESSAGE_DELAY_MS));

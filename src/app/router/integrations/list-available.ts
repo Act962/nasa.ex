@@ -30,6 +30,7 @@ export const listAvailableInstances = base
         phoneNumber: true,
         profileName: true,
         status: true,
+        provider: true,
         trackingId: true,
         tracking: { select: { id: true, name: true } },
       },
@@ -42,6 +43,7 @@ export const listAvailableInstances = base
       phoneNumber: i.phoneNumber,
       profileName: i.profileName,
       status: i.status,
+      provider: i.provider,
       trackingId: i.trackingId,
       trackingName: i.tracking.name,
     }));

@@ -1,20 +1,16 @@
-import { sendText } from "@/http/uazapi/send-text";
+import type { WhatsAppChatProvider } from "@/features/tracking-chat/lib/providers";
 
 interface Params {
   body: string;
   number: string;
-  token: string;
-  baseUrl?: string;
+  provider: WhatsAppChatProvider;
 }
 
-export const sendTextRaw = async ({ body, number, token, baseUrl }: Params) => {
-  return await sendText(
-    token,
-    {
-      text: body,
-      number,
-      delay: 2000,
-    },
-    baseUrl,
-  );
+export const sendTextRaw = async ({ body, number, provider }: Params) => {
+  return await provider.sendText({
+    kind: "text",
+    to: number,
+    body,
+    typingDelayMs: 2000,
+  });
 };

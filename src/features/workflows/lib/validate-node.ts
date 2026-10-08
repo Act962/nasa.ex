@@ -22,6 +22,24 @@ function hasNonEmptyString(v: unknown): boolean {
   return typeof v === "string" && v.trim().length > 0;
 }
 
+function findTemplateProblems(
+  template: Record<string, unknown>,
+  templateLabel: string,
+): string[] {
+  const problems: string[] = [];
+  if (!hasNonEmptyString(template.templateName))
+    problems.push(`Selecione o ${templateLabel} aprovado`);
+  const templateParameters = [
+    ...(Array.isArray(template.headerParameters)
+      ? template.headerParameters
+      : []),
+    ...(Array.isArray(template.bodyParameters) ? template.bodyParameters : []),
+  ];
+  if (templateParameters.some((parameter) => !hasNonEmptyString(parameter)))
+    problems.push(`Preencha todas as variáveis do ${templateLabel}`);
+  return problems;
+}
+
 function hasNonEmptyArray(v: unknown): boolean {
   return Array.isArray(v) && v.length > 0;
 }
@@ -168,10 +186,21 @@ export function validateNode(
           if (buttons.length > 9)
             errs.push("Máximo 9 botões");
         }
+      } else if (t === "TEMPLATE") {
+        errs.push(...findTemplateProblems(payload, "template"));
       } else {
         // Default = TEXT
         if (!hasNonEmptyString(payload.message))
           errs.push("Escreva a mensagem que será enviada");
+      }
+      const fallbackTemplate = d.fallbackTemplate;
+      if (fallbackTemplate && typeof fallbackTemplate === "object") {
+        errs.push(
+          ...findTemplateProblems(
+            fallbackTemplate as Record<string, unknown>,
+            "template reserva",
+          ),
+        );
       }
       break;
     }

@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { sendMedia } from "@/http/uazapi/send-media";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import { toLegacyUazapiMessageId } from "@/features/tracking-chat/lib/providers/automated-outbound";
 import { persistOutboundMessage } from "../../lib/persist";
 import type { AgentContext } from "../../lib/context";
 
@@ -25,17 +25,15 @@ export const makeSendDocumentTool = (ctx: AgentContext) =>
       if (!ctx.instance) return { error: "WhatsApp instance not configured" };
       if (!ctx.lead.phone) return { error: "Lead has no phone" };
 
-      const result = await sendMedia(
-        requireUazapiToken(ctx.instance.apiKey),
-        {
-          number: ctx.lead.phone,
-          type: "document",
-          file: url,
-          docName: fileName,
-          text: caption,
-        },
-        ctx.instance.baseUrl ?? undefined,
-      );
+      const resolved = await resolveOutboundProvider(ctx.trackingId);
+      const sent = await resolved.provider.sendMedia({
+        kind: "media",
+        mediaKind: "document",
+        to: ctx.lead.phone,
+        mediaUrl: url,
+        fileName,
+        caption,
+      });
 
       await persistOutboundMessage({
         conversationId: ctx.conversation.id,
@@ -47,7 +45,7 @@ export const makeSendDocumentTool = (ctx: AgentContext) =>
         mediaCaption: caption ?? null,
         fileName,
         senderName: ctx.settings?.assistantName ?? "IA",
-        externalMessageId: result.messageid,
+        externalMessageId: toLegacyUazapiMessageId(sent),
       });
 
       return { ok: true };
