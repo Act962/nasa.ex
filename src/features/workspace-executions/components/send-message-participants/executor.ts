@@ -90,6 +90,32 @@ export const wsSendMessageParticipantsExecutor: NodeExecutor<Data> = async ({
         number: string,
         participant?: { name: string; email: string },
       ) => {
+        const payload = cfg.payload;
+
+        // Variáveis do template resolvidas e conferidas antes da cobrança:
+        // variável vazia não pode custar uma mensagem que não saiu.
+        const renderParameters = (parameters: string[] | undefined) =>
+          (parameters ?? []).map((parameter) =>
+            renderFor(parameter, participant).trim(),
+          );
+        const templateParameters =
+          payload.type === "TEMPLATE"
+            ? {
+                header: renderParameters(payload.headerParameters),
+                body: renderParameters(payload.bodyParameters),
+              }
+            : null;
+        const hasEmptyParameter =
+          templateParameters !== null &&
+          [...templateParameters.header, ...templateParameters.body].some(
+            (parameter) => parameter.length === 0,
+          );
+        if (hasEmptyParameter) {
+          throw new NonRetriableError(
+            `Uma variável do template ficou vazia para ${participant?.name ?? number}.`,
+          );
+        }
+
         const charge = await chargeStarsByAction(
           workspace.organizationId,
           "message_send",
@@ -105,31 +131,18 @@ export const wsSendMessageParticipantsExecutor: NodeExecutor<Data> = async ({
           return;
         }
 
-        const payload = cfg.payload;
-        if (payload.type === "TEMPLATE") {
-          const renderParameters = (parameters: string[] | undefined) =>
-            (parameters ?? []).map((parameter) =>
-              renderFor(parameter, participant).trim(),
-            );
-          const headerParameters = renderParameters(payload.headerParameters);
-          const bodyParameters = renderParameters(payload.bodyParameters);
-          const hasEmptyParameter = [...headerParameters, ...bodyParameters].some(
-            (parameter) => parameter.length === 0,
-          );
-          if (hasEmptyParameter) {
-            throw new NonRetriableError(
-              `Uma variável do template ficou vazia para ${participant?.name ?? number}.`,
-            );
-          }
+        if (payload.type === "TEMPLATE" && templateParameters) {
           await provider.sendTemplate({
             kind: "template",
             to: number,
             templateName: payload.templateName,
             languageCode: payload.languageCode,
-            headerParameters: headerParameters.length
-              ? headerParameters
+            headerParameters: templateParameters.header.length
+              ? templateParameters.header
               : undefined,
-            bodyParameters: bodyParameters.length ? bodyParameters : undefined,
+            bodyParameters: templateParameters.body.length
+              ? templateParameters.body
+              : undefined,
           });
         } else if (payload.type === "TEXT") {
           await sendTextRaw({
