@@ -52,6 +52,12 @@ export const ItemListBlock: ObjectBlockType = {
   propertiesComponent: PropertiesView,
 };
 
+/** Formulário salvo sem a lista (outro caminho de criação) não pode quebrar a tela. */
+function readItems(blockInstance: FormBlockInstance): ItemListConfigItem[] {
+  const items = (blockInstance as Instance).attributes?.items;
+  return Array.isArray(items) ? items : [];
+}
+
 function unitSymbol(unit: string): string {
   return findMeasureUnit(unit)?.symbol ?? unit;
 }
@@ -67,7 +73,8 @@ function BlockLabel({ label, required, hasError }: { label: string; required: bo
 }
 
 function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
-  const { label, required, helperText, items } = (blockInstance as Instance).attributes;
+  const { label, required, helperText } = (blockInstance as Instance).attributes;
+  const items = readItems(blockInstance);
   return (
     <div className="flex w-full flex-col gap-2">
       <BlockLabel label={label} required={required} />
@@ -101,7 +108,8 @@ function FormView({
   isError?: boolean;
 }) {
   const block = blockInstance as Instance;
-  const { label, required, helperText, items } = block.attributes;
+  const { label, required, helperText } = block.attributes;
+  const items = readItems(blockInstance);
 
   const savedMeta = parseItemListMeta(usePrefillFieldValue(block.id)?.meta);
   const savedItemsById = useMemo(
@@ -160,7 +168,8 @@ function FormView({
                   <p className="break-words text-sm leading-snug">{item.name}</p>
                   {hasSavedPrice && (
                     <p className="text-xs text-muted-foreground">
-                      {formatCents(savedItem.unitPriceCents ?? 0)} / {unitSymbol(item.unit)} · {formatCents(savedItem.lineTotalCents)}
+                      {formatCents(savedItem.unitPriceCents ?? 0)} / {unitSymbol(item.unit)} ·{" "}
+                      {item.billingMode === "INFO" ? "informativo, não entra no total" : formatCents(savedItem.lineTotalCents)}
                     </p>
                   )}
                 </div>
@@ -169,6 +178,7 @@ function FormView({
                     type="button"
                     variant="outline"
                     size="icon-sm"
+                    data-record-stepper
                     aria-label={`Diminuir ${item.name}`}
                     onClick={() => stepQuantity(item.itemId, -1)}
                   >
@@ -187,6 +197,7 @@ function FormView({
                     type="button"
                     variant="outline"
                     size="icon-sm"
+                    data-record-stepper
                     aria-label={`Aumentar ${item.name}`}
                     onClick={() => stepQuantity(item.itemId, 1)}
                   >
@@ -218,7 +229,7 @@ function PropertiesView({
 }) {
   const block = blockInstance as Instance;
   const { updateChildBlock } = useBuilderStore();
-  const attributes = block.attributes;
+  const attributes = { ...block.attributes, items: readItems(blockInstance) };
   const [search, setSearch] = useState("");
   const [customName, setCustomName] = useState("");
   const { data, isLoading } = useForgeProducts(search.trim() || undefined);

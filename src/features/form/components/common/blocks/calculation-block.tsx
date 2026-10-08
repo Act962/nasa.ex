@@ -66,6 +66,11 @@ export const CalculationBlock: ObjectBlockType = {
   propertiesComponent: PropertiesView,
 };
 
+function readSourceBlockIds(blockInstance: FormBlockInstance): string[] {
+  const sourceBlockIds = (blockInstance as Instance).attributes?.sourceBlockIds;
+  return Array.isArray(sourceBlockIds) ? sourceBlockIds : [];
+}
+
 function ResultBox({ label, helperText, result }: { label: string; helperText: string; result: string }) {
   return (
     <div className="flex w-full flex-col gap-2">
@@ -79,7 +84,8 @@ function ResultBox({ label, helperText, result }: { label: string; helperText: s
 }
 
 function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
-  const { label, helperText, sourceBlockIds } = (blockInstance as Instance).attributes;
+  const { label, helperText } = (blockInstance as Instance).attributes;
+  const sourceBlockIds = readSourceBlockIds(blockInstance);
   return (
     <ResultBox
       label={label}
@@ -106,7 +112,7 @@ function PropertiesView({
 }) {
   const block = blockInstance as Instance;
   const { updateChildBlock, blockLayouts } = useBuilderStore();
-  const attributes = block.attributes;
+  const attributes = { ...block.attributes, sourceBlockIds: readSourceBlockIds(blockInstance) };
 
   const commit = (partial: Partial<AttributesType>) => {
     if (!parentId) return;
