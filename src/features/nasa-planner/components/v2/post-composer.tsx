@@ -74,8 +74,10 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
   const isInGroup = Boolean(post?.publishGroupId) && groupPosts.length > 1;
   const groupAccountIds = groupPosts.map((groupPost) => groupPost.targetIgAccountId).filter((accountId): accountId is string => Boolean(accountId));
   const savedAccountIds = isInGroup ? groupAccountIds : post?.targetIgAccountId ? [post.targetIgAccountId] : [];
+  const isLockedGroupPost = (groupPost: (typeof groupPosts)[number]) => groupPost.status === "PUBLISHED" || groupPost.status === "PUBLISHING";
+  const unpublishedGroupCount = groupPosts.filter((groupPost) => !isLockedGroupPost(groupPost)).length;
   const lockedAccountIds = groupPosts
-    .filter((groupPost) => groupPost.status === "PUBLISHED" || groupPost.status === "PUBLISHING")
+    .filter(isLockedGroupPost)
     .map((groupPost) => groupPost.targetIgAccountId)
     .filter((accountId): accountId is string => Boolean(accountId));
   const scriptInitialValues: ScriptStepValues = post
@@ -307,7 +309,7 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
           />
         )}
         {step === "schedule" && post && permissions && (
-          <ComposerScheduleStep post={post} canSchedule={permissions.canSchedule} initialDate={intendedAt} groupAccountCount={isInGroup ? groupPosts.length : 1} />
+          <ComposerScheduleStep post={post} canSchedule={permissions.canSchedule} initialDate={intendedAt} groupAccountCount={isInGroup ? unpublishedGroupCount : 1} />
         )}
       </div>
     </>

@@ -10,7 +10,7 @@ import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import type { NasaPlannerPostStatus, NasaPlannerPostType } from "@/generated/prisma/enums";
 import { usePlannerCalendarPosts, usePlannerClients, usePlannerSlots } from "../../hooks/use-planner-calendar";
-import { collapsePublishGroups } from "../../lib/publish-group-collapse";
+import { collapsePublishGroups, toGroupScope } from "../../lib/publish-group-collapse";
 import { useRetryPlannerPublish, useSchedulePlannerPostV2 } from "../../hooks/use-planner-publishing";
 import { useUpdatePlannerPostV2 } from "../../hooks/use-planner-planning";
 import { usePlannerCalendarBroadcasts } from "../../hooks/use-planner-integrations";
@@ -136,7 +136,7 @@ export function PlannerHome() {
   });
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    const dragged = active.data.current as { kind: "post" | "draft"; postId: string; status?: NasaPlannerPostStatus; isGroup?: boolean } | undefined;
+    const dragged = active.data.current as { kind: "post" | "draft"; postId: string; status?: NasaPlannerPostStatus; groupPostIds?: string[] } | undefined;
     const dropTarget = over?.data.current as { date: string; keepTime?: boolean } | undefined;
     if (!dragged || !dropTarget) return;
     const targetDate = new Date(dropTarget.date);
@@ -152,7 +152,7 @@ export function PlannerHome() {
     const showError = (error: Error) => toast.error(error.message);
     if (dragged.status && RESCHEDULABLE_STATUSES.includes(dragged.status)) {
       schedulePost.mutate(
-        { postId: dragged.postId, scheduledAt: targetDate, scope: dragged.isGroup ? "group" : "post" },
+        { postId: dragged.postId, scheduledAt: targetDate, ...toGroupScope(dragged.groupPostIds) },
         { onSuccess: ({ scheduledCount }) => toast.success(scheduledCount > 1 ? `Programado em ${scheduledCount} contas.` : "Post programado."), onError: showError },
       );
       return;

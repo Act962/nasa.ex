@@ -5,7 +5,8 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { assertPlannerOrganizationAccess, assertPostAccess } from "@/features/nasa-planner/server/cross-org";
 import { reopenPostAfterEdit } from "@/features/nasa-planner/server/approval";
-import { approveWithGroup, submitForApprovalWithGroup, syncPublishGroupContent } from "@/features/nasa-planner/server/publish-group";
+import { approveWithGroup, assertInstagramAccountFreeInGroup, submitForApprovalWithGroup, syncPublishGroupContent } from "@/features/nasa-planner/server/publish-group";
+import { findDefaultInstagramAccountId } from "@/features/nasa-planner/server/publishing/instagram-channels";
 
 const slideSchema = z.object({
   id: z.string().optional(),
@@ -55,9 +56,18 @@ export const updatePost = base
     // O formulário manda tudo de novo ao salvar: só conta o que mudou de verdade.
     const currentSlideKeys = currentPost.slides.map((slide) => slide.imageKey ?? "").join("|");
     const hasSlidesChange = slides !== undefined && slides.map((slide) => slide.imageKey ?? "").join("|") !== currentSlideKeys;
+    const requestedAccountId = data.targetIgAccountId;
+    if (requestedAccountId && requestedAccountId !== currentPost.targetIgAccountId) {
+      await assertInstagramAccountFreeInGroup(currentPost, requestedAccountId);
+    }
+    // Gravar a única conta da empresa num post que ainda não tinha conta não muda onde ele sai: não reabre a aprovação.
+    const isNamingTheOnlyAccount =
+      Boolean(requestedAccountId) && !currentPost.targetIgAccountId && requestedAccountId === (await findDefaultInstagramAccountId(currentPost.organizationId));
     const hasTargetChange =
       (data.targetNetworks !== undefined && toSortedKey(data.targetNetworks) !== toSortedKey(currentPost.targetNetworks ?? [])) ||
-      TARGET_ACCOUNT_FIELDS.some((field) => data[field] !== undefined && data[field] !== currentPost[field]);
+      TARGET_ACCOUNT_FIELDS.some(
+        (field) => data[field] !== undefined && data[field] !== currentPost[field] && !(field === "targetIgAccountId" && isNamingTheOnlyAccount),
+      );
     const hasContentChange =
       hasSlidesChange ||
       hasTargetChange ||

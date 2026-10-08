@@ -3,7 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { assertPostAccess, resolvePlannerOrganizationIds } from "@/features/nasa-planner/server/cross-org";
 import { requestImmediatePublish, schedulePlannerPost, unschedulePlannerPost } from "@/features/nasa-planner/server/scheduling";
-import { MAX_STAGGER_MINUTES, publishGroupNow, schedulePublishGroup, unschedulePublishGroup } from "@/features/nasa-planner/server/publish-group";
+import { MAX_GROUP_ACCOUNTS, MAX_STAGGER_MINUTES, publishGroupNow, schedulePublishGroup, unschedulePublishGroup } from "@/features/nasa-planner/server/publish-group";
 import { listPublishAccounts } from "@/features/nasa-planner/server/publishing/publish-accounts";
 import { getPlannerPostMetrics } from "@/features/nasa-planner/server/publishing/post-metrics";
 import { logActivity } from "@/features/admin/lib/activity-logger";
@@ -37,6 +37,8 @@ export const schedule = base
       scheduledAt: z.coerce.date(),
       scope: scopeInput,
       staggerMinutes: z.number().int().min(0).max(MAX_STAGGER_MINUTES).default(0),
+      /** Cartão arrastado no calendário ou no Kanban: restringe o grupo aos posts que o cartão representa. */
+      groupPostIds: z.array(z.string()).max(MAX_GROUP_ACCOUNTS).optional(),
     }),
   )
   .handler(async ({ input, context }) => {

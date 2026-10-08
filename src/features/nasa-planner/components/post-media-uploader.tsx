@@ -24,14 +24,7 @@ import {
   useUploadPlannerPostImage, useAttachVideo,
   useTranscribeVideo, useRemovePostMedia, useRemovePostSlide, useAddSlidesBatch,
 } from "../hooks/use-nasa-planner";
-
-const S3_BASE = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL
-  ? `https://${process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL}`
-  : "";
-
-function resolveUrl(key: string) {
-  return key.startsWith("http") ? key : `${S3_BASE}/${key}`;
-}
+import { getPlannerMediaUrl } from "../lib/post-media";
 
 interface Slide {
   id: string;
@@ -195,7 +188,7 @@ export function PostMediaUploader({
                 {slide.imageKey ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={resolveUrl(slide.imageKey)}
+                    src={getPlannerMediaUrl(slide.imageKey)}
                     alt={`Slide ${idx + 1}`}
                     className="w-full h-full object-cover"
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
@@ -284,7 +277,7 @@ export function PostMediaUploader({
               {thumbnailUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={resolveUrl(thumbnailUrl)}
+                  src={getPlannerMediaUrl(thumbnailUrl)}
                   alt="thumbnail"
                   className="size-12 rounded object-cover shrink-0"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}

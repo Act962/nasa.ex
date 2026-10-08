@@ -43,7 +43,7 @@ export function ComposerScheduleStep({
   post: ComposerPost;
   canSchedule: boolean;
   initialDate?: Date;
-  /** Contas do grupo (spec 0074, RF-10): com mais de uma, dá para programar todas de uma vez. */
+  /** Contas do grupo que ainda não publicaram (spec 0074, RF-10): com mais de uma, dá para programar todas de uma vez. */
   groupAccountCount?: number;
 }) {
   const isGroup = groupAccountCount > 1;

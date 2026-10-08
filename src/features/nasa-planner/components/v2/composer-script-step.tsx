@@ -68,12 +68,15 @@ export function ComposerScriptStep({
   lockedAccountIds?: string[];
   onSubmit: (values: ScriptStepValues) => void;
 }) {
-  // O que a tela mostra marcado é o que fica gravado: sem escolha, começa pela primeira conta que publica (spec 0074, RF-18).
+  // O que a tela mostra marcado é o que fica gravado (spec 0074, RF-18). Conteúdo novo começa pela primeira conta que
+  // publica; post existente sem conta só assume uma quando a empresa tem uma só — com várias, a pessoa escolhe.
   const defaultAccountIdsOf = (organizationId: string) => {
-    const firstPublishableAccount = clients
-      .find((candidate) => candidate.id === organizationId)
-      ?.accounts.find((account) => account.kind === "IG_BUSINESS" && account.canPublish !== false);
-    return firstPublishableAccount?.igUserId ? [firstPublishableAccount.igUserId] : [];
+    const publishableAccounts = (clients.find((candidate) => candidate.id === organizationId)?.accounts ?? []).filter(
+      (account) => account.kind === "IG_BUSINESS" && account.canPublish !== false,
+    );
+    if (!isCreating && publishableAccounts.length !== 1) return [];
+    const firstAccountId = publishableAccounts[0]?.igUserId;
+    return firstAccountId ? [firstAccountId] : [];
   };
   const [values, setValues] = useState(() =>
     initialValues.targetIgAccountIds.length === 0 && initialValues.targetNetworks.includes("INSTAGRAM")

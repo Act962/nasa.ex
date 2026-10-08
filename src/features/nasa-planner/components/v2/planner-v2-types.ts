@@ -1,8 +1,9 @@
+import type { GroupCardFields } from "../../lib/publish-group-collapse";
 import type { usePlannerCalendarPosts, usePlannerClients, usePlannerDrafts, usePlannerSlots } from "../../hooks/use-planner-calendar";
 
 export type PlannerClient = ReturnType<typeof usePlannerClients>["clients"][number];
-/** `groupAccountCount` vem do agrupamento do calendário (spec 0074, RF-14): quantas contas o cartão representa. */
-export type CalendarPost = ReturnType<typeof usePlannerCalendarPosts>["posts"][number] & { groupAccountCount?: number };
+/** Os campos de grupo vêm do agrupamento do calendário (spec 0074, RF-14): quantas contas, e quais posts, o cartão representa. */
+export type CalendarPost = ReturnType<typeof usePlannerCalendarPosts>["posts"][number] & Partial<GroupCardFields>;
 export type DraftPost = ReturnType<typeof usePlannerDrafts>["posts"][number];
 export type CalendarSlot = ReturnType<typeof usePlannerSlots>["slots"][number];
 

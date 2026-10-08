@@ -118,6 +118,17 @@ export async function syncPublishGroupContent(postId: string, actorId: string) {
   const outdatedSiblings = siblings.filter((sibling) => contentFingerprint(sibling) !== sourceFingerprint);
   await copyContent(source, outdatedSiblings);
   for (const sibling of outdatedSiblings) await reopenPostAfterEdit(sibling.id, actorId);
+
+  // Conta publicada ou publicando não recebe a mudança (RF-6): passa a constar como "diferente". Sem isso, se a
+  // publicação falhar, o post voltaria a ser editável com o conteúdo antigo e o espalharia para o grupo.
+  const lockedSiblings = await prisma.nasaPlannerPost.findMany({
+    where: { publishGroupId: source.publishGroupId, id: { not: source.id }, isGroupContentDetached: false, status: { in: LOCKED_STATUSES } },
+    select: contentSelect,
+  });
+  const leftBehindIds = lockedSiblings.filter((sibling) => contentFingerprint(sibling) !== sourceFingerprint).map((sibling) => sibling.id);
+  if (leftBehindIds.length > 0) {
+    await prisma.nasaPlannerPost.updateMany({ where: { id: { in: leftBehindIds } }, data: { isGroupContentDetached: true } });
+  }
   return { syncedPostIds: outdatedSiblings.map((sibling) => sibling.id) };
 }
 
@@ -144,6 +155,18 @@ export async function resolveInstagramAccountIdsByHandle(organizationId: string,
     if (!account) throw new ORPCError("BAD_REQUEST", { message: `A conta @${normalizedHandle} não está conectada nos Satélites deste cliente.` });
     return account.igUserId;
   });
+}
+
+/** Duas contas iguais no mesmo grupo publicariam o conteúdo duas vezes no mesmo Instagram. */
+export async function assertInstagramAccountFreeInGroup(post: { id: string; publishGroupId: string | null }, instagramAccountId: string) {
+  if (!post.publishGroupId) return;
+  const siblingOnAccount = await prisma.nasaPlannerPost.findFirst({
+    where: { publishGroupId: post.publishGroupId, id: { not: post.id }, targetIgAccountId: instagramAccountId },
+    select: { id: true },
+  });
+  if (siblingOnAccount) {
+    throw new ORPCError("BAD_REQUEST", { message: "Este conteúdo já sai nessa conta do Instagram. Escolha outra conta ou tire esta do grupo." });
+  }
 }
 
 type NewPostData = Omit<Prisma.NasaPlannerPostUncheckedCreateInput, "targetIgAccountId" | "publishGroupId" | "isGroupContentDetached">;
@@ -256,7 +279,8 @@ export async function setPublishGroupDetached(input: { postId: string; isDetache
   if (input.isDetached || isLocked(post.status)) return;
 
   const groupSource = await prisma.nasaPlannerPost.findFirst({
-    where: { publishGroupId: post.publishGroupId, id: { not: post.id }, isGroupContentDetached: false },
+    // Conta já publicada pode ter ficado com conteúdo antigo: a fonte é sempre um irmão ainda editável.
+    where: { publishGroupId: post.publishGroupId, id: { not: post.id }, isGroupContentDetached: false, status: { notIn: LOCKED_STATUSES } },
     orderBy: { updatedAt: "desc" },
     select: contentSelect,
   });
@@ -340,8 +364,9 @@ async function loadSchedulableGroupPosts(postId: string) {
 async function runOnGroup<Result>(
   postId: string,
   runOnPost: (groupPostId: string, groupIndex: number) => Promise<Result>,
+  onlyPostIds?: string[],
 ) {
-  const groupPosts = await loadSchedulableGroupPosts(postId);
+  const groupPosts = (await loadSchedulableGroupPosts(postId)).filter((groupPost) => !onlyPostIds || onlyPostIds.includes(groupPost.id));
   const targets = groupPosts.length > 0 ? groupPosts : [{ id: postId, targetIgAccountId: null }];
   const results: Result[] = [];
   const skipped: GroupActionSkip[] = [];
@@ -360,10 +385,12 @@ async function runOnGroup<Result>(
 }
 
 /** Programa todas as contas do grupo, com intervalo opcional entre elas (RF-10, RF-11). */
-export async function schedulePublishGroup(input: { postId: string; scheduledAt: Date; staggerMinutes?: number }) {
+export async function schedulePublishGroup(input: { postId: string; scheduledAt: Date; staggerMinutes?: number; groupPostIds?: string[] }) {
   const staggerMs = Math.min(Math.max(input.staggerMinutes ?? 0, 0), MAX_STAGGER_MINUTES) * MINUTE_MS;
-  const { results, skipped } = await runOnGroup(input.postId, (groupPostId, groupIndex) =>
-    schedulePlannerPost(groupPostId, new Date(input.scheduledAt.getTime() + groupIndex * staggerMs)),
+  const { results, skipped } = await runOnGroup(
+    input.postId,
+    (groupPostId, groupIndex) => schedulePlannerPost(groupPostId, new Date(input.scheduledAt.getTime() + groupIndex * staggerMs)),
+    input.groupPostIds,
   );
   return { posts: results, skipped };
 }

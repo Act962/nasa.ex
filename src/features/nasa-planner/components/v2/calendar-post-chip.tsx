@@ -26,7 +26,7 @@ export function CalendarPostChip({
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `post:${post.id}`,
-    data: { kind: "post", postId: post.id, status: post.status, isGroup: (post.groupAccountCount ?? 1) > 1 },
+    data: { kind: "post", postId: post.id, status: post.status, groupPostIds: post.groupPostIds },
     disabled: post.status === "PUBLISHED" || post.status === "PUBLISHING",
   });
   const typeMeta = POST_TYPE_META[post.type];

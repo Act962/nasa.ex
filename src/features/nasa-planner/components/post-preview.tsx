@@ -13,16 +13,9 @@ import {
   MusicIcon,
 } from "lucide-react";
 import { useAvailableMetaAccounts } from "@/features/integrations/hooks/use-active-meta-account";
+import { toPlannerMediaUrl } from "../lib/post-media";
 
-const S3_BASE = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL
-  ? `https://${process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL}`
-  : "";
-
-function mediaUrl(key: string | null | undefined): string | undefined {
-  if (!key) return undefined;
-  if (key.startsWith("http") || key.startsWith("data:") || key.startsWith("/")) return key;
-  return `${S3_BASE}/${key}`;
-}
+const mediaUrl = toPlannerMediaUrl;
 
 interface PostLike {
   type?: "STATIC" | "CAROUSEL" | "REEL" | "STORY" | string;

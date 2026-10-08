@@ -1,9 +1,16 @@
 /** Endereço e download das mídias de post guardadas no bucket. */
 
 const BUCKET_HOST = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL;
+const BUCKET_BASE_URL = BUCKET_HOST ? `https://${BUCKET_HOST}` : "";
 
+/** Chave do bucket vira endereço; o que já é endereço (http, `data:` ou caminho local de desenvolvimento) passa direto. */
 export function getPlannerMediaUrl(mediaKey: string) {
-  return mediaKey.startsWith("http") ? mediaKey : `https://${BUCKET_HOST}/${mediaKey}`;
+  if (mediaKey.startsWith("http") || mediaKey.startsWith("data:") || mediaKey.startsWith("/")) return mediaKey;
+  return `${BUCKET_BASE_URL}/${mediaKey}`;
+}
+
+export function toPlannerMediaUrl(mediaKey: string | null | undefined) {
+  return mediaKey ? getPlannerMediaUrl(mediaKey) : undefined;
 }
 
 /** Caminho inverso de `getPlannerMediaUrl`; `undefined` quando o endereço não é do bucket. */
