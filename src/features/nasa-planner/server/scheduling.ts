@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
 import { NasaPlannerPostStatus } from "@/generated/prisma/enums";
 import { isApprovalRequired } from "./cross-org";
+import { resolveInstagramTarget } from "./publishing/instagram-channels";
 import { validatePostForPublishing } from "./publishing/validate-post";
 import type { PublishTrigger } from "./publishing/publish-workflow";
 
@@ -43,6 +44,11 @@ async function loadSchedulablePost(postId: string) {
   }
   const problems = validatePostForPublishing({ ...post, targetNetworks: post.targetNetworks ?? [] });
   if (problems.length > 0) throw new ORPCError("BAD_REQUEST", { message: problems.join(" ") });
+  // Conta conferida já no pedido, não só no horário de publicar (spec 0074, RF-19).
+  if (post.targetNetworks.includes("INSTAGRAM") && !post.externalIgPostId) {
+    const instagramTarget = await resolveInstagramTarget(post.organizationId, post.targetIgAccountId);
+    if (!instagramTarget.ok) throw new ORPCError("BAD_REQUEST", { message: instagramTarget.problem });
+  }
   return post;
 }
 

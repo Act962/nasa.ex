@@ -7,10 +7,11 @@ import { useSpacePointCtx } from "@/features/space-point/components/space-point-
 
 // ─── Planners ─────────────────────────────────────────────────────────────────
 
-export function useNasaPlanners() {
-  const { data, isLoading } = useQuery(
-    orpc.nasaPlanner.planners.list.queryOptions({}),
-  );
+export function useNasaPlanners({ enabled = true }: { enabled?: boolean } = {}) {
+  const { data, isLoading } = useQuery({
+    ...orpc.nasaPlanner.planners.list.queryOptions({}),
+    enabled,
+  });
   return { planners: data?.planners ?? [], isLoading };
 }
 
@@ -81,6 +82,8 @@ export function useNasaPlannerPosts(
   return { posts: data?.posts ?? [], isLoading };
 }
 
+export type PlannerPost = ReturnType<typeof useNasaPlannerPosts>["posts"][number];
+
 export function useCreatePlannerPost() {
   const qc = useQueryClient();
   return useMutation(
@@ -94,6 +97,27 @@ export function useCreatePlannerPost() {
         );
       },
       onError: () => toast.error("Erro ao criar post"),
+    }),
+  );
+}
+
+/** Sem aviso de sucesso: quem chama decide a mensagem. */
+export function useCreatePlannerPostQuietly() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.create.mutationOptions({
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+      onError: () => toast.error("Erro ao criar post"),
+    }),
+  );
+}
+
+export function useCreatePlannerPostFromAction() {
+  return useMutation(
+    orpc.nasaPlanner.posts.createFromAction.mutationOptions({
+      onError: () => toast.error("Erro ao criar post a partir do card"),
     }),
   );
 }
@@ -116,6 +140,20 @@ export function useUpdatePlannerPost() {
     }),
   );
 }
+
+/** Usado pelo editor de imagem ao exportar: salva sem avisos, o editor mostra o resultado final. */
+export function useUpdatePlannerPostQuietly() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.update.mutationOptions({
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+    }),
+  );
+}
+
+export type PlannerPostPatch = Omit<Parameters<ReturnType<typeof useUpdatePlannerPost>["mutate"]>[0], "postId">;
 
 export function useDeletePlannerPost() {
   const qc = useQueryClient();
@@ -142,7 +180,7 @@ export function useGeneratePlannerPost() {
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
         earn("create_post", "Post gerado com IA ✨");
       },
-      onError: (err: any) =>
+      onError: (err) =>
         toast.error(err?.message ?? "Erro ao gerar post com IA"),
     }),
   );
@@ -171,7 +209,7 @@ export function useSchedulePlannerPost() {
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
         earn("post_published", "Post agendado com sucesso 🕒");
       },
-      onError: (err: any) =>
+      onError: (err) =>
         toast.error(err?.message ?? "Erro ao agendar post"),
     }),
   );
@@ -181,13 +219,13 @@ export function usePublishPlannerPost() {
   const qc = useQueryClient();
   const { earn } = useSpacePointCtx();
   return useMutation(
-    orpc.nasaPlanner.posts.publish.mutationOptions({
+    orpc.nasaPlanner.posts.publishNow.mutationOptions({
       onSuccess: () => {
         toast.success("Publicação iniciada. Acompanhe o status no calendário.");
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
         earn("post_published", "Post publicado no Planner 🚀");
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao publicar post"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao publicar post"),
     }),
   );
 }
@@ -200,7 +238,7 @@ export function useSyncPostMetrics() {
         toast.success("Métricas sincronizadas");
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao sincronizar métricas"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao sincronizar métricas"),
     }),
   );
 }
@@ -213,7 +251,34 @@ export function useGeneratePlannerPostImage() {
         toast.success(`Imagem gerada! ${data.starsSpent} star${data.starsSpent !== 1 ? "s" : ""} usada${data.starsSpent !== 1 ? "s" : ""}`);
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao gerar imagem"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao gerar imagem"),
+    }),
+  );
+}
+
+/** Usado pelo editor de imagem, que trata o erro do envio no próprio fluxo. */
+export function useUploadPlannerPostImageQuietly() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.uploadImage.mutationOptions({
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+    }),
+  );
+}
+
+export function useGeneratePlannerPostImageWithModel() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.generatePostImage.mutationOptions({
+      onSuccess: (generated) => {
+        qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts"] });
+        toast.success(
+          `Imagem gerada via ${generated.modelUsed} — ${generated.starsSpent}★`,
+        );
+      },
+      onError: (error) => toast.error(error?.message ?? "Erro ao gerar imagem"),
     }),
   );
 }
@@ -235,9 +300,10 @@ export function useUpdatePlannerPostSlide() {
   return useMutation(
     orpc.nasaPlanner.posts.updateSlide.mutationOptions({
       onSuccess: () => {
+        toast.success("Imagem salva!");
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
       },
-      onError: () => toast.error("Erro ao salvar slide"),
+      onError: () => toast.error("Erro ao salvar imagem"),
     }),
   );
 }
@@ -276,20 +342,7 @@ export function useSaveEditedVideo() {
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
         earn("create_post", "Vídeo editado no Planner 🎬");
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao salvar vídeo editado"),
-    }),
-  );
-}
-
-export function useSchedulePlannerPostReal() {
-  const qc = useQueryClient();
-  return useMutation(
-    orpc.nasaPlanner.posts.scheduleReal.mutationOptions({
-      onSuccess: () => {
-        toast.success("Post agendado para publicação!");
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
-      },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao agendar post"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao salvar vídeo editado"),
     }),
   );
 }
@@ -302,7 +355,7 @@ export function useGenerateImageFromReference() {
         toast.success(`Imagem gerada! ${data.starsSpent} star usada.`);
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.key() });
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao gerar imagem por referência"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao gerar imagem por referência"),
     }),
   );
 }
@@ -346,7 +399,7 @@ export function useRemovePostMedia() {
 export function useTranscribeVideo() {
   return useMutation(
     orpc.nasaPlanner.posts.transcribeVideo.mutationOptions({
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao transcrever vídeo"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao transcrever vídeo"),
     }),
   );
 }
@@ -361,7 +414,7 @@ export function useGenerateVideoClip() {
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
         earn("create_post", "Vídeo gerado com IA 🤖");
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao gerar vídeo com IA"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao gerar vídeo com IA"),
     }),
   );
 }

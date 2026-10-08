@@ -23,7 +23,8 @@ export interface ScriptStepValues {
   cta: string;
   pillarId: string | null;
   targetNetworks: Array<"INSTAGRAM" | "FACEBOOK">;
-  targetIgAccountId: string | null;
+  /** Contas do Instagram em que o conteúdo sai; com duas ou mais vira um grupo (spec 0074, RF-1). */
+  targetIgAccountIds: string[];
   targetFbPageId: string | null;
   /** Criação (spec 0063, RF-4): formatos escolhidos — o primeiro é `type`, cada um vira um rascunho. */
   formats: NasaPlannerPostType[];
@@ -54,6 +55,7 @@ export function ComposerScriptStep({
   isCreating,
   isSaving,
   submitLabel,
+  lockedAccountIds = [],
   onSubmit,
 }: {
   clients: PlannerClient[];
@@ -62,9 +64,22 @@ export function ComposerScriptStep({
   isCreating: boolean;
   isSaving: boolean;
   submitLabel: string;
+  /** Contas em que este conteúdo já foi publicado: não dá para desmarcar (spec 0074, CB-9). */
+  lockedAccountIds?: string[];
   onSubmit: (values: ScriptStepValues) => void;
 }) {
-  const [values, setValues] = useState(initialValues);
+  // O que a tela mostra marcado é o que fica gravado: sem escolha, começa pela primeira conta que publica (spec 0074, RF-18).
+  const defaultAccountIdsOf = (organizationId: string) => {
+    const firstPublishableAccount = clients
+      .find((candidate) => candidate.id === organizationId)
+      ?.accounts.find((account) => account.kind === "IG_BUSINESS" && account.canPublish !== false);
+    return firstPublishableAccount?.igUserId ? [firstPublishableAccount.igUserId] : [];
+  };
+  const [values, setValues] = useState(() =>
+    initialValues.targetIgAccountIds.length === 0 && initialValues.targetNetworks.includes("INSTAGRAM")
+      ? { ...initialValues, targetIgAccountIds: defaultAccountIdsOf(initialValues.organizationId) }
+      : initialValues,
+  );
   const client = clients.find((candidate) => candidate.id === values.organizationId);
   const { pillars } = usePlannerPillars(values.organizationId ? [values.organizationId] : undefined);
   const igAccounts = client?.accounts.filter((account) => account.kind === "IG_BUSINESS") ?? [];
@@ -85,6 +100,16 @@ export function ComposerScriptStep({
   };
   const draftCount = isCreating ? values.formats.length : 1;
 
+  const selectedAccountIds = values.targetNetworks.includes("INSTAGRAM") ? values.targetIgAccountIds : [];
+  const toggleInstagramAccount = (account: (typeof igAccounts)[number]) => {
+    const isSelected = selectedAccountIds.includes(account.igUserId);
+    if (isSelected && lockedAccountIds.includes(account.igUserId)) return;
+    if (!isSelected && account.canPublish === false) return;
+    const nextAccountIds = isSelected ? selectedAccountIds.filter((accountId) => accountId !== account.igUserId) : [...selectedAccountIds, account.igUserId];
+    const otherNetworks = values.targetNetworks.filter((network) => network !== "INSTAGRAM");
+    update({ targetIgAccountIds: nextAccountIds, targetNetworks: nextAccountIds.length > 0 ? [...otherNetworks, "INSTAGRAM"] : otherNetworks });
+  };
+
   const toggleNetwork = (network: "INSTAGRAM" | "FACEBOOK") =>
     update({
       targetNetworks: values.targetNetworks.includes(network)
@@ -103,7 +128,7 @@ export function ComposerScriptStep({
           disabled={isClientLocked}
           onSelect={(organizationId) => {
             if (organizationId === values.organizationId) return;
-            update({ organizationId, targetIgAccountId: null, targetFbPageId: null, pillarId: null });
+            update({ organizationId, targetIgAccountIds: defaultAccountIdsOf(organizationId), targetFbPageId: null, pillarId: null });
           }}
         />
       </section>
@@ -131,15 +156,17 @@ export function ComposerScriptStep({
       {isCreating && values.organizationId && (
         <ComposerAstroPanel
           organizationId={values.organizationId}
-          instagramAccountId={values.targetNetworks.includes("INSTAGRAM") ? (values.targetIgAccountId ?? igAccounts[0]?.igUserId ?? null) : null}
+          instagramAccountId={values.targetNetworks.includes("INSTAGRAM") ? (values.targetIgAccountIds[0] ?? null) : null}
           formats={values.formats}
           generatedByFormat={values.generatedByFormat}
           onGenerated={applyGenerated}
         />
       )}
 
-      <section>
-        <p className="mb-2 text-xs text-muted-foreground">Onde publicar</p>
+      <section data-guide={GUIDE_ANCHORS.plannerComposerAccounts.id}>
+        <p className="mb-2 text-xs text-muted-foreground">
+          Onde publicar{igAccounts.length > 1 && " (escolha uma ou mais contas — o mesmo conteúdo sai em todas)"}
+        </p>
         {client && client.accounts.length === 0 ? (
           <p className="rounded-2xl bg-warning/10 px-3 py-2 text-sm text-warning">
             Este cliente ainda não conectou o Instagram. Conecte em Satélites › Instagram para programar; por enquanto o post fica como rascunho.
@@ -149,13 +176,11 @@ export function ComposerScriptStep({
             {igAccounts.map((account) => (
               <OptionPill
                 key={account.id}
-                isSelected={values.targetNetworks.includes("INSTAGRAM") && (values.targetIgAccountId ?? igAccounts[0]?.igUserId) === account.igUserId}
-                onSelect={() => {
-                  if (account.canPublish === false) return;
-                  update({ targetNetworks: Array.from(new Set([...values.targetNetworks, "INSTAGRAM" as const])), targetIgAccountId: account.igUserId });
-                }}
+                isSelected={selectedAccountIds.includes(account.igUserId)}
+                onSelect={() => toggleInstagramAccount(account)}
               >
                 @{account.igUsername ?? account.pageName ?? account.igUserId}
+                {lockedAccountIds.includes(account.igUserId) && <span className="text-[10px] opacity-70">já publicado</span>}
                 {account.status === "NEEDS_RECONNECT" && <span className="text-[10px] text-destructive">reconectar</span>}
                 {account.canPublish === false && <span className="text-[10px] text-warning">não publica</span>}
               </OptionPill>
@@ -174,6 +199,11 @@ export function ComposerScriptStep({
                 </OptionPill>
               ))}
           </div>
+        )}
+        {selectedAccountIds.length > 1 && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {selectedAccountIds.length} contas: você cria, aprova e programa uma vez. Cada conta publica e cobra Stars em separado.
+          </p>
         )}
       </section>
 

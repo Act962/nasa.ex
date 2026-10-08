@@ -11,6 +11,7 @@ import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import type { NasaPlannerPostType } from "@/generated/prisma/enums";
 import { usePlannerBoard, type PlannerOriginFilter } from "../../hooks/use-planner-board";
+import { collapsePublishGroups } from "../../lib/publish-group-collapse";
 import { useSubmitPlannerPostForApproval } from "../../hooks/use-planner-approval";
 import { useSchedulePlannerPostV2 } from "../../hooks/use-planner-publishing";
 import { ClientAvatar } from "./client-avatar";
@@ -21,7 +22,7 @@ import type { PlannerClient } from "./planner-v2-types";
 /** Kanban do Calendário: posts em colunas por status. Arrastar só segue a regra (enviar para aprovação, programar). */
 
 type BoardColumn = ReturnType<typeof usePlannerBoard>["columns"][number];
-type BoardPost = BoardColumn["posts"][number];
+type BoardPost = BoardColumn["posts"][number] & { groupAccountCount?: number };
 type ColumnKey = BoardColumn["key"];
 
 const COLUMN_META: Record<ColumnKey, { label: string; hint: string; dotClassName: string }> = {
@@ -63,6 +64,7 @@ function KanbanCard({ post, columnKey, client, clientIndex, showClient, onOpen, 
       )}
       {originLabel && <OriginBadge label={originLabel} />}
       <p className="mt-0.5 line-clamp-2 text-[13px] font-semibold">{post.title || typeMeta.label}</p>
+      {(post.groupAccountCount ?? 1) > 1 && <p className="text-[11px] text-muted-foreground">{post.groupAccountCount} contas</p>}
       <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
         {showClient && client && <ClientAvatar name={client.name} logo={client.logo} clientIndex={clientIndex} className="size-3.5 text-[6px] ring-1" />}
         <typeMeta.icon className="size-3" />
@@ -181,7 +183,7 @@ export function KanbanView({
             isFocused={focusColumn === column.key}
             guideAnchor={column.key === "draft" ? GUIDE_ANCHORS.plannerDraftsTab.id : column.key === "approval" ? GUIDE_ANCHORS.plannerApprovalTab.id : undefined}
           >
-            {column.posts.map((post) => {
+            {collapsePublishGroups(column.posts).map((post) => {
               const clientIndex = clients.findIndex((client) => client.id === post.organizationId);
               return <KanbanCard key={post.id} post={post} columnKey={column.key} client={clients[clientIndex]} clientIndex={Math.max(clientIndex, 0)} showClient={showClient} onOpen={onOpenPost} onRetry={onRetryPost} />;
             })}

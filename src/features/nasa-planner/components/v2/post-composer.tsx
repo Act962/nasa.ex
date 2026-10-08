@@ -13,6 +13,8 @@ import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { usePlannerPost } from "../../hooks/use-planner-calendar";
 import { usePlannerWeekdayThemes } from "../../hooks/use-planner-weekly-script";
 import { useCreatePlannerClientPost, useDeletePlannerPostV2, useUpdatePlannerPostV2 } from "../../hooks/use-planner-planning";
+import { usePlannerPublishGroup, useSetPlannerGroupAccounts } from "../../hooks/use-planner-publish-group";
+import { PublishGroupBar } from "./publish-group-bar";
 import { ComposerScriptStep, type ScriptStepValues } from "./composer-script-step";
 import { ComposerCreationStep } from "./composer-creation-step";
 import { ComposerScheduleStep } from "./composer-schedule-step";
@@ -45,13 +47,16 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
   const createPost = useCreatePlannerClientPost();
   const updatePost = useUpdatePlannerPostV2();
   const deletePost = useDeletePlannerPostV2();
+  const setGroupAccounts = useSetPlannerGroupAccounts();
+  const { groupPosts, isLoading: isLoadingGroup } = usePlannerPublishGroup(postId, { enabled: Boolean(post?.publishGroupId) });
+  const [deleteScope, setDeleteScope] = useState<"post" | "group">("post");
   const { data: activeOrganization, isPending: isLoadingActiveOrganization } = authClient.useActiveOrganization();
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const step = chosenStep ?? (post ? stepForStatus(post.status) : "script");
   const intendedAt = request.mode === "create" ? request.intendedAt : undefined;
 
   const isWaitingDefaultClient = !postId && request.mode === "create" && !request.organizationId && isLoadingActiveOrganization;
-  if (isWaitingDefaultClient || (postId && (isLoading || !post || !permissions))) {
+  if (isWaitingDefaultClient || (postId && (isLoading || isLoadingGroup || !post || !permissions))) {
     return (
       <div className="grid h-80 place-items-center">
         <DialogTitle className="sr-only">Carregando conteúdo</DialogTitle>
@@ -66,6 +71,13 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
   const initialOrganizationId = (request.mode === "create" && request.organizationId) || defaultClientId;
   // Post novo já nasce com o tema fixo do dia da semana como objetivo (spec 0067).
   const defaultObjective = intendedAt ? (weekdayThemes.find((theme) => theme.organizationId === initialOrganizationId && theme.weekday === intendedAt.getDay())?.theme ?? "") : "";
+  const isInGroup = Boolean(post?.publishGroupId) && groupPosts.length > 1;
+  const groupAccountIds = groupPosts.map((groupPost) => groupPost.targetIgAccountId).filter((accountId): accountId is string => Boolean(accountId));
+  const savedAccountIds = isInGroup ? groupAccountIds : post?.targetIgAccountId ? [post.targetIgAccountId] : [];
+  const lockedAccountIds = groupPosts
+    .filter((groupPost) => groupPost.status === "PUBLISHED" || groupPost.status === "PUBLISHING")
+    .map((groupPost) => groupPost.targetIgAccountId)
+    .filter((accountId): accountId is string => Boolean(accountId));
   const scriptInitialValues: ScriptStepValues = post
     ? {
         organizationId: post.organizationId,
@@ -76,7 +88,7 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
         cta: post.cta ?? "",
         pillarId: post.pillarId,
         targetNetworks: post.targetNetworks.filter((network): network is "INSTAGRAM" | "FACEBOOK" => network === "INSTAGRAM" || network === "FACEBOOK"),
-        targetIgAccountId: post.targetIgAccountId,
+        targetIgAccountIds: savedAccountIds,
         targetFbPageId: post.targetFbPageId,
         formats: [post.type],
         generatedByFormat: {},
@@ -90,7 +102,7 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
         cta: "",
         pillarId: null,
         targetNetworks: ["INSTAGRAM"],
-        targetIgAccountId: null,
+        targetIgAccountIds: [],
         targetFbPageId: null,
         formats: [request.mode === "create" ? request.type : "STATIC"],
         generatedByFormat: {},
@@ -105,11 +117,38 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
       cta: values.cta || undefined,
       pillarId: values.pillarId ?? undefined,
       targetNetworks: values.targetNetworks,
-      targetIgAccountId: values.targetIgAccountId ?? undefined,
       targetFbPageId: values.targetFbPageId ?? undefined,
     };
+    const accountIds = values.targetNetworks.includes("INSTAGRAM") ? values.targetIgAccountIds : [];
+    const showError = (error: Error) => toast.error(error.message);
     if (post) {
-      updatePost.mutate({ postId: post.id, ...sharedFields }, { onSuccess: () => setChosenStep("creation"), onError: (error) => toast.error(error.message) });
+      const hasAccountSetChange = accountIds.length !== savedAccountIds.length || accountIds.some((accountId) => !savedAccountIds.includes(accountId));
+      const changesGroup = hasAccountSetChange && accountIds.length > 0 && (isInGroup || accountIds.length > 1);
+      // Post comum com uma conta: a conta vai junto dos outros campos. Grupo: as contas mudam por `setAccounts` (spec 0074, RF-3).
+      const singleAccountField = !isInGroup && accountIds.length <= 1 ? { targetIgAccountId: accountIds[0] ?? null } : {};
+      updatePost.mutate(
+        { postId: post.id, ...sharedFields, ...singleAccountField },
+        {
+          onSuccess: () => {
+            if (!changesGroup) {
+              setChosenStep("creation");
+              return;
+            }
+            setGroupAccounts.mutate(
+              { postId: post.id, instagramAccountIds: accountIds },
+              {
+                onSuccess: ({ postId: openPostId }) => {
+                  if (openPostId) setPostId(openPostId);
+                  toast.success(accountIds.length > 1 ? `Conteúdo em ${accountIds.length} contas.` : "Conteúdo em uma conta só.");
+                  setChosenStep("creation");
+                },
+                onError: showError,
+              },
+            );
+          },
+          onError: showError,
+        },
+      );
       return;
     }
     // Vários formatos (spec 0063, RF-4): cada um vira um rascunho; o primeiro segue aberto no criador.
@@ -124,6 +163,7 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
       {
         organizationId: values.organizationId,
         ...sharedFields,
+        targetIgAccountIds: accountIds,
         type: primaryFormat,
         ...draftFieldsFor(primaryFormat),
         intendedAt,
@@ -133,10 +173,11 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
         onSuccess: async ({ post: createdPost }) => {
           for (const format of extraFormats) {
             await createPost
-              .mutateAsync({ organizationId: values.organizationId, ...sharedFields, type: format, ...draftFieldsFor(format), intendedAt })
+              .mutateAsync({ organizationId: values.organizationId, ...sharedFields, targetIgAccountIds: accountIds, type: format, ...draftFieldsFor(format), intendedAt })
               .catch((error: Error) => toast.error(error.message || `Não deu para criar o ${POST_TYPE_META[format].label}.`));
           }
           if (extraFormats.length > 0) toast.success(`${extraFormats.length + 1} rascunhos criados. Os outros estão em Rascunhos.`);
+          else if (accountIds.length > 1) toast.success(`Conteúdo criado para ${accountIds.length} contas.`);
           setPostId(createdPost.id);
           setChosenStep("creation");
           emitTourResult({ kind: GUIDE_RESULT_KINDS.plannerPostCreated });
@@ -156,7 +197,10 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
           <button
             type="button"
             aria-label="Excluir post"
-            onClick={() => setIsConfirmingDelete(true)}
+            onClick={() => {
+              setDeleteScope("post");
+              setIsConfirmingDelete(true);
+            }}
             className="grid size-8 flex-none place-items-center rounded-full bg-knob text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="size-4" />
@@ -167,22 +211,28 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
             isOpen={isConfirmingDelete}
             isDangerous
             isLoading={deletePost.isPending}
-            title={`Excluir "${post.title || POST_TYPE_META[post.type].label}"?`}
+            title={
+              deleteScope === "group"
+                ? `Excluir "${post.title || POST_TYPE_META[post.type].label}" em todas as contas?`
+                : `Excluir "${post.title || POST_TYPE_META[post.type].label}"${isInGroup ? " só nesta conta" : ""}?`
+            }
             description={
-              post.status === "PUBLISHED"
+              deleteScope === "group"
+                ? "O conteúdo é apagado em todas as contas do grupo e não dá para desfazer. O que já foi publicado continua no Planner e na rede social."
+                : post.status === "PUBLISHED"
                 ? "O roteiro, a mídia, a legenda e os números deste post saem do Planner e não dá para desfazer. O que já foi publicado continua na rede social."
                 : post.status === "SCHEDULED"
                   ? "Este post está programado: ao excluir, ele não será publicado. O roteiro, a mídia e a legenda são apagados e não dá para desfazer."
                   : "O roteiro, a mídia e a legenda deste post são apagados e não dá para desfazer."
             }
-            confirmText="Excluir post"
+            confirmText={deleteScope === "group" ? "Excluir em todas" : "Excluir post"}
             onCancel={() => setIsConfirmingDelete(false)}
             onConfirm={() =>
               deletePost.mutate(
-                { postId: post.id },
+                { postId: post.id, scope: deleteScope },
                 {
-                  onSuccess: () => {
-                    toast.success("Post excluído.");
+                  onSuccess: ({ keptCount }) => {
+                    toast.success(keptCount > 0 ? "Excluído. O que já foi publicado ficou." : "Post excluído.");
                     onClose();
                   },
                   onError: (error) => {
@@ -195,6 +245,19 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
           />
         )}
       </div>
+      {post && isInGroup && (
+        <PublishGroupBar
+          groupPosts={groupPosts}
+          openPostId={post.id}
+          client={clients.find((client) => client.id === post.organizationId)}
+          canEdit={Boolean(permissions?.canEdit)}
+          onOpenPost={setPostId}
+          onDeleteGroup={() => {
+            setDeleteScope("group");
+            setIsConfirmingDelete(true);
+          }}
+        />
+      )}
       <nav className="scroll-hidden-x flex gap-1.5 overflow-x-auto px-4 py-3">
         {STEPS.map((stepOption, stepIndex) => {
           const isDone = STEPS.findIndex((candidate) => candidate.value === step) > stepIndex;
@@ -224,7 +287,9 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
             initialValues={scriptInitialValues}
             isClientLocked={Boolean(post)}
             isCreating={!post}
-            isSaving={createPost.isPending || updatePost.isPending}
+            key={post?.id ?? "new"}
+            isSaving={createPost.isPending || updatePost.isPending || setGroupAccounts.isPending}
+            lockedAccountIds={lockedAccountIds}
             submitLabel={post ? "Salvar e continuar" : "Criar e continuar"}
             onSubmit={saveScript}
           />
@@ -233,10 +298,16 @@ function ComposerBody({ request, clients, onClose }: { request: ComposerRequest;
           <ComposerCreationStep post={post} canEdit={permissions.canEdit} onContinue={() => setChosenStep("review")} />
         )}
         {step === "review" && post && permissions && (
-          <ReviewPanel post={post} permissions={permissions} onApproved={() => setChosenStep("schedule")} />
+          <ReviewPanel
+            post={post}
+            permissions={permissions}
+            groupPosts={isInGroup ? groupPosts : []}
+            client={clients.find((client) => client.id === post.organizationId)}
+            onApproved={() => setChosenStep("schedule")}
+          />
         )}
         {step === "schedule" && post && permissions && (
-          <ComposerScheduleStep post={post} canSchedule={permissions.canSchedule} initialDate={intendedAt} />
+          <ComposerScheduleStep post={post} canSchedule={permissions.canSchedule} initialDate={intendedAt} groupAccountCount={isInGroup ? groupPosts.length : 1} />
         )}
       </div>
     </>

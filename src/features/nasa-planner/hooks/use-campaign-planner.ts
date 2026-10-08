@@ -14,6 +14,18 @@ export function useCampaigns(status?: string) {
   return { campaigns: data?.campaigns ?? [], isLoading };
 }
 
+export function usePlannerCampaigns(plannerId: string, { enabled = true }: { enabled?: boolean } = {}) {
+  const { data, isLoading } = useQuery({
+    ...orpc.nasaPlanner.campaigns.list.queryOptions({ input: { plannerId } }),
+    enabled,
+  });
+  return { campaigns: data?.campaigns ?? [], isLoading };
+}
+
+export function useGenerateCampaignBrief() {
+  return useMutation(orpc.nasaPlanner.campaigns.generateBrief.mutationOptions());
+}
+
 export function useCampaign(campaignId: string) {
   const { data, isLoading } = useQuery(
     orpc.nasaPlanner.campaigns.get.queryOptions({ input: { campaignId } }),
@@ -31,7 +43,7 @@ export function useCreateCampaign() {
         toast.success("Planejamento de campanha criado! (-1 STAR)");
         earn("create_campaign_planner", "Novo planejamento de campanha 🚀");
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao criar campanha"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao criar campanha"),
     }),
   );
 }
@@ -43,13 +55,13 @@ export function useUpdateCampaign() {
     orpc.nasaPlanner.campaigns.update.mutationOptions({
       onSuccess: (_, vars) => {
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.list.key() });
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: (vars as any).campaignId } }) });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: vars.campaignId } }) });
 
-        if ((vars as any).status === "completed") {
+        if (vars.status === "COMPLETED") {
           earn("complete_campaign", "Campanha concluída 🏆");
         }
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao atualizar campanha"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao atualizar campanha"),
     }),
   );
 }
@@ -62,7 +74,7 @@ export function useDeleteCampaign() {
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.list.key() });
         toast.success("Campanha removida.");
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao remover campanha"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao remover campanha"),
     }),
   );
 }
@@ -75,11 +87,11 @@ export function useCreateCampaignEvent() {
   return useMutation(
     orpc.nasaPlanner.campaignEvents.create.mutationOptions({
       onSuccess: (_, vars) => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: (vars as any).campaignId } }) });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: vars.campaignId } }) });
         toast.success("Evento adicionado!");
         earn("create_campaign_event", "Evento de campanha agendado 📅");
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao criar evento"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao criar evento"),
     }),
   );
 }
@@ -89,9 +101,9 @@ export function useUpdateCampaignEvent() {
   return useMutation(
     orpc.nasaPlanner.campaignEvents.update.mutationOptions({
       onSuccess: (_, vars) => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: (vars as any).campaignId } }) });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: vars.campaignId } }) });
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao atualizar evento"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao atualizar evento"),
     }),
   );
 }
@@ -101,10 +113,10 @@ export function useDeleteCampaignEvent() {
   return useMutation(
     orpc.nasaPlanner.campaignEvents.delete.mutationOptions({
       onSuccess: (_, vars) => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: (vars as any).campaignId } }) });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: vars.campaignId } }) });
         toast.success("Evento removido.");
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao remover evento"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao remover evento"),
     }),
   );
 }
@@ -117,11 +129,11 @@ export function useCreateCampaignTask() {
   return useMutation(
     orpc.nasaPlanner.campaignTasks.create.mutationOptions({
       onSuccess: (_, vars) => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: (vars as any).campaignId } }) });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: vars.campaignId } }) });
         toast.success("Tarefa criada!");
         earn("create_campaign_task", "Demanda criada no planejamento 📋");
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao criar tarefa"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao criar tarefa"),
     }),
   );
 }
@@ -131,9 +143,9 @@ export function useUpdateCampaignTask() {
   return useMutation(
     orpc.nasaPlanner.campaignTasks.update.mutationOptions({
       onSuccess: (_, vars) => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: (vars as any).campaignId } }) });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: vars.campaignId } }) });
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao atualizar tarefa"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao atualizar tarefa"),
     }),
   );
 }
@@ -146,11 +158,11 @@ export function useCreateCampaignBrandAsset() {
   return useMutation(
     orpc.nasaPlanner.campaignBrandAssets.create.mutationOptions({
       onSuccess: (_, vars) => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: (vars as any).campaignId } }) });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: vars.campaignId } }) });
         toast.success("Material salvo!");
         earn("upload_brand_asset", "Material de marca enviado 🎨");
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao salvar material"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao salvar material"),
     }),
   );
 }
@@ -160,10 +172,10 @@ export function useDeleteCampaignBrandAsset() {
   return useMutation(
     orpc.nasaPlanner.campaignBrandAssets.delete.mutationOptions({
       onSuccess: (_, vars) => {
-        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: (vars as any).campaignId } }) });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: vars.campaignId } }) });
         toast.success("Material removido.");
       },
-      onError: (err: any) => toast.error(err?.message ?? "Erro ao remover material"),
+      onError: (err) => toast.error(err?.message ?? "Erro ao remover material"),
     }),
   );
 }

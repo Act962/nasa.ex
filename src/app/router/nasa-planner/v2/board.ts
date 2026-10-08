@@ -39,6 +39,7 @@ const boardPostSelect = {
   publishError: true,
   source: true,
   sourceActorLabel: true,
+  publishGroupId: true,
   updatedAt: true,
   slides: { orderBy: { order: "asc" }, take: 1, select: { imageKey: true } },
   _count: { select: { reviews: true } },

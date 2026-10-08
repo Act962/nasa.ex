@@ -50,6 +50,7 @@ const calendarPostSelect = {
   source: true,
   sourceActorLabel: true,
   commentsAutomationId: true,
+  publishGroupId: true,
   updatedAt: true,
 } as const;
 

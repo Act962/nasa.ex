@@ -1,4 +1,5 @@
 import { meterOrThrow } from "@/features/stars/lib/metering";
+import { syncPublishGroupContent } from "@/features/nasa-planner/server/publish-group";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -197,6 +198,7 @@ INSTRUÇÕES:
         metadata: { type: post.type, starsSpent: STARS_POST_FULL, hasImage: !!generatedImageKey },
       });
 
+      await syncPublishGroupContent(updatedPost.id, context.user.id);
       return { post: updatedPost, starsSpent: debit.stars, balanceAfter: debit.balanceAfter };
     } catch (err: any) {
       if (err instanceof ORPCError) throw err;

@@ -91,8 +91,8 @@ export function PostMediaUploader({
       await uploadSingleImage(file, 1);
       toast.success("Imagem adicionada!");
       onDone?.();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao fazer upload");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao fazer upload");
     } finally {
       setUploading(false);
     }
@@ -118,8 +118,8 @@ export function PostMediaUploader({
       await addSlidesBatch.mutateAsync({ postId, imageKeys: keys });
       toast.success(`${keys.length} slide${keys.length !== 1 ? "s" : ""} adicionado${keys.length !== 1 ? "s" : ""}!`);
       onDone?.();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao fazer upload");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao fazer upload");
     } finally {
       setUploading(false);
       setUploadingIdx(null);
@@ -139,8 +139,8 @@ export function PostMediaUploader({
       await attachVideo.mutateAsync({ postId, videoKey: key });
       toast.success("Vídeo adicionado!");
       onDone?.();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao fazer upload do vídeo");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao fazer upload do vídeo");
     } finally {
       setUploading(false);
     }

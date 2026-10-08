@@ -30,6 +30,7 @@ import {
   useUpdatePlannerPost, useDeletePlannerPost, useGeneratePlannerPost,
   useApprovePlannerPost, useSchedulePlannerPost, usePublishPlannerPost,
   useSyncPostMetrics,
+  type PlannerPost,
 } from "../hooks/use-nasa-planner";
 import { PostMetricsRow } from "./post-metrics-row";
 import { RefreshCwIcon } from "lucide-react";
@@ -83,7 +84,7 @@ async function downloadImage(url: string, title?: string) {
 }
 
 interface Props {
-  post: any | null;
+  post: PlannerPost | null;
   plannerId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -125,7 +126,7 @@ export function PostDetailDialog({ post, plannerId, open, onOpenChange, initialA
         if (post.thumbnail) downloadImage(getImageUrl(post.thumbnail), post.title ?? undefined);
         break;
       case "moveTo":
-        updatePost.mutate({ postId: post.id, status: initialAction.status as any });
+        updatePost.mutate({ postId: post.id, status: initialAction.status });
         break;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,7 +190,7 @@ export function PostDetailDialog({ post, plannerId, open, onOpenChange, initialA
                       </DropdownMenuItem>
                     )}
                     {post.thumbnail && (
-                      <DropdownMenuItem onClick={() => downloadImage(getImageUrl(post.thumbnail), post.title ?? undefined)}>
+                      <DropdownMenuItem onClick={() => downloadImage(getImageUrl(post.thumbnail!), post.title ?? undefined)}>
                         <DownloadIcon className="size-3.5 mr-2" />Baixar Imagem
                       </DropdownMenuItem>
                     )}
@@ -203,7 +204,7 @@ export function PostDetailDialog({ post, plannerId, open, onOpenChange, initialA
                           <DropdownMenuItem
                             key={s.key}
                             disabled={post.status === s.key}
-                            onClick={() => updatePost.mutate({ postId: post.id, status: s.key as any })}
+                            onClick={() => updatePost.mutate({ postId: post.id, status: s.key })}
                           >
                             {post.status === s.key
                               ? <CheckIcon className="size-3 mr-2" />
@@ -235,17 +236,17 @@ export function PostDetailDialog({ post, plannerId, open, onOpenChange, initialA
               {post.thumbnail ? (
                 <div className="relative group rounded-lg overflow-hidden aspect-square w-full max-w-xs mx-auto bg-muted">
                   <img
-                    src={getImageUrl(post.thumbnail)}
+                    src={getImageUrl(post.thumbnail!)}
                     alt={post.title ?? "Post"}
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                     <Button size="sm" variant="secondary" className="gap-1.5 shadow-lg"
-                      onClick={() => setViewImageUrl(getImageUrl(post.thumbnail))}>
+                      onClick={() => setViewImageUrl(getImageUrl(post.thumbnail!))}>
                       <EyeIcon className="size-4" />Visualizar
                     </Button>
                     <Button size="sm" variant="secondary" className="gap-1.5 shadow-lg"
-                      onClick={() => downloadImage(getImageUrl(post.thumbnail), post.title ?? undefined)}>
+                      onClick={() => downloadImage(getImageUrl(post.thumbnail!), post.title ?? undefined)}>
                       <DownloadIcon className="size-4" />Baixar PNG
                     </Button>
                   </div>
@@ -266,11 +267,11 @@ export function PostDetailDialog({ post, plannerId, open, onOpenChange, initialA
               {post.thumbnail && (
                 <div className="flex gap-2 justify-center">
                   <Button size="sm" variant="outline" className="gap-1.5"
-                    onClick={() => setViewImageUrl(getImageUrl(post.thumbnail))}>
+                    onClick={() => setViewImageUrl(getImageUrl(post.thumbnail!))}>
                     <EyeIcon className="size-3.5" />Visualizar
                   </Button>
                   <Button size="sm" variant="outline" className="gap-1.5"
-                    onClick={() => downloadImage(getImageUrl(post.thumbnail), post.title ?? undefined)}>
+                    onClick={() => downloadImage(getImageUrl(post.thumbnail!), post.title ?? undefined)}>
                     <DownloadIcon className="size-3.5" />Baixar PNG
                   </Button>
                 </div>
@@ -306,7 +307,7 @@ export function PostDetailDialog({ post, plannerId, open, onOpenChange, initialA
                 fbPageId={post.targetFbPageId}
                 disabled={updatePost.isPending || post.status === "PUBLISHED"}
                 onChange={(patch) =>
-                  updatePost.mutate({ postId: post.id, ...patch } as any)
+                  updatePost.mutate({ postId: post.id, ...patch })
                 }
               />
 

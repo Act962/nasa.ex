@@ -12,8 +12,7 @@ import {
   PlayIcon,
   MusicIcon,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
+import { useAvailableMetaAccounts } from "@/features/integrations/hooks/use-active-meta-account";
 
 const S3_BASE = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL
   ? `https://${process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL}`
@@ -54,9 +53,7 @@ interface Props {
 const formatCount = (count: number) => count.toLocaleString("pt-BR");
 
 export function PostPreview({ post, published, isReviewing = false }: Props) {
-  const { data } = useQuery(
-    orpc.integrations.listAvailableMetaAccounts.queryOptions(),
-  );
+  const { data } = useAvailableMetaAccounts();
 
   const igAccount = useMemo(
     () =>

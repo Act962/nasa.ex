@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { MAX_GROUP_ACCOUNTS, createPostsForInstagramAccounts } from "@/features/nasa-planner/server/publish-group";
+import { findDefaultInstagramAccountId } from "@/features/nasa-planner/server/publishing/instagram-channels";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import prisma from "@/lib/prisma";
@@ -30,16 +32,22 @@ export const createClientPost = base
       intendedAt: z.coerce.date().optional(),
       targetNetworks: z.array(z.enum(["INSTAGRAM", "FACEBOOK"])).default(["INSTAGRAM"]),
       targetIgAccountId: z.string().optional(),
+      /** Várias contas do Instagram: um post por conta, no mesmo grupo (spec 0074, RF-2). */
+      targetIgAccountIds: z.array(z.string()).max(MAX_GROUP_ACCOUNTS).optional(),
       targetFbPageId: z.string().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
     await assertPlannerOrganizationAccess(context.user.id, input.organizationId, "create");
+    const requestedAccountIds = input.targetIgAccountIds?.length ? input.targetIgAccountIds : input.targetIgAccountId ? [input.targetIgAccountId] : [];
+    // Empresa com uma conta só: o post já nasce com ela gravada (spec 0074, RF-18).
+    const defaultAccountId = requestedAccountIds.length === 0 && input.targetNetworks.includes("INSTAGRAM") ? await findDefaultInstagramAccountId(input.organizationId) : null;
+    const instagramAccountIds = defaultAccountId ? [defaultAccountId] : requestedAccountIds;
     const plannerId = input.plannerId
       ? (await prisma.nasaPlanner.findFirstOrThrow({ where: { id: input.plannerId, organizationId: input.organizationId }, select: { id: true } })).id
       : await ensureDefaultPlanner(input.organizationId);
-    const post = await prisma.nasaPlannerPost.create({
-      data: {
+    const [post, ...siblingPosts] = await createPostsForInstagramAccounts(
+      {
         organizationId: input.organizationId,
         plannerId,
         createdById: context.user.id,
@@ -55,13 +63,13 @@ export const createClientPost = base
         // Horário pretendido fica como sugestão; só vira programação real em `schedule`.
         scheduledAt: input.intendedAt,
         targetNetworks: input.targetNetworks,
-        targetIgAccountId: input.targetIgAccountId,
         targetFbPageId: input.targetFbPageId,
         hashtags: (input.hashtags ?? []).map((hashtag) => hashtag.replace(/^#/, "")),
         source: NasaPlannerPostSource.WEB,
       },
-    });
-    return { post };
+      instagramAccountIds,
+    );
+    return { post, groupPostCount: siblingPosts.length + 1 };
   });
 
 export const getGoals = base

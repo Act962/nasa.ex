@@ -1,4 +1,5 @@
 import { meterOrThrow } from "@/features/stars/lib/metering";
+import { syncPublishGroupContent } from "@/features/nasa-planner/server/publish-group";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -132,5 +133,6 @@ export const generateVideoClip = base
       data: { postId: input.postId, videoKey: key, order: slideCount + 1 },
     });
 
+    await syncPublishGroupContent(input.postId, context.user.id);
     return { slide, videoKey: key, starsSpent: starsCharged, balanceAfter };
   });

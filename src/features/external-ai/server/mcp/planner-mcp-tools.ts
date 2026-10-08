@@ -12,7 +12,13 @@ import { NasaPlannerPostSource, NasaPlannerPostStatus } from "@/generated/prisma
 import { ensureDefaultPlanner } from "@/features/nasa-planner/server/cross-org";
 import { getBrandKit } from "@/features/nasa-planner/server/brand-kit/brand-kit";
 import { getBrandKitForInstagramHandle, summarizeBrandKits } from "@/features/nasa-planner/server/brand-kit/brand-kits";
-import { submitPostForApproval } from "@/features/nasa-planner/server/approval";
+import {
+  MAX_GROUP_ACCOUNTS,
+  createPostsForInstagramAccounts,
+  resolveInstagramAccountIdsByHandle,
+  submitForApprovalWithGroup,
+  syncPublishGroupContent,
+} from "@/features/nasa-planner/server/publish-group";
 import { findDefaultInstagramAccountId, listInstagramHandles } from "@/features/nasa-planner/server/publishing/instagram-channels";
 import { DEFAULT_SLOT_RULES, expandSlotRules } from "@/features/nasa-planner/lib/publish-slots";
 import { assertCallerOrganization, type ExternalAiCaller } from "../access-tokens";
@@ -241,7 +247,7 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
   server.registerTool(
     "create_draft",
     {
-      description: "Cria um rascunho no Planner (vai para a Caixa de criações, com a sua origem). Não aprova nem programa. Depois anexe a mídia com attach_media.",
+      description: "Cria um rascunho no Planner (vai para a Caixa de criações, com a sua origem). Não aprova nem programa. Depois anexe a mídia com attach_media. Com várias contas em instagramAccounts, o mesmo conteúdo sai em todas: anexe a mídia e envie para aprovação uma vez só, pelo postId devolvido.",
       inputSchema: {
         organizationId: z.string(),
         format: z.enum(FORMATS),
@@ -252,15 +258,21 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
         caption: z.string().max(2200).optional(),
         hashtags: z.array(z.string()).max(30).optional(),
         intendedAtIso: z.string().optional().describe("Horário sugerido (ISO). O humano confirma ao programar."),
+        instagramAccounts: z.array(z.string()).max(MAX_GROUP_ACCOUNTS).optional().describe("@ das contas do Instagram do cliente (list_clients). Sem isso, usa a única conta conectada."),
       },
     },
-    ({ organizationId, format, title, script, objective, cta, caption, hashtags, intendedAtIso }) =>
+    ({ organizationId, format, title, script, objective, cta, caption, hashtags, intendedAtIso, instagramAccounts }) =>
       runTool(async () => {
         await assertCallerOrganization(caller, organizationId, "create");
         const plannerId = await ensureDefaultPlanner(organizationId);
         const defaultInstagramAccountId = await findDefaultInstagramAccountId(organizationId);
-        const post = await prisma.nasaPlannerPost.create({
-          data: {
+        const instagramAccountIds = instagramAccounts?.length
+          ? await resolveInstagramAccountIdsByHandle(organizationId, instagramAccounts)
+          : defaultInstagramAccountId
+            ? [defaultInstagramAccountId]
+            : [];
+        const [post, ...siblingPosts] = await createPostsForInstagramAccounts(
+          {
             organizationId,
             plannerId,
             createdById: caller.userId,
@@ -274,13 +286,12 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
             hashtags: (hashtags ?? []).map((hashtag) => hashtag.replace(/^#/, "")),
             scheduledAt: intendedAtIso ? new Date(intendedAtIso) : null,
             targetNetworks: ["INSTAGRAM"],
-            targetIgAccountId: defaultInstagramAccountId,
             source: NasaPlannerPostSource.MCP,
             sourceActorLabel: caller.label,
           },
-          select: { id: true },
-        });
-        return { postId: post.id, status: "DRAFT", link: `${APP_ORIGIN}/nasa-planner?post=${post.id}`, next: "Anexe a mídia com attach_media e envie com submit_for_approval." };
+          instagramAccountIds,
+        );
+        return { postId: post.id, accountCount: siblingPosts.length + 1, status: "DRAFT", link: `${APP_ORIGIN}/nasa-planner?post=${post.id}`, next: "Anexe a mídia com attach_media e envie com submit_for_approval." };
       }),
   );
 
@@ -298,9 +309,11 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
           const lastSlide = await prisma.nasaPlannerPostSlide.findFirst({ where: { postId }, orderBy: { order: "desc" }, select: { order: true } });
           const order = (lastSlide?.order ?? 0) + 1;
           await prisma.nasaPlannerPostSlide.create({ data: { postId, order, imageKey: kind === "image" ? mediaUrl : null, videoKey: kind === "video" ? mediaUrl : null, headline } });
+          await syncPublishGroupContent(postId, caller.userId);
           return { postId, attached: `card ${order}` };
         }
         await prisma.nasaPlannerPost.update({ where: { id: postId }, data: kind === "video" ? { videoKey: mediaUrl } : { thumbnail: mediaUrl } });
+        await syncPublishGroupContent(postId, caller.userId);
         return { postId, attached: kind };
       }),
   );
@@ -331,7 +344,7 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
     ({ postId }) =>
       runTool(async () => {
         await loadEditablePost(caller, postId);
-        const { checklist } = await submitPostForApproval({ postId, actorId: caller.userId, note: `Enviado por ${caller.label}` });
+        const { checklist } = await submitForApprovalWithGroup({ postId, actorId: caller.userId, note: `Enviado por ${caller.label}` });
         return { postId, status: "PENDING_APPROVAL", brandChecklist: checklist };
       }),
   );

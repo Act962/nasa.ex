@@ -1,8 +1,8 @@
 "use client";
 
-import { useQueryPlatformIntegrations } from "@/features/integrations/hooks/use-integrations";
+import { useQueryPlatformIntegrations, type IntegrationPlatform } from "@/features/integrations/hooks/use-integrations";
 
-const NETWORK_TO_PLATFORM: Record<string, string> = {
+const NETWORK_TO_PLATFORM: Record<string, IntegrationPlatform> = {
   INSTAGRAM: "INSTAGRAM",
   FACEBOOK: "META",
   TIKTOK: "TIKTOK",
@@ -14,13 +14,13 @@ export function useNetworkConnectionStatus() {
   const integrations = data?.integrations ?? [];
 
   const connectedPlatforms = new Set(
-    integrations.filter((i) => i.isActive).map((i) => i.platform),
+    integrations.filter((integration) => integration.isActive).map((integration) => integration.platform),
   );
 
   return {
     isConnected: (network: string): boolean => {
       const platform = NETWORK_TO_PLATFORM[network];
-      return platform ? connectedPlatforms.has(platform as any) : false;
+      return platform ? connectedPlatforms.has(platform) : false;
     },
   };
 }

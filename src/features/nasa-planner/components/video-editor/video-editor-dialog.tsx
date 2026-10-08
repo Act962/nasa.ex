@@ -37,7 +37,7 @@ interface PostMeta {
   clientOrgName?: string | null;
   orgProjectId?: string | null;
   orgProject?: { id: string; name: string } | null;
-  scheduledAt?: string | null;
+  scheduledAt?: string | Date | null;
   isAd?: boolean;
 }
 
@@ -120,8 +120,8 @@ export function VideoEditorDialog({ open, onOpenChange, postId, postTitle, post 
       const key = await uploadBlob(blob, "merged.mp4");
       setResultVideoKey(key);
       toast.success("Clipes mesclados!");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao mesclar");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao mesclar");
     }
   };
 
@@ -133,8 +133,8 @@ export function VideoEditorDialog({ open, onOpenChange, postId, postTitle, post 
       const key = await uploadBlob(blob, "no_silence.mp4");
       setResultVideoKey(key);
       toast.success("Silêncio removido!");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao remover silêncio");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao remover silêncio");
     }
   };
 

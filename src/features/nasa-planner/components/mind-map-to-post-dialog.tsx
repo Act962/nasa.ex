@@ -12,8 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
+import { useCreatePlannerPostQuietly } from "../hooks/use-nasa-planner";
 
 interface Props {
   open: boolean;
@@ -27,29 +26,32 @@ const TYPE_OPTIONS = [
   { value: "CAROUSEL", label: "Carrossel" },
   { value: "REEL",     label: "Reel / Vídeo" },
   { value: "STORY",    label: "Story" },
-];
+] as const;
+
+type PostTypeOption = (typeof TYPE_OPTIONS)[number]["value"];
+
+const isPostTypeOption = (value: string): value is PostTypeOption =>
+  TYPE_OPTIONS.some((option) => option.value === value);
 
 export function MindMapToPostDialog({ open, onOpenChange, plannerId, initialTitle = "" }: Props) {
-  const qc = useQueryClient();
   const [title, setTitle] = useState(initialTitle);
-  const [type, setType] = useState("STATIC");
+  const [type, setType] = useState<PostTypeOption>("STATIC");
 
-  const create = useMutation(
-    orpc.nasaPlanner.posts.create.mutationOptions({
-      onSuccess: () => {
-        toast.success("Post criado a partir do mapa mental!");
-        qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts", "getMany"] });
-        onOpenChange(false);
-        setTitle(initialTitle);
-        setType("STATIC");
-      },
-      onError: () => toast.error("Erro ao criar post"),
-    }),
-  );
+  const create = useCreatePlannerPostQuietly();
 
   const handleCreate = () => {
     if (!title.trim()) return;
-    create.mutate({ plannerId, title, type: type as any });
+    create.mutate(
+      { plannerId, title, type },
+      {
+        onSuccess: () => {
+          toast.success("Post criado a partir do mapa mental!");
+          onOpenChange(false);
+          setTitle(initialTitle);
+          setType("STATIC");
+        },
+      },
+    );
   };
 
   return (
@@ -73,7 +75,7 @@ export function MindMapToPostDialog({ open, onOpenChange, plannerId, initialTitl
           </div>
           <div className="space-y-1.5">
             <Label>Tipo</Label>
-            <Select value={type} onValueChange={setType}>
+            <Select value={type} onValueChange={(value) => { if (isPostTypeOption(value)) setType(value); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {TYPE_OPTIONS.map((o) => (

@@ -11,6 +11,17 @@ export function useOrgProjects(opts?: { type?: string; isActive?: boolean }) {
   return { projects: data?.projects ?? [], isLoading };
 }
 
+/** Projetos ativos de uma empresa específica; só busca depois que a empresa é escolhida. */
+export function useActiveOrgProjectsByOrg(orgId: string | null) {
+  const { data, isLoading } = useQuery({
+    ...orpc.orgProjects.list.queryOptions({
+      input: { orgId: orgId ?? undefined, isActive: true },
+    }),
+    enabled: !!orgId,
+  });
+  return { projects: data?.projects ?? [], isLoading };
+}
+
 export function useOrgProject(projectId: string) {
   const { data, isLoading } = useQuery({
     ...orpc.orgProjects.get.queryOptions({ input: { projectId } }),

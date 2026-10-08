@@ -13,13 +13,13 @@ import { schedulePlannerPost, unschedulePlannerPost } from "./scheduling";
 
 /** Fluxo de aprovação do Planner (spec 0058, RF-3): cada passo vira uma linha de histórico e avisa quem precisa agir. */
 
-const SUBMITTABLE_STATUSES: NasaPlannerPostStatus[] = [
+export const SUBMITTABLE_STATUSES: NasaPlannerPostStatus[] = [
   NasaPlannerPostStatus.IDEA,
   NasaPlannerPostStatus.DRAFT,
   NasaPlannerPostStatus.CHANGES_REQUESTED,
 ];
-const REVIEWABLE_STATUSES: NasaPlannerPostStatus[] = [NasaPlannerPostStatus.PENDING_APPROVAL, NasaPlannerPostStatus.CHANGES_REQUESTED];
-const APPROVED_STATUSES: NasaPlannerPostStatus[] = [NasaPlannerPostStatus.APPROVED, NasaPlannerPostStatus.SCHEDULED];
+export const REVIEWABLE_STATUSES: NasaPlannerPostStatus[] = [NasaPlannerPostStatus.PENDING_APPROVAL, NasaPlannerPostStatus.CHANGES_REQUESTED];
+export const APPROVED_STATUSES: NasaPlannerPostStatus[] = [NasaPlannerPostStatus.APPROVED, NasaPlannerPostStatus.SCHEDULED];
 
 async function notifyUsers(userIds: string[], notification: { organizationId: string; type: NotifType; title: string; body: string; postId: string }) {
   await Promise.all(
@@ -52,7 +52,8 @@ function postLabel(post: { title: string | null; type: string }) {
   return post.title?.trim() || `Post (${post.type.toLowerCase()})`;
 }
 
-export async function submitPostForApproval(input: { postId: string; actorId: string; reviewerId?: string; note?: string }) {
+/** `shouldNotify: false` é usado pelo grupo de contas (spec 0074, RF-9): um aviso por grupo, não um por conta. */
+export async function submitPostForApproval(input: { postId: string; actorId: string; reviewerId?: string; note?: string; shouldNotify?: boolean }) {
   const post = await prisma.nasaPlannerPost.findUniqueOrThrow({ where: { id: input.postId }, include: { planner: true, slides: true } });
   if (!SUBMITTABLE_STATUSES.includes(post.status)) {
     throw new ORPCError("BAD_REQUEST", { message: "Este post já está em aprovação ou aprovado." });
@@ -66,6 +67,7 @@ export async function submitPostForApproval(input: { postId: string; actorId: st
   await prisma.nasaPlannerPostReview.create({
     data: { postId: post.id, organizationId: post.organizationId, authorId: input.actorId, kind: NasaPlannerReviewKind.SUBMITTED, body: input.note, checklist: checklist as unknown as Prisma.InputJsonValue },
   });
+  if (input.shouldNotify === false) return { checklist };
   const reviewerIds = input.reviewerId ? [input.reviewerId] : await listApproverIds(post.organizationId, input.actorId);
   await notifyUsers(reviewerIds, {
     organizationId: post.organizationId,
@@ -81,7 +83,7 @@ export async function submitPostForApproval(input: { postId: string; actorId: st
   return { checklist };
 }
 
-export async function requestPostChanges(input: { postId: string; actorId: string; body: string; slideId?: string }) {
+export async function requestPostChanges(input: { postId: string; actorId: string; body: string; slideId?: string; shouldNotify?: boolean }) {
   const post = await prisma.nasaPlannerPost.findUniqueOrThrow({ where: { id: input.postId } });
   if (!REVIEWABLE_STATUSES.includes(post.status) && !APPROVED_STATUSES.includes(post.status)) {
     throw new ORPCError("BAD_REQUEST", { message: "Só dá para pedir ajustes em conteúdo enviado para aprovação." });
@@ -94,6 +96,7 @@ export async function requestPostChanges(input: { postId: string; actorId: strin
   await prisma.nasaPlannerPostReview.create({
     data: { postId: post.id, organizationId: post.organizationId, authorId: input.actorId, kind: NasaPlannerReviewKind.CHANGES_REQUESTED, body: input.body, slideId: input.slideId },
   });
+  if (input.shouldNotify === false) return;
   await notifyUsers([post.submittedById ?? post.createdById], {
     organizationId: post.organizationId,
     type: NOTIF_TYPES.PLANNER_CHANGES_REQUESTED,
@@ -104,7 +107,7 @@ export async function requestPostChanges(input: { postId: string; actorId: strin
 }
 
 /** Primeira aprovação vale; a segunda vira comentário (spec 0058, CB-6). */
-export async function approvePost(input: { postId: string; actorId: string; note?: string; checklist?: Record<string, boolean>; scheduleAt?: Date }) {
+export async function approvePost(input: { postId: string; actorId: string; note?: string; checklist?: Record<string, boolean>; scheduleAt?: Date; shouldNotify?: boolean }) {
   const post = await prisma.nasaPlannerPost.findUniqueOrThrow({ where: { id: input.postId } });
   const isAlreadyApproved = APPROVED_STATUSES.includes(post.status);
   if (!isAlreadyApproved) {
@@ -124,7 +127,7 @@ export async function approvePost(input: { postId: string; actorId: string; note
       checklist: input.checklist,
     },
   });
-  if (!isAlreadyApproved) {
+  if (!isAlreadyApproved && input.shouldNotify !== false) {
     await notifyUsers([post.submittedById ?? post.createdById].filter((userId) => userId !== input.actorId), {
       organizationId: post.organizationId,
       type: NOTIF_TYPES.PLANNER_POST_APPROVED,

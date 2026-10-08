@@ -1,7 +1,7 @@
 # Planner (NASA Planner) — visão geral
 
 > Fonte de verdade do domínio. Atualize junto com qualquer mudança em `src/features/nasa-planner/`, `src/app/router/nasa-planner/`, `src/inngest/functions/nasa-planner/` ou nos modelos `NasaPlanner*` / `MetaPublishAccount`.
-> Specs: [0057 — publicação confiável e Stories](../specs/nasa-planner/0057-publicacao-confiavel-e-stories.md) · [0058 — calendário, aprovação e multi-cliente](../specs/nasa-planner/0058-planner-v2-calendario-aprovacao-multicliente.md) · [0059 — Comments por post](../specs/nasa-planner/0059-planner-comments-por-post.md) · [0060 — disparo de WhatsApp e Facebook](../specs/nasa-planner/0060-planner-disparo-whatsapp-e-facebook.md).
+> Specs: [0057 — publicação confiável e Stories](../specs/nasa-planner/0057-publicacao-confiavel-e-stories.md) · [0058 — calendário, aprovação e multi-cliente](../specs/nasa-planner/0058-planner-v2-calendario-aprovacao-multicliente.md) · [0059 — Comments por post](../specs/nasa-planner/0059-planner-comments-por-post.md) · [0060 — disparo de WhatsApp e Facebook](../specs/nasa-planner/0060-planner-disparo-whatsapp-e-facebook.md) · [0063 — Kit da Marca e Astro](../specs/nasa-planner/0063-kit-da-marca-e-astro-no-planner.md) · [0064 — Planner pelo WhatsApp](../specs/nasa-planner/0064-planner-pelo-whatsapp.md) · [0065 — MCP e caixa de criações](../specs/nasa-planner/0065-mcp-e-caixa-de-criacoes.md) · [0066 — modelos de vídeo](../specs/nasa-planner/0066-modelos-de-video-pelo-claude-code.md) · [0067 — roteiro da semana](../specs/nasa-planner/0067-roteiro-da-semana.md) · [0068 — planejamento semanal em mapa mental](../specs/nasa-planner/0068-planejamento-semanal-em-mapa-mental.md) · [0070 — kits da marca por conta](../specs/nasa-planner/0070-kits-da-marca-por-conta.md) · [0071 — contas dos Satélites](../specs/nasa-planner/0071-planner-publica-pelas-contas-dos-satelites.md) · [0074 — mesmo conteúdo em várias contas](../specs/nasa-planner/0074-publicar-em-varias-contas.md).
 
 ## 1. O que é
 
@@ -11,12 +11,21 @@ Central de conteúdo das redes sociais: roteiro → criação → aprovação �
 
 | Rota | O que mostra |
 |---|---|
-| `/nasa-planner` | Calendário v2 (Semana/Mês, filtros de cliente/tipo/status, horários sugeridos, painel Metas/Momentos/Rascunhos/Aprovação, criador). Estado na URL: `view`, `date`, `orgs`, `types`, `status`, `panel`, `post`. |
+| `/nasa-planner` | Abas no topo: **Dashboard** (padrão), **Calendário** (Semana, Mês, Kanban e Roteiro; filtros de cliente/conta/tipo/status/origem; horários sugeridos; criador), **Campanhas**, **Mapas Mentais** e **Kit da Marca**. Estado na URL: `tab`, `view`, `date`, `orgs`, `contas`, `types`, `status`, `post`, `org`, `kit`. |
 | `/nasa-planner/planners` | Lista de planners (marca, campanhas, mapas mentais). |
 | `/nasa-planner/[plannerId]` | Planner antigo (brand kit, campanhas, mapas, kanban de posts). |
 | `/nasa-planner/calendario`, `/campanhas/[id]`, mapa mental | Campanhas e mapas (sem mudança na v2). |
 
-Componentes v2: `src/features/nasa-planner/components/v2/` — `planner-home`, `calendar-toolbar`, `week-view`, `month-view`, `mobile-agenda`, `calendar-post-chip`, `side-panel`, `post-composer` (+ `composer-script-step`, `composer-creation-step`, `review-panel`, `composer-schedule-step`).
+Componentes v2: `src/features/nasa-planner/components/v2/` — `planner-home`, `planner-dashboard`, `calendar-toolbar`, `week-view`, `month-view`, `kanban-view`, `script-table-view`, `mobile-agenda`, `calendar-post-chip`, `post-composer` (+ `composer-script-step`, `composer-creation-step`, `review-panel`, `composer-schedule-step`), `published-post-view`, `post-comments-section`. Kit da Marca em `components/brand-kit/`.
+
+Componentes do Planner antigo (raiz de `components/` e `tabs/`), divididos por responsabilidade:
+
+| Tela | Arquivo principal | Peças |
+|---|---|---|
+| Editor de mapa mental | `mind-map-editor.tsx` | `mind-map/editor-nodes.tsx` (nós e ligações), `mind-map/editor-toolbar.tsx` (barra e menu do celular), `mind-map/editor-dialogs.tsx` (card de ação e sugestões da IA), `hooks/use-mind-map-history.ts` (desfazer/refazer), `lib/mind-map/editor-graph.ts` (leituras tipadas de `node.data`) e `lib/mind-map/editor-bridge.ts` (ponte tipada nó → editor, no lugar de globais em `window`) |
+| Quadro de posts | `tabs/posts-tab.tsx` | `posts-board/post-board-card.tsx`, `board-post-dialog.tsx`, `create-post-dialog.tsx`, `schedule-post-dialog.tsx`, `image-viewer-dialog.tsx`; mídia em `lib/post-media.ts` |
+| Popup do Workspace | `planner-popup.tsx` | `planner-popup/popup-posts-tab.tsx`, `popup-branding-tab.tsx`, `popup-ai-config.tsx`, `popup-shared.ts` |
+| Assistente de campanha | `campaign-planner-wizard.tsx` | `campaign-wizard/step-company.tsx`, `step-plan.tsx`, `step-events.tsx`, `step-assets.tsx`, `step-tasks.tsx`, `step-review.tsx`, `wizard-options.ts`; valores aceitos pelas procedures em `lib/campaign-options.ts` |
 
 ## 3. Status do post
 
@@ -59,18 +68,36 @@ Toda escrita usa a org **do post** (`assertPostAccess`), nunca a org ativa. Leit
 | `nasa-planner-backfill-publish-accounts` | `nasa-planner/backfill-publish-accounts` | Cria contas das orgs conectadas antes da spec 0057 |
 | `sync-post-metrics-cron`, `refresh-meta-tokens` | crons | Sem mudança (métricas e token legado) |
 
+## 5.1 Mesmo conteúdo em várias contas do Instagram (spec 0074)
+
+Escolher duas ou mais contas no criador cria **um post por conta** ("irmãos"), ligados por `NasaPlannerPost.publishGroupId`. O fluxo de publicação não sabe de grupo: cada irmão publica, falha, tenta de novo e cobra Stars sozinho. Tudo mora em `server/publish-group.ts`.
+
+| Assunto | Regra |
+|---|---|
+| Criação | `createPostsForInstagramAccounts` (tela, MCP e Astro). De 2 a 10 contas, sem repetição, todas da mesma empresa. O Facebook fica só no primeiro irmão. |
+| Conteúdo | Toda procedure que grava conteúdo ou mídia chama `syncPublishGroupContent` depois de salvar: copia campos e slides para os irmãos em sincronia e reabre os que já estavam aprovados ou programados. **Procedure nova de conteúdo precisa chamar essa função.** |
+| "Diferente nesta conta" | `isGroupContentDetached`: o irmão não recebe nem envia mudanças. Ao voltar, recebe o conteúdo do grupo. |
+| Publicado | Irmão publicado ou publicando nunca é alterado nem apagado pelo grupo. |
+| Aprovação | `submitForApprovalWithGroup`, `approveWithGroup`, `requestChangesWithGroup`: a ação vale para o post pedido (com o aviso de sempre) e se repete em silêncio nos irmãos. O checklist da marca roda por conta. Vale também para o SIM e o AJUSTE do WhatsApp. |
+| Programação | `scope: "group"` em `posts.schedule` / `unschedule` / `publishNow` age em todas as contas, com `staggerMinutes` (0 a 30) entre elas. Conta que não puder ser programada volta em `skipped`, e as outras seguem. |
+| Calendário | `lib/publish-group-collapse.ts`: irmãos com o mesmo status e o mesmo dia viram um cartão com "N contas". Com o filtro **Conta** ligado, aparece o irmão da conta. |
+| Grupo de um | Quando sobra um irmão só, ele volta a ser post comum (`publishGroupId` nulo). |
+
+Duas correções de base vieram junto: o criador grava a conta que mostra marcada, e **programar confere a conta do Instagram no pedido** (`loadSchedulablePost`), não só no horário de publicar.
+
 ## 6. Procedures oRPC (`nasaPlanner.*`)
 
 | Grupo | Procedures |
 |---|---|
 | `clients` | `list` (orgs + contas + permissões + contadores) |
 | `calendar` | `posts`, `drafts` (fila `drafts`/`approval`), `slots`, `moments`, `share`, `getShare` |
-| `posts` | `schedule`, `unschedule`, `publish` (= `publishNow`), `publishNow`, `retryPublish`, `createForClient`, `approve` (v2), CRUD e mídia (todas cross-org) |
+| `posts` | `schedule`, `unschedule`, `publishNow`, `retryPublish`, `createForClient`, `approve` (v2), CRUD e mídia (todas cross-org) |
+| `posts.group` | `get` (contas do grupo com status e checklist), `setAccounts`, `setDetached` |
 | `approval` | `submit`, `requestChanges`, `approve`, `comment`, `listReviews` |
 | `planning` | `getGoals`, `setGoal`, `upsertSlot`, `deleteSlot`, `listPillars`, `upsertPillar`, `deletePillar`, `setApprovalRequired` |
 | `publishAccounts` | `list` (sem token) |
 
-Hooks: `use-planner-calendar.ts`, `use-planner-publishing.ts`, `use-planner-approval.ts`, `use-planner-planning.ts` (+ o antigo `use-nasa-planner.ts`).
+Hooks: `use-planner-calendar.ts`, `use-planner-publishing.ts`, `use-planner-approval.ts`, `use-planner-planning.ts`, `use-planner-brand-kit.ts`, `use-planner-board.ts`, `use-planner-creations.ts`, `use-planner-integrations.ts`, `use-planner-post-comments.ts`, `use-planner-weekly-script.ts`, `use-planner-weekly-mind-map.ts`; do Planner antigo: `use-nasa-planner.ts`, `use-campaign-planner.ts`, `use-planner-org-brand.ts` (marca da empresa e chave de IA do popup). `use-planner-publish-group.ts` (grupo de contas). Nenhum componente da feature chama `orpc` direto (regra 9).
 
 ## 6.1 Comments e WhatsApp (Fase 2)
 
@@ -79,7 +106,7 @@ Hooks: `use-planner-calendar.ts`, `use-planner-publishing.ts`, `use-planner-appr
 
 ## 7. Modelos
 
-`NasaPlanner` (+ `requiresApproval`), `NasaPlannerPost` (+ aprovação, roteiro, origem, `scheduleVersion`, tentativas, `commentsAutomationId`, `commentsAutoActivate`), `NasaPlannerPostReview`, `NasaPlannerContentPillar`, `NasaPlannerPublishSlot`, `NasaPlannerPublishAttempt`, `NasaPlannerCadenceGoal`, `MetaPublishAccount`. Migrations `20261004200000_planner_v2_status_values`, `20261004200100_planner_v2_base` e `20261004230000_planner_comments_link`.
+`NasaPlanner` (+ `requiresApproval`), `NasaPlannerPost` (+ aprovação, roteiro, origem, `scheduleVersion`, tentativas, `commentsAutomationId`, `commentsAutoActivate`), `NasaPlannerPostReview`, `NasaPlannerContentPillar`, `NasaPlannerPublishSlot`, `NasaPlannerPublishAttempt`, `NasaPlannerCadenceGoal`, `MetaPublishAccount`. Migrations `20261004200000_planner_v2_status_values`, `20261004200100_planner_v2_base` e `20261004230000_planner_comments_link`. Spec 0074: `NasaPlannerPost.publishGroupId` e `isGroupContentDetached` (migration `20261007180000_planner_publish_groups`, só aditiva).
 
 ## 8. Roadmap
 
@@ -99,6 +126,8 @@ Conclusão sobre os MCPs da Meta (Ads Connectors, WhatsApp Business Tools MCP) e
 
 ## 9. Changelog
 
+- 2026-10-07 — **Mesmo conteúdo em várias contas do Instagram** (spec 0074, seção 5.1): seleção múltipla de contas no criador, um post por conta ligado por `publishGroupId`, conteúdo sincronizado entre as contas com a opção "diferente nesta conta", aprovação por grupo (checklist por conta), programação de todas as contas com intervalo opcional, falha e nova tentativa por conta, Stars por conta publicada e cartão único no calendário. MCP (`create_draft` com `instagramAccounts`) e Astro (`instagramHandles`) criam o grupo. Correções de base: o criador grava a conta que mostra, e programar recusa post do Instagram sem conta válida. Conferência: `scripts/planner-publish-group-qa-check.ts` (35 asserções, rodada no banco local em 2026-10-07). Publicação real em duas contas depende de teste manual (CA-9 a CA-11).
+- 2026-10-07 — **Limpeza do Planner antigo** (sem mudança de tela): os quatro arquivos gigantes foram divididos (`mind-map-editor` 1586 → 942 linhas, `planner-popup` 1314 → 173, `posts-tab` 968 → 178, `campaign-planner-wizard` 771 → 298; peças na tabela da seção 2); as 36 chamadas diretas de `orpc` em componentes foram para hooks; os `any` da feature saíram (o editor de mapa mental deixou de usar globais em `window`); `tabs/settings-tab.tsx` (sem uso) foi apagado; os apelidos `posts.publish` e `posts.scheduleReal` saíram do router (ficam `publishNow` e `schedule`). A tipagem expôs três defeitos: o painel do planner antigo contava cards por status que não existem (`TODO`/`DONE` → `PENDING`/`COMPLETED`) e o ponto de "campanha concluída" comparava `"completed"` em minúsculas — ambos **corrigidos**; o "Compartilhar calendário" do planner antigo nunca mostra link, porque `calendar.share` devolve só o token e não há página pública que o receba — **segue em aberto**.
 - 2026-10-05 — **Planejamento semanal em mapa mental** (spec 0068): aba Mapas Mentais com **Planejar a semana** (mapa `weekly` montado do roteiro: dia → posts, com o tema do dia); novos nós **card de conteúdo** (`postNode`, lê o post na hora) e **link** (`linkNode`); visões **Mapa | Lista** (Lista padrão no celular, menu de baixo próprio); **Criar conteúdos** (cards novos viram pautas, com opção de o Astro escrever roteiro e legenda), **Atualizar com o roteiro** e **Organizar**. Peças em `components/mind-map/*` e `lib/mind-map/*`; `mindMaps.create` aceita `weekly` e nós iniciais. **Celular nas telas do Planner**: barra do calendário em 3 linhas com filtros que rolam, tema do dia na agenda, Kanban com colunas que encaixam, Roteiro em cartões, janelas como gaveta de baixo.
 - 2026-10-05 — **Revisão com prévia e capa do Reel**: o passo "Revisão" do criador (`v2/review-panel.tsx`) ganhou a coluna "Como vai ficar no Instagram" (mesmo `PostPreview` do post publicado, com `isReviewing`: Reel em pé, com capa, som e controles) e o bloco da legenda. `v2/reel-cover-picker.tsx` define a capa do Reel a partir de um quadro do vídeo (canvas → imagem → `thumbnail`, que a publicação já envia como `cover_url`) ou de uma imagem enviada; aparece na criação e na revisão. Em desenvolvimento, `/api/upload-local` aceita vídeo (até 200 MB) para testar Reel sem R2.
 - 2026-10-04 — **Roteiro da semana** (spec 0067): `NasaPlannerPost.objective` (Objetivo / Gatilho; o `cta` já existia) e `NasaPlannerWeekdayTheme` (tema fixo por dia da semana e cliente — etiqueta acima do dia na Semana, `planning.listWeekdayThemes/setWeekdayTheme`); **+ Criar → Conteúdo (roteiro da semana)** cola o texto e o Astro separa por dia sem reescrever (`planning.parseWeeklyScript` → `server/weekly-script.ts`), criando pautas (`IDEA`, rótulo "Pauta"); filtro **Conteúdo** (pautas do período com Criar/Abrir) e visão **Roteiro** (semana em tabela, segunda a domingo). MCP e Astro leem `weekdayThemes`; `create_draft` aceita `objective`/`cta`. Guia `planner.weekly-script`.

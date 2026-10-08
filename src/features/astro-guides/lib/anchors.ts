@@ -527,6 +527,18 @@ export const GUIDE_ANCHORS = {
     id: "planner.composer.client",
     description: "Escolha do cliente e da conta no criador de post",
   },
+  plannerComposerAccounts: {
+    id: "planner.composer.accounts",
+    description: "Escolha das contas do Instagram (uma ou várias) no criador de post",
+  },
+  plannerComposerGroupAccounts: {
+    id: "planner.composer.group-accounts",
+    description: "Barra com as contas do grupo no criador de post: status de cada conta e \"conteúdo diferente nesta conta\"",
+  },
+  plannerComposerScheduleScope: {
+    id: "planner.composer.schedule-scope",
+    description: "Escolha entre programar em todas as contas ou só nesta, e o intervalo entre contas",
+  },
   plannerComposerType: {
     id: "planner.composer.type",
     description: "Escolha do formato no criador de post",
