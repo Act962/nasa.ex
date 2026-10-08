@@ -232,6 +232,9 @@ model Organization {
   companyCode  String?  @unique @map("company_code")
   companyNiche String?  @map("company_niche")
   companyCep   String?  @map("company_cep")
+  /// Nome que a empresa dá aos vinculados do lead (spec 0076): "Paciente"/"Pacientes", "Loja"/"Lojas".
+  leadMemberLabelSingular String? @map("lead_member_label_singular")
+  leadMemberLabelPlural   String? @map("lead_member_label_plural")
 
   // ── STARS ──────────────────────────────────
   planId                 String?      @map("plan_id")
@@ -1122,6 +1125,8 @@ model Lead {
   trackingId    String      @map("tracking_id")
   responsibleId String?     @map("responsible_id")
   orgProjectId  String?     @map("org_project_id")
+  /// Titular de quem este lead veio, quando nasceu da promoção de um vinculado (spec 0076).
+  originLeadId  String?     @map("origin_lead_id")
   order         Decimal     @default(0) @db.Decimal(20, 10)
   source        LeadSource  @default(DEFAULT)
   temperature   Temperature @default(COLD)
@@ -1202,6 +1207,10 @@ model Lead {
   appointments              Appointment[]
   forgeProposals            ForgeProposal[]
   formResponses             FormResponses[]
+  /// Vinculados deste lead (spec 0076): filhos, filiais, unidades.
+  members                   LeadMember[]            @relation("LeadMembers")
+  /// Vinculado que deu origem a este lead, quando ele foi promovido.
+  promotedFromMember        LeadMember?             @relation("LeadMemberPromotion")
   clientOnboardingProcesses ClientOnboardingProcess[]
   linnkerScans              LinnkerScan[]
   paymentEntries            PaymentEntry[]
@@ -2208,6 +2217,9 @@ model Form {
 
   views     Int @default(0)
   responses Int @default(0)
+  /// Último número dado pelo bloco "Número automático" (spec 0075, RF-13).
+  /// Separado de `responses`, que também conta envio público e rascunho.
+  autoNumberCounter Int @default(0) @map("auto_number_counter")
 
   isTemplate                Boolean @default(false) @map("is_template")
   templateMarkedByModerator Boolean @default(false) @map("template_marked_by_moderator")
@@ -2223,6 +2235,9 @@ model Form {
   onboardingOnboardingForms ClientOnboardingProcess[] @relation("OnboardingOnboardingForm")
 
   actionForms ActionForm[]
+
+  records  FormRecord[]
+  closings FormClosing[]
 
   isPublicOnSpace Boolean @default(false) @map("is_public_on_space")
 
@@ -2324,6 +2339,9 @@ model FormResponses {
   jsonResponse Json      @default("[]")
   leadId       String?   @map("lead_id")
   lead         Lead?     @relation(fields: [leadId], references: [id])
+  /// Vinculado do lead a quem a resposta se refere (spec 0076). NULL = o próprio lead.
+  leadMemberId String?   @map("lead_member_id")
+  leadMember   LeadMember? @relation(fields: [leadMemberId], references: [id], onDelete: SetNull)
 
   // Título customizado da resposta (ex: "#00123" — número da O.S).
   // - `label` é exibido como sufixo após o nome do form: "Checklist · #00123".
@@ -2353,12 +2371,195 @@ model FormResponses {
   /// Não confundir com `action` acima. Ver spec 0002, decisão D-1.
   actions Action[] @relation("FormResponseActions")
 
+  /// Projeção da ficha para lista, busca e fechamento (spec 0075).
+  record FormRecord?
+
   @@index([completedAt])
   @@index([actionId])
   @@index([formId])
   @@index([leadId])
   @@index([createdById])
   @@map("form_responses")
+}
+
+// ─── FICHAS COM ITENS E FECHAMENTO POR CLIENTE (spec 0075) ──────────────────
+
+enum FormClosingStatus {
+  OPEN
+  CLOSED
+}
+
+/// Projeção de uma resposta, gravada a cada save. Existe para a lista de
+/// fichas, a busca e o fechamento não dependerem de reler o `jsonBlock` nem
+/// de filtrar dentro do `jsonResponse` (que é uma string JSON).
+model FormRecord {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  formId         String  @map("form_id")
+  responseId     String  @unique @map("response_id")
+  /// Cliente da ficha. Sem FK: o lead pode ser apagado e a ficha fechada fica.
+  leadId         String? @map("lead_id")
+  label          String?
+
+  /// Data da ficha (campo marcado como data de referência) ou, na falta, o
+  /// dia da criação. O período é "AAAA-MM" em Brasília.
+  referenceDate DateTime @map("reference_date")
+  periodKey     String   @map("period_key")
+
+  /// nome-chave → { label, value, showInList }.
+  keyFields       Json   @default("{}") @map("key_fields")
+  /// Valores dos campos pesquisáveis, sem acento e em minúsculas.
+  searchText      String @default("") @map("search_text") @db.Text
+  /// Itens cobrados pelo uso, com o preço congelado no dia do preenchimento.
+  usageItems      Json   @default("[]") @map("usage_items")
+  usageTotalCents Int    @default(0) @map("usage_total_cents")
+
+  /// NULL = rascunho: não conta como ficha no fechamento.
+  finalizedAt    DateTime? @map("finalized_at")
+  /// Preenchido ao fechar o período: trava edição e exclusão da ficha.
+  closingId      String?   @map("closing_id")
+  /// Ficha de onde os dados foram puxados (ex.: a abertura da O.S.).
+  sourceRecordId String?   @map("source_record_id")
+  /// Vinculado do lead (spec 0076). Sem FK, como `leadId`: a ficha fechada fica.
+  leadMemberId   String?   @map("lead_member_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  form     Form          @relation(fields: [formId], references: [id], onDelete: Cascade)
+  response FormResponses @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  closing  FormClosing?  @relation(fields: [closingId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, formId, periodKey])
+  @@index([leadId, periodKey])
+  @@index([leadMemberId])
+  @@index([closingId])
+  @@map("form_record")
+}
+
+/// Lista própria da empresa (ex.: modelos de carro) usada como fonte do
+/// campo de busca dos formulários.
+model FormOptionList {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  name           String
+  /// Itens em ordem: string[].
+  items          Json     @default("[]")
+  createdById    String?  @map("created_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([organizationId, name])
+  @@map("form_option_list")
+}
+
+/// Fechamento de um período para um formulário: soma as fichas por cliente e
+/// rateia os custos compartilhados do período pelo número de fichas.
+model FormClosing {
+  id             String            @id @default(cuid())
+  organizationId String            @map("organization_id")
+  formId         String            @map("form_id")
+  periodKey      String            @map("period_key")
+  status         FormClosingStatus @default(OPEN)
+
+  /// Grupos nomeados pelo usuário:
+  /// [{ id, name, lines: [{ id, description, productId?, quantity, unit, totalCents, date? }] }]
+  sharedCostGroups Json @default("[]") @map("shared_cost_groups")
+  totalRecords     Int  @default(0) @map("total_records")
+  sharedCostCents  Int  @default(0) @map("shared_cost_cents")
+  usageCents       Int  @default(0) @map("usage_cents")
+
+  closedAt   DateTime? @map("closed_at")
+  closedById String?   @map("closed_by_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  form    Form              @relation(fields: [formId], references: [id], onDelete: Cascade)
+  lines   FormClosingLine[]
+  records FormRecord[]
+
+  @@unique([organizationId, formId, periodKey])
+  @@map("form_closing")
+}
+
+/// Uma linha por cliente, gravada ao fechar. `paymentEntryId` único garante
+/// que a conta a receber não é gerada duas vezes.
+model FormClosingLine {
+  id          String @id @default(cuid())
+  closingId   String @map("closing_id")
+  leadId      String @map("lead_id")
+  /// Nome do cliente no dia do fechamento: o documento não muda se o lead for renomeado.
+  leadName    String @map("lead_name")
+  /// Vinculado da linha (spec 0076). "" = o próprio lead: texto vazio em vez
+  /// de NULL para a chave única valer também para cliente sem vinculado.
+  leadMemberId   String  @default("") @map("lead_member_id")
+  leadMemberName String? @map("lead_member_name")
+  /// Congelados no fechamento: mudar o vinculado depois não altera período já fechado.
+  billingMode    LeadMemberBillingMode @default(TITULAR) @map("billing_mode")
+  costCenterId   String? @map("cost_center_id")
+  recordCount Int    @map("record_count")
+  usageCents  Int    @map("usage_cents")
+  /// Parte do cliente em cada grupo: [{ groupId, name, cents }].
+  sharedCostShares Json @default("[]") @map("shared_cost_shares")
+  sharedCostCents  Int  @default(0) @map("shared_cost_cents")
+  totalCents       Int  @map("total_cents")
+  paymentEntryId   String? @unique @map("payment_entry_id")
+
+  closing FormClosing @relation(fields: [closingId], references: [id], onDelete: Cascade)
+
+  @@unique([closingId, leadId, leadMemberId])
+  @@index([leadId])
+  @@map("form_closing_line")
+}
+
+enum LeadMemberBillingMode {
+  /// Entra na conta do lead titular.
+  TITULAR
+  /// Conta a receber separada, em nome do vinculado.
+  PROPRIO
+}
+
+/// Vinculado de um lead (spec 0076): filho, filial, unidade. Não é lead: não
+/// entra no funil nem exige telefone. Pode ter outros vinculados abaixo dele.
+model LeadMember {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  leadId         String  @map("lead_id")
+  /// Vinculado acima deste na hierarquia. NULL = ligado direto ao lead.
+  parentMemberId String? @map("parent_member_id")
+
+  name      String
+  /// Rótulo livre: "Filho", "Filial", "Unidade".
+  kind      String?
+  document  String?
+  birthDate DateTime? @map("birth_date") @db.Date
+  phone     String?
+  email     String?
+  notes     String?   @db.Text
+
+  billingMode  LeadMemberBillingMode @default(TITULAR) @map("billing_mode")
+  /// Centro de custo do Financeiro usado na conta de cobrança própria.
+  costCenterId String?               @map("cost_center_id")
+
+  archivedAt     DateTime? @map("archived_at")
+  /// Lead criado quando este vinculado foi promovido; daí em diante não aceita ficha nova.
+  promotedLeadId String?   @unique @map("promoted_lead_id")
+  promotedAt     DateTime? @map("promoted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  lead         Lead              @relation("LeadMembers", fields: [leadId], references: [id], onDelete: Cascade)
+  parentMember LeadMember?       @relation("LeadMemberTree", fields: [parentMemberId], references: [id], onDelete: SetNull)
+  childMembers LeadMember[]      @relation("LeadMemberTree")
+  promotedLead Lead?             @relation("LeadMemberPromotion", fields: [promotedLeadId], references: [id], onDelete: SetNull)
+  costCenter   PaymentCostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  formResponses FormResponses[]
+
+  @@index([leadId])
+  @@index([organizationId])
+  @@index([parentMemberId])
+  @@map("lead_member")
 }
 
 // ─────────────────────────────────────────────
@@ -5775,6 +5976,7 @@ model PaymentCostCenter {
   organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   entries      PaymentEntry[]
 
+  leadMembers LeadMember[]
   @@index([organizationId])
   @@map("payment_cost_centers")
 }

@@ -235,6 +235,30 @@ export const GUIDE_ANCHORS = {
     id: "form.create.submit",
     description: "Botão \"Criar\" no modal de novo formulário",
   },
+  formRecordsClosingButton: {
+    id: "form.records.closing-button",
+    description: "Botão \"Fechamento por cliente\" na lista de fichas de um formulário",
+  },
+  formRecordsDateFilter: {
+    id: "form.records.date-filter",
+    description: "Filtro de datas da lista de fichas, que também muda os números do painel",
+  },
+  leadMembersTab: {
+    id: "lead.members.tab",
+    description: "Aba \"Vinculados\" nos detalhes do lead (filhos, filiais, unidades ligados a ele)",
+  },
+  leadMembersNewButton: {
+    id: "lead.members.new-button",
+    description: "Botão \"Novo vinculado\" na aba Vinculados do lead",
+  },
+  leadMemberName: {
+    id: "lead.members.name",
+    description: "Campo de nome no cadastro de um vinculado do lead",
+  },
+  leadMemberSave: {
+    id: "lead.members.save",
+    description: "Botão \"Salvar\" no cadastro de um vinculado do lead",
+  },
   formPublishButton: {
     id: "form.publish",
     description: "Botão \"Publicar\" no editor do formulário",

@@ -149,6 +149,7 @@ function TextFieldFormComponent({
   const { initialValue: prefill, identityValue } = useResolvedInitialValue(
     block.id,
     block.attributes.prefillFromLead ?? null,
+    (block.attributes as { fieldKey?: string }).fieldKey,
   );
   const [value, setValue] = useState(prefill ?? "");
   const [isError, setIsError] = useState(false);

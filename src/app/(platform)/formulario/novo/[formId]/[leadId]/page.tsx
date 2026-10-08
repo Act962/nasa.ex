@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useMutation } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -16,6 +16,7 @@ import {
 import { useQueryLead } from "@/features/leads/hooks/use-lead";
 import { FormSubmitComponent } from "@/features/form/components/public/form-submit/form-submit-component";
 import { FormLeadProvider } from "@/features/form/context/form-lead-context";
+import { LeadMemberPicker } from "@/features/lead-members/components/lead-member-picker";
 import { NotAvaliable } from "@/features/form/components/public/not-avaliable";
 import type { FormBlockInstance } from "@/features/form/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
@@ -68,7 +69,12 @@ function NovaRespostaContent() {
   // O nome NÃO pode ser `actionId`: o modal-provider do layout da plataforma
   // lê `?actionId=` via useQueryState e abriria o ViewActionModal por cima
   // deste formulário.
-  const actionId = useSearchParams().get("fromAction") ?? undefined;
+  const searchParams = useSearchParams();
+  const actionId = searchParams.get("fromAction") ?? undefined;
+  // Vinculado do lead a quem esta ficha se refere (spec 0076). Vale para a
+  // criação; depois do primeiro salvamento a escolha fica travada.
+  const [leadMemberId, setLeadMemberId] = useState<string | null>(searchParams.get("vinculado"));
+  const [isMemberLocked, setIsMemberLocked] = useState(false);
 
   const { form, isLoading: formLoading } = useQueryFormById({ formId });
   const { data: leadData, isLoading: leadLoading } = useQueryLead(leadId);
@@ -250,6 +256,14 @@ function NovaRespostaContent() {
       </header>
 
       {/* Form em modo "novo preenchimento interno" */}
+      <LeadMemberPicker
+        leadId={leadId}
+        leadName={lead.name ?? ""}
+        value={leadMemberId}
+        onChange={setLeadMemberId}
+        isLocked={isMemberLocked}
+      />
+
       <main className="flex-1 min-h-0">
         <FormLeadProvider
           value={{
@@ -295,7 +309,9 @@ function NovaRespostaContent() {
                   leadId,
                   response: responseJson,
                   actionId,
+                  leadMemberId,
                 });
+                setIsMemberLocked(true);
                 const newId = (
                   res as { response?: { id?: string } } | null | undefined
                 )?.response?.id;
@@ -336,6 +352,7 @@ function NovaRespostaContent() {
                   response: responseJson,
                   isFinal: true,
                   actionId,
+                  leadMemberId,
                 });
                 toast.success("Resposta enviada");
                 const newResponseId = (

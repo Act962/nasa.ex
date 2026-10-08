@@ -106,7 +106,7 @@ Hooks: `use-planner-calendar.ts`, `use-planner-publishing.ts`, `use-planner-appr
 
 ## 7. Modelos
 
-`NasaPlanner` (+ `requiresApproval`), `NasaPlannerPost` (+ aprovação, roteiro, origem, `scheduleVersion`, tentativas, `commentsAutomationId`, `commentsAutoActivate`), `NasaPlannerPostReview`, `NasaPlannerContentPillar`, `NasaPlannerPublishSlot`, `NasaPlannerPublishAttempt`, `NasaPlannerCadenceGoal`, `MetaPublishAccount`. Migrations `20261004200000_planner_v2_status_values`, `20261004200100_planner_v2_base` e `20261004230000_planner_comments_link`. Spec 0074: `NasaPlannerPost.publishGroupId` e `isGroupContentDetached` (migration `20261007180000_planner_publish_groups`, só aditiva).
+`NasaPlanner` (+ `requiresApproval`), `NasaPlannerPost` (+ aprovação, roteiro, origem, `scheduleVersion`, tentativas, `commentsAutomationId`, `commentsAutoActivate`), `NasaPlannerPostReview`, `NasaPlannerContentPillar`, `NasaPlannerPublishSlot`, `NasaPlannerPublishAttempt`, `NasaPlannerCadenceGoal`, `MetaPublishAccount`. Migrations `20261004200000_planner_v2_status_values`, `20261004200100_planner_v2_base` e `20261004230000_planner_comments_link`. Spec 0074: `NasaPlannerPost.publishGroupId` e `isGroupContentDetached` (migration `20261009180000_planner_publish_groups`, só aditiva).
 
 ## 8. Roadmap
 
