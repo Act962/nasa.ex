@@ -80,7 +80,7 @@ export function FormClosingPage({ formId }: { formId: string }) {
     );
 
   return (
-    <main className="space-y-6 py-5">
+    <main className="space-y-6 pt-5 pb-28">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
           <Link href={`/form/responses/${formId}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
