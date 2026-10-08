@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Calculator, ChevronLeft, ChevronRight, ExternalLink, Lock, Search } from "lucide-react";
+import { Calculator, ChartColumn, ChevronLeft, ChevronRight, ExternalLink, Lock, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,7 @@ function formatRecordDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
-function InternalQuickView({
+export function InternalQuickView({
   responseId,
   label,
   onClose,
@@ -82,7 +82,18 @@ function InternalQuickView({
  * Lista de fichas de um formulário (spec 0075, RF-9). Não aparece para
  * formulário que não usa os recursos de ficha.
  */
-export function FormRecordsSection({ formId }: { formId: string }) {
+export const FORM_RECORDS_SECTION_ID = "form-records-section";
+
+export function FormRecordsSection({
+  formId,
+  title = "Fichas",
+  dashboard,
+}: {
+  formId: string;
+  title?: string;
+  /** Com a tela inicial acima, o painel completo fica recolhido até pedirem. */
+  dashboard?: { isOpen: boolean; onToggle: () => void };
+}) {
   const [dateRange, setDateRange] = useState<DateRangeValue>(ALL_TIME_RANGE);
   const [leadId, setLeadId] = useState<string | undefined>();
   const [leadMemberId, setLeadMemberId] = useState<string | undefined>();
@@ -113,31 +124,33 @@ export function FormRecordsSection({ formId }: { formId: string }) {
   const memberOptions = leadId ? data.members.filter((member) => member.leadId === leadId) : data.members;
 
   return (
-    <section className="space-y-3 py-5" aria-label="Fichas">
+    <section id={FORM_RECORDS_SECTION_ID} className="min-w-0 scroll-mt-16 space-y-3 py-5" aria-label="Fichas">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">Fichas</h2>
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
           <p className="text-sm text-muted-foreground">
             {data.total} {data.total === 1 ? "ficha" : "fichas"} · itens: {formatCents(data.usageSumCents)}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" data-guide={GUIDE_ANCHORS.formRecordsClosingButton.id}>
+        {/* No celular: fechamento e busca na largura toda; filtros numa linha que rola. */}
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 md:w-auto">
+          <Button asChild variant="outline" className="max-md:h-11 max-md:w-full" data-guide={GUIDE_ANCHORS.formRecordsClosingButton.id}>
             <Link href={`/form/responses/${formId}/fechamento`}>
               <Calculator className="size-4" />
               Fechamento por cliente
             </Link>
           </Button>
-          <div className="relative">
+          <div className="relative max-md:w-full">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchText}
               placeholder="Buscar"
               aria-label="Buscar fichas"
               onChange={(event) => setSearchText(event.target.value)}
-              className="w-44 pl-9"
+              className="pl-9 max-md:h-11 md:w-44"
             />
           </div>
+          <div className="scroll-hidden-x flex min-w-0 items-center gap-2 max-md:-mx-4 max-md:w-[calc(100%+2rem)] max-md:overflow-x-auto max-md:px-4">
           <DateRangeFilter
             value={dateRange}
             onChange={(nextRange) => {
@@ -153,7 +166,7 @@ export function FormRecordsSection({ formId }: { formId: string }) {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-44" aria-label="Cliente">
+            <SelectTrigger className="w-44 shrink-0" aria-label="Cliente">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -173,7 +186,7 @@ export function FormRecordsSection({ formId }: { formId: string }) {
                 setPage(1);
               }}
             >
-              <SelectTrigger className="w-44" aria-label="Vinculado">
+              <SelectTrigger className="w-44 shrink-0" aria-label="Vinculado">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -186,12 +199,52 @@ export function FormRecordsSection({ formId }: { formId: string }) {
               </SelectContent>
             </Select>
           )}
+          </div>
         </div>
       </div>
 
-      <FormRecordsDashboard summary={data.summary} />
+      {dashboard && data.summary.recordCount > 0 && (
+        <Button type="button" variant="outline" size="sm" aria-expanded={dashboard.isOpen} onClick={dashboard.onToggle}>
+          <ChartColumn className="size-4" />
+          {dashboard.isOpen ? "Ocultar painel" : "Ver painel completo"}
+        </Button>
+      )}
+      {(!dashboard || dashboard.isOpen) && <FormRecordsDashboard summary={data.summary} />}
 
-      <div className="overflow-x-auto rounded-md border">
+      {/* Celular: cartões com o essencial. Computador: tabela. */}
+      <ul className="space-y-2 md:hidden" aria-label="Lista de fichas">
+        {data.records.length === 0 ? (
+          <li className="rounded-[22px] border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+            {hasFilter ? "Nenhuma ficha com esse filtro." : "Nenhuma ficha ainda."}
+          </li>
+        ) : (
+          data.records.map((record) => (
+            <li key={record.id}>
+              <button
+                type="button"
+                onClick={() => setOpenRecord({ responseId: record.responseId, label: record.label })}
+                className="flex w-full min-w-0 flex-col gap-1 rounded-[18px] border bg-card p-3 text-left"
+              >
+                <span className="flex items-start justify-between gap-3">
+                  <span className="min-w-0 break-words text-sm font-medium">
+                    {record.leadName ?? "Sem cliente"}
+                    {record.leadMemberName ? ` · ${record.leadMemberName}` : ""}
+                  </span>
+                  <span className="shrink-0 text-sm font-medium tabular-nums">{formatCents(record.usageTotalCents)}</span>
+                </span>
+                <span className="break-words text-xs text-muted-foreground">
+                  {[formatRecordDate(record.referenceDate), record.label, ...data.columns.map((column) => record.values[column.key]).filter(Boolean)]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+                <span className="text-xs text-muted-foreground">{record.isClosed ? "Fechada" : record.isFinalized ? "Enviada" : "Rascunho"}</span>
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
+
+      <div className="overflow-x-auto rounded-[18px] border max-md:hidden">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">

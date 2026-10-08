@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Spinner } from "@/components/ui/spinner";
 import { useClientRecordResponse, useClientRecords } from "@/features/form-records/hooks/use-client-records";
 import { formatCents } from "@/features/form-records/lib/measure-units";
+import { useConstructUrl } from "@/hooks/use-construct-url";
 import { ClientMemberOrgChart } from "@/features/lead-members/components/client-member-org-chart";
 import { FormRecordQuickView, parseFormBlocks, parseResponseValues } from "./form-record-quick-view";
 import { formatPeriodKey } from "./form-records-section";
@@ -39,12 +40,39 @@ function ClientQuickView({ token, responseId, onClose }: { token: string; respon
   );
 }
 
+/** Cabeçalho da página do cliente: marca da empresa, título do acompanhamento e nome do cliente. */
+function ClientPageBrand({ organizationName, organizationLogo, clientName }: { organizationName: string; organizationLogo: string | null; clientName: string }) {
+  const logoUrl = useConstructUrl(organizationLogo ?? "");
+  return (
+    <div className="flex items-center gap-3 rounded-[20px] border bg-card p-4">
+      {organizationLogo ? (
+        // eslint-disable-next-line @next/next/no-img-element -- logo enviado pela empresa, de origem variável
+        <img src={logoUrl} alt={`Logo de ${organizationName}`} className="size-14 shrink-0 rounded-full border bg-background object-cover" />
+      ) : (
+        <span aria-hidden className="flex size-14 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-semibold">
+          {organizationName.slice(0, 1).toUpperCase()}
+        </span>
+      )}
+      <div className="min-w-0 space-y-0.5">
+        <p className="break-words text-sm font-medium text-muted-foreground">{organizationName}</p>
+        <h1 className="break-words text-lg font-semibold uppercase leading-tight tracking-tight sm:text-xl">Acompanhamento de atendimento online</h1>
+        <p className="break-words text-sm">
+          Cliente: <span className="font-medium">{clientName}</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /** Fichas do cliente pelo link secreto (spec 0075, RF-11). Somente leitura. */
 export function ClientRecordsPage({ token }: { token: string }) {
-  const [periodKey, setPeriodKey] = useState<string | undefined>();
+  // `?periodo=AAAA-MM` abre direto num mês: é o link que a empresa manda do fechamento.
+  const searchParams = useSearchParams();
+  const linkedPeriod = searchParams.get("periodo") ?? "";
+  const [periodKey, setPeriodKey] = useState<string | undefined>(/^\d{4}-\d{2}$/.test(linkedPeriod) ? linkedPeriod : undefined);
   const [openResponseId, setOpenResponseId] = useState<string | null>(null);
   // O organograma leva a `?vinculado=<id>`, que filtra as fichas de um vinculado.
-  const memberId = useSearchParams().get("vinculado") ?? undefined;
+  const memberId = searchParams.get("vinculado") ?? undefined;
   const { data, isLoading, isError } = useClientRecords({ token, periodKey, memberId });
 
   if (isLoading && !data) {
@@ -72,10 +100,11 @@ export function ClientRecordsPage({ token }: { token: string }) {
             <ArrowLeft className="size-4" />
             Voltar
           </Link>
+          <ClientPageBrand organizationName={data.organization.name} organizationLogo={data.organization.logo} clientName={data.clientName} />
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Suas fichas</h1>
-              <p className="text-sm text-muted-foreground">Olá, {data.clientFirstName}. Toque numa ficha para ver os detalhes.</p>
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold tracking-tight">Suas fichas</h2>
+              <p className="text-sm text-muted-foreground">Toque numa ficha para ver os detalhes.</p>
             </div>
             {data.periodKey && data.periodKeys.length > 0 && (
               <Select value={data.periodKey} onValueChange={setPeriodKey}>

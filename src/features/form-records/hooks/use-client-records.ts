@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 
 /** Fichas do cliente pelo link público (sem login). */
@@ -16,4 +16,9 @@ export function useClientRecordResponse(params: { token: string; responseId: str
     enabled: Boolean(params.responseId),
     retry: false,
   });
+}
+
+/** Gera (ou reaproveita) o link público do cliente, para montar o endereço das fichas dele. */
+export function useClientPublicLink() {
+  return useMutation(orpc.leads.generatePublicLink.mutationOptions({}));
 }

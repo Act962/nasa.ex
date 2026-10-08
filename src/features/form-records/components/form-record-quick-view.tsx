@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { formSurfaceThemeClass } from "@/features/form/lib/form-surface-theme";
 import { useCallback, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
@@ -90,6 +92,7 @@ export function FormRecordQuickView({
   actions?: ReactNode;
 }) {
   const { scale, containerRef } = useFitScale();
+  const sheetBackgroundColor = (settings as { backgroundColor?: string | null } | null | undefined)?.backgroundColor ?? undefined;
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-[680px] flex-col gap-3 p-4 sm:max-w-[680px]">
@@ -98,7 +101,12 @@ export function FormRecordQuickView({
           <DialogDescription className="break-words">{subtitle ?? "Visão rápida da ficha, somente leitura."}</DialogDescription>
         </DialogHeader>
 
-        <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-md border bg-background">
+        {/* A ficha aparece com o fundo do próprio formulário, como na tela de preenchimento. */}
+        <div
+          ref={containerRef}
+          className={cn("min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-[18px] border bg-background text-foreground", formSurfaceThemeClass(sheetBackgroundColor))}
+          style={sheetBackgroundColor ? { backgroundColor: sheetBackgroundColor } : undefined}
+        >
           {isLoading ? (
             <div className="flex h-40 items-center justify-center">
               <Spinner />

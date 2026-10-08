@@ -18,3 +18,11 @@ export function useFormRecords(params: {
     retry: false,
   });
 }
+
+/** Tela inicial das fichas: o que falta preencher, o que está pronto e os clientes. */
+export function useFormWorkspace(formId: string) {
+  return useQuery({
+    ...orpc.formRecords.workspace.get.queryOptions({ input: { formId } }),
+    retry: false,
+  });
+}

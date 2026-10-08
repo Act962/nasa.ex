@@ -19,10 +19,10 @@ const pluralize = (count: number, singular: string, plural: string) => `${count}
 
 function StatTile({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return (
-    <div className="rounded-md border bg-card p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
-      {detail && <p className="text-xs text-muted-foreground">{detail}</p>}
+    <div className="min-w-0 rounded-[18px] border bg-card p-3">
+      <p className="text-[12px] text-muted-foreground">{label}</p>
+      <p className="truncate text-lg font-semibold tabular-nums tracking-tight sm:text-2xl">{value}</p>
+      {detail && <p className="break-words text-[11px] text-muted-foreground sm:text-xs">{detail}</p>}
     </div>
   );
 }
@@ -35,7 +35,7 @@ function TimelineChart({ buckets, granularity }: { buckets: SummaryBucket[]; gra
   const labelEvery = Math.max(1, Math.ceil(buckets.length / 8));
 
   return (
-    <div className="rounded-md border bg-card p-3">
+    <div className="min-w-0 rounded-[18px] border bg-card p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-sm font-medium">Fichas por {granularity === "month" ? "mês" : "dia"}</p>
         <p className="text-xs text-muted-foreground" aria-live="polite">
@@ -79,7 +79,7 @@ function RankingCard({ title, rows }: { title: string; rows: { key: string; name
   if (rows.length === 0) return null;
   const maxAmount = Math.max(...rows.map((row) => row.amount), 1);
   return (
-    <div className="rounded-md border bg-card p-3">
+    <div className="min-w-0 rounded-[18px] border bg-card p-3">
       <p className="text-sm font-medium">{title}</p>
       <ul className="mt-2 space-y-2">
         {rows.map((row) => (
@@ -117,8 +117,8 @@ export function FormRecordsDashboard({ summary }: { summary: RecordsSummary & { 
     }));
 
   return (
-    <div className="space-y-3" aria-label="Painel das fichas">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="min-w-0 space-y-3" aria-label="Painel das fichas">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         <StatTile
           label="Fichas"
           value={String(summary.recordCount)}
